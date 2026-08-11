@@ -2806,6 +2806,15 @@ void LocalNavigable::begin_navigation(NavigateParams params)
                     return;
                 }
 
+                // AD-HOC: Checking whether unloading is canceled spans several event loop turns, during which our
+                //         active document can be destroyed without this navigable being destroyed: destroying a
+                //         document sets its navigable's active session history entry's document state's document to
+                //         null. The steps below all need an active window, so bail out before any of them run.
+                if (!active_window()) {
+                    set_delaying_load_events(false);
+                    return;
+                }
+
                 // 2. If unloadPromptCanceled is not "continue", or navigable's ongoing navigation is no longer navigationId:
                 if (unload_prompt_canceled != LocalTraversableNavigable::CheckIfUnloadingIsCanceledResult::Continue) {
                     // FIXME: 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is url.
@@ -2887,12 +2896,6 @@ void LocalNavigable::begin_navigation(NavigateParams params)
                 // AD-HOC: Tell the UI that we started loading.
                 if (is_top_level_traversable()) {
                     active_browsing_context()->page().client().page_did_start_loading(navigation_id, url, document_resource, false, history_handling);
-                }
-
-                // AD-HOC: Subsequent steps will fail if the navigable doesn't have an active window.
-                if (!active_window()) {
-                    set_delaying_load_events(false);
-                    return;
                 }
 
                 // 3. Queue a global task on the navigation and traversal task source given navigable's active window to abort a document and its descendants given navigable's active document.
