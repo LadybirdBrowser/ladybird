@@ -39,6 +39,13 @@ if (NOT WIN32)
         target_compile_definitions(TestFileDownloader PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
     endif()
 
+    add_executable(TestBrowserHistoryTraversal TestBrowserHistoryTraversal.cpp)
+    add_dependencies(TestBrowserHistoryTraversal ladybird_build_resource_files ${ladybird_helper_processes})
+    target_link_libraries(TestBrowserHistoryTraversal PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
+    if (APPLE)
+        target_compile_definitions(TestBrowserHistoryTraversal PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
+    endif()
+
     add_executable(TestInputMethodState TestInputMethodState.cpp)
     add_dependencies(TestInputMethodState ladybird_build_resource_files ${ladybird_helper_processes})
     target_link_libraries(TestInputMethodState PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
@@ -59,6 +66,9 @@ if (BUILD_TESTING AND NOT WIN32)
 
     add_test(NAME TestFileDownloader COMMAND $<TARGET_FILE:TestFileDownloader>)
     set_tests_properties(TestFileDownloader PROPERTIES TIMEOUT 120 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
+
+    add_test(NAME TestBrowserHistoryTraversal COMMAND $<TARGET_FILE:TestBrowserHistoryTraversal>)
+    set_tests_properties(TestBrowserHistoryTraversal PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
 
     add_test(NAME TestInputMethodState COMMAND $<TARGET_FILE:TestInputMethodState>)
     set_tests_properties(TestInputMethodState PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
