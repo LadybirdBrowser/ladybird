@@ -1,0 +1,3 @@
+initial: 30px
+after parent change: 60px
+after parent auto: auto

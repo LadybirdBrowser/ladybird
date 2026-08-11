@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    @keyframes hold { from { column-width: inherit; } to { column-width: inherit; } }
+    #parent { column-width: 30px; }
+    #child { animation: hold 100s linear paused; }
+</style>
+<div id="parent"><div id="child"></div></div>
+<script src="../include.js"></script>
+<script>
+    // A keyframe-borne `inherit` on a non-inherited property reads the half of the parent's
+    // style ordinary inheritance does not carry. A parent change must re-resolve it.
+    test(() => {
+        const parent = document.getElementById("parent");
+        const child = document.getElementById("child");
+        println("initial: " + getComputedStyle(child).columnWidth);
+        parent.style.columnWidth = "60px";
+        println("after parent change: " + getComputedStyle(child).columnWidth);
+        parent.style.columnWidth = "auto";
+        println("after parent auto: " + getComputedStyle(child).columnWidth);
+    });
+</script>
