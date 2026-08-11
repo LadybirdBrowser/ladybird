@@ -42,7 +42,7 @@ public:
     void invalidate_text_for_rendering();
 
     void enroll_for_arena_text_content_sync() const;
-    void sync_text_content_to_arena() const;
+    bool sync_text_content_to_arena() const;
 
     Unicode::Segmenter& grapheme_segmenter() const;
 
