@@ -494,25 +494,10 @@ impl SvgFormattingContext {
     }
 
     fn computed_transforms(&self, node: Node) -> Option<FfiSvgComputedTransforms> {
-        if let Some(transforms) = self
-            .used_values(node)
+        self.used_values(node)
             .rare_data
             .get()
             .and_then(|cell| cell.borrow().computed_svg_transforms)
-        {
-            return Some(transforms);
-        }
-        let mut transforms = FfiSvgComputedTransforms::default();
-        // SAFETY: `transforms` is writable POD storage and the callback reads
-        // only paintable geometry retained by the C++ layout node.
-        let has_transforms = unsafe {
-            (self.callbacks.read_paintable_svg_transforms)(
-                self.callbacks.context,
-                self.callbacks.shell(node),
-                &raw mut transforms,
-            )
-        };
-        has_transforms.then_some(transforms)
     }
 
     fn set_computed_transforms(&self, node: Node, transforms: FfiSvgComputedTransforms) {
