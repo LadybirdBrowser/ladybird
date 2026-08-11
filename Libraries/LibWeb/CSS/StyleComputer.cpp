@@ -5698,7 +5698,8 @@ void StyleComputer::compute_custom_properties(ComputedProperties& computed_style
     // components declare a theme is most of them.
     auto document_identity = bit_cast<FlatPtr>(&document());
     auto registration_generation = document().custom_property_registration_generation();
-    if (auto cached = data->cached_resolution(document_identity, registration_generation)) {
+    auto color_scheme = computed_style.color_scheme(document().page().preferred_color_scheme(), document().supported_color_schemes());
+    if (auto cached = data->cached_resolution(document_identity, registration_generation, color_scheme)) {
         abstract_element.set_custom_property_data(move(cached));
         return;
     }
@@ -5844,7 +5845,7 @@ void StyleComputer::compute_custom_properties(ComputedProperties& computed_style
 
     if (resolved_own.is_empty() && parent_data) {
         if (resolution_read_only_the_environment)
-            data->set_cached_resolution(document_identity, registration_generation, parent_data);
+            data->set_cached_resolution(document_identity, registration_generation, color_scheme, parent_data);
         abstract_element.set_custom_property_data(parent_data);
         return;
     }
@@ -5853,7 +5854,7 @@ void StyleComputer::compute_custom_properties(ComputedProperties& computed_style
     auto resolved = intern_custom_property_data(
         CustomPropertyData::create(move(resolved_own), parent_data ? move(parent_data) : data->parent()));
     if (resolution_read_only_the_environment)
-        data->set_cached_resolution(document_identity, registration_generation, resolved);
+        data->set_cached_resolution(document_identity, registration_generation, color_scheme, resolved);
     abstract_element.set_custom_property_data(move(resolved));
 }
 
