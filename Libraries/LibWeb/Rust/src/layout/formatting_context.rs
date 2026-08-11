@@ -936,7 +936,6 @@ pub struct FfiLayoutFcCallbacks {
     pub arena: *mut c_void,
     pub initial_containing_block_inline_size: CssPixels,
     pub document_in_quirks_mode: bool,
-    pub needs_inset_resolution: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub report_unexpected_fragmented_inline: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub build_svg_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiSvgElementFacts,
     pub read_paintable_geometry:

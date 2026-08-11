@@ -1805,25 +1805,24 @@ impl AbsposEngine {
         treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
     ) {
         // Most boxes are neither relatively positioned nor carry anchor()
-        // insets. Preserve the old C++ fast path without populating the
-        // comprehensive Rust facts caches for those boxes.
-        // SAFETY: The callback only reads the live node's computed values.
-        if !unsafe {
-            (self.callbacks.needs_inset_resolution)(self.callbacks.context, self.callbacks.shell(node))
-        } {
-            return;
-        }
+        // insets, and both facts come straight from the node's style payload.
         let initial_style = self.style(node);
-        let resolved = if initial_style.inset_top().contains_anchor_function()
+        let has_anchor_insets = initial_style.inset_top().contains_anchor_function()
             || initial_style.inset_right().contains_anchor_function()
             || initial_style.inset_bottom().contains_anchor_function()
-            || initial_style.inset_left().contains_anchor_function()
-        {
+            || initial_style.inset_left().contains_anchor_function();
+        if !has_anchor_insets && initial_style.position() != positioning::RELATIVE {
+            return;
+        }
+        // Anchor resolution also refreshes the box's default scroll shift, so
+        // an anchor-bearing box resolves its insets even when it turns out not
+        // to be relatively positioned.
+        let resolved = if has_anchor_insets {
             self.resolve_anchor_insets(node, None, NodeSlotId::INVALID)
         } else {
             None
         };
-        let style = self.style(node).with_resolved_insets(resolved.as_ref());
+        let style = initial_style.with_resolved_insets(resolved.as_ref());
         if style.position() != positioning::RELATIVE {
             return;
         }
