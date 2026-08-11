@@ -4755,11 +4755,12 @@ impl<'a> MatchEvaluator<'a> {
                     counters.bump(Counter::StructuralTests);
                     Ok(self.relative_anchor.get() == Some(node))
                 }
-                // Everything written in a compound with `:host` describes the host, so the whole
-                // compound crosses as a unit rather than the `:host` alone: `:host:has(.x) .y` asks
-                // the `:has()` of the host, and `:host:hover .y` asks it for hover. Crossing only
-                // the one conjunct would leave the others testing the root, which is featureless and
-                // answers no.
+                // A compound with `:host` crosses to the host, but the host is featureless inside
+                // its own shadow tree: only `:host` itself decides against the host's features,
+                // through its argument, and `:has()` rides along as the one attached exception.
+                // Any other simple selector in the compound - `div:host`, `:host.x`, `*:host`,
+                // `:host:hover` - fails the whole compound rather than testing the host's facts.
+                // https://drafts.csswg.org/css-scoping-1/#host-element-in-tree
                 SelectorOp::And { first, count }
                     if program
                         .operands(first, count)
@@ -4767,7 +4768,23 @@ impl<'a> MatchEvaluator<'a> {
                         .any(|&operand| matches!(program.node(operand), SelectorOp::Host(_))) =>
                 {
                     match self.tree.host_of(node) {
-                        Some(host) => self.matches_compound(program, first, count, host, counters),
+                        Some(host) => {
+                            for &operand in program.operands(first, count) {
+                                let operand_matches = match program.node(operand) {
+                                    SelectorOp::Host(inner) => self.matches_node(program, inner, host, counters)?,
+                                    SelectorOp::RelativeExists(_) => {
+                                        self.matches_node(program, operand, host, counters)?
+                                    }
+                                    SelectorOp::IsNode(named) => host == named,
+                                    SelectorOp::ScopeRootInstance => self.scope_root_instance.get() == Some(host),
+                                    _ => false,
+                                };
+                                if !operand_matches {
+                                    return Ok(false);
+                                }
+                            }
+                            Ok(true)
+                        }
                         None => Ok(false),
                     }
                 }
