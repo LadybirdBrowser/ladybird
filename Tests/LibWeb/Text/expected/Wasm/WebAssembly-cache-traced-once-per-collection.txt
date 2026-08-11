@@ -1,0 +1,2 @@
+Globals: 80000
+Collection stayed under budget: true

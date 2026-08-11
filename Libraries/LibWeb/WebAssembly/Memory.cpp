@@ -292,7 +292,7 @@ GC::Ref<Memory> Memory::create(NonnullRefPtr<Detail::WebAssemblyCache> cache, Wa
 
 WebIDL::ExceptionOr<GC::Ref<Memory>> Memory::create_for_constructor(JS::Object& relevant_global_object, MemoryDescriptor const& descriptor)
 {
-    auto cache = Detail::get_cache(relevant_global_object);
+    auto cache = Detail::get_cache(HTML::relevant_realm(relevant_global_object));
     return Memory::create(move(cache), descriptor);
 }
 
@@ -310,7 +310,9 @@ Memory::Memory(NonnullRefPtr<Detail::WebAssemblyCache> cache, Wasm::MemoryAddres
 void Memory::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    m_cache->visit_edges(visitor);
+
+    // NOTE: m_cache is already visited by the realm's HostDefined, which owns it.
+    visitor.ignore(m_cache);
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-memory-grow

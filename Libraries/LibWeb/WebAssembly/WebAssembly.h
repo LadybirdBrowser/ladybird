@@ -26,8 +26,6 @@
 
 namespace Web::WebAssembly {
 
-WEB_API void visit_edges(JS::Object&, JS::Cell::Visitor&);
-WEB_API void finalize(JS::Object&);
 WEB_API void initialize(JS::Object&, JS::Realm&);
 
 WEB_API bool validate(JS::Realm&, WebIDL::BufferSource bytes);
@@ -53,6 +51,9 @@ struct CompiledWebAssemblyModule : public RefCounted<CompiledWebAssemblyModule> 
 
 class WebAssemblyCache : public RefCounted<WebAssemblyCache> {
 public:
+    WebAssemblyCache();
+    ~WebAssemblyCache();
+
     void visit_edges(JS::Cell::Visitor&);
 
     void add_compiled_module(NonnullRefPtr<CompiledWebAssemblyModule> module) { m_compiled_modules.append(module); }
@@ -119,7 +120,6 @@ private:
 };
 
 NonnullRefPtr<WebAssemblyCache> get_cache(JS::Realm&);
-NonnullRefPtr<WebAssemblyCache> get_cache(JS::Object&);
 
 JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS::Realm&, Wasm::Module const&, GC::Ptr<JS::Object> import_object);
 JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webassembly_module(JS::Realm&, ByteBuffer);
