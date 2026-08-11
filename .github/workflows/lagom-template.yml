@@ -388,22 +388,68 @@ jobs:
 
       # This (accessibility tests) step can't be run after the "Build with Qt" step — because we need to run the
       # accessibility tests against the AppKit build, which the "Build with Qt" step overwrites with a Qt build.
-      # Under a Sanitizer build Ladybird never surfaces a populated AXWebArea, so every test class burns its full
-      # startup timeout. At the 60s default that is 20 classes x 60s = 1200s against the suite's 600s ctest timeout,
-      # so ctest SIGTERMs the run about half way through — and unittest only prints tracebacks in its
-      # end-of-run summary, so the harness's diagnosis (the AX surface dump plus Ladybird's stderr) is generated and
-      # then thrown away. Capping the per-class wait at 20s keeps the whole suite inside the ctest budget so that
-      # summary actually prints. Non-blocking there, because what the Sanitizer job is producing is a diagnosis
-      # rather than a verdict; the Release job is what gates these tests.
+      # When Ladybird never surfaces a populated AXWebArea, every test class burns its full startup timeout. At the
+      # 60s default that is 20 classes x 60s = 1200s against the suite's 600s ctest timeout, so ctest SIGTERMs the
+      # run about half way through — and unittest only prints tracebacks in its end-of-run summary, so the
+      # harness's diagnosis (the AX surface dump plus Ladybird's stderr) is generated and then thrown away. Cap the
+      # per-class wait so the whole suite stays inside the ctest budget and that summary always prints; a healthy
+      # runner populates the web area in about a second, so this costs nothing when the tests pass. The Sanitizer
+      # job is non-blocking because what it produces is a diagnosis rather than a verdict; Release is what gates.
       - name: Test - macOS AppKit accessibility
         if: ${{ inputs.os_name == 'macOS' }}
         continue-on-error: ${{ inputs.build_preset == 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
         run: ctest --output-on-failure --no-tests=error --test-dir Build -R AccessibilityBridgeMac --timeout 600
         env:
-          LADYBIRD_AX_STARTUP_TIMEOUT: ${{ inputs.build_preset == 'Sanitizer' && '20' || '60' }}
+          LADYBIRD_AX_STARTUP_TIMEOUT: 20
           ASAN_OPTIONS: 'log_path="${{ github.workspace }}/asan.log"'
           UBSAN_OPTIONS: 'log_path="${{ github.workspace }}/ubsan.log"'
+
+      # Diagnostic probe for the runner-dependent failure mode of the step above: Ladybird stays alive but never
+      # surfaces a populated AXWebArea, and its stderr stays empty. A healthy Release Ladybird also writes nothing
+      # to stderr (NSLog and os_log only reach the unified log), so the probe collects the evidence that says what
+      # the app is actually doing. It launches Ladybird on the roles.html fixture the same way the harness does,
+      # then records, from outside the app: whether the helper processes spawn and when; whether the app registers
+      # with LaunchServices and finishes launching; the windows the window server itself reports (independent of
+      # the app's AX bridge); a cycle-safe dump of the whole AX surface with identity checks on AXFocusedWindow;
+      # native thread stacks of Ladybird and WebContent via /usr/bin/sample; a screenshot of the window; a
+      # windowless --headless=text engine run; the unified log for the whole Ladybird.app family; and any crash
+      # reports. It runs on every macOS runner, healthy or failing, so two runners' outputs diff line by line; the
+      # AXDIAG: lines are the quick diff surface. Diagnostic only: the probe always exits 0, and continue-on-error
+      # covers even an interpreter-level crash. Bulky outputs land in ax-diagnostics/, uploaded below.
+      - name: Diagnose - macOS AppKit accessibility environment
+        if: ${{ !cancelled() && inputs.os_name == 'macOS' }}
+        continue-on-error: true
+        working-directory: ${{ github.workspace }}
+        env:
+          LADYBIRD_BINARY: ${{ github.workspace }}/Build/bin/Ladybird.app/Contents/MacOS/Ladybird
+          LADYBIRD_AX_DIAG_DIR: ${{ github.workspace }}/ax-diagnostics
+          LADYBIRD_AX_DIAG_WAIT: ${{ inputs.build_preset == 'Sanitizer' && '45' || '25' }}
+        run: |
+          py=""
+          for candidate in python3 /usr/bin/python3 /Library/Developer/CommandLineTools/usr/bin/python3; do
+            if command -v "${candidate}" >/dev/null 2>&1 && "${candidate}" -c "import ApplicationServices" >/dev/null 2>&1; then
+              py="${candidate}"
+              break
+            fi
+          done
+          if [ -z "${py}" ]; then
+            echo "no python3 with PyObjC on this runner; skipping the probe"
+            exit 0
+          fi
+          "${py}" Tests/LibWeb/AccessibilityBridgeMac/diagnose.py
+          # The probe shuts its own Ladybird down; this catches anything the test step or the probe left behind.
+          pkill -9 -f "Ladybird.app/Contents/MacOS" 2>/dev/null || true
+
+      - name: Upload macOS AX diagnostics
+        if: ${{ !cancelled() && inputs.os_name == 'macOS' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: ax-diagnostics-${{ inputs.build_preset }}-${{ fromJSON(inputs.runner_labels)[0] }}
+          path: ax-diagnostics/
+          retention-days: 0
+          if-no-files-found: ignore
 
       - name: Build with Qt
         if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer' && contains(inputs.runner_labels, 'blacksmith') }}
