@@ -114,7 +114,7 @@ impl<T: Copy> SealableCell<T> {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct LineData {
     pub(crate) line_boxes: Vec<LineBoxData>,
     pub(crate) inline_box_pieces: Vec<InlineBoxPieceData>,

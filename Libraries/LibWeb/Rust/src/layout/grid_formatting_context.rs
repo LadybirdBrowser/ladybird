@@ -335,6 +335,7 @@ pub struct FfiUsedGridTrackList {
     pub track_count: usize,
 }
 
+#[derive(Clone)]
 pub(crate) struct OwnedGridLayoutLine {
     pub(crate) names: Vec<usize>,
     pub(crate) start: crate::layout::CssPixels,
@@ -358,17 +359,20 @@ impl OwnedGridLayoutLine {
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct OwnedGridLayoutDimension {
     pub(crate) lines: Vec<OwnedGridLayoutLine>,
     pub(crate) tracks: Vec<FfiGridLayoutTrack>,
 }
 
+#[derive(Clone)]
 pub(crate) struct OwnedGridLayoutFragment {
     pub(crate) areas: Vec<FfiGridLayoutArea>,
     pub(crate) columns: OwnedGridLayoutDimension,
     pub(crate) rows: OwnedGridLayoutDimension,
 }
 
+#[derive(Clone)]
 pub(crate) struct OwnedGridLayoutData {
     pub(crate) direction: u8,
     pub(crate) writing_mode: u8,
@@ -435,6 +439,7 @@ impl OwnedGridLayoutData {
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct OwnedUsedGridTrackList {
     pub(crate) is_subgrid: bool,
     pub(crate) lines: Vec<Vec<usize>>,
@@ -453,6 +458,7 @@ impl OwnedUsedGridTrackList {
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct OwnedUsedGridTracks {
     pub(crate) columns: OwnedUsedGridTrackList,
     pub(crate) rows: OwnedUsedGridTrackList,

@@ -906,6 +906,7 @@ pub struct FfiFlexLayoutData {
     pub line_count: usize,
 }
 
+#[derive(Clone)]
 pub(crate) struct OwnedFlexLayoutLine {
     pub(crate) growth_state: FfiFlexLayoutGrowthState,
     pub(crate) cross_start: CssPixels,
@@ -913,6 +914,7 @@ pub(crate) struct OwnedFlexLayoutLine {
     pub(crate) items: Vec<FfiFlexLayoutItem>,
 }
 
+#[derive(Clone)]
 pub(crate) struct OwnedFlexLayoutData {
     pub(crate) align_content: u8,
     pub(crate) align_items: u8,
