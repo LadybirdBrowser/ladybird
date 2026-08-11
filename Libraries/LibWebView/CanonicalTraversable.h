@@ -45,7 +45,6 @@ struct HistoryTraversalOutcome {
     HistoryTraversalStatus status { HistoryTraversalStatus::NoEntry };
     bool will_replace_web_content_process { false };
     bool will_change_top_level_entry { false };
-    bool waiting_for_cancelation_check { false };
 };
 
 struct PendingSessionHistoryNavigation {
@@ -146,22 +145,6 @@ struct RestorePendingSessionHistoryNavigationResult {
     bool restored { false };
     Optional<URL::URL> current_url {};
     PendingSessionHistoryNavigation::WebContentRestoreMode web_content_restore_mode { PendingSessionHistoryNavigation::WebContentRestoreMode::PreserveCurrentProcessState };
-};
-
-enum class HistoryTraversalAction : u8 {
-    None,
-    TraverseInWebContent,
-    CheckForCancelation,
-    LoadCurrentEntryFromUIProcess,
-};
-
-struct HistoryTraversalDecision {
-    HistoryTraversalOutcome outcome;
-    HistoryTraversalAction action { HistoryTraversalAction::None };
-    Optional<i32> target_step {};
-    Optional<u64> cancelation_check_request_id {};
-    Optional<URL::URL> webdriver_pending_navigation_url {};
-    bool webdriver_pending_navigation_completes_with_session_history_update { false };
 };
 
 struct WebContentHistoryStepResult {
@@ -303,8 +286,8 @@ public:
     NavigationCancelResult did_cancel_navigation(URL::URL const&, bool has_webdriver_pending_navigation);
     NavigationFinishResult did_finish_navigation(URL::URL const&);
     RestorePendingSessionHistoryNavigationResult restore_pending_session_history_navigation();
-    HistoryTraversalDecision traverse_the_history_by_delta(int delta, CheckForCancelation, URL::URL const& current_url, Function<void(HistoryTraversalOutcome)> on_cancelation_check_complete, Function<void()> on_top_level_traversal_applied);
-    HistoryTraversalDecision traverse_the_history_to_step(i32 step, CheckForCancelation, URL::URL const& current_url, Function<void(HistoryTraversalOutcome)> on_cancelation_check_complete, Function<void()> on_top_level_traversal_applied);
+    void traverse_the_history_by_delta(int delta, CheckForCancelation, Function<void(HistoryTraversalOutcome)> on_complete = nullptr, Function<void()> on_top_level_traversal_applied = nullptr);
+    void traverse_the_history_to_step(i32 step, CheckForCancelation, Function<void(HistoryTraversalOutcome)> on_complete = nullptr, Function<void()> on_top_level_traversal_applied = nullptr);
     URL::URL prepare_to_load_session_history_traversal_target_from_ui_process(TraversableSessionHistory::TraversalTarget const&, URL::URL const& current_url);
     WebContentHistoryStepResult did_traverse_the_history_to_step(i32 step, bool step_was_available, Web::HTML::HistoryStepResult);
     HistoryStepCancelationCheckResult did_check_if_traverse_history_step_is_canceled(u64 request_id, i32 step, Web::HTML::HistoryStepResult);
@@ -336,7 +319,7 @@ private:
 
     bool web_content_can_apply_traversal(TraversableSessionHistory::TraversalTarget const&) const;
     Optional<Web::HTML::CrossProcessId> nested_history_id_for(CanonicalNavigable const&) const;
-    HistoryTraversalDecision traverse_the_history(TraversableSessionHistory::TraversalTarget const&, CheckForCancelation, URL::URL const& current_url, Function<void(HistoryTraversalOutcome)> on_cancelation_check_complete, Function<void()> on_top_level_traversal_applied);
+    void traverse_the_history(TraversableSessionHistory::TraversalTarget const&, CheckForCancelation, Function<void(HistoryTraversalOutcome)> on_complete, Function<void()> on_top_level_traversal_applied);
     bool notify_top_level_traversal_applied();
     void abandon_pending_web_content_session_history_seed();
     void reconcile_navigable_tree_after_session_history_seed();

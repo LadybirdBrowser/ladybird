@@ -761,30 +761,45 @@ bool CanonicalTraversable::traversal_requires_process_replacement(TraversableSes
     return SiteIsolationManager::the().navigation_requires_process_swap(current_url, target.target_top_level_entry->url);
 }
 
-HistoryTraversalDecision CanonicalTraversable::traverse_the_history_by_delta(int delta, CheckForCancelation check_for_cancelation, URL::URL const& current_url, Function<void(HistoryTraversalOutcome)> on_cancelation_check_complete, Function<void()> on_top_level_traversal_applied)
+void CanonicalTraversable::traverse_the_history_by_delta(int delta, CheckForCancelation check_for_cancelation, Function<void(HistoryTraversalOutcome)> on_complete, Function<void()> on_top_level_traversal_applied)
 {
     auto target = m_session_history.traversal_target_for_delta(delta);
-    if (!target.has_value())
-        return { .outcome = { .status = HistoryTraversalStatus::NoEntry } };
+    if (!target.has_value()) {
+        auto view = ViewImplementation::find_view_for_traversable(*this);
+        VERIFY(view.has_value());
+        view->dump_session_history("traverse-no-entry"sv);
+        if (on_complete)
+            on_complete({ .status = HistoryTraversalStatus::NoEntry });
+        return;
+    }
 
-    return traverse_the_history(*target, check_for_cancelation, current_url, move(on_cancelation_check_complete), move(on_top_level_traversal_applied));
+    traverse_the_history(*target, check_for_cancelation, move(on_complete), move(on_top_level_traversal_applied));
 }
 
-HistoryTraversalDecision CanonicalTraversable::traverse_the_history_to_step(i32 step, CheckForCancelation check_for_cancelation, URL::URL const& current_url, Function<void(HistoryTraversalOutcome)> on_cancelation_check_complete, Function<void()> on_top_level_traversal_applied)
+void CanonicalTraversable::traverse_the_history_to_step(i32 step, CheckForCancelation check_for_cancelation, Function<void(HistoryTraversalOutcome)> on_complete, Function<void()> on_top_level_traversal_applied)
 {
     auto target = m_session_history.traversal_target_for_step(step);
-    if (!target.has_value())
-        return { .outcome = { .status = HistoryTraversalStatus::NoEntry } };
+    if (!target.has_value()) {
+        auto view = ViewImplementation::find_view_for_traversable(*this);
+        VERIFY(view.has_value());
+        view->dump_session_history("traverse-no-entry"sv);
+        if (on_complete)
+            on_complete({ .status = HistoryTraversalStatus::NoEntry });
+        return;
+    }
 
-    return traverse_the_history(*target, check_for_cancelation, current_url, move(on_cancelation_check_complete), move(on_top_level_traversal_applied));
+    traverse_the_history(*target, check_for_cancelation, move(on_complete), move(on_top_level_traversal_applied));
 }
 
-HistoryTraversalDecision CanonicalTraversable::traverse_the_history(TraversableSessionHistory::TraversalTarget const& target, CheckForCancelation check_for_cancelation, URL::URL const& current_url, Function<void(HistoryTraversalOutcome)> on_cancelation_check_complete, Function<void()> on_top_level_traversal_applied)
+void CanonicalTraversable::traverse_the_history(TraversableSessionHistory::TraversalTarget const& target, CheckForCancelation check_for_cancelation, Function<void(HistoryTraversalOutcome)> on_complete, Function<void()> on_top_level_traversal_applied)
 {
+    auto view = ViewImplementation::find_view_for_traversable(*this);
+    VERIFY(view.has_value());
+
     // FIXME: The UI-owned algorithm still asks the process currently hosting a navigable to populate its target
     //        entry. Until a changing-navigable job can select a replacement process itself, predict top-level process
     //        replacement here and route that traversal through the UI-driven load path.
-    auto will_replace_web_content_process = SiteIsolationManager::the().navigation_requires_process_swap(current_url, target.target_top_level_entry->url);
+    auto will_replace_web_content_process = SiteIsolationManager::the().navigation_requires_process_swap(view->url(), target.target_top_level_entry->url);
     auto pending_traversal = PendingSessionHistoryTraversal {
         .target_step = target.target_step,
         .target_step_index = target.target_step_index,
@@ -801,15 +816,20 @@ HistoryTraversalDecision CanonicalTraversable::traverse_the_history(TraversableS
         if (auto const* current_entry = m_session_history.current_entry()) {
             webdriver_pending_navigation_completes_with_session_history_update = current_entry->document_state.id == target.target_top_level_entry->document_state.id;
         }
-        if (!webdriver_pending_navigation_completes_with_session_history_update)
-            m_pending_session_history_traversal->on_top_level_traversal_applied = nullptr;
-        return {
-            .outcome = { .status = HistoryTraversalStatus::Started, .will_replace_web_content_process = will_replace_web_content_process, .will_change_top_level_entry = target.changes_top_level_entry },
-            .action = HistoryTraversalAction::TraverseInWebContent,
-            .target_step = target.target_step,
-            .webdriver_pending_navigation_url = target.target_top_level_entry->url,
-            .webdriver_pending_navigation_completes_with_session_history_update = webdriver_pending_navigation_completes_with_session_history_update,
-        };
+        view->will_apply_history_traversal_step(target.target_top_level_entry->url, webdriver_pending_navigation_completes_with_session_history_update);
+        enqueue_history_operation(
+            BrowserHistoryTraversalOperation { .target_step = target.target_step },
+            [this, step = target.target_step](Web::HTML::HistoryStepResult result, Optional<i32>) {
+                auto view = ViewImplementation::find_view_for_traversable(*this);
+                VERIFY(view.has_value());
+                if (result == Web::HTML::HistoryStepResult::NoMatchingEntry)
+                    view->apply_history_traversal_step_result(step, false, Web::HTML::HistoryStepResult::Applied);
+                else
+                    view->apply_history_traversal_step_result(step, true, result);
+            });
+        if (on_complete)
+            on_complete({ .status = HistoryTraversalStatus::Started, .will_change_top_level_entry = target.changes_top_level_entry });
+        return;
     }
 
     auto needs_cancelation_check = check_for_cancelation == CheckForCancelation::Yes
@@ -817,26 +837,29 @@ HistoryTraversalDecision CanonicalTraversable::traverse_the_history(TraversableS
     if (needs_cancelation_check) {
         pending_traversal.stage = PendingSessionHistoryTraversal::Stage::CheckingCancelation;
         pending_traversal.cancelation_check_request_id = m_next_traverse_history_step_cancelation_check_request_id++;
-        pending_traversal.on_cancelation_check_complete = move(on_cancelation_check_complete);
+        pending_traversal.on_cancelation_check_complete = move(on_complete);
         auto request_id = pending_traversal.cancelation_check_request_id;
         m_pending_session_history_traversal = move(pending_traversal);
-        return {
-            .outcome = { .status = HistoryTraversalStatus::Started, .will_replace_web_content_process = will_replace_web_content_process, .will_change_top_level_entry = target.changes_top_level_entry, .waiting_for_cancelation_check = true },
-            .action = HistoryTraversalAction::CheckForCancelation,
-            .target_step = target.target_step,
-            .cancelation_check_request_id = request_id,
-        };
+        view->will_check_history_traversal_cancelation();
+        enqueue_history_operation(
+            HistoryStepCancelationCheckOperation { .target_step = target.target_step },
+            [this, request_id, step = target.target_step](Web::HTML::HistoryStepResult result, Optional<i32>) {
+                auto view = ViewImplementation::find_view_for_traversable(*this);
+                VERIFY(view.has_value());
+                // NB: The cancelation check runs precisely because the target may not be applicable in the current
+                //     process; a step it cannot address locally still means unloading was not canceled.
+                if (result == Web::HTML::HistoryStepResult::NoMatchingEntry)
+                    result = Web::HTML::HistoryStepResult::Applied;
+                view->apply_history_step_cancelation_check_result(request_id, step, result);
+            });
+        return;
     }
 
     pending_traversal.stage = PendingSessionHistoryTraversal::Stage::LoadingEntryFromUIProcess;
     m_pending_session_history_traversal = move(pending_traversal);
-    prepare_to_load_session_history_traversal_target_from_ui_process(target, current_url);
-    return {
-        .outcome = { .status = HistoryTraversalStatus::Started, .will_replace_web_content_process = will_replace_web_content_process, .will_change_top_level_entry = target.changes_top_level_entry },
-        .action = HistoryTraversalAction::LoadCurrentEntryFromUIProcess,
-        .webdriver_pending_navigation_url = target.target_top_level_entry->url,
-        .webdriver_pending_navigation_completes_with_session_history_update = true,
-    };
+    view->load_history_traversal_target(target);
+    if (on_complete)
+        on_complete({ .status = HistoryTraversalStatus::Started, .will_replace_web_content_process = will_replace_web_content_process, .will_change_top_level_entry = target.changes_top_level_entry });
 }
 
 bool CanonicalTraversable::notify_top_level_traversal_applied()

@@ -1541,7 +1541,7 @@ void WebContentClient::did_request_traverse_the_history_by_delta(u64 page_id, i3
     auto check_for_cancelation = history_traversal_precheck == Web::HistoryTraversalPrecheck::Needed
         ? CheckForCancelation::Yes
         : CheckForCancelation::IfWebContentCannotTraverseTarget;
-    (void)view->traverse_the_history_by_delta(delta, check_for_cancelation);
+    view->traverse_the_history_by_delta(delta, check_for_cancelation);
 }
 
 void WebContentClient::did_request_webdriver_history_traversal(u64 page_id, u64 request_id, i32 delta)
@@ -1564,22 +1564,7 @@ void WebContentClient::did_request_webdriver_history_traversal(u64 page_id, u64 
                 return;
             }
 
-            auto complete = [weak_this, page_id, request_id](HistoryTraversalOutcome outcome) {
-                auto self = weak_this.strong_ref();
-                if (!self)
-                    return;
-                auto& client = static_cast<WebContentClient&>(*self);
-
-                auto traversal_started = outcome.status == HistoryTraversalStatus::Started;
-                client.async_complete_webdriver_history_traversal(
-                    page_id,
-                    request_id,
-                    true,
-                    traversal_started && outcome.will_replace_web_content_process,
-                    traversal_started && outcome.will_change_top_level_entry);
-            };
-
-            auto outcome = view->traverse_the_history_by_delta(delta, CheckForCancelation::Yes,
+            view->traverse_the_history_by_delta(delta, CheckForCancelation::Yes,
                 [weak_this, page_id, request_id](HistoryTraversalOutcome outcome) {
                     auto self = weak_this.strong_ref();
                     if (!self)
@@ -1594,8 +1579,6 @@ void WebContentClient::did_request_webdriver_history_traversal(u64 page_id, u64 
                         traversal_started && outcome.will_replace_web_content_process,
                         traversal_started && outcome.will_change_top_level_entry);
                 });
-            if (!outcome.waiting_for_cancelation_check)
-                complete(outcome);
         });
         return;
     }
@@ -1631,7 +1614,7 @@ Messages::WebContentClient::DidRequestWebdriverTraverseHistoryFromUiResponse Web
             auto view = ViewImplementation::find_view_by_id(view_id);
             if (!view.has_value())
                 return;
-            (void)view->traverse_the_history_by_delta(delta, CheckForCancelation::Yes);
+            view->traverse_the_history_by_delta(delta, CheckForCancelation::Yes);
         });
         return { JsonValue {} };
     }
