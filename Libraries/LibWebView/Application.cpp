@@ -2368,7 +2368,7 @@ void Application::navigate_tab(DevTools::TabDescription const& description, Stri
 void Application::traverse_the_history_by_delta(DevTools::TabDescription const& description, int delta) const
 {
     if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
-        (void)view->traverse_the_history_by_delta(delta);
+        view->traverse_the_history_by_delta(delta);
 }
 
 Vector<HTTP::Cookie::Cookie> Application::cookies(DevTools::TabDescription const& description) const

@@ -128,14 +128,14 @@ public:
         String url;
         Optional<String> favicon_base64_png;
     };
-    [[nodiscard]] HistoryTraversalOutcome traverse_the_history_by_delta(
+    void traverse_the_history_by_delta(
         int delta,
         CheckForCancelation = CheckForCancelation::Yes,
-        Function<void(HistoryTraversalOutcome)> = nullptr);
-    [[nodiscard]] HistoryTraversalOutcome traverse_the_history_to_step(
+        Function<void(HistoryTraversalOutcome)> on_complete = nullptr);
+    void traverse_the_history_to_step(
         i32 step,
         CheckForCancelation = CheckForCancelation::Yes,
-        Function<void(HistoryTraversalOutcome)> = nullptr);
+        Function<void(HistoryTraversalOutcome)> on_complete = nullptr);
     [[nodiscard]] Vector<SessionHistoryTraversalMenuItem> session_history_traversal_menu_items(int direction) const;
 
     void zoom_in();
@@ -443,7 +443,9 @@ public:
 
 protected:
     Function<void()> make_top_level_history_traversal_applied_callback() const;
-    HistoryTraversalOutcome start_history_traversal(HistoryTraversalDecision);
+    void will_apply_history_traversal_step(URL::URL webdriver_pending_navigation_url, bool webdriver_pending_navigation_completes_with_session_history_update);
+    void will_check_history_traversal_cancelation();
+    void load_history_traversal_target(TraversableSessionHistory::TraversalTarget const&);
     void apply_history_traversal_step_result(i32 step, bool step_was_available, Web::HTML::HistoryStepResult);
     void apply_history_step_cancelation_check_result(u64 request_id, i32 step, Web::HTML::HistoryStepResult);
     void start_requested_history_traversal(u64 initiation_id, Web::TraverseByDeltaHistoryOperationParameters, NonnullRefPtr<Core::Promise<Empty>>);

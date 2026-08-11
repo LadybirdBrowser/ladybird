@@ -324,7 +324,7 @@ static QAction* create_session_history_traversal_menu_action(QMenu& menu, WebCon
     else
         action->setIcon(create_chrome_icon(ChromeIcon::Globe, menu.palette()));
     QObject::connect(action, &QAction::triggered, &view, [&view, delta = item.delta] {
-        (void)view.traverse_the_history_by_delta(delta);
+        view.traverse_the_history_by_delta(delta);
     });
     return action;
 }

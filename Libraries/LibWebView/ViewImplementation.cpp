@@ -449,20 +449,20 @@ void ViewImplementation::stop_loading()
     client().async_stop_loading(page_id());
 }
 
-HistoryTraversalOutcome ViewImplementation::traverse_the_history_by_delta(
+void ViewImplementation::traverse_the_history_by_delta(
     int delta,
     CheckForCancelation check_for_cancelation,
-    Function<void(HistoryTraversalOutcome)> on_cancelation_check_complete)
+    Function<void(HistoryTraversalOutcome)> on_complete)
 {
-    return start_history_traversal(m_top_level_traversable.traverse_the_history_by_delta(delta, check_for_cancelation, m_url, move(on_cancelation_check_complete), make_top_level_history_traversal_applied_callback()));
+    m_top_level_traversable.traverse_the_history_by_delta(delta, check_for_cancelation, move(on_complete), make_top_level_history_traversal_applied_callback());
 }
 
-HistoryTraversalOutcome ViewImplementation::traverse_the_history_to_step(
+void ViewImplementation::traverse_the_history_to_step(
     i32 step,
     CheckForCancelation check_for_cancelation,
-    Function<void(HistoryTraversalOutcome)> on_cancelation_check_complete)
+    Function<void(HistoryTraversalOutcome)> on_complete)
 {
-    return start_history_traversal(m_top_level_traversable.traverse_the_history_to_step(step, check_for_cancelation, m_url, move(on_cancelation_check_complete), make_top_level_history_traversal_applied_callback()));
+    m_top_level_traversable.traverse_the_history_to_step(step, check_for_cancelation, move(on_complete), make_top_level_history_traversal_applied_callback());
 }
 
 Function<void()> ViewImplementation::make_top_level_history_traversal_applied_callback() const
@@ -478,60 +478,30 @@ Function<void()> ViewImplementation::make_top_level_history_traversal_applied_ca
     };
 }
 
-HistoryTraversalOutcome ViewImplementation::start_history_traversal(HistoryTraversalDecision decision)
+void ViewImplementation::will_apply_history_traversal_step(URL::URL webdriver_pending_navigation_url, bool webdriver_pending_navigation_completes_with_session_history_update)
 {
-    if (decision.outcome.status == HistoryTraversalStatus::NoEntry) {
-        dump_session_history("traverse-no-entry"sv);
-        return decision.outcome;
-    }
-
     m_should_suppress_history_for_current_load = false;
     m_should_suppress_history_for_next_load = false;
     m_history_visit_transition_for_next_load = HistoryVisitTransition::Restore;
+    m_webdriver_pending_navigation_url = move(webdriver_pending_navigation_url);
+    m_webdriver_pending_navigation_completes_with_session_history_update = webdriver_pending_navigation_completes_with_session_history_update;
+    dump_session_history("traverse-apply-history-step"sv);
+}
 
-    if (decision.webdriver_pending_navigation_url.has_value()) {
-        m_webdriver_pending_navigation_url = *decision.webdriver_pending_navigation_url;
-        m_webdriver_pending_navigation_completes_with_session_history_update = decision.webdriver_pending_navigation_completes_with_session_history_update;
-    }
+void ViewImplementation::will_check_history_traversal_cancelation()
+{
+    m_should_suppress_history_for_current_load = false;
+    m_should_suppress_history_for_next_load = false;
+    m_history_visit_transition_for_next_load = HistoryVisitTransition::Restore;
+    dump_session_history("traverse-fallback-check-cancelation"sv);
+}
 
-    switch (decision.action) {
-    case HistoryTraversalAction::None:
-        return decision.outcome;
-    case HistoryTraversalAction::TraverseInWebContent:
-        dump_session_history("traverse-apply-history-step"sv);
-        m_top_level_traversable.enqueue_history_operation(
-            CanonicalTraversable::BrowserHistoryTraversalOperation {
-                .target_step = *decision.target_step,
-            },
-            [this, step = *decision.target_step](Web::HTML::HistoryStepResult result, Optional<i32>) {
-                if (result == Web::HTML::HistoryStepResult::NoMatchingEntry)
-                    apply_history_traversal_step_result(step, false, Web::HTML::HistoryStepResult::Applied);
-                else
-                    apply_history_traversal_step_result(step, true, result);
-            });
-        return decision.outcome;
-    case HistoryTraversalAction::CheckForCancelation:
-        m_top_level_traversable.enqueue_history_operation(
-            CanonicalTraversable::HistoryStepCancelationCheckOperation {
-                .target_step = *decision.target_step,
-            },
-            [this, request_id = *decision.cancelation_check_request_id, step = *decision.target_step](Web::HTML::HistoryStepResult result, Optional<i32>) {
-                // NB: The cancelation check runs precisely because the target may not be applicable in the current
-                //     process; a step it cannot address locally still means unloading was not canceled.
-                if (result == Web::HTML::HistoryStepResult::NoMatchingEntry)
-                    result = Web::HTML::HistoryStepResult::Applied;
-                apply_history_step_cancelation_check_result(request_id, step, result);
-            });
-        dump_session_history("traverse-fallback-check-cancelation"sv);
-        return decision.outcome;
-    case HistoryTraversalAction::LoadCurrentEntryFromUIProcess:
-        update_navigation_action_state();
-        set_url(*decision.webdriver_pending_navigation_url);
-        dump_session_history("traverse-fallback-load"sv);
-        load_current_session_history_entry_from_ui_process();
-        return decision.outcome;
-    }
-    VERIFY_NOT_REACHED();
+void ViewImplementation::load_history_traversal_target(TraversableSessionHistory::TraversalTarget const& target)
+{
+    m_should_suppress_history_for_current_load = false;
+    m_should_suppress_history_for_next_load = false;
+    m_history_visit_transition_for_next_load = HistoryVisitTransition::Restore;
+    load_session_history_traversal_target_from_ui_process(target, "traverse-fallback-load"sv);
 }
 
 Vector<ViewImplementation::SessionHistoryTraversalMenuItem> ViewImplementation::session_history_traversal_menu_items(int direction) const
@@ -2502,7 +2472,7 @@ void ViewImplementation::start_requested_history_traversal(u64 initiation_id, We
         page_id(),
         [this, step = target.target_step](Web::HTML::HistoryStepResult result, Optional<i32>) {
             if (result == Web::HTML::HistoryStepResult::Applied)
-                (void)traverse_the_history_to_step(step, CheckForCancelation::No, nullptr);
+                traverse_the_history_to_step(step, CheckForCancelation::No);
         },
         move(promise));
 }
@@ -2902,10 +2872,10 @@ void ViewImplementation::initialize_context_menus()
     auto& application = Application::the();
 
     m_navigate_back_action = Action::create("Go Back"sv, ActionID::NavigateBack, [this]() {
-        (void)traverse_the_history_by_delta(-1);
+        traverse_the_history_by_delta(-1);
     });
     m_navigate_forward_action = Action::create("Go Forward"sv, ActionID::NavigateForward, [this]() {
-        (void)traverse_the_history_by_delta(+1);
+        traverse_the_history_by_delta(+1);
     });
     m_navigate_back_action->set_enabled(false);
     m_navigate_forward_action->set_enabled(false);
