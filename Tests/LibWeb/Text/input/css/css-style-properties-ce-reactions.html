@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const reactions = [];
+        customElements.define("css-style-properties-reactions", class extends HTMLElement {
+            static observedAttributes = ["style"];
+
+            attributeChangedCallback() {
+                reactions.push(this.getAttribute("style"));
+            }
+        });
+
+        const element = document.createElement("css-style-properties-reactions");
+
+        element.style.transform = "rotate(180deg)";
+        println(`Reactions after setting transform: ${reactions.length}`);
+
+        element.style.opacity = "0.3";
+        println(`Reactions after setting opacity: ${reactions.length}`);
+    });
+</script>

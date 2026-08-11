@@ -118,7 +118,28 @@ GC::Ref<JS::NativeFunction> create_setter(JS::Realm& realm, Utf16FlyString const
             return JS::js_undefined();
         };
 
-        return original_steps();
+        // For [CEReactions]: https://html.spec.whatwg.org/multipage/custom-elements.html#cereactions
+
+        // 1. Push a new element queue onto this object's relevant agent's custom element reactions stack.
+        auto& reactions_stack = HTML::relevant_similar_origin_window_agent(realm.global_object()).custom_element_reactions_stack;
+        reactions_stack.element_queue_stack.append({});
+
+        // 2. Run the originally-specified steps for this construct, catching any exceptions. If the steps return a value,
+        //    let value be the returned value. If they throw an exception, let exception be the thrown exception.
+        auto value_or_exception = original_steps();
+
+        // 3. Let queue be the result of popping from this object's relevant agent's custom element reactions stack.
+        auto queue = reactions_stack.element_queue_stack.take_last();
+
+        // 4. Invoke custom element reactions in queue.
+        HTML::invoke_custom_element_reactions(queue);
+
+        // 5. If an exception exception was thrown by the original steps, rethrow exception.
+        if (value_or_exception.is_error())
+            return value_or_exception.release_error();
+
+        // 6. If a value value was returned from the original steps, return value.
+        return value_or_exception.release_value();
     };
 
     return JS::NativeFunction::create(realm, move(setter), 1, JS::PropertyKey { attribute_name }, &realm, "set"sv);
