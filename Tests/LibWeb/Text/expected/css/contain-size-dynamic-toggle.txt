@@ -1,0 +1,2 @@
+before: gains=50 loses=0
+after: gains=0 loses=50
