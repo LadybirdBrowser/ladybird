@@ -304,7 +304,6 @@ pub(crate) struct RunFragmentBuilder {
     root_node: crate::layout::node_data::NodeSlotId,
     root_containing_block_slot: Option<u32>,
     is_entry_accumulator: bool,
-    saw_svg_payload_write: Cell<bool>,
     inner: std::cell::RefCell<RunFragmentBuilderInner>,
 }
 
@@ -351,7 +350,6 @@ impl RunFragmentBuilder {
             root_node,
             root_containing_block_slot: root_containing_block.map(|node| node.slot_index()),
             is_entry_accumulator: false,
-            saw_svg_payload_write: Cell::new(false),
             inner: std::cell::RefCell::new(RunFragmentBuilderInner::default()),
         }
     }
@@ -361,17 +359,12 @@ impl RunFragmentBuilder {
             root_node,
             root_containing_block_slot: None,
             is_entry_accumulator: true,
-            saw_svg_payload_write: Cell::new(false),
             inner: std::cell::RefCell::new(RunFragmentBuilderInner::default()),
         }
     }
 
     pub(crate) fn root_node(&self) -> crate::layout::node_data::NodeSlotId {
         self.root_node
-    }
-
-    pub(crate) fn note_svg_payload_write(&self) {
-        self.saw_svg_payload_write.set(true);
     }
 
     pub(crate) fn register_pending_abspos(
@@ -719,31 +712,6 @@ impl RunFragmentBuilder {
         for candidate in &mut propagated_anchor_candidates {
             propagate_payload_toward_run_root_space(candidate, self.root_node, records, callbacks);
         }
-        if self.saw_svg_payload_write.take() {
-            refresh_svg_payloads_from_records(&mut inner.top_scope_links, records);
-        }
         (inner.top_scope_links, propagated_pending_abspos, propagated_anchor_candidates)
-    }
-}
-
-fn refresh_svg_payloads_from_records(links: &mut [FragmentLink], records: &RunRecords) {
-    for link in links {
-        let Some(owned_record) = records.used_values_if_owned(link.fragment.node) else {
-            continue;
-        };
-        let fragment = &mut *link.fragment;
-        if let Some(rare_cell) = owned_record.rare_data.get() {
-            let mut rare = rare_cell.borrow_mut();
-            if rare.computed_svg_transforms.is_some() {
-                fragment.computed_svg_transforms = rare.computed_svg_transforms;
-            }
-            if rare.svg_viewport_size.is_some() {
-                fragment.svg_viewport_size = rare.svg_viewport_size;
-            }
-            if let Some(path) = rare.computed_svg_path.take() {
-                fragment.computed_svg_path.set(Some(path));
-            }
-        }
-        refresh_svg_payloads_from_records(&mut fragment.children, records);
     }
 }

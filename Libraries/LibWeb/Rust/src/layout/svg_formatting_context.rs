@@ -515,19 +515,11 @@ impl SvgFormattingContext {
         has_transforms.then_some(transforms)
     }
 
-    fn note_svg_payload_write(&self) {
-        if let Some(fragments) = &self.fragments {
-            fragments.note_svg_payload_write();
-        }
-    }
-
     fn set_computed_transforms(&self, node: Node, transforms: FfiSvgComputedTransforms) {
-        self.note_svg_payload_write();
         self.used_values(node).rare_data_mut().computed_svg_transforms = Some(transforms);
     }
 
     fn set_svg_viewport_size(&self, node: Node, viewport_size: FfiCssPixelSize) {
-        self.note_svg_payload_write();
         self.used_values(node).rare_data_mut().svg_viewport_size = Some(viewport_size);
     }
 
@@ -975,7 +967,6 @@ impl SvgFormattingContext {
         let used = &used_pointer;
         used.set_content_inline_size(transformed_bounding_box.width);
         used.set_content_block_size(transformed_bounding_box.height);
-        self.note_svg_payload_write();
         self.used_values(graphics_box).rare_data_mut().computed_svg_path = Some(path);
         self.place_child(graphics_box, transformed_bounding_box.x, transformed_bounding_box.y);
         used.has_definite_inline_size.set(true);
