@@ -1231,8 +1231,7 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(C
     //     previous style generation, which future diffs turn into pure pointer compares.
     bool const all_group_payloads_shared = new_computed_values.adopt_identical_group_payloads(old_computed_values);
     bool const property_diff_can_be_skipped = all_group_payloads_shared
-        && !old_computed_values.has_animated_values() && !new_computed_values.has_animated_values()
-        && !old_computed_values.animated_properties() && !new_computed_values.animated_properties();
+        && !CSS::ComputedValues::either_carries_animated_overlay(old_computed_values, new_computed_values);
     static bool const verify_fast_path = getenv("LIBWEB_VERIFY_STYLE_DIFF_FAST_PATH") != nullptr;
 
     if (!property_diff_can_be_skipped || verify_fast_path) {

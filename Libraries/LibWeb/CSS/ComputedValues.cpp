@@ -751,7 +751,8 @@ void const* style_group_default_payload(size_t group_index)
     static auto const default_payloads = [] {
         constexpr auto group_count = to_underlying(StyleGroupIndex::Count);
         Array<ComputedValuesFFI::StyleGroupVTable, group_count> vtables;
-#define LIBWEB_STYLE_GROUP_VTABLE(name) vtables[to_underlying(StyleGroupIndex::name)] = make_style_group_vtable<ComputedValues::name>();
+#define LIBWEB_STYLE_GROUP_VTABLE(name, path, sharing_name, affects_layout) \
+    vtables[to_underlying(StyleGroupIndex::name)] = make_style_group_vtable<ComputedValues::name>();
         LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS(LIBWEB_STYLE_GROUP_VTABLE)
 #undef LIBWEB_STYLE_GROUP_VTABLE
         Array<void const*, group_count> payloads {};
@@ -853,32 +854,25 @@ bool ComputedValues::adopt_identical_group_payloads(ComputedValues const& previo
         }
         all_shared = false;
     };
-#define LIBWEB_ADOPT_STYLE_GROUP(path) adopt(path, previous.path);
-    LIBWEB_ADOPT_STYLE_GROUP(m_inherited.table)
-    LIBWEB_ADOPT_STYLE_GROUP(m_inherited.list)
-    LIBWEB_ADOPT_STYLE_GROUP(m_inherited.ui)
-    LIBWEB_ADOPT_STYLE_GROUP(m_inherited.svg)
-    LIBWEB_ADOPT_STYLE_GROUP(m_inherited.text)
-    LIBWEB_ADOPT_STYLE_GROUP(m_inherited.box)
-    LIBWEB_ADOPT_STYLE_GROUP(m_inherited.font)
-    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.animation)
-    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.box)
-    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.surround)
-    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.sizing)
-    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.misc)
-    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.alignment)
-    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.border)
-    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.background)
-    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.transform)
-    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.effects)
-    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.mask_data)
-    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.text_reset)
-    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.content_data)
-    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.anchor)
-    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.grid)
-    LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.svg_reset)
+#define LIBWEB_ADOPT_STYLE_GROUP(name, path, sharing_name, affects_layout) adopt(path, previous.path);
+    LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS(LIBWEB_ADOPT_STYLE_GROUP)
 #undef LIBWEB_ADOPT_STYLE_GROUP
     return all_shared;
+}
+
+bool ComputedValues::differs_in_any_layout_affecting_group_payload_from(ComputedValues const& other) const
+{
+    auto differs = []<typename T>(StyleStructRef<T> const& mine, StyleStructRef<T> const& theirs) {
+        return !mine.ptr_equals(theirs) && !(mine == theirs);
+    };
+#define LIBWEB_COMPARE_STYLE_GROUP(name, path, sharing_name, affects_layout) \
+    if constexpr (affects_layout) {                                          \
+        if (differs(path, other.path))                                       \
+            return true;                                                     \
+    }
+    LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS(LIBWEB_COMPARE_STYLE_GROUP)
+#undef LIBWEB_COMPARE_STYLE_GROUP
+    return false;
 }
 
 // https://drafts.csswg.org/css-transforms-2/#grouping-property-values
@@ -935,52 +929,11 @@ bool ComputedValues::has_transform_style_grouping_property() const
 void const* ComputedValues::style_group_payload(StyleGroupIndex group) const
 {
     switch (group) {
-    case StyleGroupIndex::InheritedTableValues:
-        return &*m_inherited.table;
-    case StyleGroupIndex::InheritedListValues:
-        return &*m_inherited.list;
-    case StyleGroupIndex::InheritedUIValues:
-        return &*m_inherited.ui;
-    case StyleGroupIndex::InheritedSVGValues:
-        return &*m_inherited.svg;
-    case StyleGroupIndex::InheritedTextValues:
-        return &*m_inherited.text;
-    case StyleGroupIndex::InheritedBoxValues:
-        return &*m_inherited.box;
-    case StyleGroupIndex::FontValues:
-        return &*m_inherited.font;
-    case StyleGroupIndex::AnimationValues:
-        return &*m_noninherited.animation;
-    case StyleGroupIndex::SVGResetValues:
-        return &*m_noninherited.svg_reset;
-    case StyleGroupIndex::GridValues:
-        return &*m_noninherited.grid;
-    case StyleGroupIndex::AnchorValues:
-        return &*m_noninherited.anchor;
-    case StyleGroupIndex::EffectsValues:
-        return &*m_noninherited.effects;
-    case StyleGroupIndex::MaskValues:
-        return &*m_noninherited.mask_data;
-    case StyleGroupIndex::TextResetValues:
-        return &*m_noninherited.text_reset;
-    case StyleGroupIndex::ContentValues:
-        return &*m_noninherited.content_data;
-    case StyleGroupIndex::TransformValues:
-        return &*m_noninherited.transform;
-    case StyleGroupIndex::BackgroundValues:
-        return &*m_noninherited.background;
-    case StyleGroupIndex::BorderValues:
-        return &*m_noninherited.border;
-    case StyleGroupIndex::AlignmentValues:
-        return &*m_noninherited.alignment;
-    case StyleGroupIndex::MiscResetValues:
-        return &*m_noninherited.misc;
-    case StyleGroupIndex::SizingValues:
-        return &*m_noninherited.sizing;
-    case StyleGroupIndex::SurroundValues:
-        return &*m_noninherited.surround;
-    case StyleGroupIndex::BoxValues:
-        return &*m_noninherited.box;
+#define LIBWEB_STYLE_GROUP_PAYLOAD_CASE(name, path, sharing_name, affects_layout) \
+    case StyleGroupIndex::name:                                                   \
+        return &*path;
+        LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS(LIBWEB_STYLE_GROUP_PAYLOAD_CASE)
+#undef LIBWEB_STYLE_GROUP_PAYLOAD_CASE
     case StyleGroupIndex::Count:
         break;
     }

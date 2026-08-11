@@ -114,6 +114,32 @@ void Node::enroll_for_arena_replaced_content_facts_sync_if_eligible()
     node_arena().enroll_node_for_replaced_content_facts_sync(*this);
 }
 
+bool Node::fragment_cache_epochs_enabled()
+{
+    static bool const enabled = getenv("LADYBIRD_FC_RUN_CACHE") != nullptr;
+    return enabled;
+}
+
+void Node::bump_fragment_cache_epoch()
+{
+    if (!fragment_cache_epochs_enabled())
+        return;
+    ++node_data().fragment_cache_epoch;
+}
+
+// NB: Bumps can legitimately run while another document's layout pass is on the stack (a
+// parent pass sizing a child navigable's viewport invalidates the child document), so the
+// helpers must not assert against the process-global pass flag. A bump landing between a
+// run's probe and its store is handled by storing the probe-time validity, which turns it
+// into a fail-safe miss.
+void Node::bump_fragment_cache_epoch_of_self_and_ancestors()
+{
+    if (!fragment_cache_epochs_enabled())
+        return;
+    for (auto* node = this; node; node = node->parent_ptr())
+        ++node->node_data().fragment_cache_epoch;
+}
+
 void* Node::arena_handle() const
 {
     return m_arena->handle();
@@ -1009,11 +1035,27 @@ NonnullRefPtr<NodeWithStyle> NodeWithStyle::create_anonymous_wrapper() const
 void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const> computed_values)
 {
     VERIFY(!layout_pass_currently_running());
+
+    // Every path that lands computed values on a layout node funnels through here — element
+    // restyles, inherited-style recomputation (including the animation fast path's descendant
+    // walk), pseudo-element application, and anonymous wrapper propagation at any depth — so
+    // this is the one place that can tell whether a style change can affect this box's layout.
+    // Style-side layout inputs are exactly the layout-affecting group payloads published to
+    // node data plus the animated-value overlay, which lives outside the groups and
+    // disqualifies pointer diffing the same way it disqualifies the style differ's group
+    // fast path.
+    bool const changes_layout_affecting_style = fragment_cache_epochs_enabled()
+        && (CSS::ComputedValues::either_carries_animated_overlay(*m_computed_values, *computed_values)
+            || computed_values->differs_in_any_layout_affecting_group_payload_from(*m_computed_values));
+
     m_computed_values = move(computed_values);
     set_flag(RustFFI::NodeFlag::HasAnchorNames, !m_computed_values->anchor_names().is_empty());
     set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, m_computed_values->inset_properties_contain_anchor_functions());
     publish_style_container_to_node_data();
     enroll_for_arena_replaced_content_facts_sync_if_eligible();
+
+    if (changes_layout_affecting_style)
+        bump_fragment_cache_epoch_of_self_and_ancestors();
 
     for (auto* child = first_child_ptr(); child; child = child->next_sibling_ptr()) {
         if (auto* text_child = as_if<TextNode>(*child))
@@ -1395,6 +1437,10 @@ bool NodeWithStyle::has_paint_containment() const
 
 void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason, LayoutUpdatePropagation propagation)
 {
+    // Bumped before the already-dirty early return below: a dirty node does not imply its
+    // whole ancestor chain was bumped for the current epoch values, and over-bumping is free.
+    bump_fragment_cache_epoch_of_self_and_ancestors();
+
     if (needs_layout_update() && propagation == LayoutUpdatePropagation::ThroughAncestors) {
         // A dirty node normally implies dirty ancestors, but the walk that marked a partial
         // relayout boundary stopped there and left its ancestors clean, so a through-ancestors
@@ -1422,6 +1468,7 @@ void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason, LayoutUpdat
     // NOTE: if this node generated an anonymous parent, all ancestors are indiscriminately marked below.
     for_each_child_of_type<Box>([&](Box& child) {
         if (child.is_anonymous() && !is<TableWrapper>(child)) {
+            child.bump_fragment_cache_epoch();
             child.set_flag(RustFFI::NodeFlag::NeedsLayoutUpdate, true);
             child.reset_cached_intrinsic_sizes();
         }

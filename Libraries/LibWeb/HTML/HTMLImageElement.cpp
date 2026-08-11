@@ -125,6 +125,7 @@ static bool image_element_dimensions_may_depend_on_intrinsic_size(Layout::ImageB
 
 static void reset_intrinsic_size_caches_after_image_data_change(Layout::ImageBox& image_box)
 {
+    image_box.bump_fragment_cache_epoch_of_self_and_ancestors();
     image_box.reset_cached_intrinsic_sizes();
     for (auto* ancestor = image_box.parent(); ancestor; ancestor = ancestor->parent()) {
         auto* box = as_if<Layout::Box>(ancestor);
