@@ -1,0 +1,5 @@
+start: 0px
+animating: 100px
+ended: 0px
+after toggle: 150px
+next frame: 150px

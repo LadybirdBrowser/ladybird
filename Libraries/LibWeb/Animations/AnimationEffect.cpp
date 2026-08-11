@@ -874,8 +874,17 @@ AnimationUpdateContext::~AnimationUpdateContext()
             continue;
         auto& element = it.key;
         GC::Ref<DOM::Element> target = element.element();
-        if (!it.value.effects.is_empty())
-            target->document().style_computer().collect_animations_into(element, it.value.effects.span(), *style);
+        // Provisionally started transitions are not associated with the element yet, so they are
+        // never among the collected effects, but their values are already part of the published
+        // style. Collect them first, in composite order below every associated effect, or this
+        // update would rebuild the style without them.
+        GC::ConservativeVector<GC::Ref<KeyframeEffect>> effects_to_collect;
+        target->document().style_computer().for_each_provisional_transition_effect(element, [&](KeyframeEffect& effect) {
+            effects_to_collect.append(effect);
+        });
+        effects_to_collect.extend(it.value.effects);
+        if (!effects_to_collect.is_empty())
+            target->document().style_computer().collect_animations_into(element, effects_to_collect.span(), *style);
         auto animated_properties_after_update = style->animated_properties_snapshot();
         auto animated_property_invalidation = compute_required_invalidation_for_animated_properties(it.value.animated_properties_before_update.ptr(), animated_properties_after_update.ptr());
         auto invalidation = animated_property_invalidation.invalidation;

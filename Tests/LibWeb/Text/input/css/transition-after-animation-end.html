@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    @keyframes anim { from { left: 100px } to { left: 200px } }
+    #box { left: 0px; position: relative; width: 50px; height: 50px; }
+    #box.animate { animation: anim 0.1s linear; }
+    #box.transition { left: 300px; transition: left 1000s steps(2, start); }
+</style>
+<div id="box"></div>
+<script src="../include.js"></script>
+<script>
+    // A transition must still start on a property whose CSS animation has already ended.
+    asyncTest(done => {
+        const box = document.getElementById("box");
+        println("start: " + getComputedStyle(box).left);
+        box.classList.toggle("animate");
+        println("animating: " + getComputedStyle(box).left);
+        box.addEventListener("animationend", () => {
+            println("ended: " + getComputedStyle(box).left);
+            box.classList.toggle("transition");
+            println("after toggle: " + getComputedStyle(box).left);
+            requestAnimationFrame(() => {
+                println("next frame: " + getComputedStyle(box).left);
+                done();
+            });
+        });
+    });
+</script>

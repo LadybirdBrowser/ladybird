@@ -281,6 +281,22 @@ void StyleComputer::record_transition_stabilization_baseline(DOM::AbstractElemen
     m_transition_stabilization_baselines.set(transition_target_key, style_record_identity);
 }
 
+// A provisionally started transition already contributed to the style published by the pass that
+// started it, but it is not associated with its target until the stabilization epoch commits. An
+// animated style update running before that commit has to collect it anyway, or it rebuilds the
+// target's style without the transition's value and clobbers it.
+void StyleComputer::for_each_provisional_transition_effect(DOM::AbstractElement const& abstract_element, Function<void(Animations::KeyframeEffect&)> const& callback) const
+{
+    for (auto const& state : m_provisional_transition_states) {
+        if (state.element.ptr() != &abstract_element.element() || state.pseudo_element != abstract_element.pseudo_element())
+            continue;
+        if (!state.proposed_transition)
+            continue;
+        if (auto effect = state.proposed_transition->effect(); effect && effect->is_keyframe_effect())
+            callback(static_cast<Animations::KeyframeEffect&>(*effect));
+    }
+}
+
 void StyleComputer::commit_transition_stabilization_epoch()
 {
     for (auto const& state : m_provisional_transition_states) {
