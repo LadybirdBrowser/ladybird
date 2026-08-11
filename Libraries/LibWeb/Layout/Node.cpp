@@ -669,6 +669,7 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, GC::Ptr<DOM::Node> node, N
     set_flag(RustFFI::NodeFlag::HasStyle, true);
     set_flag(RustFFI::NodeFlag::IsBody, node && node == GC::Ptr { document.body() });
     set_flag(RustFFI::NodeFlag::HasAnchorNames, !m_computed_values->anchor_names().is_empty());
+    set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, m_computed_values->inset_properties_contain_anchor_functions());
     publish_style_container_to_node_data();
     synchronize_table_span_data();
     enroll_for_arena_replaced_content_facts_sync_if_eligible();
@@ -1010,6 +1011,7 @@ void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const>
     VERIFY(!layout_pass_currently_running());
     m_computed_values = move(computed_values);
     set_flag(RustFFI::NodeFlag::HasAnchorNames, !m_computed_values->anchor_names().is_empty());
+    set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, m_computed_values->inset_properties_contain_anchor_functions());
     publish_style_container_to_node_data();
     enroll_for_arena_replaced_content_facts_sync_if_eligible();
 

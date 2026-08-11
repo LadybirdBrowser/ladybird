@@ -50,7 +50,6 @@ private:
 
 [[nodiscard]] Optional<RustFFI::FfiFormattingContextType> formatting_context_type_created_by_box(Box const&);
 [[nodiscard]] StringView formatting_context_type_name(RustFFI::FfiFormattingContextType);
-[[nodiscard]] bool box_inset_properties_contain_anchor_functions(Box const&);
 [[nodiscard]] bool can_replay_saved_abspos_layout_inputs_after_style_change(Box const&);
 
 // True while a synchronous Rust layout pass (including its commit) is on the

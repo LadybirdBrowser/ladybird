@@ -1371,25 +1371,17 @@ public:
     ShapeRendering shape_rendering() const { return static_cast<ShapeRendering>(m_noninherited.svg_reset->shape_rendering); }
 
     LengthBox inset() const { return length_box(m_noninherited.surround->inset); }
+    bool has_anchor_inset(PropertyID property_id) const
+    {
+        auto const* handle = anchor_inset_handle(property_id);
+        return handle && handle->pointer != nullptr;
+    }
+    bool inset_properties_contain_anchor_functions() const;
     RefPtr<StyleValue const> anchor_inset(PropertyID property_id) const
     {
-        ComputedValuesFFI::ComputedStyleValueHandle const* handle = nullptr;
-        switch (property_id) {
-        case PropertyID::Top:
-            handle = &m_noninherited.surround->top_anchor_inset;
-            break;
-        case PropertyID::Right:
-            handle = &m_noninherited.surround->right_anchor_inset;
-            break;
-        case PropertyID::Bottom:
-            handle = &m_noninherited.surround->bottom_anchor_inset;
-            break;
-        case PropertyID::Left:
-            handle = &m_noninherited.surround->left_anchor_inset;
-            break;
-        default:
+        auto const* handle = anchor_inset_handle(property_id);
+        if (!handle)
             return {};
-        }
         static_assert(sizeof(RustStyleValueHandle) == sizeof(*handle));
         return style_value_from_handle(property_id, reinterpret_cast<RustStyleValueHandle const&>(*handle));
     }
@@ -1529,6 +1521,22 @@ private:
     ComputedValues();
 
     RefPtr<StyleValue const> style_value_from_handle(PropertyID, RustStyleValueHandle const&) const;
+
+    ComputedValuesFFI::ComputedStyleValueHandle const* anchor_inset_handle(PropertyID property_id) const
+    {
+        switch (property_id) {
+        case PropertyID::Top:
+            return &m_noninherited.surround->top_anchor_inset;
+        case PropertyID::Right:
+            return &m_noninherited.surround->right_anchor_inset;
+        case PropertyID::Bottom:
+            return &m_noninherited.surround->bottom_anchor_inset;
+        case PropertyID::Left:
+            return &m_noninherited.surround->left_anchor_inset;
+        default:
+            return nullptr;
+        }
+    }
 
     static LengthPercentageOrAuto length_percentage_or_auto(ComputedValuesFFI::ComputedLengthPercentageOrAuto const& value)
     {

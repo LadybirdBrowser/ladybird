@@ -105,6 +105,7 @@ public:
     NodeArena& node_arena() const { return *m_arena; }
 
     bool is_anonymous() const { return has_flag(RustFFI::NodeFlag::Anonymous); }
+    bool insets_use_anchor_functions() const { return has_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions); }
     DOM::Node const* dom_node() const;
     DOM::Node* dom_node();
 
