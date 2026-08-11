@@ -2057,6 +2057,52 @@ pub unsafe extern "C" fn rust_grid_values_copy_placements(source: *const GridVal
 }
 
 /// # Safety
+/// `source` and `target` must be valid grid group payloads.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_grid_values_placements_equal(
+    source: *const GridValues,
+    target: *const GridValues,
+) -> bool {
+    abort_on_panic(|| {
+        // SAFETY: The caller passes valid payloads and only reads them.
+        let (source, target) = unsafe { (&*source, &*target) };
+        let name_raw = |grid: &GridValues, index: u32| {
+            if index == GRID_NO_INDEX {
+                return 0;
+            }
+            grid.names.as_slice()[index as usize].raw()
+        };
+        // Name indices are payload-local, so a placement compares as its index-neutralized
+        // shape plus the raw names those indices resolve to; a field added to
+        // ComputedGridPlacement flows into the comparison through the struct update.
+        let comparable_placement = |grid: &GridValues, placement: &ComputedGridPlacement| {
+            (
+                ComputedGridPlacement {
+                    name_index: GRID_NO_INDEX,
+                    implicit_start_name_index: GRID_NO_INDEX,
+                    implicit_end_name_index: GRID_NO_INDEX,
+                    ..*placement
+                },
+                name_raw(grid, placement.name_index),
+                name_raw(grid, placement.implicit_start_name_index),
+                name_raw(grid, placement.implicit_end_name_index),
+            )
+        };
+        let placements_equal = |ours: &ComputedGridPlacement, theirs: &ComputedGridPlacement| {
+            comparable_placement(source, ours) == comparable_placement(target, theirs)
+        };
+        placements_equal(&source.column_start, &target.column_start)
+            && placements_equal(&source.column_end, &target.column_end)
+            && placements_equal(&source.row_start, &target.row_start)
+            && placements_equal(&source.row_end, &target.row_end)
+            && source.grid_column_start_style_value == target.grid_column_start_style_value
+            && source.grid_column_end_style_value == target.grid_column_end_style_value
+            && source.grid_row_start_style_value == target.grid_row_start_style_value
+            && source.grid_row_end_style_value == target.grid_row_end_style_value
+    })
+}
+
+/// # Safety
 /// `target` must be a uniquely owned grid group value.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_grid_values_reset_placements_to_auto(target: *mut GridValues) {

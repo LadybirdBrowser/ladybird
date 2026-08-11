@@ -3178,9 +3178,11 @@ public:
     }
     void copy_grid_placements_from(ComputedValues const& source)
     {
-        ComputedValuesFFI::rust_grid_values_copy_placements(
-            static_cast<ComputedValuesFFI::GridValues const*>(source.m_noninherited.grid.operator->()),
-            &m_values.m_noninherited.grid.access());
+        auto const* source_grid = static_cast<ComputedValuesFFI::GridValues const*>(source.m_noninherited.grid.operator->());
+        auto const* current_grid = static_cast<ComputedValuesFFI::GridValues const*>(m_values.m_noninherited.grid.operator->());
+        if (ComputedValuesFFI::rust_grid_values_placements_equal(source_grid, current_grid))
+            return;
+        ComputedValuesFFI::rust_grid_values_copy_placements(source_grid, &m_values.m_noninherited.grid.access());
     }
     void reset_grid_placements_to_auto()
     {

@@ -1844,11 +1844,6 @@ static void propagate_scrollbar_width_to_viewport(Element& root_element, Layout:
 // https://drafts.csswg.org/css-overflow-3/#overflow-propagation
 static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewport& viewport)
 {
-    viewport.modify_computed_values([](auto& values) {
-        values.set_overflow_x(CSS::Overflow::Auto);
-        values.set_overflow_y(CSS::Overflow::Auto);
-    });
-
     // https://drafts.csswg.org/css-contain-2/#contain-property
     // Additionally, when any containments are active on either the HTML <html> or <body> elements, propagation of
     // properties from the <body> element to the initial containing block, the viewport, or the canvas background, is
@@ -1866,19 +1861,8 @@ static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewpo
     // when the root element’s display value is not none.
     auto root_element_layout_node = root_element.unsafe_layout_node();
     auto const& root_element_computed_values = *root_element.computed_values();
-    root_element_layout_node->modify_computed_values([&](auto& values) {
-        values.set_overflow_x(root_element_computed_values.overflow_x());
-        values.set_overflow_y(root_element_computed_values.overflow_y());
-    });
-    if (body_element_can_propagate_overflow) {
-        auto const& body_element_computed_values = *body_element->computed_values();
-        body_element->unsafe_layout_node()->modify_computed_values([&](auto& values) {
-            values.set_overflow_x(body_element_computed_values.overflow_x());
-            values.set_overflow_y(body_element_computed_values.overflow_y());
-        });
-    }
 
-    auto overflow_origin_node = root_element_layout_node;
+    Element* overflow_origin_element = &root_element;
 
     // However, when the root element is an [HTML] html element (including XML syntax for HTML)
     // whose overflow value is visible (in both axes), and that element has as a child
@@ -1887,12 +1871,12 @@ static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewpo
     if (root_element.is_html_html_element() && !body_propagation_is_disabled_by_containment) {
         if (root_element_computed_values.overflow_x() == CSS::Overflow::Visible && root_element_computed_values.overflow_y() == CSS::Overflow::Visible) {
             if (body_element_can_propagate_overflow)
-                overflow_origin_node = body_element->unsafe_layout_node();
+                overflow_origin_element = body_element;
         }
     }
 
     // If 'visible' is applied to the viewport, it must be interpreted as 'auto'. If 'clip' is applied to the viewport, it must be interpreted as 'hidden'.
-    auto const& overflow_origin_computed_values = overflow_origin_node->computed_values();
+    auto const& overflow_origin_computed_values = *overflow_origin_element->computed_values();
     auto overflow_x_to_apply = overflow_origin_computed_values.overflow_x();
     if (overflow_x_to_apply == CSS::Overflow::Visible) {
         overflow_x_to_apply = CSS::Overflow::Auto;
@@ -1905,17 +1889,30 @@ static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewpo
     } else if (overflow_y_to_apply == CSS::Overflow::Clip) {
         overflow_y_to_apply = CSS::Overflow::Hidden;
     }
+    // Every node receives its final values exactly once: a steady-state pass then leaves
+    // every style group payload untouched instead of oscillating values within the pass.
     viewport.modify_computed_values([&](auto& values) {
         values.set_overflow_x(overflow_x_to_apply);
         values.set_overflow_y(overflow_y_to_apply);
     });
 
+    // UAs must apply the overflow-* values set on the root element to the viewport
+    // when the root element's display value is not none.
     // The element from which the value is propagated must then have a used overflow value of visible.
     // FIXME: Apply this to the used values, not the computed ones.
-    overflow_origin_node->modify_computed_values([](auto& values) {
-        values.set_overflow_x(CSS::Overflow::Visible);
-        values.set_overflow_y(CSS::Overflow::Visible);
+    bool root_element_is_overflow_origin = overflow_origin_element == &root_element;
+    root_element_layout_node->modify_computed_values([&](auto& values) {
+        values.set_overflow_x(root_element_is_overflow_origin ? CSS::Overflow::Visible : root_element_computed_values.overflow_x());
+        values.set_overflow_y(root_element_is_overflow_origin ? CSS::Overflow::Visible : root_element_computed_values.overflow_y());
     });
+    if (body_element_can_propagate_overflow) {
+        bool body_element_is_overflow_origin = overflow_origin_element == body_element;
+        auto const& body_element_computed_values = *body_element->computed_values();
+        body_element->unsafe_layout_node()->modify_computed_values([&](auto& values) {
+            values.set_overflow_x(body_element_is_overflow_origin ? CSS::Overflow::Visible : body_element_computed_values.overflow_x());
+            values.set_overflow_y(body_element_is_overflow_origin ? CSS::Overflow::Visible : body_element_computed_values.overflow_y());
+        });
+    }
 }
 
 void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutReason reason)
