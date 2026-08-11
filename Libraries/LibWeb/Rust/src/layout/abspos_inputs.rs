@@ -66,5 +66,4 @@ pub(crate) struct PendingAbsposChild {
     pub(crate) static_position_rect: StaticPositionRect,
     pub(crate) containing_block_info_override: Option<AbsposContainingBlockInfo>,
     pub(crate) inline_containing_block: Node,
-    pub(crate) inline_containing_block_rect: Option<PhysicalRect>,
 }
