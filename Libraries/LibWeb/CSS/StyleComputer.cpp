@@ -643,6 +643,11 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
                         auto specified_value = [&]() -> NonnullRefPtr<StyleValue const> {
                             switch (selected_value.value_source) {
                             case StyleValueFFI::FfiAnimationSpecifiedValueSource::Inherited:
+                                // A keyframe-borne `inherit` on a non-inherited property reads the
+                                // half of the parent's style ordinary inheritance does not carry,
+                                // exactly like an explicitly inherited declaration.
+                                if (!is_inherited_property(longhand_id))
+                                    m_keyframes_inherited_non_inherited_property = true;
                                 if (auto inherited_animated_value = get_animated_inherit_value(longhand_id, abstract_element); inherited_animated_value.has_value())
                                     return inherited_animated_value->value;
                                 return get_non_animated_inherit_value(longhand_id, abstract_element);
@@ -5322,6 +5327,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     if (animation_values_applied)
         restore_values_before_post_compute_adjustments();
 
+    m_keyframes_inherited_non_inherited_property = false;
     auto animations = abstract_element.element().get_animations_internal(
         Animations::Animatable::GetAnimationsSorted::Yes,
         Animations::Animatable::GetAnimationsOptions { .subtree = false, .pseudo_element = {} });
@@ -5388,6 +5394,14 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     // out of the general animation pass below so that a style change crosses the
     // Rust animation boundary only once per effect.
     animation_values_applied |= !newly_started_transition_effects.is_empty();
+
+    if (m_keyframes_inherited_non_inherited_property) {
+        if (auto* parent = abstract_element.element().parent())
+            parent->set_children_may_depend_on_non_inherited_property_inheritance();
+        if (explicitly_inherited_non_inherited_property)
+            *explicitly_inherited_non_inherited_property = true;
+        m_keyframes_inherited_non_inherited_property = false;
+    }
 
     if (parent_style_in_display_none_subtree || builder.display().is_none())
         builder.set_in_display_none_subtree();

@@ -508,6 +508,9 @@ private:
         ProvisionalTransitionAction action { ProvisionalTransitionAction::None };
         bool has_decision { false };
     };
+    // Whether the animation collection of the computation in progress resolved a keyframe-borne
+    // `inherit` for a non-inherited property; folded into the explicit-inheritance bookkeeping.
+    mutable bool m_keyframes_inherited_non_inherited_property { false };
     mutable Vector<ProvisionalTransitionState> m_provisional_transition_states;
     mutable HashMap<u64, size_t> m_provisional_transition_state_indices;
     mutable HashMap<u64, Vector<size_t>> m_provisional_transition_state_indices_by_target;
