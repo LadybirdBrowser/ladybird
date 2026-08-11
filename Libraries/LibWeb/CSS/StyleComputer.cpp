@@ -2377,6 +2377,10 @@ static RefPtr<CustomPropertyData const> custom_property_data_keeping_identity(DO
         // are only alike while the name has none.
         if (document.get_registered_custom_property(name).has_value())
             return computed;
+        // A value computed under an earlier registration can serialize like the raw tokens while
+        // still being typed. Only values of the same kind are interchangeable by their text.
+        if (other->value->type() != property.value->type())
+            return computed;
         if (other->value->to_utf16_string(SerializationMode::Normal) != property.value->to_utf16_string(SerializationMode::Normal))
             return computed;
     }

@@ -1,0 +1,2 @@
+registered: CSSUnitValue
+unregistered: CSSUnparsedValue
