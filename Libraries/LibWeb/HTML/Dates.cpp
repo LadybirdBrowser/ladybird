@@ -497,7 +497,7 @@ static Optional<HourMinuteSecond> parse_a_time_component(Utf16GenericLexer& inpu
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-time-string
-WebIDL::ExceptionOr<double> parse_time_string_value(StringView value)
+WebIDL::ExceptionOr<double> parse_time_string_value(Utf16View value)
 {
     // 1. Let input be the string being parsed.
     // 2. Let position be a pointer into input, initially pointing at the start of the string.

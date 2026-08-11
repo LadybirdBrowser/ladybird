@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Eager validity evaluation converts the raw value content attribute for the step base. A
+    // non-ASCII content attribute on a time input must fail time parsing instead of crashing.
+    test(() => {
+        const input = document.createElement("input");
+        input.type = "time";
+        input.step = "1";
+        document.body.appendChild(input);
+        input.value = "10:00";
+        input.defaultValue = "é";
+        println("value: " + input.value);
+        println("validity.stepMismatch: " + input.validity.stepMismatch);
+        println("PASS (did not crash)");
+    });
+</script>

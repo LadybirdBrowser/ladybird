@@ -2578,7 +2578,7 @@ Optional<double> HTMLInputElement::convert_time_string_to_number(Utf16View input
     // The algorithm to convert a string to a number, given a string input, is as follows: If parsing a time from input
     // results in an error, then return an error; otherwise, return the number of milliseconds elapsed from midnight to
     // the parsed time on a day with no time changes.
-    auto maybe_time = parse_time_string_value(MUST(input.to_utf8()));
+    auto maybe_time = parse_time_string_value(input);
     if (maybe_time.is_exception())
         return {};
     return maybe_time.value();
