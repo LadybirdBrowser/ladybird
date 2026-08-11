@@ -176,6 +176,29 @@ jobs:
           cmake --build .
           cmake --install . --strip --prefix "${GITHUB_WORKSPACE}/Install"
 
+      # Report the GUI session state on every macOS runner, including ones where the accessibility tests do not run.
+      # Accessibility is mediated by WindowServer, so a runner without one denies every grant however the TCC
+      # database is written, and that is the difference between a runner that can host these tests and one that
+      # cannot. Logging it everywhere means the answer is in the log rather than in someone's memory. This reports,
+      # it does not gate: each probe tolerates a non-match, which matters under bash -e where a bare pgrep that
+      # finds nothing would abort the step.
+      - name: Report macOS GUI session state
+        if: ${{ inputs.os_name == 'macOS' }}
+        continue-on-error: true
+        run: |
+          echo "launchctl managername : $(launchctl managername 2>/dev/null || echo unknown)"
+          if pgrep -x WindowServer >/dev/null 2>&1; then
+            echo "WindowServer          : running"
+          else
+            echo "WindowServer          : absent"
+          fi
+          if pgrep -x loginwindow >/dev/null 2>&1; then
+            echo "loginwindow           : running"
+          else
+            echo "loginwindow           : absent"
+          fi
+          echo "console user          : $(stat -f%Su /dev/console 2>/dev/null || echo unknown)"
+
       - name: Check macOS SIP/TCC state
         if: ${{ inputs.os_name == 'macOS' && !contains(inputs.runner_labels, 'blacksmith') }}
         run: |
