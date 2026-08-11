@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<style>
+    @property --c {
+        syntax: "<color>";
+        inherits: true;
+        initial-value: black;
+    }
+    .env { --c: light-dark(rgb(1, 1, 1), rgb(2, 2, 2)); }
+    .light { color-scheme: light; }
+    .dark { color-scheme: dark; }
+    .probe { color: var(--c); }
+</style>
+<div class="env light"><div class="probe" id="a">x</div></div>
+<div class="env dark"><div class="probe" id="b">y</div></div>
+<script src="../include.js"></script>
+<script>
+    // Two elements sharing one custom-property environment but different color schemes must not
+    // share a cached light-dark() resolution.
+    test(() => {
+        println("light: " + getComputedStyle(document.getElementById("a")).color);
+        println("dark: " + getComputedStyle(document.getElementById("b")).color);
+    });
+</script>

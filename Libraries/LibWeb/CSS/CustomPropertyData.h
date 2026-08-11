@@ -13,6 +13,7 @@
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/Types.h>
+#include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/StyleEngineIdentifiers.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/Export.h>
@@ -89,18 +90,23 @@ public:
     // What this environment resolves to, which is a function of the values it holds and of the
     // environment it inherits from - both of which are its identity. Two elements handed the same
     // environment therefore resolve the same one, and the second of them does no work at all.
-    [[nodiscard]] RefPtr<CustomPropertyData const> cached_resolution(FlatPtr document_identity, size_t registration_generation) const
+    [[nodiscard]] RefPtr<CustomPropertyData const> cached_resolution(FlatPtr document_identity, size_t registration_generation, PreferredColorScheme color_scheme) const
     {
         if (m_cached_resolution_document_identity != document_identity || m_cached_resolution_generation != registration_generation)
+            return {};
+        // Registered color values can resolve light-dark() against the element's color scheme,
+        // so a resolution only answers for elements sharing the scheme it was made under.
+        if (m_cached_resolution_color_scheme != color_scheme)
             return {};
         if (m_cached_resolution_is_self)
             return RefPtr<CustomPropertyData const>(this);
         return m_cached_resolution;
     }
-    void set_cached_resolution(FlatPtr document_identity, size_t registration_generation, RefPtr<CustomPropertyData const> resolution) const
+    void set_cached_resolution(FlatPtr document_identity, size_t registration_generation, PreferredColorScheme color_scheme, RefPtr<CustomPropertyData const> resolution) const
     {
         m_cached_resolution_document_identity = document_identity;
         m_cached_resolution_generation = registration_generation;
+        m_cached_resolution_color_scheme = color_scheme;
         // Storing a reference to itself would keep the object alive forever, so that case is a flag.
         m_cached_resolution_is_self = resolution.ptr() == this;
         m_cached_resolution = m_cached_resolution_is_self ? nullptr : move(resolution);
@@ -122,6 +128,7 @@ private:
     mutable bool m_cached_inheritable_is_self { false };
     mutable FlatPtr m_cached_resolution_document_identity { NumericLimits<FlatPtr>::max() };
     mutable size_t m_cached_resolution_generation { NumericLimits<size_t>::max() };
+    mutable PreferredColorScheme m_cached_resolution_color_scheme { PreferredColorScheme::Auto };
     mutable RefPtr<CustomPropertyData const> m_cached_resolution;
     mutable bool m_cached_resolution_is_self { false };
     void const* m_rust_store { nullptr };
