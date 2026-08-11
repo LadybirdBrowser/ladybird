@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<div id="wrapper">
+    <div id="outer">
+        <input id="tab">
+        <input id="input" onblur="outside.focus()">
+    </div>
+    <input id="outside">
+</div>
+<script src="../include.js"></script>
+<script>
+    // A blur handler that moves focus re-enters the focus update steps. The nested update owns
+    // the designation: the outer update must stop instead of blurring the old area forever or
+    // clobbering the nested result.
+    test(() => {
+        const wrapper = document.getElementById("wrapper");
+        const outer = document.getElementById("outer");
+        const input = document.getElementById("input");
+
+        input.focus();
+        println("focused input: activeElement=" + document.activeElement.id);
+        println("outer :focus-within: " + outer.matches(":focus-within"));
+
+        tab.focus();
+        println("after tab.focus(): activeElement=" + document.activeElement.id);
+        println("wrapper :focus-within: " + wrapper.matches(":focus-within"));
+        println("outer :focus-within: " + outer.matches(":focus-within"));
+    });
+</script>

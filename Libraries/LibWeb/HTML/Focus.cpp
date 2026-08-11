@@ -89,6 +89,22 @@ static void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector
 
     auto new_focus_target_is_document_viewport = new_focus_target && new_focus_target->is_document();
 
+    // AD-HOC: A blur or focus handler can move focus, re-entering these steps. The spec algorithm
+    //         has no answer for that: the old area stays designated while its blur fires, so a
+    //         handler that calls focus() derives its old chain from the same designated area and
+    //         blurs it again, without bound. Like other engines, clear each entry's designation
+    //         before its blur event fires, and stop this update when a handler moved focus: the
+    //         nested update has already designated and fired events for the new area.
+    auto currently_focused_area = [&]() -> GC::Ptr<DOM::Node> {
+        for (auto const* chain : { &old_chain, &new_chain }) {
+            for (auto const& entry : *chain) {
+                if (auto browsing_context = entry->document().browsing_context())
+                    return browsing_context->top_level_traversable()->currently_focused_area();
+            }
+        }
+        return nullptr;
+    };
+
     // 2. For each entry entry in old chain, in order, run these substeps:
     for (auto& entry : old_chain) {
         // 1. If entry is an input element
@@ -131,15 +147,24 @@ static void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector
             related_blur_target = new_chain.last();
         }
 
+        // AD-HOC: Clear the entry's designation before its blur event fires; see above.
+        if (auto* element = as_if<DOM::Element>(*entry); element && element->document().focused_area().ptr() == element)
+            element->document().set_focused_area(nullptr);
+
         // 4. If blur event target is not null, fire a focus event named blur at blur event target, with related blur
         //    target as the related target.
         // FIXME: NOTE: In some cases, e.g., if entry is an area element's shape, a scrollable region, or a viewport, no event
         //       is fired.
         if (blur_event_target) {
+            auto focused_before_dispatch = currently_focused_area();
             fire_a_focus_event(blur_event_target, related_blur_target, HTML::EventNames::blur, false);
 
             // AD-HOC: dispatch focusout
             fire_a_focus_event(blur_event_target, related_blur_target, HTML::EventNames::focusout, true);
+
+            // AD-HOC: A handler moved focus; the nested update owns the designation. See above.
+            if (currently_focused_area() != focused_before_dispatch)
+                return;
         }
     }
 
@@ -193,10 +218,15 @@ static void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector
         // FIXME: NOTE: In some cases, e.g. if entry is an area element's shape, a scrollable region, or a viewport, no event
         //       is fired.
         if (focus_event_target) {
+            auto focused_before_dispatch = currently_focused_area();
             fire_a_focus_event(focus_event_target, related_focus_target, HTML::EventNames::focus, false);
 
             // AD-HOC: dispatch focusin
             fire_a_focus_event(focus_event_target, related_focus_target, HTML::EventNames::focusin, true);
+
+            // AD-HOC: A handler moved focus; the nested update owns the designation. See above.
+            if (currently_focused_area() != focused_before_dispatch)
+                return;
         }
     }
 }
