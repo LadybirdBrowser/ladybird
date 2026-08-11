@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<div id="host"><div id="target">x</div></div>
+<script src="../include.js"></script>
+<script>
+    // Computing style for an element whose shadow host is detached must not crash while walking
+    // the tree-scoped counter-style name chain: the detached host's root is an ordinary element,
+    // not a shadow root or document.
+    test(() => {
+        const host = document.getElementById("host");
+        host.attachShadow({ mode: "open" }).innerHTML = "<slot></slot>";
+        const target = document.getElementById("target");
+        host.remove();
+        println("clientTop: " + target.clientTop);
+
+        // The UA shadow tree of <details> takes the same path.
+        const details = document.createElement("details");
+        const inner = document.createElement("div");
+        inner.textContent = "y";
+        details.appendChild(inner);
+        details.remove();
+        println("detached details clientTop: " + inner.clientTop);
+        println("PASS (did not crash)");
+    });
+</script>

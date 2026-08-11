@@ -1,0 +1,3 @@
+clientTop: 0
+detached details clientTop: 0
+PASS (did not crash)
