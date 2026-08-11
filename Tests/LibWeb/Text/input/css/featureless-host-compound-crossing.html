@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<div class="host"><template shadowrootmode="open">
+    <style>
+        .green { background-color: rgb(0, 128, 0); }
+        div:host   > .t2 { background-color: rgb(0, 100, 1); }
+        :host.host > .t3 { background-color: rgb(0, 100, 2); }
+        *:host     > .t4 { background-color: rgb(0, 100, 3); }
+        :host:host > .t5 { background-color: rgb(0, 100, 4); }
+    </style>
+    <div class="green t2"></div>
+    <div class="green t3"></div>
+    <div class="green t4"></div>
+    <div class="green t5"></div>
+</template></div>
+<script src="../include.js"></script>
+<script>
+    // Inside its own shadow tree the host is featureless: a compound with `:host` must not match
+    // through the host's tag, class, or a universal selector. `:host:host` stays valid.
+    // https://drafts.csswg.org/css-scoping-1/#host-element-in-tree
+    test(() => {
+        const root = document.querySelector(".host").shadowRoot;
+        for (const name of ["t2", "t3", "t4", "t5"]) {
+            const color = getComputedStyle(root.querySelector("." + name)).backgroundColor;
+            println(name + ": " + color);
+        }
+    });
+</script>
