@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Collection cost must stay linear in the number of live WebAssembly objects. They share one realm-wide cache,
+        // so traversing that cache once per live object rather than a bounded number of times makes every collection
+        // quadratic: at this many globals that is the difference between a few milliseconds and tens of seconds.
+        internals.gc();
+
+        const globals = [];
+        for (let i = 0; i < 80000; ++i)
+            globals.push(new WebAssembly.Global({ value: "i32", mutable: true }, i));
+
+        // Keep the fastest of a few collections, so that a scheduling hiccup on a loaded machine cannot decide the
+        // result. Quadratic tracing is slower than this budget by more than an order of magnitude on every target.
+        let fastest = Infinity;
+        for (let i = 0; i < 3 && fastest > 2000; ++i) {
+            const start = performance.now();
+            internals.gc();
+            fastest = Math.min(fastest, performance.now() - start);
+        }
+        console.log(`fastest collection: ${fastest.toFixed(1)}ms`);
+
+        println(`Globals: ${globals.length}`);
+        println(`Collection stayed under budget: ${fastest < 2000}`);
+    });
+</script>

@@ -65,7 +65,9 @@ Global::Global(NonnullRefPtr<Detail::WebAssemblyCache> cache, Wasm::GlobalAddres
 void Global::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    m_cache->visit_edges(visitor);
+
+    // NOTE: m_cache is already visited by the realm's HostDefined, which owns it.
+    visitor.ignore(m_cache);
 }
 
 WebIDL::ExceptionOr<Wasm::GlobalType> Global::type() const

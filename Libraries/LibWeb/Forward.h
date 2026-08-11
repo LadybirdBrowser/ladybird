@@ -1335,6 +1335,12 @@ class Module;
 class Table;
 class WebAssemblyModule;
 
+namespace Detail {
+
+class WebAssemblyCache;
+
+}
+
 }
 
 namespace Web::WebAudio {

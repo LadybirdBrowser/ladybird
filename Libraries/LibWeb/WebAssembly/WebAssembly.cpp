@@ -29,6 +29,7 @@
 #include <LibThreading/ThreadPool.h>
 #include <LibURL/Parser.h>
 #include <LibWasm/AbstractMachine/Validator.h>
+#include <LibWeb/Bindings/HostDefined.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Wrappable.h>
@@ -61,22 +62,31 @@ static GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::Realm
 
 namespace Detail {
 
-static HashMap<GC::Ptr<JS::Object>, NonnullRefPtr<WebAssemblyCache>>& caches()
+// HostResizeArrayBuffer and HostGrowSharedArrayBuffer have to find the WebAssembly.Memory that owns a given buffer,
+// which the spec phrases as a scan over every Memory object cache. This registry exists only to serve those scans: it
+// owns nothing and takes no part in garbage collection.
+static Vector<WebAssemblyCache*>& live_caches()
 {
-    static NeverDestroyed<HashMap<GC::Ptr<JS::Object>, NonnullRefPtr<WebAssemblyCache>>> caches;
+    static NeverDestroyed<Vector<WebAssemblyCache*>> caches;
     return *caches;
 }
 
-NonnullRefPtr<WebAssemblyCache> get_cache(JS::Object& global_object)
+WebAssemblyCache::WebAssemblyCache()
 {
-    return caches().ensure(global_object, [] {
-        return make_ref_counted<WebAssemblyCache>();
-    });
+    live_caches().append(this);
+}
+
+WebAssemblyCache::~WebAssemblyCache()
+{
+    live_caches().remove_first_matching([this](auto* cache) { return cache == this; });
 }
 
 NonnullRefPtr<WebAssemblyCache> get_cache(JS::Realm& realm)
 {
-    return get_cache(realm.global_object());
+    auto& host_defined = static_cast<Bindings::HostDefined&>(*realm.host_defined());
+    if (!host_defined.wasm_cache)
+        host_defined.wasm_cache = make_ref_counted<WebAssemblyCache>();
+    return *host_defined.wasm_cache;
 }
 
 void WebAssemblyCache::visit_edges(JS::Cell::Visitor& visitor)
@@ -94,21 +104,6 @@ void WebAssemblyCache::visit_edges(JS::Cell::Visitor& visitor)
     } });
 }
 
-}
-
-void visit_edges(JS::Object& object, JS::Cell::Visitor& visitor)
-{
-    auto& global_object = HTML::relevant_global_object(object);
-    if (auto maybe_cache = Detail::caches().get(global_object); maybe_cache.has_value()) {
-        auto& cache = *maybe_cache.release_value();
-        cache.visit_edges(visitor);
-    }
-}
-
-void finalize(JS::Object& object)
-{
-    auto& global_object = HTML::relevant_global_object(object);
-    Detail::caches().remove(global_object);
 }
 
 // https://webassembly.github.io/spec/js-api/#error-objects
@@ -563,8 +558,7 @@ JS::ThrowCompletionOr<JS::HandledByHost> host_resize_array_buffer(JS::VM& vm, JS
     if (detach_key.is_string() && detach_key.as_string() == JS::PrimitiveString::create(vm, "WebAssembly.Memory"_utf16_fly_string)) {
         // 3. For each memaddr → mem in all Memory object caches,
         bool seen = false;
-        for (auto& cache_entry : caches()) {
-            auto& cache = cache_entry.value;
+        for (auto* cache : live_caches()) {
             auto const& map = cache->memory_instances();
 
             for (auto const& entry : map) {
@@ -620,8 +614,7 @@ JS::ThrowCompletionOr<JS::HandledByHost> host_grow_shared_array_buffer(JS::VM& v
 
         // 3. For each memaddr → mem in all Memory object caches,
         bool seen = false;
-        for (auto& cache_entry : caches()) {
-            auto& cache = cache_entry.value;
+        for (auto* cache : live_caches()) {
             auto const& map = cache->memory_instances();
 
             for (auto const& entry : map) {

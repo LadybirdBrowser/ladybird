@@ -68,7 +68,9 @@ Table::Table(NonnullRefPtr<Detail::WebAssemblyCache> cache, Wasm::TableAddress a
 void Table::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    m_cache->visit_edges(visitor);
+
+    // NOTE: m_cache is already visited by the realm's HostDefined, which owns it.
+    visitor.ignore(m_cache);
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-table-grow
