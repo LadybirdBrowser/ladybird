@@ -486,7 +486,6 @@ pub(crate) fn register_contained_abspos_child(
             static_position_rect,
             containing_block_info_override,
             inline_containing_block,
-            inline_containing_block_rect: None,
         },
     );
 }

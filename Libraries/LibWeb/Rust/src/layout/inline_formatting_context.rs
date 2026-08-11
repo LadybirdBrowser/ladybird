@@ -1286,11 +1286,7 @@ impl<'context> InlineFormattingContext<'context> {
             rect.x += relative_inset_chain.offset_x;
             rect.y += relative_inset_chain.offset_y;
             if let Some(fragments) = self.run.fragments.as_deref() {
-                fragments.set_inline_containing_block_rect_on_pending_abspos(
-                    candidate.inline_containing_block,
-                    rect,
-                    self.containing_block,
-                );
+                fragments.register_inline_containing_block_rect(candidate.inline_containing_block, rect, self.containing_block);
             }
         }
     }
