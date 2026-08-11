@@ -76,10 +76,7 @@ void invalidate_style_after_media_muted_state_change(HTML::HTMLMediaElement& ele
 void invalidate_style_after_media_paused_state_change(HTML::HTMLMediaElement& element, bool is_paused)
 {
     record_element_state_changed(element, PseudoClass::Paused, is_paused);
-
-    // A blocked media element is not playing on either side of a paused-state transition.
-    if (!element.blocked())
-        record_element_state_changed(element, PseudoClass::Playing, !is_paused);
+    record_element_state_changed(element, PseudoClass::Playing, !is_paused);
 }
 
 void invalidate_style_after_media_seeking_state_change(HTML::HTMLMediaElement& element, bool is_seeking)
@@ -87,14 +84,11 @@ void invalidate_style_after_media_seeking_state_change(HTML::HTMLMediaElement& e
     record_element_state_changed(element, PseudoClass::Seeking, is_seeking);
 }
 
-void invalidate_style_after_media_ready_state_change(HTML::HTMLMediaElement& element, bool was_buffering, bool was_playing)
+void invalidate_style_after_media_ready_state_change(HTML::HTMLMediaElement& element, bool was_buffering)
 {
     auto is_buffering = element.blocked();
-    auto is_playing = !is_buffering && !element.paused();
     if (was_buffering != is_buffering)
         record_element_state_changed(element, PseudoClass::Buffering, is_buffering);
-    if (was_playing != is_playing)
-        record_element_state_changed(element, PseudoClass::Playing, is_playing);
 }
 
 void invalidate_style_after_meter_value_state_change(HTML::HTMLMeterElement& element)

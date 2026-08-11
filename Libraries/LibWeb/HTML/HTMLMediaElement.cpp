@@ -2355,10 +2355,9 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
         return;
 
     auto was_buffering = blocked();
-    auto was_playing = !was_buffering && !paused();
     auto old_ready_state = m_ready_state;
     m_ready_state = ready_state;
-    CSS::Invalidation::invalidate_style_after_media_ready_state_change(*this, was_buffering, was_playing);
+    CSS::Invalidation::invalidate_style_after_media_ready_state_change(*this, was_buffering);
 
     ScopeGuard guard { [&] {
         upon_has_ended_playback_possibly_changed();

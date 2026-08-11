@@ -194,7 +194,9 @@ CSS::PseudoClassBitmap element_states(DOM::Element const& element)
         set(CSS::PseudoClass::Buffering, blocked);
         set(CSS::PseudoClass::Muted, media_element->muted());
         set(CSS::PseudoClass::Paused, paused);
-        set(CSS::PseudoClass::Playing, !blocked && !paused);
+        // :playing tracks the paused attribute alone: it flips synchronously on play() and
+        // load(), and does not require a playable media resource.
+        set(CSS::PseudoClass::Playing, !paused);
         set(CSS::PseudoClass::Seeking, media_element->seeking());
         set(CSS::PseudoClass::Stalled, media_element->stalled());
     }

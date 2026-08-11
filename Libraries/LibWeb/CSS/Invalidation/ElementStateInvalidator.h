@@ -41,7 +41,7 @@ void invalidate_style_after_read_write_state_change(DOM::Element&, bool was_read
 void invalidate_style_after_media_muted_state_change(HTML::HTMLMediaElement&, bool is_muted);
 void invalidate_style_after_media_paused_state_change(HTML::HTMLMediaElement&, bool is_paused);
 void invalidate_style_after_media_seeking_state_change(HTML::HTMLMediaElement&, bool is_seeking);
-void invalidate_style_after_media_ready_state_change(HTML::HTMLMediaElement&, bool was_buffering, bool was_playing);
+void invalidate_style_after_media_ready_state_change(HTML::HTMLMediaElement&, bool was_buffering);
 
 // A meter's five value pseudo-classes are worked out from its attributes rather than written, and
 // they are worked out after the element has already published the facts it arrived with, so the
