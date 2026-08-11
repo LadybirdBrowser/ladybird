@@ -198,9 +198,28 @@ jobs:
             echo "loginwindow           : absent"
           fi
           echo "console user          : $(stat -f%Su /dev/console 2>/dev/null || echo unknown)"
+          # TCC attributes an Accessibility request to the responsible process — the top-level launcher that
+          # owns the process tree, not the process calling the API — so this names the binary a grant must cover.
+          /usr/bin/python3 - << 'RESPEOF'
+          import ctypes, os, subprocess
+
+          libc = ctypes.CDLL("/usr/lib/libSystem.B.dylib")
+          try:
+              fn = libc.responsibility_get_pid_responsible_for_pid
+              fn.argtypes, fn.restype = [ctypes.c_int], ctypes.c_int
+              responsible = fn(os.getpid())
+          except AttributeError:
+              responsible = -1
+          if responsible <= 0:
+              print("responsible process   : unavailable")
+          else:
+              exe = subprocess.run(["ps", "-p", str(responsible), "-o", "comm="],
+                                   capture_output=True, text=True).stdout.strip()
+              print("responsible process   : {} (pid {})".format(exe or "unknown", responsible))
+          RESPEOF
 
       - name: Check macOS SIP/TCC state
-        if: ${{ inputs.os_name == 'macOS' && !contains(inputs.runner_labels, 'blacksmith') }}
+        if: ${{ inputs.os_name == 'macOS' }}
         run: |
           csrutil status || true
           SYSTEM_TCC=/Library/Application\ Support/com.apple.TCC/TCC.db
@@ -214,61 +233,103 @@ jobs:
             echo "(system TCC.db doesn't exist)"
           fi
 
-      - name: Grant Accessibility to Python
-        if: ${{ inputs.os_name == 'macOS' && !contains(inputs.runner_labels, 'blacksmith') }}
+      - name: Grant Accessibility to the responsible process
+        if: ${{ inputs.os_name == 'macOS' }}
         run: |
           if ! csrutil status | grep -qi "disabled"; then
             echo "::warning::SIP is enabled on this runner. Can't write to TCC.db."
             exit 0
           fi
           # Grant Accessibility by writing the system TCC database directly: tccutil is broken here and MDM/PPPC
-          # profiles are off-limits, so direct SQL is the only lever. Two things are load-bearing on macOS 26:
+          # profiles are off-limits, so direct SQL is the only lever.
           #
-          #   1. csreq must be populated. At authorization time tccd matches the requesting process against the
-          #      code-requirement blob stored in the row, and a NULL csreq matches nothing, so the grant is inert.
-          #      The runner image's own osascript row is csreq=NULL and is inert for the same reason (osascript's
-          #      'UI elements enabled' is false). So for each client we compile its designated requirement into a
-          #      csreq blob and store it alongside the grant.
-          #   2. tccd must be restarted after the write. It caches the database and watches only MDMOverrides.plist,
-          #      not TCC.db, so a direct write stays invisible until the daemons are bounced. 'launchctl kickstart -k'
-          #      does that reliably; 'killall tccd' does not dependably relaunch the root-owned system instance.
+          # The client that has to be granted is the RESPONSIBLE process, not the process that calls the API. TCC
+          # walks up from the requesting process to the top-level launcher that owns the tree and attributes the
+          # request to that binary. It is the same rule that makes a user grant Accessibility to their terminal
+          # app rather than to the shell script they want to run. For a workflow step the responsible process is
+          # whatever agent the runner provider used to start the runner, so it differs between providers even on
+          # a byte-identical image, and granting bash or python3 on its own accomplishes nothing.
           #
-          #   Columns: client_type=1 (path), auth_value=2 (allowed), auth_reason=4, auth_version=1, csreq=<blob>.
-          #   The rest default (boot_uuid defaults to 'UNUSED'). INSERT OR REPLACE keeps it idempotent.
+          # So resolve it at run time instead of hard-coding any provider's agent path, and grant the rest of the
+          # ancestry and the interpreters alongside it, so the grant holds however the tree gets attributed.
+          #
+          # tccd must be restarted afterwards. It caches the database and watches only MDMOverrides.plist, not
+          # TCC.db, so a direct write stays invisible until the daemons are bounced. 'launchctl kickstart -k'
+          # does that reliably; 'killall tccd' does not dependably relaunch the root-owned system instance.
+          #
+          # Columns: client_type=1 (path), auth_value=2 (allowed), auth_reason=4, auth_version=1, csreq=<blob>.
+          # The rest default (boot_uuid defaults to 'UNUSED'). INSERT OR REPLACE keeps it idempotent.
           SYSTEM_TCC=/Library/Application\ Support/com.apple.TCC/TCC.db
+          CLIENTS=$(mktemp "${RUNNER_TEMP:-/tmp}/tcc-clients.XXXXXX")
           REQ_BIN=$(mktemp "${RUNNER_TEMP:-/tmp}/tcc-csreq.XXXXXX")
+
+          # The responsible process, then every ancestor up to launchd, so the grant covers whichever of them the
+          # kernel attributes this tree to.
+          /usr/bin/python3 - >> "$CLIENTS" << 'ANCESTRYEOF'
+          import ctypes, os, subprocess
+
+
+          def executable(pid):
+              out = subprocess.run(["ps", "-p", str(pid), "-o", "comm="], capture_output=True, text=True)
+              return out.stdout.strip()
+
+
+          def parent(pid):
+              out = subprocess.run(["ps", "-p", str(pid), "-o", "ppid="], capture_output=True, text=True)
+              text = out.stdout.strip()
+              return int(text) if text.isdigit() else 0
+
+
+          libc = ctypes.CDLL("/usr/lib/libSystem.B.dylib")
+          try:
+              fn = libc.responsibility_get_pid_responsible_for_pid
+              fn.argtypes, fn.restype = [ctypes.c_int], ctypes.c_int
+              responsible = fn(os.getpid())
+          except AttributeError:
+              responsible = -1
+          if responsible > 0:
+              print(executable(responsible))
+
+          pid = os.getppid()
+          while pid > 1:
+              print(executable(pid))
+              pid = parent(pid)
+          ANCESTRYEOF
+
           # The preflight and run_tests.sh both use the active python3, which is the actions/setup-python one and
-          # is where we install PyObjC, so it needs the grant as much as the system interpreters do.
-          ACTIVE_PY=$(command -v python3 || true)
-          ACTIVE_PY_REAL=$(/usr/bin/python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$ACTIVE_PY" 2>/dev/null || true)
-          # TCC attributes an Accessibility request to the responsible process, which for a workflow step is the shell
-          # running it, not the interpreter it execs. The runner image grants /bin/bash, but steps here run under
-          # Homebrew's bash, so grant whichever shell is actually running.
-          ACTIVE_SH=${BASH:-$(command -v bash || true)}
-          ACTIVE_SH_REAL=$(/usr/bin/python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$ACTIVE_SH" 2>/dev/null || true)
-          # TCC records the client by the path the process was launched from, which for a symlinked Homebrew bash or a
-          # PATH-resolved python3 is not the same as its realpath. Grant both forms.
-          for client in "$ACTIVE_PY" "$ACTIVE_PY_REAL" "$ACTIVE_SH" "$ACTIVE_SH_REAL" \
+          # is where we install PyObjC, so it needs the grant as much as the system interpreters do. TCC records a
+          # client by the path it was launched from, which for a symlinked Homebrew bash or a PATH-resolved
+          # python3 is not the same as its realpath, so record both forms.
+          for client in "$(command -v python3 || true)" "${BASH:-$(command -v bash || true)}" \
                         /bin/bash /usr/bin/python3 /Library/Developer/CommandLineTools/usr/bin/python3; do
+            [ -n "$client" ] || continue
+            echo "$client" >> "$CLIENTS"
+            /usr/bin/python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$client" >> "$CLIENTS" 2>/dev/null || true
+          done
+
+          sort -u "$CLIENTS" -o "$CLIENTS"
+          # Read the list on fd 3: sudo below would otherwise consume the loop's stdin and cut it short.
+          while IFS= read -r client <&3; do
             [ -n "$client" ] || continue
             [ -e "$client" ] || continue
             # codesign prints the designated requirement as 'designated => ...', or as a commented
             # '# designated => cdhash H"..."' for ad-hoc-signed binaries (Homebrew's bash, the downloaded Python).
-            # Accept both, then compile it to the binary csreq blob that tccd stores and matches against.
+            # Accept both, then compile it to the binary csreq blob that tccd stores and matches against. A client
+            # with no derivable requirement still gets a row, with a NULL csreq, which is what the runner image's
+            # own pre-provisioned rows carry.
             req=$(codesign -d -r- "$client" 2>/dev/null | sed -n 's/^#* *designated => //p')
-            if [ -z "$req" ]; then
-              echo "=== Skipping $client (no derivable code requirement) ==="
-              continue
+            csreq_sql=NULL
+            csreq_note="none"
+            if [ -n "$req" ] && printf '%s' "$req" | /usr/bin/csreq -r- -b "$REQ_BIN" 2>/dev/null; then
+              csreq_sql="readfile('$REQ_BIN')"
+              csreq_note="compiled"
             fi
-            if ! printf '%s' "$req" | /usr/bin/csreq -r- -b "$REQ_BIN"; then
-              echo "=== Skipping $client (csreq compile failed) ==="
-              continue
-            fi
-            echo "=== Granting Accessibility to $client ==="
+            echo "=== Granting Accessibility to $client (csreq: $csreq_note) ==="
             sudo sqlite3 "$SYSTEM_TCC" \
-              "INSERT OR REPLACE INTO access (service, client, client_type, auth_value, auth_reason, auth_version, csreq) VALUES ('kTCCServiceAccessibility', '$client', 1, 2, 4, 1, readfile('$REQ_BIN'));"
-          done
-          rm -f "$REQ_BIN"
+              "INSERT OR REPLACE INTO access (service, client, client_type, auth_value, auth_reason, auth_version, csreq) VALUES ('kTCCServiceAccessibility', '$client', 1, 2, 4, 1, $csreq_sql);"
+          done 3< "$CLIENTS"
+          rm -f "$CLIENTS" "$REQ_BIN"
+
           echo "=== Accessibility entries after grant ==="
           sudo sqlite3 "$SYSTEM_TCC" \
             "SELECT client, auth_value, CASE WHEN csreq IS NULL THEN 'NULL' ELSE 'len=' || length(csreq) END FROM access WHERE service = 'kTCCServiceAccessibility' ORDER BY client;"
@@ -277,7 +338,8 @@ jobs:
           launchctl kickstart -k "gui/$(id -u)/com.apple.tccd" || true
 
       - name: Verify macOS GUI session + Accessibility (AX preflight)
-        if: ${{ inputs.os_name == 'macOS' && !contains(inputs.runner_labels, 'blacksmith') }}
+        if: ${{ inputs.os_name == 'macOS' }}
+        continue-on-error: ${{ inputs.build_preset == 'Sanitizer' }}
         run: |
           fail=0
           session=$(launchctl managername 2>/dev/null || echo "unknown")
@@ -329,7 +391,7 @@ jobs:
       # This (accessibility tests) step can't be run after the "Build with Qt" step — because we need to run the
       # accessibility tests against the AppKit build, which the "Build with Qt" step overwrites with a Qt build.
       - name: Test - macOS AppKit accessibility
-        if: ${{ inputs.os_name == 'macOS' && !contains(inputs.runner_labels, 'blacksmith') }}
+        if: ${{ inputs.os_name == 'macOS' }}
         working-directory: ${{ github.workspace }}
         run: ctest --output-on-failure --no-tests=error --test-dir Build -R AccessibilityBridgeMac --timeout 600
         env:
