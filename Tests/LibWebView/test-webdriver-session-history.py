@@ -909,43 +909,6 @@ def expect_ladybird_test_hooks_require_capability(webdriver_port):
         request(webdriver_port, "DELETE", f"/session/{session_id}")
 
 
-def browser_history_shortcut_modifier():
-    if sys.platform == "darwin":
-        return "\ue03d", "Meta"
-    return "\ue00a", "Alt"
-
-
-def perform_browser_history_shortcut(webdriver_port, session_id, direction, log):
-    if direction == "left":
-        arrow = "\ue012"
-    elif direction == "right":
-        arrow = "\ue014"
-    else:
-        raise ValueError(f"Unknown arrow direction {direction}")
-
-    modifier, modifier_name = browser_history_shortcut_modifier()
-    request(
-        webdriver_port,
-        "POST",
-        f"/session/{session_id}/actions",
-        {
-            "actions": [
-                {
-                    "type": "key",
-                    "id": "browser-shortcut-keyboard",
-                    "actions": [
-                        {"type": "keyDown", "value": modifier},
-                        {"type": "keyDown", "value": arrow},
-                        {"type": "keyUp", "value": arrow},
-                        {"type": "keyUp", "value": modifier},
-                    ],
-                }
-            ]
-        },
-    )
-    log.append(f"performed {modifier_name}+{direction}")
-
-
 def perform_pointer_click(webdriver_port, session_id, x, y, log):
     request(
         webdriver_port,
@@ -3930,12 +3893,12 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
         execute_script(webdriver_port, session_id, "window.onbeforeunload = null; return null;")
 
         page_server.a_document_ran.clear()
-        perform_browser_history_shortcut(webdriver_port, session_id, "left", log)
-        wait_for_event(page_server.a_document_ran, "A document after browser shortcut back")
+        traverse_history_from_ui(webdriver_port, session_id, -1, wait_for_navigation_completion=False)
+        wait_for_event(page_server.a_document_ran, "A document after browser back")
         wait_for_ui_session_history(
             webdriver_port,
             session_id,
-            "after cross-site browser shortcut back to /a converges",
+            "after cross-site browser back to /a converges",
             [url_a, url_b],
             [0, 1],
             0,
@@ -3945,11 +3908,11 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             expected_web_content_known_used_steps=[0, 1],
             expected_web_content_current_step=0,
         )
-        expect_url(webdriver_port, session_id, "after cross-site browser shortcut back to /a", url_a, log)
+        expect_url(webdriver_port, session_id, "after cross-site browser back to /a", url_a, log)
         expect_ui_session_history(
             webdriver_port,
             session_id,
-            "after cross-site browser shortcut back to /a",
+            "after cross-site browser back to /a",
             [url_a, url_b],
             [0, 1],
             0,
@@ -3962,12 +3925,12 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
         )
 
         page_server.b_document_ran.clear()
-        perform_browser_history_shortcut(webdriver_port, session_id, "right", log)
-        wait_for_event(page_server.b_document_ran, "B document after browser shortcut forward")
+        traverse_history_from_ui(webdriver_port, session_id, 1, wait_for_navigation_completion=False)
+        wait_for_event(page_server.b_document_ran, "B document after browser forward")
         wait_for_ui_session_history(
             webdriver_port,
             session_id,
-            "after cross-site browser shortcut forward to /b converges",
+            "after cross-site browser forward to /b converges",
             [url_a, url_b],
             [0, 1],
             1,
@@ -3977,11 +3940,11 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             expected_web_content_known_used_steps=[0, 1],
             expected_web_content_current_step=1,
         )
-        expect_url(webdriver_port, session_id, "after cross-site browser shortcut forward to /b", url_b, log)
+        expect_url(webdriver_port, session_id, "after cross-site browser forward to /b", url_b, log)
         expect_ui_session_history(
             webdriver_port,
             session_id,
-            "after cross-site browser shortcut forward to /b",
+            "after cross-site browser forward to /b",
             [url_a, url_b],
             [0, 1],
             1,
@@ -4012,12 +3975,12 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
         )
 
         page_server.b_document_ran.clear()
-        perform_browser_history_shortcut(webdriver_port, session_id, "left", log)
-        wait_for_event(page_server.b_document_ran, "B document after browser shortcut back")
+        traverse_history_from_ui(webdriver_port, session_id, -1, wait_for_navigation_completion=False)
+        wait_for_event(page_server.b_document_ran, "B document after browser back")
         wait_for_ui_session_history(
             webdriver_port,
             session_id,
-            "after browser shortcut back to /b converges",
+            "after browser back to /b converges",
             [url_a, url_b, url_c],
             [0, 1, 2],
             1,
@@ -4027,11 +3990,11 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             expected_web_content_known_used_steps=[0, 1, 2],
             expected_web_content_current_step=1,
         )
-        expect_url(webdriver_port, session_id, "after browser shortcut back to /b", url_b, log)
+        expect_url(webdriver_port, session_id, "after browser back to /b", url_b, log)
         expect_ui_session_history(
             webdriver_port,
             session_id,
-            "after browser shortcut back to /b",
+            "after browser back to /b",
             [url_a, url_b, url_c],
             [0, 1, 2],
             1,
@@ -4044,12 +4007,12 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
         )
 
         page_server.c_document_ran.clear()
-        perform_browser_history_shortcut(webdriver_port, session_id, "right", log)
-        wait_for_event(page_server.c_document_ran, "C document after browser shortcut forward")
+        traverse_history_from_ui(webdriver_port, session_id, 1, wait_for_navigation_completion=False)
+        wait_for_event(page_server.c_document_ran, "C document after browser forward")
         wait_for_ui_session_history(
             webdriver_port,
             session_id,
-            "after browser shortcut forward to /c converges",
+            "after browser forward to /c converges",
             [url_a, url_b, url_c],
             [0, 1, 2],
             2,
@@ -4059,11 +4022,11 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             expected_web_content_known_used_steps=[0, 1, 2],
             expected_web_content_current_step=2,
         )
-        expect_url(webdriver_port, session_id, "after browser shortcut forward to /c", url_c, log)
+        expect_url(webdriver_port, session_id, "after browser forward to /c", url_c, log)
         expect_ui_session_history(
             webdriver_port,
             session_id,
-            "after browser shortcut forward to /c",
+            "after browser forward to /c",
             [url_a, url_b, url_c],
             [0, 1, 2],
             2,
@@ -5173,9 +5136,9 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             expected_web_content_current_step=before_blocked_browser_ui_back["ui"]["webContentCurrentStep"],
         )
 
-        perform_browser_history_shortcut(webdriver_port, session_id, "left", log)
+        traverse_history_from_ui(webdriver_port, session_id, -1, wait_for_navigation_completion=False)
 
-        def shortcut_back_was_canceled_by_beforeunload(result):
+        def browser_back_was_canceled_by_beforeunload(result):
             return (
                 isinstance(result, list)
                 and len(result) == 2
@@ -5184,18 +5147,18 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
                 and result[1] > blocked_webdriver_back_state[1]
             )
 
-        blocked_shortcut_back_state = wait_for_script_result(
+        blocked_browser_back_state = wait_for_script_result(
             webdriver_port,
             session_id,
-            "beforeunload-canceled browser history shortcut from /b",
+            "beforeunload-canceled browser back from /b",
             "return [location.href, window.beforeUnloadCount];",
-            shortcut_back_was_canceled_by_beforeunload,
+            browser_back_was_canceled_by_beforeunload,
             log,
         )
         expect_ui_session_history(
             webdriver_port,
             session_id,
-            "after blocked browser history shortcut from /b",
+            "after blocked browser back from /b",
             history_entry_urls(before_blocked_browser_ui_back["ui"]),
             history_used_steps(before_blocked_browser_ui_back["ui"]),
             before_blocked_browser_ui_back["ui"]["currentUsedStepIndex"],
@@ -5227,7 +5190,7 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
         )
         if (
             blocked_cross_site_link_navigation_state[0] != url_b
-            or blocked_cross_site_link_navigation_state[1] <= blocked_shortcut_back_state[1]
+            or blocked_cross_site_link_navigation_state[1] <= blocked_browser_back_state[1]
         ):
             raise AssertionError(
                 f"Expected beforeunload to cancel cross-site link navigation from /b, got {blocked_cross_site_link_navigation_state}\n"

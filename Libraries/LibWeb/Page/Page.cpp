@@ -192,11 +192,6 @@ void Page::reload()
     top_level_traversable()->reload();
 }
 
-void Page::traverse_the_history_by_delta(int delta)
-{
-    m_client->page_did_request_traverse_the_history_by_delta(delta, HistoryTraversalPrecheck::Needed);
-}
-
 Gfx::Palette Page::palette() const
 {
     return m_client->palette();

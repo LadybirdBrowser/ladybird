@@ -815,12 +815,36 @@ void ViewImplementation::handle_external_url(URL::URL url, URL::Origin initiator
     });
 }
 
+Web::UIEvents::KeyModifier ViewImplementation::history_traversal_key_modifier()
+{
+#if defined(AK_OS_MACOS)
+    return Web::UIEvents::KeyModifier::Mod_Super;
+#else
+    return Web::UIEvents::KeyModifier::Mod_Alt;
+#endif
+}
+
+static bool is_history_traversal_key_event(Web::KeyEvent const& event)
+{
+    if (event.type != Web::KeyEvent::Type::KeyDown)
+        return false;
+    if (event.key != Web::UIEvents::KeyCode::Key_Left && event.key != Web::UIEvents::KeyCode::Key_Right)
+        return false;
+    auto modifier = ViewImplementation::history_traversal_key_modifier();
+    return event.modifiers == modifier || event.modifiers == (modifier | Web::UIEvents::Mod_Keypad);
+}
+
 void ViewImplementation::did_finish_handling_input_event(Badge<WebContentClient>, Web::EventResult event_result)
 {
     auto event = m_pending_input_events.dequeue();
 
     if (event_result == Web::EventResult::Handled || event_result == Web::EventResult::Cancelled)
         return;
+
+    if (auto const* key_event = event.get_pointer<Web::KeyEvent>(); key_event && is_history_traversal_key_event(*key_event)) {
+        traverse_the_history_by_delta(key_event->key == Web::UIEvents::KeyCode::Key_Left ? -1 : 1);
+        return;
+    }
 
     // Here we handle events that were not consumed by the WebContent. Propagate the event back
     // to the concrete view implementation.
