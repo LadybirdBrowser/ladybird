@@ -44,9 +44,10 @@ fn layout_replaced_with_children(run: &FormattingContextRun, layout_input: Layou
         .create_used_values(&run.callbacks, wrapper, wrapper_constraints);
     wrapper_state.set_content_inline_size(content_inline_size);
 
-    let wrapper_layout = crate::layout::run_formatting_context(
+    let wrapper_result = crate::layout::run_formatting_context(
         run.purpose,
-        wrapper_state,
+        run.fragments.as_deref(),
+        &wrapper_state,
         wrapper,
         None,
         FfiFormattingContextType::Block,
@@ -65,9 +66,6 @@ fn layout_replaced_with_children(run: &FormattingContextRun, layout_input: Layou
         },
         None,
     );
-
-    let wrapper_result =
-        crate::layout::hold_unplaced_root_and_take_result(run.fragments.as_deref(), wrapper, wrapper_layout);
     crate::layout::place_child(run, wrapper, FfiCssPixelPoint::default(), None);
 
     ChildLayoutResult {

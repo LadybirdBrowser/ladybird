@@ -2028,7 +2028,7 @@ impl TableFormattingContext {
 
         let result = measurement.run_with_layout_mode(
             cell.box_,
-            measured_root.clone(),
+            &measured_root,
             self.layout_mode,
             LayoutInput {
                 available_space: inner,
@@ -2040,8 +2040,7 @@ impl TableFormattingContext {
                 },
                 participation: ParticipationInParentFormattingContext::Item,
             },
-        )
-        .result;
+        );
         let measured_cell_used = measured_root;
         Some(MeasuredCellContent {
             content_block_size: result.automatic_content_block_size,

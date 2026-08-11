@@ -2384,27 +2384,6 @@ impl BlockFormattingContext {
         }
     }
 
-    pub(crate) fn finalize_float_root(
-        &self,
-        node: Node,
-        input: &LayoutInput,
-        run_automatic_sizes: Option<(CssPixels, CssPixels)>,
-    ) {
-        // A floating table wrapper shrink-to-fits from cached intrinsic sizes, which may not match
-        // the inline size table layout just produced; the wrapper has the same inline size as the table grid box.
-        if self.facts(node).is_table_wrapper()
-            && let Some((automatic_content_inline_size, _)) = run_automatic_sizes
-        {
-            self.used(node).set_content_inline_size(automatic_content_inline_size);
-        }
-        self.resolve_used_block_size_if_treated_as_auto(
-            node,
-            input.available_space,
-            input.containing_block_constraints,
-            run_automatic_sizes.map(|(_, automatic_content_block_size)| automatic_content_block_size),
-        );
-    }
-
     pub(crate) fn layout_floating_box(
         &self,
         run: &FormattingContextRun,

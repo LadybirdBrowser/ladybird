@@ -1574,7 +1574,7 @@ impl SizingContext {
         };
         let mut result = measurement.run(
             node,
-            root.clone(),
+            &root,
             LayoutInput::new(
                 AvailableSpace {
                     inline_size: available_inline_size,
@@ -1615,7 +1615,7 @@ impl SizingContext {
         root.set_content_inline_size(inline_size);
         let result = measurement.run(
             node,
-            root,
+            &root,
             LayoutInput::new(
                 AvailableSpace {
                     inline_size: AvailableSize::definite(inline_size),
@@ -1693,11 +1693,10 @@ impl SizingContext {
         measurement
             .run_with_layout_mode(
                 node,
-                node_used,
+                &node_used,
                 layout_mode,
                 LayoutInput::new(inner_available_space, constraints, ParticipationInParentFormattingContext::Root),
             )
-            .result
             .automatic_content_block_size
     }
 
@@ -1885,7 +1884,7 @@ impl SizingContext {
         let wrapper_used = measurement.create_used_values(wrapper, table_wrapper_constraints);
         let wrapper_outputs = measurement.run_with_layout_mode(
             wrapper,
-            wrapper_used,
+            &wrapper_used,
             LayoutMode::IntrinsicSizing,
             LayoutInput {
                 available_space: self
@@ -1899,7 +1898,6 @@ impl SizingContext {
         );
 
         let table_used_block_size = wrapper_outputs
-            .result
             .table_box_in_wrapper_border_box_block_size
             .expect("a table wrapper's measurement run lays out the table box inside it");
         if matches!(available_space.block_size, AvailableSize::Definite(_)) {
