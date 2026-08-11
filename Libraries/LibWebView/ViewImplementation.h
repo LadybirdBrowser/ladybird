@@ -128,6 +128,7 @@ public:
         String url;
         Optional<String> favicon_base64_png;
     };
+    static Web::UIEvents::KeyModifier history_traversal_key_modifier();
     void traverse_the_history_by_delta(
         int delta,
         CheckForCancelation = CheckForCancelation::Yes,

@@ -19,7 +19,6 @@ set(TEST_SOURCES
     TestMimeSniff.cpp
     TestNumbers.cpp
     TestNumericTypeParity.cpp
-    TestPage.cpp
     TestRefCountedTreeNode.cpp
     TestSecureContexts.cpp
     TestSessionHistoryEntry.cpp
@@ -66,7 +65,6 @@ target_link_libraries(TestFetchResponse PRIVATE LibGC LibHTTP LibJS LibRequests 
 target_link_libraries(TestFetchURL PRIVATE LibURL)
 target_link_libraries(TestAccumulatedVisualContext PRIVATE LibGfx)
 target_link_libraries(TestImageData PRIVATE LibGC LibJS)
-target_link_libraries(TestPage PRIVATE LibGC LibJS)
 target_link_libraries(TestWebIDLBuffers PRIVATE LibGC LibJS)
 target_link_libraries(TestWebGLSpanWithStorage PRIVATE LibGC LibJS)
 target_link_libraries(TestStructuredSerializeCorpus PRIVATE LibGC LibJS LibCrypto LibGfx LibIPC)
