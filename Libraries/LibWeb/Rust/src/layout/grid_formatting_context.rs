@@ -3524,7 +3524,9 @@ impl GridFormattingContext {
             child = next;
         }
         if let Some(fragments) = self.fragments.as_deref() {
-            fragments.override_containing_block_info_for_pending_abspos_of_containing_block(self.grid_container, &self.callbacks, |child| {
+            for child in
+                fragments.pending_abspos_children_awaiting_containing_block_info(self.grid_container, &self.callbacks)
+            {
                 // Deeper descendants inside grid items still get the grid area
                 // as their containing block, but their static position comes
                 // from their in-flow ancestor, so axis modes fall back to
@@ -3536,8 +3538,8 @@ impl GridFormattingContext {
                 let (inline_axis_mode, block_axis_mode) = axis_modes(self.style(child));
                 info.inline_axis_mode = inline_axis_mode;
                 info.block_axis_mode = block_axis_mode;
-                info
-            });
+                fragments.register_abspos_containing_block_info(child, info);
+            }
         }
     }
 

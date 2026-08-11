@@ -57,6 +57,16 @@ pub(crate) struct InlineContainingBlockRect {
     pub(crate) coordinate_space_box: crate::layout::node_data::NodeSlotId,
 }
 
+/// Containing block info a formatting context computed for a pending abspos
+/// child it does not itself register (a grid supplying its grid area to deep
+/// descendants). The rect is relative to the containing block's own content
+/// origin, so the contribution never rebases; it travels as-is to whichever
+/// run drains the child and is joined by child-box identity.
+pub(crate) struct AbsposContainingBlockInfoContribution {
+    pub(crate) child_box: crate::layout::node_data::NodeSlotId,
+    pub(crate) info: AbsposContainingBlockInfo,
+}
+
 trait PropagatedPayload {
     fn coordinate_space_box(&self) -> crate::layout::node_data::NodeSlotId;
     fn set_coordinate_space_box(&mut self, node: crate::layout::node_data::NodeSlotId);
@@ -245,6 +255,7 @@ pub(crate) struct UnplacedRootFragment {
     pub(crate) propagated_pending_abspos: Vec<PendingAbsposChild>,
     pub(crate) propagated_anchor_candidates: Vec<AnchorCandidate>,
     pub(crate) propagated_inline_containing_block_rects: Vec<InlineContainingBlockRect>,
+    pub(crate) propagated_abspos_containing_block_info: Vec<AbsposContainingBlockInfoContribution>,
 }
 
 pub(crate) struct CompletedPassFragments {
@@ -343,6 +354,7 @@ struct RunFragmentBuilderInner {
     pending_abspos_at_root: Vec<PendingAbsposChild>,
     anchor_candidates_at_root: Vec<AnchorCandidate>,
     inline_containing_block_rects_at_root: Vec<InlineContainingBlockRect>,
+    abspos_containing_block_info_contributions: Vec<AbsposContainingBlockInfoContribution>,
     top_scope_links: Vec<FragmentLink>,
 }
 
@@ -476,22 +488,65 @@ impl RunFragmentBuilder {
             .map(|payload| (payload.rect, payload.coordinate_space_box))
     }
 
-    pub(crate) fn override_containing_block_info_for_pending_abspos_of_containing_block(
+    /// Lists pending abspos children whose containing block is the given box
+    /// and whose registration did not already resolve containing block info.
+    /// Only root-resting entries are considered: by the time a containing
+    /// block asks (its run's tail), every interior box is placed, so entries
+    /// it contains have propagated to the root list.
+    pub(crate) fn pending_abspos_children_awaiting_containing_block_info(
         &self,
         containing_block: crate::layout::node_data::NodeSlotId,
         callbacks: &FfiLayoutFcCallbacks,
-        containing_block_info_for_child: impl Fn(crate::layout::node_data::NodeSlotId) -> AbsposContainingBlockInfo,
-    ) {
-        for entry in &mut self.inner.borrow_mut().pending_abspos_at_root {
-            // Entries registered with their containing block info already
-            // resolved keep it; this pass only fills in entries that arrived
-            // from descendant runs.
-            if entry.containing_block_info_override.is_none()
+    ) -> Vec<crate::layout::node_data::NodeSlotId> {
+        let inner = self.inner.borrow();
+        let awaits_info = |entry: &PendingAbsposChild| {
+            entry.containing_block_info_override.is_none()
                 && callbacks.containing_block(entry.child_box) == containing_block
-            {
-                entry.containing_block_info_override = Some(containing_block_info_for_child(entry.child_box));
-            }
-        }
+        };
+        debug_assert!(
+            !inner
+                .pending_fragments
+                .values()
+                .flat_map(|pending_fragment| pending_fragment.pending_abspos.iter())
+                .any(awaits_info),
+            "a pending abspos child awaiting containing block info rests below the root list"
+        );
+        inner
+            .pending_abspos_at_root
+            .iter()
+            .filter(|entry| awaits_info(entry))
+            .map(|entry| entry.child_box)
+            .collect()
+    }
+
+    pub(crate) fn register_abspos_containing_block_info(
+        &self,
+        child_box: crate::layout::node_data::NodeSlotId,
+        info: AbsposContainingBlockInfo,
+    ) {
+        let mut inner = self.inner.borrow_mut();
+        debug_assert!(
+            !inner
+                .abspos_containing_block_info_contributions
+                .iter()
+                .any(|contribution| contribution.child_box == child_box),
+            "an abspos child's containing block info was contributed twice"
+        );
+        inner
+            .abspos_containing_block_info_contributions
+            .push(AbsposContainingBlockInfoContribution { child_box, info });
+    }
+
+    pub(crate) fn find_abspos_containing_block_info(
+        &self,
+        child_box: crate::layout::node_data::NodeSlotId,
+    ) -> Option<AbsposContainingBlockInfo> {
+        self.inner
+            .borrow()
+            .abspos_containing_block_info_contributions
+            .iter()
+            .find(|contribution| contribution.child_box == child_box)
+            .map(|contribution| contribution.info)
     }
 
     pub(crate) fn any_pending_abspos_has_inline_containing_block(&self) -> bool {
@@ -593,6 +648,9 @@ impl RunFragmentBuilder {
         pending_fragment
             .inline_containing_block_rects
             .extend(root.propagated_inline_containing_block_rects);
+        inner
+            .abspos_containing_block_info_contributions
+            .extend(root.propagated_abspos_containing_block_info);
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -714,6 +772,7 @@ impl RunFragmentBuilder {
         let mut propagated_pending_abspos = std::mem::take(&mut inner.pending_abspos_at_root);
         let mut propagated_anchor_candidates = std::mem::take(&mut inner.anchor_candidates_at_root);
         let mut propagated_inline_containing_block_rects = std::mem::take(&mut inner.inline_containing_block_rects_at_root);
+        let propagated_abspos_containing_block_info = std::mem::take(&mut inner.abspos_containing_block_info_contributions);
         let pending_fragments = std::mem::take(&mut inner.pending_fragments);
         for (_, pending_fragment) in pending_fragments {
             propagated_pending_abspos.extend(pending_fragment.pending_abspos);
@@ -764,6 +823,7 @@ impl RunFragmentBuilder {
             propagated_pending_abspos,
             propagated_anchor_candidates,
             propagated_inline_containing_block_rects,
+            propagated_abspos_containing_block_info,
         }
     }
 }
