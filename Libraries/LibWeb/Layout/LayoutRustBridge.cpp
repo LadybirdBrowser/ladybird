@@ -1149,23 +1149,6 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
                 };
             }
             return true; },
-        .read_paintable_svg_transforms = [](void*, void* node, RustFFI::FfiSvgComputedTransforms* out) {
-            VERIFY(out);
-            auto const* paintable = static_cast<Node const*>(node)->paintable_ptr();
-            Painting::SVGGraphicsPaintable::ComputedTransforms const* transforms = nullptr;
-            if (auto const* svg_graphics_paintable = as_if<Painting::SVGGraphicsPaintable>(paintable))
-                transforms = &svg_graphics_paintable->computed_transforms();
-            if (auto const* svg_foreign_object_paintable = as_if<Painting::SVGForeignObjectPaintable>(paintable))
-                transforms = &svg_foreign_object_paintable->computed_transforms();
-            if (auto const* svg_svg_paintable = as_if<Painting::SVGSVGPaintable>(paintable))
-                transforms = &svg_svg_paintable->computed_transforms();
-            if (!transforms)
-                return false;
-            *out = {
-                .viewbox_transform = to_ffi_affine_transform(transforms->svg_to_viewbox_transform()),
-                .svg_transform = to_ffi_affine_transform(transforms->svg_transform()),
-            };
-            return true; },
         .compute_svg_path = [](void*, void* node, RustFFI::FfiSvgPathRequest request) {
             auto const* node_with_style = as_if<NodeWithStyle>(*static_cast<Node const*>(node));
             VERIFY(node_with_style);
