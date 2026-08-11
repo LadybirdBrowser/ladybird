@@ -424,14 +424,14 @@ void TextNode::enroll_for_arena_text_content_sync() const
     node_arena().enroll_text_node_for_content_sync(*this);
 }
 
-void TextNode::sync_text_content_to_arena() const
+bool TextNode::sync_text_content_to_arena() const
 {
     ensure_text_dependent_cache();
     m_enrolled_for_arena_text_content_sync = false;
     if (m_arena_text_content_in_sync)
-        return;
+        return false;
     auto view = m_text_dependent_cache->text_for_rendering.utf16_view();
-    RustFFI::layout_arena_set_text_content(
+    bool arena_text_content_changed = RustFFI::layout_arena_set_text_content(
         arena_handle(),
         slot_id(this),
         view.has_ascii_storage() ? reinterpret_cast<u8 const*>(view.ascii_span().data()) : nullptr,
@@ -440,6 +440,7 @@ void TextNode::sync_text_content_to_arena() const
         text().is_ascii_whitespace(),
         Unicode::may_require_bidi_processing(view));
     m_arena_text_content_in_sync = true;
+    return arena_text_content_changed;
 }
 
 Utf16String TextNode::compute_text_for_rendering(TextForRenderingCacheKey const& cache_key) const

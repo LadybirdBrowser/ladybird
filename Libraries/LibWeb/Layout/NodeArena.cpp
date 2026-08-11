@@ -49,14 +49,18 @@ void NodeArena::sync_enrolled_text_node_content()
     // by a later tree update without another enrollment trigger.
     Vector<WeakPtr<TextNode>> still_detached_text_nodes;
     for (auto& weak_text_node : m_text_nodes_enrolled_for_content_sync) {
-        auto const* text_node = weak_text_node.ptr();
+        auto* text_node = weak_text_node.ptr();
         if (!text_node)
             continue;
         if (!text_node->parent()) {
             still_detached_text_nodes.append(move(weak_text_node));
             continue;
         }
-        text_node->sync_text_content_to_arena();
+        // Changed rendered text invalidates cached formatting-context runs regardless of
+        // which channel produced the change, including sources with no invalidation of
+        // their own (e.g. lang-keyed locale-sensitive casing).
+        if (text_node->sync_text_content_to_arena())
+            text_node->bump_fragment_cache_epoch_of_self_and_ancestors();
     }
     m_text_nodes_enrolled_for_content_sync = move(still_detached_text_nodes);
 }

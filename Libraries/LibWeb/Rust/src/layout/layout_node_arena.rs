@@ -689,12 +689,25 @@ impl LayoutNodeArena {
         text: Vec<u16>,
         untransformed_text_is_ascii_whitespace: bool,
         may_require_bidi_processing: bool,
-    ) {
+    ) -> bool {
         self.assert_owner_thread();
         self.data(id);
         let index = id.slot_index() as usize;
         if self.text_contents.len() <= index {
             self.text_contents.resize_with(index + 1, TextContentSlot::default);
+        }
+        let previous = &self.text_contents[index];
+        let changed = previous.generation != id.generation()
+            || match &previous.content {
+                Some(content) => {
+                    content.text != text
+                        || content.untransformed_text_is_ascii_whitespace != untransformed_text_is_ascii_whitespace
+                        || content.may_require_bidi_processing != may_require_bidi_processing
+                }
+                None => true,
+            };
+        if !changed {
+            return false;
         }
         self.text_contents[index] = TextContentSlot {
             generation: id.generation(),
@@ -707,6 +720,7 @@ impl LayoutNodeArena {
         if let Some(slot) = self.text_chunk_caches.get_mut().get_mut(index) {
             *slot = TextChunkCacheSlot::default();
         }
+        true
     }
 
     pub(crate) fn set_replaced_content_facts(&mut self, id: NodeSlotId, facts: FfiReplacedContentFacts) -> bool {
@@ -956,7 +970,7 @@ pub unsafe extern "C" fn layout_arena_set_text_content(
     length_in_code_units: usize,
     untransformed_text_is_ascii_whitespace: bool,
     may_require_bidi_processing: bool,
-) {
+) -> bool {
     abort_on_panic(|| {
         assert!(!arena.is_null(), "layout node arena handle is null");
         let text = if length_in_code_units == 0 {
@@ -981,8 +995,8 @@ pub unsafe extern "C" fn layout_arena_set_text_content(
             text,
             untransformed_text_is_ascii_whitespace,
             may_require_bidi_processing,
-        );
-    });
+        )
+    })
 }
 
 #[unsafe(no_mangle)]
