@@ -792,11 +792,11 @@ impl<'context> InlineFormattingContext<'context> {
     }
 
     pub(crate) fn line_data(&self) -> Ref<'_, LineData> {
-        self.containing_used_values.line_data_cell().borrow()
+        Ref::map(self.containing_used_values.line_data_cell().borrow(), |shared| &**shared)
     }
 
     pub(crate) fn line_data_mut(&self) -> RefMut<'_, LineData> {
-        self.containing_used_values.line_data_cell().borrow_mut()
+        RefMut::map(self.containing_used_values.line_data_cell().borrow_mut(), std::rc::Rc::make_mut)
     }
 
     pub(crate) fn containing_used(&self) -> std::rc::Rc<UsedValues> {

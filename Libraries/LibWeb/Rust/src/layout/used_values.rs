@@ -114,7 +114,7 @@ impl<T: Copy> SealableCell<T> {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, PartialEq)]
 pub(crate) struct LineData {
     pub(crate) line_boxes: Vec<LineBoxData>,
     pub(crate) inline_box_pieces: Vec<InlineBoxPieceData>,
@@ -126,9 +126,9 @@ pub(crate) struct UsedValuesRareData {
     pub(crate) computed_svg_path: Option<libgfx_rust::path::OwnedPath>,
     pub(crate) computed_svg_transforms: Option<crate::layout::FfiSvgComputedTransforms>,
     pub(crate) svg_viewport_size: Option<crate::layout::FfiCssPixelSize>,
-    pub(crate) grid_layout_data: Option<OwnedGridLayoutData>,
-    pub(crate) flex_layout_data: Option<OwnedFlexLayoutData>,
-    pub(crate) used_grid_tracks: Option<OwnedUsedGridTracks>,
+    pub(crate) grid_layout_data: Option<std::rc::Rc<OwnedGridLayoutData>>,
+    pub(crate) flex_layout_data: Option<std::rc::Rc<OwnedFlexLayoutData>>,
+    pub(crate) used_grid_tracks: Option<std::rc::Rc<OwnedUsedGridTracks>>,
     pub(crate) override_borders_data: Option<FfiBordersData>,
     pub(crate) abspos_layout_inputs: Option<AbsposLayoutInputs>,
 }
@@ -227,7 +227,7 @@ pub(crate) struct UsedValues {
     pub last_baseline: Cell<CssPixels>,
 
 
-    pub(crate) line_data: LazyRefCell<LineData>,
+    pub(crate) line_data: LazyRefCell<std::rc::Rc<LineData>>,
     pub(crate) rare_data: LazyRefCell<UsedValuesRareData>,
 }
 
@@ -276,11 +276,11 @@ impl UsedValues {
     }
 
     pub(crate) fn line_data_ref(&self) -> Option<Ref<'_, LineData>> {
-        self.line_data.get().map(RefCell::borrow)
+        self.line_data.get().map(|cell| Ref::map(cell.borrow(), |shared| &**shared))
     }
 
-    pub(crate) fn line_data_cell(&self) -> &RefCell<LineData> {
-        self.line_data.get_or_init(LineData::default)
+    pub(crate) fn line_data_cell(&self) -> &RefCell<std::rc::Rc<LineData>> {
+        self.line_data.get_or_init(std::rc::Rc::default)
     }
 
     pub(crate) fn content_baselines_from_cells(&self) -> crate::layout::DerivedBaselines {

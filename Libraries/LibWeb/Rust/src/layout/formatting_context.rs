@@ -788,7 +788,7 @@ pub(crate) struct ChildLayoutResult {
 pub(crate) struct RunRootOutcome {
     cells: UsedValuesCellState,
     own_metrics_sealed: bool,
-    line_data: Option<LineData>,
+    line_data: Option<std::rc::Rc<LineData>>,
     rare: Option<UsedValuesRareData>,
 }
 
@@ -866,7 +866,7 @@ pub enum FfiFlexLayoutGrowthState {
     Shrinking,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct FfiFlexLayoutItem {
     pub node: *mut c_void,
@@ -906,7 +906,7 @@ pub struct FfiFlexLayoutData {
     pub line_count: usize,
 }
 
-#[derive(Clone)]
+#[derive(PartialEq)]
 pub(crate) struct OwnedFlexLayoutLine {
     pub(crate) growth_state: FfiFlexLayoutGrowthState,
     pub(crate) cross_start: CssPixels,
@@ -914,7 +914,7 @@ pub(crate) struct OwnedFlexLayoutLine {
     pub(crate) items: Vec<FfiFlexLayoutItem>,
 }
 
-#[derive(Clone)]
+#[derive(PartialEq)]
 pub(crate) struct OwnedFlexLayoutData {
     pub(crate) align_content: u8,
     pub(crate) align_items: u8,
