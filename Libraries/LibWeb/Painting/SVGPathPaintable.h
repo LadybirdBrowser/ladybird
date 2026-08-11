@@ -25,19 +25,25 @@ public:
 
     SVG::SVGGraphicsElement const& dom_node() const { return as<SVG::SVGGraphicsElement>(*Paintable::dom_node()); }
 
-    void set_computed_path(Gfx::Path path)
+    // The identity is process-unique per layout-side path allocation and never
+    // reused, so a match proves the already-held path is byte-identical and the
+    // deep copy can be skipped. Every commit of a path-like fragment emits a
+    // path (commit-side asserted), so the held path is never stale.
+    void set_computed_path_if_identity_changed(Gfx::Path const& path, u64 path_identity)
     {
-        m_computed_path = move(path);
+        if (path_identity != 0 && path_identity == m_committed_path_identity && m_computed_path.has_value())
+            return;
+        m_computed_path = path;
+        m_committed_path_identity = path_identity;
     }
 
     Optional<Gfx::Path> const& computed_path() const { return m_computed_path; }
-
-    virtual void reset_for_relayout() override;
 
 protected:
     SVGPathPaintable(Layout::SVGGraphicsBox const&);
 
     Optional<Gfx::Path> m_computed_path = {};
+    u64 m_committed_path_identity { 0 };
 
 private:
     virtual bool is_svg_path_paintable() const final { return true; }

@@ -123,7 +123,7 @@ pub(crate) struct LineData {
 #[derive(Default)]
 pub(crate) struct UsedValuesRareData {
     pub(crate) table_cell_coordinates: Option<FfiTableCellCoordinates>,
-    pub(crate) computed_svg_path: Option<libgfx_rust::path::OwnedPath>,
+    pub(crate) computed_svg_path: Option<std::rc::Rc<libgfx_rust::path::OwnedPath>>,
     pub(crate) computed_svg_transforms: Option<crate::layout::FfiSvgComputedTransforms>,
     pub(crate) svg_viewport_size: Option<crate::layout::FfiCssPixelSize>,
     pub(crate) grid_layout_data: Option<std::rc::Rc<OwnedGridLayoutData>>,

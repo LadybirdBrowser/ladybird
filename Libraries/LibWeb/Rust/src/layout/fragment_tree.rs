@@ -28,7 +28,7 @@ pub(crate) struct Fragment {
     pub(crate) used_grid_tracks: Option<std::rc::Rc<OwnedUsedGridTracks>>,
     pub(crate) computed_svg_transforms: Option<crate::layout::FfiSvgComputedTransforms>,
     pub(crate) svg_viewport_size: Option<crate::layout::FfiCssPixelSize>,
-    pub(crate) computed_svg_path: Cell<Option<libgfx_rust::path::OwnedPath>>,
+    pub(crate) computed_svg_path: Option<std::rc::Rc<libgfx_rust::path::OwnedPath>>,
     pub(crate) children: Vec<FragmentLink>,
 }
 
@@ -204,7 +204,7 @@ fn snapshot_fragment(
         used_grid_tracks,
         computed_svg_transforms,
         svg_viewport_size,
-        computed_svg_path: Cell::new(computed_svg_path),
+        computed_svg_path,
         children,
     })
 }
