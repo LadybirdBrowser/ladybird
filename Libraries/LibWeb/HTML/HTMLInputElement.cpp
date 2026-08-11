@@ -214,6 +214,17 @@ void HTMLInputElement::set_checked(bool checked)
 
     CSS::Invalidation::invalidate_style_after_checked_state_change(*this);
 
+    // Checkedness decides value-missing validity: for a checkbox its own, and for a radio button
+    // that of every member of its radio button group.
+    CSS::Invalidation::invalidate_style_after_validity_change(*this);
+    if (type_state() == TypeAttributeState::RadioButton && name().has_value() && !name()->is_empty()) {
+        root().for_each_in_inclusive_subtree_of_type<HTML::HTMLInputElement>([&](auto& element) {
+            if (&element != this && is_in_same_radio_button_group_as(element))
+                CSS::Invalidation::invalidate_style_after_validity_change(element);
+            return TraversalDecision::Continue;
+        });
+    }
+
     set_needs_repaint();
 
     // https://html.spec.whatwg.org/multipage/input.html#radio-button-state-(type=radio)
