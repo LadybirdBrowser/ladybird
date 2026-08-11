@@ -390,11 +390,20 @@ jobs:
 
       # This (accessibility tests) step can't be run after the "Build with Qt" step — because we need to run the
       # accessibility tests against the AppKit build, which the "Build with Qt" step overwrites with a Qt build.
+      # Under a Sanitizer build Ladybird never surfaces a populated AXWebArea, so every test class burns its full
+      # startup timeout. At the 60s default that is 20 classes x 60s = 1200s against the suite's 600s ctest timeout,
+      # so ctest SIGTERMs the run about half way through — and unittest only prints tracebacks in its
+      # end-of-run summary, so the harness's diagnosis (the AX surface dump plus Ladybird's stderr) is generated and
+      # then thrown away. Capping the per-class wait at 20s keeps the whole suite inside the ctest budget so that
+      # summary actually prints. Non-blocking there, because what the Sanitizer job is producing is a diagnosis
+      # rather than a verdict; the Release job is what gates these tests.
       - name: Test - macOS AppKit accessibility
         if: ${{ inputs.os_name == 'macOS' }}
+        continue-on-error: ${{ inputs.build_preset == 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
         run: ctest --output-on-failure --no-tests=error --test-dir Build -R AccessibilityBridgeMac --timeout 600
         env:
+          LADYBIRD_AX_STARTUP_TIMEOUT: ${{ inputs.build_preset == 'Sanitizer' && '20' || '60' }}
           ASAN_OPTIONS: 'log_path="${{ github.workspace }}/asan.log"'
           UBSAN_OPTIONS: 'log_path="${{ github.workspace }}/ubsan.log"'
 
@@ -434,7 +443,7 @@ jobs:
             -f Text/input/css/style-invalidation/
 
       - name: Check new tests for flakiness
-        if: ${{ github.event_name == 'pull_request' && inputs.build_preset == 'Sanitizer' && (inputs.os_name == 'Linux' || inputs.os_name == 'macOS') && !(inputs.os_name == 'macOS' && !contains(inputs.runner_labels, 'blacksmith')) }}
+        if: ${{ github.event_name == 'pull_request' && inputs.build_preset == 'Sanitizer' && (inputs.os_name == 'Linux' || inputs.os_name == 'macOS') }}
         timeout-minutes: 30
         working-directory: ${{ github.workspace }}
         shell: bash
@@ -463,7 +472,7 @@ jobs:
           WPT_PROCESSES: '4'
 
       - name: Test
-        if: ${{ inputs.build_preset == 'Sanitizer' && !(inputs.os_name == 'macOS' && !contains(inputs.runner_labels, 'blacksmith')) }}
+        if: ${{ inputs.build_preset == 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
         shell: bash
         run: |
@@ -473,8 +482,10 @@ jobs:
         env:
           TESTS_ONLY: 1
 
+      # Not on macOS: the macOS Release jobs exist only to host the AppKit accessibility tests below, and the macOS
+      # Sanitizer job runs the full suite in the step above.
       - name: Test
-        if: ${{ inputs.build_preset != 'Fuzzers' && inputs.build_preset != 'All_Debug' && inputs.build_preset != 'Sanitizer' && !(inputs.os_name == 'macOS' && !contains(inputs.runner_labels, 'blacksmith')) }}
+        if: ${{ inputs.build_preset != 'Fuzzers' && inputs.build_preset != 'All_Debug' && inputs.build_preset != 'Sanitizer' && inputs.os_name != 'macOS' }}
         working-directory: ${{ github.workspace }}
         run: ctest --output-on-failure -E 'LibWebAccessibilityBridge|AccessibilityBridgeMac' --test-dir Build --timeout 1800
         env:

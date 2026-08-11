@@ -48,6 +48,14 @@ jobs:
             build_preset: 'Release'
             toolchain: 'Clang'
             clang_plugins: false
+            runner_labels: '["blacksmith-12vcpu-macos-26"]'
+            container: 'null'
+
+          - os_name: 'macOS'
+            arch: 'arm64'
+            build_preset: 'Release'
+            toolchain: 'Clang'
+            clang_plugins: false
             runner_labels: '["macos-26"]'
             container: 'null'
             name_suffix: ' (GitHub-hosted)'
