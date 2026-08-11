@@ -1024,7 +1024,7 @@ void NodeWithStyle::publish_style_container_to_node_data()
     node_data().style = m_computed_values->style_container();
 }
 
-void NodeWithStyle::synchronize_table_span_data()
+bool NodeWithStyle::synchronize_table_span_data()
 {
     u16 column_span = 1;
     u16 row_span = 1;
@@ -1035,13 +1035,18 @@ void NodeWithStyle::synchronize_table_span_data()
             row_span = static_cast<u16>(cell->row_span());
         } else if (auto const* column = as_if<HTML::HTMLTableColElement>(*node)) {
             column_span = static_cast<u16>(column->span());
+            // The raw span keeps the unclamped attribute value; its only consumer is the
+            // table formatting context's column handling, so other elements' span
+            // attributes stay out of the arena map.
+            raw_column_span = column->get_attribute_value(HTML::AttributeNames::span).to_number<u32>().value_or(1);
         }
-        if (auto const* element = as_if<HTML::HTMLElement>(*node))
-            raw_column_span = element->get_attribute_value(HTML::AttributeNames::span).to_number<u32>().value_or(1);
     }
+    bool effective_spans_changed = node_data().table_column_span != column_span
+        || node_data().table_row_span != row_span;
     node_data().table_column_span = column_span;
     node_data().table_row_span = row_span;
-    RustFFI::layout_arena_set_raw_table_column_span(arena_handle(), slot_id(this), raw_column_span);
+    u32 previous_raw_column_span = RustFFI::layout_arena_set_raw_table_column_span(arena_handle(), slot_id(this), raw_column_span);
+    return effective_spans_changed || previous_raw_column_span != raw_column_span;
 }
 
 void NodeWithStyle::set_display(CSS::Display display)

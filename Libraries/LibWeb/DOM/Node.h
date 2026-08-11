@@ -92,7 +92,8 @@ enum class RootNodeComposed {
     X(SVGImageElementFetchTheDocument)                \
     X(SVGImageFilterFetch)                            \
     X(SVGViewBoxChange)                               \
-    X(StyleChange)
+    X(StyleChange)                                    \
+    X(TableSpanAttributeChange)
 
 enum class SetNeedsLayoutReason {
 #define ENUMERATE_SET_NEEDS_LAYOUT_REASON(e) e,
