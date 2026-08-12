@@ -1,0 +1,5 @@
+disconnected: 0 input channels, 1 output channels
+mono: 1 input channels, 1 output channels
+stereo: 2 input channels, 2 output channels
+disconnected again: 0 input channels, 1 output channels
+processor failed: false

@@ -6,12 +6,18 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/Iterator.h>
+#include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/HTML/MessagePort.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/WebAudio/AudioWorklet.h>
 #include <LibWeb/WebAudio/AudioWorkletGlobalScope.h>
+#include <LibWeb/WebAudio/AudioWorkletNode.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -161,6 +167,173 @@ void AudioWorkletGlobalScope::set_pending_processor_construction_data(PendingPro
     m_pending_processor_construction_data = move(data);
 }
 
+void AudioWorkletGlobalScope::add_processor_slot(ProcessorSlot slot)
+{
+    m_processor_slots.set(slot.node_id, move(slot));
+}
+
+void AudioWorkletGlobalScope::pump(NodeID node_id, Rendering::AudioWorkletPipe& pipe)
+{
+    // Every invocation consumes its scheduled wakeup, including stale callbacks for removed slots.
+    pipe.clear_wakeup_flag();
+    auto it = m_processor_slots.find(node_id);
+    if (it == m_processor_slots.end())
+        return;
+
+    if (it->value.pipe->state() == Rendering::AudioWorkletPipe::State::ShutDown) {
+        m_processor_slots.remove(node_id);
+        return;
+    }
+    if (it->value.failed)
+        return;
+
+    auto worklet_pipe = it->value.pipe;
+    auto processor = it->value.processor;
+    auto node = it->value.node;
+    auto parameter_names = it->value.parameter_names;
+
+    auto& realm = this->realm();
+    auto& vm = realm.vm();
+    // Keep one execution context for the batch so its microtask checkpoint runs after all available quanta.
+    HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+    auto const& config = worklet_pipe->config();
+
+    while (true) {
+        if (worklet_pipe->output_occupancy() == config.ring_capacity)
+            break;
+        bool processed_one = false;
+        bool pump_failed = false;
+        bool output_full = false;
+
+        (void)worklet_pipe->try_pop_input([&](Rendering::AudioWorkletPipe::InputSlotReader const& input_slot) {
+            processed_one = true;
+
+            // https://webaudio.github.io/web-audio-api/#rendering-loop — currentFrame/currentTime
+            // reflect the block being processed.
+            m_current_frame = input_slot.start_frame();
+            m_current_time = static_cast<double>(input_slot.start_frame()) / m_sample_rate;
+
+            // The processor may detach channel arrays, so they cannot be reused without checking their buffers.
+            // FIXME: Reuse arrays that remain attached.
+            auto build_channel_array = [&](size_t channel_count, auto&& fill_channel) -> GC::Ref<JS::Array> {
+                auto channels = MUST(JS::Array::create(realm, channel_count));
+                for (size_t channel = 0; channel < channel_count; ++channel) {
+                    auto float32_array = MUST(JS::Float32Array::create(realm, config.quantum_size));
+                    fill_channel(channel, float32_array);
+                    MUST(channels->create_data_property(JS::PropertyKey { channel }, float32_array));
+                }
+                return channels;
+            };
+
+            auto inputs = MUST(JS::Array::create(realm, config.input_count));
+            for (size_t input = 0; input < config.input_count; ++input) {
+                auto channels = build_channel_array(input_slot.actual_channel_count(input), [&](size_t channel, auto& float32_array) {
+                    auto source = input_slot.input_channel(input, channel);
+                    float32_array->viewed_array_buffer()->overwrite(0, source.data(), source.size() * sizeof(float));
+                });
+                MUST(inputs->create_data_property(JS::PropertyKey { input }, channels));
+            }
+
+            auto output_channel_count = [&](size_t output) -> size_t {
+                if (config.output_channel_count_matches_input)
+                    return max(input_slot.actual_channel_count(0), 1u);
+                return config.output_channel_capacity[output];
+            };
+            auto outputs = MUST(JS::Array::create(realm, config.output_count));
+            Vector<GC::Ref<JS::Array>> output_channel_arrays;
+            output_channel_arrays.ensure_capacity(config.output_count);
+            for (size_t output = 0; output < config.output_count; ++output) {
+                auto channels = build_channel_array(output_channel_count(output), [&](size_t, auto&) { });
+                output_channel_arrays.unchecked_append(channels);
+                MUST(outputs->create_data_property(JS::PropertyKey { output }, channels));
+            }
+
+            auto parameters = JS::Object::create(realm, realm.intrinsics().object_prototype());
+            for (size_t param_index = 0; param_index < config.param_count; ++param_index) {
+                auto block = input_slot.param_block(param_index);
+                auto float32_array = MUST(JS::Float32Array::create(realm, block.size()));
+                float32_array->viewed_array_buffer()->overwrite(0, block.data(), block.size() * sizeof(float));
+                MUST(parameters->create_data_property(JS::PropertyKey { Utf16FlyString(parameter_names[param_index]) }, float32_array));
+            }
+
+            // Look up process on the instance each call (spec); a non-callable value fails the node.
+            auto process_value_or_error = processor->get("process"_utf16_fly_string);
+            if (process_value_or_error.is_error() || !process_value_or_error.value().is_function()) {
+                pump_failed = true;
+                if (auto node_ptr = node.ptr()) {
+                    auto error = process_value_or_error.is_error()
+                        ? process_value_or_error.release_error().value()
+                        : JS::Value { JS::TypeError::create(realm, "AudioWorkletProcessor.process must be a function"_utf16).ptr() };
+                    node_ptr->fire_processor_error(error);
+                }
+                return;
+            }
+
+            auto process_value = process_value_or_error.release_value();
+            AK::Array<JS::Value, 3> process_arguments { JS::Value { inputs.ptr() }, JS::Value { outputs.ptr() }, JS::Value { parameters.ptr() } };
+            auto result = JS::call(vm, process_value.as_function(), JS::Value { processor.ptr() },
+                ReadonlySpan<JS::Value> { process_arguments });
+            if (result.is_error()) {
+                pump_failed = true;
+                if (auto node_ptr = node.ptr())
+                    node_ptr->fire_processor_error(result.release_error().value());
+                return;
+            }
+
+            if (worklet_pipe->state() == Rendering::AudioWorkletPipe::State::ShutDown)
+                return;
+
+            bool processor_active = result.value().to_boolean();
+
+            // Push the processed quantum back; read outputs defensively (detached → silence).
+            if (!worklet_pipe->try_push_output([&](Rendering::AudioWorkletPipe::OutputSlotWriter& output_slot) {
+                    output_slot.start_frame() = input_slot.start_frame();
+                    output_slot.set_processor_active(processor_active);
+                    for (size_t output = 0; output < config.output_count; ++output) {
+                        auto channel_count = output_channel_count(output);
+                        output_slot.actual_channel_count(output) = channel_count;
+                        for (size_t channel = 0; channel < channel_count; ++channel) {
+                            auto destination = output_slot.output_channel(output, channel);
+                            auto channel_value = MUST(output_channel_arrays[output]->get(JS::PropertyKey { channel }));
+                            auto* float32_array = channel_value.is_object() ? as_if<JS::Float32Array>(channel_value.as_object()) : nullptr;
+                            if (!float32_array || float32_array->viewed_array_buffer()->is_detached()
+                                || float32_array->array_length().length() < config.quantum_size) {
+                                __builtin_memset(destination.data(), 0, destination.size() * sizeof(float));
+                                continue;
+                            }
+                            float32_array->viewed_array_buffer()->copy_to(float32_array->byte_offset(),
+                                Bytes { reinterpret_cast<u8*>(destination.data()), destination.size() * sizeof(float) });
+                        }
+                    }
+                }))
+                output_full = true;
+        });
+
+        if (pump_failed) {
+            if (auto slot_after_process = m_processor_slots.find(node_id); slot_after_process != m_processor_slots.end())
+                slot_after_process->value.failed = true;
+            worklet_pipe->set_state(Rendering::AudioWorkletPipe::State::Failed);
+            return;
+        }
+        if (worklet_pipe->state() == Rendering::AudioWorkletPipe::State::ShutDown)
+            return;
+        if (output_full)
+            break;
+        if (!processed_one)
+            break;
+    }
+}
+
+void AudioWorkletGlobalScope::shutdown_all_slots()
+{
+    for (auto& slot : m_processor_slots) {
+        slot.value.pipe->clear_pump_callback();
+        slot.value.pipe->request_shutdown();
+    }
+    m_processor_slots.clear();
+}
+
 void AudioWorkletGlobalScope::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -170,6 +343,10 @@ void AudioWorkletGlobalScope::visit_edges(Cell::Visitor& visitor)
         visitor.visit(definition.value.constructor);
     if (m_pending_processor_construction_data.has_value())
         visitor.visit(m_pending_processor_construction_data->port);
+    for (auto& slot : m_processor_slots) {
+        visitor.visit(slot.value.processor);
+        visitor.visit(slot.value.processor_port);
+    }
 }
 
 }

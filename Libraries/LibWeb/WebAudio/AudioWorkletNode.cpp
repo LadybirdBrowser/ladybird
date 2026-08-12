@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/EventLoop.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
@@ -25,6 +26,8 @@
 #include <LibWeb/WebAudio/AudioWorkletGlobalScope.h>
 #include <LibWeb/WebAudio/AudioWorkletNode.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
+#include <LibWeb/WebAudio/Rendering/AudioWorkletRenderNode.h>
+#include <LibWeb/WebAudio/Rendering/RealtimeAudioRenderer.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::WebAudio {
@@ -126,6 +129,56 @@ WebIDL::ExceptionOr<GC::Ref<AudioWorkletNode>> AudioWorkletNode::construct_impl(
     else
         MUST(options_object->create_data_property("processorOptions"_utf16_fly_string, JS::Object::create(worklet_realm, worklet_realm.intrinsics().object_prototype())));
 
+    Rendering::AudioWorkletPipe::Config pipe_config;
+    pipe_config.quantum_size = BaseAudioContext::render_quantum_size();
+    pipe_config.sample_rate = context->sample_rate();
+    pipe_config.input_count = options.number_of_inputs;
+    pipe_config.output_count = options.number_of_outputs;
+    // Reserve space for later input layout changes without allocating on the render thread.
+    for (WebIDL::UnsignedLong i = 0; i < options.number_of_inputs; ++i)
+        pipe_config.input_channel_capacity.append(BaseAudioContext::MAX_NUMBER_OF_CHANNELS);
+    pipe_config.output_channel_count_matches_input = options.number_of_inputs == 1
+        && options.number_of_outputs == 1 && !options.output_channel_count.has_value();
+    for (WebIDL::UnsignedLong i = 0; i < options.number_of_outputs; ++i) {
+        if (options.output_channel_count.has_value())
+            pipe_config.output_channel_capacity.append(options.output_channel_count->at(i));
+        else
+            pipe_config.output_channel_capacity.append(pipe_config.output_channel_count_matches_input ? BaseAudioContext::MAX_NUMBER_OF_CHANNELS : 1u);
+    }
+    pipe_config.param_count = definition->parameter_descriptors.size();
+    for (auto const& descriptor : definition->parameter_descriptors)
+        pipe_config.param_is_a_rate.append(descriptor.automation_rate == Bindings::AutomationRate::ARate);
+    auto ring_sizing = Rendering::AudioWorkletPipe::Config::ring_sizing_for_device_latency(
+        Rendering::RealtimeAudioRenderer::TARGET_LATENCY_MS, context->sample_rate(), pipe_config.quantum_size);
+    pipe_config.ring_capacity = ring_sizing.ring_capacity;
+    pipe_config.prime_level = ring_sizing.prime_level;
+
+    auto pipe = Rendering::AudioWorkletPipe::create(pipe_config, Core::EventLoop::current());
+    pipe->prime_outputs_with_silence(pipe_config.prime_level);
+    node->m_pipe = pipe;
+
+    // The pump trampoline holds the worklet scope via GC::Root (sanctioned non-GC-memory keepalive);
+    // it observes ShutDown through the pipe state and unregisters the slot.
+    pipe->set_pump_callback([scope_root = GC::make_root(worklet_scope), pipe, node_id = node->node_id()] {
+        scope_root->pump(node_id, *pipe);
+    });
+
+    // Create the render mirror. Channel configuration rides in the constructor (the graph drops
+    // SetChannelConfig messages that precede AddNode).
+    Vector<NonnullRefPtr<Rendering::RenderAudioParam>> render_params;
+    for (auto const& entry : parameter_map->entries())
+        render_params.append(entry.value->render_param());
+    node->queue_render_node_creation(make<Rendering::AudioWorkletRenderNode>(node->node_id(),
+        options.number_of_inputs, options.number_of_outputs, pipe_config.quantum_size,
+        pipe_config.output_channel_capacity,
+        node->channel_count(), node->channel_count_mode(), node->channel_interpretation(),
+        pipe, move(render_params)));
+
+    // FIXME: Implement the spec's actively-processing keep-alive (drop this when the processor's
+    //        process() return value has been false and inputs are silent). For now a live worklet
+    //        node stays registered with the context until the context goes away.
+    context->add_playing_source(node);
+
     // 8. Queue a control message to invoke the constructor of the corresponding AudioWorkletProcessor.
     // NOTE: The worklet shares the window agent's event loop, so the control message becomes a queued
     //       global task on the worklet global; the node constructor returns before user code runs.
@@ -178,9 +231,34 @@ void AudioWorkletNode::invoke_processor_constructor(GC::Ref<AudioWorkletGlobalSc
 
     m_processor = processor_or_error.release_value();
 
+    Vector<Utf16String> parameter_names;
+    if (auto synced = context()->audio_worklet()->find_definition(m_name); synced.has_value()) {
+        for (auto const& descriptor : synced->parameter_descriptors)
+            parameter_names.append(descriptor.name);
+    }
+    scope->add_processor_slot({
+        .node_id = node_id(),
+        .processor = *m_processor,
+        .processor_port = processor_port,
+        .node = GC::Weak<AudioWorkletNode> { *this },
+        .pipe = *m_pipe,
+        .parameter_names = move(parameter_names),
+    });
+
     // 4. Enable the processor-side port's message queue: pending messages posted since node construction
     //    are now delivered, after the constructor had its chance to register listeners.
     processor_port->enable();
+}
+
+void AudioWorkletNode::finalize()
+{
+    // Allocation-free: the base queues RemoveNode (destroying the render node on the audio thread at
+    // the next message drain), and the atomic state store tells the pump to drop the slot.
+    if (m_pipe) {
+        m_pipe->clear_pump_callback();
+        m_pipe->request_shutdown();
+    }
+    Base::finalize();
 }
 
 void AudioWorkletNode::fire_processor_error(JS::Value error)

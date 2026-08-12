@@ -1103,6 +1103,7 @@ set(SOURCES
     WebAudio/Rendering/AnalyserRenderNode.cpp
     WebAudio/Rendering/AudioBus.cpp
     WebAudio/Rendering/AudioWorkletPipe.cpp
+    WebAudio/Rendering/AudioWorkletRenderNode.cpp
     WebAudio/Rendering/BiquadCoefficients.cpp
     WebAudio/Rendering/MediaStreamDestinationRenderNode.cpp
     WebAudio/Rendering/MediaStreamSourceRenderNode.cpp
