@@ -2401,6 +2401,8 @@ pub enum InverseStep {
     HostedTrees,
     /// From a slotted node to the slot it is assigned to, and thence into the shadow tree.
     SlotAssignment,
+    /// From a slot to the light-DOM elements it assigns.
+    SlotAssignees,
 }
 
 /// The semantic input a transpose route is routed from.
@@ -2759,7 +2761,7 @@ impl SelectorProgram {
             // A change on the slot reaches the elements assigned to it, which is the same relation
             // `::slotted()` steps through.
             SelectorOp::AssignedSlot(inner) => {
-                self.walk_step(inner, enclosing, InverseStep::SlotAssignment, anchor, walk, visit);
+                self.walk_step(inner, enclosing, InverseStep::SlotAssignees, anchor, walk, visit);
             }
             SelectorOp::Slotted(inner) => {
                 if walk.path.is_empty() {

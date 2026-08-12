@@ -184,6 +184,13 @@ impl ImpactRegion {
                 None => Self::Empty,
             },
 
+            // Assigned elements are light-DOM children of the shadow host. This region can include
+            // unassigned children, which exact matching filters, but can never omit an assignee.
+            (Self::Node(node), InverseStep::SlotAssignees) => match tree.shadow_host_of(node) {
+                Some(host) => Self::Children(host),
+                None => Self::Empty,
+            },
+
             // A host reaches every tree nested below the one it hosts, because `exportparts` carries
             // a part name outwards through any number of hosts.
             (Self::Node(node), InverseStep::HostedTrees) => match tree.shadow_root_of(node) {
@@ -193,7 +200,13 @@ impl ImpactRegion {
 
             // From a region wider than one node the relation is a set lookup per member, which the
             // plan cannot enumerate without walking the region it was trying to avoid.
-            (_, InverseStep::HostedTree | InverseStep::HostedTrees | InverseStep::SlotAssignment) => Self::Document,
+            (
+                _,
+                InverseStep::HostedTree
+                | InverseStep::HostedTrees
+                | InverseStep::SlotAssignment
+                | InverseStep::SlotAssignees,
+            ) => Self::Document,
 
             // The anchor-shaped regions already span an ancestor path or a sibling range, and any
             // further step from them can leave whatever subtree bounded them. A region spanning

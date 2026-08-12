@@ -1,0 +1,3 @@
+slotted after slot class added: rgb(0, 128, 0)
+unassigned after slot class added: rgb(0, 0, 0)
+slotted after slot class removed: rgb(0, 0, 0)
