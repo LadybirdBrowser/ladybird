@@ -1338,6 +1338,7 @@ class BiquadFilterNode;
 class ControlMessageQueue;
 class DynamicsCompressorNode;
 class GainNode;
+class MediaStreamAudioDestinationNode;
 class MediaStreamAudioSourceNode;
 class OfflineAudioCompletionEvent;
 class OfflineAudioContext;
