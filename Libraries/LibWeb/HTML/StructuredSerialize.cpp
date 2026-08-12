@@ -835,12 +835,24 @@ void StructuredSerializeWriter::encode(T const& value)
 
 void StructuredSerializeWriter::append(IPCSerializationRecord&& record)
 {
+    // TransferDataEncoder only appends record.data. Silently accepting a side table here would
+    // produce a record whose SharedArrayBuffer references cannot be decoded.
+    VERIFY(record.shared_array_buffers.is_empty());
     m_encoder->append(move(record));
+}
+
+u32 StructuredSerializeWriter::add_shared_array_buffer(JS::ArrayBuffer& array_buffer)
+{
+    VERIFY(m_shared_array_buffers.size() < NumericLimits<u32>::max());
+    m_shared_array_buffers.append(GC::make_root(array_buffer));
+    return static_cast<u32>(m_shared_array_buffers.size() - 1);
 }
 
 IPCSerializationRecord StructuredSerializeWriter::take_ipc_record()
 {
-    return m_encoder->take_ipc_record();
+    auto record = m_encoder->take_ipc_record();
+    record.shared_array_buffers = move(m_shared_array_buffers);
+    return record;
 }
 
 StorageSerializationRecord StructuredSerializeWriter::take_storage_record()
@@ -850,6 +862,7 @@ StorageSerializationRecord StructuredSerializeWriter::take_storage_record()
 
 StructuredSerializeReader::StructuredSerializeReader(IPCSerializationRecord const& record)
     : m_decoder(make<IPCStructuredSerializeDataDecoder>(record))
+    , m_shared_array_buffers(record.shared_array_buffers)
 {
 }
 
@@ -1174,7 +1187,7 @@ static GC::Ref<WebIDL::DOMException> data_clone_error(Utf16String message)
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
-static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, StructuredSerializeWriter& data_holder, JS::ArrayBuffer const& array_buffer, bool for_storage)
+static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, StructuredSerializeWriter& data_holder, JS::ArrayBuffer& array_buffer, bool for_storage, AllowSharedArrayBuffers allow_shared_array_buffers)
 {
     // 13. Otherwise, if value has an [[ArrayBufferData]] internal slot, then:
 
@@ -1183,7 +1196,10 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, StructuredSe
         // 1. If the current settings object's cross-origin isolated capability is false, then throw a "DataCloneError" DOMException.
         // NOTE: This check is only needed when serializing (and not when deserializing) as the cross-origin isolated capability cannot change
         //       over time and a SharedArrayBuffer cannot leave an agent cluster.
-        if (current_settings_object().cross_origin_isolated_capability() == CanUseCrossOriginIsolatedAPIs::No)
+        // AD-HOC: SameAgentAlways clones never leave the surrounding agent, so the gate's threat model does not apply to
+        //         them; see AllowSharedArrayBuffers.
+        if (allow_shared_array_buffers == AllowSharedArrayBuffers::CrossOriginIsolatedOnly
+            && current_settings_object().cross_origin_isolated_capability() == CanUseCrossOriginIsolatedAPIs::No)
             return data_clone_error("Cannot serialize SharedArrayBuffer when cross-origin isolated"_utf16);
 
         // 2. If forStorage is true, then throw a "DataCloneError" DOMException.
@@ -1195,14 +1211,21 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, StructuredSe
             //           [[ArrayBufferData]]: value.[[ArrayBufferData]], [[ArrayBufferByteLengthData]]: value.[[ArrayBufferByteLengthData]],
             //           [[ArrayBufferMaxByteLength]]: value.[[ArrayBufferMaxByteLength]],
             //           FIXME: [[AgentCluster]]: the surrounding agent's agent cluster }.
+            // To share with a same-process target, stash the source buffer in the side table. The byte copy keeps the
+            // wire format self-contained for records that cross a process boundary.
             data_holder.encode(ValueTag::GrowableSharedArrayBuffer);
+            data_holder.encode(data_holder.add_shared_array_buffer(array_buffer));
             data_holder.encode(MUST(array_buffer.copy_to_byte_buffer()));
             data_holder.encode(static_cast<u64>(array_buffer.max_byte_length()));
         } else {
             // 4. Otherwise, set serialized to { [[Type]]: "SharedArrayBuffer", [[ArrayBufferData]]: value.[[ArrayBufferData]],
             //           [[ArrayBufferByteLength]]: value.[[ArrayBufferByteLength]],
             //           FIXME: [[AgentCluster]]: the surrounding agent's agent cluster }.
+            // To share (rather than copy) [[ArrayBufferData]] with a same-process target, stash the source buffer in the
+            // record's side table and encode its index. The byte copy below keeps the wire format self-contained for
+            // records that cross a process boundary, which arrive with an empty side table.
             data_holder.encode(ValueTag::SharedArrayBuffer);
+            data_holder.encode(data_holder.add_shared_array_buffer(array_buffer));
             data_holder.encode(MUST(array_buffer.copy_to_byte_buffer()));
         }
     }
@@ -1240,7 +1263,7 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, StructuredSe
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
 template<OneOf<JS::TypedArrayBase, JS::DataView> ViewType>
-static WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, StructuredSerializeWriter& data_holder, ViewType const& view, bool for_storage, SerializationMemory& memory)
+static WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, StructuredSerializeWriter& data_holder, ViewType const& view, bool for_storage, SerializationMemory& memory, AllowSharedArrayBuffers allow_shared_array_buffers)
 {
     // 14. Otherwise, if value has a [[ViewedArrayBuffer]] internal slot, then:
 
@@ -1271,8 +1294,8 @@ static WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, Struc
     if constexpr (IsSame<ViewType, JS::DataView>) {
         data_holder.encode(ValueTag::ArrayBufferView);
         // 3. Let bufferSerialized be ? StructuredSerializeInternal(buffer, forStorage, memory).
-        TRY(structured_serialize_internal(vm, data_holder, buffer, for_storage, memory)); // [[ArrayBufferSerialized]]
-        data_holder.encode("DataView"_utf16);                                             // [[Constructor]]
+        TRY(structured_serialize_internal(vm, data_holder, buffer, for_storage, memory, allow_shared_array_buffers)); // [[ArrayBufferSerialized]]
+        data_holder.encode("DataView"_utf16);                                                                         // [[Constructor]]
         serialize_byte_length(view.byte_length());
         data_holder.encode(view.byte_offset());
     }
@@ -1284,8 +1307,8 @@ static WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, Struc
         //    [[ArrayBufferSerialized]]: bufferSerialized, [[ByteLength]]: value.[[ByteLength]],
         //    [[ByteOffset]]: value.[[ByteOffset]], [[ArrayLength]]: value.[[ArrayLength]] }.
         data_holder.encode(ValueTag::ArrayBufferView);
-        TRY(structured_serialize_internal(vm, data_holder, buffer, for_storage, memory)); // [[ArrayBufferSerialized]]
-        data_holder.encode(view.element_name().to_utf16_string());                        // [[Constructor]]
+        TRY(structured_serialize_internal(vm, data_holder, buffer, for_storage, memory, allow_shared_array_buffers)); // [[ArrayBufferSerialized]]
+        data_holder.encode(view.element_name().to_utf16_string());                                                    // [[Constructor]]
         serialize_byte_length(view.byte_length());
         data_holder.encode(view.byte_offset());
         serialize_byte_length(view.array_length());
@@ -1299,11 +1322,12 @@ static WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, Struc
 // 2. Translate all the references into the appropriate form
 class Serializer {
 public:
-    Serializer(JS::VM& vm, StructuredSerializeWriter& serialized, SerializationMemory& memory, bool for_storage)
+    Serializer(JS::VM& vm, StructuredSerializeWriter& serialized, SerializationMemory& memory, bool for_storage, AllowSharedArrayBuffers allow_shared_array_buffers)
         : m_vm(vm)
         , m_serialized(serialized)
         , m_memory(memory)
         , m_for_storage(for_storage)
+        , m_allow_shared_array_buffers(allow_shared_array_buffers)
     {
     }
 
@@ -1404,15 +1428,15 @@ public:
             }
 
             // 13. Otherwise, if value has an [[ArrayBufferData]] internal slot, then:
-            else if (auto const* array_buffer = as_if<JS::ArrayBuffer>(*object)) {
-                TRY(serialize_array_buffer(m_vm, serialized, *array_buffer, m_for_storage));
+            else if (auto* array_buffer = as_if<JS::ArrayBuffer>(*object)) {
+                TRY(serialize_array_buffer(m_vm, serialized, *array_buffer, m_for_storage, m_allow_shared_array_buffers));
             }
 
             // 14. Otherwise, if value has a [[ViewedArrayBuffer]] internal slot, then:
             else if (auto const* typed_array_base = as_if<JS::TypedArrayBase>(*object)) {
-                TRY(serialize_viewed_array_buffer(m_vm, serialized, *typed_array_base, m_for_storage, m_memory));
+                TRY(serialize_viewed_array_buffer(m_vm, serialized, *typed_array_base, m_for_storage, m_memory, m_allow_shared_array_buffers));
             } else if (auto const* data_view = as_if<JS::DataView>(*object)) {
-                TRY(serialize_viewed_array_buffer(m_vm, serialized, *data_view, m_for_storage, m_memory));
+                TRY(serialize_viewed_array_buffer(m_vm, serialized, *data_view, m_for_storage, m_memory, m_allow_shared_array_buffers));
             }
 
             // 15. Otherwise, if value has a [[MapData]] internal slot, then:
@@ -1550,7 +1574,7 @@ public:
                 for (auto copied_value : copied_list) {
                     // 1. Let serializedKey be ? StructuredSerializeInternal(entry.[[Key]], forStorage, memory).
                     // 2. Let serializedValue be ? StructuredSerializeInternal(entry.[[Value]], forStorage, memory).
-                    TRY(structured_serialize_internal(m_vm, m_serialized, copied_value, m_for_storage, m_memory));
+                    TRY(structured_serialize_internal(m_vm, m_serialized, copied_value, m_for_storage, m_memory, m_allow_shared_array_buffers));
 
                     // 3. Append { [[Key]]: serializedKey, [[Value]]: serializedValue } to serialized.[[MapData]].
                 }
@@ -1573,7 +1597,7 @@ public:
                 // 3. For each entry of copiedList:
                 for (auto copied_value : copied_list) {
                     // 1. Let serializedEntry be ? StructuredSerializeInternal(entry, forStorage, memory).
-                    TRY(structured_serialize_internal(m_vm, m_serialized, copied_value, m_for_storage, m_memory));
+                    TRY(structured_serialize_internal(m_vm, m_serialized, copied_value, m_for_storage, m_memory, m_allow_shared_array_buffers));
 
                     // 2. Append serializedEntry to serialized.[[SetData]].
                 }
@@ -1595,7 +1619,7 @@ public:
                         auto input_value = TRY(object.internal_get(property_key, value));
 
                         // 2. Let outputValue be ? StructuredSerializeInternal(inputValue, forStorage, memory).
-                        TRY(structured_serialize_internal(m_vm, m_serialized, input_value, m_for_storage, m_memory));
+                        TRY(structured_serialize_internal(m_vm, m_serialized, input_value, m_for_storage, m_memory, m_allow_shared_array_buffers));
 
                         // 3. Append { [[Key]]: key, [[Value]]: outputValue } to serialized.[[Properties]].
                         encode(key.as_string().utf16_string());
@@ -1621,7 +1645,35 @@ private:
     StructuredSerializeWriter& m_serialized;
     SerializationMemory& m_memory; // JS value -> index
     bool m_for_storage { false };
+    AllowSharedArrayBuffers m_allow_shared_array_buffers { AllowSharedArrayBuffers::CrossOriginIsolatedOnly };
 };
+
+// Returns no value when the source storage cannot be aliased, allowing the caller to copy it.
+static Optional<JS::DataBlock> data_block_sharing_storage_with(JS::ArrayBuffer& source_buffer, size_t byte_length, bool preserve_growability = false)
+{
+    VERIFY(source_buffer.is_shared_array_buffer());
+    auto const& source_block = source_buffer.data_block();
+
+    // Flatten alias chains to the actual owner. Keep this buffer's byte length because the owner's
+    // storage may be larger (for example, a fixed-length view of growable WebAssembly.Memory).
+    if (auto const* external = source_block.byte_buffer.get_pointer<JS::DataBlock::ExternalPrimitiveStorage>()) {
+        if (preserve_growability)
+            return JS::DataBlock { JS::DataBlock::ExternalPrimitiveStorage { external->owner, external->handle }, JS::DataBlock::Shared::Yes };
+        return JS::DataBlock { JS::DataBlock::ExternalPrimitiveStorage { external->owner, external->handle, byte_length }, JS::DataBlock::Shared::Yes };
+    }
+
+    if (auto const* owned = source_block.byte_buffer.get_pointer<JS::DataBlock::OwnedBackingStore>()) {
+        // Zero-length buffers have no backing storage to share.
+        if (!owned->handle().is_valid())
+            return {};
+        if (preserve_growability)
+            return JS::DataBlock { JS::DataBlock::ExternalPrimitiveStorage { GC::Ref<GC::Cell> { source_buffer }, owned->handle() }, JS::DataBlock::Shared::Yes };
+        return JS::DataBlock { JS::DataBlock::ExternalPrimitiveStorage { GC::Ref<GC::Cell> { source_buffer }, owned->handle(), byte_length }, JS::DataBlock::Shared::Yes };
+    }
+
+    // UnownedFixedLengthByteBuffer storage has no primitive-storage handle to share.
+    return {};
+}
 
 class Deserializer {
 public:
@@ -1753,7 +1805,22 @@ public:
 
             // 2. Otherwise, set value to a new SharedArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]]
             //    and whose [[ArrayBufferByteLength]] internal slot value is serialized.[[ArrayBufferByteLength]].
+            auto side_table_index = TRY(decode<u32>());
             auto buffer = TRY(decode<ByteBuffer>());
+
+            auto shared_array_buffers = m_serialized.shared_array_buffers();
+            if (side_table_index < shared_array_buffers.size()) {
+                if (auto data_block = data_block_sharing_storage_with(*shared_array_buffers[side_table_index], buffer.size()); data_block.has_value()) {
+                    value = JS::ArrayBuffer::create(realm, data_block.release_value());
+                    break;
+                }
+            }
+
+            // FIXME: A record that crossed a process boundary arrives with an empty side table, so we fall back to
+            //        copying the bytes even though the spec expects a SharedArrayBuffer to share memory anywhere
+            //        within its agent cluster. Ladybird runs same-agent-cluster dedicated workers in separate
+            //        processes, so throwing "DataCloneError" here would regress window<->worker messaging harder
+            //        than copying does; real cross-process sharing needs shared-memory-backed storage.
             value = JS::ArrayBuffer::create(realm, move(buffer), JS::DataBlock::Shared::Yes);
             break;
         }
@@ -1765,8 +1832,19 @@ public:
             // 2. Otherwise, set value to a new SharedArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]],
             //    whose [[ArrayBufferByteLengthData]] internal slot value is serialized.[[ArrayBufferByteLengthData]],
             //    and whose [[ArrayBufferMaxByteLength]] internal slot value is serialized.[[ArrayBufferMaxByteLength]].
+            auto side_table_index = TRY(decode<u32>());
             auto buffer = TRY(decode<ByteBuffer>());
             auto max_byte_length = TRY(decode<size_t>());
+
+            auto shared_array_buffers = m_serialized.shared_array_buffers();
+            if (side_table_index < shared_array_buffers.size()) {
+                if (auto data_block = data_block_sharing_storage_with(*shared_array_buffers[side_table_index], buffer.size(), true); data_block.has_value()) {
+                    auto data = JS::ArrayBuffer::create(realm, data_block.release_value());
+                    data->set_max_byte_length(max_byte_length);
+                    value = data;
+                    break;
+                }
+            }
 
             auto data = JS::ArrayBuffer::create(realm, move(buffer), JS::DataBlock::Shared::Yes);
             data->set_max_byte_length(max_byte_length);
@@ -2279,10 +2357,16 @@ WebIDL::ExceptionOr<JS::Value> structured_deserialize_with_transfer_internal(Tra
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserialize
 WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM& vm, JS::Value value)
 {
+    return structured_serialize(vm, value, AllowSharedArrayBuffers::CrossOriginIsolatedOnly);
+}
+
+// https://html.spec.whatwg.org/multipage/structured-data.html#structuredserialize
+WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM& vm, JS::Value value, AllowSharedArrayBuffers allow_shared_array_buffers)
+{
     // 1. Return ? StructuredSerializeInternal(value, false).
     SerializationMemory memory = {};
     auto serialized = StructuredSerializeWriter::create_ipc();
-    TRY(structured_serialize_internal(vm, serialized, value, false, memory));
+    TRY(structured_serialize_internal(vm, serialized, value, false, memory, allow_shared_array_buffers));
     return serialized.take_ipc_record();
 }
 
@@ -2297,9 +2381,9 @@ WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_for_storage
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
-WebIDL::ExceptionOr<void> structured_serialize_internal(JS::VM& vm, StructuredSerializeWriter& serialized, JS::Value value, bool for_storage, SerializationMemory& memory)
+WebIDL::ExceptionOr<void> structured_serialize_internal(JS::VM& vm, StructuredSerializeWriter& serialized, JS::Value value, bool for_storage, SerializationMemory& memory, AllowSharedArrayBuffers allow_shared_array_buffers)
 {
-    Serializer serializer(vm, serialized, memory, for_storage);
+    Serializer serializer(vm, serialized, memory, for_storage, allow_shared_array_buffers);
     return serializer.serialize(value);
 }
 
@@ -2480,6 +2564,10 @@ ErrorOr<Web::HTML::TransferDataEncoder> decode(Decoder& decoder)
 template<>
 ErrorOr<void> encode(Encoder& encoder, Web::HTML::IPCSerializationRecord const& record)
 {
+    // record.shared_array_buffers is deliberately not encoded: it is a same-process aliasing side
+    // table, so a record that crosses a process boundary arrives with an empty side table by
+    // construction and deserializes SharedArrayBuffers from the self-contained byte copy in
+    // record.data instead.
     TRY(encoder.encode(record.data));
     return {};
 }
