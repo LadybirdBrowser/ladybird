@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="container" dir="auto">abc</div>
+<textarea id="textarea" dir="auto">‏</textarea>
+<script>
+    test(() => {
+        println(`container before: ${getComputedStyle(container).direction}`);
+        container.textContent = "אבג";
+        println(`container after: ${getComputedStyle(container).direction}`);
+
+        println(`textarea before: ${getComputedStyle(textarea).direction}`);
+        textarea.value = "@123!";
+        println(`textarea after: ${getComputedStyle(textarea).direction}`);
+    });
+</script>
