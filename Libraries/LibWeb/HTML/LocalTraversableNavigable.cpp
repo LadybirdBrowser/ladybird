@@ -722,7 +722,6 @@ struct ChangingNavigableContinuationState : public JS::Cell {
     RefPtr<SessionHistoryEntry> target_entry;
     GC::Ptr<LocalNavigable> navigable;
     bool update_only = false;
-    bool reconstructs_replacement_process = false;
 
     GC::Ptr<DOM::Document> pending_document;
     GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> population_output;
@@ -882,7 +881,6 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
         changing_navigable_continuation->target_entry = target_entry;
         changing_navigable_continuation->navigable = navigable;
         changing_navigable_continuation->update_only = false;
-        changing_navigable_continuation->reconstructs_replacement_process = job.reconstructs_replacement_process;
         changing_navigable_continuation->pending_document = pending_document;
         changing_navigable_continuation->population_output = nullptr;
 
@@ -890,7 +888,11 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
         // AD-HOC: A synchronous same-document navigation has already updated the active entry by this point.
         //         A later queued reload can additionally set reload pending on an already-active target entry
         //         before that synchronous step is applied. The reload step owns that population work.
-        bool is_update_only = displayed_entry == target_entry && !target_entry->document_state()->reload_pending() && !job.reconstructs_replacement_process;
+        auto traverses_from_initial_about_blank = job.navigation_type == Bindings::NavigationType::Traverse
+            && changing_navigable_continuation->displayed_document->is_initial_about_blank();
+        bool is_update_only = displayed_entry == target_entry
+            && !target_entry->document_state()->reload_pending()
+            && !traverses_from_initial_about_blank;
         if (job.synchronous_navigation == SynchronousNavigation::Yes)
             is_update_only = !target_entry->document_state()->reload_pending() || displayed_entry == target_entry;
         if (is_update_only) {
@@ -996,7 +998,7 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
 
         // 8. If targetEntry's document is null, or targetEntry's document state's reload pending is true, then:
         bool needs_population = !changing_navigable_continuation->pending_document
-            && (job.reconstructs_replacement_process
+            && (traverses_from_initial_about_blank
                 || target_entry->document_state()->document_id() != navigable->active_document_id()
                 || target_entry->document_state()->reload_pending());
         if (needs_population) {
@@ -1027,7 +1029,7 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
                 navigable->id(), target_entry->navigation_api_key(), false);
 
             // 6. Let allowPOST be targetEntry's document state's reload pending.
-            auto allow_POST = target_entry->document_state()->reload_pending() || job.reconstructs_replacement_process;
+            auto allow_POST = target_entry->document_state()->reload_pending() || traverses_from_initial_about_blank;
 
             // https://github.com/whatwg/html/issues/9869
             // Population runs in a deferred task, during which sync navigations can mutate
@@ -1187,7 +1189,8 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
         //     viewport as outgoing state for targetEntry.
         auto target_entry_persisted_state = !update_only
                 && previous_entry == target_entry
-                && continuation->reconstructs_replacement_process
+                && navigation_type == Bindings::NavigationType::Traverse
+                && continuation->displayed_document->is_initial_about_blank()
             ? create_session_history_entry_persisted_state(*target_entry)
             : Optional<SessionHistoryEntryPersistedState> {};
 
@@ -1873,7 +1876,7 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(u64 o
         }));
 }
 
-void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, bool synchronous_navigation, LocalNavigable::NavigationAPIAbortBehavior job_navigation_api_abort_behavior, Optional<u64> initiation_id, bool reconstructs_replacement_process, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete)
+void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, bool synchronous_navigation, LocalNavigable::NavigationAPIAbortBehavior job_navigation_api_abort_behavior, Optional<u64> initiation_id, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete)
 {
     auto& operation = m_ui_history_operations.ensure(operation_id);
     operation.navigation_type = navigation_type;
@@ -1909,15 +1912,14 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operat
         on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Skipped);
         return;
     }
-    if (reconstructs_replacement_process)
-        operation.reconstructs_replacement_process = true;
     if (!local_target_entry)
         local_target_entry = resolve_changing_navigable_target_entry_from_ui_process(*navigable, move(target_entry));
     if (!local_target_entry) {
         on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale);
         return;
     }
-    if (reconstructs_replacement_process) {
+    auto active_document = navigable->active_document();
+    if (navigation_type == Bindings::NavigationType::Traverse && active_document && active_document->is_initial_about_blank()) {
         auto target_document_state = local_target_entry->document_state();
         VERIFY(target_document_state);
         if (!target_document_state->nested_histories().is_empty())
@@ -1932,7 +1934,6 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operat
             .navigation_type = navigation_type,
             .synchronous_navigation = synchronous_navigation ? SynchronousNavigation::Yes : SynchronousNavigation::No,
             .navigation_api_abort_behavior = navigation_api_abort_behavior,
-            .reconstructs_replacement_process = reconstructs_replacement_process,
         },
         source_snapshot_params, pending_document,
         GC::create_function(heap(), [this, operation_id, navigable_id, navigation_api_abort_behavior, on_complete](LocalChangingNavigableHistoryStepJobResult result) {

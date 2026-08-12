@@ -97,9 +97,10 @@ public:
     Optional<String> const& favicon_base64_png() const { return m_favicon_base64_png; }
 
     String const& handle() const { return m_client_state.client_handle; }
+    Optional<URL::URL> const& top_level_process_site_url() const { return m_client_state.site_url; }
 
     void create_new_process_for_cross_site_navigation(URL::URL const&, Web::HTML::DocumentResource, Web::Bindings::NavigationHistoryBehavior, Optional<Web::HTML::NavigationSourceSnapshot> = {});
-    void replace_web_content_process_for_history_traversal(Web::HTML::CrossProcessId target_document_state_id);
+    void replace_web_content_process_for_history_traversal(Web::HTML::CrossProcessId target_document_state_id, URL::URL const& target_url);
 
     void server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size, Gfx::IntRect damage_rect);
 
@@ -477,7 +478,7 @@ protected:
     };
     void dump_session_history(StringView reason, SessionHistoryDumpMode = SessionHistoryDumpMode::IfDebuggingEnabled) const;
     void recover_current_session_history_entry_with_history_operation();
-    void reconstruct_current_session_history_entry_with_history_operation(bool requires_process_replacement, StringView reason);
+    void reconstruct_current_session_history_entry_with_history_operation(StringView reason);
     bool cancel_uncommitted_top_level_navigation(StringView reason, bool stop_loading);
     NonnullRefPtr<Core::Promise<Empty>> reset_session_history_for_testing();
 
@@ -539,6 +540,7 @@ protected:
         String client_handle;
         SharedBitmap front_bitmap;
         Vector<SharedBitmap> other_bitmaps;
+        Optional<URL::URL> site_url;
         u64 page_index { 0 };
         bool has_usable_bitmap { false };
     } m_client_state;

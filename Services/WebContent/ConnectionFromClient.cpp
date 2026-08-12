@@ -382,7 +382,7 @@ void ConnectionFromClient::run_history_step_unload_cancelation_job(u64 page_id, 
         }));
 }
 
-void ConnectionFromClient::run_changing_navigable_history_job(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type, bool synchronous_navigation, Web::HTML::LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior, Optional<u64> initiation_id, bool reconstructs_replacement_process)
+void ConnectionFromClient::run_changing_navigable_history_job(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type, bool synchronous_navigation, Web::HTML::LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior, Optional<u64> initiation_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -390,7 +390,7 @@ void ConnectionFromClient::run_changing_navigable_history_job(u64 page_id, u64 o
         return;
     }
 
-    page->page().top_level_traversable()->run_ui_changing_navigable_history_job(operation_id, navigable_id, move(target_entry), user_involvement, navigation_type, synchronous_navigation, navigation_api_abort_behavior, initiation_id, reconstructs_replacement_process,
+    page->page().top_level_traversable()->run_ui_changing_navigable_history_job(operation_id, navigable_id, move(target_entry), user_involvement, navigation_type, synchronous_navigation, navigation_api_abort_behavior, initiation_id,
         GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition) {
             async_changing_navigable_history_job_ready(page_id, operation_id, navigable_id, disposition);
         }));

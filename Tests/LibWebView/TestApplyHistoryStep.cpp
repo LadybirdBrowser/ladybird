@@ -88,6 +88,9 @@ public:
         return {
             .run_initiator_sandboxing_check_job = [this](Web::HTML::CrossProcessId initiator_to_check, Vector<Web::HTML::CrossProcessId> navigables, Function<void(InitiatorSandboxingCheckResult)> on_complete) { initiator_sandboxing_check_jobs.append({ initiator_to_check, move(navigables), move(on_complete) }); },
             .run_unload_cancelation_job = [this](WebView::ApplyHistoryStepJobs::UnloadCancelationJob job, Function<void(Web::HTML::HistoryStepResult)> on_complete) { unload_cancelation_jobs.append({ move(job.target_entry), move(job.navigables_crossing_documents), move(on_complete) }); },
+            .select_changing_navigable_history_step_job_endpoint = [this](ChangingNavigableHistoryStepJob const& job) {
+                selected_changing_job_endpoints.append(job.navigable_id);
+                return true; },
             .run_changing_navigable_history_step_job = [this](ChangingNavigableHistoryStepJob job, Function<void(Web::HTML::ChangingNavigableHistoryStepJobDisposition)> on_complete) { changing_jobs.append({ move(job), move(on_complete) }); },
             .apply_changing_navigable_history_step_continuation = [this](ApplyChangingNavigableHistoryStepContinuation continuation, Function<void()> on_complete) { continuations.append({ move(continuation), move(on_complete) }); },
             .update_nonchanging_navigable_history_step_state = [this](Web::HTML::CrossProcessId navigable_id, Web::HTML::HistoryObjectLengthAndIndex history_object_length_and_index, Function<void()> on_complete) { nonchanging_updates.append({ navigable_id, history_object_length_and_index, move(on_complete) }); },
@@ -96,6 +99,7 @@ public:
 
     Vector<InitiatorSandboxingCheckJob> initiator_sandboxing_check_jobs;
     Vector<UnloadCancelationJob> unload_cancelation_jobs;
+    Vector<Web::HTML::CrossProcessId> selected_changing_job_endpoints;
     Vector<ChangingJob> changing_jobs;
     Vector<Continuation> continuations;
     Vector<NonchangingUpdate> nonchanging_updates;
@@ -182,6 +186,8 @@ TEST_CASE(traversal_runs_the_changing_root_job_and_commits_the_target_step)
     EXPECT(test.runner.initiator_sandboxing_check_jobs.is_empty());
     EXPECT(test.runner.unload_cancelation_jobs.is_empty());
 
+    EXPECT_EQ(test.runner.selected_changing_job_endpoints.size(), 1uz);
+    EXPECT_EQ(test.runner.selected_changing_job_endpoints[0], root_id());
     EXPECT_EQ(test.runner.changing_jobs.size(), 1uz);
     auto& job = test.runner.changing_jobs[0];
     EXPECT_EQ(job.job.navigable_id, root_id());

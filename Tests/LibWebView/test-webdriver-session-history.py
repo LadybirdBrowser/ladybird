@@ -1242,7 +1242,6 @@ def expect_pending_history_operation_traversal(
     expected_used_steps,
     expected_ui_current_used_step_index,
     expected_target_used_step_index,
-    expected_will_replace_web_content_process,
     log,
 ):
     snapshot = session_history(webdriver_port, session_id)
@@ -1282,13 +1281,6 @@ def expect_pending_history_operation_traversal(
         raise AssertionError(
             f"Expected {label} pending traversal stage to be applying-in-webcontent, "
             f"got {pending_traversal['stage']}\n" + "\n".join(log)
-        )
-
-    if pending_traversal["willReplaceWebContentProcess"] is not expected_will_replace_web_content_process:
-        raise AssertionError(
-            f"Expected {label} pending traversal willReplaceWebContentProcess to be "
-            f"{expected_will_replace_web_content_process}, got "
-            f"{pending_traversal['willReplaceWebContentProcess']}\n" + "\n".join(log)
         )
 
     return snapshot
@@ -1571,7 +1563,6 @@ def run_blocked_process_swap_ui_forward_crash_recovery_test(
         [0, 1],
         0,
         1,
-        True,
         log,
     )
     crash_current_page_allowing_navigation_timeout(webdriver_port, session_id)
@@ -2642,7 +2633,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             [0, 1],
             1,
             0,
-            True,
             log,
         )
         page_server.release_blocked_process_swap_back.set()
@@ -2885,7 +2875,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             [0, 1],
             1,
             0,
-            True,
             log,
         )
         crash_current_page_allowing_navigation_timeout(webdriver_port, session_id)
