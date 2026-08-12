@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="target">target</div>
+<div id="host"></div>
+<script>
+    function sheet(color) {
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(`div { color: ${color} }`);
+        return sheet;
+    }
+
+    test(() => {
+        const first = sheet("rgb(1, 1, 1)");
+        const second = sheet("rgb(2, 2, 2)");
+        const third = sheet("rgb(3, 3, 3)");
+
+        document.adoptedStyleSheets = [second];
+        document.adoptedStyleSheets.unshift(first);
+        println(`document unshift: ${getComputedStyle(target).color}`);
+
+        document.adoptedStyleSheets = [first, third];
+        document.adoptedStyleSheets.splice(1, 0, second);
+        println(`document splice: ${getComputedStyle(target).color}`);
+
+        document.adoptedStyleSheets.reverse();
+        println(`document reverse: ${getComputedStyle(target).color}`);
+
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        const shadowTarget = document.createElement("div");
+        shadowRoot.appendChild(shadowTarget);
+        shadowRoot.adoptedStyleSheets = [second];
+        shadowRoot.adoptedStyleSheets.unshift(first);
+        println(`shadow unshift: ${getComputedStyle(shadowTarget).color}`);
+    });
+</script>
