@@ -1097,6 +1097,7 @@ set(SOURCES
     WebAudio/DynamicsCompressorNode.cpp
     WebAudio/GainNode.cpp
     WebAudio/MediaElementAudioSourceNode.cpp
+    WebAudio/MediaStreamAudioSourceNode.cpp
     WebAudio/OfflineAudioCompletionEvent.cpp
     WebAudio/OfflineAudioContext.cpp
     WebAudio/OscillatorNode.cpp
@@ -1104,6 +1105,7 @@ set(SOURCES
     WebAudio/PeriodicWave.cpp
     WebAudio/Rendering/AudioBus.cpp
     WebAudio/Rendering/BiquadCoefficients.cpp
+    WebAudio/Rendering/MediaStreamSourceRenderNode.cpp
     WebAudio/Rendering/OfflineAudioRenderer.cpp
     WebAudio/Rendering/RealtimeAudioRenderer.cpp
     WebAudio/Rendering/RenderGraph.cpp
