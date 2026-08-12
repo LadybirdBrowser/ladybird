@@ -447,7 +447,6 @@ protected:
     Function<void()> make_top_level_history_traversal_applied_callback() const;
     void will_apply_history_traversal_step(URL::URL webdriver_pending_navigation_url, bool webdriver_pending_navigation_completes_with_session_history_update);
     void will_check_history_traversal_cancelation();
-    void load_history_traversal_target(TraversableSessionHistory::TraversalTarget const&);
     void apply_history_traversal_step_result(i32 step, bool step_was_available, Web::HTML::HistoryStepResult);
     void apply_history_step_cancelation_check_result(u64 request_id, i32 step, Web::HTML::HistoryStepResult);
     void start_requested_history_traversal(u64 initiation_id, Web::TraverseByDeltaHistoryOperationParameters, NonnullRefPtr<Core::Promise<Empty>>);
@@ -490,7 +489,7 @@ protected:
     void seed_web_content_session_history_from_ui_process(AllowCurrentEntryReconstruction = AllowCurrentEntryReconstruction::No);
     void recover_current_session_history_entry_with_history_operation();
     void load_current_session_history_entry_from_ui_process();
-    void load_session_history_traversal_target_from_ui_process(TraversableSessionHistory::TraversalTarget const&, StringView dump_reason);
+    void reconstruct_session_history_traversal_target(TraversableSessionHistory::TraversalTarget const&, StringView dump_reason);
     NonnullRefPtr<Core::Promise<Empty>> reset_session_history_for_testing();
 
     virtual void update_zoom();

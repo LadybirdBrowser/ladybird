@@ -1387,16 +1387,14 @@ def expect_web_content_session_history_matches_ui(webdriver_port, session_id, la
     )
 
 
-def expect_pending_session_history_traversal(
+def expect_pending_history_operation_traversal(
     webdriver_port,
     session_id,
     label,
     expected_entry_urls,
     expected_used_steps,
-    expected_current_used_step_index,
-    expected_back_enabled,
-    expected_forward_enabled,
-    expected_stage,
+    expected_ui_current_used_step_index,
+    expected_target_used_step_index,
     expected_will_replace_web_content_process,
     log,
 ):
@@ -1413,54 +1411,33 @@ def expect_pending_session_history_traversal(
     if history_used_steps(ui) != expected_used_steps:
         raise AssertionError(f"Expected {label} used steps to be {expected_used_steps}\n" + "\n".join(log))
 
-    if ui["currentUsedStepIndex"] != expected_current_used_step_index:
+    if ui["currentUsedStepIndex"] != expected_ui_current_used_step_index:
         raise AssertionError(
-            f"Expected {label} current used step index to be {expected_current_used_step_index}\n" + "\n".join(log)
-        )
-
-    if (
-        ui["backButtonEnabled"] is not expected_back_enabled
-        or ui["forwardButtonEnabled"] is not expected_forward_enabled
-    ):
-        raise AssertionError(
-            f"Expected {label} buttons to be back={expected_back_enabled}, forward={expected_forward_enabled}\n"
-            + "\n".join(log)
+            f"Expected {label} current used step index to be {expected_ui_current_used_step_index}\n" + "\n".join(log)
         )
 
     if pending_traversal is None:
         raise AssertionError(f"Expected {label} to have a pending session history traversal\n" + "\n".join(log))
 
-    if pending_navigation is None:
-        raise AssertionError(f"Expected {label} to have a pending session history navigation\n" + "\n".join(log))
+    if pending_navigation is not None:
+        raise AssertionError(f"Expected {label} not to have a parallel session history navigation\n" + "\n".join(log))
 
-    if pending_navigation["url"] != expected_entry_urls[expected_current_used_step_index]:
-        raise AssertionError(
-            f"Expected {label} pending navigation URL to be "
-            f"{expected_entry_urls[expected_current_used_step_index]}, got {pending_navigation['url']}\n"
-            + "\n".join(log)
-        )
-
-    if pending_navigation["previousCurrentURL"] == pending_navigation["url"]:
-        raise AssertionError(
-            f"Expected {label} pending navigation to preserve the previous current URL\n" + "\n".join(log)
-        )
-
-    expected_step = expected_used_steps[expected_current_used_step_index]
+    expected_step = expected_used_steps[expected_target_used_step_index]
     if pending_traversal["targetStep"] != expected_step:
         raise AssertionError(
             f"Expected {label} pending traversal target step to be {expected_step}, "
             f"got {pending_traversal['targetStep']}\n" + "\n".join(log)
         )
 
-    if pending_traversal["targetStepIndex"] != expected_current_used_step_index:
+    if pending_traversal["targetStepIndex"] != expected_target_used_step_index:
         raise AssertionError(
-            f"Expected {label} pending traversal target step index to be {expected_current_used_step_index}, "
+            f"Expected {label} pending traversal target step index to be {expected_target_used_step_index}, "
             f"got {pending_traversal['targetStepIndex']}\n" + "\n".join(log)
         )
 
-    if pending_traversal["stage"] != expected_stage:
+    if pending_traversal["stage"] != "applying-in-webcontent":
         raise AssertionError(
-            f"Expected {label} pending traversal stage to be {expected_stage}, "
+            f"Expected {label} pending traversal stage to be applying-in-webcontent, "
             f"got {pending_traversal['stage']}\n" + "\n".join(log)
         )
 
@@ -1471,13 +1448,10 @@ def expect_pending_session_history_traversal(
             f"{pending_traversal['willReplaceWebContentProcess']}\n" + "\n".join(log)
         )
 
-    expected_restore_mode = (
-        "restore-from-ui-process" if expected_will_replace_web_content_process else "preserve-current-process-state"
-    )
-    if pending_navigation["webContentRestoreMode"] != expected_restore_mode:
+    if ui["webContentCurrentStep"] != expected_step:
         raise AssertionError(
-            f"Expected {label} pending navigation restore mode to be {expected_restore_mode}, "
-            f"got {pending_navigation['webContentRestoreMode']}\n" + "\n".join(log)
+            f"Expected {label} WebContent current step to be {expected_step}, "
+            f"got {ui['webContentCurrentStep']}\n" + "\n".join(log)
         )
 
     if ui["webContentHistoryMatchesUI"]:
@@ -1554,72 +1528,7 @@ def expect_entry_nested_history(webdriver_port, session_id, label, entry_url, ex
     )
 
 
-def expect_pending_web_content_history_step_after_fallback_load(webdriver_port, session_id, label, log):
-    snapshot = session_history(webdriver_port, session_id)
-    ui = snapshot["ui"]
-    web_content = snapshot["webContent"]
-    pending_step = ui["pendingWebContentHistoryStepAfterFallbackLoad"]
-    pending_traversal = ui["pendingSessionHistoryTraversal"]
-    ui_current_step = history_used_steps(ui)[ui["currentUsedStepIndex"]]
-    web_content_current_step = history_used_steps(web_content)[web_content["currentUsedStepIndex"]]
-    log.append(
-        f"{label} pending fallback step: {pending_step}, "
-        f"pendingTraversal={pending_traversal}, "
-        f"webContentCurrentStep={ui['webContentCurrentStep']}, "
-        f"matches={ui['webContentHistoryMatchesUI']}"
-    )
-
-    if pending_step is None:
-        raise AssertionError(f"Expected {label} to have a pending fallback step\n" + "\n".join(log))
-
-    if ui["webContentHistoryMatchesUI"]:
-        raise AssertionError(
-            f"Expected {label} WebContent history to be stale while step is pending\n" + "\n".join(log)
-        )
-
-    if ui["waitingToSeedWebContent"] or ui["waitingForWebContentSeedAck"] or ui["reseedAfterCurrentHistoryLoad"]:
-        raise AssertionError(f"Expected {label} WebContent seed to be applied\n" + "\n".join(log))
-
-    if pending_traversal is None:
-        raise AssertionError(f"Expected {label} to have a pending session history traversal\n" + "\n".join(log))
-
-    if pending_traversal["targetStep"] != pending_step:
-        raise AssertionError(
-            f"Expected {label} pending traversal target {pending_traversal['targetStep']} "
-            f"to match pending WebContent step {pending_step}\n" + "\n".join(log)
-        )
-
-    if pending_traversal["stage"] != "restoring-nested-step-after-seed":
-        raise AssertionError(
-            f"Expected {label} pending traversal to be restoring nested step after seed, "
-            f"got {pending_traversal['stage']}\n" + "\n".join(log)
-        )
-
-    if pending_step != ui_current_step:
-        raise AssertionError(
-            f"Expected {label} pending step {pending_step} to match UI current step {ui_current_step}\n"
-            + "\n".join(log)
-        )
-
-    if ui["webContentCurrentStep"] != web_content_current_step:
-        raise AssertionError(
-            f"Expected {label} UI to report WebContent current step {web_content_current_step}, "
-            f"got {ui['webContentCurrentStep']}\n" + "\n".join(log)
-        )
-
-    if history_current_step(ui["webContentKnownUsedSteps"]) != web_content_current_step:
-        raise AssertionError(
-            f"Expected {label} known WebContent steps to mark current step {web_content_current_step}\n"
-            + "\n".join(log)
-        )
-
-    if ui["webContentCurrentStep"] == pending_step:
-        raise AssertionError(
-            f"Expected {label} WebContent to still be before pending step {pending_step}\n" + "\n".join(log)
-        )
-
-
-def expect_no_pending_web_content_history_step_after_fallback_load(webdriver_port, session_id, label, log):
+def expect_session_history_synchronized(webdriver_port, session_id, label, log):
     snapshot = session_history(webdriver_port, session_id)
     ui = snapshot["ui"]
     web_content = snapshot["webContent"]
@@ -1636,11 +1545,11 @@ def expect_no_pending_web_content_history_step_after_fallback_load(webdriver_por
         and history_current_step(ui["webContentKnownUsedSteps"]) == ui["webContentCurrentStep"]
         and comparable_history(ui) == comparable_history(web_content)
     ):
-        log.append(f"{label} restored fallback step: {summarize_history_snapshot(snapshot)}")
+        log.append(f"{label} synchronized history: {summarize_history_snapshot(snapshot)}")
         return
 
     raise AssertionError(
-        f"Expected {label} to clear pending fallback step and match WebContent, "
+        f"Expected {label} history to match WebContent with no operation pending, "
         f"got {summarize_history_snapshot(snapshot)}\n" + "\n".join(log)
     )
 
@@ -1851,16 +1760,14 @@ def run_blocked_process_swap_ui_forward_crash_recovery_test(
         page_server.blocked_process_swap_back_requested,
         "blocked process-swap UI forward before crash",
     )
-    expect_pending_session_history_traversal(
+    expect_pending_history_operation_traversal(
         webdriver_port,
         session_id,
         "while process-swap UI forward loads target before crash",
         [url_b, url_process_swap_back_blocked],
         [0, 1],
+        0,
         1,
-        True,
-        False,
-        "replacing-webcontent-process",
         True,
         log,
     )
@@ -1872,9 +1779,9 @@ def run_blocked_process_swap_ui_forward_crash_recovery_test(
         "while process-swap UI forward recovers target after crash",
         [url_b, url_process_swap_back_blocked],
         [0, 1],
-        1,
-        True,
+        0,
         False,
+        True,
         log,
         expected_web_content_known_used_steps=[0, 1],
         expected_web_content_current_step=1,
@@ -3078,16 +2985,14 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
         page_server.process_swap_back_document_ran.clear()
         traverse_history_from_ui(webdriver_port, session_id, -1, wait_for_navigation_completion=False)
         wait_for_event(page_server.blocked_process_swap_back_requested, "blocked process-swap UI back")
-        expect_pending_session_history_traversal(
+        expect_pending_history_operation_traversal(
             webdriver_port,
             session_id,
             "while process-swap UI back loads target",
             [url_process_swap_back_blocked, url_b],
             [0, 1],
+            1,
             0,
-            False,
-            True,
-            "replacing-webcontent-process",
             True,
             log,
         )
@@ -3342,16 +3247,14 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             page_server.blocked_process_swap_back_requested,
             "blocked process-swap UI back before crash",
         )
-        expect_pending_session_history_traversal(
+        expect_pending_history_operation_traversal(
             webdriver_port,
             session_id,
             "while process-swap UI back loads target before crash",
             [url_process_swap_back_blocked, url_b],
             [0, 1],
+            1,
             0,
-            False,
-            True,
-            "replacing-webcontent-process",
             True,
             log,
         )
@@ -3363,9 +3266,9 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             "while process-swap UI back recovers target after crash",
             [url_process_swap_back_blocked, url_b],
             [0, 1],
-            0,
-            False,
+            1,
             True,
+            False,
             log,
             expected_web_content_known_used_steps=[0, 1],
             expected_web_content_current_step=0,
@@ -3451,7 +3354,7 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
         traverse_history_from_ui(webdriver_port, session_id, -1)
         expect_url(webdriver_port, session_id, "while nested restore crash recovery loads /nested", url_nested, log)
         wait_for_event(page_server.blocked_frame_b_requested, "blocked nested frame restore before crash")
-        expect_pending_web_content_history_step_after_fallback_load(
+        expect_session_history_synchronized(
             webdriver_port, session_id, "while nested restore crash recovery waits for frame", log
         )
         crash_current_page_allowing_navigation_timeout(webdriver_port, session_id)
@@ -3488,9 +3391,7 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             [url_frame_a, url_frame_b_blocked],
             log,
         )
-        expect_no_pending_web_content_history_step_after_fallback_load(
-            webdriver_port, session_id, "after nested restore crash recovery", log
-        )
+        expect_session_history_synchronized(webdriver_port, session_id, "after nested restore crash recovery", log)
         expect_web_content_session_history_matches_ui(
             webdriver_port, session_id, "after nested restore crash recovery", log
         )
@@ -4823,9 +4724,7 @@ return [location.href, window.canceledTraverseCount];
             [url_frame_a, url_frame_b_blocked],
             log,
         )
-        expect_no_pending_web_content_history_step_after_fallback_load(
-            webdriver_port, session_id, "after nested crash recovery", log
-        )
+        expect_session_history_synchronized(webdriver_port, session_id, "after nested crash recovery", log)
         expect_web_content_session_history_matches_ui(webdriver_port, session_id, "after nested crash recovery", log)
 
         request(webdriver_port, "POST", f"/session/{session_id}/back", {})
@@ -4919,7 +4818,7 @@ return location.href;
             [url_frame_a, url_frame_b_blocked],
             log,
         )
-        expect_no_pending_web_content_history_step_after_fallback_load(
+        expect_session_history_synchronized(
             webdriver_port, session_id, "after same-document nested crash recovery", log
         )
 
@@ -5269,7 +5168,7 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
         expect_url(webdriver_port, session_id, "after browser UI back to nested", url_nested, log)
         expect_navigation_buttons(webdriver_port, session_id, "after browser UI back to nested", True, True, log)
         wait_for_event(page_server.blocked_frame_b_requested, "blocked nested frame restore")
-        expect_pending_web_content_history_step_after_fallback_load(
+        expect_session_history_synchronized(
             webdriver_port, session_id, "while browser UI back restores nested frame navigation", log
         )
         page_server.frame_b_blocked_document_ran.clear()
@@ -5294,7 +5193,7 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             [url_frame_a, url_frame_b_blocked],
             log,
         )
-        expect_no_pending_web_content_history_step_after_fallback_load(
+        expect_session_history_synchronized(
             webdriver_port, session_id, "after browser UI back restores nested frame navigation", log
         )
 
