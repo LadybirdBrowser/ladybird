@@ -541,12 +541,15 @@ RefPtr<VideoFrame> PlaybackManager::current_presented_frame(VideoSinkHandle hand
     return track_data.video_sink->current_frame();
 }
 
-void PlaybackManager::release_video_edge(VideoSinkHandle handle)
+void PlaybackManager::release_video_edge(VideoSinkHandle handle, VideoSink const& released_sink)
 {
     auto* manager = video_sink_registrations().get(handle).value_or(nullptr);
     if (!manager)
         return;
-    manager->disable_video_sink_by_handle(handle);
+    auto* track_data = manager->find_video_data_for_handle(handle);
+    if (!track_data || track_data->video_sink != &released_sink)
+        return;
+    manager->detach_lost_video_sink(handle);
 }
 
 void PlaybackManager::enable_an_audio_track(Track const& track)
