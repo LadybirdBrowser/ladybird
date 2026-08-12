@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="host"><div id="slottable"></div></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const slottable = document.getElementById("slottable");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <style>::slotted(div) { --assignment: remaining-slot }</style>
+            <slot id="first"></slot>
+            <slot id="second"><div></div></slot>
+        `;
+        const first = shadowRoot.getElementById("first");
+        const second = shadowRoot.getElementById("second");
+        document.body.offsetWidth;
+
+        first.remove();
+
+        println(`assigned to remaining slot: ${slottable.assignedSlot === second}`);
+        println(`slotted style after reassignment: ${getComputedStyle(slottable).getPropertyValue("--assignment")}`);
+    });
+</script>
