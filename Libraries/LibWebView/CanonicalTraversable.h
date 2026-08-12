@@ -98,15 +98,6 @@ public:
     // queue; the algorithm runs here and dispatches its per-navigable jobs to the processes hosting the documents.
     using OnHistoryOperationComplete = Function<void(Web::HTML::HistoryStepResult, Optional<i32> committed_step)>;
 
-    struct BrowserHistoryTraversalOperation {
-        i32 target_step { 0 };
-        bool check_for_cancelation { true };
-        bool reconstructs_web_content_history { false };
-        bool requires_process_replacement { false };
-        bool restores_replacement_process { false };
-        RefPtr<BrowserHistoryTraversalState> state;
-    };
-
     struct BrowserHistoryTraversalDiagnostic {
         enum class Stage : u8 {
             ApplyingInWebContent,
@@ -121,7 +112,6 @@ public:
     };
 
     void enqueue_history_operation(u64 initiation_id, Web::HistoryOperationParameters, WebContentClient& requesting_client, u64 requesting_page_id, OnHistoryOperationComplete = nullptr);
-    void enqueue_history_operation(BrowserHistoryTraversalOperation, OnHistoryOperationComplete = nullptr);
     // Appends plain algorithm steps; a requested traversal defers its target resolution to its queued position, the
     // way the specification's queued steps do, and then starts its operation at that position.
     void append_history_queue_steps(SessionHistoryTraversalSteps);
@@ -179,7 +169,8 @@ private:
     HistoryOperation* find_history_operation(u64 operation_id);
     void add_history_operation_completion_endpoint(HistoryOperation&, HistoryJobEndpoint, Optional<u64> initiation_id = {});
     ApplyHistoryStepJobs create_apply_history_step_jobs(u64 operation_id);
-    void run_ui_history_operation_at_queue_position(BrowserHistoryTraversalOperation, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
+    void enqueue_browser_history_traversal(Web::TraverseToStepHistoryOperationParameters, bool check_for_cancelation, bool reconstructs_web_content_history, bool requires_process_replacement, bool restores_replacement_process, RefPtr<BrowserHistoryTraversalState>, OnHistoryOperationComplete = nullptr);
+    void run_browser_history_traversal_at_queue_position(Web::TraverseToStepHistoryOperationParameters, bool check_for_cancelation, bool reconstructs_web_content_history, bool requires_process_replacement, bool restores_replacement_process, RefPtr<BrowserHistoryTraversalState>, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
     void start_history_operation(HistoryOperation&, NonnullRefPtr<Core::Promise<Empty>>);
     void apply_history_step(HistoryOperation&, i32 step, bool check_for_cancelation, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement, Optional<Web::Bindings::NavigationType>, Web::HTML::SynchronousNavigation, Optional<Web::HTML::CrossProcessId> navigable_with_finalized_entry);
     void update_for_navigable_creation_or_destruction(HistoryOperation&);
