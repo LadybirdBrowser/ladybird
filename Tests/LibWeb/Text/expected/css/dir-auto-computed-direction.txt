@@ -4,3 +4,10 @@ textarea before: rtl
 textarea after: ltr
 container matches rtl after replacing rtl text: true
 container after replacing rtl text: rtl
+named slot before assignment: rtl
+named slot after ltr assignment: ltr
+default slot after ltr reassignment: rtl
+default slot after rtl removal: ltr
+dynamic slot container before insertion: ltr
+dynamic slot container after insertion: rtl
+dynamic slot container after removal: ltr

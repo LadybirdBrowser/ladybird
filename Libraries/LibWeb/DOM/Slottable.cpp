@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/CSS/Invalidation/SlotInvalidator.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/DOM/Element.h>
@@ -201,7 +202,8 @@ void assign_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
     auto slottables = find_slottables(slot);
 
     // 2. If slottables and slot’s assigned nodes are not identical, then run signal a slot change for slot.
-    if (slottables != slot->assigned_nodes_internal())
+    auto assignment_changed = slottables != slot->assigned_nodes_internal();
+    if (assignment_changed)
         signal_a_slot_change(slot);
 
     // AD-HOC: Clear the assigned slot for slottables that are no longer assigned to this slot.
@@ -236,6 +238,9 @@ void assign_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
     // 3. Set slot’s assigned nodes to slottables.
     // NOTE: We do this step last so that we can move the slottables list.
     slot->set_assigned_nodes(move(slottables));
+
+    if (assignment_changed)
+        CSS::Invalidation::invalidate_style_after_slot_assignment_change(slot);
 }
 
 // https://dom.spec.whatwg.org/#assign-slotables-for-a-tree
