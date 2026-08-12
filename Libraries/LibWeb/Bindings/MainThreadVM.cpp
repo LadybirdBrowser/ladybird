@@ -60,6 +60,7 @@
 #include <LibWeb/HTML/Scripting/WorkerAgent.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/HTML/WorkletGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -198,53 +199,55 @@ void initialize_main_thread_vm(HTML::AgentType type)
         // 4. If script is not null, then set settings object to script's settings object.
         auto& settings_object = script ? script->settings_object() : HTML::current_settings_object();
 
-        // 5. Let global be settingsObject's global object.
-        auto& global_mixin = HTML::relevant_window_or_worker_global_scope(settings_object.global_object());
-        auto& global = global_mixin.this_impl();
+        auto track_promise_rejection = [&](auto& global_mixin) {
+            // 5. Let global be settingsObject's global object.
+            auto& global = global_mixin.this_impl();
 
-        switch (operation) {
-        // 6. If operation is "reject",
-        case JS::Promise::RejectionOperation::Reject:
-            // 1. Append promise to global's about-to-be-notified rejected promises list.
-            global_mixin.push_onto_about_to_be_notified_rejected_promises_list(promise);
-            break;
-        // 7. If operation is "handle",
-        case JS::Promise::RejectionOperation::Handle: {
-            // 1. If global's about-to-be-notified rejected promises list contains promise, then remove promise from that list and return.
-            bool removed_about_to_be_notified_rejected_promise = global_mixin.remove_from_about_to_be_notified_rejected_promises_list(promise);
-            if (removed_about_to_be_notified_rejected_promise)
-                return;
+            switch (operation) {
+            // 6. If operation is "reject",
+            case JS::Promise::RejectionOperation::Reject:
+                // 1. Append promise to global's about-to-be-notified rejected promises list.
+                global_mixin.push_onto_about_to_be_notified_rejected_promises_list(promise);
+                break;
+            // 7. If operation is "handle",
+            case JS::Promise::RejectionOperation::Handle: {
+                // 1. If global's about-to-be-notified rejected promises list contains promise, then remove promise from that list and return.
+                bool removed_about_to_be_notified_rejected_promise = global_mixin.remove_from_about_to_be_notified_rejected_promises_list(promise);
+                if (removed_about_to_be_notified_rejected_promise)
+                    return;
 
-            // 3. Remove promise from global's outstanding rejected promises weak set.
-            bool removed_outstanding_rejected_promise = global_mixin.remove_from_outstanding_rejected_promises_weak_set(&promise);
+                // 3. Remove promise from global's outstanding rejected promises weak set.
+                bool removed_outstanding_rejected_promise = global_mixin.remove_from_outstanding_rejected_promises_weak_set(&promise);
 
-            // 2. If global's outstanding rejected promises weak set does not contain promise, then return.
-            // NOTE: This is done out of order because removed_outstanding_rejected_promise will be false if the promise wasn't in the set or true if it was and got removed.
-            if (!removed_outstanding_rejected_promise)
-                return;
+                // 2. If global's outstanding rejected promises weak set does not contain promise, then return.
+                // NOTE: This is done out of order because removed_outstanding_rejected_promise will be false if the promise wasn't in the set or true if it was and got removed.
+                if (!removed_outstanding_rejected_promise)
+                    return;
 
-            // 4. Queue a global task on the DOM manipulation task source given global to fire an event named rejectionhandled at global, using PromiseRejectionEvent,
-            //    with the promise attribute initialized to promise, and the reason attribute initialized to the value of promise's [[PromiseResult]] internal slot.
-            auto& global_object = settings_object.global_object();
-            auto& realm = settings_object.realm();
-            HTML::queue_global_task(HTML::Task::Source::DOMManipulation, global_object, GC::create_function(GC::Heap::the(), [&global, &promise, &realm] {
-                // FIXME: This currently assumes that global is a WindowObject.
-                auto* window = as_if<HTML::Window>(global);
-                VERIFY(window);
+                // 4. Queue a global task on the DOM manipulation task source given global to fire an event named rejectionhandled at global, using PromiseRejectionEvent,
+                //    with the promise attribute initialized to promise, and the reason attribute initialized to the value of promise's [[PromiseResult]] internal slot.
+                auto& global_object = settings_object.global_object();
+                auto& realm = settings_object.realm();
+                HTML::queue_global_task(HTML::Task::Source::DOMManipulation, global_object, GC::create_function(GC::Heap::the(), [&global, &promise, &realm] {
+                    HTML::PromiseRejectionEventInit event_init {
+                        {}, // Initialize the inherited EventInit
+                        /* .promise = */ promise,
+                        /* .reason = */ promise.result(),
+                    };
+                    auto promise_rejection_event = HTML::PromiseRejectionEvent::create(realm.global_object(), HTML::EventNames::rejectionhandled, event_init);
+                    global.dispatch_event(promise_rejection_event);
+                }));
+                break;
+            }
+            default:
+                VERIFY_NOT_REACHED();
+            }
+        };
 
-                HTML::PromiseRejectionEventInit event_init {
-                    {}, // Initialize the inherited EventInit
-                    /* .promise = */ promise,
-                    /* .reason = */ promise.result(),
-                };
-                auto promise_rejection_event = HTML::PromiseRejectionEvent::create(realm.global_object(), HTML::EventNames::rejectionhandled, event_init);
-                window->dispatch_event(promise_rejection_event);
-            }));
-            break;
-        }
-        default:
-            VERIFY_NOT_REACHED();
-        }
+        if (auto* worklet_global_scope = impl_from<HTML::WorkletGlobalScope>(&settings_object.global_object()))
+            track_promise_rejection(*worklet_global_scope);
+        else
+            track_promise_rejection(HTML::relevant_window_or_worker_global_scope(settings_object.global_object()));
     };
 
     // 8.1.5.4.1 HostCallJobCallback(callback, V, argumentsList), https://html.spec.whatwg.org/multipage/webappapis.html#hostcalljobcallback
