@@ -204,7 +204,7 @@ private:
     virtual void page_did_request_link_context_menu(Web::CSSPixelPoint, URL::URL const&, ByteString const& target, unsigned modifiers) override;
     virtual void page_did_request_image_context_menu(Web::CSSPixelPoint, URL::URL const&, ByteString const& target, unsigned modifiers, Optional<Gfx::Bitmap const*>) override;
     virtual void page_did_request_media_context_menu(Web::CSSPixelPoint, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu const&) override;
-    virtual void page_did_start_loading(Optional<Utf16String> const&, URL::URL const&, Web::HTML::DocumentResource, bool, Web::Bindings::NavigationHistoryBehavior) override;
+    virtual void page_did_start_loading(Optional<Utf16String> const&, URL::URL const&, Optional<Web::HTML::PendingSessionHistoryEntryDescriptor> const&, bool, Web::Bindings::NavigationHistoryBehavior) override;
     virtual void page_did_cancel_loading(Optional<Utf16String> const&, URL::URL const&) override;
     virtual void page_did_create_new_document(Web::DOM::Document&) override;
     virtual void page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document&) override;

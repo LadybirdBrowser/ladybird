@@ -326,15 +326,35 @@ WebContentSessionHistoryUpdateResult CanonicalTraversable::update_session_histor
     return result;
 }
 
-NavigationStartResult CanonicalTraversable::did_start_navigation(URL::URL const& url, Web::HTML::DocumentResource document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling, bool is_showing_crash_page)
+NavigationStartResult CanonicalTraversable::did_start_navigation(URL::URL const& url, Optional<Web::HTML::PendingSessionHistoryEntryDescriptor> pending_history_entry, bool is_history_load, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling, bool is_showing_crash_page)
 {
+    if (is_history_load) {
+        // A process-swap navigation can begin from a UI-created provisional entry. Replace that placeholder once
+        // WebContent creates the pending entry. A traversal load retains its existing canonical entry identity.
+        if (pending_history_entry.has_value()) {
+            auto current_entry = m_session_history.current_entry();
+            VERIFY(current_entry);
+            if (current_entry->document_state.is_provisional)
+                m_session_history.replace_current_entry(move(*pending_history_entry));
+        }
+        return { .dump_reason = "did-start-ui-session-history-load"sv, .did_clear_crash_page = is_showing_crash_page };
+    }
+
+    // Reloading an existing entry does not create a pending entry. The reload operation updates the canonical entry;
+    // this notification only updates loading state.
+    if (!pending_history_entry.has_value())
+        return { .did_clear_crash_page = is_showing_crash_page };
+
     if (is_showing_crash_page) {
-        if (auto const* current_entry = m_session_history.current_entry(); current_entry && current_entry->url == url)
+        if (auto const* current_entry = m_session_history.current_entry(); current_entry && current_entry->url == url) {
+            if (current_entry->document_state.is_provisional)
+                m_session_history.replace_current_entry(move(*pending_history_entry));
             return { .dump_reason = "did-start-navigation-from-crash-page"sv, .did_clear_crash_page = true };
+        }
     }
 
     if (is_redirect) {
-        m_session_history.replace_current_entry_url(url, allocate_ui_process_document_state_id());
+        m_session_history.replace_current_entry(move(*pending_history_entry));
         if (m_pending_session_history_navigation.has_value())
             m_pending_session_history_navigation->url = url;
         m_current_web_content_session_history_matches_mirror = false;
@@ -342,24 +362,26 @@ NavigationStartResult CanonicalTraversable::did_start_navigation(URL::URL const&
     }
 
     if (auto const* current_entry = m_session_history.current_entry(); current_entry && current_entry->url == url) {
-        if (m_pending_session_history_navigation.has_value() && m_pending_session_history_navigation->url == url)
-            return { .did_clear_crash_page = is_showing_crash_page };
+        if (m_pending_session_history_navigation.has_value() && m_pending_session_history_navigation->url == url) {
+            m_session_history.replace_current_entry(move(*pending_history_entry));
+        } else {
+            if (history_handling == Web::Bindings::NavigationHistoryBehavior::Push && m_current_web_content_session_history_matches_mirror)
+                m_pending_session_history_navigation = PendingSessionHistoryNavigation { url, m_session_history };
+            else
+                m_pending_session_history_navigation.clear();
 
-        if (history_handling == Web::Bindings::NavigationHistoryBehavior::Push && m_current_web_content_session_history_matches_mirror)
-            m_pending_session_history_navigation = PendingSessionHistoryNavigation { url, m_session_history };
-        else
-            m_pending_session_history_navigation.clear();
-
-        if (history_handling == Web::Bindings::NavigationHistoryBehavior::Replace) {
-            m_session_history.replace_current_entry(url, allocate_ui_process_document_state_id(), move(document_resource));
-            m_current_web_content_session_history_matches_mirror = false;
-            return { .dump_reason = "did-start-navigation-replace-current-url"sv, .should_update_navigation_action_state = true, .did_clear_crash_page = is_showing_crash_page };
+            if (history_handling == Web::Bindings::NavigationHistoryBehavior::Replace) {
+                m_session_history.replace_current_entry(move(*pending_history_entry));
+                m_current_web_content_session_history_matches_mirror = false;
+                return { .dump_reason = "did-start-navigation-replace-current-url"sv, .should_update_navigation_action_state = true, .did_clear_crash_page = is_showing_crash_page };
+            }
+            if (history_handling == Web::Bindings::NavigationHistoryBehavior::Push) {
+                m_session_history.navigate(move(*pending_history_entry));
+                m_current_web_content_session_history_matches_mirror = false;
+                return { .dump_reason = "did-start-navigation-push-current-url"sv, .should_update_navigation_action_state = true, .did_clear_crash_page = is_showing_crash_page };
+            }
         }
-        if (history_handling == Web::Bindings::NavigationHistoryBehavior::Push) {
-            m_session_history.navigate(url, allocate_ui_process_document_state_id(), move(document_resource));
-            m_current_web_content_session_history_matches_mirror = false;
-            return { .dump_reason = "did-start-navigation-push-current-url"sv, .should_update_navigation_action_state = true, .did_clear_crash_page = is_showing_crash_page };
-        }
+        m_current_web_content_session_history_matches_mirror = false;
         return { .did_clear_crash_page = is_showing_crash_page };
     }
 
@@ -368,9 +390,9 @@ NavigationStartResult CanonicalTraversable::did_start_navigation(URL::URL const&
     else
         m_pending_session_history_navigation.clear();
     if (history_handling == Web::Bindings::NavigationHistoryBehavior::Replace)
-        m_session_history.replace_current_entry(url, allocate_ui_process_document_state_id(), move(document_resource));
+        m_session_history.replace_current_entry(move(*pending_history_entry));
     else
-        m_session_history.navigate(url, allocate_ui_process_document_state_id(), move(document_resource));
+        m_session_history.navigate(move(*pending_history_entry));
     m_current_web_content_session_history_matches_mirror = false;
     return { .dump_reason = "did-start-navigation"sv, .should_update_navigation_action_state = true, .did_clear_crash_page = is_showing_crash_page };
 }
@@ -1027,6 +1049,12 @@ void CanonicalTraversable::finalize_cross_document_navigation_for_history_operat
     auto is_matching_replace = parameters.has<Web::ReplaceHistoryOperationParameters>()
         && parameters.get<Web::ReplaceHistoryOperationParameters>().navigable_id == navigable.id();
     if (!is_matching_push && !is_matching_replace)
+        return;
+
+    auto pending_document_state_id = is_matching_push
+        ? parameters.get<Web::PushHistoryOperationParameters>().pending_document_state_id
+        : parameters.get<Web::ReplaceHistoryOperationParameters>().pending_document_state_id;
+    if (history_entry.document_state.id != pending_document_state_id)
         return;
 
     if (is_matching_push && operation->assigned_target_step != history_entry.step)

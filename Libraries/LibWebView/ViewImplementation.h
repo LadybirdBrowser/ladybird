@@ -467,7 +467,7 @@ protected:
     u64 page_id() const;
 
     void set_url(URL::URL);
-    void did_start_navigation(URL::URL const&, Web::HTML::DocumentResource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior);
+    void did_start_navigation(URL::URL const&, Optional<Web::HTML::PendingSessionHistoryEntryDescriptor>, bool is_history_load, bool is_redirect, Web::Bindings::NavigationHistoryBehavior);
     bool did_cancel_navigation(URL::URL const&);
     void did_finish_navigation(URL::URL const&);
     void set_loading_state(bool);
