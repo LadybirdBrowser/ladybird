@@ -338,6 +338,30 @@ TEST_CASE(targeted_entry_updates_find_nested_history_entries_by_navigation_api_k
     expect_copied_nested_histories_were_updated(history.web_content_known_entries());
 }
 
+TEST_CASE(persisted_state_updates_require_entry_and_document_state_identity)
+{
+    WebView::TraversableSessionHistory history;
+
+    auto current_entry = entry(0, "https://example.com/"sv, 10, "main"sv);
+    current_entry.navigation_api_key = Utf16String::from_utf8("current"sv);
+    auto update_result = history.update_from_web_content({ move(current_entry) }, { 0 }, 0);
+    EXPECT_EQ(update_result, WebView::TraversableSessionHistory::UpdateResult::CompleteSnapshot);
+
+    auto persisted_state = Web::HTML::SessionHistoryEntryPersistedState {
+        .document_state_id = test_document_state_id(11),
+        .navigation_api_key = Utf16String::from_utf8("current"sv),
+        .scroll_position_data = { .viewport_scroll_position = Web::CSSPixelPoint { 0, 100 } },
+    };
+    EXPECT(!history.update_entry_persisted_state({}, persisted_state));
+
+    persisted_state.document_state_id = test_document_state_id(10);
+    EXPECT(history.update_entry_persisted_state({}, persisted_state));
+
+    auto entries = history.entries();
+    VERIFY(entries.size() == 1);
+    expect_entry_viewport_scroll_position(entries[0], { 0, 100 });
+}
+
 TEST_CASE(fresh_process_snapshot_does_not_drop_previous_entries)
 {
     WebView::TraversableSessionHistory history;

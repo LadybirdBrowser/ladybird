@@ -100,6 +100,19 @@ SessionHistoryEntryDescriptor create_session_history_entry_descriptor(SessionHis
     };
 }
 
+Optional<SessionHistoryEntryPersistedState> create_session_history_entry_persisted_state(SessionHistoryEntry const& entry)
+{
+    auto document_state = entry.document_state();
+    if (!document_state)
+        return {};
+
+    return SessionHistoryEntryPersistedState {
+        .document_state_id = document_state->cross_process_id(),
+        .navigation_api_key = entry.navigation_api_key(),
+        .scroll_position_data = entry.scroll_position_data(),
+    };
+}
+
 PendingSessionHistoryEntryDescriptor create_pending_session_history_entry_descriptor(SessionHistoryEntry const& entry)
 {
     VERIFY(!entry.step_value().has_value());
@@ -435,6 +448,25 @@ ErrorOr<Web::HTML::SessionHistoryEntryScrollPositionData> IPC::decode(Decoder& d
     auto viewport_scroll_position = TRY(decoder.decode<Optional<Web::CSSPixelPoint>>());
     return Web::HTML::SessionHistoryEntryScrollPositionData {
         .viewport_scroll_position = move(viewport_scroll_position),
+    };
+}
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::SessionHistoryEntryPersistedState const& persisted_state)
+{
+    TRY(encoder.encode(persisted_state.document_state_id));
+    TRY(encoder.encode(persisted_state.navigation_api_key));
+    TRY(encoder.encode(persisted_state.scroll_position_data));
+    return {};
+}
+
+template<>
+ErrorOr<Web::HTML::SessionHistoryEntryPersistedState> IPC::decode(Decoder& decoder)
+{
+    return Web::HTML::SessionHistoryEntryPersistedState {
+        .document_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .navigation_api_key = TRY(decoder.decode<Utf16String>()),
+        .scroll_position_data = TRY(decoder.decode<Web::HTML::SessionHistoryEntryScrollPositionData>()),
     };
 }
 
