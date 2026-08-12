@@ -271,7 +271,7 @@ private:
 };
 
 // Passes the input through unchanged; used for nodes whose processing is not implemented yet but which should not
-// silence the signal path, like AnalyserNode.
+// silence the signal path, like DynamicsCompressorNode.
 class PassthroughRenderNode final : public RenderNode {
 public:
     PassthroughRenderNode(NodeID, size_t quantum_size);
