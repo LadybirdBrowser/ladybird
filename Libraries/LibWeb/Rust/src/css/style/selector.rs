@@ -4833,12 +4833,7 @@ impl<'a> MatchEvaluator<'a> {
                 let row = self.row_of(node)?;
                 Ok(self.facts.states_of(row).contains(fact))
             }
-            SelectorOp::And { first, count } => {
-                if self.node_hosts_the_scope(node) && program.mentions_the_host(id) {
-                    return self.matches_featureless_host(program, id, node, counters);
-                }
-                self.matches_compound(program, first, count, node, counters)
-            }
+            SelectorOp::And { first, count } => self.matches_compound(program, first, count, node, counters),
             SelectorOp::Or { first, count } => {
                 if self.node_hosts_the_scope(node) && program.mentions_the_host(id) {
                     return self.matches_featureless_host(program, id, node, counters);
