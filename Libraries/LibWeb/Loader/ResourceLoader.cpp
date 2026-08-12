@@ -558,10 +558,8 @@ void ResourceLoader::handle_network_response_headers(LoadRequest const& request,
 
 void ResourceLoader::finish_network_request(NonnullRefPtr<Requests::Request> protocol_request)
 {
-    deferred_invoke([this, protocol_request = move(protocol_request)] {
-        auto did_remove = m_active_requests.remove(protocol_request);
-        VERIFY(did_remove);
-    });
+    if (!m_active_requests.remove(protocol_request))
+        warnln("ResourceLoader: finish_network_request() called for request {}, which is not active", protocol_request->id());
 }
 
 }
