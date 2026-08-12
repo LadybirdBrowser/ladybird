@@ -206,8 +206,14 @@ void assign_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
 
     // AD-HOC: Clear the assigned slot for slottables that are no longer assigned to this slot.
     //         This must happen before setting the new assigned slots to avoid stale references
-    //         during style computation.
+    //         during style computation. A tree-wide assignment can already have moved one of the
+    //         old slottables to another slot, which the old slot must not overwrite when it is
+    //         processed afterward.
     for (auto const& old_slottable : slot->assigned_nodes_internal()) {
+        if (old_slottable.visit([](auto const& node) { return node->assigned_slot_internal(); }) != slot)
+            continue;
+        if (slottables.contains_slow(old_slottable))
+            continue;
         old_slottable.visit([&](auto const& node) {
             node->set_assigned_slot(nullptr);
         });
@@ -217,11 +223,14 @@ void assign_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
 
     // 4. For each slottable in slottables, set slottable’s assigned slot to slot.
     for (auto& slottable : slottables) {
+        auto old_slot = slottable.visit([](auto const& node) { return node->assigned_slot_internal(); });
+        if (old_slot == slot)
+            continue;
         slottable.visit([&](auto& node) {
             node->set_assigned_slot(slot);
         });
         if (auto* element = slottable.template get_pointer<GC::Ref<Element>>())
-            CSS::record_element_assigned_slot_changed(**element, nullptr);
+            CSS::record_element_assigned_slot_changed(**element, old_slot.ptr());
     }
 
     // 3. Set slot’s assigned nodes to slottables.

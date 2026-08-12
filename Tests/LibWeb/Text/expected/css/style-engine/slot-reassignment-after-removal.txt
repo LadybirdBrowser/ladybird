@@ -1,0 +1,2 @@
+assigned to remaining slot: true
+slotted style after reassignment: remaining-slot
