@@ -302,28 +302,40 @@ impl StyleNodeFacts {
         self.attribute_offsets
             .push(u32::try_from(self.attributes.len()).expect("attribute payload overflow"));
 
-        if let Some(index) = node.element_index() {
-            let index = index as usize;
-            if index >= self.row_by_element_index.len() {
-                self.row_by_element_index.resize(index + 1, NO_ROW);
-            }
-            if self.row_by_element_index[index] != NO_ROW {
-                self.stale_rows += 1;
-            }
-            self.row_by_element_index[index] = row;
-        }
+        self.map_row(node, row);
     }
 
     /// Append one row from another packed fact arrangement without materializing an owned row.
     fn push_row_from(&mut self, node: StyleNodeID, source: &Self, source_row: u32) {
-        self.push_row(
-            node,
-            source.tag_of(source_row),
-            source.id_of(source_row),
-            source.states_of(source_row),
-            source.classes_of(source_row),
-            &[],
-        );
+        let row = u32::try_from(self.nodes.len()).expect("fact batch row space exhausted");
+        self.nodes.push(node);
+        self.tag.push(source.tag_of(source_row));
+        self.folded_tag.push(source.folded_tag_of(source_row));
+        self.id.push(source.id_of(source_row));
+        self.states.push(source.states_of(source_row));
+        self.directionality.push(source.directionality_of(source_row));
+        self.language.push(source.language_of(source_row));
+        self.has_text_content.push(source.has_text_content_of(source_row));
+        let language_text = source.language_tag_of(source_row);
+        let language_offset = u32::try_from(self.text.len()).expect("fact text space exhausted");
+        self.text.extend_from_slice(language_text);
+        self.language_text.push((
+            language_offset,
+            u32::try_from(language_text.len()).expect("fact text space exhausted"),
+        ));
+        self.namespace.push(source.namespace_of(source_row));
+        self.heading_level.push(source.heading_level_of(source_row));
+        self.custom_states
+            .extend_from_slice(source.custom_states_of(source_row));
+        self.custom_state_offsets
+            .push(u32::try_from(self.custom_states.len()).expect("custom state payload overflow"));
+        self.parts.extend_from_slice(source.parts_of(source_row));
+        self.part_offsets
+            .push(u32::try_from(self.parts.len()).expect("part payload overflow"));
+        self.part_exposure.push(source.part_exposure_of(source_row));
+        self.classes.extend_from_slice(source.classes_of(source_row));
+        self.class_offsets
+            .push(u32::try_from(self.classes.len()).expect("class payload overflow"));
         for &attribute in source.attributes_of(source_row) {
             let (text_offset, text_length) = source
                 .text_of(attribute)
@@ -334,22 +346,24 @@ impl StyleNodeFacts {
                 ..attribute
             });
         }
-        *self.attribute_offsets.last_mut().expect("a row was pushed") =
-            u32::try_from(self.attributes.len()).expect("attribute payload overflow");
-        self.set_row_folded_tag(source.folded_tag_of(source_row));
-        self.set_row_namespace(source.namespace_of(source_row));
-        self.set_row_part_exposure(source.part_exposure_of(source_row));
-        self.set_row_language_tag(source.language_tag_of(source_row));
-        self.set_row_has_text_content(source.has_text_content_of(source_row));
-        let row = u32::try_from(self.row_count() - 1).expect("fact batch row space exhausted");
-        self.set_row_parameters(
-            row,
-            source.directionality_of(source_row),
-            source.language_of(source_row),
-            source.heading_level_of(source_row),
-            source.custom_states_of(source_row),
-            source.parts_of(source_row),
-        );
+        self.attribute_offsets
+            .push(u32::try_from(self.attributes.len()).expect("attribute payload overflow"));
+
+        self.map_row(node, row);
+    }
+
+    fn map_row(&mut self, node: StyleNodeID, row: u32) {
+        let Some(index) = node.element_index() else {
+            return;
+        };
+        let index = index as usize;
+        if index >= self.row_by_element_index.len() {
+            self.row_by_element_index.resize(index + 1, NO_ROW);
+        }
+        if self.row_by_element_index[index] != NO_ROW {
+            self.stale_rows += 1;
+        }
+        self.row_by_element_index[index] = row;
     }
 
     /// Append UTF-16 text for an attribute value and return its range.
