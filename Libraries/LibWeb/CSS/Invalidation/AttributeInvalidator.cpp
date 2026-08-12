@@ -10,6 +10,7 @@
 #include <AK/Vector.h>
 #include <LibWeb/CSS/Invalidation/AttributeInvalidator.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
+#include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/SelectorMatching.h>
@@ -18,6 +19,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/AttributeNames.h>
+#include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLProgressElement.h>
@@ -63,6 +65,7 @@ static void record_pseudo_classes_implied_by_attribute(DOM::Element& element, Ut
                 auto is_read_write = SelectorMatching::element_matches_state(descendant, PseudoClass::ReadWrite);
                 invalidate_style_after_read_write_state_change(descendant, !is_read_write);
             }
+            invalidate_style_after_validity_change(descendant);
             return TraversalDecision::Continue;
         });
     } else if (attribute_name == HTML::AttributeNames::placeholder) {
@@ -94,6 +97,8 @@ static void record_pseudo_classes_implied_by_attribute(DOM::Element& element, Ut
             auto is_read_write = SelectorMatching::element_matches_state(element, PseudoClass::ReadWrite);
             invalidate_style_after_read_write_state_change(element, !is_read_write);
         }
+        if (can_be_read_write || (is<HTML::HTMLElement>(element) && as<HTML::HTMLElement>(element).is_form_associated_custom_element()))
+            invalidate_style_after_validity_change(element);
     } else if (attribute_name == HTML::AttributeNames::switch_) {
         record_element_state_changed(element, PseudoClass::Indeterminate, SelectorMatching::element_matches_state(element, PseudoClass::Indeterminate));
     } else if (attribute_name == HTML::AttributeNames::value && is<HTML::HTMLProgressElement>(element)) {

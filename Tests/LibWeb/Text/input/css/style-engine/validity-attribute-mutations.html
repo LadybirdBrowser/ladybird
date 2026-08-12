@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    input, form, fieldset, form-associated { color: black }
+    :valid { color: green }
+    :invalid { color: red }
+</style>
+<form id="readonly-form"><input id="readonly-input" required></form>
+<form id="disabled-form"><input id="disabled-input" required disabled></form>
+<form id="fieldset-form">
+    <fieldset id="disabled-fieldset"><input id="fieldset-input" required></fieldset>
+</form>
+<script>
+    class FormAssociatedElement extends HTMLElement {
+        static formAssociated = true;
+
+        constructor() {
+            super();
+            this.internals = this.attachInternals();
+        }
+    }
+    customElements.define("form-associated", FormAssociatedElement);
+
+    function state(element) {
+        return `${getComputedStyle(element).color} valid=${element.matches(":valid")} invalid=${element.matches(":invalid")}`;
+    }
+
+    test(() => {
+        const readonlyForm = document.getElementById("readonly-form");
+        const readonlyInput = document.getElementById("readonly-input");
+        state(readonlyForm);
+        state(readonlyInput);
+        readonlyInput.readOnly = true;
+        println(`readonly input: ${state(readonlyInput)}`);
+        println(`readonly form: ${state(readonlyForm)}`);
+
+        const disabledForm = document.getElementById("disabled-form");
+        const disabledInput = document.getElementById("disabled-input");
+        state(disabledForm);
+        state(disabledInput);
+        disabledInput.disabled = false;
+        println(`enabled input: ${state(disabledInput)}`);
+        println(`enabled input form: ${state(disabledForm)}`);
+
+        const fieldsetForm = document.getElementById("fieldset-form");
+        const disabledFieldset = document.getElementById("disabled-fieldset");
+        const fieldsetInput = document.getElementById("fieldset-input");
+        state(fieldsetForm);
+        state(disabledFieldset);
+        state(fieldsetInput);
+        disabledFieldset.disabled = true;
+        println(`disabled fieldset input: ${state(fieldsetInput)}`);
+        println(`disabled fieldset: ${state(disabledFieldset)}`);
+        println(`disabled fieldset form: ${state(fieldsetForm)}`);
+
+        const customForm = document.createElement("form");
+        const customControl = document.createElement("form-associated");
+        customForm.appendChild(customControl);
+        document.body.appendChild(customForm);
+        customControl.internals.setValidity({ valueMissing: true }, "missing");
+        state(customForm);
+        state(customControl);
+        customControl.setAttribute("disabled", "");
+        println(`disabled custom control: ${state(customControl)}`);
+        println(`disabled custom control form: ${state(customForm)}`);
+    });
+</script>
