@@ -19,5 +19,19 @@
 
         println(`assigned to remaining slot: ${slottable.assignedSlot === second}`);
         println(`slotted style after reassignment: ${getComputedStyle(slottable).getPropertyValue("--assignment")}`);
+
+        const hostWithoutReplacement = document.createElement("div");
+        hostWithoutReplacement.style.color = "rgb(255, 0, 0)";
+        const slottableWithoutReplacement = document.createElement("span");
+        hostWithoutReplacement.appendChild(slottableWithoutReplacement);
+        document.body.appendChild(hostWithoutReplacement);
+        const rootWithoutReplacement = hostWithoutReplacement.attachShadow({ mode: "open" });
+        rootWithoutReplacement.innerHTML = `<style>slot { color: rgb(0, 0, 255) }</style><slot></slot>`;
+        getComputedStyle(slottableWithoutReplacement).color;
+
+        rootWithoutReplacement.replaceChildren();
+
+        println(`unassigned after slot removal: ${slottableWithoutReplacement.assignedSlot === null}`);
+        println(`style after slot removal: ${getComputedStyle(slottableWithoutReplacement).color}`);
     });
 </script>
