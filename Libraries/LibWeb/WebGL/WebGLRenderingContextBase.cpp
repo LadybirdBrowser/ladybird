@@ -232,6 +232,15 @@ ReadonlySpan<WebIDL::UnsignedLong> WebGLRenderingContextBase::enabled_compressed
     return m_enabled_compressed_texture_formats;
 }
 
+ErrorOr<ReadonlyBytes> WebGLRenderingContextBase::texture_data_for_2d_upload(ReadonlyBytes bytes, GLsizei width, GLsizei height, GLenum format, GLenum type) const
+{
+    if (!is_valid_2d_pixel_unpack_state(width, m_unpack_state))
+        return Error::from_errno(EINVAL);
+    if (auto size = required_2d_texture_data_size(width, height, format, type, m_unpack_state); size.has_value() && *size <= bytes.size())
+        return bytes.slice(0, *size);
+    return bytes;
+}
+
 Optional<WebGLRenderingContextBase::TexImageSourceFrame> WebGLRenderingContextBase::read_texture_image_source(TexImageSource const& source, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type)
 {
     // FIXME: If this function is called with an ImageData whose data attribute has been neutered,
@@ -375,6 +384,7 @@ void WebGLRenderingContextBase::restore_context_after_compositor_reconnect()
 void WebGLRenderingContextBase::reset_context_state_after_loss()
 {
     ++m_context_generation;
+    m_unpack_state = {};
     m_unpack_flip_y = false;
     m_unpack_premultiply_alpha = false;
     m_unpack_colorspace_conversion = BROWSER_DEFAULT_WEBGL;

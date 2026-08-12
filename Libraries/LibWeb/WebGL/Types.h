@@ -42,4 +42,11 @@ struct ReadPixelsResult {
     GLsizei rows { 0 };
 };
 
+struct PixelUnpackState {
+    size_t alignment { 4 };
+    size_t row_length { 0 };
+    size_t skip_pixels { 0 };
+    size_t skip_rows { 0 };
+};
+
 }

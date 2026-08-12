@@ -2248,6 +2248,25 @@ void WebGLRenderingContextImpl::pixel_storei(WebIDL::UnsignedLong pname, WebIDL:
     m_context->make_current();
 
     switch (pname) {
+    case GL_UNPACK_ALIGNMENT:
+        if (!first_is_one_of(param, 1, 2, 4, 8)) {
+            set_error(GL_INVALID_VALUE);
+            return;
+        }
+        m_unpack_state.alignment = param;
+        break;
+    case GL_UNPACK_ROW_LENGTH:
+        if (m_context->webgl_version() == WebGLVersion::WebGL2 && param >= 0)
+            m_unpack_state.row_length = param;
+        break;
+    case GL_UNPACK_SKIP_PIXELS:
+        if (m_context->webgl_version() == WebGLVersion::WebGL2 && param >= 0)
+            m_unpack_state.skip_pixels = param;
+        break;
+    case GL_UNPACK_SKIP_ROWS:
+        if (m_context->webgl_version() == WebGLVersion::WebGL2 && param >= 0)
+            m_unpack_state.skip_rows = param;
+        break;
     case UNPACK_FLIP_Y_WEBGL:
         m_unpack_flip_y = param != GL_FALSE;
         return;
