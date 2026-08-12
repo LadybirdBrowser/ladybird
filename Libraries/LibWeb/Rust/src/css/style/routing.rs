@@ -262,7 +262,10 @@ impl StyleEngine {
         let old = relations(old);
         let new = relations(new);
 
-        if new.is_some() && old.is_none() {
+        if new.is_some()
+            && (old.is_none()
+                || old.and_then(|relations| relations.parent) != new.and_then(|relations| relations.parent))
+        {
             regions.add(ImpactRegion::Subtree(node), &mut self.counters);
         }
 
