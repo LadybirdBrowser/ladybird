@@ -1338,6 +1338,7 @@ class AudioDestinationNode;
 class AudioListener;
 class AudioNode;
 class AudioParam;
+class AudioParamMap;
 class AudioScheduledSourceNode;
 class BaseAudioContext;
 class BiquadFilterNode;
