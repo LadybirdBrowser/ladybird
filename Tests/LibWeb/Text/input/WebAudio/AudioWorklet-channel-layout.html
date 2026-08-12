@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+asyncTest(async done => {
+    const context = new AudioContext();
+    const url = URL.createObjectURL(new Blob([`
+        registerProcessor("copy-channels", class extends AudioWorkletProcessor {
+            process(inputs, outputs) {
+                const shape = [inputs[0].length, outputs[0].length];
+                if (String(shape) !== this.previousShape) {
+                    this.previousShape = String(shape);
+                    this.port.postMessage(shape);
+                }
+                // A default one-input/one-output worklet must have matching layouts.
+                if (inputs[0].length) {
+                    for (let channel = 0; channel < outputs[0].length; ++channel)
+                        outputs[0][channel].set(inputs[0][channel]);
+                }
+                return true;
+            }
+        });
+    `], { type: "text/javascript" }));
+    try {
+        await context.audioWorklet.addModule(url);
+        const node = new AudioWorkletNode(context, "copy-channels");
+        let shape;
+        let processorFailed = false;
+        node.port.onmessage = event => shape = event.data;
+        node.onprocessorerror = () => processorFailed = true;
+        const waitForShape = async inputChannels => {
+            for (let i = 0; i < 100; ++i) {
+                if (processorFailed) throw new Error("processor failed while copying channels");
+                if (shape && (inputChannels === undefined || shape[0] === inputChannels))
+                    return `${shape[0]} input channels, ${shape[1]} output channels`;
+                await new Promise(resolve => setTimeout(resolve, 20));
+            }
+            throw new Error("channel layout did not update");
+        };
+        await context.resume();
+        println(`disconnected: ${await waitForShape()}`);
+        const mono = new ConstantSourceNode(context, { offset: 0.25 });
+        mono.start();
+        mono.connect(node);
+        println(`mono: ${await waitForShape(1)}`);
+        mono.disconnect();
+        const stereo = new ChannelMergerNode(context, { numberOfInputs: 2 });
+        mono.connect(stereo, 0, 0);
+        mono.connect(stereo, 0, 1);
+        stereo.connect(node);
+        println(`stereo: ${await waitForShape(2)}`);
+        stereo.disconnect();
+        println(`disconnected again: ${await waitForShape(0)}`);
+        println(`processor failed: ${processorFailed}`);
+        mono.stop();
+    } catch (error) {
+        println(`FAIL: ${error.message}`);
+    } finally {
+        URL.revokeObjectURL(url);
+        await context.close();
+        done();
+    }
+});
+</script>

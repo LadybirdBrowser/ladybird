@@ -30,6 +30,7 @@
 #include <LibWeb/WebAudio/AudioBufferSourceNode.h>
 #include <LibWeb/WebAudio/AudioDestinationNode.h>
 #include <LibWeb/WebAudio/AudioWorklet.h>
+#include <LibWeb/WebAudio/AudioWorkletGlobalScope.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/BiquadFilterNode.h>
 #include <LibWeb/WebAudio/ChannelMergerNode.h>
@@ -146,6 +147,14 @@ GC::Ref<AudioWorklet> BaseAudioContext::audio_worklet()
     if (!m_audio_worklet)
         m_audio_worklet = AudioWorklet::create(*this);
     return *m_audio_worklet;
+}
+
+void BaseAudioContext::shutdown_audio_worklet()
+{
+    if (!m_audio_worklet)
+        return;
+    if (auto scope = m_audio_worklet->audio_worklet_global_scope())
+        scope->shutdown_all_slots();
 }
 
 void BaseAudioContext::set_onstatechange(WebIDL::CallbackType* event_handler)

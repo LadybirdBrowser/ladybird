@@ -12,6 +12,12 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 
+namespace Web::WebAudio::Rendering {
+
+class AudioWorkletPipe;
+
+}
+
 namespace Web::WebAudio {
 
 using AudioWorkletNodeOptions = Bindings::AudioWorkletNodeOptions;
@@ -48,6 +54,7 @@ private:
     // before user code runs (and pre-constructor port messages queue up for delivery afterwards).
     void invoke_processor_constructor(GC::Ref<AudioWorkletGlobalScope>, GC::Ref<HTML::MessagePort> processor_port, GC::Ref<JS::Object> options_object);
 
+    virtual void finalize() override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     // https://webaudio.github.io/web-audio-api/#dom-audioworkletnode-audioworkletnode-context-name-options-name
@@ -62,6 +69,8 @@ private:
     // lifetime of the node; the render pump reads it through the processor slot registry.
     GC::Ptr<JS::Object> m_processor;
     bool m_processor_errored { false };
+
+    RefPtr<Rendering::AudioWorkletPipe> m_pipe;
 };
 
 }

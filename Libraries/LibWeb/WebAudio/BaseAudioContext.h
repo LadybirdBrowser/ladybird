@@ -79,6 +79,10 @@ public:
     // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-audioworklet
     GC::Ref<AudioWorklet> audio_worklet();
 
+    // Marks every worklet node's pipe shut down and drops the pump slots; called when the context
+    // closes or its document stops being fully active.
+    void shutdown_audio_worklet();
+
     // https://webaudio.github.io/web-audio-api/#--nyquist-frequency
     float nyquist_frequency() const { return m_sample_rate / 2; }
 

@@ -8,10 +8,12 @@
 
 #include <AK/HashMap.h>
 #include <AK/Utf16String.h>
+#include <LibGC/Weak.h>
 #include <LibWeb/Bindings/AudioWorkletGlobalScope.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/WorkletGlobalScope.h>
+#include <LibWeb/WebAudio/Rendering/AudioWorkletPipe.h>
 #include <LibWeb/WebAudio/Types.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -60,6 +62,23 @@ public:
         m_current_time = current_time;
     }
 
+    struct ProcessorSlot {
+        NodeID node_id { 0 };
+        GC::Ref<JS::Object> processor;
+        GC::Ref<HTML::MessagePort> processor_port;
+        GC::Weak<AudioWorkletNode> node; // weak: the slot must not keep the node alive (see keep-alive notes)
+        NonnullRefPtr<Rendering::AudioWorkletPipe> pipe;
+        Vector<Utf16String> parameter_names; // descriptor order; keys for the `parameters` argument
+        bool failed { false };
+    };
+    void add_processor_slot(ProcessorSlot);
+
+    // Drains one node's input ring, runs its processor's process() per quantum, and pushes the
+    // results back. Scheduled (coalesced) by the render thread via the pipe's wakeup callback.
+    void pump(NodeID, Rendering::AudioWorkletPipe&);
+
+    void shutdown_all_slots();
+
     // Defined by the generated bindings (installs the AudioWorklet-exposed interfaces and the
     // global mixin members on the wrapper).
     virtual void initialize_web_interfaces_impl() override;
@@ -74,6 +93,7 @@ private:
 
     OrderedHashMap<Utf16String, ProcessorDefinition> m_processor_definitions;
     Optional<PendingProcessorConstructionData> m_pending_processor_construction_data;
+    HashMap<NodeID, ProcessorSlot> m_processor_slots;
 
     u64 m_current_frame { 0 };
     double m_current_time { 0 };

@@ -129,6 +129,7 @@ void AudioContext::visit_edges(Cell::Visitor& visitor)
 void AudioContext::finalize()
 {
     Base::finalize();
+    shutdown_audio_worklet();
     if (m_renderer) {
         m_renderer->stop();
         m_renderer->clear_callbacks();
@@ -139,6 +140,7 @@ void AudioContext::document_became_inactive()
 {
     // Release the audio output device and the GC roots held by the renderer's callbacks, so a context belonging to a
     // navigated-away document stops playing and can eventually be collected.
+    shutdown_audio_worklet();
     if (m_renderer) {
         m_renderer->stop();
         m_renderer->clear_callbacks();
@@ -339,6 +341,7 @@ WebIDL::ExceptionOr<void> AudioContext::close(GC::Ref<WebIDL::Promise> promise)
 
     // 5. Queue a control message to close the AudioContext.
     // 5.1: Attempt to release system resources.
+    shutdown_audio_worklet();
     if (m_renderer) {
         m_renderer->stop();
         m_renderer->clear_callbacks();
