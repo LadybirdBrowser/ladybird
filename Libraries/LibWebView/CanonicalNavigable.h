@@ -19,6 +19,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
+#include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
@@ -83,6 +84,15 @@ public:
     Optional<Web::HTML::ReplicatedNavigableState> const& replicated_state() const { return m_replicated_state; }
     void set_replicated_state(Web::HTML::ReplicatedNavigableState);
 
+    Optional<Web::HTML::SessionHistoryEntryIdentity> const& current_session_history_entry_identity() const { return m_current_session_history_entry_identity; }
+    Optional<Web::HTML::SessionHistoryEntryIdentity> const& active_session_history_entry_identity() const { return m_active_session_history_entry_identity; }
+    void set_current_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const&);
+    void set_current_session_history_entry_identity(Optional<Web::HTML::SessionHistoryEntryIdentity> identity) { m_current_session_history_entry_identity = move(identity); }
+    void set_active_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const&);
+    void set_active_session_history_entry_identity(Web::HTML::SessionHistoryEntryIdentity identity) { m_active_session_history_entry_identity = move(identity); }
+    bool current_session_history_entry_is(Web::HTML::SessionHistoryEntryDescriptor const&) const;
+    bool active_document_is(Web::HTML::SessionHistoryEntryDescriptor const&) const;
+
     void did_commit_navigation(Web::HTML::ReplicatedNavigableState);
 
     void record_pending_navigation(URL::URL const&, HostLocality, Optional<u64> remote_page_id = {});
@@ -98,6 +108,8 @@ private:
     Vector<NonnullOwnPtr<CanonicalNavigable>> m_children;
 
     Optional<Web::HTML::ReplicatedNavigableState> m_replicated_state;
+    Optional<Web::HTML::SessionHistoryEntryIdentity> m_current_session_history_entry_identity;
+    Optional<Web::HTML::SessionHistoryEntryIdentity> m_active_session_history_entry_identity;
     Optional<PendingNavigation> m_pending_navigation;
     Optional<Web::DevicePixelRect> m_viewport_rect;
     double m_device_pixel_ratio { 1 };

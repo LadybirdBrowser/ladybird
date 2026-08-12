@@ -727,6 +727,8 @@ TEST_CASE(same_document_push_clears_forward_history_at_queue_position)
 
     auto target_entry = entry(0, "https://example.com/pushed"sv, 10, "main"sv);
     target_entry.navigation_api_key = Utf16String::from_utf8("pushed"sv);
+    target_entry.navigation_api_id = Utf16String::from_utf8("pushed-id"sv);
+    traversable.set_active_session_history_entry(target_entry);
     auto target_step = history.finalize_same_document_navigation(
         traversable, same_document_entry(move(target_entry)), {});
 
@@ -751,6 +753,8 @@ TEST_CASE(same_document_replacement_preserves_forward_history)
 
     auto target_entry = entry(0, "https://example.com/replaced"sv, 10, "main"sv);
     target_entry.navigation_api_key = Utf16String::from_utf8("current"sv);
+    target_entry.navigation_api_id = Utf16String::from_utf8("replacement-id"sv);
+    traversable.set_active_session_history_entry(target_entry);
     auto target_step = history.finalize_same_document_navigation(
         traversable,
         same_document_entry(move(target_entry)),

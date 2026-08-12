@@ -11,7 +11,7 @@ namespace WebView {
 
 ApplyHistoryStep::ApplyHistoryStep(
     TraversableSessionHistory& session_history,
-    CanonicalNavigable const& traversable_navigable,
+    CanonicalNavigable& traversable_navigable,
     SessionHistoryTraversalQueue& session_history_traversal_queue,
     TraversableApplyHistoryStepState& traversable_state,
     ApplyHistoryStepJobs jobs,
@@ -21,7 +21,7 @@ ApplyHistoryStep::ApplyHistoryStep(
     Web::HTML::UserNavigationInvolvement user_involvement,
     Optional<Web::Bindings::NavigationType> navigation_type,
     Web::HTML::SynchronousNavigation synchronous_navigation,
-    Optional<Web::HTML::CrossProcessId> navigable_with_finalized_entry,
+    Optional<Web::HTML::CrossProcessId> navigable_to_reload,
     Function<void(Web::HTML::HistoryStepResult)> on_complete)
     : m_session_history(session_history)
     , m_traversable_navigable(traversable_navigable)
@@ -34,7 +34,7 @@ ApplyHistoryStep::ApplyHistoryStep(
     , m_user_involvement(user_involvement)
     , m_navigation_type(navigation_type)
     , m_synchronous_navigation(synchronous_navigation)
-    , m_navigable_with_finalized_entry(navigable_with_finalized_entry)
+    , m_navigable_to_reload(navigable_to_reload)
     , m_on_complete(move(on_complete))
     , m_generation(++traversable_state.generation_counter)
 {
@@ -98,11 +98,9 @@ void ApplyHistoryStep::check_if_unloading_is_canceled()
         return;
     }
 
-    // AD-HOC: See m_navigable_with_finalized_entry: a reload's pending flag can be invisible to the canonical
-    //         session history when the entry it marks is still being finalized, but its navigable crosses documents.
-    if (m_navigable_with_finalized_entry.has_value() && m_navigation_type == Web::Bindings::NavigationType::Reload
-        && !navigables_crossing_documents.contains_slow(*m_navigable_with_finalized_entry)) {
-        navigables_crossing_documents.append(*m_navigable_with_finalized_entry);
+    // AD-HOC: See m_navigable_to_reload.
+    if (m_navigable_to_reload.has_value() && !navigables_crossing_documents.contains_slow(*m_navigable_to_reload)) {
+        navigables_crossing_documents.append(*m_navigable_to_reload);
     }
 
     auto const* target_entry = m_session_history.get_the_target_history_entry(m_traversable_navigable, m_target_step);
@@ -131,26 +129,37 @@ void ApplyHistoryStep::get_changing_and_nonchanging_navigables()
 {
     // 6. Let changingNavigables be the result of get all navigables whose current session history entry will change
     //    or reload given traversable and targetStep.
-    // NB: Steps 8.2 and 8.3 (claiming the navigable for this traversal) happen inside each dispatched job, because a
-    //     claim mutates the navigable, which belongs to the process running the job. The changing set is complete
-    //     before the first job is dispatched, so job completions cannot advance the algorithm early.
     m_changing_navigables = m_session_history.get_all_navigables_whose_current_session_history_entry_will_change_or_reload(m_traversable_navigable, m_target_step);
 
     // 7. Let nonchangingNavigablesThatStillNeedUpdates be the result of getting all navigables that only need
     //    history object length/index update given traversable and targetStep.
     m_nonchanging_navigables_that_still_need_updates = m_session_history.get_all_navigables_that_only_need_history_object_length_index_update(m_traversable_navigable, m_target_step);
 
-    // AD-HOC: Finalization already installed the finalized navigable's new entry in the canonical session history,
-    //         so the computation above cannot see that its displayed document still has to change. See
-    //         m_navigable_with_finalized_entry.
-    if (m_navigable_with_finalized_entry.has_value()) {
-        if (!m_changing_navigables.contains_slow(*m_navigable_with_finalized_entry))
-            m_changing_navigables.append(*m_navigable_with_finalized_entry);
+    // AD-HOC: See m_navigable_to_reload.
+    if (m_navigable_to_reload.has_value()) {
+        if (!m_changing_navigables.contains_slow(*m_navigable_to_reload))
+            m_changing_navigables.append(*m_navigable_to_reload);
         m_nonchanging_navigables_that_still_need_updates.remove_all_matching([&](auto const& navigable_id) {
-            return navigable_id == *m_navigable_with_finalized_entry;
+            return navigable_id == *m_navigable_to_reload;
         });
     }
 
+    // 8. For each navigable of changingNavigables:
+    for (auto navigable_id : m_changing_navigables) {
+        auto* navigable = find_navigable(navigable_id);
+
+        // 1. Let targetEntry be the result of getting the target history entry given navigable and targetStep.
+        auto const* target_entry = navigable ? m_session_history.get_the_target_history_entry(*navigable, m_target_step) : nullptr;
+        if (!target_entry)
+            continue;
+
+        // 2. Set navigable's current session history entry to targetEntry.
+        navigable->set_current_session_history_entry(*target_entry);
+    }
+
+    // NB: Steps 8.3 and 8.4 happen inside each dispatched job, because they mutate state owned by the process running
+    //     the job. The changing set is complete before the first job is dispatched, so job completions cannot advance
+    //     the algorithm early.
     run_changing_navigable_jobs();
 }
 
@@ -389,10 +398,10 @@ void ApplyHistoryStep::return_result(Web::HTML::HistoryStepResult result)
         m_on_complete(result);
 }
 
-CanonicalNavigable const* ApplyHistoryStep::find_navigable(Web::HTML::CrossProcessId navigable_id) const
+CanonicalNavigable* ApplyHistoryStep::find_navigable(Web::HTML::CrossProcessId navigable_id)
 {
-    CanonicalNavigable const* result = nullptr;
-    m_traversable_navigable.for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
+    CanonicalNavigable* result = nullptr;
+    m_traversable_navigable.for_each_in_inclusive_subtree([&](CanonicalNavigable& navigable) {
         if (navigable.id() != navigable_id)
             return IterationDecision::Continue;
         result = &navigable;
