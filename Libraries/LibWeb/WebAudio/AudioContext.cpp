@@ -395,4 +395,11 @@ WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> AudioContext::create_m
     return MediaElementAudioSourceNode::create(*this, *media_element);
 }
 
+// https://webaudio.github.io/web-audio-api/#dom-audiocontext-createmediastreamsource
+WebIDL::ExceptionOr<GC::Ref<MediaStreamAudioSourceNode>> AudioContext::create_media_stream_source(GC::Ptr<MediaCapture::MediaStream> media_stream)
+{
+    MediaStreamAudioSourceOptions options { .media_stream = *media_stream };
+    return MediaStreamAudioSourceNode::create(*this, options);
+}
+
 }
