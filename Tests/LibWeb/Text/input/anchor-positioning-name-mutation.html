@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #containing-block {
+        position: relative;
+        width: 300px;
+        height: 300px;
+    }
+    .cell {
+        position: absolute;
+        left: 0;
+        width: 100px;
+        height: 100px;
+    }
+    #first-anchor { top: 0; }
+    #second-anchor { top: 100px; }
+    .anchor { anchor-name: --anchor; }
+    #positioned {
+        position: absolute;
+        position-anchor: --anchor;
+        top: anchor(bottom);
+        left: anchor(right);
+    }
+</style>
+<div id="containing-block">
+    <div id="first-anchor" class="cell"></div>
+    <div id="second-anchor" class="cell"></div>
+    <div id="positioned"></div>
+</div>
+<script>
+    test(() => {
+        const firstAnchor = document.getElementById("first-anchor");
+        const secondAnchor = document.getElementById("second-anchor");
+        const positioned = document.getElementById("positioned");
+        println(`initial=${getComputedStyle(firstAnchor).anchorName};${positioned.offsetLeft},${positioned.offsetTop}`);
+
+        firstAnchor.classList.add("anchor");
+        println(`added=${getComputedStyle(firstAnchor).anchorName};${positioned.offsetLeft},${positioned.offsetTop}`);
+
+        secondAnchor.classList.add("anchor");
+        println(`new-winner=${getComputedStyle(secondAnchor).anchorName};${positioned.offsetLeft},${positioned.offsetTop}`);
+
+        secondAnchor.classList.remove("anchor");
+        println(`winner-removed=${getComputedStyle(secondAnchor).anchorName};${positioned.offsetLeft},${positioned.offsetTop}`);
+    });
+</script>

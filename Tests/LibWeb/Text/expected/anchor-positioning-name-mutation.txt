@@ -1,0 +1,4 @@
+initial=none;0,0
+added=--anchor;100,100
+new-winner=--anchor;100,200
+winner-removed=none;100,100
