@@ -541,6 +541,18 @@ bool TraversableSessionHistory::update_entry(Optional<Web::HTML::CrossProcessId>
     return update_nested_session_history_entries_by_navigation_api_key(m_entries, m_web_content_known_entries, *nested_history_id, navigation_api_key, update_entry);
 }
 
+bool TraversableSessionHistory::update_entry_persisted_state(Optional<Web::HTML::CrossProcessId> nested_history_id, Web::HTML::SessionHistoryEntryPersistedState const& persisted_state)
+{
+    auto did_update = false;
+    update_entry(nested_history_id, persisted_state.navigation_api_key, [&](auto& entry) {
+        if (entry.document_state.id != persisted_state.document_state_id)
+            return;
+        entry.scroll_position_data = persisted_state.scroll_position_data;
+        did_update = true;
+    });
+    return did_update;
+}
+
 template<typename UpdateDocumentState>
 static bool update_session_history_document_state_by_navigation_api_key(Vector<TraversableSessionHistory::Entry>& entries, Utf16String const& navigation_api_key, UpdateDocumentState const& update_document_state)
 {
