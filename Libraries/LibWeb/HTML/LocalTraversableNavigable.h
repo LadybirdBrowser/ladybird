@@ -83,6 +83,7 @@ public:
         Optional<Utf16String> expected_ongoing_navigation_id {};
         GC::Ptr<SourceSnapshotParams> source_snapshot_params {};
         GC::Ptr<LocalNavigable> initiator_to_check {};
+        Optional<u64> operation_id {};
         Optional<CrossProcessId> local_target_navigable_id {};
         RefPtr<SessionHistoryEntry> local_target_entry {};
         Optional<LocalNavigable::NavigationAPIAbortBehavior> navigation_api_abort_behavior {};
@@ -95,6 +96,7 @@ public:
     void request_history_operation(HistoryOperationParameters, HistoryOperationState);
     void request_synchronous_navigation_history_operation(GC::Ref<LocalNavigable> target_navigable, HistoryOperationParameters);
     void request_synchronous_navigation_history_operation(GC::Ref<LocalNavigable> target_navigable, HistoryOperationParameters, HistoryOperationState);
+    u64 ui_history_operation_id(u64 initiation_id) const;
     void set_history_operation_claimed_step(u64 initiation_id, int step);
 
     void handle_ui_history_operation_started(u64 operation_id, Optional<u64> initiation_id, GC::Ref<OnHistoryOperationReady>);

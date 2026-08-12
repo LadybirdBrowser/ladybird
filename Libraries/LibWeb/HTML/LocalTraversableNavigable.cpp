@@ -1887,6 +1887,14 @@ void LocalTraversableNavigable::request_synchronous_navigation_history_operation
     request_history_operation(move(parameters), move(state));
 }
 
+u64 LocalTraversableNavigable::ui_history_operation_id(u64 initiation_id) const
+{
+    auto initiation = m_history_operation_states.find(initiation_id);
+    VERIFY(initiation != m_history_operation_states.end());
+    VERIFY(initiation->value.operation_id.has_value());
+    return *initiation->value.operation_id;
+}
+
 void LocalTraversableNavigable::set_history_operation_claimed_step(u64 initiation_id, int step)
 {
     auto initiation = m_history_operation_states.find(initiation_id);
@@ -1909,6 +1917,8 @@ void LocalTraversableNavigable::handle_ui_history_operation_started(u64 operatio
         ready->function()(false, {}, {}, HistoryStepResult::Applied);
         return;
     }
+
+    initiation->value.operation_id = operation_id;
 
     // NB: A cross-document navigation can be superseded after its document has populated but before its queued
     //     history-step application runs. The navigate algorithm's earlier navigation ID check caught the same
