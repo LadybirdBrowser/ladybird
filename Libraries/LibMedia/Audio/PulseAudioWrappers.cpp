@@ -7,6 +7,7 @@
 #include "PulseAudioWrappers.h"
 
 #include <AK/NeverDestroyed.h>
+#include <LibMedia/Audio/AudioDevices.h>
 #include <LibMedia/Audio/SampleSpecification.h>
 #include <LibSync/Mutex.h>
 
@@ -99,8 +100,6 @@ ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::the()
                 strong_instance_pointer->wait_for_signal();
             }
 
-            pa_context_set_state_callback(context, nullptr, nullptr);
-
             strong_instance_pointer->request_device_sample_specification();
             while (!strong_instance_pointer->m_device_sample_specification.is_valid() && strong_instance_pointer->connection_is_good())
                 strong_instance_pointer->wait_for_signal();
@@ -135,6 +134,7 @@ PulseAudioContext::~PulseAudioContext()
 
     {
         auto loop_locker = main_loop_locker();
+        pa_context_set_state_callback(m_context, nullptr, nullptr);
         pa_context_disconnect(m_context);
         pa_context_unref(m_context);
     }
@@ -235,6 +235,127 @@ void PulseAudioContext::request_device_sample_specification()
         this);
     VERIFY(operation != nullptr);
     pa_operation_unref(operation);
+}
+
+ErrorOr<void> PulseAudioContext::wait_for_operation(pa_operation* operation, StringView error_message)
+{
+    if (operation == nullptr)
+        return Error::from_string_view(error_message);
+
+    ScopeGuard unref_operation { [&] {
+        pa_operation_unref(operation);
+    } };
+
+    while (pa_operation_get_state(operation) == PA_OPERATION_RUNNING) {
+        auto context_state = get_connection_state();
+        if (context_state == PulseAudioContextState::Failed || context_state == PulseAudioContextState::Terminated) {
+            warnln("{} with error: {}", error_message, pulse_audio_error_to_string(get_last_error()));
+            return Error::from_string_view(error_message);
+        }
+        wait_for_signal();
+    }
+
+    if (pa_operation_get_state(operation) != PA_OPERATION_DONE || !connection_is_good()) {
+        warnln("{} with error: {}", error_message, pulse_audio_error_to_string(get_last_error()));
+        return Error::from_string_view(error_message);
+    }
+
+    return {};
+}
+
+ErrorOr<void> PulseAudioContext::enumerate_audio_devices(Vector<Media::AudioDeviceInfo>& inputs, Vector<Media::AudioDeviceInfo>& outputs)
+{
+    struct EnumerationState {
+        PulseAudioContext& context;
+        Vector<Media::AudioDeviceInfo> inputs;
+        Vector<Media::AudioDeviceInfo> outputs;
+        ByteString default_source_name;
+        ByteString default_sink_name;
+        bool list_query_failed { false };
+    };
+
+    auto locker = main_loop_locker();
+
+    VERIFY(get_connection_state() == PulseAudioContextState::Ready);
+
+    EnumerationState state { .context = *this, .inputs = {}, .outputs = {}, .default_source_name = {}, .default_sink_name = {} };
+
+    // Fetch the defaults first so the enumeration callbacks can mark them.
+    TRY(wait_for_operation(pa_context_get_server_info(
+                               m_context, [](pa_context*, pa_server_info const* info, void* user_data) {
+                                   auto& state = *static_cast<EnumerationState*>(user_data);
+                                   if (info != nullptr) {
+                                       if (info->default_source_name != nullptr)
+                                           state.default_source_name = info->default_source_name;
+                                       if (info->default_sink_name != nullptr)
+                                           state.default_sink_name = info->default_sink_name;
+                                   }
+                                   state.context.signal_to_wake();
+                               },
+                               &state),
+        "Failed to query PulseAudio server information"sv));
+
+    TRY(wait_for_operation(pa_context_get_source_info_list(
+                               m_context, [](pa_context*, pa_source_info const* info, int is_end_of_list, void* user_data) {
+                                   auto& state = *static_cast<EnumerationState*>(user_data);
+                                   if (is_end_of_list < 0) {
+                                       state.list_query_failed = true;
+                                       state.context.signal_to_wake();
+                                       return;
+                                   }
+                                   if (is_end_of_list != 0) {
+                                       state.context.signal_to_wake();
+                                       return;
+                                   }
+                                   if (info == nullptr || info->name == nullptr)
+                                       return;
+                                   Media::AudioDeviceInfo entry {
+                                       .dom_device_id = ByteString::formatted("pulse:source:{}", info->name),
+                                       .label = info->description != nullptr ? ByteString { info->description } : ByteString { info->name },
+                                       .group_id = {},
+                                       .sample_rate_hz = info->sample_spec.rate,
+                                       .channel_count = info->sample_spec.channels,
+                                       .is_default = state.default_source_name == info->name,
+                                   };
+                                   state.inputs.append(move(entry));
+                               },
+                               &state),
+        "Failed to query PulseAudio source list"sv));
+    if (state.list_query_failed)
+        return Error::from_string_literal("PulseAudio source list query failed");
+
+    TRY(wait_for_operation(pa_context_get_sink_info_list(
+                               m_context, [](pa_context*, pa_sink_info const* info, int is_end_of_list, void* user_data) {
+                                   auto& state = *static_cast<EnumerationState*>(user_data);
+                                   if (is_end_of_list < 0) {
+                                       state.list_query_failed = true;
+                                       state.context.signal_to_wake();
+                                       return;
+                                   }
+                                   if (is_end_of_list != 0) {
+                                       state.context.signal_to_wake();
+                                       return;
+                                   }
+                                   if (info == nullptr || info->name == nullptr)
+                                       return;
+                                   Media::AudioDeviceInfo entry {
+                                       .dom_device_id = ByteString::formatted("pulse:sink:{}", info->name),
+                                       .label = info->description != nullptr ? ByteString { info->description } : ByteString { info->name },
+                                       .group_id = {},
+                                       .sample_rate_hz = info->sample_spec.rate,
+                                       .channel_count = info->sample_spec.channels,
+                                       .is_default = state.default_sink_name == info->name,
+                                   };
+                                   state.outputs.append(move(entry));
+                               },
+                               &state),
+        "Failed to query PulseAudio sink list"sv));
+    if (state.list_query_failed)
+        return Error::from_string_literal("PulseAudio sink list query failed");
+
+    inputs = move(state.inputs);
+    outputs = move(state.outputs);
+    return {};
 }
 
 #define STREAM_SIGNAL_CALLBACK(stream)                                          \

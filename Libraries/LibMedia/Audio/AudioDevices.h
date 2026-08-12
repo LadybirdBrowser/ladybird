@@ -10,6 +10,7 @@
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/Vector.h>
+#include <LibCore/Promise.h>
 #include <LibMedia/Export.h>
 
 namespace Media {
@@ -23,11 +24,21 @@ struct AudioDeviceInfo {
     bool is_default { false };
 };
 
+struct AudioDeviceEnumeration {
+    Vector<AudioDeviceInfo> inputs;
+    Vector<AudioDeviceInfo> outputs;
+};
+
+using AudioDeviceEnumerationPromise = Core::Promise<AudioDeviceEnumeration>;
+
+NonnullRefPtr<AudioDeviceEnumerationPromise> enumerate_platform_audio_devices();
+
 class MEDIA_API AudioDevices {
 public:
     static AudioDevices& the();
 
     void refresh();
+    bool has_completed_refresh() const { return m_has_completed_refresh; }
     Vector<AudioDeviceInfo> input_devices() const;
     Vector<AudioDeviceInfo> output_devices() const;
 
@@ -40,6 +51,8 @@ private:
 
     Vector<AudioDeviceInfo> m_cached_input_devices;
     Vector<AudioDeviceInfo> m_cached_output_devices;
+    bool m_refresh_in_progress { false };
+    bool m_has_completed_refresh { false };
 
     ListenerId m_next_listener_id { 1 };
     HashMap<ListenerId, Function<void()>> m_listeners;
