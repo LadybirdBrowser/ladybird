@@ -54,6 +54,12 @@ ApplyHistoryStep::~ApplyHistoryStep()
         m_traversable_state.running_nested_apply_history_step = false;
 }
 
+void ApplyHistoryStep::add_navigable_to_restore(Web::HTML::CrossProcessId navigable_id)
+{
+    if (!m_navigables_to_restore.contains_slow(navigable_id))
+        m_navigables_to_restore.append(navigable_id);
+}
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-history-step
 void ApplyHistoryStep::apply_the_history_step()
 {

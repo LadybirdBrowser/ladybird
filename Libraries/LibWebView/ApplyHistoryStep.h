@@ -128,6 +128,7 @@ public:
     ~ApplyHistoryStep();
 
     void apply_the_history_step();
+    void add_navigable_to_restore(Web::HTML::CrossProcessId);
 
     bool completed() const { return m_completed; }
     // The step this run committed as the current session history step, if it was the run that committed.
@@ -173,7 +174,7 @@ private:
     Optional<Web::HTML::SessionHistoryEntryDescriptor> const m_finalized_entry;
     bool const m_update_canonical_current_step;
     Optional<i32> const m_current_step;
-    Vector<Web::HTML::CrossProcessId> const m_navigables_to_restore;
+    Vector<Web::HTML::CrossProcessId> m_navigables_to_restore;
     Function<void(Web::HTML::HistoryStepResult)> m_on_complete;
 
     // The algorithm's variables.

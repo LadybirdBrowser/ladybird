@@ -2236,7 +2236,7 @@ void ViewImplementation::recover_current_session_history_entry_with_history_oper
     m_top_level_traversable.recover_from_web_content_process_crash([this](Web::HTML::HistoryStepResult result, Optional<i32> committed_step) {
         if (auto const& pending_traversal = m_top_level_traversable.pending_session_history_traversal(); pending_traversal.has_value()) {
             auto step = committed_step.value_or(pending_traversal->target_step);
-            apply_history_traversal_step_result(step, committed_step.has_value(), result);
+            apply_history_traversal_step_result(step, result);
             return;
         }
 
@@ -2250,12 +2250,6 @@ void ViewImplementation::recover_current_session_history_entry_with_history_oper
         }
         dump_session_history("recovered-web-content-process-with-history-operation"sv);
     });
-}
-
-void ViewImplementation::reconstruct_session_history_traversal_target(TraversableSessionHistory::TraversalTarget const& target, StringView dump_reason)
-{
-    dump_session_history(dump_reason);
-    traverse_the_history_to_step(target.target_step, CheckForCancelation::No);
 }
 
 NonnullRefPtr<Core::Promise<Empty>> ViewImplementation::reset_session_history_for_testing()
@@ -2296,10 +2290,7 @@ void ViewImplementation::did_set_top_level_session_history(Badge<WebContentClien
                 .navigables_to_restore = move(ack.navigables_to_restore),
             },
             [this, step = *ack.step_to_traverse](Web::HTML::HistoryStepResult result, Optional<i32>) {
-                if (result == Web::HTML::HistoryStepResult::NoMatchingEntry)
-                    apply_history_traversal_step_result(step, false, Web::HTML::HistoryStepResult::Applied);
-                else
-                    apply_history_traversal_step_result(step, true, result);
+                apply_history_traversal_step_result(step, result);
             });
     } else if (ack.should_complete_webdriver_pending_navigation)
         complete_webdriver_pending_navigation_if_url_matches(m_url);
@@ -2309,9 +2300,9 @@ void ViewImplementation::did_set_top_level_session_history(Badge<WebContentClien
     dump_session_history(ack.dump_reason);
 }
 
-void ViewImplementation::apply_history_traversal_step_result(i32 step, bool step_was_available, Web::HTML::HistoryStepResult result)
+void ViewImplementation::apply_history_traversal_step_result(i32 step, Web::HTML::HistoryStepResult result)
 {
-    auto step_result = m_top_level_traversable.did_traverse_the_history_to_step(step, step_was_available, result);
+    auto step_result = m_top_level_traversable.did_traverse_the_history_to_step(step, result);
     if (step_result.should_update_webdriver_pending_navigation_to_current_url && m_webdriver_pending_navigation_url.has_value())
         m_webdriver_pending_navigation_url = m_url;
     if (step_result.should_reset_webdriver_pending_navigation_completion)
@@ -2322,11 +2313,6 @@ void ViewImplementation::apply_history_traversal_step_result(i32 step, bool step
 
         if (m_webdriver_pending_navigation_url.has_value() && *m_webdriver_pending_navigation_url != current_url)
             m_webdriver_pending_navigation_url = current_url;
-    }
-
-    if (step_result.fallback_target.has_value()) {
-        reconstruct_session_history_traversal_target(*step_result.fallback_target, step_result.dump_reason);
-        return;
     }
 
     if (step_result.should_restore_pending_navigation) {
@@ -2372,7 +2358,8 @@ void ViewImplementation::apply_history_step_cancelation_check_result(u64 request
     if (check_result.target.has_value()) {
         if (check_result.on_cancelation_check_complete)
             check_result.on_cancelation_check_complete(move(check_result.outcome));
-        reconstruct_session_history_traversal_target(*check_result.target, check_result.dump_reason);
+        dump_session_history(check_result.dump_reason);
+        traverse_the_history_to_step(check_result.target->target_step, CheckForCancelation::No);
         return;
     }
 
@@ -2448,11 +2435,7 @@ void ViewImplementation::start_requested_history_traversal(u64 initiation_id, We
             client(),
             page_id(),
             target.target_step,
-            [this, step = target.target_step](Web::HTML::HistoryStepResult result, Optional<i32> committed_step) {
-                if (result == Web::HTML::HistoryStepResult::NoMatchingEntry) {
-                    apply_history_traversal_step_result(step, false, Web::HTML::HistoryStepResult::Applied);
-                    return;
-                }
+            [this](Web::HTML::HistoryStepResult, Optional<i32> committed_step) {
                 if (committed_step.has_value())
                     update_navigation_action_state();
                 dump_session_history("requested-history-traversal-complete"sv);

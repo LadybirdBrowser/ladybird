@@ -142,8 +142,6 @@ struct RestorePendingSessionHistoryNavigationResult {
 
 struct WebContentHistoryStepResult {
     StringView dump_reason;
-    // When set, WebContent must reconstruct the UI-owned target before retrying the traversal.
-    Optional<TraversableSessionHistory::TraversalTarget> fallback_target {};
     bool should_restore_pending_navigation { false };
     bool should_update_navigation_action_state { false };
     Optional<URL::URL> current_url {};
@@ -277,7 +275,7 @@ public:
     void traverse_the_history_by_delta(int delta, CheckForCancelation, Function<void(HistoryTraversalOutcome)> on_complete = nullptr, Function<void()> on_top_level_traversal_applied = nullptr);
     void traverse_the_history_to_step(i32 step, CheckForCancelation, Function<void(HistoryTraversalOutcome)> on_complete = nullptr, Function<void()> on_top_level_traversal_applied = nullptr);
     void reconstruct_the_history_to_step(i32 step, bool requires_process_replacement, Function<void()> on_top_level_traversal_applied);
-    WebContentHistoryStepResult did_traverse_the_history_to_step(i32 step, bool step_was_available, Web::HTML::HistoryStepResult);
+    WebContentHistoryStepResult did_traverse_the_history_to_step(i32 step, Web::HTML::HistoryStepResult);
     HistoryStepCancelationCheckResult did_check_if_traverse_history_step_is_canceled(u64 request_id, i32 step, Web::HTML::HistoryStepResult);
     Optional<WebContentSessionHistorySeed> prepare_web_content_session_history_seed();
     void did_send_web_content_session_history_seed();
@@ -293,6 +291,7 @@ private:
     struct HistoryOperation;
     HistoryOperation* find_history_operation(u64 operation_id);
     void add_history_operation_completion_endpoint(HistoryOperation&, HistoryJobEndpoint);
+    bool is_history_traversal_operation(HistoryOperation const&) const;
     ApplyHistoryStepJobs create_apply_history_step_jobs(u64 operation_id);
     Optional<i32> maximum_claimed_session_history_step() const;
     Optional<i32> claim_step_for_pending_cross_document_history_operation(Web::HTML::CrossProcessId, i32 claimed_step);
