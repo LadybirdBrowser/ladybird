@@ -8,6 +8,7 @@
         :host:host > .t5 { background-color: rgb(0, 100, 4); }
         :is(:host(.not-host), .host) > .t6 { background-color: rgb(0, 100, 5); }
         :is(:host, :root) > .t7 { background-color: rgb(0, 100, 6); }
+        :host(:host) > .t8 { background-color: rgb(0, 100, 7); }
     </style>
     <div class="green t2"></div>
     <div class="green t3"></div>
@@ -15,15 +16,17 @@
     <div class="green t5"></div>
     <div class="green t6"></div>
     <div class="green t7"></div>
+    <div class="green t8"></div>
 </template></div>
 <script src="../include.js"></script>
 <script>
     // Inside its own shadow tree the host is featureless: a compound with `:host` must not match
-    // through the host's tag, class, or a universal selector. `:host:host` stays valid.
+    // through the host's tag, class, or a universal selector. `:host:host` stays valid, but a
+    // nested `:host` is not a feature that can satisfy the argument of `:host()`.
     // https://drafts.csswg.org/css-shadow-1/#host-element-in-tree
     test(() => {
         const root = document.querySelector(".host").shadowRoot;
-        for (const name of ["t2", "t3", "t4", "t5", "t6", "t7"]) {
+        for (const name of ["t2", "t3", "t4", "t5", "t6", "t7", "t8"]) {
             const color = getComputedStyle(root.querySelector("." + name)).backgroundColor;
             println(name + ": " + color);
         }

@@ -3429,6 +3429,9 @@ pub struct MatchEvaluator<'a> {
     /// limit walk runs, because that is the only place one scope instance is distinguishable from
     /// another. Interior mutability so that evaluation stays a shared borrow.
     scope_root_instance: Cell<Option<StyleNodeID>>,
+    /// Whether evaluation is inside the argument of `:host()`. A nested `:host` does not describe
+    /// a feature of the host and must not match there.
+    matching_host_argument: Cell<bool>,
     root_matches_parentless_node: bool,
     /// The anchor of the relational query currently being evaluated. Bound only while the witness
     /// walk runs, and restored after, so that a nested `:has()` names its own anchor.
@@ -4180,6 +4183,7 @@ impl<'a> MatchEvaluator<'a> {
             scope_shadow_root: None,
             part_exposure_scope: None,
             scope_root_instance: Cell::new(None),
+            matching_host_argument: Cell::new(false),
             root_matches_parentless_node: true,
             relative_anchor: Cell::new(None),
             match_workspace: None,
@@ -4287,6 +4291,19 @@ impl<'a> MatchEvaluator<'a> {
             // A rule in the document scope is in no shadow tree, so it names no host.
             None => false,
         }
+    }
+
+    fn matches_host_argument(
+        &self,
+        program: &SelectorProgram,
+        inner: SelectorNodeID,
+        host: StyleNodeID,
+        counters: &mut Counters,
+    ) -> Result<bool, Incomplete> {
+        let was_matching_host_argument = self.matching_host_argument.replace(true);
+        let result = self.matches_node(program, inner, host, counters);
+        self.matching_host_argument.set(was_matching_host_argument);
+        result
     }
 
     /// How far the subject is from the scoping root its `@scope` resolved through.
@@ -4537,7 +4554,7 @@ impl<'a> MatchEvaluator<'a> {
         counters: &mut Counters,
     ) -> Result<bool, Incomplete> {
         match program.node(id) {
-            SelectorOp::Host(inner) => self.matches_node(program, inner, host, counters),
+            SelectorOp::Host(inner) => self.matches_host_argument(program, inner, host, counters),
             SelectorOp::And { first, count } => {
                 if !program.mentions_the_host(id) {
                     return Ok(false);
@@ -4780,7 +4797,7 @@ impl<'a> MatchEvaluator<'a> {
         if Some(node) == self.scope_shadow_root {
             return match program.node(id) {
                 SelectorOp::Host(inner) => match self.tree.host_of(node) {
-                    Some(host) => self.matches_node(program, inner, host, counters),
+                    Some(host) => self.matches_host_argument(program, inner, host, counters),
                     None => Ok(false),
                 },
                 // A scoping root outside the tree is the host, and a combinator reaching up out of
@@ -4931,8 +4948,8 @@ impl<'a> MatchEvaluator<'a> {
             // Each shadow operator consumes the relation it names. A generic descendant walk does
             // not pierce a shadow root, and a slot's assignment is not its DOM parent, so these
             // cannot be expressed as ordinary combinators.
-            SelectorOp::Host(inner) => match self.node_hosts_the_scope(node) {
-                true => self.matches_node(program, inner, node, counters),
+            SelectorOp::Host(inner) => match self.node_hosts_the_scope(node) && !self.matching_host_argument.get() {
+                true => self.matches_host_argument(program, inner, node, counters),
                 false => Ok(false),
             },
             SelectorOp::Slotted(inner) => match self.tree.assigned_slot_of(node) {
