@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    input { color: black }
+    input:checked { color: blue }
+</style>
+<form id="form">
+    <input id="checkbox" type="checkbox" checked>
+    <input id="first-radio" type="radio" name="group" checked>
+    <input id="second-radio" type="radio" name="group">
+</form>
+<script>
+    function state(input) {
+        return `checked=${input.checked} matches=${input.matches(":checked")} color=${getComputedStyle(input).color}`;
+    }
+
+    test(() => {
+        const form = document.getElementById("form");
+        const checkbox = document.getElementById("checkbox");
+        const firstRadio = document.getElementById("first-radio");
+        const secondRadio = document.getElementById("second-radio");
+        state(checkbox);
+        state(firstRadio);
+        state(secondRadio);
+
+        checkbox.checked = false;
+        secondRadio.checked = true;
+        form.reset();
+
+        println(`reset checkbox: ${state(checkbox)}`);
+        println(`reset first radio: ${state(firstRadio)}`);
+        println(`reset second radio: ${state(secondRadio)}`);
+    });
+</script>

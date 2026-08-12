@@ -1,0 +1,3 @@
+reset checkbox: checked=true matches=true color=rgb(0, 0, 255)
+reset first radio: checked=true matches=true color=rgb(0, 0, 255)
+reset second radio: checked=false matches=false color=rgb(0, 0, 0)
