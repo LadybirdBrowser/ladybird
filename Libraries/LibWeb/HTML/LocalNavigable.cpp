@@ -2769,7 +2769,8 @@ void LocalNavigable::begin_navigation(NavigateParams params)
     }
 
     // 12-13. Determine historyHandling for this navigation.
-    history_handling = determine_history_handling_for_navigation(history_handling, url, active_document, initiator_origin_snapshot);
+    if (!params.history_handling_already_determined)
+        history_handling = determine_history_handling_for_navigation(history_handling, url, active_document, initiator_origin_snapshot);
 
     // FIXME: Revisit the following once the dust settles on our Navigation rewrites — specifically, whether the "the UI
     //        process installs the new process's active session-history entry with the target URL *before* its document
