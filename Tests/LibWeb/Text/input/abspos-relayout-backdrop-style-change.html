@@ -23,7 +23,7 @@
     // invalidation. A class toggle whose only relayout effect is on the ::backdrop must not
     // ride the boundary-self fast path, or the backdrop keeps stale geometry; it has to take
     // the full layout path.
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const dialog = document.getElementById("dialog");
         dialog.showModal();
         document.body.offsetHeight;
@@ -37,6 +37,5 @@
 
         println(`layout-passes partial=${partialDelta} full=${fullDelta}`);
         println(partialDelta === 0 && fullDelta >= 1 ? "PASS" : "FAIL");
-        done();
     });
 </script>

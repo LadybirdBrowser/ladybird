@@ -13,7 +13,7 @@
 <div id="target"></div>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const target = document.getElementById("target");
         const keyframesRule = document.styleSheets[0].cssRules[1];
 
@@ -22,7 +22,5 @@
         keyframesRule.appendRule("50% { opacity: 0.75; }");
         await animationFrame();
         println("opacity after appendRule: " + getComputedStyle(target).opacity);
-
-        done();
     });
 </script>

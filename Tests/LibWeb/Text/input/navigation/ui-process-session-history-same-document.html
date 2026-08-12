@@ -25,7 +25,7 @@
         println(`${label}: ui-uses-ui-step-coordinates=${uiHistory.webContentUsesUIStepCoordinates}`);
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         history.replaceState({ replaced: true }, "", "?same-document-replaced");
         history.pushState({ pushed: true }, "", "?same-document-pushed");
 
@@ -38,6 +38,5 @@
             println(`FAIL: unexpected UI history ${JSON.stringify(uiHistory)}`);
 
         dump("after-push-state", uiHistory);
-        done();
     });
 </script>

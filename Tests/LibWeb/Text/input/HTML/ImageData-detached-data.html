@@ -2,7 +2,7 @@
 <script src="../include.js"></script>
 <canvas id="canvas" width="1" height="1"></canvas>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const context = canvas.getContext("2d");
         const pixels = new Uint8ClampedArray([1, 2, 3, 4]);
         const imageData = new ImageData(pixels, 1, 1);
@@ -28,7 +28,5 @@
         } catch (error) {
             println(`createImageBitmap with detached ImageData data: ${error.name}`);
         }
-
-        done();
     });
 </script>

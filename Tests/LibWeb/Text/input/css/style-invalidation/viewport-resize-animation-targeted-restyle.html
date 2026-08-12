@@ -5,7 +5,7 @@
         return new Promise(resolve => requestAnimationFrame(resolve));
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         const iframe = document.createElement("iframe");
         iframe.style.border = "0";
         iframe.style.width = "300px";
@@ -115,7 +115,5 @@
         println(`resized post-style animated width: ${child.getComputedStyle(postStyleAnimationTarget).width}`);
         println(`full invalidations: ${counters.fullStyleInvalidations}`);
         println(`style recomputations bounded: ${counters.elementStyleRecomputations < elementCount}`);
-
-        done();
     });
 </script>

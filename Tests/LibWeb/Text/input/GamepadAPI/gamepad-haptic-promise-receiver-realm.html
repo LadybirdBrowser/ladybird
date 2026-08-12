@@ -2,7 +2,7 @@
 <script src="../include.js"></script>
 <script src="gamepad-helper.js"></script>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const gamepad = internals.connectVirtualGamepad();
         await handleSDLInputEvents();
 
@@ -34,6 +34,5 @@
 
         gamepad.disconnect();
         await handleSDLInputEvents();
-        done();
     });
 </script>

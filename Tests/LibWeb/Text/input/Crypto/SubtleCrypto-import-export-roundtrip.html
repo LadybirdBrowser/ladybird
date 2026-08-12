@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
 
         let jwk = {
             alg: "RSA-OAEP-256",
@@ -67,7 +67,5 @@
         println(`exported dp: ${exported.dp}`);
         println(`exported dq: ${exported.dq}`);
         println(`exported qi: ${exported.qi}`);
-
-        done();
     });
 </script>

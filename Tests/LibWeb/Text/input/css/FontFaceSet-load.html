@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script type="text/javascript">
-    asyncTest(async done => {
+    promiseTest(async () => {
         const fontFaceSet = document.fonts;
 
         const fontFace = new FontFace("Hash Sans", "url(../../../Assets/HashSans.woff)");
@@ -35,7 +35,5 @@
             println("Load valid font: FAIL");
             println(e);
         }
-
-        done();
     });
 </script>

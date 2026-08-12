@@ -3,7 +3,7 @@
 <script>
     // This selection and its expected replacement were recorded from Chromium using the SCEditor-derived fixture.
     // It covers cleanup after the first pasted paragraph has moved out of its original fragment wrapper.
-    asyncTest(async done => {
+    promiseTest(async () => {
         const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
         const platformControlShift = platformControl | internals.MOD_SHIFT;
         const selection = getSelection();
@@ -89,6 +89,5 @@
             println(`FAIL: ${failures.length}/${assertionCount} tracked-start paste assertions failed\n${failures.join("\n")}`);
         else
             println(`PASS: ${assertionCount} tracked-start paste assertions match Chromium`);
-        done();
     });
 </script>

@@ -33,7 +33,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         document.body.offsetHeight;
 
         const target = document.getElementById("target");
@@ -56,6 +56,5 @@
             && rectToString(container) === "10,10,200,60"
             && colorAfter === "rgb(0, 128, 0)"
             && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
-        done();
     });
 </script>

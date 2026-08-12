@@ -3,7 +3,7 @@
 <script>
     // Chromium keeps an empty destination paragraph as the container for pasted block content. This fixture records
     // that topology, including the selection restored by native undo and redo.
-    asyncTest(async done => {
+    promiseTest(async () => {
         const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
         const platformControlShift = platformControl | internals.MOD_SHIFT;
         const selection = getSelection();
@@ -63,6 +63,5 @@
             println(`FAIL: ${failures.length}/${assertionCount} empty-block assertions failed\n${failures.join("\n")}`);
         else
             println(`PASS: ${assertionCount} empty-block assertions match Chromium`);
-        done();
     });
 </script>

@@ -3,7 +3,7 @@
 <script>
     // This selection and its expected replacement were recorded from Chromium using the SCEditor-derived fixture.
     // It covers the paragraph-splitting path used when a multi-block fragment is pasted into the middle of a line.
-    asyncTest(async done => {
+    promiseTest(async () => {
         const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
         const platformControlShift = platformControl | internals.MOD_SHIFT;
         const selection = getSelection();
@@ -575,6 +575,5 @@
             println(`FAIL: ${failures.length}/${assertionCount} block-fragment paste assertions failed\n${failures.join("\n")}`);
         else
             println(`PASS: ${assertionCount} block-fragment paste assertions match Chromium`);
-        done();
     });
 </script>

@@ -33,7 +33,7 @@
     // splice its rebuilt paint subtree back at its original position; reattaching it at the
     // end of the parent's paintable children would move it on top of the later sibling,
     // changing paint and hit-test order compared to a full layout.
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         document.body.offsetHeight;
 
         const hitBefore = document.elementFromPoint(150, 110);
@@ -51,6 +51,5 @@
         println(partialDelta === 1 && fullDelta === 0
             && hitBefore && hitBefore.id === "second"
             && hitAfter && hitAfter.id === "second" ? "PASS" : "FAIL");
-        done();
     });
 </script>

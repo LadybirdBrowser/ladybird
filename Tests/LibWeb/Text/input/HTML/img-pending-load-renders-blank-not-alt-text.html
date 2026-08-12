@@ -6,7 +6,7 @@
     // must render as blank space, not as its alt text; the fallback text is only for images that
     // failed or that have no source at all. This matches Chrome and Firefox, and avoids flashing
     // alt text on pages that are still loading their images.
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const TINY_PNG_BASE64 =
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
@@ -62,7 +62,5 @@
         await fetch(new URL(`/unblock/${unblockToken}`, pendingURL));
         await pendingImageLoaded;
         println(`unblocked image loaded with natural width: ${pendingImage.naturalWidth}`);
-
-        done();
     });
 </script>

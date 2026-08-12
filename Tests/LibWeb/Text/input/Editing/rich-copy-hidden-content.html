@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
         const host = document.createElement("div");
         host.contentEditable = "true";
@@ -30,6 +30,5 @@
         }, { once: true }));
         internals.sendKey(host, "V", platformControl);
         await pasteEvent;
-        done();
     });
 </script>

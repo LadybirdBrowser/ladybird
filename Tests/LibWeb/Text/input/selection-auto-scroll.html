@@ -21,7 +21,7 @@ function afterAutoScrollTick() {
     });
 }
 
-asyncTest(async (done) => {
+promiseTest(async () => {
     document.body.offsetWidth; // force layout
 
     println(`before: ${vertical.scrollTop}`);
@@ -47,6 +47,5 @@ asyncTest(async (done) => {
     println(`hidden after: ${hidden.scrollTop}`);
 
     internals.mouseUp(rect.x + 10, rect.y + rect.height + 50);
-    done();
 });
 </script>

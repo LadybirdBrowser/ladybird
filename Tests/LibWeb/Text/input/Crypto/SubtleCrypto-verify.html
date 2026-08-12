@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const encoder = new TextEncoder();
         const message = "Hello friends";
         const encodedMessage = encoder.encode(message);
@@ -34,7 +34,5 @@
         } else {
             println(`FAIL: Verification not ok`);
         }
-
-        done();
     });
 </script>

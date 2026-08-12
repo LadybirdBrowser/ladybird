@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         let blob = structuredClone(new Blob(["Hello, Blob!"], {type: "text/plain"}));
         println(`instanceOf Blob: ${blob instanceof Blob}`);
         println(`Blob.type: ${blob.type}`);
@@ -83,7 +83,5 @@
             const a = imageData.data[i + 3];
             println(`${r}, ${g}, ${b}, ${a}`);
         }
-
-        done();
     });
 </script>

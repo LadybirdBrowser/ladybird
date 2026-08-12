@@ -42,7 +42,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         document.body.offsetHeight;
 
         const tooltipBefore = document.getElementById("tooltip").getBoundingClientRect();
@@ -63,6 +63,5 @@
             && rectToString(tooltipBefore) === "90,0,50,15"
             && rectToString(tooltipAfter) === "90,0,50,15"
             && rectToString(child) === "40,120,70,50" ? "PASS" : "FAIL");
-        done();
     });
 </script>

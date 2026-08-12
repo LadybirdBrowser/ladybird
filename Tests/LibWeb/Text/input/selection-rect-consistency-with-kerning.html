@@ -12,7 +12,7 @@ p {
 </style>
 <p>Table</p>
 <script>
-asyncTest(async done => {
+promiseTest(async () => {
     await document.fonts.ready;
 
     const text = document.querySelector("p").firstChild;
@@ -38,7 +38,5 @@ asyncTest(async done => {
     println(`full width: ${full.width}`);
     println(`sum == full: ${charSum === full.width}`);
     println(`T.right == a.left: ${r01.right === r12.left}`);
-
-    done();
 });
 </script>

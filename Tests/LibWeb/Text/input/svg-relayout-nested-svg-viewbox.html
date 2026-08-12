@@ -6,7 +6,7 @@
     </svg>
 </svg>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         // Force initial layout to complete.
         document.body.offsetHeight;
 
@@ -18,6 +18,5 @@
         const rect = document.getElementById("r").getBoundingClientRect();
         println(rect.width + "x" + rect.height);
         println(Math.abs(rect.width - 60) < 0.01 && Math.abs(rect.height - 50) < 0.01 ? "PASS" : "FAIL");
-        done();
     });
 </script>

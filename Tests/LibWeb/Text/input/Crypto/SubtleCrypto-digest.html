@@ -8,7 +8,7 @@
         const digest = await window.crypto.subtle.digest(algorithm, encoded_message);
         println(`${algorithm} ${bufferToHex(digest)}`);
     }
-    asyncTest(async done => {
+    promiseTest(async () => {
         const encoder = new TextEncoder();
         const message = "Hello friends";
         const encoded_message = encoder.encode(message);
@@ -17,7 +17,5 @@
         await printDigest("SHA-256", encoded_message);
         await printDigest("SHA-384", encoded_message);
         await printDigest("SHA-512", encoded_message);
-
-        done();
     });
 </script>

@@ -2,7 +2,7 @@
 <meta charset="utf-8">
 <script src="include.js"></script>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         try {
             const httpServer = httpTestServer();
             const url = await httpServer.createEcho("GET", "/http-non-ascii-content-type-test", {
@@ -19,6 +19,5 @@
         } catch (err) {
             println("FAIL - " + err);
         }
-        done();
     });
 </script>

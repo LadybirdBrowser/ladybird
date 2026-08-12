@@ -7,7 +7,7 @@
 </div>
 <div style="height: 1200px"></div>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const scroller = document.getElementById("scroller");
 
         await animationFrame();
@@ -71,6 +71,5 @@
         const scroll_into_view_result = await scroll_into_view_promise;
         println(`scrollIntoView final: ${scroller.scrollLeft},${scroller.scrollTop}`);
         println(`scrollIntoView result: ${scroll_into_view_result}`);
-        done();
     });
 </script>

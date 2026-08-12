@@ -2,7 +2,7 @@
 <script src="include.js"></script>
 <div id="script-container"></div>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const scriptContainer = document.getElementById("script-container");
         globalThis.errors = new Map();
 
@@ -48,6 +48,5 @@
             globalThis.println(`${type}: ${normalizedStack}`);
         }
         
-        done();
     });
 </script>

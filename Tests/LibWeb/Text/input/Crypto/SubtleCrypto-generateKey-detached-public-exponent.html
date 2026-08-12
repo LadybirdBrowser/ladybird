@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const exponentBuffer = new ArrayBuffer(3);
         const publicExponent = new Uint8Array(exponentBuffer);
         publicExponent.set([0x01, 0x00, 0x01]);
@@ -20,6 +20,5 @@
         } catch (e) {
             println("rejected: " + e.name);
         }
-        done();
     });
 </script>

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const frame = document.createElement("iframe");
         const loaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
         document.body.appendChild(frame);
@@ -27,7 +27,5 @@
         println(`reacquired hint-less object exists: ${!!reacquired}`);
         println(`hint-less wrapper realm is stable after gc: ${Object.getPrototypeOf(reacquired) === frameWindow.PerformanceMark.prototype}`);
         println(`hint-less wrapper did not move to parent realm: ${Object.getPrototypeOf(reacquired) !== PerformanceMark.prototype}`);
-
-        done();
     });
 </script>

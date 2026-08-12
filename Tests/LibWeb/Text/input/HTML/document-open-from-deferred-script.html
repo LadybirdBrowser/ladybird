@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         window.deferredScriptRan = false;
 
         const iframe = document.createElement("iframe");
@@ -28,6 +28,5 @@
         println(`Replacement text: ${iframeDocument.body.textContent}`);
         iframe.remove();
         delete window.deferredScriptRan;
-        done();
     });
 </script>

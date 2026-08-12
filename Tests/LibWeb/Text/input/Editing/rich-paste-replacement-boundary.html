@@ -3,7 +3,7 @@
 <script>
     // These selections and their expected replacement seams were recorded from Chromium using the SCEditor-derived
     // fixture. They cover the distinction between the original replacement position and the inserted content range.
-    asyncTest(async done => {
+    promiseTest(async () => {
         const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
         const platformControlShift = platformControl | internals.MOD_SHIFT;
         const selection = getSelection();
@@ -156,6 +156,5 @@
             println(`FAIL: ${failures.length}/${assertionCount} replacement-boundary paste assertions failed\n${failures.join("\n")}`);
         else
             println(`PASS: ${assertionCount} replacement-boundary paste assertions match Chromium`);
-        done();
     });
 </script>

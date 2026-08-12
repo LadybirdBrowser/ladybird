@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const WASM_FILE = "../../data/greeter.wasm";
 
         let wasm;
@@ -96,7 +96,5 @@
                 println(`FAILED: Mismatch at byte ${i}`);
             }
         }
-
-        done();
     });
 </script>

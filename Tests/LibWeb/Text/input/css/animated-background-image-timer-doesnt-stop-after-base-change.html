@@ -11,7 +11,7 @@
 <script>
     const imageURL = new URL("../wpt-import/images/anim-gr.gif", document.baseURI).href;
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         await new Promise(resolve => window.addEventListener("load", resolve));
 
         internals.dumpLayoutTree(document);
@@ -28,6 +28,5 @@
         internals.dumpLayoutTree(document);
         const timerActiveAfterRemoval = internals.imageAnimationStateForURL(imageURL).timerActive;
         println(`timer active after removal: ${timerActiveAfterRemoval}`);
-        done();
     });
 </script>

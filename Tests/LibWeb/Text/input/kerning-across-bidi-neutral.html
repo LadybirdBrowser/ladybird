@@ -12,13 +12,12 @@
 <p><span id="wrapping">’A</span></p>
 <p><span id="non-wrapping" style="white-space: nowrap">’A</span></p>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         await document.fonts.ready;
 
         const wrappingWidth = document.getElementById("wrapping").getBoundingClientRect().width;
         const nonWrappingWidth = document.getElementById("non-wrapping").getBoundingClientRect().width;
 
         println(`Wrapping and non-wrapping text have equal widths: ${wrappingWidth === nonWrappingWidth}`);
-        done();
     });
 </script>

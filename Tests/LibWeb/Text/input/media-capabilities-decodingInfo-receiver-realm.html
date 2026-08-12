@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="include.js"></script>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const iframe = document.createElement("iframe");
         document.body.append(iframe);
         const other = iframe.contentWindow;
@@ -19,7 +19,5 @@
             println(`decodingInfo rejection is parent realm: ${error instanceof TypeError}`);
             println(`decodingInfo rejection message: ${error.message}`);
         }
-
-        done();
     });
 </script>

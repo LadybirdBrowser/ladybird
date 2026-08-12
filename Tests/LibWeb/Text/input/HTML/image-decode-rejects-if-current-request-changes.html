@@ -2,7 +2,7 @@
 <script src="../include.js"></script>
 <script>
 // Test: decode() must reject if the image's current request changes after decode begins.
-asyncTest(async done => {
+promiseTest(async () => {
     const server = httpTestServer();
     const slowImageUrl = await server.createEcho("GET", "/decode-mutation-slow.svg", {
         status: 200,
@@ -36,7 +36,5 @@ asyncTest(async done => {
         else
             println("PASS");
     }
-
-    done();
 });
 </script>

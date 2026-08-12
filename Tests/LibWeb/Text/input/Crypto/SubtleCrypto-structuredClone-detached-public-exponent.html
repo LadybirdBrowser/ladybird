@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const keyPair = await crypto.subtle.generateKey({
             name: "RSASSA-PKCS1-v1_5",
             modulusLength: 1024,
@@ -17,6 +17,5 @@
         } catch (e) {
             println("PASS (didn't crash): " + e.name);
         }
-        done();
     });
 </script>

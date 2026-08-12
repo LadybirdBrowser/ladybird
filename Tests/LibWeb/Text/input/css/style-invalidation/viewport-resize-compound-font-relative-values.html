@@ -13,7 +13,7 @@
         child.internals.updateStyle();
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         const iframe = document.createElement("iframe");
         iframe.style.border = "0";
         iframe.style.width = "300px";
@@ -57,7 +57,5 @@
         await resizeIframe(iframe, child, 300);
         println(`resized back box shadow: ${child.getComputedStyle(target).boxShadow}`);
         println(`resized back filter: ${child.getComputedStyle(target).filter}`);
-
-        done();
     });
 </script>

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const badFace = new FontFace("My Cool Font", new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7]));
 
         await badFace.loaded.then(() => {
@@ -36,7 +36,5 @@
         () => {
             println("FAILED");
         });
-
-        done();
     });
 </script>

@@ -18,7 +18,7 @@
             await animationFrame();
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         const iframe = document.createElement("iframe");
         iframe.style.border = "0";
         iframe.style.width = "300px";
@@ -60,7 +60,5 @@
 
         await resizeIframe(iframe, child, 300);
         println(`resized back layered import color: ${child.getComputedStyle(target).color}`);
-
-        done();
     });
 </script>

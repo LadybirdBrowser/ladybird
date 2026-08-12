@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
         const platformControlShift = platformControl | internals.MOD_SHIFT;
         const selection = getSelection();
@@ -86,6 +86,5 @@
         println(host.children[0].childNodes[0].data === "Give it a t it a try!" ? "PASS: seam redo merges around its rendered start" : `FAIL: seam redo rendered start: ${JSON.stringify(host.children[0].childNodes[0].data)}`);
         println(host.children[0].childNodes[1].data === "\u00a0" ? "PASS: seam redo preserves trailing protected space" : `FAIL: seam redo trailing protected space: ${JSON.stringify(host.children[0].childNodes[1].data)}`);
         println(host.children[1].firstChild.childNodes.length === 2 ? "PASS: seam redo inline text nodes" : `FAIL: seam redo inline text nodes: ${host.children[1].firstChild.childNodes.length}`);
-        done();
     });
 </script>

@@ -25,7 +25,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         document.body.offsetHeight;
 
         const boundaryBefore = document.getElementById("boundary").getBoundingClientRect();
@@ -46,6 +46,5 @@
             && rectToString(boundaryBefore) === rectToString(boundaryAfter)
             && rectToString(child) === "0,70,80,55"
             && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
-        done();
     });
 </script>

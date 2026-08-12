@@ -9,7 +9,7 @@
 </style>
 <div id="target">target</div>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const target = document.getElementById("target");
         const styleSheet = document.getElementById("test-style").sheet;
 
@@ -17,7 +17,5 @@
         styleSheet.insertRule('@keyframes "123fade" { from { opacity: 0.25; } to { opacity: 0.25; } }', styleSheet.cssRules.length);
         await animationFrame();
         println(`opacity after keyframes: ${getComputedStyle(target).opacity}`);
-
-        done();
     });
 </script>

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         try {
             const server = httpTestServer();
 
@@ -47,6 +47,5 @@
         } catch (e) {
             println("FAIL: " + e.message);
         }
-        done();
     });
 </script>

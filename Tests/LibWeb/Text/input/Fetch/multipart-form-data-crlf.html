@@ -24,13 +24,12 @@
         println(`Data: ${data.get("field")}`);
     };
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         await runTest("");
         await runTest("\r");
         await runTest("\n");
         await runTest("\r\n");
         await runTest("junk");
         await runTest("\r\njunk");
-        done();
     });
 </script>

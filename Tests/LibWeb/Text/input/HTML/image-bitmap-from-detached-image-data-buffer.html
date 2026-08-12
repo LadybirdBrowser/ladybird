@@ -12,14 +12,12 @@
     const buffer = imageData.data.buffer;
     window.postMessage("", "*", [buffer]);
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         try {
             const result = await createImageBitmap(imageData);
             println("Failed");
         } catch (error) {
             println(error.message);
         }
-
-        done();
     });
 </script>

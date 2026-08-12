@@ -5,7 +5,7 @@
         return [...new Uint8Array(buffer)].map(b => b.toString(16).padStart(2, "0")).join("");
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         // FIXME: Generate a key with module lengths longer than 256, when they don't take an eternity to generate.
         //        This is #23561
         let algorithm = {
@@ -70,7 +70,5 @@
         } catch (e) {
             println(`Error: ${e}`);
         }
-
-        done();
     });
 </script>

@@ -13,7 +13,7 @@
 </body>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const box = document.getElementById("box");
 
         let resolve = null;
@@ -49,7 +49,5 @@
 
         // Let event loop run to ensure that observer callback is not invoked.
         await createTimeoutPromise(0);
-
-        done();
     });
 </script>

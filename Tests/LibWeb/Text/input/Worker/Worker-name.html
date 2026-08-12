@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         function nextMessage(target) {
             return new Promise(resolve => {
                 target.addEventListener("message", function handler(event) {
@@ -55,6 +55,5 @@
         println(`shared worker reused by matching name: ${sharedWorkerMessage2.connection === 2}`);
 
         URL.revokeObjectURL(sharedWorkerURL);
-        done();
     });
 </script>

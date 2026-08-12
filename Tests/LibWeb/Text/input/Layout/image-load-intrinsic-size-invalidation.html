@@ -50,7 +50,7 @@
         };
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         document.body.offsetWidth;
 
         const cases = Array.from(document.querySelectorAll(".shrink"));
@@ -65,7 +65,5 @@
             const rect = roundedRectForCase(container.id);
             println(`${container.id}: container=${rect.containerWidth} image=${rect.imageWidth}x${rect.imageHeight}`);
         }
-
-        done();
     });
 </script>

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="./include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         // The srcdoc iframe inherits its base URL from its parent document. We need it to be localhost so that the
         // content blocker's matching rule will apply to it.
         const base = document.createElement("base");
@@ -27,7 +27,5 @@
         } finally {
             internals.setContentBlockers("");
         }
-
-        done();
     });
 </script>

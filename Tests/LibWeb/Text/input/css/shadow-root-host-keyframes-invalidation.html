@@ -2,7 +2,7 @@
 <script src="../include.js"></script>
 <div id="host"></div>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const host = document.getElementById("host");
         const shadowRoot = host.attachShadow({ mode: "open" });
         const sheet = new CSSStyleSheet();
@@ -29,7 +29,5 @@
         sheet.deleteRule(sheet.cssRules.length - 1);
         await animationFrame();
         println(`opacity after keyframes delete: ${getComputedStyle(host).opacity}`);
-
-        done();
     });
 </script>

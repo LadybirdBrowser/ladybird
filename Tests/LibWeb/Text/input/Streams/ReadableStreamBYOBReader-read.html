@@ -30,9 +30,8 @@
     }
   }
 
-  asyncTest(async done => {
+  promiseTest(async () => {
     await testByobRead(Uint8Array);
     await testByobRead(DataView);
-    done();
   });
 </script>

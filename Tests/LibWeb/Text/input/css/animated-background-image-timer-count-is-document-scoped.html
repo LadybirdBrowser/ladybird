@@ -3,7 +3,7 @@
 <script>
     const imageURL = "../wpt-import/images/anim-gr.gif";
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         const iframe = document.createElement("iframe");
         const iframeLoaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
         iframe.srcdoc = `
@@ -31,7 +31,5 @@
 
         println(`top document has animation state: ${topDocumentHasAnimationState}`);
         println(`iframe document timer active: ${iframe.contentWindow.internals.imageAnimationStateForURL(imageURL).timerActive}`);
-
-        done();
     });
 </script>

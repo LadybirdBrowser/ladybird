@@ -2,7 +2,7 @@
 <script src="../include.js"></script>
 <div id="editor" contenteditable><div id="source">Give</div><div id="target"><font color="#ff00">Red text and </font></div></div>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
         const platformControlShift = platformControl | internals.MOD_SHIFT;
         const selection = getSelection();
@@ -26,6 +26,5 @@
 
         internals.sendKey(editor, "Z", platformControlShift);
         println(`redo: ${target.innerHTML} | ${selection.focusNode.data} @ ${selection.focusOffset}`);
-        done();
     });
 </script>

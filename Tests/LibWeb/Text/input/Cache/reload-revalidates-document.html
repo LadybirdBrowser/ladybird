@@ -52,7 +52,7 @@
         return Object.keys(headers).map(name => name.toLowerCase());
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         const url = await registerDocumentEcho();
 
         // Prime the disk cache with the document. In test mode, the disk cache only stores responses to requests
@@ -88,7 +88,5 @@
         } else {
             println("FAIL: the reload contacted the server without a conditional request");
         }
-
-        done();
     });
 </script>

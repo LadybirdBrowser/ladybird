@@ -13,7 +13,7 @@
         });
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         await navigateIframe("../data/video-gc-frame.html");
         await navigateIframe("../data/iframe-test-content-1.html");
         iframe.remove();
@@ -23,6 +23,5 @@
         }
 
         println("PASS (didn't crash)");
-        done();
     });
 </script>

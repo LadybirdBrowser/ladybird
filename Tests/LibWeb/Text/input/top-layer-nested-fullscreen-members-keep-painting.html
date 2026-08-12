@@ -4,7 +4,7 @@
 <script>
     // Zone rebuilds over nested fullscreen members used to leave detached boxes behind and
     // crash on the next paint; the trailing frames force paints after the last rebuild.
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const first = document.getElementById("first");
         const last = document.getElementById("last");
 
@@ -34,6 +34,5 @@
         await next_frame();
         await next_frame();
         println("painted");
-        done();
     });
 </script>

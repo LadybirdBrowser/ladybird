@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const keyMaterial = await crypto.subtle.importKey(
             "raw",
             new TextEncoder().encode("password"),
@@ -33,7 +33,5 @@
         } catch (e) {
             println(`deriveKey threw: ${e.name}: ${e.message}`);
         }
-
-        done();
     });
 </script>

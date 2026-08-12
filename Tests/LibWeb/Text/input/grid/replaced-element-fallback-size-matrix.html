@@ -231,7 +231,7 @@
 <div class="row-case" data-label="block natural height"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' height='80'%3E%3C/svg%3E"></div>
 <div class="row-case" data-label="block natural dimensions"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='80'%3E%3C/svg%3E"></div>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         await Promise.all(Array.from(document.images, image => image.decode()));
         for (const container of document.querySelectorAll(".case, .row-case")) {
             const image = container.firstElementChild;
@@ -240,6 +240,5 @@
             const trackSize = container.classList.contains("row-case") ? containerRect.height : containerRect.width;
             println(`${container.dataset.label}: track ${trackSize}, image ${imageRect.width}x${imageRect.height}`);
         }
-        done();
     });
 </script>

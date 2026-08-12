@@ -2,7 +2,7 @@
 <script src="../include.js"></script>
 <div id="host"><span id="slotted" class="item">slotted</span><span id="inherited">inherited</span></div>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const host = document.getElementById("host");
         const slotted = document.getElementById("slotted");
         const inherited = document.getElementById("inherited");
@@ -34,7 +34,5 @@
         styleSheet.insertRule("@keyframes inserted { from { opacity: 0.25; } to { opacity: 0.25; } }", styleSheet.cssRules.length);
         await animationFrame();
         println(`opacity after keyframes: ${getComputedStyle(slotted).opacity}`);
-
-        done();
     });
 </script>

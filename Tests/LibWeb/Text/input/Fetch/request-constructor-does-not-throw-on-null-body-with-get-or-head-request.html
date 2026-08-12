@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         try {
             const dataUrl = "data:,hello";
             new Request(dataUrl, { method: "GET", body: null });
@@ -15,7 +15,5 @@
         } catch (e) {
             println(`Unexpected throw: ${e}`);
         }
-
-        done();
     });
 </script>

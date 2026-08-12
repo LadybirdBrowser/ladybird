@@ -20,10 +20,9 @@
             };
         });
     }
-    asyncTest(async done => {
+    promiseTest(async () => {
         for (command of ["selectall", "SELECTALL", "SeLeCtAlL"]) {
             await execCommandCaseInsensitivityTest(command);
         }
-        done();
     });
 </script>

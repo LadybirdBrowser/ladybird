@@ -29,7 +29,7 @@
     // Overlapping auto-z-index siblings paint in tree order, so a partial relayout of the
     // first sibling must splice its rebuilt paint subtree back at its original position
     // instead of appending it after the second sibling.
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         document.body.offsetHeight;
 
         const hitBefore = document.elementFromPoint(150, 110);
@@ -41,6 +41,5 @@
         println(`hit-after=${hitAfter ? hitAfter.id : "null"}`);
         println(hitBefore && hitBefore.id === "second"
             && hitAfter && hitAfter.id === "second" ? "PASS" : "FAIL");
-        done();
     });
 </script>

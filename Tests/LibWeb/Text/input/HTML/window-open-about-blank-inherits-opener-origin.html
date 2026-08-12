@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const popup = window.open();
         const initialDocument = popup.document;
         const initialTextContent = "Hello Shannon!";
@@ -37,6 +37,5 @@
         }
 
         popup.close();
-        done();
     });
 </script>

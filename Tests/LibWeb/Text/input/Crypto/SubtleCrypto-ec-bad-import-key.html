@@ -54,7 +54,7 @@
     return corrupted.buffer;
   }
 
-  asyncTest(async done => {
+  promiseTest(async () => {
     for (const [name, genUsages, pubUsages, privUsages] of [
       ["ECDSA", ["verify", "sign"], ["verify"], ["sign"]],
       ["ECDH", ["deriveBits", "deriveKey"], [], ["deriveBits", "deriveKey"]],
@@ -106,7 +106,5 @@
         }
       }
     }
-
-    done();
   });
 </script>

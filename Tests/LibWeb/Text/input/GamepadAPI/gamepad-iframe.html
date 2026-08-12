@@ -38,7 +38,7 @@
 <script src="../include.js"></script>
 <script src="gamepad-helper.js"></script>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const testIframe = document.getElementById("test-iframe");
 
         const sendMessageAndWait = (message) => {
@@ -79,7 +79,5 @@
         gamepad.disconnect();
         await handleSDLInputEvents();
         println(`After disconnecting gamepad: ${await sendMessageAndWait("getGamepads")}`);
-
-        done();
     });
 </script>

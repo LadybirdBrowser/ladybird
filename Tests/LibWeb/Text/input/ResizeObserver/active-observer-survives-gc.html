@@ -8,7 +8,7 @@
 <script src="../include.js"></script>
 <div id="target"></div>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const target = document.getElementById("target");
         let callbackCount = 0;
         let resolveInitialCallback;
@@ -36,6 +36,5 @@
         await timeout(0);
 
         println(`callbacks from resize after dropping observer: ${callbackCount}`);
-        done();
     });
 </script>

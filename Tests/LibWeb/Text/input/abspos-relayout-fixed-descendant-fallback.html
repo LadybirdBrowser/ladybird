@@ -31,7 +31,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         document.body.offsetHeight;
 
         const fixedBefore = document.getElementById("fixed").getBoundingClientRect();
@@ -52,6 +52,5 @@
             && rectToString(fixedBefore) === rectToString(fixedAfter)
             && rectToString(sibling) === "100,100,80,70"
             && partialDelta === 0 && fullDelta === 1 ? "PASS" : "FAIL");
-        done();
     });
 </script>

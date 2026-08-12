@@ -39,7 +39,7 @@
 </div>
 
 <script>
-asyncTest(async (done) => {
+promiseTest(async () => {
     document.body.offsetWidth;
 
     // Case 1: Focus input inside .grandparent.
@@ -61,7 +61,5 @@ asyncTest(async (done) => {
     await animationFrame();
     await animationFrame();
     println(`Case 3 (deep nesting): ${getComputedStyle(document.getElementById("case3-target")).backgroundColor}`);
-
-    done();
 });
 </script>

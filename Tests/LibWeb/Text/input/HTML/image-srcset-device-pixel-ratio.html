@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         function basename(url) {
             return url.substring(url.lastIndexOf("/") + 1);
         }
@@ -25,6 +25,5 @@
         println("At 1x: " + (await selectedSourceAt(1)));
         println("At 2x: " + (await selectedSourceAt(2)));
         println("At 3x: " + (await selectedSourceAt(3)));
-        done();
     });
 </script>

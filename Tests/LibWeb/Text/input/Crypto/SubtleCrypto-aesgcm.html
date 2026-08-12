@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const algorithm = "AES-GCM";
 
         // Generate keys and export them, verify length
@@ -16,7 +16,5 @@
         println("exported 128 bit key length: " + exported128bitKey.byteLength);
         println("exported 192 bit key length: " + exported192bitKey.byteLength);
         println("exported 256 bit key length: " + exported256bitKey.byteLength);
-
-        done();
     });
 </script>

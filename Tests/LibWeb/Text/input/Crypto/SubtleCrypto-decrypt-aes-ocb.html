@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
 
         const keyBytes = new Uint8Array([
             222, 192, 212, 252, 191, 60, 71, 65, 200, 146, 218, 189, 28, 212, 192, 78
@@ -126,7 +126,5 @@
         } catch (e) {
             println(`ERROR: ${e.message}`);
         }
-
-        done();
     });
 </script>

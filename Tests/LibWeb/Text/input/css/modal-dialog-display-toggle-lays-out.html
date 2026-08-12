@@ -11,7 +11,7 @@
 <dialog id="drawer">Drawer contents</dialog>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const drawer = document.getElementById("drawer");
         drawer.showModal();
 
@@ -27,7 +27,5 @@
         println("computed display: " + getComputedStyle(drawer).display);
         println("has box: " + (rect.width > 0 && rect.height > 0));
         println("width: " + rect.width);
-
-        done();
     });
 </script>

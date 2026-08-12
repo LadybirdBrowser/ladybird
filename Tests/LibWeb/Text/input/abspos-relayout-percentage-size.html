@@ -23,7 +23,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         document.body.offsetHeight;
 
         const partialBefore = internals.partialLayoutCount();
@@ -41,6 +41,5 @@
         println(boundary.left === 30 && boundary.top === 20 && boundary.width === 200 && boundary.height === 150
             && child.left === 30 && child.top === 20 && child.width === 75 && child.height === 90
             && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
-        done();
     });
 </script>

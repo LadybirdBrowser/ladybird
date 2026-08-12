@@ -5,7 +5,7 @@
     // WebContent process when site isolation is enabled. The navigation state carried over to the new process
     // must include the initiator origin and referrer, so the request is sent with the correct Origin and
     // Referer headers instead of "Origin: null" and no Referer.
-    asyncTest(async done => {
+    promiseTest(async () => {
         const httpServer = httpTestServer();
         const formPageOrigin = new URL(httpServer.baseURL).origin;
 
@@ -55,6 +55,5 @@
         try {
             popup.close();
         } catch {}
-        done();
     });
 </script>

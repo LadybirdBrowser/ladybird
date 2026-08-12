@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         internals.setTestTimeout(10000);
 
         const httpServer = httpTestServer();
@@ -174,7 +174,5 @@
             ${scriptEnd}
         `);
         println(`SVG media change blocked until import finished: ${changedSvgMediaBlocked}`);
-
-        done();
     });
 </script>

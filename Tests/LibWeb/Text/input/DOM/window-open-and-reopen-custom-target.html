@@ -16,9 +16,8 @@
         });
     };
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         await runTest(1);
         await runTest(2);
-        done();
     });
 </script>

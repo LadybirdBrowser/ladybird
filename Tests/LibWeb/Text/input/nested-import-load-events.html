@@ -2,7 +2,7 @@
 <script src="include.js"></script>
 <div id="target"></div>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const styleElement = document.createElement('style');
         styleElement.textContent = '@import url("../data/import-1.css");';
         await new Promise(resolve => {
@@ -11,6 +11,5 @@
             document.head.append(styleElement);
         });
         println(`Target's background color: ${getComputedStyle(target).backgroundColor}`);
-        done();
     });
 </script>

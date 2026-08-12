@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const unpairedSurrogates = "hello\uDC00friends\uD800:)";
         const replacedSurrogates = "hello\uFFFDfriends\uFFFD:)";
 
@@ -10,7 +10,5 @@
 
         const file = new File([unpairedSurrogates], "someFileName");
         println(await file.text() === replacedSurrogates ? "PASS" : "FAIL")
-
-        done();
     });
 </script>

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script type="text/javascript">
-    asyncTest(async done => {
+    promiseTest(async () => {
         const body = new URLSearchParams();
         body.append("username", "buggie");
         body.append("password", "hunter2");
@@ -12,6 +12,5 @@
         });
 
         println(await request.text());
-        done();
     });
 </script>

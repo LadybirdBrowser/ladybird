@@ -8,7 +8,7 @@
 <div id="target"></div>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const target = document.getElementById("target");
         const sheet = document.getElementById("dynamic-style").sheet;
 
@@ -21,7 +21,5 @@
         println(`after: ${animations.length}`);
         if (animations.length > 0)
             println(`keyframes: ${animations[0].effect.getKeyframes().length}`);
-
-        done();
     });
 </script>

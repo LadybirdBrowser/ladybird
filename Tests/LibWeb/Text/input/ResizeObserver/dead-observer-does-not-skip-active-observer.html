@@ -10,7 +10,7 @@
 <script>
     let deadBox = null;
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         let deadObserver = new ResizeObserver(() => {
             println("dead observer callback");
         });
@@ -39,7 +39,5 @@
         await animationFrame();
         await timeout(0);
         println(`active callbacks after second rendering opportunity: ${activeCallbackCount}`);
-
-        done();
     });
 </script>

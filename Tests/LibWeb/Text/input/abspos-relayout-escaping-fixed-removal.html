@@ -34,7 +34,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         document.body.offsetHeight;
 
         const partialBefore = internals.partialLayoutCount();
@@ -61,6 +61,5 @@
         println(partialDeltaWhileEscaping === 0 && fullDeltaWhileEscaping === 1
             && partialDeltaAfterRemoval === 1 && fullDeltaAfterRemoval === 0
             && rectToString(child) === "50,60,60,60" ? "PASS" : "FAIL");
-        done();
     });
 </script>

@@ -77,7 +77,7 @@ const clickOnOuterBox = (button) => {
     });
 };
 
-asyncTest(async done => {
+promiseTest(async () => {
     // First move the mouse outside #outer to populate the MouseEvent.relatedTarget property
     internals.mouseMove(150, 150);
     println("> move pointer over #inner");
@@ -90,6 +90,5 @@ asyncTest(async done => {
     await clickOnOuterBox(1);
     println("> click document.body");
     await clickOnBody();
-    done();
 });
 </script>

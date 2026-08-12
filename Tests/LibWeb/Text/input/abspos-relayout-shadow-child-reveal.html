@@ -27,7 +27,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const shadow = document.getElementById("host").attachShadow({ mode: "open" });
         const revealed = document.createElement("div");
         revealed.style.cssText = "display: none; width: 120px; height: 50px;";
@@ -50,6 +50,5 @@
         println(partialDelta === 0 && fullDelta >= 1
             && rectToString(revealedRect) === "0,0,120,50"
             && rectToString(childRect) === "40,30,60,40" ? "PASS" : "FAIL");
-        done();
     });
 </script>

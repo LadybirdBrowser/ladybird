@@ -26,7 +26,7 @@
     </div>
 </div>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         document.body.offsetHeight;
 
         const scroller = document.getElementById("scroller");
@@ -43,6 +43,5 @@
         println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
         println(scrollHeightBefore === 100 && scroller.scrollHeight === 190
             && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
-        done();
     });
 </script>

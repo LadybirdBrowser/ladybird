@@ -31,9 +31,8 @@
         });
     };
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         await runTest("input1");
         await runTest("input2");
-        done();
     });
 </script>

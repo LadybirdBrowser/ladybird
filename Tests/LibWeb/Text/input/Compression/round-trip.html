@@ -50,9 +50,8 @@
         }
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         await roundTrip('Well hello friends!')
         await roundTrip('Well hello friends!'.repeat(100))
-        done();
     });
 </script>

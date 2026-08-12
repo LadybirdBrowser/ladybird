@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const workerScript = `
             let connections = 0;
             onconnect = event => {
@@ -50,7 +50,5 @@
 
         worker2.port.postMessage("two");
         println(`worker2: ${await nextMessage(worker2)}`); // "echo 2: two"
-
-        done();
     });
 </script>

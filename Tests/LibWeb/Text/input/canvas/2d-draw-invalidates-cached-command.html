@@ -2,7 +2,7 @@
 <canvas id="canvas" width="100" height="100"></canvas>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
         const canvasContentGeneration = () => {
             const match = internals.dumpDisplayList().match(/DrawCanvas@\d+ .*content_generation=(\d+)/);
@@ -26,6 +26,5 @@
 
         const generationAfterDraw = canvasContentGeneration();
         println("cached command has new generation: " + (generationAfterDraw > generationBeforeDraw));
-        done();
     });
 </script>

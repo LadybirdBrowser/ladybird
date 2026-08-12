@@ -36,7 +36,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         document.body.offsetHeight;
 
         const partialBefore = internals.partialLayoutCount();
@@ -66,6 +66,5 @@
             && rectToString(svgAfterFlip) === "60,120,100,80"
             && rectToString(childAfterFlip) === "40,30,60,40"
             && rectToString(rectAfterInside) === "60,120,70,40" ? "PASS" : "FAIL");
-        done();
     });
 </script>
