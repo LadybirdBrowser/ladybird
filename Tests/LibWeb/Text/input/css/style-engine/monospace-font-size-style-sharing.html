@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    code, kbd { font-family: monospace; }
+</style>
+<div style="font-size: 16px"><code id="codeExplicit">code explicit</code></div>
+<div><code id="codeDefault">code default</code></div>
+<div><kbd id="kbdDefault">kbd default</kbd></div>
+<div style="font-size: 16px"><kbd id="kbdExplicit">kbd explicit</kbd></div>
+<script>
+    test(() => {
+        println(`explicit then default: ${getComputedStyle(codeExplicit).fontSize} ${getComputedStyle(codeDefault).fontSize}`);
+        println(`default then explicit: ${getComputedStyle(kbdDefault).fontSize} ${getComputedStyle(kbdExplicit).fontSize}`);
+    });
+</script>
