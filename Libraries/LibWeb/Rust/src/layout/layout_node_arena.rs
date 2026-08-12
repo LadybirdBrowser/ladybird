@@ -9,11 +9,14 @@ use crate::layout::AbsposLayoutInputs;
 use crate::layout::AvailableSize;
 use crate::layout::CssPixels;
 use crate::layout::FfiReplacedContentFacts;
+use crate::layout::UsedValues;
 use crate::layout::node_data::{FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeSlotId};
+use std::cell::Cell;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::hash::{Hash, Hasher};
+use std::rc::Rc;
 use std::thread;
 
 pub(crate) const SLOTS_PER_CHUNK: usize = 256;
@@ -173,6 +176,12 @@ struct TextChunkCacheSlot {
     entry: Option<Box<TextChunkCacheEntry>>,
 }
 
+#[derive(Default)]
+struct RunRecordSlot {
+    nonce: u64, // 0 = vacant
+    record: Option<Rc<UsedValues>>,
+}
+
 // NodeData is sized to one cache line; the aligned chunk keeps every densely-strided slot
 // line-aligned, and per-slot bookkeeping lives in a parallel array so it stays that way.
 #[repr(align(64))]
@@ -218,6 +227,8 @@ pub(crate) struct LayoutNodeArena {
     text_chunk_caches: RefCell<Vec<TextChunkCacheSlot>>,
     replaced_content_facts: Vec<ReplacedContentFactsSlot>,
     raw_table_column_spans: HashMap<NodeSlotId, u32>,
+    run_used_records: RefCell<Vec<RunRecordSlot>>,
+    next_run_nonce: Cell<u64>,
     owner_thread: thread::ThreadId,
 }
 
@@ -236,6 +247,8 @@ impl LayoutNodeArena {
             text_chunk_caches: RefCell::new(Vec::new()),
             replaced_content_facts: Vec::new(),
             raw_table_column_spans: HashMap::new(),
+            run_used_records: RefCell::new(Vec::new()),
+            next_run_nonce: Cell::new(1),
             owner_thread: thread::current().id(),
         }
     }
@@ -267,6 +280,9 @@ impl LayoutNodeArena {
                 self.chunks.push(chunk);
             }
             self.slot_metadata.push(SlotMetadata::default());
+            // Grown with the slot space up front: nearly every slot gets a run
+            // record each layout pass, so register() never has to resize.
+            self.run_used_records.get_mut().push(RunRecordSlot::default());
             self.next_index = self
                 .next_index
                 .checked_add(1)
@@ -330,6 +346,15 @@ impl LayoutNodeArena {
         }
         if let Some(slot) = self.replaced_content_facts.get_mut(index as usize) {
             *slot = ReplacedContentFactsSlot::default();
+        }
+        // free() never interleaves with a layout pass (C++ is blocked on the
+        // synchronous FFI entry), so a live record here means a run leaked.
+        if let Some(slot) = self.run_used_records.get_mut().get_mut(index as usize) {
+            debug_assert!(
+                slot.record.is_none(),
+                "layout node arena freed a slot with a live run record"
+            );
+            *slot = RunRecordSlot::default();
         }
         self.raw_table_column_spans.remove(&id);
         *self.data_mut(index) = NodeData::default();
@@ -789,6 +814,60 @@ impl LayoutNodeArena {
         };
         let entry = slots[index].entry.as_deref().expect("entry was just stored");
         unsafe { std::slice::from_raw_parts(entry.chunks.as_ptr(), entry.chunks.len()) }
+    }
+
+    pub(crate) fn allocate_run_nonce(&self) -> u64 {
+        let nonce = self.next_run_nonce.get();
+        self.next_run_nonce
+            .set(nonce.checked_add(1).expect("layout run nonce space exhausted"));
+        nonce
+    }
+
+    pub(crate) fn run_record(&self, slot_index: u32, run_nonce: u64) -> Option<Rc<UsedValues>> {
+        let records = self.run_used_records.borrow();
+        let slot = records.get(slot_index as usize)?;
+        if slot.nonce != run_nonce {
+            return None;
+        }
+        slot.record.clone()
+    }
+
+    pub(crate) fn replace_run_record(
+        &self,
+        slot_index: u32,
+        run_nonce: u64,
+        record: Rc<UsedValues>,
+    ) -> Option<(u64, Rc<UsedValues>)> {
+        let mut records = self.run_used_records.borrow_mut();
+        let slot = records
+            .get_mut(slot_index as usize)
+            .expect("registered layout run record slot must exist");
+        let previous = std::mem::replace(
+            slot,
+            RunRecordSlot {
+                nonce: run_nonce,
+                record: Some(record),
+            },
+        );
+        previous.record.map(|record| (previous.nonce, record))
+    }
+
+    pub(crate) fn restore_run_record(&self, slot_index: u32, run_nonce: u64, previous: Option<(u64, Rc<UsedValues>)>) {
+        let mut records = self.run_used_records.borrow_mut();
+        let slot = records
+            .get_mut(slot_index as usize)
+            .expect("restored layout run record slot must exist");
+        debug_assert_eq!(
+            slot.nonce, run_nonce,
+            "layout run records were not restored in LIFO order"
+        );
+        *slot = match previous {
+            Some((nonce, record)) => RunRecordSlot {
+                nonce,
+                record: Some(record),
+            },
+            None => RunRecordSlot::default(),
+        };
     }
 
     pub(crate) unsafe fn from_handle<'a>(arena: *mut c_void) -> &'a Self {

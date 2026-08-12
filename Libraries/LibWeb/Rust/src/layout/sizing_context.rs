@@ -1831,7 +1831,7 @@ impl SizingContext {
 
         let table_run = crate::layout::FormattingContextRun {
             purpose: LayoutPurpose::Measurement,
-            records: std::rc::Rc::new(RunRecords::new(table_box, table_used.clone())),
+            records: std::rc::Rc::new(RunRecords::new(measurement.callbacks().arena, table_box, table_used.clone())),
             box_: table_box,
             layout_mode: LayoutMode::IntrinsicSizing,
             callbacks: *measurement.callbacks(),
