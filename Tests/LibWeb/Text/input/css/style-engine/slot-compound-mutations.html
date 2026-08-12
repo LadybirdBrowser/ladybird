@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="host"><span id="slotted">slotted</span><span id="unassigned" slot="other">unassigned</span></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const slotted = document.getElementById("slotted");
+        const unassigned = document.getElementById("unassigned");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `<style>slot.on::slotted(span) { color: green }</style><slot></slot>`;
+        const slot = shadowRoot.querySelector("slot");
+        getComputedStyle(slotted).color;
+        getComputedStyle(unassigned).color;
+
+        slot.classList.add("on");
+        println(`slotted after slot class added: ${getComputedStyle(slotted).color}`);
+        println(`unassigned after slot class added: ${getComputedStyle(unassigned).color}`);
+
+        slot.classList.remove("on");
+        println(`slotted after slot class removed: ${getComputedStyle(slotted).color}`);
+    });
+</script>
