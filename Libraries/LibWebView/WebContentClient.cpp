@@ -1929,14 +1929,6 @@ void WebContentClient::did_request_finalize_same_document_navigation(u64 page_id
         finalization->script_history_index);
 }
 
-void WebContentClient::did_finalize_cross_document_navigation(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key)
-{
-    auto navigable = hosted_navigable_for_page(page_id, navigable_id);
-    if (!navigable.has_value())
-        return;
-    navigable->top_level_traversable().finalize_cross_document_navigation(operation_id, *navigable, move(history_entry), move(entry_to_replace_navigation_api_key));
-}
-
 Messages::WebContentClient::DidRequestUiProcessSessionHistoryForTestingResponse WebContentClient::did_request_ui_process_session_history_for_testing(u64 page_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
@@ -1972,10 +1964,10 @@ void WebContentClient::request_history_operation(u64 page_id, u64 initiation_id,
         view->request_history_operation({}, initiation_id, move(parameters));
 }
 
-void WebContentClient::history_operation_ready(u64 page_id, u64 operation_id, bool proceed, Optional<i32> step_override, Optional<Web::HTML::CrossProcessId> creation_parent_document_state_id, Web::HTML::HistoryStepResult abandon_result)
+void WebContentClient::history_operation_ready(u64 page_id, u64 operation_id, bool proceed, Optional<i32> step_override, Optional<Web::HTML::CrossProcessId> creation_parent_document_state_id, Optional<Web::CrossDocumentNavigationFinalization> cross_document_navigation_finalization, Web::HTML::HistoryStepResult abandon_result)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_receive_history_operation_ready({}, operation_id, proceed, step_override, creation_parent_document_state_id, abandon_result);
+        view->did_receive_history_operation_ready({}, operation_id, proceed, step_override, creation_parent_document_state_id, move(cross_document_navigation_finalization), abandon_result);
 }
 
 void WebContentClient::initiator_sandboxing_check_result(u64 page_id, u64 operation_id, bool allowed)

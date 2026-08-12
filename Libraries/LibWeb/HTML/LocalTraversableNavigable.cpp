@@ -638,7 +638,7 @@ void LocalTraversableNavigable::reset_session_history_for_testing(GC::Ref<GC::Fu
                 auto entries_for_navigation_api = get_session_history_entries_for_the_navigation_api(*this, m_current_session_history_step);
                 active_window()->navigation()->initialize_the_navigation_api_entries_for_reconstructed_session_history(entries_for_navigation_api, active_entry);
 
-                ready->function()(false, {}, {}, HistoryStepResult::Applied);
+                ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
                 on_complete->function()();
             }),
         });
@@ -1887,14 +1887,6 @@ void LocalTraversableNavigable::request_synchronous_navigation_history_operation
     request_history_operation(move(parameters), move(state));
 }
 
-u64 LocalTraversableNavigable::ui_history_operation_id(u64 initiation_id) const
-{
-    auto initiation = m_history_operation_states.find(initiation_id);
-    VERIFY(initiation != m_history_operation_states.end());
-    VERIFY(initiation->value.operation_id.has_value());
-    return *initiation->value.operation_id;
-}
-
 i32 LocalTraversableNavigable::ui_history_operation_target_step(u64 initiation_id) const
 {
     auto initiation = m_history_operation_states.find(initiation_id);
@@ -1909,17 +1901,16 @@ void LocalTraversableNavigable::handle_ui_history_operation_started(u64 operatio
     operation.initiation_id = initiation_id;
 
     if (!initiation_id.has_value()) {
-        ready->function()(true, {}, {}, HistoryStepResult::Applied);
+        ready->function()(true, {}, {}, {}, HistoryStepResult::Applied);
         return;
     }
 
     auto initiation = m_history_operation_states.find(*initiation_id);
     if (initiation == m_history_operation_states.end()) {
-        ready->function()(false, {}, {}, HistoryStepResult::Applied);
+        ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
         return;
     }
 
-    initiation->value.operation_id = operation_id;
     initiation->value.target_step = target_step;
 
     // NB: A cross-document navigation can be superseded after its document has populated but before its queued
@@ -1929,7 +1920,7 @@ void LocalTraversableNavigable::handle_ui_history_operation_started(u64 operatio
     if (expected_ongoing_navigation_was_superseded(
             initiation->value.expected_ongoing_navigation_navigable ? Optional<CrossProcessId> { initiation->value.expected_ongoing_navigation_navigable->id() } : OptionalNone {},
             initiation->value.expected_ongoing_navigation_id)) {
-        ready->function()(false, {}, {}, HistoryStepResult::Applied);
+        ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
         return;
     }
 
@@ -1939,7 +1930,7 @@ void LocalTraversableNavigable::handle_ui_history_operation_started(u64 operatio
         initiation->value.pre_steps->function()(*initiation_id, ready);
         return;
     }
-    ready->function()(true, {}, {}, HistoryStepResult::Applied);
+    ready->function()(true, {}, {}, {}, HistoryStepResult::Applied);
 }
 
 bool LocalTraversableNavigable::run_ui_initiator_sandboxing_check_job(CrossProcessId initiator_to_check_id, Vector<CrossProcessId> const& navigable_ids, u64 initiation_id)
@@ -2317,14 +2308,14 @@ void LocalTraversableNavigable::finalize_same_document_navigation(GC::Ref<LocalN
                 .local_target_entry = target_entry,
                 .pre_steps = GC::create_function(heap(), [this, target_navigable, target_entry, entry_to_replace, parameters](u64 initiation_id, GC::Ref<OnHistoryOperationReady> ready) {
                     if (target_navigable->has_been_destroyed()) {
-                        ready->function()(false, {}, {}, HistoryStepResult::Applied);
+                        ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
                         return;
                     }
                     // AD-HOC: A child's nested history can be pruned while this finalization waited for its queue
                     //         position. Like a stale child-frame commit, a removed child's navigation has no observable
                     //         session history effect.
                     if (!target_navigable->has_session_history_entries()) {
-                        ready->function()(false, {}, {}, HistoryStepResult::Applied);
+                        ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
                         return;
                     }
                     begin_same_document_navigation_finalization(target_navigable, target_entry, entry_to_replace, parameters, ready, initiation_id);
@@ -2432,7 +2423,7 @@ void LocalTraversableNavigable::did_complete_finalize_same_document_navigation(u
         // NB: A queued finalization's claim is retired when its coordinated operation completes; abandoning the
         //     operation here routes through that same completion.
         if (pending_navigation->ready)
-            pending_navigation->ready->function()(false, {}, {}, HistoryStepResult::Applied);
+            pending_navigation->ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
         else if (pending_navigation->provisional_claimed_step.has_value())
             retire_claimed_session_history_step(*pending_navigation->provisional_claimed_step);
     };
@@ -2468,7 +2459,7 @@ void LocalTraversableNavigable::did_complete_finalize_same_document_navigation(u
         }
 
         // The coordinator now applies the push/replace history step at the canonical step.
-        pending_navigation->ready->function()(true, target_step, {}, HistoryStepResult::Applied);
+        pending_navigation->ready->function()(true, target_step, {}, {}, HistoryStepResult::Applied);
         return;
     }
 
@@ -2516,7 +2507,7 @@ void LocalTraversableNavigable::definitely_close_top_level_traversable()
 
                     // 2. Unload a document and its descendants given traversable's active document, null, and afterAllUnloads.
                     active_document()->unload_a_document_and_its_descendants({}, after_all_unloads);
-                    ready->function()(false, {}, {}, HistoryStepResult::Applied);
+                    ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
                 }),
             });
     }));

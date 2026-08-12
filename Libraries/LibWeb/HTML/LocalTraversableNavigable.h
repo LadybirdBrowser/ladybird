@@ -75,7 +75,7 @@ public:
 
     HistoryObjectLengthAndIndex get_the_history_object_length_and_index(int) const;
 
-    using OnHistoryOperationReady = GC::Function<void(bool proceed, Optional<i32> step_override, Optional<CrossProcessId> creation_parent_document_state_id, HistoryStepResult abandon_result)>;
+    using OnHistoryOperationReady = GC::Function<void(bool proceed, Optional<i32> step_override, Optional<CrossProcessId> creation_parent_document_state_id, Optional<Web::CrossDocumentNavigationFinalization>, HistoryStepResult abandon_result)>;
     using OnHistoryOperationPreSteps = GC::Function<void(u64 history_initiation_id, GC::Ref<OnHistoryOperationReady>)>;
     struct HistoryOperationState {
         GC::Ptr<DOM::Document> pending_document {};
@@ -83,7 +83,6 @@ public:
         Optional<Utf16String> expected_ongoing_navigation_id {};
         GC::Ptr<SourceSnapshotParams> source_snapshot_params {};
         GC::Ptr<LocalNavigable> initiator_to_check {};
-        Optional<u64> operation_id {};
         Optional<i32> target_step {};
         Optional<CrossProcessId> local_target_navigable_id {};
         RefPtr<SessionHistoryEntry> local_target_entry {};
@@ -97,7 +96,6 @@ public:
     void request_history_operation(HistoryOperationParameters, HistoryOperationState);
     void request_synchronous_navigation_history_operation(GC::Ref<LocalNavigable> target_navigable, HistoryOperationParameters);
     void request_synchronous_navigation_history_operation(GC::Ref<LocalNavigable> target_navigable, HistoryOperationParameters, HistoryOperationState);
-    u64 ui_history_operation_id(u64 initiation_id) const;
     i32 ui_history_operation_target_step(u64 initiation_id) const;
 
     void handle_ui_history_operation_started(u64 operation_id, Optional<u64> initiation_id, Optional<i32> target_step, GC::Ref<OnHistoryOperationReady>);

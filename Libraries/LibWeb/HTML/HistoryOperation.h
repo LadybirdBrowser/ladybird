@@ -30,6 +30,11 @@ struct ReplaceHistoryOperationParameters {
     HTML::UserNavigationInvolvement user_involvement;
 };
 
+struct CrossDocumentNavigationFinalization {
+    HTML::SessionHistoryEntryDescriptor history_entry;
+    Optional<Utf16String> entry_to_replace_navigation_api_key;
+};
+
 struct ReloadHistoryOperationParameters {
     HTML::CrossProcessId navigable_id;
     HTML::UserNavigationInvolvement user_involvement;
@@ -134,6 +139,11 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::ReplaceHistoryOperationParameters const&);
 template<>
 WEB_API ErrorOr<Web::ReplaceHistoryOperationParameters> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::CrossDocumentNavigationFinalization const&);
+template<>
+WEB_API ErrorOr<Web::CrossDocumentNavigationFinalization> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::ReloadHistoryOperationParameters const&);
