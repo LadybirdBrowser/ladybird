@@ -1248,6 +1248,28 @@ void LocalNavigable::process_pending_navigations()
     }
 }
 
+void LocalNavigable::route_initial_navigation_to_session_history_entry(SessionHistoryEntryDescriptor entry, GC::Ref<DOM::Document> source_document)
+{
+    NavigateParams* params;
+    if (m_pending_navigations.is_empty()) {
+        m_pending_navigations.append({
+            .url = entry.url,
+            .source_document = source_document,
+            .document_resource = entry.document_state.resource,
+            .history_handling = Bindings::NavigationHistoryBehavior::Replace,
+            .user_involvement = UserNavigationInvolvement::BrowserUI,
+        });
+        params = &m_pending_navigations.last();
+    } else {
+        params = &m_pending_navigations.first();
+        params->url = entry.url;
+        params->document_resource = entry.document_state.resource;
+        params->history_handling = Bindings::NavigationHistoryBehavior::Replace;
+        params->user_involvement = UserNavigationInvolvement::BrowserUI;
+    }
+    params->session_history_entry_to_restore = move(entry);
+}
+
 // https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
 LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View name, TokenizedFeature::NoOpener no_opener, ActivateTab activate_tab, Optional<TokenizedFeature::Map const&> window_features)
 {
@@ -3089,7 +3111,7 @@ void LocalNavigable::begin_navigation(NavigateParams params)
                     history_entry->document_state()->navigable_target_name(),
                     history_entry->document_state()->reload_pending(),
                     history_entry->document_state()->ever_populated(),
-                    source_snapshot_params, target_snapshot_params, user_involvement, navigation_id, navigation_params, csp_navigation_type, true, GC::create_function(heap(), [this, history_entry, history_handling, navigation_id, user_involvement](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) {
+                    source_snapshot_params, target_snapshot_params, user_involvement, navigation_id, navigation_params, csp_navigation_type, true, GC::create_function(heap(), [this, history_entry, history_handling, navigation_id, user_involvement, entry_to_restore = move(params.session_history_entry_to_restore)](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) mutable {
                         if (output && output->download_handled) {
                             if (is_top_level_traversable())
                                 active_browsing_context()->page().client().page_did_cancel_loading(navigation_id, history_entry->url());
@@ -3102,7 +3124,7 @@ void LocalNavigable::begin_navigation(NavigateParams params)
                             output->apply_to(*history_entry);
                         auto pending_document = output ? output->document : GC::Ptr<DOM::Document> {};
                         // 1. Append session history traversal steps to navigable's traversable to finalize a cross-document navigation given navigable, historyHandling, userInvolvement, and historyEntry.
-                        finalize_a_cross_document_navigation(*this, to_history_handling_behavior(history_handling), user_involvement, history_entry, pending_document, navigation_id, GC::create_function(heap(), [](HistoryStepResult) { }));
+                        finalize_a_cross_document_navigation(*this, to_history_handling_behavior(history_handling), user_involvement, history_entry, pending_document, navigation_id, GC::create_function(heap(), [](HistoryStepResult) { }), move(entry_to_restore));
                     }));
             }));
     }));
@@ -3547,7 +3569,7 @@ static void report_finalized_cross_document_navigation_to_ui_process(LocalTraver
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
-static Optional<int> finalize_a_cross_document_navigation_at_queued_position(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> const& expected_ongoing_navigation_id, u64 initiation_id)
+static Optional<int> finalize_a_cross_document_navigation_at_queued_position(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> const& expected_ongoing_navigation_id, u64 initiation_id, Optional<SessionHistoryEntryDescriptor> entry_to_restore)
 {
     // NOTE: This is not in the spec but we should not navigate destroyed navigable.
     if (navigable->has_been_destroyed()) {
@@ -3607,6 +3629,9 @@ static Optional<int> finalize_a_cross_document_navigation_at_queued_position(GC:
 
     // 6. Let traversable be navigable's traversable navigable.
     auto traversable = navigable->traversable_navigable();
+
+    if (entry_to_restore.has_value())
+        traversable->restore_session_history_entry_from_ui_process(*navigable, *history_entry, entry_to_restore.release_value());
 
     // 7. Let targetStep be null.
     int target_step;
@@ -3706,7 +3731,7 @@ static Optional<int> finalize_a_cross_document_navigation_at_queued_position(GC:
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
-void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete)
+void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete, Optional<SessionHistoryEntryDescriptor> entry_to_restore)
 {
     auto traversable = navigable->traversable_navigable();
     traversable->request_history_operation(
@@ -3719,8 +3744,8 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             .expected_ongoing_navigation_id = expected_ongoing_navigation_id,
             .local_target_navigable_id = navigable->id(),
             .local_target_entry = history_entry,
-            .pre_steps = GC::create_function(navigable->heap(), [navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id = move(expected_ongoing_navigation_id)](u64 initiation_id, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) {
-                auto target_step = finalize_a_cross_document_navigation_at_queued_position(navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id, initiation_id);
+            .pre_steps = GC::create_function(navigable->heap(), [navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id = move(expected_ongoing_navigation_id), entry_to_restore = move(entry_to_restore)](u64 initiation_id, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) mutable {
+                auto target_step = finalize_a_cross_document_navigation_at_queued_position(navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id, initiation_id, move(entry_to_restore));
                 if (!target_step.has_value()) {
                     ready->function()(false, {}, {}, HistoryStepResult::Applied);
                     return;

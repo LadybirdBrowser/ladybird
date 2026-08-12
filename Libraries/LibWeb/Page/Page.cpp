@@ -135,12 +135,14 @@ void Page::navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigab
 
 void Page::load(URL::URL const& url, Bindings::NavigationHistoryBehavior history_handling)
 {
+    m_pending_history_navigation_restoration.clear();
     (void)top_level_traversable()->navigate({ .url = url, .source_document = *top_level_traversable()->active_document(), .history_handling = history_handling, .user_involvement = HTML::UserNavigationInvolvement::BrowserUI });
 }
 
 void Page::load(URL::URL const& url, HTML::DocumentResource document_resource,
     Bindings::NavigationHistoryBehavior history_handling, Optional<HTML::NavigationSourceSnapshot> source_snapshot)
 {
+    m_pending_history_navigation_restoration.clear();
     (void)top_level_traversable()->navigate({
         .url = url,
         .source_document = *top_level_traversable()->active_document(),
@@ -151,8 +153,32 @@ void Page::load(URL::URL const& url, HTML::DocumentResource document_resource,
     });
 }
 
+void Page::prepare_to_restore_persisted_state_after_history_navigation(URL::URL const& url, HTML::SessionHistoryEntryScrollPositionData scroll_position_data)
+{
+    m_pending_history_navigation_restoration = PendingHistoryNavigationRestoration {
+        .url = url,
+        .scroll_position_data = move(scroll_position_data),
+    };
+}
+
+void Page::restore_persisted_state_after_history_navigation(URL::URL const& url)
+{
+    if (!m_pending_history_navigation_restoration.has_value() || m_pending_history_navigation_restoration->url != url)
+        return;
+
+    auto traversable = top_level_traversable();
+    auto entry = traversable->active_session_history_entry();
+    VERIFY(entry);
+    entry->set_scroll_position_data(move(m_pending_history_navigation_restoration->scroll_position_data));
+    m_pending_history_navigation_restoration.clear();
+    traversable->restore_persisted_state_from_session_history_entry(*entry);
+    client().page_did_update_session_history_entry_scroll_position_data(
+        traversable->id(), entry->navigation_api_key(), entry->scroll_position_data());
+}
+
 void Page::load_html(StringView html)
 {
+    m_pending_history_navigation_restoration.clear();
     // FIXME: #23909 Figure out why GC threshold does not stay low when repeatedly loading html from the WebView
     heap().collect_garbage();
 
@@ -164,6 +190,7 @@ void Page::load_html(StringView html)
 
 void Page::load_html(StringView html, URL::URL const& url)
 {
+    m_pending_history_navigation_restoration.clear();
     // FIXME: #23909 Figure out why GC threshold does not stay low when repeatedly loading html from the WebView
     heap().collect_garbage();
 
@@ -189,6 +216,7 @@ void Page::load_html(StringView html, URL::URL const& url)
 
 void Page::reload()
 {
+    m_pending_history_navigation_restoration.clear();
     top_level_traversable()->reload();
 }
 

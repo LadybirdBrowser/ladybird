@@ -106,13 +106,13 @@ void NavigableContainer::create_new_child_navigable()
     // 9. Set element's content navigable to navigable.
     m_content_navigable = navigable;
 
+    auto traversable = parent_navigable->traversable_navigable();
+    auto adopted_history_from_current_reconstruction = traversable->adopt_nested_history_for_child_created_during_history_reconstruction(*parent_navigable, navigable);
+
     page.client().page_did_create_child_frame(parent_navigable->id(), navigable->id(), navigable->replicated_state());
 
     // 10. Let historyEntry be navigable's active session history entry.
     auto history_entry = navigable->active_session_history_entry();
-
-    // 11. Let traversable be parentNavigable's traversable navigable.
-    auto traversable = parent_navigable->traversable_navigable();
 
     // 12. Append the following session history traversal steps to traversable:
     traversable->request_history_operation(
@@ -124,13 +124,19 @@ void NavigableContainer::create_new_child_navigable()
         {
             .local_target_navigable_id = navigable->id(),
             .local_target_entry = history_entry,
-            .pre_steps = GC::create_function(heap(), [navigable, parent_navigable, history_entry](u64, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) mutable {
+            .pre_steps = GC::create_function(heap(), [navigable, parent_navigable, history_entry, adopted_history_from_current_reconstruction](u64, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) mutable {
                 if (navigable->has_been_destroyed() || parent_navigable->has_been_destroyed()) {
                     ready->function()(false, {}, {}, HistoryStepResult::Applied);
                     return;
                 }
 
                 // 1-6. Append nestedHistory to parentDocState's nested histories.
+                if (adopted_history_from_current_reconstruction) {
+                    VERIFY(navigable->traversable_navigable()->route_child_created_during_history_reconstruction(*parent_navigable, *navigable, *history_entry));
+                    ready->function()(false, {}, {}, HistoryStepResult::Applied);
+                    return;
+                }
+
                 auto parent_document_state = parent_navigable->active_session_history_entry()->document_state();
                 VERIFY(append_nested_history_for_child_navigable(*parent_navigable, *navigable, *history_entry));
 

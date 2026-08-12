@@ -125,6 +125,8 @@ public:
     void load(URL::URL const&, HTML::DocumentResource,
         Bindings::NavigationHistoryBehavior = Bindings::NavigationHistoryBehavior::Auto,
         Optional<HTML::NavigationSourceSnapshot> = {});
+    void prepare_to_restore_persisted_state_after_history_navigation(URL::URL const&, HTML::SessionHistoryEntryScrollPositionData);
+    void restore_persisted_state_after_history_navigation(URL::URL const&);
 
     void load_html(StringView);
     void load_html(StringView, URL::URL const&);
@@ -370,6 +372,11 @@ private:
     bool m_enable_autoscroll { true };
     bool m_enable_primary_paste { true };
     bool m_async_scrolling_enabled { false };
+    struct PendingHistoryNavigationRestoration {
+        URL::URL url;
+        HTML::SessionHistoryEntryScrollPositionData scroll_position_data;
+    };
+    Optional<PendingHistoryNavigationRestoration> m_pending_history_navigation_restoration;
     u64 m_wheel_event_listener_state_generation { 0 };
     bool m_needs_beforeunload_check { true };
 

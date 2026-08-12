@@ -451,8 +451,7 @@ void ViewImplementation::reload()
         m_is_showing_crash_page = false;
         m_should_suppress_history_for_current_load = false;
         m_should_suppress_history_for_next_load = false;
-        m_top_level_traversable.prepare_to_seed_web_content_session_history_from_ui_process();
-        restore_current_session_history_entry_from_ui_process();
+        recover_current_session_history_entry_with_history_operation();
         return;
     }
 
@@ -2252,14 +2251,30 @@ void ViewImplementation::seed_web_content_session_history_from_ui_process(AllowC
     dump_session_history("sent-webcontent-session-history-seed"sv);
 }
 
-void ViewImplementation::restore_current_session_history_entry_from_ui_process()
+void ViewImplementation::recover_current_session_history_entry_with_history_operation()
 {
     m_history_visit_transition_for_next_load = HistoryVisitTransition::Restore;
-    m_webdriver_pending_navigation_url = m_url;
-    auto should_seed = m_top_level_traversable.prepare_to_restore_current_session_history_entry_from_ui_process();
-    if (should_seed)
-        seed_web_content_session_history_from_ui_process();
-    load_current_session_history_entry_from_ui_process();
+    auto const* current_entry = m_top_level_traversable.session_history().current_entry();
+    auto current_url = current_entry ? current_entry->url : m_url;
+    set_url(current_url);
+    m_webdriver_pending_navigation_url = current_url;
+    m_top_level_traversable.recover_from_web_content_process_crash([this](Web::HTML::HistoryStepResult result, Optional<i32> committed_step) {
+        if (auto const& pending_traversal = m_top_level_traversable.pending_session_history_traversal(); pending_traversal.has_value()) {
+            auto step = committed_step.value_or(pending_traversal->target_step);
+            apply_history_traversal_step_result(step, committed_step.has_value(), result);
+            return;
+        }
+
+        if (result == Web::HTML::HistoryStepResult::Applied) {
+            if (committed_step.has_value())
+                update_navigation_action_state();
+            auto const* current_entry = m_top_level_traversable.session_history().current_entry();
+            if (current_entry)
+                set_url(current_entry->url);
+            complete_webdriver_pending_navigation_if_url_matches(m_url);
+        }
+        dump_session_history("recovered-web-content-process-with-history-operation"sv);
+    });
 }
 
 void ViewImplementation::load_current_session_history_entry_from_ui_process()
@@ -2662,17 +2677,18 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
     if (headless_mode)
         load_error_page = LoadErrorPage::No;
 
+    m_history_operation_handling_for_next_client = HistoryOperationHandling::Preserve;
     initialize_client();
+    m_history_operation_handling_for_next_client = HistoryOperationHandling::Abandon;
     VERIFY(m_client_state.client);
 
     // Don't keep a stale backup bitmap around.
     m_backup_shared_image_buffer = nullptr;
 
-    m_top_level_traversable.did_crash_requiring_web_content_session_history_seed();
-
     handle_resize();
 
     if (load_error_page == LoadErrorPage::Yes) {
+        m_top_level_traversable.abandon_after_web_content_process_crash();
         auto escaped_url = escape_html_entities(m_url.serialize());
 
         StringBuilder builder;
@@ -2683,7 +2699,7 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
     } else {
         m_should_suppress_history_for_current_load = false;
         m_should_suppress_history_for_next_load = false;
-        restore_current_session_history_entry_from_ui_process();
+        recover_current_session_history_entry_with_history_operation();
     }
 }
 

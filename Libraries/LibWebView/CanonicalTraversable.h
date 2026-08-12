@@ -211,6 +211,7 @@ public:
         i32 target_step { 0 };
         Optional<i32> current_step {};
         Vector<Web::HTML::CrossProcessId> navigables_to_restore {};
+        bool restores_replacement_process { false };
     };
 
     struct HistoryStepCancelationCheckOperation {
@@ -294,7 +295,8 @@ public:
     CurrentSessionHistoryEntryLoad prepare_current_session_history_entry_load(URL::URL const& current_url);
     void did_send_web_content_session_history_seed();
     bool prepare_to_restore_current_session_history_entry_from_ui_process();
-    void did_crash_requiring_web_content_session_history_seed();
+    void abandon_after_web_content_process_crash();
+    void recover_from_web_content_process_crash(OnHistoryOperationComplete);
     void reset_session_history_for_testing();
     void mark_web_content_session_history_stale_for_testing();
 

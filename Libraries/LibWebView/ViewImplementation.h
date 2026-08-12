@@ -488,7 +488,7 @@ protected:
         Yes,
     };
     void seed_web_content_session_history_from_ui_process(AllowCurrentEntryReconstruction = AllowCurrentEntryReconstruction::No);
-    void restore_current_session_history_entry_from_ui_process();
+    void recover_current_session_history_entry_with_history_operation();
     void load_current_session_history_entry_from_ui_process();
     void load_session_history_traversal_target_from_ui_process(TraversableSessionHistory::TraversalTarget const&, StringView dump_reason);
     NonnullRefPtr<Core::Promise<Empty>> reset_session_history_for_testing();

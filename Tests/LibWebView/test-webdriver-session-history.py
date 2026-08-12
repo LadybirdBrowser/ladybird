@@ -1876,11 +1876,8 @@ def run_blocked_process_swap_ui_forward_crash_recovery_test(
         True,
         False,
         log,
-        expect_web_content_matches_ui=False,
-        expected_waiting_to_seed_web_content=True,
-        expected_waiting_for_web_content_seed_ack=False,
-        expected_ignoring_web_content_updates_until_seed=True,
-        expected_reseed_after_current_history_load=True,
+        expected_web_content_known_used_steps=[0, 1],
+        expected_web_content_current_step=1,
     )
     page_server.release_blocked_process_swap_back.set()
     wait_for_event(page_server.process_swap_back_document_ran, "process-swap UI forward recovery document")
@@ -3370,11 +3367,8 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             False,
             True,
             log,
-            expect_web_content_matches_ui=False,
-            expected_waiting_to_seed_web_content=True,
-            expected_waiting_for_web_content_seed_ack=False,
-            expected_ignoring_web_content_updates_until_seed=True,
-            expected_reseed_after_current_history_load=True,
+            expected_web_content_known_used_steps=[0, 1],
+            expected_web_content_current_step=0,
         )
         page_server.release_blocked_process_swap_back.set()
         wait_for_event(page_server.process_swap_back_document_ran, "process-swap UI back recovery document")
@@ -3471,7 +3465,8 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             True,
             True,
             log,
-            expect_web_content_matches_ui=False,
+            expected_web_content_known_used_steps=[0, 1, 2],
+            expected_web_content_current_step=1,
         )
         page_server.frame_b_blocked_document_ran.clear()
         page_server.release_blocked_frame_b.set()
@@ -5397,11 +5392,10 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             before_blocked_reload_crash_recovery["ui"]["backButtonEnabled"],
             before_blocked_reload_crash_recovery["ui"]["forwardButtonEnabled"],
             log,
-            expect_web_content_matches_ui=False,
-            expected_waiting_to_seed_web_content=True,
-            expected_waiting_for_web_content_seed_ack=False,
-            expected_ignoring_web_content_updates_until_seed=True,
-            expected_reseed_after_current_history_load=True,
+            expected_web_content_known_used_steps=history_step_values(
+                before_blocked_reload_crash_recovery["ui"]["webContentKnownUsedSteps"]
+            ),
+            expected_web_content_current_step=before_blocked_reload_crash_recovery["ui"]["webContentCurrentStep"],
         )
         page_server.release_blocked_reload.set()
         wait_for_event(page_server.reload_blocked_document_ran, "reload document after crash recovery")

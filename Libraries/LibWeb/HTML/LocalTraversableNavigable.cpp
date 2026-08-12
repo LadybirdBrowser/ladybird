@@ -400,7 +400,7 @@ static bool expected_ongoing_navigation_was_superseded(Optional<CrossProcessId> 
     return navigable->ongoing_navigation() != *expected_navigation_id;
 }
 
-bool LocalTraversableNavigable::replace_top_level_session_history_entries_from_ui_process(Vector<SessionHistoryEntryDescriptor> entries_from_ui_process, size_t current_top_level_entry_index, bool allow_reconstructing_current_entry)
+bool LocalTraversableNavigable::replace_top_level_session_history_entries_from_ui_process(Vector<SessionHistoryEntryDescriptor> entries_from_ui_process, size_t current_top_level_entry_index, bool allow_reconstructing_current_entry, Optional<i32> current_step)
 {
     if (entries_from_ui_process.is_empty() || current_top_level_entry_index >= entries_from_ui_process.size())
         return false;
@@ -510,7 +510,7 @@ bool LocalTraversableNavigable::replace_top_level_session_history_entries_from_u
     auto current_entry = m_session_history_entries[current_top_level_entry_index];
     set_active_session_history_entry(current_entry);
     set_current_session_history_entry(current_entry);
-    m_current_session_history_step = current_entry->step().get<int>();
+    m_current_session_history_step = current_step.value_or(current_entry->step().get<int>());
 
     auto document = this->active_document();
     VERIFY(document);
@@ -529,6 +529,98 @@ bool LocalTraversableNavigable::replace_top_level_session_history_entries_from_u
 
     auto entries_for_navigation_api = get_session_history_entries_for_the_navigation_api(*this, m_current_session_history_step);
     active_window()->navigation()->initialize_the_navigation_api_entries_for_reconstructed_session_history(entries_for_navigation_api, current_entry);
+    return true;
+}
+
+void LocalTraversableNavigable::restore_session_history_entry_from_ui_process(LocalNavigable& navigable, SessionHistoryEntry& entry, SessionHistoryEntryDescriptor entry_descriptor)
+{
+    VERIFY(!entry_descriptor.document_state.is_provisional);
+
+    auto document_state = entry.document_state();
+    VERIFY(document_state);
+
+    auto document_state_id = entry_descriptor.document_state.id;
+    apply_session_history_entry_descriptor_from_ui_process(entry, entry_descriptor);
+    apply_session_history_document_state_descriptor_from_ui_process(*document_state, entry_descriptor.document_state);
+
+    if (!entry_descriptor.document_state.nested_histories.is_empty())
+        m_document_states_under_history_reconstruction.set(document_state_id);
+
+    SessionHistoryEntryReconstructionState reconstruction_state;
+    reconstruction_state.document_states.set(document_state_id, document_state);
+    populate_nested_histories_from_ui_process(*document_state, move(entry_descriptor.document_state.nested_histories), reconstruction_state);
+
+    for (auto& existing_entry : navigable.get_session_history_entries()) {
+        auto existing_document_state = existing_entry->document_state();
+        VERIFY(existing_document_state);
+        if (existing_document_state->cross_process_id() == document_state_id)
+            existing_entry->set_document_state(document_state);
+    }
+}
+
+bool LocalTraversableNavigable::adopt_nested_history_for_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child)
+{
+    VERIFY(child.parent().ptr() == &parent);
+
+    auto parent_entry = parent.active_session_history_entry();
+    VERIFY(parent_entry);
+    auto parent_document_state = parent_entry->document_state();
+    VERIFY(parent_document_state);
+    if (!m_document_states_under_history_reconstruction.contains(parent_document_state->cross_process_id()))
+        return false;
+
+    auto parent_document = parent.active_document();
+    VERIFY(parent_document);
+    if (parent_document->is_completely_loaded())
+        return false;
+
+    auto child_navigables = parent_document->document_tree_child_navigables();
+    auto child_index = child_navigables.find_first_index(child);
+    VERIFY(child_index.has_value());
+
+    auto& nested_histories = parent_document_state->nested_histories();
+    VERIFY(*child_index < nested_histories.size());
+    auto& nested_history = nested_histories[*child_index];
+    VERIFY(!local_navigable_with_id(nested_history.id));
+
+    child.set_id_for_session_history_reconstruction(nested_history.id);
+    return true;
+}
+
+bool LocalTraversableNavigable::route_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child, SessionHistoryEntry& initial_entry)
+{
+    VERIFY(child.parent().ptr() == &parent);
+
+    auto parent_entry = parent.active_session_history_entry();
+    VERIFY(parent_entry);
+    auto parent_document_state = parent_entry->document_state();
+    VERIFY(parent_document_state);
+
+    auto nested_history = parent_document_state->nested_histories().find_if([&](auto const& candidate) {
+        return candidate.id == child.id();
+    });
+    if (nested_history == parent_document_state->nested_histories().end())
+        return false;
+
+    Optional<size_t> target_entry_index;
+    for (size_t i = 0; i < nested_history->entries.size(); ++i) {
+        auto step = nested_history->entries[i]->step_value();
+        VERIFY(step.has_value());
+        if (*step <= m_current_session_history_step)
+            target_entry_index = i;
+    }
+    VERIFY(target_entry_index.has_value());
+
+    auto target_entry = nested_history->entries[*target_entry_index];
+    auto entry_to_restore = create_session_history_entry_descriptor(*target_entry);
+    auto entry_for_navigation = create_session_history_entry_descriptor(*target_entry);
+
+    nested_history->entries[*target_entry_index] = initial_entry;
+    restore_session_history_entry_from_ui_process(child, initial_entry, move(entry_to_restore));
+
+    auto source_document = parent.active_document();
+    VERIFY(source_document);
+    child.route_initial_navigation_to_session_history_entry(move(entry_for_navigation), *source_document);
     return true;
 }
 
@@ -888,7 +980,7 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
         // AD-HOC: A synchronous same-document navigation has already updated the active entry by this point.
         //         A later queued reload can additionally set reload pending on an already-active target entry
         //         before that synchronous step is applied. The reload step owns that population work.
-        bool is_update_only = displayed_entry == target_entry && !target_entry->document_state()->reload_pending();
+        bool is_update_only = displayed_entry == target_entry && !target_entry->document_state()->reload_pending() && !job.reconstructs_replacement_process;
         if (job.synchronous_navigation == SynchronousNavigation::Yes)
             is_update_only = !target_entry->document_state()->reload_pending() || displayed_entry == target_entry;
         if (is_update_only) {
@@ -994,7 +1086,8 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
 
         // 8. If targetEntry's document is null, or targetEntry's document state's reload pending is true, then:
         bool needs_population = !changing_navigable_continuation->pending_document
-            && (target_entry->document_state()->document_id() != navigable->active_document_id()
+            && (job.reconstructs_replacement_process
+                || target_entry->document_state()->document_id() != navigable->active_document_id()
                 || target_entry->document_state()->reload_pending());
         if (needs_population) {
             if (target_entry->document_state()->reload_pending() && navigable->is_top_level_traversable())
@@ -1024,7 +1117,7 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
                 navigable->id(), target_entry->navigation_api_key(), false);
 
             // 6. Let allowPOST be targetEntry's document state's reload pending.
-            auto allow_POST = target_entry->document_state()->reload_pending();
+            auto allow_POST = target_entry->document_state()->reload_pending() || job.reconstructs_replacement_process;
 
             // https://github.com/whatwg/html/issues/9869
             // Population runs in a deferred task, during which sync navigations can mutate
@@ -1937,7 +2030,7 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(u64 o
         }));
 }
 
-void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, bool synchronous_navigation, LocalNavigable::NavigationAPIAbortBehavior job_navigation_api_abort_behavior, Optional<u64> initiation_id, Vector<SessionHistoryEntryDescriptor> replacement_top_level_entries, size_t replacement_current_top_level_entry_index, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete)
+void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, bool synchronous_navigation, LocalNavigable::NavigationAPIAbortBehavior job_navigation_api_abort_behavior, Optional<u64> initiation_id, Vector<SessionHistoryEntryDescriptor> replacement_top_level_entries, size_t replacement_current_top_level_entry_index, i32 replacement_current_step, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete)
 {
     auto& operation = m_ui_history_operations.ensure(operation_id);
     operation.navigation_type = navigation_type;
@@ -1973,13 +2066,22 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operat
         on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Skipped);
         return;
     }
-    if (!replacement_top_level_entries.is_empty()) {
+    auto reconstructs_replacement_process = !replacement_top_level_entries.is_empty();
+    if (reconstructs_replacement_process) {
+        operation.reconstructs_replacement_process = true;
         VERIFY(navigable->is_top_level_traversable());
         auto& traversable = as<LocalTraversableNavigable>(*navigable);
-        if (!traversable.replace_top_level_session_history_entries_from_ui_process(move(replacement_top_level_entries), replacement_current_top_level_entry_index, false)) {
+        if (!traversable.replace_top_level_session_history_entries_from_ui_process(move(replacement_top_level_entries), replacement_current_top_level_entry_index, false, replacement_current_step)) {
             on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale);
             return;
         }
+
+        auto current_entry = traversable.current_session_history_entry();
+        VERIFY(current_entry);
+        auto current_document_state = current_entry->document_state();
+        VERIFY(current_document_state);
+        if (!current_document_state->nested_histories().is_empty())
+            traversable.m_document_states_under_history_reconstruction.set(current_document_state->cross_process_id());
     }
     if (!local_target_entry)
         local_target_entry = resolve_changing_navigable_target_entry_from_ui_process(*navigable, move(target_entry));
@@ -1987,6 +2089,8 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operat
         on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale);
         return;
     }
+    if (reconstructs_replacement_process)
+        page().prepare_to_restore_persisted_state_after_history_navigation(local_target_entry->url(), local_target_entry->scroll_position_data());
 
     auto did_claim_navigable = run_changing_navigable_history_step_job_impl(
         {
@@ -1996,6 +2100,7 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operat
             .navigation_type = navigation_type,
             .synchronous_navigation = synchronous_navigation ? SynchronousNavigation::Yes : SynchronousNavigation::No,
             .navigation_api_abort_behavior = navigation_api_abort_behavior,
+            .reconstructs_replacement_process = reconstructs_replacement_process,
         },
         source_snapshot_params, pending_document,
         GC::create_function(heap(), [this, operation_id, navigable_id, navigation_api_abort_behavior, on_complete](LocalChangingNavigableHistoryStepJobResult result) {
@@ -2147,6 +2252,8 @@ void LocalTraversableNavigable::complete_ui_history_operation(u64 operation_id, 
             if (document && active_entry && document->latest_entry() != active_entry)
                 save_active_entry_persisted_state = SaveActiveEntryPersistedState::No;
         }
+        if (operation.has_value() && operation->reconstructs_replacement_process)
+            save_active_entry_persisted_state = SaveActiveEntryPersistedState::No;
         if (save_active_entry_persisted_state == SaveActiveEntryPersistedState::Yes)
             save_persisted_state_to_active_session_history_entry();
 
