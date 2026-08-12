@@ -8,14 +8,49 @@
 
 namespace Media {
 
+#if !defined(LIBMEDIA_AUDIO_DEVICE_ENUMERATION)
+
+// FIXME: Implement device enumeration for the WASAPI (Windows) backend.
+NonnullRefPtr<AudioDeviceEnumerationPromise> enumerate_platform_audio_devices()
+{
+    return AudioDeviceEnumerationPromise::resolved(AudioDeviceEnumeration {});
+}
+
+#endif
+
 AudioDevices& AudioDevices::the()
 {
     static AudioDevices& devices = *new AudioDevices;
+
+    static bool did_initial_refresh = false;
+    if (!did_initial_refresh) {
+        did_initial_refresh = true;
+        devices.refresh();
+    }
+
     return devices;
 }
 
 void AudioDevices::refresh()
 {
+    if (m_refresh_in_progress)
+        return;
+
+    m_refresh_in_progress = true;
+    auto promise = enumerate_platform_audio_devices();
+    promise->when_resolved([this](AudioDeviceEnumeration& enumeration) {
+        m_cached_input_devices = move(enumeration.inputs);
+        m_cached_output_devices = move(enumeration.outputs);
+        m_refresh_in_progress = false;
+        m_has_completed_refresh = true;
+        notify_listeners();
+    });
+    promise->when_rejected([this](Error& error) {
+        warnln("Failed to enumerate audio devices: {}", error);
+        m_refresh_in_progress = false;
+        m_has_completed_refresh = true;
+        notify_listeners();
+    });
 }
 
 Vector<AudioDeviceInfo> AudioDevices::input_devices() const
