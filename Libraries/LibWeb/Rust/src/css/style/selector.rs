@@ -946,11 +946,9 @@ impl SelectorProgramBuilder {
                         // A canonical positional step counts as local here: its truth rides the
                         // positional bits of every transition and completion key, so the retained
                         // walk answers it exactly like an interned fact.
-                        chain.iter().all(|step| {
-                            self.program
-                                .canonical_prefix_features_and_position(step.local)
-                                .is_some()
-                        })
+                        chain
+                            .iter()
+                            .all(|step| self.program.prefix_local_has_canonical_form(step.local))
                     }),
                 }
             })
@@ -1049,7 +1047,7 @@ impl SelectorProgram {
             root,
             relation: relation.map(|(relation, _, _)| relation),
         };
-        if needs_canonical_form && self.canonical_prefix_features_and_position(local).is_none() {
+        if needs_canonical_form && !self.prefix_local_has_canonical_form(local) {
             return None;
         }
 
@@ -1133,11 +1131,32 @@ impl SelectorProgram {
             if Some(operand) == local.relation {
                 continue;
             }
-            self.collect_canonical_prefix_operand(operand, &mut features, &mut structural_tests)?;
+            self.visit_canonical_prefix_operand(operand, &mut |feature| features.push(feature), &mut |test| {
+                structural_tests.push(test);
+            })?;
         }
         features.sort_unstable();
         features.dedup();
         Some((features, structural_tests))
+    }
+
+    fn prefix_local_has_canonical_form(&self, local: SelectorPrefixLocal) -> bool {
+        let operands = match self.node(local.root) {
+            SelectorOp::And { first, count } => self.operands(first, count),
+            _ => std::slice::from_ref(&local.root),
+        };
+        for &operand in operands {
+            if Some(operand) == local.relation {
+                continue;
+            }
+            if self
+                .visit_canonical_prefix_operand(operand, &mut |_| {}, &mut |_| {})
+                .is_none()
+            {
+                return false;
+            }
+        }
+        true
     }
 
     /// Fold one conjunctive prefix operand into the canonical form: feature tests answered
@@ -1146,21 +1165,21 @@ impl SelectorProgram {
     /// several tests, `:only-of-type` being a first-of-type and a last-of-type in one. An
     /// an+b test with an of-selector evaluates an arbitrary program against every sibling,
     /// so it is not canonical, and neither is anything disjunctive or negated.
-    fn collect_canonical_prefix_operand(
+    fn visit_canonical_prefix_operand(
         &self,
         operand: SelectorNodeID,
-        features: &mut Vec<FeatureTest>,
-        structural_tests: &mut Vec<PrefixStructuralTest>,
+        visit_feature: &mut impl FnMut(FeatureTest),
+        visit_structural_test: &mut impl FnMut(PrefixStructuralTest),
     ) -> Option<()> {
         let feature = match self.node(operand) {
             SelectorOp::And { first, count } => {
                 for &inner in self.operands(first, count) {
-                    self.collect_canonical_prefix_operand(inner, features, structural_tests)?;
+                    self.visit_canonical_prefix_operand(inner, visit_feature, visit_structural_test)?;
                 }
                 return Some(());
             }
             SelectorOp::Where(inner) => {
-                return self.collect_canonical_prefix_operand(inner, features, structural_tests);
+                return self.visit_canonical_prefix_operand(inner, visit_feature, visit_structural_test);
             }
             // Only step-free an+b tests are canonical: their truth flips at a bounded number
             // of positions per mutation, so the convergence walk maintains them cheaply. A
@@ -1169,11 +1188,11 @@ impl SelectorProgram {
             // Tier 3; it stays with the sequence router's moved-position narrowing until
             // transitions are flat-priced.
             SelectorOp::NthPosition(nth) if nth.of_selector.is_none() && nth.step == 0 => {
-                structural_tests.push(PrefixStructuralTest::Nth(nth));
+                visit_structural_test(PrefixStructuralTest::Nth(nth));
                 return Some(());
             }
             SelectorOp::Empty => {
-                structural_tests.push(PrefixStructuralTest::Empty);
+                visit_structural_test(PrefixStructuralTest::Empty);
                 return Some(());
             }
             SelectorOp::Feature(feature) => feature,
@@ -1197,7 +1216,7 @@ impl SelectorProgram {
                 _ => return None,
             }
         }
-        features.push(feature);
+        visit_feature(feature);
         Some(())
     }
 
