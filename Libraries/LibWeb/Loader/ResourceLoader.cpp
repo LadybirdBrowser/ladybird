@@ -241,11 +241,7 @@ void ResourceLoader::handle_file_load_request(LoadRequest& request, FileHandler 
 
     auto const& url = request.url().value();
 
-    FileRequest file_request(url.file_path(), [this, request, on_file, on_error, url](ErrorOr<i32> file_or_error) mutable {
-        --m_pending_loads;
-        if (on_load_counter_change)
-            on_load_counter_change();
-
+    FileRequest file_request(url.file_path(), [request, on_file, on_error, url](ErrorOr<i32> file_or_error) mutable {
         if (file_or_error.is_error()) {
             auto const message = ByteString::formatted("{}", file_or_error.error());
             on_error(message);
@@ -298,10 +294,6 @@ void ResourceLoader::handle_file_load_request(LoadRequest& request, FileHandler 
     });
 
     page->client().request_file(move(file_request));
-
-    ++m_pending_loads;
-    if (on_load_counter_change)
-        on_load_counter_change();
 }
 
 template<typename ResourceHandler, typename ErrorHandler>
@@ -528,10 +520,6 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
         page->client().page_did_start_network_request(protocol_request->id(), request.url().value(), request.method(), request.headers().headers(), request.body(), move(initiator_type_string), referrer_policy, request.is_navigation_request(), request.priority());
     }
 
-    ++m_pending_loads;
-    if (on_load_counter_change)
-        on_load_counter_change();
-
     m_active_requests.set(*protocol_request);
     return protocol_request;
 }
@@ -570,10 +558,6 @@ void ResourceLoader::handle_network_response_headers(LoadRequest const& request,
 
 void ResourceLoader::finish_network_request(NonnullRefPtr<Requests::Request> protocol_request)
 {
-    --m_pending_loads;
-    if (on_load_counter_change)
-        on_load_counter_change();
-
     deferred_invoke([this, protocol_request = move(protocol_request)] {
         auto did_remove = m_active_requests.remove(protocol_request);
         VERIFY(did_remove);

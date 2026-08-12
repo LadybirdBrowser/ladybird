@@ -8,7 +8,6 @@
 #pragma once
 
 #include <AK/ByteString.h>
-#include <AK/Function.h>
 #include <AK/HashTable.h>
 #include <LibCore/EventReceiver.h>
 #include <LibCore/ImmutableBytes.h>
@@ -46,10 +45,6 @@ public:
 
     void prefetch_dns(URL::URL const&, URL::URL const& source_url);
     void preconnect(URL::URL const&, URL::URL const& source_url);
-
-    Function<void()> on_load_counter_change;
-
-    int pending_loads() const { return m_pending_loads; }
 
     static void try_store_hsts_policy_for_url(Page&, URL::URL const&, StringView header_value);
     static bool is_known_hsts_host(Page&, String const& host);
@@ -91,8 +86,6 @@ private:
     RefPtr<Requests::Request> start_network_request(LoadRequest const&, Requests::RequestClient::KeepAliveForTransfer);
     void handle_network_response_headers(LoadRequest const&, HTTP::HeaderList const&);
     void finish_network_request(NonnullRefPtr<Requests::Request>);
-
-    int m_pending_loads { 0 };
 
     GC::Heap& m_heap;
     RefPtr<Requests::RequestClient> m_request_client;
