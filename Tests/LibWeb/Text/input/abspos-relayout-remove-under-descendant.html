@@ -38,7 +38,7 @@
         return displayList.split(`color=${color}`).length - 1;
     }
 
-    asyncTest((done) => {
+    test(() => {
         document.body.offsetHeight;
 
         const removed = document.getElementById("removed");
@@ -64,6 +64,5 @@
             && paintCount === 0
             && rectToString(outsideBefore) === rectToString(outsideAfter)
             && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
-        done();
     });
 </script>

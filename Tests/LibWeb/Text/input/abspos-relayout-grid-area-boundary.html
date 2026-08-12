@@ -27,7 +27,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest((done) => {
+    test(() => {
         document.body.offsetHeight;
 
         const boundary = document.getElementById("boundary");
@@ -57,6 +57,5 @@
             && subtreePartialDelta === 1 && subtreeFullDelta === 0
             && selfRect === "110,90,180,100"
             && selfPartialDelta === 0 && selfFullDelta === 1 ? "PASS" : "FAIL");
-        done();
     });
 </script>

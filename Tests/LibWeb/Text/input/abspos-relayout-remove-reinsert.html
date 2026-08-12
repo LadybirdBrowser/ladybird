@@ -30,7 +30,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest((done) => {
+    test(() => {
         document.body.offsetHeight;
 
         const moving = document.getElementById("moving");
@@ -50,6 +50,5 @@
         println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
         println(rectToString(movingRect) === "55,40,35,20"
             && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
-        done();
     });
 </script>

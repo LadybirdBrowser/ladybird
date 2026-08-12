@@ -23,7 +23,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest((done) => {
+    test(() => {
         const host = document.getElementById("host");
         const shadow = host.attachShadow({ mode: "open" });
         shadow.innerHTML = `
@@ -58,6 +58,5 @@
         println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
         println(rectToString(childRect) === "55,35,30,20"
             && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
-        done();
     });
 </script>

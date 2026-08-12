@@ -6,7 +6,7 @@
 </style>
 <span>before<svg id="boundary" width="40" height="20"></svg>after</span>
 <script>
-    asyncTest((done) => {
+    test(() => {
         document.body.offsetHeight;
 
         const partialBefore = internals.partialLayoutCount();
@@ -27,6 +27,5 @@
         println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
         println(svgRect.width === 40 && svgRect.height === 20
             && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
-        done();
     });
 </script>

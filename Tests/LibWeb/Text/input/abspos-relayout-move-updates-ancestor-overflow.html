@@ -21,7 +21,7 @@
     <div id="boundary"></div>
 </div>
 <script>
-    asyncTest((done) => {
+    test(() => {
         document.body.offsetHeight;
 
         const scroller = document.getElementById("scroller");
@@ -43,6 +43,5 @@
         println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
         println(scrollHeightAfter === 550
             && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
-        done();
     });
 </script>

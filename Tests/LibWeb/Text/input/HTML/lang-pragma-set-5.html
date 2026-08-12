@@ -13,13 +13,12 @@
 </html>
     <script src="../include.js"></script>
     <script>
-        asyncTest((done) => {
+        test(() => {
             if (document.getElementById('box').offsetWidth == 50) {
                 println("OK");
             } else {
                 println("FAIL. If the meta element has no content attribute, then return.");
             }
-            done();
         });
     </script>
 </html>

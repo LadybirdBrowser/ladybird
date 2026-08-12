@@ -2,7 +2,7 @@
 <script src="./include.js"></script>
 <body></body>
 <script>
-    asyncTest(done => {
+    test(() => {
         spoofCurrentURL("https://example.com/content-blocker-shadow-has-state-invalidation.html");
         internals.setContentBlockers("example.com##div.hover-anchor:has(:hover)\nexample.com##div.modal-anchor:has(dialog:modal)");
 
@@ -44,6 +44,5 @@
         println(`modal after close: ${getComputedStyle(modalAnchor).display}`);
 
         internals.setContentBlockers("");
-        done();
     });
 </script>

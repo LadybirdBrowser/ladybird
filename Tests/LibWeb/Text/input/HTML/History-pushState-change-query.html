@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest((done) => {
+    test(() => {
         try {
             history.pushState({}, null, "?tweaked");
             println("Good: changing the query via pushState()");
@@ -20,6 +20,5 @@
         } catch (e) {
             println("FAIL: threw on going back to original filename");
         }
-        done();
     });
 </script>

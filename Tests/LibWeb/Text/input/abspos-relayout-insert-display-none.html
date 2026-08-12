@@ -25,7 +25,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest((done) => {
+    test(() => {
         document.body.offsetHeight;
 
         const siblingBefore = document.getElementById("sibling").getBoundingClientRect();
@@ -51,6 +51,5 @@
         println(insertedRects === 0
             && rectToString(siblingBefore) === rectToString(siblingAfter)
             && partialDelta === 0 && fullDelta === 1 ? "PASS" : "FAIL");
-        done();
     });
 </script>

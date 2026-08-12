@@ -40,7 +40,7 @@
         return `${rect.left - containerRect.left},${rect.top - containerRect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest((done) => {
+    test(() => {
         document.body.offsetHeight;
 
         const outsideBefore = localRectToString(document.getElementById("outside-new"), document.getElementById("outside-table"));
@@ -65,6 +65,5 @@
             && outsideBefore === outsideAfter
             && liveRect === outsideAfter
             && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
-        done();
     });
 </script>
