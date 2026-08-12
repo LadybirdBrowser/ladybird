@@ -4814,6 +4814,11 @@ Element::TranslationMode Element::translation_mode() const
     return TranslationMode::TranslateEnabled;
 }
 
+bool Element::has_auto_directionality() const
+{
+    return dir() == Dir::Auto || (!dir().has_value() && local_name() == HTML::TagNames::bdi);
+}
+
 // https://html.spec.whatwg.org/multipage/dom.html#the-directionality
 Element::Directionality Element::directionality() const
 {
@@ -4848,7 +4853,7 @@ Element::Directionality Element::directionality() const
     VERIFY(!maybe_dir.has_value());
 
     // If element is a bdi element:
-    if (local_name() == HTML::TagNames::bdi) {
+    if (has_auto_directionality()) {
         // 1. Let result be the auto directionality of element.
         auto result = auto_directionality();
 

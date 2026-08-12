@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    :dir(ltr) { color: red }
+    :dir(rtl) { color: green }
+</style>
+<bdi id="bdi">abc</bdi>
+<div id="control" dir="auto">abc</div>
+<script>
+    function state(element) {
+        return `${getComputedStyle(element).direction} rtl=${element.matches(":dir(rtl)")} color=${getComputedStyle(element).color}`;
+    }
+
+    test(() => {
+        const bdi = document.getElementById("bdi");
+        const control = document.getElementById("control");
+        state(bdi);
+        state(control);
+
+        bdi.firstChild.data = "אבג";
+        control.firstChild.data = "אבג";
+        println(`bdi after character data change: ${state(bdi)}`);
+        println(`control after character data change: ${state(control)}`);
+
+        bdi.textContent = "abc";
+        control.textContent = "abc";
+        println(`bdi after text replacement: ${state(bdi)}`);
+        println(`control after text replacement: ${state(control)}`);
+    });
+</script>

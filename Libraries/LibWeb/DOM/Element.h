@@ -680,6 +680,7 @@ public:
         Auto,
     };
     Optional<Dir> dir() const { return m_dir; }
+    bool has_auto_directionality() const;
 
     enum class Directionality {
         Ltr,

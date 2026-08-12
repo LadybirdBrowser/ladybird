@@ -1,0 +1,4 @@
+bdi after character data change: rtl rtl=true color=rgb(0, 128, 0)
+control after character data change: rtl rtl=true color=rgb(0, 128, 0)
+bdi after text replacement: ltr rtl=false color=rgb(255, 0, 0)
+control after text replacement: ltr rtl=false color=rgb(255, 0, 0)

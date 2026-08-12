@@ -65,7 +65,7 @@ static void publish_directionality_dependent_ancestors(DOM::Element& element, Ha
     for (auto ancestor = GC::Ptr<DOM::Element> { element }; ancestor; ancestor = ancestor->parent_element()) {
         if (visited.set(ancestor.ptr()) != AK::HashSetResult::InsertedNewEntry)
             continue;
-        if (ancestor->dir() == DOM::Element::Dir::Auto)
+        if (ancestor->has_auto_directionality())
             publish_language_and_directionality(*ancestor, true);
 
         if (auto assigned_slot = ancestor->assigned_slot_internal())
