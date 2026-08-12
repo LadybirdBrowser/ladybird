@@ -2498,8 +2498,8 @@ impl GridFormattingContext {
         };
         let mut context = GridFormattingContext::new(&scratch_run, Some(self));
         let mut available = self.available_space.unwrap();
-        if !axis.is_column() && self.used(subgrid).has_definite_inline_size() {
-            available.inline_size = AvailableSize::definite(self.used(subgrid).content_inline_size.get());
+        if !axis.is_column() && live.has_definite_inline_size() {
+            available.inline_size = AvailableSize::definite(live.content_inline_size.get());
         }
         let input = LayoutInput::new(available, self.track_sizing_constraints(), ParticipationInParentFormattingContext::Item);
         context.reset_for_run(input);
