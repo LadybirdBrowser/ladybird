@@ -13,9 +13,16 @@
 #include <AK/Error.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
+#include <AK/Vector.h>
 #include <LibMedia/Audio/SampleSpecification.h>
 #include <LibMedia/Export.h>
 #include <pulse/pulseaudio.h>
+
+namespace Media {
+
+struct AudioDeviceInfo;
+
+}
 
 namespace Audio {
 
@@ -67,12 +74,14 @@ public:
 
     void request_device_sample_specification();
 
+    ErrorOr<void> enumerate_audio_devices(Vector<Media::AudioDeviceInfo>& inputs, Vector<Media::AudioDeviceInfo>& outputs);
     ErrorOr<NonnullRefPtr<PulseAudioStream>> create_stream(OutputState, u32 target_latency_ms, PulseAudioDataRequestCallback);
 
 private:
     friend class PulseAudioStream;
 
     PulseAudioContext*& nullable_instance();
+    ErrorOr<void> wait_for_operation(pa_operation*, StringView error_message);
 
     pa_threaded_mainloop* m_main_loop { nullptr };
     pa_mainloop_api* m_api { nullptr };

@@ -93,10 +93,11 @@ endif()
 
 if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")
     target_sources(LibMedia PRIVATE
+        Audio/AudioDevicesPulseAudio.cpp
         Audio/PlaybackStreamPulseAudio.cpp
         Audio/PulseAudioWrappers.cpp
     )
-    target_compile_definitions(LibMedia PRIVATE LIBMEDIA_AUDIO_BACKEND=1)
+    target_compile_definitions(LibMedia PRIVATE LIBMEDIA_AUDIO_BACKEND=1 LIBMEDIA_AUDIO_DEVICE_ENUMERATION=1)
     target_link_libraries(LibMedia PRIVATE PkgConfig::PULSEAUDIO)
 elseif (LADYBIRD_AUDIO_BACKEND STREQUAL "AUDIO_UNIT")
     target_sources(LibMedia PRIVATE Audio/PlaybackStreamAudioUnit.cpp)
