@@ -7,16 +7,29 @@
 #pragma once
 
 #include <AK/Atomic.h>
+#include <AK/AtomicRefCounted.h>
+#include <AK/Function.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
+#include <AK/RefCounted.h>
+#include <AK/RefPtr.h>
 #include <AK/String.h>
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
+#include <AK/Vector.h>
+#include <LibSync/Mutex.h>
 #include <LibWeb/Bindings/MediaStreamConstraints.h>
 #include <LibWeb/Bindings/MediaStreamTrack.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/WebIDL/Types.h>
+
+namespace Audio {
+
+class RecordStream;
+
+}
 
 namespace Web::MediaCapture {
 
@@ -34,6 +47,35 @@ using MediaTrackConstraints = Bindings::MediaTrackConstraints;
 using MediaTrackSettings = Bindings::MediaTrackSettings;
 using ULongRange = Bindings::ULongRange;
 
+// Receives interleaved float32 PCM on the producing thread. Implementations must hand it off
+// without blocking or touching GC-managed objects.
+struct AudioFrameSink final : public AtomicRefCounted<AudioFrameSink> {
+    Function<void(float const* samples, size_t frame_count, u8 channel_count, u32 sample_rate)> on_frames;
+};
+
+// Atomically ref-counted because backend callbacks may outlive the GC-managed track.
+class AudioFrameFanout final : public AtomicRefCounted<AudioFrameFanout> {
+public:
+    // Returns true when this was the first sink to register.
+    bool add_sink(NonnullRefPtr<AudioFrameSink>);
+    // Returns true when the last sink was removed.
+    bool remove_sink(AudioFrameSink const&);
+
+    // While a track is muted or disabled it must render silence rather than nothing, so
+    // consumers keep observing the track's timing and format.
+    // https://w3c.github.io/mediacapture-main/#dfn-enabled
+    void set_silenced(bool silenced) { m_silenced.store(silenced, AK::MemoryOrder::memory_order_relaxed); }
+
+    void deliver(float const* samples, size_t frame_count, u8 channel_count, u32 sample_rate);
+
+private:
+    Sync::Mutex m_mutex;
+    Vector<NonnullRefPtr<AudioFrameSink>> m_sinks;
+    Atomic<bool> m_silenced { false };
+
+    Vector<float> m_scratch;
+};
+
 // Spec: https://w3c.github.io/mediacapture-main/#mediastreamtrack
 class MediaStreamTrack final : public DOM::EventTarget {
     WEB_WRAPPABLE(MediaStreamTrack, DOM::EventTarget);
@@ -42,14 +84,15 @@ class MediaStreamTrack final : public DOM::EventTarget {
 public:
     static GC::Ref<MediaStreamTrack> create(MediaStreamTrackKind, Optional<Utf16String> label = {}, bool muted = false);
 
-    virtual ~MediaStreamTrack() override = default;
+    // Out-of-line: destroying RefPtr<Audio::RecordStream> requires the complete type.
+    virtual ~MediaStreamTrack() override;
 
     MediaStreamTrackKind track_kind() const { return m_kind; }
     Utf16String const& id() const { return m_id; }
     Utf16String const& label() const { return m_label; }
 
     bool enabled() const { return m_enabled; }
-    void set_enabled(bool enabled) { m_enabled = enabled; }
+    void set_enabled(bool enabled);
 
     bool muted() const { return m_muted; }
 
@@ -73,10 +116,22 @@ public:
 
     u64 provider_id() const { return m_provider_id; }
 
+    // The first sink starts device capture; removing the last stops it.
+    void add_audio_sink(NonnullRefPtr<AudioFrameSink>);
+    void remove_audio_sink(AudioFrameSink const&);
+
+    void deliver_audio_frames(float const* samples, size_t frame_count, u8 channel_count, u32 sample_rate);
+
 private:
     explicit MediaStreamTrack();
 
+    virtual void finalize() override;
+
     void apply_constraints_impl(Optional<MediaTrackConstraints> constraints);
+
+    void ensure_audio_capture_started();
+    void stop_audio_capture();
+    void update_audio_silence_state() { m_audio_fanout->set_silenced(!m_enabled || m_muted); }
 
     static Atomic<u64> s_next_provider_id;
 
@@ -91,6 +146,9 @@ private:
     MediaTrackSettings m_settings;
 
     u64 m_provider_id { 0 };
+
+    NonnullRefPtr<AudioFrameFanout> m_audio_fanout;
+    RefPtr<Audio::RecordStream> m_audio_capture_stream;
 };
 
 }
