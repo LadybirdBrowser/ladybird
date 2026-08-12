@@ -569,6 +569,7 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
     auto is_scrollable = node.get_bool("scrollable"sv).value_or(false);
 
     auto is_shadow_root = false;
+    auto is_pseudo_element = false;
     auto is_after_pseudo_element = false;
     auto is_before_pseudo_element = false;
     auto is_marker_pseudo_element = false;
@@ -584,6 +585,7 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
     if (type == "shadow-root"sv) {
         is_shadow_root = true;
     } else if (type == "pseudo-element"sv) {
+        is_pseudo_element = true;
         auto pseudo_element = node.get_integer<UnderlyingType<Web::CSS::PseudoElement>>("pseudo-element"sv).map([](auto value) {
             VERIFY(value < to_underlying(Web::CSS::PseudoElement::KnownPseudoElementCount));
             return static_cast<Web::CSS::PseudoElement>(value);
@@ -638,6 +640,7 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
     serialized.set("isInHTMLDocument"sv, true);
     serialized.set("isMarkerPseudoElement"sv, is_marker_pseudo_element);
     serialized.set("isNativeAnonymous"sv, false);
+    serialized.set("isPseudoElement"sv, is_pseudo_element);
     serialized.set("isScrollable"sv, is_scrollable);
     serialized.set("isShadowHost"sv, false);
     serialized.set("isShadowRoot"sv, is_shadow_root);

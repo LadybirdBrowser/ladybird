@@ -3673,6 +3673,18 @@ TEST_CASE(inspector_walker_highlighter_layout_and_editing)
     auto span_actor = query_selector(client, walker_actor, root_node_actor, "span"sv);
     auto flex_actor = query_selector(client, walker_actor, root_node_actor, "aside"sv);
     auto first_flex_item_actor = query_selector(client, walker_actor, root_node_actor, "p"sv);
+
+    JsonObject target_children;
+    target_children.set("to"sv, walker_actor);
+    target_children.set("type"sv, "children"sv);
+    target_children.set("node"sv, div_actor);
+    auto serialized_target_children = client.request(move(target_children)).get_array("nodes"sv).release_value();
+    auto before = serialized_target_children.values().first_matching([](auto const& child) {
+        return child.as_object().get_string("displayName"sv).value_or({}) == "::before"sv;
+    });
+    VERIFY(before.has_value());
+    EXPECT(before->as_object().get_bool("isPseudoElement"sv).value());
+
     JsonObject previous_sibling;
     previous_sibling.set("to"sv, walker_actor);
     previous_sibling.set("type"sv, "previousSibling"sv);
