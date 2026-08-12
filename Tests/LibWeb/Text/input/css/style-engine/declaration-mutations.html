@@ -39,6 +39,11 @@
             item.style.removeProperty("color");
         });
 
+        // An empty declaration block is still a declaration change. Empty vectors cross the FFI
+        // boundary with null data pointers, so the property count carries their meaning.
+        plan("remove the last property from a stylesheet rule", () =>
+            document.styleSheets[0].cssRules[0].style.removeProperty("color"));
+
         // Writing the same declarations again moves nothing.
         item.setAttribute("style", "color: red");
         planSetup();

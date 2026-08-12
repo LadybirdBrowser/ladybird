@@ -2156,38 +2156,45 @@ pub unsafe extern "C" fn style_engine_set_rule_declared_properties(
     declarations_are_complete: bool,
 ) {
     abort_on_panic(|| {
-        if rule == 0
-            || properties.is_null()
-            || important.is_null()
-            || operators.is_null()
-            || values.is_null()
-            || original_values.is_null()
-        {
+        if rule == 0 {
             return;
         }
         let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        let properties = unsafe { std::slice::from_raw_parts(properties, count) };
-        let important = unsafe { std::slice::from_raw_parts(important, count) };
-        let operators = unsafe { std::slice::from_raw_parts(operators, count) };
-        let values = unsafe { std::slice::from_raw_parts(values, count) };
-        let original_values = unsafe { std::slice::from_raw_parts(original_values, count) };
-        let declared: Vec<DeclaredProperty> = properties
-            .iter()
-            .copied()
-            .zip(important.iter().copied())
-            .zip(operators.iter().copied())
-            .zip(values.iter().copied().zip(original_values.iter().copied()))
-            .map(|(((property, important), operator), (value, original_value))| {
-                let value = unsafe { engine.intern_specified_value(value.cast()) };
-                unsafe { engine.alias_specified_value(original_value.cast(), value) };
-                DeclaredProperty {
-                    property,
-                    important,
-                    operator: operator.decode(),
-                    value,
+        let declared: Vec<DeclaredProperty> = match count == 0 {
+            true => Vec::new(),
+            false => {
+                if properties.is_null()
+                    || important.is_null()
+                    || operators.is_null()
+                    || values.is_null()
+                    || original_values.is_null()
+                {
+                    return;
                 }
-            })
-            .collect();
+                let properties = unsafe { std::slice::from_raw_parts(properties, count) };
+                let important = unsafe { std::slice::from_raw_parts(important, count) };
+                let operators = unsafe { std::slice::from_raw_parts(operators, count) };
+                let values = unsafe { std::slice::from_raw_parts(values, count) };
+                let original_values = unsafe { std::slice::from_raw_parts(original_values, count) };
+                properties
+                    .iter()
+                    .copied()
+                    .zip(important.iter().copied())
+                    .zip(operators.iter().copied())
+                    .zip(values.iter().copied().zip(original_values.iter().copied()))
+                    .map(|(((property, important), operator), (value, original_value))| {
+                        let value = unsafe { engine.intern_specified_value(value.cast()) };
+                        unsafe { engine.alias_specified_value(original_value.cast(), value) };
+                        DeclaredProperty {
+                            property,
+                            important,
+                            operator: operator.decode(),
+                            value,
+                        }
+                    })
+                    .collect()
+            }
+        };
         engine.set_rule_declared_properties_with_operators(RuleID(rule - 1), &declared, declarations_are_complete);
         engine.record_boundary_call(EventKind::SetRuleDeclaredProperties, |payload| {
             payload.write_u32(rule);
