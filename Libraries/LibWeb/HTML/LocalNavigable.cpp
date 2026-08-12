@@ -952,6 +952,28 @@ RefPtr<SessionHistoryEntry> LocalNavigable::get_the_target_history_entry_if_pres
     return get_the_target_history_entry_from_entries(*entries, target_step);
 }
 
+RefPtr<SessionHistoryEntry> LocalNavigable::find_session_history_entry(Utf16String const& navigation_api_key, CrossProcessId document_state_id) const
+{
+    auto traversable = traversable_navigable();
+    Vector<NonnullRefPtr<SessionHistoryEntry>> const* entries = nullptr;
+    if (this == traversable.ptr())
+        entries = &traversable->session_history_entries();
+    else
+        entries = get_session_history_entries_if_present(*traversable, *this);
+
+    if (!entries)
+        return nullptr;
+
+    for (auto const& entry : *entries) {
+        auto document_state = entry->document_state();
+        if (entry->navigation_api_key() == navigation_api_key
+            && document_state
+            && document_state->cross_process_id() == document_state_id)
+            return entry;
+    }
+    return nullptr;
+}
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#activate-history-entry
 void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, GC::Ref<DOM::Document> document)
 {
@@ -3703,7 +3725,8 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             .pending_document = pending_document,
             .expected_ongoing_navigation_navigable = navigable,
             .expected_ongoing_navigation_id = expected_ongoing_navigation_id,
-            .finalized_navigable_id = navigable->id(),
+            .local_target_navigable_id = navigable->id(),
+            .local_target_entry = history_entry,
             .pre_steps = GC::create_function(navigable->heap(), [navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id = move(expected_ongoing_navigation_id)](u64 initiation_id, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) {
                 auto target_step = finalize_a_cross_document_navigation_at_queued_position(navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id, initiation_id);
                 if (!target_step.has_value()) {

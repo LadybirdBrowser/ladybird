@@ -1287,7 +1287,7 @@ ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(u64 op
             }
             auto navigable_id = job.navigable_id;
             operation->pending_changing_jobs.set(navigable_id, move(on_complete));
-            endpoint.client->async_run_changing_navigable_history_job(endpoint.page_id, operation_id, navigable_id, job.target_step, move(job.target_entry), job.user_involvement, job.navigation_type, job.synchronous_navigation == Web::HTML::SynchronousNavigation::Yes, operation->initiation_id); },
+            endpoint.client->async_run_changing_navigable_history_job(endpoint.page_id, operation_id, navigable_id, move(job.target_entry), job.user_involvement, job.navigation_type, job.synchronous_navigation == Web::HTML::SynchronousNavigation::Yes, job.navigation_api_abort_behavior, operation->initiation_id); },
         .apply_changing_navigable_history_step_continuation = [this, operation_id](ApplyHistoryStepJobs::ApplyChangingNavigableHistoryStepContinuation continuation, Function<void()> on_complete) {
             auto* operation = find_history_operation(operation_id);
             if (!operation)

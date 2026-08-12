@@ -163,6 +163,13 @@ void ApplyHistoryStep::get_changing_and_nonchanging_navigables()
 
 void ApplyHistoryStep::run_changing_navigable_jobs()
 {
+    auto navigation_api_abort_behavior = Web::HTML::LocalNavigable::NavigationAPIAbortBehavior::Abort;
+    // Same-document traversals finish their NavigateEvent while updating the Navigation API entry. This decision is
+    // traversable-wide, so derive it from canonical history before dispatching per-document jobs.
+    if (m_navigation_type == Web::Bindings::NavigationType::Traverse
+        && m_session_history.get_all_navigables_that_might_experience_a_cross_document_traversal(m_traversable_navigable, m_target_step, m_current_step).is_empty())
+        navigation_api_abort_behavior = Web::HTML::LocalNavigable::NavigationAPIAbortBehavior::Preserve;
+
     // 12. For each navigable of changingNavigables, queue a global task on the navigation and traversal task source.
     for (auto navigable_id : m_changing_navigables) {
         auto const* navigable = find_navigable(navigable_id);
@@ -179,11 +186,11 @@ void ApplyHistoryStep::run_changing_navigable_jobs()
         m_jobs.run_changing_navigable_history_step_job(
             {
                 .navigable_id = navigable_id,
-                .target_step = m_target_step,
                 .target_entry = *target_entry,
                 .user_involvement = m_user_involvement,
                 .navigation_type = m_navigation_type,
                 .synchronous_navigation = m_synchronous_navigation,
+                .navigation_api_abort_behavior = navigation_api_abort_behavior,
             },
             [this, navigable_id](Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition) {
                 changing_navigable_job_completed(navigable_id, disposition);

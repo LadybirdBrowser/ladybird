@@ -119,6 +119,15 @@ struct TestTraversable {
         VERIFY(update_result == WebView::TraversableSessionHistory::UpdateResult::CompleteSnapshot);
     }
 
+    void with_two_same_document_top_level_entries()
+    {
+        auto first_entry = entry(0, "https://a.example/first"sv);
+        auto second_entry = entry(1, "https://a.example/second"sv);
+        second_entry.document_state.id = first_entry.document_state.id;
+        auto update_result = history.update_from_web_content({ move(first_entry), move(second_entry) }, { 0, 1 }, 1);
+        VERIFY(update_result == WebView::TraversableSessionHistory::UpdateResult::CompleteSnapshot);
+    }
+
     // Three top-level entries; the current entry is the second.
     void with_three_top_level_entries()
     {
@@ -180,8 +189,8 @@ TEST_CASE(traversal_runs_the_changing_root_job_and_commits_the_target_step)
     EXPECT_EQ(test.runner.changing_jobs.size(), 1uz);
     auto& job = test.runner.changing_jobs[0];
     EXPECT_EQ(job.job.navigable_id, root_id());
-    EXPECT_EQ(job.job.target_step, 0);
     EXPECT_EQ(job.job.target_entry.url, parse_url("https://a.example/"sv));
+    EXPECT_EQ(job.job.navigation_api_abort_behavior, Web::HTML::LocalNavigable::NavigationAPIAbortBehavior::Abort);
     job.on_complete(Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready);
 
     EXPECT_EQ(test.runner.continuations.size(), 1uz);
@@ -196,6 +205,16 @@ TEST_CASE(traversal_runs_the_changing_root_job_and_commits_the_target_step)
     EXPECT(test.result == Web::HTML::HistoryStepResult::Applied);
     EXPECT_EQ(test.current_step(), 0);
     EXPECT(operation.completed());
+}
+
+TEST_CASE(same_document_traversal_preserves_the_navigation_api_event)
+{
+    TestTraversable test;
+    test.with_two_same_document_top_level_entries();
+
+    test.traverse_to_step(0);
+    EXPECT_EQ(test.runner.changing_jobs.size(), 1uz);
+    EXPECT_EQ(test.runner.changing_jobs[0].job.navigation_api_abort_behavior, Web::HTML::LocalNavigable::NavigationAPIAbortBehavior::Preserve);
 }
 
 TEST_CASE(canceled_unloading_returns_before_any_changing_jobs)

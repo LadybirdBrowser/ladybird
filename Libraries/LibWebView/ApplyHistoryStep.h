@@ -26,7 +26,7 @@
 namespace WebView {
 
 // The per-navigable jobs of apply-the-history-step, run in the process hosting each navigable's documents. Jobs are
-// described by ids, steps, and entry descriptors, never by live documents.
+// described by ids and entry descriptors, never by live documents.
 //
 // The caller-supplied job functions must complete every job exactly once, even when the target process is missing or
 // has crashed (for example with a Skipped disposition), and must not invoke a job's completion callback after the
@@ -54,12 +54,13 @@ struct WEBVIEW_API ApplyHistoryStepJobs {
     // could not (see Web::HTML::ChangingNavigableHistoryStepJobDisposition).
     struct ChangingNavigableHistoryStepJob {
         Web::HTML::CrossProcessId navigable_id;
-        i32 target_step { 0 };
-        // The canonical target entry, sent along so the job can reject a stale assignment.
+        // The target entry selected from canonical session history. The receiving process retains this exact entry
+        // instead of resolving a target step against its local session history projection.
         Web::HTML::SessionHistoryEntryDescriptor target_entry;
         Web::HTML::UserNavigationInvolvement user_involvement { Web::HTML::UserNavigationInvolvement::None };
         Optional<Web::Bindings::NavigationType> navigation_type;
         Web::HTML::SynchronousNavigation synchronous_navigation { Web::HTML::SynchronousNavigation::No };
+        Web::HTML::LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior { Web::HTML::LocalNavigable::NavigationAPIAbortBehavior::Abort };
     };
     Function<void(ChangingNavigableHistoryStepJob, Function<void(Web::HTML::ChangingNavigableHistoryStepJobDisposition)> on_complete)> run_changing_navigable_history_step_job;
 
