@@ -20,7 +20,7 @@ CMake 3.30 or newer must be available in $PATH.
 
 <!-- Note: If you change something here, please also change it in the `devcontainer/devcontainer.json` file. -->
 ```bash
-sudo apt install autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 git glslang-tools libdrm-dev libgl1-mesa-dev libncurses-dev libpulse-dev libtool nasm ninja-build pkg-config python3-venv qt6-base-dev qt6-positioning-dev qt6-tools-dev-tools qt6-wayland tar unzip zip
+sudo apt install autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 git glslang-tools libdrm-dev libgl1-mesa-dev libncurses-dev libpulse-dev libtool nasm ninja-build pkg-config python3-venv qt6-base-private-dev qt6-positioning-dev qt6-tools-dev-tools qt6-wayland tar unzip zip
 ```
 
 #### CMake 3.30 or newer:
@@ -70,19 +70,19 @@ sudo apt update && sudo apt install g++-14 libstdc++-14-dev
 ### Arch Linux/Manjaro:
 
 ```
-sudo pacman -S --needed autoconf-archive base-devel ccache cmake curl git less libgl libpulse nasm ninja python qt6-base qt6-tools ttf-liberation tar unzip zip
+sudo pacman -S --needed autoconf-archive base-devel ccache cmake curl git less libgl libpulse nasm ninja python qt6-base qt6-positioning qt6-tools ttf-liberation tar unzip zip
 ```
 
 ### Fedora or derivatives:
 
 ```
-sudo dnf install autoconf-archive automake ccache cmake curl git libdrm-devel liberation-sans-fonts libglvnd-devel libtool nasm ncurses-devel ninja-build patchelf perl-FindBin perl-IPC-Cmd perl-lib perl-Time-Piece pulseaudio-libs-devel qt6-qtbase-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
+sudo dnf install autoconf-archive automake ccache cmake curl git libdrm-devel liberation-sans-fonts libglvnd-devel libtool nasm ncurses-devel ninja-build patchelf perl-FindBin perl-IPC-Cmd perl-lib perl-Time-Piece pulseaudio-libs-devel qt6-qtbase-private-devel qt6-qtpositioning-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
 ```
 
 ### openSUSE:
 
 ```
-sudo zypper install autoconf-archive automake ccache cmake curl gcc14 gcc14-c++ git liberation-fonts libglvnd-devel libpulse-devel libtool nasm ncurses-devel ninja qt6-base-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
+sudo zypper install autoconf-archive automake ccache cmake curl gcc14 gcc14-c++ git liberation-fonts libglvnd-devel libpulse-devel libtool nasm ncurses-devel ninja qt6-base-private-devel qt6-positioning-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
 ```
 
 If one or more of the base repository packages are flagged as having an out-of-date version during the build process, you may need add the `devel:tools:building` repository. For example, on Leap 15.6, the `autoconf` package might be version 2.69, whereas the `gperf` package requires 2.70 to build.
@@ -122,7 +122,7 @@ This virtual environment can be created once and reused in future shell sessions
 
 ```
 sudo xbps-install -Su # (optional) ensure packages are up to date to avoid "Transaction aborted due to unresolved dependencies."
-sudo xbps-install -S git bash gcc python3 curl cmake libtool zip unzip linux-headers make pkg-config autoconf automake autoconf-archive nasm ncurses-devel MesaLib-devel ninja pulseaudio-devel qt6-base-devel qt6-tools-devel qt6-wayland-devel
+sudo xbps-install -S git bash gcc python3 curl cmake libtool zip unzip linux-headers make pkg-config autoconf automake autoconf-archive nasm ncurses-devel MesaLib-devel ninja pulseaudio-devel qt6-base-private-devel qt6-position-devel qt6-tools-devel qt6-wayland-devel
 ```
 
 ### NixOS or with Nix:
@@ -194,7 +194,7 @@ Or, download a version of Gradle >= 8.0.0, and run the ``gradlew`` program in ``
 ### FreeBSD
 
 ```
-pkg install autoconf-archive automake autoconf bash cmake ccache curl gmake gn libdrm libtool libxcb libxkbcommon libX11 libXrender libXi nasm ninja patchelf pkgconf pulseaudio python3 qt6-base tar unzip zip
+pkg install autoconf-archive automake autoconf bash cmake ccache curl gmake gn libdrm libtool libxcb libxkbcommon libX11 libXrender libXi nasm ninja patchelf pkgconf pulseaudio python3 qt6-base qt6-positioning tar unzip zip
 ```
 > [!NOTE]
 > `zip`, `unzip`, and `tar` are required by the vcpkg bootstrap step. If any of these are missing,
