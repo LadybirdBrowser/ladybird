@@ -444,9 +444,7 @@ public:
 protected:
     Function<void()> make_top_level_history_traversal_applied_callback() const;
     void will_apply_history_traversal_step(URL::URL webdriver_pending_navigation_url, bool webdriver_pending_navigation_completes_with_session_history_update);
-    void will_check_history_traversal_cancelation();
     void apply_history_traversal_step_result(Web::HTML::HistoryStepResult, RefPtr<BrowserHistoryTraversalState> const&);
-    void apply_history_step_cancelation_check_result(i32 step, Web::HTML::HistoryStepResult, Function<void(HistoryTraversalOutcome)>, HistoryTraversalOutcome);
     void start_requested_history_traversal(u64 initiation_id, Web::TraverseByDeltaHistoryOperationParameters, NonnullRefPtr<Core::Promise<Empty>>);
     void start_requested_history_traversal(u64 initiation_id, Web::NavigationAPITraverseHistoryOperationParameters, NonnullRefPtr<Core::Promise<Empty>>);
     void start_requested_history_traversal(u64 initiation_id, Web::HistoryOperationParameters, TraversableSessionHistory::TraversalTarget, NonnullRefPtr<Core::Promise<Empty>>);

@@ -51,8 +51,21 @@ struct HistoryTraversalOutcome {
 struct BrowserHistoryTraversalState : RefCounted<BrowserHistoryTraversalState> {
     bool will_change_top_level_entry { false };
     bool will_replace_web_content_process { false };
+    Function<void(HistoryTraversalOutcome)> on_traversal_outcome;
     Function<void()> on_top_level_traversal_applied;
     bool did_notify_top_level_traversal_applied { false };
+
+    void notify_traversal_outcome(HistoryTraversalStatus status)
+    {
+        auto callback = move(on_traversal_outcome);
+        if (!callback)
+            return;
+        callback({
+            .status = status,
+            .will_replace_web_content_process = will_replace_web_content_process,
+            .will_change_top_level_entry = will_change_top_level_entry,
+        });
+    }
 
     void notify_top_level_traversal_applied()
     {
@@ -68,18 +81,6 @@ struct WebContentHistoryStepResult {
     StringView dump_reason;
     bool should_update_navigation_action_state { false };
     Optional<URL::URL> current_url {};
-    bool should_complete_webdriver_pending_navigation { false };
-    bool should_update_webdriver_pending_navigation_to_current_url { false };
-    bool should_reset_webdriver_pending_navigation_completion { false };
-};
-
-struct HistoryStepCancelationCheckResult {
-    StringView dump_reason;
-    Function<void(HistoryTraversalOutcome)> on_cancelation_check_complete {};
-    HistoryTraversalOutcome outcome {};
-    // When set, WebContent must reconstruct the UI-owned target after reporting the outcome.
-    Optional<TraversableSessionHistory::TraversalTarget> target {};
-    bool should_update_navigation_action_state { false };
     bool should_complete_webdriver_pending_navigation { false };
     bool should_update_webdriver_pending_navigation_to_current_url { false };
     bool should_reset_webdriver_pending_navigation_completion { false };
@@ -106,15 +107,6 @@ public:
         RefPtr<BrowserHistoryTraversalState> state;
     };
 
-    struct HistoryStepCancelationCheckOperation {
-        i32 target_step { 0 };
-        Web::HTML::SessionHistoryEntryDescriptor target_entry;
-        Optional<Web::HTML::CrossProcessId> initiator_to_check {};
-        Web::HTML::UserNavigationInvolvement user_involvement { Web::HTML::UserNavigationInvolvement::BrowserUI };
-        bool will_change_top_level_entry { false };
-        bool will_replace_web_content_process { false };
-    };
-
     struct BrowserHistoryTraversalDiagnostic {
         enum class Stage : u8 {
             ApplyingInWebContent,
@@ -134,7 +126,6 @@ public:
     // way the specification's queued steps do, and then starts its operation at that position.
     void append_history_queue_steps(SessionHistoryTraversalSteps);
     void run_history_operation_at_queue_position(u64 initiation_id, Web::HistoryOperationParameters, WebContentClient& requesting_client, u64 requesting_page_id, Optional<i32> resolved_step, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
-    void run_history_operation_at_queue_position(u64 initiation_id, HistoryStepCancelationCheckOperation, WebContentClient& requesting_client, u64 requesting_page_id, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
     void abandon_history_operations();
 
     struct HistoryJobEndpoint {
@@ -177,7 +168,6 @@ public:
     void traverse_the_history_to_step(i32 step, CheckForCancelation, Function<void(HistoryTraversalOutcome)> on_complete = nullptr, Function<void()> on_top_level_traversal_applied = nullptr);
     void reconstruct_the_history_to_step(i32 step, bool requires_process_replacement, Function<void()> on_top_level_traversal_applied);
     WebContentHistoryStepResult did_traverse_the_history_to_step(Web::HTML::HistoryStepResult, RefPtr<BrowserHistoryTraversalState> const&);
-    HistoryStepCancelationCheckResult did_check_if_traverse_history_step_is_canceled(i32 step, Web::HTML::HistoryStepResult, Function<void(HistoryTraversalOutcome)>, HistoryTraversalOutcome);
     void abandon_after_web_content_process_crash();
     void recover_from_web_content_process_crash(OnHistoryOperationComplete);
     void reset_session_history_for_testing(Web::HTML::SessionHistoryEntryDescriptor);
@@ -189,11 +179,10 @@ private:
     HistoryOperation* find_history_operation(u64 operation_id);
     void add_history_operation_completion_endpoint(HistoryOperation&, HistoryJobEndpoint, Optional<u64> initiation_id = {});
     ApplyHistoryStepJobs create_apply_history_step_jobs(u64 operation_id);
-    void run_ui_history_operation_at_queue_position(Variant<BrowserHistoryTraversalOperation, HistoryStepCancelationCheckOperation>, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
+    void run_ui_history_operation_at_queue_position(BrowserHistoryTraversalOperation, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
     void start_history_operation(HistoryOperation&, NonnullRefPtr<Core::Promise<Empty>>);
     void apply_history_step(HistoryOperation&, i32 step, bool check_for_cancelation, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement, Optional<Web::Bindings::NavigationType>, Web::HTML::SynchronousNavigation, Optional<Web::HTML::CrossProcessId> navigable_with_finalized_entry);
     void update_for_navigable_creation_or_destruction(HistoryOperation&);
-    void check_history_step_cancelation(HistoryOperation&, HistoryStepCancelationCheckOperation const&);
     void finish_history_operation(u64 operation_id, Web::HTML::HistoryStepResult, Optional<i32> committed_step);
 
     bool web_content_can_apply_traversal(TraversableSessionHistory::TraversalTarget const&) const;
