@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/AudioContext.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/MediaElementAudioSourceNode.h>
+#include <LibWeb/WebAudio/MediaStreamAudioSourceNode.h>
 #include <LibWeb/WebAudio/Rendering/RealtimeAudioRenderer.h>
 
 namespace Web::WebAudio {
@@ -39,6 +40,7 @@ public:
     WebIDL::ExceptionOr<void> close(GC::Ref<WebIDL::Promise>);
 
     WebIDL::ExceptionOr<GC::Ref<MediaElementAudioSourceNode>> create_media_element_source(GC::Ptr<HTML::HTMLMediaElement>);
+    WebIDL::ExceptionOr<GC::Ref<MediaStreamAudioSourceNode>> create_media_stream_source(GC::Ptr<MediaCapture::MediaStream>);
 
 private:
     explicit AudioContext(GC::Ref<DOM::EventTarget> relevant_global_object)
