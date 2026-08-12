@@ -150,6 +150,7 @@ void Page::load(URL::URL const& url, HTML::DocumentResource document_resource,
         .history_handling = history_handling,
         .user_involvement = HTML::UserNavigationInvolvement::BrowserUI,
         .cross_process_source_snapshot = move(source_snapshot),
+        .history_handling_already_determined = true,
     });
 }
 
@@ -166,6 +167,7 @@ void Page::load_with_history(URL::URL const& url, HTML::DocumentResource documen
         .history_handling = history_handling,
         .user_involvement = HTML::UserNavigationInvolvement::BrowserUI,
         .cross_process_source_snapshot = move(source_snapshot),
+        .history_handling_already_determined = true,
         .session_history_entry_to_restore = move(entry_to_restore),
     });
 }

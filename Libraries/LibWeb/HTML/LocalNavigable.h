@@ -226,6 +226,9 @@ public:
         //         source document only exists in the process where the navigation started, so this carries the state
         //         the navigate algorithm would otherwise snapshot from it.
         Optional<NavigationSourceSnapshot> cross_process_source_snapshot = {};
+        // AD-HOC: A cross-process continuation resumes after historyHandling has already been resolved in the
+        //         process where the navigation started.
+        bool history_handling_already_determined { false };
         Optional<SessionHistoryEntryDescriptor> session_history_entry_to_restore = {};
 
         void visit_edges(Cell::Visitor& visitor);
