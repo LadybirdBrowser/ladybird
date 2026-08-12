@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .target { list-style-image: linear-gradient(green, green); }
+    #expected { list-style-image: linear-gradient(red, blue); }
+</style>
+<li id="expected"></li>
+<script>
+    test(() => {
+        const expectedValue = getComputedStyle(document.getElementById("expected")).listStyleImage;
+
+        const transitionTarget = document.createElement("li");
+        transitionTarget.className = "target";
+        transitionTarget.style.listStyleImage = "none";
+        document.body.appendChild(transitionTarget);
+        getComputedStyle(transitionTarget).listStyleImage;
+        transitionTarget.style.transition = "list-style-image 100s -50s steps(1, start) allow-discrete";
+        transitionTarget.style.listStyleImage = "linear-gradient(red, blue)";
+
+        const cssAnimationTarget = document.createElement("li");
+        cssAnimationTarget.className = "target";
+        document.body.appendChild(cssAnimationTarget);
+        const keyframes = document.createElement("style");
+        keyframes.textContent = "@keyframes list-image { from { list-style-image: none; } to { list-style-image: linear-gradient(red, blue); } }";
+        document.head.appendChild(keyframes);
+        cssAnimationTarget.style.animation = "list-image 100s -50s steps(1, start)";
+
+        const webAnimationTarget = document.createElement("li");
+        webAnimationTarget.className = "target";
+        document.body.appendChild(webAnimationTarget);
+        const animation = webAnimationTarget.animate([
+            { listStyleImage: "none" },
+            { listStyleImage: "linear-gradient(red, blue)" },
+        ], { fill: "forwards", duration: 100000, easing: "steps(1, start)" });
+        animation.pause();
+        animation.currentTime = 50000;
+
+        const computedStyle = getComputedStyle(cssAnimationTarget);
+        println(computedStyle.animationName === "list-image" ? "animation-name=PASS" : "animation-name=FAIL");
+        println(computedStyle.listStyleImage === expectedValue ? "list-style-image=PASS" : "list-style-image=FAIL");
+    });
+</script>
