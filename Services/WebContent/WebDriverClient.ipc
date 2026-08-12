@@ -31,7 +31,6 @@ endpoint WebDriverClient {
     crash_current_page() =|
     load_url_from_ui(JsonValue payload) => (Web::WebDriver::Response response)
     traverse_history_from_ui(JsonValue payload) => (Web::WebDriver::Response response)
-    mark_web_content_session_history_stale() => (Web::WebDriver::Response response)
     get_session_history() => (Web::WebDriver::Response response)
     find_element(JsonValue payload) => (Web::WebDriver::Response response)
     find_elements(JsonValue payload) => (Web::WebDriver::Response response)

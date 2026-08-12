@@ -79,7 +79,6 @@ private:
     virtual void crash_current_page() override;
     virtual Messages::WebDriverClient::LoadUrlFromUiResponse load_url_from_ui(JsonValue payload) override;
     virtual Messages::WebDriverClient::TraverseHistoryFromUiResponse traverse_history_from_ui(JsonValue payload) override;
-    virtual Messages::WebDriverClient::MarkWebContentSessionHistoryStaleResponse mark_web_content_session_history_stale() override;
     virtual Messages::WebDriverClient::GetSessionHistoryResponse get_session_history() override;
     virtual Messages::WebDriverClient::FindElementResponse find_element(JsonValue payload) override;
     virtual Messages::WebDriverClient::FindElementsResponse find_elements(JsonValue payload) override;

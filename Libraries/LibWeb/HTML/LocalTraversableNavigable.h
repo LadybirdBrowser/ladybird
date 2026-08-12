@@ -49,12 +49,6 @@ public:
 
     Vector<NonnullRefPtr<SessionHistoryEntry>>& session_history_entries() { return m_session_history_entries; }
     Vector<NonnullRefPtr<SessionHistoryEntry>> const& session_history_entries() const { return m_session_history_entries; }
-    struct SessionHistorySnapshot {
-        Vector<SessionHistoryEntryDescriptor> top_level_session_history_entries;
-        Vector<i32> used_session_history_steps;
-        size_t current_used_step_index { 0 };
-    };
-    SessionHistorySnapshot create_session_history_snapshot();
 
     VisibilityState system_visibility_state() const { return m_system_visibility_state; }
     void set_system_visibility_state(VisibilityState);
@@ -88,7 +82,7 @@ public:
     void handle_ui_history_operation_started(u64 operation_id, Optional<u64> initiation_id, Optional<i32> target_step, GC::Ref<OnHistoryOperationReady>);
     bool run_ui_initiator_sandboxing_check_job(CrossProcessId initiator_to_check_id, Vector<CrossProcessId> const& navigables, u64 initiation_id);
     void run_ui_history_step_unload_cancelation_job(u64 operation_id, int target_step, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>>);
-    void run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, bool synchronous_navigation, LocalNavigable::NavigationAPIAbortBehavior, Optional<u64> initiation_id, Vector<SessionHistoryEntryDescriptor> replacement_top_level_entries, size_t replacement_current_top_level_entry_index, i32 replacement_current_step, GC::Ref<OnChangingNavigableHistoryStepJobComplete>);
+    void run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, bool synchronous_navigation, LocalNavigable::NavigationAPIAbortBehavior, Optional<u64> initiation_id, bool reconstructs_replacement_process, GC::Ref<OnChangingNavigableHistoryStepJobComplete>);
     void apply_ui_changing_navigable_continuation(u64 operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, GC::Ref<GC::Function<void(Optional<SessionHistoryEntryPersistedState>)>>);
     void update_nonchanging_navigable_history_step_state(CrossProcessId navigable_id, HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);
     void complete_ui_history_operation(u64 operation_id, HistoryStepResult, Optional<i32> committed_step, Optional<u64> initiation_id);

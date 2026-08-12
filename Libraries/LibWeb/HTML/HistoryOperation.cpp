@@ -272,8 +272,6 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::HistoryLoad const& load)
     TRY(encoder.encode(load.global_history_length));
     TRY(encoder.encode(load.global_history_index));
     TRY(encoder.encode(load.entries_for_navigation_api));
-    TRY(encoder.encode(load.transitional_top_level_entries));
-    TRY(encoder.encode(load.transitional_current_top_level_entry_index));
     return {};
 }
 
@@ -287,7 +285,5 @@ ErrorOr<Web::HistoryLoad> IPC::decode(Decoder& decoder)
         .global_history_length = TRY(decoder.decode<u64>()),
         .global_history_index = TRY(decoder.decode<u64>()),
         .entries_for_navigation_api = TRY(decoder.decode<Vector<Web::HTML::SessionHistoryEntryDescriptor>>()),
-        .transitional_top_level_entries = TRY(decoder.decode<Vector<Web::HTML::SessionHistoryEntryDescriptor>>()),
-        .transitional_current_top_level_entry_index = TRY(decoder.decode<size_t>()),
     };
 }

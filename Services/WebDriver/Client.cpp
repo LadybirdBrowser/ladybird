@@ -357,17 +357,6 @@ Web::WebDriver::Response Client::traverse_history_from_ui(Web::WebDriver::Parame
     return response;
 }
 
-// Extension: POST /session/{session id}/ladybird/mark-web-content-session-history-stale
-Web::WebDriver::Response Client::mark_web_content_session_history_stale(Web::WebDriver::Parameters parameters, JsonValue)
-{
-    dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/ladybird/mark-web-content-session-history-stale");
-    auto session = TRY(find_session_with_ladybird_test_hooks(parameters));
-
-    return session->perform_async_action([&](auto& connection) {
-        return connection.mark_web_content_session_history_stale();
-    });
-}
-
 // Extension: GET /session/{session id}/ladybird/session-history
 Web::WebDriver::Response Client::get_session_history(Web::WebDriver::Parameters parameters, JsonValue)
 {

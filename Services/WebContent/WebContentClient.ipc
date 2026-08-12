@@ -156,7 +156,6 @@ endpoint WebContentClient
     did_request_webdriver_history_traversal(u64 page_id, u64 request_id, i32 delta) =|
     did_request_webdriver_load_url_from_ui(u64 page_id, URL::URL url) => (Web::WebDriver::Response response)
     did_request_webdriver_traverse_history_from_ui(u64 page_id, i32 delta) => (Web::WebDriver::Response response)
-    did_request_webdriver_mark_web_content_session_history_stale(u64 page_id) => (Web::WebDriver::Response response)
     did_request_webdriver_session_history(u64 page_id) => (Web::WebDriver::Response response)
     did_request_webdriver_navigation_completion(u64 page_id, u64 request_id, Optional<u64> page_load_timeout) =|
     did_request_restore_window(u64 page_id) =|
@@ -191,7 +190,6 @@ endpoint WebContentClient
     did_set_session_history_entry_document_state_reload_pending(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, bool reload_pending) =|
     did_request_ui_process_session_history_for_testing(u64 page_id) => (String session_history)
     did_request_site_isolation_process_tree_for_testing(u64 page_id) => (String process_tree)
-    did_update_session_history_and_request_ui_process_session_history_for_testing(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index) => (String session_history)
     request_history_operation(u64 page_id, u64 initiation_id, Web::HistoryOperationParameters parameters) =|
     history_operation_ready(u64 page_id, u64 operation_id, bool proceed, Optional<Web::HTML::CrossProcessId> creation_parent_document_state_id, Optional<Web::HTML::SameDocumentNavigationEntry> same_document_navigation_finalization, Optional<Web::CrossDocumentNavigationFinalization> cross_document_navigation_finalization, Web::HTML::HistoryStepResult abandon_result) =|
     initiator_sandboxing_check_result(u64 page_id, u64 operation_id, bool allowed) =|

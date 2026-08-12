@@ -91,7 +91,6 @@ public:
     void did_complete_webdriver_history_traversal(u64 request_id, bool accepted, bool will_replace_web_content_process, bool will_change_top_level_entry);
     Web::WebDriver::Response request_webdriver_load_url_from_ui(URL::URL const&);
     Web::WebDriver::Response request_webdriver_traverse_history_from_ui(int delta);
-    Web::WebDriver::Response request_webdriver_mark_web_content_session_history_stale();
     Web::WebDriver::Response request_webdriver_session_history();
     void set_is_scripting_enabled(bool);
     void set_window_position(Web::DevicePixelPoint);
@@ -259,7 +258,6 @@ private:
     virtual void page_did_set_session_history_entry_document_state_reload_pending(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, bool reload_pending) override;
     virtual void page_did_request_history_operation(u64 initiation_id, Web::HistoryOperationParameters) override;
     virtual String page_did_request_ui_process_session_history_for_testing() override;
-    virtual String page_did_update_session_history_and_request_ui_process_session_history_for_testing(Vector<Web::HTML::SessionHistoryEntryDescriptor> const&, Vector<i32> const& used_steps, size_t current_used_step_index) override;
     virtual void request_file(Web::FileRequest) override;
     virtual void page_did_request_color_picker(Color current_color) override;
     virtual void page_did_request_file_picker(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles) override;

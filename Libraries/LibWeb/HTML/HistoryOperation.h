@@ -105,11 +105,6 @@ struct HistoryLoad {
     u64 global_history_length { 0 };
     u64 global_history_index { 0 };
     Vector<HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api;
-
-    // This complete projection remains transitional while WebContent still
-    // has full-list consumers.
-    Vector<HTML::SessionHistoryEntryDescriptor> transitional_top_level_entries;
-    size_t transitional_current_top_level_entry_index { 0 };
 };
 
 using HistoryOperationParameters = Variant<
