@@ -67,6 +67,8 @@ public:
 
     void request_device_sample_specification();
 
+    pa_context* native_handle() { return m_context; }
+
     ErrorOr<NonnullRefPtr<PulseAudioStream>> create_stream(OutputState, u32 target_latency_ms, PulseAudioDataRequestCallback);
 
 private:
