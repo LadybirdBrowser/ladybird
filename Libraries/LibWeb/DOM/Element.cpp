@@ -1408,9 +1408,12 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
         }
 
-        if (new_pseudo_element_style)
-            set_computed_style(pseudo_element, style_record_delta.new_style_record);
-        else if (auto existing_pseudo_element = get_synthetic_pseudo_element(pseudo_element); existing_pseudo_element.has_value())
+        if (new_pseudo_element_style) {
+            if (CSS::is_element_reference_pseudo_element(pseudo_element))
+                refresh_computed_style(pseudo_element, style_record_delta.new_style_record);
+            else
+                set_computed_style(pseudo_element, style_record_delta.new_style_record);
+        } else if (auto existing_pseudo_element = get_synthetic_pseudo_element(pseudo_element); existing_pseudo_element.has_value())
             existing_pseudo_element->clear_computed_style(move(style_to_preserve_for_detachment));
     };
 
@@ -1422,6 +1425,11 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         recompute_pseudo_element_style(CSS::PseudoElement::Backdrop);
     if (had_list_marker || originating_style->display().is_list_item())
         recompute_pseudo_element_style(CSS::PseudoElement::Marker, true);
+    for (auto i = to_underlying(CSS::first_element_reference_pseudo_element); i <= to_underlying(CSS::last_element_reference_pseudo_element); ++i) {
+        auto pseudo_element = static_cast<CSS::PseudoElement>(i);
+        if (get_pseudo_element(pseudo_element).has_value())
+            recompute_pseudo_element_style(pseudo_element);
+    }
 
     return invalidation;
 }

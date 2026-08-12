@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #text::placeholder,
+    #file::file-selector-button,
+    #details::details-content {
+        font-size: attr(data-size type(<percentage>));
+    }
+</style>
+<input id="text" data-size="150%" placeholder="placeholder">
+<input id="file" data-size="150%" type="file">
+<details id="details" data-size="150%" open>details content</details>
+<script>
+    test(() => {
+        const cases = [
+            [document.getElementById("text"), "::placeholder"],
+            [document.getElementById("file"), "::file-selector-button"],
+            [document.getElementById("details"), "::details-content"],
+        ];
+
+        for (const [element, pseudoElement] of cases) {
+            println(`${pseudoElement}-before=${getComputedStyle(element, pseudoElement).fontSize}`);
+            element.dataset.size = "300%";
+            println(`${pseudoElement}-after=${getComputedStyle(element, pseudoElement).fontSize}`);
+        }
+    });
+</script>
