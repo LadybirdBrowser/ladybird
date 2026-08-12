@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video id="video"></video>
+<script>
+    // Moving a video element into a document that is not fully active releases its video sink, since an inactive
+    // document has no compositor context to present through. Moving it back must rebuild the sink, otherwise the
+    // element would never present another frame.
+    const video = document.getElementById("video");
+
+    asyncTest(async done => {
+        video.src = "../../../Assets/resize-320x240-640x480.webm";
+        await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        const inactiveDocument = new DOMParser().parseFromString("<body></body>", "text/html");
+        inactiveDocument.body.appendChild(video);
+        document.body.appendChild(video);
+
+        // The mid-stream resize is only reported once a frame has been presented through the rebuilt sink.
+        const sawResize = new Promise(resolve => video.addEventListener("resize", resolve, { once: true }));
+        await video.play();
+        await new Promise(resolve => video.addEventListener("ended", resolve, { once: true }));
+        await sawResize;
+
+        println(`presented after reattachment: ${video.videoWidth}x${video.videoHeight}`);
+        done();
+    });
+</script>

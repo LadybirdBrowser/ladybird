@@ -804,7 +804,7 @@ void Page::restore_all_media_element_video_sinks()
 void Page::detach_all_media_element_video_sinks_after_compositor_lost()
 {
     for_each_media_element([&](auto& media_element) {
-        media_element.detach_video_sink_after_compositor_lost();
+        media_element.detach_video_sink_edge();
     });
 }
 
