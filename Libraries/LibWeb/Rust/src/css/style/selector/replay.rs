@@ -475,6 +475,7 @@ fn write_feature_key(feature: FeatureKey, payload: &mut PayloadWriter) {
         FeatureKey::Directionality => payload.write_u8(9),
         FeatureKey::PartExposure => payload.write_u8(10),
         FeatureKey::ArrivingFacts => payload.write_u8(11),
+        FeatureKey::HeadingLevel => payload.write_u8(12),
     }
 }
 
@@ -492,6 +493,7 @@ fn read_feature_key(payload: &mut PayloadReader) -> Result<FeatureKey, Error> {
         9 => FeatureKey::Directionality,
         10 => FeatureKey::PartExposure,
         11 => FeatureKey::ArrivingFacts,
+        12 => FeatureKey::HeadingLevel,
         value => {
             return Err(Error::InvalidTag {
                 category: "feature key",

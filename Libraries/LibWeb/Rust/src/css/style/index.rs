@@ -90,6 +90,8 @@ pub enum FeatureKey {
     Language,
     /// The element's resolved directionality, which `:dir()` tests.
     Directionality,
+    /// The element's computed heading level, which `:heading()` tests.
+    HeadingLevel,
     /// The outermost host from whose scope a `::part()` rule can address this element.
     ///
     /// A part name says nothing on its own about how far out it reaches: `exportparts` forwards it
@@ -120,6 +122,8 @@ pub enum FeatureValue {
     ChangedValue,
     /// The fact holds with an interned value.
     Atom(StyleAtomID),
+    /// The fact holds with a numeric value.
+    Number(u32),
 }
 
 impl FeatureValue {

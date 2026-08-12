@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    h1 { color: black }
+    :heading(2) { color: rgb(11, 22, 33) }
+    #ancestor:has(:heading(2)) { background-color: rgb(44, 55, 66) }
+</style>
+<div id="ancestor"><h1 id="heading">Title</h1></div>
+<script>
+    function state() {
+        return `color=${getComputedStyle(heading).color} heading2=${heading.matches(":heading(2)")} ancestor=${getComputedStyle(ancestor).backgroundColor}`;
+    }
+
+    test(() => {
+        state();
+        ancestor.setAttribute("headingoffset", "1");
+        println(`after heading offset: ${state()}`);
+
+        ancestor.removeAttribute("headingoffset");
+        println(`after heading offset removal: ${state()}`);
+    });
+</script>

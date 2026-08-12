@@ -711,7 +711,9 @@ static void record_element_heading_level(DOM::Element& element)
         return;
 
     auto const* heading = as_if<HTML::HTMLHeadingElement>(element);
-    auto level = heading ? heading->heading_level() : 0;
+    // Attribute invalidation runs before the document tree version is bumped, so the DOM-facing
+    // heading_level() cache can still hold the value from before a headingoffset mutation.
+    auto level = heading ? heading->computed_heading_level() : 0;
     style_engine->set_element_heading_level(element.style_node_id(), static_cast<u8>(min(level, 255u)));
 }
 
