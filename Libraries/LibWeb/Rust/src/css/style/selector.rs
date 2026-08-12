@@ -4525,6 +4525,51 @@ impl<'a> MatchEvaluator<'a> {
         Ok(true)
     }
 
+    // https://drafts.csswg.org/css-shadow-1/#host-element-in-tree
+    // When considered within its own shadow trees, the shadow host is featureless. Only the
+    // :host, :host(), and :host-context() pseudo-classes are allowed to match it. Selector-list
+    // pseudos preserve that restriction: only an alternative that reaches :host can match.
+    fn matches_featureless_host(
+        &self,
+        program: &SelectorProgram,
+        id: SelectorNodeID,
+        host: StyleNodeID,
+        counters: &mut Counters,
+    ) -> Result<bool, Incomplete> {
+        match program.node(id) {
+            SelectorOp::Host(inner) => self.matches_node(program, inner, host, counters),
+            SelectorOp::And { first, count } => {
+                if !program.mentions_the_host(id) {
+                    return Ok(false);
+                }
+                for &operand in program.operands(first, count) {
+                    let operand_matches = match program.node(operand) {
+                        SelectorOp::RelativeExists(_) => self.matches_node(program, operand, host, counters)?,
+                        SelectorOp::IsNode(named) => host == named,
+                        SelectorOp::ScopeRootInstance => self.scope_root_instance.get() == Some(host),
+                        _ => self.matches_featureless_host(program, operand, host, counters)?,
+                    };
+                    if !operand_matches {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            SelectorOp::Or { first, count } => {
+                for &operand in program.operands(first, count) {
+                    if self.matches_featureless_host(program, operand, host, counters)? {
+                        return Ok(true);
+                    }
+                }
+                Ok(false)
+            }
+            SelectorOp::Where(inner) => self.matches_featureless_host(program, inner, host, counters),
+            SelectorOp::IsNode(named) => Ok(host == named),
+            SelectorOp::ScopeRootInstance => Ok(self.scope_root_instance.get() == Some(host)),
+            _ => Ok(false),
+        }
+    }
+
     #[inline]
     fn matches_relation_target(
         &self,
@@ -4760,33 +4805,13 @@ impl<'a> MatchEvaluator<'a> {
                 // through its argument, and `:has()` rides along as the one attached exception.
                 // Any other simple selector in the compound - `div:host`, `:host.x`, `*:host`,
                 // `:host:hover` - fails the whole compound rather than testing the host's facts.
-                // https://drafts.csswg.org/css-scoping-1/#host-element-in-tree
-                SelectorOp::And { first, count }
-                    if program
-                        .operands(first, count)
-                        .iter()
-                        .any(|&operand| matches!(program.node(operand), SelectorOp::Host(_))) =>
+                // https://drafts.csswg.org/css-shadow-1/#host-element-in-tree
+                SelectorOp::And { .. } | SelectorOp::Or { .. } | SelectorOp::Where(_)
+                    if program.mentions_the_host(id) =>
                 {
-                    match self.tree.host_of(node) {
-                        Some(host) => {
-                            for &operand in program.operands(first, count) {
-                                let operand_matches = match program.node(operand) {
-                                    SelectorOp::Host(inner) => self.matches_node(program, inner, host, counters)?,
-                                    SelectorOp::RelativeExists(_) => {
-                                        self.matches_node(program, operand, host, counters)?
-                                    }
-                                    SelectorOp::IsNode(named) => host == named,
-                                    SelectorOp::ScopeRootInstance => self.scope_root_instance.get() == Some(host),
-                                    _ => false,
-                                };
-                                if !operand_matches {
-                                    return Ok(false);
-                                }
-                            }
-                            Ok(true)
-                        }
-                        None => Ok(false),
-                    }
+                    self.tree.host_of(node).map_or(Ok(false), |host| {
+                        self.matches_featureless_host(program, id, host, counters)
+                    })
                 }
                 _ => Ok(false),
             };
@@ -4808,8 +4833,16 @@ impl<'a> MatchEvaluator<'a> {
                 let row = self.row_of(node)?;
                 Ok(self.facts.states_of(row).contains(fact))
             }
-            SelectorOp::And { first, count } => self.matches_compound(program, first, count, node, counters),
+            SelectorOp::And { first, count } => {
+                if self.node_hosts_the_scope(node) && program.mentions_the_host(id) {
+                    return self.matches_featureless_host(program, id, node, counters);
+                }
+                self.matches_compound(program, first, count, node, counters)
+            }
             SelectorOp::Or { first, count } => {
+                if self.node_hosts_the_scope(node) && program.mentions_the_host(id) {
+                    return self.matches_featureless_host(program, id, node, counters);
+                }
                 for &operand in program.operands(first, count) {
                     if self.matches_node(program, operand, node, counters)? {
                         return Ok(true);
