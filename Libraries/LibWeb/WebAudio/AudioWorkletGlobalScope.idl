@@ -1,0 +1,21 @@
+// https://webaudio.github.io/web-audio-api/#AudioWorkletGlobalScope
+[Global=(Worklet,AudioWorklet), Exposed=AudioWorklet]
+interface AudioWorkletGlobalScope : WorkletGlobalScope {
+    undefined registerProcessor(DOMString name, AudioWorkletProcessorConstructor processorCtor);
+    readonly attribute unsigned long long currentFrame;
+    readonly attribute double currentTime;
+    readonly attribute float sampleRate;
+    readonly attribute unsigned long renderQuantumSize;
+    readonly attribute MessagePort port;
+};
+
+callback AudioWorkletProcessorConstructor = undefined (object options);
+
+// https://webaudio.github.io/web-audio-api/#AudioParamDescriptor
+dictionary AudioParamDescriptor {
+    required DOMString name;
+    float defaultValue = 0;
+    float maxValue = 3.4028235e38;
+    float minValue = -3.4028235e38;
+    AutomationRate automationRate = "a-rate";
+};
