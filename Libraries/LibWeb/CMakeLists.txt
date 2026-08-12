@@ -1070,6 +1070,7 @@ set(SOURCES
     WebAudio/AudioParamMap.cpp
     WebAudio/AudioWorklet.cpp
     WebAudio/AudioWorkletGlobalScope.cpp
+    WebAudio/AudioWorkletNode.cpp
     WebAudio/AudioWorkletProcessor.cpp
     WebAudio/AudioArray.cpp
     WebAudio/AudioBuffer.cpp
