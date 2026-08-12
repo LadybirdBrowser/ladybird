@@ -191,6 +191,7 @@ void ApplyHistoryStep::run_changing_navigable_jobs()
                 .navigation_type = m_navigation_type,
                 .synchronous_navigation = m_synchronous_navigation,
                 .navigation_api_abort_behavior = navigation_api_abort_behavior,
+                .replacement_current_step = m_target_step,
             },
             [this, navigable_id](Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition) {
                 changing_navigable_job_completed(navigable_id, disposition);

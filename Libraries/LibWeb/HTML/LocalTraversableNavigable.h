@@ -100,7 +100,7 @@ public:
     void handle_ui_history_operation_started(u64 operation_id, Optional<u64> initiation_id, GC::Ref<OnHistoryOperationReady>);
     bool run_ui_initiator_sandboxing_check_job(CrossProcessId initiator_to_check_id, Vector<CrossProcessId> const& navigables, u64 initiation_id);
     void run_ui_history_step_unload_cancelation_job(u64 operation_id, int target_step, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>>);
-    void run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, bool synchronous_navigation, LocalNavigable::NavigationAPIAbortBehavior, Optional<u64> initiation_id, Vector<SessionHistoryEntryDescriptor> replacement_top_level_entries, size_t replacement_current_top_level_entry_index, GC::Ref<OnChangingNavigableHistoryStepJobComplete>);
+    void run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, bool synchronous_navigation, LocalNavigable::NavigationAPIAbortBehavior, Optional<u64> initiation_id, Vector<SessionHistoryEntryDescriptor> replacement_top_level_entries, size_t replacement_current_top_level_entry_index, i32 replacement_current_step, GC::Ref<OnChangingNavigableHistoryStepJobComplete>);
     void apply_ui_changing_navigable_continuation(u64 operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, GC::Ref<GC::Function<void()>>);
     void update_nonchanging_navigable_history_step_state(CrossProcessId navigable_id, HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);
     void complete_ui_history_operation(u64 operation_id, HistoryStepResult, Optional<i32> committed_step, Optional<u64> initiation_id);
@@ -114,7 +114,10 @@ public:
     Vector<int> get_all_used_history_steps() const;
     void clear_the_forward_session_history();
     void traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document = {});
-    bool replace_top_level_session_history_entries_from_ui_process(Vector<SessionHistoryEntryDescriptor>, size_t current_top_level_entry_index, bool allow_reconstructing_current_entry);
+    bool replace_top_level_session_history_entries_from_ui_process(Vector<SessionHistoryEntryDescriptor>, size_t current_top_level_entry_index, bool allow_reconstructing_current_entry, Optional<i32> current_step = {});
+    void restore_session_history_entry_from_ui_process(LocalNavigable&, SessionHistoryEntry&, SessionHistoryEntryDescriptor);
+    bool adopt_nested_history_for_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child);
+    bool route_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child, SessionHistoryEntry& initial_entry);
     void reset_session_history_for_testing(GC::Ref<GC::Function<void()>> on_complete);
 
     void close_top_level_traversable();
@@ -166,6 +169,7 @@ private:
         Optional<Bindings::NavigationType> navigation_type;
         SynchronousNavigation synchronous_navigation;
         LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior;
+        bool reconstructs_replacement_process { false };
     };
     struct LocalChangingNavigableHistoryStepJobResult {
         ChangingNavigableHistoryStepJobDisposition disposition;
@@ -215,10 +219,12 @@ private:
         Optional<LocalNavigable::NavigationAPIAbortBehavior> navigation_api_abort_behavior;
         Optional<Bindings::NavigationType> navigation_type;
         Optional<UserNavigationInvolvement> user_involvement;
+        bool reconstructs_replacement_process { false };
         HashTable<CrossProcessId> claimed_navigables_awaiting_continuation;
         HashMap<CrossProcessId, GC::Ref<ChangingNavigableContinuationState>> changing_navigable_continuations;
     };
     HashMap<u64, UIHistoryOperationState> m_ui_history_operations;
+    HashTable<CrossProcessId> m_document_states_under_history_reconstruction;
     u64 m_next_history_initiation_id { 1 };
     HashMap<u64, HistoryOperationState> m_history_operation_states;
 

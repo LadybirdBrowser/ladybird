@@ -33,6 +33,7 @@
 #include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
+#include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
@@ -223,6 +224,7 @@ public:
         //         source document only exists in the process where the navigation started, so this carries the state
         //         the navigate algorithm would otherwise snapshot from it.
         Optional<NavigationSourceSnapshot> cross_process_source_snapshot = {};
+        Optional<SessionHistoryEntryDescriptor> session_history_entry_to_restore = {};
 
         void visit_edges(Cell::Visitor& visitor);
     };
@@ -287,6 +289,7 @@ public:
 
     bool has_pending_navigations() const { return !m_pending_navigations.is_empty(); }
     void clear_pending_navigations() { m_pending_navigations.clear(); }
+    void route_initial_navigation_to_session_history_entry(SessionHistoryEntryDescriptor, GC::Ref<DOM::Document> source_document);
 
     bool record_display_list_and_scroll_state(PaintConfig, Gfx::IntRect* damage_rect = nullptr);
     void paint_next_frame();
@@ -513,7 +516,7 @@ WEB_API GC::Ptr<LocalNavigable> local_navigable_with_id(CrossProcessId);
 Vector<NonnullRefPtr<SessionHistoryEntry>>* append_nested_history_for_child_navigable(
     LocalNavigable& parent_navigable, LocalNavigable& child_navigable, SessionHistoryEntry& history_entry);
 bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& document);
-void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable>, HistoryHandlingBehavior, UserNavigationInvolvement, NonnullRefPtr<SessionHistoryEntry>, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete);
+void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable>, HistoryHandlingBehavior, UserNavigationInvolvement, NonnullRefPtr<SessionHistoryEntry>, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete, Optional<SessionHistoryEntryDescriptor> entry_to_restore = {});
 void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_url, Optional<StorageSerializationRecord> = {}, HistoryHandlingBehavior history_handling = HistoryHandlingBehavior::Replace);
 
 }
