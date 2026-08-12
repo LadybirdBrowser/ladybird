@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .underline { text-decoration-line: underline; }
+    .overline { text-decoration-line: overline; }
+    .line-through { text-decoration-line: line-through; }
+</style>
+<div class="underline"><span></span></div>
+<div class="overline"><span></span></div>
+<div class="line-through"><span></span></div>
+<script>
+    test(() => {
+        const children = document.querySelectorAll("span");
+
+        for (const child of children)
+            println(getComputedStyle(child).textDecorationLine);
+    });
+</script>
