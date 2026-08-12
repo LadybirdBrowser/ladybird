@@ -5,6 +5,7 @@ set(SOURCES
     Audio/AudioRingBuffer.cpp
     Audio/NullPlaybackStream.cpp
     Audio/PlaybackStream.cpp
+    Audio/RecordStream.cpp
     Audio/WSOLAAlgorithm.cpp
     Audio/WSOLAInternals.cpp
     Audio/WSOLATimeStretcher.cpp
@@ -81,6 +82,7 @@ if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")
     target_sources(LibMedia PRIVATE
         Audio/PlaybackStreamPulseAudio.cpp
         Audio/PulseAudioWrappers.cpp
+        Audio/RecordStreamPulseAudio.cpp
     )
     target_compile_definitions(LibMedia PRIVATE LIBMEDIA_AUDIO_BACKEND=1 LADYBIRD_AUDIO_BACKEND_PULSE=1)
     target_link_libraries(LibMedia PRIVATE PkgConfig::PULSEAUDIO)
