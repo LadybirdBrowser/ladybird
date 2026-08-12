@@ -33,7 +33,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest((done) => {
+    test(() => {
         document.body.offsetHeight;
 
         const outsideBefore = document.getElementById("outside").getBoundingClientRect();
@@ -58,6 +58,5 @@
         println(rectToString(inserted) === "55,40,35,20"
             && rectToString(outsideBefore) === rectToString(outsideAfter)
             && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
-        done();
     });
 </script>

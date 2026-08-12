@@ -15,7 +15,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest((done) => {
+    test(() => {
         document.body.offsetHeight;
 
         const partialBefore = internals.partialLayoutCount();
@@ -34,6 +34,5 @@
         println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
         println(rectToString(insertedRect) === "70,45,30,20"
             && partialDelta === 0 && fullDelta === 1 ? "PASS" : "FAIL");
-        done();
     });
 </script>

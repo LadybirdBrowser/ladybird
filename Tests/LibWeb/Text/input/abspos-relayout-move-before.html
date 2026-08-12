@@ -52,7 +52,7 @@
         return `${rect.left - containerRect.left},${rect.top - containerRect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest((done) => {
+    test(() => {
         document.body.offsetHeight;
 
         const move = document.getElementById("move");
@@ -87,6 +87,5 @@
             && paintCount === 1
             && !oldHitIsMoved
             && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
-        done();
     });
 </script>

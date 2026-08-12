@@ -32,7 +32,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest((done) => {
+    test(() => {
         document.body.offsetHeight;
 
         const dialog = document.getElementById("modal");
@@ -52,6 +52,5 @@
         println(dialog.open
             && rectToString(dialogRect) === "70,40,80,50"
             && partialDelta === 0 && fullDelta === 1 ? "PASS" : "FAIL");
-        done();
     });
 </script>

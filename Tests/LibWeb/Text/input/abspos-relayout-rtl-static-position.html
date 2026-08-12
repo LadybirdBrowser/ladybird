@@ -30,7 +30,7 @@
         return `${rect.left - rootRect.left},${rect.top - rootRect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest((done) => {
+    test(() => {
         document.body.offsetHeight;
 
         const partialBefore = internals.partialLayoutCount();
@@ -49,6 +49,5 @@
         println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
         println(live === reference
             && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
-        done();
     });
 </script>

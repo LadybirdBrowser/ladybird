@@ -20,7 +20,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest((done) => {
+    test(() => {
         document.body.offsetHeight;
 
         const boundary = document.getElementById("boundary");
@@ -39,6 +39,5 @@
         println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
         println(rectToString(rect) === "200,150,100,50"
             && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
-        done();
     });
 </script>

@@ -41,7 +41,7 @@
         return `${rect.left - containerRect.left},${rect.top - containerRect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest((done) => {
+    test(() => {
         document.body.offsetHeight;
 
         const partialBefore = internals.partialLayoutCount();
@@ -65,6 +65,5 @@
         println(`rects-match=${rectsMatch}`);
         println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
         println(rectsMatch && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
-        done();
     });
 </script>

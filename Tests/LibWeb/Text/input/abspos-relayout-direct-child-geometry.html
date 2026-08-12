@@ -43,7 +43,7 @@
         return `${rect.left - containerRect.left},${rect.top - containerRect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest((done) => {
+    test(() => {
         document.body.offsetHeight;
 
         const liveBoundary = document.getElementById("live-boundary");
@@ -67,6 +67,5 @@
         println(liveRect === "50,0,14,16"
             && liveRect === referenceRect
             && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
-        done();
     });
 </script>

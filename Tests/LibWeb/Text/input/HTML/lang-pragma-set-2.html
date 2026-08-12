@@ -15,13 +15,12 @@
 </html>
     <script src="../include.js"></script>
     <script>
-        asyncTest((done) => {
+        test(() => {
             if (document.getElementById('box').offsetWidth == 100) {
                 println("OK");
             } else {
                 println("FAIL. If there is a pragma-set default language set, then that is the language of the node. It should match the first non-whitespace code points from the contet attribute.");
             }
-            done();
         });
     </script>
 </html>

@@ -18,7 +18,7 @@
     <div id="boundary"><div id="content"></div></div>
 </div>
 <script>
-    asyncTest((done) => {
+    test(() => {
         document.body.offsetHeight;
 
         const scroller = document.getElementById("scroller");
@@ -40,6 +40,5 @@
         println(boundaryHeight === 400
             && scrollHeightBefore === 150 && scrollHeightAfter === 420
             && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
-        done();
     });
 </script>
