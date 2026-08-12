@@ -100,6 +100,40 @@ SessionHistoryEntryDescriptor create_session_history_entry_descriptor(SessionHis
     };
 }
 
+PendingSessionHistoryEntryDescriptor create_pending_session_history_entry_descriptor(SessionHistoryEntry const& entry)
+{
+    VERIFY(!entry.step_value().has_value());
+    SessionHistoryDocumentStateDescriptor document_state_descriptor;
+    if (auto document_state = entry.document_state())
+        document_state_descriptor = create_session_history_document_state_descriptor(*document_state);
+
+    return {
+        .url = entry.url(),
+        .document_state = move(document_state_descriptor),
+        .classic_history_api_state = entry.classic_history_api_state(),
+        .navigation_api_state = entry.navigation_api_state(),
+        .navigation_api_key = entry.navigation_api_key(),
+        .navigation_api_id = entry.navigation_api_id(),
+        .scroll_restoration_mode = entry.scroll_restoration_mode(),
+        .scroll_position_data = entry.scroll_position_data(),
+    };
+}
+
+SessionHistoryEntryDescriptor create_session_history_entry_descriptor(PendingSessionHistoryEntryDescriptor entry, i32 step)
+{
+    return {
+        .step = step,
+        .url = move(entry.url),
+        .document_state = move(entry.document_state),
+        .classic_history_api_state = move(entry.classic_history_api_state),
+        .navigation_api_state = move(entry.navigation_api_state),
+        .navigation_api_key = move(entry.navigation_api_key),
+        .navigation_api_id = move(entry.navigation_api_id),
+        .scroll_restoration_mode = entry.scroll_restoration_mode,
+        .scroll_position_data = move(entry.scroll_position_data),
+    };
+}
+
 SameDocumentNavigationEntry create_same_document_navigation_entry(SessionHistoryEntry const& entry)
 {
     auto document_state = entry.document_state();
@@ -327,6 +361,35 @@ ErrorOr<Web::HTML::SessionHistoryEntryDescriptor> IPC::decode(Decoder& decoder)
         .navigation_api_id = move(navigation_api_id),
         .scroll_restoration_mode = scroll_restoration_mode,
         .scroll_position_data = move(scroll_position_data),
+    };
+}
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::PendingSessionHistoryEntryDescriptor const& entry)
+{
+    TRY(encoder.encode(entry.url));
+    TRY(encoder.encode(entry.document_state));
+    TRY(encoder.encode(entry.classic_history_api_state));
+    TRY(encoder.encode(entry.navigation_api_state));
+    TRY(encoder.encode(entry.navigation_api_key));
+    TRY(encoder.encode(entry.navigation_api_id));
+    TRY(encoder.encode(entry.scroll_restoration_mode));
+    TRY(encoder.encode(entry.scroll_position_data));
+    return {};
+}
+
+template<>
+ErrorOr<Web::HTML::PendingSessionHistoryEntryDescriptor> IPC::decode(Decoder& decoder)
+{
+    return Web::HTML::PendingSessionHistoryEntryDescriptor {
+        .url = TRY(decoder.decode<URL::URL>()),
+        .document_state = TRY(decoder.decode<Web::HTML::SessionHistoryDocumentStateDescriptor>()),
+        .classic_history_api_state = TRY(decoder.decode<Web::HTML::StorageSerializationRecord>()),
+        .navigation_api_state = TRY(decoder.decode<Web::HTML::StorageSerializationRecord>()),
+        .navigation_api_key = TRY(decoder.decode<Utf16String>()),
+        .navigation_api_id = TRY(decoder.decode<Utf16String>()),
+        .scroll_restoration_mode = TRY(decoder.decode<Web::HTML::ScrollRestorationMode>()),
+        .scroll_position_data = TRY(decoder.decode<Web::HTML::SessionHistoryEntryScrollPositionData>()),
     };
 }
 

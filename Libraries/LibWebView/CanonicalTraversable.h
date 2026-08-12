@@ -238,7 +238,7 @@ public:
     // flow instead of becoming a native operation against the process that requested it.
     bool traversal_requires_process_replacement(TraversableSessionHistory::TraversalTarget const&, URL::URL const& current_url) const;
 
-    void did_receive_history_operation_ready(u64 operation_id, bool proceed, Optional<i32> step_override, Web::HTML::HistoryStepResult abandon_result);
+    void did_receive_history_operation_ready(u64 operation_id, bool proceed, Optional<i32> step_override, Optional<Web::HTML::CrossProcessId> creation_parent_document_state_id, Web::HTML::HistoryStepResult abandon_result);
     void did_receive_initiator_sandboxing_check_result(u64 operation_id, bool allowed);
     void did_receive_history_step_unload_cancelation_result(u64 operation_id, Web::HTML::HistoryStepResult);
     void did_receive_changing_navigable_history_job_ready(u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition);
@@ -275,8 +275,8 @@ public:
     bool update_session_history_entry_scroll_position_data(CanonicalNavigable const&, Utf16String const& navigation_api_key, Web::HTML::SessionHistoryEntryScrollPositionData scroll_position_data);
     bool update_session_history_entry_document_state_navigable_target_name(CanonicalNavigable const&, Utf16String const& navigation_api_key, Utf16String navigable_target_name);
     bool set_session_history_entry_document_state_reload_pending(CanonicalNavigable const&, Utf16String const& navigation_api_key, bool reload_pending);
-    bool append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::SessionHistoryNestedHistoryDescriptor nested_history);
-    bool remove_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId child_navigable_id);
+    Optional<i32> append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry);
+    bool remove_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id);
     Optional<TraversableSessionHistory::SameDocumentNavigationFinalization> request_to_finalize_same_document_navigation(CanonicalNavigable const&, Web::HTML::SameDocumentNavigationEntry target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior, Web::HTML::UserNavigationInvolvement, bool applies_history_step_in_coordinator);
     bool finalize_cross_document_navigation(CanonicalNavigable const&, Web::HTML::SessionHistoryEntryDescriptor history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key);
     Optional<i32> navigation_api_traversal_target(CanonicalNavigable const&, Utf16String const& navigation_api_key) const;
@@ -312,6 +312,7 @@ private:
     void run_ui_history_operation_at_queue_position(Variant<BrowserHistoryTraversalOperation, HistoryStepCancelationCheckOperation>, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
     void start_history_operation(HistoryOperation&, NonnullRefPtr<Core::Promise<Empty>>);
     void apply_history_step(HistoryOperation&, i32 step, bool check_for_cancelation, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement, Optional<Web::Bindings::NavigationType>, Web::HTML::SynchronousNavigation, Optional<Web::HTML::CrossProcessId> navigable_with_finalized_entry);
+    void update_for_navigable_creation_or_destruction(HistoryOperation&);
     void check_history_step_cancelation(HistoryOperation&, HistoryStepCancelationCheckOperation const&);
     void finish_history_operation(u64 operation_id, Web::HTML::HistoryStepResult, Optional<i32> committed_step);
 
