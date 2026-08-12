@@ -1,0 +1,9 @@
+readonly input: rgb(0, 0, 0) valid=false invalid=false
+readonly form: rgb(0, 128, 0) valid=true invalid=false
+enabled input: rgb(255, 0, 0) valid=false invalid=true
+enabled input form: rgb(255, 0, 0) valid=false invalid=true
+disabled fieldset input: rgb(0, 0, 0) valid=false invalid=false
+disabled fieldset: rgb(0, 128, 0) valid=true invalid=false
+disabled fieldset form: rgb(0, 128, 0) valid=true invalid=false
+disabled custom control: rgb(0, 0, 0) valid=false invalid=false
+disabled custom control form: rgb(0, 128, 0) valid=true invalid=false
