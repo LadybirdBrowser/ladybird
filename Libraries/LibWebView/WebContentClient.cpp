@@ -608,7 +608,7 @@ void WebContentClient::maybe_record_history_visit_for_current_load(u64 page_id, 
 
 void WebContentClient::did_start_loading(u64 page_id, Optional<u64> history_load_id,
     Optional<Utf16String> navigation_id, URL::URL url,
-    Web::HTML::DocumentResource document_resource, bool is_redirect,
+    Optional<Web::HTML::PendingSessionHistoryEntryDescriptor> pending_history_entry, bool is_redirect,
     Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     if (auto process = WebView::Application::the().find_process(m_process_handle.pid); process.has_value())
@@ -630,7 +630,7 @@ void WebContentClient::did_start_loading(u64 page_id, Optional<u64> history_load
         view->m_loading_url = url;
         view->m_should_suppress_history_for_current_load = view->m_should_suppress_history_for_next_load;
         view->m_should_suppress_history_for_next_load = false;
-        view->did_start_navigation(url, move(document_resource), is_redirect, history_handling);
+        view->did_start_navigation(url, move(pending_history_entry), history_load_id.has_value(), is_redirect, history_handling);
 
         view->set_url({}, url);
         view->set_title({}, Utf16String::from_utf8(url.serialize()));

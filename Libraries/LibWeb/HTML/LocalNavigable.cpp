@@ -2966,11 +2966,6 @@ void LocalNavigable::begin_navigation(NavigateParams params)
                     }
                 }
 
-                // AD-HOC: Tell the UI that we started loading.
-                if (is_top_level_traversable()) {
-                    active_browsing_context()->page().client().page_did_start_loading(navigation_id, url, document_resource, false, history_handling);
-                }
-
                 // 3. Queue a global task on the navigation and traversal task source given navigable's active window to abort a document and its descendants given navigable's active document.
                 queue_global_task(Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*active_window()), GC::create_function(heap(), [this] {
                     this->active_document()->abort_a_document_and_its_descendants();
@@ -3012,6 +3007,14 @@ void LocalNavigable::begin_navigation(NavigateParams params)
                 auto history_entry = SessionHistoryEntry::create();
                 history_entry->set_url(url);
                 history_entry->set_document_state(document_state);
+
+                // AD-HOC: Tell the UI that we started loading. The pending entry is the spec-created entry whose
+                //         placement and step the UI-owned traversal queue will decide; the UI must not invent a
+                //         second document-state identity for the same navigation.
+                if (is_top_level_navigation) {
+                    active_browsing_context()->page().client().page_did_start_loading(
+                        navigation_id, url, create_pending_session_history_entry_descriptor(*history_entry), false, history_handling);
+                }
 
                 // 7. Let navigationParams be null.
                 NavigationParamsVariant navigation_params = LocalNavigable::NullOrError {};
@@ -3734,10 +3737,13 @@ static Optional<int> finalize_a_cross_document_navigation_at_queued_position(GC:
 void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete, Optional<SessionHistoryEntryDescriptor> entry_to_restore)
 {
     auto traversable = navigable->traversable_navigable();
+    auto pending_document_state_id = entry_to_restore.has_value()
+        ? entry_to_restore->document_state.id
+        : history_entry->document_state()->cross_process_id();
     traversable->request_history_operation(
         history_handling == HistoryHandlingBehavior::Replace
-            ? HistoryOperationParameters { ReplaceHistoryOperationParameters { .navigable_id = navigable->id(), .user_involvement = user_involvement } }
-            : HistoryOperationParameters { PushHistoryOperationParameters { .navigable_id = navigable->id(), .user_involvement = user_involvement } },
+            ? HistoryOperationParameters { ReplaceHistoryOperationParameters { .navigable_id = navigable->id(), .pending_document_state_id = pending_document_state_id, .user_involvement = user_involvement } }
+            : HistoryOperationParameters { PushHistoryOperationParameters { .navigable_id = navigable->id(), .pending_document_state_id = pending_document_state_id, .user_involvement = user_involvement } },
         {
             .pending_document = pending_document,
             .expected_ongoing_navigation_navigable = navigable,

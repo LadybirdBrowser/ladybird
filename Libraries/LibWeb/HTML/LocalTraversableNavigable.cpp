@@ -1079,7 +1079,7 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
                 || target_entry->document_state()->reload_pending());
         if (needs_population) {
             if (target_entry->document_state()->reload_pending() && navigable->is_top_level_traversable())
-                navigable->page().client().page_did_start_loading({}, target_entry->url(), Empty {}, false);
+                navigable->page().client().page_did_start_loading({}, target_entry->url(), {}, false);
 
             // FIXME: 1. Let navTimingType be "back_forward" if targetEntry's document is null; otherwise "reload".
 

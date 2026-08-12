@@ -20,11 +20,13 @@ namespace Web {
 
 struct PushHistoryOperationParameters {
     HTML::CrossProcessId navigable_id;
+    HTML::CrossProcessId pending_document_state_id;
     HTML::UserNavigationInvolvement user_involvement;
 };
 
 struct ReplaceHistoryOperationParameters {
     HTML::CrossProcessId navigable_id;
+    HTML::CrossProcessId pending_document_state_id;
     HTML::UserNavigationInvolvement user_involvement;
 };
 

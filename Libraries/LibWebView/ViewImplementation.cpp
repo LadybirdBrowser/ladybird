@@ -1947,13 +1947,13 @@ void ViewImplementation::cancel_all_native_geolocation_requests()
         Application::the().stop_watching_geolocation_position(watch.value);
 }
 
-void ViewImplementation::did_start_navigation(URL::URL const& url, Web::HTML::DocumentResource document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling)
+void ViewImplementation::did_start_navigation(URL::URL const& url, Optional<Web::HTML::PendingSessionHistoryEntryDescriptor> pending_history_entry, bool is_history_load, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     set_loading_state(true);
     if (m_should_suppress_history_for_next_load || m_should_suppress_history_for_current_load)
         return;
 
-    auto result = m_top_level_traversable.did_start_navigation(url, move(document_resource), is_redirect, history_handling, m_is_showing_crash_page);
+    auto result = m_top_level_traversable.did_start_navigation(url, move(pending_history_entry), is_history_load, is_redirect, history_handling, m_is_showing_crash_page);
     if (result.did_clear_crash_page)
         m_is_showing_crash_page = false;
     if (result.should_update_webdriver_pending_navigation_url && m_webdriver_pending_navigation_url.has_value())
