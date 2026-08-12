@@ -220,7 +220,10 @@ ProcessSwapNavigationPreparation CanonicalTraversable::prepare_for_process_swap_
 
     m_pending_web_content_session_history_seed.step_after_loading_top_level_entry = m_session_history.current_step_to_restore_after_loading_top_level_entry();
 
-    result.should_seed_web_content_before_load = can_seed_replacement_process_before_load(m_session_history, m_pending_web_content_session_history_seed);
+    if (can_seed_replacement_process_before_load(m_session_history, m_pending_web_content_session_history_seed)) {
+        result.history_load = prepare_history_load();
+        VERIFY(result.history_load.has_value());
+    }
     return result;
 }
 
@@ -981,6 +984,38 @@ void CanonicalTraversable::did_send_web_content_session_history_seed()
 {
     m_pending_web_content_session_history_seed.waiting_for_ack = true;
     m_pending_web_content_session_history_seed.should_send_entries = false;
+}
+
+Optional<Web::HistoryLoad> CanonicalTraversable::prepare_history_load()
+{
+    auto current_top_level_entry_index = m_session_history.current_top_level_entry_index();
+    auto current_step = m_session_history.current_step();
+    if (!current_top_level_entry_index.has_value() || !current_step.has_value())
+        return {};
+
+    auto entries = m_session_history.entries();
+    if (entries.is_empty())
+        return {};
+
+    auto history_object_length_and_index = m_session_history.get_the_history_object_length_and_index(*current_step);
+    auto entries_for_navigation_api = m_session_history.get_session_history_entries_for_the_navigation_api(*this, *current_step);
+    if (!history_object_length_and_index.has_value() || !entries_for_navigation_api.has_value())
+        return {};
+
+    auto target_entry = entries[*current_top_level_entry_index];
+    m_session_history.did_install_web_content_history_projection(*current_top_level_entry_index, *current_step);
+    m_pending_web_content_session_history_seed.clear();
+
+    return Web::HistoryLoad {
+        .load_id = m_next_history_load_id++,
+        .navigable_id = id(),
+        .target_entry = move(target_entry),
+        .global_history_length = history_object_length_and_index->script_history_length,
+        .global_history_index = history_object_length_and_index->script_history_index,
+        .entries_for_navigation_api = entries_for_navigation_api.release_value(),
+        .transitional_top_level_entries = move(entries),
+        .transitional_current_top_level_entry_index = *current_top_level_entry_index,
+    };
 }
 
 void CanonicalTraversable::abandon_after_web_content_process_crash()

@@ -520,6 +520,37 @@ bool LocalTraversableNavigable::replace_top_level_session_history_entries_from_u
     return true;
 }
 
+static Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_navigation_api_from_ui_process(LocalNavigable&, Vector<SessionHistoryEntryDescriptor>);
+
+void LocalTraversableNavigable::install_history_for_load(Web::HistoryLoad load)
+{
+    VERIFY(load.load_id != 0);
+    VERIFY(load.navigable_id == id());
+    VERIFY(!load.transitional_top_level_entries.is_empty());
+    VERIFY(load.transitional_current_top_level_entry_index < load.transitional_top_level_entries.size());
+
+    auto document = active_document();
+    VERIFY(document);
+    VERIFY(document->is_initial_about_blank());
+
+    auto current_entry_index = load.transitional_current_top_level_entry_index;
+    auto const& projected_target = load.transitional_top_level_entries[current_entry_index];
+    VERIFY(session_history_entry_descriptors_match(load.target_entry, projected_target));
+    VERIFY(replace_top_level_session_history_entries_from_ui_process(
+        move(load.transitional_top_level_entries), current_entry_index, false,
+        load.target_entry.step));
+
+    document->history()->m_length = load.global_history_length;
+    document->history()->m_index = load.global_history_index;
+
+    auto entries_for_navigation_api = session_history_entries_for_navigation_api_from_ui_process(
+        *this, move(load.entries_for_navigation_api));
+    auto active_entry = active_session_history_entry();
+    VERIFY(active_entry);
+    active_window()->navigation()->initialize_the_navigation_api_entries_for_reconstructed_session_history(
+        entries_for_navigation_api, *active_entry);
+}
+
 void LocalTraversableNavigable::restore_session_history_entry_from_ui_process(LocalNavigable& navigable, SessionHistoryEntry& entry, SessionHistoryEntryDescriptor entry_descriptor)
 {
     VERIFY(!entry_descriptor.document_state.is_provisional);

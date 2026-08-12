@@ -171,7 +171,7 @@ struct WebContentSessionHistorySeed {
 
 struct ProcessSwapNavigationPreparation {
     bool should_update_navigation_action_state { false };
-    bool should_seed_web_content_before_load { false };
+    Optional<Web::HistoryLoad> history_load;
 };
 
 struct PageLoadPreparation {
@@ -279,6 +279,7 @@ public:
     HistoryStepCancelationCheckResult did_check_if_traverse_history_step_is_canceled(u64 request_id, i32 step, Web::HTML::HistoryStepResult);
     Optional<WebContentSessionHistorySeed> prepare_web_content_session_history_seed();
     void did_send_web_content_session_history_seed();
+    Optional<Web::HistoryLoad> prepare_history_load();
     void abandon_after_web_content_process_crash();
     void recover_from_web_content_process_crash(OnHistoryOperationComplete);
     void reset_session_history_for_testing();
@@ -322,6 +323,7 @@ private:
     SessionHistoryTraversalQueue m_history_traversal_queue;
     TraversableApplyHistoryStepState m_apply_history_step_traversable_state;
     u64 m_next_history_operation_id { 1 };
+    u64 m_next_history_load_id { 1 };
     HashMap<u64, NonnullOwnPtr<HistoryOperation>> m_history_operations;
     Web::HTML::VisibilityState m_system_visibility_state { Web::HTML::VisibilityState::Hidden };
     bool m_current_web_content_session_history_matches_mirror { false };

@@ -90,6 +90,20 @@ struct FlushSessionHistoryTraversalQueueOperationParameters {
     HTML::CrossProcessId traversable_id;
 };
 
+struct HistoryLoad {
+    u64 load_id { 0 };
+    HTML::CrossProcessId navigable_id;
+    HTML::SessionHistoryEntryDescriptor target_entry;
+    u64 global_history_length { 0 };
+    u64 global_history_index { 0 };
+    Vector<HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api;
+
+    // This complete projection remains transitional while WebContent still
+    // has full-list consumers.
+    Vector<HTML::SessionHistoryEntryDescriptor> transitional_top_level_entries;
+    size_t transitional_current_top_level_entry_index { 0 };
+};
+
 using HistoryOperationParameters = Variant<
     PushHistoryOperationParameters,
     ReplaceHistoryOperationParameters,
@@ -173,5 +187,10 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::FlushSessionHistoryTraversalQueueOperationParameters const&);
 template<>
 WEB_API ErrorOr<Web::FlushSessionHistoryTraversalQueueOperationParameters> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::HistoryLoad const&);
+template<>
+WEB_API ErrorOr<Web::HistoryLoad> decode(Decoder&);
 
 }

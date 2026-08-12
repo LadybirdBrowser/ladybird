@@ -214,11 +214,15 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
     m_loading_url = url;
     m_last_stopped_load_url.clear();
     set_url(url);
-    if (preparation.should_seed_web_content_before_load)
-        seed_web_content_session_history_from_ui_process();
-    auto web_content_history_handling = preparation.should_seed_web_content_before_load ? Web::Bindings::NavigationHistoryBehavior::Replace : history_handling;
     dump_session_history("process-swap-load"sv);
-    client().async_load_url_with_document_resource(page_id(), url, document_resource, web_content_history_handling, move(source_snapshot));
+    if (preparation.history_load.has_value()) {
+        client().async_load_url_with_history(page_id(), url, document_resource,
+            Web::Bindings::NavigationHistoryBehavior::Replace, move(source_snapshot),
+            preparation.history_load.release_value());
+    } else {
+        client().async_load_url_with_document_resource(page_id(), url, document_resource,
+            history_handling, move(source_snapshot));
+    }
     dump_session_history("after-process-swap-load"sv);
 }
 

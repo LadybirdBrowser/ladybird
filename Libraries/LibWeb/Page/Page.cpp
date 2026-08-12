@@ -153,6 +153,22 @@ void Page::load(URL::URL const& url, HTML::DocumentResource document_resource,
     });
 }
 
+void Page::load_with_history(URL::URL const& url, HTML::DocumentResource document_resource,
+    Bindings::NavigationHistoryBehavior history_handling,
+    Optional<HTML::NavigationSourceSnapshot> source_snapshot, HistoryLoad history_load)
+{
+    m_pending_history_navigation_restoration.clear();
+    top_level_traversable()->install_history_for_load(move(history_load));
+    (void)top_level_traversable()->navigate({
+        .url = url,
+        .source_document = *top_level_traversable()->active_document(),
+        .document_resource = move(document_resource),
+        .history_handling = history_handling,
+        .user_involvement = HTML::UserNavigationInvolvement::BrowserUI,
+        .cross_process_source_snapshot = move(source_snapshot),
+    });
+}
+
 void Page::prepare_to_restore_persisted_state_after_history_navigation(URL::URL const& url, HTML::SessionHistoryEntryScrollPositionData scroll_position_data)
 {
     m_pending_history_navigation_restoration = PendingHistoryNavigationRestoration {

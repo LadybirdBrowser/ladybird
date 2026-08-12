@@ -125,6 +125,9 @@ public:
     void load(URL::URL const&, HTML::DocumentResource,
         Bindings::NavigationHistoryBehavior = Bindings::NavigationHistoryBehavior::Auto,
         Optional<HTML::NavigationSourceSnapshot> = {});
+    void load_with_history(URL::URL const&, HTML::DocumentResource,
+        Bindings::NavigationHistoryBehavior,
+        Optional<HTML::NavigationSourceSnapshot>, HistoryLoad);
     void prepare_to_restore_persisted_state_after_history_navigation(URL::URL const&, HTML::SessionHistoryEntryScrollPositionData);
     void restore_persisted_state_after_history_navigation(URL::URL const&);
 
