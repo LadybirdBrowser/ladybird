@@ -210,12 +210,14 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
     m_should_suppress_history_for_next_load = false;
     set_loading_state(true);
     m_is_waiting_for_navigation_start = true;
+    m_loading_history_load_id.clear();
     m_loading_navigation_id.clear();
     m_loading_url = url;
     m_last_stopped_load_url.clear();
     set_url(url);
     dump_session_history("process-swap-load"sv);
     if (preparation.history_load.has_value()) {
+        m_loading_history_load_id = preparation.history_load->load_id;
         client().async_load_url_with_history(page_id(), url, document_resource,
             Web::Bindings::NavigationHistoryBehavior::Replace, move(source_snapshot),
             preparation.history_load.release_value());
@@ -315,6 +317,7 @@ void ViewImplementation::load(URL::URL const& url, Web::Bindings::NavigationHist
     m_should_suppress_history_for_current_load = false;
     m_should_suppress_history_for_next_load = false;
     m_is_waiting_for_navigation_start = true;
+    m_loading_history_load_id.clear();
     m_loading_navigation_id.clear();
     m_loading_url = url;
     m_last_stopped_load_url.clear();
@@ -400,6 +403,7 @@ void ViewImplementation::load_html(StringView html)
 {
     set_loading_state(true);
     m_is_waiting_for_navigation_start = false;
+    m_loading_history_load_id.clear();
     m_loading_navigation_id.clear();
     m_loading_url.clear();
     m_last_stopped_load_url.clear();
@@ -414,6 +418,7 @@ void ViewImplementation::load_crash_page_html(StringView html, URL::URL const& c
 {
     set_loading_state(true);
     m_is_waiting_for_navigation_start = false;
+    m_loading_history_load_id.clear();
     m_loading_navigation_id.clear();
     m_loading_url.clear();
     m_last_stopped_load_url.clear();
@@ -450,6 +455,7 @@ void ViewImplementation::reload()
 
     set_loading_state(true);
     m_is_waiting_for_navigation_start = true;
+    m_loading_history_load_id.clear();
     m_loading_navigation_id.clear();
     if (m_is_showing_crash_page) {
         m_is_showing_crash_page = false;
@@ -475,6 +481,7 @@ void ViewImplementation::stop_loading()
     m_last_stopped_load_url = m_loading_url;
     set_loading_state(false);
     m_is_waiting_for_navigation_start = false;
+    m_loading_history_load_id.clear();
     m_loading_navigation_id.clear();
     client().async_stop_loading(page_id());
 }
@@ -2057,6 +2064,7 @@ void ViewImplementation::did_start_webdriver_navigation(Badge<WebContentClient>,
 {
     set_loading_state(true);
     m_is_waiting_for_navigation_start = true;
+    m_loading_history_load_id.clear();
     m_loading_navigation_id.clear();
     m_webdriver_pending_navigation_url = url;
     m_webdriver_pending_navigation_completes_with_session_history_update = false;
@@ -2350,6 +2358,7 @@ void ViewImplementation::apply_history_step_cancelation_check_result(u64 request
         //     bookkeeping before restoring the pending navigation.
         set_loading_state(false);
         m_is_waiting_for_navigation_start = false;
+        m_loading_history_load_id.clear();
         m_loading_navigation_id.clear();
         m_loading_url.clear();
         auto restored = restore_pending_session_history_navigation(check_result.dump_reason);
@@ -2577,6 +2586,7 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
 {
     set_loading_state(false);
     m_is_waiting_for_navigation_start = false;
+    m_loading_history_load_id.clear();
     m_loading_navigation_id.clear();
     auto const headless_mode = Application::browser_options().headless_mode.has_value();
 

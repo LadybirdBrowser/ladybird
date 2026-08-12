@@ -646,6 +646,7 @@ protected:
     bool m_can_redo { false };
     bool m_is_loading { false };
     bool m_is_waiting_for_navigation_start { false };
+    Optional<u64> m_loading_history_load_id;
     Optional<Utf16String> m_loading_navigation_id;
     Optional<URL::URL> m_loading_url;
     Optional<URL::URL> m_last_stopped_load_url;

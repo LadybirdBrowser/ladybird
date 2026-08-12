@@ -606,7 +606,10 @@ void WebContentClient::maybe_record_history_visit_for_current_load(u64 page_id, 
     m_history_recorded_urls_for_current_load.set(page_id, normalized_url.release_value());
 }
 
-void WebContentClient::did_start_loading(u64 page_id, Optional<Utf16String> navigation_id, URL::URL url, Web::HTML::DocumentResource document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling)
+void WebContentClient::did_start_loading(u64 page_id, Optional<u64> history_load_id,
+    Optional<Utf16String> navigation_id, URL::URL url,
+    Web::HTML::DocumentResource document_resource, bool is_redirect,
+    Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     if (auto process = WebView::Application::the().find_process(m_process_handle.pid); process.has_value())
         process->set_title(OptionalNone {});
@@ -614,6 +617,8 @@ void WebContentClient::did_start_loading(u64 page_id, Optional<Utf16String> navi
     m_history_recorded_urls_for_current_load.remove(page_id);
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (history_load_id != view->m_loading_history_load_id)
+            return;
         if (is_redirect) {
             view->m_history_visit_transition_for_current_load = HistoryVisitTransition::Redirect;
         } else {
@@ -642,14 +647,18 @@ void WebContentClient::did_start_loading(u64 page_id, Optional<Utf16String> navi
     }
 }
 
-void WebContentClient::did_cancel_loading(u64 page_id, Optional<Utf16String> navigation_id, URL::URL url)
+void WebContentClient::did_cancel_loading(u64 page_id, Optional<u64> history_load_id,
+    Optional<Utf16String> navigation_id, URL::URL url)
 {
     m_history_recorded_urls_for_current_load.remove(page_id);
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (history_load_id != view->m_loading_history_load_id)
+            return;
         if (!view->m_is_waiting_for_navigation_start && navigation_id != view->m_loading_navigation_id)
             return;
         view->m_is_waiting_for_navigation_start = false;
+        view->m_loading_history_load_id.clear();
         view->m_loading_navigation_id.clear();
         view->m_loading_url.clear();
         view->did_cancel_navigation(url);
@@ -731,7 +740,8 @@ void WebContentClient::did_fail_download(u64 page_id, u64 download_id, String er
     Application::the().file_downloader().fail_download(download_id, move(error));
 }
 
-void WebContentClient::did_finish_loading(u64 page_id, Optional<Utf16String> navigation_id, URL::URL url)
+void WebContentClient::did_finish_loading(u64 page_id, Optional<u64> history_load_id,
+    Optional<Utf16String> navigation_id, URL::URL url)
 {
     if (url.scheme() == "about"sv && url.paths().size() == 1) {
         if (auto web_ui = WebUI::create(*this, page_id, url.paths().first()); web_ui.is_error())
@@ -741,9 +751,12 @@ void WebContentClient::did_finish_loading(u64 page_id, Optional<Utf16String> nav
     }
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (history_load_id != view->m_loading_history_load_id)
+            return;
         if (view->m_is_waiting_for_navigation_start || navigation_id != view->m_loading_navigation_id)
             return;
 
+        view->m_loading_history_load_id.clear();
         view->m_loading_navigation_id.clear();
         view->m_loading_url.clear();
         auto client_url = url;

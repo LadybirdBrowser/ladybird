@@ -128,6 +128,8 @@ public:
     void load_with_history(URL::URL const&, HTML::DocumentResource,
         Bindings::NavigationHistoryBehavior,
         Optional<HTML::NavigationSourceSnapshot>, HistoryLoad);
+    Optional<u64> history_load_id_for_navigation_start(Optional<Utf16String> const&);
+    Optional<u64> take_history_load_id_for_navigation_completion(Optional<Utf16String> const&);
     void prepare_to_restore_persisted_state_after_history_navigation(URL::URL const&, HTML::SessionHistoryEntryScrollPositionData);
     void restore_persisted_state_after_history_navigation(URL::URL const&);
 
@@ -380,6 +382,12 @@ private:
         HTML::SessionHistoryEntryScrollPositionData scroll_position_data;
     };
     Optional<PendingHistoryNavigationRestoration> m_pending_history_navigation_restoration;
+    struct ActiveHistoryLoad {
+        u64 id { 0 };
+        bool navigation_started { false };
+        Optional<Utf16String> navigation_id;
+    };
+    Optional<ActiveHistoryLoad> m_active_history_load;
     u64 m_wheel_event_listener_state_generation { 0 };
     bool m_needs_beforeunload_check { true };
 
