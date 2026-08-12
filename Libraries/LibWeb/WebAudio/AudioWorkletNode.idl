@@ -1,0 +1,17 @@
+// https://webaudio.github.io/web-audio-api/#AudioWorkletNode
+[Exposed=Window, SecureContext]
+interface AudioWorkletNode : AudioNode {
+    constructor(BaseAudioContext context, DOMString name, optional AudioWorkletNodeOptions options = {});
+    readonly attribute AudioParamMap parameters;
+    readonly attribute MessagePort port;
+    attribute EventHandler onprocessorerror;
+};
+
+// https://webaudio.github.io/web-audio-api/#AudioWorkletNodeOptions
+dictionary AudioWorkletNodeOptions : AudioNodeOptions {
+    unsigned long numberOfInputs = 1;
+    unsigned long numberOfOutputs = 1;
+    sequence<unsigned long> outputChannelCount;
+    record<DOMString, double> parameterData;
+    object processorOptions;
+};

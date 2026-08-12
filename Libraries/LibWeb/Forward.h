@@ -1331,6 +1331,7 @@ namespace Web::WebAudio {
 class AudioBuffer;
 class AudioWorklet;
 class AudioWorkletGlobalScope;
+class AudioWorkletNode;
 class AudioWorkletProcessor;
 class AudioBufferSourceNode;
 class AudioContext;
