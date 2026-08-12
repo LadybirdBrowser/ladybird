@@ -1971,12 +1971,12 @@ pub unsafe extern "C" fn style_engine_style_record_payloads(engine: *const c_voi
         let payloads = engine.style_record_payloads(style_record);
         let result = payloads.map_or(std::ptr::null(), |payloads| payloads.as_ptr().cast());
         let record_response = engine.recording_first_response(0, style_record);
+        if !record_response {
+            return result;
+        }
         engine.record_boundary_call(EventKind::StyleRecordPayloads, |payload| {
             payload.write_u64(style_record);
             payload.write_bool(record_response);
-            if !record_response {
-                return;
-            }
             payload.write_bool(payloads.is_some());
             let Some(style_payloads) = payloads else {
                 return;
@@ -2041,12 +2041,12 @@ pub unsafe extern "C" fn style_engine_style_record_view(
             },
         };
         let record_response = engine.recording_first_response(1, style_record);
+        if !record_response {
+            return result;
+        }
         engine.record_boundary_call(EventKind::StyleRecordView, |payload| {
             payload.write_u64(style_record);
             payload.write_bool(record_response);
-            if !record_response {
-                return;
-            }
             payload.write_bool(result.present);
             let Some(view) = view else {
                 return;

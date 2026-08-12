@@ -99,7 +99,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         let mut inheritance_dependent_properties = Vec::new();
         let mut inheritance_dependent_values = Vec::new();
         let mut memory_pressure = FfiMemoryPressureSnapshot::default();
-        while let Some(mut event) = reader.read_event_borrowed()? {
+        loop {
+            if !options.assert_digests {
+                event_count += reader.skip_redundant_style_record_reads();
+            }
+            let Some(mut event) = reader.read_event_borrowed()? else {
+                break;
+            };
             event_count += 1;
             match event.kind {
                 kind if replay_generated_boundary_event(kind, &mut event.payload, &live_engines)? => {}
@@ -805,9 +811,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         records[index] = Some(response);
                     } else if !options.assert_digests {
                         // The recorder omits repeat responses because style records are immutable.
-                        // In fast mode, replay the accessor call and trust the first comparison;
-                        // assert mode still compares every repeat against the stored response.
-                        let _ = unsafe { bridge::style_engine_style_record_payloads(engine, style_record) };
+                        // Current captures omit this event entirely. Old captures keep the marker;
+                        // fast mode trusts the first comparison, while assert mode checks repeats.
                         continue;
                     }
                     let expected = records
@@ -851,9 +856,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         records[index] = Some(response);
                     } else if !options.assert_digests {
                         // The recorder omits repeat responses because style records are immutable.
-                        // In fast mode, replay the accessor call and trust the first comparison;
-                        // assert mode still compares every repeat against the stored response.
-                        let _ = unsafe { bridge::style_engine_style_record_view(engine, style_record) };
+                        // Current captures omit this event entirely. Old captures keep the marker;
+                        // fast mode trusts the first comparison, while assert mode checks repeats.
                         continue;
                     }
                     let expected = records
