@@ -83,7 +83,8 @@ public:
         Optional<Utf16String> expected_ongoing_navigation_id {};
         GC::Ptr<SourceSnapshotParams> source_snapshot_params {};
         GC::Ptr<LocalNavigable> initiator_to_check {};
-        Optional<CrossProcessId> finalized_navigable_id {};
+        Optional<CrossProcessId> local_target_navigable_id {};
+        RefPtr<SessionHistoryEntry> local_target_entry {};
         Optional<LocalNavigable::NavigationAPIAbortBehavior> navigation_api_abort_behavior {};
         Optional<int> claimed_step {};
         GC::Ptr<OnHistoryOperationPreSteps> pre_steps {};
@@ -99,7 +100,7 @@ public:
     void handle_ui_history_operation_started(u64 operation_id, Optional<u64> initiation_id, GC::Ref<OnHistoryOperationReady>);
     bool run_ui_initiator_sandboxing_check_job(CrossProcessId initiator_to_check_id, Vector<CrossProcessId> const& navigables, u64 initiation_id);
     void run_ui_history_step_unload_cancelation_job(u64 operation_id, int target_step, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>>);
-    void run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, int target_step, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, bool synchronous_navigation, Optional<u64> initiation_id, GC::Ref<OnChangingNavigableHistoryStepJobComplete>);
+    void run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, bool synchronous_navigation, LocalNavigable::NavigationAPIAbortBehavior, Optional<u64> initiation_id, GC::Ref<OnChangingNavigableHistoryStepJobComplete>);
     void apply_ui_changing_navigable_continuation(u64 operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, GC::Ref<GC::Function<void()>>);
     void update_nonchanging_navigable_history_step_state(CrossProcessId navigable_id, HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);
     void complete_ui_history_operation(u64 operation_id, HistoryStepResult, Optional<i32> committed_step, Optional<u64> initiation_id);
@@ -160,7 +161,7 @@ private:
     // One iteration of "12. For each navigable of changingNavigables, queue a global task ...".
     struct ChangingNavigableHistoryStepJob {
         CrossProcessId navigable_id;
-        int target_step { 0 };
+        NonnullRefPtr<SessionHistoryEntry> target_entry;
         UserNavigationInvolvement user_involvement;
         Optional<Bindings::NavigationType> navigation_type;
         SynchronousNavigation synchronous_navigation;
@@ -217,7 +218,6 @@ private:
         HashTable<CrossProcessId> claimed_navigables_awaiting_continuation;
         HashMap<CrossProcessId, GC::Ref<ChangingNavigableContinuationState>> changing_navigable_continuations;
     };
-    LocalNavigable::NavigationAPIAbortBehavior resolve_ui_history_operation_abort_behavior(UIHistoryOperationState&, Optional<Bindings::NavigationType>, int target_step);
     HashMap<u64, UIHistoryOperationState> m_ui_history_operations;
     u64 m_next_history_initiation_id { 1 };
     HashMap<u64, HistoryOperationState> m_history_operation_states;
