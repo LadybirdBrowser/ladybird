@@ -1649,7 +1649,7 @@ fn execute_formatting_context_run(
     let root_used = std::rc::Rc::new(root_cells.materialize_record());
     let run = FormattingContextRun {
         purpose,
-        records: std::rc::Rc::new(RunRecords::new(box_, root_used)),
+        records: std::rc::Rc::new(RunRecords::new(callbacks.arena, box_, root_used)),
         box_,
         layout_mode,
         callbacks,
@@ -2039,7 +2039,7 @@ pub unsafe extern "C" fn rust_layout_run_root_layout(
             percentage_basis_block_size: Some(viewport_block_size),
             ..crate::layout::ContainingBlockConstraints::default()
         };
-        let entry_records = std::rc::Rc::new(RunRecords::new_unrooted(root));
+        let entry_records = std::rc::Rc::new(RunRecords::new_unrooted(callbacks.arena, root));
         let viewport_used = entry_records.create_used_values(&callbacks, root, root_constraints);
         let entry_fragments = std::rc::Rc::new(RunFragmentBuilder::new_entry_accumulator(root));
         let entry_run = FormattingContextRun {
@@ -2142,7 +2142,7 @@ pub unsafe extern "C" fn rust_layout_compute_subtree_layout(
         let callbacks = unsafe { *callbacks };
         let sink = unsafe { &*sink };
 
-        let entry_records = std::rc::Rc::new(RunRecords::new_unrooted(root));
+        let entry_records = std::rc::Rc::new(RunRecords::new_unrooted(callbacks.arena, root));
         let root_used = used_values_from_paintable(&callbacks, root, paintable_to_replace)
             .expect("partial relayout root must have committed geometry");
         entry_records.register(root, root_used.clone());
@@ -2242,7 +2242,7 @@ pub unsafe extern "C" fn rust_layout_replay_saved_abspos_layout(
         let containing_block = callbacks.containing_block(box_);
         assert!(!containing_block.is_invalid());
         let entry_fragments = std::rc::Rc::new(RunFragmentBuilder::new_entry_accumulator(containing_block));
-        let entry_records = std::rc::Rc::new(RunRecords::new_unrooted(containing_block));
+        let entry_records = std::rc::Rc::new(RunRecords::new_unrooted(callbacks.arena, containing_block));
         let run = crate::layout::FormattingContextRun {
             purpose: LayoutPurpose::Commit,
             records: entry_records.clone(),

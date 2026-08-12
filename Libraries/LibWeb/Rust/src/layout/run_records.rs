@@ -4,33 +4,57 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+/// The per-run registry of UsedValues records, backed by the slot-indexed side
+/// table in the layout node arena. Registering a slot that a surrounding run
+/// owns displaces that run's entry, and dropping the RunRecords restores it.
+/// That is sound only because runs strictly nest on the call stack, so an
+/// Rc<RunRecords> must never escape its run.
 pub(crate) struct RunRecords {
     root: Node,
-    map: RefCell<HashMap<u32, std::rc::Rc<UsedValues>>>,
+    arena: *mut c_void,
+    nonce: u64,
+    undo: RefCell<Vec<UndoEntry>>,
+}
+
+struct UndoEntry {
+    slot_index: u32,
+    previous: Option<(u64, std::rc::Rc<UsedValues>)>,
 }
 
 impl RunRecords {
-    pub(crate) fn new(root: Node, root_used: std::rc::Rc<UsedValues>) -> Self {
-        let records = Self::new_unrooted(root);
+    pub(crate) fn new(arena: *mut c_void, root: Node, root_used: std::rc::Rc<UsedValues>) -> Self {
+        let records = Self::new_unrooted(arena, root);
         records.register(root, root_used);
         records
     }
 
-    pub(crate) fn new_unrooted(root: Node) -> Self {
+    pub(crate) fn new_unrooted(arena: *mut c_void, root: Node) -> Self {
+        // SAFETY: Layout passes borrow the document's arena synchronously, and
+        // the document keeps it alive for the duration of the pass.
+        let nonce = unsafe { LayoutNodeArena::from_handle(arena) }.allocate_run_nonce();
         Self {
             root,
-            map: RefCell::new(HashMap::new()),
+            arena,
+            nonce,
+            undo: RefCell::new(Vec::new()),
         }
     }
 
+    fn arena(&self) -> &LayoutNodeArena {
+        // SAFETY: See new_unrooted().
+        unsafe { LayoutNodeArena::from_handle(self.arena) }
+    }
+
     pub(crate) fn register(&self, node: Node, used: std::rc::Rc<UsedValues>) {
-        let previous = self.map.borrow_mut().insert(node.slot_index(), used);
+        let slot_index = node.slot_index();
+        let previous = self.arena().replace_run_record(slot_index, self.nonce, used);
         assert!(
-            previous.is_none(),
+            previous.as_ref().is_none_or(|(nonce, _)| *nonce != self.nonce),
             "slot {} registered twice in the run rooted at slot {}",
-            node.slot_index(),
+            slot_index,
             self.root.slot_index()
         );
+        self.undo.borrow_mut().push(UndoEntry { slot_index, previous });
     }
 
     pub(crate) fn create_used_values(
@@ -57,6 +81,16 @@ impl RunRecords {
     }
 
     pub(crate) fn used_values_if_owned(&self, node: Node) -> Option<std::rc::Rc<UsedValues>> {
-        self.map.borrow().get(&node.slot_index()).cloned()
+        self.arena().run_record(node.slot_index(), self.nonce)
+    }
+}
+
+impl Drop for RunRecords {
+    fn drop(&mut self) {
+        let undo = std::mem::take(self.undo.get_mut());
+        let arena = self.arena();
+        for entry in undo.into_iter().rev() {
+            arena.restore_run_record(entry.slot_index, self.nonce, entry.previous);
+        }
     }
 }
