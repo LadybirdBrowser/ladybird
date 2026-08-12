@@ -1,0 +1,1 @@
+ended while not rendered, currentTime === duration: true
