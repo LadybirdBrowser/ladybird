@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<style>
+.grid {
+    display: grid;
+    grid-template-columns: 100px 100px;
+    align-items: start;
+    background: red;
+}
+.item {
+    padding: 10px;
+    line-height: 0;
+    background: green;
+}
+.item span {
+    display: inline-block;
+    width: 45px;
+    height: 10px;
+    background: blue;
+}
+.orthogonal {
+    width: 80px;
+    writing-mode: vertical-lr;
+}
+.horizontal {
+    writing-mode: horizontal-tb;
+}
+</style>
+<div class="grid"><div></div><div class="item"><span></span><span></span></div></div>
+<div class="grid"><div></div><div class="item orthogonal"><div
+    class="horizontal"><span></span><span></span></div></div></div>
