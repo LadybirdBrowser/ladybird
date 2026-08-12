@@ -114,7 +114,7 @@ public:
     static ErrorOr<RemoteVideoEdge> create_video_edge(VideoSinkHandle, RemoteVideoSink::Delegates);
     static void attach_video_edge(VideoSinkHandle, NonnullRefPtr<RemoteVideoSink> const&);
     static RefPtr<VideoFrame> current_presented_frame(VideoSinkHandle);
-    static void release_video_edge(VideoSinkHandle);
+    static void release_video_edge(VideoSinkHandle, VideoSink const& released_sink);
 
 private:
     struct VideoTrackData {

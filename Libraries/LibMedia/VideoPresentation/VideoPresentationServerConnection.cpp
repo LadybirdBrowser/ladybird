@@ -25,7 +25,7 @@ void VideoPresentationServerConnection::die()
 {
     revoke_weak_refs();
     for (auto& entry : m_edge_states)
-        PlaybackManager::release_video_edge(entry.value.handle);
+        PlaybackManager::release_video_edge(entry.value.handle, *entry.value.pump);
     m_edge_states.clear();
 }
 
@@ -97,8 +97,9 @@ void VideoPresentationServerConnection::release_video_edge(u64 edge_id)
     if (it == m_edge_states.end())
         return;
     auto handle = it->value.handle;
+    auto pump = it->value.pump;
     m_edge_states.remove(it);
-    PlaybackManager::release_video_edge(handle);
+    PlaybackManager::release_video_edge(handle, *pump);
 }
 
 void VideoPresentationServerConnection::request_start(u64 edge_id)
