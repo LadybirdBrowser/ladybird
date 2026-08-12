@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #source { color: rgb(255, 0, 0); font-size: 16px; }
+    #destination { color: rgb(0, 128, 0); font-size: 33px; }
+</style>
+<section id="source">
+    <div id="mover">
+        <span id="lightChild">light</span>
+        <div id="host"><span id="slottedChild">slotted</span></div>
+    </div>
+</section>
+<section id="destination"></section>
+<script>
+    test(() => {
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = '<span id="shadowChild">shadow</span><slot></slot>';
+        const shadowChild = shadowRoot.getElementById("shadowChild");
+
+        getComputedStyle(lightChild).color;
+        getComputedStyle(shadowChild).color;
+        getComputedStyle(slottedChild).color;
+
+        destination.moveBefore(mover, null);
+
+        println(`light child: ${getComputedStyle(lightChild).color} ${getComputedStyle(lightChild).fontSize}`);
+        println(`shadow child: ${getComputedStyle(shadowChild).color} ${getComputedStyle(shadowChild).fontSize}`);
+        println(`slotted child: ${getComputedStyle(slottedChild).color} ${getComputedStyle(slottedChild).fontSize}`);
+    });
+</script>
