@@ -1,6 +1,7 @@
 set(TEST_SOURCES
     BenchmarkForceDarkImageFilter.cpp
     TestSiteCompatibility.cpp
+    TestAudioWorkletPipe.cpp
     TestContentBlocker.cpp
     TestControlMessageQueue.cpp
     TestCSSIDSpeed.cpp
@@ -67,6 +68,7 @@ foreach(source IN LISTS TEST_SOURCES)
 endforeach()
 
 
+target_link_libraries(TestAudioWorkletPipe PRIVATE LibCore LibThreading)
 target_link_libraries(TestContentBlocker PRIVATE LibURL)
 target_link_libraries(TestSiteCompatibility PRIVATE LibURL)
 target_link_libraries(TestControlMessageQueue PRIVATE LibSync)
