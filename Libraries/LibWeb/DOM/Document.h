@@ -604,7 +604,11 @@ public:
     // https://html.spec.whatwg.org/multipage/interaction.html#focused-area-of-the-document
     GC::Ptr<Node> focused_area() { return m_focused_area; }
     GC::Ptr<Node const> focused_area() const { return m_focused_area; }
-    void set_focused_area(GC::Ptr<Node>);
+    enum class InvalidateFocusPseudoClasses {
+        Yes,
+        No,
+    };
+    void set_focused_area(GC::Ptr<Node>, InvalidateFocusPseudoClasses = InvalidateFocusPseudoClasses::Yes);
 
     HTML::FocusTrigger last_focus_trigger() const { return m_last_focus_trigger; }
     void set_last_focus_trigger(HTML::FocusTrigger trigger) { m_last_focus_trigger = trigger; }

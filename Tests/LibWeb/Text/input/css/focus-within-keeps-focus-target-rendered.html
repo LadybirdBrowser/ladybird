@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target {
+        display: none;
+    }
+
+    #wrapper:focus-within > #target {
+        display: block;
+    }
+</style>
+<div id="wrapper" tabindex="0">
+    <div id="target" tabindex="0"></div>
+</div>
+<script>
+    test(() => {
+        wrapper.focus();
+        println(`before: active=${document.activeElement.id}, target=${getComputedStyle(target).display}`);
+
+        target.focus();
+        println(`after: active=${document.activeElement.id}, target=${getComputedStyle(target).display}`);
+
+        const container = document.createElement("div");
+        const first = document.createElement("button");
+        const second = document.createElement("button");
+        second.style.display = "none";
+        container.append(first, second);
+        document.body.append(container);
+        const style = document.createElement("style");
+        style.textContent = "div:has(:focus) > button { display: block !important; }";
+        document.head.append(style);
+
+        first.focus();
+        second.focus();
+        println(`has-focus: active=${document.activeElement === second}, visible=${getComputedStyle(second).display !== "none"}`);
+
+        container.remove();
+        style.remove();
+
+        const root = document.createElement("div");
+        const removableContainer = document.createElement("div");
+        removableContainer.tabIndex = -1;
+        const input = document.createElement("input");
+        removableContainer.append(input);
+        root.append(removableContainer);
+        document.body.append(root);
+
+        input.focus();
+        input.addEventListener("focusout", () => removableContainer.remove());
+        removableContainer.focus();
+        println(`removal: active=${document.activeElement === document.body}, root=${root.matches(":focus-within")}`);
+    });
+</script>
