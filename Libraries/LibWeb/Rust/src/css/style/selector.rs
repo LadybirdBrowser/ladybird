@@ -3869,23 +3869,8 @@ pub struct MatchEvaluationWorkspace {
     relations_by_evaluation_side: [MatchRelationCache; 3],
     sibling_geometry_by_tree_side: [RefCell<SiblingSequenceGeometry>; 2],
     type_positions_by_evaluation_side: [RefCell<SiblingPositionColumn>; 3],
-    canonical_features: RefCell<CanonicalFeatures>,
-    feature_answers_by_evaluation_side: [RefCell<FeatureAnswers>; 3],
     /// Canonical plain an+b answers shared across independently compiled selector programs.
     positional_answers_by_evaluation_side: [RefCell<PositionalAnswers>; 3],
-}
-
-define_id! { default struct CanonicalFeatureID(); }
-
-#[derive(Default)]
-struct CanonicalFeatures {
-    ids: HashMap<FeatureTest, CanonicalFeatureID>,
-    by_program: ProgramRelationColumns<CanonicalFeatureID>,
-}
-
-#[derive(Default)]
-struct FeatureAnswers {
-    columns: Column<Option<RelationAnswerColumn>>,
 }
 
 #[derive(Default)]
@@ -3926,88 +3911,6 @@ impl PositionalAnswers {
                     skip [];
                 }
             }).sum::<u64>()];
-            skip [];
-        }) as usize
-    }
-}
-
-impl CanonicalFeatures {
-    fn id_for(
-        &mut self,
-        program: SelectorProgramID,
-        node: SelectorNodeID,
-        test: FeatureTest,
-    ) -> Option<CanonicalFeatureID> {
-        if let Some(id) = self.by_program.get(program, node) {
-            return Some(*id);
-        }
-        let canonical = match test {
-            FeatureTest::Attribute(mut attribute)
-                if attribute.operator == AttributeOperator::Presence
-                    || (attribute.operator == AttributeOperator::Exact
-                        && attribute.case == AttributeCase::Sensitive
-                        && !attribute.value_atom.is_none()) =>
-            {
-                attribute.value_offset = 0;
-                attribute.value_length = 0;
-                FeatureTest::Attribute(attribute)
-            }
-            FeatureTest::Attribute(_) => return None,
-            test => test,
-        };
-        let id = match self.ids.get(&canonical).copied() {
-            Some(id) => id,
-            None => {
-                let id = CanonicalFeatureID(
-                    u32::try_from(self.ids.len()).expect("canonical feature identity space exhausted"),
-                );
-                self.ids.insert(canonical, id);
-                id
-            }
-        };
-        *self.by_program.column_mut(program, node).0 = id;
-        Some(id)
-    }
-
-    fn capacity_bytes(&self) -> usize {
-        (capacity_bytes! {
-            shallow [self.ids];
-            cached [self.by_program.capacity_bytes()];
-            nested [];
-            skip [];
-        }) as usize
-    }
-}
-
-impl FeatureAnswers {
-    fn get(&self, feature: CanonicalFeatureID, node: StyleNodeID) -> Option<bool> {
-        self.columns
-            .get(feature.0 as usize)?
-            .as_ref()?
-            .get(node.element_index()? as usize)
-    }
-
-    fn insert(&mut self, feature: CanonicalFeatureID, node: StyleNodeID, answer: bool) {
-        let index = feature.0 as usize;
-        self.columns.ensure(index);
-        self.columns[index]
-            .get_or_insert_with(RelationAnswerColumn::default)
-            .insert(
-                node.element_index().expect("only elements have local feature answers") as usize,
-                answer,
-            );
-    }
-
-    fn capacity_bytes(&self) -> usize {
-        (capacity_bytes! {
-            shallow [self.columns];
-            cached [];
-            nested [self
-                .columns
-                .iter()
-                .flatten()
-                .map(RelationAnswerColumn::capacity_bytes)
-                .sum::<u64>()];
             skip [];
         }) as usize
     }
@@ -4119,14 +4022,7 @@ impl MatchEvaluationWorkspace {
                 .iter()
                 .map(|positions| positions.borrow().capacity_bytes())
                 .sum::<u64>(),
-                self.canonical_features.borrow().capacity_bytes(),
-                self
-                .feature_answers_by_evaluation_side
-                .iter()
-                .map(|answers| answers.borrow().capacity_bytes())
-                .sum::<usize>(),
-                self
-                .positional_answers_by_evaluation_side
+                self.positional_answers_by_evaluation_side
                 .iter()
                 .map(|answers| answers.borrow().capacity_bytes())
                 .sum::<usize>(),
@@ -4146,10 +4042,6 @@ impl MatchEvaluationWorkspace {
             SiblingPositionColumn::default();
         *self.type_positions_by_evaluation_side[MatchEvaluationSide::OldFacts as usize].get_mut() =
             SiblingPositionColumn::default();
-        *self.feature_answers_by_evaluation_side[MatchEvaluationSide::OldTree as usize].get_mut() =
-            FeatureAnswers::default();
-        *self.feature_answers_by_evaluation_side[MatchEvaluationSide::OldFacts as usize].get_mut() =
-            FeatureAnswers::default();
         *self.positional_answers_by_evaluation_side[MatchEvaluationSide::OldTree as usize].get_mut() =
             PositionalAnswers::default();
         *self.positional_answers_by_evaluation_side[MatchEvaluationSide::OldFacts as usize].get_mut() =
@@ -4202,36 +4094,6 @@ impl MatchEvaluationWorkspace {
         self.positional_answers_by_evaluation_side[side as usize]
             .borrow_mut()
             .insert(position, node, answer);
-    }
-
-    fn feature_answer(
-        &self,
-        program: SelectorProgramID,
-        feature_node: SelectorNodeID,
-        test: FeatureTest,
-        node: StyleNodeID,
-        side: MatchEvaluationSide,
-    ) -> Option<(CanonicalFeatureID, Option<bool>)> {
-        let feature = self
-            .canonical_features
-            .borrow_mut()
-            .id_for(program, feature_node, test)?;
-        let answer = self.feature_answers_by_evaluation_side[side as usize]
-            .borrow()
-            .get(feature, node);
-        Some((feature, answer))
-    }
-
-    fn insert_feature_answer(
-        &self,
-        feature: CanonicalFeatureID,
-        node: StyleNodeID,
-        side: MatchEvaluationSide,
-        answer: bool,
-    ) {
-        self.feature_answers_by_evaluation_side[side as usize]
-            .borrow_mut()
-            .insert(feature, node, answer);
     }
 
     fn sibling_sequence(&self, node: StyleNodeID, side: MatchEvaluationSide) -> Option<Rc<[StyleNodeID]>> {
@@ -4619,7 +4481,7 @@ impl<'a> MatchEvaluator<'a> {
     ) -> Result<bool, Incomplete> {
         for &operand in program.operands(first, count) {
             let matches = match program.node(operand) {
-                SelectorOp::Feature(test) => self.matches_feature_node(program, operand, test, node, counters)?,
+                SelectorOp::Feature(test) => self.matches_feature_node(program, test, node, counters)?,
                 _ => self.matches_node(program, operand, node, counters)?,
             };
             if !matches {
@@ -4921,7 +4783,7 @@ impl<'a> MatchEvaluator<'a> {
             };
         }
         match program.node(id) {
-            SelectorOp::Feature(test) => self.matches_feature_node(program, id, test, node, counters),
+            SelectorOp::Feature(test) => self.matches_feature_node(program, test, node, counters),
             SelectorOp::Language { first, count } => {
                 counters.bump(Counter::StateTests);
                 let row = self.row_of(node)?;
@@ -5339,27 +5201,12 @@ impl<'a> MatchEvaluator<'a> {
     fn matches_feature_node(
         &self,
         program: &SelectorProgram,
-        feature_node: SelectorNodeID,
         test: FeatureTest,
         node: StyleNodeID,
         counters: &mut Counters,
     ) -> Result<bool, Incomplete> {
-        let cached = self
-            .match_workspace
-            .zip(self.transitive_relation_program.get())
-            .and_then(|((workspace, side), program_id)| {
-                workspace.feature_answer(program_id, feature_node, test, node, side)
-            });
-        if let Some((_, Some(answer))) = cached {
-            return Ok(answer);
-        }
         counters.bump(Counter::LocalFeatureTests);
-        let answer = self.matches_feature(program, test, node)?;
-        if let Some((feature, None)) = cached {
-            let (workspace, side) = self.match_workspace.unwrap();
-            workspace.insert_feature_answer(feature, node, side, answer);
-        }
-        Ok(answer)
+        self.matches_feature(program, test, node)
     }
 
     /// Every attribute a test names.
@@ -5829,7 +5676,7 @@ mod tests {
     }
 
     #[test]
-    fn feature_answers_are_shared_across_programs() {
+    fn feature_answers_are_recomputed_across_programs() {
         let mut fixture = Fixture::new();
         let first = single_entry(|builder| builder.push_feature(FeatureTest::Class(CLASS_ITEM)));
         let second = single_entry(|builder| builder.push_feature(FeatureTest::Class(CLASS_ITEM)));
@@ -5859,27 +5706,7 @@ mod tests {
                 )
                 .unwrap()
         );
-        assert_eq!(fixture.counters.get(Counter::LocalFeatureTests), 1);
-    }
-
-    #[test]
-    fn text_dependent_exact_attributes_are_not_canonical_features() {
-        let test = FeatureTest::Attribute(AttributeTest {
-            name: ATTR_TYPE,
-            any_namespace: false,
-            folded: ATTR_TYPE,
-            fold_in_namespace: StyleAtomID::NONE,
-            operator: AttributeOperator::Exact,
-            value_atom: VALUE_TEXT,
-            value_offset: 0,
-            value_length: 4,
-            case: AttributeCase::Insensitive,
-        });
-        assert!(
-            CanonicalFeatures::default()
-                .id_for(SelectorProgramID(7), SelectorNodeID(0), test)
-                .is_none()
-        );
+        assert_eq!(fixture.counters.get(Counter::LocalFeatureTests), 2);
     }
 
     /// A four-element document: `root > [first.item, second.item#target, third]`.
