@@ -105,15 +105,26 @@ void ApplyHistoryStep::check_if_unloading_is_canceled()
         navigables_crossing_documents.append(*m_navigable_with_finalized_entry);
     }
 
-    m_jobs.run_unload_cancelation_job(m_target_step, move(navigables_crossing_documents), m_user_involvement, [this](Web::HTML::HistoryStepResult result) {
-        if (m_completed)
-            return;
-        if (result != Web::HTML::HistoryStepResult::Applied) {
-            return_result(result);
-            return;
-        }
-        get_changing_and_nonchanging_navigables();
-    });
+    auto const* target_entry = m_session_history.get_the_target_history_entry(m_traversable_navigable, m_target_step);
+    if (!target_entry) {
+        return_result(Web::HTML::HistoryStepResult::CanceledByMissingPage);
+        return;
+    }
+
+    m_jobs.run_unload_cancelation_job({
+                                          .target_entry = *target_entry,
+                                          .navigables_crossing_documents = move(navigables_crossing_documents),
+                                          .user_involvement = m_user_involvement,
+                                      },
+        [this](Web::HTML::HistoryStepResult result) {
+            if (m_completed)
+                return;
+            if (result != Web::HTML::HistoryStepResult::Applied) {
+                return_result(result);
+                return;
+            }
+            get_changing_and_nonchanging_navigables();
+        });
 }
 
 void ApplyHistoryStep::get_changing_and_nonchanging_navigables()

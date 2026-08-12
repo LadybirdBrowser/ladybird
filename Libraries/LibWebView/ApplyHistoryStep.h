@@ -47,7 +47,12 @@ struct WEBVIEW_API ApplyHistoryStepJobs {
     // "5. If checkForCancelation is true, and the result of checking if unloading is canceled given
     //  navigablesCrossingDocuments, traversable, targetStep, and userInvolvement is not "continue", then return that
     //  result." — beforeunload runs where the documents live.
-    Function<void(i32 target_step, Vector<Web::HTML::CrossProcessId> navigables_crossing_documents, Web::HTML::UserNavigationInvolvement, Function<void(Web::HTML::HistoryStepResult)> on_complete)> run_unload_cancelation_job;
+    struct UnloadCancelationJob {
+        Web::HTML::SessionHistoryEntryDescriptor target_entry;
+        Vector<Web::HTML::CrossProcessId> navigables_crossing_documents;
+        Web::HTML::UserNavigationInvolvement user_involvement { Web::HTML::UserNavigationInvolvement::None };
+    };
+    Function<void(UnloadCancelationJob, Function<void(Web::HTML::HistoryStepResult)> on_complete)> run_unload_cancelation_job;
 
     // One iteration of "12. For each navigable of changingNavigables, queue a global task ...". The job claims its
     // navigable and either enqueues a changing navigable continuation in its own process (Ready) or reports why it

@@ -368,7 +368,7 @@ void ConnectionFromClient::run_initiator_sandboxing_check_job(u64 page_id, u64 o
     async_initiator_sandboxing_check_result(page_id, operation_id, allowed);
 }
 
-void ConnectionFromClient::run_history_step_unload_cancelation_job(u64 page_id, u64 operation_id, i32 target_step, Vector<Web::HTML::CrossProcessId> navigables_crossing_documents, Web::HTML::UserNavigationInvolvement user_involvement)
+void ConnectionFromClient::run_history_step_unload_cancelation_job(u64 page_id, u64 operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Vector<Web::HTML::CrossProcessId> navigables_crossing_documents, Web::HTML::UserNavigationInvolvement user_involvement)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -376,7 +376,7 @@ void ConnectionFromClient::run_history_step_unload_cancelation_job(u64 page_id, 
         return;
     }
 
-    page->page().top_level_traversable()->run_ui_history_step_unload_cancelation_job(operation_id, target_step, move(navigables_crossing_documents), user_involvement,
+    page->page().top_level_traversable()->run_ui_history_step_unload_cancelation_job(operation_id, move(target_entry), move(navigables_crossing_documents), user_involvement,
         GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id](Web::HTML::HistoryStepResult result) {
             async_history_step_unload_cancelation_result(page_id, operation_id, result);
         }));
