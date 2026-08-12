@@ -24,6 +24,7 @@
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/CSSSupportsRule.h>
+#include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/SelectorMatching.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -549,6 +550,10 @@ void record_element_moved(DOM::Element& element, DOM::Node* old_parent, DOM::Ele
     record_heading_levels_in_subtree(element);
 
     if (previous.parent != relations.parent) {
+        // Language and directionality resolve through the parent chain, but are published facts
+        // rather than computed values. Republish them for the moved subtree from its new place.
+        Invalidation::invalidate_style_after_language_change(element);
+
         // Moving to a different parent changes the inherited input even if the moved element
         // matches exactly the same rules. Recomputing its style lets ordinary inherited-style
         // propagation carry any change through its light and shadow subtrees.

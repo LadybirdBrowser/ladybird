@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .target { color: black; background-color: transparent }
+    .target:lang(fr) { color: rgb(1, 1, 1) }
+    .target:dir(rtl) { background-color: rgb(2, 2, 2) }
+</style>
+<div id="old-parent" lang="en" dir="ltr"><span id="target" class="target"><b id="descendant">target</b></span></div>
+<div id="new-parent" lang="fr" dir="rtl"></div>
+<script>
+    function state(element) {
+        const style = getComputedStyle(element);
+        return `${style.color} ${style.backgroundColor} fr=${element.matches(":lang(fr)")} rtl=${element.matches(":dir(rtl)")}`;
+    }
+
+    test(() => {
+        const target = document.getElementById("target");
+        const descendant = document.getElementById("descendant");
+        const newParent = document.getElementById("new-parent");
+        state(target);
+        state(descendant);
+
+        newParent.moveBefore(target, null);
+
+        println(`moved element: ${state(target)}`);
+        println(`moved descendant: ${state(descendant)}`);
+    });
+</script>

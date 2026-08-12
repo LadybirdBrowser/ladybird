@@ -1,0 +1,2 @@
+moved element: rgb(1, 1, 1) rgb(2, 2, 2) fr=true rtl=true
+moved descendant: rgb(1, 1, 1) rgba(0, 0, 0, 0) fr=true rtl=true
