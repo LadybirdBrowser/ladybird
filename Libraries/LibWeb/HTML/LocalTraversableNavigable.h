@@ -115,7 +115,7 @@ public:
     void clear_the_forward_session_history();
     void traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document = {});
     bool replace_top_level_session_history_entries_from_ui_process(Vector<SessionHistoryEntryDescriptor>, size_t current_top_level_entry_index, bool allow_reconstructing_current_entry, Optional<i32> current_step = {});
-    void install_history_for_load(Web::HistoryLoad);
+    Optional<SessionHistoryEntryDescriptor> install_history_for_load(Web::HistoryLoad);
     void restore_session_history_entry_from_ui_process(LocalNavigable&, SessionHistoryEntry&, SessionHistoryEntryDescriptor);
     bool adopt_nested_history_for_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child);
     bool route_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child, SessionHistoryEntry& initial_entry);

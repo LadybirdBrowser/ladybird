@@ -174,15 +174,6 @@ void CanonicalTraversable::prepare_to_seed_web_content_session_history_from_ui_p
     m_pending_web_content_session_history_seed.ignore_updates_until_seed = true;
 }
 
-static bool can_seed_replacement_process_before_load(TraversableSessionHistory const& session_history, PendingWebContentSessionHistorySeed const& pending_web_content_session_history_seed)
-{
-    if (!pending_web_content_session_history_seed.should_send_entries)
-        return false;
-    if (session_history.current_step_to_restore_after_loading_top_level_entry().has_value())
-        return false;
-    return true;
-}
-
 ProcessSwapNavigationPreparation CanonicalTraversable::prepare_for_process_swap_navigation(URL::URL const& url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     ProcessSwapNavigationPreparation result;
@@ -195,9 +186,7 @@ ProcessSwapNavigationPreparation CanonicalTraversable::prepare_for_process_swap_
         m_pending_session_history_navigation->web_content_restore_mode = PendingSessionHistoryNavigation::WebContentRestoreMode::RestoreFromUIProcess;
     m_current_web_content_session_history_matches_mirror = false;
     m_session_history.forget_web_content_state();
-    m_pending_web_content_session_history_seed.waiting_for_ack = false;
-    m_pending_web_content_session_history_seed.should_send_entries = true;
-    m_pending_web_content_session_history_seed.ignore_updates_until_seed = true;
+    m_pending_web_content_session_history_seed.clear();
 
     if (!ui_session_history_already_points_to_url) {
         if (m_session_history.current_entry()) {
@@ -218,12 +207,8 @@ ProcessSwapNavigationPreparation CanonicalTraversable::prepare_for_process_swap_
         result.should_update_navigation_action_state = true;
     }
 
-    m_pending_web_content_session_history_seed.step_after_loading_top_level_entry = m_session_history.current_step_to_restore_after_loading_top_level_entry();
-
-    if (can_seed_replacement_process_before_load(m_session_history, m_pending_web_content_session_history_seed)) {
-        result.history_load = prepare_history_load();
-        VERIFY(result.history_load.has_value());
-    }
+    result.history_load = prepare_history_load();
+    VERIFY(result.history_load.has_value());
     return result;
 }
 
