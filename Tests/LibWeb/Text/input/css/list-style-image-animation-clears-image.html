@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target { list-style-image: linear-gradient(green, green); }
+    #expected { list-style-image: linear-gradient(red, blue); }
+</style>
+<li id="target"></li>
+<li id="expected"></li>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const expected = document.getElementById("expected");
+        const animation = target.animate(
+            { listStyleImage: ["none", "linear-gradient(red, blue)"] },
+            { duration: 1000, fill: "both" }
+        );
+        animation.pause();
+
+        animation.currentTime = 0;
+        println(getComputedStyle(target).listStyleImage === "none" ? "start=PASS" : "start=FAIL");
+
+        animation.currentTime = 600;
+        println(getComputedStyle(target).listStyleImage === getComputedStyle(expected).listStyleImage ? "end=PASS" : "end=FAIL");
+    });
+</script>
