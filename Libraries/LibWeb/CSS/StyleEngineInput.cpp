@@ -611,6 +611,28 @@ void record_element_disconnecting(DOM::Element& element)
     if (node == no_style_node)
         return;
 
+    // Removing a slot can leave its slottables with no replacement. Publish their departure while
+    // the slot still has an identity; assignment runs after the disconnect walk and cannot name the
+    // old slot by then. If another slot takes over, the ordinary assignment path publishes the
+    // subsequent arrival.
+    if (auto* slot = as_if<HTML::HTMLSlotElement>(element)) {
+        for (auto const& slottable : slot->assigned_nodes_internal()) {
+            auto const* assigned_element = slottable.get_pointer<GC::Ref<DOM::Element>>();
+            if (!assigned_element || (*assigned_element)->style_node_id() == no_style_node)
+                continue;
+            auto old_relations = relations_of(**assigned_element, *style_engine);
+            auto new_relations = old_relations;
+            new_relations.assigned_slot = no_style_node.value();
+            style_engine->record_tree_delta({
+                .node = (*assigned_element)->style_node_id().value(),
+                .old_connected = true,
+                .new_connected = true,
+                .old_relations = old_relations,
+                .new_relations = new_relations,
+            });
+        }
+    }
+
     style_engine->cancel_deferred_element_initial_features(node);
 
     style_engine->record_tree_delta({

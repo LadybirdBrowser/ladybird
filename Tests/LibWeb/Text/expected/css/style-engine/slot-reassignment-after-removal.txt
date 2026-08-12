@@ -1,2 +1,4 @@
 assigned to remaining slot: true
 slotted style after reassignment: remaining-slot
+unassigned after slot removal: true
+style after slot removal: rgb(255, 0, 0)
