@@ -112,7 +112,7 @@ class WEBVIEW_API ApplyHistoryStep
 public:
     ApplyHistoryStep(
         TraversableSessionHistory& session_history,
-        CanonicalNavigable const& traversable_navigable,
+        CanonicalNavigable& traversable_navigable,
         SessionHistoryTraversalQueue& session_history_traversal_queue,
         TraversableApplyHistoryStepState& traversable_state,
         ApplyHistoryStepJobs jobs,
@@ -122,7 +122,7 @@ public:
         Web::HTML::UserNavigationInvolvement user_involvement,
         Optional<Web::Bindings::NavigationType> navigation_type,
         Web::HTML::SynchronousNavigation synchronous_navigation,
-        Optional<Web::HTML::CrossProcessId> navigable_with_finalized_entry,
+        Optional<Web::HTML::CrossProcessId> navigable_to_reload,
         Function<void(Web::HTML::HistoryStepResult)> on_complete);
     ~ApplyHistoryStep();
 
@@ -144,12 +144,12 @@ private:
 
     void changing_navigable_job_completed(Web::HTML::CrossProcessId, Web::HTML::ChangingNavigableHistoryStepJobDisposition);
     void return_result(Web::HTML::HistoryStepResult);
-    CanonicalNavigable const* find_navigable(Web::HTML::CrossProcessId) const;
+    CanonicalNavigable* find_navigable(Web::HTML::CrossProcessId);
 
     // The traversable navigable the algorithm runs against: its canonical session history, its navigable tree, its
     // session history traversal queue, and the apply-history-step state it shares across runs.
     TraversableSessionHistory& m_session_history;
-    CanonicalNavigable const& m_traversable_navigable;
+    CanonicalNavigable& m_traversable_navigable;
     SessionHistoryTraversalQueue& m_session_history_traversal_queue;
     TraversableApplyHistoryStepState& m_traversable_state;
     ApplyHistoryStepJobs m_jobs;
@@ -163,12 +163,9 @@ private:
     Optional<Web::Bindings::NavigationType> const m_navigation_type;
     // AD-HOC: Marks a run that applies an already-finalized synchronous same-document navigation.
     Web::HTML::SynchronousNavigation const m_synchronous_navigation;
-    // AD-HOC: The navigable whose finalized navigation this push/replace run applies. Finalization already installed
-    //         the new entry in the canonical session history, so the entry-identity comparison behind "get all
-    //         navigables whose current session history entry will change or reload" can no longer see the change;
-    //         the live navigable still displays the old document until this run's job activates the new one. This is
-    //         the same shape as the newer specification's navigableToReload argument.
-    Optional<Web::HTML::CrossProcessId> const m_navigable_with_finalized_entry;
+    // AD-HOC: A reload of an entry that is not canonical yet, or reconstruction in a replacement process, must still
+    //         repopulate that navigable even when the canonical reload-pending flag cannot express it.
+    Optional<Web::HTML::CrossProcessId> const m_navigable_to_reload;
     Function<void(Web::HTML::HistoryStepResult)> m_on_complete;
 
     // The algorithm's variables.

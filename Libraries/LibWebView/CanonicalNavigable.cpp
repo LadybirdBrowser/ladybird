@@ -157,7 +157,30 @@ void CanonicalNavigable::set_viewport(Web::DevicePixelRect viewport_rect, double
 
 void CanonicalNavigable::set_replicated_state(Web::HTML::ReplicatedNavigableState state)
 {
+    m_active_session_history_entry_identity = state.active_session_history_entry_identity;
     m_replicated_state = move(state);
+}
+
+void CanonicalNavigable::set_current_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const& entry)
+{
+    m_current_session_history_entry_identity = Web::HTML::session_history_entry_identity(entry);
+}
+
+void CanonicalNavigable::set_active_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const& entry)
+{
+    m_active_session_history_entry_identity = Web::HTML::session_history_entry_identity(entry);
+}
+
+bool CanonicalNavigable::current_session_history_entry_is(Web::HTML::SessionHistoryEntryDescriptor const& entry) const
+{
+    return m_current_session_history_entry_identity.has_value()
+        && *m_current_session_history_entry_identity == Web::HTML::session_history_entry_identity(entry);
+}
+
+bool CanonicalNavigable::active_document_is(Web::HTML::SessionHistoryEntryDescriptor const& entry) const
+{
+    return m_active_session_history_entry_identity.has_value()
+        && m_active_session_history_entry_identity->document_state_id == entry.document_state.id;
 }
 
 void CanonicalNavigable::did_commit_navigation(Web::HTML::ReplicatedNavigableState replicated_state)

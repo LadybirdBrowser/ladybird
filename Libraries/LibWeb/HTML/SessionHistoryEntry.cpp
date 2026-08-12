@@ -113,6 +113,24 @@ Optional<SessionHistoryEntryPersistedState> create_session_history_entry_persist
     };
 }
 
+SessionHistoryEntryIdentity session_history_entry_identity(SessionHistoryEntry const& entry)
+{
+    auto document_state = entry.document_state();
+    VERIFY(document_state);
+    return {
+        .document_state_id = document_state->cross_process_id(),
+        .navigation_api_id = entry.navigation_api_id(),
+    };
+}
+
+SessionHistoryEntryIdentity session_history_entry_identity(SessionHistoryEntryDescriptor const& entry)
+{
+    return {
+        .document_state_id = entry.document_state.id,
+        .navigation_api_id = entry.navigation_api_id,
+    };
+}
+
 PendingSessionHistoryEntryDescriptor create_pending_session_history_entry_descriptor(SessionHistoryEntry const& entry)
 {
     VERIFY(!entry.step_value().has_value());

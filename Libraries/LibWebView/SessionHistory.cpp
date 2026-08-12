@@ -911,15 +911,10 @@ Optional<Vector<TraversableSessionHistory::Entry>> TraversableSessionHistory::ge
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#get-all-navigables-whose-current-session-history-entry-will-change-or-reload
-Vector<Web::HTML::CrossProcessId> TraversableSessionHistory::get_all_navigables_whose_current_session_history_entry_will_change_or_reload(CanonicalNavigable const& traversable, i32 target_step, Optional<i32> current_step) const
+Vector<Web::HTML::CrossProcessId> TraversableSessionHistory::get_all_navigables_whose_current_session_history_entry_will_change_or_reload(CanonicalNavigable const& traversable, i32 target_step) const
 {
     // 1. Let results be an empty list.
     Vector<Web::HTML::CrossProcessId> results;
-
-    if (!m_current_used_step_index.has_value())
-        return results;
-    if (!current_step.has_value())
-        current_step = m_used_steps[*m_current_used_step_index];
 
     // 2. Let navigablesToCheck be « traversable ».
     Vector<CanonicalNavigable const*> navigables_to_check { &traversable };
@@ -929,21 +924,18 @@ Vector<Web::HTML::CrossProcessId> TraversableSessionHistory::get_all_navigables_
         auto const* navigable = navigables_to_check.take_first();
 
         // 1. Let targetEntry be the result of getting the target history entry given navigable and targetStep.
-        // NB: The navigable's current session history entry lives in its own process; the canonical equivalent is the
-        //     target history entry at the traversable's current session history step.
         auto const* target_entry = get_the_target_history_entry(*navigable, target_step);
-        auto const* current_entry = get_the_target_history_entry(*navigable, *current_step);
-        if (!target_entry || !current_entry)
+        if (!target_entry)
             continue;
 
         // 2. If targetEntry is not navigable's current session history entry or targetEntry's document state's reload
         //    pending is true, then append navigable to results.
-        if (target_entry != current_entry || target_entry->document_state.reload_pending)
+        if (!navigable->current_session_history_entry_is(*target_entry) || target_entry->document_state.reload_pending)
             results.append(navigable->id());
 
         // 3. If targetEntry's document is navigable's document, and targetEntry's document state's reload pending is
         //    false, then extend navigablesToCheck with the child navigables of navigable.
-        if (target_entry->document_state.id == current_entry->document_state.id && !target_entry->document_state.reload_pending) {
+        if (navigable->active_document_is(*target_entry) && !target_entry->document_state.reload_pending) {
             for (auto const& child : navigable->children())
                 navigables_to_check.append(child.ptr());
         }
@@ -954,15 +946,10 @@ Vector<Web::HTML::CrossProcessId> TraversableSessionHistory::get_all_navigables_
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-all-navigables-that-might-experience-a-cross-document-traversal
-Vector<Web::HTML::CrossProcessId> TraversableSessionHistory::get_all_navigables_that_might_experience_a_cross_document_traversal(CanonicalNavigable const& traversable, i32 target_step, Optional<i32> current_step) const
+Vector<Web::HTML::CrossProcessId> TraversableSessionHistory::get_all_navigables_that_might_experience_a_cross_document_traversal(CanonicalNavigable const& traversable, i32 target_step) const
 {
     // 1. Let results be an empty list.
     Vector<Web::HTML::CrossProcessId> results;
-
-    if (!m_current_used_step_index.has_value())
-        return results;
-    if (!current_step.has_value())
-        current_step = m_used_steps[*m_current_used_step_index];
 
     // 2. Let navigablesToCheck be « traversable ».
     Vector<CanonicalNavigable const*> navigables_to_check { &traversable };
@@ -973,13 +960,12 @@ Vector<Web::HTML::CrossProcessId> TraversableSessionHistory::get_all_navigables_
 
         // 1. Let targetEntry be the result of getting the target history entry given navigable and targetStep.
         auto const* target_entry = get_the_target_history_entry(*navigable, target_step);
-        auto const* current_entry = get_the_target_history_entry(*navigable, *current_step);
-        if (!target_entry || !current_entry)
+        if (!target_entry)
             continue;
 
         // 2. If targetEntry's document is not navigable's document or targetEntry's document state's reload pending
         //    is true, then append navigable to results.
-        if (target_entry->document_state.id != current_entry->document_state.id || target_entry->document_state.reload_pending) {
+        if (!navigable->active_document_is(*target_entry) || target_entry->document_state.reload_pending) {
             results.append(navigable->id());
         }
 
@@ -995,15 +981,10 @@ Vector<Web::HTML::CrossProcessId> TraversableSessionHistory::get_all_navigables_
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-all-navigables-that-only-need-history-object-length/index-update
-Vector<Web::HTML::CrossProcessId> TraversableSessionHistory::get_all_navigables_that_only_need_history_object_length_index_update(CanonicalNavigable const& traversable, i32 target_step, Optional<i32> current_step) const
+Vector<Web::HTML::CrossProcessId> TraversableSessionHistory::get_all_navigables_that_only_need_history_object_length_index_update(CanonicalNavigable const& traversable, i32 target_step) const
 {
     // 1. Let results be an empty list.
     Vector<Web::HTML::CrossProcessId> results;
-
-    if (!m_current_used_step_index.has_value())
-        return results;
-    if (!current_step.has_value())
-        current_step = m_used_steps[*m_current_used_step_index];
 
     // 2. Let navigablesToCheck be « traversable ».
     Vector<CanonicalNavigable const*> navigables_to_check { &traversable };
@@ -1014,13 +995,12 @@ Vector<Web::HTML::CrossProcessId> TraversableSessionHistory::get_all_navigables_
 
         // 1. Let targetEntry be the result of getting the target history entry given navigable and targetStep.
         auto const* target_entry = get_the_target_history_entry(*navigable, target_step);
-        auto const* current_entry = get_the_target_history_entry(*navigable, *current_step);
-        if (!target_entry || !current_entry)
+        if (!target_entry)
             continue;
 
         // 2. If targetEntry is navigable's current session history entry and targetEntry's document state's reload
         //    pending is false:
-        if (target_entry == current_entry && !target_entry->document_state.reload_pending) {
+        if (navigable->current_session_history_entry_is(*target_entry) && !target_entry->document_state.reload_pending) {
             // 1. Append navigable to results.
             results.append(navigable->id());
 

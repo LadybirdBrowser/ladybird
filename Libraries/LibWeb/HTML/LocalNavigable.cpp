@@ -1134,11 +1134,13 @@ Optional<URL::Origin> LocalNavigable::active_document_origin() const
 ReplicatedNavigableState LocalNavigable::replicated_state() const
 {
     VERIFY(m_active_document);
+    VERIFY(m_active_session_history_entry);
     return {
         .target_name = target_name(),
         .active_document_url = m_active_document->url(),
         .active_document_origin = m_active_document->origin(),
         .active_document_is_fully_active = m_active_document->is_fully_active(),
+        .active_session_history_entry_identity = session_history_entry_identity(*m_active_session_history_entry),
     };
 }
 

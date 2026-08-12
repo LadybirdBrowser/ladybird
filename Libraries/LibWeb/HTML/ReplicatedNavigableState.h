@@ -11,6 +11,7 @@
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/HTML/SessionHistoryEntryIdentity.h>
 
 namespace Web::HTML {
 
@@ -19,6 +20,7 @@ struct ReplicatedNavigableState {
     URL::URL active_document_url;
     URL::Origin active_document_origin;
     bool active_document_is_fully_active { false };
+    SessionHistoryEntryIdentity active_session_history_entry_identity;
 };
 
 }
