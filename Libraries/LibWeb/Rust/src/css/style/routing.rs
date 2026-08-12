@@ -1865,7 +1865,6 @@ impl StyleEngine {
         let mut covered = std::mem::take(&mut self.exact_covered_scratch);
         covered.clear();
         covered.push(node);
-        covered.extend(self.tree.ancestors(node));
         let mut sibling_window = INITIAL_SIBLING_FACT_WINDOW;
         let old_matches = match evaluation {
             ExactTreeEvaluation::Arrival => None,
@@ -1985,7 +1984,6 @@ impl StyleEngine {
         let mut covered = std::mem::take(&mut self.exact_covered_scratch);
         covered.clear();
         covered.push(node);
-        covered.extend(self.tree.ancestors(node));
         let mut sibling_window = INITIAL_SIBLING_FACT_WINDOW;
         let changed = loop {
             if retained_old_matches.is_none()
