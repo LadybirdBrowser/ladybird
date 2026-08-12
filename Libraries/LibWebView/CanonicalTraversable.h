@@ -191,10 +191,6 @@ public:
     };
     HistoryJobEndpoint history_job_endpoint_for(CanonicalNavigable const&) const;
 
-    // Whether a requested traversal needs another process, and so must run through the browser-driven traversal
-    // flow instead of becoming a native operation against the process that requested it.
-    bool traversal_requires_process_replacement(TraversableSessionHistory::TraversalTarget const&, URL::URL const& current_url) const;
-
     void did_receive_history_operation_ready(u64 operation_id, bool proceed, Optional<i32> step_override, Optional<Web::HTML::CrossProcessId> creation_parent_document_state_id, Optional<Web::CrossDocumentNavigationFinalization>, Web::HTML::HistoryStepResult abandon_result);
     void did_receive_initiator_sandboxing_check_result(u64 operation_id, bool allowed);
     void did_receive_history_step_unload_cancelation_result(u64 operation_id, Web::HTML::HistoryStepResult);

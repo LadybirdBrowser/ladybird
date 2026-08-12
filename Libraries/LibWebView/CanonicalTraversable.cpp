@@ -446,11 +446,6 @@ bool CanonicalTraversable::web_content_can_apply_traversal(TraversableSessionHis
     return m_session_history.web_content_can_traverse_to(target);
 }
 
-bool CanonicalTraversable::traversal_requires_process_replacement(TraversableSessionHistory::TraversalTarget const& target, URL::URL const& current_url) const
-{
-    return SiteIsolationManager::the().navigation_requires_process_swap(current_url, target.target_top_level_entry->url);
-}
-
 void CanonicalTraversable::traverse_the_history_by_delta(int delta, CheckForCancelation check_for_cancelation, Function<void(HistoryTraversalOutcome)> on_complete, Function<void()> on_top_level_traversal_applied)
 {
     m_history_traversal_queue.append_session_history_traversal_steps(

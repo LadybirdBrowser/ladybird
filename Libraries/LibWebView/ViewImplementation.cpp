@@ -2364,50 +2364,16 @@ void ViewImplementation::start_requested_history_traversal(u64 initiation_id, We
 
 void ViewImplementation::start_requested_history_traversal(u64 initiation_id, Web::HistoryOperationParameters parameters, TraversableSessionHistory::TraversalTarget target, NonnullRefPtr<Core::Promise<Empty>> promise)
 {
-    auto requires_process_replacement = m_top_level_traversable.traversal_requires_process_replacement(target, m_url);
-    if (!requires_process_replacement || !m_top_level_traversable.pending_session_history_navigation().has_value()) {
-        m_top_level_traversable.run_history_operation_at_queue_position(
-            initiation_id,
-            move(parameters),
-            client(),
-            page_id(),
-            target.target_step,
-            [this](Web::HTML::HistoryStepResult, Optional<i32> committed_step) {
-                if (committed_step.has_value())
-                    update_navigation_action_state();
-                dump_session_history("requested-history-traversal-complete"sv);
-            },
-            move(promise));
-        return;
-    }
-
-    Optional<Web::HTML::CrossProcessId> initiator_to_check;
-    Web::HTML::UserNavigationInvolvement user_involvement { Web::HTML::UserNavigationInvolvement::None };
-    parameters.visit(
-        [&](Web::TraverseByDeltaHistoryOperationParameters const& parameters) {
-            initiator_to_check = parameters.initiator_to_check;
-            user_involvement = parameters.user_involvement;
-        },
-        [&](Web::NavigationAPITraverseHistoryOperationParameters const& parameters) {
-            initiator_to_check = parameters.navigable_id;
-            user_involvement = parameters.user_involvement;
-        },
-        [](auto const&) {
-            VERIFY_NOT_REACHED();
-        });
-
     m_top_level_traversable.run_history_operation_at_queue_position(
         initiation_id,
-        CanonicalTraversable::HistoryStepCancelationCheckOperation {
-            .target_step = target.target_step,
-            .initiator_to_check = initiator_to_check,
-            .user_involvement = user_involvement,
-        },
+        move(parameters),
         client(),
         page_id(),
-        [this, step = target.target_step](Web::HTML::HistoryStepResult result, Optional<i32>) {
-            if (result == Web::HTML::HistoryStepResult::Applied)
-                traverse_the_history_to_step(step, CheckForCancelation::No);
+        target.target_step,
+        [this](Web::HTML::HistoryStepResult, Optional<i32> committed_step) {
+            if (committed_step.has_value())
+                update_navigation_action_state();
+            dump_session_history("requested-history-traversal-complete"sv);
         },
         move(promise));
 }
