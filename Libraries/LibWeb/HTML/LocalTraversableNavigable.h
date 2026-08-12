@@ -47,13 +47,6 @@ public:
 
     int current_session_history_step() const { return m_current_session_history_step; }
 
-    // Claims the step number for a new push-type session history entry. Claims are tracked separately from the current
-    // step: The current step only advances when an apply-history-step run commits — and several runs can have claimed
-    // steps in flight at once. So, computing a new step from the current step alone can hand out a step number that an
-    // existing entry already holds. A claim is retired when the run that applies it completes.
-    [[nodiscard]] int claim_next_session_history_step();
-    void claim_session_history_step(int step);
-    void retire_claimed_session_history_step(int step);
     Vector<NonnullRefPtr<SessionHistoryEntry>>& session_history_entries() { return m_session_history_entries; }
     Vector<NonnullRefPtr<SessionHistoryEntry>> const& session_history_entries() const { return m_session_history_entries; }
     struct SessionHistorySnapshot {
@@ -75,7 +68,7 @@ public:
 
     HistoryObjectLengthAndIndex get_the_history_object_length_and_index(int) const;
 
-    using OnHistoryOperationReady = GC::Function<void(bool proceed, Optional<i32> step_override, Optional<CrossProcessId> creation_parent_document_state_id, Optional<Web::CrossDocumentNavigationFinalization>, HistoryStepResult abandon_result)>;
+    using OnHistoryOperationReady = GC::Function<void(bool proceed, Optional<CrossProcessId> creation_parent_document_state_id, Optional<SameDocumentNavigationEntry>, Optional<Web::CrossDocumentNavigationFinalization>, HistoryStepResult abandon_result)>;
     using OnHistoryOperationPreSteps = GC::Function<void(u64 history_initiation_id, GC::Ref<OnHistoryOperationReady>)>;
     struct HistoryOperationState {
         GC::Ptr<DOM::Document> pending_document {};
@@ -87,15 +80,13 @@ public:
         Optional<CrossProcessId> local_target_navigable_id {};
         RefPtr<SessionHistoryEntry> local_target_entry {};
         Optional<LocalNavigable::NavigationAPIAbortBehavior> navigation_api_abort_behavior {};
-        Optional<int> claimed_step {};
         GC::Ptr<OnHistoryOperationPreSteps> pre_steps {};
         GC::Ptr<OnApplyHistoryStepComplete> on_apply_complete {};
         GC::Ptr<OnApplyHistoryStepComplete> on_complete {};
     };
     void request_history_operation(HistoryOperationParameters);
     void request_history_operation(HistoryOperationParameters, HistoryOperationState);
-    void request_synchronous_navigation_history_operation(GC::Ref<LocalNavigable> target_navigable, HistoryOperationParameters);
-    void request_synchronous_navigation_history_operation(GC::Ref<LocalNavigable> target_navigable, HistoryOperationParameters, HistoryOperationState);
+    void request_synchronous_navigation_history_operation(HistoryOperationParameters, HistoryOperationState);
     i32 ui_history_operation_target_step(u64 initiation_id) const;
 
     void handle_ui_history_operation_started(u64 operation_id, Optional<u64> initiation_id, Optional<i32> target_step, GC::Ref<OnHistoryOperationReady>);
@@ -105,10 +96,8 @@ public:
     void apply_ui_changing_navigable_continuation(u64 operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, GC::Ref<GC::Function<void()>>);
     void update_nonchanging_navigable_history_step_state(CrossProcessId navigable_id, HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);
     void complete_ui_history_operation(u64 operation_id, HistoryStepResult, Optional<i32> committed_step, Optional<u64> initiation_id);
-    bool has_ui_history_operation_in_flight() const { return !m_ui_history_operations.is_empty(); }
 
     void finalize_same_document_navigation(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement);
-    void did_complete_finalize_same_document_navigation(u64 operation_id, bool committed, int entry_step, int target_step, HistoryObjectLengthAndIndex);
     int get_the_used_step(int step) const;
     Vector<GC::Root<LocalNavigable>> get_all_local_navigables_that_might_experience_a_cross_document_traversal(int) const;
 
@@ -199,18 +188,6 @@ private:
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-current-session-history-step
     int m_current_session_history_step { 0 };
 
-    // Concurrent apply-history-step operations share the step numbering below. Operations are serialized through
-    // the UI-owned session history traversal queue — but a synchronous navigation can jump the queue while another
-    // operation is paused (see the "sync navigations jump queue" in the spec), and the synchronous fast path commits
-    // outside the queue entirely. See https://github.com/whatwg/html/issues/12576.
-    //
-    //  - uniqueness: a new step number is claimed past every claimed-but-uncommitted step — never just current step + 1
-    //    (claim_next_session_history_step); a claim is retired when its coordinated operation completes.
-    //
-    //  - integrity: clearing the forward session history spares entries whose steps are claimed by operations still
-    //    in flight (clear_the_forward_session_history).
-    Vector<int> m_outstanding_claimed_session_history_steps;
-
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-entries
     Vector<NonnullRefPtr<SessionHistoryEntry>> m_session_history_entries;
 
@@ -229,19 +206,6 @@ private:
     HashTable<CrossProcessId> m_document_states_under_history_reconstruction;
     u64 m_next_history_initiation_id { 1 };
     HashMap<u64, HistoryOperationState> m_history_operation_states;
-
-    struct PendingSameDocumentNavigation {
-        GC::Ref<LocalNavigable> target_navigable;
-        NonnullRefPtr<SessionHistoryEntry> target_entry;
-        RefPtr<SessionHistoryEntry> entry_to_replace;
-        Optional<int> provisional_claimed_step;
-        GC::Ptr<OnHistoryOperationReady> ready;
-        Optional<u64> initiation_id;
-    };
-    void begin_same_document_navigation_finalization(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace, FinalizeSameDocumentNavigationHistoryOperationParameters const&, GC::Ptr<OnHistoryOperationReady> ready, Optional<u64> initiation_id);
-    void set_history_object_length_and_index(HistoryObjectLengthAndIndex);
-    u64 m_next_same_document_navigation_operation_id { 1 };
-    HashMap<u64, PendingSameDocumentNavigation> m_pending_same_document_navigations;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#system-visibility-state
     VisibilityState m_system_visibility_state { VisibilityState::Hidden };
