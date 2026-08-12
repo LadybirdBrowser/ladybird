@@ -513,7 +513,9 @@ impl PrefixAutomaton {
 
     pub(super) fn finish(&mut self) {
         assert!(!self.entry_paths_finished, "cannot finish a prefix automaton twice");
-        self.entry_paths.sort_unstable_by_key(|entry| entry.key);
+        if !self.entry_paths.is_sorted_by_key(|entry| entry.key) {
+            self.entry_paths.sort_unstable_by_key(|entry| entry.key);
+        }
         self.entry_path_indices = HashMap::default();
         self.compound_ids = HashMap::default();
         self.step_ids = HashMap::default();
