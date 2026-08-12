@@ -1558,6 +1558,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     CSS::StyleEngineMatchResult* reusable_style_engine_matches = nullptr;
     CSS::StyleEngine::StyleRecordDelta style_record_delta {};
     auto old_computed_values = computed_style();
+    auto root_font_metrics_before_recompute = style_computer.root_element_font_metrics();
+    auto root_font_metrics_depended_on_viewport_before_recompute = style_computer.root_element_font_metrics_depend_on_viewport_metrics();
     // Top-layer membership controls whether ::backdrop is materialized, but does not change its
     // cascade inputs. Do not let an unchanged cascade hide a still-missing backdrop style.
     auto backdrop_style_needs_materialization = [&] {
@@ -1601,6 +1603,9 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
         reusable_style_engine_matches = &style_engine_matches;
         new_style = style_computer.materialize_style_record({ *this }, did_change_custom_properties, reusable_style_engine_matches, style_record_delta, inherited_style_groups);
     }
+    bool root_font_metrics_changed = is_html_html_element()
+        && (root_font_metrics_before_recompute != style_computer.root_element_font_metrics()
+            || root_font_metrics_depended_on_viewport_before_recompute != style_computer.root_element_font_metrics_depend_on_viewport_metrics());
     if (style_record_is_unchanged(style_record_delta))
         ++counters.unchanged_style_record_deltas;
 
@@ -1608,7 +1613,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     // already holds. Nothing derived from the originating style needs to be compared or published
     // again in that case. Pseudo-element declarations are a separate cascade projected from the
     // originating element's matches, so they still have to consume that shared match result.
-    if (style_record_is_unchanged(style_record_delta) && !did_change_custom_properties) {
+    if (style_record_is_unchanged(style_record_delta) && !did_change_custom_properties && !root_font_metrics_changed) {
         if (recompute_reason == StyleEngineRecomputeReason::PseudoInputsUnchanged
             && !backdrop_style_needs_materialization()
             && style_engine_matches.node != 0
@@ -1648,6 +1653,12 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
         had_list_marker = old_computed_values->display().is_list_item();
     } else {
         invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
+    }
+    if (root_font_metrics_changed) {
+        // Root-relative units read document-global font metrics rather than inherited style. Every
+        // descendant must recompute even when an ancestor absorbs the root's inherited changes.
+        style_computer.drop_style_sharing_cache();
+        invalidation.recompute_descendant_styles = true;
     }
 
     // https://drafts.csswg.org/css-anchor-position-1/#determining

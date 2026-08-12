@@ -9,5 +9,5 @@ explicit inherit width: 50px
 pseudo width: 50px
 pseudo originating font size: 50px
 pseudo inherited font size: 50px
-style recomputations bounded: true
+root font metrics recompute descendants: true
 inherited recomputations present: true
