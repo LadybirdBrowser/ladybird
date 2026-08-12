@@ -354,12 +354,6 @@ void ConnectionFromClient::cancel_download(u64 page_id, u64 download_id)
         page->cancel_download(download_id);
 }
 
-void ConnectionFromClient::complete_finalize_same_document_navigation(u64 page_id, u64 operation_id, bool committed, i32 entry_step, i32 target_step, u64 script_history_length, u64 script_history_index)
-{
-    if (auto page = this->page(page_id); page.has_value())
-        page->did_complete_finalize_same_document_navigation(operation_id, committed, entry_step, target_step, script_history_length, script_history_index);
-}
-
 void ConnectionFromClient::history_operation_started(u64 page_id, u64 operation_id, Optional<u64> initiation_id, Optional<i32> target_step)
 {
     auto page = this->page(page_id);
@@ -369,8 +363,8 @@ void ConnectionFromClient::history_operation_started(u64 page_id, u64 operation_
     }
 
     page->page().top_level_traversable()->handle_ui_history_operation_started(operation_id, initiation_id, target_step,
-        GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id](bool proceed, Optional<i32> step_override, Optional<Web::HTML::CrossProcessId> creation_parent_document_state_id, Optional<Web::CrossDocumentNavigationFinalization> cross_document_navigation_finalization, Web::HTML::HistoryStepResult abandon_result) {
-            async_history_operation_ready(page_id, operation_id, proceed, step_override, creation_parent_document_state_id, move(cross_document_navigation_finalization), abandon_result);
+        GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id](bool proceed, Optional<Web::HTML::CrossProcessId> creation_parent_document_state_id, Optional<Web::HTML::SameDocumentNavigationEntry> same_document_navigation_finalization, Optional<Web::CrossDocumentNavigationFinalization> cross_document_navigation_finalization, Web::HTML::HistoryStepResult abandon_result) {
+            async_history_operation_ready(page_id, operation_id, proceed, creation_parent_document_state_id, move(same_document_navigation_finalization), move(cross_document_navigation_finalization), abandon_result);
         }));
 }
 

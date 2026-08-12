@@ -61,10 +61,6 @@ void LocalTraversableNavigable::visit_edges(Cell::Visitor& visitor)
         for (auto& continuation : operation.value.changing_navigable_continuations)
             visitor.visit(continuation.value);
     }
-    for (auto& pending_navigation : m_pending_same_document_navigations) {
-        visitor.visit(pending_navigation.value.target_navigable);
-        visitor.visit(pending_navigation.value.ready);
-    }
     for (auto& initiation : m_history_operation_states) {
         visitor.visit(initiation.value.source_snapshot_params);
         visitor.visit(initiation.value.initiator_to_check);
@@ -887,6 +883,24 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
     //     job. Retain that exact local entry instead of repeating the global-step lookup in WebContent.
     auto claimed_target_entry = job.target_entry;
 
+    // NB: A later synchronous navigation can already be active by the time an
+    // earlier finalization returns from the UI process. Preserve that newer
+    // visible state while advancing the process-local current entry in queue
+    // order. The later operation will advance it again.
+    if (job.synchronous_navigation == SynchronousNavigation::Yes
+        && navigable->active_session_history_entry() != claimed_target_entry) {
+        auto active_entry = navigable->active_session_history_entry();
+        if (!active_entry
+            || active_entry->document_state() != claimed_target_entry->document_state()) {
+            on_complete->function()({ ChangingNavigableHistoryStepJobDisposition::Stale, nullptr });
+            return false;
+        }
+
+        navigable->set_current_session_history_entry(claimed_target_entry);
+        on_complete->function()({ ChangingNavigableHistoryStepJobDisposition::Skipped, nullptr });
+        return false;
+    }
+
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#update-for-navigable-creation/destruction
     // AD-HOC: Unconditionally populating a document here could unload and re-navigate a frame because an unrelated
     //         navigable was created or destroyed — which no other engine does. So we skip such applying-the-target-
@@ -1401,26 +1415,6 @@ LocalTraversableNavigable::SessionHistorySnapshot LocalTraversableNavigable::cre
     };
 }
 
-int LocalTraversableNavigable::claim_next_session_history_step()
-{
-    int step = m_current_session_history_step;
-    for (auto claimed : m_outstanding_claimed_session_history_steps)
-        step = max(step, claimed);
-    ++step;
-    claim_session_history_step(step);
-    return step;
-}
-
-void LocalTraversableNavigable::claim_session_history_step(int step)
-{
-    m_outstanding_claimed_session_history_steps.append(step);
-}
-
-void LocalTraversableNavigable::retire_claimed_session_history_step(int step)
-{
-    m_outstanding_claimed_session_history_steps.remove_first_matching([step](int claimed) { return claimed == step; });
-}
-
 class CheckUnloadingCanceledState : public GC::Cell {
     GC_CELL(CheckUnloadingCanceledState, GC::Cell);
     GC_DECLARE_ALLOCATOR(CheckUnloadingCanceledState);
@@ -1763,13 +1757,6 @@ void LocalTraversableNavigable::clear_the_forward_session_history()
     // 2. Let step be the navigable's current session history step.
     auto step = current_session_history_step();
 
-    // AD-HOC: An apply-history-step run can still be in flight with a claimed step above the current step; its entry is
-    //         not forward history that traversing away abandoned — it's the entry the in-flight run is about to make
-    //         current. Removing it would leave that run applying a step with no entry.
-    //         See https://github.com/whatwg/html/issues/12576.
-    for (auto claimed : m_outstanding_claimed_session_history_steps)
-        step = max(step, claimed);
-
     // 3. Let entryLists be the ordered set « navigable's session history entries ».
     Vector<Vector<NonnullRefPtr<SessionHistoryEntry>>&> entry_lists;
     entry_lists.append(session_history_entries());
@@ -1877,12 +1864,7 @@ void LocalTraversableNavigable::request_history_operation(HistoryOperationParame
     page().client().page_did_request_history_operation(initiation_id, move(parameters));
 }
 
-void LocalTraversableNavigable::request_synchronous_navigation_history_operation(GC::Ref<LocalNavigable> target_navigable, HistoryOperationParameters parameters)
-{
-    request_synchronous_navigation_history_operation(target_navigable, move(parameters), {});
-}
-
-void LocalTraversableNavigable::request_synchronous_navigation_history_operation(GC::Ref<LocalNavigable>, HistoryOperationParameters parameters, HistoryOperationState state)
+void LocalTraversableNavigable::request_synchronous_navigation_history_operation(HistoryOperationParameters parameters, HistoryOperationState state)
 {
     request_history_operation(move(parameters), move(state));
 }
@@ -2250,8 +2232,6 @@ void LocalTraversableNavigable::complete_ui_history_operation(u64 operation_id, 
 
     if (initiation_id.has_value()) {
         if (auto initiation = m_history_operation_states.take(*initiation_id); initiation.has_value()) {
-            if (initiation->claimed_step.has_value())
-                retire_claimed_session_history_step(*initiation->claimed_step);
             if (initiation->on_apply_complete)
                 initiation->on_apply_complete->function()(result);
             if (initiation->on_complete)
@@ -2260,25 +2240,46 @@ void LocalTraversableNavigable::complete_ui_history_operation(u64 operation_id, 
     }
 }
 
-static void reconcile_same_document_navigation_with_local_session_history(GC::Ref<LocalNavigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace, int entry_step)
+static bool finalize_same_document_navigation_in_local_history(LocalTraversableNavigable& traversable, GC::Ref<LocalNavigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace)
 {
-    // AD-HOC: Finalization installs the canonical entry before its coordinated history step applies. Install it in
-    //         the local entry list at the same point so the subsequent changing-navigable job can resolve its target.
     auto& target_entries = target_navigable->get_session_history_entries();
 
-    if (target_entries.contains_slow(target_entry)) {
-        target_entry->set_step(entry_step);
-        return;
+    // 3. Let targetStep be null.
+    auto target_step = traversable.current_session_history_step();
+
+    // 4. Let targetEntries be the result of getting session history entries given targetNavigable.
+
+    // 5. If entryToReplace is null:
+    if (!entry_to_replace) {
+        // 1. Clear the forward session history of traversable.
+        // NB: The UI process clears the complete traversable history.
+        // WebContent retains only the document-local projection used by
+        // script.
+        target_entries.remove_all_matching([target_step](auto const& entry) {
+            return entry->step_value().value_or(target_step) > target_step;
+        });
+
+        // 2. Set targetStep to traversable's current session history step + 1.
+        ++target_step;
+
+        // 3. Set targetEntry's step to targetStep.
+        target_entry->set_step(target_step);
+
+        // 4. Append targetEntry to targetEntries.
+        target_entries.append(target_entry);
+        return true;
     }
 
-    auto entry_to_replace_iterator = entry_to_replace ? target_entries.find(*entry_to_replace) : target_entries.end();
-    if (entry_to_replace_iterator == target_entries.end()) {
-        target_entry->set_step(entry_step);
-        target_entries.append(target_entry);
-    } else {
-        *entry_to_replace_iterator = target_entry;
-        target_entry->set_step(entry_step);
-    }
+    // Otherwise:
+    auto entry_to_replace_iterator = target_entries.find(*entry_to_replace);
+    if (entry_to_replace_iterator == target_entries.end())
+        return false;
+
+    // 1. Replace entryToReplace with targetEntry in targetEntries.
+    // 2. Set targetEntry's step to entryToReplace's step.
+    target_entry->set_step(entry_to_replace->step());
+    *entry_to_replace_iterator = target_entry;
+    return true;
 }
 
 void LocalTraversableNavigable::finalize_same_document_navigation(GC::Ref<LocalNavigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement)
@@ -2286,186 +2287,40 @@ void LocalTraversableNavigable::finalize_same_document_navigation(GC::Ref<LocalN
     if (target_navigable->has_been_destroyed())
         return;
 
-    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#session-history-traversal-parallel-queue-sync-nav-steps
-    // AD-HOC: Browser engines commit same-document navigations synchronously when no traversal state is active. Keep
-    //         the spec's queued synchronous-navigation steps as the fallback for reentrant traversal work and child
-    //         navigables whose nested history is not ready yet. A coordinated operation in flight is the
-    //         UI-coordinated equivalent of a local apply-history-step run being active.
     auto parameters = FinalizeSameDocumentNavigationHistoryOperationParameters {
         .navigable_id = target_navigable->id(),
         .target_entry = create_same_document_navigation_entry(target_entry),
-        .replaces_current_entry = entry_to_replace != nullptr,
+        .entry_to_replace_navigation_api_key = entry_to_replace
+            ? Optional<Utf16String> { entry_to_replace->navigation_api_key() }
+            : OptionalNone {},
         .history_handling = history_handling,
         .user_involvement = user_involvement,
     };
 
-    if (has_ui_history_operation_in_flight() || !target_navigable->has_session_history_entry_and_ready_for_navigation()) {
-        request_synchronous_navigation_history_operation(
-            target_navigable,
-            parameters,
-            {
-                .local_target_navigable_id = target_navigable->id(),
-                .local_target_entry = target_entry,
-                .pre_steps = GC::create_function(heap(), [this, target_navigable, target_entry, entry_to_replace, parameters](u64 initiation_id, GC::Ref<OnHistoryOperationReady> ready) {
-                    if (target_navigable->has_been_destroyed()) {
-                        ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
-                        return;
-                    }
-                    // AD-HOC: A child's nested history can be pruned while this finalization waited for its queue
-                    //         position. Like a stale child-frame commit, a removed child's navigation has no observable
-                    //         session history effect.
-                    if (!target_navigable->has_session_history_entries()) {
-                        ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
-                        return;
-                    }
-                    begin_same_document_navigation_finalization(target_navigable, target_entry, entry_to_replace, parameters, ready, initiation_id);
-                }),
-            });
-        return;
-    }
+    request_synchronous_navigation_history_operation(
+        move(parameters),
+        {
+            .local_target_navigable_id = target_navigable->id(),
+            .local_target_entry = target_entry,
+            .pre_steps = GC::create_function(heap(), [this, target_navigable, target_entry, entry_to_replace](u64, GC::Ref<OnHistoryOperationReady> ready) {
+                // 2. If targetNavigable's active session history entry is not targetEntry, then return.
+                // NB: A later same-document navigation can become active while
+                // this operation crosses the process boundary. The operations
+                // retain their entry order, so only a different active
+                // document makes this finalization stale.
+                auto active_entry = target_navigable->active_session_history_entry();
+                if (target_navigable->has_been_destroyed()
+                    || !active_entry
+                    || active_entry->document_state() != target_entry->document_state()
+                    || !target_navigable->has_session_history_entries()
+                    || !finalize_same_document_navigation_in_local_history(*this, target_navigable, target_entry, entry_to_replace)) {
+                    ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
+                    return;
+                }
 
-    begin_same_document_navigation_finalization(target_navigable, target_entry, entry_to_replace, parameters, nullptr, {});
-}
-
-void LocalTraversableNavigable::set_history_object_length_and_index(HistoryObjectLengthAndIndex history_object_length_and_index)
-{
-    auto active_document = this->active_document();
-    if (!active_document)
-        return;
-
-    for (auto const& navigable : active_document->inclusive_descendant_navigables()) {
-        if (navigable->has_been_destroyed() || !navigable->active_window() || !navigable->active_document()->is_fully_active())
-            continue;
-
-        auto document = navigable->active_document();
-        document->history()->m_index = history_object_length_and_index.script_history_index;
-        document->history()->m_length = history_object_length_and_index.script_history_length;
-    }
-}
-
-void LocalTraversableNavigable::begin_same_document_navigation_finalization(GC::Ref<LocalNavigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace, FinalizeSameDocumentNavigationHistoryOperationParameters const& parameters, GC::Ptr<OnHistoryOperationReady> ready, Optional<u64> initiation_id)
-{
-    auto is_queued = ready != nullptr;
-    auto provisional_target_step = current_session_history_step();
-    Optional<int> provisional_claimed_step;
-    if (!entry_to_replace) {
-        clear_the_forward_session_history();
-
-        // AD-HOC: Claim the step instead — so a step claimed by an apply-history-step run still in flight can't be
-        //         handed out twice. See https://github.com/whatwg/html/issues/12576.
-        provisional_target_step = claim_next_session_history_step();
-        if (is_queued) {
-            provisional_claimed_step = provisional_target_step;
-            // The claim is retired when the coordinated operation completes.
-            auto initiation = m_history_operation_states.find(*initiation_id);
-            VERIFY(initiation != m_history_operation_states.end());
-            initiation->value.claimed_step = provisional_target_step;
-        }
-    }
-    reconcile_same_document_navigation_with_local_session_history(target_navigable, target_entry, entry_to_replace, provisional_target_step);
-
-    auto pending_navigation = PendingSameDocumentNavigation {
-        .target_navigable = target_navigable,
-        .target_entry = target_entry,
-        .entry_to_replace = entry_to_replace,
-        .provisional_claimed_step = provisional_claimed_step,
-        .ready = ready,
-        .initiation_id = initiation_id,
-    };
-
-    if (!is_queued) {
-        target_navigable->set_current_session_history_entry(target_entry);
-        m_current_session_history_step = get_the_used_step(provisional_target_step);
-
-        // AD-HOC: A synchronous commit applies its step in this same task, so it has no asynchronous window in which
-        //         another run could observe the claim. Retire it immediately. Unlike the queued apply-history-step path,
-        //         nothing else will. Leaving it outstanding would let claimed steps accumulate without bound — and push
-        //         later step numbers ever higher. (A replacement reuses the current step and claimed nothing, so retiring
-        //         it is a no-op.) See https://github.com/whatwg/html/issues/12576.
-        retire_claimed_session_history_step(provisional_target_step);
-
-        auto must_preserve_ongoing_navigation = synchronous_same_document_navigation_must_preserve_ongoing_navigation(*target_navigable);
-        // NB: The queued apply-history-step path clears the ongoing navigation when the history step finishes. The
-        //     synchronous fast path has already committed the same-document navigation and the Navigation API entry
-        //     update owns settling its promises/events, so do the same cleanup without reporting an abort to the
-        //     Navigation API.
-        if (!must_preserve_ongoing_navigation)
-            target_navigable->set_ongoing_navigation({}, LocalNavigable::NavigationAPIAbortBehavior::Preserve);
-
-        auto history_object_length_and_index = get_the_history_object_length_and_index(m_current_session_history_step);
-        set_history_object_length_and_index(history_object_length_and_index);
-
-        save_persisted_state_to_active_session_history_entry();
-        page().client().page_did_change_url(current_session_history_entry()->url());
-    }
-
-    auto operation_id = m_next_same_document_navigation_operation_id++;
-    m_pending_same_document_navigations.set(operation_id, move(pending_navigation));
-
-    page().client().page_did_request_finalize_same_document_navigation(
-        operation_id,
-        target_navigable->id(),
-        parameters.target_entry,
-        parameters.replaces_current_entry,
-        parameters.history_handling,
-        parameters.user_involvement,
-        is_queued);
-}
-
-void LocalTraversableNavigable::did_complete_finalize_same_document_navigation(u64 operation_id, bool committed, int entry_step, int target_step, HistoryObjectLengthAndIndex history_object_length_and_index)
-{
-    auto pending_navigation = m_pending_same_document_navigations.take(operation_id);
-    VERIFY(pending_navigation.has_value());
-
-    auto is_newest_pending_navigation = m_pending_same_document_navigations.is_empty();
-
-    auto complete = [&] {
-        // NB: A queued finalization's claim is retired when its coordinated operation completes; abandoning the
-        //     operation here routes through that same completion.
-        if (pending_navigation->ready)
-            pending_navigation->ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
-        else if (pending_navigation->provisional_claimed_step.has_value())
-            retire_claimed_session_history_step(*pending_navigation->provisional_claimed_step);
-    };
-
-    // AD-HOC: The navigable (or a removed child's nested history) can be gone by the time the canonical answer
-    //         arrives; the finalization has no observable session history effect then.
-    if (!committed || pending_navigation->target_navigable->has_been_destroyed() || !pending_navigation->target_navigable->has_session_history_entries()) {
-        complete();
-        return;
-    }
-
-    reconcile_same_document_navigation_with_local_session_history(pending_navigation->target_navigable, pending_navigation->target_entry, pending_navigation->entry_to_replace, entry_step);
-
-    if (is_newest_pending_navigation)
-        set_history_object_length_and_index(history_object_length_and_index);
-
-    if (pending_navigation->target_navigable->active_session_history_entry() != pending_navigation->target_entry) {
-        complete();
-        return;
-    }
-
-    if (pending_navigation->ready) {
-        // The UI process assigns the canonical step, which need not be the step claimed locally. Move the claim onto
-        // it so that the coordinated operation's completion retires exactly what is outstanding.
-        if (pending_navigation->provisional_claimed_step.has_value() && *pending_navigation->provisional_claimed_step != target_step) {
-            retire_claimed_session_history_step(*pending_navigation->provisional_claimed_step);
-            claim_session_history_step(target_step);
-            if (pending_navigation->initiation_id.has_value()) {
-                auto initiation = m_history_operation_states.find(*pending_navigation->initiation_id);
-                VERIFY(initiation != m_history_operation_states.end());
-                initiation->value.claimed_step = target_step;
-            }
-        }
-
-        // The coordinator now applies the push/replace history step at the canonical step.
-        pending_navigation->ready->function()(true, target_step, {}, {}, HistoryStepResult::Applied);
-        return;
-    }
-
-    pending_navigation->target_navigable->set_current_session_history_entry(pending_navigation->target_entry);
-    if (is_newest_pending_navigation)
-        m_current_session_history_step = target_step;
+                ready->function()(true, {}, create_same_document_navigation_entry(target_entry), {}, HistoryStepResult::Applied);
+            }),
+        });
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#close-a-top-level-traversable

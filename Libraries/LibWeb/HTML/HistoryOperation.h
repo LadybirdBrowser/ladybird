@@ -80,7 +80,7 @@ struct NavigableDestructionHistoryOperationParameters {
 struct FinalizeSameDocumentNavigationHistoryOperationParameters {
     HTML::CrossProcessId navigable_id;
     HTML::SameDocumentNavigationEntry target_entry;
-    bool replaces_current_entry;
+    Optional<Utf16String> entry_to_replace_navigation_api_key;
     HTML::HistoryHandlingBehavior history_handling;
     HTML::UserNavigationInvolvement user_involvement;
 };

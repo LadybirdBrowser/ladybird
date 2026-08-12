@@ -141,7 +141,7 @@ void NavigableContainer::create_new_child_navigable()
                 VERIFY(append_nested_history_for_child_navigable(*parent_navigable, *navigable, *history_entry));
 
                 // 7. Update for navigable creation/destruction given traversable
-                ready->function()(true, {}, parent_document_state->cross_process_id(), {}, HistoryStepResult::Applied);
+                ready->function()(true, parent_document_state->cross_process_id(), {}, {}, HistoryStepResult::Applied);
             }),
             .on_complete = GC::create_function(heap(), [this, navigable](HistoryStepResult) {
                 if (navigable->has_been_destroyed() || content_navigable() != navigable)

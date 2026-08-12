@@ -172,6 +172,20 @@ static Web::HTML::PendingSessionHistoryEntryDescriptor pending_entry(StringView 
     };
 }
 
+static Web::HTML::SameDocumentNavigationEntry same_document_entry(Web::HTML::SessionHistoryEntryDescriptor entry)
+{
+    return {
+        .url = move(entry.url),
+        .document_state_id = entry.document_state.id,
+        .classic_history_api_state = move(entry.classic_history_api_state),
+        .navigation_api_state = move(entry.navigation_api_state),
+        .navigation_api_key = move(entry.navigation_api_key),
+        .navigation_api_id = move(entry.navigation_api_id),
+        .scroll_restoration_mode = entry.scroll_restoration_mode,
+        .scroll_position_data = move(entry.scroll_position_data),
+    };
+}
+
 static void expect_entry(WebView::TraversableSessionHistory const& history, size_t index, i32 expected_step, StringView expected_url)
 {
     auto* entry = history.entry_at(index);
@@ -1802,7 +1816,57 @@ TEST_CASE(replace_current_entry_url_keeps_document_resource)
     expect_entry_resource(*current_entry, "post"sv);
 }
 
-TEST_CASE(claimed_finalization_completes_matching_provisional_entry)
+TEST_CASE(same_document_push_clears_forward_history_at_queue_position)
+{
+    WebView::CanonicalTraversable traversable;
+    WebView::TraversableSessionHistory history;
+
+    auto current_entry = entry(0, "https://example.com/current"sv, 10, "main"sv);
+    current_entry.navigation_api_key = Utf16String::from_utf8("current"sv);
+    auto update_result = history.update_from_web_content(
+        { move(current_entry), entry(2, "https://example.com/forward"sv) }, { 0, 2 }, 0);
+    EXPECT_EQ(update_result, WebView::TraversableSessionHistory::UpdateResult::CompleteSnapshot);
+
+    auto target_entry = entry(0, "https://example.com/pushed"sv, 10, "main"sv);
+    target_entry.navigation_api_key = Utf16String::from_utf8("pushed"sv);
+    auto target_step = history.finalize_same_document_navigation(
+        traversable, same_document_entry(move(target_entry)), {});
+
+    VERIFY(target_step.has_value());
+    EXPECT_EQ(*target_step, 1);
+    EXPECT_EQ(history.current_step(), 0);
+    EXPECT_EQ(history.size(), 2uz);
+    expect_current_entry(history, 0, "https://example.com/current"sv);
+    expect_entry(history, 1, 1, "https://example.com/pushed"sv);
+}
+
+TEST_CASE(same_document_replacement_preserves_forward_history)
+{
+    WebView::CanonicalTraversable traversable;
+    WebView::TraversableSessionHistory history;
+
+    auto current_entry = entry(0, "https://example.com/current"sv, 10, "main"sv);
+    current_entry.navigation_api_key = Utf16String::from_utf8("current"sv);
+    auto update_result = history.update_from_web_content(
+        { move(current_entry), entry(2, "https://example.com/forward"sv) }, { 0, 2 }, 0);
+    EXPECT_EQ(update_result, WebView::TraversableSessionHistory::UpdateResult::CompleteSnapshot);
+
+    auto target_entry = entry(0, "https://example.com/replaced"sv, 10, "main"sv);
+    target_entry.navigation_api_key = Utf16String::from_utf8("current"sv);
+    auto target_step = history.finalize_same_document_navigation(
+        traversable,
+        same_document_entry(move(target_entry)),
+        Utf16String::from_utf8("current"sv));
+
+    VERIFY(target_step.has_value());
+    EXPECT_EQ(*target_step, 0);
+    EXPECT_EQ(history.current_step(), 0);
+    EXPECT_EQ(history.size(), 2uz);
+    expect_current_entry(history, 0, "https://example.com/replaced"sv);
+    expect_entry(history, 1, 2, "https://example.com/forward"sv);
+}
+
+TEST_CASE(finalization_completes_matching_provisional_entry)
 {
     WebView::TraversableSessionHistory history;
     auto provisional_entry = entry(1, "https://b.example/"sv);
@@ -1810,7 +1874,7 @@ TEST_CASE(claimed_finalization_completes_matching_provisional_entry)
     auto update_result = history.update_from_web_content({ entry(0, "https://a.example/"sv), move(provisional_entry) }, { 0, 1 }, 1);
     EXPECT_EQ(update_result, WebView::TraversableSessionHistory::UpdateResult::CompleteSnapshot);
 
-    EXPECT(history.finalize_cross_document_navigation({}, entry(1, "https://b.example/"sv), {}, 1));
+    EXPECT(history.finalize_cross_document_navigation({}, entry(1, "https://b.example/"sv), {}));
     EXPECT_EQ(history.size(), 2uz);
     expect_current_entry(history, 1, "https://b.example/"sv);
     VERIFY(history.entry_at(1));

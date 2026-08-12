@@ -38,13 +38,6 @@ public:
         bool changes_top_level_entry { false };
     };
 
-    struct SameDocumentNavigationFinalization {
-        i32 entry_step { 0 };
-        i32 target_step { 0 };
-        u64 script_history_length { 0 };
-        u64 script_history_index { 0 };
-    };
-
     enum class UpdateResult {
         // WebContent sent the same complete top-level traversable session
         // history that the UI process stores authoritatively.
@@ -86,8 +79,8 @@ public:
     bool update_document_state(Optional<Web::HTML::CrossProcessId> nested_history_id, Utf16String const& navigation_api_key, Function<void(Web::HTML::SessionHistoryDocumentStateDescriptor&)> const& update_document_state);
     Optional<i32> append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id, Web::HTML::PendingSessionHistoryEntryDescriptor);
     bool remove_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id);
-    Optional<SameDocumentNavigationFinalization> finalize_same_document_navigation(CanonicalNavigable const&, Web::HTML::SameDocumentNavigationEntry target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior, Web::HTML::UserNavigationInvolvement, Optional<i32> maximum_claimed_step = {});
-    bool finalize_cross_document_navigation(Optional<Web::HTML::CrossProcessId> nested_history_id, Entry history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key, Optional<i32> maximum_claimed_step = {});
+    Optional<i32> finalize_same_document_navigation(CanonicalNavigable const&, Web::HTML::SameDocumentNavigationEntry target_entry, Optional<Utf16String> entry_to_replace_navigation_api_key);
+    bool finalize_cross_document_navigation(Optional<Web::HTML::CrossProcessId> nested_history_id, Entry history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key);
     UpdateResult update_from_web_content(Vector<Entry> entries, Vector<i32> used_steps, size_t current_used_step_index);
     void did_install_web_content_history_projection(size_t current_top_level_entry_index, i32 current_step);
     [[nodiscard]] bool did_apply_web_content_traversal_to_step(i32 step);
