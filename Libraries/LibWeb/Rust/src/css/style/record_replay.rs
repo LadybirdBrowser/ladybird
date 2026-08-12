@@ -212,6 +212,33 @@ impl<R: Read> LogReader<R> {
 }
 
 impl<'d> LogReader<&'d [u8]> {
+    /// Skip legacy markers for repeated reads of immutable style-record data.
+    ///
+    /// Current recorders omit these events after the first response for an identity. Old captures
+    /// encode a 17-byte payload containing the engine, identity, and a false response flag. Fast
+    /// replay can consume a whole run without decoding values whose only observable result was
+    /// already established by the first response.
+    pub fn skip_redundant_style_record_reads(&mut self) -> u64 {
+        let mut skipped = 0;
+        loop {
+            if self.input.len() < EVENT_HEADER_SIZE + 24 {
+                break;
+            }
+            let kind = u64::from_le_bytes(self.input[..8].try_into().unwrap());
+            if kind != EventKind::StyleRecordPayloads as u16 as u64 && kind != EventKind::StyleRecordView as u16 as u64
+            {
+                break;
+            }
+            let payload_length = u64::from_le_bytes(self.input[8..16].try_into().unwrap());
+            if payload_length != 17 || self.input[EVENT_HEADER_SIZE + 16] != 0 {
+                break;
+            }
+            self.input = &self.input[EVENT_HEADER_SIZE + 24..];
+            skipped += 1;
+        }
+        skipped
+    }
+
     /// Reads the next event without copying: the payload borrows the input slice itself, so with a
     /// memory-mapped log the decode loop never touches a scratch buffer.
     #[inline]
@@ -731,6 +758,31 @@ mod tests {
         assert_eq!(event.payload.read_bytes().unwrap(), b"mapped");
         event.payload.finish().unwrap();
         assert!(reader.read_event_borrowed().unwrap().is_none());
+    }
+
+    #[test]
+    fn redundant_style_record_reads_can_be_skipped() {
+        let mut output = Vec::new();
+        let mut writer = LogWriter::new(&mut output).unwrap();
+        for kind in [EventKind::StyleRecordPayloads, EventKind::StyleRecordView] {
+            let mut payload = PayloadWriter::default();
+            payload.write_u64(7);
+            payload.write_u64(42);
+            payload.write_bool(false);
+            writer.write_event(kind, &payload).unwrap();
+        }
+        let mut payload = PayloadWriter::default();
+        payload.write_u64(7);
+        payload.write_u64(42);
+        payload.write_bool(true);
+        payload.write_bool(false);
+        writer.write_event(EventKind::StyleRecordPayloads, &payload).unwrap();
+        writer.flush().unwrap();
+
+        let mut reader = LogReader::new(output.as_slice()).unwrap();
+        assert_eq!(reader.skip_redundant_style_record_reads(), 2);
+        let event = reader.read_event_borrowed().unwrap().unwrap();
+        assert_eq!(event.kind, EventKind::StyleRecordPayloads);
     }
 
     #[test]
