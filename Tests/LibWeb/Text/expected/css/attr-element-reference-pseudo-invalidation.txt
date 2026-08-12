@@ -1,0 +1,6 @@
+::placeholder-before=24px
+::placeholder-after=48px
+::file-selector-button-before=24px
+::file-selector-button-after=48px
+::details-content-before=24px
+::details-content-after=48px
