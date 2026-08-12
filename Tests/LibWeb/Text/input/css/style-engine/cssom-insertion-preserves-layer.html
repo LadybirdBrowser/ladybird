@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @layer base, theme;
+    #top { color: rgb(5, 5, 5); }
+    @layer base { }
+    @layer theme { #nested { color: rgb(9, 9, 9); } }
+    @layer base { @layer inner { } }
+</style>
+<div id="top">top</div>
+<div id="nested">nested</div>
+<script>
+    test(() => {
+        const rules = document.styleSheets[0].cssRules;
+        rules[2].insertRule("#top { color: rgb(6, 6, 6); }");
+        rules[4].cssRules[0].insertRule("#nested { color: rgb(10, 10, 10); }");
+
+        println(`top-level layer: ${getComputedStyle(document.getElementById("top")).color}`);
+        println(`nested layer: ${getComputedStyle(document.getElementById("nested")).color}`);
+    });
+</script>
