@@ -280,16 +280,10 @@ Optional<TraversableSessionHistory::SameDocumentNavigationFinalization> Canonica
     return finalization;
 }
 
-bool CanonicalTraversable::finalize_cross_document_navigation(CanonicalNavigable const& navigable, Web::HTML::SessionHistoryEntryDescriptor history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key)
+void CanonicalTraversable::finalize_cross_document_navigation(u64 operation_id, CanonicalNavigable const& navigable, Web::HTML::SessionHistoryEntryDescriptor history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key)
 {
     VERIFY(&navigable.top_level_traversable() == this);
-
-    auto maximum_claimed_step = claim_step_for_pending_cross_document_history_operation(navigable.id(), history_entry.step);
-
-    auto did_finalize = m_session_history.finalize_cross_document_navigation(nested_history_id_for(navigable), move(history_entry), move(entry_to_replace_navigation_api_key), maximum_claimed_step);
-    if (did_finalize)
-        m_current_web_content_session_history_matches_mirror = false;
-    return did_finalize;
+    finalize_cross_document_navigation_for_history_operation(operation_id, navigable, move(history_entry), move(entry_to_replace_navigation_api_key));
 }
 
 Optional<i32> CanonicalTraversable::navigation_api_traversal_target(CanonicalNavigable const& navigable, Utf16String const& navigation_api_key) const
@@ -903,21 +897,6 @@ Optional<i32> CanonicalTraversable::maximum_claimed_session_history_step() const
     return maximum_claimed_step;
 }
 
-Optional<i32> CanonicalTraversable::claim_step_for_pending_cross_document_history_operation(Web::HTML::CrossProcessId navigable_id, i32 claimed_step)
-{
-    for (auto& operation : m_history_operations) {
-        if (!operation.value->parameters.has<Web::HistoryOperationParameters>() || operation.value->algorithm)
-            continue;
-        auto const& request = operation.value->parameters.get<Web::HistoryOperationParameters>();
-        if (!request.has<Web::PushHistoryOperationParameters>() || request.get<Web::PushHistoryOperationParameters>().navigable_id != navigable_id)
-            continue;
-
-        operation.value->claimed_step = claimed_step;
-        return maximum_claimed_session_history_step();
-    }
-    return {};
-}
-
 void CanonicalTraversable::claim_step_for_pending_same_document_history_operation(Web::HTML::CrossProcessId navigable_id, i32 claimed_step)
 {
     for (auto& operation : m_history_operations) {
@@ -1031,6 +1010,29 @@ ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(u64 op
             endpoint.client->async_update_nonchanging_navigable_history_state(endpoint.page_id, operation_id, navigable_id,
                 history_object_length_and_index.script_history_length, history_object_length_and_index.script_history_index); },
     };
+}
+
+void CanonicalTraversable::finalize_cross_document_navigation_for_history_operation(u64 operation_id, CanonicalNavigable const& navigable, Web::HTML::SessionHistoryEntryDescriptor history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key)
+{
+    auto* operation = find_history_operation(operation_id);
+    if (!operation || operation->algorithm || !operation->parameters.has<Web::HistoryOperationParameters>())
+        return;
+
+    auto const& parameters = operation->parameters.get<Web::HistoryOperationParameters>();
+    auto is_matching_push = parameters.has<Web::PushHistoryOperationParameters>()
+        && parameters.get<Web::PushHistoryOperationParameters>().navigable_id == navigable.id();
+    auto is_matching_replace = parameters.has<Web::ReplaceHistoryOperationParameters>()
+        && parameters.get<Web::ReplaceHistoryOperationParameters>().navigable_id == navigable.id();
+    if (!is_matching_push && !is_matching_replace)
+        return;
+
+    if (is_matching_push)
+        operation->claimed_step = history_entry.step;
+    auto maximum_claimed_step = maximum_claimed_session_history_step();
+
+    auto did_finalize = m_session_history.finalize_cross_document_navigation(nested_history_id_for(navigable), move(history_entry), move(entry_to_replace_navigation_api_key), maximum_claimed_step);
+    if (did_finalize)
+        m_current_web_content_session_history_matches_mirror = false;
 }
 
 void CanonicalTraversable::run_history_operation_at_queue_position(u64 initiation_id, Web::HistoryOperationParameters request, WebContentClient& requesting_client, u64 requesting_page_id, Optional<i32> resolved_step, OnHistoryOperationComplete on_complete, NonnullRefPtr<Core::Promise<Empty>> promise)

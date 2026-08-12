@@ -3556,13 +3556,14 @@ TargetSnapshotParams LocalNavigable::snapshot_target_snapshot_params()
     };
 }
 
-static void report_finalized_cross_document_navigation_to_ui_process(LocalTraversableNavigable& traversable, LocalNavigable const& navigable, SessionHistoryEntry const& history_entry, RefPtr<SessionHistoryEntry> const& entry_to_replace)
+static void report_finalized_cross_document_navigation_to_ui_process(LocalTraversableNavigable& traversable, u64 operation_id, LocalNavigable const& navigable, SessionHistoryEntry const& history_entry, RefPtr<SessionHistoryEntry> const& entry_to_replace)
 {
     Optional<Utf16String> entry_to_replace_navigation_api_key;
     if (entry_to_replace)
         entry_to_replace_navigation_api_key = entry_to_replace->navigation_api_key();
 
     traversable.page().client().page_did_finalize_cross_document_navigation(
+        operation_id,
         navigable.id(),
         create_session_history_entry_descriptor(history_entry),
         entry_to_replace_navigation_api_key);
@@ -3675,7 +3676,7 @@ static Optional<int> finalize_a_cross_document_navigation_at_queued_position(GC:
 
         // 4. Append historyEntry to targetEntries.
         target_entries.append(history_entry);
-        report_finalized_cross_document_navigation_to_ui_process(*traversable, navigable, history_entry, nullptr);
+        report_finalized_cross_document_navigation_to_ui_process(*traversable, traversable->ui_history_operation_id(initiation_id), navigable, history_entry, nullptr);
     } else {
         // 1. Replace entryToReplace with historyEntry in targetEntries.
         auto entry_to_replace_iterator = target_entries.find(*entry_to_replace);
@@ -3724,7 +3725,7 @@ static Optional<int> finalize_a_cross_document_navigation_at_queued_position(GC:
 
         // 4. Set targetStep to traversable's current session history step.
         target_step = traversable->current_session_history_step();
-        report_finalized_cross_document_navigation_to_ui_process(*traversable, navigable, history_entry, entry_to_replace);
+        report_finalized_cross_document_navigation_to_ui_process(*traversable, traversable->ui_history_operation_id(initiation_id), navigable, history_entry, entry_to_replace);
     }
 
     return target_step;
