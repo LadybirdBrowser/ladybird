@@ -51,16 +51,6 @@ void VideoPresentationClientConnection::release_edge(VideoSinkHandle handle)
     async_release_video_edge(*edge_id_to_release);
 }
 
-void VideoPresentationClientConnection::set_sink_ticking(VideoSinkHandle handle, bool ticking)
-{
-    for (auto& entry : m_edge_states) {
-        if (entry.value.handle == handle) {
-            async_set_sink_ticking(entry.key, ticking);
-            return;
-        }
-    }
-}
-
 void VideoPresentationClientConnection::video_edge_ready(u64 edge_id, VideoEdgeQueue edge, PresentedFramePage presented_frame_page, MediaTimeReader time_reader)
 {
     auto edge_state = m_edge_states.get(edge_id);

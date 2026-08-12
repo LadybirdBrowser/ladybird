@@ -53,9 +53,9 @@ void ConnectionFromWebContent::remove_video_sink(Media::VideoSinkHandle video_si
     m_compositor_state->remove_video_sink(*this, video_sink_handle);
 }
 
-void ConnectionFromWebContent::set_video_update_flags(Media::VideoSinkHandle video_sink_handle, Web::Compositor::VideoUpdateFlags flags)
+void ConnectionFromWebContent::set_video_sink_ticking(Media::VideoSinkHandle video_sink_handle, bool should_tick)
 {
-    m_compositor_state->set_video_update_flags(*this, video_sink_handle, flags);
+    m_compositor_state->set_video_sink_ticking(*this, video_sink_handle, should_tick);
 }
 
 void ConnectionFromWebContent::create_video_edge(Media::VideoSinkHandle video_sink_handle)
@@ -71,12 +71,6 @@ void ConnectionFromWebContent::release_video_edge(Media::VideoSinkHandle video_s
 {
     if (m_video_presentation_connection)
         m_video_presentation_connection->release_edge(video_sink_handle);
-}
-
-void ConnectionFromWebContent::set_video_sink_ticking(Media::VideoSinkHandle video_sink_handle, bool ticking)
-{
-    if (m_video_presentation_connection)
-        m_video_presentation_connection->set_sink_ticking(video_sink_handle, ticking);
 }
 
 void ConnectionFromWebContent::notify_compositor_lost()

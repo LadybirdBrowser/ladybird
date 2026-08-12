@@ -237,10 +237,10 @@ void CompositorHostBase::remove_video_sink(Media::VideoSinkHandle video_sink_han
         connection->remove_video_sink(video_sink_handle);
 }
 
-void CompositorHostBase::set_video_update_flags(Media::VideoSinkHandle video_sink_handle, Web::Compositor::VideoUpdateFlags flags)
+void CompositorHostBase::set_video_sink_ticking(Media::VideoSinkHandle video_sink_handle, bool should_tick)
 {
     if (auto* connection = compositor_connection())
-        connection->set_video_update_flags(video_sink_handle, flags);
+        connection->set_video_sink_ticking(video_sink_handle, should_tick);
 }
 
 void CompositorHostBase::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)

@@ -183,10 +183,6 @@ void HTMLMediaElement::initialize_element()
         add_current_video_sink();
     });
 
-    m_document_observer->set_document_visibility_state_observer([this](VisibilityState) {
-        sync_video_update_flags();
-    });
-
     document().page().register_media_element({}, unique_id());
 }
 
@@ -1798,6 +1794,7 @@ void HTMLMediaElement::attach_selected_video_track_sink(Media::Track const& trac
     if (previous_handle.has_value())
         release_active_video_sink();
     m_active_video_sink = make<ActiveVideoSink>(handle, Painting::allocate_video_sink_resource_id());
+    m_video_sink_is_ticking = true;
     add_current_video_sink(handle);
 }
 
@@ -1807,7 +1804,6 @@ void HTMLMediaElement::add_current_video_sink(Media::VideoSinkHandle handle)
     VERIFY(m_active_video_sink->handle() == handle);
     if (auto navigable = document().navigable(); navigable && navigable->has_compositor_context())
         m_active_video_sink->register_with(document().page().compositor_host());
-    sync_video_update_flags();
 }
 
 void HTMLMediaElement::add_current_video_sink()
@@ -2565,38 +2561,42 @@ void HTMLMediaElement::update_ready_state()
     }
 }
 
-void HTMLMediaElement::sync_video_update_flags() const
+bool HTMLMediaElement::video_sink_should_tick() const
+{
+    if (m_video_frame_was_recently_captured)
+        return true;
+    if (document().visibility_state_value() != VisibilityState::Visible)
+        return false;
+    auto paintable = this->paintable();
+    return paintable && paintable->is_visible();
+}
+
+void HTMLMediaElement::sync_video_sink_ticking() const
 {
     auto handle = video_sink_handle();
     if (!handle.has_value())
         return;
-    auto navigable = document().navigable();
-    if (!navigable || !navigable->has_compositor_context())
+
+    auto should_tick = video_sink_should_tick();
+    if (m_video_sink_is_ticking == should_tick)
         return;
-    auto flags = Web::Compositor::VideoUpdateFlags::None;
-    if (document().visibility_state_value() == VisibilityState::Visible)
-        flags |= Web::Compositor::VideoUpdateFlags::Visible;
-    if (m_video_frame_was_recently_captured)
-        flags |= Web::Compositor::VideoUpdateFlags::Captured;
-    if (!m_playback_manager || !m_playback_manager->is_playing() || m_playback_rate == 0.0)
-        flags |= Web::Compositor::VideoUpdateFlags::TimeStopped;
-    navigable->compositor_context().set_video_update_flags(*handle, flags);
+    m_video_sink_is_ticking = should_tick;
+
+    Media::PlaybackManager::set_video_sink_ticking(*handle, should_tick);
+    if (auto navigable = document().navigable(); navigable && navigable->has_compositor_context())
+        navigable->compositor_context().set_video_sink_ticking(*handle, should_tick);
 }
 
 void HTMLMediaElement::note_frame_captured() const
 {
     static constexpr int capture_keepalive_timeout_ms = 5000;
-    bool was_recently_captured = m_video_frame_was_recently_captured;
     m_video_frame_was_recently_captured = true;
     if (!m_video_frame_capture_keepalive_timer) {
         m_video_frame_capture_keepalive_timer = Core::Timer::create_single_shot(capture_keepalive_timeout_ms, GC::weak_callback(*this, [](auto& self) {
             self.m_video_frame_was_recently_captured = false;
-            self.sync_video_update_flags();
         }));
     }
     m_video_frame_capture_keepalive_timer->restart();
-    if (!was_recently_captured)
-        sync_video_update_flags();
 }
 
 void HTMLMediaElement::on_playback_manager_state_change()
@@ -2611,7 +2611,6 @@ void HTMLMediaElement::on_playback_manager_state_change()
     }
 
     start_or_stop_playback_position_update_timer();
-    sync_video_update_flags();
 
     // NB: Queue the readyState update as a task so that it will never run before the durationchange and loadedmetadata
     //     events are fired. This ensures that readyState has a deterministic value in those events.
@@ -2995,8 +2994,6 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::set_playback_rate(double new_value)
     //         always.
     if (m_playback_manager)
         m_playback_manager->set_playback_rate(static_cast<float>(new_value));
-
-    sync_video_update_flags();
 
     return {};
 }

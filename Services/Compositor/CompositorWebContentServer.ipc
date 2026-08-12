@@ -26,7 +26,7 @@ endpoint CompositorWebContentServer
 
     add_video_sink(Media::VideoSinkHandle video_sink_handle) =|
     remove_video_sink(Media::VideoSinkHandle video_sink_handle) =|
-    set_video_update_flags(Media::VideoSinkHandle video_sink_handle, Web::Compositor::VideoUpdateFlags flags) =|
+    set_video_sink_ticking(Media::VideoSinkHandle video_sink_handle, bool should_tick) =|
 
     set_parent_context(Web::Compositor::CompositorContextId context_id, Optional<Web::Compositor::CompositorContextId> parent_context_id) =|
     stop_presenting_to_client(Web::Compositor::CompositorContextId context_id) =|

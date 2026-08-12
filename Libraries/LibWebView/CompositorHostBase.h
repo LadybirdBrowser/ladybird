@@ -26,7 +26,7 @@ public:
     virtual void update_visual_context_tree(Web::Compositor::CompositorContextId, Web::Painting::AccumulatedVisualContextTree) override;
     virtual void add_video_sink(Media::VideoSinkHandle) override;
     virtual void remove_video_sink(Media::VideoSinkHandle) override;
-    virtual void set_video_update_flags(Media::VideoSinkHandle, Web::Compositor::VideoUpdateFlags) override;
+    virtual void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick) override;
     virtual void update_scroll_state(Web::Compositor::CompositorContextId, Web::Painting::ScrollStateSnapshot&&) override;
     virtual void invalidate_wheel_event_listener_state(Web::Compositor::CompositorContextId, u64 generation) override;
     virtual Web::Compositor::AsyncScrollEnqueueResult async_scroll_by(Web::Compositor::CompositorContextId, Web::UniqueNodeID expected_document_id, Gfx::FloatPoint position,

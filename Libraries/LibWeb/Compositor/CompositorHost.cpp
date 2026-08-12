@@ -55,9 +55,9 @@ void CompositorContextHandle::remove_video_sink(Media::VideoSinkHandle video_sin
     m_host.remove_video_sink(video_sink_handle);
 }
 
-void CompositorContextHandle::set_video_update_flags(Media::VideoSinkHandle video_sink_handle, VideoUpdateFlags flags)
+void CompositorContextHandle::set_video_sink_ticking(Media::VideoSinkHandle video_sink_handle, bool should_tick)
 {
-    m_host.set_video_update_flags(video_sink_handle, flags);
+    m_host.set_video_sink_ticking(video_sink_handle, should_tick);
 }
 
 void CompositorContextHandle::update_scroll_state(Painting::ScrollStateSnapshot&& scroll_state_snapshot)
