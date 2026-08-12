@@ -48,6 +48,12 @@ void SVGStyleElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ance
     update_a_style_block_for_dynamic_change();
 }
 
+void SVGStyleElement::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<Node> old_ancestor)
+{
+    Base::moved_from(is_subtree_root, old_ancestor);
+    style_element_moved();
+}
+
 void SVGStyleElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     Base::attribute_changed(name, old_value, value, namespace_);

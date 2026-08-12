@@ -115,6 +115,24 @@ void HTMLLinkElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ance
     }
 }
 
+void HTMLLinkElement::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<Node> old_ancestor)
+{
+    Base::moved_from(is_subtree_root, old_ancestor);
+
+    if (!m_loaded_style_sheet)
+        return;
+
+    auto const& owning_roots = m_loaded_style_sheet->owning_documents_or_shadow_roots();
+    VERIFY(owning_roots.size() == 1);
+    auto& owning_root = **owning_roots.begin();
+    auto& source = [&owning_root] -> CSS::StyleSheetList& {
+        if (auto* shadow_root = as_if<DOM::ShadowRoot>(owning_root))
+            return shadow_root->style_sheets();
+        return as<DOM::Document>(owning_root).style_sheets();
+    }();
+    source.move_sheet(*m_loaded_style_sheet, document_or_shadow_root_style_sheets());
+}
+
 // https://html.spec.whatwg.org/multipage/semantics.html#dom-link-rellist
 GC::Ref<DOM::DOMTokenList> HTMLLinkElement::rel_list()
 {

@@ -30,6 +30,7 @@ public:
     };
     void add_a_css_style_sheet(CSSStyleSheet&, StyleEngineUpdate = StyleEngineUpdate::Record);
     void remove_a_css_style_sheet(CSSStyleSheet&, StyleEngineUpdate = StyleEngineUpdate::Record);
+    void move_sheet(CSSStyleSheet&, StyleSheetList& destination);
     enum class Alternate : u8 {
         No,
         Yes,
@@ -65,6 +66,8 @@ private:
 
     void add_sheet(CSSStyleSheet&, StyleEngineUpdate);
     void remove_sheet(CSSStyleSheet&, StyleEngineUpdate);
+    void insert_sheet_in_tree_order(CSSStyleSheet&);
+    CSSStyleSheet* following_sheet(CSSStyleSheet&);
 
     GC::Ref<DOM::Node> m_document_or_shadow_root;
     Vector<GC::Ref<CSSStyleSheet>> m_sheets;

@@ -92,6 +92,24 @@ void StyleSheetList::add_sheet(CSSStyleSheet& sheet, StyleEngineUpdate style_eng
 
     sheet.load_pending_image_resources(document());
 
+    insert_sheet_in_tree_order(sheet);
+
+    if (style_engine_update == StyleEngineUpdate::Record)
+        record_stylesheet_attached(sheet, document_or_shadow_root(), following_sheet(sheet));
+
+    // NOTE: We evaluate media queries immediately when adding a new sheet.
+    //       This coalesces the full document style invalidations.
+    //       If we don't do this, we invalidate now, and then again when Document updates media rules.
+    sheet.evaluate_media_queries(document());
+    // A sheet whose media does not match contributes nothing, so its rules can reach no element.
+    if (style_engine_update == StyleEngineUpdate::Record)
+        record_stylesheet_conditions(sheet, document_or_shadow_root(), !sheet.disabled() && sheet.media()->matches());
+
+    invalidate_rule_cache_after_style_sheet_change(document_or_shadow_root(), sheet);
+}
+
+void StyleSheetList::insert_sheet_in_tree_order(CSSStyleSheet& sheet)
+{
     if (m_sheets.is_empty()) {
         // This is the first sheet, append it to the list.
         m_sheets.append(sheet);
@@ -110,7 +128,10 @@ void StyleSheetList::add_sheet(CSSStyleSheet& sheet, StyleEngineUpdate style_eng
         if (!did_insert)
             m_sheets.prepend(sheet);
     }
+}
 
+CSSStyleSheet* StyleSheetList::following_sheet(CSSStyleSheet& sheet)
+{
     // The list is kept in DOM tree order, so the sheet that now follows this one is its successor
     // in cascade order too.
     auto position = m_sheets.find_first_index(sheet);
@@ -131,18 +152,7 @@ void StyleSheetList::add_sheet(CSSStyleSheet& sheet, StyleEngineUpdate style_eng
                 following = &adopted_sheet;
         });
     }
-    if (style_engine_update == StyleEngineUpdate::Record)
-        record_stylesheet_attached(sheet, document_or_shadow_root(), following);
-
-    // NOTE: We evaluate media queries immediately when adding a new sheet.
-    //       This coalesces the full document style invalidations.
-    //       If we don't do this, we invalidate now, and then again when Document updates media rules.
-    sheet.evaluate_media_queries(document());
-    // A sheet whose media does not match contributes nothing, so its rules can reach no element.
-    if (style_engine_update == StyleEngineUpdate::Record)
-        record_stylesheet_conditions(sheet, document_or_shadow_root(), !sheet.disabled() && sheet.media()->matches());
-
-    invalidate_rule_cache_after_style_sheet_change(document_or_shadow_root(), sheet);
+    return following;
 }
 
 void StyleSheetList::remove_sheet(CSSStyleSheet& sheet, StyleEngineUpdate style_engine_update)
@@ -153,6 +163,22 @@ void StyleSheetList::remove_sheet(CSSStyleSheet& sheet, StyleEngineUpdate style_
     if (style_engine_update == StyleEngineUpdate::Record)
         record_stylesheet_detached(sheet, document_or_shadow_root());
 
+    invalidate_rule_cache_after_style_sheet_change(document_or_shadow_root(), sheet);
+}
+
+void StyleSheetList::move_sheet(CSSStyleSheet& sheet, StyleSheetList& destination)
+{
+    if (this != &destination) {
+        remove_sheet(sheet, StyleEngineUpdate::Record);
+        destination.add_sheet(sheet, StyleEngineUpdate::Record);
+        return;
+    }
+
+    auto position = m_sheets.find_first_index(sheet);
+    VERIFY(position.has_value());
+    m_sheets.remove(*position);
+    insert_sheet_in_tree_order(sheet);
+    record_stylesheet_attached(sheet, document_or_shadow_root(), following_sheet(sheet));
     invalidate_rule_cache_after_style_sheet_change(document_or_shadow_root(), sheet);
 }
 

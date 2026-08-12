@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="style-target">style target</div>
+<div id="wrapper-target">wrapper target</div>
+<div id="link-target">link target</div>
+<div class="cross-target">document target</div>
+<script>
+    asyncTest(async done => {
+        const styleTarget = document.querySelector("#style-target");
+        const wrapperTarget = document.querySelector("#wrapper-target");
+        const linkTarget = document.querySelector("#link-target");
+        const firstStyle = document.createElement("style");
+        firstStyle.id = "first-style";
+        firstStyle.textContent = "#style-target { color: rgb(1, 1, 1) }";
+        const secondStyle = document.createElement("style");
+        secondStyle.id = "second-style";
+        secondStyle.textContent = "#style-target { color: rgb(2, 2, 2) }";
+        document.head.append(firstStyle, secondStyle);
+
+        getComputedStyle(document.body).color;
+        document.head.moveBefore(secondStyle, firstStyle);
+        println(`moved style: ${getComputedStyle(styleTarget).color}`);
+        println(`style sheet order: ${[...document.styleSheets].map(sheet => sheet.ownerNode.id).join(", ")}`);
+
+        const wrapper = document.createElement("div");
+        const nestedStyle = document.createElement("style");
+        nestedStyle.textContent = "#wrapper-target { color: rgb(5, 5, 5) }";
+        wrapper.appendChild(nestedStyle);
+        const tailStyle = document.createElement("style");
+        tailStyle.textContent = "#wrapper-target { color: rgb(6, 6, 6) }";
+        document.head.append(wrapper, tailStyle);
+        getComputedStyle(document.body).color;
+        document.head.moveBefore(wrapper, null);
+        println(`moved style wrapper: ${getComputedStyle(wrapperTarget).color}`);
+
+        const host = document.createElement("div");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        const shadowTarget = document.createElement("div");
+        shadowTarget.className = "cross-target";
+        shadowRoot.appendChild(shadowTarget);
+        document.body.appendChild(host);
+        const crossStyle = document.createElement("style");
+        crossStyle.textContent = ".cross-target { color: rgb(7, 7, 7) }";
+        document.head.appendChild(crossStyle);
+        println(`before cross-scope move: ${getComputedStyle(shadowTarget).color}`);
+        shadowRoot.moveBefore(crossStyle, shadowTarget);
+        println(`after cross-scope move: ${getComputedStyle(shadowTarget).color}`);
+
+        const firstLink = document.createElement("link");
+        firstLink.id = "first-link";
+        firstLink.rel = "stylesheet";
+        firstLink.href = "data:text/css,%23link-target%7Bcolor%3Argb(3%2C3%2C3)%7D";
+        const secondLink = document.createElement("link");
+        secondLink.id = "second-link";
+        secondLink.rel = "stylesheet";
+        secondLink.href = "data:text/css,%23link-target%7Bcolor%3Argb(4%2C4%2C4)%7D";
+        const firstLoaded = new Promise(resolve => firstLink.addEventListener("load", resolve, { once: true }));
+        const secondLoaded = new Promise(resolve => secondLink.addEventListener("load", resolve, { once: true }));
+        document.head.append(firstLink, secondLink);
+        await Promise.all([firstLoaded, secondLoaded]);
+
+        getComputedStyle(document.body).color;
+        document.head.moveBefore(secondLink, firstLink);
+        println(`moved link: ${getComputedStyle(linkTarget).color}`);
+        println(`link sheet order: ${[...document.styleSheets].slice(-2).map(sheet => sheet.ownerNode.id).join(", ")}`);
+        done();
+    });
+</script>
