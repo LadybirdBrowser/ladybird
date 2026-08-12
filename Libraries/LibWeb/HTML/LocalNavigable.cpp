@@ -966,6 +966,13 @@ void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, G
     //    navigate away from it.
     VERIFY(!new_document->is_initial_about_blank());
 
+    // DocumentState identifies its associated Document by a process-local ID. Restore that association at the
+    // transition that makes a reconstructed entry's Document active.
+    VERIFY(entry);
+    auto document_state = entry->document_state();
+    VERIFY(document_state);
+    document_state->set_document_id(new_document->unique_id());
+
     // 4. Set navigable's active session history entry to entry.
     m_active_session_history_entry = entry;
     if (m_active_document && m_active_document != new_document) {
@@ -2697,13 +2704,13 @@ void LocalNavigable::begin_navigation(NavigateParams params)
     history_handling = determine_history_handling_for_navigation(history_handling, url, active_document, initiator_origin_snapshot);
 
     // FIXME: Revisit the following once the dust settles on our Navigation rewrites — specifically, whether the "the UI
-    //        process seeds the new process's active session-history entry with the target URL *before* its document has
-    //        loaded" behavior is actually a mistake that the following is just working around (papering over).
+    //        process installs the new process's active session-history entry with the target URL *before* its document
+    //        has loaded" behavior is actually a mistake that the following is just working around (papering over).
     // AD-HOC: In addition to the spec requirements here, we also require the active document's URL (ignoring fragments)
-    //         to match. That's because: After a cross-site process swap, the UI process seeds the new process's active
-    //         session-history entry with the target URL *before* its document has loaded. So, doing just the session-
-    //         history-entry check alone would misclassify a fresh cross-document navigation as a same-document fragment
-    //         navigation — and completely skip loading the document. See issue #10312.
+    //         to match. That's because: After a cross-site process swap, the UI process installs the new process's
+    //         active session-history entry with the target URL *before* its document has loaded. So, doing just the
+    //         session-history-entry check alone would misclassify a fresh cross-document navigation as a same-document
+    //         fragment navigation — and completely skip loading the document. See issue #10312.
     // 14. If all of the following are true:
     //     - documentResource is null;
     //     - response is null;
