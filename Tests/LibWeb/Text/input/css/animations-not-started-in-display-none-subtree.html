@@ -39,7 +39,7 @@
 <div id="drawer"></div>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         // Give any (incorrectly started) animation time to advance past progress 0.
         await animationFrame();
         await animationFrame();
@@ -65,7 +65,5 @@
         box.style.display = "none";
         println("after hiding again, box animations: " + box.getAnimations().length);
         println("after hiding again, child animations: " + child.getAnimations().length);
-
-        done();
     });
 </script>

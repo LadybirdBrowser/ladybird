@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const parentDomain = `cookie-${crypto.randomUUID()}.example.com`;
         spoofCurrentURL(`https://www.${parentDomain}/cookie-cache-invalidation.html`);
 
@@ -14,6 +14,5 @@
         println(document.cookie);
 
         await internals.deleteAllCookies();
-        done();
     });
 </script>

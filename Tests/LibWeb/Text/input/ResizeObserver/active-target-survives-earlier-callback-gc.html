@@ -11,7 +11,7 @@
 <script>
     let secondTarget = null;
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         let firstCallbackCount = 0;
         let secondCallbackCount = 0;
         secondTarget = document.getElementById("second");
@@ -45,6 +45,5 @@
         println(`second observer callbacks: ${secondCallbackCount}`);
 
         observers = null;
-        done();
     });
 </script>

@@ -39,7 +39,7 @@
         logEvent("resize");
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         const initialTrackChange = waitForTrackChange(0);
         const initialResize = waitForResize(320, 240);
         const loadedMetadata = new Promise(resolve => {
@@ -57,7 +57,5 @@
 
         println(`--- selecting track 0 ---`);
         await selectTrack(0, 320, 240);
-
-        done();
     });
 </script>

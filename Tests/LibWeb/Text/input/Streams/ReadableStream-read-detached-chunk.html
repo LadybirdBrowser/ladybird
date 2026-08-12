@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         // Reading a stream whose chunk is a Uint8Array backed by a detached ArrayBuffer must resolve with an empty
         // result, not crash. (issue #9965)
         const buffer = new ArrayBuffer(8);
@@ -22,6 +22,5 @@
         } catch (e) {
             println(`rejected: ${e.name}: ${e.message}`);
         }
-        done();
     });
 </script>

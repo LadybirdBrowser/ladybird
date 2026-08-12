@@ -35,7 +35,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         document.body.offsetHeight;
 
         document.getElementById("anchored").style.color = "red";
@@ -51,6 +51,5 @@
         println(`anchored=${rectToString(anchored)}`);
         println(partialDelta === 0 && fullDelta === 1
             && rectToString(anchored) === "60,70,120,60" ? "PASS" : "FAIL");
-        done();
     });
 </script>

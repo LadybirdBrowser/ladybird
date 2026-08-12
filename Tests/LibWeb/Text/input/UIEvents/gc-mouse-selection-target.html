@@ -25,13 +25,12 @@
         });
     };
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         for (let i = 0; i < 10; ++i) {
             await runTest();
             internals.gc();
         }
 
         println("PASS (didn't crash)");
-        done();
     });
 </script>

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="./include.js"></script>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         try {
             const httpServer = httpTestServer();
             const url = await httpServer.createEcho("GET", "/test-http-test-server", {
@@ -25,6 +25,5 @@
         } catch (err) {
             println("FAIL - " + err);
         }
-        done();
     });
 </script>

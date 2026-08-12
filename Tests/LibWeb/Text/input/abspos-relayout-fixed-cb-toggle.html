@@ -43,7 +43,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         document.body.offsetHeight;
 
         const partialBefore = internals.partialLayoutCount();
@@ -71,6 +71,5 @@
             && partialDeltaAfterToggle === 0 && fullDeltaAfterToggle === 1
             && rectToString(fixedBeforeToggle) === "90,120,50,20"
             && rectToString(fixedAfterToggle) === "30,40,50,20" ? "PASS" : "FAIL");
-        done();
     });
 </script>

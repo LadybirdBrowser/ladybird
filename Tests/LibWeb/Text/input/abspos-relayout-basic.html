@@ -27,7 +27,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         document.body.offsetHeight;
 
         const outsideBefore = document.getElementById("outside").getBoundingClientRect();
@@ -47,6 +47,5 @@
         println(child.left === 40 && child.top === 30 && child.width === 70 && child.height === 60
             && rectToString(outsideBefore) === rectToString(outsideAfter)
             && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
-        done();
     });
 </script>

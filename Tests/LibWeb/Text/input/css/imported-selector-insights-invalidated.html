@@ -8,7 +8,7 @@
         return styleElement.sheet.cssRules[0].styleSheet;
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         internals.setTestTimeout(5000);
 
         const httpServer = httpTestServer();
@@ -51,6 +51,5 @@
         anchor.appendChild(hit);
 
         println(`after: ${getComputedStyle(anchor).color}`);
-        done();
     });
 </script>

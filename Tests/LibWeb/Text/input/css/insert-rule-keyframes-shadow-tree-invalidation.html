@@ -3,7 +3,7 @@
 <style id="document-style"></style>
 <div id="host"></div>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const host = document.getElementById("host");
         const shadowRoot = host.attachShadow({ mode: "open" });
 
@@ -25,7 +25,5 @@
         documentStyleSheet.insertRule("@keyframes fade { from { opacity: 0.25; } to { opacity: 0.25; } }", documentStyleSheet.cssRules.length);
         await animationFrame();
         println(`opacity after keyframes: ${getComputedStyle(target).opacity}`);
-
-        done();
     });
 </script>

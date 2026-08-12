@@ -17,7 +17,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         document.body.offsetHeight;
 
         document.getElementById("t").firstChild.data = "hello longer text";
@@ -30,6 +30,5 @@
         println(`svg=${rectToString(svg)}`);
         println(`after=${rectToString(after)}`);
         println(svg.width === 300 && svg.height === 200 && after.top === svg.height ? "PASS" : "FAIL");
-        done();
     });
 </script>

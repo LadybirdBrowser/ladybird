@@ -34,13 +34,11 @@
     </div>
 </div>
 <script>
-asyncTest(async done => {
+promiseTest(async () => {
     await document.fonts.ready;
     await animationFrame();
 
     let abspos = document.getElementById("abspos");
     println(`${abspos.offsetLeft},${abspos.offsetTop} ${abspos.offsetWidth}x${abspos.offsetHeight}`);
-
-    done();
 });
 </script>

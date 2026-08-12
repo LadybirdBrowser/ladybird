@@ -38,7 +38,7 @@
         [video, "HTMLVideoElement"],
     ];
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         for (const [type, name] of types) {
             try {
                 const result = await createImageBitmap(type, 0, 0, 20, 20);
@@ -47,7 +47,5 @@
                 println(`${name.padEnd(17, " ")} [ Error ]: ${err}`);
             }
         }
-
-        done();
     });
 </script>

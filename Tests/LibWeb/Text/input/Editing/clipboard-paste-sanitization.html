@@ -2,7 +2,7 @@
 <script src="../include.js"></script>
 <div id="editor" contenteditable="true">ab</div>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
         const platformControlShift = platformControl | internals.MOD_SHIFT;
         const selection = getSelection();
@@ -36,6 +36,5 @@
         println(`undo DOM: ${editor.innerHTML}`);
         internals.sendKey(editor, "Z", platformControlShift);
         println(`redo active content: ${editor.querySelectorAll("script, iframe, object, embed, style, link, meta, template, [onclick], [onerror], [href^='javascript:']").length}`);
-        done();
     });
 </script>

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const server = httpTestServer();
         const page2Body = `<!DOCTYPE html><script>parent.postMessage("loaded-page2", "*");<\/script>`;
         const page2Url = await server.createEcho("GET", "/location-navigate-then-push-state-page2", {
@@ -32,6 +32,5 @@
         });
         iframe.remove();
         println(result);
-        done();
     });
 </script>

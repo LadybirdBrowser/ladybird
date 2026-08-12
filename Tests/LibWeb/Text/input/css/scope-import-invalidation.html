@@ -30,7 +30,7 @@
         internals.resetStyleInvalidationCounters();
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         const rootImportURL = `data:text/css;base64,${btoa(".x { --root-hit: yes; }")}`;
         const rootStyle = document.getElementById("root-style");
         rootStyle.textContent = `@import "${rootImportURL}" scope((.scope-root));`;
@@ -79,7 +79,5 @@
         removeStyle.remove();
         getComputedStyle(replaceTarget).color;
         println(`stylesheet remove full invalidation: ${internals.getStyleInvalidationCounters().fullStyleInvalidations >= 1}`);
-
-        done();
     });
 </script>

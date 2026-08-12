@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const frame = document.createElement("iframe");
         document.body.append(frame);
 
@@ -19,6 +19,5 @@
         frame.remove();
         await internals.gcAsync();
         println(`root after destroy: ${internals.hasActivityRoot(webSocket)}`);
-        done();
     });
 </script>

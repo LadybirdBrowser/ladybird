@@ -24,7 +24,7 @@
         });
     }
 
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         try {
             const httpServer = httpTestServer();
             const url = await httpServer.createEcho("GET", "/xhr-override-mimetype-no-content-type-test", {
@@ -55,6 +55,5 @@
         } catch (err) {
             println("FAIL - " + err);
         }
-        done();
     });
 </script>

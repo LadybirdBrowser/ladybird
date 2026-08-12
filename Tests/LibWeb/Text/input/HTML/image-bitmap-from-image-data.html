@@ -12,14 +12,13 @@
     ctx.fillRect(0, 0, 10, 10);
     let imageData = ctx.getImageData(0, 0, 20, 20);
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         try {
             const bitmap = await createImageBitmap(imageData);
             println(`[Success]: ${bitmap}`);
         } catch (err) {
             println(`[ Error ]: ${err}`);
         }
-        done();
     });
 </script>
 </body>

@@ -18,7 +18,7 @@
 <a id="generated" href="about:blank"></a>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         async function middleDragFrom(element) {
             const rect = element.getBoundingClientRect();
             const x = rect.left + rect.width / 2;
@@ -42,7 +42,5 @@
 
         await middleDragFrom(generated);
         println(`generated-content link scrollY: ${scrollY}`);
-
-        done();
     });
 </script>

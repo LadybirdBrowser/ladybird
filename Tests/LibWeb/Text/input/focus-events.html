@@ -33,12 +33,10 @@
     b.addEventListener('focus', printFocusEvent);
     b.addEventListener('blur', printFocusEvent);
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         a.focus();
         await new Promise(resolve => setTimeout(resolve, 0));
         b.focus();
         await new Promise(resolve => setTimeout(resolve, 0));
-
-        done();
     });
 </script>

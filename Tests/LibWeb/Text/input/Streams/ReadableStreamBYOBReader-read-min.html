@@ -63,8 +63,7 @@
         }
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         await readStream(readableStream);
-        done();
     });
 </script>

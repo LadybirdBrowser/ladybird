@@ -7,7 +7,7 @@
     // Programmatically focusing a frame must not scroll it into view. Ad scripts
     // commonly steal focus into an offscreen iframe on load; other engines only
     // scroll on focus when the focused element is not embedded content.
-    asyncTest(async done => {
+    promiseTest(async () => {
         const settle = async () => {
             for (let i = 0; i < 3; i++) {
                 await new Promise(resolve => requestAnimationFrame(resolve));
@@ -35,7 +35,5 @@
         document.getElementById("button").focus();
         await settle();
         println(`scrollY after focusing a regular element is nonzero: ${window.scrollY > 0}`);
-
-        done();
     });
 </script>

@@ -2,7 +2,7 @@
 <script src="../include.js"></script>
 <iframe id="frame" srcdoc="<body contenteditable>blue text</body>"></iframe>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         await new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
 
         const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
@@ -29,6 +29,5 @@
         selection.collapse(body.firstChild, body.firstChild.length);
         internals.sendKey(body, "V", platformControl);
         await pasteEvent;
-        done();
     });
 </script>

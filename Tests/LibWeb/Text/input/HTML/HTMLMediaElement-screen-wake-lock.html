@@ -12,7 +12,7 @@
         return new Promise(resolve => target.addEventListener(name, resolve, { once: true }));
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         logState("initial");
 
         video.src = "../../../Assets/test-webm.webm";
@@ -47,7 +47,5 @@
         video.removeAttribute("src");
         video.load();
         logState("src cleared and loaded");
-
-        done();
     });
 </script>

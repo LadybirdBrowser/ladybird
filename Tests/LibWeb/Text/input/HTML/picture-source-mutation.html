@@ -5,7 +5,7 @@
     const RED_PNG_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwADhQGAWjR9awAAAABJRU5ErkJggg==";
     const BLUE_PNG_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgAAIAAAUAAen63NgAAAAASUVORK5CYII=";
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         const picture = document.createElement("picture");
         const source = document.createElement("source");
         source.setAttribute("srcset", RED_PNG_DATA_URL);
@@ -46,7 +46,5 @@
         picture.removeChild(newSource);
         await fourthLoaded;
         println(`re-evaluated on source removal: ${img.currentSrc === BLUE_PNG_DATA_URL}`);
-
-        done();
     });
 </script>

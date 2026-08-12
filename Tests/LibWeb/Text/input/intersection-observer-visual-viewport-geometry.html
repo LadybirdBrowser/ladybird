@@ -28,7 +28,7 @@
         });
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         function fixed(value) {
             return value.toFixed(3);
         }
@@ -57,6 +57,5 @@
         const rightEntry = await observe(document.getElementById("right-target"));
         println(`right target isIntersecting: ${rightEntry.isIntersecting ? "PASS" : "FAIL"}`);
         println(`right target intersectionRatio: ${fixed(rightEntry.intersectionRatio)}`);
-        done();
     });
 </script>

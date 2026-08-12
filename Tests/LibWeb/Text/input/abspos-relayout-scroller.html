@@ -27,7 +27,7 @@
     </div>
 </div>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         document.body.offsetHeight;
 
         const scroller = document.getElementById("boundary");
@@ -46,6 +46,5 @@
         println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
         println(scroller.scrollTop === 150 && hit && hit.id === "probe"
             && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
-        done();
     });
 </script>

@@ -35,7 +35,7 @@
     </div>
 </div>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const beforeInputTargetRanges = [];
         const inputSelectionOffsets = [];
         const inputTypes = [];
@@ -84,6 +84,5 @@
         println(`beforeinput target ranges: ${beforeInputTargetRanges.join(", ")}`);
         println(`input types: ${inputTypes.join(", ")}`);
         println(`input selection offsets: ${inputSelectionOffsets.join(", ")}`);
-        done();
     });
 </script>

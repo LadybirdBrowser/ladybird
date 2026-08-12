@@ -7,7 +7,7 @@
     </foreignObject>
 </svg>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         // Force initial layout to complete.
         document.body.offsetHeight;
 
@@ -27,6 +27,5 @@
         document.body.offsetHeight;
 
         println("PASS");
-        done();
     });
 </script>

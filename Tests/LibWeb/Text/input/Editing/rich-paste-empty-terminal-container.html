@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
         const platformControlShift = platformControl | internals.MOD_SHIFT;
         const originalHTML = `<div>redblue</div><div><br></div><ul><li>list</li></ul><div>tail</div>`;
@@ -46,6 +46,5 @@
         internals.sendKey(host, "Z", platformControlShift);
         println(host.innerHTML === pastedHTML ? "PASS: redo DOM" : `FAIL: redo DOM: ${host.innerHTML}`);
         println(selectionString() === "host/6/0@0" ? "PASS: redo selection" : `FAIL: redo selection: ${selectionString()}`);
-        done();
     });
 </script>

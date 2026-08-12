@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const blob = new Blob(["This is some data to be read! 🦬"]);
         const arrayBuffer = await blob.arrayBuffer();
         const string = new TextDecoder().decode(new Uint8Array(arrayBuffer));
@@ -9,6 +9,5 @@
             println("PASS");
         else
             println("FAIL");
-        done();
     });
 </script>

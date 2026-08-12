@@ -27,7 +27,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         document.body.offsetHeight;
 
         const holder = document.createElement("div");
@@ -41,6 +41,5 @@
         const cqRect = cqChild.getBoundingClientRect();
         println(`cq-child=${rectToString(cqRect)}`);
         println(cqRect.width === 90 ? "PASS" : "FAIL");
-        done();
     });
 </script>

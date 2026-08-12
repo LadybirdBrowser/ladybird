@@ -13,7 +13,7 @@
         child.internals.updateStyle();
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         const iframe = document.createElement("iframe");
         iframe.style.border = "0";
         iframe.style.width = "300px";
@@ -61,7 +61,5 @@
         counters = child.internals.getStyleInvalidationCounters();
         println(`resized back shadow host color: ${child.getComputedStyle(host).color}`);
         println(`resized back recomputed host side: ${counters.elementStyleRecomputations > 1}`);
-
-        done();
     });
 </script>

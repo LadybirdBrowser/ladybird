@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const jwk = { alg: "A128GCM", kty: "oct", k: "é" };
 
         try {
@@ -10,7 +10,5 @@
         } catch (error) {
             println(error.name);
         }
-
-        done();
     });
 </script>

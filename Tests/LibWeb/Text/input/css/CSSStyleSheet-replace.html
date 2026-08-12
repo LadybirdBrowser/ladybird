@@ -6,7 +6,7 @@
 </style>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const newStyle = `
         .test {
             font-size: 14px;
@@ -45,6 +45,5 @@
         for (const rule of sheet.cssRules) {
             println(`Rule: ${rule.cssText}`);
         }
-        done();
     });
 </script>

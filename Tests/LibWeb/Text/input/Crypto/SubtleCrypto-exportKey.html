@@ -5,7 +5,7 @@
         return [...new Uint8Array(buffer)].map(b => b.toString(16).padStart(2, "0")).join("");
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         let algorithm = {
             name: "RSA-OAEP",
             modulusLength: 512,
@@ -45,7 +45,5 @@
         } catch (e) {
             println(`exportKey spki private key: ${e.name} ${e.message}`);
         }
-
-        done();
     });
 </script>

@@ -73,7 +73,7 @@ body:has(:focus-within) #case2-target { background-color: green; }
 </div>
 
 <script>
-asyncTest(async (done) => {
+promiseTest(async () => {
     document.body.offsetWidth;
 
     const bg = id => getComputedStyle(document.getElementById(id)).backgroundColor;
@@ -132,7 +132,5 @@ asyncTest(async (done) => {
     await animationFrame();
     println(`Case 5 (has + blur, focused): ${case5_focused}`);
     println(`Case 5 (has + blur, blurred): ${bg("blur-target")}`);
-
-    done();
 });
 </script>

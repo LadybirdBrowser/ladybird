@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-asyncTest(async done => {
+promiseTest(async () => {
     const image = new Image();
     image.src = "../../../Assets/120.png?image-decode-source-change";
 
@@ -14,7 +14,5 @@ asyncTest(async done => {
     } catch (error) {
         println(error.name === "EncodingError" ? "PASS" : `FAIL: ${error.name}`);
     }
-
-    done();
 });
 </script>

@@ -5,7 +5,7 @@
         return [...new Uint8Array(buffer)].map(b => b.toString(16).padStart(2, "0")).join("");
     }
 
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         let key_material = "password";
         let enc = new TextEncoder();
         let key = await window.crypto.subtle.importKey(
@@ -28,6 +28,5 @@
         let digest = await window.crypto.subtle.digest("SHA-256", encoded_message);
 
         println(`SHA-256 digest: ${bufferToHex(digest)}`);
-        done();
     });
 </script>

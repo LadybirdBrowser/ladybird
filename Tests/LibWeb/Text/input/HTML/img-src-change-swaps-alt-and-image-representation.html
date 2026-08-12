@@ -6,7 +6,7 @@
     // directions: alt text for a broken or source-less image, blank space while a load is in
     // flight, and the image itself once data arrives. Each transition changes which kind of
     // layout node the element gets, so this exercises the invalidation that rebuilds it.
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const TINY_PNG_BASE64 =
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
@@ -61,7 +61,5 @@
         img.src = secondBrokenURL;
         await erroredAgain;
         println(`image still renders alt text after another failed load: ${width(img) > 0}`);
-
-        done();
     });
 </script>

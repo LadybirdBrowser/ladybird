@@ -1,7 +1,7 @@
 <!doctype html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
         const canvasContentGeneration = () => {
             const match = internals.dumpDisplayList().match(/DrawCanvas@\d+ .*content_generation=(\d+)/);
@@ -32,6 +32,5 @@
             canvas.remove();
             await nextFrame();
         }
-        done();
     });
 </script>

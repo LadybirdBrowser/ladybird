@@ -4,7 +4,7 @@
 <script>
     const audio = document.getElementById("audio");
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         audio.src = "../../../Assets/test-webm-audio.ogg";
         await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, { once: true }));
 
@@ -15,6 +15,5 @@
         await new Promise(resolve => audio.addEventListener("ended", resolve, { once: true }));
 
         println(`ended, currentTime === duration: ${audio.currentTime === audio.duration}`);
-        done();
     });
 </script>

@@ -2,7 +2,7 @@
 <body></body>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const server = httpTestServer();
         const finalPageUrl = await server.createEcho("GET", "/iframe-pushstate-before-nested-history-ready-final", {
             status: 200,
@@ -28,6 +28,5 @@
         iframe.src = finalPageUrl;
         await loaded;
         println("navigation drained");
-        done();
     });
 </script>

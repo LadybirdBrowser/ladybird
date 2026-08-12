@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const parent = document.createElement("div");
         parent.style.setProperty("--foo", "rgb(255, 0, 0)");
 
@@ -42,6 +42,5 @@
             inherits: true,
         });
         println(`after destination generation change color: ${iframe.contentWindow.getComputedStyle(target).color}`);
-        done();
     });
 </script>

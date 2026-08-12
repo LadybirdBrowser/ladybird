@@ -6,7 +6,7 @@
     checkbox.addEventListener("change", () => {
       changeEventFired = true;
     });
-    asyncTest(async done => {
+    promiseTest(async () => {
         checkbox.focus();
         await new Promise(resolve => setTimeout(resolve, 0));
         checkbox.blur();
@@ -17,7 +17,5 @@
         } else {
             println("PASS: Change event was not fired");
         }
-
-        done();
     });
 </script>

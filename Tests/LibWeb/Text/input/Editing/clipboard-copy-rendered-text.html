@@ -4,7 +4,7 @@
 <div><br></div>
 <ul><li>One<br></li><li>Two<br></li></ul><div>Last</div></div>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
         host.focus();
         getSelection().selectAllChildren(host);
@@ -17,6 +17,5 @@
         }, { once: true }));
         internals.sendKey(host, "V", platformControl);
         await pasteEvent;
-        done();
     });
 </script>

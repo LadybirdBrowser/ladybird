@@ -25,11 +25,10 @@
         });
     };
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         await runTest("input1");
         await runTest("input2");
         await runTest("input3");
         await runTest("input4");
-        done();
     });
 </script>

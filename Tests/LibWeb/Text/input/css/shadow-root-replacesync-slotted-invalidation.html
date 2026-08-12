@@ -2,7 +2,7 @@
 <script src="../include.js"></script>
 <div id="host"><span id="slotted" class="item">slotted</span></div>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const host = document.getElementById("host");
         const slotted = document.getElementById("slotted");
         const shadowRoot = host.attachShadow({ mode: "open" });
@@ -31,6 +31,5 @@
         keyframesSheet.replaceSync("@keyframes fade { from { opacity: 0.5; } to { opacity: 0.5; } }");
         await animationFrame();
         println(`opacity after keyframes replaceSync: ${getComputedStyle(slotted).opacity}`);
-        done();
     });
 </script>

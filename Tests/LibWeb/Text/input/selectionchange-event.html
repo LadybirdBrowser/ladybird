@@ -12,7 +12,7 @@
     Ladybird is an ongoing project to build an independent web browser from scratch.
 </div>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         function elementToString(e) {
             let element_string = `<${e.nodeName} `;
             if (e.id) element_string += `id="${e.id}" `;
@@ -39,7 +39,5 @@
         await new Promise(resolve => setTimeout(resolve, 0));
         internals.click(40, 10);
         await new Promise(resolve => setTimeout(resolve, 0));
-
-        done();
     });
 </script>

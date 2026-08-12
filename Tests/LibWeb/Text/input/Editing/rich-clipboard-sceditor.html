@@ -3,7 +3,7 @@
 <script>
     // This fixture uses the styled runs and images from the SCEditor front-page demo. The expected DOM and selection
     // endpoints were recorded by driving Chromium through WebDriver with the same copy, paste, undo, and redo keys.
-    asyncTest(async done => {
+    promiseTest(async () => {
         const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
         const platformControlShift = platformControl | internals.MOD_SHIFT;
         const selection = getSelection();
@@ -154,6 +154,5 @@
             println(`FAIL: ${failures.length}/${assertionCount} SCEditor rich clipboard assertions failed\n${failures.join("\n")}`);
         else
             println(`PASS: ${assertionCount} SCEditor rich clipboard assertions match Chromium`);
-        done();
     });
 </script>

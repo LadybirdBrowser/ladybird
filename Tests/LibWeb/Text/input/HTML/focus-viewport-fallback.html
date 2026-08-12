@@ -15,7 +15,7 @@
         return document.activeElement.id || document.activeElement.localName;
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
         await timeout(0);
 
@@ -41,7 +41,5 @@
         location.hash = fragmentTarget.id;
         await scrolled;
         println(`after fragment focus fallback: ${activeElementName()}`);
-
-        done();
     });
 </script>

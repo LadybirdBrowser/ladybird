@@ -19,13 +19,12 @@
         video.addEventListener(name, () => logEvent(name));
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         video.src = "../../../Assets/corrupt-video.webm";
 
         await new Promise(resolve => video.addEventListener("error", resolve, { once: true }));
         video.src = "../../../Assets/test-webm.webm";
 
         await new Promise(resolve => video.addEventListener("canplaythrough", resolve, { once: true }));
-        done();
     });
 </script>

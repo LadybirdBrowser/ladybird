@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const iframe = document.createElement("iframe");
         document.body.append(iframe);
         const other = iframe.contentWindow;
@@ -40,7 +40,5 @@
         println(`stream chunk is iframe realm: ${chunk instanceof other.Uint8Array}`);
         println(`stream chunk is parent realm: ${chunk instanceof Uint8Array}`);
         println(`stream chunk values: ${Array.from(chunk).join(",")}`);
-
-        done();
     });
 </script>

@@ -59,14 +59,12 @@
     </div>
 </div>
 <script>
-asyncTest(async done => {
+promiseTest(async () => {
     await animationFrame();
 
     for (let id of [ "abspos1", "abspos2" ]) {
         let abspos = document.getElementById(id);
         println(`${id}: ${abspos.offsetLeft},${abspos.offsetTop} ${abspos.offsetWidth}x${abspos.offsetHeight}`);
     }
-
-    done();
 });
 </script>

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const popup = window.open();
         const popupDocument = popup.document;
 
@@ -35,6 +35,5 @@
         println(`Replacement load events: ${loadCount}`);
         println(`Replacement pageshow events: ${pageshowCount}`);
         popup.close();
-        done();
     });
 </script>

@@ -3,7 +3,7 @@
 <textarea id="textArea"></textarea>
 <script src="include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const input = document.getElementById("textInput");
         const textarea = document.getElementById("textArea");
 
@@ -60,7 +60,5 @@
             input.focus();
             internals.sendText(input, "c");
         });
-
-        done();
     });
 </script>

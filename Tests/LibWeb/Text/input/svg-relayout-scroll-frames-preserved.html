@@ -11,7 +11,7 @@
     </foreignObject>
 </svg>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         // Force initial layout to complete.
         document.body.offsetHeight;
 
@@ -30,6 +30,5 @@
         const hit = document.elementFromPoint(30, 40);
         println("hit=" + (hit ? (hit.id || hit.tagName) : "null"));
         println(scroller.scrollTop === 150 && hit && hit.id === "probe" ? "PASS" : "FAIL");
-        done();
     });
 </script>

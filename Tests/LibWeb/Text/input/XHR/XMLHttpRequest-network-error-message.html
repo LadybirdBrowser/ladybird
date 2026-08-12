@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const server = httpTestServer();
 
         const url = await server.createEcho("GET", "/close-connection", {
@@ -18,6 +18,5 @@
             println(e.name);
             println(e.message);
         }
-        done();
     });
 </script>

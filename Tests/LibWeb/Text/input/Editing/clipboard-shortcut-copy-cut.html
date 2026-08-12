@@ -2,7 +2,7 @@
 <script src="../include.js"></script>
 <div id="editor" contenteditable="true">hello world</div>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const modCtrl = (1 << 1) | (1 << 3); // Ctrl and Super, to cover the platform clipboard modifier everywhere.
         const editor = document.getElementById("editor");
         const events = [];
@@ -44,6 +44,5 @@
         println(`formats after canceled copy: ${JSON.stringify(clipboardItem.types)}`);
 
         for (const line of events) println(line);
-        done();
     });
 </script>

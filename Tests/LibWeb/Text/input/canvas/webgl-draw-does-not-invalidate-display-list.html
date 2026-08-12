@@ -10,7 +10,7 @@
     //
     // Creating a WebGL context is the exception: it must invalidate the display list, since the
     // recorded DrawCanvas command refers to the context's canvas id.
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const lines = [];
         const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
 
@@ -35,6 +35,5 @@
 
         for (const line of lines)
             println(line);
-        done();
     });
 </script>

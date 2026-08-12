@@ -7,7 +7,7 @@
     // verified end time for the track.
     const video = document.getElementById("video");
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         video.src = "../../../Assets/resize-320x240-640x480.webm";
         await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
 
@@ -16,6 +16,5 @@
         await new Promise(resolve => video.addEventListener("ended", resolve, { once: true }));
 
         println(`ended while hidden, currentTime === duration: ${video.currentTime === video.duration}`);
-        done();
     });
 </script>

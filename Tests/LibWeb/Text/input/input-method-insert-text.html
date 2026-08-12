@@ -6,7 +6,7 @@
 <input id="readonly_input" value="ro" readonly>
 <input id="preedit_input" value="">
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         // Spec for <input>/<textarea> fires 'input' via a queued element task. Wait for it.
         const waitForEvent = (target, type) => new Promise(resolve => {
             target.addEventListener(type, e => resolve({ inputType: e.inputType, data: e.data }), { once: true });
@@ -147,7 +147,5 @@
         window.scrollTo(0, 0);
         const moved = (caret_at_0 && caret_scrolled) ? caret_at_0.y - caret_scrolled.y : null;
         println(`caret rect is viewport-relative (moves with scroll): ${moved !== null && scroll_y > 0 && Math.abs(moved - scroll_y) < 1}`);
-
-        done();
     });
 </script>

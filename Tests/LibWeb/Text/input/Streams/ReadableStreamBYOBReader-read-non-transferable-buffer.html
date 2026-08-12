@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         {
             const stream = new ReadableStream({ type: "bytes" });
             const reader = stream.getReader({ mode: "byob" });
@@ -57,7 +57,5 @@
 
             println(`RespondWithNewView buffer byteLength: ${memory.buffer.byteLength}`);
         }
-
-        done();
     });
 </script>

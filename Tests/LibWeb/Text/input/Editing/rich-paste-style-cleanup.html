@@ -4,7 +4,7 @@
     // These clipboard payloads and resulting DOM/selection states were recorded from Chromium using WebDriver.
     // Chromium's native serializer annotates copied content with its rendered style, then native paste removes the
     // declarations which the destination cascade already supplies.
-    asyncTest(async done => {
+    promiseTest(async () => {
         const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
         const platformControlShift = platformControl | internals.MOD_SHIFT;
         const selection = getSelection();
@@ -92,6 +92,5 @@
             println(`FAIL: ${failures.length}/${assertionCount} rich paste style cleanup assertions failed\n${failures.join("\n")}`);
         else
             println(`PASS: ${assertionCount} rich paste style cleanup assertions match Chromium`);
-        done();
     });
 </script>

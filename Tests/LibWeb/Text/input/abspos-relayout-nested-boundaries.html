@@ -40,7 +40,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         document.body.offsetHeight;
 
         const betweenBefore = document.getElementById("between").getBoundingClientRect();
@@ -66,6 +66,5 @@
             && rectToString(betweenBefore) === rectToString(betweenAfter)
             && rectToString(child) === "70,70,60,40"
             && partialDelta === 1 && fullDelta === 0 ? "PASS" : "FAIL");
-        done();
     });
 </script>

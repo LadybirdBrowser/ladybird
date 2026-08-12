@@ -100,7 +100,7 @@
         `;
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         const iframe = document.createElement("iframe");
         iframe.style.border = "0";
         iframe.style.width = "300px";
@@ -139,7 +139,5 @@
         println(`full invalidations: ${counters.fullStyleInvalidations}`);
         println(`style recomputations bounded: ${counters.elementStyleRecomputations < elementCount / 2}`);
         println(`inherited recomputations present: ${counters.elementInheritedStyleRecomputations > 0}`);
-
-        done();
     });
 </script>

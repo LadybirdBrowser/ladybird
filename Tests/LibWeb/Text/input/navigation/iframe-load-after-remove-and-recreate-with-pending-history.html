@@ -11,7 +11,7 @@
         });
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         const server = httpTestServer();
         const firstPageUrl = await server.createEcho("GET", "/iframe-recreate-pending-history-first", {
             status: 200,
@@ -32,6 +32,5 @@
 
         await loadFrame(secondPageUrl);
         println("second load");
-        done();
     });
 </script>

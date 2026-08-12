@@ -37,7 +37,7 @@
     return corrupted.buffer;
   }
 
-  asyncTest(async done => {
+  promiseTest(async () => {
     for (const [name, genUsages, privUsages] of [
       ["RSASSA-PKCS1-v1_5", ["sign", "verify"], ["sign"]],
       ["RSA-PSS", ["sign", "verify"], ["sign"]],
@@ -74,7 +74,5 @@
         }
       }
     }
-
-    done();
   });
 </script>

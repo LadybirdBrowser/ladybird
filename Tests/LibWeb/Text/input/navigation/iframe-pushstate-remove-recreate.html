@@ -11,7 +11,7 @@
         return iframe;
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         history.pushState({}, "", "#parent");
         await internals.flushSessionHistoryTraversalQueue();
 
@@ -24,6 +24,5 @@
         await internals.flushSessionHistoryTraversalQueue();
 
         println("PASS");
-        done();
     });
 </script>

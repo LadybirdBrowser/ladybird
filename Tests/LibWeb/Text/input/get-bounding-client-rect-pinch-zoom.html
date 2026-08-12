@@ -12,7 +12,7 @@
 <div id="target"></div>
 <script src="include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         await animationFrame();
 
         const target = document.getElementById("target");
@@ -28,6 +28,5 @@
         println(`visualViewport scale: ${visualViewport.scale.toFixed(3)}`);
         println(`after: ${after.x.toFixed(3)},${after.y.toFixed(3)} ${after.width.toFixed(3)}x${after.height.toFixed(3)}`);
         println(`size unchanged: ${after.width === before.width && after.height === before.height ? "PASS" : "FAIL"}`);
-        done();
     });
 </script>

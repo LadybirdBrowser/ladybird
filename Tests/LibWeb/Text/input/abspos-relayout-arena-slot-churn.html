@@ -20,7 +20,7 @@
     // Structural partial relayout frees the replaced layout nodes before allocating their
     // replacements. The arena reuses those slots, keeping the per-pass used values store
     // bounded without periodic full passes to compact a separate index space.
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         document.body.offsetHeight;
 
         const iterations = 400;
@@ -44,6 +44,5 @@
         println(partialDelta === iterations
             && fullDelta === 0
             && boundaryRect.height === 40 ? "PASS" : "FAIL");
-        done();
     });
 </script>

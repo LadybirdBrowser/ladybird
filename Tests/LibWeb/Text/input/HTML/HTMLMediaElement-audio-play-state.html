@@ -3,7 +3,7 @@
 <script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
 <video autoplay muted loop src="../../../Assets/test-webm.webm"></video>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         internals.setTestTimeout(15_000);
         const video = document.querySelector("video");
         await new Promise(resolve => video.addEventListener("playing", resolve, { once: true }));
@@ -45,6 +45,5 @@
 
         video.load();
         println(`reset media reported as playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
-        done();
     });
 </script>

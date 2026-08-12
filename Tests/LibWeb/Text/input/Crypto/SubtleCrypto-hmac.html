@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         await crypto.subtle.exportKey(
             "jwk",
             await crypto.subtle.generateKey(
@@ -17,7 +17,5 @@
         );
 
         println("Does not crash.");
-
-        done();
     });
 </script>

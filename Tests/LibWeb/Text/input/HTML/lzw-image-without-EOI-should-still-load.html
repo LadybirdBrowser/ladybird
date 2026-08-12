@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const sources = [
             { format: "GIF",  src: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" },
         ];
@@ -19,6 +19,5 @@
                 image.src = src;
             });
         }
-        done();
     });
 </script>

@@ -11,7 +11,7 @@
 <div id="container3"><div><div class="grandchild" id="g3"></div></div></div>
 <div id="container4"><div><div class="grandchild" id="g4"></div></div></div>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
         // Resolve the before-change style for all elements while they are rendered.
@@ -51,7 +51,5 @@
         g4.style.opacity = "0";
         await nextFrame();
         println("animations on descendant mutated while being hidden: " + g4.getAnimations().length);
-
-        done();
     });
 </script>

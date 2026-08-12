@@ -5,7 +5,7 @@
         return new Promise(resolve => requestAnimationFrame(resolve));
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         const iframe = document.createElement("iframe");
         iframe.style.border = "0";
         iframe.style.width = "300px";
@@ -102,7 +102,5 @@
         println(`resized back nested color: ${child.getComputedStyle(nestedTarget).color}`);
         println(`media query full invalidations after resize back: ${resizedBackCounters.fullStyleInvalidations}`);
         println(`media query recomputations bounded after resize back: ${resizedBackCounters.elementStyleRecomputations < elementCount / 2}`);
-
-        done();
     });
 </script>

@@ -13,7 +13,7 @@
         return base64String.replace(/=/g, "");
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         var subtle = self.crypto.subtle;
 
 
@@ -37,8 +37,6 @@
         println(key.algorithm.name);
         println(key.type);
         println(key.usages.join(","));
-
-        done();
     });
 
 </script>

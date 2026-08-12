@@ -3,7 +3,7 @@
 <script>
     // These source ranges come from the SCEditor-derived Chromium differential fixture. Each range contains only part
     // of one block even though Range::cloneContents() represents it with a complete div wrapper.
-    asyncTest(async done => {
+    promiseTest(async () => {
         const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
         const platformControlShift = platformControl | internals.MOD_SHIFT;
         const failures = [];
@@ -191,6 +191,5 @@
             println(`FAIL: ${failures.length}/${assertionCount} partial-block assertions failed\n${failures.join("\n")}`);
         else
             println(`PASS: ${assertionCount} partial-block assertions match Chromium`);
-        done();
     });
 </script>

@@ -7,13 +7,12 @@
     }
 </style>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         try {
             await document.fonts.load("16px TestFont");
             println("PASS");
         } catch (error) {
             println(`FAIL: ${error}`);
         }
-        done();
     });
 </script>

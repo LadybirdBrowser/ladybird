@@ -4,7 +4,7 @@
     // Verify that a storage event is fired to a window that has not yet accessed
     // sessionStorage - i.e. its Storage object has not yet been lazily created.
     // See: https://github.com/whatwg/html/issues/10135
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const key = 'my-key';
 
         const eventReceived = Promise.withResolvers();
@@ -25,6 +25,5 @@
         println(`storageArea: ${e.storageAreaString}`);
 
         sessionStorage.removeItem(key);
-        done();
     });
 </script>

@@ -10,7 +10,7 @@
 <script>
     // This selection and its expected replacement were recorded from Chromium using the SCEditor-derived fixture.
     // Its final paragraph ends partway through a legacy font and is merged with the destination paragraph.
-    asyncTest(async done => {
+    promiseTest(async () => {
         await new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
 
         const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
@@ -252,6 +252,5 @@
             println(`FAIL: ${failures.length}/${assertionCount} partial-font assertions failed\n${failures.join("\n")}`);
         else
             println(`PASS: ${assertionCount} partial-font assertions match Chromium`);
-        done();
     });
 </script>

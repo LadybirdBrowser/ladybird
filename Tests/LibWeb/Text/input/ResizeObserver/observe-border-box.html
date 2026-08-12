@@ -17,7 +17,7 @@
 </body>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const box = document.getElementById("box");
 
         let resolve = null;
@@ -51,7 +51,5 @@
 
         observerCallbackInvocation = createResizeObserverPromise();
         await observerCallbackInvocation;
-
-        done();
     });
 </script>

@@ -9,7 +9,7 @@
 <script>
     const imageURL = "../wpt-import/images/anim-gr.gif";
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         await new Promise(resolve => window.addEventListener("load", resolve));
 
         internals.dumpLayoutTree(document);
@@ -19,6 +19,5 @@
         internals.dumpLayoutTree(document);
 
         println(`timer active after hiding: ${internals.imageAnimationStateForURL(imageURL).timerActive}`);
-        done();
     });
 </script>

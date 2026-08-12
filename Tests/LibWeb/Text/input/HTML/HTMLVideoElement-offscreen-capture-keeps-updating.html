@@ -4,7 +4,7 @@
 <script>
     // An unattached <video> is never painted, so only capturing it keeps its video sink updating.
     // Play it while capturing off-screen and confirm the presented frame advances (the clip resizes 320->640).
-    asyncTest(async done => {
+    promiseTest(async () => {
         const video = document.createElement("video");
         video.src = "../../../Assets/resize-320x240-640x480.webm";
         await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
@@ -34,6 +34,5 @@
         capturing = false;
 
         println(`videoWidth advanced to ${video.videoWidth}`);
-        done();
     });
 </script>

@@ -11,7 +11,7 @@
         });
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         history.pushState({ section: "running" }, "", "#running");
 
         const first = await loadFrame("about:blank");
@@ -22,6 +22,5 @@
 
         await loadFrame("about:blank");
         println("second loaded");
-        done();
     });
 </script>

@@ -21,7 +21,7 @@
             await animationFrame();
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         const target = document.getElementById("target");
         settleAndReset(target);
 
@@ -38,7 +38,5 @@
 
         getComputedStyle(target).color;
         verifyFullRestyleWasScheduled("imported layer-only stylesheet remove schedules full restyle");
-
-        done();
     });
 </script>

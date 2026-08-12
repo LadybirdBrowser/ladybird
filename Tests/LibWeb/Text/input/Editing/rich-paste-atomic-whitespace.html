@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
         const platformControlShift = platformControl | internals.MOD_SHIFT;
         const selection = getSelection();
@@ -50,6 +50,5 @@
         println(host.innerHTML === pastedHTML ? "PASS: redo DOM" : `FAIL: redo DOM: ${host.innerHTML}`);
         println(selectionString() === "host/1/3@5" ? "PASS: redo selection" : `FAIL: redo selection: ${selectionString()}`);
         println(host.querySelector("#target").childNodes.length === 4 ? "PASS: redo text seams" : `FAIL: redo text seams: ${host.querySelector("#target").childNodes.length}`);
-        done();
     });
 </script>

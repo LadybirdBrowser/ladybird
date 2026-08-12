@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async done => {
+    promiseTest(async () => {
         let testCounter = 1;
         async function testPart(part) {
             const currentTest = testCounter++;
@@ -26,7 +26,5 @@
             const result = await offscreenCanvas.convertToBlob({ type: "image/jpeg" });
             return { size: result.size, type: result.type };
         });
-
-        done();
     });
 </script>

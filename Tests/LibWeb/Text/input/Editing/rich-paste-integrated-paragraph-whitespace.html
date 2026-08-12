@@ -3,7 +3,7 @@
 <script>
     // This range comes from the SCEditor-derived Chromium differential fixture. It covers a protected clipboard
     // space whose wrapper becomes redundant when the final pasted paragraph is integrated with the destination.
-    asyncTest(async done => {
+    promiseTest(async () => {
         const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
         const platformControlShift = platformControl | internals.MOD_SHIFT;
         const failures = [];
@@ -80,6 +80,5 @@
             println(`FAIL: ${failures.length}/${assertionCount} integrated-paragraph assertions failed\n${failures.join("\n")}`);
         else
             println(`PASS: ${assertionCount} integrated-paragraph assertions match Chromium`);
-        done();
     });
 </script>

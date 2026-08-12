@@ -12,7 +12,7 @@
         video.addEventListener(name, () => logEvent(name));
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         logEvent("initial");
         video.src = "../../../Assets/test-webm.webm";
 
@@ -24,7 +24,5 @@
 
         await new Promise(resolve => video.addEventListener("canplaythrough", resolve, { once: true }));
         logEvent("after canplaythrough");
-
-        done();
     });
 </script>

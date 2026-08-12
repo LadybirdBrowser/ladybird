@@ -15,7 +15,7 @@
     // These selections and replacements were recorded from Chromium using the SCEditor-derived fixture. Chromium's
     // clipboard serializer emits Apple-interchange-newline markers for selected paragraph boundaries. Its replacement
     // path currently retains leading markers in the document while consuming trailing transport markers.
-    asyncTest(async done => {
+    promiseTest(async () => {
         await new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
 
         const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
@@ -560,6 +560,5 @@
             println(`FAIL: ${failures.length}/${assertionCount} interchange-newline assertions failed\n${failures.join("\n")}`);
         else
             println(`PASS: ${assertionCount} interchange-newline assertions match Chromium`);
-        done();
     });
 </script>

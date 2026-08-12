@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         const testCases = [
             "AGFzbQEAAAAJEhAAHwAABQ==", // Structured else has argument type that isn't StructuredInstructionArgs
             "AGFzbQEAAAANAwEABA==",     // Type index in tag section is out of bounds
@@ -17,6 +17,5 @@
         }
 
         println("PASS! (Didn't crash)");
-        done();
     });
 </script>

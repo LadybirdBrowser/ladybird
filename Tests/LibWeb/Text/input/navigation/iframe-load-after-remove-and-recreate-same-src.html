@@ -11,7 +11,7 @@
         });
     }
 
-    asyncTest(async done => {
+    promiseTest(async () => {
         const src = "about:blank";
 
         const first = await loadFrame(src);
@@ -24,7 +24,5 @@
         const second = await loadFrame(src);
         println("second load");
         second.remove();
-
-        done();
     });
 </script>

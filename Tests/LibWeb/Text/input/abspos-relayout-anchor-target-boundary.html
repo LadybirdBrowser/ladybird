@@ -33,7 +33,7 @@
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
 
-    asyncTest(async (done) => {
+    promiseTest(async () => {
         document.body.offsetHeight;
 
         const anchoredBefore = document.getElementById("anchored").getBoundingClientRect();
@@ -57,6 +57,5 @@
             && rectToString(anchoredBefore) === "40,60,120,20"
             && rectToString(anchoredAfter) === "40,60,120,60"
             && rectToString(inner) === "40,60,80,60" ? "PASS" : "FAIL");
-        done();
     });
 </script>
