@@ -607,9 +607,7 @@ void WebContentClient::maybe_record_history_visit_for_current_load(u64 page_id, 
 }
 
 void WebContentClient::did_start_loading(u64 page_id, Optional<u64> history_load_id,
-    Optional<Utf16String> navigation_id, URL::URL url,
-    Optional<Web::HTML::PendingSessionHistoryEntryDescriptor> pending_history_entry, bool is_redirect,
-    Web::Bindings::NavigationHistoryBehavior history_handling)
+    Optional<Utf16String> navigation_id, URL::URL url, bool is_redirect)
 {
     if (auto process = WebView::Application::the().find_process(m_process_handle.pid); process.has_value())
         process->set_title(OptionalNone {});
@@ -630,7 +628,8 @@ void WebContentClient::did_start_loading(u64 page_id, Optional<u64> history_load
         view->m_loading_url = url;
         view->m_should_suppress_history_for_current_load = view->m_should_suppress_history_for_next_load;
         view->m_should_suppress_history_for_next_load = false;
-        view->did_start_navigation(url, move(pending_history_entry), history_load_id.has_value(), is_redirect, history_handling);
+        view->did_start_navigation(url, history_load_id.has_value(), is_redirect,
+            navigation_id.has_value());
 
         view->set_url({}, url);
         view->set_title({}, Utf16String::from_utf8(url.serialize()));
@@ -648,7 +647,7 @@ void WebContentClient::did_start_loading(u64 page_id, Optional<u64> history_load
 }
 
 void WebContentClient::did_cancel_loading(u64 page_id, Optional<u64> history_load_id,
-    Optional<Utf16String> navigation_id, URL::URL url)
+    Optional<Utf16String> navigation_id)
 {
     m_history_recorded_urls_for_current_load.remove(page_id);
 
@@ -661,7 +660,7 @@ void WebContentClient::did_cancel_loading(u64 page_id, Optional<u64> history_loa
         view->m_loading_history_load_id.clear();
         view->m_loading_navigation_id.clear();
         view->m_loading_url.clear();
-        view->did_cancel_navigation(url);
+        view->did_cancel_navigation();
 
         auto const& client_url = view->url();
         if (view->on_load_finish)
@@ -1898,10 +1897,11 @@ Messages::WebContentClient::DidRequestSiteIsolationProcessTreeForTestingResponse
     return { SiteIsolationManager::the().dump_process_tree(*this, page_id) };
 }
 
-void WebContentClient::did_reset_session_history_for_testing(u64 page_id)
+void WebContentClient::did_reset_session_history_for_testing(
+    u64 page_id, Web::HTML::SessionHistoryEntryDescriptor active_entry)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_reset_session_history_for_testing({});
+        view->did_reset_session_history_for_testing({}, move(active_entry));
 }
 
 void WebContentClient::request_history_operation(u64 page_id, u64 initiation_id, Web::HistoryOperationParameters parameters)
