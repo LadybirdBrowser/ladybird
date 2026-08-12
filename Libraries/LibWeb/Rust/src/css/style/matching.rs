@@ -1683,6 +1683,8 @@ impl StyleEngine {
         let mut orders_shifted = false;
         let mut requires_full_match = false;
         let mut tree_mutation_rules_selected = false;
+        let mut affected_routing_keys = HashSet::default();
+        let mut affected_current_rules = HashSet::default();
         let mut cascade_update_properties = Vec::new();
         let mut cascade_update_rules = Vec::new();
         for input in &transaction.inputs {
@@ -1812,11 +1814,7 @@ impl StyleEngine {
                             if self.program.rule_can_decide(rule)
                                 && self.program.rule_version(rule).selector_program == Some(point.program)
                             {
-                                affected.push(RetainedAnswerPatchSelectionRule {
-                                    rule,
-                                    program: point.program,
-                                    evaluate: true,
-                                });
+                                affected_current_rules.insert((rule, point.program));
                             }
                         }
                     }
@@ -1842,22 +1840,28 @@ impl StyleEngine {
                 }
                 _ => return None,
             };
-            for key in keys {
-                for &route in self.routing.routes_for(key) {
-                    let rule = self.routing.rule_of(route);
-                    let point = self.routing.route(route);
-                    if self.program.rule_can_decide(rule)
-                        && self.program.rule_version(rule).selector_program == Some(point.program)
-                    {
-                        affected.push(RetainedAnswerPatchSelectionRule {
-                            rule,
-                            program: point.program,
-                            evaluate: true,
-                        });
-                    }
+            affected_routing_keys.extend(keys);
+        }
+        for key in affected_routing_keys {
+            for &route in self.routing.routes_for(key) {
+                let rule = self.routing.rule_of(route);
+                let point = self.routing.route(route);
+                if self.program.rule_can_decide(rule)
+                    && self.program.rule_version(rule).selector_program == Some(point.program)
+                {
+                    affected_current_rules.insert((rule, point.program));
                 }
             }
         }
+        affected.extend(
+            affected_current_rules
+                .into_iter()
+                .map(|(rule, program)| RetainedAnswerPatchSelectionRule {
+                    rule,
+                    program,
+                    evaluate: true,
+                }),
+        );
         let removed_programs: Vec<SelectorProgramID> = affected
             .iter()
             .filter_map(|affected| (!affected.evaluate).then_some(affected.program))
