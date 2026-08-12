@@ -100,10 +100,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         let mut inheritance_dependent_values = Vec::new();
         let mut memory_pressure = FfiMemoryPressureSnapshot::default();
         loop {
-            if !options.assert_digests {
-                event_count += reader.skip_redundant_style_record_reads();
-            }
-            let Some(mut event) = reader.read_event_borrowed()? else {
+            let (skipped, event) = match options.assert_digests {
+                true => (0, reader.read_event_borrowed()?),
+                false => reader.read_event_borrowed_skipping_redundant_style_reads()?,
+            };
+            event_count += skipped;
+            let Some(mut event) = event else {
                 break;
             };
             event_count += 1;

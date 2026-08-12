@@ -212,57 +212,58 @@ impl<R: Read> LogReader<R> {
 }
 
 impl<'d> LogReader<&'d [u8]> {
-    /// Skip legacy markers for repeated reads of immutable style-record data.
-    ///
-    /// Current recorders omit these events after the first response for an identity. Old captures
-    /// encode a 17-byte payload containing the engine, identity, and a false response flag. Fast
-    /// replay can consume a whole run without decoding values whose only observable result was
-    /// already established by the first response.
-    pub fn skip_redundant_style_record_reads(&mut self) -> u64 {
-        let mut skipped = 0;
-        loop {
-            if self.input.len() < EVENT_HEADER_SIZE + 24 {
-                break;
-            }
-            let kind = u64::from_le_bytes(self.input[..8].try_into().unwrap());
-            if kind != EventKind::StyleRecordPayloads as u16 as u64 && kind != EventKind::StyleRecordView as u16 as u64
-            {
-                break;
-            }
-            let payload_length = u64::from_le_bytes(self.input[8..16].try_into().unwrap());
-            if payload_length != 17 || self.input[EVENT_HEADER_SIZE + 16] != 0 {
-                break;
-            }
-            self.input = &self.input[EVENT_HEADER_SIZE + 24..];
-            skipped += 1;
-        }
-        skipped
-    }
-
     /// Reads the next event without copying: the payload borrows the input slice itself, so with a
     /// memory-mapped log the decode loop never touches a scratch buffer.
     #[inline]
     pub fn read_event_borrowed(&mut self) -> Result<Option<Event<'d>>, Error> {
-        if self.input.is_empty() {
-            return Ok(None);
+        self.read_event_borrowed_impl(false).map(|(_, event)| event)
+    }
+
+    /// Reads the next event while consuming legacy immutable-style-record markers in the same
+    /// header decode pass. Returns the number of markers skipped before the event.
+    #[inline]
+    pub fn read_event_borrowed_skipping_redundant_style_reads(&mut self) -> Result<(u64, Option<Event<'d>>), Error> {
+        self.read_event_borrowed_impl(true)
+    }
+
+    fn read_event_borrowed_impl(
+        &mut self,
+        skip_redundant_style_reads: bool,
+    ) -> Result<(u64, Option<Event<'d>>), Error> {
+        let mut skipped = 0;
+        loop {
+            if self.input.is_empty() {
+                return Ok((skipped, None));
+            }
+            if self.input.len() < EVENT_HEADER_SIZE {
+                return Err(Error::Io(io::Error::from(io::ErrorKind::UnexpectedEof)));
+            }
+            let (kind, payload_length, expected_digest) =
+                decode_event_header(self.input[..EVENT_HEADER_SIZE].try_into().unwrap())?;
+            let rest = &self.input[EVENT_HEADER_SIZE..];
+            let padded_length = payload_length.next_multiple_of(PAYLOAD_ALIGNMENT);
+            if rest.len() < padded_length {
+                return Err(Error::Io(io::Error::from(io::ErrorKind::UnexpectedEof)));
+            }
+            let payload = &rest[..payload_length];
+            self.input = &rest[padded_length..];
+            if skip_redundant_style_reads
+                && payload_length == 17
+                && payload[16] == 0
+                && matches!(kind, EventKind::StyleRecordPayloads | EventKind::StyleRecordView)
+            {
+                skipped += 1;
+                continue;
+            }
+            verify_payload(payload, expected_digest, self.verify_checksums)?;
+            return Ok((
+                skipped,
+                Some(Event {
+                    kind,
+                    payload: PayloadReader::new(payload),
+                }),
+            ));
         }
-        if self.input.len() < EVENT_HEADER_SIZE {
-            return Err(Error::Io(io::Error::from(io::ErrorKind::UnexpectedEof)));
-        }
-        let (kind, payload_length, expected_digest) =
-            decode_event_header(self.input[..EVENT_HEADER_SIZE].try_into().unwrap())?;
-        let rest = &self.input[EVENT_HEADER_SIZE..];
-        let padded_length = payload_length.next_multiple_of(PAYLOAD_ALIGNMENT);
-        if rest.len() < padded_length {
-            return Err(Error::Io(io::Error::from(io::ErrorKind::UnexpectedEof)));
-        }
-        let payload = &rest[..payload_length];
-        self.input = &rest[padded_length..];
-        verify_payload(payload, expected_digest, self.verify_checksums)?;
-        Ok(Some(Event {
-            kind,
-            payload: PayloadReader::new(payload),
-        }))
     }
 }
 
@@ -780,8 +781,9 @@ mod tests {
         writer.flush().unwrap();
 
         let mut reader = LogReader::new(output.as_slice()).unwrap();
-        assert_eq!(reader.skip_redundant_style_record_reads(), 2);
-        let event = reader.read_event_borrowed().unwrap().unwrap();
+        let (skipped, event) = reader.read_event_borrowed_skipping_redundant_style_reads().unwrap();
+        assert_eq!(skipped, 2);
+        let event = event.unwrap();
         assert_eq!(event.kind, EventKind::StyleRecordPayloads);
     }
 
