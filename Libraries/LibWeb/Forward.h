@@ -1320,6 +1320,9 @@ class WebAssemblyCache;
 namespace Web::WebAudio {
 
 class AudioBuffer;
+class AudioWorklet;
+class AudioWorkletGlobalScope;
+class AudioWorkletProcessor;
 class AudioBufferSourceNode;
 class AudioContext;
 class AudioDestinationNode;

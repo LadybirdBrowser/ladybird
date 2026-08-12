@@ -1,0 +1,5 @@
+default-infinity: TypeError
+min-negative-infinity: TypeError
+max-infinity: TypeError
+nan: TypeError
+finite-out-of-range: InvalidStateError
