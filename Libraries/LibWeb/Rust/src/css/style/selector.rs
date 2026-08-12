@@ -3872,7 +3872,7 @@ pub struct MatchEvaluationWorkspace {
     canonical_features: RefCell<CanonicalFeatures>,
     feature_answers_by_evaluation_side: [RefCell<FeatureAnswers>; 3],
     /// Canonical plain an+b answers shared across independently compiled selector programs.
-    positional_answers_by_evaluation_side: [RefCell<HashMap<(NthPosition, StyleNodeID), bool>>; 3],
+    positional_answers_by_evaluation_side: [RefCell<PositionalAnswers>; 3],
 }
 
 define_id! { default struct CanonicalFeatureID(); }
@@ -3886,6 +3886,49 @@ struct CanonicalFeatures {
 #[derive(Default)]
 struct FeatureAnswers {
     columns: Column<Option<RelationAnswerColumn>>,
+}
+
+#[derive(Default)]
+struct PositionalAnswers {
+    by_test: Vec<(NthPosition, HashMap<StyleNodeID, bool>)>,
+}
+
+impl PositionalAnswers {
+    fn get(&self, position: NthPosition, node: StyleNodeID) -> Option<bool> {
+        self.by_test
+            .iter()
+            .find(|(candidate, _)| *candidate == position)?
+            .1
+            .get(&node)
+            .copied()
+    }
+
+    fn insert(&mut self, position: NthPosition, node: StyleNodeID, answer: bool) {
+        match self.by_test.iter_mut().find(|(candidate, _)| *candidate == position) {
+            Some((_, answers)) => {
+                answers.insert(node, answer);
+            }
+            None => {
+                self.by_test.push((position, HashMap::from_iter([(node, answer)])));
+            }
+        }
+    }
+
+    fn capacity_bytes(&self) -> usize {
+        (capacity_bytes! {
+            shallow [self.by_test];
+            cached [];
+            nested [self.by_test.iter().map(|(_, answers)| {
+                capacity_bytes! {
+                    shallow [*answers];
+                    cached [];
+                    nested [];
+                    skip [];
+                }
+            }).sum::<u64>()];
+            skip [];
+        }) as usize
+    }
 }
 
 impl CanonicalFeatures {
@@ -4085,16 +4128,8 @@ impl MatchEvaluationWorkspace {
                 self
                 .positional_answers_by_evaluation_side
                 .iter()
-                .map(|answers| {
-                    let answers = answers.borrow();
-                    capacity_bytes! {
-                        shallow [*answers];
-                        cached [];
-                        nested [];
-                        skip [];
-                    }
-                })
-                .sum::<u64>(),
+                .map(|answers| answers.borrow().capacity_bytes())
+                .sum::<usize>(),
             ];
             skip [];
         }
@@ -4116,9 +4151,9 @@ impl MatchEvaluationWorkspace {
         *self.feature_answers_by_evaluation_side[MatchEvaluationSide::OldFacts as usize].get_mut() =
             FeatureAnswers::default();
         *self.positional_answers_by_evaluation_side[MatchEvaluationSide::OldTree as usize].get_mut() =
-            HashMap::default();
+            PositionalAnswers::default();
         *self.positional_answers_by_evaluation_side[MatchEvaluationSide::OldFacts as usize].get_mut() =
-            HashMap::default();
+            PositionalAnswers::default();
     }
 
     fn relations(&self, side: MatchEvaluationSide) -> &MatchRelationCache {
@@ -4154,8 +4189,7 @@ impl MatchEvaluationWorkspace {
     fn positional_answer(&self, position: NthPosition, node: StyleNodeID, side: MatchEvaluationSide) -> Option<bool> {
         self.positional_answers_by_evaluation_side[side as usize]
             .borrow()
-            .get(&(position, node))
-            .copied()
+            .get(position, node)
     }
 
     fn insert_positional_answer(
@@ -4167,7 +4201,7 @@ impl MatchEvaluationWorkspace {
     ) {
         self.positional_answers_by_evaluation_side[side as usize]
             .borrow_mut()
-            .insert((position, node), answer);
+            .insert(position, node, answer);
     }
 
     fn feature_answer(
