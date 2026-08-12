@@ -1961,10 +1961,9 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(u64 o
 
     auto all_steps = get_all_used_history_steps();
     if (!all_steps.contains_slow(target_step)) {
-        // NB: The canonical session history can address a step which is not present in this process's local slice,
-        //     for example after a process swap with a partially restored history. The active document tree still must
-        //     get a chance to cancel unloading; reporting "no matching entry" afterwards makes the coordinator load
-        //     the target entry from the UI process instead of applying the step here.
+        // NB: The canonical session history can address a step which is not present in this process's local slice.
+        //     The active document tree still gets a chance to cancel unloading before the coordinator resumes the
+        //     operation by reconstructing its selected entry.
         check_if_unloading_is_canceled(active_document()->inclusive_descendant_navigables(),
             GC::create_function(heap(), [on_complete](CheckIfUnloadingIsCanceledResult result) {
                 on_complete->function()(result == CheckIfUnloadingIsCanceledResult::Continue
