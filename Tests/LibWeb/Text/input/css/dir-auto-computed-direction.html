@@ -11,5 +11,11 @@
         println(`textarea before: ${getComputedStyle(textarea).direction}`);
         textarea.value = "@123!";
         println(`textarea after: ${getComputedStyle(textarea).direction}`);
+
+        container.textContent = "אבג";
+        container.firstChild.remove();
+        container.appendChild(document.createTextNode("אבג"));
+        println(`container matches rtl after replacing rtl text: ${container.matches(":dir(rtl)")}`);
+        println(`container after replacing rtl text: ${getComputedStyle(container).direction}`);
     });
 </script>

@@ -2661,6 +2661,9 @@ impl ElementFactStore {
 
     #[must_use]
     pub fn directionality_of(&self, node: StyleNodeID) -> StyleAtomID {
+        if let Some(row) = self.pending_rows.get(&node) {
+            return row.directionality;
+        }
         self.rows
             .row_of(node)
             .map_or(StyleAtomID::NONE, |row| self.rows.directionality_of(row))
@@ -3657,6 +3660,19 @@ mod tests {
             Some(false)
         );
         assert_eq!(facts.carries_local_dispatch_key(node, DispatchKey::Universal), None);
+    }
+
+    #[test]
+    fn directionality_reads_include_pending_changes() {
+        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut facts = ElementFactStore::new();
+        let node = StyleNodeID::element(1);
+
+        facts.set_directionality(node, StyleAtomID(2), &mut memory);
+        facts.commit_pending(&mut memory);
+        facts.set_directionality(node, StyleAtomID(4), &mut memory);
+
+        assert_eq!(facts.directionality_of(node), StyleAtomID(4));
     }
 
     #[test]
