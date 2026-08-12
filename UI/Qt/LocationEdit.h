@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <LibWebView/Omnibox.h>
 #include <LibWebView/PrivateBrowsing.h>
 #include <LibWebView/Settings.h>
@@ -43,6 +44,8 @@ public:
     bool url_is_hidden() const { return m_url_is_hidden; }
     void set_url_is_hidden(bool);
     void show_autocomplete();
+
+    Function<void(String, Optional<URL::URL>, WebView::OmniboxDestinationKind)> on_navigation;
 
 signals:
     void focus_return_requested();
