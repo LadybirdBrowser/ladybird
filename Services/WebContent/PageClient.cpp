@@ -636,7 +636,6 @@ void PageClient::page_did_change_active_document_in_top_level_browsing_context(W
 void PageClient::page_did_finish_loading(Optional<Utf16String> const& navigation_id, URL::URL const& url)
 {
     auto history_load_id = page().take_history_load_id_for_navigation_completion(navigation_id);
-    page().restore_persisted_state_after_history_navigation(url, history_load_id);
     client().async_did_finish_loading(m_id, history_load_id, navigation_id, url);
 }
 
@@ -1211,11 +1210,6 @@ void PageClient::page_did_update_session_history_entry_navigation_api_state(Web:
 void PageClient::page_did_update_session_history_entry_scroll_restoration_mode(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, Web::HTML::ScrollRestorationMode scroll_restoration_mode)
 {
     client().async_did_update_session_history_entry_scroll_restoration_mode(m_id, navigable_id, navigation_api_key, scroll_restoration_mode);
-}
-
-void PageClient::page_did_update_session_history_entry_scroll_position_data(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, Web::HTML::SessionHistoryEntryScrollPositionData const& scroll_position_data)
-{
-    client().async_did_update_session_history_entry_scroll_position_data(m_id, navigable_id, navigation_api_key, scroll_position_data);
 }
 
 void PageClient::page_did_update_session_history_entry_document_state_navigable_target_name(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, Utf16String const& navigable_target_name)

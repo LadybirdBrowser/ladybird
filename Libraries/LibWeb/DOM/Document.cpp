@@ -4374,6 +4374,8 @@ void Document::update_readiness(HTML::DocumentReadyState readiness_value)
 
     if (readiness_value == HTML::DocumentReadyState::Complete) {
         auto navigable = this->navigable();
+        if (navigable)
+            navigable->restore_pending_persisted_state_for_completed_document(*this);
         if (navigable && navigable->is_traversable()) {
             if (!is_decoded_svg()) {
                 HTML::HTMLLinkElement::load_fallback_favicon_if_needed(*this);
@@ -6913,8 +6915,10 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
             VERIFY(!update_navigation_api || entries_for_navigation_api.has_value());
 
             // 2. Restore persisted state given entry.
-            if (auto navigable = this->navigable())
+            if (auto navigable = this->navigable()) {
                 navigable->restore_persisted_state_from_session_history_entry(*entry);
+                navigable->schedule_persisted_state_restoration_retry(*entry);
+            }
 
             // 3. Initialize the navigation API entries for a new document given navigation, entriesForNavigationAPI, and entry.
             if (update_navigation_api)

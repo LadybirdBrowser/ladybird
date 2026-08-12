@@ -81,6 +81,7 @@ struct FinalizeSameDocumentNavigationHistoryOperationParameters {
     HTML::CrossProcessId navigable_id;
     HTML::SameDocumentNavigationEntry target_entry;
     Optional<Utf16String> entry_to_replace_navigation_api_key;
+    Optional<HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state;
     HTML::HistoryHandlingBehavior history_handling;
     HTML::UserNavigationInvolvement user_involvement;
 };
