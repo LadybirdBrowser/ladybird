@@ -1092,6 +1092,7 @@ set(SOURCES
     WebAudio/OscillatorNode.cpp
     WebAudio/PannerNode.cpp
     WebAudio/PeriodicWave.cpp
+    WebAudio/Rendering/AnalyserRenderNode.cpp
     WebAudio/Rendering/AudioBus.cpp
     WebAudio/Rendering/BiquadCoefficients.cpp
     WebAudio/Rendering/MediaStreamDestinationRenderNode.cpp
