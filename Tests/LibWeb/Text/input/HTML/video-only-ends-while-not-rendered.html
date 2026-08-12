@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video id="video" style="display: none"></video>
+<script>
+    // A video-only file that is never rendered has no audio to drive playback to its end and no video sink updates to
+    // present its frames, so ending relies entirely on the demuxer's verified end time for the track.
+    const video = document.getElementById("video");
+
+    asyncTest(async done => {
+        video.src = "../../../Assets/resize-320x240-640x480.webm";
+        await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        await video.play();
+        await new Promise(resolve => video.addEventListener("ended", resolve, { once: true }));
+
+        println(`ended while not rendered, currentTime === duration: ${video.currentTime === video.duration}`);
+        done();
+    });
+</script>
