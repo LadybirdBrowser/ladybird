@@ -707,6 +707,7 @@ set(SOURCES
     HTML/Scripting/WindowRealm.cpp
     HTML/Scripting/WorkerAgent.cpp
     HTML/Scripting/WorkerEnvironmentSettingsObject.cpp
+    HTML/Scripting/WorkletEnvironmentSettingsObject.cpp
     HTML/SelectedFile.cpp
     HTML/SelectItem.cpp
     HTML/SerializedPolicyContainer.cpp
@@ -739,6 +740,7 @@ set(SOURCES
     HTML/TrackEvent.cpp
     HTML/UserActivation.cpp
     HTML/UserNavigationInvolvement.cpp
+    HTML/UniversalGlobalScope.cpp
     HTML/ValidityState.cpp
     HTML/VideoTrack.cpp
     HTML/VideoTrackList.cpp
@@ -754,6 +756,7 @@ set(SOURCES
     HTML/WorkerLocation.cpp
     HTML/WorkerAgentTypes.cpp
     HTML/WorkerNavigator.cpp
+    HTML/Worklet.cpp
     HTML/WorkletGlobalScope.cpp
     HTML/XMLSerializer.cpp
     IndexedDB/Inspection.cpp
