@@ -894,22 +894,17 @@ bool TraversableSessionHistory::finalize_cross_document_navigation(Optional<Web:
 
     auto current_step = m_used_steps[*m_current_used_step_index];
     auto current_entry_index = nested_history_id.has_value() ? Optional<size_t> {} : current_top_level_entry_index();
-    // A finalization whose step matches the current UI-created provisional entry completes that entry. A push with a
-    // later claimed step is a new entry, even if its currently displayed predecessor is still marked provisional.
+    // A finalization whose assigned step matches the current UI-created provisional entry completes that entry. A
+    // push assigned a later step is a new entry, even if its displayed predecessor is still marked provisional.
     auto replaces_provisional_entry = current_entry_index.has_value()
         && m_entries[*current_entry_index].document_state.is_provisional
-        && (!maximum_claimed_step.has_value() || history_entry.step == m_entries[*current_entry_index].step);
+        && history_entry.step == m_entries[*current_entry_index].step;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
     if (!entry_to_replace_navigation_api_key.has_value() && !replaces_provisional_entry) {
         auto step_to_clear_through = max(current_step, maximum_claimed_step.value_or(current_step));
         clear_forward_session_history_entries(m_entries, step_to_clear_through);
         clear_forward_session_history_entries(m_web_content_known_entries, max(m_web_content_current_step.value_or(current_step), step_to_clear_through));
-
-        // WebContent claims a step while finalizing the entry, before asking the UI process to apply it. Once the UI
-        // process knows about that claim, retain its step so both sides address the same entry during the operation.
-        if (!maximum_claimed_step.has_value())
-            history_entry.step = current_step + 1;
     }
 
     auto did_update = false;

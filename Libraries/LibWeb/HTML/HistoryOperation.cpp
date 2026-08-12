@@ -47,6 +47,23 @@ ErrorOr<Web::ReplaceHistoryOperationParameters> IPC::decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::CrossDocumentNavigationFinalization const& finalization)
+{
+    TRY(encoder.encode(finalization.history_entry));
+    TRY(encoder.encode(finalization.entry_to_replace_navigation_api_key));
+    return {};
+}
+
+template<>
+ErrorOr<Web::CrossDocumentNavigationFinalization> IPC::decode(Decoder& decoder)
+{
+    return Web::CrossDocumentNavigationFinalization {
+        .history_entry = TRY(decoder.decode<Web::HTML::SessionHistoryEntryDescriptor>()),
+        .entry_to_replace_navigation_api_key = TRY(decoder.decode<Optional<Utf16String>>()),
+    };
+}
+
+template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, Web::ReloadHistoryOperationParameters const& parameters)
 {
     TRY(encoder.encode(parameters.navigable_id));

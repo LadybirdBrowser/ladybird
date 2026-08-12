@@ -1246,11 +1246,6 @@ void PageClient::did_complete_finalize_same_document_navigation(u64 operation_id
                                                                                                                                      });
 }
 
-void PageClient::page_did_finalize_cross_document_navigation(u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor const& history_entry, Optional<Utf16String> const& entry_to_replace_navigation_api_key)
-{
-    client().async_did_finalize_cross_document_navigation(m_id, operation_id, navigable_id, history_entry, entry_to_replace_navigation_api_key);
-}
-
 String PageClient::page_did_request_ui_process_session_history_for_testing()
 {
     return client().did_request_ui_process_session_history_for_testing(m_id);
