@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="target" class="target">target</div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+
+        function testMutation(name, initialRules, mutate) {
+            const sheet = new CSSStyleSheet();
+            sheet.replaceSync(initialRules);
+            document.adoptedStyleSheets = [sheet];
+            getComputedStyle(target).color;
+            document.adoptedStyleSheets = [];
+            mutate(sheet);
+            document.adoptedStyleSheets = [sheet];
+            println(`${name}: ${getComputedStyle(target).color}`);
+            document.adoptedStyleSheets = [];
+        }
+
+        testMutation("replace rules", "#target { color: rgb(1, 1, 1) }", sheet =>
+            sheet.replaceSync("#target { color: rgb(2, 2, 2) }"));
+        testMutation("insert rule", "", sheet =>
+            sheet.insertRule("#target { color: rgb(3, 3, 3) }"));
+        testMutation("delete rule", "#target { color: rgb(4, 4, 4) }", sheet =>
+            sheet.deleteRule(0));
+        testMutation("edit declarations", "#target { color: rgb(5, 5, 5) }", sheet =>
+            sheet.cssRules[0].style.setProperty("color", "rgb(6, 6, 6)"));
+        testMutation("edit selector", "#other { color: rgb(7, 7, 7) }", sheet =>
+            sheet.cssRules[0].selectorText = ".target");
+    });
+</script>

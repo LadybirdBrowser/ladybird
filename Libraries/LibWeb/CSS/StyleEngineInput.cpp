@@ -1556,6 +1556,12 @@ static void for_each_document_with_engine_copy(CSSStyleSheet& sheet, auto const&
             documents.set(&owner->document());
         for (auto* document : documents)
             callback(*document);
+        // A constructed sheet remains bound to its constructor document while it is not adopted.
+        // Keep that document's compiled copy synchronized so reattachment can reuse it.
+        if (documents.is_empty()) {
+            if (auto* document = const_cast<DOM::Document*>(sheet.constructor_document().ptr()))
+                callback(*document);
+        }
         return;
     }
     if (auto document = sheet.owning_document())
@@ -1777,18 +1783,14 @@ void record_style_rule_declarations_changed(CSSRule& rule)
 // `replace()` swaps a sheet's whole rule list, so there is nothing of the old one to keep.
 void record_stylesheet_rules_replaced(CSSStyleSheet& sheet)
 {
-    HashTable<DOM::Document*> documents;
-    for (auto owner : sheet.owning_documents_or_shadow_roots())
-        documents.set(&owner->document());
-
-    for (auto* document : documents) {
-        auto& style_computer = document->style_computer();
+    for_each_document_with_engine_copy(sheet, [&](DOM::Document& document) {
+        auto& style_computer = document.style_computer();
         auto sheet_id = style_computer.style_engine_sheet_id_for(sheet);
         if (sheet_id == 0)
-            continue;
+            return;
         auto& style_engine = style_computer.style_engine();
         style_engine.begin_sheet_rules_replacement(sheet_id);
-        RuleCompilationContext context { style_engine, sheet_id, 0, *document, style_computer };
+        RuleCompilationContext context { style_engine, sheet_id, 0, document, style_computer };
         if (sheet.constructed())
             context.non_author_rule_ids = &style_computer.constructed_rule_ids();
         for (size_t index = 0; index < sheet.rules().length(); ++index) {
@@ -1796,7 +1798,7 @@ void record_stylesheet_rules_replaced(CSSStyleSheet& sheet)
                 compile_rules_into(context, *rule);
         }
         style_engine.finish_sheet_rules_replacement(sheet_id);
-    }
+    });
 }
 
 void record_stylesheet_attached(CSSStyleSheet& sheet, DOM::Node& document_or_shadow_root, CSSStyleSheet* before)

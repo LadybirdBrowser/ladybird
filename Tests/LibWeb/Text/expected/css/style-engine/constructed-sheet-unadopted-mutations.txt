@@ -1,0 +1,5 @@
+replace rules: rgb(2, 2, 2)
+insert rule: rgb(3, 3, 3)
+delete rule: rgb(0, 0, 0)
+edit declarations: rgb(6, 6, 6)
+edit selector: rgb(7, 7, 7)
