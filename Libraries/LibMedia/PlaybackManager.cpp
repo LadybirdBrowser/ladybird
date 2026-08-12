@@ -491,7 +491,7 @@ void PlaybackManager::set_video_sink_ticking(VideoSinkHandle handle, bool tickin
     manager->update_pipeline_state();
 }
 
-void PlaybackManager::detach_lost_video_sink(VideoSinkHandle handle)
+void PlaybackManager::detach_video_sink(VideoSinkHandle handle)
 {
     auto* track_data = find_video_data_for_handle(handle);
     if (!track_data)
@@ -549,7 +549,7 @@ void PlaybackManager::release_video_edge(VideoSinkHandle handle, VideoSink const
     auto* track_data = manager->find_video_data_for_handle(handle);
     if (!track_data || track_data->video_sink != &released_sink)
         return;
-    manager->detach_lost_video_sink(handle);
+    manager->detach_video_sink(handle);
 }
 
 void PlaybackManager::enable_an_audio_track(Track const& track)

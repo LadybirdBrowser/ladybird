@@ -73,7 +73,7 @@ public:
     VideoSinkHandle reserve_video_sink_handle(Track const&);
     void disable_video_sink_by_handle(VideoSinkHandle);
     static void set_video_sink_ticking(VideoSinkHandle, bool);
-    void detach_lost_video_sink(VideoSinkHandle);
+    void detach_video_sink(VideoSinkHandle);
     void set_video_resize_handler(VideoSinkHandle, Function<void(Gfx::Size<u32>)>);
 
     void enable_an_audio_track(Track const&);
