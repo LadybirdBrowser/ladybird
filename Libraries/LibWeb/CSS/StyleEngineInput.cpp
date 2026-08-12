@@ -714,6 +714,16 @@ void record_element_language_and_directionality(DOM::Element& element)
     element.invalidate_lang_value();
 }
 
+void record_element_directionality(DOM::Element& element)
+{
+    auto* style_engine = style_engine_for(element);
+    if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element))
+        return;
+
+    auto const directionality = element.directionality() == DOM::Element::Directionality::Rtl ? "rtl"sv : "ltr"sv;
+    style_engine->set_element_directionality(element.style_node_id(), style_engine->intern_text_atom(Utf16View { directionality }));
+}
+
 void record_element_custom_states_changed(DOM::Element& element)
 {
     auto* style_engine = style_engine_for(element);

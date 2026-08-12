@@ -63,6 +63,7 @@ WEB_API void record_element_custom_states_changed(DOM::Element&);
 // inherit, so a change on one element is a change for its whole subtree, and each descendant
 // publishes the value it now resolves to.
 WEB_API void record_element_language_and_directionality(DOM::Element&);
+WEB_API void record_element_directionality(DOM::Element&);
 WEB_API void record_element_presentational_hint_properties(DOM::Element&, ReadonlySpan<StyleProperty>);
 WEB_API void record_element_animation_names(DOM::Element&, ReadonlySpan<Utf16FlyString>);
 WEB_API void record_element_custom_property_names(DOM::Element&, ReadonlySpan<Utf16FlyString>, bool uses_unnamed, bool uses_custom_functions);

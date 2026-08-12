@@ -1999,6 +1999,10 @@ void Node::inserted()
     // its own relations.
     if (auto* element = as_if<Element>(*this)) {
         CSS::record_element_connected(*element);
+        if (is<HTML::HTMLSlotElement>(*element)) {
+            if (auto parent = element->parent_element())
+                CSS::Invalidation::invalidate_style_after_text_change_under(*parent);
+        }
     } else if (auto* shadow_root = as_if<ShadowRoot>(*this)) {
         // The root gave up its place in the style tree when it disconnected, and the insertion steps
         // reach it after its host, so this is where it can retake it.
@@ -2030,6 +2034,10 @@ void Node::removed_from(IsSubtreeRoot, Node* old_parent, Node&)
     // something else. This has to happen after the removal, unlike the emptiness the removal steps
     // publish, because what a direction resolves to cannot be stated without walking the text.
     if (is<Text>(*this)) {
+        if (auto* parent = as_if<Element>(old_parent); parent && parent->is_connected())
+            CSS::Invalidation::invalidate_style_after_text_change_under(*parent);
+    }
+    if (is<HTML::HTMLSlotElement>(*this)) {
         if (auto* parent = as_if<Element>(old_parent); parent && parent->is_connected())
             CSS::Invalidation::invalidate_style_after_text_change_under(*parent);
     }

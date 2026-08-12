@@ -17,5 +17,31 @@
         container.appendChild(document.createTextNode("אבג"));
         println(`container matches rtl after replacing rtl text: ${container.matches(":dir(rtl)")}`);
         println(`container after replacing rtl text: ${getComputedStyle(container).direction}`);
+
+        const host = document.createElement("div");
+        host.innerHTML = `<span id="ltr">A</span><span id="rtl">א</span>`;
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `<slot name="one" dir="auto">א</slot><slot dir="auto"></slot>`;
+        document.body.appendChild(host);
+        const one = shadow.querySelector("slot[name=one]");
+        const two = shadow.querySelector("slot:not([name])");
+        println(`named slot before assignment: ${getComputedStyle(one).direction}`);
+        host.querySelector("#ltr").slot = "one";
+        println(`named slot after ltr assignment: ${getComputedStyle(one).direction}`);
+        println(`default slot after ltr reassignment: ${getComputedStyle(two).direction}`);
+        host.querySelector("#rtl").remove();
+        println(`default slot after rtl removal: ${getComputedStyle(two).direction}`);
+
+        const hostWithDynamicSlot = document.createElement("div");
+        hostWithDynamicSlot.dir = "rtl";
+        const dynamicShadow = hostWithDynamicSlot.attachShadow({ mode: "open" });
+        dynamicShadow.innerHTML = `<div id="auto" dir="auto"></div>`;
+        document.body.appendChild(hostWithDynamicSlot);
+        const auto = dynamicShadow.querySelector("#auto");
+        println(`dynamic slot container before insertion: ${getComputedStyle(auto).direction}`);
+        auto.innerHTML = `<slot></slot>`;
+        println(`dynamic slot container after insertion: ${getComputedStyle(auto).direction}`);
+        auto.firstChild.remove();
+        println(`dynamic slot container after removal: ${getComputedStyle(auto).direction}`);
     });
 </script>
