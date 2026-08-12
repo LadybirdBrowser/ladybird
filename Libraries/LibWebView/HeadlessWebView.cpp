@@ -166,9 +166,9 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
     m_top_level_traversable.set_system_visibility_state(Web::HTML::VisibilityState::Visible);
 }
 
-void HeadlessWebView::initialize_client(CreateNewClient create_new_client)
+void HeadlessWebView::initialize_client(CreateNewClient create_new_client, Optional<Web::HTML::CrossProcessId> initial_document_state_id)
 {
-    ViewImplementation::initialize_client(create_new_client);
+    ViewImplementation::initialize_client(create_new_client, initial_document_state_id);
 
     client().async_update_system_theme(m_client_state.page_index, m_theme);
     handle_resize();

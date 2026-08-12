@@ -194,7 +194,10 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
 
     reset_page_media_state();
 
-    initialize_client();
+    Optional<Web::HTML::CrossProcessId> initial_document_state_id;
+    if (auto const* current_entry = m_top_level_traversable.session_history().current_entry())
+        initial_document_state_id = current_entry->document_state.id;
+    initialize_client(CreateNewClient::Yes, initial_document_state_id);
     VERIFY(m_client_state.client);
 
     if (on_web_content_process_change_for_cross_site_navigation)
@@ -218,7 +221,7 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
     dump_session_history("after-process-swap-load"sv);
 }
 
-void ViewImplementation::replace_web_content_process_for_history_traversal()
+void ViewImplementation::replace_web_content_process_for_history_traversal(Web::HTML::CrossProcessId target_document_state_id)
 {
     dump_session_history("before-history-traversal-process-swap"sv);
 
@@ -234,7 +237,7 @@ void ViewImplementation::replace_web_content_process_for_history_traversal()
 
     reset_page_media_state();
     m_history_operation_handling_for_next_client = HistoryOperationHandling::Preserve;
-    initialize_client();
+    initialize_client(CreateNewClient::Yes, target_document_state_id);
     m_history_operation_handling_for_next_client = HistoryOperationHandling::Abandon;
     VERIFY(m_client_state.client);
 
@@ -1718,7 +1721,7 @@ void ViewImplementation::handle_resize()
     Application::the().update_compositor_viewport(client().compositor_context_id_for_page(page_id()), viewport_size().to_type<int>(), Web::Compositor::WindowResizingInProgress::Yes);
 }
 
-void ViewImplementation::initialize_client(CreateNewClient create_new_client)
+void ViewImplementation::initialize_client(CreateNewClient create_new_client, Optional<Web::HTML::CrossProcessId> initial_document_state_id)
 {
     m_needs_beforeunload_check = true;
 
@@ -1739,7 +1742,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
         auto root_navigable_id = m_history_operation_handling_for_next_client == HistoryOperationHandling::Preserve
             ? Optional<Web::HTML::CrossProcessId> { m_top_level_traversable.id() }
             : Optional<Web::HTML::CrossProcessId> {};
-        m_client_state.client = Application::the().launch_web_content_process(*this, root_navigable_id).release_value_but_fixme_should_propagate_errors();
+        m_client_state.client = Application::the().launch_web_content_process(*this, root_navigable_id, initial_document_state_id).release_value_but_fixme_should_propagate_errors();
     } else {
         m_client_state.client->register_view(m_client_state.page_index, *this);
     }
@@ -2412,7 +2415,10 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
         load_error_page = LoadErrorPage::No;
 
     m_history_operation_handling_for_next_client = HistoryOperationHandling::Preserve;
-    initialize_client();
+    Optional<Web::HTML::CrossProcessId> initial_document_state_id;
+    if (auto const* current_entry = m_top_level_traversable.session_history().current_entry())
+        initial_document_state_id = current_entry->document_state.id;
+    initialize_client(CreateNewClient::Yes, initial_document_state_id);
     m_history_operation_handling_for_next_client = HistoryOperationHandling::Abandon;
     VERIFY(m_client_state.client);
 

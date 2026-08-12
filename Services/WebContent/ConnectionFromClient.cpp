@@ -128,9 +128,9 @@ Messages::WebContentServer::InitTransportResponse ConnectionFromClient::init_tra
     VERIFY_NOT_REACHED();
 }
 
-void ConnectionFromClient::initialize(u64 initial_page_id, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator)
+void ConnectionFromClient::initialize(u64 initial_page_id, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::CrossProcessId initial_document_state_id)
 {
-    m_page_host->initialize(initial_page_id, root_navigable_id, cross_process_id_allocator);
+    m_page_host->initialize(initial_page_id, root_navigable_id, cross_process_id_allocator, initial_document_state_id);
 }
 
 void ConnectionFromClient::set_page_parent_context(u64 page_id, Optional<Web::Compositor::CompositorContextId> parent_context_id)

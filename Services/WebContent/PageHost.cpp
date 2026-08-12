@@ -22,12 +22,12 @@ PageHost::PageHost(ConnectionFromClient& client)
 {
 }
 
-void PageHost::initialize(u64 initial_page_id, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator)
+void PageHost::initialize(u64 initial_page_id, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::CrossProcessId initial_document_state_id)
 {
     VERIFY(m_pages.is_empty());
     m_cross_process_id_allocator = cross_process_id_allocator;
     auto& first_page = create_page(initial_page_id, root_navigable_id);
-    Web::HTML::LocalTraversableNavigable::create_a_fresh_top_level_traversable(first_page.page(), URL::about_blank());
+    Web::HTML::LocalTraversableNavigable::create_a_fresh_top_level_traversable(first_page.page(), URL::about_blank(), Empty {}, initial_document_state_id);
 }
 
 PageClient& PageHost::create_page(u64 page_id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id)

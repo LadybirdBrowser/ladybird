@@ -47,12 +47,6 @@ public:
 
     [[nodiscard]] CrossProcessId cross_process_id() const { return m_cross_process_id; }
 
-    // FIXME: A replacement process creates its initial about:blank document
-    // state before receiving the committed session history from the UI process.
-    // Construct that state with the canonical id instead of changing its id
-    // during reconstruction.
-    void adopt_cross_process_id_from_ui_process(CrossProcessId id) { m_cross_process_id = id; }
-
     [[nodiscard]] Variant<SerializedPolicyContainer, Client> const& history_policy_container() const { return m_history_policy_container; }
     void set_history_policy_container(Variant<SerializedPolicyContainer, Client> history_policy_container) { m_history_policy_container = move(history_policy_container); }
 

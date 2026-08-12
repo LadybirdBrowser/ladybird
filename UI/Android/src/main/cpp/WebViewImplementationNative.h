@@ -23,7 +23,7 @@ public:
 
     NonnullRefPtr<WebView::WebContentClient> bind_web_content_client();
 
-    virtual void initialize_client(CreateNewClient) override;
+    virtual void initialize_client(CreateNewClient, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {}) override;
 
     void paint_into_bitmap(void* android_bitmap_raw, AndroidBitmapInfo const& info);
 

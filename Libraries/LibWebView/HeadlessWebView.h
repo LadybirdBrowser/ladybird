@@ -37,7 +37,7 @@ public:
 protected:
     HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size);
 
-    void initialize_client(CreateNewClient) override;
+    void initialize_client(CreateNewClient, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {}) override;
     void update_zoom() override;
 
     virtual Web::DevicePixelSize viewport_size() const override { return m_viewport_size; }

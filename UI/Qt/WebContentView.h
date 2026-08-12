@@ -130,7 +130,7 @@ signals:
 
 private:
     // ^WebView::ViewImplementation
-    virtual void initialize_client(CreateNewClient) override;
+    virtual void initialize_client(CreateNewClient, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {}) override;
     virtual void update_zoom() override;
     virtual Web::DevicePixelSize viewport_size() const override;
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override;
