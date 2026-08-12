@@ -748,6 +748,13 @@ impl StyleEngine {
                     },
                     &mut self.memory,
                 ),
+                FeatureKey::HeadingLevel => self.facts.set_heading_level(
+                    node,
+                    match value {
+                        FeatureValue::Number(level) => level as u8,
+                        _ => 0,
+                    },
+                ),
                 FeatureKey::FoldedTagName => self.facts.set_folded_tag(
                     node,
                     match value {
@@ -1146,7 +1153,15 @@ impl StyleEngine {
     }
 
     pub fn set_element_heading_level(&mut self, node: StyleNodeID, level: u8) {
-        self.facts.set_heading_level(node, level);
+        let previous = self.facts.heading_level_of(node);
+        if previous == level {
+            return;
+        }
+        self.record_input(
+            InputKey::LocalFeature(node, FeatureKey::HeadingLevel),
+            InputValue::Feature(FeatureValue::Number(u32::from(previous))),
+            InputValue::Feature(FeatureValue::Number(u32::from(level))),
+        );
     }
 
     /// Record what an attribute-value atom spells, for the operators an atom cannot answer.

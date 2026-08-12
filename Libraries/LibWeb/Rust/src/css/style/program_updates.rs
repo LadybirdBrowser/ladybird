@@ -916,6 +916,7 @@ impl StyleEngine {
             | FeatureKey::PartExposure
             | FeatureKey::Language
             | FeatureKey::Directionality => matches!(value, FeatureValue::Absent | FeatureValue::Atom(_)),
+            FeatureKey::HeadingLevel => matches!(value, FeatureValue::Number(_)),
             FeatureKey::ArrivingFacts => false,
         }
     }

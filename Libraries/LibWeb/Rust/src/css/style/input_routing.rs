@@ -91,6 +91,7 @@ fn for_each_feature_routing_key(
                 publish(RoutingKey::ValueState(ValueStateKind::Directionality, atom));
             }
         }
+        FeatureKey::HeadingLevel => publish(RoutingKey::Structural),
         FeatureKey::Emptiness => publish(RoutingKey::Structural),
         // The facts an arrival folded onto one key are read back off the element by the engine,
         // which has the fact store this function does not.

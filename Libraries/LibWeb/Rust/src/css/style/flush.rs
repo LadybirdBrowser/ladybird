@@ -32,7 +32,10 @@ impl StyleEngine {
         let plan_before_commit = !transaction.is_empty()
             && !transaction.has_coarsened_markers()
             && transaction.inputs.iter().all(|input| match input.key {
-                InputKey::LocalFeature(_, FeatureKey::Language | FeatureKey::Directionality) => false,
+                InputKey::LocalFeature(
+                    _,
+                    FeatureKey::Language | FeatureKey::Directionality | FeatureKey::HeadingLevel,
+                ) => false,
                 InputKey::LocalFeature(..)
                 | InputKey::State(..)
                 | InputKey::ElementDeclaration(..)
@@ -1398,7 +1401,7 @@ impl StyleEngine {
             // A resolved language or directionality carries its own value, like an ID.
             // Neither a language nor a part exposure is dispatched on its value, so nothing is in
             // flux for either.
-            FeatureKey::Language | FeatureKey::PartExposure => return None,
+            FeatureKey::Language | FeatureKey::PartExposure | FeatureKey::HeadingLevel => return None,
             FeatureKey::Directionality => match (input.old, input.new) {
                 (InputValue::Feature(FeatureValue::Atom(atom)), _)
                 | (_, InputValue::Feature(FeatureValue::Atom(atom))) => DispatchKey::Directionality(atom),

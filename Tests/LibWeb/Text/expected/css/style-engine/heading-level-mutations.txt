@@ -1,0 +1,2 @@
+after heading offset: color=rgb(11, 22, 33) heading2=true ancestor=rgb(44, 55, 66)
+after heading offset removal: color=rgb(0, 0, 0) heading2=false ancestor=rgba(0, 0, 0, 0)
