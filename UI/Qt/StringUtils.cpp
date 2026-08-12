@@ -63,5 +63,6 @@ Optional<URL::URL> ak_url_from_qstring(QString const& qstring)
 
 URL::URL ak_url_from_qurl(QUrl const& qurl)
 {
-    return ak_url_from_qstring(qurl.toString()).value();
+    auto encoded_url = qurl.toEncoded();
+    return URL::Parser::basic_parse(StringView(encoded_url.constData(), encoded_url.size())).value();
 }
