@@ -402,4 +402,10 @@ WebIDL::ExceptionOr<GC::Ref<MediaStreamAudioSourceNode>> AudioContext::create_me
     return MediaStreamAudioSourceNode::create(*this, options);
 }
 
+// https://webaudio.github.io/web-audio-api/#dom-audiocontext-createmediastreamdestination
+WebIDL::ExceptionOr<GC::Ref<MediaStreamAudioDestinationNode>> AudioContext::create_media_stream_destination()
+{
+    return MediaStreamAudioDestinationNode::create(*this);
+}
+
 }
