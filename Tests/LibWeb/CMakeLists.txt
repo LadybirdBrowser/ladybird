@@ -1,5 +1,6 @@
 set(TEST_SOURCES
     TestAccumulatedVisualContext.cpp
+    TestAudioWorkletPipe.cpp
     TestContentBlocker.cpp
     TestControlMessageQueue.cpp
     TestCSSIDSpeed.cpp
@@ -58,6 +59,7 @@ endforeach()
 
 ladybird_utility(css-tokenizer SOURCES css-tokenizer.cpp LIBS LibFileSystem LibMain LibWeb)
 
+target_link_libraries(TestAudioWorkletPipe PRIVATE LibCore LibThreading)
 target_link_libraries(TestContentBlocker PRIVATE LibURL)
 target_link_libraries(TestControlMessageQueue PRIVATE LibSync)
 target_link_libraries(TestDisplayListDamage PRIVATE LibGfx)
