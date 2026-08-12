@@ -12,6 +12,7 @@
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/DownloadPresentation.h>
+#include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
 #include <UI/Qt/Application.h>
@@ -774,7 +775,9 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         m_location_edit->set_url(url);
     };
 
-    QObject::connect(m_location_edit, &QLineEdit::returnPressed, this, &Tab::location_edit_return_pressed);
+    m_location_edit->on_navigation = [this](auto input, auto fallback_url, auto destination_kind) {
+        location_edit_return_pressed(AK::move(input), AK::move(fallback_url), destination_kind);
+    };
     QObject::connect(m_location_edit, &LocationEdit::focus_return_requested, this, [this] {
         view().setFocus();
     });
@@ -849,6 +852,41 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     view().on_request_set_prompt_text = [this](auto const& message) {
         if (m_dialog && is<QInputDialog>(*m_dialog))
             static_cast<QInputDialog&>(*m_dialog).setTextValue(qstring_from_utf16_string(message));
+    };
+
+    view().on_request_external_url_confirmation = [this](auto const& url, auto const& initiator_origin, auto const& handler, auto on_complete) {
+        if (m_dialog || m_external_url_confirmation_dialog) {
+            on_complete(false);
+            return;
+        }
+
+        auto initiator = initiator_origin.is_opaque() ? "This page"_string : initiator_origin.serialize();
+        auto application_name = handler.application_name().is_empty() ? "another application"sv : handler.application_name().bytes_as_string_view();
+        auto title = handler.application_name().is_empty() ? "Open external application?"_string : MUST(String::formatted("Open {}?", application_name));
+        auto message = MUST(String::formatted("{} wants to open a {} link with {}.", initiator, url.scheme(), application_name));
+        auto details = MUST(String::formatted("URL: '{}'", url));
+        auto open_button_text = handler.application_name().is_empty() ? "Open"_string : MUST(String::formatted("Open {}", application_name));
+
+        auto* dialog = new QMessageBox(&view());
+        m_external_url_confirmation_dialog = dialog;
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        dialog->setIcon(QMessageBox::Icon::Question);
+        dialog->setWindowTitle(qstring_from_ak_string(title));
+        dialog->setTextFormat(Qt::PlainText);
+        dialog->setText(qstring_from_ak_string(message));
+        dialog->setDetailedText(qstring_from_ak_string(details));
+        auto* open_button = dialog->addButton(qstring_from_ak_string(open_button_text), QMessageBox::ButtonRole::AcceptRole);
+        dialog->addButton(QMessageBox::StandardButton::Cancel);
+        dialog->setDefaultButton(QMessageBox::StandardButton::Cancel);
+
+        QObject::connect(dialog, &QDialog::finished, this, [this, dialog = QPointer<QMessageBox> { dialog }, open_button, on_complete = AK::move(on_complete)](auto) mutable {
+            auto accepted = dialog && dialog->clickedButton() == open_button;
+            if (m_external_url_confirmation_dialog == dialog)
+                m_external_url_confirmation_dialog = nullptr;
+            on_complete(accepted);
+        });
+
+        dialog->open();
     };
 
     view().on_request_accept_dialog = [this]() {
@@ -1169,7 +1207,7 @@ void Tab::update_hamburger_menu()
 
 void Tab::navigate(URL::URL const& url)
 {
-    view().load(url);
+    view().load_from_user_input(url);
 }
 
 void Tab::load_html(StringView html)
@@ -1177,18 +1215,25 @@ void Tab::load_html(StringView html)
     view().load_html(html);
 }
 
-void Tab::location_edit_return_pressed()
+void Tab::location_edit_return_pressed(String input, Optional<URL::URL> fallback_url, WebView::OmniboxDestinationKind destination_kind)
 {
-    auto text = m_location_edit->text();
-    if (text.isEmpty())
+    if (input.is_empty())
         return;
 
-    if (auto url = m_location_edit->url(); url.has_value()) {
-        view().set_next_history_visit_transition(WebView::HistoryVisitTransition::Omnibox);
-        navigate(*url);
+    view().set_next_history_visit_transition(WebView::HistoryVisitTransition::Omnibox);
+    if (destination_kind == WebView::OmniboxDestinationKind::Search) {
+        if (fallback_url.has_value())
+            view().load(*fallback_url);
+        else
+            view().load_navigation_error_page(input);
     } else {
-        view().load_navigation_error_page(ak_string_from_qstring(text));
+        view().load_from_user_input(input, AK::move(fallback_url));
     }
+
+    auto is_external_url = destination_kind == WebView::OmniboxDestinationKind::URL
+        && WebView::classify_user_input(input).classification == WebView::UserInputClassification::ExternalURL;
+    if (is_external_url)
+        m_location_edit->set_url(view().url());
 
     view().setFocus();
 }

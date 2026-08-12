@@ -16,6 +16,7 @@
 #include <AK/TypeCasts.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HistoryStore.h>
+#include <LibWebView/URL.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/ChromeLayout.h>
@@ -654,10 +655,15 @@ void BrowserWindow::initialize_tab(Tab* tab)
 
     QObject::connect(&tab->view(), &WebContentView::urls_dropped, this, [this](auto& urls) {
         VERIFY(urls.size());
-        m_current_tab->navigate(ak_url_from_qurl(urls[0]));
+        m_current_tab->view().load_from_user_input(ak_url_from_qurl(urls[0]));
 
-        for (qsizetype i = 1; i < urls.size(); ++i)
-            new_tab_from_url(ak_url_from_qurl(urls[i]), Web::HTML::ActivateTab::No, TabLocation::end());
+        for (qsizetype i = 1; i < urls.size(); ++i) {
+            auto url = ak_url_from_qurl(urls[i]);
+            if (WebView::is_url_handled_internally(url))
+                new_tab_from_url(url, Web::HTML::ActivateTab::No, TabLocation::end());
+            else
+                m_current_tab->view().open_url_in_new_tab(url, Web::HTML::ActivateTab::No);
+        }
     });
 
     tab->view().on_new_web_view = [this, tab](auto activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index) {
