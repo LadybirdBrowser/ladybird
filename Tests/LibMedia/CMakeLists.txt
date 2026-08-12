@@ -24,6 +24,7 @@ set(TEST_SOURCES
     TestPipelineNodes.cpp
     TestPlaybackStream.cpp
     TestRemoteVideoNode.cpp
+    TestSpscAudioFrameRing.cpp
     TestTimeRanges.cpp
     TestVideoEdgeQueue.cpp
     TestVideoFramePool.cpp
@@ -46,6 +47,7 @@ target_link_libraries(TestMediaTime PRIVATE LibThreading)
 target_link_libraries(TestVideoFramePool PRIVATE LibThreading)
 target_link_libraries(TestIncrementallyPopulatedStream PRIVATE LibThreading)
 target_link_libraries(TestRemoteVideoNode PRIVATE LibThreading LibGfx LibIPC)
+target_link_libraries(TestSpscAudioFrameRing PRIVATE LibThreading)
 
 if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")
     target_compile_definitions(TestPlaybackStream PRIVATE HAVE_PULSEAUDIO=1)
