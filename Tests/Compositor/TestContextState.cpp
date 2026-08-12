@@ -89,3 +89,15 @@ TEST_CASE(rasterization_clears_damaged_pixels_to_the_canvas_color_in_presentatio
     bitmap = context.latest_rendered_surface()->snapshot_bitmap();
     EXPECT_EQ(bitmap->get_pixel(0, 0), Gfx::Color::Transparent);
 }
+
+TEST_CASE(oversized_backing_stores_are_rejected)
+{
+    Compositor::BackingStoreManager manager;
+    auto allocation = manager.resize_backing_stores_if_needed({ 40'000, 40'000 }, Web::Compositor::WindowResizingInProgress::No);
+    VERIFY(allocation.has_value());
+
+    auto publication = manager.allocate_backing_stores(*allocation, {}, true, Compositor::BackingStoreManager::GpuSharing::Disallowed);
+
+    EXPECT(!publication.has_value());
+    EXPECT(!manager.is_valid());
+}

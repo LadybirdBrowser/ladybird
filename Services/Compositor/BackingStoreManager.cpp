@@ -6,6 +6,7 @@
 
 #include <AK/AnyOf.h>
 #include <Compositor/BackingStoreManager.h>
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SharedImageBuffer.h>
 #include <LibGfx/SkiaBackendContext.h>
@@ -120,6 +121,9 @@ Optional<BackingStoreManager::Publication> BackingStoreManager::allocate_backing
     m_backing_stores.clear();
     m_rendering_store_index.clear();
     m_latest_rendered_store_index.clear();
+
+    if (Gfx::Bitmap::size_would_overflow(Gfx::BitmapFormat::BGRA8888, allocation.size))
+        return {};
 
     auto buffer_count = should_publish ? allocation.bitmap_ids.size() : 2;
     VERIFY(buffer_count <= allocation.bitmap_ids.size());
