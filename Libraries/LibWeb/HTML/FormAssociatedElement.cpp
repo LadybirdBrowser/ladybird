@@ -10,6 +10,7 @@
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
+#include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EditingHostManager.h>
 #include <LibWeb/DOM/Event.h>
@@ -677,6 +678,10 @@ void FormAssociatedElement::visit_edges(JS::Cell::Visitor& visitor)
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
 void FormAssociatedTextControlElement::relevant_value_was_changed()
 {
+    auto& element = text_control_to_html_element();
+    if (static_cast<DOM::Element&>(element).dir() == DOM::Element::Dir::Auto)
+        CSS::Invalidation::invalidate_style_after_directionality_change(element);
+
     auto the_relevant_value = relevant_value();
     auto relevant_value_length = the_relevant_value.length_in_code_units();
 
