@@ -1,0 +1,10 @@
+// https://html.spec.whatwg.org/multipage/worklets.html#worklet
+[Exposed=Window, SecureContext]
+interface Worklet {
+    [NewObject] Promise<undefined> addModule(USVString moduleURL, optional WorkletOptions options = {});
+};
+
+// https://html.spec.whatwg.org/multipage/worklets.html#worklet-options
+dictionary WorkletOptions {
+    RequestCredentials credentials = "same-origin";
+};

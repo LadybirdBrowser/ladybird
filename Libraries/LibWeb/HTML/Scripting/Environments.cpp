@@ -26,6 +26,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerAgentParent.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
+#include <LibWeb/HTML/WorkletGlobalScope.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/SecureContexts/AbstractOperations.h>
@@ -58,8 +59,10 @@ EnvironmentSettingsObject::EnvironmentSettingsObject(NonnullOwnPtr<JS::Execution
     m_module_map = GC::Heap::the().allocate<ModuleMap>();
     if (auto* window = window_from_global_object(global_object()))
         m_universal_global_scope = window;
+    else if (auto* worker_global_scope = Bindings::worker_global_scope_from_global_object(global_object()))
+        m_universal_global_scope = worker_global_scope;
     else
-        m_universal_global_scope = Bindings::worker_global_scope_from_global_object(global_object());
+        m_universal_global_scope = Bindings::impl_from<WorkletGlobalScope>(&global_object());
     VERIFY(m_universal_global_scope);
 
     // Register with the responsible event loop so we can perform step 4 of "perform a microtask checkpoint".
@@ -655,8 +658,10 @@ bool is_secure_context(Environment const& environment)
             return false;
         }
 
-        // FIXME: 3. If global is a WorkletGlobalScope, then return true.
+        // 3. If global is a WorkletGlobalScope, then return true.
         // NOTE: Worklets can only be created in secure contexts.
+        if (Bindings::impl_from<WorkletGlobalScope>(&global))
+            return true;
     }
 
     // 2. If the result of Is url potentially trustworthy? given environment's top-level creation URL is "Potentially Trustworthy", then return true.
