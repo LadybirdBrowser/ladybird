@@ -5,7 +5,6 @@
  */
 
 #include <AK/HashTable.h>
-#include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
 #include <LibWebView/CanonicalNavigable.h>
 #include <LibWebView/SessionHistory.h>
@@ -52,12 +51,6 @@ static bool entries_have_nested_histories(Vector<TraversableSessionHistory::Entr
             return true;
     }
     return false;
-}
-
-static void recompute_used_steps(Vector<TraversableSessionHistory::Entry> const& entries, Vector<i32>& used_steps, Optional<size_t>& current_used_step_index, i32 current_step)
-{
-    used_steps = get_all_used_history_steps(entries);
-    current_used_step_index = used_steps.find_first_index(current_step);
 }
 
 static Optional<size_t> top_level_entry_index_for_step(Vector<TraversableSessionHistory::Entry> const& entries, i32 step)
@@ -126,88 +119,6 @@ static void clear_forward_session_history_entries(Vector<TraversableSessionHisto
     }
 }
 
-static TraversableSessionHistory::Entry create_ui_process_session_history_entry(
-    i32 step,
-    URL::URL url,
-    Web::HTML::CrossProcessId document_state_id,
-    Web::HTML::DocumentResource document_resource)
-{
-    return {
-        .step = step,
-        .url = move(url),
-        .document_state = {
-            .id = document_state_id,
-            .history_policy_container = Web::HTML::DocumentState::Client::Tag,
-            .request_referrer = Web::Fetch::Infrastructure::Request::Referrer::Client,
-            .request_referrer_policy = Web::ReferrerPolicy::DEFAULT_REFERRER_POLICY,
-            .initiator_origin = {},
-            .origin = {},
-            .about_base_url = {},
-            .resource = move(document_resource),
-            .reload_pending = false,
-            .ever_populated = false,
-            .is_provisional = true,
-            .navigable_target_name = {},
-            .nested_histories = {},
-        },
-        .classic_history_api_state = {},
-        .navigation_api_state = {},
-        .navigation_api_key = {},
-        .navigation_api_id = {},
-        .scroll_restoration_mode = Web::HTML::ScrollRestorationMode::Auto,
-        .scroll_position_data = {},
-    };
-}
-
-static TraversableSessionHistory::Entry create_ui_process_pending_session_history_entry(
-    i32 step,
-    Web::HTML::PendingSessionHistoryEntryDescriptor pending_entry)
-{
-    auto entry = Web::HTML::create_session_history_entry_descriptor(move(pending_entry), step);
-    entry.document_state.is_provisional = true;
-    return entry;
-}
-
-void TraversableSessionHistory::navigate(URL::URL url, Web::HTML::CrossProcessId document_state_id)
-{
-    navigate(move(url), document_state_id, Empty {});
-}
-
-void TraversableSessionHistory::navigate(URL::URL url, Web::HTML::CrossProcessId document_state_id, Web::HTML::DocumentResource document_resource)
-{
-    navigate(create_ui_process_session_history_entry(0, move(url), document_state_id, move(document_resource)));
-}
-
-void TraversableSessionHistory::navigate(Web::HTML::PendingSessionHistoryEntryDescriptor pending_entry)
-{
-    navigate(create_ui_process_pending_session_history_entry(0, move(pending_entry)));
-}
-
-void TraversableSessionHistory::navigate(Entry entry)
-{
-    if (!m_current_used_step_index.has_value()) {
-        m_entries.clear();
-        m_used_steps.clear();
-        entry.step = 0;
-        m_entries.append(move(entry));
-        m_used_steps.append(0);
-        m_current_used_step_index = 0;
-        return;
-    }
-
-    auto current_step = m_used_steps[*m_current_used_step_index];
-    VERIFY(current_step < NumericLimits<i32>::max());
-    clear_forward_session_history_entries(m_entries, current_step);
-    auto step = current_step + 1;
-    m_used_steps.remove_all_matching([current_step](auto const& used_step) {
-        return used_step > current_step;
-    });
-    entry.step = step;
-    m_entries.append(move(entry));
-    m_used_steps.append(step);
-    m_current_used_step_index = m_used_steps.size() - 1;
-}
-
 void TraversableSessionHistory::clear()
 {
     m_entries.clear();
@@ -233,45 +144,6 @@ void TraversableSessionHistory::initialize_with_initial_history_entry(Entry init
     m_entries.append(move(initial_history_entry));
     m_used_steps.append(0);
     m_current_used_step_index = 0;
-}
-
-void TraversableSessionHistory::replace_current_entry_url(URL::URL url, Web::HTML::CrossProcessId document_state_id)
-{
-    if (!m_current_used_step_index.has_value()) {
-        navigate(move(url), document_state_id);
-        return;
-    }
-
-    auto current_top_level_entry_index = this->current_top_level_entry_index();
-    VERIFY(current_top_level_entry_index.has_value());
-    m_entries[*current_top_level_entry_index].url = move(url);
-}
-
-void TraversableSessionHistory::replace_current_entry(URL::URL url, Web::HTML::CrossProcessId document_state_id, Web::HTML::DocumentResource document_resource)
-{
-    replace_current_entry(create_ui_process_session_history_entry(0, move(url), document_state_id, move(document_resource)));
-}
-
-void TraversableSessionHistory::replace_current_entry(Web::HTML::PendingSessionHistoryEntryDescriptor pending_entry)
-{
-    replace_current_entry(create_ui_process_pending_session_history_entry(0, move(pending_entry)));
-}
-
-void TraversableSessionHistory::replace_current_entry(Entry entry)
-{
-    if (!m_current_used_step_index.has_value()) {
-        navigate(move(entry));
-        return;
-    }
-
-    auto current_top_level_entry_index = this->current_top_level_entry_index();
-    VERIFY(current_top_level_entry_index.has_value());
-
-    auto current_step = m_used_steps[*m_current_used_step_index];
-    entry.step = current_step;
-    m_entries[*current_top_level_entry_index] = move(entry);
-    recompute_used_steps(m_entries, m_used_steps, m_current_used_step_index, current_step);
-    VERIFY(m_current_used_step_index.has_value());
 }
 
 void TraversableSessionHistory::mark_current_entry_reload_pending()
@@ -1000,9 +872,8 @@ Optional<Vector<TraversableSessionHistory::Entry>> TraversableSessionHistory::ge
         // 1. If rawEntries[i]'s document state's origin is not same origin with startingOrigin, then break.
         auto const& entry_origin = entry.document_state.origin;
         if (entry.document_state.id != starting_entry.document_state.id
-            && (starting_origin.has_value() && entry_origin.has_value()
-                    ? !entry_origin->is_same_origin(*starting_origin)
-                    : entry.document_state.is_provisional || starting_entry.document_state.is_provisional)) {
+            && (!starting_origin.has_value() || !entry_origin.has_value()
+                || !entry_origin->is_same_origin(*starting_origin))) {
             break;
         }
 
@@ -1023,9 +894,8 @@ Optional<Vector<TraversableSessionHistory::Entry>> TraversableSessionHistory::ge
         // 1. If rawEntries[i]'s document state's origin is not same origin with startingOrigin, then break.
         auto const& entry_origin = entry.document_state.origin;
         if (entry.document_state.id != starting_entry.document_state.id
-            && (starting_origin.has_value() && entry_origin.has_value()
-                    ? !entry_origin->is_same_origin(*starting_origin)
-                    : entry.document_state.is_provisional || starting_entry.document_state.is_provisional)) {
+            && (!starting_origin.has_value() || !entry_origin.has_value()
+                || !entry_origin->is_same_origin(*starting_origin))) {
             break;
         }
 

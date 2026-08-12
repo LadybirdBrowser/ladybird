@@ -57,7 +57,6 @@ struct SessionHistoryDocumentStateDescriptor {
     DocumentResource resource;
     bool reload_pending { false };
     bool ever_populated { false };
-    bool is_provisional { false };
     Utf16String navigable_target_name;
     Vector<SessionHistoryNestedHistoryDescriptor> nested_histories;
 };
