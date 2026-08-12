@@ -643,7 +643,9 @@ impl PrefixAutomaton {
     }
 
     fn sort_steps_by_dispatch_order(&self, steps: &mut [PrefixStepID]) {
-        steps.sort_unstable();
+        if !steps.is_sorted() {
+            steps.sort_unstable();
+        }
     }
 
     #[must_use]
