@@ -548,6 +548,13 @@ void record_element_moved(DOM::Element& element, DOM::Node* old_parent, DOM::Ele
     // different ancestor can change it without the element itself changing at all.
     record_heading_levels_in_subtree(element);
 
+    if (previous.parent != relations.parent) {
+        // Moving to a different parent changes the inherited input even if the moved element
+        // matches exactly the same rules. Recomputing its style lets ordinary inherited-style
+        // propagation carry any change through its light and shadow subtrees.
+        style_engine->record_element_style_input_change(element.style_node_id(), StyleEngine::RecomputeStyle);
+    }
+
     // The relinking path rather than the neighbour one. A move rewrites the DOM's own links without
     // going through insertion or removal, so nothing has told the engine's relation columns that
     // anything happened: they are the engine's copy of the child sequence, and only a delta splices
