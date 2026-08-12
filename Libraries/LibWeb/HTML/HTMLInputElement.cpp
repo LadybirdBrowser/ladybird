@@ -1646,6 +1646,13 @@ void HTMLInputElement::form_associated_element_attribute_changed(Utf16FlyString 
             m_value = value_sanitization_algorithm(m_value);
             update_shadow_tree();
         }
+    } else if (name == HTML::AttributeNames::size) {
+        // size feeds the element's default preferred width, which reaches layout only
+        // through the replaced-content facts; nothing else schedules a relayout.
+        if (old_value != value) {
+            if (auto* layout_node = this->layout_node())
+                layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::DefaultPreferredSizeAttributeChange);
+        }
     }
 
     // AD-HOC: A change to any of these attributes can change whether the element satisfies its constraints, and

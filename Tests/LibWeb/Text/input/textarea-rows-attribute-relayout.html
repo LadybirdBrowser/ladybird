@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    textarea { appearance: none; font-size: 16px; }
+</style>
+<textarea id="field" rows="2" cols="20"></textarea>
+<script>
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const heightBefore = document.getElementById("field").getBoundingClientRect().height;
+        document.getElementById("field").setAttribute("rows", "8");
+        const heightAfter = document.getElementById("field").getBoundingClientRect().height;
+
+        println(`grew: ${heightAfter > heightBefore}`);
+        done();
+    });
+</script>
