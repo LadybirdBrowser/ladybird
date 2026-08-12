@@ -1436,6 +1436,10 @@ impl SelectorProgram {
         query: DispatchQuery,
         out: &mut Vec<DispatchKey>,
     ) -> bool {
+        if relation == DispatchRelation::Subject && query == DispatchQuery::Single {
+            out.push(self.single_dispatch_key_of(id));
+            return true;
+        }
         if relation != DispatchRelation::Subject {
             let operands = match self.node(id) {
                 SelectorOp::And { first, count } => self.operands(first, count),
@@ -1632,9 +1636,35 @@ impl SelectorProgram {
     }
 
     fn dispatch_key_of(&self, id: SelectorNodeID) -> DispatchKey {
-        let mut keys = Vec::new();
-        self.dispatch_analysis(id, DispatchRelation::Subject, DispatchQuery::Single, &mut keys);
-        keys[0]
+        self.single_dispatch_key_of(id)
+    }
+
+    fn single_dispatch_key_of(&self, id: SelectorNodeID) -> DispatchKey {
+        match self.node(id) {
+            SelectorOp::Feature(test) => Self::dispatch_key_for_feature(test),
+            SelectorOp::And { first, count } => self
+                .operands(first, count)
+                .iter()
+                .map(|&operand| self.single_dispatch_key_of(operand))
+                .min_by_key(|&key| dispatch_selectivity(key))
+                .unwrap_or(DispatchKey::Universal),
+            SelectorOp::Where(inner)
+            | SelectorOp::InScope { inner, .. }
+            | SelectorOp::ExposedToHost { parts: inner, .. } => self.single_dispatch_key_of(inner),
+            SelectorOp::Part(part) => DispatchKey::Part(part),
+            SelectorOp::ValueState {
+                kind: ValueStateTestKind::CustomState,
+                value,
+            } => DispatchKey::CustomState(value),
+            SelectorOp::ValueState {
+                kind: ValueStateTestKind::Directionality,
+                value,
+            } => DispatchKey::Directionality(value),
+            SelectorOp::Root => DispatchKey::Root,
+            SelectorOp::State(state) => DispatchKey::State(state),
+            SelectorOp::Heading(_) => DispatchKey::Heading,
+            _ => DispatchKey::Universal,
+        }
     }
 
     /// How many siblings back of this node's subject a leading adjacent chain reaches.
