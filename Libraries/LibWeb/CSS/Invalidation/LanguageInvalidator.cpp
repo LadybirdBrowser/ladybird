@@ -9,6 +9,7 @@
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/TraversalDecision.h>
 
 namespace Web::CSS::Invalidation {
@@ -22,6 +23,27 @@ static void invalidate_descendants_affected_by_language_or_directionality(DOM::E
             if (!is_directionality_change)
                 element->invalidate_lang_value();
             element->set_needs_style_update(true);
+            return TraversalDecision::Continue;
+        }
+        if (is_directionality_change)
+            return TraversalDecision::Continue;
+        // Rendered text under a casing text-transform is keyed on the language
+        // (locale-sensitive casing), which no computed style group reflects, so a style
+        // recomputation alone never re-renders it.
+        auto* text_layout_node = as_if<Layout::TextNode>(node.unsafe_layout_node());
+        if (!text_layout_node || !text_layout_node->parent())
+            return TraversalDecision::Continue;
+        auto text_transform = text_layout_node->parent()->computed_values().text_transform();
+        if (!first_is_one_of(text_transform, TextTransform::Uppercase, TextTransform::Lowercase, TextTransform::Capitalize))
+            return TraversalDecision::Continue;
+        if (is<Layout::TextSliceNode>(*text_layout_node)) {
+            // NB: Slice nodes cache data that is calculated at layout tree construction time,
+            //     and locale-sensitive casing can move the first-letter boundary.
+            if (node.parent())
+                node.parent()->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::LanguageChangeUnderCasingTextTransform);
+        } else {
+            text_layout_node->invalidate_text_for_rendering();
+            text_layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::LanguageChangeUnderCasingTextTransform);
         }
         return TraversalDecision::Continue;
     });

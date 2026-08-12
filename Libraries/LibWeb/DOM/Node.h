@@ -87,6 +87,7 @@ enum class RootNodeComposed {
     X(HTMLVideoElementNaturalDimensionsChanged)       \
     X(HTMLVideoElementSetVideoTrack)                  \
     X(KeyframeEffect)                                 \
+    X(LanguageChangeUnderCasingTextTransform)         \
     X(LayoutTreeUpdate)                               \
     X(NavigableSetViewportSize)                       \
     X(SVGGraphicsElementTransformChange)              \
@@ -113,6 +114,7 @@ enum class SetNeedsLayoutReason {
     X(HTMLInputElementSrcAttribute)                       \
     X(HTMLObjectElementUpdateLayoutAndChildObjects)       \
     X(KeyframeEffect)                                     \
+    X(LanguageChangeUnderCasingTextTransform)             \
     X(ListItemCounters)                                   \
     X(NodeInsertBefore)                                   \
     X(NodeInsertBeforeWithDisplayContents)                \
