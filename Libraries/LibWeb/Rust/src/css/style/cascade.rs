@@ -333,16 +333,17 @@ impl CascadeStratum {
                 origin,
                 important: _,
                 context,
-                layer,
+                layer: _,
                 layer_rank,
             } => {
                 if self.origin != origin || self.context != context {
                     return true;
                 }
-                if layer == CascadeLayerID::UNLAYERED {
-                    return false;
-                }
-                self.layer != CascadeLayerID::UNLAYERED && self.layer_rank < layer_rank
+
+                // https://drafts.csswg.org/css-cascade-5/#revert-layer
+                // The cascaded value is rolled back to the earlier layer, so that the specified
+                // value is calculated as if no rules were specified in the current cascade layer.
+                self.layer_rank < layer_rank
             }
         }
     }
@@ -1931,6 +1932,34 @@ mod tests {
 
         let winner = groups.resolve_candidates(&mut candidates).unwrap();
         assert_eq!(groups.resolved_winner(winner).unwrap().key.value, SpecifiedValueID(20));
+    }
+
+    #[test]
+    fn revert_layer_continues_from_the_implicit_outer_layer() {
+        let mut groups = WinnerGroups::new();
+        let mut candidates = [
+            candidate(
+                10,
+                1,
+                CascadeOperator::Declared,
+                CascadeOrigin::Author,
+                false,
+                CascadeLayerID(1),
+                1,
+            ),
+            candidate(
+                20,
+                2,
+                CascadeOperator::RevertLayer,
+                CascadeOrigin::Author,
+                false,
+                CascadeLayerID::UNLAYERED,
+                2,
+            ),
+        ];
+
+        let winner = groups.resolve_candidates(&mut candidates).unwrap();
+        assert_eq!(groups.resolved_winner(winner).unwrap().key.value, SpecifiedValueID(10));
     }
 
     #[test]

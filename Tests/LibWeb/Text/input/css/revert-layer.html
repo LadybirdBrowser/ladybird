@@ -23,6 +23,13 @@
                     @layer layer1 { target { color: green; } target.second { color: revert-layer; } }
                 `,
             },
+            {
+                title: 'revert from implicit outer layer',
+                style: `
+                    @layer base { target { color: green; } }
+                    target { color: red; color: revert-layer; }
+                `,
+            },
         ];
 
         for (let testCase of testCases) {
