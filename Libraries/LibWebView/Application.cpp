@@ -968,10 +968,13 @@ void Application::crash_compositor_process()
     m_compositor_client->async_crash();
 }
 
-ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process(ViewImplementation& view)
+ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process(ViewImplementation& view, Optional<Web::HTML::CrossProcessId> root_navigable_id)
 {
     if (view.is_private() == IsPrivate::Yes)
-        return create_web_content_client(view, IsPrivate::Yes, allocate_page_id());
+        return create_web_content_client(view, IsPrivate::Yes, allocate_page_id(), root_navigable_id);
+
+    if (root_navigable_id.has_value())
+        return create_web_content_client(view, IsPrivate::No, allocate_page_id(), root_navigable_id);
 
     if (m_spare_web_content_process) {
         auto web_content_client = m_spare_web_content_process.release_nonnull();
