@@ -1541,13 +1541,17 @@ impl StyleEngine {
         entry: u32,
     ) -> Option<bool> {
         let answer = self.retained_match_answer(node).sparse().ok()?;
-        if answer
-            .iter()
-            .any(|matched| matched.program == program && matched.entry == entry)
-        {
-            return Some(true);
+        let mut matched_program = false;
+        for matched in answer.iter() {
+            if matched.program != program {
+                continue;
+            }
+            if matched.entry == entry {
+                return Some(true);
+            }
+            matched_program = true;
         }
-        (!answer.iter().any(|matched| matched.program == program)).then_some(false)
+        (!matched_program).then_some(false)
     }
 
     pub(super) fn append_catalog_answer(
