@@ -127,8 +127,10 @@ void WebGLRenderingContextOverloads::tex_image2d(WebIDL::UnsignedLong target, We
     m_context->make_current();
 
     if (!pixels.has<Empty>()) {
-        SET_ERROR_VALUE_IF_ERROR(with_buffer_source_bytes(WebIDL::BufferSource { pixels.downcast<WebIDL::ArrayBufferViewVariant>() }, /* src_offset= */ 0, /* src_length_override= */ 0, [&](ReadonlyBytes bytes) {
-            m_context->tex_image2d_robust_angle(target, level, internalformat, width, height, border, format, type, bytes.size(), bytes.data());
+        SET_ERROR_VALUE_IF_ERROR(with_buffer_source_bytes(WebIDL::BufferSource { pixels.downcast<WebIDL::ArrayBufferViewVariant>() }, /* src_offset= */ 0, /* src_length_override= */ 0, [&](ReadonlyBytes bytes) -> ErrorOr<void> {
+            auto texture_data = TRY(texture_data_for_2d_upload(bytes, width, height, format, type));
+            m_context->tex_image2d_robust_angle(target, level, internalformat, width, height, border, format, type, texture_data.size(), texture_data.data());
+            return {};
         }),
             GL_INVALID_OPERATION);
         return;
@@ -212,8 +214,10 @@ void WebGLRenderingContextOverloads::tex_sub_image2d(WebIDL::UnsignedLong target
         return;
     }
 
-    SET_ERROR_VALUE_IF_ERROR(with_buffer_source_bytes(WebIDL::BufferSource { pixels.downcast<WebIDL::ArrayBufferViewVariant>() }, /* src_offset= */ 0, /* src_length_override= */ 0, [&](ReadonlyBytes bytes) {
-        m_context->tex_sub_image2d_robust_angle(target, level, xoffset, yoffset, width, height, format, type, bytes.size(), bytes.data());
+    SET_ERROR_VALUE_IF_ERROR(with_buffer_source_bytes(WebIDL::BufferSource { pixels.downcast<WebIDL::ArrayBufferViewVariant>() }, /* src_offset= */ 0, /* src_length_override= */ 0, [&](ReadonlyBytes bytes) -> ErrorOr<void> {
+        auto texture_data = TRY(texture_data_for_2d_upload(bytes, width, height, format, type));
+        m_context->tex_sub_image2d_robust_angle(target, level, xoffset, yoffset, width, height, format, type, texture_data.size(), texture_data.data());
+        return {};
     }),
         GL_INVALID_OPERATION);
 }

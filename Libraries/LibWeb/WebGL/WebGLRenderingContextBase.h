@@ -100,6 +100,8 @@ protected:
     bool extension_enabled(StringView extension) const;
     ReadonlySpan<WebIDL::UnsignedLong> enabled_compressed_texture_formats() const;
 
+    ErrorOr<ReadonlyBytes> texture_data_for_2d_upload(ReadonlyBytes, GLsizei width, GLsizei height, GLenum format, GLenum type) const;
+
     template<typename T>
     static ErrorOr<Span<T>> get_offset_span(Span<T> src_span, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override = 0)
     {
@@ -119,6 +121,15 @@ protected:
     template<typename Callback>
     static ErrorOr<void> with_buffer_source_bytes(WebIDL::BufferSource src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override, Callback&& callback)
     {
+        auto invoke_callback = [&](ReadonlyBytes bytes) -> ErrorOr<void> {
+            if constexpr (IsSame<decltype(callback(bytes)), void>) {
+                callback(bytes);
+                return {};
+            } else {
+                return callback(bytes);
+            }
+        };
+
         auto array_buffer = src_data.viewed_array_buffer();
         if (!array_buffer || array_buffer->is_detached()) [[unlikely]]
             return Error::from_errno(EINVAL);
@@ -126,8 +137,7 @@ protected:
         if (src_data.is_out_of_bounds()) {
             if (src_offset != 0 || src_length_override != 0) [[unlikely]]
                 return Error::from_errno(EINVAL);
-            callback(ReadonlyBytes {});
-            return {};
+            return invoke_callback({});
         }
 
         auto element_size = src_data.element_size();
@@ -155,10 +165,7 @@ protected:
         if (byte_length > array_buffer->byte_length() - byte_offset_in_buffer.value()) [[unlikely]]
             return Error::from_errno(EINVAL);
 
-        array_buffer->with_readonly_bytes(byte_offset_in_buffer.value(), byte_length, [&](ReadonlyBytes bytes) {
-            callback(bytes);
-        });
-        return {};
+        return array_buffer->with_readonly_bytes(byte_offset_in_buffer.value(), byte_length, invoke_callback);
     }
 
     template<typename T>
@@ -297,6 +304,8 @@ protected:
     GLenum get_error_value();
     void set_error(GLenum error);
     void reset_context_state_after_loss();
+
+    PixelUnpackState m_unpack_state;
 
     // UNPACK_FLIP_Y_WEBGL of type boolean
     //      If set, then during any subsequent calls to texImage2D or texSubImage2D, the source data is flipped along

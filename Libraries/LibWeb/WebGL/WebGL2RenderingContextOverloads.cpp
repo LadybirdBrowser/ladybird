@@ -16,6 +16,7 @@ extern "C" {
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
+#include <LibWeb/WebGL/TextureUpload.h>
 #include <LibWeb/WebGL/WebGL2RenderingContextOverloads.h>
 #include <LibWeb/WebGL/WebGLContextProxy.h>
 #include <LibWeb/WebGL/WebGLUniformLocation.h>
@@ -91,8 +92,10 @@ void WebGL2RenderingContextOverloads::tex_image2d(WebIDL::UnsignedLong target, W
         return;
     }
 
-    SET_ERROR_VALUE_IF_ERROR(with_buffer_source_bytes(WebIDL::BufferSource { pixels.downcast<WebIDL::ArrayBufferViewVariant>() }, /* src_offset= */ 0, /* src_length_override= */ 0, [&](ReadonlyBytes pixels_bytes) {
-        m_context->tex_image2d_robust_angle(target, level, internalformat, width, height, border, format, type, pixels_bytes.size(), pixels_bytes.data());
+    SET_ERROR_VALUE_IF_ERROR(with_buffer_source_bytes(WebIDL::BufferSource { pixels.downcast<WebIDL::ArrayBufferViewVariant>() }, /* src_offset= */ 0, /* src_length_override= */ 0, [&](ReadonlyBytes pixels_bytes) -> ErrorOr<void> {
+        auto texture_data = TRY(texture_data_for_2d_upload(pixels_bytes, width, height, format, type));
+        m_context->tex_image2d_robust_angle(target, level, internalformat, width, height, border, format, type, texture_data.size(), texture_data.data());
+        return {};
     }),
         GL_INVALID_OPERATION);
 }
@@ -113,12 +116,18 @@ void WebGL2RenderingContextOverloads::tex_sub_image2d(WebIDL::UnsignedLong targe
     m_context->make_current();
 
     if (pixels.has<Empty>()) {
+        if (!is_valid_2d_pixel_unpack_state(width, m_unpack_state)) {
+            set_error(GL_INVALID_OPERATION);
+            return;
+        }
         m_context->tex_sub_image2d_robust_angle(target, level, xoffset, yoffset, width, height, format, type, 0, nullptr);
         return;
     }
 
-    SET_ERROR_VALUE_IF_ERROR(with_buffer_source_bytes(WebIDL::BufferSource { pixels.downcast<WebIDL::ArrayBufferViewVariant>() }, /* src_offset= */ 0, /* src_length_override= */ 0, [&](ReadonlyBytes pixels_bytes) {
-        m_context->tex_sub_image2d_robust_angle(target, level, xoffset, yoffset, width, height, format, type, pixels_bytes.size(), pixels_bytes.data());
+    SET_ERROR_VALUE_IF_ERROR(with_buffer_source_bytes(WebIDL::BufferSource { pixels.downcast<WebIDL::ArrayBufferViewVariant>() }, /* src_offset= */ 0, /* src_length_override= */ 0, [&](ReadonlyBytes pixels_bytes) -> ErrorOr<void> {
+        auto texture_data = TRY(texture_data_for_2d_upload(pixels_bytes, width, height, format, type));
+        m_context->tex_sub_image2d_robust_angle(target, level, xoffset, yoffset, width, height, format, type, texture_data.size(), texture_data.data());
+        return {};
     }),
         GL_INVALID_OPERATION);
 }
@@ -156,8 +165,10 @@ void WebGL2RenderingContextOverloads::tex_image2d(WebIDL::UnsignedLong target, W
 {
     m_context->make_current();
 
-    SET_ERROR_VALUE_IF_ERROR(with_buffer_source_bytes(WebIDL::BufferSource { src_data }, src_offset, /* src_length_override= */ 0, [&](ReadonlyBytes pixels_bytes) {
-        m_context->tex_image2d_robust_angle(target, level, internalformat, width, height, border, format, type, pixels_bytes.size(), pixels_bytes.data());
+    SET_ERROR_VALUE_IF_ERROR(with_buffer_source_bytes(WebIDL::BufferSource { src_data }, src_offset, /* src_length_override= */ 0, [&](ReadonlyBytes pixels_bytes) -> ErrorOr<void> {
+        auto texture_data = TRY(texture_data_for_2d_upload(pixels_bytes, width, height, format, type));
+        m_context->tex_image2d_robust_angle(target, level, internalformat, width, height, border, format, type, texture_data.size(), texture_data.data());
+        return {};
     }),
         GL_INVALID_OPERATION);
 }
@@ -177,8 +188,10 @@ void WebGL2RenderingContextOverloads::tex_sub_image2d(WebIDL::UnsignedLong targe
 {
     m_context->make_current();
 
-    SET_ERROR_VALUE_IF_ERROR(with_buffer_source_bytes(WebIDL::BufferSource { src_data }, src_offset, /* src_length_override= */ 0, [&](ReadonlyBytes pixels_bytes) {
-        m_context->tex_sub_image2d_robust_angle(target, level, xoffset, yoffset, width, height, format, type, pixels_bytes.size(), pixels_bytes.data());
+    SET_ERROR_VALUE_IF_ERROR(with_buffer_source_bytes(WebIDL::BufferSource { src_data }, src_offset, /* src_length_override= */ 0, [&](ReadonlyBytes pixels_bytes) -> ErrorOr<void> {
+        auto texture_data = TRY(texture_data_for_2d_upload(pixels_bytes, width, height, format, type));
+        m_context->tex_sub_image2d_robust_angle(target, level, xoffset, yoffset, width, height, format, type, texture_data.size(), texture_data.data());
+        return {};
     }),
         GL_INVALID_OPERATION);
 }
