@@ -427,6 +427,19 @@ impl<'a> SelectorCompiler<'a> {
         let outer_bound = std::mem::replace(&mut self.scope_root_is_bound, true);
         let entry = self.compile(selector);
         self.scope_root_is_bound = outer_bound;
+        // https://dom.spec.whatwg.org/#scope-match-a-selectors-string
+        // NB: A selector query matches elements, never pseudo-elements. `::slotted()` is represented
+        //     as an operator on its assigned element for style matching, so it needs this explicit
+        //     query rejection rather than the entry's ordinary pseudo-element target check.
+        if selector.compound_selectors.iter().any(|compound| {
+            compound
+                .simple_selectors
+                .iter()
+                .any(|simple| matches!(simple, SimpleSelector::PseudoElement(_)))
+        }) {
+            let never = self.builder.push_never();
+            self.builder.set_entry_root(entry.entry, never);
+        }
         entry
     }
 
