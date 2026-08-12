@@ -2,3 +2,5 @@ container before: ltr
 container after: rtl
 textarea before: rtl
 textarea after: ltr
+container matches rtl after replacing rtl text: true
+container after replacing rtl text: rtl
