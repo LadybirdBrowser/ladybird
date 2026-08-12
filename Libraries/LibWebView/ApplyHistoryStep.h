@@ -120,15 +120,10 @@ public:
         Optional<Web::Bindings::NavigationType> navigation_type,
         Web::HTML::SynchronousNavigation synchronous_navigation,
         Optional<Web::HTML::CrossProcessId> navigable_with_finalized_entry,
-        Function<void(Web::HTML::HistoryStepResult)> on_complete,
-        Optional<Web::HTML::SessionHistoryEntryDescriptor> finalized_entry = {},
-        bool update_canonical_current_step = true,
-        Optional<i32> current_step = {},
-        Vector<Web::HTML::CrossProcessId> navigables_to_restore = {});
+        Function<void(Web::HTML::HistoryStepResult)> on_complete);
     ~ApplyHistoryStep();
 
     void apply_the_history_step();
-    void add_navigable_to_restore(Web::HTML::CrossProcessId);
 
     bool completed() const { return m_completed; }
     // The step this run committed as the current session history step, if it was the run that committed.
@@ -171,10 +166,6 @@ private:
     //         the live navigable still displays the old document until this run's job activates the new one. This is
     //         the same shape as the newer specification's navigableToReload argument.
     Optional<Web::HTML::CrossProcessId> const m_navigable_with_finalized_entry;
-    Optional<Web::HTML::SessionHistoryEntryDescriptor> const m_finalized_entry;
-    bool const m_update_canonical_current_step;
-    Optional<i32> const m_current_step;
-    Vector<Web::HTML::CrossProcessId> m_navigables_to_restore;
     Function<void(Web::HTML::HistoryStepResult)> m_on_complete;
 
     // The algorithm's variables.

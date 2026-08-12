@@ -1634,9 +1634,6 @@ void ViewImplementation::apply_web_content_session_history_update(WebContentSess
             complete_webdriver_pending_navigation_if_url_matches(m_url);
     }
 
-    if (update.should_seed_web_content)
-        seed_web_content_session_history_from_ui_process();
-
     update_navigation_action_state();
 }
 
@@ -1655,7 +1652,7 @@ void ViewImplementation::did_finalize_same_document_navigation(Badge<WebContentC
 
 void ViewImplementation::did_update_session_history_for_testing(Badge<WebContentClient>, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index)
 {
-    auto update = m_top_level_traversable.did_receive_web_content_session_history_update_for_testing(move(entries), move(used_steps), current_used_step_index, m_url);
+    auto update = m_top_level_traversable.did_receive_web_content_session_history_update_for_testing(move(entries), move(used_steps), current_used_step_index);
     if (update.ignore_reason.has_value()) {
         dump_session_history(*update.ignore_reason);
         return;
@@ -1998,9 +1995,7 @@ void ViewImplementation::did_finish_navigation(URL::URL const& url)
     if (m_webdriver_pending_navigation_url.has_value() && *m_webdriver_pending_navigation_url == url && !m_webdriver_pending_navigation_completes_with_session_history_update)
         complete_webdriver_pending_navigation_if_url_matches(url);
 
-    if (result.should_seed_web_content)
-        seed_web_content_session_history_from_ui_process();
-    else if (result.dump_reason.has_value())
+    if (result.dump_reason.has_value())
         dump_session_history(*result.dump_reason);
 }
 
@@ -2146,9 +2141,7 @@ JsonValue ViewImplementation::webdriver_session_history() const
     serialized.set("backButtonEnabled"sv, m_navigate_back_action->enabled());
     serialized.set("forwardButtonEnabled"sv, m_navigate_forward_action->enabled());
     serialized.set("webContentHistoryMatchesUI"sv, m_top_level_traversable.current_web_content_session_history_matches_mirror());
-    serialized.set("waitingToSeedWebContent"sv, m_top_level_traversable.pending_web_content_session_history_seed().should_send_entries);
-    serialized.set("waitingForWebContentSeedAck"sv, m_top_level_traversable.pending_web_content_session_history_seed().waiting_for_ack);
-    serialized.set("ignoringWebContentUpdatesUntilSeed"sv, m_top_level_traversable.pending_web_content_session_history_seed().ignore_updates_until_seed);
+    serialized.set("sessionHistoryLoadInProgress"sv, m_loading_history_load_id.has_value());
     serialized.set("hasOnlyTopLevelUsedSteps"sv, m_top_level_traversable.session_history().has_only_top_level_used_steps());
     serialized.set("webContentUsesUIStepCoordinates"sv, m_top_level_traversable.session_history().web_content_uses_ui_step_coordinates());
     auto web_content_known_entries = m_top_level_traversable.session_history().web_content_known_entries();
@@ -2168,11 +2161,6 @@ JsonValue ViewImplementation::webdriver_session_history() const
         serialized.set("currentUsedStepIndex"sv, *current_used_step_index);
     else
         serialized.set("currentUsedStepIndex"sv, JsonValue {});
-
-    if (auto pending_step = m_top_level_traversable.pending_web_content_session_history_seed().step_after_loading_top_level_entry; pending_step.has_value())
-        serialized.set("pendingWebContentHistoryStepAfterFallbackLoad"sv, *pending_step);
-    else
-        serialized.set("pendingWebContentHistoryStepAfterFallbackLoad"sv, JsonValue {});
 
     if (m_top_level_traversable.pending_session_history_navigation().has_value()) {
         JsonObject pending_navigation;
@@ -2215,29 +2203,6 @@ void ViewImplementation::update_navigation_action_state()
     m_navigate_forward_action->set_enabled(m_top_level_traversable.session_history().can_go_forward());
 }
 
-void ViewImplementation::seed_web_content_session_history_from_ui_process()
-{
-    auto seed = m_top_level_traversable.prepare_web_content_session_history_seed();
-    if (!seed.has_value()) {
-        update_navigation_action_state();
-        dump_session_history("skip-webcontent-session-history-seed"sv);
-        return;
-    }
-
-    if (history_debug_enabled()) {
-        dbgln("[History] UI seeds WebContent session history page={} pid={} current={} entries={}",
-            page_id(),
-            client().pid(),
-            seed->current_top_level_entry_index,
-            history_log_entries(seed->entries, seed->current_top_level_entry_index));
-    }
-
-    client().async_set_top_level_session_history(page_id(), move(seed->entries), seed->current_top_level_entry_index, seed->allow_current_entry_reconstruction);
-    m_top_level_traversable.did_send_web_content_session_history_seed();
-    update_navigation_action_state();
-    dump_session_history("sent-webcontent-session-history-seed"sv);
-}
-
 void ViewImplementation::recover_current_session_history_entry_with_history_operation()
 {
     m_history_visit_transition_for_next_load = HistoryVisitTransition::Restore;
@@ -2269,47 +2234,6 @@ NonnullRefPtr<Core::Promise<Empty>> ViewImplementation::reset_session_history_fo
     m_pending_session_history_reset_for_testing = Core::Promise<Empty>::construct();
     client().async_reset_session_history_for_testing(page_id());
     return *m_pending_session_history_reset_for_testing;
-}
-
-void ViewImplementation::did_set_top_level_session_history(Badge<WebContentClient>, bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index)
-{
-    if (history_debug_enabled()) {
-        dbgln("[History] UI received WebContent session history seed ack page={} pid={} accepted={} current_used_step={} entries={} used_steps={}",
-            page_id(),
-            client().pid(),
-            accepted,
-            current_used_step_index,
-            history_log_entries(entries),
-            history_log_steps(used_steps, current_used_step_index));
-    }
-
-    auto ack = m_top_level_traversable.did_receive_web_content_session_history_seed_ack(accepted, move(entries), move(used_steps), current_used_step_index, m_url);
-    if (ack.ignored) {
-        dump_session_history(ack.dump_reason);
-        return;
-    }
-
-    if (ack.current_url.has_value()) {
-        WebContentSessionHistoryUpdateResult update { .current_url = *ack.current_url };
-        apply_web_content_session_history_update(update);
-    }
-
-    if (ack.step_to_traverse.has_value()) {
-        m_top_level_traversable.enqueue_history_operation(
-            CanonicalTraversable::BrowserHistoryTraversalOperation {
-                .target_step = *ack.step_to_traverse,
-                .current_step = ack.current_step,
-                .navigables_to_restore = move(ack.navigables_to_restore),
-            },
-            [this, step = *ack.step_to_traverse](Web::HTML::HistoryStepResult result, Optional<i32>) {
-                apply_history_traversal_step_result(step, result);
-            });
-    } else if (ack.should_complete_webdriver_pending_navigation)
-        complete_webdriver_pending_navigation_if_url_matches(m_url);
-
-    if (ack.should_update_navigation_action_state)
-        update_navigation_action_state();
-    dump_session_history(ack.dump_reason);
 }
 
 void ViewImplementation::apply_history_traversal_step_result(i32 step, Web::HTML::HistoryStepResult result)
@@ -2559,17 +2483,14 @@ void ViewImplementation::dump_session_history(StringView reason, SessionHistoryD
         pending_navigation_restore_mode = CanonicalTraversable::pending_session_history_navigation_web_content_restore_mode_to_string(m_top_level_traversable.pending_session_history_navigation()->web_content_restore_mode);
     }
 
-    dbgln("[History] UI session history page={} pid={} reason={} url='{}' webcontent_matches={} webcontent_uses_ui_steps={} waiting_to_seed={} waiting_for_seed_ack={} ignore_until_seed={} pending_webcontent_step={} pending_navigation_url={} pending_navigation_restore={} pending_traversal_target={} pending_traversal_stage={} webcontent_current_step={} back={} forward={} entries={} webcontent_known_entries={} webcontent_known_used_steps={}",
+    dbgln("[History] UI session history page={} pid={} reason={} url='{}' webcontent_matches={} webcontent_uses_ui_steps={} history_load_id={} pending_navigation_url={} pending_navigation_restore={} pending_traversal_target={} pending_traversal_stage={} webcontent_current_step={} back={} forward={} entries={} webcontent_known_entries={} webcontent_known_used_steps={}",
         page_id(),
         client().pid(),
         reason,
         m_url,
         m_top_level_traversable.current_web_content_session_history_matches_mirror(),
         m_top_level_traversable.session_history().web_content_uses_ui_step_coordinates(),
-        m_top_level_traversable.pending_web_content_session_history_seed().should_send_entries,
-        m_top_level_traversable.pending_web_content_session_history_seed().waiting_for_ack,
-        m_top_level_traversable.pending_web_content_session_history_seed().ignore_updates_until_seed,
-        m_top_level_traversable.pending_web_content_session_history_seed().step_after_loading_top_level_entry,
+        m_loading_history_load_id,
         pending_navigation_url,
         pending_navigation_restore_mode,
         m_top_level_traversable.pending_session_history_traversal().has_value() ? Optional<i32> { m_top_level_traversable.pending_session_history_traversal()->target_step } : Optional<i32> {},
