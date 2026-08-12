@@ -10,7 +10,6 @@
 
 namespace Web::WebAudio::Rendering {
 
-static constexpr u32 TARGET_LATENCY_MS = 100;
 NonnullRefPtr<RealtimeAudioRenderer> RealtimeAudioRenderer::create(NonnullRefPtr<ControlMessageQueue> control_message_queue, NodeID destination_node_id, float sample_rate, size_t quantum_size)
 {
     return adopt_ref(*new RealtimeAudioRenderer(move(control_message_queue), destination_node_id, sample_rate, quantum_size));
