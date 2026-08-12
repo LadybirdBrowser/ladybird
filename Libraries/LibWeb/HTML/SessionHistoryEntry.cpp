@@ -56,7 +56,7 @@ static SessionHistoryDocumentStateDescriptor create_session_history_document_sta
 
         // NB: Keep the nested-history descriptor even when every entry in it is still pending. The entries are not
         //     used history steps yet, but the descriptor id preserves the live child navigable identity when the UI
-        //     process later reseeds an already-loaded document.
+        //     process later installs its history projection.
         nested_history_descriptors.unchecked_append({
             .id = nested_history.id,
             .entries = move(nested_entry_descriptors),

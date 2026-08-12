@@ -301,8 +301,8 @@ static void apply_session_history_document_state_descriptor_from_ui_process(Docu
     document_state.set_about_base_url(document_state_descriptor.about_base_url);
     document_state.set_resource(document_state_descriptor.resource);
     document_state.set_reload_pending(document_state_descriptor.reload_pending);
-    // AD-HOC: A UI-created document state can still be provisional when reseeded into WebContent. Do not let that
-    //         stale mirror state make an already-populated live document state appear unpopulated again.
+    // AD-HOC: A UI-created document state can still be provisional when installed in WebContent. Do not let that
+    //         stale state make an already-populated live document state appear unpopulated again.
     document_state.set_ever_populated(document_state.ever_populated() || document_state_descriptor.ever_populated);
     document_state.set_navigable_target_name(document_state_descriptor.navigable_target_name);
 }
@@ -400,18 +400,15 @@ static bool expected_ongoing_navigation_was_superseded(Optional<CrossProcessId> 
     return navigable->ongoing_navigation() != *expected_navigation_id;
 }
 
-bool LocalTraversableNavigable::replace_top_level_session_history_entries_from_ui_process(Vector<SessionHistoryEntryDescriptor> entries_from_ui_process, size_t current_top_level_entry_index, bool allow_reconstructing_current_entry, Optional<i32> current_step)
+void LocalTraversableNavigable::install_top_level_session_history_projection(Vector<SessionHistoryEntryDescriptor> entries_from_ui_process, size_t current_top_level_entry_index, Optional<i32> current_step)
 {
-    if (entries_from_ui_process.is_empty() || current_top_level_entry_index >= entries_from_ui_process.size())
-        return false;
-
+    VERIFY(!entries_from_ui_process.is_empty());
+    VERIFY(current_top_level_entry_index < entries_from_ui_process.size());
     VERIFY(is_top_level_traversable());
-
-    if (!session_history_entry_descriptors_are_valid(entries_from_ui_process))
-        return false;
+    VERIFY(session_history_entry_descriptors_are_valid(entries_from_ui_process));
 
     // NB: The UI process stores a traversable's top-level session history entries
-    //     across WebContent process swaps. When seeding a fresh WebContent process,
+    //     across WebContent process swaps. When installing a fresh WebContent projection,
     //     current_top_level_entry_index is an index into the traversable's session
     //     history entries list, not an index into the result of getting all used
     //     history steps.
@@ -422,54 +419,18 @@ bool LocalTraversableNavigable::replace_top_level_session_history_entries_from_u
     auto active_document = this->active_document();
     VERIFY(active_document);
     if (!active_document->is_initial_about_blank()) {
-        // NB: The UI process can ask WebContent to reseed its top-level session history after observing an
-        //     incomplete or stale snapshot. Same-document history updates are committed synchronously in WebContent,
-        //     while the UI-process mirror is necessarily fed by async IPC. If that mirror sends back an older current
-        //     entry, accepting it would clobber the active document's live latest entry and make a queued traversal
-        //     target unreachable. A provisional descriptor is UI-owned state, not an authoritative description of an
-        //     already-live current document. The broader model should move toward a narrower seed-ack contract or
-        //     targeted UI-process mutations instead of sending a full async mirror back as authoritative state.
-        //     Process-swap/preload seeds still go through the initial about:blank path above.
+        // NB: Do not replace a live current entry with an older asynchronous projection. Process-swap projections
+        //     are installed into the initial about:blank document and do not enter this branch.
         auto const& current_entry_from_ui_process = entries_from_ui_process[current_top_level_entry_index];
-        if (current_entry_from_ui_process.document_state.is_provisional)
-            return false;
+        VERIFY(!current_entry_from_ui_process.document_state.is_provisional);
         // NB: Nested histories can be UI-owned state that is intentionally restored after the current top-level
-        //     document has loaded. The live latest entry must still match the UI seed's top-level state, but requiring
-        //     nested histories to match would reject the state we are being asked to restore.
+        //     document has loaded. The live latest entry must still match the UI projection's top-level state, but
+        //     requiring nested histories to match would reject the state we are being asked to restore.
         auto latest_entry = active_document->latest_entry();
-        if (!latest_entry)
-            return false;
+        VERIFY(latest_entry);
 
-        auto latest_entry_matches_ui_seed = session_history_entry_matches_descriptor_ignoring_document_state_id(*latest_entry, current_entry_from_ui_process, MatchNestedHistories::No);
-
-        auto active_entry_is_latest_entry = latest_entry.ptr() == active_entry.ptr();
-        auto current_entry_url_matches_ui_seed = latest_entry->url() == current_entry_from_ui_process.url;
-
-        // NB: A UI-process fallback load starts a fresh WebContent process with a single top-level entry for the URL
-        //     being restored, then seeds the UI-owned traversable session history around that document. The fresh
-        //     entry has local step and Navigation API identity, so accept the seed when the process has no other
-        //     top-level history to protect.
-        auto can_restore_fresh_ui_history_load = entries_from_ui_process.size() > 1
-            && m_session_history_entries.size() == 1
-            && active_entry.ptr() == m_session_history_entries.first().ptr()
-            && active_entry_is_latest_entry
-            && current_entry_url_matches_ui_seed;
-
-        // NB: Crash recovery pre-seeds WebContent before loading the current entry, then reseeds after the document is
-        //     loaded so same-document state, Navigation API state, scroll restoration mode, and target name are
-        //     restored onto the fresh Document. At that point WebContent already has the UI-owned top-level history and
-        //     step coordinates, but the active entry can still have freshly loaded document state.
-        auto latest_entry_step = latest_entry->step_value();
-        auto can_restore_preseeded_ui_history_load = latest_entry_step.has_value()
-            && *latest_entry_step == current_entry_from_ui_process.step
-            && m_session_history_entries.size() == entries_from_ui_process.size()
-            && active_entry_is_latest_entry
-            && current_entry_url_matches_ui_seed;
-
-        auto can_reconstruct_current_entry = allow_reconstructing_current_entry
-            && (can_restore_fresh_ui_history_load || can_restore_preseeded_ui_history_load);
-        if (!latest_entry_matches_ui_seed && !can_reconstruct_current_entry)
-            return false;
+        auto latest_entry_matches_ui_projection = session_history_entry_matches_descriptor_ignoring_document_state_id(*latest_entry, current_entry_from_ui_process, MatchNestedHistories::No);
+        VERIFY(latest_entry_matches_ui_projection);
     }
 
     SessionHistoryEntryReconstructionState reconstruction_state;
@@ -506,7 +467,7 @@ bool LocalTraversableNavigable::replace_top_level_session_history_entries_from_u
     document->history()->m_index = history_object_length_and_index.script_history_index;
     document->history()->m_length = history_object_length_and_index.script_history_length;
 
-    // NB: The UI process can seed a replacement WebContent process before the new document has loaded. Do not
+    // NB: The UI process can install a replacement WebContent projection before the new document has loaded. Do not
     //     restore the UI-owned entry's classic history API state or persisted state onto the initial about:blank
     //     document; the navigation algorithm will restore them onto the document that is actually created for the
     //     entry.
@@ -517,7 +478,6 @@ bool LocalTraversableNavigable::replace_top_level_session_history_entries_from_u
 
     auto entries_for_navigation_api = get_session_history_entries_for_the_navigation_api(*this, m_current_session_history_step);
     active_window()->navigation()->initialize_the_navigation_api_entries_for_reconstructed_session_history(entries_for_navigation_api, current_entry);
-    return true;
 }
 
 static Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_navigation_api_from_ui_process(LocalNavigable&, Vector<SessionHistoryEntryDescriptor>);
@@ -540,10 +500,9 @@ Optional<SessionHistoryEntryDescriptor> LocalTraversableNavigable::install_histo
     if (!load.target_entry.document_state.is_provisional)
         entry_to_restore = load.target_entry;
 
-    VERIFY(replace_top_level_session_history_entries_from_ui_process(
+    install_top_level_session_history_projection(
         move(load.transitional_top_level_entries), current_entry_index,
-        entry_to_restore.has_value(),
-        load.target_entry.step));
+        load.target_entry.step);
 
     auto used_steps = get_all_used_history_steps();
     VERIFY(used_steps.size() == load.global_history_length);
@@ -2099,10 +2058,7 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operat
         operation.reconstructs_replacement_process = true;
         VERIFY(navigable->is_top_level_traversable());
         auto& traversable = as<LocalTraversableNavigable>(*navigable);
-        if (!traversable.replace_top_level_session_history_entries_from_ui_process(move(replacement_top_level_entries), replacement_current_top_level_entry_index, false, replacement_current_step)) {
-            on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale);
-            return;
-        }
+        traversable.install_top_level_session_history_projection(move(replacement_top_level_entries), replacement_current_top_level_entry_index, replacement_current_step);
 
         auto current_entry = traversable.current_session_history_entry();
         VERIFY(current_entry);

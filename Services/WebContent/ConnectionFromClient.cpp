@@ -450,17 +450,6 @@ void ConnectionFromClient::complete_history_operation(u64 page_id, u64 operation
         page->page().top_level_traversable()->complete_ui_history_operation(operation_id, result, committed_step, initiation_id);
 }
 
-void ConnectionFromClient::set_top_level_session_history(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, size_t current_top_level_entry_index, bool allow_reconstructing_current_entry)
-{
-    if (auto page = this->page(page_id); page.has_value()) {
-        auto accepted = page->page().top_level_traversable()->replace_top_level_session_history_entries_from_ui_process(move(entries), current_top_level_entry_index, allow_reconstructing_current_entry);
-        auto session_history_snapshot = page->page().top_level_traversable()->create_session_history_snapshot();
-        async_did_set_top_level_session_history(page_id, accepted, move(session_history_snapshot.top_level_session_history_entries), move(session_history_snapshot.used_session_history_steps), session_history_snapshot.current_used_step_index);
-    } else {
-        async_did_set_top_level_session_history(page_id, false, {}, {}, 0);
-    }
-}
-
 void ConnectionFromClient::reset_session_history_for_testing(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {
