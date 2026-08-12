@@ -273,66 +273,6 @@ static bool session_history_nested_history_descriptors_match(Vector<SessionHisto
     return true;
 }
 
-static bool session_history_nested_history_descriptors_match_document_state_nested_histories(Vector<SessionHistoryNestedHistoryDescriptor> const& descriptors, Vector<DocumentState::NestedHistory> const& nested_histories)
-{
-    if (descriptors.size() != nested_histories.size())
-        return false;
-
-    for (size_t i = 0; i < descriptors.size(); ++i) {
-        auto const& descriptor = descriptors[i];
-        auto const& nested_history = nested_histories[i];
-        if (descriptor.id != nested_history.id || descriptor.entries.size() != nested_history.entries.size())
-            return false;
-        for (size_t j = 0; j < descriptor.entries.size(); ++j) {
-            if (!session_history_entry_matches_descriptor_ignoring_document_state_id(*nested_history.entries[j], descriptor.entries[j]))
-                return false;
-        }
-    }
-
-    return true;
-}
-
-static bool session_history_document_state_descriptor_matches_document_state_ignoring_id(SessionHistoryDocumentStateDescriptor const& descriptor, DocumentState const& document_state, MatchNestedHistories match_nested_histories)
-{
-    if (!(history_policy_containers_match(descriptor.history_policy_container, document_state.history_policy_container())
-            && descriptor.request_referrer == document_state.request_referrer()
-            && descriptor.request_referrer_policy == document_state.request_referrer_policy()
-            && descriptor.initiator_origin == document_state.initiator_origin()
-            && descriptor.origin == document_state.origin()
-            && descriptor.about_base_url == document_state.about_base_url()
-            && descriptor.resource == document_state.resource()
-            && descriptor.reload_pending == document_state.reload_pending()
-            && descriptor.ever_populated == document_state.ever_populated()
-            && descriptor.navigable_target_name == document_state.navigable_target_name()))
-        return false;
-
-    if (match_nested_histories == MatchNestedHistories::No)
-        return true;
-
-    return session_history_nested_history_descriptors_match_document_state_nested_histories(descriptor.nested_histories, document_state.nested_histories());
-}
-
-bool session_history_entry_matches_descriptor_ignoring_document_state_id(SessionHistoryEntry const& entry, SessionHistoryEntryDescriptor const& descriptor, MatchNestedHistories match_nested_histories)
-{
-    auto entry_step = entry.step_value();
-    if (!entry_step.has_value() || *entry_step != descriptor.step)
-        return false;
-    if (entry.url() != descriptor.url)
-        return false;
-    auto document_state = entry.document_state();
-    if (!document_state || !session_history_document_state_descriptor_matches_document_state_ignoring_id(descriptor.document_state, *document_state, match_nested_histories))
-        return false;
-    if (entry.classic_history_api_state() != descriptor.classic_history_api_state)
-        return false;
-    if (entry.navigation_api_state() != descriptor.navigation_api_state || entry.navigation_api_key() != descriptor.navigation_api_key || entry.navigation_api_id() != descriptor.navigation_api_id)
-        return false;
-    if (entry.scroll_restoration_mode() != descriptor.scroll_restoration_mode)
-        return false;
-    if (entry.scroll_position_data() != descriptor.scroll_position_data)
-        return false;
-    return true;
-}
-
 }
 
 template<>

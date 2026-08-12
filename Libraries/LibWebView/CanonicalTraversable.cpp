@@ -371,31 +371,6 @@ HistoryStepCancelationCheckResult CanonicalTraversable::did_check_if_traverse_hi
     };
 }
 
-Optional<Web::HistoryLoad> CanonicalTraversable::prepare_history_load()
-{
-    auto current_top_level_entry_index = m_session_history.current_top_level_entry_index();
-    auto current_step = m_session_history.current_step();
-    if (!current_top_level_entry_index.has_value() || !current_step.has_value())
-        return {};
-
-    auto history_object_length_and_index = m_session_history.get_the_history_object_length_and_index(*current_step);
-    auto entries_for_navigation_api = m_session_history.get_session_history_entries_for_the_navigation_api(*this, *current_step);
-    if (!history_object_length_and_index.has_value() || !entries_for_navigation_api.has_value())
-        return {};
-
-    auto target_entry = m_session_history.entry_at(*current_top_level_entry_index);
-    VERIFY(target_entry);
-
-    return Web::HistoryLoad {
-        .load_id = m_next_history_load_id++,
-        .navigable_id = id(),
-        .target_entry = *target_entry,
-        .global_history_length = history_object_length_and_index->script_history_length,
-        .global_history_index = history_object_length_and_index->script_history_index,
-        .entries_for_navigation_api = entries_for_navigation_api.release_value(),
-    };
-}
-
 void CanonicalTraversable::abandon_after_web_content_process_crash()
 {
     abandon_history_operations();

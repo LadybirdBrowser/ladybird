@@ -209,7 +209,6 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
     m_should_suppress_history_for_next_load = false;
     set_loading_state(true);
     m_is_waiting_for_navigation_start = true;
-    m_loading_history_load_id.clear();
     m_loading_navigation_id.clear();
     m_loading_url = url;
     m_last_stopped_load_url.clear();
@@ -310,7 +309,6 @@ void ViewImplementation::load(URL::URL const& url, Web::Bindings::NavigationHist
     m_should_suppress_history_for_current_load = false;
     m_should_suppress_history_for_next_load = false;
     m_is_waiting_for_navigation_start = true;
-    m_loading_history_load_id.clear();
     m_loading_navigation_id.clear();
     m_loading_url = url;
     m_last_stopped_load_url.clear();
@@ -394,7 +392,6 @@ void ViewImplementation::load_html(StringView html)
 {
     set_loading_state(true);
     m_is_waiting_for_navigation_start = false;
-    m_loading_history_load_id.clear();
     m_loading_navigation_id.clear();
     m_loading_url.clear();
     m_last_stopped_load_url.clear();
@@ -409,7 +406,6 @@ void ViewImplementation::load_crash_page_html(StringView html, URL::URL const& c
 {
     set_loading_state(true);
     m_is_waiting_for_navigation_start = false;
-    m_loading_history_load_id.clear();
     m_loading_navigation_id.clear();
     m_loading_url.clear();
     m_last_stopped_load_url.clear();
@@ -446,7 +442,6 @@ void ViewImplementation::reload()
 
     set_loading_state(true);
     m_is_waiting_for_navigation_start = true;
-    m_loading_history_load_id.clear();
     m_loading_navigation_id.clear();
     m_uncommitted_top_level_navigation.clear();
     if (m_is_showing_crash_page) {
@@ -475,7 +470,6 @@ void ViewImplementation::stop_loading()
         return;
     set_loading_state(false);
     m_is_waiting_for_navigation_start = false;
-    m_loading_history_load_id.clear();
     m_loading_navigation_id.clear();
     client().async_stop_loading(page_id());
 }
@@ -1914,13 +1908,13 @@ void ViewImplementation::cancel_all_native_geolocation_requests()
         Application::the().stop_watching_geolocation_position(watch.value);
 }
 
-void ViewImplementation::did_start_navigation(URL::URL const& url, bool is_history_load, bool is_redirect, bool has_navigation_id)
+void ViewImplementation::did_start_navigation(URL::URL const& url, bool is_redirect, bool has_navigation_id)
 {
     set_loading_state(true);
     if (m_should_suppress_history_for_next_load || m_should_suppress_history_for_current_load)
         return;
 
-    if (!is_history_load && has_navigation_id && !m_uncommitted_top_level_navigation.has_value())
+    if (has_navigation_id && !m_uncommitted_top_level_navigation.has_value())
         m_uncommitted_top_level_navigation = UncommittedTopLevelNavigation::CurrentProcess;
 
     auto was_showing_crash_page = exchange(m_is_showing_crash_page, false);
@@ -1930,10 +1924,9 @@ void ViewImplementation::did_start_navigation(URL::URL const& url, bool is_histo
         started_from_crash_page = current_entry && current_entry->url == url;
     }
 
-    auto dump_reason = is_history_load ? "did-start-ui-session-history-load"sv
-        : started_from_crash_page      ? "did-start-navigation-from-crash-page"sv
-        : is_redirect                  ? "did-start-navigation-redirect"sv
-                                       : "did-start-navigation"sv;
+    auto dump_reason = started_from_crash_page ? "did-start-navigation-from-crash-page"sv
+        : is_redirect                          ? "did-start-navigation-redirect"sv
+                                               : "did-start-navigation"sv;
 
     if (is_redirect && m_webdriver_pending_navigation_url.has_value())
         m_webdriver_pending_navigation_url = url;
@@ -1987,7 +1980,6 @@ bool ViewImplementation::cancel_uncommitted_top_level_navigation(StringView reas
     m_uncommitted_top_level_navigation.clear();
     set_loading_state(false);
     m_is_waiting_for_navigation_start = false;
-    m_loading_history_load_id.clear();
     m_loading_navigation_id.clear();
     m_loading_url.clear();
     if (stop_loading)
@@ -2014,7 +2006,6 @@ void ViewImplementation::did_start_webdriver_navigation(Badge<WebContentClient>,
 {
     set_loading_state(true);
     m_is_waiting_for_navigation_start = true;
-    m_loading_history_load_id.clear();
     m_loading_navigation_id.clear();
     m_webdriver_pending_navigation_url = url;
     m_webdriver_pending_navigation_completes_with_session_history_update = false;
@@ -2095,7 +2086,6 @@ JsonValue ViewImplementation::webdriver_session_history() const
     serialized.set("webContentProcessID"sv, client().pid());
     serialized.set("backButtonEnabled"sv, m_navigate_back_action->enabled());
     serialized.set("forwardButtonEnabled"sv, m_navigate_forward_action->enabled());
-    serialized.set("sessionHistoryLoadInProgress"sv, m_loading_history_load_id.has_value());
     serialized.set("hasOnlyTopLevelUsedSteps"sv, m_top_level_traversable.session_history().has_only_top_level_used_steps());
 
     if (auto current_used_step_index = m_top_level_traversable.session_history().current_used_step_index(); current_used_step_index.has_value())
@@ -2365,12 +2355,11 @@ void ViewImplementation::dump_session_history(StringView reason, SessionHistoryD
 
     auto traversal = m_top_level_traversable.browser_history_traversal_for_testing();
 
-    dbgln("[History] UI session history page={} pid={} reason={} url='{}' history_load_id={} uncommitted_navigation={} loading_url={} pending_traversal_target={} pending_traversal_stage={} back={} forward={} entries={}",
+    dbgln("[History] UI session history page={} pid={} reason={} url='{}' uncommitted_navigation={} loading_url={} pending_traversal_target={} pending_traversal_stage={} back={} forward={} entries={}",
         page_id(),
         client().pid(),
         reason,
         m_url,
-        m_loading_history_load_id,
         m_uncommitted_top_level_navigation.has_value(),
         m_loading_url,
         traversal.has_value() ? Optional<i32> { traversal->target_step } : Optional<i32> {},
@@ -2384,7 +2373,6 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
 {
     set_loading_state(false);
     m_is_waiting_for_navigation_start = false;
-    m_loading_history_load_id.clear();
     m_loading_navigation_id.clear();
     m_uncommitted_top_level_navigation.clear();
     auto const headless_mode = Application::browser_options().headless_mode.has_value();

@@ -135,14 +135,12 @@ void Page::navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigab
 
 void Page::load(URL::URL const& url, Bindings::NavigationHistoryBehavior history_handling)
 {
-    m_active_history_load.clear();
     (void)top_level_traversable()->navigate({ .url = url, .source_document = *top_level_traversable()->active_document(), .history_handling = history_handling, .user_involvement = HTML::UserNavigationInvolvement::BrowserUI });
 }
 
 void Page::load(URL::URL const& url, HTML::DocumentResource document_resource,
     Bindings::NavigationHistoryBehavior history_handling, Optional<HTML::NavigationSourceSnapshot> source_snapshot)
 {
-    m_active_history_load.clear();
     (void)top_level_traversable()->navigate({
         .url = url,
         .source_document = *top_level_traversable()->active_document(),
@@ -152,55 +150,10 @@ void Page::load(URL::URL const& url, HTML::DocumentResource document_resource,
         .cross_process_source_snapshot = move(source_snapshot),
         .history_handling_already_determined = true,
     });
-}
-
-void Page::load_with_history(URL::URL const& url, HTML::DocumentResource document_resource,
-    Bindings::NavigationHistoryBehavior history_handling,
-    Optional<HTML::NavigationSourceSnapshot> source_snapshot, HistoryLoad history_load)
-{
-    m_active_history_load = ActiveHistoryLoad { .id = history_load.load_id };
-    auto entry_to_restore = top_level_traversable()->install_history_for_load(move(history_load));
-    (void)top_level_traversable()->navigate({
-        .url = url,
-        .source_document = *top_level_traversable()->active_document(),
-        .document_resource = move(document_resource),
-        .history_handling = history_handling,
-        .user_involvement = HTML::UserNavigationInvolvement::BrowserUI,
-        .cross_process_source_snapshot = move(source_snapshot),
-        .history_handling_already_determined = true,
-        .session_history_entry_to_restore = move(entry_to_restore),
-    });
-}
-
-Optional<u64> Page::history_load_id_for_navigation_start(Optional<Utf16String> const& navigation_id)
-{
-    if (!m_active_history_load.has_value())
-        return {};
-
-    if (!m_active_history_load->navigation_started) {
-        m_active_history_load->navigation_started = true;
-        m_active_history_load->navigation_id = navigation_id;
-    }
-    if (m_active_history_load->navigation_id != navigation_id)
-        return {};
-    return m_active_history_load->id;
-}
-
-Optional<u64> Page::take_history_load_id_for_navigation_completion(Optional<Utf16String> const& navigation_id)
-{
-    if (!m_active_history_load.has_value() || !m_active_history_load->navigation_started)
-        return {};
-    if (m_active_history_load->navigation_id != navigation_id)
-        return {};
-
-    auto id = m_active_history_load->id;
-    m_active_history_load.clear();
-    return id;
 }
 
 void Page::load_html(StringView html)
 {
-    m_active_history_load.clear();
     // FIXME: #23909 Figure out why GC threshold does not stay low when repeatedly loading html from the WebView
     heap().collect_garbage();
 
@@ -212,7 +165,6 @@ void Page::load_html(StringView html)
 
 void Page::load_html(StringView html, URL::URL const& url)
 {
-    m_active_history_load.clear();
     // FIXME: #23909 Figure out why GC threshold does not stay low when repeatedly loading html from the WebView
     heap().collect_garbage();
 
@@ -238,7 +190,6 @@ void Page::load_html(StringView html, URL::URL const& url)
 
 void Page::reload()
 {
-    m_active_history_load.clear();
     top_level_traversable()->reload();
 }
 

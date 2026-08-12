@@ -92,9 +92,6 @@ private:
     virtual void load_url_with_document_resource(u64 page_id, URL::URL,
         Web::HTML::DocumentResource, Web::Bindings::NavigationHistoryBehavior,
         Optional<Web::HTML::NavigationSourceSnapshot>) override;
-    virtual void load_url_with_history(u64 page_id, URL::URL,
-        Web::HTML::DocumentResource, Web::Bindings::NavigationHistoryBehavior,
-        Optional<Web::HTML::NavigationSourceSnapshot>, Web::HistoryLoad) override;
     virtual void load_html(u64 page_id, ByteString) override;
     virtual void load_html_with_url(u64 page_id, ByteString, URL::URL) override;
     virtual void reload(u64 page_id) override;

@@ -981,7 +981,6 @@ def summarize_history_snapshot(snapshot):
             "currentUsedStepIndex": ui["currentUsedStepIndex"],
             "back": ui["backButtonEnabled"],
             "forward": ui["forwardButtonEnabled"],
-            "sessionHistoryLoadInProgress": ui["sessionHistoryLoadInProgress"],
             "pendingSessionHistoryTraversal": ui["pendingSessionHistoryTraversal"],
             "currentResource": history_current_entry(ui).get("resource"),
         }
@@ -999,7 +998,6 @@ def expect_ui_session_history(
     expected_forward_enabled,
     log,
     expect_history_idle=None,
-    expected_session_history_load_in_progress=None,
 ):
     def ui_history_matches(ui):
         return (
@@ -1008,15 +1006,7 @@ def expect_ui_session_history(
             and ui["currentUsedStepIndex"] == expected_current_used_step_index
             and ui["backButtonEnabled"] is expected_back_enabled
             and ui["forwardButtonEnabled"] is expected_forward_enabled
-            and (
-                expect_history_idle is None
-                or not ui["sessionHistoryLoadInProgress"]
-                and ui["pendingSessionHistoryTraversal"] is None
-            )
-            and (
-                expected_session_history_load_in_progress is None
-                or ui["sessionHistoryLoadInProgress"] is expected_session_history_load_in_progress
-            )
+            and (expect_history_idle is None or ui["pendingSessionHistoryTraversal"] is None)
         )
 
     def raise_ui_mismatch(snapshot):
@@ -1024,7 +1014,6 @@ def expect_ui_session_history(
             f"Expected {label} UI history to be entries={expected_entry_urls}, usedSteps={expected_used_steps}, "
             f"currentUsedStepIndex={expected_current_used_step_index}, back={expected_back_enabled}, "
             f"forward={expected_forward_enabled}, historyIdle={expect_history_idle}, "
-            f"sessionHistoryLoadInProgress={expected_session_history_load_in_progress}; "
             f"got {summarize_history_snapshot(snapshot)}\n" + "\n".join(log)
         )
 
@@ -1060,7 +1049,6 @@ def wait_for_ui_session_history(
             and ui["currentUsedStepIndex"] == expected_current_used_step_index
             and ui["backButtonEnabled"] is expected_back_enabled
             and ui["forwardButtonEnabled"] is expected_forward_enabled
-            and not ui["sessionHistoryLoadInProgress"]
             and ui["pendingSessionHistoryTraversal"] is None
         )
 
@@ -1237,7 +1225,7 @@ def expect_navigation_buttons(webdriver_port, session_id, label, expected_back_e
 def expect_session_history_idle(webdriver_port, session_id, label, log):
     snapshot = session_history(webdriver_port, session_id)
     ui = snapshot["ui"]
-    if not ui["sessionHistoryLoadInProgress"] and ui["pendingSessionHistoryTraversal"] is None:
+    if ui["pendingSessionHistoryTraversal"] is None:
         log.append(f"{label} idle history: {summarize_history_snapshot(snapshot)}")
         return snapshot
 
@@ -1366,7 +1354,7 @@ def expect_entry_nested_history(webdriver_port, session_id, label, entry_url, ex
 def expect_session_history_synchronized(webdriver_port, session_id, label, log):
     snapshot = session_history(webdriver_port, session_id)
     ui = snapshot["ui"]
-    if not ui["sessionHistoryLoadInProgress"] and ui["pendingSessionHistoryTraversal"] is None:
+    if ui["pendingSessionHistoryTraversal"] is None:
         log.append(f"{label} idle history: {summarize_history_snapshot(snapshot)}")
         return
 
@@ -3950,7 +3938,6 @@ return [
                 return False
             return (
                 history_entry_urls(ui_history)[current_index] == url_state_push
-                and not ui_history["sessionHistoryLoadInProgress"]
                 and ui_history["pendingSessionHistoryTraversal"] is None
             )
 
@@ -4118,7 +4105,7 @@ return [location.href, window.canceledTraverseCount];
 
         def browser_ui_traverse_setup_is_idle(snapshot):
             ui_history = snapshot["ui"]
-            if ui_history["sessionHistoryLoadInProgress"] or ui_history["pendingSessionHistoryTraversal"] is not None:
+            if ui_history["pendingSessionHistoryTraversal"] is not None:
                 return False
             return history_current_entry(ui_history)["url"] == url_scroll_cancel_current
 
@@ -4721,10 +4708,7 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             webdriver_port,
             session_id,
             "reload pending clears after blocked reload crash recovery",
-            lambda snapshot: (
-                not history_current_entry(snapshot["ui"])["reloadPending"]
-                and not snapshot["ui"]["sessionHistoryLoadInProgress"]
-            ),
+            lambda snapshot: not history_current_entry(snapshot["ui"])["reloadPending"],
             log,
         )
 
