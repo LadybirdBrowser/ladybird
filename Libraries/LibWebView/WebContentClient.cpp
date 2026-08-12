@@ -16,6 +16,7 @@
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibIPC/Transport.h>
 #include <LibIPC/TransportHandle.h>
+#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/WebDriver/Error.h>
 #include <LibWebView/Application.h>
@@ -572,10 +573,14 @@ void WebContentClient::did_change_top_level_active_document(u64 page_id, Web::HT
     if (!navigable)
         return;
 
+    auto active_document_url = replicated_state.active_document_url;
     navigable->did_commit_navigation(move(replicated_state));
 
-    if (auto view = owning_view_for_page_id(page_id); view.has_value())
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
+        if (!Web::HTML::url_matches_about_blank(active_document_url) || !view->m_client_state.site_url.has_value())
+            view->m_client_state.site_url = move(active_document_url);
         view->m_external_url_request_policy.clear_page_request_allowance();
+    }
 }
 
 void WebContentClient::did_destroy_child_frame(u64 page_id, Web::HTML::CrossProcessId frame_id)
@@ -1568,8 +1573,8 @@ void WebContentClient::did_request_webdriver_history_traversal(u64 page_id, u64 
                         page_id,
                         request_id,
                         true,
-                        traversal_started && outcome.will_replace_web_content_process,
-                        traversal_started && outcome.will_change_top_level_entry);
+                        traversal_started && outcome.replaces_web_content_process,
+                        traversal_started && outcome.changes_top_level_entry);
                 });
         });
         return;

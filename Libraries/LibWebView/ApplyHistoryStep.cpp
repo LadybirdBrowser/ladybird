@@ -174,15 +174,21 @@ void ApplyHistoryStep::run_changing_navigable_jobs()
             continue;
         }
 
+        ApplyHistoryStepJobs::ChangingNavigableHistoryStepJob job {
+            .navigable_id = navigable_id,
+            .target_entry = *target_entry,
+            .user_involvement = m_user_involvement,
+            .navigation_type = m_navigation_type,
+            .synchronous_navigation = m_synchronous_navigation,
+            .navigation_api_abort_behavior = navigation_api_abort_behavior,
+        };
+        if (!m_jobs.select_changing_navigable_history_step_job_endpoint(job)) {
+            changing_navigable_job_completed(navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition::Skipped);
+            continue;
+        }
+
         m_jobs.run_changing_navigable_history_step_job(
-            {
-                .navigable_id = navigable_id,
-                .target_entry = *target_entry,
-                .user_involvement = m_user_involvement,
-                .navigation_type = m_navigation_type,
-                .synchronous_navigation = m_synchronous_navigation,
-                .navigation_api_abort_behavior = navigation_api_abort_behavior,
-            },
+            move(job),
             [this, navigable_id](Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition) {
                 changing_navigable_job_completed(navigable_id, disposition);
             });

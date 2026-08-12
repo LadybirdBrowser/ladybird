@@ -198,6 +198,7 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
     if (auto const* current_entry = m_top_level_traversable.session_history().current_entry())
         initial_document_state_id = current_entry->document_state.id;
     initialize_client(CreateNewClient::Yes, initial_document_state_id);
+    m_client_state.site_url = url;
     VERIFY(m_client_state.client);
 
     if (on_web_content_process_change_for_cross_site_navigation)
@@ -220,7 +221,7 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
     dump_session_history("after-process-swap-load"sv);
 }
 
-void ViewImplementation::replace_web_content_process_for_history_traversal(Web::HTML::CrossProcessId target_document_state_id)
+void ViewImplementation::replace_web_content_process_for_history_traversal(Web::HTML::CrossProcessId target_document_state_id, URL::URL const& target_url)
 {
     dump_session_history("before-history-traversal-process-swap"sv);
 
@@ -238,6 +239,7 @@ void ViewImplementation::replace_web_content_process_for_history_traversal(Web::
     m_history_operation_handling_for_next_client = HistoryOperationHandling::Preserve;
     initialize_client(CreateNewClient::Yes, target_document_state_id);
     m_history_operation_handling_for_next_client = HistoryOperationHandling::Abandon;
+    m_client_state.site_url = target_url;
     VERIFY(m_client_state.client);
 
     if (on_web_content_process_change_for_cross_site_navigation)
@@ -1968,7 +1970,7 @@ bool ViewImplementation::cancel_uncommitted_top_level_navigation(StringView reas
     if (!m_uncommitted_top_level_navigation.has_value())
         return false;
 
-    auto requires_process_replacement = *m_uncommitted_top_level_navigation == UncommittedTopLevelNavigation::ReplacementProcess;
+    auto navigation_used_replacement_process = *m_uncommitted_top_level_navigation == UncommittedTopLevelNavigation::ReplacementProcess;
     m_uncommitted_top_level_navigation.clear();
     set_loading_state(false);
     m_is_waiting_for_navigation_start = false;
@@ -1982,8 +1984,8 @@ bool ViewImplementation::cancel_uncommitted_top_level_navigation(StringView reas
         return true;
 
     set_url(current_entry->url);
-    if (requires_process_replacement) {
-        reconstruct_current_session_history_entry_with_history_operation(true, reason);
+    if (navigation_used_replacement_process) {
+        reconstruct_current_session_history_entry_with_history_operation(reason);
         return true;
     }
 
@@ -2089,8 +2091,7 @@ JsonValue ViewImplementation::webdriver_session_history() const
         JsonObject pending_traversal;
         pending_traversal.set("targetStep"sv, traversal->target_step);
         pending_traversal.set("targetStepIndex"sv, traversal->target_step_index);
-        pending_traversal.set("willChangeTopLevelEntry"sv, traversal->will_change_top_level_entry);
-        pending_traversal.set("willReplaceWebContentProcess"sv, traversal->will_replace_web_content_process);
+        pending_traversal.set("willChangeTopLevelEntry"sv, traversal->changes_top_level_entry);
         pending_traversal.set("stage"sv, CanonicalTraversable::browser_history_traversal_stage_to_string(traversal->stage));
         serialized.set("pendingSessionHistoryTraversal"sv, move(pending_traversal));
     } else {
@@ -2133,8 +2134,7 @@ void ViewImplementation::recover_current_session_history_entry_with_history_oper
     });
 }
 
-void ViewImplementation::reconstruct_current_session_history_entry_with_history_operation(
-    bool requires_process_replacement, StringView reason)
+void ViewImplementation::reconstruct_current_session_history_entry_with_history_operation(StringView reason)
 {
     m_history_visit_transition_for_next_load = HistoryVisitTransition::Restore;
     auto const* current_entry = m_top_level_traversable.session_history().current_entry();
@@ -2147,8 +2147,7 @@ void ViewImplementation::reconstruct_current_session_history_entry_with_history_
     m_webdriver_pending_navigation_url = current_entry->url;
     m_webdriver_pending_navigation_completes_with_session_history_update = true;
     m_top_level_traversable.reconstruct_the_history_to_step(
-        *current_step, requires_process_replacement,
-        make_top_level_history_traversal_applied_callback());
+        *current_step, make_top_level_history_traversal_applied_callback());
     dump_session_history(reason);
 }
 
@@ -2370,9 +2369,19 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
 
     m_history_operation_handling_for_next_client = HistoryOperationHandling::Preserve;
     Optional<Web::HTML::CrossProcessId> initial_document_state_id;
-    if (auto const* current_entry = m_top_level_traversable.session_history().current_entry())
-        initial_document_state_id = current_entry->document_state.id;
+    Optional<URL::URL> process_site_url;
+    if (auto const* target_entry = m_top_level_traversable.ongoing_browser_history_traversal_target_entry()) {
+        initial_document_state_id = target_entry->document_state.id;
+        process_site_url = target_entry->url;
+    }
+    if (!initial_document_state_id.has_value()) {
+        if (auto const* current_entry = m_top_level_traversable.session_history().current_entry()) {
+            initial_document_state_id = current_entry->document_state.id;
+            process_site_url = current_entry->url;
+        }
+    }
     initialize_client(CreateNewClient::Yes, initial_document_state_id);
+    m_client_state.site_url = move(process_site_url);
     m_history_operation_handling_for_next_client = HistoryOperationHandling::Abandon;
     VERIFY(m_client_state.client);
 

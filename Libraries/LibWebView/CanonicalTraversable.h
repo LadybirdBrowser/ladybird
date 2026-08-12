@@ -39,31 +39,29 @@ enum class HistoryTraversalStatus : u8 {
 enum class CheckForCancelation : u8 {
     Yes,
     No,
-    IfWebContentCannotTraverseTarget,
 };
 
 struct HistoryTraversalOutcome {
     HistoryTraversalStatus status { HistoryTraversalStatus::NoEntry };
-    bool will_replace_web_content_process { false };
-    bool will_change_top_level_entry { false };
+    bool replaces_web_content_process { false };
+    bool changes_top_level_entry { false };
 };
 
 struct BrowserHistoryTraversalState : RefCounted<BrowserHistoryTraversalState> {
-    bool will_change_top_level_entry { false };
-    bool will_replace_web_content_process { false };
+    bool changes_top_level_entry { false };
     Function<void(HistoryTraversalOutcome)> on_traversal_outcome;
     Function<void()> on_top_level_traversal_applied;
     bool did_notify_top_level_traversal_applied { false };
 
-    void notify_traversal_outcome(HistoryTraversalStatus status)
+    void notify_traversal_outcome(HistoryTraversalStatus status, bool replaces_web_content_process = false)
     {
         auto callback = move(on_traversal_outcome);
         if (!callback)
             return;
         callback({
             .status = status,
-            .will_replace_web_content_process = will_replace_web_content_process,
-            .will_change_top_level_entry = will_change_top_level_entry,
+            .replaces_web_content_process = replaces_web_content_process,
+            .changes_top_level_entry = changes_top_level_entry,
         });
     }
 
@@ -106,8 +104,7 @@ public:
 
         i32 target_step { 0 };
         size_t target_step_index { 0 };
-        bool will_change_top_level_entry { false };
-        bool will_replace_web_content_process { false };
+        bool changes_top_level_entry { false };
         Stage stage { Stage::ApplyingInWebContent };
     };
 
@@ -119,7 +116,7 @@ public:
     void abandon_history_operations();
 
     struct HistoryJobEndpoint {
-        WebContentClient* client { nullptr };
+        RefPtr<WebContentClient> client;
         u64 page_id { 0 };
     };
     HistoryJobEndpoint history_job_endpoint_for(CanonicalNavigable const&) const;
@@ -142,6 +139,7 @@ public:
     void set_system_visibility_state(Web::HTML::VisibilityState visibility_state) { m_system_visibility_state = visibility_state; }
 
     Optional<BrowserHistoryTraversalDiagnostic> browser_history_traversal_for_testing() const;
+    Web::HTML::SessionHistoryEntryDescriptor const* ongoing_browser_history_traversal_target_entry() const;
 
     void prepare_for_reload();
     void did_create_top_level_traversable(Web::HTML::SessionHistoryEntryDescriptor initial_history_entry);
@@ -156,7 +154,7 @@ public:
     void did_finish_navigation(URL::URL const&);
     void traverse_the_history_by_delta(int delta, CheckForCancelation, Function<void(HistoryTraversalOutcome)> on_complete = nullptr, Function<void()> on_top_level_traversal_applied = nullptr);
     void traverse_the_history_to_step(i32 step, CheckForCancelation, Function<void(HistoryTraversalOutcome)> on_complete = nullptr, Function<void()> on_top_level_traversal_applied = nullptr);
-    void reconstruct_the_history_to_step(i32 step, bool requires_process_replacement, Function<void()> on_top_level_traversal_applied);
+    void reconstruct_the_history_to_step(i32 step, Function<void()> on_top_level_traversal_applied);
     WebContentHistoryStepResult did_traverse_the_history_to_step(Web::HTML::HistoryStepResult, RefPtr<BrowserHistoryTraversalState> const&);
     void abandon_after_web_content_process_crash();
     void recover_from_web_content_process_crash(OnHistoryOperationComplete);
@@ -168,17 +166,17 @@ private:
     struct HistoryOperation;
     HistoryOperation* find_history_operation(u64 operation_id);
     void add_history_operation_completion_endpoint(HistoryOperation&, HistoryJobEndpoint, Optional<u64> initiation_id = {});
+    bool select_changing_navigable_history_step_job_endpoint(HistoryOperation&, ApplyHistoryStepJobs::ChangingNavigableHistoryStepJob const&);
     ApplyHistoryStepJobs create_apply_history_step_jobs(u64 operation_id);
-    void enqueue_browser_history_traversal(Web::TraverseToStepHistoryOperationParameters, bool check_for_cancelation, bool reconstructs_web_content_history, bool requires_process_replacement, bool restores_replacement_process, RefPtr<BrowserHistoryTraversalState>, OnHistoryOperationComplete = nullptr);
-    void run_browser_history_traversal_at_queue_position(Web::TraverseToStepHistoryOperationParameters, bool check_for_cancelation, bool reconstructs_web_content_history, bool requires_process_replacement, bool restores_replacement_process, RefPtr<BrowserHistoryTraversalState>, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
+    void enqueue_browser_history_traversal(Web::TraverseToStepHistoryOperationParameters, bool check_for_cancelation, Optional<Web::HTML::CrossProcessId> navigable_to_reload, RefPtr<BrowserHistoryTraversalState>, OnHistoryOperationComplete = nullptr);
+    void run_browser_history_traversal_at_queue_position(Web::TraverseToStepHistoryOperationParameters, bool check_for_cancelation, Optional<Web::HTML::CrossProcessId> navigable_to_reload, RefPtr<BrowserHistoryTraversalState>, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
     void start_history_operation(HistoryOperation&, NonnullRefPtr<Core::Promise<Empty>>);
     void apply_history_step(HistoryOperation&, i32 step, bool check_for_cancelation, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement, Optional<Web::Bindings::NavigationType>, Web::HTML::SynchronousNavigation, Optional<Web::HTML::CrossProcessId> navigable_with_finalized_entry);
     void update_for_navigable_creation_or_destruction(HistoryOperation&);
     void finish_history_operation(u64 operation_id, Web::HTML::HistoryStepResult, Optional<i32> committed_step);
 
-    bool web_content_can_apply_traversal(TraversableSessionHistory::TraversalTarget const&) const;
     Optional<Web::HTML::CrossProcessId> nested_history_id_for(CanonicalNavigable const&) const;
-    void traverse_the_history(TraversableSessionHistory::TraversalTarget const&, CheckForCancelation, Function<void(HistoryTraversalOutcome)> on_complete, Function<void()> on_top_level_traversal_applied, NonnullRefPtr<Core::Promise<Empty>>, bool requires_process_replacement = false);
+    void traverse_the_history(TraversableSessionHistory::TraversalTarget const&, CheckForCancelation, Function<void(HistoryTraversalOutcome)> on_complete, Function<void()> on_top_level_traversal_applied, NonnullRefPtr<Core::Promise<Empty>>, Optional<Web::HTML::CrossProcessId> navigable_to_reload = {});
     void remove_from_index(CanonicalNavigable&);
 
     HashMap<Web::HTML::CrossProcessId, WeakPtr<CanonicalNavigable>> m_navigable_index;
