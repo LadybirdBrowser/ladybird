@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NumericLimits.h>
 #include <LibCore/EventLoop.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalTraversable.h>
@@ -769,8 +770,10 @@ struct CanonicalTraversable::HistoryOperation {
     Vector<CompletionEndpoint> completion_endpoints;
     // Delta and Navigation API traversals resolve their canonical target when their queue position is reached.
     Optional<i32> resolved_step;
-    // A push operation claims its new entry's step before apply-the-history-step commits it. Keeping that claim on
-    // the operation makes its lifetime match the operation automatically, including cancellation and abandonment.
+    // Push and replace receive their canonical target before their process-local finalization steps run.
+    Optional<i32> assigned_target_step;
+    // A same-document push claims its new entry's step before apply-the-history-step commits it. Keeping that claim
+    // on the operation makes its lifetime match the operation automatically, including cancellation and abandonment.
     Optional<i32> claimed_step;
     bool reconstructs_web_content_history { false };
     bool requires_process_replacement { false };
@@ -1026,8 +1029,8 @@ void CanonicalTraversable::finalize_cross_document_navigation_for_history_operat
     if (!is_matching_push && !is_matching_replace)
         return;
 
-    if (is_matching_push)
-        operation->claimed_step = history_entry.step;
+    if (is_matching_push && operation->assigned_target_step != history_entry.step)
+        return;
     auto maximum_claimed_step = maximum_claimed_session_history_step();
 
     auto did_finalize = m_session_history.finalize_cross_document_navigation(nested_history_id_for(navigable), move(history_entry), move(entry_to_replace_navigation_api_key), maximum_claimed_step);
@@ -1196,9 +1199,34 @@ void CanonicalTraversable::start_history_operation(HistoryOperation& operation, 
         operation.initiation_id);
 
     operation.parameters.visit(
-        [&](Web::HistoryOperationParameters const&) {
+        [&](Web::HistoryOperationParameters const& parameters) {
             VERIFY(operation.initiation_id.has_value());
-            operation.initiating_client->async_history_operation_started(operation.initiating_page_id, operation.operation_id, *operation.initiation_id);
+            parameters.visit(
+                [&](Web::PushHistoryOperationParameters const& parameters) {
+                    auto current_step = m_session_history.current_step();
+                    VERIFY(current_step.has_value());
+                    auto current_entry = m_session_history.current_entry();
+                    auto replaces_provisional_entry = parameters.navigable_id == id()
+                        && current_entry
+                        && current_entry->document_state.is_provisional;
+
+                    if (replaces_provisional_entry) {
+                        operation.assigned_target_step = *current_step;
+                        return;
+                    }
+
+                    auto maximum_claimed_step = maximum_claimed_session_history_step();
+                    auto last_reserved_step = max(*current_step, maximum_claimed_step.value_or(*current_step));
+                    VERIFY(last_reserved_step < NumericLimits<i32>::max());
+                    operation.assigned_target_step = last_reserved_step + 1;
+                },
+                [&](Web::ReplaceHistoryOperationParameters const&) {
+                    auto current_step = m_session_history.current_step();
+                    VERIFY(current_step.has_value());
+                    operation.assigned_target_step = *current_step;
+                },
+                [](auto const&) {});
+            operation.initiating_client->async_history_operation_started(operation.initiating_page_id, operation.operation_id, *operation.initiation_id, operation.assigned_target_step);
         },
         [&](BrowserHistoryTraversalOperation& parameters) {
             operation.reconstructs_web_content_history = parameters.reconstructs_web_content_history
@@ -1240,13 +1268,15 @@ void CanonicalTraversable::did_receive_history_operation_ready(u64 operation_id,
         VERIFY(!creation_parent_document_state_id.has_value());
     request.visit(
         [&](Web::PushHistoryOperationParameters const& parameters) {
-            VERIFY(step_override.has_value());
-            apply_history_step(*operation, *step_override, false, {}, parameters.user_involvement, Web::Bindings::NavigationType::Push,
+            VERIFY(!step_override.has_value());
+            VERIFY(operation->assigned_target_step.has_value());
+            apply_history_step(*operation, *operation->assigned_target_step, false, {}, parameters.user_involvement, Web::Bindings::NavigationType::Push,
                 Web::HTML::SynchronousNavigation::No, parameters.navigable_id);
         },
         [&](Web::ReplaceHistoryOperationParameters const& parameters) {
-            VERIFY(step_override.has_value());
-            apply_history_step(*operation, *step_override, false, {}, parameters.user_involvement, Web::Bindings::NavigationType::Replace,
+            VERIFY(!step_override.has_value());
+            VERIFY(operation->assigned_target_step.has_value());
+            apply_history_step(*operation, *operation->assigned_target_step, false, {}, parameters.user_involvement, Web::Bindings::NavigationType::Replace,
                 Web::HTML::SynchronousNavigation::No, parameters.navigable_id);
         },
         [&](Web::ReloadHistoryOperationParameters const& parameters) {

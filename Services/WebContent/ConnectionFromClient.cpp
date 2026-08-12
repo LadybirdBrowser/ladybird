@@ -360,7 +360,7 @@ void ConnectionFromClient::complete_finalize_same_document_navigation(u64 page_i
         page->did_complete_finalize_same_document_navigation(operation_id, committed, entry_step, target_step, script_history_length, script_history_index);
 }
 
-void ConnectionFromClient::history_operation_started(u64 page_id, u64 operation_id, Optional<u64> initiation_id)
+void ConnectionFromClient::history_operation_started(u64 page_id, u64 operation_id, Optional<u64> initiation_id, Optional<i32> target_step)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -368,7 +368,7 @@ void ConnectionFromClient::history_operation_started(u64 page_id, u64 operation_
         return;
     }
 
-    page->page().top_level_traversable()->handle_ui_history_operation_started(operation_id, initiation_id,
+    page->page().top_level_traversable()->handle_ui_history_operation_started(operation_id, initiation_id, target_step,
         GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id](bool proceed, Optional<i32> step_override, Optional<Web::HTML::CrossProcessId> creation_parent_document_state_id, Web::HTML::HistoryStepResult abandon_result) {
             async_history_operation_ready(page_id, operation_id, proceed, step_override, creation_parent_document_state_id, abandon_result);
         }));

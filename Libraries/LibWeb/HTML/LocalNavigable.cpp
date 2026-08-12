@@ -3665,11 +3665,9 @@ static Optional<int> finalize_a_cross_document_navigation_at_queued_position(GC:
         traversable->clear_the_forward_session_history();
 
         // 2. Set targetStep to traversable's current session history step + 1.
-        // AD-HOC: Claim the step instead — so a step claimed by an apply-history-step run still in flight can't be
-        //         handed out twice. The claim is retired when the coordinated operation completes.
-        //         See https://github.com/whatwg/html/issues/12576.
-        target_step = traversable->claim_next_session_history_step();
-        traversable->set_history_operation_claimed_step(initiation_id, target_step);
+        // AD-HOC: The UI process owns the session history traversal queue and assigns the equivalent canonical
+        //         target step before running these queued finalization steps.
+        target_step = traversable->ui_history_operation_target_step(initiation_id);
 
         // 3. Set historyEntry's step to targetStep.
         history_entry->set_step(target_step);
@@ -3724,7 +3722,8 @@ static Optional<int> finalize_a_cross_document_navigation_at_queued_position(GC:
         }
 
         // 4. Set targetStep to traversable's current session history step.
-        target_step = traversable->current_session_history_step();
+        // AD-HOC: Use the canonical step assigned by the UI process at this operation's queue position.
+        target_step = traversable->ui_history_operation_target_step(initiation_id);
         report_finalized_cross_document_navigation_to_ui_process(*traversable, traversable->ui_history_operation_id(initiation_id), navigable, history_entry, entry_to_replace);
     }
 
@@ -3751,7 +3750,7 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
                     ready->function()(false, {}, {}, HistoryStepResult::Applied);
                     return;
                 }
-                ready->function()(true, *target_step, {}, HistoryStepResult::Applied);
+                ready->function()(true, {}, {}, HistoryStepResult::Applied);
             }),
             .on_complete = GC::create_function(navigable->heap(), [navigable, on_complete](HistoryStepResult result) {
                 // AD-HOC: Trigger a relayout in the container document for size negotiation with SVG documents.
