@@ -26,6 +26,7 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
+#include <LibWeb/HTML/WorkletGlobalScope.h>
 
 namespace Web::HTML {
 
@@ -59,6 +60,8 @@ MessagePort::~MessagePort() = default;
 
 JS::Object& MessagePort::relevant_global_object() const
 {
+    if (auto* worklet_global_scope = as_if<WorkletGlobalScope>(*m_global_event_target))
+        return worklet_global_scope->realm().global_object();
     return HTML::relevant_global_object(relevant_window_or_worker_global_scope(*m_global_event_target));
 }
 

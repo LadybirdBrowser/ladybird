@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const context = new AudioContext();
+        const receivedMessages = [];
+        const allMessages = new Promise(resolve => {
+            context.audioWorklet.port.onmessage = event => {
+                receivedMessages.push(event.data);
+                if (receivedMessages.length === 5)
+                    resolve(receivedMessages);
+            };
+        });
+
+        await context.audioWorklet.addModule("AudioWorklet-parameter-descriptors-restricted-float.js");
+
+        for (const message of await allMessages)
+            println(message);
+        await context.close();
+    });
+</script>

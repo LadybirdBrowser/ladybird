@@ -259,7 +259,7 @@ def main() -> int:
     )
     output_files.extend([intrinsic_definitions_header_path, intrinsic_definitions_implementation_path])
 
-    for class_name in ("Window", "DedicatedWorker", "SharedWorker"):
+    for class_name in ("Window", "DedicatedWorker", "SharedWorker", "AudioWorklet"):
         exposed_interface_header_path = output_directory / f"{class_name}ExposedInterfaces.h"
         write_generated_file(exposed_interface_header_path, write_exposed_interface_header, class_name)
         output_files.append(exposed_interface_header_path)
@@ -268,6 +268,7 @@ def main() -> int:
         ("Window", interface_sets.window_exposed),
         ("DedicatedWorker", interface_sets.dedicated_worker_exposed),
         ("SharedWorker", interface_sets.shared_worker_exposed),
+        ("AudioWorklet", interface_sets.audio_worklet_exposed),
     ]
     for class_name, exposed_interfaces in exposed_interface_implementations:
         exposed_interface_implementation_path = output_directory / f"{class_name}ExposedInterfaces.cpp"
@@ -283,7 +284,12 @@ def main() -> int:
     write_generated_file(forward_header_path, write_forward_header, modules)
     output_files.append(forward_header_path)
 
-    for global_mixin_interface_name in ("DedicatedWorkerGlobalScope", "SharedWorkerGlobalScope", "Window"):
+    for global_mixin_interface_name in (
+        "AudioWorkletGlobalScope",
+        "DedicatedWorkerGlobalScope",
+        "SharedWorkerGlobalScope",
+        "Window",
+    ):
         global_mixin_interface = context.interfaces.get(global_mixin_interface_name)
         if global_mixin_interface is not None:
             global_mixin_header_path = output_directory / f"{global_mixin_interface_name}GlobalMixin.h"
