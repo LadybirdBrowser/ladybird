@@ -1937,7 +1937,7 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(u64 o
         }));
 }
 
-void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, bool synchronous_navigation, LocalNavigable::NavigationAPIAbortBehavior job_navigation_api_abort_behavior, Optional<u64> initiation_id, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete)
+void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, bool synchronous_navigation, LocalNavigable::NavigationAPIAbortBehavior job_navigation_api_abort_behavior, Optional<u64> initiation_id, Vector<SessionHistoryEntryDescriptor> replacement_top_level_entries, size_t replacement_current_top_level_entry_index, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete)
 {
     auto& operation = m_ui_history_operations.ensure(operation_id);
     operation.navigation_type = navigation_type;
@@ -1972,6 +1972,14 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operat
     if (!navigable) {
         on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Skipped);
         return;
+    }
+    if (!replacement_top_level_entries.is_empty()) {
+        VERIFY(navigable->is_top_level_traversable());
+        auto& traversable = as<LocalTraversableNavigable>(*navigable);
+        if (!traversable.replace_top_level_session_history_entries_from_ui_process(move(replacement_top_level_entries), replacement_current_top_level_entry_index, false)) {
+            on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale);
+            return;
+        }
     }
     if (!local_target_entry)
         local_target_entry = resolve_changing_navigable_target_entry_from_ui_process(*navigable, move(target_entry));

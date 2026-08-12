@@ -61,6 +61,8 @@ struct WEBVIEW_API ApplyHistoryStepJobs {
         Optional<Web::Bindings::NavigationType> navigation_type;
         Web::HTML::SynchronousNavigation synchronous_navigation { Web::HTML::SynchronousNavigation::No };
         Web::HTML::LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior { Web::HTML::LocalNavigable::NavigationAPIAbortBehavior::Abort };
+        Vector<Web::HTML::SessionHistoryEntryDescriptor> replacement_top_level_entries;
+        size_t replacement_current_top_level_entry_index { 0 };
     };
     Function<void(ChangingNavigableHistoryStepJob, Function<void(Web::HTML::ChangingNavigableHistoryStepJobDisposition)> on_complete)> run_changing_navigable_history_step_job;
 

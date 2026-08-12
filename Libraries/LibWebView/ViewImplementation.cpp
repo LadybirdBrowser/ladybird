@@ -222,6 +222,33 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
     dump_session_history("after-process-swap-load"sv);
 }
 
+void ViewImplementation::replace_web_content_process_for_history_traversal()
+{
+    dump_session_history("before-history-traversal-process-swap"sv);
+
+    if (m_client_state.has_usable_bitmap) {
+        m_backup_shared_image_buffer = move(m_client_state.front_bitmap.shared_image_buffer);
+        m_backup_bitmap_size = m_client_state.front_bitmap.last_painted_size;
+    }
+
+    if (m_client_state.client) {
+        m_client_state.client->async_notify_webdriver_of_window_replacement(m_client_state.page_index);
+        m_client_state.client->unregister_view(m_client_state.page_index);
+    }
+
+    reset_page_media_state();
+    m_history_operation_handling_for_next_client = HistoryOperationHandling::Preserve;
+    initialize_client();
+    m_history_operation_handling_for_next_client = HistoryOperationHandling::Abandon;
+    VERIFY(m_client_state.client);
+
+    if (on_web_content_process_change_for_cross_site_navigation)
+        on_web_content_process_change_for_cross_site_navigation();
+
+    handle_resize();
+    dump_session_history("after-history-traversal-process-swap"sv);
+}
+
 void ViewImplementation::server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size, Gfx::IntRect damage_rect)
 {
     bool did_swap_bitmap = false;
@@ -1733,9 +1760,11 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
     m_needs_beforeunload_check = true;
 
     if (create_new_client == CreateNewClient::Yes) {
-        // NB: Replies from the previous process will never arrive; complete the in-flight operations so the
-        //     traversal queue can serve the new process.
-        m_top_level_traversable.abandon_history_operations();
+        if (m_history_operation_handling_for_next_client == HistoryOperationHandling::Abandon) {
+            // NB: Replies from the previous process will never arrive; complete the in-flight operations so the
+            //     traversal queue can serve the new process.
+            m_top_level_traversable.abandon_history_operations();
+        }
 
         cancel_all_native_geolocation_requests();
 
@@ -1744,7 +1773,10 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
         m_client_state.client_handle = move(client_handle);
 
         // FIXME: Fail to open the tab, rather than crashing the whole application if this fails.
-        m_client_state.client = Application::the().launch_web_content_process(*this).release_value_but_fixme_should_propagate_errors();
+        auto root_navigable_id = m_history_operation_handling_for_next_client == HistoryOperationHandling::Preserve
+            ? Optional<Web::HTML::CrossProcessId> { m_top_level_traversable.id() }
+            : Optional<Web::HTML::CrossProcessId> {};
+        m_client_state.client = Application::the().launch_web_content_process(*this, root_navigable_id).release_value_but_fixme_should_propagate_errors();
     } else {
         m_client_state.client->register_view(m_client_state.page_index, *this);
     }
@@ -2450,7 +2482,8 @@ void ViewImplementation::start_requested_history_traversal(u64 initiation_id, We
 
 void ViewImplementation::start_requested_history_traversal(u64 initiation_id, Web::HistoryOperationParameters parameters, TraversableSessionHistory::TraversalTarget target, NonnullRefPtr<Core::Promise<Empty>> promise)
 {
-    if (!m_top_level_traversable.traversal_requires_process_replacement(target, m_url)) {
+    auto requires_process_replacement = m_top_level_traversable.traversal_requires_process_replacement(target, m_url);
+    if (!requires_process_replacement || !m_top_level_traversable.pending_session_history_navigation().has_value()) {
         m_top_level_traversable.run_history_operation_at_queue_position(
             initiation_id,
             move(parameters),

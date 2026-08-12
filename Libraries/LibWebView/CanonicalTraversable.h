@@ -304,6 +304,7 @@ public:
 private:
     struct HistoryOperation;
     HistoryOperation* find_history_operation(u64 operation_id);
+    void add_history_operation_completion_endpoint(HistoryOperation&, HistoryJobEndpoint);
     ApplyHistoryStepJobs create_apply_history_step_jobs(u64 operation_id);
     Optional<i32> maximum_claimed_session_history_step() const;
     Optional<i32> claim_step_for_pending_cross_document_history_operation(Web::HTML::CrossProcessId, i32 claimed_step);

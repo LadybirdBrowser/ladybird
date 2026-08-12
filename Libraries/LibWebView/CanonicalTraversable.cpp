@@ -1167,6 +1167,12 @@ struct CanonicalTraversable::HistoryOperation {
     // replacement. Jobs for individual navigables resolve their endpoints when they are dispatched instead.
     RefPtr<WebContentClient> initiating_client;
     u64 initiating_page_id { 0 };
+    struct CompletionEndpoint {
+        RefPtr<WebContentClient> client;
+        u64 page_id { 0 };
+        Optional<u64> initiation_id;
+    };
+    Vector<CompletionEndpoint> completion_endpoints;
     // Delta and Navigation API traversals resolve their canonical target when their queue position is reached.
     Optional<i32> resolved_step;
     // A push operation claims its new entry's step before apply-the-history-step commits it. Keeping that claim on
@@ -1209,6 +1215,16 @@ CanonicalTraversable::HistoryOperation* CanonicalTraversable::find_history_opera
     if (operation == m_history_operations.end())
         return nullptr;
     return operation->value.ptr();
+}
+
+void CanonicalTraversable::add_history_operation_completion_endpoint(HistoryOperation& operation, HistoryJobEndpoint endpoint)
+{
+    VERIFY(endpoint.client);
+    if (any_of(operation.completion_endpoints, [&](auto const& existing) {
+            return existing.client.ptr() == endpoint.client && existing.page_id == endpoint.page_id;
+        }))
+        return;
+    operation.completion_endpoints.append({ endpoint.client, endpoint.page_id, {} });
 }
 
 Optional<i32> CanonicalTraversable::maximum_claimed_session_history_step() const
@@ -1279,15 +1295,31 @@ ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(u64 op
             auto* operation = find_history_operation(operation_id);
             if (!operation)
                 return;
+            if (job.navigable_id == id() && job.navigation_type == Web::Bindings::NavigationType::Traverse) {
+                if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value()
+                    && SiteIsolationManager::the().navigation_requires_process_swap(view->url(), job.target_entry.url)) {
+                    view->replace_web_content_process_for_history_traversal();
+                    job.replacement_top_level_entries = m_session_history.entries();
+                    auto current_top_level_entry_index = m_session_history.current_top_level_entry_index();
+                    VERIFY(current_top_level_entry_index.has_value());
+                    job.replacement_current_top_level_entry_index = *current_top_level_entry_index;
+                    if (!operation->initiation_id.has_value())
+                        operation->completion_endpoints.clear();
+                }
+            }
             auto navigable = find(job.navigable_id);
             auto endpoint = navigable.has_value() ? history_job_endpoint_for(*navigable) : HistoryJobEndpoint {};
             if (!endpoint.client) {
                 on_complete(Web::HTML::ChangingNavigableHistoryStepJobDisposition::Skipped);
                 return;
             }
+            add_history_operation_completion_endpoint(*operation, endpoint);
             auto navigable_id = job.navigable_id;
+            auto initiation_id = endpoint.client == operation->initiating_client.ptr() && endpoint.page_id == operation->initiating_page_id
+                ? operation->initiation_id
+                : Optional<u64> {};
             operation->pending_changing_jobs.set(navigable_id, move(on_complete));
-            endpoint.client->async_run_changing_navigable_history_job(endpoint.page_id, operation_id, navigable_id, move(job.target_entry), job.user_involvement, job.navigation_type, job.synchronous_navigation == Web::HTML::SynchronousNavigation::Yes, job.navigation_api_abort_behavior, operation->initiation_id); },
+            endpoint.client->async_run_changing_navigable_history_job(endpoint.page_id, operation_id, navigable_id, move(job.target_entry), job.user_involvement, job.navigation_type, job.synchronous_navigation == Web::HTML::SynchronousNavigation::Yes, job.navigation_api_abort_behavior, initiation_id, move(job.replacement_top_level_entries), job.replacement_current_top_level_entry_index); },
         .apply_changing_navigable_history_step_continuation = [this, operation_id](ApplyHistoryStepJobs::ApplyChangingNavigableHistoryStepContinuation continuation, Function<void()> on_complete) {
             auto* operation = find_history_operation(operation_id);
             if (!operation)
@@ -1298,6 +1330,7 @@ ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(u64 op
                 on_complete();
                 return;
             }
+            add_history_operation_completion_endpoint(*operation, endpoint);
             auto navigable_id = continuation.navigable_id;
             operation->pending_continuations.set(navigable_id, move(on_complete));
             endpoint.client->async_apply_changing_navigable_continuation(endpoint.page_id, operation_id, navigable_id,
@@ -1313,6 +1346,7 @@ ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(u64 op
                 on_complete();
                 return;
             }
+            add_history_operation_completion_endpoint(*operation, endpoint);
             operation->pending_nonchanging_updates.set(navigable_id, move(on_complete));
             endpoint.client->async_update_nonchanging_navigable_history_state(endpoint.page_id, operation_id, navigable_id,
                 history_object_length_and_index.script_history_length, history_object_length_and_index.script_history_index); },
@@ -1496,6 +1530,8 @@ void CanonicalTraversable::start_history_operation(HistoryOperation& operation, 
         return;
     }
 
+    operation.completion_endpoints.append({ operation.initiating_client, operation.initiating_page_id, operation.initiation_id });
+
     operation.parameters.visit(
         [&](Web::HistoryOperationParameters const&) {
             VERIFY(operation.initiation_id.has_value());
@@ -1619,8 +1655,8 @@ void CanonicalTraversable::finish_history_operation(u64 operation_id, Web::HTML:
         return;
     auto& taken_operation = **operation;
 
-    if (taken_operation.initiating_client)
-        taken_operation.initiating_client->async_complete_history_operation(taken_operation.initiating_page_id, operation_id, result, committed_step, taken_operation.initiation_id);
+    for (auto& endpoint : taken_operation.completion_endpoints)
+        endpoint.client->async_complete_history_operation(endpoint.page_id, operation_id, result, committed_step, endpoint.initiation_id);
 
     // The completion installs the committed step as WebContent's current session history step; record that in the
     // mirror bookkeeping, which used to learn it from a WebContent notification.
