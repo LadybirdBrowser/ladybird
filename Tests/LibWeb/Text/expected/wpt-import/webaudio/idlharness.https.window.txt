@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1163 tests
 
-888 Pass
-275 Fail
+962 Pass
+201 Fail
 Fail	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Element: member names are unique
@@ -27,7 +27,7 @@ Pass	BaseAudioContext interface: attribute currentTime
 Pass	BaseAudioContext interface: attribute listener
 Pass	BaseAudioContext interface: attribute state
 Pass	BaseAudioContext interface: attribute renderQuantumSize
-Fail	BaseAudioContext interface: attribute audioWorklet
+Pass	BaseAudioContext interface: attribute audioWorklet
 Pass	BaseAudioContext interface: attribute onstatechange
 Pass	BaseAudioContext interface: operation createAnalyser()
 Pass	BaseAudioContext interface: operation createBiquadFilter()
@@ -66,9 +66,9 @@ Pass	AudioContext interface: operation suspend()
 Pass	AudioContext interface: operation close()
 Fail	AudioContext interface: operation setSinkId((DOMString or AudioSinkOptions))
 Pass	AudioContext interface: operation createMediaElementSource(HTMLMediaElement)
-Fail	AudioContext interface: operation createMediaStreamSource(MediaStream)
+Pass	AudioContext interface: operation createMediaStreamSource(MediaStream)
 Fail	AudioContext interface: operation createMediaStreamTrackSource(MediaStreamTrack)
-Fail	AudioContext interface: operation createMediaStreamDestination()
+Pass	AudioContext interface: operation createMediaStreamDestination()
 Pass	AudioContext must be primary interface of context
 Pass	Stringification of context
 Pass	AudioContext interface: context must inherit property "baseLatency" with the proper type
@@ -85,18 +85,18 @@ Fail	AudioContext interface: context must inherit property "setSinkId((DOMString
 Fail	AudioContext interface: calling setSinkId((DOMString or AudioSinkOptions)) on context with too few arguments must throw TypeError
 Pass	AudioContext interface: context must inherit property "createMediaElementSource(HTMLMediaElement)" with the proper type
 Pass	AudioContext interface: calling createMediaElementSource(HTMLMediaElement) on context with too few arguments must throw TypeError
-Fail	AudioContext interface: context must inherit property "createMediaStreamSource(MediaStream)" with the proper type
-Fail	AudioContext interface: calling createMediaStreamSource(MediaStream) on context with too few arguments must throw TypeError
+Pass	AudioContext interface: context must inherit property "createMediaStreamSource(MediaStream)" with the proper type
+Pass	AudioContext interface: calling createMediaStreamSource(MediaStream) on context with too few arguments must throw TypeError
 Fail	AudioContext interface: context must inherit property "createMediaStreamTrackSource(MediaStreamTrack)" with the proper type
 Fail	AudioContext interface: calling createMediaStreamTrackSource(MediaStreamTrack) on context with too few arguments must throw TypeError
-Fail	AudioContext interface: context must inherit property "createMediaStreamDestination()" with the proper type
+Pass	AudioContext interface: context must inherit property "createMediaStreamDestination()" with the proper type
 Pass	BaseAudioContext interface: context must inherit property "destination" with the proper type
 Pass	BaseAudioContext interface: context must inherit property "sampleRate" with the proper type
 Pass	BaseAudioContext interface: context must inherit property "currentTime" with the proper type
 Pass	BaseAudioContext interface: context must inherit property "listener" with the proper type
 Pass	BaseAudioContext interface: context must inherit property "state" with the proper type
 Pass	BaseAudioContext interface: context must inherit property "renderQuantumSize" with the proper type
-Fail	BaseAudioContext interface: context must inherit property "audioWorklet" with the proper type
+Pass	BaseAudioContext interface: context must inherit property "audioWorklet" with the proper type
 Pass	BaseAudioContext interface: context must inherit property "onstatechange" with the proper type
 Pass	BaseAudioContext interface: context must inherit property "createAnalyser()" with the proper type
 Pass	BaseAudioContext interface: context must inherit property "createBiquadFilter()" with the proper type
@@ -157,7 +157,7 @@ Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must
 Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "listener" with the proper type
 Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "state" with the proper type
 Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "renderQuantumSize" with the proper type
-Fail	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "audioWorklet" with the proper type
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "audioWorklet" with the proper type
 Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "onstatechange" with the proper type
 Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createAnalyser()" with the proper type
 Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createBiquadFilter()" with the proper type
@@ -838,46 +838,46 @@ Pass	AudioNode interface: new MediaElementAudioSourceNode(context, {mediaElement
 Pass	AudioNode interface: new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) must inherit property "channelCount" with the proper type
 Pass	AudioNode interface: new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) must inherit property "channelCountMode" with the proper type
 Pass	AudioNode interface: new MediaElementAudioSourceNode(context, {mediaElement: new Audio}) must inherit property "channelInterpretation" with the proper type
-Fail	MediaStreamAudioDestinationNode interface: existence and properties of interface object
-Fail	MediaStreamAudioDestinationNode interface object length
-Fail	MediaStreamAudioDestinationNode interface object name
-Fail	MediaStreamAudioDestinationNode interface: existence and properties of interface prototype object
-Fail	MediaStreamAudioDestinationNode interface: existence and properties of interface prototype object's "constructor" property
-Fail	MediaStreamAudioDestinationNode interface: existence and properties of interface prototype object's @@unscopables property
-Fail	MediaStreamAudioDestinationNode interface: attribute stream
-Fail	MediaStreamAudioDestinationNode must be primary interface of new MediaStreamAudioDestinationNode(context)
-Fail	Stringification of new MediaStreamAudioDestinationNode(context)
-Fail	MediaStreamAudioDestinationNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "stream" with the proper type
-Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
-Fail	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
-Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
-Fail	AudioNode interface: calling connect(AudioParam, optional unsigned long) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
-Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "disconnect()" with the proper type
-Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "disconnect(unsigned long)" with the proper type
-Fail	AudioNode interface: calling disconnect(unsigned long) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
-Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "disconnect(AudioNode)" with the proper type
-Fail	AudioNode interface: calling disconnect(AudioNode) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
-Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
-Fail	AudioNode interface: calling disconnect(AudioNode, unsigned long) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
-Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
-Fail	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
-Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "disconnect(AudioParam)" with the proper type
-Fail	AudioNode interface: calling disconnect(AudioParam) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
-Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
-Fail	AudioNode interface: calling disconnect(AudioParam, unsigned long) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
-Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "context" with the proper type
-Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "numberOfInputs" with the proper type
-Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "numberOfOutputs" with the proper type
-Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "channelCount" with the proper type
-Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "channelCountMode" with the proper type
-Fail	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "channelInterpretation" with the proper type
-Fail	MediaStreamAudioSourceNode interface: existence and properties of interface object
-Fail	MediaStreamAudioSourceNode interface object length
-Fail	MediaStreamAudioSourceNode interface object name
-Fail	MediaStreamAudioSourceNode interface: existence and properties of interface prototype object
-Fail	MediaStreamAudioSourceNode interface: existence and properties of interface prototype object's "constructor" property
-Fail	MediaStreamAudioSourceNode interface: existence and properties of interface prototype object's @@unscopables property
-Fail	MediaStreamAudioSourceNode interface: attribute mediaStream
+Pass	MediaStreamAudioDestinationNode interface: existence and properties of interface object
+Pass	MediaStreamAudioDestinationNode interface object length
+Pass	MediaStreamAudioDestinationNode interface object name
+Pass	MediaStreamAudioDestinationNode interface: existence and properties of interface prototype object
+Pass	MediaStreamAudioDestinationNode interface: existence and properties of interface prototype object's "constructor" property
+Pass	MediaStreamAudioDestinationNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	MediaStreamAudioDestinationNode interface: attribute stream
+Pass	MediaStreamAudioDestinationNode must be primary interface of new MediaStreamAudioDestinationNode(context)
+Pass	Stringification of new MediaStreamAudioDestinationNode(context)
+Pass	MediaStreamAudioDestinationNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "stream" with the proper type
+Pass	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioParam, optional unsigned long) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "disconnect()" with the proper type
+Pass	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "disconnect(unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(unsigned long) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "disconnect(AudioNode)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "disconnect(AudioParam)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam, unsigned long) on new MediaStreamAudioDestinationNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "context" with the proper type
+Pass	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "numberOfInputs" with the proper type
+Pass	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "numberOfOutputs" with the proper type
+Pass	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "channelCount" with the proper type
+Pass	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "channelCountMode" with the proper type
+Pass	AudioNode interface: new MediaStreamAudioDestinationNode(context) must inherit property "channelInterpretation" with the proper type
+Pass	MediaStreamAudioSourceNode interface: existence and properties of interface object
+Pass	MediaStreamAudioSourceNode interface object length
+Pass	MediaStreamAudioSourceNode interface object name
+Pass	MediaStreamAudioSourceNode interface: existence and properties of interface prototype object
+Pass	MediaStreamAudioSourceNode interface: existence and properties of interface prototype object's "constructor" property
+Pass	MediaStreamAudioSourceNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	MediaStreamAudioSourceNode interface: attribute mediaStream
 Fail	MediaStreamTrackAudioSourceNode interface: existence and properties of interface object
 Fail	MediaStreamTrackAudioSourceNode interface object length
 Fail	MediaStreamTrackAudioSourceNode interface object name
@@ -1105,35 +1105,35 @@ Fail	AudioNode interface: new WaveShaperNode(context) must inherit property "num
 Fail	AudioNode interface: new WaveShaperNode(context) must inherit property "channelCount" with the proper type
 Fail	AudioNode interface: new WaveShaperNode(context) must inherit property "channelCountMode" with the proper type
 Fail	AudioNode interface: new WaveShaperNode(context) must inherit property "channelInterpretation" with the proper type
-Fail	AudioWorklet interface: existence and properties of interface object
-Fail	AudioWorklet interface object length
-Fail	AudioWorklet interface object name
-Fail	AudioWorklet interface: existence and properties of interface prototype object
-Fail	AudioWorklet interface: existence and properties of interface prototype object's "constructor" property
-Fail	AudioWorklet interface: existence and properties of interface prototype object's @@unscopables property
-Fail	AudioWorklet interface: attribute port
-Fail	AudioWorklet must be primary interface of context.audioWorklet
-Fail	Stringification of context.audioWorklet
-Fail	AudioWorklet interface: context.audioWorklet must inherit property "port" with the proper type
+Pass	AudioWorklet interface: existence and properties of interface object
+Pass	AudioWorklet interface object length
+Pass	AudioWorklet interface object name
+Pass	AudioWorklet interface: existence and properties of interface prototype object
+Pass	AudioWorklet interface: existence and properties of interface prototype object's "constructor" property
+Pass	AudioWorklet interface: existence and properties of interface prototype object's @@unscopables property
+Pass	AudioWorklet interface: attribute port
+Pass	AudioWorklet must be primary interface of context.audioWorklet
+Pass	Stringification of context.audioWorklet
+Pass	AudioWorklet interface: context.audioWorklet must inherit property "port" with the proper type
 Pass	AudioWorkletGlobalScope interface: existence and properties of interface object
-Fail	AudioParamMap interface: existence and properties of interface object
-Fail	AudioParamMap interface object length
-Fail	AudioParamMap interface object name
-Fail	AudioParamMap interface: existence and properties of interface prototype object
-Fail	AudioParamMap interface: existence and properties of interface prototype object's "constructor" property
-Fail	AudioParamMap interface: existence and properties of interface prototype object's @@unscopables property
-Fail	AudioParamMap interface: maplike<DOMString, AudioParam>
+Pass	AudioParamMap interface: existence and properties of interface object
+Pass	AudioParamMap interface object length
+Pass	AudioParamMap interface object name
+Pass	AudioParamMap interface: existence and properties of interface prototype object
+Pass	AudioParamMap interface: existence and properties of interface prototype object's "constructor" property
+Pass	AudioParamMap interface: existence and properties of interface prototype object's @@unscopables property
+Pass	AudioParamMap interface: maplike<DOMString, AudioParam>
 Fail	AudioParamMap must be primary interface of worklet_node.parameters
 Fail	Stringification of worklet_node.parameters
-Fail	AudioWorkletNode interface: existence and properties of interface object
-Fail	AudioWorkletNode interface object length
-Fail	AudioWorkletNode interface object name
-Fail	AudioWorkletNode interface: existence and properties of interface prototype object
-Fail	AudioWorkletNode interface: existence and properties of interface prototype object's "constructor" property
-Fail	AudioWorkletNode interface: existence and properties of interface prototype object's @@unscopables property
-Fail	AudioWorkletNode interface: attribute parameters
-Fail	AudioWorkletNode interface: attribute port
-Fail	AudioWorkletNode interface: attribute onprocessorerror
+Pass	AudioWorkletNode interface: existence and properties of interface object
+Pass	AudioWorkletNode interface object length
+Pass	AudioWorkletNode interface object name
+Pass	AudioWorkletNode interface: existence and properties of interface prototype object
+Pass	AudioWorkletNode interface: existence and properties of interface prototype object's "constructor" property
+Pass	AudioWorkletNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	AudioWorkletNode interface: attribute parameters
+Pass	AudioWorkletNode interface: attribute port
+Pass	AudioWorkletNode interface: attribute onprocessorerror
 Fail	AudioWorkletNode must be primary interface of worklet_node
 Fail	Stringification of worklet_node
 Fail	AudioWorkletNode interface: worklet_node must inherit property "parameters" with the proper type

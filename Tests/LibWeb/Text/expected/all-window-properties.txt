@@ -20,9 +20,12 @@ AudioDestinationNode
 AudioListener
 AudioNode
 AudioParam
+AudioParamMap
 AudioScheduledSourceNode
 AudioTrack
 AudioTrackList
+AudioWorklet
+AudioWorkletNode
 BarProp
 BaseAudioContext
 BeforeUnloadEvent
@@ -312,6 +315,8 @@ MediaQueryListEvent
 MediaSource
 MediaSourceHandle
 MediaStream
+MediaStreamAudioDestinationNode
+MediaStreamAudioSourceNode
 MediaStreamTrack
 MediaStreamTrackEvent
 MessageChannel
@@ -575,6 +580,7 @@ WebSocket
 WheelEvent
 Window
 Worker
+Worklet
 WritableStream
 WritableStreamDefaultController
 WritableStreamDefaultWriter
