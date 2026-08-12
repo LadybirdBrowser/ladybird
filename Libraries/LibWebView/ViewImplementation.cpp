@@ -520,14 +520,6 @@ void ViewImplementation::will_apply_history_traversal_step(URL::URL webdriver_pe
     dump_session_history("traverse-apply-history-step"sv);
 }
 
-void ViewImplementation::will_check_history_traversal_cancelation()
-{
-    m_should_suppress_history_for_current_load = false;
-    m_should_suppress_history_for_next_load = false;
-    m_history_visit_transition_for_next_load = HistoryVisitTransition::Restore;
-    dump_session_history("traverse-fallback-check-cancelation"sv);
-}
-
 Vector<ViewImplementation::SessionHistoryTraversalMenuItem> ViewImplementation::session_history_traversal_menu_items(int direction) const
 {
     VERIFY(direction == -1 || direction == 1);
@@ -2187,32 +2179,6 @@ void ViewImplementation::apply_history_traversal_step_result(Web::HTML::HistoryS
     if (step_result.should_update_navigation_action_state)
         update_navigation_action_state();
     dump_session_history(step_result.dump_reason);
-}
-
-void ViewImplementation::apply_history_step_cancelation_check_result(i32 step, Web::HTML::HistoryStepResult result, Function<void(HistoryTraversalOutcome)> on_complete, HistoryTraversalOutcome outcome)
-{
-    auto check_result = m_top_level_traversable.did_check_if_traverse_history_step_is_canceled(step, result, move(on_complete), move(outcome));
-    if (check_result.should_update_webdriver_pending_navigation_to_current_url && m_webdriver_pending_navigation_url.has_value())
-        m_webdriver_pending_navigation_url = m_url;
-    if (check_result.should_reset_webdriver_pending_navigation_completion)
-        m_webdriver_pending_navigation_completes_with_session_history_update = false;
-
-    if (check_result.should_complete_webdriver_pending_navigation)
-        complete_webdriver_pending_navigation_if_url_matches(m_url);
-    if (check_result.should_update_navigation_action_state)
-        update_navigation_action_state();
-
-    if (check_result.target.has_value()) {
-        if (check_result.on_cancelation_check_complete)
-            check_result.on_cancelation_check_complete(move(check_result.outcome));
-        dump_session_history(check_result.dump_reason);
-        traverse_the_history_to_step(check_result.target->target_step, CheckForCancelation::No);
-        return;
-    }
-
-    dump_session_history(check_result.dump_reason);
-    if (check_result.on_cancelation_check_complete)
-        check_result.on_cancelation_check_complete(move(check_result.outcome));
 }
 
 void ViewImplementation::request_history_operation(Badge<WebContentClient>, u64 initiation_id, Web::HistoryOperationParameters parameters)
