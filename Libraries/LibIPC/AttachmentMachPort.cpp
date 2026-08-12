@@ -8,6 +8,7 @@
 #include <LibCore/MachPort.h>
 #include <LibCore/System.h>
 #include <LibIPC/Attachment.h>
+#include <errno.h>
 
 // fileport_makeport() and fileport_makefd() are private macOS APIs that convert
 // between file descriptors and Mach port rights. Since Mach messages can only
@@ -51,7 +52,10 @@ int Attachment::to_fd()
 {
     VERIFY(MACH_PORT_VALID(m_port.port()));
     int fd = fileport_makefd(m_port.port());
-    VERIFY(fd >= 0);
+    if (fd < 0) {
+        dbgln("IPC::Attachment: Failed to obtain a file descriptor from a file port: {}", Error::from_errno(errno));
+        return -1;
+    }
     mach_port_deallocate(mach_task_self(), m_port.release());
     return fd;
 }

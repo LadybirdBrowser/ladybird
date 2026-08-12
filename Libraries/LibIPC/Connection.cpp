@@ -109,7 +109,7 @@ ConnectionBase::PeerEOF ConnectionBase::drain_messages_from_peer()
     });
 
     if (parse_error) {
-        dbgln("IPC::ConnectionBase ({:p}): Disconnecting misbehaving peer due to malformed message", this);
+        dbgln("IPC::ConnectionBase ({:p}): Disconnecting peer after failing to parse a message", this);
         schedule_shutdown = Transport::ShouldShutdown::Yes;
     }
 
