@@ -65,11 +65,6 @@ endpoint WebContentServer
         Variant<Empty, Utf16String, Web::HTML::POSTResource> document_resource,
         Web::Bindings::NavigationHistoryBehavior history_handling,
         Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot) =|
-    load_url_with_history(u64 page_id, URL::URL url,
-        Variant<Empty, Utf16String, Web::HTML::POSTResource> document_resource,
-        Web::Bindings::NavigationHistoryBehavior history_handling,
-        Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot,
-        Web::HistoryLoad history_load) =|
     load_html(u64 page_id, ByteString html) =|
     load_html_with_url(u64 page_id, ByteString html, URL::URL url) =|
     reload(u64 page_id) =|

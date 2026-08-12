@@ -177,7 +177,6 @@ public:
     void reconstruct_the_history_to_step(i32 step, bool requires_process_replacement, Function<void()> on_top_level_traversal_applied);
     WebContentHistoryStepResult did_traverse_the_history_to_step(Web::HTML::HistoryStepResult, RefPtr<BrowserHistoryTraversalState> const&);
     HistoryStepCancelationCheckResult did_check_if_traverse_history_step_is_canceled(i32 step, Web::HTML::HistoryStepResult, Function<void(HistoryTraversalOutcome)>, HistoryTraversalOutcome);
-    Optional<Web::HistoryLoad> prepare_history_load();
     void abandon_after_web_content_process_crash();
     void recover_from_web_content_process_crash(OnHistoryOperationComplete);
     void reset_session_history_for_testing(Web::HTML::SessionHistoryEntryDescriptor);
@@ -209,7 +208,6 @@ private:
     SessionHistoryTraversalQueue m_history_traversal_queue;
     TraversableApplyHistoryStepState m_apply_history_step_traversable_state;
     u64 m_next_history_operation_id { 1 };
-    u64 m_next_history_load_id { 1 };
     HashMap<u64, NonnullOwnPtr<HistoryOperation>> m_history_operations;
     Web::HTML::VisibilityState m_system_visibility_state { Web::HTML::VisibilityState::Hidden };
 };

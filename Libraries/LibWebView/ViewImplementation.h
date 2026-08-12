@@ -466,7 +466,7 @@ protected:
     u64 page_id() const;
 
     void set_url(URL::URL);
-    void did_start_navigation(URL::URL const&, bool is_history_load, bool is_redirect, bool has_navigation_id);
+    void did_start_navigation(URL::URL const&, bool is_redirect, bool has_navigation_id);
     bool did_cancel_navigation();
     void did_finish_navigation(URL::URL const&);
     void set_loading_state(bool);
@@ -643,7 +643,6 @@ protected:
     bool m_can_redo { false };
     bool m_is_loading { false };
     bool m_is_waiting_for_navigation_start { false };
-    Optional<u64> m_loading_history_load_id;
     Optional<Utf16String> m_loading_navigation_id;
     Optional<URL::URL> m_loading_url;
     Optional<URL::URL> m_last_stopped_load_url;

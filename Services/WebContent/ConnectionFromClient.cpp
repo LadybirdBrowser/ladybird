@@ -310,20 +310,6 @@ void ConnectionFromClient::load_url_with_document_resource(u64 page_id, URL::URL
     page->page().load(url, move(document_resource), history_handling, move(source_snapshot));
 }
 
-void ConnectionFromClient::load_url_with_history(u64 page_id, URL::URL url,
-    Web::HTML::DocumentResource document_resource,
-    Web::Bindings::NavigationHistoryBehavior history_handling,
-    Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot,
-    Web::HistoryLoad history_load)
-{
-    auto page = this->page(page_id);
-    if (!page.has_value())
-        return;
-
-    page->page().load_with_history(url, move(document_resource), history_handling,
-        move(source_snapshot), move(history_load));
-}
-
 void ConnectionFromClient::load_html(u64 page_id, ByteString html)
 {
     if (auto page = this->page(page_id); page.has_value())

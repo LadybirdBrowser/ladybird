@@ -592,8 +592,7 @@ void PageClient::page_did_start_loading(Optional<Utf16String> const& navigation_
     if (m_webdriver)
         m_webdriver->page_did_start_loading({}, url);
 
-    auto history_load_id = page().history_load_id_for_navigation_start(navigation_id);
-    client().async_did_start_loading(m_id, history_load_id, navigation_id, url, is_redirect);
+    client().async_did_start_loading(m_id, navigation_id, url, is_redirect);
 }
 
 void PageClient::page_did_cancel_loading(Optional<Utf16String> const& navigation_id, URL::URL const& url)
@@ -601,8 +600,7 @@ void PageClient::page_did_cancel_loading(Optional<Utf16String> const& navigation
     if (m_webdriver)
         m_webdriver->page_did_cancel_loading({}, url);
 
-    auto history_load_id = page().take_history_load_id_for_navigation_completion(navigation_id);
-    client().async_did_cancel_loading(m_id, history_load_id, navigation_id);
+    client().async_did_cancel_loading(m_id, navigation_id);
 }
 
 void PageClient::page_did_create_new_document(Web::DOM::Document& document)
@@ -634,8 +632,7 @@ void PageClient::page_did_change_active_document_in_top_level_browsing_context(W
 
 void PageClient::page_did_finish_loading(Optional<Utf16String> const& navigation_id, URL::URL const& url)
 {
-    auto history_load_id = page().take_history_load_id_for_navigation_completion(navigation_id);
-    client().async_did_finish_loading(m_id, history_load_id, navigation_id, url);
+    client().async_did_finish_loading(m_id, navigation_id, url);
 }
 
 Optional<u64> PageClient::page_did_start_download(URL::URL const& url, ByteString const& suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data)
