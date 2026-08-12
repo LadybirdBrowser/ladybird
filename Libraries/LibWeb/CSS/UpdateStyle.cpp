@@ -684,18 +684,25 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
 
         if (document.style_computer().style_engine().has_pending_transaction() || document.needs_media_rule_evaluation())
             document.note_style_stabilization_has_style_reactions();
-        document.update_animated_style_if_needed();
 
         // Media query evaluation can enqueue normal style invalidations, so do it before deciding what pending
         // invalidation work needs to run.
         if (document.needs_media_rule_evaluation())
             document.evaluate_media_rules_for_style_update();
 
-        if (!document.is_running_update_layout()
+        auto const can_run_regular_style_update = !document.is_running_update_layout()
             && (!document.has_completed_style_update()
-                || document.style_computer().style_engine().has_pending_transaction())) {
+                || document.style_computer().style_engine().has_pending_transaction());
+        if (can_run_regular_style_update) {
             update_style(document);
             ran_regular_style_update = true;
+        } else {
+            document.update_animated_style_if_needed();
+            if (!document.is_running_update_layout()
+                && document.style_computer().style_engine().has_pending_transaction()) {
+                update_style(document);
+                ran_regular_style_update = true;
+            }
         }
     }
 

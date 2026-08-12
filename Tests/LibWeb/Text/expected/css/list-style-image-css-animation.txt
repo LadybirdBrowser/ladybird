@@ -1,0 +1,2 @@
+animation-name=PASS
+list-style-image=PASS
