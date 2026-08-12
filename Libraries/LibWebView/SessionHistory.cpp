@@ -1268,9 +1268,15 @@ TraversableSessionHistory::UpdateResult TraversableSessionHistory::update_from_w
 void TraversableSessionHistory::did_seed_web_content_from_ui_process(size_t current_top_level_entry_index)
 {
     VERIFY(current_top_level_entry_index < m_entries.size());
+    did_install_web_content_history_projection(current_top_level_entry_index, m_entries[current_top_level_entry_index].step);
+}
+
+void TraversableSessionHistory::did_install_web_content_history_projection(size_t current_top_level_entry_index, i32 current_step)
+{
+    VERIFY(current_top_level_entry_index < m_entries.size());
     m_web_content_known_entries = m_entries;
     m_web_content_known_used_steps = m_used_steps;
-    m_web_content_current_step = m_entries[current_top_level_entry_index].step;
+    m_web_content_current_step = current_step;
     m_web_content_uses_ui_step_coordinates = true;
 }
 
@@ -1507,14 +1513,16 @@ Optional<TraversableSessionHistory::TraversalTarget> TraversableSessionHistory::
     if (!target_step_index.has_value())
         return {};
 
-    auto const* target_top_level_entry = top_level_entry_for_step(step);
-    VERIFY(target_top_level_entry);
+    auto target_top_level_entry_index = top_level_entry_index_for_step(m_entries, step);
+    VERIFY(target_top_level_entry_index.has_value());
+    auto const* target_top_level_entry = &m_entries[*target_top_level_entry_index];
     auto const* current_top_level_entry = current_entry();
     VERIFY(current_top_level_entry);
 
     return TraversalTarget {
         .target_step_index = *target_step_index,
         .target_step = step,
+        .target_top_level_entry_index = *target_top_level_entry_index,
         .target_top_level_entry = target_top_level_entry,
         .target_step_is_top_level_entry = entry_for_step(step) != nullptr,
         .changes_top_level_entry = target_top_level_entry != current_top_level_entry,
