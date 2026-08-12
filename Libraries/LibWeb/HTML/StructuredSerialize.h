@@ -101,6 +101,8 @@ public:
 
     void append(IPCSerializationRecord&&);
 
+    u32 add_shared_array_buffer(JS::ArrayBuffer&);
+
     IPCSerializationRecord take_ipc_record();
     StorageSerializationRecord take_storage_record();
 
@@ -108,6 +110,7 @@ private:
     explicit StructuredSerializeWriter(NonnullOwnPtr<StructuredSerializeDataEncoder>);
 
     NonnullOwnPtr<StructuredSerializeDataEncoder> m_encoder;
+    Vector<GC::Root<JS::ArrayBuffer>> m_shared_array_buffers;
 };
 
 class WEB_API StructuredSerializeReader {
@@ -123,8 +126,13 @@ public:
     template<typename T>
     ErrorOr<T> decode();
 
+    // The record's SharedArrayBuffer side table; empty for records that crossed a process boundary
+    // and for the storage and transfer-data paths.
+    ReadonlySpan<GC::Root<JS::ArrayBuffer>> shared_array_buffers() const { return m_shared_array_buffers; }
+
 private:
     NonnullOwnPtr<StructuredSerializeDataDecoder> m_decoder;
+    Vector<GC::Root<JS::ArrayBuffer>> m_shared_array_buffers;
 };
 
 struct SerializedTransferRecord {
@@ -141,11 +149,22 @@ struct DeserializedTransferRecord {
     Vector<GC::Root<JS::Object>> transferred_values;
 };
 
-WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&, JS::Value);
-WEB_API WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_for_storage(JS::VM&, JS::Value);
-WEB_API WebIDL::ExceptionOr<void> structured_serialize_internal(JS::VM&, StructuredSerializeWriter&, JS::Value, bool for_storage, SerializationMemory&);
+// AD-HOC: Serializing a SharedArrayBuffer is normally gated on the current settings object's
+//         cross-origin isolated capability (a Spectre mitigation for data that may reach another
+//         agent). SameAgentAlways bypasses that gate for internal clones that never leave the
+//         surrounding agent, where the gate's threat model does not apply. Web-visible entry points
+//         must use CrossOriginIsolatedOnly.
+enum class AllowSharedArrayBuffers : u8 {
+    CrossOriginIsolatedOnly,
+    SameAgentAlways,
+};
 
-WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, IPCSerializationRecord const&, JS::Realm&, Optional<DeserializationMemory> = {});
+WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&, JS::Value);
+WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&, JS::Value, AllowSharedArrayBuffers);
+WEB_API WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_for_storage(JS::VM&, JS::Value);
+WEB_API WebIDL::ExceptionOr<void> structured_serialize_internal(JS::VM&, StructuredSerializeWriter&, JS::Value, bool for_storage, SerializationMemory&, AllowSharedArrayBuffers = AllowSharedArrayBuffers::CrossOriginIsolatedOnly);
+
+WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, IPCSerializationRecord const&, JS::Realm&, Optional<DeserializationMemory> = {});
 WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, StorageSerializationRecord const&, JS::Realm&, Optional<DeserializationMemory> = {});
 WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize_internal(JS::VM&, StructuredSerializeReader&, JS::Realm&, DeserializationMemory&, CheckFullyConsumed = CheckFullyConsumed::No);
 

@@ -32,6 +32,7 @@ set(TEST_SOURCES
     TestStructuredSerializeDurability.cpp
     TestStructuredSerializeFormat.cpp
     TestStructuredSerializeHardening.cpp
+    TestStructuredSerializeSharedArrayBuffer.cpp
     TestStyleEngineBridge.cpp
     TestStylePropertyMetadataParity.cpp
     TestStyleStructRef.cpp
@@ -81,6 +82,7 @@ target_link_libraries(TestStructuredSerializeCorpus PRIVATE LibGC LibJS LibCrypt
 target_link_libraries(TestStructuredSerializeDurability PRIVATE LibGC LibJS LibCrypto LibGfx LibIPC)
 target_link_libraries(TestStructuredSerializeFormat PRIVATE LibGC LibJS LibCrypto LibGfx LibIPC)
 target_link_libraries(TestStructuredSerializeHardening PRIVATE LibGC LibJS LibCrypto LibGfx LibIPC)
+target_link_libraries(TestStructuredSerializeSharedArrayBuffer PRIVATE LibGC LibJS LibIPC)
 target_link_libraries(TestSecureContexts PRIVATE LibURL)
 target_link_libraries(TestSessionHistoryEntry PRIVATE LibJS LibURL)
 target_link_libraries(TestSourceHighlighter PRIVATE LibURL LibWebView)
