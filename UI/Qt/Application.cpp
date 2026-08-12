@@ -734,6 +734,11 @@ void Application::display_download_confirmation_dialog(StringView download_name,
 
 void Application::display_error_dialog(StringView error_message) const
 {
+    if (browser_options().headless_mode.has_value()) {
+        WebView::Application::display_error_dialog(error_message);
+        return;
+    }
+
     QMessageBox::warning(active_tab(), "Ladybird", qstring_from_ak_string(error_message));
 }
 
