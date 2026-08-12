@@ -47,10 +47,10 @@ public:
 
     [[nodiscard]] CrossProcessId cross_process_id() const { return m_cross_process_id; }
 
-    // Reconstructing from the UI process adopts the canonical id the UI already tracks for this state, so later reports
-    // and acknowledgements name the identity the UI expects.
-    // FIXME: Remove this API. It is only needed because the UI process can mint its own ids for provisional entries and
-    //        seed them back onto live local states. Remove once ids are only ever allocated in WebContent.
+    // FIXME: A replacement process creates its initial about:blank document
+    // state before receiving the committed session history from the UI process.
+    // Construct that state with the canonical id instead of changing its id
+    // during reconstruction.
     void adopt_cross_process_id_from_ui_process(CrossProcessId id) { m_cross_process_id = id; }
 
     [[nodiscard]] Variant<SerializedPolicyContainer, Client> const& history_policy_container() const { return m_history_policy_container; }

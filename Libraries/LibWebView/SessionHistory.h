@@ -53,12 +53,6 @@ public:
     void clear();
     bool initialize_for_testing(Vector<Entry>, Vector<i32> used_steps, size_t current_used_step_index);
     void initialize_with_initial_history_entry(Entry initial_history_entry);
-    void navigate(URL::URL, Web::HTML::CrossProcessId document_state_id);
-    void navigate(URL::URL, Web::HTML::CrossProcessId document_state_id, Web::HTML::DocumentResource);
-    void navigate(Web::HTML::PendingSessionHistoryEntryDescriptor);
-    void replace_current_entry_url(URL::URL, Web::HTML::CrossProcessId document_state_id);
-    void replace_current_entry(URL::URL, Web::HTML::CrossProcessId document_state_id, Web::HTML::DocumentResource);
-    void replace_current_entry(Web::HTML::PendingSessionHistoryEntryDescriptor);
     void mark_current_entry_reload_pending();
     void clear_current_entry_reload_pending();
     bool update_entry(Optional<Web::HTML::CrossProcessId> nested_history_id, Utf16String const& navigation_api_key, Function<void(Entry&)> const& update_entry);
@@ -102,9 +96,6 @@ public:
     void traverse_to(size_t index);
 
 private:
-    void navigate(Entry);
-    void replace_current_entry(Entry);
-
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-entries
     Vector<Entry> m_entries;
 

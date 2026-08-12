@@ -269,18 +269,8 @@ static void apply_session_history_entry_descriptor_from_ui_process(SessionHistor
 {
     entry.set_url(move(entry_descriptor.url));
     entry.set_step(static_cast<int>(entry_descriptor.step));
-    // NB: Older UI-process mirrors can carry an empty serialization record for
-    //     provisional entries. Do not preserve stale state from a reused entry, but
-    //     also do not install an invalid record that would crash when restored.
-    auto& vm = Bindings::main_thread_vm();
-    if (entry_descriptor.classic_history_api_state.is_empty())
-        entry.set_classic_history_api_state(MUST(structured_serialize_for_storage(vm, JS::js_null())));
-    else
-        entry.set_classic_history_api_state(move(entry_descriptor.classic_history_api_state));
-    if (entry_descriptor.navigation_api_state.is_empty())
-        entry.set_navigation_api_state(MUST(structured_serialize_for_storage(vm, JS::js_undefined())));
-    else
-        entry.set_navigation_api_state(move(entry_descriptor.navigation_api_state));
+    entry.set_classic_history_api_state(move(entry_descriptor.classic_history_api_state));
+    entry.set_navigation_api_state(move(entry_descriptor.navigation_api_state));
     entry.set_navigation_api_key(move(entry_descriptor.navigation_api_key));
     entry.set_navigation_api_id(move(entry_descriptor.navigation_api_id));
     entry.set_scroll_restoration_mode(entry_descriptor.scroll_restoration_mode);
@@ -298,9 +288,7 @@ static void apply_session_history_document_state_descriptor_from_ui_process(Docu
     document_state.set_about_base_url(document_state_descriptor.about_base_url);
     document_state.set_resource(document_state_descriptor.resource);
     document_state.set_reload_pending(document_state_descriptor.reload_pending);
-    // AD-HOC: A UI-created document state can still be provisional when installed in WebContent. Do not let that
-    //         stale state make an already-populated live document state appear unpopulated again.
-    document_state.set_ever_populated(document_state.ever_populated() || document_state_descriptor.ever_populated);
+    document_state.set_ever_populated(document_state_descriptor.ever_populated);
     document_state.set_navigable_target_name(document_state_descriptor.navigable_target_name);
 }
 
@@ -440,7 +428,6 @@ void LocalTraversableNavigable::install_top_level_session_history_projection(Vec
         // NB: Do not replace a live current entry with an older asynchronous projection. Process-swap projections
         //     are installed into the initial about:blank document and do not enter this branch.
         auto const& current_entry_from_ui_process = entries_from_ui_process[current_top_level_entry_index];
-        VERIFY(!current_entry_from_ui_process.document_state.is_provisional);
         // NB: Nested histories can be UI-owned state that is intentionally restored after the current top-level
         //     document has loaded. The live latest entry must still match the UI projection's top-level state, but
         //     requiring nested histories to match would reject the state we are being asked to restore.
@@ -516,9 +503,7 @@ Optional<SessionHistoryEntryDescriptor> LocalTraversableNavigable::install_histo
     });
     VERIFY(current_entry_index.has_value());
 
-    Optional<SessionHistoryEntryDescriptor> entry_to_restore;
-    if (!load.target_entry.document_state.is_provisional)
-        entry_to_restore = load.target_entry;
+    Optional<SessionHistoryEntryDescriptor> entry_to_restore = load.target_entry;
 
     install_top_level_session_history_projection(
         move(load.entries_for_navigation_api), *current_entry_index,
@@ -540,8 +525,6 @@ Optional<SessionHistoryEntryDescriptor> LocalTraversableNavigable::install_histo
 
 void LocalTraversableNavigable::restore_session_history_entry_from_ui_process(LocalNavigable& navigable, SessionHistoryEntry& entry, SessionHistoryEntryDescriptor entry_descriptor)
 {
-    VERIFY(!entry_descriptor.document_state.is_provisional);
-
     auto document_state = entry.document_state();
     VERIFY(document_state);
 
