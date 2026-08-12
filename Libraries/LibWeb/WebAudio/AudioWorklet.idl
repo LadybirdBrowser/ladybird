@@ -1,0 +1,5 @@
+// https://webaudio.github.io/web-audio-api/#audioworklet
+[Exposed=Window, SecureContext]
+interface AudioWorklet : Worklet {
+    readonly attribute MessagePort port;
+};
