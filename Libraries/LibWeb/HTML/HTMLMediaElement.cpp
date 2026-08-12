@@ -168,6 +168,8 @@ void HTMLMediaElement::initialize_element()
             m_remote_fetch_data->fetch_controller->stop_fetch();
             m_remote_fetch_data->fetch_controller = nullptr;
         }
+
+        detach_video_sink_edge();
     });
 
     m_document_observer->set_document_became_active([this]() {
@@ -177,6 +179,8 @@ void HTMLMediaElement::initialize_element()
             if (m_remote_fetch_data->stream->next_chunk_start() != m_remote_fetch_data->stream->expected_size())
                 load_remote_resource(UntilEnd { m_remote_fetch_data->stream->next_chunk_start() });
         }
+
+        add_current_video_sink();
     });
 
     m_document_observer->set_document_visibility_state_observer([this](VisibilityState) {
@@ -1812,7 +1816,7 @@ void HTMLMediaElement::add_current_video_sink()
         add_current_video_sink(*handle);
 }
 
-void HTMLMediaElement::detach_video_sink_after_compositor_lost()
+void HTMLMediaElement::detach_video_sink_edge()
 {
     auto handle = video_sink_handle();
     if (!m_playback_manager || !handle.has_value())
