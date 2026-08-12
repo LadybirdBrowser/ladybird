@@ -1866,13 +1866,6 @@ impl StyleEngine {
         covered.clear();
         covered.push(node);
         covered.extend(self.tree.ancestors(node));
-        // A sibling-observing entry reads its whole sequence; one widen round per missing
-        // sibling is the worst shape, so seed the sequence up front.
-        if self.programs.get(program).entries()[entry as usize].observes_sibling_relation()
-            && let Some(parent) = self.tree.parent(node)
-        {
-            covered.extend(self.tree.children(parent));
-        }
         let mut sibling_window = INITIAL_SIBLING_FACT_WINDOW;
         let old_matches = match evaluation {
             ExactTreeEvaluation::Arrival => None,
@@ -1993,11 +1986,6 @@ impl StyleEngine {
         covered.clear();
         covered.push(node);
         covered.extend(self.tree.ancestors(node));
-        if self.programs.get(program).entries()[entry as usize].observes_sibling_relation()
-            && let Some(parent) = self.tree.parent(node)
-        {
-            covered.extend(self.tree.children(parent));
-        }
         let mut sibling_window = INITIAL_SIBLING_FACT_WINDOW;
         let changed = loop {
             if retained_old_matches.is_none()
