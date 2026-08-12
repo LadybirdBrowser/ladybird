@@ -33,7 +33,7 @@ public:
     [[nodiscard]] WebIDL::UnsignedLong length() const;
     GC::Ptr<CSSKeyframeRule> item(size_t index) const;
 
-    void set_name(Utf16String const& name) { m_name = Utf16FlyString { name }; }
+    void set_name(Utf16String const& name);
 
     void append_rule(Utf16String const& rule);
     void delete_rule(Utf16String const& select);

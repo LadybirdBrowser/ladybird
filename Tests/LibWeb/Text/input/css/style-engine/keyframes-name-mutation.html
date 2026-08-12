@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target { animation: wanted 1000s linear forwards }
+    @keyframes original { from { color: rgb(5, 5, 5) } to { color: rgb(5, 5, 5) } }
+</style>
+<div id="target">target</div>
+<script>
+    test(() => {
+        const keyframes = document.styleSheets[0].cssRules[1];
+        getComputedStyle(target).color;
+
+        keyframes.name = "wanted";
+        println(`after matching rename: ${getComputedStyle(target).color}`);
+
+        keyframes.name = "other";
+        println(`after non-matching rename: ${getComputedStyle(target).color}`);
+    });
+</script>

@@ -78,6 +78,20 @@ GC::Ptr<CSSKeyframeRule> CSSKeyframesRule::item(size_t index) const
     return as_if<CSSKeyframeRule>(m_rules->item(index));
 }
 
+void CSSKeyframesRule::set_name(Utf16String const& name)
+{
+    Utf16FlyString new_name { name };
+    if (new_name == m_name)
+        return;
+
+    record_style_rule_removed(*this);
+    m_name = move(new_name);
+    record_style_rule_inserted(*this);
+
+    if (auto* sheet = parent_style_sheet())
+        invalidate_rule_cache_for_style_sheet_owners(*sheet);
+}
+
 // https://drafts.csswg.org/css-animations/#interface-csskeyframesrule-appendrule
 void CSSKeyframesRule::append_rule(Utf16String const& rule)
 {

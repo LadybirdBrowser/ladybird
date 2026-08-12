@@ -1671,6 +1671,14 @@ void record_style_rule_inserted(CSSRule& rule)
 //
 // The sheet is named rather than asked for, because removing a rule from its list detaches it: by
 // the time this runs the rule no longer knows where it was.
+void record_style_rule_removed(CSSRule& rule)
+{
+    auto* sheet = owning_compiled_sheet(rule);
+    if (!sheet)
+        return;
+    record_style_rule_removed(*sheet, rule);
+}
+
 void record_style_rule_removed(CSSStyleSheet& sheet_it_left, CSSRule& rule)
 {
     Vector<GC::Ref<CSSRule>> removed;

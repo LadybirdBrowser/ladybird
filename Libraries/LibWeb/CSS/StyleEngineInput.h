@@ -100,6 +100,7 @@ WEB_API TreeScopeID style_engine_tree_scope_for(DOM::Node&);
 // being rebuilt. Patching what moved is the point: retiring identities that did not change would
 // turn an `insertRule` into a program change over the whole sheet.
 WEB_API void record_style_rule_inserted(CSSRule&);
+WEB_API void record_style_rule_removed(CSSRule&);
 WEB_API void record_style_rule_removed(CSSStyleSheet&, CSSRule&);
 WEB_API void record_style_rule_selector_changed(CSSStyleRule&);
 WEB_API void record_style_rule_declarations_changed(CSSRule&);
