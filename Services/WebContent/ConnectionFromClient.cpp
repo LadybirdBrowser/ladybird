@@ -350,13 +350,13 @@ void ConnectionFromClient::history_operation_started(u64 page_id, u64 operation_
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
-        async_history_operation_ready(page_id, operation_id, false, {}, Web::HTML::HistoryStepResult::CanceledByMissingPage);
+        async_history_operation_ready(page_id, operation_id, false, {}, {}, Web::HTML::HistoryStepResult::CanceledByMissingPage);
         return;
     }
 
     page->page().top_level_traversable()->handle_ui_history_operation_started(operation_id, initiation_id,
-        GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id](bool proceed, Optional<i32> step_override, Web::HTML::HistoryStepResult abandon_result) {
-            async_history_operation_ready(page_id, operation_id, proceed, step_override, abandon_result);
+        GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id](bool proceed, Optional<i32> step_override, Optional<Web::HTML::CrossProcessId> creation_parent_document_state_id, Web::HTML::HistoryStepResult abandon_result) {
+            async_history_operation_ready(page_id, operation_id, proceed, step_override, creation_parent_document_state_id, abandon_result);
         }));
 }
 

@@ -75,7 +75,7 @@ public:
 
     HistoryObjectLengthAndIndex get_the_history_object_length_and_index(int) const;
 
-    using OnHistoryOperationReady = GC::Function<void(bool proceed, Optional<i32> step_override, HistoryStepResult abandon_result)>;
+    using OnHistoryOperationReady = GC::Function<void(bool proceed, Optional<i32> step_override, Optional<CrossProcessId> creation_parent_document_state_id, HistoryStepResult abandon_result)>;
     using OnHistoryOperationPreSteps = GC::Function<void(u64 history_initiation_id, GC::Ref<OnHistoryOperationReady>)>;
     struct HistoryOperationState {
         GC::Ptr<DOM::Document> pending_document {};

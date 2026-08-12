@@ -83,6 +83,17 @@ struct SessionHistoryEntryDescriptor {
     SessionHistoryEntryScrollPositionData scroll_position_data;
 };
 
+struct PendingSessionHistoryEntryDescriptor {
+    URL::URL url;
+    SessionHistoryDocumentStateDescriptor document_state;
+    StorageSerializationRecord classic_history_api_state;
+    StorageSerializationRecord navigation_api_state;
+    Utf16String navigation_api_key;
+    Utf16String navigation_api_id;
+    ScrollRestorationMode scroll_restoration_mode { ScrollRestorationMode::Auto };
+    SessionHistoryEntryScrollPositionData scroll_position_data;
+};
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#nested-history
 struct SessionHistoryNestedHistoryDescriptor {
     CrossProcessId id;
@@ -176,6 +187,8 @@ private:
 };
 
 WEB_API SessionHistoryEntryDescriptor create_session_history_entry_descriptor(SessionHistoryEntry const&);
+WEB_API PendingSessionHistoryEntryDescriptor create_pending_session_history_entry_descriptor(SessionHistoryEntry const&);
+WEB_API SessionHistoryEntryDescriptor create_session_history_entry_descriptor(PendingSessionHistoryEntryDescriptor, i32 step);
 WEB_API bool session_history_entry_descriptors_match(SessionHistoryEntryDescriptor const&, SessionHistoryEntryDescriptor const&);
 enum class MatchNestedHistories {
     Yes,
@@ -192,6 +205,12 @@ WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::SessionHistoryEntryDescriptor 
 
 template<>
 WEB_API ErrorOr<Web::HTML::SessionHistoryEntryDescriptor> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::PendingSessionHistoryEntryDescriptor const&);
+
+template<>
+WEB_API ErrorOr<Web::HTML::PendingSessionHistoryEntryDescriptor> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::SessionHistoryEntryScrollPositionData const&);

@@ -1890,22 +1890,6 @@ void WebContentClient::did_set_session_history_entry_document_state_reload_pendi
     navigable->top_level_traversable().set_session_history_entry_document_state_reload_pending(*navigable, navigation_api_key, reload_pending);
 }
 
-void WebContentClient::did_append_nested_history(u64 page_id, Web::HTML::CrossProcessId parent_navigable_id, Web::HTML::SessionHistoryNestedHistoryDescriptor nested_history)
-{
-    auto parent_navigable = hosted_navigable_for_page(page_id, parent_navigable_id);
-    if (!parent_navigable.has_value())
-        return;
-    parent_navigable->top_level_traversable().append_nested_history(*parent_navigable, move(nested_history));
-}
-
-void WebContentClient::did_remove_nested_history(u64 page_id, Web::HTML::CrossProcessId parent_navigable_id, Web::HTML::CrossProcessId child_navigable_id)
-{
-    auto parent_navigable = hosted_navigable_for_page(page_id, parent_navigable_id);
-    if (!parent_navigable.has_value())
-        return;
-    parent_navigable->top_level_traversable().remove_nested_history(*parent_navigable, child_navigable_id);
-}
-
 void WebContentClient::did_request_finalize_same_document_navigation(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SameDocumentNavigationEntry target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement, bool applies_history_step_in_coordinator)
 {
     Optional<TraversableSessionHistory::SameDocumentNavigationFinalization> finalization;
@@ -1981,10 +1965,10 @@ void WebContentClient::request_history_operation(u64 page_id, u64 initiation_id,
         view->request_history_operation({}, initiation_id, move(parameters));
 }
 
-void WebContentClient::history_operation_ready(u64 page_id, u64 operation_id, bool proceed, Optional<i32> step_override, Web::HTML::HistoryStepResult abandon_result)
+void WebContentClient::history_operation_ready(u64 page_id, u64 operation_id, bool proceed, Optional<i32> step_override, Optional<Web::HTML::CrossProcessId> creation_parent_document_state_id, Web::HTML::HistoryStepResult abandon_result)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_receive_history_operation_ready({}, operation_id, proceed, step_override, abandon_result);
+        view->did_receive_history_operation_ready({}, operation_id, proceed, step_override, creation_parent_document_state_id, abandon_result);
 }
 
 void WebContentClient::initiator_sandboxing_check_result(u64 page_id, u64 operation_id, bool allowed)

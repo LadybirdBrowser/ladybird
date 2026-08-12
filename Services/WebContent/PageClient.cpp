@@ -1223,16 +1223,6 @@ void PageClient::page_did_set_session_history_entry_document_state_reload_pendin
     client().async_did_set_session_history_entry_document_state_reload_pending(m_id, navigable_id, navigation_api_key, reload_pending);
 }
 
-void PageClient::page_did_append_nested_history(Web::HTML::CrossProcessId parent_navigable_id, Web::HTML::SessionHistoryNestedHistoryDescriptor const& nested_history)
-{
-    client().async_did_append_nested_history(m_id, parent_navigable_id, nested_history);
-}
-
-void PageClient::page_did_remove_nested_history(Web::HTML::CrossProcessId parent_navigable_id, Web::HTML::CrossProcessId child_navigable_id)
-{
-    client().async_did_remove_nested_history(m_id, parent_navigable_id, child_navigable_id);
-}
-
 void PageClient::page_did_request_finalize_same_document_navigation(u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SameDocumentNavigationEntry const& target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement, bool applies_history_step_in_coordinator)
 {
     client().async_did_request_finalize_same_document_navigation(m_id, operation_id, navigable_id, target_entry, replaces_current_entry, history_handling, user_involvement, applies_history_step_in_coordinator);

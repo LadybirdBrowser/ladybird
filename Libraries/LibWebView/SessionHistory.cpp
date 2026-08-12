@@ -647,23 +647,33 @@ static bool update_session_history_document_state_by_id(Vector<TraversableSessio
     return did_update;
 }
 
-bool TraversableSessionHistory::append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::SessionHistoryNestedHistoryDescriptor nested_history)
+Optional<i32> TraversableSessionHistory::append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry)
 {
-    if (!m_current_used_step_index.has_value() || nested_history.entries.is_empty() || !entries_are_valid(nested_history.entries))
-        return false;
+    if (!m_current_used_step_index.has_value())
+        return {};
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable
-    // Let parentDocState be parentNavigable's active session history entry's document state.
+    // These are steps 1-6 of the traversal steps appended by "create a new child navigable". WebContent supplies the
+    // identity of parentDocState, whose live object it obtained from parentNavigable's active entry. The canonical
+    // entry list supplies targetStepSHE and therefore owns the concrete step assigned here.
     auto current_step = m_used_steps[*m_current_used_step_index];
     auto* parent_entries = parent_navigable.is_top_level_traversable()
         ? &m_entries
         : nested_session_history_entries_for_navigable(m_entries, parent_navigable.id());
     if (!parent_entries)
-        return false;
-    auto* parent_entry = target_history_entry(*parent_entries, current_step);
-    if (!parent_entry)
-        return false;
-    auto parent_document_state_id = parent_entry->document_state.id;
+        return {};
+
+    auto target_step_entry = parent_entries->find_if([&](auto const& entry) {
+        return entry.document_state.id == parent_document_state_id;
+    });
+    if (target_step_entry == parent_entries->end())
+        return {};
+
+    auto target_step = target_step_entry->step;
+    Web::HTML::SessionHistoryNestedHistoryDescriptor nested_history {
+        .id = child_navigable_id,
+        .entries { Web::HTML::create_session_history_entry_descriptor(move(initial_history_entry), target_step) },
+    };
 
     // Append nestedHistory to parentDocState's nested histories.
     auto append_to_parent_document_state = [&](auto& parent_document_state) {
@@ -675,33 +685,33 @@ bool TraversableSessionHistory::append_nested_history(CanonicalNavigable const& 
         parent_document_state.nested_histories.append(nested_history);
     };
     if (!update_session_history_document_state_by_id(m_entries, parent_document_state_id, append_to_parent_document_state))
-        return false;
+        return {};
     update_session_history_document_state_by_id(m_web_content_known_entries, parent_document_state_id, append_to_parent_document_state);
 
     m_used_steps = get_all_used_history_steps(m_entries);
     m_current_used_step_index = m_used_steps.find_first_index(current_step);
     VERIFY(m_current_used_step_index.has_value());
     m_web_content_known_used_steps = get_all_used_history_steps(m_web_content_known_entries);
-    return true;
+    return target_step;
 }
 
-bool TraversableSessionHistory::remove_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId child_navigable_id)
+bool TraversableSessionHistory::remove_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id)
 {
     if (!m_current_used_step_index.has_value())
         return false;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#destroy-a-child-navigable
-    // Let parentDocState be container's node navigable's active session history entry's document state.
+    // Let parentDocState be container's node navigable's active session history entry's document state. The live
+    // parent entry was read before these traversal steps were appended, so use the reported stable document-state
+    // identity instead of resolving the UI's current step again when the IPC request arrives.
     auto current_step = m_used_steps[*m_current_used_step_index];
     auto* parent_entries = parent_navigable.is_top_level_traversable()
         ? &m_entries
         : nested_session_history_entries_for_navigable(m_entries, parent_navigable.id());
     if (!parent_entries)
         return false;
-    auto* parent_entry = target_history_entry(*parent_entries, current_step);
-    if (!parent_entry)
+    if (parent_entries->find_if([&](auto const& entry) { return entry.document_state.id == parent_document_state_id; }) == parent_entries->end())
         return false;
-    auto parent_document_state_id = parent_entry->document_state.id;
 
     // Remove the nested history from parentDocState's nested histories whose id equals navigable's id.
     auto remove_from_parent_document_state = [child_navigable_id](auto& parent_document_state) {
@@ -750,7 +760,7 @@ static bool update_session_history_entries_for_navigable(Vector<TraversableSessi
     return update_nested_session_history_entries_for_navigable(entries, *nested_history_id, update_entries);
 }
 
-static bool append_or_replace_session_history_entry(Vector<TraversableSessionHistory::Entry>& entries, TraversableSessionHistory::Entry const& entry, Optional<Utf16String> const& entry_to_replace_navigation_api_key)
+static bool append_or_replace_session_history_entry(Vector<TraversableSessionHistory::Entry>& entries, TraversableSessionHistory::Entry const& entry, Optional<Utf16String> const& entry_to_replace_navigation_api_key, bool may_replace_initial_entry = false)
 {
     if (!entry_to_replace_navigation_api_key.has_value()) {
         entries.append(entry);
@@ -760,6 +770,13 @@ static bool append_or_replace_session_history_entry(Vector<TraversableSessionHis
     auto entry_to_replace = entries.find_if([&](auto const& existing_entry) {
         return existing_entry.navigation_api_key == *entry_to_replace_navigation_api_key;
     });
+    if (entry_to_replace == entries.end()
+        && may_replace_initial_entry
+        && entries.size() == 1
+        && entries.first().url == URL::about_blank()
+        && !entries.first().document_state.ever_populated) {
+        entry_to_replace = entries.begin();
+    }
     if (entry_to_replace == entries.end())
         return false;
 
@@ -922,7 +939,7 @@ bool TraversableSessionHistory::finalize_cross_document_navigation(Optional<Web:
         did_update = true;
     } else {
         did_update = update_session_history_entries_for_navigable(m_entries, nested_history_id, [&](auto& entries) {
-            return append_or_replace_session_history_entry(entries, history_entry, entry_to_replace_navigation_api_key);
+            return append_or_replace_session_history_entry(entries, history_entry, entry_to_replace_navigation_api_key, nested_history_id.has_value());
         });
     }
     if (!did_update)
@@ -930,7 +947,7 @@ bool TraversableSessionHistory::finalize_cross_document_navigation(Optional<Web:
 
     if (!m_web_content_known_entries.is_empty()) {
         update_session_history_entries_for_navigable(m_web_content_known_entries, nested_history_id, [&](auto& entries) {
-            return append_or_replace_session_history_entry(entries, history_entry, entry_to_replace_navigation_api_key);
+            return append_or_replace_session_history_entry(entries, history_entry, entry_to_replace_navigation_api_key, nested_history_id.has_value());
         });
     } else if (!nested_history_id.has_value()) {
         m_web_content_known_entries.append(history_entry);

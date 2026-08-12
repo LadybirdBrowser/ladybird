@@ -259,8 +259,6 @@ private:
     virtual void page_did_update_session_history_entry_scroll_position_data(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, Web::HTML::SessionHistoryEntryScrollPositionData const& scroll_position_data) override;
     virtual void page_did_update_session_history_entry_document_state_navigable_target_name(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, Utf16String const& navigable_target_name) override;
     virtual void page_did_set_session_history_entry_document_state_reload_pending(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, bool reload_pending) override;
-    virtual void page_did_append_nested_history(Web::HTML::CrossProcessId parent_navigable_id, Web::HTML::SessionHistoryNestedHistoryDescriptor const& nested_history) override;
-    virtual void page_did_remove_nested_history(Web::HTML::CrossProcessId parent_navigable_id, Web::HTML::CrossProcessId child_navigable_id) override;
     virtual void page_did_request_finalize_same_document_navigation(u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SameDocumentNavigationEntry const& target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement, bool applies_history_step_in_coordinator) override;
     virtual void page_did_request_history_operation(u64 initiation_id, Web::HistoryOperationParameters) override;
     virtual void page_did_finalize_cross_document_navigation(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor const& history_entry, Optional<Utf16String> const& entry_to_replace_navigation_api_key) override;

@@ -2501,9 +2501,9 @@ void ViewImplementation::start_requested_history_traversal(u64 initiation_id, We
         move(promise));
 }
 
-void ViewImplementation::did_receive_history_operation_ready(Badge<WebContentClient>, u64 operation_id, bool proceed, Optional<i32> step_override, Web::HTML::HistoryStepResult abandon_result)
+void ViewImplementation::did_receive_history_operation_ready(Badge<WebContentClient>, u64 operation_id, bool proceed, Optional<i32> step_override, Optional<Web::HTML::CrossProcessId> creation_parent_document_state_id, Web::HTML::HistoryStepResult abandon_result)
 {
-    m_top_level_traversable.did_receive_history_operation_ready(operation_id, proceed, step_override, abandon_result);
+    m_top_level_traversable.did_receive_history_operation_ready(operation_id, proceed, step_override, creation_parent_document_state_id, abandon_result);
 }
 
 void ViewImplementation::did_receive_initiator_sandboxing_check_result(Badge<WebContentClient>, u64 operation_id, bool allowed)

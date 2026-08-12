@@ -684,14 +684,6 @@ Vector<NonnullRefPtr<SessionHistoryEntry>>* append_nested_history_for_child_navi
     };
     parent_doc_state->nested_histories().append(move(nested_history));
 
-    if (auto traversable = parent_navigable.traversable_navigable()) {
-        SessionHistoryNestedHistoryDescriptor nested_history_descriptor {
-            .id = child_navigable.id(),
-            .entries { create_session_history_entry_descriptor(history_entry) },
-        };
-        traversable->page().client().page_did_append_nested_history(parent_navigable.id(), nested_history_descriptor);
-    }
-
     return &parent_doc_state->nested_histories().last().entries;
 }
 
@@ -3730,10 +3722,10 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             .pre_steps = GC::create_function(navigable->heap(), [navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id = move(expected_ongoing_navigation_id)](u64 initiation_id, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) {
                 auto target_step = finalize_a_cross_document_navigation_at_queued_position(navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id, initiation_id);
                 if (!target_step.has_value()) {
-                    ready->function()(false, {}, HistoryStepResult::Applied);
+                    ready->function()(false, {}, {}, HistoryStepResult::Applied);
                     return;
                 }
-                ready->function()(true, *target_step, HistoryStepResult::Applied);
+                ready->function()(true, *target_step, {}, HistoryStepResult::Applied);
             }),
             .on_complete = GC::create_function(navigable->heap(), [navigable, on_complete](HistoryStepResult result) {
                 // AD-HOC: Trigger a relayout in the container document for size negotiation with SVG documents.

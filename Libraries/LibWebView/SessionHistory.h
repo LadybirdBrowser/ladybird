@@ -81,8 +81,8 @@ public:
     void clear_current_entry_reload_pending();
     bool update_entry(Optional<Web::HTML::CrossProcessId> nested_history_id, Utf16String const& navigation_api_key, Function<void(Entry&)> const& update_entry);
     bool update_document_state(Optional<Web::HTML::CrossProcessId> nested_history_id, Utf16String const& navigation_api_key, Function<void(Web::HTML::SessionHistoryDocumentStateDescriptor&)> const& update_document_state);
-    bool append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::SessionHistoryNestedHistoryDescriptor);
-    bool remove_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId child_navigable_id);
+    Optional<i32> append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id, Web::HTML::PendingSessionHistoryEntryDescriptor);
+    bool remove_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id);
     Optional<SameDocumentNavigationFinalization> finalize_same_document_navigation(CanonicalNavigable const&, Web::HTML::SameDocumentNavigationEntry target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior, Web::HTML::UserNavigationInvolvement, Optional<i32> maximum_claimed_step = {});
     bool finalize_cross_document_navigation(Optional<Web::HTML::CrossProcessId> nested_history_id, Entry history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key, Optional<i32> maximum_claimed_step = {});
     UpdateResult update_from_web_content(Vector<Entry> entries, Vector<i32> used_steps, size_t current_used_step_index);

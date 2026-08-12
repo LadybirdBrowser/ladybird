@@ -140,28 +140,38 @@ ErrorOr<Web::ResumeTraverseHistoryOperationParameters> IPC::decode(Decoder& deco
 template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, Web::NavigableCreationHistoryOperationParameters const& parameters)
 {
-    return encoder.encode(parameters.navigable_id);
+    TRY(encoder.encode(parameters.parent_navigable_id));
+    TRY(encoder.encode(parameters.navigable_id));
+    TRY(encoder.encode(parameters.initial_history_entry));
+    return {};
 }
 
 template<>
 ErrorOr<Web::NavigableCreationHistoryOperationParameters> IPC::decode(Decoder& decoder)
 {
     return Web::NavigableCreationHistoryOperationParameters {
+        .parent_navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
         .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .initial_history_entry = TRY(decoder.decode<Web::HTML::PendingSessionHistoryEntryDescriptor>()),
     };
 }
 
 template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, Web::NavigableDestructionHistoryOperationParameters const& parameters)
 {
-    return encoder.encode(parameters.traversable_id);
+    TRY(encoder.encode(parameters.parent_navigable_id));
+    TRY(encoder.encode(parameters.parent_document_state_id));
+    TRY(encoder.encode(parameters.navigable_id));
+    return {};
 }
 
 template<>
 ErrorOr<Web::NavigableDestructionHistoryOperationParameters> IPC::decode(Decoder& decoder)
 {
     return Web::NavigableDestructionHistoryOperationParameters {
-        .traversable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .parent_navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .parent_document_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
     };
 }
 

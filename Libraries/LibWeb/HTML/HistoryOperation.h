@@ -13,6 +13,7 @@
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
+#include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 
 namespace Web {
@@ -58,11 +59,15 @@ struct ResumeTraverseHistoryOperationParameters {
 };
 
 struct NavigableCreationHistoryOperationParameters {
+    HTML::CrossProcessId parent_navigable_id;
     HTML::CrossProcessId navigable_id;
+    HTML::PendingSessionHistoryEntryDescriptor initial_history_entry;
 };
 
 struct NavigableDestructionHistoryOperationParameters {
-    HTML::CrossProcessId traversable_id;
+    HTML::CrossProcessId parent_navigable_id;
+    HTML::CrossProcessId parent_document_state_id;
+    HTML::CrossProcessId navigable_id;
 };
 
 struct FinalizeSameDocumentNavigationHistoryOperationParameters {
