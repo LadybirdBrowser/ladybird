@@ -826,19 +826,15 @@ TEST_CASE(same_document_replacement_preserves_forward_history)
     expect_entry(history, 1, 2, "https://example.com/forward"sv);
 }
 
-TEST_CASE(finalization_completes_matching_provisional_entry)
+TEST_CASE(first_cross_document_finalization_initializes_history)
 {
     WebView::TraversableSessionHistory history;
-    auto provisional_entry = entry(1, "https://b.example/"sv);
-    provisional_entry.document_state.is_provisional = true;
-    auto update_result = history.initialize_for_testing({ entry(0, "https://a.example/"sv), move(provisional_entry) }, { 0, 1 }, 1);
-    EXPECT_EQ(update_result, true);
 
-    EXPECT(history.finalize_cross_document_navigation({}, entry(1, "https://b.example/"sv), {}));
-    EXPECT_EQ(history.size(), 2uz);
-    expect_current_entry(history, 1, "https://b.example/"sv);
-    VERIFY(history.entry_at(1));
-    EXPECT(!history.entry_at(1)->document_state.is_provisional);
+    EXPECT(history.finalize_cross_document_navigation(
+        {}, entry(0, "https://a.example/"sv), {}));
+    EXPECT_EQ(history.size(), 1uz);
+    EXPECT_EQ(history.used_step_count(), 1uz);
+    expect_current_entry(history, 0, "https://a.example/"sv);
 }
 
 TEST_CASE(nested_finalization_replaces_initial_entry_after_its_key_changes)

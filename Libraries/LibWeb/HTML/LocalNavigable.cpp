@@ -2828,6 +2828,9 @@ void LocalNavigable::begin_navigation(NavigateParams params)
 
     // 20. If url's scheme is "javascript", then:
     if (url.scheme() == "javascript"sv) {
+        if (is_top_level_traversable())
+            active_browsing_context()->page().client().page_did_start_loading(navigation_id, url, false);
+
         // 1. Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, url, historyHandling, sourceSnapshotParams, initiatorOriginSnapshot, userInvolvement, cspNavigationType, initialInsertion, and navigationId.
         VERIFY(active_window());
         queue_global_task(Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*active_window()), GC::create_function(heap(), [this, url, history_handling, source_snapshot_params, initiator_origin_snapshot, user_involvement, csp_navigation_type, initial_insertion, navigation_id] {
@@ -3041,13 +3044,8 @@ void LocalNavigable::begin_navigation(NavigateParams params)
                 history_entry->set_url(url);
                 history_entry->set_document_state(document_state);
 
-                // AD-HOC: Tell the UI that we started loading. The pending entry is the spec-created entry whose
-                //         placement and step the UI-owned traversal queue will decide; the UI must not invent a
-                //         second document-state identity for the same navigation.
-                if (is_top_level_navigation) {
-                    active_browsing_context()->page().client().page_did_start_loading(
-                        navigation_id, url, create_pending_session_history_entry_descriptor(*history_entry), false, history_handling);
-                }
+                if (is_top_level_navigation)
+                    active_browsing_context()->page().client().page_did_start_loading(navigation_id, url, false);
 
                 // 7. Let navigationParams be null.
                 NavigationParamsVariant navigation_params = LocalNavigable::NullOrError {};
@@ -3371,6 +3369,14 @@ void LocalNavigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHa
 {
     auto& vm = this->vm();
 
+    // AD-HOC: These return paths do not run finalize_a_cross_document_navigation(). Clear a child navigable's
+    //         load-event delay and tell the UI that a recorded top-level load has ended.
+    auto finish_loading_without_navigation = [&] {
+        set_delaying_load_events(false);
+        if (is_top_level_traversable())
+            active_browsing_context()->page().client().page_did_cancel_loading(navigation_id, url);
+    };
+
     // 1. Assert: historyHandling is "replace".
     VERIFY(history_handling == HistoryHandlingBehavior::Replace);
 
@@ -3383,8 +3389,10 @@ void LocalNavigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHa
     set_ongoing_navigation({});
 
     // 4. If initiatorOrigin is not same origin-domain with targetNavigable's active document's origin, then return.
-    if (!initiator_origin.is_same_origin_domain(active_document()->origin()))
+    if (!initiator_origin.is_same_origin_domain(active_document()->origin())) {
+        finish_loading_without_navigation();
         return;
+    }
 
     // 5. Let request be a new request whose URL is url and whose policy container is sourceSnapshotParams's source policy container.
     auto request = Fetch::Infrastructure::Request::create(vm);
@@ -3395,8 +3403,10 @@ void LocalNavigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHa
     request->set_client(source_snapshot_params->fetch_client);
 
     // 6. If the result of should navigation request of type be blocked by Content Security Policy? given request and cspNavigationType is "Blocked", then return.
-    if (ContentSecurityPolicy::should_navigation_request_of_type_be_blocked_by_content_security_policy(request, csp_navigation_type) == ContentSecurityPolicy::Directives::Directive::Result::Blocked)
+    if (ContentSecurityPolicy::should_navigation_request_of_type_be_blocked_by_content_security_policy(request, csp_navigation_type) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
+        finish_loading_without_navigation();
         return;
+    }
 
     // 7. Let newDocument be the result of evaluating a javascript: URL given targetNavigable, url, initiatorOrigin, and userInvolvement.
     auto new_document = evaluate_javascript_url(url, initiator_origin, user_involvement, navigation_id);
@@ -3409,10 +3419,7 @@ void LocalNavigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHa
             run_iframe_load_event_steps(as<HTMLIFrameElement>(*container()));
         }
 
-        // AD-HOC: Clear the delaying_load_events flag that was set by begin_navigation step 15.
-        //         Since no new document was created, no finalize_a_cross_document_navigation will
-        //         run to clear it, which would leave the parent's load event delayed indefinitely.
-        set_delaying_load_events(false);
+        finish_loading_without_navigation();
 
         // 2. Return.
         // NOTE: In this case, some JavaScript code was executed, but no new Document was created, so we will not perform a navigation.

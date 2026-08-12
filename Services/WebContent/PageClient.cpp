@@ -587,14 +587,13 @@ void PageClient::page_did_request_external_url(URL::URL const& url, URL::Origin 
     client().async_did_request_external_url(m_id, url, initiator_origin, has_transient_activation);
 }
 
-void PageClient::page_did_start_loading(Optional<Utf16String> const& navigation_id, URL::URL const& url, Optional<Web::HTML::PendingSessionHistoryEntryDescriptor> const& pending_history_entry, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling)
+void PageClient::page_did_start_loading(Optional<Utf16String> const& navigation_id, URL::URL const& url, bool is_redirect)
 {
     if (m_webdriver)
         m_webdriver->page_did_start_loading({}, url);
 
     auto history_load_id = page().history_load_id_for_navigation_start(navigation_id);
-    client().async_did_start_loading(m_id, history_load_id, navigation_id, url,
-        pending_history_entry, is_redirect, history_handling);
+    client().async_did_start_loading(m_id, history_load_id, navigation_id, url, is_redirect);
 }
 
 void PageClient::page_did_cancel_loading(Optional<Utf16String> const& navigation_id, URL::URL const& url)
@@ -603,7 +602,7 @@ void PageClient::page_did_cancel_loading(Optional<Utf16String> const& navigation
         m_webdriver->page_did_cancel_loading({}, url);
 
     auto history_load_id = page().take_history_load_id_for_navigation_completion(navigation_id);
-    client().async_did_cancel_loading(m_id, history_load_id, navigation_id, url);
+    client().async_did_cancel_loading(m_id, history_load_id, navigation_id);
 }
 
 void PageClient::page_did_create_new_document(Web::DOM::Document& document)

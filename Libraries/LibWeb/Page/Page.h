@@ -541,11 +541,9 @@ public:
     virtual void page_did_request_minimize_window() { }
     virtual void page_did_request_fullscreen_window() { }
     virtual void page_did_request_exit_fullscreen() { }
-    virtual void page_did_start_loading(Optional<Utf16String> const&, URL::URL const&, Optional<HTML::PendingSessionHistoryEntryDescriptor> const& pending_history_entry, bool is_redirect, Bindings::NavigationHistoryBehavior history_handling = Bindings::NavigationHistoryBehavior::Auto)
+    virtual void page_did_start_loading(Optional<Utf16String> const&, URL::URL const&, bool is_redirect)
     {
-        (void)pending_history_entry;
         (void)is_redirect;
-        (void)history_handling;
     }
     virtual void page_did_cancel_loading(Optional<Utf16String> const&, URL::URL const&) { }
     virtual void page_did_create_new_document(Web::DOM::Document&) { }

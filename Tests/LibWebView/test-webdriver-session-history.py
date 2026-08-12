@@ -982,7 +982,6 @@ def summarize_history_snapshot(snapshot):
             "back": ui["backButtonEnabled"],
             "forward": ui["forwardButtonEnabled"],
             "sessionHistoryLoadInProgress": ui["sessionHistoryLoadInProgress"],
-            "pendingSessionHistoryNavigation": ui["pendingSessionHistoryNavigation"],
             "pendingSessionHistoryTraversal": ui["pendingSessionHistoryTraversal"],
             "currentResource": history_current_entry(ui).get("resource"),
         }
@@ -1012,7 +1011,6 @@ def expect_ui_session_history(
             and (
                 expect_history_idle is None
                 or not ui["sessionHistoryLoadInProgress"]
-                and ui["pendingSessionHistoryNavigation"] is None
                 and ui["pendingSessionHistoryTraversal"] is None
             )
             and (
@@ -1063,7 +1061,6 @@ def wait_for_ui_session_history(
             and ui["backButtonEnabled"] is expected_back_enabled
             and ui["forwardButtonEnabled"] is expected_forward_enabled
             and not ui["sessionHistoryLoadInProgress"]
-            and ui["pendingSessionHistoryNavigation"] is None
             and ui["pendingSessionHistoryTraversal"] is None
         )
 
@@ -1240,11 +1237,7 @@ def expect_navigation_buttons(webdriver_port, session_id, label, expected_back_e
 def expect_session_history_idle(webdriver_port, session_id, label, log):
     snapshot = session_history(webdriver_port, session_id)
     ui = snapshot["ui"]
-    if (
-        not ui["sessionHistoryLoadInProgress"]
-        and ui["pendingSessionHistoryNavigation"] is None
-        and ui["pendingSessionHistoryTraversal"] is None
-    ):
+    if not ui["sessionHistoryLoadInProgress"] and ui["pendingSessionHistoryTraversal"] is None:
         log.append(f"{label} idle history: {summarize_history_snapshot(snapshot)}")
         return snapshot
 
@@ -1266,7 +1259,6 @@ def expect_pending_history_operation_traversal(
 ):
     snapshot = session_history(webdriver_port, session_id)
     ui = snapshot["ui"]
-    pending_navigation = ui["pendingSessionHistoryNavigation"]
     pending_traversal = ui["pendingSessionHistoryTraversal"]
 
     log.append(f"{label} pending traversal: {summarize_history_snapshot(snapshot)}")
@@ -1284,9 +1276,6 @@ def expect_pending_history_operation_traversal(
 
     if pending_traversal is None:
         raise AssertionError(f"Expected {label} to have a pending session history traversal\n" + "\n".join(log))
-
-    if pending_navigation is not None:
-        raise AssertionError(f"Expected {label} not to have a parallel session history navigation\n" + "\n".join(log))
 
     expected_step = expected_used_steps[expected_target_used_step_index]
     if pending_traversal["targetStep"] != expected_step:
@@ -1377,11 +1366,7 @@ def expect_entry_nested_history(webdriver_port, session_id, label, entry_url, ex
 def expect_session_history_synchronized(webdriver_port, session_id, label, log):
     snapshot = session_history(webdriver_port, session_id)
     ui = snapshot["ui"]
-    if (
-        not ui["sessionHistoryLoadInProgress"]
-        and ui["pendingSessionHistoryNavigation"] is None
-        and ui["pendingSessionHistoryTraversal"] is None
-    ):
+    if not ui["sessionHistoryLoadInProgress"] and ui["pendingSessionHistoryTraversal"] is None:
         log.append(f"{label} idle history: {summarize_history_snapshot(snapshot)}")
         return
 
@@ -1996,18 +1981,17 @@ return null;
                 or before_cancel_state[3] != initial_state[2]
             ):
                 raise AssertionError(
-                    f"Expected {label} to remain provisional over /a, got {before_cancel_state}\n" + "\n".join(log)
+                    f"Expected {label} to leave canonical history at /a, got {before_cancel_state}\n" + "\n".join(log)
                 )
 
             pending_history = session_history(webdriver_port, session_id)
-            pending_navigation = pending_history["ui"]["pendingSessionHistoryNavigation"]
-            if (
-                pending_history["ui"]["currentURL"] not in (url_navigation_blocked, url_redirect_to_navigation_blocked)
-                or pending_navigation.get("previousCurrentURL") != url_a
-            ):
+            if pending_history["ui"]["currentURL"] not in (
+                url_navigation_blocked,
+                url_redirect_to_navigation_blocked,
+            ) or history_entry_urls(pending_history["ui"]) != [url_a]:
                 raise AssertionError(
-                    f"Expected {label} to be pending over /a, got {summarize_history_snapshot(pending_history)}\n"
-                    + "\n".join(log)
+                    f"Expected {label} to leave canonical history at /a, got "
+                    f"{summarize_history_snapshot(pending_history)}\n" + "\n".join(log)
                 )
 
             traverse_history_from_ui(webdriver_port, session_id, -1, wait_for_navigation_completion=False)
@@ -2018,7 +2002,6 @@ return null;
                 lambda snapshot: (
                     snapshot["ui"]["currentURL"] == url_a
                     and history_entry_urls(snapshot["ui"]) == [url_a]
-                    and snapshot["ui"]["pendingSessionHistoryNavigation"] is None
                     and snapshot["ui"]["pendingSessionHistoryTraversal"] is None
                 ),
                 log,
@@ -2148,6 +2131,7 @@ def run_cross_process_pending_navigation_browser_ui_back_test(
 
         load_url_from_ui(webdriver_port, session_id, url_a)
         expect_url(webdriver_port, session_id, "after cross-process pending navigation setup /a", url_a, log)
+        initial_process_id = session_history(webdriver_port, session_id)["ui"]["webContentProcessID"]
         with page_server.a_request_lock:
             a_request_count_after_setup = page_server.a_request_count
         if a_request_count_after_setup != initial_a_request_count + 1:
@@ -2167,14 +2151,13 @@ def run_cross_process_pending_navigation_browser_ui_back_test(
         wait_for_event(page_server.blocked_navigation_requested, "cross-process pending navigation request")
 
         pending_history = session_history(webdriver_port, session_id)
-        pending_navigation = pending_history["ui"]["pendingSessionHistoryNavigation"]
         if (
             pending_history["ui"]["currentURL"] != url_cross_site_navigation_blocked
-            or pending_navigation.get("previousCurrentURL") != url_a
-            or pending_navigation.get("webContentRestoreMode") != "restore-from-ui-process"
+            or history_entry_urls(pending_history["ui"]) != [url_a]
+            or pending_history["ui"]["webContentProcessID"] == initial_process_id
         ):
             raise AssertionError(
-                "Expected cross-process navigation to require UI-process restoration, got "
+                "Expected cross-process navigation to leave canonical history at /a, got "
                 f"{summarize_history_snapshot(pending_history)}\n" + "\n".join(log)
             )
 
@@ -2188,11 +2171,10 @@ def run_cross_process_pending_navigation_browser_ui_back_test(
             "after back during cross-process pending navigation",
             lambda snapshot: (
                 snapshot["ui"]["currentURL"] == url_a
-                and history_entry_urls(snapshot["ui"]) == [url_a, url_cross_site_navigation_blocked]
+                and history_entry_urls(snapshot["ui"]) == [url_a]
                 and snapshot["ui"]["currentUsedStepIndex"] == 0
                 and snapshot["ui"]["backButtonEnabled"] is False
-                and snapshot["ui"]["forwardButtonEnabled"] is True
-                and snapshot["ui"]["pendingSessionHistoryNavigation"] is None
+                and snapshot["ui"]["forwardButtonEnabled"] is False
                 and snapshot["ui"]["pendingSessionHistoryTraversal"] is None
             ),
             log,
@@ -2214,7 +2196,7 @@ def run_cross_process_pending_navigation_browser_ui_back_test(
             session_id,
             "after releasing cross-process canceled response",
             False,
-            True,
+            False,
             log,
         )
     finally:
@@ -2246,16 +2228,14 @@ def run_cross_process_no_content_navigation_restore_test(
         wait_for_event(page_server.blocked_no_content_navigation_requested, "cross-process no-content request")
 
         pending_history = session_history(webdriver_port, session_id)
-        pending_navigation = pending_history["ui"]["pendingSessionHistoryNavigation"]
-        provisional_process_id = pending_history["ui"]["webContentProcessID"]
+        replacement_process_id = pending_history["ui"]["webContentProcessID"]
         if (
             pending_history["ui"]["currentURL"] != url_cross_site_no_content
-            or pending_navigation.get("previousCurrentURL") != url_a
-            or pending_navigation.get("webContentRestoreMode") != "restore-from-ui-process"
-            or provisional_process_id == initial_process_id
+            or history_entry_urls(pending_history["ui"]) != [url_a]
+            or replacement_process_id == initial_process_id
         ):
             raise AssertionError(
-                "Expected no-content navigation to install a provisional cross-site process, got "
+                "Expected no-content navigation to leave canonical history at /a in a cross-site process, got "
                 f"{summarize_history_snapshot(pending_history)}\n" + "\n".join(log)
             )
 
@@ -2273,21 +2253,18 @@ def run_cross_process_no_content_navigation_restore_test(
             False,
             log,
         )
-        if restored_history["ui"]["webContentProcessID"] == provisional_process_id:
+        if restored_history["ui"]["webContentProcessID"] == replacement_process_id:
             raise AssertionError(
-                "Expected no-content restoration to replace the provisional cross-site process\n" + "\n".join(log)
+                "Expected no-content restoration to replace the uncommitted cross-site process\n" + "\n".join(log)
             )
-        if (
-            restored_history["ui"]["pendingSessionHistoryNavigation"] is not None
-            or restored_history["ui"]["pendingSessionHistoryTraversal"] is not None
-        ):
+        if restored_history["ui"]["pendingSessionHistoryTraversal"] is not None:
             raise AssertionError("Expected no pending history state after no-content restoration\n" + "\n".join(log))
     finally:
         page_server.release_blocked_no_content_navigation.set()
         request(webdriver_port, "DELETE", f"/session/{session_id}")
 
 
-def run_provisional_navigation_browser_ui_back_tests(
+def run_uncommitted_navigation_browser_ui_back_tests(
     webdriver_port,
     page_server,
     url_a,
@@ -2390,7 +2367,7 @@ def run_test(webdriver_binary):
             url_iframe_deferred_fragment_second,
         )
 
-        run_provisional_navigation_browser_ui_back_tests(
+        run_uncommitted_navigation_browser_ui_back_tests(
             webdriver_port,
             page_server,
             url_a,
@@ -2577,18 +2554,11 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             webdriver_port,
             session_id,
             "while cross-site POST process swap is blocked",
-            [url_cross_site_post_blocked_form, url_cross_site_post_blocked_result],
-            [0, 1],
-            1,
-            True,
+            [url_cross_site_post_blocked_form],
+            [0],
+            0,
             False,
-            log,
-        )
-        expect_current_ui_entry_resource(
-            webdriver_port,
-            session_id,
-            "while cross-site POST process swap is blocked",
-            "post",
+            False,
             log,
         )
         page_server.release_blocked_cross_site_post.set()
@@ -3086,18 +3056,11 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             webdriver_port,
             session_id,
             "while same-site POST is blocked",
-            [url_post_blocked_form, url_post_blocked_result],
-            [0, 1],
-            1,
-            True,
+            [url_post_blocked_form],
+            [0],
+            0,
             False,
-            log,
-        )
-        expect_current_ui_entry_resource(
-            webdriver_port,
-            session_id,
-            "while same-site POST is blocked",
-            "post",
+            False,
             log,
         )
         page_server.release_blocked_same_site_post.set()
@@ -3143,13 +3106,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             0,
             False,
             False,
-            log,
-        )
-        expect_current_ui_entry_resource(
-            webdriver_port,
-            session_id,
-            "while same-URL POST is blocked",
-            "post",
             log,
         )
         page_server.release_blocked_same_url_post.set()
@@ -3995,7 +3951,6 @@ return [
             return (
                 history_entry_urls(ui_history)[current_index] == url_state_push
                 and not ui_history["sessionHistoryLoadInProgress"]
-                and ui_history["pendingSessionHistoryNavigation"] is None
                 and ui_history["pendingSessionHistoryTraversal"] is None
             )
 
@@ -4163,11 +4118,7 @@ return [location.href, window.canceledTraverseCount];
 
         def browser_ui_traverse_setup_is_idle(snapshot):
             ui_history = snapshot["ui"]
-            if (
-                ui_history["sessionHistoryLoadInProgress"]
-                or ui_history["pendingSessionHistoryNavigation"] is not None
-                or ui_history["pendingSessionHistoryTraversal"] is not None
-            ):
+            if ui_history["sessionHistoryLoadInProgress"] or ui_history["pendingSessionHistoryTraversal"] is not None:
                 return False
             return history_current_entry(ui_history)["url"] == url_scroll_cancel_current
 

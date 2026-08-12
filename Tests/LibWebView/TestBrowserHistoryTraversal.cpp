@@ -83,6 +83,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     auto view = WebView::HeadlessWebView::create(move(theme), { 800, 600 });
 
+    size_t loads_started = 0;
+    view->on_load_start = [&] { ++loads_started; };
+
     size_t loads_finished = 0;
     view->on_load_finish = [&](auto const&) { ++loads_finished; };
 
@@ -139,6 +142,16 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     press_history_traversal_key(*view, Web::UIEvents::KeyCode::Key_Right);
     wait_until_at(url_c);
+
+    // A javascript: URL that evaluates without producing a document still terminates the UI-initiated load. Keep its
+    // start and cancellation notifications paired so the cancellation is correlated with this load.
+    auto javascript_url = URL::Parser::basic_parse("javascript:void(0)"sv).release_value();
+    auto loads_started_before_javascript_url = loads_started;
+    auto loads_finished_before_javascript_url = loads_finished;
+    view->load(javascript_url);
+    Core::EventLoop::current().spin_until([&] { return loads_finished > loads_finished_before_javascript_url; });
+    VERIFY(loads_started == loads_started_before_javascript_url + 1);
+    VERIFY(view_is_at(url_c));
 
     outln("PASS: browser history traversal");
     return 0;

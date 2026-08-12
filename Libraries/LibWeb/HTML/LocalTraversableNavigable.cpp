@@ -1117,7 +1117,7 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
                 || target_entry->document_state()->reload_pending());
         if (needs_population) {
             if (target_entry->document_state()->reload_pending() && navigable->is_top_level_traversable())
-                navigable->page().client().page_did_start_loading({}, target_entry->url(), {}, false);
+                navigable->page().client().page_did_start_loading({}, target_entry->url(), false);
 
             // FIXME: 1. Let navTimingType be "back_forward" if targetEntry's document is null; otherwise "reload".
 
@@ -1974,7 +1974,7 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(u64 o
         //          cancels the pending navigation before entering the specified apply the history step algorithm.
         //          The standard describes browser UI traversal and stopping loading separately, but does not
         //          prescribe how Back interacts with an uncommitted navigation. Chromium, WebKit, and Gecko all
-        //          stop the provisional load in this situation.
+        //          stop the uncommitted load in this situation.
         stop_loading();
         on_complete->function()(HistoryStepResult::CanceledPendingNavigation);
         return;

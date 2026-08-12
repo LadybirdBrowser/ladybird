@@ -122,6 +122,8 @@ public:
     void reload();
     void stop_loading();
     bool is_loading() const { return m_is_loading; }
+    bool has_uncommitted_top_level_navigation() const { return m_uncommitted_top_level_navigation.has_value(); }
+    void cancel_uncommitted_top_level_navigation_for_browser_traversal();
 
     struct SessionHistoryTraversalMenuItem {
         int delta { 0 };
@@ -297,7 +299,7 @@ public:
     void did_receive_changing_navigable_history_job_ready(Badge<WebContentClient>, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition);
     void did_receive_changing_navigable_continuation_applied(Badge<WebContentClient>, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state);
     void did_receive_nonchanging_navigable_history_state_updated(Badge<WebContentClient>, u64 operation_id, Web::HTML::CrossProcessId navigable_id);
-    void did_reset_session_history_for_testing(Badge<WebContentClient>);
+    void did_reset_session_history_for_testing(Badge<WebContentClient>, Web::HTML::SessionHistoryEntryDescriptor);
     void did_start_webdriver_navigation(Badge<WebContentClient>, URL::URL const&);
     String ui_process_session_history_for_testing(Badge<WebContentClient>) const;
     JsonValue webdriver_session_history() const;
@@ -464,8 +466,8 @@ protected:
     u64 page_id() const;
 
     void set_url(URL::URL);
-    void did_start_navigation(URL::URL const&, Optional<Web::HTML::PendingSessionHistoryEntryDescriptor>, bool is_history_load, bool is_redirect, Web::Bindings::NavigationHistoryBehavior);
-    bool did_cancel_navigation(URL::URL const&);
+    void did_start_navigation(URL::URL const&, bool is_history_load, bool is_redirect, bool has_navigation_id);
+    bool did_cancel_navigation();
     void did_finish_navigation(URL::URL const&);
     void set_loading_state(bool);
     void complete_webdriver_navigation_completion(u64 request_id, Web::WebDriver::Response);
@@ -476,8 +478,9 @@ protected:
         Always,
     };
     void dump_session_history(StringView reason, SessionHistoryDumpMode = SessionHistoryDumpMode::IfDebuggingEnabled) const;
-    bool restore_pending_session_history_navigation(StringView reason);
     void recover_current_session_history_entry_with_history_operation();
+    void reconstruct_current_session_history_entry_with_history_operation(bool requires_process_replacement, StringView reason);
+    bool cancel_uncommitted_top_level_navigation(StringView reason, bool stop_loading);
     NonnullRefPtr<Core::Promise<Empty>> reset_session_history_for_testing();
 
     virtual void update_zoom();
@@ -644,6 +647,11 @@ protected:
     Optional<Utf16String> m_loading_navigation_id;
     Optional<URL::URL> m_loading_url;
     Optional<URL::URL> m_last_stopped_load_url;
+    enum class UncommittedTopLevelNavigation {
+        CurrentProcess,
+        ReplacementProcess,
+    };
+    Optional<UncommittedTopLevelNavigation> m_uncommitted_top_level_navigation;
 
     size_t m_crash_count = 0;
     RefPtr<Core::Timer> m_repeated_crash_timer;
