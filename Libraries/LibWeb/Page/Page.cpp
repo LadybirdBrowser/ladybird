@@ -161,7 +161,13 @@ void Page::load_with_history(URL::URL const& url, HTML::DocumentResource documen
 {
     m_pending_history_navigation_restoration.clear();
     m_active_history_load = ActiveHistoryLoad { .id = history_load.load_id };
-    top_level_traversable()->install_history_for_load(move(history_load));
+    auto entry_to_restore = top_level_traversable()->install_history_for_load(move(history_load));
+    if (entry_to_restore.has_value()) {
+        m_pending_history_navigation_restoration = PendingHistoryNavigationRestoration {
+            .history_load_id = m_active_history_load->id,
+            .scroll_position_data = entry_to_restore->scroll_position_data,
+        };
+    }
     (void)top_level_traversable()->navigate({
         .url = url,
         .source_document = *top_level_traversable()->active_document(),
@@ -169,6 +175,7 @@ void Page::load_with_history(URL::URL const& url, HTML::DocumentResource documen
         .history_handling = history_handling,
         .user_involvement = HTML::UserNavigationInvolvement::BrowserUI,
         .cross_process_source_snapshot = move(source_snapshot),
+        .session_history_entry_to_restore = move(entry_to_restore),
     });
 }
 
@@ -206,10 +213,17 @@ void Page::prepare_to_restore_persisted_state_after_history_navigation(URL::URL 
     };
 }
 
-void Page::restore_persisted_state_after_history_navigation(URL::URL const& url)
+void Page::restore_persisted_state_after_history_navigation(URL::URL const& url, Optional<u64> history_load_id)
 {
-    if (!m_pending_history_navigation_restoration.has_value() || m_pending_history_navigation_restoration->url != url)
+    if (!m_pending_history_navigation_restoration.has_value())
         return;
+    if (m_pending_history_navigation_restoration->history_load_id.has_value()) {
+        if (m_pending_history_navigation_restoration->history_load_id != history_load_id)
+            return;
+    } else if (!m_pending_history_navigation_restoration->url.has_value()
+        || *m_pending_history_navigation_restoration->url != url) {
+        return;
+    }
 
     auto traversable = top_level_traversable();
     auto entry = traversable->active_session_history_entry();

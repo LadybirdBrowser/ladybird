@@ -635,8 +635,8 @@ void PageClient::page_did_change_active_document_in_top_level_browsing_context(W
 
 void PageClient::page_did_finish_loading(Optional<Utf16String> const& navigation_id, URL::URL const& url)
 {
-    page().restore_persisted_state_after_history_navigation(url);
     auto history_load_id = page().take_history_load_id_for_navigation_completion(navigation_id);
+    page().restore_persisted_state_after_history_navigation(url, history_load_id);
     client().async_did_finish_loading(m_id, history_load_id, navigation_id, url);
 }
 

@@ -522,7 +522,7 @@ bool LocalTraversableNavigable::replace_top_level_session_history_entries_from_u
 
 static Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_navigation_api_from_ui_process(LocalNavigable&, Vector<SessionHistoryEntryDescriptor>);
 
-void LocalTraversableNavigable::install_history_for_load(Web::HistoryLoad load)
+Optional<SessionHistoryEntryDescriptor> LocalTraversableNavigable::install_history_for_load(Web::HistoryLoad load)
 {
     VERIFY(load.load_id != 0);
     VERIFY(load.navigable_id == id());
@@ -531,15 +531,24 @@ void LocalTraversableNavigable::install_history_for_load(Web::HistoryLoad load)
 
     auto document = active_document();
     VERIFY(document);
-    VERIFY(document->is_initial_about_blank());
 
     auto current_entry_index = load.transitional_current_top_level_entry_index;
     auto const& projected_target = load.transitional_top_level_entries[current_entry_index];
     VERIFY(session_history_entry_descriptors_match(load.target_entry, projected_target));
+
+    Optional<SessionHistoryEntryDescriptor> entry_to_restore;
+    if (!load.target_entry.document_state.is_provisional)
+        entry_to_restore = load.target_entry;
+
     VERIFY(replace_top_level_session_history_entries_from_ui_process(
-        move(load.transitional_top_level_entries), current_entry_index, false,
+        move(load.transitional_top_level_entries), current_entry_index,
+        entry_to_restore.has_value(),
         load.target_entry.step));
 
+    auto used_steps = get_all_used_history_steps();
+    VERIFY(used_steps.size() == load.global_history_length);
+    VERIFY(load.global_history_index < used_steps.size());
+    m_current_session_history_step = used_steps[load.global_history_index];
     document->history()->m_length = load.global_history_length;
     document->history()->m_index = load.global_history_index;
 
@@ -549,6 +558,7 @@ void LocalTraversableNavigable::install_history_for_load(Web::HistoryLoad load)
     VERIFY(active_entry);
     active_window()->navigation()->initialize_the_navigation_api_entries_for_reconstructed_session_history(
         entries_for_navigation_api, *active_entry);
+    return entry_to_restore;
 }
 
 void LocalTraversableNavigable::restore_session_history_entry_from_ui_process(LocalNavigable& navigable, SessionHistoryEntry& entry, SessionHistoryEntryDescriptor entry_descriptor)

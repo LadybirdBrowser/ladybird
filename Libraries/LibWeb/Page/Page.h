@@ -131,7 +131,7 @@ public:
     Optional<u64> history_load_id_for_navigation_start(Optional<Utf16String> const&);
     Optional<u64> take_history_load_id_for_navigation_completion(Optional<Utf16String> const&);
     void prepare_to_restore_persisted_state_after_history_navigation(URL::URL const&, HTML::SessionHistoryEntryScrollPositionData);
-    void restore_persisted_state_after_history_navigation(URL::URL const&);
+    void restore_persisted_state_after_history_navigation(URL::URL const&, Optional<u64> history_load_id = {});
 
     void load_html(StringView);
     void load_html(StringView, URL::URL const&);
@@ -378,7 +378,8 @@ private:
     bool m_enable_primary_paste { true };
     bool m_async_scrolling_enabled { false };
     struct PendingHistoryNavigationRestoration {
-        URL::URL url;
+        Optional<URL::URL> url;
+        Optional<u64> history_load_id;
         HTML::SessionHistoryEntryScrollPositionData scroll_position_data;
     };
     Optional<PendingHistoryNavigationRestoration> m_pending_history_navigation_restoration;
