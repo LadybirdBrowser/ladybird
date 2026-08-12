@@ -2548,8 +2548,12 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedProp
     if (!inherited_list_adopted)
         computed_values.set_list_style_position(computed_style.list_style_position());
     auto const& list_style_image = computed_style.property(PropertyID::ListStyleImage);
-    if (!inherited_list_adopted && list_style_image.is_abstract_image())
-        computed_values.set_list_style_image(list_style_image.as_abstract_image());
+    if (!inherited_list_adopted) {
+        if (list_style_image.is_abstract_image())
+            computed_values.set_list_style_image(list_style_image.as_abstract_image());
+        else
+            computed_values.set_list_style_image(nullptr);
+    }
 
     if (!text_reset_adopted)
         computed_values.set_text_decoration_color(computed_style.color(CSS::PropertyID::TextDecorationColor, color_resolution_context));
