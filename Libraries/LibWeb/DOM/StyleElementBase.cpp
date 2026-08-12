@@ -54,6 +54,17 @@ void StyleElementBase::style_element_attribute_changed(Utf16FlyString const& nam
     }
 }
 
+void StyleElementBase::style_element_moved()
+{
+    if (!m_associated_css_style_sheet)
+        return;
+
+    VERIFY(m_style_sheet_list);
+    auto& destination = as_element().document_or_shadow_root_style_sheets();
+    m_style_sheet_list->move_sheet(*m_associated_css_style_sheet, destination);
+    m_style_sheet_list = destination;
+}
+
 // The user agent must run the "update a style block" algorithm whenever one of the following conditions occur:
 // The element is popped off the stack of open elements of an HTML parser or XML parser.
 //

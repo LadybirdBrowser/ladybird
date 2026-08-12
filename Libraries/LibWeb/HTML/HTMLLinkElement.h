@@ -30,6 +30,7 @@ public:
 
     virtual void inserted() override;
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
+    virtual void moved_from(IsSubtreeRoot, GC::Ptr<Node> old_ancestor) override;
 
     Utf16String rel() const { return get_attribute_value(HTML::AttributeNames::rel); }
     void set_rel(Utf16View value) { set_attribute_value(HTML::AttributeNames::rel, value); }
