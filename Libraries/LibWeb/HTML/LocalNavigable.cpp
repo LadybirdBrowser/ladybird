@@ -1041,29 +1041,61 @@ void LocalNavigable::save_persisted_state_to_active_session_history_entry()
     scroll_position_data.viewport_scroll_position = viewport_scroll_offset();
     entry->set_scroll_position_data(move(scroll_position_data));
 
-    if (auto traversable = traversable_navigable()) {
-        traversable->page().client().page_did_update_session_history_entry_scroll_position_data(
-            id(), entry->navigation_api_key(), entry->scroll_position_data());
-    }
-
     // FIXME: 2. Optionally, update entry's persisted user state.
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#restore-persisted-user-state
 void LocalNavigable::restore_persisted_state_from_session_history_entry(SessionHistoryEntry const& entry)
 {
+    m_pending_persisted_state_restoration.clear();
+
     // 1. If entry's scroll restoration mode is "auto", and entry's document's relevant global object's navigation
     //    API's suppress normal scroll restoration during ongoing navigation is false, then restore scroll position
     //    data given entry.
     if (entry.scroll_restoration_mode() == ScrollRestorationMode::Auto) {
         if (auto window = active_window()) {
-            if (!window->navigation()->suppress_normal_scroll_restoration_during_ongoing_navigation())
+            if (!window->navigation()->suppress_normal_scroll_restoration_during_ongoing_navigation()) {
                 restore_scroll_position_data(entry);
+            }
         }
     }
 
     // FIXME: 2. Optionally, update other aspects of entry's document and its rendering, for instance values of form
     //        fields, that the user agent had previously recorded in entry's persisted user state.
+}
+
+void LocalNavigable::schedule_persisted_state_restoration_retry(SessionHistoryEntry const& entry)
+{
+    auto document = active_document();
+    auto document_state = entry.document_state();
+    if (!document || !document_state || document->readiness() == DocumentReadyState::Complete)
+        return;
+    if (entry.scroll_restoration_mode() != ScrollRestorationMode::Auto
+        || !entry.scroll_position_data().viewport_scroll_position.has_value()) {
+        return;
+    }
+    m_pending_persisted_state_restoration = PendingPersistedStateRestoration {
+        .document = document,
+        .document_state_id = document_state->cross_process_id(),
+        .navigation_api_key = entry.navigation_api_key(),
+    };
+}
+
+void LocalNavigable::restore_pending_persisted_state_for_completed_document(GC::Ref<DOM::Document> document)
+{
+    if (!m_pending_persisted_state_restoration.has_value()
+        || m_pending_persisted_state_restoration->document != document) {
+        return;
+    }
+
+    auto restoration = m_pending_persisted_state_restoration.release_value();
+    auto entry = active_session_history_entry();
+    if (!entry || entry->navigation_api_key() != restoration.navigation_api_key)
+        return;
+    auto document_state = entry->document_state();
+    if (!document_state || document_state->cross_process_id() != restoration.document_state_id)
+        return;
+    restore_persisted_state_from_session_history_entry(*entry);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#restore-scroll-position-data
@@ -3156,6 +3188,7 @@ void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandling
 
     save_persisted_state_to_active_session_history_entry();
     auto active_entry = active_session_history_entry();
+    auto previous_entry_persisted_state = create_session_history_entry_persisted_state(*active_entry);
 
     // 6. Let historyEntry be a new session history entry, with
     //      URL: url
@@ -3214,7 +3247,7 @@ void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandling
     // 17. Append the following session history synchronous navigation steps involving navigable to traversable:
     // 1. Finalize a same-document navigation given traversable, navigable, historyEntry, entryToReplace,
     //    historyHandling, and userInvolvement.
-    traversable->finalize_same_document_navigation(*this, history_entry, entry_to_replace, history_handling, user_involvement);
+    traversable->finalize_same_document_navigation(*this, history_entry, entry_to_replace, history_handling, user_involvement, move(previous_entry_persisted_state));
 
     // FIXME: Invoke WebDriver BiDi fragment navigated with navigable and a new WebDriver BiDi navigation status whose
     //        id is navigationId, url is url, and status is "complete".
@@ -3767,6 +3800,7 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     // 2. Let activeEntry be navigable's active session history entry.
     auto active_entry = navigable->active_session_history_entry();
     navigable->save_persisted_state_to_active_session_history_entry();
+    auto previous_entry_persisted_state = create_session_history_entry_persisted_state(*active_entry);
 
     // 3. Let newEntry be a new session history entry, with
     //      URL: newURL
@@ -3825,7 +3859,7 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     // 13. Append the following session history synchronous navigation steps involving navigable to traversable:
     // 1. Finalize a same-document navigation given traversable, navigable, newEntry, entryToReplace,
     //    historyHandling, and "none".
-    traversable->finalize_same_document_navigation(*navigable, new_entry, entry_to_replace, history_handling, UserNavigationInvolvement::None);
+    traversable->finalize_same_document_navigation(*navigable, new_entry, entry_to_replace, history_handling, UserNavigationInvolvement::None, move(previous_entry_persisted_state));
 
     // FIXME: Invoke WebDriver BiDi history updated with navigable.
 }

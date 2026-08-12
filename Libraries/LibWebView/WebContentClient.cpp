@@ -1879,14 +1879,6 @@ void WebContentClient::did_update_session_history_entry_scroll_restoration_mode(
     navigable->top_level_traversable().update_session_history_entry_scroll_restoration_mode(*navigable, navigation_api_key, scroll_restoration_mode);
 }
 
-void WebContentClient::did_update_session_history_entry_scroll_position_data(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, Web::HTML::SessionHistoryEntryScrollPositionData scroll_position_data)
-{
-    auto navigable = hosted_navigable_for_page(page_id, navigable_id);
-    if (!navigable.has_value())
-        return;
-    navigable->top_level_traversable().update_session_history_entry_scroll_position_data(*navigable, navigation_api_key, move(scroll_position_data));
-}
-
 void WebContentClient::did_update_session_history_entry_document_state_navigable_target_name(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, Utf16String navigable_target_name)
 {
     auto navigable = hosted_navigable_for_page(page_id, navigable_id);
@@ -1962,10 +1954,10 @@ void WebContentClient::changing_navigable_history_job_ready(u64 page_id, u64 ope
         view->did_receive_changing_navigable_history_job_ready({}, operation_id, navigable_id, disposition);
 }
 
-void WebContentClient::changing_navigable_continuation_applied(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id)
+void WebContentClient::changing_navigable_continuation_applied(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_receive_changing_navigable_continuation_applied({}, operation_id, navigable_id);
+        view->did_receive_changing_navigable_continuation_applied({}, operation_id, navigable_id, move(previous_entry_persisted_state));
 }
 
 void WebContentClient::nonchanging_navigable_history_state_updated(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id)

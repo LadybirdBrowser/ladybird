@@ -130,8 +130,6 @@ public:
         Optional<HTML::NavigationSourceSnapshot>, HistoryLoad);
     Optional<u64> history_load_id_for_navigation_start(Optional<Utf16String> const&);
     Optional<u64> take_history_load_id_for_navigation_completion(Optional<Utf16String> const&);
-    void prepare_to_restore_persisted_state_after_history_navigation(URL::URL const&, HTML::SessionHistoryEntryScrollPositionData);
-    void restore_persisted_state_after_history_navigation(URL::URL const&, Optional<u64> history_load_id = {});
 
     void load_html(StringView);
     void load_html(StringView, URL::URL const&);
@@ -377,12 +375,6 @@ private:
     bool m_enable_autoscroll { true };
     bool m_enable_primary_paste { true };
     bool m_async_scrolling_enabled { false };
-    struct PendingHistoryNavigationRestoration {
-        Optional<URL::URL> url;
-        Optional<u64> history_load_id;
-        HTML::SessionHistoryEntryScrollPositionData scroll_position_data;
-    };
-    Optional<PendingHistoryNavigationRestoration> m_pending_history_navigation_restoration;
     struct ActiveHistoryLoad {
         u64 id { 0 };
         bool navigation_started { false };
@@ -636,7 +628,6 @@ public:
     virtual void page_did_create_top_level_traversable([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::SessionHistoryEntryDescriptor const& initial_history_entry) { }
     virtual void page_did_update_session_history_entry_navigation_api_state([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] Utf16String const& navigation_api_key, [[maybe_unused]] HTML::StorageSerializationRecord const& navigation_api_state) { }
     virtual void page_did_update_session_history_entry_scroll_restoration_mode([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] Utf16String const& navigation_api_key, [[maybe_unused]] HTML::ScrollRestorationMode scroll_restoration_mode) { }
-    virtual void page_did_update_session_history_entry_scroll_position_data([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] Utf16String const& navigation_api_key, [[maybe_unused]] HTML::SessionHistoryEntryScrollPositionData const& scroll_position_data) { }
     virtual void page_did_update_session_history_entry_document_state_navigable_target_name([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] Utf16String const& navigation_api_key, [[maybe_unused]] Utf16String const& navigable_target_name) { }
     virtual void page_did_set_session_history_entry_document_state_reload_pending([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] Utf16String const& navigation_api_key, [[maybe_unused]] bool reload_pending) { }
     virtual String page_did_request_ui_process_session_history_for_testing() { return "{}"_string; }

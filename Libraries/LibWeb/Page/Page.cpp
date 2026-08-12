@@ -136,7 +136,6 @@ void Page::navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigab
 void Page::load(URL::URL const& url, Bindings::NavigationHistoryBehavior history_handling)
 {
     m_active_history_load.clear();
-    m_pending_history_navigation_restoration.clear();
     (void)top_level_traversable()->navigate({ .url = url, .source_document = *top_level_traversable()->active_document(), .history_handling = history_handling, .user_involvement = HTML::UserNavigationInvolvement::BrowserUI });
 }
 
@@ -144,7 +143,6 @@ void Page::load(URL::URL const& url, HTML::DocumentResource document_resource,
     Bindings::NavigationHistoryBehavior history_handling, Optional<HTML::NavigationSourceSnapshot> source_snapshot)
 {
     m_active_history_load.clear();
-    m_pending_history_navigation_restoration.clear();
     (void)top_level_traversable()->navigate({
         .url = url,
         .source_document = *top_level_traversable()->active_document(),
@@ -159,15 +157,8 @@ void Page::load_with_history(URL::URL const& url, HTML::DocumentResource documen
     Bindings::NavigationHistoryBehavior history_handling,
     Optional<HTML::NavigationSourceSnapshot> source_snapshot, HistoryLoad history_load)
 {
-    m_pending_history_navigation_restoration.clear();
     m_active_history_load = ActiveHistoryLoad { .id = history_load.load_id };
     auto entry_to_restore = top_level_traversable()->install_history_for_load(move(history_load));
-    if (entry_to_restore.has_value()) {
-        m_pending_history_navigation_restoration = PendingHistoryNavigationRestoration {
-            .history_load_id = m_active_history_load->id,
-            .scroll_position_data = entry_to_restore->scroll_position_data,
-        };
-    }
     (void)top_level_traversable()->navigate({
         .url = url,
         .source_document = *top_level_traversable()->active_document(),
@@ -205,40 +196,9 @@ Optional<u64> Page::take_history_load_id_for_navigation_completion(Optional<Utf1
     return id;
 }
 
-void Page::prepare_to_restore_persisted_state_after_history_navigation(URL::URL const& url, HTML::SessionHistoryEntryScrollPositionData scroll_position_data)
-{
-    m_pending_history_navigation_restoration = PendingHistoryNavigationRestoration {
-        .url = url,
-        .scroll_position_data = move(scroll_position_data),
-    };
-}
-
-void Page::restore_persisted_state_after_history_navigation(URL::URL const& url, Optional<u64> history_load_id)
-{
-    if (!m_pending_history_navigation_restoration.has_value())
-        return;
-    if (m_pending_history_navigation_restoration->history_load_id.has_value()) {
-        if (m_pending_history_navigation_restoration->history_load_id != history_load_id)
-            return;
-    } else if (!m_pending_history_navigation_restoration->url.has_value()
-        || *m_pending_history_navigation_restoration->url != url) {
-        return;
-    }
-
-    auto traversable = top_level_traversable();
-    auto entry = traversable->active_session_history_entry();
-    VERIFY(entry);
-    entry->set_scroll_position_data(move(m_pending_history_navigation_restoration->scroll_position_data));
-    m_pending_history_navigation_restoration.clear();
-    traversable->restore_persisted_state_from_session_history_entry(*entry);
-    client().page_did_update_session_history_entry_scroll_position_data(
-        traversable->id(), entry->navigation_api_key(), entry->scroll_position_data());
-}
-
 void Page::load_html(StringView html)
 {
     m_active_history_load.clear();
-    m_pending_history_navigation_restoration.clear();
     // FIXME: #23909 Figure out why GC threshold does not stay low when repeatedly loading html from the WebView
     heap().collect_garbage();
 
@@ -251,7 +211,6 @@ void Page::load_html(StringView html)
 void Page::load_html(StringView html, URL::URL const& url)
 {
     m_active_history_load.clear();
-    m_pending_history_navigation_restoration.clear();
     // FIXME: #23909 Figure out why GC threshold does not stay low when repeatedly loading html from the WebView
     heap().collect_garbage();
 
@@ -278,7 +237,6 @@ void Page::load_html(StringView html, URL::URL const& url)
 void Page::reload()
 {
     m_active_history_load.clear();
-    m_pending_history_navigation_restoration.clear();
     top_level_traversable()->reload();
 }
 

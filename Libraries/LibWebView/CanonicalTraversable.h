@@ -195,7 +195,7 @@ public:
     void did_receive_initiator_sandboxing_check_result(u64 operation_id, bool allowed);
     void did_receive_history_step_unload_cancelation_result(u64 operation_id, Web::HTML::HistoryStepResult);
     void did_receive_changing_navigable_history_job_ready(u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition);
-    void did_receive_changing_navigable_continuation_applied(u64 operation_id, Web::HTML::CrossProcessId navigable_id);
+    void did_receive_changing_navigable_continuation_applied(u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state);
     void did_receive_nonchanging_navigable_history_state_updated(u64 operation_id, Web::HTML::CrossProcessId navigable_id);
 
     CanonicalNavigable& insert(WebContentClient& reporting_client, u64 page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, CanonicalNavigable& fallback_parent);
@@ -221,7 +221,6 @@ public:
     void did_create_top_level_traversable(Web::HTML::SessionHistoryEntryDescriptor initial_history_entry);
     bool update_session_history_entry_navigation_api_state(CanonicalNavigable const&, Utf16String const& navigation_api_key, Web::HTML::StorageSerializationRecord navigation_api_state);
     bool update_session_history_entry_scroll_restoration_mode(CanonicalNavigable const&, Utf16String const& navigation_api_key, Web::HTML::ScrollRestorationMode scroll_restoration_mode);
-    bool update_session_history_entry_scroll_position_data(CanonicalNavigable const&, Utf16String const& navigation_api_key, Web::HTML::SessionHistoryEntryScrollPositionData scroll_position_data);
     bool update_session_history_entry_document_state_navigable_target_name(CanonicalNavigable const&, Utf16String const& navigation_api_key, Utf16String navigable_target_name);
     bool set_session_history_entry_document_state_reload_pending(CanonicalNavigable const&, Utf16String const& navigation_api_key, bool reload_pending);
     Optional<i32> append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry);

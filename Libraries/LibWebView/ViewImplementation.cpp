@@ -2392,9 +2392,9 @@ void ViewImplementation::did_receive_changing_navigable_history_job_ready(Badge<
     m_top_level_traversable.did_receive_changing_navigable_history_job_ready(operation_id, navigable_id, disposition);
 }
 
-void ViewImplementation::did_receive_changing_navigable_continuation_applied(Badge<WebContentClient>, u64 operation_id, Web::HTML::CrossProcessId navigable_id)
+void ViewImplementation::did_receive_changing_navigable_continuation_applied(Badge<WebContentClient>, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state)
 {
-    m_top_level_traversable.did_receive_changing_navigable_continuation_applied(operation_id, navigable_id);
+    m_top_level_traversable.did_receive_changing_navigable_continuation_applied(operation_id, navigable_id, move(previous_entry_persisted_state));
 }
 
 void ViewImplementation::did_receive_nonchanging_navigable_history_state_updated(Badge<WebContentClient>, u64 operation_id, Web::HTML::CrossProcessId navigable_id)

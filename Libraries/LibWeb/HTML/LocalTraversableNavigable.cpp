@@ -470,6 +470,7 @@ void LocalTraversableNavigable::install_top_level_session_history_projection(Vec
     if (!document->is_initial_about_blank()) {
         document->restore_the_history_object_state(current_entry);
         restore_persisted_state_from_session_history_entry(*current_entry);
+        schedule_persisted_state_restoration_retry(*current_entry);
     }
 
     auto entries_for_navigation_api = get_session_history_entries_for_the_navigation_api(*this, m_current_session_history_step);
@@ -816,6 +817,7 @@ struct ChangingNavigableContinuationState : public JS::Cell {
     RefPtr<SessionHistoryEntry> target_entry;
     GC::Ptr<LocalNavigable> navigable;
     bool update_only = false;
+    bool reconstructs_replacement_process = false;
 
     GC::Ptr<DOM::Document> pending_document;
     GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> population_output;
@@ -975,6 +977,7 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
         changing_navigable_continuation->target_entry = target_entry;
         changing_navigable_continuation->navigable = navigable;
         changing_navigable_continuation->update_only = false;
+        changing_navigable_continuation->reconstructs_replacement_process = job.reconstructs_replacement_process;
         changing_navigable_continuation->pending_document = pending_document;
         changing_navigable_continuation->population_output = nullptr;
 
@@ -1197,7 +1200,7 @@ static void clear_ongoing_history_traversal(GC::Ptr<LocalNavigable> navigable, L
     navigable->set_ongoing_navigation({}, navigation_api_abort_behavior);
 }
 
-void LocalTraversableNavigable::apply_changing_navigable_history_step_continuation_impl(GC::Ref<ChangingNavigableContinuationState> continuation, LocalApplyChangingNavigableHistoryStepContinuation command, GC::Ref<GC::Function<void()>> on_complete)
+void LocalTraversableNavigable::apply_changing_navigable_history_step_continuation_impl(GC::Ref<ChangingNavigableContinuationState> continuation, LocalApplyChangingNavigableHistoryStepContinuation command, GC::Ref<GC::Function<void(Optional<SessionHistoryEntryPersistedState>)>> on_complete)
 {
     // 4. Let displayedDocument be changingNavigableContinuation's displayed document.
     auto displayed_document = continuation->displayed_document;
@@ -1211,12 +1214,12 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
 
     // AD-HOC: We should not continue navigation if navigable has been destroyed.
     if (navigable->has_been_destroyed()) {
-        on_complete->function()();
+        on_complete->function()({});
         return;
     }
     // AD-HOC: The displayed document may have been destroyed during the nested step execution above.
     if (!displayed_document->navigable()) {
-        on_complete->function()();
+        on_complete->function()({});
         return;
     }
 
@@ -1240,7 +1243,7 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
             //         the newer frame state win, so skip this stale continuation in that case.
             if (!changing_navigable_is_still_current(navigable, displayed_document_id)) {
                 clear_ongoing_history_traversal(navigable, navigation_api_abort_behavior);
-                on_complete->function()();
+                on_complete->function()({});
                 return;
             }
         }
@@ -1274,10 +1277,24 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
         // 1. Let previousEntry be navigable's active session history entry.
         auto previous_entry = navigable->active_session_history_entry();
 
+        // NB: A fresh replacement endpoint temporarily installs targetEntry on its initial about:blank Document.
+        //     Preserve the UI-selected target state across activation instead of treating that initial Document's
+        //     viewport as outgoing state for targetEntry.
+        auto target_entry_persisted_state = !update_only
+                && previous_entry == target_entry
+                && continuation->reconstructs_replacement_process
+            ? create_session_history_entry_persisted_state(*target_entry)
+            : Optional<SessionHistoryEntryPersistedState> {};
+
         // 2. If changingNavigableContinuation's update-only is false, then activate history entry targetEntry for navigable.
         auto resolved_document = continuation->resolved_document;
         if (!update_only)
             navigable->activate_history_entry(*target_entry, *resolved_document);
+        if (target_entry_persisted_state.has_value())
+            target_entry->set_scroll_position_data(move(target_entry_persisted_state->scroll_position_data));
+        auto previous_entry_persisted_state = !update_only && previous_entry && !target_entry_persisted_state.has_value()
+            ? create_session_history_entry_persisted_state(*previous_entry)
+            : Optional<SessionHistoryEntryPersistedState> {};
 
         // 3. Let updateDocument be an algorithm step which performs update document for history step application given
         //    targetEntry's document, targetEntry, changingNavigableContinuation's update-only, scriptHistoryLength,
@@ -1312,7 +1329,7 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
         }
 
         // 6. Increment completedChangeJobs.
-        on_complete->function()();
+        on_complete->function()(move(previous_entry_persisted_state));
     });
 
     // 10. If changingNavigableContinuation's update-only is true, or targetEntry's document is displayedDocument, then:
@@ -1377,10 +1394,9 @@ void LocalTraversableNavigable::update_nonchanging_navigable_history_step_state(
     }));
 }
 
-LocalTraversableNavigable::SessionHistorySnapshot LocalTraversableNavigable::create_session_history_snapshot(SaveActiveEntryPersistedState save_active_entry_persisted_state)
+LocalTraversableNavigable::SessionHistorySnapshot LocalTraversableNavigable::create_session_history_snapshot()
 {
-    if (save_active_entry_persisted_state == SaveActiveEntryPersistedState::Yes)
-        save_persisted_state_to_active_session_history_entry();
+    save_persisted_state_to_active_session_history_entry();
 
     Vector<SessionHistoryEntryDescriptor> top_level_session_history_entries;
     top_level_session_history_entries.ensure_capacity(session_history_entries().size());
@@ -2058,8 +2074,6 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operat
         on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale);
         return;
     }
-    if (reconstructs_replacement_process)
-        page().prepare_to_restore_persisted_state_after_history_navigation(local_target_entry->url(), local_target_entry->scroll_position_data());
 
     auto did_claim_navigable = run_changing_navigable_history_step_job_impl(
         {
@@ -2144,16 +2158,16 @@ static Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_na
     return entries;
 }
 
-void LocalTraversableNavigable::apply_ui_changing_navigable_continuation(u64 operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex history_object_length_and_index, Vector<SessionHistoryEntryDescriptor> entry_descriptors_for_navigation_api, GC::Ref<GC::Function<void()>> on_complete)
+void LocalTraversableNavigable::apply_ui_changing_navigable_continuation(u64 operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex history_object_length_and_index, Vector<SessionHistoryEntryDescriptor> entry_descriptors_for_navigation_api, GC::Ref<GC::Function<void(Optional<SessionHistoryEntryPersistedState>)>> on_complete)
 {
     auto operation = m_ui_history_operations.find(operation_id);
     if (operation == m_ui_history_operations.end()) {
-        on_complete->function()();
+        on_complete->function()({});
         return;
     }
     auto continuation = operation->value.changing_navigable_continuations.take(navigable_id);
     if (!continuation.has_value()) {
-        on_complete->function()();
+        on_complete->function()({});
         return;
     }
     operation->value.claimed_navigables_awaiting_continuation.remove(navigable_id);
@@ -2191,10 +2205,8 @@ void LocalTraversableNavigable::complete_ui_history_operation(u64 operation_id, 
 {
     auto operation = m_ui_history_operations.take(operation_id);
 
-    Optional<Bindings::NavigationType> navigation_type;
     auto navigation_api_abort_behavior = LocalNavigable::NavigationAPIAbortBehavior::Abort;
     if (operation.has_value()) {
-        navigation_type = operation->navigation_type;
         navigation_api_abort_behavior = operation->navigation_api_abort_behavior.value_or(navigation_api_abort_behavior);
         // AD-HOC: A canceled or stale operation can leave claimed navigables behind whose continuations never
         //         applied; release their "traversal" sentinels so newer navigations are not blocked.
@@ -2209,22 +2221,6 @@ void LocalTraversableNavigable::complete_ui_history_operation(u64 operation_id, 
         // NB: The committed step is normalized against the local slice; a child navigable removed while the
         //     operation ran can have made the canonical step unused here.
         m_current_session_history_step = get_the_used_step(*committed_step);
-
-        auto save_active_entry_persisted_state = SaveActiveEntryPersistedState::Yes;
-        // NB: During history traversal, the active entry can point at the target
-        //     entry before the active document's queued history-step update has
-        //     restored the target entry's persisted state. Do not overwrite that
-        //     target entry with the document's pre-restoration viewport offset.
-        if (navigation_type == Bindings::NavigationType::Traverse) {
-            auto document = active_document();
-            auto active_entry = active_session_history_entry();
-            if (document && active_entry && document->latest_entry() != active_entry)
-                save_active_entry_persisted_state = SaveActiveEntryPersistedState::No;
-        }
-        if (operation.has_value() && operation->reconstructs_replacement_process)
-            save_active_entry_persisted_state = SaveActiveEntryPersistedState::No;
-        if (save_active_entry_persisted_state == SaveActiveEntryPersistedState::Yes)
-            save_persisted_state_to_active_session_history_entry();
 
         if (!m_session_history_entries.is_empty())
             page().client().page_did_change_url(current_session_history_entry()->url());
@@ -2282,7 +2278,7 @@ static bool finalize_same_document_navigation_in_local_history(LocalTraversableN
     return true;
 }
 
-void LocalTraversableNavigable::finalize_same_document_navigation(GC::Ref<LocalNavigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement)
+void LocalTraversableNavigable::finalize_same_document_navigation(GC::Ref<LocalNavigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, Optional<SessionHistoryEntryPersistedState> previous_entry_persisted_state)
 {
     if (target_navigable->has_been_destroyed())
         return;
@@ -2293,6 +2289,7 @@ void LocalTraversableNavigable::finalize_same_document_navigation(GC::Ref<LocalN
         .entry_to_replace_navigation_api_key = entry_to_replace
             ? Optional<Utf16String> { entry_to_replace->navigation_api_key() }
             : OptionalNone {},
+        .previous_entry_persisted_state = move(previous_entry_persisted_state),
         .history_handling = history_handling,
         .user_involvement = user_involvement,
     };

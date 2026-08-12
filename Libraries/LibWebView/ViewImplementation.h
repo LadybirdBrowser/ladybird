@@ -296,7 +296,7 @@ public:
     void did_receive_initiator_sandboxing_check_result(Badge<WebContentClient>, u64 operation_id, bool allowed);
     void did_receive_history_step_unload_cancelation_result(Badge<WebContentClient>, u64 operation_id, Web::HTML::HistoryStepResult);
     void did_receive_changing_navigable_history_job_ready(Badge<WebContentClient>, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition);
-    void did_receive_changing_navigable_continuation_applied(Badge<WebContentClient>, u64 operation_id, Web::HTML::CrossProcessId navigable_id);
+    void did_receive_changing_navigable_continuation_applied(Badge<WebContentClient>, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state);
     void did_receive_nonchanging_navigable_history_state_updated(Badge<WebContentClient>, u64 operation_id, Web::HTML::CrossProcessId navigable_id);
     void did_reset_session_history_for_testing(Badge<WebContentClient>);
     void mark_web_content_session_history_stale_for_testing(Badge<WebContentClient>);

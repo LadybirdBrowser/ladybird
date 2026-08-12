@@ -142,6 +142,8 @@ public:
 
     void save_persisted_state_to_active_session_history_entry();
     void restore_persisted_state_from_session_history_entry(SessionHistoryEntry const&);
+    void schedule_persisted_state_restoration_retry(SessionHistoryEntry const&);
+    void restore_pending_persisted_state_for_completed_document(GC::Ref<DOM::Document>);
     void restore_scroll_position_data(SessionHistoryEntry const&);
 
     virtual Utf16String const& target_name() const override;
@@ -429,6 +431,12 @@ private:
 
     CSSPixelSize m_viewport_size;
     CSSPixelPoint m_viewport_scroll_offset;
+    struct PendingPersistedStateRestoration {
+        GC::Weak<DOM::Document> document;
+        CrossProcessId document_state_id;
+        Utf16String navigation_api_key;
+    };
+    Optional<PendingPersistedStateRestoration> m_pending_persisted_state_restoration;
 
     Web::EventHandler m_event_handler;
 
