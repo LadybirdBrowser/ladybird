@@ -1579,15 +1579,20 @@ static bool enclosing_conditions_hold(CSSRule& rule, DOM::Document const& docume
     return true;
 }
 
-// Whether a rule sits inside a cascade layer. A rule compiled on its own has to be told the same
-// thing the whole-sheet walk would have told it.
-static bool encloses_a_layer(CSSRule& rule)
+// Reconstruct the group context that the whole-sheet walk would have carried to a rule compiled on
+// its own after a CSSOM insertion.
+static void collect_enclosing_group_context(CSSRule& rule, RuleCompilationContext& context)
 {
+    GC::RootVector<GC::Ref<CSSLayerBlockRule>> enclosing_layers;
     for (auto* ancestor = rule.parent_rule(); ancestor; ancestor = ancestor->parent_rule()) {
-        if (is<CSSLayerBlockRule>(*ancestor))
-            return true;
+        if (auto* layer = as_if<CSSLayerBlockRule>(*ancestor))
+            enclosing_layers.append(*layer);
+        if (is<CSSContainerRule>(*ancestor))
+            context.gated_by_container_query = true;
     }
-    return false;
+    for (size_t index = enclosing_layers.size(); index > 0; --index)
+        context.layer_name = qualified_layer_name_within(context.layer_name, enclosing_layers[index - 1]->internal_name());
+    context.in_a_layer = !enclosing_layers.is_empty();
 }
 
 // A rule arrived in one document's engine. Compile it, and everything it brings with it, into the
@@ -1618,7 +1623,7 @@ static void record_style_rule_inserted_in(CSSRule& rule, CSSStyleSheet& sheet, D
     context.scope_limits = move(scope_limits);
     context.scope_levels = move(scope_levels);
     context.conditions_hold = enclosing_conditions_hold(rule, document);
-    context.in_a_layer = encloses_a_layer(rule);
+    collect_enclosing_group_context(rule, context);
     compile_rules_into(context, rule);
 }
 
