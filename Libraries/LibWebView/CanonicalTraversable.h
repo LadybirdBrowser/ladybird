@@ -108,6 +108,7 @@ public:
 
     struct HistoryStepCancelationCheckOperation {
         i32 target_step { 0 };
+        Web::HTML::SessionHistoryEntryDescriptor target_entry;
         Optional<Web::HTML::CrossProcessId> initiator_to_check {};
         Web::HTML::UserNavigationInvolvement user_involvement { Web::HTML::UserNavigationInvolvement::BrowserUI };
         bool will_change_top_level_entry { false };
@@ -187,7 +188,6 @@ private:
     struct HistoryOperation;
     HistoryOperation* find_history_operation(u64 operation_id);
     void add_history_operation_completion_endpoint(HistoryOperation&, HistoryJobEndpoint, Optional<u64> initiation_id = {});
-    bool is_history_traversal_operation(HistoryOperation const&) const;
     ApplyHistoryStepJobs create_apply_history_step_jobs(u64 operation_id);
     void run_ui_history_operation_at_queue_position(Variant<BrowserHistoryTraversalOperation, HistoryStepCancelationCheckOperation>, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
     void start_history_operation(HistoryOperation&, NonnullRefPtr<Core::Promise<Empty>>);

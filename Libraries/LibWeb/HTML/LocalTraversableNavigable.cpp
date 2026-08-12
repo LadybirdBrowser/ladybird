@@ -304,6 +304,39 @@ static NonnullRefPtr<SessionHistoryEntry> create_session_history_entry_from_ui_p
     return entry;
 }
 
+static NonnullRefPtr<SessionHistoryEntry> resolve_unload_cancelation_target_entry_from_ui_process(LocalTraversableNavigable& traversable, SessionHistoryEntryDescriptor entry_descriptor)
+{
+    if (auto local_target_entry = traversable.find_session_history_entry(entry_descriptor.navigation_api_key, entry_descriptor.document_state.id))
+        return local_target_entry.release_nonnull();
+
+    if (auto active_window = traversable.active_window()) {
+        for (auto const& navigation_entry : active_window->navigation()->entries()) {
+            auto& candidate = navigation_entry->session_history_entry();
+            auto candidate_document_state = candidate.document_state();
+            if (candidate.navigation_api_key() == entry_descriptor.navigation_api_key
+                && candidate_document_state
+                && candidate_document_state->cross_process_id() == entry_descriptor.document_state.id)
+                return candidate;
+        }
+    }
+
+    auto document_state_id = entry_descriptor.document_state.id;
+    SessionHistoryEntryReconstructionState reconstruction_state;
+    auto target_entry = create_session_history_entry_from_ui_process(move(entry_descriptor), reconstruction_state);
+
+    for (auto const& local_entry : { traversable.active_session_history_entry(), traversable.current_session_history_entry() }) {
+        if (!local_entry)
+            continue;
+        auto local_document_state = local_entry->document_state();
+        if (!local_document_state || local_document_state->cross_process_id() != document_state_id)
+            continue;
+        target_entry->document_state()->set_document_id(local_document_state->document_id());
+        break;
+    }
+
+    return target_entry;
+}
+
 static RefPtr<SessionHistoryEntry> resolve_changing_navigable_target_entry_from_ui_process(LocalNavigable& navigable, SessionHistoryEntryDescriptor entry_descriptor)
 {
     if (auto local_target_entry = navigable.find_session_history_entry(entry_descriptor.navigation_api_key, entry_descriptor.document_state.id))
@@ -313,12 +346,6 @@ static RefPtr<SessionHistoryEntry> resolve_changing_navigable_target_entry_from_
         auto active_document = navigable.active_document();
         if (!active_document)
             return nullptr;
-        if (!active_document->is_initial_about_blank()) {
-            auto active_entry = navigable.active_session_history_entry();
-            if (!active_entry || !active_entry->document_state()
-                || active_entry->document_state()->cross_process_id() != entry_descriptor.document_state.id)
-                return nullptr;
-        }
     } else if (!navigable.has_session_history_entries()) {
         return nullptr;
     }
@@ -1308,7 +1335,7 @@ public:
     }
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#checking-if-unloading-is-canceled
-    void start(Vector<GC::Root<LocalNavigable>> const& navigables_that_need_before_unload, Optional<int> target_step)
+    void start(Vector<GC::Root<LocalNavigable>> const& navigables_that_need_before_unload, RefPtr<SessionHistoryEntry> target_entry)
     {
         // 1. Let documentsToFireBeforeunload be the active document of each item in navigablesThatNeedBeforeUnload.
         for (auto& navigable : navigables_that_need_before_unload)
@@ -1321,10 +1348,11 @@ public:
         // 4. If traversable was given, then:
         if (m_traversable) {
             // 1. Assert: targetStep and userInvolvementForNavigateEvent were given.
-            // NOTE: This assertion is enforced by the caller.
+            VERIFY(target_entry);
+            VERIFY(m_user_involvement.has_value());
 
             // 2. Let targetEntry be the result of getting the target history entry given traversable and targetStep.
-            m_target_entry = m_traversable->get_the_target_history_entry(target_step.value());
+            m_target_entry = move(target_entry);
 
             // 3. If targetEntry is not traversable's current session history entry, and targetEntry's document state's origin is the same as
             //    traversable's current session history entry's document state's origin:
@@ -1489,7 +1517,7 @@ GC_DEFINE_ALLOCATOR(CheckUnloadingCanceledState);
 void LocalTraversableNavigable::check_if_unloading_is_canceled(
     Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload,
     GC::Ptr<LocalTraversableNavigable> traversable,
-    Optional<int> target_step,
+    RefPtr<SessionHistoryEntry> target_entry,
     Optional<UserNavigationInvolvement> user_involvement_for_navigate_events,
     GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback)
 {
@@ -1497,7 +1525,7 @@ void LocalTraversableNavigable::check_if_unloading_is_canceled(
         traversable,
         user_involvement_for_navigate_events,
         callback);
-    state->start(navigables_that_need_before_unload, target_step);
+    state->start(navigables_that_need_before_unload, move(target_entry));
 }
 
 void LocalTraversableNavigable::check_if_unloading_is_canceled(Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback)
@@ -1797,29 +1825,11 @@ bool LocalTraversableNavigable::run_ui_initiator_sandboxing_check_job(CrossProce
     return true;
 }
 
-void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(u64 operation_id, int target_step, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement user_involvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete)
+void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(u64 operation_id, SessionHistoryEntryDescriptor target_entry_descriptor, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement user_involvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete)
 {
     (void)operation_id;
 
-    auto all_steps = get_all_used_history_steps();
-    if (!all_steps.contains_slow(target_step)) {
-        if (navigables_crossing_documents.is_empty() && !ongoing_navigation().has<Utf16String>()) {
-            on_complete->function()(HistoryStepResult::Applied);
-            return;
-        }
-        // NB: The canonical session history can address a step which is not present in this process's local slice.
-        //     The active document tree still gets a chance to cancel unloading before the coordinator resumes the
-        //     operation by reconstructing its selected entry.
-        check_if_unloading_is_canceled(active_document()->inclusive_descendant_navigables(),
-            GC::create_function(heap(), [on_complete](CheckIfUnloadingIsCanceledResult result) {
-                on_complete->function()(result == CheckIfUnloadingIsCanceledResult::Continue
-                        ? HistoryStepResult::NoMatchingEntry
-                        : HistoryStepResult::CanceledByBeforeUnload);
-            }));
-        return;
-    }
-
-    auto target_entry = get_the_target_history_entry(target_step);
+    auto target_entry = resolve_unload_cancelation_target_entry_from_ui_process(*this, move(target_entry_descriptor));
     if (user_involvement == UserNavigationInvolvement::BrowserUI
         && ongoing_navigation().has<Utf16String>()
         && target_entry == current_session_history_entry()
@@ -1846,7 +1856,7 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(u64 o
         if (auto navigable = local_navigable_with_id(navigable_id); navigable && !navigable->has_been_destroyed())
             navigables.append(*navigable);
     }
-    check_if_unloading_is_canceled(move(navigables), *this, target_step, user_involvement,
+    check_if_unloading_is_canceled(move(navigables), *this, move(target_entry), user_involvement,
         GC::create_function(heap(), [on_complete](CheckIfUnloadingIsCanceledResult result) {
             switch (result) {
             case CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload:

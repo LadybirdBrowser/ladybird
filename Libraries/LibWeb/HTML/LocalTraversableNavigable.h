@@ -81,7 +81,7 @@ public:
 
     void handle_ui_history_operation_started(u64 operation_id, Optional<u64> initiation_id, Optional<i32> target_step, GC::Ref<OnHistoryOperationReady>);
     bool run_ui_initiator_sandboxing_check_job(CrossProcessId initiator_to_check_id, Vector<CrossProcessId> const& navigables, u64 initiation_id);
-    void run_ui_history_step_unload_cancelation_job(u64 operation_id, int target_step, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>>);
+    void run_ui_history_step_unload_cancelation_job(u64 operation_id, SessionHistoryEntryDescriptor target_entry, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>>);
     void run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, bool synchronous_navigation, LocalNavigable::NavigationAPIAbortBehavior, Optional<u64> initiation_id, bool reconstructs_replacement_process, GC::Ref<OnChangingNavigableHistoryStepJobComplete>);
     void apply_ui_changing_navigable_continuation(u64 operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, GC::Ref<GC::Function<void(Optional<SessionHistoryEntryPersistedState>)>>);
     void update_nonchanging_navigable_history_step_state(CrossProcessId navigable_id, HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);
@@ -165,7 +165,7 @@ private:
     bool run_changing_navigable_history_step_job_impl(ChangingNavigableHistoryStepJob, GC::Ptr<SourceSnapshotParams>, GC::Ptr<DOM::Document> pending_document, GC::Ref<OnLocalChangingNavigableHistoryStepJobComplete>);
     void apply_changing_navigable_history_step_continuation_impl(GC::Ref<ChangingNavigableContinuationState>, LocalApplyChangingNavigableHistoryStepContinuation, GC::Ref<GC::Function<void(Optional<SessionHistoryEntryPersistedState>)>> on_complete);
 
-    void check_if_unloading_is_canceled(Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload, GC::Ptr<LocalTraversableNavigable> traversable, Optional<int> target_step, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback);
+    void check_if_unloading_is_canceled(Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload, GC::Ptr<LocalTraversableNavigable> traversable, RefPtr<SessionHistoryEntry> target_entry, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback);
 
     Vector<NonnullRefPtr<SessionHistoryEntry>> get_session_history_entries_for_the_navigation_api(GC::Ref<LocalNavigable>, int);
     Vector<NonnullRefPtr<SessionHistoryEntry>> get_session_history_entries_for_the_navigation_api(CrossProcessId navigable_id, int);
