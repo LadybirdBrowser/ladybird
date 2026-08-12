@@ -1819,7 +1819,7 @@ void HTMLMediaElement::detach_video_sink_after_compositor_lost()
         return;
     if (m_active_video_sink)
         m_active_video_sink->unregister();
-    m_playback_manager->detach_lost_video_sink(*handle);
+    m_playback_manager->detach_video_sink(*handle);
 }
 
 void HTMLMediaElement::release_active_video_sink()
