@@ -141,9 +141,9 @@ Gfx::IntPoint WebViewBridge::to_widget_position(Gfx::IntPoint content_position) 
     return scale_for_device(content_position, inverse_device_pixel_ratio());
 }
 
-void WebViewBridge::initialize_client(CreateNewClient create_new_client)
+void WebViewBridge::initialize_client(CreateNewClient create_new_client, Optional<Web::HTML::CrossProcessId> initial_document_state_id)
 {
-    ViewImplementation::initialize_client(create_new_client);
+    ViewImplementation::initialize_client(create_new_client, initial_document_state_id);
     update_palette();
     update_compositor_display_metadata();
 

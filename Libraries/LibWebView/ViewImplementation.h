@@ -99,7 +99,7 @@ public:
     String const& handle() const { return m_client_state.client_handle; }
 
     void create_new_process_for_cross_site_navigation(URL::URL const&, Web::HTML::DocumentResource, Web::Bindings::NavigationHistoryBehavior, Optional<Web::HTML::NavigationSourceSnapshot> = {});
-    void replace_web_content_process_for_history_traversal();
+    void replace_web_content_process_for_history_traversal(Web::HTML::CrossProcessId target_document_state_id);
 
     void server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size, Gfx::IntRect damage_rect);
 
@@ -497,7 +497,7 @@ protected:
         No,
         Yes,
     };
-    virtual void initialize_client(CreateNewClient = CreateNewClient::Yes);
+    virtual void initialize_client(CreateNewClient = CreateNewClient::Yes, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {});
     void cancel_all_native_geolocation_requests();
     void reset_page_media_state();
 

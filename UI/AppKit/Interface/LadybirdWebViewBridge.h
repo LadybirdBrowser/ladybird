@@ -22,7 +22,7 @@ public:
     static ErrorOr<NonnullOwnPtr<WebViewBridge>> create(WebView::IsPrivate, Vector<Web::DevicePixelRect> screen_rects, double device_pixel_ratio, u64 maximum_frames_per_second, Optional<u64> display_id);
     virtual ~WebViewBridge() override;
 
-    virtual void initialize_client(CreateNewClient = CreateNewClient::Yes) override;
+    virtual void initialize_client(CreateNewClient = CreateNewClient::Yes, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {}) override;
     void initialize_client_as_child(WebViewBridge& parent, u64 page_index);
 
     void set_device_pixel_ratio(double device_pixel_ratio);

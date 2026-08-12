@@ -506,7 +506,13 @@ void WebContentClient::did_request_new_process_for_child_frame_navigation(u64 pa
     if (!child_frame->has_matching_pending_navigation(url, CanonicalNavigable::HostLocality::Remote))
         return;
 
-    auto remote_process_or_error = Application::the().launch_child_frame_web_content_process(m_is_private, frame_id);
+    auto current_step = child_frame->top_level_traversable().session_history().current_step();
+    VERIFY(current_step.has_value());
+    auto const* current_entry = child_frame->top_level_traversable().session_history().get_the_target_history_entry(*child_frame, *current_step);
+    VERIFY(current_entry);
+
+    auto remote_process_or_error = Application::the().launch_child_frame_web_content_process(
+        m_is_private, frame_id, current_entry->document_state.id);
     if (remote_process_or_error.is_error()) {
         warnln("Unable to create WebContent process for child frame navigation: {}", remote_process_or_error.error());
         child_frame->clear_pending_navigation();

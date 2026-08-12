@@ -46,7 +46,7 @@ WebViewImplementationNative::WebViewImplementationNative(jobject thiz)
     };
 }
 
-void WebViewImplementationNative::initialize_client(WebView::ViewImplementation::CreateNewClient)
+void WebViewImplementationNative::initialize_client(WebView::ViewImplementation::CreateNewClient, Optional<Web::HTML::CrossProcessId>)
 {
     m_client_state = {};
 

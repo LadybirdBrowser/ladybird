@@ -90,7 +90,7 @@ BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-traversable
-GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, Utf16String target_name)
+GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, Utf16String target_name, Optional<CrossProcessId> initial_document_state_id)
 {
     auto& vm = Bindings::main_thread_vm();
     page->ensure_compositor_host();
@@ -109,7 +109,9 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
     }
 
     // 4. Let documentState be a new document state, with
-    auto document_state = DocumentState::create(page->client().allocate_cross_process_id());
+    if (!initial_document_state_id.has_value())
+        initial_document_state_id = page->client().allocate_cross_process_id();
+    auto document_state = DocumentState::create(*initial_document_state_id);
 
     // document: document (now owned by LocalNavigable::m_active_document, not DocumentState)
 
@@ -156,10 +158,10 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-fresh-top-level-traversable
-GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top_level_traversable(GC::Ref<Page> page, URL::URL const& initial_navigation_url, DocumentResource initial_navigation_post_resource)
+GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top_level_traversable(GC::Ref<Page> page, URL::URL const& initial_navigation_url, DocumentResource initial_navigation_post_resource, CrossProcessId initial_document_state_id)
 {
     // 1. Let traversable be the result of creating a new top-level traversable given null and the empty string.
-    auto traversable = create_a_new_top_level_traversable(page, nullptr, {});
+    auto traversable = create_a_new_top_level_traversable(page, nullptr, {}, initial_document_state_id);
     page->set_top_level_traversable(traversable);
 
     // AD-HOC: Deny geolocation until the UI process sends the browser-wide setting via IPC. This prevents a request
@@ -279,7 +281,7 @@ static void apply_session_history_entry_descriptor_from_ui_process(SessionHistor
 
 static void apply_session_history_document_state_descriptor_from_ui_process(DocumentState& document_state, SessionHistoryDocumentStateDescriptor const& document_state_descriptor)
 {
-    document_state.adopt_cross_process_id_from_ui_process(document_state_descriptor.id);
+    VERIFY(document_state.cross_process_id() == document_state_descriptor.id);
     document_state.set_history_policy_container(document_state_descriptor.history_policy_container);
     document_state.set_request_referrer(document_state_descriptor.request_referrer);
     document_state.set_request_referrer_policy(document_state_descriptor.request_referrer_policy);
@@ -529,6 +531,12 @@ void LocalTraversableNavigable::restore_session_history_entry_from_ui_process(Lo
     VERIFY(document_state);
 
     auto document_state_id = entry_descriptor.document_state.id;
+    if (document_state->cross_process_id() != document_state_id) {
+        auto reconstructed_document_state = DocumentState::create(document_state_id);
+        reconstructed_document_state->set_document_id(document_state->document_id());
+        entry.set_document_state(reconstructed_document_state);
+        document_state = move(reconstructed_document_state);
+    }
     apply_session_history_entry_descriptor_from_ui_process(entry, entry_descriptor);
     apply_session_history_document_state_descriptor_from_ui_process(*document_state, entry_descriptor.document_state);
 

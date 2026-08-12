@@ -630,7 +630,7 @@ ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(u64 op
                     if (requires_process_replacement
                         || (view.has_value() && SiteIsolationManager::the().navigation_requires_process_swap(view->url(), job.target_entry.url))) {
                         VERIFY(view.has_value());
-                        view->replace_web_content_process_for_history_traversal();
+                        view->replace_web_content_process_for_history_traversal(job.target_entry.document_state.id);
                         restores_replacement_process = true;
                         reconstructs_web_content_history = true;
                         operation->reconstructs_web_content_history = true;
