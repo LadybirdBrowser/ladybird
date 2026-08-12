@@ -1534,8 +1534,9 @@ impl SelectorProgram {
                 }
                 DispatchQuery::Alternatives => {
                     let mut best: Option<Vec<DispatchKey>> = None;
+                    let mut candidate = Vec::new();
                     for &operand in self.operands(first, count) {
-                        let mut candidate = Vec::new();
+                        candidate.clear();
                         if !self.dispatch_analysis(operand, relation, query, &mut candidate) {
                             continue;
                         }
@@ -1543,7 +1544,10 @@ impl SelectorProgram {
                             .as_ref()
                             .is_none_or(|current| dispatch_set_cost(&candidate) < dispatch_set_cost(current))
                         {
-                            best = Some(candidate);
+                            match &mut best {
+                                Some(best) => std::mem::swap(best, &mut candidate),
+                                None => best = Some(std::mem::take(&mut candidate)),
+                            }
                         }
                     }
                     let Some(keys) = best else {
