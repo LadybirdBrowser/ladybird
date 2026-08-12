@@ -2100,14 +2100,14 @@ void HTMLInputElement::reset_algorithm()
     // The reset algorithm for input elements is to set its user validity, dirty value flag, and dirty checkedness flag back to false,
     m_user_validity = false;
     m_dirty_value = false;
-    m_dirty_checkedness = false;
 
     // set the value of the element to the value of the value content attribute, if there is one, or the empty string otherwise,
     auto old_value = move(m_value);
     m_value = get_attribute_value(AttributeNames::value);
 
     // set the checkedness of the element to true if the element has a checked content attribute and false if it does not,
-    m_checked = has_attribute(AttributeNames::checked);
+    set_checked(has_attribute(AttributeNames::checked));
+    m_dirty_checkedness = false;
 
     // empty the list of selected files,
     if (m_selected_files)
@@ -2135,14 +2135,14 @@ void HTMLInputElement::clear_algorithm()
 {
     // The clear algorithm for input elements is to set the dirty value flag and dirty checkedness flag back to false,
     m_dirty_value = false;
-    m_dirty_checkedness = false;
 
     // set the value of the element to an empty string,
     auto old_value = move(m_value);
     m_value = {};
 
     // set the checkedness of the element to true if the element has a checked content attribute and false if it does not,
-    m_checked = has_attribute(AttributeNames::checked);
+    set_checked(has_attribute(AttributeNames::checked));
+    m_dirty_checkedness = false;
 
     // empty the list of selected files,
     if (m_selected_files)
