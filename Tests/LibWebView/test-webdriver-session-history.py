@@ -869,10 +869,6 @@ def traverse_history_from_ui(webdriver_port, session_id, delta, wait_for_navigat
     )
 
 
-def mark_web_content_session_history_stale(webdriver_port, session_id):
-    request(webdriver_port, "POST", f"/session/{session_id}/ladybird/mark-web-content-session-history-stale", {})
-
-
 def refresh(webdriver_port, session_id):
     request(webdriver_port, "POST", f"/session/{session_id}/refresh", {})
 
@@ -969,15 +965,6 @@ def history_step_values(steps):
     return [used_step["step"] for used_step in steps]
 
 
-def history_current_step(steps):
-    current_steps = [used_step["step"] for used_step in steps if used_step.get("current", False)]
-    if len(current_steps) > 1:
-        raise AssertionError(f"Expected at most one current step, got {current_steps}")
-    if not current_steps:
-        return None
-    return current_steps[0]
-
-
 def history_current_entry(history):
     current_entries = [entry for entry in history["entries"] if entry["current"]]
     if len(current_entries) != 1:
@@ -985,31 +972,8 @@ def history_current_entry(history):
     return current_entries[0]
 
 
-def comparable_history(history):
-    def comparable_entry(entry):
-        return {
-            "step": entry["step"],
-            "url": entry["url"],
-            "current": entry.get("current", False),
-            "nestedHistories": [
-                {
-                    "id": nested_history["id"],
-                    "entries": [comparable_entry(nested_entry) for nested_entry in nested_history["entries"]],
-                }
-                for nested_history in entry["nestedHistories"]
-            ],
-        }
-
-    return {
-        "currentUsedStepIndex": history["currentUsedStepIndex"],
-        "entries": [comparable_entry(entry) for entry in history["entries"]],
-        "usedSteps": history["usedSteps"],
-    }
-
-
 def summarize_history_snapshot(snapshot):
     ui = snapshot["ui"]
-    web_content = snapshot["webContent"]
     return {
         "ui": {
             "entries": history_entry_urls(ui),
@@ -1017,21 +981,11 @@ def summarize_history_snapshot(snapshot):
             "currentUsedStepIndex": ui["currentUsedStepIndex"],
             "back": ui["backButtonEnabled"],
             "forward": ui["forwardButtonEnabled"],
-            "matches": ui["webContentHistoryMatchesUI"],
             "sessionHistoryLoadInProgress": ui["sessionHistoryLoadInProgress"],
-            "webContentUsesUIStepCoordinates": ui["webContentUsesUIStepCoordinates"],
-            "webContentKnownUsedSteps": history_step_values(ui["webContentKnownUsedSteps"]),
-            "webContentCurrentStep": ui["webContentCurrentStep"],
             "pendingSessionHistoryNavigation": ui["pendingSessionHistoryNavigation"],
             "pendingSessionHistoryTraversal": ui["pendingSessionHistoryTraversal"],
             "currentResource": history_current_entry(ui).get("resource"),
-        },
-        "webContent": {
-            "entries": history_entry_urls(web_content),
-            "usedSteps": history_used_steps(web_content),
-            "currentUsedStepIndex": web_content["currentUsedStepIndex"],
-            "currentResource": history_current_entry(web_content).get("resource"),
-        },
+        }
     }
 
 
@@ -1045,9 +999,7 @@ def expect_ui_session_history(
     expected_back_enabled,
     expected_forward_enabled,
     log,
-    expect_web_content_matches_ui=None,
-    expected_web_content_known_used_steps=None,
-    expected_web_content_current_step=None,
+    expect_history_idle=None,
     expected_session_history_load_in_progress=None,
 ):
     def ui_history_matches(ui):
@@ -1058,20 +1010,10 @@ def expect_ui_session_history(
             and ui["backButtonEnabled"] is expected_back_enabled
             and ui["forwardButtonEnabled"] is expected_forward_enabled
             and (
-                expect_web_content_matches_ui is None
-                or ui["webContentHistoryMatchesUI"] is expect_web_content_matches_ui
-            )
-            and (
-                expected_web_content_known_used_steps is None
-                or history_step_values(ui["webContentKnownUsedSteps"]) == expected_web_content_known_used_steps
-            )
-            and (
-                expected_web_content_current_step is None
-                or ui["webContentCurrentStep"] == expected_web_content_current_step
-            )
-            and (
-                expected_web_content_current_step is None
-                or history_current_step(ui["webContentKnownUsedSteps"]) == expected_web_content_current_step
+                expect_history_idle is None
+                or not ui["sessionHistoryLoadInProgress"]
+                and ui["pendingSessionHistoryNavigation"] is None
+                and ui["pendingSessionHistoryTraversal"] is None
             )
             and (
                 expected_session_history_load_in_progress is None
@@ -1079,48 +1021,23 @@ def expect_ui_session_history(
             )
         )
 
-    def web_content_matches_ui(snapshot):
-        ui = snapshot["ui"]
-        web_content = snapshot["webContent"]
-        return not (
-            ui["sessionHistoryLoadInProgress"]
-            or ui["pendingSessionHistoryNavigation"] is not None
-            or ui["pendingSessionHistoryTraversal"] is not None
-            or comparable_history(ui) != comparable_history(web_content)
-        )
-
     def raise_ui_mismatch(snapshot):
         raise AssertionError(
             f"Expected {label} UI history to be entries={expected_entry_urls}, usedSteps={expected_used_steps}, "
             f"currentUsedStepIndex={expected_current_used_step_index}, back={expected_back_enabled}, "
-            f"forward={expected_forward_enabled}, webContentMatchesUI={expect_web_content_matches_ui}, "
-            f"webContentKnownUsedSteps={expected_web_content_known_used_steps}, "
-            f"webContentCurrentStep={expected_web_content_current_step}, "
+            f"forward={expected_forward_enabled}, historyIdle={expect_history_idle}, "
             f"sessionHistoryLoadInProgress={expected_session_history_load_in_progress}; "
             f"got {summarize_history_snapshot(snapshot)}\n" + "\n".join(log)
         )
 
-    if expect_web_content_matches_ui:
-        deadline = time.monotonic() + EVENT_TIMEOUT_SECONDS
-        while True:
-            snapshot = session_history(webdriver_port, session_id)
-            if ui_history_matches(snapshot["ui"]) and web_content_matches_ui(snapshot):
-                break
-            if time.monotonic() >= deadline:
-                if not ui_history_matches(snapshot["ui"]):
-                    raise_ui_mismatch(snapshot)
-                raise AssertionError(
-                    f"Expected {label} WebContent history to match UI, got {summarize_history_snapshot(snapshot)}\n"
-                    + "\n".join(log)
-                )
-            time.sleep(0.05)
-
-        log.append(f"{label} history: {summarize_history_snapshot(snapshot)}")
-        return snapshot
-
-    snapshot = session_history(webdriver_port, session_id)
-    if not ui_history_matches(snapshot["ui"]):
-        raise_ui_mismatch(snapshot)
+    deadline = time.monotonic() + EVENT_TIMEOUT_SECONDS
+    while True:
+        snapshot = session_history(webdriver_port, session_id)
+        if ui_history_matches(snapshot["ui"]):
+            break
+        if time.monotonic() >= deadline:
+            raise_ui_mismatch(snapshot)
+        time.sleep(0.05)
 
     log.append(f"{label} history: {summarize_history_snapshot(snapshot)}")
     return snapshot
@@ -1136,26 +1053,18 @@ def wait_for_ui_session_history(
     expected_back_enabled,
     expected_forward_enabled,
     log,
-    expected_web_content_known_used_steps,
-    expected_web_content_current_step,
 ):
     def matches_expected_history(snapshot):
         ui = snapshot["ui"]
-        web_content = snapshot["webContent"]
         return (
             history_entry_urls(ui) == expected_entry_urls
             and history_used_steps(ui) == expected_used_steps
             and ui["currentUsedStepIndex"] == expected_current_used_step_index
             and ui["backButtonEnabled"] is expected_back_enabled
             and ui["forwardButtonEnabled"] is expected_forward_enabled
-            and ui["webContentHistoryMatchesUI"]
-            and history_step_values(ui["webContentKnownUsedSteps"]) == expected_web_content_known_used_steps
-            and ui["webContentCurrentStep"] == expected_web_content_current_step
-            and history_current_step(ui["webContentKnownUsedSteps"]) == expected_web_content_current_step
             and not ui["sessionHistoryLoadInProgress"]
             and ui["pendingSessionHistoryNavigation"] is None
             and ui["pendingSessionHistoryTraversal"] is None
-            and comparable_history(ui) == comparable_history(web_content)
         )
 
     return wait_for_session_history(webdriver_port, session_id, label, matches_expected_history, log)
@@ -1193,9 +1102,7 @@ def expect_beforeunload_cancels_webdriver_navigation(
         ui_history["backButtonEnabled"],
         ui_history["forwardButtonEnabled"],
         log,
-        expect_web_content_matches_ui=True,
-        expected_web_content_known_used_steps=history_step_values(ui_history["webContentKnownUsedSteps"]),
-        expected_web_content_current_step=ui_history["webContentCurrentStep"],
+        expect_history_idle=True,
     )
     return state
 
@@ -1229,9 +1136,7 @@ def expect_javascript_noop_ui_load_does_not_change_history(
         ui_history["backButtonEnabled"],
         ui_history["forwardButtonEnabled"],
         log,
-        expect_web_content_matches_ui=True,
-        expected_web_content_known_used_steps=history_step_values(ui_history["webContentKnownUsedSteps"]),
-        expected_web_content_current_step=ui_history["webContentCurrentStep"],
+        expect_history_idle=True,
     )
 
 
@@ -1263,9 +1168,7 @@ def expect_javascript_noop_webdriver_navigation_does_not_change_history(
         ui_history["backButtonEnabled"],
         ui_history["forwardButtonEnabled"],
         log,
-        expect_web_content_matches_ui=True,
-        expected_web_content_known_used_steps=history_step_values(ui_history["webContentKnownUsedSteps"]),
-        expected_web_content_current_step=ui_history["webContentCurrentStep"],
+        expect_history_idle=True,
     )
 
 
@@ -1334,22 +1237,19 @@ def expect_navigation_buttons(webdriver_port, session_id, label, expected_back_e
     )
 
 
-def expect_web_content_session_history_matches_ui(webdriver_port, session_id, label, log):
+def expect_session_history_idle(webdriver_port, session_id, label, log):
     snapshot = session_history(webdriver_port, session_id)
     ui = snapshot["ui"]
     if (
-        ui["webContentHistoryMatchesUI"]
-        and not ui["sessionHistoryLoadInProgress"]
+        not ui["sessionHistoryLoadInProgress"]
         and ui["pendingSessionHistoryNavigation"] is None
         and ui["pendingSessionHistoryTraversal"] is None
-        and comparable_history(ui) == comparable_history(snapshot["webContent"])
     ):
-        log.append(f"{label} matched history: {summarize_history_snapshot(snapshot)}")
+        log.append(f"{label} idle history: {summarize_history_snapshot(snapshot)}")
         return snapshot
 
     raise AssertionError(
-        f"Expected {label} WebContent history to match UI, "
-        f"got {summarize_history_snapshot(snapshot)}\n" + "\n".join(log)
+        f"Expected {label} session history to be idle, got {summarize_history_snapshot(snapshot)}\n" + "\n".join(log)
     )
 
 
@@ -1414,37 +1314,18 @@ def expect_pending_history_operation_traversal(
             f"{pending_traversal['willReplaceWebContentProcess']}\n" + "\n".join(log)
         )
 
-    if ui["webContentCurrentStep"] != expected_step:
-        raise AssertionError(
-            f"Expected {label} WebContent current step to be {expected_step}, "
-            f"got {ui['webContentCurrentStep']}\n" + "\n".join(log)
-        )
-
-    if ui["webContentHistoryMatchesUI"]:
-        raise AssertionError(f"Expected {label} WebContent history to still be catching up\n" + "\n".join(log))
-
     return snapshot
 
 
 def expect_current_entry_nested_history(webdriver_port, session_id, label, expected_url, expected_nested_urls, log):
     snapshot = session_history(webdriver_port, session_id)
     ui_current_entry = history_current_entry(snapshot["ui"])
-    web_content_current_entry = history_current_entry(snapshot["webContent"])
 
     ui_nested_urls = []
     if ui_current_entry["nestedHistories"]:
         ui_nested_urls = [entry["url"] for entry in ui_current_entry["nestedHistories"][0]["entries"]]
 
-    web_content_nested_urls = []
-    if web_content_current_entry["nestedHistories"]:
-        web_content_nested_urls = [entry["url"] for entry in web_content_current_entry["nestedHistories"][0]["entries"]]
-
-    if (
-        ui_current_entry["url"] == expected_url
-        and web_content_current_entry["url"] == expected_url
-        and ui_nested_urls == expected_nested_urls
-        and web_content_nested_urls == expected_nested_urls
-    ):
+    if ui_current_entry["url"] == expected_url and ui_nested_urls == expected_nested_urls:
         log.append(f"{label} nested history: {expected_nested_urls}")
         return snapshot
 
@@ -1483,8 +1364,7 @@ def nested_history_urls_for_entry(history, url):
 def expect_entry_nested_history(webdriver_port, session_id, label, entry_url, expected_nested_urls, log):
     snapshot = session_history(webdriver_port, session_id)
     ui_nested_urls = nested_history_urls_for_entry(snapshot["ui"], entry_url)
-    web_content_nested_urls = nested_history_urls_for_entry(snapshot["webContent"], entry_url)
-    if ui_nested_urls == expected_nested_urls and web_content_nested_urls == expected_nested_urls:
+    if ui_nested_urls == expected_nested_urls:
         log.append(f"{label} nested history: {expected_nested_urls}")
         return snapshot
 
@@ -1497,21 +1377,16 @@ def expect_entry_nested_history(webdriver_port, session_id, label, entry_url, ex
 def expect_session_history_synchronized(webdriver_port, session_id, label, log):
     snapshot = session_history(webdriver_port, session_id)
     ui = snapshot["ui"]
-    web_content = snapshot["webContent"]
     if (
         not ui["sessionHistoryLoadInProgress"]
-        and ui["webContentHistoryMatchesUI"]
         and ui["pendingSessionHistoryNavigation"] is None
         and ui["pendingSessionHistoryTraversal"] is None
-        and ui["webContentCurrentStep"] == history_used_steps(ui)[ui["currentUsedStepIndex"]]
-        and history_current_step(ui["webContentKnownUsedSteps"]) == ui["webContentCurrentStep"]
-        and comparable_history(ui) == comparable_history(web_content)
     ):
-        log.append(f"{label} synchronized history: {summarize_history_snapshot(snapshot)}")
+        log.append(f"{label} idle history: {summarize_history_snapshot(snapshot)}")
         return
 
     raise AssertionError(
-        f"Expected {label} history to match WebContent with no operation pending, "
+        f"Expected {label} history to have no operation pending, "
         f"got {summarize_history_snapshot(snapshot)}\n" + "\n".join(log)
     )
 
@@ -1550,8 +1425,7 @@ def expect_body_text(webdriver_port, session_id, label, expected_text, log):
 def expect_current_entry_resource(webdriver_port, session_id, label, expected_resource, log):
     snapshot = session_history(webdriver_port, session_id)
     ui_current_entry = history_current_entry(snapshot["ui"])
-    web_content_current_entry = history_current_entry(snapshot["webContent"])
-    if ui_current_entry["resource"] == expected_resource and web_content_current_entry["resource"] == expected_resource:
+    if ui_current_entry["resource"] == expected_resource:
         log.append(f"{label} current resource: {expected_resource}")
         return snapshot
 
@@ -1691,9 +1565,6 @@ def run_blocked_process_swap_ui_forward_crash_recovery_test(
         True,
         False,
         log,
-        expect_web_content_matches_ui=True,
-        expected_web_content_known_used_steps=[0, 1],
-        expected_web_content_current_step=1,
     )
 
     traverse_history_from_ui(webdriver_port, session_id, -1)
@@ -1708,9 +1579,6 @@ def run_blocked_process_swap_ui_forward_crash_recovery_test(
         False,
         True,
         log,
-        expect_web_content_matches_ui=True,
-        expected_web_content_known_used_steps=[0, 1],
-        expected_web_content_current_step=0,
     )
 
     page_server.blocked_process_swap_back_requested.clear()
@@ -1745,8 +1613,6 @@ def run_blocked_process_swap_ui_forward_crash_recovery_test(
         False,
         True,
         log,
-        expected_web_content_known_used_steps=[0, 1],
-        expected_web_content_current_step=1,
     )
     page_server.release_blocked_process_swap_back.set()
     wait_for_event(page_server.process_swap_back_document_ran, "process-swap UI forward recovery document")
@@ -1767,9 +1633,6 @@ def run_blocked_process_swap_ui_forward_crash_recovery_test(
         True,
         False,
         log,
-        expect_web_content_matches_ui=True,
-        expected_web_content_known_used_steps=[0, 1],
-        expected_web_content_current_step=1,
     )
     request(webdriver_port, "DELETE", f"/session/{session_id}")
 
@@ -1793,7 +1656,7 @@ def expect_second_ui_forward_during_pending_forward_does_not_hang(
     expect_url(webdriver_port, session_id, "after pending-forward setup /forward-blocked", url_forward_blocked, log)
     load_url_from_ui(webdriver_port, session_id, url_c)
     expect_url(webdriver_port, session_id, "after pending-forward setup /c", url_c, log)
-    expect_web_content_session_history_matches_ui(webdriver_port, session_id, "after pending-forward setup", log)
+    expect_session_history_idle(webdriver_port, session_id, "after pending-forward setup", log)
 
     traverse_history_from_ui(webdriver_port, session_id, -1)
     expect_url(
@@ -1837,9 +1700,6 @@ def expect_second_ui_forward_during_pending_forward_does_not_hang(
         True,
         False,
         log,
-        expect_web_content_matches_ui=True,
-        expected_web_content_known_used_steps=[0, 1, 2],
-        expected_web_content_current_step=2,
     )
     page_server.block_forward_load = False
 
@@ -1887,9 +1747,6 @@ document.body.append(iframe);
         True,
         False,
         log,
-        expect_web_content_matches_ui=True,
-        expected_web_content_known_used_steps=[0, 1],
-        expected_web_content_current_step=1,
     )
     execute_script(webdriver_port, session_id, "document.querySelector('iframe')?.remove(); return null;")
 
@@ -1958,65 +1815,6 @@ def run_iframe_replacement_after_deferred_fragment_navigation_test(
         request(webdriver_port, "DELETE", f"/session/{session_id}")
 
 
-def expect_beforeunload_cancels_stale_ui_load(
-    webdriver_port,
-    session_id,
-    url_b,
-    url_c,
-    before_blocked_browser_ui_back,
-    blocked_link_navigation_state,
-    log,
-):
-    mark_web_content_session_history_stale(webdriver_port, session_id)
-    expect_ui_session_history(
-        webdriver_port,
-        session_id,
-        "after marking WebContent session history stale",
-        history_entry_urls(before_blocked_browser_ui_back["ui"]),
-        history_used_steps(before_blocked_browser_ui_back["ui"]),
-        before_blocked_browser_ui_back["ui"]["currentUsedStepIndex"],
-        before_blocked_browser_ui_back["ui"]["backButtonEnabled"],
-        before_blocked_browser_ui_back["ui"]["forwardButtonEnabled"],
-        log,
-        expect_web_content_matches_ui=False,
-        expected_web_content_known_used_steps=history_step_values(
-            before_blocked_browser_ui_back["ui"]["webContentKnownUsedSteps"]
-        ),
-        expected_web_content_current_step=before_blocked_browser_ui_back["ui"]["webContentCurrentStep"],
-    )
-
-    load_url_from_ui(webdriver_port, session_id, url_c)
-    blocked_stale_ui_load_state = execute_script(
-        webdriver_port,
-        session_id,
-        "return [location.href, window.beforeUnloadCount];",
-    )
-    if blocked_stale_ui_load_state[0] != url_b or blocked_stale_ui_load_state[1] <= blocked_link_navigation_state[1]:
-        raise AssertionError(
-            f"Expected beforeunload to cancel stale-history UI load from /b, got {blocked_stale_ui_load_state}\n"
-            + "\n".join(log)
-        )
-
-    expect_ui_session_history(
-        webdriver_port,
-        session_id,
-        "after blocked stale-history UI load from /b",
-        history_entry_urls(before_blocked_browser_ui_back["ui"]),
-        history_used_steps(before_blocked_browser_ui_back["ui"]),
-        before_blocked_browser_ui_back["ui"]["currentUsedStepIndex"],
-        before_blocked_browser_ui_back["ui"]["backButtonEnabled"],
-        before_blocked_browser_ui_back["ui"]["forwardButtonEnabled"],
-        log,
-        expect_web_content_matches_ui=True,
-        expected_web_content_known_used_steps=history_step_values(
-            before_blocked_browser_ui_back["ui"]["webContentKnownUsedSteps"]
-        ),
-        expected_web_content_current_step=before_blocked_browser_ui_back["ui"]["webContentCurrentStep"],
-    )
-
-    return blocked_stale_ui_load_state
-
-
 def expect_same_url_ui_load_replaces_current_entry(webdriver_port, session_id, url, log):
     load_url_from_ui(webdriver_port, session_id, url)
     expect_url(webdriver_port, session_id, "after same-URL UI load setup /a", url, log)
@@ -2032,9 +1830,6 @@ def expect_same_url_ui_load_replaces_current_entry(webdriver_port, session_id, u
         False,
         False,
         log,
-        expect_web_content_matches_ui=True,
-        expected_web_content_known_used_steps=[0],
-        expected_web_content_current_step=0,
     )
 
 
@@ -2054,9 +1849,6 @@ def expect_webdriver_fragment_navigation_completes(webdriver_port, session_id, u
         True,
         False,
         log,
-        expect_web_content_matches_ui=True,
-        expected_web_content_known_used_steps=[0, 1],
-        expected_web_content_current_step=1,
     )
 
 
@@ -2078,35 +1870,23 @@ def run_failed_redirected_navigation_shows_failed_url_test(webdriver_port, page_
     expect_url(webdriver_port, session_id, "after failed redirected navigation setup /a", url_a, log)
 
     load_url_from_ui(webdriver_port, session_id, url_redirect_to_tls_failure)
-
-    def error_page_history_converged(snapshot):
-        ui = snapshot["ui"]
-        return (
-            history_entry_urls(ui) == [url_a, url_tls_failure]
-            and ui["webContentHistoryMatchesUI"]
-            and not ui["waitingToSeedWebContent"]
-            and not ui["waitingForWebContentSeedAck"]
-            and not ui["ignoringWebContentUpdatesUntilSeed"]
-            and not ui["reseedAfterCurrentHistoryLoad"]
-        )
-
-    snapshot = wait_for_session_history(
+    snapshot = expect_ui_session_history(
         webdriver_port,
         session_id,
         "after failed redirected navigation",
-        error_page_history_converged,
+        [url_a, url_tls_failure],
+        [0, 1],
+        1,
+        True,
+        False,
         log,
+        expect_history_idle=True,
     )
+
     ui_current_url = snapshot["ui"]["currentURL"]
     if ui_current_url != url_tls_failure:
         raise AssertionError(
             f"Expected the UI to show the failed URL {url_tls_failure}, got {ui_current_url}\n" + "\n".join(log)
-        )
-
-    web_content_entry_urls = history_entry_urls(snapshot["webContent"])
-    if web_content_entry_urls != [url_a, url_tls_failure]:
-        raise AssertionError(
-            f"Expected WebContent entries [{url_a}, {url_tls_failure}], got {web_content_entry_urls}\n" + "\n".join(log)
         )
 
     request(webdriver_port, "DELETE", f"/session/{session_id}")
@@ -2224,7 +2004,6 @@ return null;
             if (
                 pending_history["ui"]["currentURL"] not in (url_navigation_blocked, url_redirect_to_navigation_blocked)
                 or pending_navigation.get("previousCurrentURL") != url_a
-                or history_entry_urls(pending_history["webContent"]) != [url_a]
             ):
                 raise AssertionError(
                     f"Expected {label} to be pending over /a, got {summarize_history_snapshot(pending_history)}\n"
@@ -2232,7 +2011,7 @@ return null;
                 )
 
             traverse_history_from_ui(webdriver_port, session_id, -1, wait_for_navigation_completion=False)
-            rolled_back_history = wait_for_session_history(
+            wait_for_session_history(
                 webdriver_port,
                 session_id,
                 f"after canceling {label}",
@@ -2241,15 +2020,9 @@ return null;
                     and history_entry_urls(snapshot["ui"]) == [url_a]
                     and snapshot["ui"]["pendingSessionHistoryNavigation"] is None
                     and snapshot["ui"]["pendingSessionHistoryTraversal"] is None
-                    and snapshot["ui"]["webContentHistoryMatchesUI"] is True
                 ),
                 log,
             )
-            if history_entry_urls(rolled_back_history["webContent"]) != [url_a]:
-                raise AssertionError(
-                    f"Expected WebContent to remain on /a after {label}, got {summarize_history_snapshot(rolled_back_history)}\n"
-                    + "\n".join(log)
-                )
 
             after_cancel_state = execute_script(
                 webdriver_port,
@@ -2284,9 +2057,6 @@ return null;
                 False,
                 False,
                 log,
-                expect_web_content_matches_ui=True,
-                expected_web_content_known_used_steps=[0],
-                expected_web_content_current_step=0,
             )
 
         cancel_pending_navigation(
@@ -2343,9 +2113,6 @@ return null;
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=1,
         )
 
         traverse_history_from_ui(webdriver_port, session_id, -1)
@@ -2360,9 +2127,6 @@ return null;
             False,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=0,
         )
 
     finally:
@@ -2418,7 +2182,7 @@ def run_cross_process_pending_navigation_browser_ui_back_test(
         traverse_history_from_ui(webdriver_port, session_id, -1, wait_for_navigation_completion=False)
         wait_for_event(page_server.a_document_ran, "restored /a document after cross-process pending navigation")
         expect_url(webdriver_port, session_id, "after back during cross-process pending navigation", url_a, log)
-        restored_history = wait_for_session_history(
+        wait_for_session_history(
             webdriver_port,
             session_id,
             "after back during cross-process pending navigation",
@@ -2433,8 +2197,6 @@ def run_cross_process_pending_navigation_browser_ui_back_test(
             ),
             log,
         )
-        if history_entry_urls(restored_history["webContent"]) != [url_a, url_cross_site_navigation_blocked]:
-            raise AssertionError("Expected replacement WebContent to receive the restored history\n" + "\n".join(log))
         with page_server.a_request_lock:
             if page_server.a_request_count != a_request_count_after_setup + 1:
                 raise AssertionError(
@@ -2510,9 +2272,6 @@ def run_cross_process_no_content_navigation_restore_test(
             False,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0],
-            expected_web_content_current_step=0,
         )
         if restored_history["ui"]["webContentProcessID"] == provisional_process_id:
             raise AssertionError(
@@ -2678,9 +2437,6 @@ def run_test(webdriver_binary):
             False,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0],
-            expected_web_content_current_step=0,
         )
         request(webdriver_port, "DELETE", f"/session/{session_id}")
         session_id = None
@@ -2713,9 +2469,6 @@ def run_test(webdriver_binary):
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2, 3],
-            expected_web_content_current_step=3,
         )
 
         crash_current_page(webdriver_port, session_id)
@@ -2730,9 +2483,6 @@ def run_test(webdriver_binary):
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2, 3],
-            expected_web_content_current_step=3,
         )
 
         traverse_history_from_ui(webdriver_port, session_id, -1)
@@ -2747,9 +2497,6 @@ def run_test(webdriver_binary):
             True,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2, 3],
-            expected_web_content_current_step=2,
         )
 
         traverse_history_from_ui(webdriver_port, session_id, -1)
@@ -2764,9 +2511,6 @@ def run_test(webdriver_binary):
             True,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2, 3],
-            expected_web_content_current_step=1,
         )
 
         traverse_history_from_ui(webdriver_port, session_id, -1)
@@ -2781,9 +2525,6 @@ def run_test(webdriver_binary):
             False,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2, 3],
-            expected_web_content_current_step=0,
         )
 
         traverse_history_from_ui(webdriver_port, session_id, -1)
@@ -2799,9 +2540,6 @@ def run_test(webdriver_binary):
             False,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2, 3],
-            expected_web_content_current_step=0,
         )
         request(webdriver_port, "DELETE", f"/session/{session_id}")
         session_id = None
@@ -2845,9 +2583,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             True,
             False,
             log,
-            expect_web_content_matches_ui=False,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=1,
         )
         expect_current_ui_entry_resource(
             webdriver_port,
@@ -2906,9 +2641,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=1,
         )
         request(webdriver_port, "DELETE", f"/session/{session_id}")
         session_id = None
@@ -2939,9 +2671,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=1,
         )
 
         page_server.process_swap_back_document_ran.clear()
@@ -2970,8 +2699,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             False,
             True,
             log,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=0,
         )
         expect_url(
             webdriver_port,
@@ -2990,9 +2717,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             False,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=0,
         )
         request(webdriver_port, "DELETE", f"/session/{session_id}")
         session_id = None
@@ -3023,9 +2747,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=1,
         )
 
         webdriver_back_error = []
@@ -3064,9 +2785,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             False,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=0,
         )
         request(webdriver_port, "DELETE", f"/session/{session_id}")
         session_id = None
@@ -3087,7 +2805,7 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
         )
         load_url_from_ui(webdriver_port, session_id, url_b)
         expect_url(webdriver_port, session_id, "after blocked process-swap WebDriver beforeunload setup /b", url_b, log)
-        before_blocked_process_swap_webdriver_back = expect_web_content_session_history_matches_ui(
+        before_blocked_process_swap_webdriver_back = expect_session_history_idle(
             webdriver_port, session_id, "before blocked process-swap WebDriver back from /b", log
         )
         beforeunload_setup = execute_script(
@@ -3162,11 +2880,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             before_blocked_process_swap_webdriver_back["ui"]["backButtonEnabled"],
             before_blocked_process_swap_webdriver_back["ui"]["forwardButtonEnabled"],
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=history_step_values(
-                before_blocked_process_swap_webdriver_back["ui"]["webContentKnownUsedSteps"]
-            ),
-            expected_web_content_current_step=before_blocked_process_swap_webdriver_back["ui"]["webContentCurrentStep"],
         )
         request(webdriver_port, "DELETE", f"/session/{session_id}")
         session_id = None
@@ -3198,9 +2911,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=1,
         )
 
         page_server.process_swap_back_document_ran.clear()
@@ -3232,8 +2942,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             True,
             False,
             log,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=0,
         )
         page_server.release_blocked_process_swap_back.set()
         wait_for_event(page_server.process_swap_back_document_ran, "process-swap UI back recovery document")
@@ -3254,9 +2962,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             False,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=0,
         )
         request(webdriver_port, "DELETE", f"/session/{session_id}")
         session_id = None
@@ -3307,9 +3012,7 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
         )
         load_url_from_ui(webdriver_port, session_id, url_b)
         expect_url(webdriver_port, session_id, "after nested restore crash setup /b", url_b, log)
-        expect_web_content_session_history_matches_ui(
-            webdriver_port, session_id, "before nested restore crash recovery", log
-        )
+        expect_session_history_idle(webdriver_port, session_id, "before nested restore crash recovery", log)
 
         page_server.release_blocked_frame_b.clear()
         page_server.blocked_frame_b_requested.clear()
@@ -3330,8 +3033,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             True,
             True,
             log,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=1,
         )
         page_server.frame_b_blocked_document_ran.clear()
         page_server.release_blocked_frame_b.set()
@@ -3354,9 +3055,7 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             log,
         )
         expect_session_history_synchronized(webdriver_port, session_id, "after nested restore crash recovery", log)
-        expect_web_content_session_history_matches_ui(
-            webdriver_port, session_id, "after nested restore crash recovery", log
-        )
+        expect_session_history_idle(webdriver_port, session_id, "after nested restore crash recovery", log)
         request(webdriver_port, "DELETE", f"/session/{session_id}")
         session_id = None
 
@@ -3393,7 +3092,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             True,
             False,
             log,
-            expect_web_content_matches_ui=False,
         )
         expect_current_ui_entry_resource(
             webdriver_port,
@@ -3446,7 +3144,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             False,
             False,
             log,
-            expect_web_content_matches_ui=False,
         )
         expect_current_ui_entry_resource(
             webdriver_port,
@@ -3495,9 +3192,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=1,
         )
 
         refresh(webdriver_port, session_id)
@@ -3514,9 +3208,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=1,
         )
 
         crash_current_page(webdriver_port, session_id)
@@ -3533,9 +3224,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=1,
         )
         request(webdriver_port, "DELETE", f"/session/{session_id}")
         session_id = None
@@ -3554,8 +3242,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             False,
             False,
             log,
-            expected_web_content_known_used_steps=[0],
-            expected_web_content_current_step=0,
         )
 
         load_url_from_ui(webdriver_port, session_id, url_redirect_to_b)
@@ -3570,9 +3256,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=1,
         )
 
         request(webdriver_port, "POST", f"/session/{session_id}/back", {})
@@ -3587,9 +3270,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             False,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=0,
         )
 
         navigate_from_renderer_using_link(
@@ -3613,9 +3293,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=1,
         )
 
         request(webdriver_port, "POST", f"/session/{session_id}/back", {})
@@ -3630,9 +3307,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             False,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=0,
         )
 
         request(webdriver_port, "POST", f"/session/{session_id}/forward", {})
@@ -3647,9 +3321,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=1,
         )
 
         request(webdriver_port, "POST", f"/session/{session_id}/back", {})
@@ -3664,9 +3335,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             False,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=0,
         )
 
         navigate_from_renderer_using_link(
@@ -3683,8 +3351,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             True,
             False,
             log,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=1,
         )
 
         page_server.a_document_ran.clear()
@@ -3701,9 +3367,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             False,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=0,
         )
         if (
             after_page_initiated_history_back_to_a["ui"]["webContentProcessID"]
@@ -3727,9 +3390,6 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=1,
         )
         if (
             after_page_initiated_history_forward_to_b["ui"]["webContentProcessID"]
@@ -3796,11 +3456,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             before_script_initiated_blocked_back["ui"]["backButtonEnabled"],
             before_script_initiated_blocked_back["ui"]["forwardButtonEnabled"],
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=history_step_values(
-                before_script_initiated_blocked_back["ui"]["webContentKnownUsedSteps"]
-            ),
-            expected_web_content_current_step=before_script_initiated_blocked_back["ui"]["webContentCurrentStep"],
         )
         execute_script(webdriver_port, session_id, "window.onbeforeunload = null; return null;")
 
@@ -3817,8 +3472,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             False,
             True,
             log,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=0,
         )
         expect_url(webdriver_port, session_id, "after cross-site browser back to /a", url_a, log)
         expect_ui_session_history(
@@ -3831,9 +3484,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             False,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=0,
         )
 
         page_server.b_document_ran.clear()
@@ -3849,8 +3499,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             True,
             False,
             log,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=1,
         )
         expect_url(webdriver_port, session_id, "after cross-site browser forward to /b", url_b, log)
         expect_ui_session_history(
@@ -3863,9 +3511,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1],
-            expected_web_content_current_step=1,
         )
 
         navigate_from_renderer_using_link(
@@ -3882,8 +3527,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             True,
             False,
             log,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=2,
         )
 
         page_server.b_document_ran.clear()
@@ -3899,8 +3542,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             True,
             True,
             log,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=1,
         )
         expect_url(webdriver_port, session_id, "after browser back to /b", url_b, log)
         expect_ui_session_history(
@@ -3913,9 +3554,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             True,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=1,
         )
 
         page_server.c_document_ran.clear()
@@ -3931,8 +3569,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             True,
             False,
             log,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=2,
         )
         expect_url(webdriver_port, session_id, "after browser forward to /c", url_c, log)
         expect_ui_session_history(
@@ -3945,9 +3581,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=2,
         )
 
         request(webdriver_port, "POST", f"/session/{session_id}/back", {})
@@ -3962,9 +3595,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             True,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=1,
         )
 
         request(webdriver_port, "POST", f"/session/{session_id}/back", {})
@@ -3979,9 +3609,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             False,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=0,
         )
 
         request(webdriver_port, "POST", f"/session/{session_id}/back", {})
@@ -3996,9 +3623,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             False,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=0,
         )
 
         request(webdriver_port, "POST", f"/session/{session_id}/back", {})
@@ -4013,9 +3637,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             False,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=0,
         )
 
         request(webdriver_port, "POST", f"/session/{session_id}/forward", {})
@@ -4030,9 +3651,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             True,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=1,
         )
 
         request(webdriver_port, "POST", f"/session/{session_id}/forward", {})
@@ -4047,9 +3665,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=2,
         )
 
         request(webdriver_port, "POST", f"/session/{session_id}/forward", {})
@@ -4064,9 +3679,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=2,
         )
 
         crash_current_page(webdriver_port, session_id)
@@ -4081,9 +3693,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=2,
         )
 
         page_server.b_document_ran.clear()
@@ -4100,9 +3709,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             True,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=1,
         )
 
         page_server.c_document_ran.clear()
@@ -4119,9 +3725,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=2,
         )
 
         traverse_history_from_ui(webdriver_port, session_id, -1)
@@ -4136,9 +3739,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             True,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=1,
         )
 
         request(webdriver_port, "POST", f"/session/{session_id}/back", {})
@@ -4153,9 +3753,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             False,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=0,
         )
 
         request(webdriver_port, "POST", f"/session/{session_id}/forward", {})
@@ -4170,9 +3767,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             True,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=1,
         )
 
         request(webdriver_port, "POST", f"/session/{session_id}/forward", {})
@@ -4187,9 +3781,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=2,
         )
 
         request(webdriver_port, "POST", f"/session/{session_id}/back", {})
@@ -4204,9 +3795,6 @@ return [location.href, window.scriptBeforeUnloadCount, navigator.userActivation.
             True,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=1,
         )
 
         navigate_from_renderer_using_link(
@@ -4242,9 +3830,6 @@ return [
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=2,
         )
 
         crash_current_page(webdriver_port, session_id)
@@ -4275,9 +3860,6 @@ return [
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=2,
         )
 
         traverse_history_from_ui(webdriver_port, session_id, -1)
@@ -4292,9 +3874,6 @@ return [
             True,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=1,
         )
 
         traverse_history_from_ui(webdriver_port, session_id, -1)
@@ -4309,9 +3888,6 @@ return [
             False,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=0,
         )
 
         traverse_history_from_ui(webdriver_port, session_id, -1)
@@ -4326,9 +3902,6 @@ return [
             False,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=0,
         )
 
         traverse_history_from_ui(webdriver_port, session_id, -1)
@@ -4343,9 +3916,6 @@ return [
             False,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=0,
         )
 
         traverse_history_from_ui(webdriver_port, session_id, 1)
@@ -4360,9 +3930,6 @@ return [
             True,
             True,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=1,
         )
 
         traverse_history_from_ui(webdriver_port, session_id, 1)
@@ -4377,9 +3944,6 @@ return [
             True,
             False,
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=[0, 1, 2],
-            expected_web_content_current_step=2,
         )
 
         request(webdriver_port, "POST", f"/session/{session_id}/url", {"url": url_state})
@@ -4430,7 +3994,9 @@ return [
                 return False
             return (
                 history_entry_urls(ui_history)[current_index] == url_state_push
-                and ui_history["webContentHistoryMatchesUI"]
+                and not ui_history["sessionHistoryLoadInProgress"]
+                and ui_history["pendingSessionHistoryNavigation"] is None
+                and ui_history["pendingSessionHistoryTraversal"] is None
             )
 
         wait_for_session_history(
@@ -4595,14 +4161,12 @@ return [location.href, window.canceledTraverseCount];
                 + "\n".join(log)
             )
 
-        def browser_ui_traverse_setup_is_mirrored(snapshot):
+        def browser_ui_traverse_setup_is_idle(snapshot):
             ui_history = snapshot["ui"]
             if (
-                not ui_history["webContentHistoryMatchesUI"]
-                or ui_history["sessionHistoryLoadInProgress"]
+                ui_history["sessionHistoryLoadInProgress"]
                 or ui_history["pendingSessionHistoryNavigation"] is not None
                 or ui_history["pendingSessionHistoryTraversal"] is not None
-                or comparable_history(ui_history) != comparable_history(snapshot["webContent"])
             ):
                 return False
             return history_current_entry(ui_history)["url"] == url_scroll_cancel_current
@@ -4611,7 +4175,7 @@ return [location.href, window.canceledTraverseCount];
             webdriver_port,
             session_id,
             "before browser UI traverse with navigate cancel handler",
-            browser_ui_traverse_setup_is_mirrored,
+            browser_ui_traverse_setup_is_idle,
             log,
         )
         if history_before_browser_ui_traverse["ui"]["currentUsedStepIndex"] == 0:
@@ -4632,7 +4196,7 @@ return [location.href, window.canceledTraverseCount];
                 f"Expected browser UI traverse to ignore non-cancelable preventDefault() and move to "
                 f"{[expected_browser_ui_traverse_url, 1]}, got {browser_ui_traverse_state}\n" + "\n".join(log)
             )
-        history_after_browser_ui_traverse = expect_web_content_session_history_matches_ui(
+        history_after_browser_ui_traverse = expect_session_history_idle(
             webdriver_port, session_id, "after browser UI traverse with navigate cancel handler", log
         )
         log.append(f"after browser UI traverse: {summarize_history_snapshot(history_after_browser_ui_traverse)}")
@@ -4683,7 +4247,7 @@ return [location.href, window.canceledTraverseCount];
             log,
         )
         expect_session_history_synchronized(webdriver_port, session_id, "after nested crash recovery", log)
-        expect_web_content_session_history_matches_ui(webdriver_port, session_id, "after nested crash recovery", log)
+        expect_session_history_idle(webdriver_port, session_id, "after nested crash recovery", log)
 
         request(webdriver_port, "POST", f"/session/{session_id}/back", {})
         expect_url(webdriver_port, session_id, "after nested crash recovery frame back", url_nested, log)
@@ -4703,9 +4267,7 @@ return [location.href, window.canceledTraverseCount];
             [url_frame_a, url_frame_b_blocked],
             log,
         )
-        expect_web_content_session_history_matches_ui(
-            webdriver_port, session_id, "after nested crash recovery frame back", log
-        )
+        expect_session_history_idle(webdriver_port, session_id, "after nested crash recovery frame back", log)
 
         request(webdriver_port, "POST", f"/session/{session_id}/forward", {})
         expect_url(webdriver_port, session_id, "after nested crash recovery frame forward", url_nested, log)
@@ -4725,9 +4287,7 @@ return [location.href, window.canceledTraverseCount];
             [url_frame_a, url_frame_b_blocked],
             log,
         )
-        expect_web_content_session_history_matches_ui(
-            webdriver_port, session_id, "after nested crash recovery frame forward", log
-        )
+        expect_session_history_idle(webdriver_port, session_id, "after nested crash recovery frame forward", log)
 
         same_document_nested_setup = execute_script(
             webdriver_port,
@@ -4803,11 +4363,9 @@ return location.href;
         expect_url(webdriver_port, session_id, "after cross-site /b", url_b, log)
         expect_current_top_level_history_url(webdriver_port, session_id, "after cross-site /b", url_b, log)
         expect_navigation_buttons(webdriver_port, session_id, "after cross-site /b", True, False, log)
-        expect_web_content_session_history_matches_ui(
-            webdriver_port, session_id, "after cross-site /b process swap", log
-        )
+        expect_session_history_idle(webdriver_port, session_id, "after cross-site /b process swap", log)
 
-        before_blocked_browser_ui_back = expect_web_content_session_history_matches_ui(
+        before_blocked_browser_ui_back = expect_session_history_idle(
             webdriver_port, session_id, "before blocked browser UI back from /b", log
         )
         navigate_event_cancel_setup = execute_script(
@@ -4864,11 +4422,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             before_blocked_browser_ui_back["ui"]["backButtonEnabled"],
             before_blocked_browser_ui_back["ui"]["forwardButtonEnabled"],
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=history_step_values(
-                before_blocked_browser_ui_back["ui"]["webContentKnownUsedSteps"]
-            ),
-            expected_web_content_current_step=before_blocked_browser_ui_back["ui"]["webContentCurrentStep"],
         )
         execute_script(webdriver_port, session_id, "navigation.onnavigate = null; return null;")
 
@@ -4939,21 +4492,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             before_blocked_browser_ui_back["ui"]["backButtonEnabled"],
             before_blocked_browser_ui_back["ui"]["forwardButtonEnabled"],
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=history_step_values(
-                before_blocked_browser_ui_back["ui"]["webContentKnownUsedSteps"]
-            ),
-            expected_web_content_current_step=before_blocked_browser_ui_back["ui"]["webContentCurrentStep"],
-        )
-
-        blocked_stale_ui_load_state = expect_beforeunload_cancels_stale_ui_load(
-            webdriver_port,
-            session_id,
-            url_b,
-            url_c,
-            before_blocked_browser_ui_back,
-            blocked_link_navigation_state,
-            log,
         )
 
         blocked_webdriver_navigate_state = expect_beforeunload_cancels_webdriver_navigation(
@@ -4962,7 +4500,7 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             url_c,
             "WebDriver navigation from /b",
             url_b,
-            blocked_stale_ui_load_state[1],
+            blocked_link_navigation_state[1],
             before_blocked_browser_ui_back,
             log,
         )
@@ -5007,11 +4545,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             before_blocked_browser_ui_back["ui"]["backButtonEnabled"],
             before_blocked_browser_ui_back["ui"]["forwardButtonEnabled"],
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=history_step_values(
-                before_blocked_browser_ui_back["ui"]["webContentKnownUsedSteps"]
-            ),
-            expected_web_content_current_step=before_blocked_browser_ui_back["ui"]["webContentCurrentStep"],
         )
 
         request(webdriver_port, "POST", f"/session/{session_id}/back", {})
@@ -5035,11 +4568,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             before_blocked_browser_ui_back["ui"]["backButtonEnabled"],
             before_blocked_browser_ui_back["ui"]["forwardButtonEnabled"],
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=history_step_values(
-                before_blocked_browser_ui_back["ui"]["webContentKnownUsedSteps"]
-            ),
-            expected_web_content_current_step=before_blocked_browser_ui_back["ui"]["webContentCurrentStep"],
         )
 
         traverse_history_from_ui(webdriver_port, session_id, -1, wait_for_navigation_completion=False)
@@ -5071,11 +4599,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             before_blocked_browser_ui_back["ui"]["backButtonEnabled"],
             before_blocked_browser_ui_back["ui"]["forwardButtonEnabled"],
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=history_step_values(
-                before_blocked_browser_ui_back["ui"]["webContentKnownUsedSteps"]
-            ),
-            expected_web_content_current_step=before_blocked_browser_ui_back["ui"]["webContentCurrentStep"],
         )
 
         cross_site_link_click_point = execute_script(
@@ -5112,11 +4635,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             before_blocked_browser_ui_back["ui"]["backButtonEnabled"],
             before_blocked_browser_ui_back["ui"]["forwardButtonEnabled"],
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=history_step_values(
-                before_blocked_browser_ui_back["ui"]["webContentKnownUsedSteps"]
-            ),
-            expected_web_content_current_step=before_blocked_browser_ui_back["ui"]["webContentCurrentStep"],
         )
         execute_script(webdriver_port, session_id, "window.onbeforeunload = null; return null;")
 
@@ -5181,7 +4699,7 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             log,
         )
 
-        before_location_replace = expect_web_content_session_history_matches_ui(
+        before_location_replace = expect_session_history_idle(
             webdriver_port, session_id, "before location.replace()", log
         )
         replace_current_index = before_location_replace["ui"]["currentUsedStepIndex"]
@@ -5201,11 +4719,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             before_location_replace["ui"]["backButtonEnabled"],
             before_location_replace["ui"]["forwardButtonEnabled"],
             log,
-            expect_web_content_matches_ui=True,
-            expected_web_content_known_used_steps=history_step_values(
-                before_location_replace["ui"]["webContentKnownUsedSteps"]
-            ),
-            expected_web_content_current_step=before_location_replace["ui"]["webContentCurrentStep"],
         )
 
         load_url_from_ui(webdriver_port, session_id, url_reload_blocked)
@@ -5224,7 +4737,7 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
         wait_for_event(page_server.reload_blocked_document_ran, "blocked reload document")
         expect_url(webdriver_port, session_id, "after blocked reload completes", url_reload_blocked, log)
         expect_current_ui_entry_reload_pending(webdriver_port, session_id, "after blocked reload completes", False, log)
-        before_blocked_reload_crash_recovery = expect_web_content_session_history_matches_ui(
+        before_blocked_reload_crash_recovery = expect_session_history_idle(
             webdriver_port, session_id, "before blocked reload crash recovery", log
         )
 
@@ -5249,10 +4762,6 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             before_blocked_reload_crash_recovery["ui"]["backButtonEnabled"],
             before_blocked_reload_crash_recovery["ui"]["forwardButtonEnabled"],
             log,
-            expected_web_content_known_used_steps=history_step_values(
-                before_blocked_reload_crash_recovery["ui"]["webContentKnownUsedSteps"]
-            ),
-            expected_web_content_current_step=before_blocked_reload_crash_recovery["ui"]["webContentCurrentStep"],
         )
         page_server.release_blocked_reload.set()
         wait_for_event(page_server.reload_blocked_document_ran, "reload document after crash recovery")

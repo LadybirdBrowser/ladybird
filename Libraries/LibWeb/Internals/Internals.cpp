@@ -862,16 +862,6 @@ Utf16String Internals::dump_session_history()
 Utf16String Internals::dump_ui_process_session_history()
 {
     auto& document = window().associated_document();
-    if (auto navigable = document.navigable()) {
-        if (auto traversable = navigable->traversable_navigable(); traversable) {
-            auto session_history_snapshot = traversable->create_session_history_snapshot();
-            return dump_string_to_utf16(document.page().client().page_did_update_session_history_and_request_ui_process_session_history_for_testing(
-                session_history_snapshot.top_level_session_history_entries,
-                session_history_snapshot.used_session_history_steps,
-                session_history_snapshot.current_used_step_index));
-        }
-    }
-
     return dump_string_to_utf16(document.page().client().page_did_request_ui_process_session_history_for_testing());
 }
 

@@ -225,7 +225,6 @@ private:
     virtual void did_request_webdriver_history_traversal(u64 page_id, u64 request_id, i32 delta) override;
     virtual Messages::WebContentClient::DidRequestWebdriverLoadUrlFromUiResponse did_request_webdriver_load_url_from_ui(u64 page_id, URL::URL url) override;
     virtual Messages::WebContentClient::DidRequestWebdriverTraverseHistoryFromUiResponse did_request_webdriver_traverse_history_from_ui(u64 page_id, i32 delta) override;
-    virtual Messages::WebContentClient::DidRequestWebdriverMarkWebContentSessionHistoryStaleResponse did_request_webdriver_mark_web_content_session_history_stale(u64 page_id) override;
     virtual Messages::WebContentClient::DidRequestWebdriverSessionHistoryResponse did_request_webdriver_session_history(u64 page_id) override;
     virtual void did_request_webdriver_navigation_completion(u64 page_id, u64 request_id, Optional<u64> page_load_timeout) override;
     virtual void did_update_resource_count(u64 page_id, i32 count_waiting) override;
@@ -266,7 +265,6 @@ private:
     virtual void did_set_session_history_entry_document_state_reload_pending(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, bool reload_pending) override;
     virtual Messages::WebContentClient::DidRequestUiProcessSessionHistoryForTestingResponse did_request_ui_process_session_history_for_testing(u64 page_id) override;
     virtual Messages::WebContentClient::DidRequestSiteIsolationProcessTreeForTestingResponse did_request_site_isolation_process_tree_for_testing(u64 page_id) override;
-    virtual Messages::WebContentClient::DidUpdateSessionHistoryAndRequestUiProcessSessionHistoryForTestingResponse did_update_session_history_and_request_ui_process_session_history_for_testing(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32>, size_t current_used_step_index) override;
     virtual void request_history_operation(u64 page_id, u64 initiation_id, Web::HistoryOperationParameters) override;
     virtual void history_operation_ready(u64 page_id, u64 operation_id, bool proceed, Optional<Web::HTML::CrossProcessId> creation_parent_document_state_id, Optional<Web::HTML::SameDocumentNavigationEntry>, Optional<Web::CrossDocumentNavigationFinalization>, Web::HTML::HistoryStepResult abandon_result) override;
     virtual void initiator_sandboxing_check_result(u64 page_id, u64 operation_id, bool allowed) override;

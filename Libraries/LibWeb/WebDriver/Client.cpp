@@ -74,7 +74,6 @@ static constexpr auto s_webdriver_endpoints = Array {
     ROUTE(POST, "/session/:session_id/ladybird/crash-current-page"sv, crash_current_page),
     ROUTE(POST, "/session/:session_id/ladybird/load-url-from-ui"sv, load_url_from_ui),
     ROUTE(POST, "/session/:session_id/ladybird/traverse-history-from-ui"sv, traverse_history_from_ui),
-    ROUTE(POST, "/session/:session_id/ladybird/mark-web-content-session-history-stale"sv, mark_web_content_session_history_stale),
     ROUTE(GET, "/session/:session_id/ladybird/session-history"sv, get_session_history),
     ROUTE(POST, "/session/:session_id/element"sv, find_element),
     ROUTE(POST, "/session/:session_id/elements"sv, find_elements),

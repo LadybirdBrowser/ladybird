@@ -58,7 +58,6 @@ private:
     virtual Web::WebDriver::Response crash_current_page(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response load_url_from_ui(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response traverse_history_from_ui(Web::WebDriver::Parameters parameters, JsonValue payload) override;
-    virtual Web::WebDriver::Response mark_web_content_session_history_stale(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response get_session_history(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response find_element(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response find_elements(Web::WebDriver::Parameters parameters, JsonValue payload) override;

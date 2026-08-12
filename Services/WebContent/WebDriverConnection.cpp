@@ -150,30 +150,6 @@ static Gfx::IntRect compute_window_rect(Web::Page const& page)
     };
 }
 
-static Optional<size_t> current_top_level_entry_index(Web::HTML::LocalTraversableNavigable::SessionHistorySnapshot const& session_history_snapshot)
-{
-    VERIFY(session_history_snapshot.current_used_step_index < session_history_snapshot.used_session_history_steps.size());
-    auto current_step = session_history_snapshot.used_session_history_steps[session_history_snapshot.current_used_step_index];
-
-    Optional<size_t> result;
-    for (size_t i = 0; i < session_history_snapshot.top_level_session_history_entries.size(); ++i) {
-        if (session_history_snapshot.top_level_session_history_entries[i].step > current_step)
-            break;
-        result = i;
-    }
-    return result;
-}
-
-static JsonObject serialize_session_history_snapshot_for_webdriver(Web::HTML::LocalTraversableNavigable::SessionHistorySnapshot const& session_history_snapshot)
-{
-    JsonObject serialized;
-    serialized.set("currentUsedStepIndex"sv, session_history_snapshot.current_used_step_index);
-    serialized.set("currentStep"sv, session_history_snapshot.used_session_history_steps[session_history_snapshot.current_used_step_index]);
-    serialized.set("entries"sv, WebView::history_json_entries(session_history_snapshot.top_level_session_history_entries, current_top_level_entry_index(session_history_snapshot)));
-    serialized.set("usedSteps"sv, WebView::history_json_steps(session_history_snapshot.used_session_history_steps, session_history_snapshot.current_used_step_index));
-    return serialized;
-}
-
 // https://w3c.github.io/webdriver/#dfn-scrolls-into-view
 static void scroll_element_into_view(Web::DOM::Element& element)
 {
@@ -619,19 +595,6 @@ Messages::WebDriverClient::TraverseHistoryFromUiResponse WebDriverConnection::tr
     return JsonValue {};
 }
 
-Messages::WebDriverClient::MarkWebContentSessionHistoryStaleResponse WebDriverConnection::mark_web_content_session_history_stale()
-{
-    TRY(ensure_current_top_level_browsing_context_is_open());
-
-    auto& page_client = static_cast<WebContent::PageClient&>(current_top_level_browsing_context()->page().client());
-    auto response = page_client.request_webdriver_mark_web_content_session_history_stale();
-    if (response.is_error())
-        return response.release_error();
-
-    async_driver_execution_complete(JsonValue {});
-    return JsonValue {};
-}
-
 Messages::WebDriverClient::GetSessionHistoryResponse WebDriverConnection::get_session_history()
 {
     TRY(ensure_current_top_level_browsing_context_is_open());
@@ -641,11 +604,8 @@ Messages::WebDriverClient::GetSessionHistoryResponse WebDriverConnection::get_se
     if (ui_session_history.is_error())
         return ui_session_history.release_error();
 
-    auto web_content_session_history_snapshot = current_top_level_browsing_context()->top_level_traversable()->create_session_history_snapshot();
-
     JsonObject result;
     result.set("ui"sv, ui_session_history.release_value());
-    result.set("webContent"sv, serialize_session_history_snapshot_for_webdriver(web_content_session_history_snapshot));
     async_driver_execution_complete(JsonValue { move(result) });
     return JsonValue {};
 }

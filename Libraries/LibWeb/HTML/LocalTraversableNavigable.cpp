@@ -24,6 +24,7 @@
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Navigation.h>
+#include <LibWeb/HTML/NavigationHistoryEntry.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
@@ -337,8 +338,14 @@ static RefPtr<SessionHistoryEntry> resolve_changing_navigable_target_entry_from_
 
     if (navigable.is_top_level_traversable()) {
         auto active_document = navigable.active_document();
-        if (!active_document || !active_document->is_initial_about_blank())
+        if (!active_document)
             return nullptr;
+        if (!active_document->is_initial_about_blank()) {
+            auto active_entry = navigable.active_session_history_entry();
+            if (!active_entry || !active_entry->document_state()
+                || active_entry->document_state()->cross_process_id() != entry_descriptor.document_state.id)
+                return nullptr;
+        }
     } else if (!navigable.has_session_history_entries()) {
         return nullptr;
     }
@@ -358,21 +365,36 @@ static RefPtr<SessionHistoryEntry> resolve_changing_navigable_target_entry_from_
             reconstruction_state.document_states.set(document_state->cross_process_id(), document_state);
     }
 
-    auto target_entry = create_session_history_entry_from_ui_process(move(entry_descriptor), reconstruction_state);
-    auto entry_step_to_install = *target_entry->step_value();
+    RefPtr<SessionHistoryEntry> target_entry;
+    if (auto active_window = navigable.active_window()) {
+        for (auto const& navigation_entry : active_window->navigation()->entries()) {
+            auto& candidate = navigation_entry->session_history_entry();
+            auto candidate_document_state = candidate.document_state();
+            if (candidate.navigation_api_key() == entry_descriptor.navigation_api_key
+                && candidate_document_state
+                && candidate_document_state->cross_process_id() == entry_descriptor.document_state.id) {
+                target_entry = candidate;
+                break;
+            }
+        }
+    }
+    if (!target_entry)
+        target_entry = create_session_history_entry_from_ui_process(move(entry_descriptor), reconstruction_state);
+    auto retained_target_entry = target_entry.release_nonnull();
+    auto entry_step_to_install = *retained_target_entry->step_value();
     for (size_t i = 0; i < local_entries.size(); ++i) {
         auto entry_step = local_entries[i]->step_value();
         if (!entry_step.has_value() || *entry_step > entry_step_to_install) {
-            local_entries.insert(i, target_entry);
-            return target_entry;
+            local_entries.insert(i, retained_target_entry);
+            return retained_target_entry;
         }
         if (*entry_step == entry_step_to_install) {
-            local_entries[i] = target_entry;
-            return target_entry;
+            local_entries[i] = retained_target_entry;
+            return retained_target_entry;
         }
     }
-    local_entries.append(target_entry);
-    return target_entry;
+    local_entries.append(retained_target_entry);
+    return retained_target_entry;
 }
 
 static bool synchronous_same_document_navigation_must_preserve_ongoing_navigation(LocalNavigable const& navigable)
@@ -483,33 +505,32 @@ Optional<SessionHistoryEntryDescriptor> LocalTraversableNavigable::install_histo
 {
     VERIFY(load.load_id != 0);
     VERIFY(load.navigable_id == id());
-    VERIFY(!load.transitional_top_level_entries.is_empty());
-    VERIFY(load.transitional_current_top_level_entry_index < load.transitional_top_level_entries.size());
+    VERIFY(!load.entries_for_navigation_api.is_empty());
 
     auto document = active_document();
     VERIFY(document);
 
-    auto current_entry_index = load.transitional_current_top_level_entry_index;
-    auto const& projected_target = load.transitional_top_level_entries[current_entry_index];
-    VERIFY(session_history_entry_descriptors_match(load.target_entry, projected_target));
+    auto current_entry_index = load.entries_for_navigation_api.find_first_index_if([&](auto const& entry) {
+        return entry.navigation_api_key == load.target_entry.navigation_api_key
+            && entry.document_state.id == load.target_entry.document_state.id;
+    });
+    VERIFY(current_entry_index.has_value());
 
     Optional<SessionHistoryEntryDescriptor> entry_to_restore;
     if (!load.target_entry.document_state.is_provisional)
         entry_to_restore = load.target_entry;
 
     install_top_level_session_history_projection(
-        move(load.transitional_top_level_entries), current_entry_index,
+        move(load.entries_for_navigation_api), *current_entry_index,
         load.target_entry.step);
 
-    auto used_steps = get_all_used_history_steps();
-    VERIFY(used_steps.size() == load.global_history_length);
-    VERIFY(load.global_history_index < used_steps.size());
-    m_current_session_history_step = used_steps[load.global_history_index];
+    VERIFY(load.global_history_index < load.global_history_length);
+    m_current_session_history_step = load.target_entry.step;
     document->history()->m_length = load.global_history_length;
     document->history()->m_index = load.global_history_index;
 
-    auto entries_for_navigation_api = session_history_entries_for_navigation_api_from_ui_process(
-        *this, move(load.entries_for_navigation_api));
+    auto entries_for_navigation_api = get_session_history_entries_for_the_navigation_api(
+        *this, m_current_session_history_step);
     auto active_entry = active_session_history_entry();
     VERIFY(active_entry);
     active_window()->navigation()->initialize_the_navigation_api_entries_for_reconstructed_session_history(
@@ -1394,43 +1415,6 @@ void LocalTraversableNavigable::update_nonchanging_navigable_history_step_state(
     }));
 }
 
-LocalTraversableNavigable::SessionHistorySnapshot LocalTraversableNavigable::create_session_history_snapshot()
-{
-    save_persisted_state_to_active_session_history_entry();
-
-    Vector<SessionHistoryEntryDescriptor> top_level_session_history_entries;
-    top_level_session_history_entries.ensure_capacity(session_history_entries().size());
-    for (auto const& entry : session_history_entries())
-        top_level_session_history_entries.unchecked_append(create_session_history_entry_descriptor(entry));
-
-    auto used_history_steps = get_all_used_history_steps();
-    Vector<i32> used_session_history_steps;
-    used_session_history_steps.ensure_capacity(used_history_steps.size());
-    auto current_session_history_step_for_snapshot = current_session_history_step();
-    if (!used_history_steps.contains_slow(current_session_history_step_for_snapshot)) {
-        // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-the-used-step
-        // NB: The UI process snapshot needs a current item from the used-steps list. While the
-        //     creation/destruction update is reconciling removed child navigables, the traversable's current
-        //     session history step can be a hole. Use the same greatest-used-step <= current step rule here only;
-        //     traversal and back/forward decisions still use the spec's current-step-in-allSteps assertions.
-        current_session_history_step_for_snapshot = get_the_used_step(current_session_history_step_for_snapshot);
-    }
-    Optional<size_t> current_used_step_index;
-    for (size_t i = 0; i < used_history_steps.size(); ++i) {
-        auto step = used_history_steps[i];
-        used_session_history_steps.unchecked_append(static_cast<i32>(step));
-        if (step == current_session_history_step_for_snapshot)
-            current_used_step_index = i;
-    }
-    VERIFY(current_used_step_index.has_value());
-
-    return {
-        .top_level_session_history_entries = move(top_level_session_history_entries),
-        .used_session_history_steps = move(used_session_history_steps),
-        .current_used_step_index = *current_used_step_index,
-    };
-}
-
 class CheckUnloadingCanceledState : public GC::Cell {
     GC_CELL(CheckUnloadingCanceledState, GC::Cell);
     GC_DECLARE_ALLOCATOR(CheckUnloadingCanceledState);
@@ -1962,6 +1946,10 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(u64 o
 
     auto all_steps = get_all_used_history_steps();
     if (!all_steps.contains_slow(target_step)) {
+        if (navigables_crossing_documents.is_empty() && !ongoing_navigation().has<Utf16String>()) {
+            on_complete->function()(HistoryStepResult::Applied);
+            return;
+        }
         // NB: The canonical session history can address a step which is not present in this process's local slice.
         //     The active document tree still gets a chance to cancel unloading before the coordinator resumes the
         //     operation by reconstructing its selected entry.
@@ -2018,7 +2006,7 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(u64 o
         }));
 }
 
-void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, bool synchronous_navigation, LocalNavigable::NavigationAPIAbortBehavior job_navigation_api_abort_behavior, Optional<u64> initiation_id, Vector<SessionHistoryEntryDescriptor> replacement_top_level_entries, size_t replacement_current_top_level_entry_index, i32 replacement_current_step, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete)
+void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, bool synchronous_navigation, LocalNavigable::NavigationAPIAbortBehavior job_navigation_api_abort_behavior, Optional<u64> initiation_id, bool reconstructs_replacement_process, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete)
 {
     auto& operation = m_ui_history_operations.ensure(operation_id);
     operation.navigation_type = navigation_type;
@@ -2054,25 +2042,19 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operat
         on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Skipped);
         return;
     }
-    auto reconstructs_replacement_process = !replacement_top_level_entries.is_empty();
-    if (reconstructs_replacement_process) {
+    if (reconstructs_replacement_process)
         operation.reconstructs_replacement_process = true;
-        VERIFY(navigable->is_top_level_traversable());
-        auto& traversable = as<LocalTraversableNavigable>(*navigable);
-        traversable.install_top_level_session_history_projection(move(replacement_top_level_entries), replacement_current_top_level_entry_index, replacement_current_step);
-
-        auto current_entry = traversable.current_session_history_entry();
-        VERIFY(current_entry);
-        auto current_document_state = current_entry->document_state();
-        VERIFY(current_document_state);
-        if (!current_document_state->nested_histories().is_empty())
-            traversable.m_document_states_under_history_reconstruction.set(current_document_state->cross_process_id());
-    }
     if (!local_target_entry)
         local_target_entry = resolve_changing_navigable_target_entry_from_ui_process(*navigable, move(target_entry));
     if (!local_target_entry) {
         on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale);
         return;
+    }
+    if (reconstructs_replacement_process) {
+        auto target_document_state = local_target_entry->document_state();
+        VERIFY(target_document_state);
+        if (!target_document_state->nested_histories().is_empty())
+            m_document_states_under_history_reconstruction.set(target_document_state->cross_process_id());
     }
 
     auto did_claim_navigable = run_changing_navigable_history_step_job_impl(

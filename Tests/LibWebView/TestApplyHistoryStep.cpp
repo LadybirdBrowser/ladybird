@@ -115,8 +115,7 @@ struct TestTraversable {
     // Two top-level entries; the current entry is the second.
     void with_two_top_level_entries()
     {
-        auto update_result = history.update_from_web_content({ entry(0, "https://a.example/"sv), entry(1, "https://b.example/"sv) }, { 0, 1 }, 1);
-        VERIFY(update_result == WebView::TraversableSessionHistory::UpdateResult::CompleteSnapshot);
+        VERIFY(history.initialize_for_testing({ entry(0, "https://a.example/"sv), entry(1, "https://b.example/"sv) }, { 0, 1 }, 1));
     }
 
     void with_two_same_document_top_level_entries()
@@ -124,15 +123,13 @@ struct TestTraversable {
         auto first_entry = entry(0, "https://a.example/first"sv);
         auto second_entry = entry(1, "https://a.example/second"sv);
         second_entry.document_state.id = first_entry.document_state.id;
-        auto update_result = history.update_from_web_content({ move(first_entry), move(second_entry) }, { 0, 1 }, 1);
-        VERIFY(update_result == WebView::TraversableSessionHistory::UpdateResult::CompleteSnapshot);
+        VERIFY(history.initialize_for_testing({ move(first_entry), move(second_entry) }, { 0, 1 }, 1));
     }
 
     // Three top-level entries; the current entry is the second.
     void with_three_top_level_entries()
     {
-        auto update_result = history.update_from_web_content({ entry(0, "https://a.example/"sv), entry(1, "https://b.example/"sv), entry(2, "https://c.example/"sv) }, { 0, 1, 2 }, 1);
-        VERIFY(update_result == WebView::TraversableSessionHistory::UpdateResult::CompleteSnapshot);
+        VERIFY(history.initialize_for_testing({ entry(0, "https://a.example/"sv), entry(1, "https://b.example/"sv), entry(2, "https://c.example/"sv) }, { 0, 1, 2 }, 1));
     }
 
     // One top-level entry whose document holds a child navigable that has pushed an entry (step 1), followed by a
@@ -145,8 +142,7 @@ struct TestTraversable {
             .id = child_id(),
             .entries = { entry(0, "https://child.example/0"sv), entry(1, "https://child.example/1"sv) },
         });
-        auto update_result = history.update_from_web_content({ move(top0), entry(2, "https://top.example/1"sv) }, { 0, 1, 2 }, 1);
-        VERIFY(update_result == WebView::TraversableSessionHistory::UpdateResult::CompleteSnapshot);
+        VERIFY(history.initialize_for_testing({ move(top0), entry(2, "https://top.example/1"sv) }, { 0, 1, 2 }, 1));
     }
 
     WebView::ApplyHistoryStep& traverse_to_step(i32 step, bool check_for_cancelation = false, Optional<Web::HTML::CrossProcessId> initiator_to_check = {})
