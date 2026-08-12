@@ -319,8 +319,7 @@ impl StyleEngine {
 
 /// Record the rules of every dispatch entry in exactly one of two match sets.
 ///
-/// The sets are small and interned, so an unequal pair is compared entry by entry rather than
-/// assuming a shared canonical order across interners.
+/// Both sets belong to one prefix-state interner, which stores their entries in canonical order.
 pub(super) fn record_match_set_difference(
     changes: &mut SelectorTruthChanges,
     active: bool,
@@ -343,14 +342,13 @@ pub(super) fn record_match_set_difference(
             selector_truth_changed: true,
         });
     };
-    for &entry in old_matches {
-        if !new_matches.contains(&entry) {
-            record(entry, SetChange::Removed);
-        }
-    }
-    for &entry in new_matches {
-        if !old_matches.contains(&entry) {
-            record(entry, SetChange::Added);
+    debug_assert!(old_matches.is_sorted());
+    debug_assert!(new_matches.is_sorted());
+    for entry in merge_sorted_by(old_matches, new_matches, Ord::cmp) {
+        match entry {
+            SortedMergeEntry::Left(&entry) => record(entry, SetChange::Removed),
+            SortedMergeEntry::Right(&entry) => record(entry, SetChange::Added),
+            SortedMergeEntry::Both(_, _) => {}
         }
     }
 }
