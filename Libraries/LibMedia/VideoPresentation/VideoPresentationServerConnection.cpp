@@ -144,12 +144,4 @@ void VideoPresentationServerConnection::notify_sink_resize(u64 edge_id, u32 widt
     it->value.pump->report_remote_resize(Gfx::Size<u32> { width, height });
 }
 
-void VideoPresentationServerConnection::set_sink_ticking(u64 edge_id, bool ticking)
-{
-    auto it = m_edge_states.find(edge_id);
-    if (it == m_edge_states.end())
-        return;
-    PlaybackManager::set_video_sink_ticking(it->value.handle, ticking);
-}
-
 }

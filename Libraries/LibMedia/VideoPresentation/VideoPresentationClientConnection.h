@@ -38,7 +38,6 @@ public:
     // DisplayingVideoSink once it arrives. The edge id correlating the request and reply is allocated and kept here.
     void create_edge(VideoSinkHandle, Function<void(NonnullRefPtr<DisplayingVideoSink>)> on_ready);
     void release_edge(VideoSinkHandle);
-    void set_sink_ticking(VideoSinkHandle, bool ticking);
 
 private:
     virtual void die() override;

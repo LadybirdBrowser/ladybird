@@ -58,7 +58,6 @@ public:
     virtual void request_rendering_update() = 0;
     virtual void create_video_edge(Media::VideoSinkHandle) = 0;
     virtual void release_video_edge(Media::VideoSinkHandle) = 0;
-    virtual void set_video_sink_ticking(Media::VideoSinkHandle, bool ticking) = 0;
 };
 
 class CompositorState final : public RefCounted<CompositorState> {
@@ -91,7 +90,7 @@ public:
     void update_scroll_state(Web::Compositor::CompositorContextId, Web::Painting::ScrollStateSnapshot&&);
     void add_video_sink(CompositorStateWebContentClient&, Media::VideoSinkHandle);
     void remove_video_sink(CompositorStateWebContentClient&, Media::VideoSinkHandle);
-    void set_video_update_flags(CompositorStateWebContentClient&, Media::VideoSinkHandle, Web::Compositor::VideoUpdateFlags);
+    void set_video_sink_ticking(CompositorStateWebContentClient&, Media::VideoSinkHandle, bool should_tick);
     void on_video_sink_ready(CompositorStateWebContentClient&, Media::VideoSinkHandle, NonnullRefPtr<Media::DisplayingVideoSink> const&);
     void invalidate_wheel_event_listener_state(Web::Compositor::CompositorContextId, u64 generation);
     bool handle_mouse_event(Web::Compositor::CompositorContextId, Web::MouseEvent const&);
@@ -149,7 +148,6 @@ private:
     void update_unpainted_video_sinks();
     void schedule_unpainted_video_updates();
     int unpainted_video_update_interval_ms() const;
-    HashMap<CompositorStateWebContentClient*, HashTable<Media::VideoSinkHandle>> const& painted_video_sink_handles_by_client() const;
     void present_contexts_drawing_video_sink(CompositorStateWebContentClient&, Media::VideoSinkHandle);
     bool apply_context_update_result(
         Web::Compositor::CompositorContextId,
@@ -187,18 +185,15 @@ private:
 
     struct VideoSinkState {
         RefPtr<Media::DisplayingVideoSink> sink;
-        Web::Compositor::VideoUpdateFlags update_flags { Web::Compositor::VideoUpdateFlags::None };
-        // Initialized to match PlaybackManager's assumption for a fresh sink, so the first
-        // notification is only sent once this diverges from it.
-        bool ticking { true };
+        bool should_tick { true };
         bool requires_updates { false };
     };
     VideoSinkState* video_sink_state(CompositorStateWebContentClient&, Media::VideoSinkHandle);
-    static bool video_sink_updates_are_admitted(VideoSinkState const&, bool painted);
-    void update_video_sink_ticking_states();
+    static bool video_sink_updates_are_needed(VideoSinkState const&);
+    bool video_sink_is_painted_by_any_context(CompositorStateWebContentClient*, Media::VideoSinkHandle) const;
+    void update_unpainted_video_update_scheduling();
     HashMap<CompositorStateWebContentClient*, HashMap<Media::VideoSinkHandle, VideoSinkState>> m_video_sink_states;
     RefPtr<Core::Timer> m_unpainted_video_update_timer;
-    mutable HashMap<CompositorStateWebContentClient*, HashTable<Media::VideoSinkHandle>> m_painted_video_sink_handles_by_client;
 };
 
 }

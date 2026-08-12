@@ -794,6 +794,13 @@ void Page::for_each_media_element(Callback&& callback)
     }
 }
 
+void Page::sync_media_element_video_sink_ticking()
+{
+    for_each_media_element([&](auto& media_element) {
+        media_element.sync_video_sink_ticking();
+    });
+}
+
 void Page::restore_all_media_element_video_sinks()
 {
     for_each_media_element([&](auto& media_element) {

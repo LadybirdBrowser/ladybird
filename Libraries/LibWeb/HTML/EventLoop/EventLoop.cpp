@@ -527,6 +527,10 @@ void EventLoop::update_the_rendering()
 
         auto now = HighResolutionTime::relative_high_resolution_time(frame_timestamp, relevant_global_object(*document));
         document->run_the_update_intersection_observations_steps(now);
+
+        // AD-HOC: Whether a video sink is ticked depends on whether the element would be painted, which is only known
+        //         once layout is settled, so it is decided here rather than at the points that invalidate it.
+        document->page().sync_media_element_video_sink_ticking();
     }
 
     // FIXME: 20. For each doc of docs, record rendering time for doc given unsafeStyleAndLayoutStartTime.

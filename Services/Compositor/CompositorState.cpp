@@ -94,7 +94,7 @@ void CompositorState::destroy_context(Web::Compositor::CompositorContextId conte
             possible_child_context.set_parent_context({});
     }
     m_contexts.remove(context_id);
-    update_video_sink_ticking_states();
+    update_unpainted_video_update_scheduling();
 }
 
 void CompositorState::set_parent_context(Web::Compositor::CompositorContextId context_id, Optional<Web::Compositor::CompositorContextId> parent_context_id)
@@ -149,7 +149,8 @@ void CompositorState::update_display_list(Web::Compositor::CompositorContextId c
     context->apply_display_list_resource_transaction(move(resource_transaction));
     context->install_display_list_update(move(display_list), move(visual_context_tree), move(scroll_state_snapshot));
     resolve_video_sinks(*context);
-    update_video_sink_ticking_states();
+
+    update_unpainted_video_update_scheduling();
 }
 
 void CompositorState::update_image_frame_resources(Web::Compositor::CompositorContextId context_id, Vector<Web::Painting::DisplayListImageFrameResource> image_frames)
@@ -202,24 +203,23 @@ void CompositorState::remove_video_sink(CompositorStateWebContentClient& client,
     client.release_video_edge(handle);
 }
 
-void CompositorState::set_video_update_flags(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle, Web::Compositor::VideoUpdateFlags update_flags)
+void CompositorState::set_video_sink_ticking(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle, bool should_tick)
 {
     auto* sink_state = video_sink_state(client, handle);
     if (!sink_state)
         return;
-    sink_state->update_flags = update_flags;
-    if (update_flags != Web::Compositor::VideoUpdateFlags::None && sink_state->sink)
+    sink_state->should_tick = should_tick;
+    if (should_tick && sink_state->sink)
         present_contexts_drawing_video_sink(client, handle);
-    update_video_sink_ticking_states();
+    update_unpainted_video_update_scheduling();
 }
 
-bool CompositorState::video_sink_updates_are_admitted(VideoSinkState const& sink_state, bool painted)
+// The client decides this and we apply it, so that the two processes can never disagree about whether a sink is
+// ticked. All we add is that a sink with no edge yet cannot be ticked, which can only delay ticking rather than
+// stop it, and resolves as soon as the edge is created.
+bool CompositorState::video_sink_updates_are_needed(VideoSinkState const& sink_state)
 {
-    if (sink_state.sink == nullptr)
-        return false;
-    if (has_flag(sink_state.update_flags, Web::Compositor::VideoUpdateFlags::Captured))
-        return true;
-    return has_flag(sink_state.update_flags, Web::Compositor::VideoUpdateFlags::Visible) && painted;
+    return sink_state.sink != nullptr && sink_state.should_tick;
 }
 
 void CompositorState::on_video_sink_ready(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle, NonnullRefPtr<Media::DisplayingVideoSink> const& sink)
@@ -236,28 +236,22 @@ void CompositorState::on_video_sink_ready(CompositorStateWebContentClient& clien
             resolve_video_sinks(*context_entry.value);
     }
     present_contexts_drawing_video_sink(client, handle);
-    update_video_sink_ticking_states();
+    update_unpainted_video_update_scheduling();
 }
 
-void CompositorState::update_video_sink_ticking_states()
+void CompositorState::update_unpainted_video_update_scheduling()
 {
-    auto const& painted_by_client = painted_video_sink_handles_by_client();
-    auto any_unpainted_sink_admits_updates = false;
     for (auto& client_entry : m_video_sink_states) {
-        auto client_painted = painted_by_client.get(client_entry.key);
         for (auto& sink_entry : client_entry.value) {
             auto& sink_state = sink_entry.value;
-            auto is_painted = client_painted.has_value() && client_painted->contains(sink_entry.key);
-            auto ticking = video_sink_updates_are_admitted(sink_state, is_painted);
-            any_unpainted_sink_admits_updates |= ticking && !is_painted;
-            if (ticking == sink_state.ticking)
+            if (!video_sink_updates_are_needed(sink_state))
                 continue;
-            sink_state.ticking = ticking;
-            client_entry.key->set_video_sink_ticking(sink_entry.key, ticking);
+            if (!video_sink_is_painted_by_any_context(client_entry.key, sink_entry.key)) {
+                schedule_unpainted_video_updates();
+                return;
+            }
         }
     }
-    if (any_unpainted_sink_admits_updates)
-        schedule_unpainted_video_updates();
 }
 
 void CompositorState::present_contexts_drawing_video_sink(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle)
@@ -285,16 +279,18 @@ void CompositorState::resolve_video_sinks(ContextState& context)
     }
 }
 
-HashMap<CompositorStateWebContentClient*, HashTable<Media::VideoSinkHandle>> const& CompositorState::painted_video_sink_handles_by_client() const
+bool CompositorState::video_sink_is_painted_by_any_context(CompositorStateWebContentClient* client, Media::VideoSinkHandle handle) const
 {
-    m_painted_video_sink_handles_by_client.clear_with_capacity();
     for (auto const& context_entry : m_contexts) {
-        auto& context = *context_entry.value;
-        auto& handles = m_painted_video_sink_handles_by_client.ensure(&context.web_content_client());
-        for (auto const& resource_entry : context.video_sink_handles())
-            handles.set(resource_entry.value);
+        auto const& context = *context_entry.value;
+        if (&context.web_content_client() != client)
+            continue;
+        for (auto const& resource_entry : context.video_sink_handles()) {
+            if (resource_entry.value == handle)
+                return true;
+        }
     }
-    return m_painted_video_sink_handles_by_client;
+    return false;
 }
 
 int CompositorState::unpainted_video_update_interval_ms() const
@@ -325,14 +321,12 @@ void CompositorState::update_unpainted_video_sinks()
 CompositorState::VideoSinkUpdateResult CompositorState::update_all_video_sinks()
 {
     auto now = MonotonicTime::now();
-    auto const& painted_by_client = painted_video_sink_handles_by_client();
     auto result = VideoSinkUpdateResult::NoUnpaintedSinkRequiresUpdates;
     for (auto& client_entry : m_video_sink_states) {
-        auto client_painted = painted_by_client.get(client_entry.key);
         for (auto& sink_entry : client_entry.value) {
             auto& sink_state = sink_entry.value;
-            auto is_painted = client_painted.has_value() && client_painted->contains(sink_entry.key);
-            sink_state.requires_updates = video_sink_updates_are_admitted(sink_state, is_painted)
+            auto is_painted = video_sink_is_painted_by_any_context(client_entry.key, sink_entry.key);
+            sink_state.requires_updates = video_sink_updates_are_needed(sink_state)
                 && sink_state.sink->update(now).may_require_updates;
             if (!is_painted && sink_state.requires_updates)
                 result = VideoSinkUpdateResult::UnpaintedSinkRequiresUpdates;

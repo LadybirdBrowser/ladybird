@@ -48,7 +48,7 @@ public:
     void update_scroll_state(Web::Compositor::CompositorContextId, Web::Painting::ScrollStateSnapshot const&);
     void add_video_sink(Media::VideoSinkHandle);
     void remove_video_sink(Media::VideoSinkHandle);
-    void set_video_update_flags(Media::VideoSinkHandle, Web::Compositor::VideoUpdateFlags);
+    void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick);
     Optional<Web::Painting::CanvasId> create_canvas_2d_context(Gfx::IntSize, bool alpha);
     void update_canvas_2d_stream(Web::Painting::Canvas2DCommandStream&);
     void destroy_canvas_context(Web::Painting::CanvasId);

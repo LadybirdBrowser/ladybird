@@ -173,6 +173,7 @@ public:
     void set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML::VideoTrack> video_track);
 
     void add_current_video_sink();
+    void sync_video_sink_ticking() const;
     void detach_video_sink_edge();
 
     GC::Ref<TextTrack> add_text_track(Bindings::TextTrackKind kind, Utf16View label, Utf16View language);
@@ -285,7 +286,11 @@ private:
     void volume_or_muted_attribute_changed();
     void update_volume();
     void attach_selected_video_track_sink(Media::Track const&);
-    void sync_video_update_flags() const;
+
+    bool video_sink_should_tick() const;
+
+    // Mirrors what PlaybackManager and the compositor were last told; a freshly reserved sink is assumed to tick.
+    mutable bool m_video_sink_is_ticking { true };
     void note_frame_captured() const;
 
     bool is_eligible_for_autoplay() const;

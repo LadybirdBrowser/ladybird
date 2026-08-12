@@ -42,7 +42,6 @@ private:
     virtual void notify_space_available(u64 edge_id) override;
     virtual void notify_sink_status(u64 edge_id, PipelineStatus status, u32 requested_seek_id) override;
     virtual void notify_sink_resize(u64 edge_id, u32 width, u32 height) override;
-    virtual void set_sink_ticking(u64 edge_id, bool ticking) override;
 
     struct EdgeState {
         NonnullRefPtr<RemoteVideoSink> pump;

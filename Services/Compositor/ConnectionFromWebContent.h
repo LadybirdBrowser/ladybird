@@ -41,7 +41,7 @@ private:
     virtual void offer_video_presentation_channel(IPC::TransportHandle handle) override;
     virtual void add_video_sink(Media::VideoSinkHandle) override;
     virtual void remove_video_sink(Media::VideoSinkHandle) override;
-    virtual void set_video_update_flags(Media::VideoSinkHandle, Web::Compositor::VideoUpdateFlags) override;
+    virtual void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick) override;
     virtual void set_parent_context(Web::Compositor::CompositorContextId, Optional<Web::Compositor::CompositorContextId>) override;
     virtual void stop_presenting_to_client(Web::Compositor::CompositorContextId) override;
     virtual void destroy_context(Web::Compositor::CompositorContextId) override;
@@ -76,7 +76,6 @@ private:
     virtual void request_rendering_update() override;
     virtual void create_video_edge(Media::VideoSinkHandle) override;
     virtual void release_video_edge(Media::VideoSinkHandle) override;
-    virtual void set_video_sink_ticking(Media::VideoSinkHandle, bool ticking) override;
     bool context_is_owned_by_this_connection(Web::Compositor::CompositorContextId);
 
     NonnullRefPtr<CompositorState> m_compositor_state;

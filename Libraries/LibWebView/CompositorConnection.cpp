@@ -125,11 +125,11 @@ void CompositorConnection::remove_video_sink(Media::VideoSinkHandle video_sink_h
     async_remove_video_sink(video_sink_handle);
 }
 
-void CompositorConnection::set_video_update_flags(Media::VideoSinkHandle video_sink_handle, Web::Compositor::VideoUpdateFlags flags)
+void CompositorConnection::set_video_sink_ticking(Media::VideoSinkHandle video_sink_handle, bool should_tick)
 {
     if (!can_send_message_to_compositor())
         return;
-    async_set_video_update_flags(video_sink_handle, flags);
+    async_set_video_sink_ticking(video_sink_handle, should_tick);
 }
 
 Optional<Web::Painting::CanvasId> CompositorConnection::create_canvas_2d_context(Gfx::IntSize size, bool alpha)
