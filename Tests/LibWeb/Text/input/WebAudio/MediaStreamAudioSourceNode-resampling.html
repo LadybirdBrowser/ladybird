@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+asyncTest(async done => {
+    const sourceContext = new AudioContext({ sampleRate: 32000 });
+    const sinkContext = new AudioContext({ sampleRate: 44100 });
+    try {
+        const oscillator = new OscillatorNode(sourceContext, { frequency: 1000 });
+        const destination = new MediaStreamAudioDestinationNode(sourceContext, { channelCount: 1 });
+        oscillator.connect(destination);
+        const source = sinkContext.createMediaStreamSource(destination.stream);
+        const analyser = new AnalyserNode(sinkContext, { fftSize: 2048, smoothingTimeConstant: 0 });
+        source.connect(analyser);
+        const silentOutput = new GainNode(sinkContext, { gain: 0 });
+        analyser.connect(silentOutput).connect(sinkContext.destination);
+        oscillator.start();
+        await Promise.all([sourceContext.resume(), sinkContext.resume()]);
+
+        const bins = new Float32Array(analyser.frequencyBinCount);
+        let peakFrequency = 0;
+        for (let attempt = 0; attempt < 50; ++attempt) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            analyser.getFloatFrequencyData(bins);
+            let peak = 0;
+            for (let i = 1; i < bins.length; ++i) {
+                if (bins[i] > bins[peak]) peak = i;
+            }
+            peakFrequency = peak * sinkContext.sampleRate / analyser.fftSize;
+            if (bins[peak] > -40 && Math.abs(peakFrequency - 1000) < 50)
+                break;
+        }
+        println(Math.abs(peakFrequency - 1000) < 50
+            ? "PASS: mono MediaStream preserves tone frequency from 32000 Hz to 44100 Hz"
+            : `FAIL: unexpected tone frequency ${peakFrequency}`);
+        oscillator.stop();
+        destination.stream.getTracks().forEach(track => track.stop());
+    } catch (error) {
+        println(`FAIL: ${error.name}: ${error.message}`);
+    } finally {
+        await Promise.all([sourceContext.close(), sinkContext.close()]);
+        done();
+    }
+});
+</script>

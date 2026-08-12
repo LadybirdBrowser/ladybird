@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/Variant.h>
+#include <LibMedia/Audio/SpscAudioFrameRing.h>
 #include <LibWeb/Bindings/BiquadFilterNode.h>
 #include <LibWeb/Bindings/OscillatorNode.h>
 #include <LibWeb/Bindings/PannerNode.h>
@@ -70,8 +71,17 @@ struct SetPannerParameters {
     double cone_outer_gain { 0 };
 };
 
+// Attaches the ring buffer that carries a MediaStreamTrack's audio into a
+// MediaStreamAudioSourceNode's render node. Shipped as a message rather than a constructor
+// argument so the ring can be replaced without rebuilding the render node.
+struct SetMediaStreamSourceRing {
+    NodeID node_id { 0 };
+    RefPtr<Media::SpscAudioFrameRing> ring;
+    u32 channel_count { 0 };
+};
+
 // A control message that updates the state of a single render node.
-using NodeMessage = Variant<StartSource, StopSource, StartBufferSource, SetBufferSourceParameters, SetOscillatorWaveform, SetBiquadFilterType, SetPannerParameters>;
+using NodeMessage = Variant<StartSource, StopSource, StartBufferSource, SetBufferSourceParameters, SetOscillatorWaveform, SetBiquadFilterType, SetPannerParameters, SetMediaStreamSourceRing>;
 
 inline NodeID node_message_target(NodeMessage const& message)
 {
