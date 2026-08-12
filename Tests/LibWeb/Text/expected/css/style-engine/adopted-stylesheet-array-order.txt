@@ -1,0 +1,4 @@
+document unshift: rgb(2, 2, 2)
+document splice: rgb(3, 3, 3)
+document reverse: rgb(1, 1, 1)
+shadow unshift: rgb(2, 2, 2)

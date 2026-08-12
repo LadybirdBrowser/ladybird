@@ -27,7 +27,7 @@ GC::Ref<WebIDL::ObservableArray> create_adopted_style_sheets_list(Node& document
 {
     auto& realm = document_or_shadow_root.document().relevant_settings_object().realm();
     auto adopted_style_sheets = WebIDL::ObservableArray::create(realm);
-    adopted_style_sheets->set_on_set_an_indexed_value_callback([&document_or_shadow_root](JS::Value& value) -> WebIDL::ExceptionOr<void> {
+    adopted_style_sheets->set_on_set_an_indexed_value_callback([&document_or_shadow_root, adopted_style_sheets](u32 index, JS::Value& value) -> WebIDL::ExceptionOr<void> {
         auto& vm = document_or_shadow_root.vm();
         auto style_sheet = CSS::css_style_sheet_from_value(value);
         if (!style_sheet)
@@ -42,9 +42,13 @@ GC::Ref<WebIDL::ObservableArray> create_adopted_style_sheets_list(Node& document
             return WebIDL::NotAllowedError::create("Sharing a StyleSheet between documents is not allowed."_utf16);
 
         // Adopted sheets are not in any StyleSheetList, so nothing else announces them to the
-        // engine. They cascade after every other author sheet in their scope, which is what naming
-        // no successor asks for.
-        CSS::record_stylesheet_attached(*style_sheet, document_or_shadow_root, nullptr);
+        // engine. Observable array operations can write displaced entries before the insertion
+        // point, so preserve their final order by attaching before the entry currently following
+        // this index.
+        CSS::CSSStyleSheet* before = nullptr;
+        if (auto successor = adopted_style_sheets->indexed_get(index + 1); successor.has_value())
+            before = CSS::css_style_sheet_from_value(successor->value);
+        CSS::record_stylesheet_attached(*style_sheet, document_or_shadow_root, before);
         CSS::Invalidation::invalidate_style_after_adopting_style_sheet(document_or_shadow_root, *style_sheet);
         return {};
     });

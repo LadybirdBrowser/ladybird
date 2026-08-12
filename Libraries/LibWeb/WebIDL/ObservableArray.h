@@ -23,7 +23,7 @@ public:
     virtual JS::ThrowCompletionOr<bool> internal_set(JS::PropertyKey const& property_key, JS::Value value, JS::Value receiver, JS::CacheableSetPropertyMetadata* metadata = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty) override;
     virtual JS::ThrowCompletionOr<bool> internal_delete(JS::PropertyKey const& property_key) override;
 
-    using SetAnIndexedValueCallbackFunction = Function<ExceptionOr<void>(JS::Value&)>;
+    using SetAnIndexedValueCallbackFunction = Function<ExceptionOr<void>(u32 index, JS::Value&)>;
     using DeleteAnIndexedValueCallbackFunction = Function<ExceptionOr<void>(JS::Value)>;
 
     void set_on_set_an_indexed_value_callback(SetAnIndexedValueCallbackFunction&& callback);
