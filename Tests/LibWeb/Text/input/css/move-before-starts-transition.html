@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #item {
+        position: absolute;
+        left: 0;
+        transition: left 10s steps(1, jump-both);
+    }
+    #new-parent #item { left: 400px; --moved: yes; }
+</style>
+<section id="old-parent"><div id="item"></div></section>
+<section id="new-parent"></section>
+<script>
+    test(() => {
+        const item = document.getElementById("item");
+        println(`before=${getComputedStyle(item).left}`);
+        document.getElementById("new-parent").moveBefore(item, null);
+        println(`after=${getComputedStyle(item).left}`);
+        println(`ancestor-selector=${getComputedStyle(item).getPropertyValue("--moved")}`);
+        println(`animations=${item.getAnimations().length}`);
+    });
+</script>
