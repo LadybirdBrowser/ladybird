@@ -3957,10 +3957,10 @@ pub(crate) fn resolve_intrinsic_track_sizes(
     };
     let mut contributions = vec![CssPixels::default(); tracks.len()];
     for item in items {
-        // NB: This step repeats the content-sized track step, but only distributes space to flexible tracks.
-        // For min-content column sizing, the later "Expand Flexible Tracks" step resolves the flex fraction
-        // to zero, so fixed-min flexible columns must not grow from their items' intrinsic width here.
-        // Keep min-content row sizing here so intrinsic-height grids still account for their contents.
+        // NB: This step repeats the content-sized track step, but only distributes space to flexible tracks. For
+        //     min-content column sizing, the later "Expand Flexible Tracks" step resolves the flex fraction to zero, so
+        //     flexible columns must not grow beyond their items' minimum contribution here. Keep min-content row sizing
+        //     here so intrinsic-height grids still account for their contents.
         let mut total_flex = 0.0;
         let mut flexible_count = 0usize;
         let mut non_flexible_space = CssPixels::default();
@@ -3977,9 +3977,9 @@ pub(crate) fn resolve_intrinsic_track_sizes(
         if flexible_count == 0 {
             continue;
         }
-        // If the grid container is being sized under a min- or max-content constraint, use the items' limited
-        // min-content contributions in place of their minimum contributions here.
-        let mut contribution = if available.is_intrinsic_sizing_constraint() {
+        let use_limited_min_content =
+            available == AvailableSize::MaxContent || (row_axis && available == AvailableSize::MinContent);
+        let mut contribution = if use_limited_min_content {
             if total_flex == 0.0 && item.is_scroll_container {
                 // https://drafts.csswg.org/css-grid-2/#min-size-auto
                 // A grid item's automatic minimum size is zero if its computed overflow is a scrollable

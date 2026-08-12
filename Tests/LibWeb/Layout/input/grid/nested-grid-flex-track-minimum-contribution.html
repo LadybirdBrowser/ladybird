@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<style>
+.parent {
+    display: grid;
+    grid-template-columns: 300px;
+}
+.outer {
+    display: grid;
+}
+.inner {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+}
+.middle {
+    display: flex;
+    min-width: 0;
+}
+.content {
+    width: 400px;
+    height: 20px;
+}
+</style>
+<div class="parent">
+    <div class="outer">
+        <div class="inner">
+            <div></div>
+            <div class="middle"><div class="content"></div></div>
+        </div>
+    </div>
+</div>
