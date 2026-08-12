@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    html { font-size: 16px; line-height: 20px; }
+    html.large { font-size: 24px; line-height: 30px; }
+    body { margin: 0; }
+    .absorber { font-size: 16px; line-height: 20px; }
+    .target { margin-left: 2rem; margin-right: 2rlh; }
+    .unshared { padding-left: 1px; }
+</style>
+<div class="absorber"><span id="existing" class="target">existing</span></div>
+<div id="newParent" class="absorber"></div>
+<script>
+    test(() => {
+        getComputedStyle(existing).marginLeft;
+        document.documentElement.classList.add("large");
+
+        const shared = document.createElement("span");
+        shared.className = "target";
+        newParent.appendChild(shared);
+        const unshared = document.createElement("span");
+        unshared.className = "target unshared";
+        newParent.appendChild(unshared);
+
+        println(`existing rem: ${getComputedStyle(existing).marginLeft}`);
+        println(`existing rlh: ${getComputedStyle(existing).marginRight}`);
+        println(`new shared rem: ${getComputedStyle(shared).marginLeft}`);
+        println(`new unshared rem: ${getComputedStyle(unshared).marginLeft}`);
+    });
+</script>
