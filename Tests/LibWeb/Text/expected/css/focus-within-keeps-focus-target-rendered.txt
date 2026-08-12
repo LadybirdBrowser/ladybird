@@ -1,0 +1,4 @@
+before: active=wrapper, target=block
+after: active=target, target=block
+has-focus: active=true, visible=true
+removal: active=true, root=false
