@@ -77,6 +77,7 @@ enum class RootNodeComposed {
 
 #define ENUMERATE_SET_NEEDS_LAYOUT_REASONS(X)         \
     X(CharacterDataReplaceData)                       \
+    X(DefaultPreferredSizeAttributeChange)            \
     X(EditableStateChange)                            \
     X(FinalizeACrossDocumentNavigation)               \
     X(GeneratedContentImageFinishedLoading)           \

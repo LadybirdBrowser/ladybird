@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    input { appearance: none; font-size: 16px; }
+</style>
+<input id="field" type="text" size="10">
+<script>
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const widthBefore = document.getElementById("field").getBoundingClientRect().width;
+        document.getElementById("field").setAttribute("size", "40");
+        const widthAfter = document.getElementById("field").getBoundingClientRect().width;
+
+        println(`grew: ${widthAfter > widthBefore}`);
+        done();
+    });
+</script>
