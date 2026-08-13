@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<style>
+#parent {
+    position: relative;
+    width: 100px;
+    height: 100px;
+}
+#child {
+    width: 20px;
+    height: 20px;
+    margin-inline-start: 10px;
+}
+</style>
+<div id="parent"><div id="child"></div></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const container = document.querySelector('#parent');
+        const target = document.querySelector('#child');
+        target.offsetTop;
+        container.style.writingMode = 'vertical-rl';
+        const style = getComputedStyle(target);
+        println(`margin-top: ${style.marginTop}; margin-left: ${style.marginLeft}`);
+    });
+</script>
