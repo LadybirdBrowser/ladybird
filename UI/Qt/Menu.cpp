@@ -323,8 +323,8 @@ static QAction* create_session_history_traversal_menu_action(QMenu& menu, WebCon
         action->setIcon(icon_from_base64_png(*item.favicon_base64_png, MENU_ICON_SIZE));
     else
         action->setIcon(create_chrome_icon(ChromeIcon::Globe, menu.palette()));
-    QObject::connect(action, &QAction::triggered, &view, [&view, delta = item.delta] {
-        view.traverse_the_history_by_delta(delta);
+    QObject::connect(action, &QAction::triggered, &view, [&view, step = item.step] {
+        view.traverse_the_history_to_step(step);
     });
     return action;
 }

@@ -86,6 +86,7 @@ public:
     void remove(CanonicalNavigable&);
 
     TraversableSessionHistory const& session_history() const { return m_session_history; }
+    Optional<size_t> effective_current_session_history_step_index() const;
 
     Web::HTML::VisibilityState system_visibility_state() const { return m_system_visibility_state; }
     void set_system_visibility_state(Web::HTML::VisibilityState visibility_state) { m_system_visibility_state = visibility_state; }
@@ -130,6 +131,30 @@ private:
     void apply_history_step(HistoryOperation&, i32 step, bool check_for_cancelation, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement, Optional<Web::Bindings::NavigationType>);
     void update_for_navigable_creation_or_destruction(HistoryOperation&);
     void finish_history_operation(u64 operation_id, Web::HTML::HistoryStepResult, Optional<i32> committed_step);
+    HistoryOperation* ongoing_browser_history_traversal();
+
+    struct PendingBrowserHistoryTraversal {
+        enum class Stage : u8 {
+            Queued,
+            Running,
+        };
+
+        u64 generation { 0 };
+        Vector<int> deltas;
+        Optional<i32> target_step;
+        Optional<u64> operation_id;
+        Vector<Function<void()>> on_ready_callbacks;
+        CheckForCancelation check_for_cancelation { CheckForCancelation::Yes };
+        Stage stage { Stage::Queued };
+    };
+    Optional<TraversableSessionHistory::TraversalTarget> browser_traversal_target_for_delta(Optional<i32> base_step, int delta) const;
+    Optional<TraversableSessionHistory::TraversalTarget> pending_browser_history_traversal_target() const;
+    void queue_browser_history_traversal(Optional<i32> target_step, Optional<int> delta, CheckForCancelation, Function<void()> on_ready);
+    void start_pending_browser_history_traversal(u64 generation, NonnullRefPtr<Core::Promise<Empty>>);
+    void supersede_browser_history_traversal_by_delta(HistoryOperation&, int delta, Function<void()> on_ready);
+    void supersede_browser_history_traversal(HistoryOperation&, TraversableSessionHistory::TraversalTarget, Function<void()> on_ready);
+    void run_pending_browser_history_traversal(TraversableSessionHistory::TraversalTarget, NonnullRefPtr<Core::Promise<Empty>>);
+    Function<void()> take_pending_browser_history_traversal_on_ready();
 
     Optional<Web::HTML::CrossProcessId> nested_history_id_for(CanonicalNavigable const&) const;
     void traverse_the_history(TraversableSessionHistory::TraversalTarget const&, CheckForCancelation, Function<void()> on_ready, NonnullRefPtr<Core::Promise<Empty>>);
@@ -142,7 +167,9 @@ private:
     SessionHistoryTraversalQueue m_history_traversal_queue;
     TraversableApplyHistoryStepState m_apply_history_step_traversable_state;
     u64 m_next_history_operation_id { 1 };
+    u64 m_next_pending_browser_history_traversal_generation { 1 };
     HashMap<u64, NonnullOwnPtr<HistoryOperation>> m_history_operations;
+    Optional<PendingBrowserHistoryTraversal> m_pending_browser_history_traversal;
     Web::HTML::VisibilityState m_system_visibility_state { Web::HTML::VisibilityState::Hidden };
 };
 

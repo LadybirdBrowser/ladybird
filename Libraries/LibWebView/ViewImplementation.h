@@ -125,10 +125,10 @@ public:
     void stop_loading();
     bool is_loading() const { return m_is_loading; }
     bool has_uncommitted_top_level_navigation() const { return m_uncommitted_top_level_navigation.has_value(); }
-    void cancel_uncommitted_top_level_navigation_for_browser_traversal();
+    bool cancel_uncommitted_top_level_navigation_for_browser_traversal();
 
     struct SessionHistoryTraversalMenuItem {
-        int delta { 0 };
+        i32 step { 0 };
         String title;
         String url;
         Optional<String> favicon_base64_png;
@@ -488,7 +488,11 @@ protected:
     void dump_session_history(StringView reason, SessionHistoryDumpMode = SessionHistoryDumpMode::IfDebuggingEnabled) const;
     void recover_current_session_history_entry_with_history_operation(Optional<CanonicalTraversable::HistoryJobEndpoint> crashed_endpoint = {});
     void reconstruct_current_session_history_entry_with_history_operation(StringView reason);
-    bool cancel_uncommitted_top_level_navigation(StringView reason, bool stop_loading);
+    enum class ReconstructCanceledNavigation {
+        No,
+        Yes,
+    };
+    bool cancel_uncommitted_top_level_navigation(StringView reason, bool stop_loading, ReconstructCanceledNavigation = ReconstructCanceledNavigation::Yes);
     NonnullRefPtr<Core::Promise<Empty>> reset_session_history_for_testing();
 
     virtual void update_zoom();

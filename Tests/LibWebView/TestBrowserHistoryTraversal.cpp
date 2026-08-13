@@ -56,9 +56,8 @@ void press_history_traversal_key(WebView::ViewImplementation& view, Web::UIEvent
 
 }
 
-// Browser-UI traversals resolve their target at their queue position, so a second Forward requested while one is
-// pending must select the entry after the first Forward's target instead of resolving both requests against the
-// same starting position.
+// Browser-UI traversals resolve their target at their queue position. Presses made before that position compose into
+// one traversal, and a press made while it is loading supersedes its target.
 //
 // The browser's back and forward keys are matched in the UI process once WebContent reports them unhandled, so a
 // page's keydown handler must be able to consume them, and an unconsumed press must traverse the session history.
@@ -114,6 +113,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     view->load(url_d);
     wait_until_at(url_d);
 
+    auto back_menu_items = view->session_history_traversal_menu_items(-1);
+    VERIFY(back_menu_items.size() == 3);
+    VERIFY(back_menu_items[0].step == 2);
+    VERIFY(back_menu_items[1].step == 1);
+    VERIFY(back_menu_items[2].step == 0);
+
     view->traverse_the_history_by_delta(-1);
     wait_until_at(url_c);
     view->traverse_the_history_by_delta(-1);
@@ -121,12 +126,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     view->traverse_the_history_by_delta(-1);
     wait_until_at(url_a);
 
-    // The Back at the start of history has no entry to select. The two Forwards queued behind it must still
-    // compose, the second selecting the entry after the first Forward's target.
+    // The Back at the start of history has no entry to select. The two Forwards behind it still compose, selecting C
+    // in one traversal rather than loading the intermediate entry B.
     view->traverse_the_history_by_delta(-1);
     view->traverse_the_history_by_delta(1);
     view->traverse_the_history_by_delta(1);
-    wait_until_at(url_c, 2);
+    wait_until_at(url_c);
 
     view->traverse_the_history_by_delta(1);
     wait_until_at(url_d);
@@ -141,6 +146,15 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     wait_until_at(url_b);
 
     press_history_traversal_key(*view, Web::UIEvents::KeyCode::Key_Right);
+    wait_until_at(url_c);
+
+    // An absolute target selected from the history menu shares the pending slot with button presses. The Forward
+    // therefore retargets the queued traversal from A to B instead of creating a second operation.
+    view->traverse_the_history_to_step(back_menu_items.last().step);
+    view->traverse_the_history_by_delta(1);
+    wait_until_at(url_b);
+
+    view->traverse_the_history_by_delta(1);
     wait_until_at(url_c);
 
     // A javascript: URL that evaluates without producing a document still terminates the UI-initiated load. Keep its

@@ -512,8 +512,7 @@ void WebContentClient::did_request_new_process_for_child_frame_navigation(u64 pa
     auto const* current_entry = child_frame->top_level_traversable().session_history().get_the_target_history_entry(*child_frame, *current_step);
     VERIFY(current_entry);
 
-    auto remote_process_or_error = Application::the().launch_child_frame_web_content_process(
-        m_is_private, frame_id, current_entry->document_state.id);
+    auto remote_process_or_error = Application::the().launch_child_frame_web_content_process(m_is_private, frame_id, current_entry->document_state.id);
     if (remote_process_or_error.is_error()) {
         warnln("Unable to create WebContent process for child frame navigation: {}", remote_process_or_error.error());
         child_frame->clear_pending_navigation();
@@ -545,8 +544,7 @@ void WebContentClient::did_create_child_frame(u64 page_id, Web::HTML::CrossProce
     if (!host)
         return;
 
-    host->top_level_traversable().insert(
-        *this, page_id, move(parent_frame_id), move(frame_id), move(replicated_state), *host);
+    host->top_level_traversable().insert(*this, page_id, move(parent_frame_id), move(frame_id), move(replicated_state), *host);
 }
 
 void WebContentClient::did_update_child_frame_viewport(u64 page_id, Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio)
@@ -617,8 +615,7 @@ void WebContentClient::maybe_record_history_visit_for_current_load(u64 page_id, 
     m_history_recorded_urls_for_current_load.set(page_id, normalized_url.release_value());
 }
 
-void WebContentClient::did_start_loading(u64 page_id, Optional<Utf16String> navigation_id,
-    URL::URL url, bool is_redirect)
+void WebContentClient::did_start_loading(u64 page_id, Optional<Utf16String> navigation_id, URL::URL url, bool is_redirect)
 {
     if (auto process = WebView::Application::the().find_process(m_process_handle.pid); process.has_value())
         process->set_title(OptionalNone {});
@@ -743,8 +740,7 @@ void WebContentClient::did_fail_download(u64 page_id, u64 download_id, String er
     Application::the().file_downloader().fail_download(download_id, move(error));
 }
 
-void WebContentClient::did_finish_loading(u64 page_id, Optional<Utf16String> navigation_id,
-    URL::URL url)
+void WebContentClient::did_finish_loading(u64 page_id, Optional<Utf16String> navigation_id, URL::URL url)
 {
     if (url.scheme() == "about"sv && url.paths().size() == 1) {
         if (auto web_ui = WebUI::create(*this, page_id, url.paths().first()); web_ui.is_error())
@@ -1892,8 +1888,7 @@ Messages::WebContentClient::DidRequestSiteIsolationProcessTreeForTestingResponse
     return { SiteIsolationManager::the().dump_process_tree(*this, page_id) };
 }
 
-void WebContentClient::did_reset_session_history_for_testing(
-    u64 page_id, Web::HTML::SessionHistoryEntryDescriptor active_entry)
+void WebContentClient::did_reset_session_history_for_testing(u64 page_id, Web::HTML::SessionHistoryEntryDescriptor active_entry)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
         view->did_reset_session_history_for_testing({}, move(active_entry));

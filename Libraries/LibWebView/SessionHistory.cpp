@@ -497,9 +497,8 @@ Optional<i32> TraversableSessionHistory::finalize_same_document_navigation(Canon
 
 Optional<i32> TraversableSessionHistory::finalize_cross_document_navigation(Optional<Web::HTML::CrossProcessId> nested_history_id, Web::HTML::PendingSessionHistoryEntryDescriptor history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key)
 {
-    // AD-HOC: The initial about:blank entry is not reported when the browser
-    // creates its first WebContent process. Its first committed navigation
-    // therefore initializes the canonical history at this queue position.
+    // AD-HOC: The initial about:blank entry is not reported when the browser creates its first WebContent process. Its first
+    // committed navigation therefore initializes the canonical history at this queue position.
     if (!m_current_used_step_index.has_value()) {
         if (nested_history_id.has_value())
             return {};
