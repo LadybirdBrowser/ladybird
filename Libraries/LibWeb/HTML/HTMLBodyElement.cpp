@@ -108,18 +108,15 @@ void HTMLBodyElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
     if (name == HTML::AttributeNames::link) {
         // https://html.spec.whatwg.org/multipage/rendering.html#the-page:rules-for-parsing-a-legacy-colour-value-3
         auto color = parse_legacy_color_value(value.has_value() ? value->utf16_view() : u""sv);
-        if (color.has_value())
-            document().set_normal_link_color(color.value());
+        document().set_normal_link_color(color);
     } else if (name == HTML::AttributeNames::alink) {
         // https://html.spec.whatwg.org/multipage/rendering.html#the-page:rules-for-parsing-a-legacy-colour-value-5
         auto color = parse_legacy_color_value(value.has_value() ? value->utf16_view() : u""sv);
-        if (color.has_value())
-            document().set_active_link_color(color.value());
+        document().set_active_link_color(color);
     } else if (name == HTML::AttributeNames::vlink) {
         // https://html.spec.whatwg.org/multipage/rendering.html#the-page:rules-for-parsing-a-legacy-colour-value-4
         auto color = parse_legacy_color_value(value.has_value() ? value->utf16_view() : u""sv);
-        if (color.has_value())
-            document().set_visited_link_color(color.value());
+        document().set_visited_link_color(color);
     } else if (name == HTML::AttributeNames::background) {
         // https://html.spec.whatwg.org/multipage/rendering.html#the-page:attr-background
         m_background_style_value = nullptr;

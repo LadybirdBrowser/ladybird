@@ -57,6 +57,7 @@
 #include <LibWeb/CSS/Invalidation/AdoptedStyleSheetInvalidator.h>
 #include <LibWeb/CSS/Invalidation/ContainerQueryInvalidator.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
+#include <LibWeb/CSS/Invalidation/LinkInvalidator.h>
 #include <LibWeb/CSS/Invalidation/MediaQueryInvalidator.h>
 #include <LibWeb/CSS/Invalidation/PseudoClassInvalidator.h>
 #include <LibWeb/CSS/MediaQueryList.h>
@@ -2579,19 +2580,28 @@ void Document::update_paint_and_hit_testing_properties_if_needed()
         paintable->refresh_scroll_state();
 }
 
-void Document::set_normal_link_color(Color color)
+void Document::set_normal_link_color(Optional<Color> color)
 {
+    if (m_normal_link_color == color)
+        return;
     m_normal_link_color = color;
+    CSS::Invalidation::invalidate_style_after_legacy_link_color_change(*this);
 }
 
-void Document::set_active_link_color(Color color)
+void Document::set_active_link_color(Optional<Color> color)
 {
+    if (m_active_link_color == color)
+        return;
     m_active_link_color = color;
+    CSS::Invalidation::invalidate_style_after_legacy_link_color_change(*this);
 }
 
-void Document::set_visited_link_color(Color color)
+void Document::set_visited_link_color(Optional<Color> color)
 {
+    if (m_visited_link_color == color)
+        return;
     m_visited_link_color = color;
+    CSS::Invalidation::invalidate_style_after_legacy_link_color_change(*this);
 }
 
 Optional<Vector<Utf16FlyString> const&> Document::supported_color_schemes() const

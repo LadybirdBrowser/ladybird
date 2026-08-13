@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    a { display: block; width: 100px; height: 30px }
+</style>
+<a id="normal-link" href="#normal">normal link</a>
+<a id="active-link" href="#active">active link</a>
+<div id="host"></div>
+<script>
+    test(() => {
+        const normalLink = document.querySelector("#normal-link");
+        const activeLink = document.querySelector("#active-link");
+        const shadowRoot = document.querySelector("#host").attachShadow({ mode: "open" });
+        const shadowLink = document.createElement("a");
+        shadowLink.href = "#shadow";
+        shadowLink.textContent = "shadow link";
+        shadowRoot.appendChild(shadowLink);
+
+        getComputedStyle(normalLink).color;
+        getComputedStyle(shadowLink).color;
+        document.body.setAttribute("link", "rgb(1,2,3)");
+        println(`normal after change: ${getComputedStyle(normalLink).color}`);
+        println(`shadow after change: ${getComputedStyle(shadowLink).color}`);
+
+        document.body.removeAttribute("link");
+        println(`normal after removal: ${getComputedStyle(normalLink).color}`);
+
+        document.body.setAttribute("alink", "rgb(4,5,6)");
+        const rect = activeLink.getBoundingClientRect();
+        internals.mouseDown(rect.x + rect.width / 2, rect.y + rect.height / 2);
+        println(`active before change: ${getComputedStyle(activeLink).color}`);
+
+        document.body.setAttribute("alink", "rgb(7,8,9)");
+        println(`active after change: ${getComputedStyle(activeLink).color}`);
+        document.body.removeAttribute("alink");
+        println(`active after removal: ${getComputedStyle(activeLink).color}`);
+        internals.mouseUp(rect.x + rect.width / 2, rect.y + rect.height / 2);
+    });
+</script>
