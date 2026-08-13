@@ -193,8 +193,13 @@ static void record_style_engine_reaction(HashMap<u32, StyleEngine::PublishedStyl
     if (reaction == 0 || element.style_node_id() == 0)
         return;
     if (auto pending_reaction = reaction_batch.find(element.style_node_id().value()); pending_reaction != reaction_batch.end()) {
-        pending_reaction->value->reaction |= reaction;
-        pending_reaction->value->inherited_style_groups |= inherited_style_groups;
+        auto& pending = *pending_reaction->value;
+        if (!StyleEngine::published_style_delta_can_absorb_reaction(pending, reaction, inherited_style_groups)) {
+            element.document().style_computer().style_engine().record_element_style_input_change(element.style_node_id(), reaction, inherited_style_groups);
+            return;
+        }
+        pending.reaction |= reaction;
+        pending.inherited_style_groups |= inherited_style_groups;
         return;
     }
     element.document().style_computer().style_engine().record_element_style_input_change(element.style_node_id(), reaction, inherited_style_groups);

@@ -16,6 +16,15 @@ static_assert(!IsMoveAssignable<StyleEngine>);
 
 #include <LibWeb/StyleEngineBridgeGenerated.inc>
 
+bool StyleEngine::published_style_delta_can_absorb_reaction(PublishedStyleDelta const& delta, u8 reaction, u8 inherited_style_groups)
+{
+    if (delta.gap == StyleEngineFFI::FfiStyleDeltaGap::Materialize)
+        return true;
+    bool const has_additional_reaction = (reaction & ~delta.reaction) != 0;
+    bool const has_additional_inherited_style_groups = (inherited_style_groups & ~delta.inherited_style_groups) != 0;
+    return !has_additional_reaction && !has_additional_inherited_style_groups;
+}
+
 StyleEngine::StyleEngine(DeviceClass device_class, StyleComputer* style_computer)
     : m_impl(StyleEngineFFI::style_engine_create(device_class))
     , m_style_computer(style_computer)
