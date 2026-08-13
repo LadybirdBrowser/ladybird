@@ -1098,6 +1098,11 @@ static void publish_document_kind(DOM::Document& document)
             : 0);
 }
 
+void record_document_kind(DOM::Document& document)
+{
+    publish_document_kind(document);
+}
+
 // Walks a sheet's rules and compiles every style rule's selector list into the program.
 //
 // The parser has already produced a compiled selector for the matching engine, so this hands over

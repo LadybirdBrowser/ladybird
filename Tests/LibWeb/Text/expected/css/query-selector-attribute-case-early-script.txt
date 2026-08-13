@@ -1,0 +1,3 @@
+early connected [viewBox]: 2 (want 2)
+early connected [viewbox]: 1 (want 1)
+early connected [VIEWBOX]: 1 (want 1)

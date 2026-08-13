@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script>
+    // Compile and run a selector query before any style sheet has attached, so the engine cannot
+    // have learned from a sheet that this is an HTML document. The mixed-case attribute name in the
+    // selector must still match HTML elements case-insensitively and SVG elements case-sensitively.
+    globalThis.earlyResults = (() => {
+        const container = document.createElement("div");
+        const htmlChild = document.createElement("div");
+        htmlChild.setAttribute("viewBox", "html-val");
+        const svgChild = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svgChild.setAttribute("viewBox", "svg-val");
+        container.appendChild(htmlChild);
+        container.appendChild(svgChild);
+        document.documentElement.appendChild(container);
+        const results = [
+            "early connected [viewBox]: " + container.querySelectorAll("[viewBox]").length + " (want 2)",
+            "early connected [viewbox]: " + container.querySelectorAll("[viewbox]").length + " (want 1)",
+            "early connected [VIEWBOX]: " + container.querySelectorAll("[VIEWBOX]").length + " (want 1)",
+        ];
+        container.remove();
+        return results;
+    })();
+</script>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const line of globalThis.earlyResults)
+            println(line);
+    });
+</script>
