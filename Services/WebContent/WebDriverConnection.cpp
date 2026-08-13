@@ -89,15 +89,6 @@
 
 namespace WebContent {
 
-struct WebDriverHistoryTraversalMetadata
-    : public RefCounted<WebDriverHistoryTraversalMetadata> {
-    Web::WebDriver::Response response { JsonValue {} };
-    bool will_replace_web_content_process { false };
-    bool wait_for_driver_execution_complete { true };
-    bool wait_for_navigation_completion { true };
-    bool sync_response_returned { false };
-};
-
 #define WEBDRIVER_TRY(expression)                                                                    \
     ({                                                                                               \
         /* Ignore -Wshadow to allow nesting the macro. */                                            \
@@ -441,31 +432,22 @@ Messages::WebDriverClient::BackResponse WebDriverConnection::back()
 {
     // 1. If session's current top-level browsing context is no longer open, return error with error code no such window.
     if (auto result = ensure_current_top_level_browsing_context_is_open(); result.is_error())
-        return { Web::WebDriver::Response { result.release_error() }, false, false, false };
+        return Web::WebDriver::Response { result.release_error() };
 
     // 2. Try to handle any user prompts with session.
-    auto metadata = adopt_ref(*new WebDriverHistoryTraversalMetadata);
-    handle_any_user_prompts([this, metadata]() {
+    handle_any_user_prompts([this]() {
         auto& page_client = static_cast<WebContent::PageClient&>(current_top_level_browsing_context()->page().client());
-        page_client.request_webdriver_history_traversal(-1, [this, metadata](auto traversal_result) {
+        page_client.request_webdriver_history_traversal(-1, [this](auto traversal_result) {
             if (!traversal_result.accepted) {
                 async_driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
                 return;
             }
 
-            metadata->will_replace_web_content_process = traversal_result.will_replace_web_content_process;
-            metadata->wait_for_navigation_completion = true;
-            if (metadata->will_replace_web_content_process)
-                async_did_start_window_replacement(current_top_level_browsing_context()->page().top_level_traversable()->window_handle().to_utf8());
-            if (metadata->sync_response_returned)
-                async_driver_execution_complete(JsonValue {});
-            else
-                metadata->wait_for_driver_execution_complete = false;
+            async_driver_execution_complete(JsonValue {});
         });
     });
 
-    metadata->sync_response_returned = true;
-    return { move(metadata->response), metadata->will_replace_web_content_process, metadata->wait_for_driver_execution_complete, metadata->wait_for_navigation_completion };
+    return JsonValue {};
 }
 
 // 10.4 Forward, https://w3c.github.io/webdriver/#dfn-forward
@@ -473,31 +455,22 @@ Messages::WebDriverClient::ForwardResponse WebDriverConnection::forward()
 {
     // 1. If session's current top-level browsing context is no longer open, return error with error code no such window.
     if (auto result = ensure_current_top_level_browsing_context_is_open(); result.is_error())
-        return { Web::WebDriver::Response { result.release_error() }, false, false, false };
+        return Web::WebDriver::Response { result.release_error() };
 
     // 2. Try to handle any user prompts with session.
-    auto metadata = adopt_ref(*new WebDriverHistoryTraversalMetadata);
-    handle_any_user_prompts([this, metadata]() {
+    handle_any_user_prompts([this]() {
         auto& page_client = static_cast<WebContent::PageClient&>(current_top_level_browsing_context()->page().client());
-        page_client.request_webdriver_history_traversal(1, [this, metadata](auto traversal_result) {
+        page_client.request_webdriver_history_traversal(1, [this](auto traversal_result) {
             if (!traversal_result.accepted) {
                 async_driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
                 return;
             }
 
-            metadata->will_replace_web_content_process = traversal_result.will_replace_web_content_process;
-            metadata->wait_for_navigation_completion = true;
-            if (metadata->will_replace_web_content_process)
-                async_did_start_window_replacement(current_top_level_browsing_context()->page().top_level_traversable()->window_handle().to_utf8());
-            if (metadata->sync_response_returned)
-                async_driver_execution_complete(JsonValue {});
-            else
-                metadata->wait_for_driver_execution_complete = false;
+            async_driver_execution_complete(JsonValue {});
         });
     });
 
-    metadata->sync_response_returned = true;
-    return { move(metadata->response), metadata->will_replace_web_content_process, metadata->wait_for_driver_execution_complete, metadata->wait_for_navigation_completion };
+    return JsonValue {};
 }
 
 // 10.5 Refresh, https://w3c.github.io/webdriver/#dfn-refresh
@@ -584,13 +557,7 @@ Messages::WebDriverClient::TraverseHistoryFromUiResponse WebDriverConnection::tr
             return;
         }
 
-        if (traversal_result.will_replace_web_content_process)
-            async_did_start_window_replacement(current_top_level_browsing_context()->page().top_level_traversable()->window_handle().to_utf8());
-
-        JsonObject result;
-        result.set("willReplaceWebContentProcess"sv, traversal_result.will_replace_web_content_process);
-        result.set("willChangeTopLevelEntry"sv, traversal_result.will_change_top_level_entry);
-        async_driver_execution_complete(JsonValue { move(result) });
+        async_driver_execution_complete(JsonValue {});
     });
     return JsonValue {};
 }

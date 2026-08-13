@@ -217,10 +217,10 @@ void ConnectionFromClient::complete_webdriver_navigation_completion(u64 page_id,
         page->did_complete_webdriver_navigation_completion(request_id, move(response));
 }
 
-void ConnectionFromClient::complete_webdriver_history_traversal(u64 page_id, u64 request_id, bool accepted, bool will_replace_web_content_process, bool will_change_top_level_entry)
+void ConnectionFromClient::complete_webdriver_history_traversal(u64 page_id, u64 request_id, bool accepted)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->did_complete_webdriver_history_traversal(request_id, accepted, will_replace_web_content_process, will_change_top_level_entry);
+        page->did_complete_webdriver_history_traversal(request_id, accepted);
 }
 
 void ConnectionFromClient::connect_to_web_ui(u64 page_id, IPC::TransportHandle handle)

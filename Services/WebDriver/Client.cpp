@@ -11,7 +11,6 @@
 #include <AK/Debug.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
-#include <AK/ScopeGuard.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
 #include <LibWeb/WebDriver/Capabilities.h>
@@ -21,31 +20,6 @@
 #include <WebDriver/Session.h>
 
 namespace WebDriver {
-
-template<typename StartTraversal>
-static Web::WebDriver::Response perform_history_traversal(Session& session, StartTraversal start_traversal, bool& wait_for_navigation_completion)
-{
-    Optional<Web::WebDriver::Response> response;
-    RefPtr<WebContentConnection> connection { &session.web_content_connection() };
-
-    ScopeGuard guard { [&]() { connection->on_driver_execution_complete = nullptr; } };
-    connection->on_driver_execution_complete = [&](auto result) { response = move(result); };
-
-    auto traversal_response = start_traversal(*connection);
-    auto immediate_response = TRY(traversal_response.take_response());
-    wait_for_navigation_completion = traversal_response.wait_for_navigation_completion();
-    if (traversal_response.will_replace_web_content_process())
-        session.mark_current_window_as_awaiting_replacement(*connection);
-
-    if (!traversal_response.wait_for_driver_execution_complete())
-        return immediate_response;
-
-    Core::EventLoop::current().spin_until([&]() {
-        return response.has_value();
-    });
-
-    return TRY(response.release_value());
-}
 
 static ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error>
 find_session_with_ladybird_test_hooks(Web::WebDriver::Parameters const& parameters)
@@ -230,15 +204,14 @@ Web::WebDriver::Response Client::back(Web::WebDriver::Parameters parameters, Jso
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/back");
     auto session = TRY(Session::find_session(parameters[0]));
 
-    bool wait_for_navigation_completion = true;
-    auto response = TRY(perform_history_traversal(*session, [&](auto& connection) { return connection.back(); }, wait_for_navigation_completion));
+    auto response = TRY(session->perform_async_action(
+        [&](auto& connection) { return connection.back(); },
+        Session::WebContentReplacement::Allow));
     TRY(session->wait_for_current_window_to_have_web_content_connection());
-    if (wait_for_navigation_completion) {
-        response = TRY(session->perform_async_action([&](auto& connection) {
-            return connection.wait_for_navigation_completion();
-        }));
-        TRY(session->wait_for_current_window_to_have_web_content_connection());
-    }
+    response = TRY(session->perform_async_action(
+        [&](auto& connection) { return connection.wait_for_navigation_completion(); },
+        Session::WebContentReplacement::Allow));
+    TRY(session->wait_for_current_window_to_have_web_content_connection());
     return response;
 }
 
@@ -249,15 +222,14 @@ Web::WebDriver::Response Client::forward(Web::WebDriver::Parameters parameters, 
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/forward");
     auto session = TRY(Session::find_session(parameters[0]));
 
-    bool wait_for_navigation_completion = true;
-    auto response = TRY(perform_history_traversal(*session, [&](auto& connection) { return connection.forward(); }, wait_for_navigation_completion));
+    auto response = TRY(session->perform_async_action(
+        [&](auto& connection) { return connection.forward(); },
+        Session::WebContentReplacement::Allow));
     TRY(session->wait_for_current_window_to_have_web_content_connection());
-    if (wait_for_navigation_completion) {
-        response = TRY(session->perform_async_action([&](auto& connection) {
-            return connection.wait_for_navigation_completion();
-        }));
-        TRY(session->wait_for_current_window_to_have_web_content_connection());
-    }
+    response = TRY(session->perform_async_action(
+        [&](auto& connection) { return connection.wait_for_navigation_completion(); },
+        Session::WebContentReplacement::Allow));
+    TRY(session->wait_for_current_window_to_have_web_content_connection());
     return response;
 }
 
@@ -339,12 +311,9 @@ Web::WebDriver::Response Client::traverse_history_from_ui(Web::WebDriver::Parame
     if (payload.is_object())
         wait_for_navigation_completion = payload.as_object().get_bool("waitForNavigationCompletion"sv).value_or(true);
 
-    RefPtr previous_connection { &session->web_content_connection() };
-    auto response = TRY(session->perform_async_action([&](auto& connection) {
-        return connection.traverse_history_from_ui(move(payload));
-    }));
-    if (response.is_object() && response.as_object().get_bool("willReplaceWebContentProcess"sv).value_or(false))
-        session->mark_current_window_as_awaiting_replacement(*previous_connection);
+    auto response = TRY(session->perform_async_action(
+        [&](auto& connection) { return connection.traverse_history_from_ui(move(payload)); },
+        Session::WebContentReplacement::Allow));
 
     TRY(session->wait_for_current_window_to_have_web_content_connection());
     if (!wait_for_navigation_completion)

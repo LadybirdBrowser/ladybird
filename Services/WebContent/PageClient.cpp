@@ -259,8 +259,13 @@ void PageClient::request_new_process_for_navigation(URL::URL const& url, Web::HT
 
 void PageClient::notify_webdriver_of_window_replacement()
 {
-    if (m_webdriver)
+    if (m_webdriver) {
         m_webdriver->page_did_start_window_replacement({}, page().top_level_traversable()->window_handle().to_utf8());
+
+        auto pending_history_traversals = move(m_pending_webdriver_history_traversal_requests);
+        for (auto& request : pending_history_traversals)
+            request.value({ .accepted = true });
+    }
 }
 
 void PageClient::close_webdriver_connection_after_sending_pending_messages()
@@ -1240,7 +1245,7 @@ void PageClient::request_webdriver_history_traversal(int delta, Function<void(We
     client().async_did_request_webdriver_history_traversal(m_id, request_id, delta);
 }
 
-void PageClient::did_complete_webdriver_history_traversal(u64 request_id, bool accepted, bool will_replace_web_content_process, bool will_change_top_level_entry)
+void PageClient::did_complete_webdriver_history_traversal(u64 request_id, bool accepted)
 {
     auto maybe_callback = m_pending_webdriver_history_traversal_requests.take(request_id);
     if (!maybe_callback.has_value())
@@ -1248,8 +1253,6 @@ void PageClient::did_complete_webdriver_history_traversal(u64 request_id, bool a
 
     maybe_callback.value()(WebDriverHistoryTraversalResult {
         .accepted = accepted,
-        .will_replace_web_content_process = will_replace_web_content_process,
-        .will_change_top_level_entry = will_change_top_level_entry,
     });
 }
 
