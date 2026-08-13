@@ -252,7 +252,7 @@ Wasm::HostFunction create_host_function(JS::Realm& realm, JS::FunctionObject& fu
     return Wasm::HostFunction {
         [&realm, &function, &type](auto&, auto arguments) -> Wasm::Result {
             auto& vm = realm.vm();
-            GC::RootVector<JS::Value> argument_values;
+            GC::RootVector<JS::Value, Wasm::ArgumentsStaticSize> argument_values;
             size_t index = 0;
             for (auto& entry : arguments) {
                 argument_values.append(to_js_value(realm, entry, type.parameters()[index]));
@@ -261,10 +261,10 @@ Wasm::HostFunction create_host_function(JS::Realm& realm, JS::FunctionObject& fu
 
             auto result = TRY_OR_RETURN_TRAP(JS::call(vm, function, JS::js_undefined(), argument_values.span()));
             if (type.results().is_empty())
-                return Wasm::Result { Vector<Wasm::Value> {} };
+                return Wasm::Result { Vector<Wasm::Value, Wasm::ResultsStaticSize> {} };
 
             if (type.results().size() == 1)
-                return Wasm::Result { Vector<Wasm::Value> { TRY_OR_RETURN_TRAP(to_webassembly_value(realm, result, type.results().first())) } };
+                return Wasm::Result { Vector<Wasm::Value, Wasm::ResultsStaticSize> { TRY_OR_RETURN_TRAP(to_webassembly_value(realm, result, type.results().first())) } };
 
             auto method = TRY_OR_RETURN_TRAP(result.get_method(vm, vm.names.iterator));
             if (!method)
@@ -275,7 +275,7 @@ Wasm::HostFunction create_host_function(JS::Realm& realm, JS::FunctionObject& fu
             if (values.size() != type.results().size())
                 return Wasm::Trap::from_external_object(vm.throw_completion<JS::TypeError>(Utf16String::formatted("Invalid number of return values for multi-value wasm return of {} objects", type.results().size())));
 
-            Vector<Wasm::Value> wasm_values;
+            Vector<Wasm::Value, Wasm::ResultsStaticSize> wasm_values;
             TRY_OR_RETURN_OOM_TRAP(vm, wasm_values.try_ensure_capacity(values.size()));
 
             size_t i = 0;
@@ -761,7 +761,7 @@ GC::Ptr<JS::NativeFunction> create_native_function(JS::Realm& realm, Wasm::Funct
         length,
         [address, type = move(type), instance, realm = GC::Ref(realm)](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
             (void)instance;
-            Vector<Wasm::Value> values;
+            Vector<Wasm::Value, Wasm::ArgumentsStaticSize> values;
             values.ensure_capacity(type.parameters().size());
 
             // Grab as many values as needed and convert them.
