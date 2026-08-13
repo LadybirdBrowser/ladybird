@@ -2010,9 +2010,10 @@ impl StyleEngine {
         let (state, delta) =
             self.with_cascade_interning_counters(|groups| groups.apply_property_updates(previous, &updates));
         self.winner_groups.set(node, state, self.program.version());
-        if self.winner_groups.settle_memory(&mut self.memory) {
-            self.counters.bump(Counter::CascadeNodeHandlesPublished);
+        if !self.winner_groups.settle_memory(&mut self.memory) {
+            return None;
         }
+        self.counters.bump(Counter::CascadeNodeHandlesPublished);
 
         let mut winning_rules: Vec<RuleID> = self
             .winner_groups
