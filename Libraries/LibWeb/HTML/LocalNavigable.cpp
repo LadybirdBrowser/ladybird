@@ -687,26 +687,6 @@ Vector<NonnullRefPtr<SessionHistoryEntry>>* append_nested_history_for_child_navi
     return &parent_doc_state->nested_histories().last().entries;
 }
 
-static Vector<NonnullRefPtr<SessionHistoryEntry>>*
-recreate_missing_nested_history_for_live_child_navigable(LocalTraversableNavigable& traversable, LocalNavigable& navigable)
-{
-    VERIFY(&navigable != &traversable);
-
-    auto parent = navigable.parent();
-    if (!parent)
-        return nullptr;
-
-    auto container = navigable.container();
-    if (!container || container->content_navigable().ptr() != &navigable)
-        return nullptr;
-
-    auto history_entry = navigable.active_session_history_entry();
-    if (!history_entry)
-        return nullptr;
-
-    return append_nested_history_for_child_navigable(as<LocalNavigable>(*parent), navigable, *history_entry);
-}
-
 // https://html.spec.whatwg.org/multipage/document-sequences.html#child-navigable
 Vector<GC::Root<LocalNavigable>> LocalNavigable::child_navigables() const
 {
@@ -3557,7 +3537,7 @@ TargetSnapshotParams LocalNavigable::snapshot_target_snapshot_params()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
-static Optional<Web::CrossDocumentNavigationFinalization> finalize_a_cross_document_navigation_at_queued_position(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> const& expected_ongoing_navigation_id, u64 initiation_id, Optional<SessionHistoryEntryDescriptor> entry_to_restore)
+static Optional<Web::CrossDocumentNavigationFinalization> finalize_a_cross_document_navigation_at_queued_position(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> const& expected_ongoing_navigation_id, Optional<SessionHistoryEntryDescriptor> entry_to_restore)
 {
     // NOTE: This is not in the spec but we should not navigate destroyed navigable.
     if (navigable->has_been_destroyed()) {
@@ -3624,99 +3604,8 @@ static Optional<Web::CrossDocumentNavigationFinalization> finalize_a_cross_docum
     if (entry_to_restore.has_value())
         traversable->restore_session_history_entry_from_ui_process(*navigable, *history_entry, entry_to_restore.release_value());
 
-    // 7. Let targetStep be null.
-    int target_step;
-
-    // 8. Let targetEntries be the result of getting session history entries for navigable.
-    Vector<NonnullRefPtr<SessionHistoryEntry>>* target_entries_pointer = nullptr;
-    if (navigable.ptr() == traversable.ptr()) {
-        target_entries_pointer = &traversable->session_history_entries();
-    } else {
-        target_entries_pointer = get_session_history_entries_if_present(*traversable, navigable);
-        // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-session-history-entries
-        // AD-HOC: The spec asserts that targetEntries is not null. A queued child-frame commit can run after the
-        //         iframe was removed and its nested history list was pruned from the parent document state. Chromium,
-        //         WebKit, and Gecko bind child-frame commits to the live frame, so detached frames have no observable
-        //         session history effect. Conversely, if this is still the container's live content navigable,
-        //         preserve the requested navigation by recreating the missing nested history.
-        if (!target_entries_pointer) {
-            target_entries_pointer = recreate_missing_nested_history_for_live_child_navigable(*traversable, *navigable);
-            if (!target_entries_pointer) {
-                navigable->clear_navigation_load_event_guard();
-                return {};
-            }
-        }
-    }
-    auto& target_entries = *target_entries_pointer;
-
-    // 9. If entryToReplace is null, then:
-    if (entry_to_replace == nullptr) {
-        // 1. Clear the forward session history of traversable.
-        traversable->clear_the_forward_session_history();
-
-        // 2. Set targetStep to traversable's current session history step + 1.
-        // AD-HOC: The UI process owns the session history traversal queue and assigns the equivalent canonical
-        //         target step before running these queued finalization steps.
-        target_step = traversable->ui_history_operation_target_step(initiation_id);
-
-        // 3. Set historyEntry's step to targetStep.
-        history_entry->set_step(target_step);
-
-        // 4. Append historyEntry to targetEntries.
-        target_entries.append(history_entry);
-    } else {
-        // 1. Replace entryToReplace with historyEntry in targetEntries.
-        auto entry_to_replace_iterator = target_entries.find(*entry_to_replace);
-        if (entry_to_replace_iterator == target_entries.end()) {
-            if (!navigable->active_document()->is_initial_about_blank()) {
-                // AD-HOC: A non-initial document whose entryToReplace is no longer in targetEntries is the same
-                //         stale child-frame commit case as above.
-                navigable->clear_navigation_load_event_guard();
-                return {};
-            }
-
-            // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-child-navigable
-            // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
-            // AD-HOC: Initial about:blank's first real navigation is a replacement. If a synchronous
-            //         same-document history update swapped out the original entry object before the queued
-            //         cross-document commit runs, replace the remaining initial child entry instead.
-            Optional<size_t> entry_to_replace_index;
-            for (size_t i = 0; i < target_entries.size(); ++i) {
-                if (target_entries[i]->step() == entry_to_replace->step()) {
-                    entry_to_replace_index = i;
-                    break;
-                }
-            }
-            if (!entry_to_replace_index.has_value() && target_entries.size() == 1)
-                entry_to_replace_index = 0;
-            if (!entry_to_replace_index.has_value()) {
-                navigable->clear_navigation_load_event_guard();
-                return {};
-            }
-
-            auto replacement_entry = target_entries[*entry_to_replace_index];
-            target_entries[*entry_to_replace_index] = history_entry;
-            history_entry->set_step(replacement_entry->step());
-        } else {
-            *entry_to_replace_iterator = history_entry;
-
-            // 2. Set historyEntry's step to entryToReplace's step.
-            history_entry->set_step(entry_to_replace->step());
-        }
-
-        // 3. If historyEntry's document state's origin is same origin with entryToReplace's document state's origin,
-        //    then set historyEntry's navigation API key to entryToReplace's navigation API key.
-        if (history_entry->document_state()->origin().has_value() && entry_to_replace->document_state()->origin().has_value() && history_entry->document_state()->origin()->is_same_origin(*entry_to_replace->document_state()->origin())) {
-            history_entry->set_navigation_api_key(entry_to_replace->navigation_api_key());
-        }
-
-        // 4. Set targetStep to traversable's current session history step.
-        // AD-HOC: Use the canonical step assigned by the UI process at this operation's queue position.
-        target_step = traversable->ui_history_operation_target_step(initiation_id);
-    }
-
     return Web::CrossDocumentNavigationFinalization {
-        .history_entry = create_session_history_entry_descriptor(*history_entry),
+        .history_entry = create_pending_session_history_entry_descriptor(*history_entry),
         .entry_to_replace_navigation_api_key = move(entry_to_replace_navigation_api_key),
     };
 }
@@ -3738,8 +3627,8 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             .expected_ongoing_navigation_id = expected_ongoing_navigation_id,
             .local_target_navigable_id = navigable->id(),
             .local_target_entry = history_entry,
-            .pre_steps = GC::create_function(navigable->heap(), [navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id = move(expected_ongoing_navigation_id), entry_to_restore = move(entry_to_restore)](u64 initiation_id, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) mutable {
-                auto finalization = finalize_a_cross_document_navigation_at_queued_position(navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id, initiation_id, move(entry_to_restore));
+            .pre_steps = GC::create_function(navigable->heap(), [navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id = move(expected_ongoing_navigation_id), entry_to_restore = move(entry_to_restore)](u64, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) mutable {
+                auto finalization = finalize_a_cross_document_navigation_at_queued_position(navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id, move(entry_to_restore));
                 if (!finalization.has_value()) {
                     ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
                     return;

@@ -52,6 +52,20 @@ static Web::HTML::SessionHistoryEntryDescriptor entry(i32 step, StringView url)
     };
 }
 
+static Web::HTML::PendingSessionHistoryEntryDescriptor pending_entry(Web::HTML::SessionHistoryEntryDescriptor entry)
+{
+    return {
+        .url = move(entry.url),
+        .document_state = move(entry.document_state),
+        .classic_history_api_state = move(entry.classic_history_api_state),
+        .navigation_api_state = move(entry.navigation_api_state),
+        .navigation_api_key = move(entry.navigation_api_key),
+        .navigation_api_id = move(entry.navigation_api_id),
+        .scroll_restoration_mode = entry.scroll_restoration_mode,
+        .scroll_position_data = move(entry.scroll_position_data),
+    };
+}
+
 namespace {
 
 class FakeJobRunner {
@@ -161,14 +175,14 @@ struct TestTraversable {
         initialize_navigable_entry_identities();
 
         auto replacement_entry = entry(0, "https://b.example/"sv);
-        VERIFY(history.finalize_cross_document_navigation({}, move(replacement_entry), initial_entry.navigation_api_key));
+        VERIFY(history.finalize_cross_document_navigation({}, pending_entry(move(replacement_entry)), initial_entry.navigation_api_key).has_value());
     }
 
     WebView::ApplyHistoryStep& apply_step(i32 step, Optional<Web::Bindings::NavigationType> navigation_type, bool check_for_cancelation = false, Optional<Web::HTML::CrossProcessId> initiator_to_check = {})
     {
         operation = make<WebView::ApplyHistoryStep>(history, traversable, queue, state, runner.jobs(), step,
             check_for_cancelation, initiator_to_check, Web::HTML::UserNavigationInvolvement::BrowserUI,
-            navigation_type, Web::HTML::SynchronousNavigation::No, Optional<Web::HTML::CrossProcessId> {},
+            navigation_type, Web::HTML::SynchronousNavigation::No,
             [this](Web::HTML::HistoryStepResult history_step_result) { result = history_step_result; });
         operation->apply_the_history_step();
         return *operation;
@@ -475,7 +489,7 @@ TEST_CASE(an_older_run_does_not_commit_over_a_newer_runs_step)
     Optional<Web::HTML::HistoryStepResult> older_result;
     WebView::ApplyHistoryStep older_operation(test.history, test.traversable, test.queue, test.state, test.runner.jobs(), 0,
         false, {}, Web::HTML::UserNavigationInvolvement::BrowserUI, Web::Bindings::NavigationType::Traverse,
-        Web::HTML::SynchronousNavigation::No, {}, [&](Web::HTML::HistoryStepResult result) { older_result = result; });
+        Web::HTML::SynchronousNavigation::No, [&](Web::HTML::HistoryStepResult result) { older_result = result; });
 
     // A newer run (for example a synchronous navigation that jumped the queue) commits first.
     test.traverse_to_step(2);
