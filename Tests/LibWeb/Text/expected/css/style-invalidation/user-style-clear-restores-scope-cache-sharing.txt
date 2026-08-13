@@ -1,0 +1,1 @@
+PASS: scopes share again after the user style is cleared | scopeRuleCacheBuilds=1
