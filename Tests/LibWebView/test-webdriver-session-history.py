@@ -49,6 +49,10 @@ class TestPageServer(http.server.ThreadingHTTPServer):
         self.release_blocked_same_site_post = threading.Event()
         self.blocked_same_url_post_requested = threading.Event()
         self.release_blocked_same_url_post = threading.Event()
+        self.block_post_result_load = False
+        self.blocked_post_result_load_requested = threading.Event()
+        self.post_result_load_became_interactive = threading.Event()
+        self.release_blocked_post_result_load = threading.Event()
         self.blocked_navigation_requested = threading.Event()
         self.release_blocked_navigation = threading.Event()
         self.blocked_navigation_response_finished = threading.Event()
@@ -454,6 +458,25 @@ document.addEventListener("DOMContentLoaded", () => {
             self.end_headers()
             return
 
+        if self.path == "/document-ran?post-result-load-blocked":
+            server.post_result_load_became_interactive.set()
+            self.send_response(204)
+            self.end_headers()
+            return
+
+        if self.path == "/post-result-load-blocked":
+            server.blocked_post_result_load_requested.set()
+            if not server.release_blocked_post_result_load.wait(timeout=BLOCKED_RESPONSE_TIMEOUT_SECONDS):
+                self.send_response(500)
+                self.send_header("Content-Type", "text/plain")
+                self.end_headers()
+                self.wfile.write(b"timed out waiting to finish POST result load")
+                return
+
+            self.send_response(204)
+            self.end_headers()
+            return
+
         if self.path == "/document-ran?cross-site-post-result":
             server.cross_site_post_result_document_ran.set()
             self.send_response(204)
@@ -664,6 +687,11 @@ window.initialNavigationCurrentIndex = navigation.currentEntry.index;
         if self.path == "/post-result":
             content_length = int(self.headers.get("Content-Length", "0"))
             body = self.rfile.read(content_length).decode()
+            load_blocker = ""
+            if server.block_post_result_load:
+                load_blocker = """
+<script>addEventListener('DOMContentLoaded', () => fetch('/document-ran?post-result-load-blocked'));</script>
+<img src="/post-result-load-blocked">"""
             self.send_response(200)
             self.send_header("Content-Type", "text/html")
             self.end_headers()
@@ -671,6 +699,7 @@ window.initialNavigationCurrentIndex = navigation.currentEntry.index;
                 f"""<!doctype html>
 <title>Post Result POST</title>
 <script>fetch('/document-ran?post-result');</script>
+{load_blocker}
 <p id="result">POST:{body}</p>""".encode()
             )
             return
@@ -2272,6 +2301,39 @@ def run_uncommitted_navigation_browser_ui_back_tests(
     )
 
 
+def expect_post_crash_recovery_waits_for_load(webdriver_port, session_id, page_server, url_post_result, log):
+    page_server.block_post_result_load = True
+    page_server.blocked_post_result_load_requested.clear()
+    page_server.post_result_load_became_interactive.clear()
+    page_server.release_blocked_post_result_load.clear()
+    post_crash_recovery_error = []
+
+    def request_post_crash_recovery():
+        try:
+            crash_current_page(webdriver_port, session_id)
+        except Exception as error:
+            post_crash_recovery_error.append(error)
+
+    post_crash_recovery_thread = threading.Thread(target=request_post_crash_recovery)
+    post_crash_recovery_thread.start()
+    wait_for_event(page_server.blocked_post_result_load_requested, "blocked POST crash recovery load")
+    wait_for_event(page_server.post_result_load_became_interactive, "interactive POST crash recovery document")
+    post_crash_recovery_thread.join(timeout=0.25)
+    completed_before_load = not post_crash_recovery_thread.is_alive()
+    page_server.release_blocked_post_result_load.set()
+    post_crash_recovery_thread.join(timeout=EVENT_TIMEOUT_SECONDS)
+    page_server.block_post_result_load = False
+    if completed_before_load:
+        raise AssertionError("POST crash recovery completed before the document finished loading\n" + "\n".join(log))
+    if post_crash_recovery_thread.is_alive():
+        raise AssertionError("Timed out waiting for POST crash recovery to finish loading\n" + "\n".join(log))
+    if post_crash_recovery_error:
+        raise post_crash_recovery_error[0]
+    expect_url(webdriver_port, session_id, "after POST crash recovery", url_post_result, log)
+    expect_body_text(webdriver_port, session_id, "after POST crash recovery", "POST:name=ladybird", log)
+    expect_current_entry_resource(webdriver_port, session_id, "after POST crash recovery", "post", log)
+
+
 def run_test(webdriver_binary):
     page_server = TestPageServer(("0.0.0.0", 0), TestPageHandler)
     page_server_thread = threading.Thread(target=page_server.serve_forever, daemon=True)
@@ -3143,10 +3205,13 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
             log,
         )
 
-        crash_current_page(webdriver_port, session_id)
-        expect_url(webdriver_port, session_id, "after POST crash recovery", url_post_result, log)
-        expect_body_text(webdriver_port, session_id, "after POST crash recovery", "POST:name=ladybird", log)
-        expect_current_entry_resource(webdriver_port, session_id, "after POST crash recovery", "post", log)
+        expect_post_crash_recovery_waits_for_load(
+            webdriver_port,
+            session_id,
+            page_server,
+            url_post_result,
+            log,
+        )
         expect_ui_session_history(
             webdriver_port,
             session_id,

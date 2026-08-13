@@ -589,10 +589,10 @@ void WebContentClient::did_destroy_child_frame(u64 page_id, Web::HTML::CrossProc
         SiteIsolationManager::the().remove_child_frame_subtree(*child_frame);
 }
 
-void WebContentClient::did_start_webdriver_navigation(u64 page_id, URL::URL url)
+void WebContentClient::did_start_webdriver_navigation(u64 page_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_start_webdriver_navigation({}, url);
+        view->did_start_webdriver_navigation({});
 }
 
 void WebContentClient::maybe_record_history_visit_for_current_load(u64 page_id, URL::URL const& url, Optional<String> title, StringView reason)
@@ -1562,14 +1562,13 @@ void WebContentClient::did_request_webdriver_history_traversal(u64 page_id, u64 
             }
 
             view->traverse_the_history_by_delta(delta, CheckForCancelation::Yes,
-                [weak_this, page_id, request_id](HistoryTraversalOutcome outcome) {
+                [weak_this, page_id, request_id] {
                     auto self = weak_this.strong_ref();
                     if (!self)
                         return;
                     auto& client = static_cast<WebContentClient&>(*self);
 
-                    if (!outcome.replaces_web_content_process)
-                        client.async_complete_webdriver_history_traversal(page_id, request_id, true);
+                    client.async_complete_webdriver_history_traversal(page_id, request_id, true);
                 });
         });
         return;
@@ -1583,7 +1582,7 @@ Messages::WebContentClient::DidRequestWebdriverLoadUrlFromUiResponse WebContentC
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         auto view_id = view->view_id();
         if (url.scheme() != "javascript"sv)
-            view->did_start_webdriver_navigation({}, url);
+            view->did_start_webdriver_navigation({});
         Core::deferred_invoke([view_id, url = move(url)] {
             auto view = ViewImplementation::find_view_by_id(view_id);
             if (!view.has_value())

@@ -387,7 +387,7 @@ Messages::WebDriverClient::NavigateToResponse WebDriverConnection::navigate_to(J
         auto is_same_document_fragment_navigation = url->fragment().has_value()
             && url->equals(current_url, URL::ExcludeFragment::Yes);
         if (url->scheme() != "javascript"sv && !is_same_document_fragment_navigation)
-            static_cast<WebContent::PageClient&>(current_top_level_browsing_context()->page().client()).did_start_webdriver_navigation(url.value());
+            static_cast<WebContent::PageClient&>(current_top_level_browsing_context()->page().client()).did_start_webdriver_navigation();
         current_top_level_browsing_context()->page().load(url.value());
 
         auto navigation_complete = GC::create_function(current_top_level_browsing_context()->heap(), [this, will_replace_web_content_process](Web::WebDriver::Response result) {
