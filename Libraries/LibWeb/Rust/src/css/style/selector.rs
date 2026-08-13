@@ -2679,11 +2679,11 @@ impl SelectorProgram {
                     && self
                         .operands(first, count)
                         .iter()
-                        .any(|&operand| matches!(self.node(operand), SelectorOp::Host(_)));
+                        .any(|&operand| self.mentions_the_host(operand));
                 for index in 0..count {
                     let operand = self.operands(first, count)[index as usize];
                     // Operands of a compound share it: it is the constraint their subject carries.
-                    match crosses_to_the_host && !matches!(self.node(operand), SelectorOp::Host(_)) {
+                    match crosses_to_the_host && !self.mentions_the_host(operand) {
                         // `:host` applies the step for its own operand already.
                         true => self.walk_step(operand, id, InverseStep::HostedTree, anchor, walk, visit),
                         false => self.walk_transpose(operand, id, anchor, walk, visit),
@@ -6932,6 +6932,28 @@ mod tests {
                 vec![InverseStep::HostedTree, InverseStep::Descendants]
             )),
             "a host change reaches the tree it hosts, not its DOM descendants"
+        );
+    }
+
+    #[test]
+    fn a_nested_shadow_guard_carries_its_compound_through_the_host() {
+        let host = single_entry(|builder| {
+            let any = builder.push_feature(FeatureTest::AnyElement);
+            let host = builder.push(SelectorOp::Host(any));
+            let alternate = builder.push_feature(FeatureTest::Class(StyleAtomID(202)));
+            let host_or_alternate = builder.push_any_of(&[host, alternate]);
+            let theme = builder.push_feature(FeatureTest::Class(CLASS_THEME));
+            let guard = builder.push_compound(&[host_or_alternate, theme]);
+            let ancestor = builder.push_ancestor(guard);
+            let item = builder.push_feature(FeatureTest::Class(CLASS_ITEM));
+            builder.push_compound(&[item, ancestor])
+        });
+        assert!(
+            transpose_of(&host).contains(&(
+                RoutingKey::Class(CLASS_THEME),
+                vec![InverseStep::HostedTree, InverseStep::Descendants]
+            )),
+            "a host nested in :is() carries its compound across the boundary"
         );
     }
 
