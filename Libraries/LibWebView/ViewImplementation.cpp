@@ -2114,14 +2114,14 @@ void ViewImplementation::update_navigation_action_state()
     m_navigate_forward_action->set_enabled(m_top_level_traversable.session_history().can_go_forward());
 }
 
-void ViewImplementation::recover_current_session_history_entry_with_history_operation()
+void ViewImplementation::recover_current_session_history_entry_with_history_operation(Optional<CanonicalTraversable::HistoryJobEndpoint> crashed_endpoint)
 {
     m_history_visit_transition_for_next_load = HistoryVisitTransition::Restore;
     auto const* current_entry = m_top_level_traversable.session_history().current_entry();
     auto current_url = current_entry ? current_entry->url : m_url;
     set_url(current_url);
     m_webdriver_pending_navigation_url = current_url;
-    m_top_level_traversable.recover_from_web_content_process_crash([this](Web::HTML::HistoryStepResult result, Optional<i32> committed_step) {
+    m_top_level_traversable.recover_from_web_content_process_crash(move(crashed_endpoint), [this](Web::HTML::HistoryStepResult result, Optional<i32> committed_step) {
         if (result == Web::HTML::HistoryStepResult::Applied) {
             if (committed_step.has_value())
                 update_navigation_action_state();
@@ -2284,19 +2284,19 @@ void ViewImplementation::did_receive_history_step_unload_cancelation_result(Badg
     m_top_level_traversable.did_receive_history_step_unload_cancelation_result(operation_id, result);
 }
 
-void ViewImplementation::did_receive_changing_navigable_history_job_ready(Badge<WebContentClient>, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition)
+void ViewImplementation::did_receive_changing_navigable_history_job_ready(Badge<WebContentClient>, WebContentClient& source_client, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition)
 {
-    m_top_level_traversable.did_receive_changing_navigable_history_job_ready(operation_id, navigable_id, disposition);
+    m_top_level_traversable.did_receive_changing_navigable_history_job_ready(source_client, source_page_id, operation_id, navigable_id, disposition);
 }
 
-void ViewImplementation::did_receive_changing_navigable_continuation_applied(Badge<WebContentClient>, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state)
+void ViewImplementation::did_receive_changing_navigable_continuation_applied(Badge<WebContentClient>, WebContentClient& source_client, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state)
 {
-    m_top_level_traversable.did_receive_changing_navigable_continuation_applied(operation_id, navigable_id, move(previous_entry_persisted_state));
+    m_top_level_traversable.did_receive_changing_navigable_continuation_applied(source_client, source_page_id, operation_id, navigable_id, move(previous_entry_persisted_state));
 }
 
-void ViewImplementation::did_receive_nonchanging_navigable_history_state_updated(Badge<WebContentClient>, u64 operation_id, Web::HTML::CrossProcessId navigable_id)
+void ViewImplementation::did_receive_nonchanging_navigable_history_state_updated(Badge<WebContentClient>, WebContentClient& source_client, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id)
 {
-    m_top_level_traversable.did_receive_nonchanging_navigable_history_state_updated(operation_id, navigable_id);
+    m_top_level_traversable.did_receive_nonchanging_navigable_history_state_updated(source_client, source_page_id, operation_id, navigable_id);
 }
 
 void ViewImplementation::did_reset_session_history_for_testing(
@@ -2367,6 +2367,11 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
     if (headless_mode)
         load_error_page = LoadErrorPage::No;
 
+    auto crashed_endpoint = CanonicalTraversable::HistoryJobEndpoint {
+        m_client_state.client,
+        page_id(),
+    };
+
     m_history_operation_handling_for_next_client = HistoryOperationHandling::Preserve;
     Optional<Web::HTML::CrossProcessId> initial_document_state_id;
     Optional<URL::URL> process_site_url;
@@ -2402,7 +2407,7 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
     } else {
         m_should_suppress_history_for_current_load = false;
         m_should_suppress_history_for_next_load = false;
-        recover_current_session_history_entry_with_history_operation();
+        recover_current_session_history_entry_with_history_operation(move(crashed_endpoint));
     }
 }
 
