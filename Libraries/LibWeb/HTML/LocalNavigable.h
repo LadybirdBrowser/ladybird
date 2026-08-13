@@ -118,10 +118,12 @@ public:
     RefPtr<SessionHistoryEntry> current_session_history_entry() const;
     void set_current_session_history_entry(RefPtr<SessionHistoryEntry>);
 
-    Vector<NonnullRefPtr<SessionHistoryEntry>>& get_session_history_entries() const;
-    // Whether this navigable's session history entry list still exists (a removed child's nested history is pruned
-    // from its parent document state).
-    bool has_session_history_entries() const;
+    void set_child_navigable_history_reconstruction_ids(Vector<Optional<CrossProcessId>> ids)
+    {
+        m_child_navigable_history_reconstruction_ids = move(ids);
+    }
+    Optional<CrossProcessId> child_navigable_history_reconstruction_id(size_t index) const;
+    void consume_child_navigable_history_reconstruction_id(size_t index);
 
     void activate_history_entry(RefPtr<SessionHistoryEntry>, GC::Ref<DOM::Document>);
 
@@ -135,8 +137,6 @@ public:
     virtual Optional<URL::URL> active_document_url() const override;
     virtual Optional<URL::Origin> active_document_origin() const override;
     ReplicatedNavigableState replicated_state() const;
-
-    RefPtr<SessionHistoryEntry> find_session_history_entry(Utf16String const& navigation_api_key, CrossProcessId document_state_id) const;
 
     void save_persisted_state_to_active_session_history_entry();
     void restore_persisted_state_from_session_history_entry(SessionHistoryEntry const&);
@@ -399,6 +399,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
     RefPtr<SessionHistoryEntry> m_active_session_history_entry;
+
+    // Child navigable identities retained only while reconstructing the active document from canonical session history.
+    Vector<Optional<CrossProcessId>> m_child_navigable_history_reconstruction_ids;
 
     // AD-HOC: Direct reference to the active document, decoupled from session history.
     //         This is the authoritative source for active_document().

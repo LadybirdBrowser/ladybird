@@ -68,8 +68,6 @@ public:
     [[nodiscard]] bool can_go_back() const;
     [[nodiscard]] bool can_go_forward() const;
     [[nodiscard]] bool has_only_top_level_used_steps() const;
-    [[nodiscard]] bool current_step_is_top_level_entry() const;
-    [[nodiscard]] Optional<i32> current_step_to_restore_after_loading_top_level_entry() const;
     [[nodiscard]] Optional<TraversalTarget> traversal_target_for_delta(int delta) const;
     [[nodiscard]] Optional<TraversalTarget> traversal_target_for_step(i32 step) const;
     [[nodiscard]] Optional<Vector<Entry> const&> get_session_history_entries(CanonicalNavigable const&) const;

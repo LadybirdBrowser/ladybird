@@ -2266,7 +2266,9 @@ void ViewImplementation::start_requested_history_traversal(u64 initiation_id, We
 {
     auto target = m_top_level_traversable.session_history().traversal_target_for_delta(parameters.delta);
     if (!target.has_value()) {
-        client().async_complete_history_operation(page_id(), 0, Web::HTML::HistoryStepResult::Applied, {}, initiation_id);
+        client().async_complete_history_operation(
+            page_id(), 0, Web::HTML::HistoryStepResult::Applied, {},
+            m_top_level_traversable.session_history().size(), initiation_id);
         promise->resolve({});
         return;
     }
@@ -2283,7 +2285,9 @@ void ViewImplementation::start_requested_history_traversal(u64 initiation_id, We
         ? m_top_level_traversable.session_history().traversal_target_for_step(*target_step)
         : Optional<TraversableSessionHistory::TraversalTarget> {};
     if (!target.has_value()) {
-        client().async_complete_history_operation(page_id(), 0, Web::HTML::HistoryStepResult::NoMatchingEntry, {}, initiation_id);
+        client().async_complete_history_operation(
+            page_id(), 0, Web::HTML::HistoryStepResult::NoMatchingEntry, {},
+            m_top_level_traversable.session_history().size(), initiation_id);
         promise->resolve({});
         return;
     }

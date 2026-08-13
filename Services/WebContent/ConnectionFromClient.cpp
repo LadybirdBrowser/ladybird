@@ -424,10 +424,12 @@ void ConnectionFromClient::update_nonchanging_navigable_history_state(u64 page_i
         }));
 }
 
-void ConnectionFromClient::complete_history_operation(u64 page_id, u64 operation_id, Web::HTML::HistoryStepResult result, Optional<i32> committed_step, Optional<u64> initiation_id)
+void ConnectionFromClient::complete_history_operation(u64 page_id, u64 operation_id, Web::HTML::HistoryStepResult result, Optional<i32> committed_step, u64 session_history_entry_count, Optional<u64> initiation_id)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->page().top_level_traversable()->complete_ui_history_operation(operation_id, result, committed_step, initiation_id);
+        page->page().top_level_traversable()->complete_ui_history_operation(
+            operation_id, result, committed_step,
+            session_history_entry_count, initiation_id);
 }
 
 void ConnectionFromClient::reset_session_history_for_testing(u64 page_id)

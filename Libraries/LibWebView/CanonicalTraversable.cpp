@@ -1188,7 +1188,9 @@ void CanonicalTraversable::finish_history_operation(u64 operation_id, Web::HTML:
     auto& taken_operation = **operation;
 
     for (auto& endpoint : taken_operation.completion_endpoints)
-        endpoint.client->async_complete_history_operation(endpoint.page_id, operation_id, result, committed_step, endpoint.initiation_id);
+        endpoint.client->async_complete_history_operation(
+            endpoint.page_id, operation_id, result, committed_step,
+            m_session_history.size(), endpoint.initiation_id);
 
     if (taken_operation.on_complete)
         taken_operation.on_complete(result, committed_step);
