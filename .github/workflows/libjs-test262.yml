@@ -146,7 +146,7 @@ jobs:
 
       - name: Deploy to GitHub
         if: ${{ github.ref == 'refs/heads/master' }}
-        uses: JamesIves/github-pages-deploy-action@v4.8.0
+        uses: JamesIves/github-pages-deploy-action@v4.9.0
         with:
           git-config-name: LadybirdBot
           git-config-email: ladybirdbot@ladybird.org
