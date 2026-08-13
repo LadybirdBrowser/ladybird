@@ -729,6 +729,12 @@ void HTMLParserEndState::complete()
         if (!document->browsing_context())
             return;
 
+        // AD-HOC: Give the document a styled, laid-out state before load listeners run. Style and
+        //         layout otherwise wait for the next rendering update, and a load handler that
+        //         changes style would fold its change into the document's very first style pass,
+        //         where a transition it expects to start has no before-change style to start from.
+        document->update_layout(DOM::UpdateLayoutReason::DocumentReadinessComplete);
+
         // 3. Let window be the Document's relevant global object.
         auto& window = relevant_window(*document);
 

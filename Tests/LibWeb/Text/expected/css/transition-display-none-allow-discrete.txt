@@ -1,0 +1,2 @@
+display set to none
+transitionend: display

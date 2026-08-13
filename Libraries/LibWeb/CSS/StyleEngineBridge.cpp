@@ -8,6 +8,8 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineBridge.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
+#include <LibWeb/DOM/Document.h>
+#include <LibWeb/Page/Page.h>
 
 namespace Web::CSS {
 
@@ -236,30 +238,48 @@ void StyleEngine::set_element_language(StyleNodeID node, StyleAtomID language, U
     StyleEngineFFI::style_engine_set_element_language(m_impl, node.value(), language.value(), code_units.data(), code_units.size());
 }
 
+// Recording input gives the next rendering update style work to do, but touches no layout tree
+// and no paintable, so nothing else asks the page for a frame. On a quiet document a change made
+// from a timer would otherwise sit unflushed indefinitely, and a transition it should start would
+// not run until something unrelated woke the rendering loop. Only the first input needs the poke:
+// the frame it schedules flushes everything recorded before it runs.
+static void request_frame_for_first_recorded_input(StyleEngine const& style_engine, GC::Ptr<StyleComputer> style_computer)
+{
+    if (style_engine.has_recorded_input() || !style_computer)
+        return;
+    style_computer->document().page().client().request_frame();
+}
+
 void StyleEngine::record_tree_delta(StyleEngineFFI::FfiTreeDelta const& delta)
 {
+    request_frame_for_first_recorded_input(*this, m_style_computer);
     m_tree_deltas.append(delta);
 }
 
 void StyleEngine::record_local_feature_delta(StyleEngineFFI::FfiLocalFeatureDelta const& delta)
 {
+    request_frame_for_first_recorded_input(*this, m_style_computer);
     m_local_feature_deltas.append(delta);
 }
 
 void StyleEngine::record_state_delta(StyleEngineFFI::FfiStateDelta const& delta)
 {
+    request_frame_for_first_recorded_input(*this, m_style_computer);
     m_state_deltas.append(delta);
 }
 
 void StyleEngine::record_element_declaration_delta(StyleEngineFFI::FfiElementDeclarationDelta const& delta)
 {
+    request_frame_for_first_recorded_input(*this, m_style_computer);
     m_element_declaration_deltas.append(delta);
 }
 
 void StyleEngine::record_element_style_input_change(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups)
 {
-    if (style_node != 0 && reaction != 0)
+    if (style_node != 0 && reaction != 0) {
+        request_frame_for_first_recorded_input(*this, m_style_computer);
         m_element_style_inputs.append({ style_node.value(), reaction, inherited_style_groups });
+    }
 }
 
 void StyleEngine::record_flat_tree_descendant_style_input_changes(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups)
@@ -271,6 +291,7 @@ void StyleEngine::record_flat_tree_descendant_style_input_changes(StyleNodeID st
     // descendants themselves stay in the C++ batch so the next transaction normalizes them with
     // every other feedback action from this stabilization pass.
     submit_recorded_input();
+    request_frame_for_first_recorded_input(*this, m_style_computer);
     struct Context {
         Vector<StyleEngineFFI::FfiElementStyleInput>& inputs;
         u8 reaction;

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html id="html">
+<div id="t">x</div>
+<style>
+    div {
+        transition-behavior: allow-discrete;
+        transition-duration: 0.01s;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const t = document.getElementById("t");
+        document.documentElement.addEventListener("transitionend", (event) => {
+            println("transitionend: " + event.propertyName);
+            done();
+        });
+        window.setTimeout(() => {
+            t.style.display = "none";
+            println("display set to none");
+        }, 0);
+    });
+</script>
