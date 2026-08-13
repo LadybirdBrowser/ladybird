@@ -1,2 +1,3 @@
+actionlint-py==1.7.12.24
 pyright==1.1.411
 ruff==0.15.22

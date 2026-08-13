@@ -26,7 +26,8 @@ for cmd in \
         Meta/Linters/lint_executable_resources.sh \
         Meta/Linters/lint_prettier.sh \
         Meta/Linters/lint_python.sh \
-        Meta/Linters/lint_shell_scripts.sh; do
+        Meta/Linters/lint_shell_scripts.sh \
+        Meta/Linters/lint_workflows.sh; do
     if "${cmd}" "$@"; then
         echo -e "[${GREEN}OK${NC}]: ${cmd}"
     else
