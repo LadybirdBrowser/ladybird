@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="content">hello</div>
+<script>
+    asyncTest(async done => {
+        const selection = getSelection();
+
+        // Await the selectionchange scheduled by selecting, so the one we wait for below can only
+        // come from clearing the selection.
+        const selected = new Promise(resolve => document.addEventListener("selectionchange", resolve, { once: true }));
+        selection.selectAllChildren(document.getElementById("content"));
+        await selected;
+
+        const cleared = new Promise(resolve => document.addEventListener("selectionchange", resolve, { once: true }));
+        selection.removeAllRanges();
+        await cleared;
+        println("PASS: selectionchange fired after removeAllRanges");
+        done();
+    });
+</script>
