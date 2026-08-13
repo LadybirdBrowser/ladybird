@@ -58,7 +58,7 @@ template<>
 ErrorOr<Web::CrossDocumentNavigationFinalization> IPC::decode(Decoder& decoder)
 {
     return Web::CrossDocumentNavigationFinalization {
-        .history_entry = TRY(decoder.decode<Web::HTML::SessionHistoryEntryDescriptor>()),
+        .history_entry = TRY(decoder.decode<Web::HTML::PendingSessionHistoryEntryDescriptor>()),
         .entry_to_replace_navigation_api_key = TRY(decoder.decode<Optional<Utf16String>>()),
     };
 }

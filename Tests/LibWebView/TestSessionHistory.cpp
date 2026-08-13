@@ -81,6 +81,20 @@ static Web::HTML::SessionHistoryEntryDescriptor entry(i32 step, StringView url)
     return create_test_entry(step, parse_url(url));
 }
 
+static Web::HTML::PendingSessionHistoryEntryDescriptor pending_entry(Web::HTML::SessionHistoryEntryDescriptor entry)
+{
+    return {
+        .url = move(entry.url),
+        .document_state = move(entry.document_state),
+        .classic_history_api_state = move(entry.classic_history_api_state),
+        .navigation_api_state = move(entry.navigation_api_state),
+        .navigation_api_key = move(entry.navigation_api_key),
+        .navigation_api_id = move(entry.navigation_api_id),
+        .scroll_restoration_mode = entry.scroll_restoration_mode,
+        .scroll_position_data = move(entry.scroll_position_data),
+    };
+}
+
 static Web::HTML::SessionHistoryEntryDescriptor entry(i32 step, StringView url, u8 classic_history_api_state, u8 navigation_api_state, StringView navigation_api_key, StringView navigation_api_id, Web::HTML::ScrollRestorationMode scroll_restoration_mode)
 {
     auto entry = create_test_entry(step, parse_url(url));
@@ -533,8 +547,10 @@ TEST_CASE(cross_document_push_clears_forward_history_at_finalization)
         { 0, 1, 2, 3 }, 1);
     EXPECT_EQ(update_result, true);
 
-    EXPECT(history.finalize_cross_document_navigation(
-        {}, entry(2, "https://b.example/"sv), {}));
+    auto target_step = history.finalize_cross_document_navigation(
+        {}, pending_entry(entry(2, "https://b.example/"sv)), {});
+    EXPECT(target_step.has_value());
+    EXPECT_EQ(*target_step, 2);
     EXPECT_EQ(history.current_step(), 1);
     history.set_current_session_history_step(2);
 
@@ -667,8 +683,10 @@ TEST_CASE(cross_document_push_preserves_document_resource)
         { entry(0, "https://a.example/"sv) }, { 0 }, 0);
     EXPECT_EQ(update_result, true);
 
-    EXPECT(history.finalize_cross_document_navigation(
-        {}, entry_with_post_resource(1, "https://b.example/"sv), {}));
+    auto target_step = history.finalize_cross_document_navigation(
+        {}, pending_entry(entry_with_post_resource(1, "https://b.example/"sv)), {});
+    EXPECT(target_step.has_value());
+    EXPECT_EQ(*target_step, 1);
     history.set_current_session_history_step(1);
 
     auto current_entry = history.current_entry();
@@ -692,9 +710,11 @@ TEST_CASE(cross_document_replacement_preserves_forward_history)
         { 0, 1, 2 }, 0);
     EXPECT_EQ(update_result, true);
 
-    EXPECT(history.finalize_cross_document_navigation(
-        {}, entry_with_post_resource(0, "https://b.example/"sv),
-        Utf16String::from_utf8("current"sv)));
+    auto target_step = history.finalize_cross_document_navigation(
+        {}, pending_entry(entry_with_post_resource(0, "https://b.example/"sv)),
+        Utf16String::from_utf8("current"sv));
+    EXPECT(target_step.has_value());
+    EXPECT_EQ(*target_step, 0);
 
     EXPECT_EQ(history.size(), 2uz);
     EXPECT_EQ(history.used_step_count(), 2uz);
@@ -712,6 +732,69 @@ TEST_CASE(cross_document_replacement_preserves_forward_history)
     EXPECT(current_entry->document_state.navigable_target_name.is_empty());
     EXPECT(current_entry->document_state.nested_histories.is_empty());
     expect_entry_resource(*current_entry, "post"sv);
+}
+
+TEST_CASE(nested_cross_document_push_updates_copied_session_histories)
+{
+    WebView::TraversableSessionHistory history;
+
+    auto child_entry = entry(0, "https://frame.example/first"sv, 20, ""sv);
+    child_entry.navigation_api_key = Utf16String::from_utf8("child-current"sv);
+    auto first_parent_entry = entry(0, "https://parent.example/first"sv, 10, "main"sv, {
+                                                                                           nested_history("frame"sv, { move(child_entry) }),
+                                                                                       });
+    auto second_parent_entry = first_parent_entry;
+    second_parent_entry.step = 1;
+    second_parent_entry.url = parse_url("https://parent.example/pushed"sv);
+    auto update_result = history.initialize_for_testing({ move(first_parent_entry), move(second_parent_entry) }, { 0, 1 }, 1);
+    EXPECT_EQ(update_result, true);
+
+    auto committed_entry = entry(0, "https://frame.example/second"sv, 21, ""sv);
+    committed_entry.navigation_api_key = Utf16String::from_utf8("child-new"sv);
+    auto target_step = history.finalize_cross_document_navigation(navigable_id("frame"sv), pending_entry(move(committed_entry)), {});
+    VERIFY(target_step.has_value());
+    EXPECT_EQ(*target_step, 2);
+
+    auto entries = history.entries();
+    EXPECT_EQ(entries.size(), 2uz);
+    for (auto const& parent_entry : entries) {
+        expect_nested_history(parent_entry, 0, "frame"sv, 2);
+        auto const& nested_history = parent_entry.document_state.nested_histories.first();
+        expect_nested_entry(nested_history, 0, 0, "https://frame.example/first"sv);
+        expect_nested_entry(nested_history, 1, 2, "https://frame.example/second"sv);
+    }
+}
+
+TEST_CASE(nested_cross_document_replacement_updates_copied_session_histories)
+{
+    WebView::TraversableSessionHistory history;
+
+    auto child_entry = entry(0, "https://frame.example/first"sv, 20, ""sv);
+    child_entry.navigation_api_key = Utf16String::from_utf8("child-current"sv);
+    auto first_parent_entry = entry(0, "https://parent.example/first"sv, 10, "main"sv, {
+                                                                                           nested_history("frame"sv, { move(child_entry) }),
+                                                                                       });
+    auto second_parent_entry = first_parent_entry;
+    second_parent_entry.step = 1;
+    second_parent_entry.url = parse_url("https://parent.example/pushed"sv);
+    auto update_result = history.initialize_for_testing({ move(first_parent_entry), move(second_parent_entry) }, { 0, 1 }, 1);
+    EXPECT_EQ(update_result, true);
+
+    auto committed_entry = entry(0, "https://frame.example/replaced"sv, 21, ""sv);
+    committed_entry.navigation_api_key = Utf16String::from_utf8("child-new"sv);
+    auto target_step = history.finalize_cross_document_navigation(
+        navigable_id("frame"sv), pending_entry(move(committed_entry)), Utf16String::from_utf8("child-current"sv));
+    VERIFY(target_step.has_value());
+    EXPECT_EQ(*target_step, 1);
+
+    auto entries = history.entries();
+    EXPECT_EQ(entries.size(), 2uz);
+    for (auto const& parent_entry : entries) {
+        expect_nested_history(parent_entry, 0, "frame"sv, 1);
+        auto const& nested_history = parent_entry.document_state.nested_histories.first();
+        expect_nested_entry(nested_history, 0, 0, "https://frame.example/replaced"sv);
+        EXPECT_EQ(nested_history.entries.first().navigation_api_key, Utf16String::from_utf8("child-new"sv));
+    }
 }
 
 TEST_CASE(same_document_push_clears_forward_history_at_queue_position)
@@ -772,8 +855,10 @@ TEST_CASE(first_cross_document_finalization_initializes_history)
 {
     WebView::TraversableSessionHistory history;
 
-    EXPECT(history.finalize_cross_document_navigation(
-        {}, entry(0, "https://a.example/"sv), {}));
+    auto target_step = history.finalize_cross_document_navigation(
+        {}, pending_entry(entry(0, "https://a.example/"sv)), {});
+    EXPECT(target_step.has_value());
+    EXPECT_EQ(*target_step, 0);
     EXPECT_EQ(history.size(), 1uz);
     EXPECT_EQ(history.used_step_count(), 1uz);
     expect_current_entry(history, 0, "https://a.example/"sv);
@@ -792,7 +877,9 @@ TEST_CASE(nested_finalization_replaces_initial_entry_after_its_key_changes)
 
     auto committed_entry = entry(0, "https://frame.example/"sv, 2, ""sv);
     committed_entry.navigation_api_key = Utf16String::from_utf8("live-initial"sv);
-    EXPECT(history.finalize_cross_document_navigation(navigable_id("frame"sv), move(committed_entry), Utf16String::from_utf8("live-initial"sv)));
+    auto target_step = history.finalize_cross_document_navigation(navigable_id("frame"sv), pending_entry(move(committed_entry)), Utf16String::from_utf8("live-initial"sv));
+    EXPECT(target_step.has_value());
+    EXPECT_EQ(*target_step, 0);
 
     auto entries = history.entries();
     auto const& nested_history = entries.first().document_state.nested_histories.first();
@@ -815,7 +902,7 @@ TEST_CASE(nested_finalization_rejects_wrong_key_for_populated_entry)
 
     auto committed_entry = entry(0, "https://frame.example/second"sv, 3, ""sv);
     committed_entry.navigation_api_key = Utf16String::from_utf8("stale"sv);
-    EXPECT(!history.finalize_cross_document_navigation(navigable_id("frame"sv), move(committed_entry), Utf16String::from_utf8("stale"sv)));
+    EXPECT(!history.finalize_cross_document_navigation(navigable_id("frame"sv), pending_entry(move(committed_entry)), Utf16String::from_utf8("stale"sv)).has_value());
 
     auto entries = history.entries();
     auto const& nested_history = entries.first().document_state.nested_histories.first();

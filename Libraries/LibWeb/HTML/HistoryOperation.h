@@ -31,7 +31,7 @@ struct ReplaceHistoryOperationParameters {
 };
 
 struct CrossDocumentNavigationFinalization {
-    HTML::SessionHistoryEntryDescriptor history_entry;
+    HTML::PendingSessionHistoryEntryDescriptor history_entry;
     Optional<Utf16String> entry_to_replace_navigation_api_key;
 };
 

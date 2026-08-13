@@ -5,6 +5,7 @@
  */
 
 #include <AK/HashTable.h>
+#include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
 #include <LibWebView/CanonicalNavigable.h>
 #include <LibWebView/SessionHistory.h>
@@ -519,37 +520,90 @@ Optional<i32> TraversableSessionHistory::finalize_same_document_navigation(Canon
     return target_step;
 }
 
-bool TraversableSessionHistory::finalize_cross_document_navigation(Optional<Web::HTML::CrossProcessId> nested_history_id, Entry history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key)
+Optional<i32> TraversableSessionHistory::finalize_cross_document_navigation(Optional<Web::HTML::CrossProcessId> nested_history_id, Web::HTML::PendingSessionHistoryEntryDescriptor history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key)
 {
     // AD-HOC: The initial about:blank entry is not reported when the browser
     // creates its first WebContent process. Its first committed navigation
     // therefore initializes the canonical history at this queue position.
     if (!m_current_used_step_index.has_value()) {
-        if (nested_history_id.has_value() || history_entry.step != 0)
-            return false;
-        m_entries.append(move(history_entry));
+        if (nested_history_id.has_value())
+            return {};
+        m_entries.append(Web::HTML::create_session_history_entry_descriptor(move(history_entry), 0));
         m_used_steps.append(0);
         m_current_used_step_index = 0;
-        return true;
+        return 0;
     }
 
     auto current_step = m_used_steps[*m_current_used_step_index];
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
+    // 7. Let targetStep be null.
+    Optional<i32> target_step;
+
+    // 8. Let targetEntries be the result of getting session history entries for navigable.
+    auto* target_entries = nested_history_id.has_value()
+        ? nested_session_history_entries_for_navigable(m_entries, *nested_history_id)
+        : &m_entries;
+    if (!target_entries)
+        return {};
+
+    Entry canonical_target_entry;
+
+    // 9. If entryToReplace is null, then:
     if (!entry_to_replace_navigation_api_key.has_value()) {
+        // 1. Clear the forward session history of traversable.
         clear_forward_session_history_entries(m_entries, current_step);
+
+        // 2. Set targetStep to traversable's current session history step + 1.
+        VERIFY(current_step < NumericLimits<i32>::max());
+        target_step = current_step + 1;
+
+        // 3. Set historyEntry's step to targetStep.
+        canonical_target_entry = Web::HTML::create_session_history_entry_descriptor(move(history_entry), *target_step);
+
+        // 4. Append historyEntry to targetEntries.
+    } else {
+        // 1. Replace entryToReplace with historyEntry in targetEntries.
+        auto entry_to_replace = target_entries->find_if([&](auto const& entry) {
+            return entry.navigation_api_key == *entry_to_replace_navigation_api_key;
+        });
+        if (entry_to_replace == target_entries->end()
+            && nested_history_id.has_value()
+            && target_entries->size() == 1
+            && target_entries->first().url == URL::about_blank()
+            && !target_entries->first().document_state.ever_populated) {
+            entry_to_replace = target_entries->begin();
+        }
+        if (entry_to_replace == target_entries->end())
+            return {};
+
+        // 2. Set historyEntry's step to entryToReplace's step.
+        canonical_target_entry = Web::HTML::create_session_history_entry_descriptor(move(history_entry), entry_to_replace->step);
+
+        // 3. If historyEntry's document state's origin is same origin with entryToReplace's document state's origin,
+        //    then set historyEntry's navigation API key to entryToReplace's navigation API key.
+        if (canonical_target_entry.document_state.origin.has_value()
+            && entry_to_replace->document_state.origin.has_value()
+            && canonical_target_entry.document_state.origin->is_same_origin(*entry_to_replace->document_state.origin)) {
+            canonical_target_entry.navigation_api_key = entry_to_replace->navigation_api_key;
+        }
+
+        // 4. Set targetStep to traversable's current session history step.
+        target_step = current_step;
     }
 
+    // AD-HOC: The UI mirror serializes a shared document state's nested histories into each same-document entry.
+    // Apply the finalization to every copy of targetEntries so they remain equivalent.
     auto did_update = update_session_history_entries_for_navigable(m_entries, nested_history_id, [&](auto& entries) {
-        return append_or_replace_session_history_entry(entries, history_entry, entry_to_replace_navigation_api_key, nested_history_id.has_value());
+        return append_or_replace_session_history_entry(entries, canonical_target_entry, entry_to_replace_navigation_api_key, nested_history_id.has_value());
     });
     if (!did_update)
-        return false;
+        return {};
 
     m_used_steps = get_all_used_history_steps(m_entries);
     m_current_used_step_index = m_used_steps.find_first_index(current_step);
     VERIFY(m_current_used_step_index.has_value());
-    return true;
+    return target_step;
 }
 
 Optional<size_t> TraversableSessionHistory::current_top_level_entry_index() const
