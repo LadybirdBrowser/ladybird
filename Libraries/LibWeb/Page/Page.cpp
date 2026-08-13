@@ -997,6 +997,25 @@ void Page::invalidate_user_style()
     }
 }
 
+void Page::invalidate_style_for_preference_change()
+{
+    if (!top_level_traversable_is_initialized() || !top_level_traversable()->active_document())
+        return;
+
+    auto invalidate_document = [](DOM::Document& document) {
+        document.record_style_environment_change();
+        document.set_needs_media_query_evaluation();
+    };
+
+    auto& active_document = *top_level_traversable()->active_document();
+    invalidate_document(active_document);
+
+    for (auto& navigable : active_document.descendant_navigables()) {
+        if (auto document = navigable->active_document())
+            invalidate_document(*document);
+    }
+}
+
 Vector<GC::Root<DOM::Document>> Page::documents_in_active_window() const
 {
     if (!top_level_traversable_is_initialized())

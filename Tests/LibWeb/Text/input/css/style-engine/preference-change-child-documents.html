@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .target { color: rgb(1, 2, 3); }
+    @media (prefers-color-scheme: dark) {
+        .target { color: rgb(4, 5, 6); }
+    }
+</style>
+<div class="target">top-level target</div>
+<script>
+    asyncTest(done => {
+        internals.setPreferredColorScheme("light");
+
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = `
+            <style>
+                .target { color: rgb(1, 2, 3); }
+                @media (prefers-color-scheme: dark) {
+                    .target { color: rgb(4, 5, 6); }
+                }
+            </style>
+            <div class="target">child target</div>
+        `;
+        iframe.addEventListener("load", () => {
+            const topLevelTarget = document.querySelector(".target");
+            const childTarget = iframe.contentDocument.querySelector(".target");
+            println(`top-level light: ${getComputedStyle(topLevelTarget).color}`);
+            println(`child light: ${iframe.contentWindow.getComputedStyle(childTarget).color}`);
+
+            internals.setPreferredColorScheme("dark");
+            println(`top-level dark: ${getComputedStyle(topLevelTarget).color}`);
+            println(`child dark: ${iframe.contentWindow.getComputedStyle(childTarget).color}`);
+
+            internals.setPreferredColorScheme("auto");
+            done();
+        }, { once: true });
+        document.body.append(iframe);
+    });
+</script>

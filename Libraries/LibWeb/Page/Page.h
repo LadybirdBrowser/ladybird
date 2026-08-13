@@ -296,6 +296,7 @@ public:
     void set_user_style(Utf16String source);
     void set_content_blocking_enabled(bool);
     void invalidate_user_style();
+    void invalidate_style_for_preference_change();
 
     bool pdf_viewer_supported() const { return m_pdf_viewer_supported; }
 

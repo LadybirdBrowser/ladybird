@@ -339,38 +339,26 @@ Gfx::Palette PageClient::palette() const
 void PageClient::set_palette_impl(Gfx::PaletteImpl& impl)
 {
     m_palette_impl = impl;
-    if (auto* document = page().top_level_browsing_context().active_document()) {
-        document->record_style_environment_change();
-        document->set_needs_media_query_evaluation();
-    }
+    page().invalidate_style_for_preference_change();
     request_frame();
 }
 
 void PageClient::set_preferred_color_scheme(Web::CSS::PreferredColorScheme color_scheme)
 {
     m_preferred_color_scheme = color_scheme;
-    if (auto* document = page().top_level_browsing_context().active_document()) {
-        document->record_style_environment_change();
-        document->set_needs_media_query_evaluation();
-    }
+    page().invalidate_style_for_preference_change();
 }
 
 void PageClient::set_preferred_contrast(Web::CSS::PreferredContrast contrast)
 {
     m_preferred_contrast = contrast;
-    if (auto* document = page().top_level_browsing_context().active_document()) {
-        document->record_style_environment_change();
-        document->set_needs_media_query_evaluation();
-    }
+    page().invalidate_style_for_preference_change();
 }
 
 void PageClient::set_preferred_motion(Web::CSS::PreferredMotion motion)
 {
     m_preferred_motion = motion;
-    if (auto* document = page().top_level_browsing_context().active_document()) {
-        document->record_style_environment_change();
-        document->set_needs_media_query_evaluation();
-    }
+    page().invalidate_style_for_preference_change();
 }
 
 void PageClient::set_is_scripting_enabled(bool is_scripting_enabled)
