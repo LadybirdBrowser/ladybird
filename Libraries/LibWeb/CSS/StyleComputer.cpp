@@ -4216,8 +4216,14 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
     // nothing but which declarations it was handed.
     struct PreviousComputation {
         bool read_beyond_the_record { true };
+        bool style_uses_attr_css_function { false };
         bool style_uses_var_css_function { false };
+        bool style_uses_if_css_function { false };
+        bool style_uses_custom_function { false };
         bool style_uses_inherit_css_function { false };
+        bool style_uses_tree_counting_function { false };
+        bool style_depends_on_size_container_query { false };
+        bool style_depends_on_style_container_query { false };
         bool explicitly_inherited_non_inherited_property { false };
         Vector<Utf16FlyString> custom_property_references;
     };
@@ -4244,8 +4250,14 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
         record->pinned_values.clear_with_capacity();
         record->custom_property_references.clear_with_capacity();
         record->read_beyond_the_record = true;
+        record->style_uses_attr_css_function = false;
         record->style_uses_var_css_function = false;
+        record->style_uses_if_css_function = false;
+        record->style_uses_custom_function = false;
         record->style_uses_inherit_css_function = false;
+        record->style_uses_tree_counting_function = false;
+        record->style_depends_on_size_container_query = false;
+        record->style_depends_on_style_container_query = false;
         record->explicitly_inherited_non_inherited_property = false;
         record->cascade_reads_custom_properties = false;
         record->pinned_parent_custom_property_data = nullptr;
@@ -4281,8 +4293,14 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
                 // A computation that is skipped leaves no marks, so the record keeps the ones the
                 // computation it stands in for left.
                 record->read_beyond_the_record = previous->read_beyond_the_record;
+                record->style_uses_attr_css_function = previous->style_uses_attr_css_function;
                 record->style_uses_var_css_function = previous->style_uses_var_css_function;
+                record->style_uses_if_css_function = previous->style_uses_if_css_function;
+                record->style_uses_custom_function = previous->style_uses_custom_function;
                 record->style_uses_inherit_css_function = previous->style_uses_inherit_css_function;
+                record->style_uses_tree_counting_function = previous->style_uses_tree_counting_function;
+                record->style_depends_on_size_container_query = previous->style_depends_on_size_container_query;
+                record->style_depends_on_style_container_query = previous->style_depends_on_style_container_query;
                 record->explicitly_inherited_non_inherited_property = previous->explicitly_inherited_non_inherited_property;
                 record->custom_property_references = previous->custom_property_references;
                 break;
@@ -4292,8 +4310,14 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
                     only_inherited_style_changed = true;
                     previous_computation = PreviousComputation {
                         .read_beyond_the_record = previous->read_beyond_the_record,
+                        .style_uses_attr_css_function = previous->style_uses_attr_css_function,
                         .style_uses_var_css_function = previous->style_uses_var_css_function,
+                        .style_uses_if_css_function = previous->style_uses_if_css_function,
+                        .style_uses_custom_function = previous->style_uses_custom_function,
                         .style_uses_inherit_css_function = previous->style_uses_inherit_css_function,
+                        .style_uses_tree_counting_function = previous->style_uses_tree_counting_function,
+                        .style_depends_on_size_container_query = previous->style_depends_on_size_container_query,
+                        .style_depends_on_style_container_query = previous->style_depends_on_style_container_query,
                         .explicitly_inherited_non_inherited_property = previous->explicitly_inherited_non_inherited_property,
                         .custom_property_references = previous->custom_property_references,
                     };
@@ -4308,8 +4332,14 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
                 only_declarations_changed = true;
                 previous_computation = PreviousComputation {
                     .read_beyond_the_record = previous->read_beyond_the_record,
+                    .style_uses_attr_css_function = previous->style_uses_attr_css_function,
                     .style_uses_var_css_function = previous->style_uses_var_css_function,
+                    .style_uses_if_css_function = previous->style_uses_if_css_function,
+                    .style_uses_custom_function = previous->style_uses_custom_function,
                     .style_uses_inherit_css_function = previous->style_uses_inherit_css_function,
+                    .style_uses_tree_counting_function = previous->style_uses_tree_counting_function,
+                    .style_depends_on_size_container_query = previous->style_depends_on_size_container_query,
+                    .style_depends_on_style_container_query = previous->style_depends_on_style_container_query,
                     .explicitly_inherited_non_inherited_property = previous->explicitly_inherited_non_inherited_property,
                     .custom_property_references = previous->custom_property_references,
                 };
@@ -4347,10 +4377,22 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
     auto reuse_last_computed_style = [&]() {
         auto& element = abstract_element.element();
         auto const& record = *new_style_input_record;
+        if (record.style_uses_attr_css_function)
+            element.set_style_uses_attr_css_function();
         if (record.style_uses_var_css_function)
             element.set_style_uses_var_css_function();
+        if (record.style_uses_if_css_function)
+            element.set_style_uses_if_css_function();
+        if (record.style_uses_custom_function)
+            element.set_style_uses_custom_function();
         if (record.style_uses_inherit_css_function)
             element.set_style_uses_inherit_css_function();
+        if (record.style_uses_tree_counting_function)
+            element.set_style_uses_tree_counting_function();
+        if (record.style_depends_on_size_container_query)
+            element.set_style_depends_on_size_container_query();
+        if (record.style_depends_on_style_container_query)
+            element.set_style_depends_on_style_container_query();
         if (record.explicitly_inherited_non_inherited_property) {
             if (auto* parent = element.parent())
                 parent->set_children_may_depend_on_non_inherited_property_inheritance();
@@ -4557,8 +4599,14 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
         // The computation being skipped is the one that would have left these, so the record that
         // stands for it carries them instead.
         new_style_input_record->read_beyond_the_record = false;
+        new_style_input_record->style_uses_attr_css_function = previous_computation->style_uses_attr_css_function;
         new_style_input_record->style_uses_var_css_function = previous_computation->style_uses_var_css_function;
+        new_style_input_record->style_uses_if_css_function = previous_computation->style_uses_if_css_function;
+        new_style_input_record->style_uses_custom_function = previous_computation->style_uses_custom_function;
         new_style_input_record->style_uses_inherit_css_function = previous_computation->style_uses_inherit_css_function;
+        new_style_input_record->style_uses_tree_counting_function = previous_computation->style_uses_tree_counting_function;
+        new_style_input_record->style_depends_on_size_container_query = previous_computation->style_depends_on_size_container_query;
+        new_style_input_record->style_depends_on_style_container_query = previous_computation->style_depends_on_style_container_query;
         new_style_input_record->explicitly_inherited_non_inherited_property = previous_computation->explicitly_inherited_non_inherited_property;
         new_style_input_record->custom_property_references = move(previous_computation->custom_property_references);
         reuse_last_computed_style();
