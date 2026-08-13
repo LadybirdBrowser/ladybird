@@ -958,7 +958,13 @@ GC::Ptr<HTML::HTMLMediaElement> Page::media_context_menu_element()
 
 void Page::set_user_style(Utf16String source)
 {
-    m_user_style_sheet_source = move(source);
+    // An empty user style is indistinguishable from having none, and shadow scopes only share style
+    // caches while no user style is present, so setting an empty source clears it outright. This
+    // matters across tests too: page state outlives the documents a test runner loads into it.
+    if (source.is_empty())
+        m_user_style_sheet_source = {};
+    else
+        m_user_style_sheet_source = move(source);
     invalidate_user_style();
 }
 

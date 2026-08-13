@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        // Shadow scopes only share style caches while no user style is present. Clearing the user
+        // style must actually clear it, or everything after this point on the same page builds
+        // per-scope caches forever. The page outlives the documents a test runner loads into it,
+        // so a leak here fails unrelated tests that assert cache sharing.
+        internals.setUserStyle(`.unrelated { color: red; }`);
+        internals.setUserStyle("");
+        internals.updateStyle();
+
+        const tokens = new CSSStyleSheet();
+        tokens.replaceSync(`.card { color: rgb(1, 2, 3); }`);
+        const component = new CSSStyleSheet();
+        component.replaceSync(`
+            .title { color: rgb(4, 5, 6); animation: shared-after-clear 1s; }
+            @keyframes shared-after-clear { from { opacity: 1; } to { opacity: 1; } }
+        `);
+
+        const hosts = [];
+        for (let i = 0; i < 4; i++) {
+            const host = document.createElement("div");
+            const shadowRoot = host.attachShadow({ mode: "open" });
+            shadowRoot.adoptedStyleSheets = [tokens, component];
+            const card = document.createElement("section");
+            card.className = "card";
+            const title = document.createElement("span");
+            title.className = "title";
+            card.appendChild(title);
+            shadowRoot.appendChild(card);
+            document.body.appendChild(host);
+            hosts.push(host);
+        }
+        internals.resetStyleInvalidationCounters();
+        internals.updateStyle();
+        const counters = internals.getStyleInvalidationCounters();
+        println(`PASS: scopes share again after the user style is cleared | scopeRuleCacheBuilds=${counters.scopeRuleCacheBuilds}`);
+
+        for (const host of hosts) host.remove();
+    });
+</script>
