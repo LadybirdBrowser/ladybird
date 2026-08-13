@@ -17,16 +17,19 @@ CanonicalTraversable::CanonicalTraversable()
 {
 }
 
-CanonicalNavigable& CanonicalTraversable::insert(WebContentClient& reporting_client, u64 page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, CanonicalNavigable& fallback_parent)
+CanonicalNavigable& CanonicalTraversable::insert(WebContentClient& reporting_client, u64 page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state, CanonicalNavigable& fallback_parent)
 {
     Optional<Web::HTML::SessionHistoryEntryIdentity> current_session_history_entry;
-    if (auto existing_navigable = find(frame_id); existing_navigable.has_value()) {
+    auto existing_navigable = find(frame_id);
+    if (existing_navigable.has_value()) {
         current_session_history_entry = existing_navigable->current_session_history_entry_identity();
         remove(*existing_navigable);
-    }
+    } else
+        current_session_history_entry = replicated_state.active_session_history_entry_identity;
 
     auto navigable = make<CanonicalNavigable>(frame_id, parent_frame_id, &reporting_client, page_id);
     navigable->set_current_session_history_entry_identity(move(current_session_history_entry));
+    navigable->set_replicated_state(move(replicated_state));
 
     // A frame's parent frame is always created (and thus reported) before the frame
     // itself, so if the parent is not in the index, the parent is the top-level document
@@ -150,9 +153,6 @@ Optional<i32> CanonicalTraversable::append_nested_history(CanonicalNavigable con
     if (!target_step.has_value())
         return {};
 
-    auto const* target_entry = m_session_history.get_the_target_history_entry(*child_navigable, *target_step);
-    VERIFY(target_entry);
-    child_navigable->set_current_session_history_entry(*target_entry);
     return target_step;
 }
 
@@ -999,7 +999,19 @@ void CanonicalTraversable::start_history_operation(HistoryOperation& operation, 
         operation.initiation_id);
 
     VERIFY(operation.initiation_id.has_value());
-    operation.initiating_client->async_history_operation_started(operation.initiating_page_id, operation.operation_id, *operation.initiation_id);
+    Optional<Web::HTML::SessionHistoryEntryDescriptor> creation_target_entry;
+    if (operation.parameters.has<Web::NavigableCreationHistoryOperationParameters>()) {
+        auto const& parameters = operation.parameters.get<Web::NavigableCreationHistoryOperationParameters>();
+        auto child_navigable = find(parameters.navigable_id);
+        auto current_step = m_session_history.current_step();
+        if (child_navigable.has_value() && current_step.has_value()) {
+            if (auto const* target_entry = m_session_history.get_the_target_history_entry(*child_navigable, *current_step))
+                creation_target_entry = *target_entry;
+        }
+    }
+    operation.initiating_client->async_history_operation_started(
+        operation.initiating_page_id, operation.operation_id, *operation.initiation_id,
+        move(creation_target_entry));
 }
 
 void CanonicalTraversable::did_receive_history_operation_ready(u64 operation_id, bool proceed, Optional<Web::HTML::CrossProcessId> creation_parent_document_state_id, Optional<Web::HTML::SameDocumentNavigationEntry> same_document_navigation_finalization, Optional<Web::CrossDocumentNavigationFinalization> cross_document_navigation_finalization, Web::HTML::HistoryStepResult abandon_result)

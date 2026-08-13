@@ -545,8 +545,8 @@ void WebContentClient::did_create_child_frame(u64 page_id, Web::HTML::CrossProce
     if (!host)
         return;
 
-    auto& child_frame = host->top_level_traversable().insert(*this, page_id, move(parent_frame_id), move(frame_id), *host);
-    child_frame.set_replicated_state(move(replicated_state));
+    host->top_level_traversable().insert(
+        *this, page_id, move(parent_frame_id), move(frame_id), move(replicated_state), *host);
 }
 
 void WebContentClient::did_update_child_frame_viewport(u64 page_id, Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio)

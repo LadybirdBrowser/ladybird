@@ -325,6 +325,30 @@ static NonnullRefPtr<SessionHistoryEntry> upsert_session_history_entry(Vector<No
     return entry;
 }
 
+static bool install_new_child_session_history_entry(LocalNavigable& child, SessionHistoryEntry& entry)
+{
+    auto parent = child.parent();
+    if (!parent)
+        return false;
+
+    auto parent_entry = as<LocalNavigable>(*parent).active_session_history_entry();
+    if (!parent_entry)
+        return false;
+    auto parent_document_state = parent_entry->document_state();
+    if (!parent_document_state)
+        return false;
+
+    auto& nested_histories = parent_document_state->nested_histories();
+    if (nested_histories.find_if([&](auto const& nested_history) { return nested_history.id == child.id(); }) != nested_histories.end())
+        return false;
+
+    nested_histories.append({
+        .id = child.id(),
+        .entries { entry },
+    });
+    return child.has_session_history_entries();
+}
+
 static RefPtr<SessionHistoryEntry> resolve_local_session_history_entry(LocalNavigable& navigable, SessionHistoryEntryDescriptor entry_descriptor, MissingSessionHistoryEntryDisposition missing_entry_disposition)
 {
     if (auto local_target_entry = navigable.find_session_history_entry(entry_descriptor.navigation_api_key, entry_descriptor.document_state.id))
@@ -457,7 +481,7 @@ bool LocalTraversableNavigable::adopt_nested_history_for_child_created_during_hi
     return true;
 }
 
-bool LocalTraversableNavigable::route_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child, SessionHistoryEntry& initial_entry)
+bool LocalTraversableNavigable::route_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child, SessionHistoryEntry& initial_entry, SessionHistoryEntryDescriptor target_entry)
 {
     VERIFY(child.parent().ptr() == &parent);
 
@@ -472,25 +496,20 @@ bool LocalTraversableNavigable::route_child_created_during_history_reconstructio
     if (nested_history == parent_document_state->nested_histories().end())
         return false;
 
-    Optional<size_t> target_entry_index;
-    for (size_t i = 0; i < nested_history->entries.size(); ++i) {
-        auto step = nested_history->entries[i]->step_value();
-        VERIFY(step.has_value());
-        if (*step <= m_current_session_history_step)
-            target_entry_index = i;
-    }
-    VERIFY(target_entry_index.has_value());
+    auto target_identity = session_history_entry_identity(target_entry);
+    auto local_target_entry = nested_history->entries.find_if([&](auto const& entry) {
+        return session_history_entry_identity(*entry) == target_identity;
+    });
+    if (local_target_entry == nested_history->entries.end())
+        return false;
 
-    auto target_entry = nested_history->entries[*target_entry_index];
-    auto entry_to_restore = create_session_history_entry_descriptor(*target_entry);
-    auto entry_for_navigation = create_session_history_entry_descriptor(*target_entry);
-
-    nested_history->entries[*target_entry_index] = initial_entry;
+    auto entry_to_restore = target_entry;
+    *local_target_entry = initial_entry;
     restore_session_history_entry_from_ui_process(child, initial_entry, move(entry_to_restore));
 
     auto source_document = parent.active_document();
     VERIFY(source_document);
-    child.route_initial_navigation_to_session_history_entry(move(entry_for_navigation), *source_document);
+    child.route_initial_navigation_to_session_history_entry(move(target_entry), *source_document);
     return true;
 }
 
@@ -499,7 +518,7 @@ void LocalTraversableNavigable::reset_session_history_for_testing(GC::Ref<GC::Fu
     request_history_operation(
         ResetSessionHistoryForTestingOperationParameters { .traversable_id = id() },
         {
-            .pre_steps = GC::create_function(heap(), [this, on_complete](u64, GC::Ref<OnHistoryOperationReady> ready) {
+            .pre_steps = GC::create_function(heap(), [this, on_complete](u64, Optional<SessionHistoryEntryDescriptor>, GC::Ref<OnHistoryOperationReady> ready) {
                 auto maybe_active_entry = active_session_history_entry();
                 VERIFY(maybe_active_entry);
                 auto active_entry = maybe_active_entry.release_nonnull();
@@ -1450,7 +1469,7 @@ void LocalTraversableNavigable::request_synchronous_navigation_history_operation
     request_history_operation(move(parameters), move(state));
 }
 
-void LocalTraversableNavigable::handle_ui_history_operation_started(u64 operation_id, Optional<u64> initiation_id, GC::Ref<OnHistoryOperationReady> ready)
+void LocalTraversableNavigable::handle_ui_history_operation_started(u64 operation_id, Optional<u64> initiation_id, Optional<SessionHistoryEntryDescriptor> creation_target_entry, GC::Ref<OnHistoryOperationReady> ready)
 {
     auto& operation = m_ui_history_operations.ensure(operation_id);
     operation.initiation_id = initiation_id;
@@ -1480,7 +1499,7 @@ void LocalTraversableNavigable::handle_ui_history_operation_started(u64 operatio
     operation.navigation_api_abort_behavior = initiation->value.navigation_api_abort_behavior;
 
     if (initiation->value.pre_steps) {
-        initiation->value.pre_steps->function()(*initiation_id, ready);
+        initiation->value.pre_steps->function()(*initiation_id, move(creation_target_entry), ready);
         return;
     }
     ready->function()(true, {}, {}, {}, HistoryStepResult::Applied);
@@ -1746,6 +1765,18 @@ void LocalTraversableNavigable::complete_ui_history_operation(u64 operation_id, 
 
     if (initiation_id.has_value()) {
         if (auto initiation = m_history_operation_states.take(*initiation_id); initiation.has_value()) {
+            if (committed_step.has_value()
+                && initiation->local_target_navigable_id.has_value()
+                && initiation->local_target_entry
+                && !initiation->local_target_entry->step_value().has_value()) {
+                if (auto navigable = local_navigable_with_id(*initiation->local_target_navigable_id);
+                    navigable && !navigable->is_top_level_traversable() && !navigable->has_session_history_entries()) {
+                    // Child creation assigned this entry's concrete step in canonical history. Install that result in
+                    // the temporary local projection before releasing the child's pending navigation.
+                    initiation->local_target_entry->set_step(*committed_step);
+                    VERIFY(install_new_child_session_history_entry(*navigable, *initiation->local_target_entry));
+                }
+            }
             if (initiation->on_apply_complete)
                 initiation->on_apply_complete->function()(result);
             if (initiation->on_complete)
@@ -1775,7 +1806,7 @@ void LocalTraversableNavigable::finalize_same_document_navigation(GC::Ref<LocalN
         {
             .local_target_navigable_id = target_navigable->id(),
             .local_target_entry = target_entry,
-            .pre_steps = GC::create_function(heap(), [target_navigable, target_entry](u64, GC::Ref<OnHistoryOperationReady> ready) {
+            .pre_steps = GC::create_function(heap(), [target_navigable, target_entry](u64, Optional<SessionHistoryEntryDescriptor>, GC::Ref<OnHistoryOperationReady> ready) {
                 // 2. If targetNavigable's active session history entry is not targetEntry, then return.
                 // NB: A later same-document navigation can become active while
                 // this operation crosses the process boundary. The operations
@@ -1825,7 +1856,7 @@ void LocalTraversableNavigable::definitely_close_top_level_traversable()
         request_history_operation(
             CloseTopLevelTraversableHistoryOperationParameters { .traversable_id = id() },
             {
-                .pre_steps = GC::create_function(heap(), [this](u64, GC::Ref<OnHistoryOperationReady> ready) {
+                .pre_steps = GC::create_function(heap(), [this](u64, Optional<SessionHistoryEntryDescriptor>, GC::Ref<OnHistoryOperationReady> ready) {
                     // 1. Let afterAllUnloads be an algorithm step which destroys traversable.
                     auto after_all_unloads = GC::create_function(heap(), [this] {
                         destroy_top_level_traversable();

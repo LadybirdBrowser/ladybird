@@ -57,7 +57,7 @@ public:
     void set_is_created_by_web_content(bool value) { m_is_created_by_web_content = value; }
 
     using OnHistoryOperationReady = GC::Function<void(bool proceed, Optional<CrossProcessId> creation_parent_document_state_id, Optional<SameDocumentNavigationEntry>, Optional<Web::CrossDocumentNavigationFinalization>, HistoryStepResult abandon_result)>;
-    using OnHistoryOperationPreSteps = GC::Function<void(u64 history_initiation_id, GC::Ref<OnHistoryOperationReady>)>;
+    using OnHistoryOperationPreSteps = GC::Function<void(u64 history_initiation_id, Optional<SessionHistoryEntryDescriptor> creation_target_entry, GC::Ref<OnHistoryOperationReady>)>;
     struct HistoryOperationState {
         GC::Ptr<DOM::Document> pending_document {};
         GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable {};
@@ -74,7 +74,7 @@ public:
     void request_history_operation(HistoryOperationParameters);
     void request_history_operation(HistoryOperationParameters, HistoryOperationState);
     void request_synchronous_navigation_history_operation(HistoryOperationParameters, HistoryOperationState);
-    void handle_ui_history_operation_started(u64 operation_id, Optional<u64> initiation_id, GC::Ref<OnHistoryOperationReady>);
+    void handle_ui_history_operation_started(u64 operation_id, Optional<u64> initiation_id, Optional<SessionHistoryEntryDescriptor> creation_target_entry, GC::Ref<OnHistoryOperationReady>);
     bool run_ui_initiator_sandboxing_check_job(CrossProcessId initiator_to_check_id, Vector<CrossProcessId> const& navigables, u64 initiation_id);
     void run_ui_history_step_unload_cancelation_job(u64 operation_id, SessionHistoryEntryDescriptor target_entry, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>>);
     void run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, bool synchronous_navigation, LocalNavigable::NavigationAPIAbortBehavior, Optional<u64> initiation_id, GC::Ref<OnChangingNavigableHistoryStepJobComplete>);
@@ -86,7 +86,7 @@ public:
     void traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document = {});
     void restore_session_history_entry_from_ui_process(LocalNavigable&, SessionHistoryEntry&, SessionHistoryEntryDescriptor);
     bool adopt_nested_history_for_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child);
-    bool route_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child, SessionHistoryEntry& initial_entry);
+    bool route_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child, SessionHistoryEntry& initial_entry, SessionHistoryEntryDescriptor target_entry);
     void reset_session_history_for_testing(GC::Ref<GC::Function<void()>> on_complete);
 
     void close_top_level_traversable();

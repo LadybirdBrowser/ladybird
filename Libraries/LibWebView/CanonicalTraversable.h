@@ -79,7 +79,7 @@ public:
     void did_receive_changing_navigable_continuation_applied(WebContentClient&, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state);
     void did_receive_nonchanging_navigable_history_state_updated(WebContentClient&, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id);
 
-    CanonicalNavigable& insert(WebContentClient& reporting_client, u64 page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, CanonicalNavigable& fallback_parent);
+    CanonicalNavigable& insert(WebContentClient& reporting_client, u64 page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState, CanonicalNavigable& fallback_parent);
     Optional<CanonicalNavigable&> find(Web::HTML::CrossProcessId navigable_id);
     Optional<CanonicalNavigable const&> find(Web::HTML::CrossProcessId navigable_id) const;
     void remove(CanonicalNavigable&);
