@@ -396,6 +396,15 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
         }
     }
 
+    // https://drafts.csswg.org/css-logical-1/#intro
+    // This mapping, which depends on the used values of writing-mode, direction, and text-orientation, controls the
+    // interpretation of flow-relative keywords and properties.
+    // NB: Since writing-mode and direction are inherited, changing either on an ancestor requires recascading its
+    //     descendants.
+    // FIXME: Include text-orientation once it is implemented.
+    if (AK::first_is_one_of(property_id, CSS::PropertyID::Direction, CSS::PropertyID::WritingMode))
+        invalidation.recompute_descendant_styles = true;
+
     // OPTIMIZATION: Special handling for CSS `visibility`:
     if (property_id == CSS::PropertyID::Visibility) {
         // We don't need to relayout if the visibility changes from visible to hidden or vice versa. Only collapse requires relayout.
