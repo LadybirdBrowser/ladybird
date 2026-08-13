@@ -2078,13 +2078,18 @@ JsonArray StyleComputer::collect_devtools_applied_style_rules(DOM::AbstractEleme
     return entries;
 }
 
+static bool block_declares_custom_properties(OrderedHashMap<Utf16FlyString, StyleProperty> const* custom_properties)
+{
+    return custom_properties && !custom_properties->is_empty();
+}
+
 // Whether a declaration block holds anything that reads the inherited custom property environment:
 // a declaration of a custom property, or a value with a substitution still to make. This is what
 // decides whether the style sharing key has to name that environment. The same serializer that
 // names each block answers this for every reuse path.
 static bool block_reads_custom_properties(ReadonlySpan<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> const* custom_properties)
 {
-    if (custom_properties && !custom_properties->is_empty())
+    if (block_declares_custom_properties(custom_properties))
         return true;
     return any_of(properties, [](auto const& property) { return property.value->is_unresolved(); });
 }
@@ -2123,6 +2128,7 @@ struct CascadeBlockKey {
 // again is allowed to produce a fresh object.
 struct CascadeBlockKeyDependencies {
     bool reads_custom_properties { false };
+    bool declares_custom_properties { false };
     bool reads_style_scope { false };
 };
 
@@ -2155,6 +2161,7 @@ static CascadeBlockKeyDependencies append_cascade_blocks_to_key(Vector<u64>& key
         }
         return CascadeBlockKeyDependencies {
             .reads_custom_properties = reads_custom_properties,
+            .declares_custom_properties = block_declares_custom_properties(block.custom_properties),
             .reads_style_scope = block_reads_style_scope(block.properties),
         };
     };
@@ -2182,6 +2189,7 @@ static CascadeBlockKeyDependencies append_cascade_blocks_to_key(Vector<u64>& key
             .semantic_declaration_id = contribution.semantic_declaration_id,
         });
         dependencies.reads_custom_properties |= block_dependencies.reads_custom_properties;
+        dependencies.declares_custom_properties |= block_dependencies.declares_custom_properties;
         dependencies.reads_style_scope |= block_dependencies.reads_style_scope;
     }
 
@@ -2191,6 +2199,7 @@ static CascadeBlockKeyDependencies append_cascade_blocks_to_key(Vector<u64>& key
             .origin = CascadeOrigin::AuthorPresentationalHint,
         });
         dependencies.reads_custom_properties |= block_dependencies.reads_custom_properties;
+        dependencies.declares_custom_properties |= block_dependencies.declares_custom_properties;
         dependencies.reads_style_scope |= block_dependencies.reads_style_scope;
     }
 
@@ -2205,6 +2214,7 @@ static CascadeBlockKeyDependencies append_cascade_blocks_to_key(Vector<u64>& key
             .source = inline_style,
         });
         dependencies.reads_custom_properties |= block_dependencies.reads_custom_properties;
+        dependencies.declares_custom_properties |= block_dependencies.declares_custom_properties;
         dependencies.reads_style_scope |= block_dependencies.reads_style_scope;
     }
 
@@ -4063,6 +4073,8 @@ bool StyleComputer::can_reuse_style_after_inherited_custom_property_change(DOM::
 
     // An element with declarations of its own has to rebuild the environment against the new
     // parent. The fast path is for an element that inherited the old environment unchanged.
+    if (record->cascade_declares_custom_properties)
+        return false;
     if (element.custom_property_data({}).ptr() != record->pinned_parent_custom_property_data.ptr())
         return false;
 
@@ -4292,6 +4304,7 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
         record->style_depends_on_style_container_query = false;
         record->explicitly_inherited_non_inherited_property = false;
         record->cascade_reads_custom_properties = false;
+        record->cascade_declares_custom_properties = false;
         record->pinned_parent_custom_property_data = nullptr;
         record->computed_style_record = {};
         record->bind_next_published_style = false;
@@ -4312,6 +4325,7 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
 
         auto const dependencies = append_cascade_blocks_to_key(record->words, record->pinned_values, cascade_input, presentational_hint_properties, inline_style, CascadeBlockKeyValueComparison::ByValue);
         record->cascade_reads_custom_properties = dependencies.reads_custom_properties;
+        record->cascade_declares_custom_properties = dependencies.declares_custom_properties;
         if (dependencies.reads_custom_properties && inheritance_parent.has_value()) {
             record->pinned_parent_custom_property_data = inheritance_parent->custom_property_data();
             record->words[style_input_record_parent_custom_properties_index] = bit_cast<FlatPtr>(record->pinned_parent_custom_property_data.ptr());

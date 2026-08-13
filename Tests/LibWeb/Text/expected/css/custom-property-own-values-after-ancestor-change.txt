@@ -1,0 +1,6 @@
+deduplicated ancestor value: rgb(0, 0, 255)
+deduplicated consumer color: rgb(255, 0, 0)
+deduplicated carrier value: rgb(255, 0, 0)
+shared rule ancestor value: rgb(0, 0, 255)
+shared rule consumer color: rgb(255, 0, 0)
+shared rule carrier value: rgb(255, 0, 0)

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #consumer-deduplicated { color: var(--deduplicated, rgb(0, 0, 0)); }
+    #ancestor-shared-rule, #carrier-shared-rule { --shared: rgb(255, 0, 0); }
+    #consumer-shared-rule { color: var(--shared, rgb(0, 0, 0)); }
+</style>
+
+<div id="ancestor-deduplicated" style="--deduplicated: rgb(255, 0, 0)">
+    <div id="carrier-deduplicated" style="--deduplicated: rgb(255, 0, 0)">
+        <div id="consumer-deduplicated"></div>
+    </div>
+</div>
+
+<div id="ancestor-shared-rule">
+    <div id="carrier-shared-rule">
+        <div id="consumer-shared-rule"></div>
+    </div>
+</div>
+
+<script>
+    test(() => {
+        const carrier = (name) => document.getElementById(`carrier-${name}`);
+        const ancestor = (name) => document.getElementById(`ancestor-${name}`);
+        const consumer = (name) => getComputedStyle(document.getElementById(`consumer-${name}`));
+
+        // Force a full style pass so the ancestor changes below take the incremental update path.
+        document.body.offsetHeight;
+
+        ancestor("deduplicated").style.setProperty("--deduplicated", "rgb(0, 0, 255)");
+        ancestor("shared-rule").style.setProperty("--shared", "rgb(0, 0, 255)");
+        document.body.offsetHeight;
+
+        println(`deduplicated ancestor value: ${getComputedStyle(ancestor("deduplicated")).getPropertyValue("--deduplicated")}`);
+        println(`deduplicated consumer color: ${consumer("deduplicated").color}`);
+        println(`deduplicated carrier value: ${getComputedStyle(carrier("deduplicated")).getPropertyValue("--deduplicated")}`);
+        println(`shared rule ancestor value: ${getComputedStyle(ancestor("shared-rule")).getPropertyValue("--shared")}`);
+        println(`shared rule consumer color: ${consumer("shared-rule").color}`);
+        println(`shared rule carrier value: ${getComputedStyle(carrier("shared-rule")).getPropertyValue("--shared")}`);
+    });
+</script>
