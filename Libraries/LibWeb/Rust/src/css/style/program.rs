@@ -683,6 +683,11 @@ impl StyleSheetProgram {
         self.rules[rule.0 as usize].live
     }
 
+    #[must_use]
+    pub fn sheet_is_attached_somewhere(&self, sheet: SheetID) -> bool {
+        !self.sheets[sheet.0 as usize].attachments.is_empty()
+    }
+
     pub fn live_selector_programs(&self) -> impl Iterator<Item = (RuleID, SelectorProgramID)> + '_ {
         self.rules.iter().enumerate().filter_map(|(index, rule)| {
             let version = self.rule_versions[rule.version_slot as usize];

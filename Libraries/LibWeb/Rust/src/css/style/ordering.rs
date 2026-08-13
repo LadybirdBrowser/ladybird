@@ -1220,6 +1220,47 @@ impl StyleEngine {
         self.rules_with_incomplete_old_declarations.clear();
         self.forget_departed_elements();
         self.sweep_selector_programs();
+        self.shed_routing_for_detached_sheets();
+    }
+
+    /// Drop routing entry points for rules whose sheet is attached nowhere.
+    ///
+    /// The router already skips such rules one route at a time, but enumerating their entry points
+    /// is itself a cost that grows with every sheet that ever came and went: a page that repeatedly
+    /// inserts and removes `<style>` elements would make every later mutation pay for all of the
+    /// dead ones. The rules stay compiled and keep their identity, so a sheet that reattaches gets
+    /// its routes back from `restore_routing_for_reattached_sheet`.
+    fn shed_routing_for_detached_sheets(&mut self) {
+        if !self.routing_needs_detachment_sweep {
+            return;
+        }
+        self.routing_needs_detachment_sweep = false;
+        let live_rules = self.program.live_selector_programs().collect::<Vec<_>>();
+        let mut excluded_sheets: HashSet<SheetID> = HashSet::default();
+        for &(rule, _) in &live_rules {
+            let sheet = self.program.rule_sheet(rule);
+            if !self.program.sheet_is_attached_somewhere(sheet) {
+                excluded_sheets.insert(sheet);
+            }
+        }
+        if excluded_sheets == self.sheets_excluded_from_routing {
+            return;
+        }
+        let mut rebuilt_routing = RoutingRegistry::new();
+        for &(rule, program) in &live_rules {
+            if excluded_sheets.contains(&self.program.rule_sheet(rule)) {
+                continue;
+            }
+            rebuilt_routing.add_rule(rule, program, self.programs.get(program));
+        }
+        let mut previous_routing = std::mem::replace(&mut self.routing, Rc::new(rebuilt_routing));
+        Rc::get_mut(&mut previous_routing)
+            .expect("routing program is shared outside a planning epoch")
+            .release_memory();
+        Rc::get_mut(&mut self.routing)
+            .expect("new routing program cannot be shared")
+            .settle_memory(&mut self.memory);
+        self.sheets_excluded_from_routing = excluded_sheets;
     }
 
     pub(super) fn sweep_selector_programs(&mut self) {
@@ -1241,9 +1282,18 @@ impl StyleEngine {
         }
 
         let mut rebuilt_routing = RoutingRegistry::new();
+        let mut excluded_sheets: HashSet<SheetID> = HashSet::default();
         for &(rule, program) in &live_rules {
+            // A detached sheet's rules keep no routing entry points; see
+            // `shed_routing_for_detached_sheets`.
+            let sheet = self.program.rule_sheet(rule);
+            if !self.program.sheet_is_attached_somewhere(sheet) {
+                excluded_sheets.insert(sheet);
+                continue;
+            }
             rebuilt_routing.add_rule(rule, program, self.programs.get(program));
         }
+        self.sheets_excluded_from_routing = excluded_sheets;
         let mut previous_routing = std::mem::replace(&mut self.routing, Rc::new(rebuilt_routing));
         Rc::get_mut(&mut previous_routing)
             .expect("routing program is shared outside a planning epoch")
