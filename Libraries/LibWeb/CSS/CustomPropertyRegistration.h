@@ -34,6 +34,7 @@ struct CustomPropertyRegistration {
     //       See https://drafts.css-houdini.org/css-properties-values-api/#register-a-custom-property
     RefPtr<StyleValue const> initial_value;
     RefPtr<StyleValue const> computed_initial_value { nullptr };
+    bool computed_initial_value_depends_on_viewport_metrics { false };
 };
 
 NonnullRefPtr<StyleValue const> compute_registered_custom_property_value(CustomPropertyRegistration const&, NonnullRefPtr<StyleValue const>, ComputationContext const&);
