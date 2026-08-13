@@ -1557,7 +1557,7 @@ void WebContentClient::did_request_webdriver_history_traversal(u64 page_id, u64 
 
             auto view = ViewImplementation::find_view_by_id(view_id);
             if (!view.has_value()) {
-                client.async_complete_webdriver_history_traversal(page_id, request_id, false, false, false);
+                client.async_complete_webdriver_history_traversal(page_id, request_id, false);
                 return;
             }
 
@@ -1568,19 +1568,14 @@ void WebContentClient::did_request_webdriver_history_traversal(u64 page_id, u64 
                         return;
                     auto& client = static_cast<WebContentClient&>(*self);
 
-                    auto traversal_started = outcome.status == HistoryTraversalStatus::Started;
-                    client.async_complete_webdriver_history_traversal(
-                        page_id,
-                        request_id,
-                        true,
-                        traversal_started && outcome.replaces_web_content_process,
-                        traversal_started && outcome.changes_top_level_entry);
+                    if (!outcome.replaces_web_content_process)
+                        client.async_complete_webdriver_history_traversal(page_id, request_id, true);
                 });
         });
         return;
     }
 
-    async_complete_webdriver_history_traversal(page_id, request_id, false, false, false);
+    async_complete_webdriver_history_traversal(page_id, request_id, false);
 }
 
 Messages::WebContentClient::DidRequestWebdriverLoadUrlFromUiResponse WebContentClient::did_request_webdriver_load_url_from_ui(u64 page_id, URL::URL url)
