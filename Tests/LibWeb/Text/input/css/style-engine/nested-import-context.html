@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    const dataCSS = css => `"data:text/css,${encodeURIComponent(css)}"`;
+    const layeredLeaf = ".layer-target.layer-target { color: rgb(1, 2, 3) }";
+    const conditionedLeaf = ".condition-target { color: rgb(4, 5, 6) }";
+    const layeredMiddle = `@import url(${dataCSS(layeredLeaf)});`;
+    const conditionedMiddle = `@import url(${dataCSS(conditionedLeaf)});`;
+    const style = document.createElement("style");
+    style.textContent = `
+        @import url(${dataCSS(layeredMiddle)}) layer(low);
+        @import url(${dataCSS(conditionedMiddle)}) screen and (width: 0px);
+        .layer-target { color: rgb(7, 8, 9) }
+    `;
+    document.head.appendChild(style);
+</script>
+<div class="layer-target">layer target</div>
+<div class="condition-target">condition target</div>
+<script>
+    asyncTest(async done => {
+        await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        println(`nested layer: ${getComputedStyle(document.querySelector(".layer-target")).color}`);
+        println(`nested condition: ${getComputedStyle(document.querySelector(".condition-target")).color}`);
+        done();
+    });
+</script>

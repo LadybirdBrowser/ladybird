@@ -1528,19 +1528,28 @@ static StyleEngineRuleID successor_of(StyleComputer const& style_computer, CSSSt
     return 0;
 }
 
+static GC::RootVector<GC::Ref<CSSRule>> enclosing_rules(CSSRule& rule)
+{
+    GC::RootVector<GC::Ref<CSSRule>> enclosing;
+    for (auto* ancestor = rule.parent_rule(); ancestor; ancestor = ancestor->parent_rule())
+        enclosing.append(*ancestor);
+    for (auto* sheet = rule.parent_style_sheet(); sheet;) {
+        auto owner = sheet->owner_rule();
+        if (!owner)
+            break;
+        enclosing.append(*owner);
+        for (auto* ancestor = owner->parent_rule(); ancestor; ancestor = ancestor->parent_rule())
+            enclosing.append(*ancestor);
+        sheet = owner->parent_style_sheet();
+    }
+    return enclosing;
+}
+
 // The scope a rule sits in, which its enclosing `@scope` rules and importing `@import scope()`
 // decide. A rule arriving on its own has to be compiled with the same scope the rules around it
 // were, or it would apply where they do not.
-static void collect_enclosing_scope(CSSRule& rule, Vector<void const*>& scope_roots, Vector<void const*>& scope_limits, StyleEngine::ScopeLevels& scope_levels)
+static void collect_enclosing_scope(GC::RootVector<GC::Ref<CSSRule>> const& enclosing, Vector<void const*>& scope_roots, Vector<void const*>& scope_limits, StyleEngine::ScopeLevels& scope_levels)
 {
-    Vector<CSSRule*> enclosing;
-    for (auto* ancestor = rule.parent_rule(); ancestor; ancestor = ancestor->parent_rule())
-        enclosing.append(const_cast<CSSRule*>(ancestor));
-    if (auto* sheet = rule.parent_style_sheet()) {
-        for (auto owner = sheet->owner_rule(); owner; owner = owner->parent_rule())
-            enclosing.append(owner.ptr());
-    }
-
     // Outermost first, so the scopes read the way they nest.
     for (size_t index = enclosing.size(); index > 0; --index) {
         auto& ancestor = *enclosing[index - 1];
@@ -1599,9 +1608,9 @@ static void for_each_document_with_engine_copy(CSSStyleSheet& sheet, auto const&
 
 // Whether the conditions of every group a rule sits inside hold. A rule compiled on its own has to
 // be told the same thing the whole-sheet walk would have told it.
-static bool enclosing_conditions_hold(CSSRule& rule, DOM::Document const& document)
+static bool enclosing_conditions_hold(GC::RootVector<GC::Ref<CSSRule>> const& enclosing, DOM::Document const& document)
 {
-    for (auto* ancestor = rule.parent_rule(); ancestor; ancestor = ancestor->parent_rule()) {
+    for (auto const& ancestor : enclosing) {
         if (!condition_holds(*ancestor, document))
             return false;
     }
@@ -1610,18 +1619,25 @@ static bool enclosing_conditions_hold(CSSRule& rule, DOM::Document const& docume
 
 // Reconstruct the group context that the whole-sheet walk would have carried to a rule compiled on
 // its own after a CSSOM insertion.
-static void collect_enclosing_group_context(CSSRule& rule, RuleCompilationContext& context)
+static void collect_enclosing_group_context(GC::RootVector<GC::Ref<CSSRule>> const& enclosing, RuleCompilationContext& context)
 {
-    GC::RootVector<GC::Ref<CSSLayerBlockRule>> enclosing_layers;
-    for (auto* ancestor = rule.parent_rule(); ancestor; ancestor = ancestor->parent_rule()) {
-        if (auto* layer = as_if<CSSLayerBlockRule>(*ancestor))
-            enclosing_layers.append(*layer);
+    bool in_a_layer = false;
+    for (auto const& ancestor : enclosing) {
+        if (is<CSSLayerBlockRule>(*ancestor))
+            in_a_layer = true;
         if (is<CSSContainerRule>(*ancestor))
             context.gated_by_container_query = true;
+        if (auto* import_rule = as_if<CSSImportRule>(*ancestor); import_rule && import_rule->layer_name().has_value())
+            in_a_layer = true;
     }
-    for (size_t index = enclosing_layers.size(); index > 0; --index)
-        context.layer_name = qualified_layer_name_within(context.layer_name, enclosing_layers[index - 1]->internal_name());
-    context.in_a_layer = !enclosing_layers.is_empty();
+    for (size_t index = enclosing.size(); index > 0; --index) {
+        auto& ancestor = *enclosing[index - 1];
+        if (auto* layer = as_if<CSSLayerBlockRule>(ancestor))
+            context.layer_name = qualified_layer_name_within(context.layer_name, layer->internal_name());
+        else if (auto* import_rule = as_if<CSSImportRule>(ancestor); import_rule && import_rule->internal_layer_name().has_value())
+            context.layer_name = qualified_layer_name_within(context.layer_name, *import_rule->internal_layer_name());
+    }
+    context.in_a_layer = in_a_layer;
 }
 
 // A rule arrived in one document's engine. Compile it, and everything it brings with it, into the
@@ -1638,7 +1654,8 @@ static void record_style_rule_inserted_in(CSSRule& rule, CSSStyleSheet& sheet, D
     Vector<void const*> scope_roots;
     Vector<void const*> scope_limits;
     StyleEngine::ScopeLevels scope_levels;
-    collect_enclosing_scope(rule, scope_roots, scope_limits, scope_levels);
+    auto enclosing = enclosing_rules(rule);
+    collect_enclosing_scope(enclosing, scope_roots, scope_limits, scope_levels);
     RuleCompilationContext context {
         style_computer.style_engine(),
         sheet_id,
@@ -1651,8 +1668,8 @@ static void record_style_rule_inserted_in(CSSRule& rule, CSSStyleSheet& sheet, D
     context.scope_roots = move(scope_roots);
     context.scope_limits = move(scope_limits);
     context.scope_levels = move(scope_levels);
-    context.conditions_hold = enclosing_conditions_hold(rule, document);
-    collect_enclosing_group_context(rule, context);
+    context.conditions_hold = enclosing_conditions_hold(enclosing, document);
+    collect_enclosing_group_context(enclosing, context);
     compile_rules_into(context, rule);
 }
 
@@ -1757,7 +1774,8 @@ static void replace_matching_selectors(CSSRule& rule, DOM::Document& document)
     Vector<void const*> scope_roots;
     Vector<void const*> scope_limits;
     StyleEngine::ScopeLevels scope_levels;
-    collect_enclosing_scope(rule, scope_roots, scope_limits, scope_levels);
+    auto enclosing = enclosing_rules(rule);
+    collect_enclosing_scope(enclosing, scope_roots, scope_limits, scope_levels);
     style_engine.replace_style_rule_selectors(rule_id, selectors, namespaces, scope_roots, scope_limits, scope_levels);
 }
 
