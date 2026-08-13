@@ -1596,18 +1596,18 @@ def run_blocked_process_swap_ui_forward_crash_recovery_test(
     )
     crash_current_page_allowing_navigation_timeout(webdriver_port, session_id)
     wait_for_event(page_server.process_swap_back_recovery_requested, "process-swap forward recovery request")
+    page_server.release_blocked_process_swap_back.set()
     expect_ui_session_history(
         webdriver_port,
         session_id,
         "while process-swap UI forward recovers target after crash",
         [url_b, url_process_swap_back_blocked],
         [0, 1],
-        0,
-        False,
+        1,
         True,
+        False,
         log,
     )
-    page_server.release_blocked_process_swap_back.set()
     wait_for_event(page_server.process_swap_back_document_ran, "process-swap UI forward recovery document")
     expect_url(
         webdriver_port,
@@ -1630,7 +1630,7 @@ def run_blocked_process_swap_ui_forward_crash_recovery_test(
     request(webdriver_port, "DELETE", f"/session/{session_id}")
 
 
-def expect_second_ui_forward_during_pending_forward_does_not_hang(
+def expect_second_ui_forward_supersedes_pending_forward(
     webdriver_port,
     session_id,
     page_server,
@@ -1663,6 +1663,16 @@ def expect_second_ui_forward_during_pending_forward_does_not_hang(
     page_server.release_blocked_forward.clear()
     traverse_history_from_ui(webdriver_port, session_id, 1, wait_for_navigation_completion=False)
     wait_for_event(page_server.blocked_forward_requested, "blocked first UI forward")
+    # The changing-job continuation has dispatched once the target request
+    # starts. Supersession must remain safe after that point.
+    expect_navigation_buttons(
+        webdriver_port,
+        session_id,
+        "while first UI forward is pending",
+        True,
+        True,
+        log,
+    )
 
     second_forward_error = []
 
@@ -1674,14 +1684,17 @@ def expect_second_ui_forward_during_pending_forward_does_not_hang(
 
     second_forward_thread = threading.Thread(target=request_second_forward)
     second_forward_thread.start()
-    page_server.release_blocked_forward.set()
     second_forward_thread.join(timeout=EVENT_TIMEOUT_SECONDS)
     if second_forward_thread.is_alive():
+        page_server.release_blocked_forward.set()
+        second_forward_thread.join(timeout=EVENT_TIMEOUT_SECONDS)
         raise AssertionError("Timed out waiting for second UI forward during pending forward\n" + "\n".join(log))
     if second_forward_error:
+        page_server.release_blocked_forward.set()
         raise AssertionError(
             f"Second UI forward during pending forward failed: {second_forward_error[0]}\n" + "\n".join(log)
         )
+    page_server.release_blocked_forward.set()
     expect_url(webdriver_port, session_id, "after second UI forward during pending forward", url_c, log)
     expect_ui_session_history(
         webdriver_port,
@@ -2125,6 +2138,50 @@ return null;
         request(webdriver_port, "DELETE", f"/session/{session_id}")
 
 
+def run_pending_navigation_browser_ui_back_with_older_entry_test(
+    webdriver_port,
+    page_server,
+    url_a,
+    url_d,
+):
+    session_id = create_session(webdriver_port)
+    log = [f"pending navigation browser UI back with older entry initial: {current_url(webdriver_port, session_id)}"]
+    try:
+        load_url_from_ui(webdriver_port, session_id, url_d)
+        expect_url(webdriver_port, session_id, "after pending navigation older-entry setup /d", url_d, log)
+        load_url_from_ui(webdriver_port, session_id, url_a)
+        expect_url(webdriver_port, session_id, "after pending navigation older-entry setup /a", url_a, log)
+
+        page_server.blocked_navigation_requested.clear()
+        page_server.release_blocked_navigation.clear()
+        page_server.blocked_navigation_response_finished.clear()
+        execute_script(
+            webdriver_port,
+            session_id,
+            'document.querySelector("#pending-cross-site").click(); return null;',
+        )
+        wait_for_event(page_server.blocked_navigation_requested, "pending navigation with older entry request")
+
+        page_server.d_document_ran.clear()
+        traverse_history_from_ui(webdriver_port, session_id, -1, wait_for_navigation_completion=False)
+        wait_for_event(page_server.d_document_ran, "older /d document after canceling pending navigation")
+        expect_url(webdriver_port, session_id, "after back during pending navigation with older entry", url_d, log)
+        expect_ui_session_history(
+            webdriver_port,
+            session_id,
+            "after back during pending navigation with older entry",
+            [url_d, url_a],
+            [0, 1],
+            0,
+            False,
+            True,
+            log,
+        )
+    finally:
+        page_server.release_blocked_navigation.set()
+        request(webdriver_port, "DELETE", f"/session/{session_id}")
+
+
 def run_cross_process_pending_navigation_browser_ui_back_test(
     webdriver_port,
     page_server,
@@ -2276,6 +2333,7 @@ def run_uncommitted_navigation_browser_ui_back_tests(
     webdriver_port,
     page_server,
     url_a,
+    url_d,
     url_navigation_blocked,
     url_redirect_to_navigation_blocked,
     url_cross_site_navigation_blocked,
@@ -2286,6 +2344,12 @@ def run_uncommitted_navigation_browser_ui_back_tests(
         url_a,
         url_navigation_blocked,
         url_redirect_to_navigation_blocked,
+    )
+    run_pending_navigation_browser_ui_back_with_older_entry_test(
+        webdriver_port,
+        page_server,
+        url_a,
+        url_d,
     )
     run_cross_process_pending_navigation_browser_ui_back_test(
         webdriver_port,
@@ -2412,13 +2476,14 @@ def run_test(webdriver_binary):
             webdriver_port,
             page_server,
             url_a,
+            url_d,
             url_navigation_blocked,
             url_redirect_to_navigation_blocked,
             url_cross_site_navigation_blocked,
         )
 
         session_id = create_session(webdriver_port)
-        expect_second_ui_forward_during_pending_forward_does_not_hang(
+        expect_second_ui_forward_supersedes_pending_forward(
             webdriver_port,
             session_id,
             page_server,
@@ -2941,18 +3006,18 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
         )
         crash_current_page_allowing_navigation_timeout(webdriver_port, session_id)
         wait_for_event(page_server.process_swap_back_recovery_requested, "process-swap back recovery request")
+        page_server.release_blocked_process_swap_back.set()
         expect_ui_session_history(
             webdriver_port,
             session_id,
             "while process-swap UI back recovers target after crash",
             [url_process_swap_back_blocked, url_b],
             [0, 1],
-            1,
-            True,
+            0,
             False,
+            True,
             log,
         )
-        page_server.release_blocked_process_swap_back.set()
         wait_for_event(page_server.process_swap_back_document_ran, "process-swap UI back recovery document")
         expect_url(
             webdriver_port,

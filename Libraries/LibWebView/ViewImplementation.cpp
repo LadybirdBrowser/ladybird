@@ -484,11 +484,12 @@ void ViewImplementation::traverse_the_history_by_delta(
     m_top_level_traversable.traverse_the_history_by_delta(delta, check_for_cancelation, move(on_ready));
 }
 
-void ViewImplementation::cancel_uncommitted_top_level_navigation_for_browser_traversal()
+bool ViewImplementation::cancel_uncommitted_top_level_navigation_for_browser_traversal()
 {
-    auto canceled = cancel_uncommitted_top_level_navigation(
-        "traverse-canceled-pending-navigation"sv, true);
+    auto navigation_used_replacement_process = m_uncommitted_top_level_navigation == UncommittedTopLevelNavigation::ReplacementProcess;
+    auto canceled = cancel_uncommitted_top_level_navigation("traverse-canceled-pending-navigation"sv, true, ReconstructCanceledNavigation::No);
     VERIFY(canceled);
+    return navigation_used_replacement_process;
 }
 
 void ViewImplementation::traverse_the_history_to_step(
@@ -510,6 +511,7 @@ void ViewImplementation::will_apply_history_traversal_step(u64 operation_id)
     } else {
         begin_webdriver_navigation(WebDriverNavigationCompletionSource::HistoryTraversal, operation_id);
     }
+    update_navigation_action_state();
     dump_session_history("traverse-apply-history-step"sv);
 }
 
@@ -558,14 +560,14 @@ Vector<ViewImplementation::SessionHistoryTraversalMenuItem> ViewImplementation::
         return {};
 
     Vector<SessionHistoryTraversalMenuItem> items;
-    auto append_item = [&](size_t target_step_index, TraversableSessionHistory::Entry const& target_entry) {
+    auto append_item = [&](i32 target_step, TraversableSessionHistory::Entry const& target_entry) {
         auto history_entry = Application::history_store(m_is_private).entry_for_url(target_entry.url);
         auto url = target_entry.url.serialize();
         auto title = history_entry.has_value() && history_entry->title.has_value() && !history_entry->title->is_empty()
             ? move(*history_entry->title)
             : url;
         items.append({
-            static_cast<int>(target_step_index) - static_cast<int>(*current_used_step_index),
+            target_step,
             move(title),
             move(url),
             history_entry.has_value() ? move(history_entry->favicon_base64_png) : Optional<String> {},
@@ -580,7 +582,7 @@ Vector<ViewImplementation::SessionHistoryTraversalMenuItem> ViewImplementation::
             auto const* target_entry = m_top_level_traversable.session_history().top_level_entry_for_step(*target_step);
             if (!target_entry)
                 continue;
-            append_item(target_step_index - 1, *target_entry);
+            append_item(*target_step, *target_entry);
         }
     } else {
         for (size_t target_step_index = *current_used_step_index + 1; target_step_index < m_top_level_traversable.session_history().used_step_count(); ++target_step_index) {
@@ -590,7 +592,7 @@ Vector<ViewImplementation::SessionHistoryTraversalMenuItem> ViewImplementation::
             auto const* target_entry = m_top_level_traversable.session_history().top_level_entry_for_step(*target_step);
             if (!target_entry)
                 continue;
-            append_item(target_step_index, *target_entry);
+            append_item(*target_step, *target_entry);
         }
     }
 
@@ -2006,7 +2008,7 @@ void ViewImplementation::set_loading_state(bool is_loading)
         on_loading_state_change(is_loading);
 }
 
-bool ViewImplementation::cancel_uncommitted_top_level_navigation(StringView reason, bool stop_loading)
+bool ViewImplementation::cancel_uncommitted_top_level_navigation(StringView reason, bool stop_loading, ReconstructCanceledNavigation reconstruct)
 {
     if (!m_uncommitted_top_level_navigation.has_value())
         return false;
@@ -2029,7 +2031,7 @@ bool ViewImplementation::cancel_uncommitted_top_level_navigation(StringView reas
     }
 
     set_url(current_entry->url);
-    if (navigation_used_replacement_process) {
+    if (navigation_used_replacement_process && reconstruct == ReconstructCanceledNavigation::Yes) {
         reconstruct_current_session_history_entry_with_history_operation(reason);
         return true;
     }
@@ -2096,8 +2098,7 @@ u64 ViewImplementation::begin_webdriver_navigation(WebDriverNavigationCompletion
 
 void ViewImplementation::complete_webdriver_navigation(u64 navigation_id)
 {
-    if (!m_pending_webdriver_navigation.has_value()
-        || m_pending_webdriver_navigation->id != navigation_id)
+    if (!m_pending_webdriver_navigation.has_value() || m_pending_webdriver_navigation->id != navigation_id)
         return;
 
     m_pending_webdriver_navigation.clear();
@@ -2122,8 +2123,9 @@ void ViewImplementation::complete_webdriver_history_traversal(u64 operation_id)
 {
     if (!m_pending_webdriver_navigation.has_value()
         || m_pending_webdriver_navigation->completion_source != WebDriverNavigationCompletionSource::HistoryTraversal
-        || m_pending_webdriver_navigation->history_operation_id != operation_id)
+        || m_pending_webdriver_navigation->history_operation_id != operation_id) {
         return;
+    }
 
     complete_webdriver_navigation(m_pending_webdriver_navigation->id);
 }
@@ -2165,8 +2167,10 @@ String ViewImplementation::ui_process_session_history_for_testing(Badge<WebConte
 
 void ViewImplementation::update_navigation_action_state()
 {
-    m_navigate_back_action->set_enabled(m_top_level_traversable.session_history().can_go_back());
-    m_navigate_forward_action->set_enabled(m_top_level_traversable.session_history().can_go_forward());
+    auto effective_current_index = m_top_level_traversable.effective_current_session_history_step_index();
+    m_navigate_back_action->set_enabled(effective_current_index.has_value() && *effective_current_index > 0);
+    m_navigate_forward_action->set_enabled(effective_current_index.has_value()
+        && *effective_current_index + 1 < m_top_level_traversable.session_history().used_step_count());
 }
 
 void ViewImplementation::recover_current_session_history_entry_with_history_operation(Optional<CanonicalTraversable::HistoryJobEndpoint> crashed_endpoint)
@@ -2285,9 +2289,7 @@ void ViewImplementation::start_requested_history_traversal(u64 initiation_id, We
         ? m_top_level_traversable.session_history().traversal_target_for_step(*target_step)
         : Optional<TraversableSessionHistory::TraversalTarget> {};
     if (!target.has_value()) {
-        client().async_complete_history_operation(
-            page_id(), 0, Web::HTML::HistoryStepResult::NoMatchingEntry, {},
-            m_top_level_traversable.session_history().size(), initiation_id);
+        client().async_complete_history_operation(page_id(), 0, Web::HTML::HistoryStepResult::NoMatchingEntry, {}, m_top_level_traversable.session_history().size(), initiation_id);
         promise->resolve({});
         return;
     }
