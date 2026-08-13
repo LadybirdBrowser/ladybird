@@ -1372,13 +1372,31 @@ Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transiti
             delay = transition_attributes.delay;
             duration = transition_attributes.duration;
             allow_discrete = transition_attributes.transition_behavior == TransitionBehavior::AllowDiscrete;
-            before_change_value = stabilization_state.before_change_value;
-            after_change_value = after_change_style->computed_style_value(property_id, ComputedValues::WithAnimationsApplied::No);
+            // https://drafts.csswg.org/css-transitions-1/#starting
+            // The after-change style excludes styles from CSS Transitions but keeps animation-derived values, and the
+            // before-change style has declarative animations updated to the current time. A property that a
+            // non-transition animation currently applies to therefore carries the same animated value on both sides of
+            // the comparison, so a change to the underlying value cannot start a transition beneath a running
+            // animation.
+            RefPtr<StyleValue const> value_covered_by_animation;
+            if (auto const* animated_properties = after_change_style->animated_properties();
+                animated_properties && animated_properties->has_property(property_id)
+                && !animated_properties->is_property_result_of_transition(property_id))
+                value_covered_by_animation = animated_properties->property(property_id);
+
+            if (value_covered_by_animation) {
+                before_change_value = value_covered_by_animation;
+                after_change_value = value_covered_by_animation;
+                before_change_value_originates_from_current_color = value_covered_by_animation->to_keyword() == Keyword::Currentcolor;
+                after_change_value_originates_from_current_color = before_change_value_originates_from_current_color;
+            } else {
+                before_change_value = stabilization_state.before_change_value;
+                after_change_value = after_change_style->computed_style_value(property_id, ComputedValues::WithAnimationsApplied::No);
+                before_change_value_originates_from_current_color = stabilization_state.before_change_value_originates_from_current_color;
+                after_change_value_originates_from_current_color = originates_from_current_color(*after_change_style, property_id);
+            }
             VERIFY(before_change_value);
             VERIFY(after_change_value);
-
-            before_change_value_originates_from_current_color = stabilization_state.before_change_value_originates_from_current_color;
-            after_change_value_originates_from_current_color = originates_from_current_color(*after_change_style, property_id);
             if (existing_transition) {
                 old_reversing_shortening_factor = existing_transition->reversing_shortening_factor();
                 if (has_running_transition)

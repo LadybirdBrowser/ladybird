@@ -26,8 +26,11 @@
     test(() => {
         internals.updateStyle();
 
+        // The animation gives the element an animated overlay while width transitions. It must not
+        // animate width itself: a property covered by an animation uses the animated value in both
+        // the before-change and the after-change style, so no transition could start on it.
         const animation = target.animate(
-            [{ width: "10px" }, { width: "20px" }],
+            [{ height: "10px" }, { height: "20px" }],
             { duration: 1000, fill: "both" });
         animation.pause();
         animation.currentTime = 1000;
