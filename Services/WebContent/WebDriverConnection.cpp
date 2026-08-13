@@ -682,6 +682,10 @@ Messages::WebDriverClient::CloseWindowResponse WebDriverConnection::close_window
         //        steps. If a user dialog is open in another window within this agent, the event loop will be paused, and
         //        those spins will hang. So we must return control to the client, who can deal with the dialog.
         Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(current_top_level_browsing_context()->heap(), [this]() {
+            // The page can close this window on its own before this task runs, and a closed
+            // context has no document or navigable left to reach its traversable through.
+            if (ensure_current_top_level_browsing_context_is_open().is_error())
+                return;
             current_top_level_browsing_context()->top_level_traversable()->close_top_level_traversable();
         }));
 
