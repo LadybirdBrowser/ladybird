@@ -89,6 +89,29 @@ TEST_CASE(reentrant_invoke_uses_independent_execution_state)
     EXPECT_EQ(result.values()[0].to<i32>(), 1);
 }
 
+TEST_CASE(compiled_indirect_call_preserves_arguments_and_result)
+{
+    auto file = MUST(Core::File::open("Fixtures/indirect-call.wasm"sv, Core::File::OpenMode::Read));
+    auto bytes = MUST(file->read_until_eof());
+    FixedMemoryStream stream { bytes.bytes() };
+    auto module = MUST(Wasm::Module::parse(stream));
+
+    Wasm::AbstractMachine machine;
+    auto instance = MUST(machine.instantiate(*module, {}));
+
+    Optional<Wasm::FunctionAddress> run;
+    for (auto const& export_ : instance->exports()) {
+        if (export_.name() == "run"sv)
+            run = export_.value().get<Wasm::FunctionAddress>();
+    }
+    VERIFY(run.has_value());
+
+    auto result = machine.invoke(*run, { Wasm::Value(static_cast<i32>(41)) });
+    EXPECT(!result.is_trap());
+    EXPECT_EQ(result.values().size(), 1u);
+    EXPECT_EQ(result.values()[0].to<i32>(), 42);
+}
+
 TEST_CASE(compiled_memory_access_traps_out_of_bounds)
 {
     auto file = MUST(Core::File::open("Fixtures/memory-guard-trap.wasm"sv, Core::File::OpenMode::Read));

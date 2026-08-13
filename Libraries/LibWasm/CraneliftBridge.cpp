@@ -492,6 +492,20 @@ i32 wasm_cl_call_indirect(void* interp_ptr, void* config_ptr, i32 table_idx, i32
     if (!type_actual || !matches_defined_type(*type_actual, *type_expected))
         return interpreter.set_trap(Trap::from_string("Indirect call type mismatch"));
 
+    auto const& function_type = function->visit([](auto const& value) -> FunctionType const& { return value.type(); });
+    if (function_type.results().size() <= 1) {
+        auto parameter_count = function_type.parameters().size();
+        if (parameter_count > config.value_stack().size())
+            return interpreter.set_trap(Trap::from_string("Insufficient arguments for indirect call"));
+
+        auto arguments = config.value_stack().span().slice_from_end(parameter_count);
+        config.value_stack().shrink(config.value_stack().size() - parameter_count);
+        auto did_trap = wasm_cl_finish_call(interpreter, config, address, arguments.data(), arguments.size());
+        if (!did_trap && !function_type.results().is_empty())
+            config.value_stack().unchecked_append(config.compiled_call_result_scratch());
+        return did_trap;
+    }
+
     SourcesAndDestination addrs {};
     addrs.sources[0] = Dispatch::RegisterOrStack::Stack;
     addrs.sources[1] = Dispatch::RegisterOrStack::Stack;
