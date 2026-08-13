@@ -433,13 +433,13 @@ public:
     CSS::ImageRendering background_image_rendering() const;
 
     Optional<Color> normal_link_color() const;
-    void set_normal_link_color(Color);
+    void set_normal_link_color(Optional<Color>);
 
     Optional<Color> active_link_color() const;
-    void set_active_link_color(Color);
+    void set_active_link_color(Optional<Color>);
 
     Optional<Color> visited_link_color() const;
-    void set_visited_link_color(Color);
+    void set_visited_link_color(Optional<Color>);
 
     Optional<Vector<Utf16FlyString> const&> supported_color_schemes() const;
     void set_supported_color_schemes(Vector<Utf16FlyString>);

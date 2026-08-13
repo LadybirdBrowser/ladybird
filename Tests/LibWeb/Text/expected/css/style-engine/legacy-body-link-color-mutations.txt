@@ -1,0 +1,6 @@
+normal after change: rgb(0, 16, 48)
+shadow after change: rgb(0, 16, 48)
+normal after removal: rgb(0, 0, 238)
+active before change: rgb(0, 64, 96)
+active after change: rgb(0, 112, 144)
+active after removal: rgb(255, 0, 0)
