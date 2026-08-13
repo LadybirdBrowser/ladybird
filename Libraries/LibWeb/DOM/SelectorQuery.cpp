@@ -146,6 +146,9 @@ static bool pseudo_class_matching_is_covered_by_version_counters(CSS::PseudoClas
 SelectorQuery::SelectorQuery(Document& document, CSS::SelectorList&& selectors)
     : m_selectors(move(selectors))
 {
+    // An early script can compile a query before the first sheet attaches, which is otherwise what
+    // tells the engine whether HTML name folding applies in this document.
+    CSS::record_document_kind(document);
     Vector<void const*> selector_handles;
     selector_handles.ensure_capacity(m_selectors.size());
     for (auto const& selector : m_selectors)
