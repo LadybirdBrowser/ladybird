@@ -2320,14 +2320,19 @@ impl PrefixStates {
             parent: parent_state,
             previous: previous_state,
         };
+        let old_entering = self.entering_of(node);
+        // Interner give-back can strand a node with a remapped transition but no surviving
+        // entering states: the entering names the parent's old state, which dies with a forgotten
+        // parent transition. Local output deltas replay from the old entering, so without one the
+        // difference has to come from comparing the interned state chains instead.
         let can_derive_delta = selection.is_some()
             && (entering_deltas.parent.is_some()
                 || entering_deltas.previous.is_some()
                 || local_affected_candidates.is_some())
-            && (!local_facts_changed || local_affected_candidates.is_some());
+            && (!local_facts_changed || local_affected_candidates.is_some())
+            && old_entering.is_some();
         let mut affected_candidates = std::mem::take(&mut self.candidates);
         affected_candidates.clear();
-        let old_entering = self.entering_of(node);
         for delta in [entering_deltas.parent, entering_deltas.previous].into_iter().flatten() {
             self.collect_delta_steps(delta, delta_arena, &mut affected_candidates);
         }
