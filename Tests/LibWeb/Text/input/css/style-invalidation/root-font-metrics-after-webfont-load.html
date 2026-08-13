@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @font-face {
+        font-family: TestAhemRootMetrics;
+        src: url("../../wpt-import/fonts/Ahem.ttf");
+    }
+
+    html {
+        font-family: TestAhemRootMetrics, monospace;
+        font-size: 40px;
+    }
+
+    .target {
+        display: block;
+        font-family: monospace;
+        font-size: 40px;
+    }
+
+    #rch { width: 10rch; }
+    #rex { width: 10rex; }
+</style>
+<div id="rch" class="target">rch</div>
+<div id="rex" class="target">rex</div>
+<script>
+    promiseTest(async () => {
+        const targets = [rch, rex];
+        const widthsBeforeLoad = targets.map(target => getComputedStyle(target).width);
+
+        await document.fonts.ready;
+        internals.updateStyle();
+
+        for (let index = 0; index < targets.length; ++index)
+            println(`${targets[index].id} changed: ${widthsBeforeLoad[index] !== getComputedStyle(targets[index]).width}`);
+    });
+</script>
