@@ -93,7 +93,7 @@ Result Configuration::execute(Interpreter& interpreter)
     if (interpreter.did_trap())
         return interpreter.trap();
 
-    Vector<Value> results { value_stack().span().slice_from_end(frame().arity()) };
+    Vector<Value, ResultsStaticSize> results { value_stack().span().slice_from_end(frame().arity()) };
     value_stack().shrink(value_stack().size() - results.size(), true);
     results.reverse();
 

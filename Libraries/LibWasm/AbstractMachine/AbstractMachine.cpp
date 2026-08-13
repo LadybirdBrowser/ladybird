@@ -1173,7 +1173,7 @@ Optional<InstantiationError> AbstractMachine::allocate_all_final_phase(Module co
     return {};
 }
 
-Result AbstractMachine::invoke(FunctionAddress address, Vector<Value> arguments)
+Result AbstractMachine::invoke(FunctionAddress address, Vector<Value, ArgumentsStaticSize> arguments)
 {
     auto interpreter = m_available_interpreters.is_empty()
         ? make<BytecodeInterpreter>(m_stack_info)
@@ -1190,7 +1190,7 @@ Result AbstractMachine::invoke(FunctionAddress address, Vector<Value> arguments)
     return result;
 }
 
-Result AbstractMachine::invoke(Interpreter& interpreter, FunctionAddress address, Vector<Value> arguments)
+Result AbstractMachine::invoke(Interpreter& interpreter, FunctionAddress address, Vector<Value, ArgumentsStaticSize> arguments)
 {
     auto configuration = m_available_configurations.is_empty()
         ? make<Configuration>(m_store)
@@ -1198,8 +1198,7 @@ Result AbstractMachine::invoke(Interpreter& interpreter, FunctionAddress address
     if (m_should_limit_instruction_count)
         configuration->enable_instruction_count_limit();
 
-    Vector<Value, ArgumentsStaticSize> args = move(arguments);
-    auto result = configuration->call(interpreter, address, args);
+    auto result = configuration->call(interpreter, address, arguments);
 
     configuration->reset_after_invoke({});
     if (m_available_configurations.size() < MAX_AVAILABLE_EXECUTION_STATES)

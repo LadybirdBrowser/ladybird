@@ -142,7 +142,7 @@ static GC::Ref<JS::FunctionObject> create_native_function_for_instance_realm(JS:
         WebAssembly::Detail::name_of_webassembly_function(instance->cache().abstract_machine().store(), address),
         type->parameters().size(),
         [address, type = type.release_value(), instance, realm = GC::Ref(realm)](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
-            Vector<Wasm::Value> values;
+            Vector<Wasm::Value, Wasm::ArgumentsStaticSize> values;
             values.ensure_capacity(type.parameters().size());
 
             size_t index = 0;
