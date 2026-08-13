@@ -898,52 +898,6 @@ void LocalNavigable::initialize_navigable(NonnullRefPtr<DocumentState> document_
     document->set_initial_visibility_state(traversable_navigable()->system_visibility_state());
 }
 
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-the-target-history-entry
-static RefPtr<SessionHistoryEntry> get_the_target_history_entry_from_entries(
-    Vector<NonnullRefPtr<SessionHistoryEntry>> const& entries, int target_step)
-{
-    // 2. Return the item in entries that has the greatest step less than or equal to step.
-    RefPtr<SessionHistoryEntry> result = nullptr;
-    for (auto& entry : entries) {
-        // NB: "pending" is not a used history step.
-        // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-step
-        auto entry_step = entry->step_value();
-        if (entry_step.has_value() && *entry_step <= target_step) {
-            if (!result || *result->step_value() < *entry_step) {
-                result = entry;
-            }
-        }
-    }
-
-    return result;
-}
-
-RefPtr<SessionHistoryEntry> LocalNavigable::get_the_target_history_entry(int target_step) const
-{
-    // 1. Let entries be the result of getting session history entries for navigable.
-    auto& entries = get_session_history_entries();
-
-    return get_the_target_history_entry_from_entries(entries, target_step);
-}
-
-RefPtr<SessionHistoryEntry> LocalNavigable::get_the_target_history_entry_if_present(int target_step) const
-{
-    auto traversable = traversable_navigable();
-    Vector<NonnullRefPtr<SessionHistoryEntry>>* entries = nullptr;
-    if (this == traversable.ptr())
-        entries = &traversable->session_history_entries();
-    else
-        entries = get_session_history_entries_if_present(*traversable, *this);
-
-    // AD-HOC: The spec asserts that a nested history list is found. During queued navigable creation/destruction
-    //         bookkeeping, engines can still observe a child navigable after its iframe has been removed from the
-    //         parent's nested histories. In that case, the detached child has no observable session history effect.
-    if (!entries)
-        return nullptr;
-
-    return get_the_target_history_entry_from_entries(*entries, target_step);
-}
-
 RefPtr<SessionHistoryEntry> LocalNavigable::find_session_history_entry(Utf16String const& navigation_api_key, CrossProcessId document_state_id) const
 {
     auto traversable = traversable_navigable();

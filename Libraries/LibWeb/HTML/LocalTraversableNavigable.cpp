@@ -9,7 +9,6 @@
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/NumericLimits.h>
-#include <AK/QuickSort.h>
 #include <LibGC/RootVector.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
@@ -511,9 +510,8 @@ void LocalTraversableNavigable::reset_session_history_for_testing(GC::Ref<GC::Fu
 
                 auto document = active_document();
                 VERIFY(document);
-                auto history_object_length_and_index = get_the_history_object_length_and_index(m_current_session_history_step);
-                document->history()->m_index = history_object_length_and_index.script_history_index;
-                document->history()->m_length = history_object_length_and_index.script_history_length;
+                document->history()->m_index = 0;
+                document->history()->m_length = 1;
 
                 Vector<NonnullRefPtr<SessionHistoryEntry>> entries_for_navigation_api { active_entry };
                 active_window()->navigation()->initialize_the_navigation_api_entries_for_reconstructed_session_history(entries_for_navigation_api, active_entry);
@@ -522,129 +520,6 @@ void LocalTraversableNavigable::reset_session_history_for_testing(GC::Ref<GC::Fu
                 on_complete->function()();
             }),
         });
-}
-
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-all-used-history-steps
-Vector<int> LocalTraversableNavigable::get_all_used_history_steps() const
-{
-    // FIXME: 1. Assert: this is running within traversable's session history traversal queue.
-
-    // 2. Let steps be an empty ordered set of non-negative integers.
-    OrderedHashTable<int> steps;
-
-    // 3. Let entryLists be the ordered set « traversable's session history entries ».
-    Vector<Vector<NonnullRefPtr<SessionHistoryEntry>>> entry_lists { session_history_entries() };
-
-    // 4. For each entryList of entryLists:
-    while (!entry_lists.is_empty()) {
-        auto entry_list = entry_lists.take_first();
-
-        // 1. For each entry of entryList:
-        for (auto& entry : entry_list) {
-            // 1. Append entry's step to steps.
-            // NB: "pending" is not a used history step.
-            // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-step
-            if (auto entry_step = entry->step_value(); entry_step.has_value()) {
-                steps.set(*entry_step);
-            } else {
-                continue;
-            }
-
-            // 2. For each nestedHistory of entry's document state's nested histories, append nestedHistory's entries list to entryLists.
-            for (auto& nested_history : entry->document_state()->nested_histories())
-                entry_lists.append(nested_history.entries);
-        }
-    }
-
-    // 5. Return steps, sorted.
-    auto sorted_steps = steps.values();
-    quick_sort(sorted_steps);
-    return sorted_steps;
-}
-
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-the-history-object-length-and-index
-HistoryObjectLengthAndIndex LocalTraversableNavigable::get_the_history_object_length_and_index(int step) const
-{
-    // 1. Let steps be the result of getting all used history steps within traversable.
-    auto steps = get_all_used_history_steps();
-
-    // 2. Let scriptHistoryLength be the size of steps.
-    auto script_history_length = steps.size();
-
-    // 3. Assert: steps contains step.
-    VERIFY(steps.contains_slow(step));
-
-    // 4. Let scriptHistoryIndex be the index of step in steps.
-    auto script_history_index = *steps.find_first_index(step);
-
-    // 5. Return (scriptHistoryLength, scriptHistoryIndex).
-    return HistoryObjectLengthAndIndex {
-        .script_history_length = script_history_length,
-        .script_history_index = script_history_index
-    };
-}
-
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-the-used-step
-int LocalTraversableNavigable::get_the_used_step(int step) const
-{
-    // 1. Let steps be the result of getting all used history steps within traversable.
-    auto steps = get_all_used_history_steps();
-
-    // 2. Return the greatest item in steps that is less than or equal to step.
-    VERIFY(!steps.is_empty());
-    Optional<int> result;
-    for (size_t i = 0; i < steps.size(); i++) {
-        if (steps[i] <= step) {
-            if (!result.has_value() || (result.value() < steps[i])) {
-                result = steps[i];
-            }
-        }
-    }
-    return result.value();
-}
-
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-all-navigables-that-might-experience-a-cross-document-traversal
-Vector<GC::Root<LocalNavigable>> LocalTraversableNavigable::get_all_local_navigables_that_might_experience_a_cross_document_traversal(int target_step) const
-{
-    // NOTE: From traversable's session history traversal queue's perspective, these documents are candidates for going cross-document during the
-    //       traversal described by targetStep. They will not experience a cross-document traversal if the status code for their target document is
-    //       HTTP 204 No Content.
-    //       Note that if a given navigable might experience a cross-document traversal, this algorithm will return navigable but not its child navigables.
-    //       Those would end up unloaded, not traversed.
-
-    // 1. Let results be an empty list.
-    Vector<GC::Root<LocalNavigable>> results;
-
-    // 2. Let navigablesToCheck be « traversable ».
-    Vector<GC::Root<LocalNavigable>> navigables_to_check;
-    navigables_to_check.append(const_cast<LocalTraversableNavigable&>(*this));
-
-    // 3. For each navigable of navigablesToCheck:
-    while (!navigables_to_check.is_empty()) {
-        auto navigable = navigables_to_check.take_first();
-
-        // 1. Let targetEntry be the result of getting the target history entry given navigable and targetStep.
-        auto target_entry = navigable->get_the_target_history_entry_if_present(target_step);
-        if (!target_entry)
-            continue;
-
-        // 2. If targetEntry's document is not navigable's document or targetEntry's document state's reload pending is true, then append navigable to results.
-        // NOTE: Although navigable's active history entry can change synchronously, the new entry will always have the same Document,
-        //       so accessing navigable's document is reliable.
-        if (target_entry->document_state()->document_id() != navigable->active_document_id() || target_entry->document_state()->reload_pending()) {
-            results.append(navigable);
-        }
-
-        // 3. Otherwise, extend navigablesToCheck with navigable's child navigables.
-        //    Adding child navigables to navigablesToCheck means those navigables will also be checked by this loop.
-        //    Child navigables are only checked if the navigable's active document will not change as part of this traversal.
-        else {
-            navigables_to_check.extend(navigable->child_navigables());
-        }
-    }
-
-    // 4. Return results.
-    return results;
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#deactivate-a-document-for-a-cross-document-navigation
@@ -1551,22 +1426,6 @@ void LocalTraversableNavigable::clear_the_forward_session_history()
     }
 }
 
-bool LocalTraversableNavigable::can_go_back() const
-{
-    auto all_steps = get_all_used_history_steps();
-    auto current_step_index = all_steps.find_first_index(current_session_history_step());
-    VERIFY(current_step_index.has_value());
-    return *current_step_index > 0;
-}
-
-bool LocalTraversableNavigable::can_go_forward() const
-{
-    auto all_steps = get_all_used_history_steps();
-    auto current_step_index = all_steps.find_first_index(current_session_history_step());
-    VERIFY(current_step_index.has_value());
-    return *current_step_index + 1 < all_steps.size();
-}
-
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta
 void LocalTraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document)
 {
@@ -1904,9 +1763,7 @@ void LocalTraversableNavigable::complete_ui_history_operation(u64 operation_id, 
 
     if (committed_step.has_value()) {
         // 20. Set traversable's current session history step to targetStep.
-        // NB: The committed step is normalized against the local slice; a child navigable removed while the
-        //     operation ran can have made the canonical step unused here.
-        m_current_session_history_step = get_the_used_step(*committed_step);
+        m_current_session_history_step = *committed_step;
 
         if (!m_session_history_entries.is_empty())
             page().client().page_did_change_url(current_session_history_entry()->url());
