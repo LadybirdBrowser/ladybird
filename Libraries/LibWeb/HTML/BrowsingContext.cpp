@@ -565,7 +565,10 @@ SandboxingFlagSet determine_the_creation_sandboxing_flags(BrowsingContext const&
 
 bool BrowsingContext::has_navigable_been_destroyed() const
 {
-    auto navigable = active_document()->navigable();
+    auto const* document = active_document();
+    if (!document)
+        return true;
+    auto navigable = document->navigable();
     return !navigable || navigable->has_been_destroyed();
 }
 
