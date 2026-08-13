@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        const div = document.getElementById("target");
+        div.style.display = "none";
+        const anim = div.animate({ display: ["block", "block"] }, { duration: 100000 });
+        anim.currentTime = 0;
+        println(getComputedStyle(div).display);
+        anim.currentTime = 10001;
+        println(getComputedStyle(div).display);
+        anim.finish();
+        println(getComputedStyle(div).display);
+    });
+</script>

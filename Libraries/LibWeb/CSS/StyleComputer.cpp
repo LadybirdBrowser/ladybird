@@ -3921,7 +3921,15 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_animated_computed_value
 
 NonnullRefPtr<ComputedProperties> StyleComputer::reconstruct_computed_properties(ComputedValues const& computed_values) const
 {
-    auto style = ComputedProperties::create(ComputedProperties::create_builder_with_base_values_from(computed_values));
+    auto builder = ComputedProperties::create_builder_with_base_values_from(computed_values);
+    // The recorded pre-box-type-transformation display tracks the animated display while one is applied, on both
+    // the animated style and its base. When the animation stops covering `display`, re-adjustment must start over
+    // from the base style's display, or the sampled value the finished animation left behind is resurrected as
+    // the element's display. Box-type transformations are idempotent, so the adjusted base display is a sound
+    // transformation input.
+    if (auto const* animated_properties = computed_values.animated_properties(); animated_properties && animated_properties->has_property(PropertyID::Display))
+        builder.set_display_before_box_type_transformation(computed_values.base_values().display());
+    auto style = ComputedProperties::create(move(builder));
     apply_animated_properties_to_reconstruction(*style, computed_values);
     return style;
 }
