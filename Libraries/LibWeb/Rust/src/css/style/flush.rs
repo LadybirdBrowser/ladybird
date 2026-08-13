@@ -778,13 +778,16 @@ impl StyleEngine {
                 capture.nodes.push(node.raw());
             }
             let has_direct_action = direct_action_nodes.as_slice().binary_search(&node).is_ok();
-            previous_cascade_inputs.push(
-                self.retained_match_answers
-                    .cascade_input_lookup(node)
-                    .sparse()
-                    .ok()
-                    .copied(),
-            );
+            // Capture before the retained-answer patch below replaces the input, but only store
+            // the capture when the node is accepted: `previous_cascade_inputs` is read back by
+            // position in `published_nodes`, so an entry for a skipped node would shear the two
+            // and pair every later node with another node's previous input.
+            let previous_cascade_input = self
+                .retained_match_answers
+                .cascade_input_lookup(node)
+                .sparse()
+                .ok()
+                .copied();
             let has_signed_delta = !selector_truth_changes.deltas_for(node).is_empty();
             let mut has_output_change = false;
             let mut has_upquery = false;
@@ -942,6 +945,7 @@ impl StyleEngine {
             }
             node_count += 1;
             published_nodes.push(node);
+            previous_cascade_inputs.push(previous_cascade_input);
             if can_stop_at_exact_cascade {
                 exact_cascade_stop_nodes.push(node);
             }
