@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    function animationFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    async function resizeIframe(iframe, child, width) {
+        iframe.style.width = `${width}px`;
+        document.body.offsetWidth;
+        await animationFrame();
+        child.document.body.offsetWidth;
+        child.internals.updateStyle();
+    }
+
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        iframe.style.border = "0";
+        iframe.style.width = "300px";
+        iframe.style.height = "200px";
+
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = `
+            <!DOCTYPE html>
+            <style>
+                @property --gutter {
+                    syntax: '<length>';
+                    inherits: false;
+                    initial-value: 50vw;
+                }
+
+                #target {
+                    width: var(--gutter);
+                }
+            </style>
+            <div id="target">target</div>
+        `;
+        document.body.appendChild(iframe);
+        await loaded;
+
+        const child = iframe.contentWindow;
+        const target = child.document.getElementById("target");
+
+        child.internals.updateStyle();
+        println(`initial width: ${child.getComputedStyle(target).width}`);
+
+        await resizeIframe(iframe, child, 500);
+        println(`resized width: ${child.getComputedStyle(target).width}`);
+
+        await resizeIframe(iframe, child, 300);
+        println(`resized back width: ${child.getComputedStyle(target).width}`);
+    });
+</script>

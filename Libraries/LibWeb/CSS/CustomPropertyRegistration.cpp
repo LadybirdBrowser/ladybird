@@ -42,7 +42,9 @@ NonnullRefPtr<StyleValue const> compute_registered_custom_property_initial_value
         ComputationContext computation_context {
             .length_resolution_context = Length::ResolutionContext::for_document(document),
         };
+        computation_context.reset_viewport_metric_dependency_tracking();
         computed_initial_value = compute_registered_custom_property_value(registration, *registration.initial_value, computation_context);
+        const_cast<CustomPropertyRegistration&>(registration).computed_initial_value_depends_on_viewport_metrics = computation_context.depends_on_viewport_metrics();
     }
 
     const_cast<CustomPropertyRegistration&>(registration).computed_initial_value = computed_initial_value;
