@@ -522,8 +522,6 @@ private:
 WEB_API HashTable<GC::RawRef<LocalNavigable>>& all_local_navigables();
 WEB_API GC::Ptr<LocalNavigable> local_navigable_with_id(CrossProcessId);
 
-Vector<NonnullRefPtr<SessionHistoryEntry>>* append_nested_history_for_child_navigable(
-    LocalNavigable& parent_navigable, LocalNavigable& child_navigable, SessionHistoryEntry& history_entry);
 bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& document);
 void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable>, HistoryHandlingBehavior, UserNavigationInvolvement, NonnullRefPtr<SessionHistoryEntry>, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete, Optional<SessionHistoryEntryDescriptor> entry_to_restore = {});
 void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_url, Optional<StorageSerializationRecord> = {}, HistoryHandlingBehavior history_handling = HistoryHandlingBehavior::Replace);

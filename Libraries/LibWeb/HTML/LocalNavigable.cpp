@@ -663,30 +663,6 @@ static Vector<NonnullRefPtr<SessionHistoryEntry>>* get_session_history_entries_i
     return nullptr;
 }
 
-Vector<NonnullRefPtr<SessionHistoryEntry>>* append_nested_history_for_child_navigable(
-    LocalNavigable& parent_navigable, LocalNavigable& child_navigable, SessionHistoryEntry& history_entry)
-{
-    VERIFY(child_navigable.parent().ptr() == &parent_navigable);
-
-    auto parent_doc_state = parent_navigable.active_session_history_entry()->document_state();
-    auto& parent_navigable_entries = parent_navigable.get_session_history_entries();
-    auto target_step_entry_iterator = parent_navigable_entries.find_if([parent_doc_state](auto& entry) {
-        return entry->document_state() == parent_doc_state;
-    });
-    if (target_step_entry_iterator == parent_navigable_entries.end())
-        return nullptr;
-
-    history_entry.set_step((*target_step_entry_iterator)->step());
-
-    DocumentState::NestedHistory nested_history {
-        .id = child_navigable.id(),
-        .entries { history_entry },
-    };
-    parent_doc_state->nested_histories().append(move(nested_history));
-
-    return &parent_doc_state->nested_histories().last().entries;
-}
-
 // https://html.spec.whatwg.org/multipage/document-sequences.html#child-navigable
 Vector<GC::Root<LocalNavigable>> LocalNavigable::child_navigables() const
 {
@@ -3627,7 +3603,7 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             .expected_ongoing_navigation_id = expected_ongoing_navigation_id,
             .local_target_navigable_id = navigable->id(),
             .local_target_entry = history_entry,
-            .pre_steps = GC::create_function(navigable->heap(), [navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id = move(expected_ongoing_navigation_id), entry_to_restore = move(entry_to_restore)](u64, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) mutable {
+            .pre_steps = GC::create_function(navigable->heap(), [navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id = move(expected_ongoing_navigation_id), entry_to_restore = move(entry_to_restore)](u64, Optional<SessionHistoryEntryDescriptor>, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) mutable {
                 auto finalization = finalize_a_cross_document_navigation_at_queued_position(navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id, move(entry_to_restore));
                 if (!finalization.has_value()) {
                     ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
