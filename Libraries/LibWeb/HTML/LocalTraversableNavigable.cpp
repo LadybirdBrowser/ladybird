@@ -348,13 +348,14 @@ static NonnullRefPtr<SessionHistoryEntry> resolve_local_session_history_entry(Lo
     return create_session_history_entry_from_ui_process(move(entry_descriptor), reconstruction_state);
 }
 
-static bool synchronous_same_document_navigation_must_preserve_ongoing_navigation(LocalNavigable const& navigable)
+static bool is_same_document_push_or_replace(Optional<Bindings::NavigationType> navigation_type, SessionHistoryEntry const& target_entry, Optional<UniqueNodeID> displayed_document_id)
 {
-    // AD-HOC: The spec queues same-document history updates because they happen synchronously, outside the traversal
-    //         queue, and must later resolve races with the current history step. If another navigation has already
-    //         claimed the navigable, leave that navigation ID alone. This matches Chromium, WebKit, and Gecko:
-    //         a same-document history update from the same task does not cancel a later cross-document navigation.
-    return navigable.ongoing_navigation().has<Utf16String>();
+    if (navigation_type != Bindings::NavigationType::Push
+        && navigation_type != Bindings::NavigationType::Replace) {
+        return false;
+    }
+
+    return target_entry.document_state()->document_id() == displayed_document_id;
 }
 
 static bool expected_ongoing_navigation_was_superseded(Optional<CrossProcessId> navigable_id, Optional<Utf16String> const& expected_navigation_id)
@@ -566,12 +567,6 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
         on_complete->function()({ ChangingNavigableHistoryStepJobDisposition::Skipped, nullptr });
         return false;
     }
-    if (job.synchronous_navigation == SynchronousNavigation::Yes
-        && synchronous_same_document_navigation_must_preserve_ongoing_navigation(*navigable)) {
-        on_complete->function()({ ChangingNavigableHistoryStepJobDisposition::Skipped, nullptr });
-        return false;
-    }
-
     // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-child-navigable
     // NB: The creation/destruction update is the bookkeeping step after the child's nested history has been attached to its canonical
     //     parent document state. If the container's requested navigation has already started, it owns the ongoing navigation ID and
@@ -586,19 +581,14 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
     //     job. Retain that exact local entry instead of repeating the global-step lookup in WebContent.
     auto claimed_target_entry = job.target_entry;
 
-    // NB: A later synchronous navigation can already be active by the time an
-    // earlier finalization returns from the UI process. Preserve that newer
-    // visible state while advancing the process-local current entry in queue
-    // order. The later operation will advance it again.
-    if (job.synchronous_navigation == SynchronousNavigation::Yes
-        && navigable->active_session_history_entry() != claimed_target_entry) {
-        auto active_entry = navigable->active_session_history_entry();
-        if (!active_entry
-            || active_entry->document_state() != claimed_target_entry->document_state()) {
-            on_complete->function()({ ChangingNavigableHistoryStepJobDisposition::Stale, nullptr });
-            return false;
-        }
+    auto active_entry = navigable->active_session_history_entry();
+    auto applies_same_document_push_or_replace = is_same_document_push_or_replace(
+        job.navigation_type, *claimed_target_entry, navigable->active_document_id());
 
+    // A newer synchronous navigation can become active after this operation's exact-entry check. Preserve that visible entry while
+    // advancing current entry in queue order; the newer operation advances it again.
+    if (applies_same_document_push_or_replace
+        && active_entry != claimed_target_entry) {
         navigable->set_current_session_history_entry(claimed_target_entry);
         on_complete->function()({ ChangingNavigableHistoryStepJobDisposition::Skipped, nullptr });
         return false;
@@ -637,7 +627,13 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
     navigable->set_current_session_history_entry(claimed_target_entry);
 
     // 3. Set navigable's ongoing navigation to "traversal".
-    navigable->set_ongoing_navigation(HTML::LocalNavigable::Traversal::Tag, job.navigation_api_abort_behavior);
+    // AD-HOC: A same-document push or replace can reach this point after a
+    //         later cross-document navigation has claimed the navigable. Keep
+    //         that navigation's ID; the history update must not cancel it.
+    auto preserve_ongoing_navigation = applies_same_document_push_or_replace
+        && navigable->ongoing_navigation().has<Utf16String>();
+    if (!preserve_ongoing_navigation)
+        navigable->set_ongoing_navigation(HTML::LocalNavigable::Traversal::Tag, job.navigation_api_abort_behavior);
 
     queue_apply_history_step_task(*navigable, navigable->active_document(), GC::create_function(heap(), [this, job = move(job), source_snapshot_params, pending_document, claimed_target_entry = move(claimed_target_entry), navigable, on_complete] {
         // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
@@ -682,16 +678,17 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
         changing_navigable_continuation->population_output = nullptr;
 
         // 4. If displayedEntry is targetEntry and targetEntry's document state's reload pending is false, then:
-        // AD-HOC: A synchronous same-document navigation has already updated the active entry by this point.
-        //         A later queued reload can additionally set reload pending on an already-active target entry
-        //         before that synchronous step is applied. The reload step owns that population work.
         auto traverses_from_initial_about_blank = job.navigation_type == Bindings::NavigationType::Traverse
             && changing_navigable_continuation->displayed_document->is_initial_about_blank();
         bool is_update_only = displayed_entry == target_entry
             && !target_entry->document_state()->reload_pending()
             && !traverses_from_initial_about_blank;
-        if (job.synchronous_navigation == SynchronousNavigation::Yes)
-            is_update_only = !target_entry->document_state()->reload_pending() || displayed_entry == target_entry;
+        if (is_same_document_push_or_replace(
+                job.navigation_type, *target_entry,
+                changing_navigable_continuation->displayed_document_id)) {
+            is_update_only = !target_entry->document_state()->reload_pending()
+                || displayed_entry == target_entry;
+        }
         if (is_update_only) {
             // 1. Set changingNavigableContinuation's update-only to true.
             changing_navigable_continuation->update_only = true;
@@ -864,7 +861,7 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
     return true;
 }
 
-static bool changing_navigable_is_still_current(GC::Ptr<LocalNavigable> navigable, Optional<UniqueNodeID> expected_active_document_id)
+static bool changing_navigable_is_still_current(GC::Ptr<LocalNavigable> navigable, Optional<UniqueNodeID> expected_active_document_id, bool allow_ongoing_navigation)
 {
     if (!navigable || navigable->has_been_destroyed() || !navigable->active_window())
         return false;
@@ -876,7 +873,8 @@ static bool changing_navigable_is_still_current(GC::Ptr<LocalNavigable> navigabl
     if (navigable->active_document_id() != expected_active_document_id)
         return false;
 
-    return navigable->ongoing_navigation().has<Empty>();
+    return navigable->ongoing_navigation().has<Empty>()
+        || (allow_ongoing_navigation && navigable->ongoing_navigation().has<Utf16String>());
 }
 
 static void clear_ongoing_history_traversal(GC::Ptr<LocalNavigable> navigable, LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior)
@@ -932,11 +930,21 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
     auto const displayed_document_id = continuation->displayed_document_id;
     auto after_potential_unload = GC::create_function(heap(), [this, navigable, update_only, target_entry, continuation, population_output, old_origin, displayed_document_id, script_history_length, script_history_index, entries_for_navigation_api = move(command.entries_for_navigation_api), navigation_type = command.navigation_type, navigation_api_abort_behavior = command.navigation_api_abort_behavior, on_complete] {
         if (update_only || continuation->resolved_document.ptr() == continuation->displayed_document.ptr()) {
+            auto applies_same_document_push_or_replace = is_same_document_push_or_replace(
+                navigation_type, *target_entry, displayed_document_id);
+
+            if (applies_same_document_push_or_replace
+                && navigable->active_session_history_entry() != target_entry) {
+                clear_ongoing_history_traversal(navigable, navigation_api_abort_behavior);
+                on_complete->function()({});
+                return;
+            }
+
             // AD-HOC: Child navigable same-document/update-only tasks are queued without an associated Document so
             //         they can survive the old active Document being deactivated. That also lets them run after the
             //         child frame was destroyed or after a newer navigation claimed the frame. Browser engines let
             //         the newer frame state win, so skip this stale continuation in that case.
-            if (!changing_navigable_is_still_current(navigable, displayed_document_id)) {
+            if (!changing_navigable_is_still_current(navigable, displayed_document_id, applies_same_document_push_or_replace)) {
                 clear_ongoing_history_traversal(navigable, navigation_api_abort_behavior);
                 on_complete->function()({});
                 return;
@@ -1031,7 +1039,10 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
     // 10. If changingNavigableContinuation's update-only is true, or targetEntry's document is displayedDocument, then:
     if (continuation->update_only || continuation->resolved_document.ptr() == displayed_document.ptr()) {
         // 1. Set the ongoing navigation for navigable to null.
-        navigable->set_ongoing_navigation({}, command.navigation_api_abort_behavior);
+        // AD-HOC: Only clear the traversal marker installed by this history
+        //         operation. A pending cross-document navigation can already
+        //         own the navigable when a synchronous update reaches here.
+        clear_ongoing_history_traversal(navigable, command.navigation_api_abort_behavior);
 
         // 2. Queue a global task on the navigation and traversal task source given navigable's active window to perform afterPotentialUnloads.
         queue_apply_history_step_task(*navigable, navigable->active_document(), after_potential_unload);
@@ -1492,7 +1503,7 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(u64 o
         }));
 }
 
-void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, bool synchronous_navigation, LocalNavigable::NavigationAPIAbortBehavior job_navigation_api_abort_behavior, Optional<u64> initiation_id, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete)
+void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, LocalNavigable::NavigationAPIAbortBehavior job_navigation_api_abort_behavior, Optional<u64> initiation_id, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete)
 {
     auto& operation = m_ui_history_operations.ensure(operation_id);
     operation.navigation_type = navigation_type;
@@ -1554,7 +1565,6 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operat
             .target_entry = local_target_entry.release_nonnull(),
             .user_involvement = user_involvement,
             .navigation_type = navigation_type,
-            .synchronous_navigation = synchronous_navigation ? SynchronousNavigation::Yes : SynchronousNavigation::No,
             .navigation_api_abort_behavior = navigation_api_abort_behavior,
         },
         source_snapshot_params, pending_document,
@@ -1695,6 +1705,10 @@ void LocalTraversableNavigable::finalize_same_document_navigation(GC::Ref<LocalN
     if (target_navigable->has_been_destroyed())
         return;
 
+    // 2. If targetNavigable's active session history entry is not targetEntry, then return.
+    if (target_navigable->active_session_history_entry() != target_entry)
+        return;
+
     auto parameters = FinalizeSameDocumentNavigationHistoryOperationParameters {
         .navigable_id = target_navigable->id(),
         .target_entry = create_same_document_navigation_entry(target_entry),
@@ -1712,15 +1726,7 @@ void LocalTraversableNavigable::finalize_same_document_navigation(GC::Ref<LocalN
             .local_target_navigable_id = target_navigable->id(),
             .local_target_entry = target_entry,
             .pre_steps = GC::create_function(heap(), [target_navigable, target_entry](u64, Optional<SessionHistoryEntryDescriptor>, GC::Ref<OnHistoryOperationReady> ready) {
-                // 2. If targetNavigable's active session history entry is not targetEntry, then return.
-                // NB: A later same-document navigation can become active while
-                // this operation crosses the process boundary. The operations
-                // retain their entry order, so only a different active
-                // document makes this finalization stale.
-                auto active_entry = target_navigable->active_session_history_entry();
-                if (target_navigable->has_been_destroyed()
-                    || !active_entry
-                    || active_entry->document_state() != target_entry->document_state()) {
+                if (target_navigable->has_been_destroyed()) {
                     ready->function()(HistoryStepResult::Applied);
                     return;
                 }

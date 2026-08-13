@@ -30,11 +30,6 @@ enum class HistoryStepResult {
 };
 using OnApplyHistoryStepComplete = GC::Function<void(HistoryStepResult)>;
 
-enum class SynchronousNavigation : bool {
-    Yes,
-    No,
-};
-
 enum class ChangingNavigableHistoryStepJobDisposition : u8 {
     // The job ran and enqueued its changing navigable continuation.
     Ready,

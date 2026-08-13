@@ -20,7 +20,6 @@ ApplyHistoryStep::ApplyHistoryStep(
     Optional<Web::HTML::CrossProcessId> initiator_to_check,
     Web::HTML::UserNavigationInvolvement user_involvement,
     Optional<Web::Bindings::NavigationType> navigation_type,
-    Web::HTML::SynchronousNavigation synchronous_navigation,
     Function<void(Web::HTML::HistoryStepResult)> on_complete)
     : m_session_history(session_history)
     , m_traversable_navigable(traversable_navigable)
@@ -32,7 +31,6 @@ ApplyHistoryStep::ApplyHistoryStep(
     , m_initiator_to_check(initiator_to_check)
     , m_user_involvement(user_involvement)
     , m_navigation_type(navigation_type)
-    , m_synchronous_navigation(synchronous_navigation)
     , m_on_complete(move(on_complete))
     , m_generation(++traversable_state.generation_counter)
 {
@@ -172,7 +170,6 @@ void ApplyHistoryStep::run_changing_navigable_jobs()
             .target_entry = *target_entry,
             .user_involvement = m_user_involvement,
             .navigation_type = m_navigation_type,
-            .synchronous_navigation = m_synchronous_navigation,
             .navigation_api_abort_behavior = navigation_api_abort_behavior,
         };
         if (!m_jobs.select_changing_navigable_history_step_job_endpoint(job)) {
