@@ -74,7 +74,7 @@ public:
     void handle_ui_history_operation_started(u64 operation_id, u64 initiation_id, Optional<SessionHistoryEntryDescriptor> creation_target_entry, GC::Ref<OnHistoryOperationReady>);
     bool run_ui_initiator_sandboxing_check_job(CrossProcessId initiator_to_check_id, Vector<CrossProcessId> const& navigables, u64 initiation_id);
     void run_ui_history_step_unload_cancelation_job(u64 operation_id, SessionHistoryEntryDescriptor target_entry, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>>);
-    void run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, bool synchronous_navigation, LocalNavigable::NavigationAPIAbortBehavior, Optional<u64> initiation_id, GC::Ref<OnChangingNavigableHistoryStepJobComplete>);
+    void run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, LocalNavigable::NavigationAPIAbortBehavior, Optional<u64> initiation_id, GC::Ref<OnChangingNavigableHistoryStepJobComplete>);
     void apply_ui_changing_navigable_continuation(u64 operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, GC::Ref<GC::Function<void(Optional<SessionHistoryEntryPersistedState>)>>);
     void update_nonchanging_navigable_history_step_state(CrossProcessId navigable_id, HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);
     void complete_ui_history_operation(u64 operation_id, HistoryStepResult, Optional<i32> committed_step, u64 session_history_entry_count, Optional<u64> initiation_id);
@@ -133,7 +133,6 @@ private:
         NonnullRefPtr<SessionHistoryEntry> target_entry;
         UserNavigationInvolvement user_involvement;
         Optional<Bindings::NavigationType> navigation_type;
-        SynchronousNavigation synchronous_navigation;
         LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior;
     };
     struct LocalChangingNavigableHistoryStepJobResult {

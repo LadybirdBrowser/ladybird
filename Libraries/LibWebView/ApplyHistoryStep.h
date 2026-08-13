@@ -64,7 +64,6 @@ struct WEBVIEW_API ApplyHistoryStepJobs {
         Web::HTML::SessionHistoryEntryDescriptor target_entry;
         Web::HTML::UserNavigationInvolvement user_involvement { Web::HTML::UserNavigationInvolvement::None };
         Optional<Web::Bindings::NavigationType> navigation_type;
-        Web::HTML::SynchronousNavigation synchronous_navigation { Web::HTML::SynchronousNavigation::No };
         Web::HTML::LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior { Web::HTML::LocalNavigable::NavigationAPIAbortBehavior::Abort };
     };
     Function<bool(ChangingNavigableHistoryStepJob const&)> select_changing_navigable_history_step_job_endpoint;
@@ -121,7 +120,6 @@ public:
         Optional<Web::HTML::CrossProcessId> initiator_to_check,
         Web::HTML::UserNavigationInvolvement user_involvement,
         Optional<Web::Bindings::NavigationType> navigation_type,
-        Web::HTML::SynchronousNavigation synchronous_navigation,
         Function<void(Web::HTML::HistoryStepResult)> on_complete);
     ~ApplyHistoryStep();
 
@@ -160,8 +158,6 @@ private:
     Optional<Web::HTML::CrossProcessId> const m_initiator_to_check;
     Web::HTML::UserNavigationInvolvement const m_user_involvement;
     Optional<Web::Bindings::NavigationType> const m_navigation_type;
-    // AD-HOC: Marks a run that applies an already-finalized synchronous same-document navigation.
-    Web::HTML::SynchronousNavigation const m_synchronous_navigation;
     Function<void(Web::HTML::HistoryStepResult)> m_on_complete;
 
     // The algorithm's variables.
