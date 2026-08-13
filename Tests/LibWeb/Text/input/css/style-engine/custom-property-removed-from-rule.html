@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<style>
+    #outer {
+        --v: red;
+    }
+    #outer2 {
+        color: black;
+        --w: red;
+    }
+</style>
+<div id="outer"><div id="inner"></div></div>
+<div id="outer2"><div id="inner2"></div></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const style = document.styleSheets[0].cssRules[0].style;
+        const outer = document.getElementById("outer");
+        const inner = document.getElementById("inner");
+        const readOne = (element) => getComputedStyle(element).getPropertyValue("--v") || "(empty)";
+        const read = () => "outer=" + readOne(outer) + " inner=" + readOne(inner);
+
+        println("initial: " + read());
+        style.setProperty("--v", "blue");
+        println("after set blue: " + read());
+        style.setProperty("--v", "pink", "important");
+        println("after set pink important: " + read());
+        style.removeProperty("--v");
+        println("after remove: " + read());
+        style.cssText = "--v:green;";
+        println("after cssText green: " + read());
+        style.removeProperty("--v");
+        println("after remove again: " + read());
+
+        const mixed = document.styleSheets[0].cssRules[1].style;
+        const inner2 = document.getElementById("inner2");
+        const readMixed = () => getComputedStyle(inner2).getPropertyValue("--w") || "(empty)";
+        println("mixed initial: " + readMixed());
+        mixed.removeProperty("--w");
+        println("mixed after remove of --w only: " + readMixed());
+    });
+</script>

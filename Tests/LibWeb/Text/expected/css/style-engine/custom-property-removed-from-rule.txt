@@ -1,0 +1,8 @@
+initial: outer=red inner=red
+after set blue: outer=blue inner=blue
+after set pink important: outer=pink inner=pink
+after remove: outer=(empty) inner=(empty)
+after cssText green: outer=green inner=green
+after remove again: outer=(empty) inner=(empty)
+mixed initial: red
+mixed after remove of --w only: (empty)
