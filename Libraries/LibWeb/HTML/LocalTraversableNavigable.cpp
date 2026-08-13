@@ -311,17 +311,14 @@ enum class MissingSessionHistoryEntryDisposition {
     Install,
 };
 
-static NonnullRefPtr<SessionHistoryEntry> install_session_history_entry(Vector<NonnullRefPtr<SessionHistoryEntry>>& local_entries, NonnullRefPtr<SessionHistoryEntry> entry)
+static NonnullRefPtr<SessionHistoryEntry> upsert_session_history_entry(Vector<NonnullRefPtr<SessionHistoryEntry>>& local_entries, NonnullRefPtr<SessionHistoryEntry> entry)
 {
+    // The UI owns canonical ordering and supplies ordered Navigation API projections. WebContent only replaces a
+    // stale local projection at the same used step or retains the new entry object for later identity lookup.
     auto entry_step = *entry->step_value();
-    for (size_t i = 0; i < local_entries.size(); ++i) {
-        auto local_entry_step = local_entries[i]->step_value();
-        if (!local_entry_step.has_value() || *local_entry_step > entry_step) {
-            local_entries.insert(i, entry);
-            return entry;
-        }
-        if (*local_entry_step == entry_step) {
-            local_entries[i] = entry;
+    for (auto& local_entry : local_entries) {
+        if (local_entry->step_value() == entry_step) {
+            local_entry = entry;
             return entry;
         }
     }
@@ -376,7 +373,7 @@ static RefPtr<SessionHistoryEntry> resolve_local_session_history_entry(LocalNavi
         return target_entry;
     }
 
-    return install_session_history_entry(*local_entries, target_entry);
+    return upsert_session_history_entry(*local_entries, target_entry);
 }
 
 static bool synchronous_same_document_navigation_must_preserve_ongoing_navigation(LocalNavigable const& navigable)
@@ -518,7 +515,7 @@ void LocalTraversableNavigable::reset_session_history_for_testing(GC::Ref<GC::Fu
                 document->history()->m_index = history_object_length_and_index.script_history_index;
                 document->history()->m_length = history_object_length_and_index.script_history_length;
 
-                auto entries_for_navigation_api = get_session_history_entries_for_the_navigation_api(*this, m_current_session_history_step);
+                Vector<NonnullRefPtr<SessionHistoryEntry>> entries_for_navigation_api { active_entry };
                 active_window()->navigation()->initialize_the_navigation_api_entries_for_reconstructed_session_history(entries_for_navigation_api, active_entry);
 
                 ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
@@ -1517,107 +1514,6 @@ void LocalTraversableNavigable::check_if_unloading_is_canceled(Vector<GC::Root<L
     check_if_unloading_is_canceled(move(navigables_that_need_before_unload), {}, {}, {}, callback);
 }
 
-Vector<NonnullRefPtr<SessionHistoryEntry>> LocalTraversableNavigable::get_session_history_entries_for_the_navigation_api(GC::Ref<LocalNavigable> navigable, int target_step)
-{
-    // 1. Let rawEntries be the result of getting session history entries for navigable.
-    auto raw_entries = navigable->get_session_history_entries();
-
-    if (raw_entries.is_empty())
-        return {};
-
-    // 2. Let entriesForNavigationAPI be a new empty list.
-    Vector<NonnullRefPtr<SessionHistoryEntry>> entries_for_navigation_api;
-
-    // 3. Let startingIndex be the index of the session history entry in rawEntries who has the greatest step less than or equal to targetStep.
-    // FIXME: Use min/max_element algorithm or some such here
-    int starting_index = 0;
-    Optional<int> max_step;
-    Optional<int> maybe_starting_index;
-    for (auto i = 0u; i < raw_entries.size(); ++i) {
-        auto const& entry = raw_entries[i];
-        if (auto step = entry->step_value(); step.has_value()) {
-            if (*step <= target_step && (!max_step.has_value() || *step > *max_step)) {
-                starting_index = static_cast<int>(i);
-                maybe_starting_index = starting_index;
-                max_step = *step;
-            }
-        }
-    }
-    if (!maybe_starting_index.has_value())
-        return {};
-
-    // 4. Append rawEntries[startingIndex] to entriesForNavigationAPI.
-    entries_for_navigation_api.append(raw_entries[starting_index]);
-
-    // 5. Let startingOrigin be rawEntries[startingIndex]'s document state's origin.
-    auto starting_origin = raw_entries[starting_index]->document_state()->origin();
-
-    // 6. Let i be startingIndex − 1.
-    auto i = starting_index - 1;
-
-    // 7. While i > 0:
-    // AD-HOC: Spec bug. We instead implement 'While i >= 0' — because following the spec as written leads to dropping
-    //         rawEntries[0] from entriesForNavigationAPI whenever startingIndex > 0. When that first entry is same-
-    //         origin, a later same-document traversal back to it makes 'getting the navigation API entry index' return
-    //         -1, and trips the assert in 'update the navigation API entries for a same-document navigation'. The same-
-    //         origin check below already excludes a cross-origin initial entry — so descending to index 0 is safe.
-    //         https://github.com/whatwg/html/issues/12644
-    while (i >= 0) {
-        auto& entry = raw_entries[static_cast<unsigned>(i)];
-        if (!entry->step_value().has_value()) {
-            --i;
-            continue;
-        }
-
-        // 1. If rawEntries[i]'s document state's origin is not same origin with startingOrigin, then break.
-        auto entry_origin = entry->document_state()->origin();
-        if (starting_origin.has_value() && entry_origin.has_value() && !entry_origin->is_same_origin(*starting_origin))
-            break;
-
-        // 2. Prepend rawEntries[i] to entriesForNavigationAPI.
-        entries_for_navigation_api.prepend(entry);
-
-        // 3. Set i to i − 1.
-        --i;
-    }
-
-    // 8. Set i to startingIndex + 1.
-    i = starting_index + 1;
-
-    // 9. While i < rawEntries's size:
-    while (i < static_cast<int>(raw_entries.size())) {
-        auto& entry = raw_entries[static_cast<unsigned>(i)];
-        if (!entry->step_value().has_value()) {
-            ++i;
-            continue;
-        }
-
-        // 1. If rawEntries[i]'s document state's origin is not same origin with startingOrigin, then break.
-        auto entry_origin = entry->document_state()->origin();
-        if (starting_origin.has_value() && entry_origin.has_value() && !entry_origin->is_same_origin(*starting_origin))
-            break;
-
-        // 2. Append rawEntries[i] to entriesForNavigationAPI.
-        entries_for_navigation_api.append(entry);
-
-        // 3. Set i to i + 1.
-        ++i;
-    }
-
-    // 10. Return entriesForNavigationAPI.
-    return entries_for_navigation_api;
-}
-
-Vector<NonnullRefPtr<SessionHistoryEntry>> LocalTraversableNavigable::get_session_history_entries_for_the_navigation_api(CrossProcessId navigable_id, int target_step)
-{
-    // AD-HOC: The navigable can be gone by the time its continuation is applied. The continuation job completes
-    //         without applying anything in that case, so the entries are never read.
-    auto navigable = local_navigable_with_id(navigable_id);
-    if (!navigable)
-        return {};
-    return get_session_history_entries_for_the_navigation_api(*navigable, target_step);
-}
-
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#clear-the-forward-session-history
 void LocalTraversableNavigable::clear_the_forward_session_history()
 {
@@ -1955,7 +1851,7 @@ static Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_na
         auto entry = SessionHistoryEntry::create();
         apply_session_history_entry_descriptor_from_ui_process(*entry, entry_descriptor);
         entry->set_document_state(get_or_create_document_state_from_ui_process(entry_descriptor.document_state, reconstruction_state));
-        entries.append(install_session_history_entry(local_entries, move(entry)));
+        entries.append(upsert_session_history_entry(local_entries, move(entry)));
     }
 
     return entries;
@@ -1976,20 +1872,8 @@ void LocalTraversableNavigable::apply_ui_changing_navigable_continuation(u64 ope
     operation->value.claimed_navigables_awaiting_continuation.remove(navigable_id);
 
     Vector<NonnullRefPtr<SessionHistoryEntry>> entries_for_navigation_api;
-    if (auto navigable = local_navigable_with_id(navigable_id); navigable && !navigable->has_been_destroyed()) {
+    if (auto navigable = local_navigable_with_id(navigable_id); navigable && !navigable->has_been_destroyed())
         entries_for_navigation_api = session_history_entries_for_navigation_api_from_ui_process(*navigable, move(entry_descriptors_for_navigation_api));
-
-        // AD-HOC: The navigation API matches entries by object identity, so the list must contain the entry this
-        //         continuation activates. An operation's descriptors can omit its locally finalized target entry;
-        //         derive the projection from the local collection in that case.
-        if (auto target_entry = navigable->current_session_history_entry()) {
-            auto contains_target_entry = any_of(entries_for_navigation_api, [&](auto const& entry) { return entry.ptr() == target_entry.ptr(); });
-            if (!contains_target_entry && navigable->has_session_history_entries()) {
-                auto target_step = target_entry->step_value().value_or(current_session_history_step());
-                entries_for_navigation_api = get_session_history_entries_for_the_navigation_api(*navigable, target_step);
-            }
-        }
-    }
 
     apply_changing_navigable_history_step_continuation_impl(
         *continuation,
