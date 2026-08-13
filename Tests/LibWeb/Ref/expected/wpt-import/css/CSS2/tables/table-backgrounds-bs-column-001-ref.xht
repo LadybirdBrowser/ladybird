@@ -1,0 +1,87 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en-US"><head>
+	<title>Table background tests</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta http-equiv="Content-Style-Type" content="text/css" />
+	<style type="text/css">
+
+	html, body { margin: 0; padding: 0; border: 0; font-size: 16px; }
+	body { padding: 15px; }
+
+	/*
+	table {
+		margin: 0px 3px 2px 4px;
+		border-width: 4px 2px 7px 3px;
+
+		border-box height is 145px:
+		  border-top: 4px;
+		  padding-top: 3px
+		  border-spacing: 3px * 6 == 18px
+		  cell * 5: == 21px * 5 == 105px
+		    border-top: 2px;
+		    padding-top: 1px;
+		    height: 10px;
+		    padding-bottom: 4px;
+		    border-bottom: 4px;
+		  padding-bottom: 8px;
+		  border-bottom: 7px;
+
+		border-box width is 325px:
+		  border-left: 3px;
+		  padding-left: 6px
+		  border-spacing: 2px * 6 == 12px
+		  cell * 5: == 59px * 5 == 295px
+		    border-left: 3px;
+		    padding-left: 3px;
+		    width: 50px;
+		    padding-right: 2px;
+		    border-right: 1px;
+		  padding-right: 7px;
+		  border-right: 2px;
+    */
+
+	div.color, div.imagetl, div.imagebr {
+        width: 59px; height: 117px; margin: 10px 136px 30px 137px;
+	}
+	div.color { background-color: aqua; }
+
+	div.imagetl, div.imagebr {
+		background-image: url(support/repeatable-diagonal-gradient-with-ticks.png);
+	}
+
+	div.imagetl { background-position: 0 0; }
+	div.imagebr { background-position: 59px 117px; }
+
+	div.vstripe, div.hstripe { background: white; position: absolute; }
+	div.vstripe { top: 0; width: 2px; height: 500px; }
+	div.hstripe { left: 0; height: 3px; width: 400px; }
+
+	</style>
+</head>
+<body>
+
+<div class="color"></div>
+<div class="imagetl"></div>
+<div class="imagebr"></div>
+
+<div style="top: 46px" class="hstripe"></div>
+<div style="top: 70px" class="hstripe"></div>
+<div style="top: 94px" class="hstripe"></div>
+<div style="top: 118px" class="hstripe"></div>
+<div style="top: 193px" class="hstripe"></div>
+<div style="top: 217px" class="hstripe"></div>
+<div style="top: 241px" class="hstripe"></div>
+<div style="top: 265px" class="hstripe"></div>
+<div style="top: 340px" class="hstripe"></div>
+<div style="top: 364px" class="hstripe"></div>
+<div style="top: 388px" class="hstripe"></div>
+<div style="top: 412px" class="hstripe"></div>
+
+<div style="left: 89px" class="vstripe"></div>
+<div style="left: 150px" class="vstripe"></div>
+<div style="left: 211px" class="vstripe"></div>
+<div style="left: 272px" class="vstripe"></div>
+<div style="left: 333px" class="vstripe"></div>
+
+
+
+</body></html>

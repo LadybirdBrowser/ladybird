@@ -569,41 +569,52 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
             }
         }
 
-        if (background_layers) {
-            bool has_fixed_background = false;
-            for (auto const& layer : *background_layers) {
-                if (layer.background_image && layer.attachment == CSS::BackgroundAttachment::Fixed) {
+        auto any_fixed_background_layer = [](Vector<CSS::BackgroundLayerData> const* layers) {
+            if (!layers)
+                return false;
+            for (auto const& layer : *layers) {
+                if (layer.background_image && layer.attachment == CSS::BackgroundAttachment::Fixed)
+                    return true;
+            }
+            return false;
+        };
+        bool has_fixed_background = any_fixed_background_layer(background_layers);
+        for (auto const& column_info : paintable_box.table_column_backgrounds()) {
+            if (has_fixed_background)
+                break;
+            for (auto const* table_part : { &column_info.column, &column_info.column_group }) {
+                if (table_part->layout_box && any_fixed_background_layer(&table_part->layout_box->computed_values().background_layers())) {
                     has_fixed_background = true;
                     break;
                 }
             }
+        }
 
-            if (has_fixed_background) {
-                // https://drafts.csswg.org/css-transforms-1/#transform-rendering
-                // For elements that are effected by a transform (i.e. have a transform applied to them, or to any of
-                // their ancestor elements) and do not have their background propagated to the canvas, a value of fixed
-                // for the background-attachment property is treated as if it had a value of scroll.
-                auto has_transform_ancestor = false;
-                if (!is_root_element) {
-                    for (Layout::NodeWithStyle const* node = &layout_node; node && !node->is_viewport(); node = node->parent()) {
-                        if (node->has_css_transform()) {
-                            has_transform_ancestor = true;
-                            break;
-                        }
+        if (has_fixed_background) {
+            // https://drafts.csswg.org/css-transforms-1/#transform-rendering
+            // For elements that are effected by a transform (i.e. have a transform applied to them, or to any of
+            // their ancestor elements) and do not have their background propagated to the canvas, a value of fixed
+            // for the background-attachment property is treated as if it had a value of scroll.
+            auto has_transform_ancestor = false;
+            if (!is_root_element) {
+                for (Layout::NodeWithStyle const* node = &layout_node; node && !node->is_viewport(); node = node->parent()) {
+                    if (node->has_css_transform()) {
+                        has_transform_ancestor = true;
+                        break;
                     }
                 }
+            }
 
-                if (!has_transform_ancestor) {
-                    // Build a context that negates all scroll nodes in the ancestor chain. This keeps the background
-                    // fixed relative to the viewport.
-                    auto fixed_background_context = own_state;
-                    for (auto index = own_state; index.value(); index = visual_context_tree.node_at(index).parent_index) {
-                        auto const& node = visual_context_tree.node_at(index);
-                        if (node.data.has<ScrollData>())
-                            fixed_background_context = append_node(fixed_background_context, ScrollCompensation { index });
-                    }
-                    paintable_box.set_fixed_background_visual_context(fixed_background_context);
+            if (!has_transform_ancestor) {
+                // Build a context that negates all scroll nodes in the ancestor chain. This keeps the background
+                // fixed relative to the viewport.
+                auto fixed_background_context = own_state;
+                for (auto index = own_state; index.value(); index = visual_context_tree.node_at(index).parent_index) {
+                    auto const& node = visual_context_tree.node_at(index);
+                    if (node.data.has<ScrollData>())
+                        fixed_background_context = append_node(fixed_background_context, ScrollCompensation { index });
                 }
+                paintable_box.set_fixed_background_visual_context(fixed_background_context);
             }
         }
 

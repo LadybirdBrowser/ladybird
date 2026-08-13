@@ -11,6 +11,8 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/BorderPainting.h>
 #include <LibWeb/Painting/BorderRadiiData.h>
+#include <LibWeb/Painting/BoxModelMetrics.h>
+#include <LibWeb/Painting/VisualContextIndex.h>
 
 namespace Web::Painting {
 
@@ -44,10 +46,14 @@ struct ResolvedBackground {
     Vector<ResolvedBackgroundLayerData> layers;
     bool needs_text_clip { false };
     CSSPixelRect background_rect {};
+    RefPtr<Layout::NodeWithStyle const> positioning_node;
+    BoxModelMetrics positioning_box_model;
+    Optional<VisualContextIndex> fixed_background_visual_context;
     Color color {};
 };
 
 WEB_API ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, Paintable const& paintable_box, Color background_color, CSS::BackgroundBox background_color_clip, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii);
+WEB_API ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, Layout::NodeWithStyle const& positioning_node, BoxModelMetrics const& positioning_box_model, Color background_color, CSS::BackgroundBox background_color_clip, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii, Optional<VisualContextIndex> fixed_background_visual_context = {});
 ResolvedBackground resolve_mask_layers(Vector<CSS::BackgroundLayerData> const&, Paintable const&, CSSPixelRect const&);
 
 WEB_API void paint_background(DisplayListRecordingContext&, Paintable const&, CSS::ImageRendering, ResolvedBackground const&, BorderRadiiData const&);

@@ -13,6 +13,26 @@ pub struct FfiTableCellCoordinates {
     pub column_span: usize,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiTableColumnBackground {
+    pub column_shell: *mut c_void,
+    pub column_group_shell: *mut c_void,
+    pub column_rect: crate::layout::FfiCssPixelRect,
+    pub column_group_rect: crate::layout::FfiCssPixelRect,
+}
+
+impl Default for FfiTableColumnBackground {
+    fn default() -> Self {
+        Self {
+            column_shell: null_mut(),
+            column_group_shell: null_mut(),
+            column_rect: crate::layout::FfiCssPixelRect::default(),
+            column_group_rect: crate::layout::FfiCssPixelRect::default(),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
 pub struct FfiCommittedBoxMetrics {
@@ -88,6 +108,8 @@ pub struct FfiCommitSink {
     pub set_box_metrics: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiCommittedBoxMetrics),
     pub set_override_borders: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiBordersData),
     pub set_table_cell_coordinates: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiTableCellCoordinates),
+    pub set_table_column_backgrounds:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, *const FfiTableColumnBackground, usize),
     pub begin_line_data: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub begin_line: unsafe extern "C" fn(*mut c_void, FfiLineRecord),
     pub emit_fragment: unsafe extern "C" fn(*mut c_void, FfiCommittedFragment),
@@ -166,6 +188,14 @@ fn commit_subtree(
             }
             if let Some(coordinates) = fragment.table_cell_coordinates {
                 (sink.set_table_cell_coordinates)(sink.context, paintable, coordinates);
+            }
+            if let Some(column_backgrounds) = &fragment.table_column_backgrounds {
+                (sink.set_table_column_backgrounds)(
+                    sink.context,
+                    paintable,
+                    column_backgrounds.as_ptr(),
+                    column_backgrounds.len(),
+                );
             }
         }
 

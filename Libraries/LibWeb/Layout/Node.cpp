@@ -690,8 +690,13 @@ void NodeWithStyle::ImageObserver::image_style_value_did_update(CSS::ImageStyleV
 {
     VERIFY(m_owner);
 
-    if (auto paintable = m_owner->paintable())
-        paintable->set_needs_repaint();
+    // A box that never produces a paintable, such as a table column, is painted by an ancestor.
+    for (auto* node = static_cast<Node*>(m_owner.ptr()); node; node = node->parent()) {
+        if (auto paintable = node->paintable()) {
+            paintable->set_needs_repaint();
+            return;
+        }
+    }
 }
 
 NodeWithStyle::~NodeWithStyle()

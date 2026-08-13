@@ -1,0 +1,49 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Direction applied to element with 'display' set to 'table-column'</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2012-12-03 -->
+        <link rel="help" href="http://www.w3.org/TR/css-writing-modes-3/#direction" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#propdef-direction" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#direction" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/bidi-text/direction-applies-to-001-ref.xht" />
+
+        <meta name="flags" content="ahem" />
+        <meta name="assert" content="The 'direction' property does not apply to elements with a display of 'table-column'." />
+        <link rel="stylesheet" type="text/css" href="../../../../../data/fonts/ahem.css" />
+        <style type="text/css">
+            #test
+            {
+                background: orange;
+                direction: rtl;
+                display: table-column;
+            }
+            #table
+            {
+                display: table;
+                table-layout: fixed;
+                width: 100px;
+            }
+            #row
+            {
+                display: table-row;
+            }
+            #cell
+            {
+                display: table-cell;
+                font: 50px/1em Ahem;
+                height: 100px;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there is a black square in the <strong>upper-left corner</strong> of the orange square.</p>
+        <div id="table">
+            <div id="test"></div>
+            <div id="row">
+                <div id="cell">X</div>
+            </div>
+        </div>
+    </body>
+</html>
