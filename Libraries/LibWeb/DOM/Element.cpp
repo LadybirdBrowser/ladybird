@@ -1531,6 +1531,14 @@ void Element::finish_recording_style_custom_property_references()
 {
     if (!m_style_input_record)
         return;
+    m_style_input_record->style_uses_attr_css_function = m_style_uses_attr_css_function;
+    m_style_input_record->style_uses_var_css_function = m_style_uses_var_css_function;
+    m_style_input_record->style_uses_if_css_function = m_style_uses_if_css_function;
+    m_style_input_record->style_uses_custom_function = m_style_uses_custom_function;
+    m_style_input_record->style_uses_inherit_css_function = m_style_uses_inherit_css_function;
+    m_style_input_record->style_uses_tree_counting_function = m_style_uses_tree_counting_function;
+    m_style_input_record->style_depends_on_size_container_query = m_style_depends_on_size_container_query;
+    m_style_input_record->style_depends_on_style_container_query = m_style_depends_on_style_container_query;
     auto& references = m_style_input_record->custom_property_references;
     quick_sort(references);
     for (size_t index = references.size(); index > 1; --index) {

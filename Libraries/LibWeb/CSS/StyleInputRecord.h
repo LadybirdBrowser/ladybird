@@ -45,8 +45,14 @@ struct StyleInputRecord {
     bool read_beyond_the_record { true };
     // What that computation did besides producing values. A computation that is skipped still has
     // to leave these marks, since nothing else will leave them for it.
+    bool style_uses_attr_css_function { false };
     bool style_uses_var_css_function { false };
+    bool style_uses_if_css_function { false };
+    bool style_uses_custom_function { false };
     bool style_uses_inherit_css_function { false };
+    bool style_uses_tree_counting_function { false };
+    bool style_depends_on_size_container_query { false };
+    bool style_depends_on_style_container_query { false };
     bool explicitly_inherited_non_inherited_property { false };
     bool cascade_reads_custom_properties { false };
 
