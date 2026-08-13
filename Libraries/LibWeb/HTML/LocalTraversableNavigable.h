@@ -189,7 +189,6 @@ private:
         HashMap<CrossProcessId, GC::Ref<ChangingNavigableContinuationState>> changing_navigable_continuations;
     };
     HashMap<u64, UIHistoryOperationState> m_ui_history_operations;
-    HashTable<CrossProcessId> m_document_states_under_history_reconstruction;
     u64 m_next_history_initiation_id { 1 };
     HashMap<u64, HistoryOperationState> m_history_operation_states;
 

@@ -433,9 +433,6 @@ void LocalTraversableNavigable::restore_session_history_entry_from_ui_process(Lo
     apply_session_history_entry_descriptor_from_ui_process(entry, entry_descriptor);
     apply_session_history_document_state_descriptor_from_ui_process(*document_state, entry_descriptor.document_state);
 
-    if (!entry_descriptor.document_state.nested_histories.is_empty())
-        m_document_states_under_history_reconstruction.set(document_state_id);
-
     SessionHistoryEntryReconstructionState reconstruction_state;
     reconstruction_state.document_states.set(document_state_id, document_state);
     populate_nested_histories_from_ui_process(*document_state, move(entry_descriptor.document_state.nested_histories), reconstruction_state);
@@ -456,22 +453,24 @@ bool LocalTraversableNavigable::adopt_nested_history_for_child_created_during_hi
     VERIFY(parent_entry);
     auto parent_document_state = parent_entry->document_state();
     VERIFY(parent_document_state);
-    if (!m_document_states_under_history_reconstruction.contains(parent_document_state->cross_process_id()))
-        return false;
-
     auto parent_document = parent.active_document();
     VERIFY(parent_document);
     if (parent_document->is_completely_loaded())
         return false;
 
+    // Canonical nested histories are installed before a reconstructed document creates its child navigables. An
+    // unclaimed nested history at the child's position identifies that case without separate reconstruction state.
     auto child_navigables = parent_document->document_tree_child_navigables();
     auto child_index = child_navigables.find_first_index(child);
-    VERIFY(child_index.has_value());
+    if (!child_index.has_value())
+        return false;
 
     auto& nested_histories = parent_document_state->nested_histories();
-    VERIFY(*child_index < nested_histories.size());
+    if (*child_index >= nested_histories.size())
+        return false;
     auto& nested_history = nested_histories[*child_index];
-    VERIFY(!local_navigable_with_id(nested_history.id));
+    if (local_navigable_with_id(nested_history.id))
+        return false;
 
     child.set_id_for_session_history_reconstruction(nested_history.id);
     return true;
@@ -1918,14 +1917,6 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operat
         on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale);
         return;
     }
-    auto active_document = navigable->active_document();
-    if (navigation_type == Bindings::NavigationType::Traverse && active_document && active_document->is_initial_about_blank()) {
-        auto target_document_state = local_target_entry->document_state();
-        VERIFY(target_document_state);
-        if (!target_document_state->nested_histories().is_empty())
-            m_document_states_under_history_reconstruction.set(target_document_state->cross_process_id());
-    }
-
     auto did_claim_navigable = run_changing_navigable_history_step_job_impl(
         {
             .navigable_id = navigable_id,
