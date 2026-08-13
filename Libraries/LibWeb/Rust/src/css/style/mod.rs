@@ -530,6 +530,13 @@ pub struct StyleEngine {
     /// declare custom properties, which never enter the winner columns, so no winner-based proof
     /// can see what such a rule used to contribute. Lives until the transaction is released.
     rules_with_incomplete_old_declarations: Vec<RuleID>,
+    /// Sheets whose rules currently have no entry points in the routing registry. A detached
+    /// sheet's rules decide nothing, so routing every input past their entry points is pure cost
+    /// that grows with every sheet that ever came and went.
+    sheets_excluded_from_routing: HashSet<SheetID>,
+    /// Whether a sheet detached since the last routing shed, so the registry may hold entry
+    /// points for rules that can no longer decide.
+    routing_needs_detachment_sweep: bool,
     /// The old dense rule sequence while one sheet is synchronously reparsed.
     sheet_rule_replacement: Option<SheetRuleReplacement>,
     /// Unmatched old rule sequences retained until the transaction boundary, indexed by sheet.

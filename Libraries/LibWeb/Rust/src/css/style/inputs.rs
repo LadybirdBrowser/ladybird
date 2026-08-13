@@ -51,6 +51,8 @@ impl StyleEngine {
             pending_program_base_version: None,
             pending_rule_declaration_changes: Vec::new(),
             rules_with_incomplete_old_declarations: Vec::new(),
+            sheets_excluded_from_routing: HashSet::default(),
+            routing_needs_detachment_sweep: false,
             sheet_rule_replacement: None,
             pending_sheet_rule_replacements: Column::default(),
             departed: Vec::new(),
@@ -248,6 +250,15 @@ impl StyleEngine {
     }
 
     pub(super) fn add_routing_rule(&mut self, rule: RuleID, program: SelectorProgramID) {
+        // A detached sheet's routes were shed, and reattachment restores the current routes of
+        // every live rule in the sheet, so routes added for a rule edited while its sheet is
+        // detached would come back twice. The exclusion covers the edit until the sheet reattaches.
+        if self
+            .sheets_excluded_from_routing
+            .contains(&self.program.rule_sheet(rule))
+        {
+            return;
+        }
         let routing = Rc::get_mut(&mut self.routing).expect("routing program is shared outside a planning epoch");
         routing.add_rule(rule, program, self.programs.get(program));
         routing.settle_memory(&mut self.memory);
@@ -1262,8 +1273,31 @@ impl StyleEngine {
         sheet
     }
 
+    /// A sheet whose routes were shed while it was detached contributes routes again the moment
+    /// it reattaches. The registry must be whole before the attachment's transaction plans, so
+    /// this runs at recording time rather than waiting for the next sweep.
+    fn restore_routing_for_reattached_sheet(&mut self, sheet: SheetID) {
+        if !self.sheets_excluded_from_routing.remove(&sheet) {
+            return;
+        }
+        let rules: Vec<(RuleID, SelectorProgramID)> = self
+            .program
+            .rules_in_sheet(sheet)
+            .into_iter()
+            .filter(|&rule| self.program.rule_is_live(rule))
+            .filter_map(|rule| Some((rule, self.program.rule_version(rule).selector_program?)))
+            .collect();
+        let programs = &self.programs;
+        let routing = Rc::get_mut(&mut self.routing).expect("routing program is shared outside a planning epoch");
+        for (rule, program) in rules {
+            routing.add_rule(rule, program, programs.get(program));
+        }
+        routing.settle_memory(&mut self.memory);
+    }
+
     /// Attach a compiled program at the end of a scope's sheet order.
     pub(super) fn attach_sheet(&mut self, sheet: SheetID, tree_scope: TreeScopeID) {
+        self.restore_routing_for_reattached_sheet(sheet);
         let mut sheets = self.current_sheets_in_scope(tree_scope);
         let previous_sheets = sheets.clone();
         let was_attached = sheets.contains(&sheet);
@@ -1280,6 +1314,7 @@ impl StyleEngine {
     /// Attach at a position established before the sheet finished loading. Network completion order
     /// does not determine cascade order.
     pub(super) fn attach_sheet_before(&mut self, sheet: SheetID, before: SheetID, tree_scope: TreeScopeID) {
+        self.restore_routing_for_reattached_sheet(sheet);
         let mut sheets = self.current_sheets_in_scope(tree_scope);
         let previous_sheets = sheets.clone();
         let was_attached = sheets.contains(&sheet);
@@ -1323,6 +1358,7 @@ impl StyleEngine {
         sheets.remove(position);
         self.stage_sheets_in_scope(tree_scope, sheets);
         self.record_attachment(sheet, tree_scope, true, false);
+        self.routing_needs_detachment_sweep = true;
     }
 
     /// Record the animation names an element's computed style references.
