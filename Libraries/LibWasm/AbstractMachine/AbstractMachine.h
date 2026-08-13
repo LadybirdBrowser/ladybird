@@ -28,6 +28,7 @@ constexpr inline size_t ArgumentsStaticSize = 3;
 
 class Configuration;
 class Result;
+struct BytecodeInterpreter;
 struct Interpreter;
 struct Trap;
 
@@ -963,11 +964,8 @@ struct HostVisitOps {
 
 class WASM_API AbstractMachine {
 public:
-    explicit AbstractMachine(GC::Heap* heap = nullptr)
-    {
-        if (heap)
-            adopt_heap(*heap);
-    }
+    explicit AbstractMachine(GC::Heap* heap = nullptr);
+    ~AbstractMachine();
 
     GC::Heap& heap()
     {
@@ -1046,6 +1044,11 @@ private:
     StackInfo m_stack_info;
     HashTable<Interpreter*> m_active_interpreters;
     bool m_should_limit_instruction_count { false };
+
+    // Host functions may reenter Wasm, so retain typical nesting while bounding idle state.
+    static constexpr size_t MAX_AVAILABLE_EXECUTION_STATES = 32;
+    Vector<NonnullOwnPtr<BytecodeInterpreter>, MAX_AVAILABLE_EXECUTION_STATES> m_available_interpreters;
+    Vector<NonnullOwnPtr<Configuration>, MAX_AVAILABLE_EXECUTION_STATES> m_available_configurations;
 };
 
 class WASM_API Linker {
