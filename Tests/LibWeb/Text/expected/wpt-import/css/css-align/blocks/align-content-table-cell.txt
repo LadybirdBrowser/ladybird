@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+4 Pass
+4 Fail
+Fail	vertical-align:top and align-content:start are equivalent
+Pass	vertical-align:middle and `align-content:unsafe center` are equivalent
+Fail	vertical-align:bottom and `align-content:unsafe end` are equivalent
+Fail	vertical-align:baseline and align-content:baseline are equivalent
+Pass	vertical-align:middle and `align-content:safe center` are equivalent if the container is tall
+Fail	vertical-align:bottom and `align-content:safe end` are equivalent if the container is tall
+Pass	`align-content:safe center` is equivalent to `unsafe center` even if the specified `height` is short
+Pass	`align-content:safe end` is equivalent to `unsafe end` even if the specified `height` is short

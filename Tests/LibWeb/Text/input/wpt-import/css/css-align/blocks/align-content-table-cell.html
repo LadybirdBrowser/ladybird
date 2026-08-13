@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-align/#distribution-block">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<style>
+@import "../../../fonts/ahem.css";
+body {
+  font: 10px/1 Ahem;
+}
+
+td {
+  padding: 0;
+  height: 50px;
+}
+
+td:nth-child(2) {
+  font-size: 20px;
+}
+
+.valign-top td {
+  vertical-align: top;
+}
+.valign-middle td {
+  vertical-align: middle;
+}
+.valign-bottom td {
+  vertical-align: bottom;
+}
+.valign-middle-short td {
+  vertical-align: middle;
+  height: 10px;
+}
+.valign-bottom-short td {
+  vertical-align: bottom;
+  height: 10px;
+}
+.valign-baseline td {
+  vertical-align: baseline;
+}
+
+.alignc-start td {
+  align-content: start;
+}
+.alignc-center td {
+  align-content: unsafe center;
+}
+.alignc-end td {
+  align-content: unsafe end;
+}
+.alignc-center-short td {
+  align-content: unsafe center;
+  height: 10px;
+}
+.alignc-end-short td {
+  align-content: unsafe end;
+  height: 10px;
+}
+.alignc-baseline td {
+  align-content: baseline;
+}
+
+.alignc-safe-center td {
+  align-content: safe center;
+}
+.alignc-safe-end td {
+  align-content: safe end;
+}
+.alignc-safe-center-short td {
+  align-content: safe center;
+  height: 10px;
+}
+.alignc-safe-end-short td {
+  align-content: safe end;
+  height: 10px;
+}
+</style>
+
+<table border="0" id="ref" class="valign-baseline">
+<tr>
+<td><div class="content1">first<br>second</div></td>
+<td><div class="content2">first<br>second</div></td>
+<td><div class="content3">first<br>second<br>third</div></td>
+</tr>
+</table>
+
+<table border="0" id="target" class="alignc-baseline">
+<tr>
+<td><div class="content1">first<br>second</div></td>
+<td><div class="content2">first<br>second</div></td>
+<td><div class="content3">first<br>second<br>third</div></td>
+</tr>
+</table>
+
+<script>
+function testEquivalence(target, ref) {
+  assert_equals(target.querySelector('.content1').offsetTop,
+      ref.querySelector('.content1').offsetTop, 'The first cell content top');
+  assert_equals(target.querySelector('.content2').offsetTop,
+      ref.querySelector('.content2').offsetTop, 'The second cell content top');
+  assert_equals(target.querySelector('.content3').offsetTop,
+      ref.querySelector('.content3').offsetTop, 'The third cell conten topt');
+}
+
+const ref = document.querySelector('#ref');
+const target = document.querySelector('#target');
+const TALL = 50;
+// *-short specifies `height: 10px`, but cells ignore it, and the actual height
+// is the maximum content height in the row.
+const SHORT = 40;
+const C1HEIGHT = 10 * 2;
+
+test(() => {
+  ref.className = 'valign-top';
+  target.className = 'alignc-start';
+  testEquivalence(target, ref);
+  assert_equals(target.querySelector('.content1').offsetTop, 0);
+}, 'vertical-align:top and align-content:start are equivalent');
+
+test(() => {
+  ref.className = 'valign-middle';
+  target.className = 'alignc-center';
+  testEquivalence(target, ref);
+  assert_equals(target.querySelector('.content1').offsetTop, (TALL - C1HEIGHT) / 2);
+
+  ref.className = 'valign-middle-short';
+  target.className = 'alignc-center-short';
+  testEquivalence(target, ref);
+  assert_equals(target.querySelector('.content1').offsetTop, (SHORT - C1HEIGHT) / 2);
+}, 'vertical-align:middle and `align-content:unsafe center` are equivalent');
+
+test(() => {
+  ref.className = 'valign-bottom';
+  target.className = 'alignc-end';
+  testEquivalence(target, ref);
+  assert_equals(target.querySelector('.content1').offsetTop, TALL - C1HEIGHT);
+
+  ref.className = 'valign-bottom-short';
+  target.className = 'alignc-end-short';
+  testEquivalence(target, ref);
+  assert_equals(target.querySelector('.content1').offsetTop, SHORT - C1HEIGHT);
+}, 'vertical-align:bottom and `align-content:unsafe end` are equivalent');
+
+test(() => {
+  ref.className = 'valign-baseline';
+  target.className = 'alignc-baseline';
+  testEquivalence(target, ref);
+}, 'vertical-align:baseline and align-content:baseline are equivalent');
+
+test(() => {
+  ref.className = 'valign-middle';
+  target.className = 'alignc-safe-center';
+  testEquivalence(target, ref);
+  assert_equals(target.querySelector('.content1').offsetTop, (TALL - C1HEIGHT) / 2);
+}, 'vertical-align:middle and `align-content:safe center` are equivalent if the container is tall');
+
+test(() => {
+  ref.className = 'valign-bottom';
+  target.className = 'alignc-safe-end';
+  testEquivalence(target, ref);
+  assert_equals(target.querySelector('.content1').offsetTop, TALL - C1HEIGHT);
+}, 'vertical-align:bottom and `align-content:safe end` are equivalent if the container is tall');
+
+test(() => {
+  ref.className = 'alignc-center-short';
+  target.className = 'alignc-safe-center-short';
+  testEquivalence(target, ref);
+}, '`align-content:safe center` is equivalent to `unsafe center` even if the specified `height` is short');
+
+test(() => {
+  ref.className = 'alignc-end-short';
+  target.className = 'alignc-safe-end-short';
+}, '`align-content:safe end` is equivalent to `unsafe end` even if the specified `height` is short');
+</script>
