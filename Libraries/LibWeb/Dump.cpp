@@ -40,7 +40,10 @@
 #include <LibWeb/HTML/HTMLTemplateElement.h>
 #include <LibWeb/HTML/ImageRequest.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/Navigation.h>
+#include <LibWeb/HTML/NavigationHistoryEntry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
@@ -58,27 +61,22 @@
 
 namespace Web {
 
-static void dump_session_history_entry(StringBuilder& builder, HTML::SessionHistoryEntry const& session_history_entry, int indent_levels)
+static void dump_session_history_entry(StringBuilder& builder, HTML::SessionHistoryEntry const& session_history_entry)
 {
-    dump_indent(builder, indent_levels);
     builder.appendff("step=({}) url=({})", session_history_entry.step().get<int>(), session_history_entry.url());
     if (session_history_entry.scroll_position_data().viewport_scroll_position.has_value()) {
         auto const& viewport_scroll_position = *session_history_entry.scroll_position_data().viewport_scroll_position;
         builder.appendff(" viewport-scroll=({}, {})", viewport_scroll_position.x(), viewport_scroll_position.y());
     }
     builder.append('\n');
-    for (auto const& nested_history : session_history_entry.document_state()->nested_histories()) {
-        for (auto const& nested_she : nested_history.entries) {
-            dump_session_history_entry(builder, *nested_she, indent_levels + 1);
-        }
-    }
 }
 
 void dump_tree(HTML::LocalTraversableNavigable& traversable)
 {
     StringBuilder builder;
-    for (auto const& she : traversable.session_history_entries()) {
-        dump_session_history_entry(builder, *she, 0);
+    if (auto window = traversable.active_window()) {
+        for (auto const& entry : window->navigation()->entries())
+            dump_session_history_entry(builder, entry->session_history_entry());
     }
     dbgln("{}", builder.string_view());
 }

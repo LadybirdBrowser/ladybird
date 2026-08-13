@@ -829,31 +829,98 @@ Utf16String Internals::dump_session_history()
     if (!traversable)
         return "(no traversable)"_utf16;
 
-    auto const& entries = navigable->get_session_history_entries();
-    auto current_step = traversable->current_session_history_step();
+    auto serialized_history = document.page().client().page_did_request_ui_process_session_history_for_testing();
+    auto parsed_history = JsonValue::from_string(serialized_history);
+    if (parsed_history.is_error() || !parsed_history.value().is_object())
+        return "(invalid UI process session history)"_utf16;
+
+    auto const& history = parsed_history.value().as_object();
+    auto top_level_entries = history.get_array("entries"sv);
+    auto used_steps = history.get_array("usedSteps"sv);
+    if (!top_level_entries.has_value() || !used_steps.has_value())
+        return "(invalid UI process session history)"_utf16;
+
+    Optional<i32> current_step;
+    for (auto const& step : used_steps->values()) {
+        if (!step.is_object())
+            continue;
+        auto const& step_object = step.as_object();
+        if (step_object.get_bool("current"sv).value_or(false)) {
+            current_step = step_object.get_i32("step"sv);
+            break;
+        }
+    }
+
+    auto const* entries = &*top_level_entries;
+    if (navigable.ptr() != traversable.ptr()) {
+        auto navigable_id = MUST(String::formatted("{}", navigable->id()));
+        Function<JsonArray const*(JsonArray const&)> find_entries =
+            [&](JsonArray const& candidate_entries) -> JsonArray const* {
+            for (auto const& candidate_entry : candidate_entries.values()) {
+                if (!candidate_entry.is_object())
+                    continue;
+                auto nested_histories = candidate_entry.as_object().get_array("nestedHistories"sv);
+                if (!nested_histories.has_value())
+                    continue;
+                for (auto const& nested_history : nested_histories->values()) {
+                    if (!nested_history.is_object())
+                        continue;
+                    auto const& nested_history_object = nested_history.as_object();
+                    auto nested_entries = nested_history_object.get_array("entries"sv);
+                    if (!nested_entries.has_value())
+                        continue;
+                    if (auto nested_history_id = nested_history_object.get_string("id"sv);
+                        nested_history_id.has_value()
+                        && *nested_history_id == navigable_id) {
+                        return &*nested_entries;
+                    }
+                    if (auto const* result = find_entries(*nested_entries))
+                        return result;
+                }
+            }
+            return nullptr;
+        };
+        entries = find_entries(*top_level_entries);
+        if (!entries)
+            return "(no canonical session history entries)"_utf16;
+    }
 
     // Find the minimum step to use as a base offset, so output is stable across test runs.
     Optional<int> min_step;
-    for (auto const& entry : entries) {
-        auto step = entry->step();
-        if (step.has<int>() && (!min_step.has_value() || step.get<int>() < *min_step))
-            min_step = step.get<int>();
+    for (auto const& entry : entries->values()) {
+        if (!entry.is_object())
+            continue;
+        auto step = entry.as_object().get_i32("step"sv);
+        if (step.has_value()
+            && (!min_step.has_value() || *step < *min_step)) {
+            min_step = *step;
+        }
     }
 
     StringBuilder builder;
-    for (auto const& entry : entries) {
-        auto step = entry->step();
-        auto const& url = entry->url();
-        auto filename = url.basename();
+    for (auto const& entry : entries->values()) {
+        if (!entry.is_object())
+            continue;
+        auto const& entry_object = entry.as_object();
+        auto step = entry_object.get_i32("step"sv);
+        auto serialized_url = entry_object.get_string("url"sv);
+        if (!step.has_value() || !serialized_url.has_value())
+            continue;
+        auto url = URL::Parser::basic_parse(*serialized_url);
+        if (!url.has_value())
+            continue;
+        auto filename = url->basename();
         StringBuilder display_builder;
         display_builder.append(filename);
-        if (url.query().has_value())
-            display_builder.appendff("?{}", *url.query());
-        if (url.fragment().has_value())
-            display_builder.appendff("#{}", *url.fragment());
+        if (url->query().has_value())
+            display_builder.appendff("?{}", *url->query());
+        if (url->fragment().has_value())
+            display_builder.appendff("#{}", *url->fragment());
         auto display = display_builder.to_string_without_validation();
-        auto is_current = step.has<int>() && step.get<int>() == current_step;
-        auto relative_step = step.has<int>() && min_step.has_value() ? String::number(step.get<int>() - *min_step) : "pending"_string;
+        auto is_current = current_step == step;
+        auto relative_step = min_step.has_value()
+            ? String::number(*step - *min_step)
+            : "pending"_string;
         builder.appendff("  step {} {}{}\n", relative_step, display, is_current ? " (current)"sv : ""sv);
     }
     return dump_string_to_utf16(builder.to_string_without_validation());
