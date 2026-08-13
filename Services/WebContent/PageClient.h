@@ -81,7 +81,7 @@ public:
     void set_preferred_motion(Web::CSS::PreferredMotion);
     virtual void set_has_focus(bool) override;
     void set_window_handle(Utf16String);
-    void did_start_webdriver_navigation(URL::URL const&);
+    void did_start_webdriver_navigation();
     struct WebDriverHistoryTraversalResult {
         bool accepted { false };
     };

@@ -61,7 +61,7 @@ endpoint WebContentClient
     did_commit_child_frame_navigation(u64 page_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state) =|
     did_change_top_level_active_document(u64 page_id, Web::HTML::ReplicatedNavigableState replicated_state) =|
     did_destroy_child_frame(u64 page_id, Web::HTML::CrossProcessId frame_id) =|
-    did_start_webdriver_navigation(u64 page_id, URL::URL url) =|
+    did_start_webdriver_navigation(u64 page_id) =|
     did_start_loading(u64 page_id, Optional<Utf16String> navigation_id, URL::URL url, bool is_redirect) =|
     did_cancel_loading(u64 page_id, Optional<Utf16String> navigation_id) =|
     did_finish_loading(u64 page_id, Optional<Utf16String> navigation_id, URL::URL url) =|

@@ -136,11 +136,11 @@ public:
     void traverse_the_history_by_delta(
         int delta,
         CheckForCancelation = CheckForCancelation::Yes,
-        Function<void(HistoryTraversalOutcome)> on_complete = nullptr);
+        Function<void()> on_ready = nullptr);
     void traverse_the_history_to_step(
         i32 step,
         CheckForCancelation = CheckForCancelation::Yes,
-        Function<void(HistoryTraversalOutcome)> on_complete = nullptr);
+        Function<void()> on_ready = nullptr);
     [[nodiscard]] Vector<SessionHistoryTraversalMenuItem> session_history_traversal_menu_items(int direction) const;
 
     void zoom_in();
@@ -301,7 +301,7 @@ public:
     void did_receive_changing_navigable_continuation_applied(Badge<WebContentClient>, WebContentClient&, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state);
     void did_receive_nonchanging_navigable_history_state_updated(Badge<WebContentClient>, WebContentClient&, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id);
     void did_reset_session_history_for_testing(Badge<WebContentClient>, Web::HTML::SessionHistoryEntryDescriptor);
-    void did_start_webdriver_navigation(Badge<WebContentClient>, URL::URL const&);
+    void did_start_webdriver_navigation(Badge<WebContentClient>);
     String ui_process_session_history_for_testing(Badge<WebContentClient>) const;
     JsonValue webdriver_session_history() const;
     void wait_for_webdriver_navigation_completion(Badge<WebContentClient>, Optional<u64> page_load_timeout, Function<void(Web::WebDriver::Response)>);
@@ -443,9 +443,10 @@ public:
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const = 0;
 
 protected:
-    Function<void()> make_top_level_history_traversal_applied_callback() const;
-    void will_apply_history_traversal_step(URL::URL webdriver_pending_navigation_url, bool webdriver_pending_navigation_completes_with_session_history_update);
-    void apply_history_traversal_step_result(Web::HTML::HistoryStepResult, RefPtr<BrowserHistoryTraversalState> const&);
+    void will_apply_history_traversal_step(u64 operation_id);
+    void did_resume_history_traversal(u64 operation_id);
+    void did_apply_top_level_history_traversal_step(u64 operation_id);
+    void did_finish_history_traversal(u64 operation_id, Web::HTML::HistoryStepResult);
     void start_requested_history_traversal(u64 initiation_id, Web::TraverseByDeltaHistoryOperationParameters, NonnullRefPtr<Core::Promise<Empty>>);
     void start_requested_history_traversal(u64 initiation_id, Web::NavigationAPITraverseHistoryOperationParameters, NonnullRefPtr<Core::Promise<Empty>>);
     void start_requested_history_traversal(u64 initiation_id, Web::HistoryOperationParameters, TraversableSessionHistory::TraversalTarget, NonnullRefPtr<Core::Promise<Empty>>);
@@ -470,7 +471,14 @@ protected:
     void did_finish_navigation(URL::URL const&);
     void set_loading_state(bool);
     void complete_webdriver_navigation_completion(u64 request_id, Web::WebDriver::Response);
-    void complete_webdriver_pending_navigation_if_url_matches(URL::URL const&);
+    enum class WebDriverNavigationCompletionSource : u8 {
+        CrashRecovery,
+        Load,
+        HistoryTraversal,
+    };
+    u64 begin_webdriver_navigation(WebDriverNavigationCompletionSource, Optional<u64> history_operation_id = {}, Optional<URL::URL> expected_url = {});
+    void complete_webdriver_navigation(u64 navigation_id);
+    void complete_webdriver_history_traversal(u64 operation_id);
     void update_navigation_action_state();
     enum class SessionHistoryDumpMode {
         IfDebuggingEnabled,
@@ -665,14 +673,21 @@ protected:
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };
 
     CanonicalTraversable m_top_level_traversable;
-    Optional<URL::URL> m_webdriver_pending_navigation_url;
-    bool m_webdriver_pending_navigation_completes_with_session_history_update { false };
+    struct PendingWebDriverNavigation {
+        u64 id { 0 };
+        WebDriverNavigationCompletionSource completion_source { WebDriverNavigationCompletionSource::Load };
+        Optional<u64> history_operation_id;
+        Optional<URL::URL> expected_url;
+        bool history_operation_completed { false };
+        bool load_completed { false };
+    };
+    u64 m_next_webdriver_navigation_id { 1 };
+    Optional<PendingWebDriverNavigation> m_pending_webdriver_navigation;
     RefPtr<Core::Promise<Empty>> m_pending_session_history_reset_for_testing;
 
     struct WebDriverNavigationCompletionRequest {
         Function<void(Web::WebDriver::Response)> on_complete;
         RefPtr<Core::Timer> timer;
-        u64 navigation_listener_id { 0 };
     };
     u64 m_next_webdriver_navigation_completion_request_id { 0 };
     HashMap<u64, OwnPtr<WebDriverNavigationCompletionRequest>> m_pending_webdriver_navigation_completion_requests;

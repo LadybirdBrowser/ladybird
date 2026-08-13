@@ -207,9 +207,9 @@ void PageClient::set_window_handle(Utf16String window_handle)
         m_webdriver->page_did_set_window_handle({}, page().top_level_traversable()->window_handle().to_utf8());
 }
 
-void PageClient::did_start_webdriver_navigation(URL::URL const& url)
+void PageClient::did_start_webdriver_navigation()
 {
-    client().async_did_start_webdriver_navigation(m_id, url);
+    client().async_did_start_webdriver_navigation(m_id);
 }
 
 void PageClient::setup_palette()
