@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include <AK/Function.h>
-#include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
@@ -66,8 +64,6 @@ struct SessionHistoryDocumentStateDescriptor {
 struct SessionHistoryEntryScrollPositionData {
     // FIXME: Track all restorable scrollable regions. Currently only the viewport is persisted.
     Optional<CSSPixelPoint> viewport_scroll_position;
-
-    bool operator==(SessionHistoryEntryScrollPositionData const&) const = default;
 };
 
 struct SessionHistoryEntryPersistedState {
@@ -198,7 +194,6 @@ WEB_API SessionHistoryEntryDescriptor create_session_history_entry_descriptor(Pe
 WEB_API Optional<SessionHistoryEntryPersistedState> create_session_history_entry_persisted_state(SessionHistoryEntry const&);
 WEB_API SessionHistoryEntryIdentity session_history_entry_identity(SessionHistoryEntry const&);
 WEB_API SessionHistoryEntryIdentity session_history_entry_identity(SessionHistoryEntryDescriptor const&);
-WEB_API bool session_history_entry_descriptors_match(SessionHistoryEntryDescriptor const&, SessionHistoryEntryDescriptor const&);
 
 }
 
