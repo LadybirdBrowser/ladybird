@@ -55,6 +55,7 @@ struct StyleInputRecord {
     bool style_depends_on_style_container_query { false };
     bool explicitly_inherited_non_inherited_property { false };
     bool cascade_reads_custom_properties { false };
+    bool cascade_declares_custom_properties { false };
 
     // Which half of the record differs first, which is what says why a recomputation could not be
     // answered from what its last one read.
