@@ -526,6 +526,10 @@ pub struct StyleEngine {
     pending_program_base_version: Option<ProgramVersion>,
     /// Original and final property inventories for declaration edits in the pending transaction.
     pending_rule_declaration_changes: Vec<PendingRuleDeclarationChange>,
+    /// Rules whose declaration edit started from an incomplete inventory. An incomplete block can
+    /// declare custom properties, which never enter the winner columns, so no winner-based proof
+    /// can see what such a rule used to contribute. Lives until the transaction is released.
+    rules_with_incomplete_old_declarations: Vec<RuleID>,
     /// The old dense rule sequence while one sheet is synchronously reparsed.
     sheet_rule_replacement: Option<SheetRuleReplacement>,
     /// Unmatched old rule sequences retained until the transaction boundary, indexed by sheet.

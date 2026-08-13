@@ -50,6 +50,7 @@ impl StyleEngine {
             rule_change_is_carried_by_sheet: HashMap::default(),
             pending_program_base_version: None,
             pending_rule_declaration_changes: Vec::new(),
+            rules_with_incomplete_old_declarations: Vec::new(),
             sheet_rule_replacement: None,
             pending_sheet_rule_replacements: Column::default(),
             departed: Vec::new(),

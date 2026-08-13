@@ -1217,6 +1217,7 @@ impl StyleEngine {
     /// Release a drained transaction's scratch charge.
     pub fn release_transaction(&mut self, transaction: StyleTransaction) {
         transaction.release(&mut self.memory);
+        self.rules_with_incomplete_old_declarations.clear();
         self.forget_departed_elements();
         self.sweep_selector_programs();
     }

@@ -164,6 +164,12 @@ impl StyleEngine {
             change.new_properties = new_properties;
             return;
         }
+        // An incomplete inventory can hold custom properties, and those never reach the winner
+        // columns, so nothing downstream can prove such an edit inert. Capture that on the old
+        // side only: the first edit in a transaction reads the state every proof compares against.
+        if !self.current_declarations_are_complete_for(rule) {
+            self.rules_with_incomplete_old_declarations.push(rule);
+        }
         self.pending_rule_declaration_changes
             .push(PendingRuleDeclarationChange {
                 rule,

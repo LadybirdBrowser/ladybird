@@ -4223,6 +4223,15 @@ impl StyleEngine {
         if !self.rule_has_complete_element_winners(rule, entry) {
             return false;
         }
+        // The completeness the gate above reads is the new side's. A declarations edit is judged
+        // against the old winners, and a block that was incomplete before the edit can have
+        // declared custom properties, which the winner columns never hold - so the proof cannot
+        // see what the rule used to contribute, and pruning would strand its old declarations.
+        if matches!(input.key, InputKey::RuleField(changed, RuleField::Declarations) if changed == rule)
+            && self.rules_with_incomplete_old_declarations.contains(&rule)
+        {
+            return false;
+        }
         let Some(winner_program_version) = winner_program_version else {
             return false;
         };
