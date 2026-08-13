@@ -1277,10 +1277,7 @@ void Internals::set_preferred_color_scheme(Utf16String const& color_scheme)
     if (preferred_color_scheme != CSS::PreferredColorScheme::Auto)
         preferred_color_scheme_override = preferred_color_scheme;
     page().set_preferred_color_scheme_override_for_testing(preferred_color_scheme_override);
-
-    auto& document = window().associated_document();
-    document.record_style_environment_change();
-    document.set_needs_media_query_evaluation();
+    page().invalidate_style_for_preference_change();
 }
 
 void Internals::set_page_focus(bool has_focus)

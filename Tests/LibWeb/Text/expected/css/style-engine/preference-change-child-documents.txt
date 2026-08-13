@@ -1,0 +1,4 @@
+top-level light: rgb(1, 2, 3)
+child light: rgb(1, 2, 3)
+top-level dark: rgb(4, 5, 6)
+child dark: rgb(4, 5, 6)
