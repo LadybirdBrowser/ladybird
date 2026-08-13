@@ -1,0 +1,4 @@
+state with parent-block underline: true
+after toggle: <p style="">foo</p>
+state with body underline: true
+after toggle: <p>foo</p>

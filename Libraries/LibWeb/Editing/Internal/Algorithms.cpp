@@ -710,17 +710,21 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(Utf16FlyString const& command, GC::Re
 
     // 5. If command is "strikethrough", and element has a style attribute that sets "text-decoration" to some value
     //    containing "line-through", delete "line-through" from the value.
+    // AD-HOC: The style attribute stores expanded longhands, so the line keywords live in the
+    //         `text-decoration-line` longhand rather than in a shorthand value list.
     auto remove_text_decoration_value = [&element](CSS::Keyword keyword_to_delete) {
         auto inline_style = element->inline_style();
         if (!inline_style)
             return;
 
-        auto style_value = inline_style->get_property_style_value(CSS::PropertyID::TextDecoration);
+        auto style_value = inline_style->get_property_style_value(CSS::PropertyID::TextDecorationLine);
         if (!style_value)
             return;
-        VERIFY(style_value->is_value_list());
-        auto const& value_list = style_value->as_value_list();
-        CSS::StyleValueVector new_values { value_list.values() };
+        CSS::StyleValueVector new_values;
+        if (style_value->is_value_list())
+            new_values = style_value->as_value_list().values();
+        else
+            new_values.append(*style_value);
         auto was_removed = new_values.remove_all_matching([&](ValueComparingNonnullRefPtr<CSS::StyleValue const> const& value) {
             return value->is_keyword() && value->as_keyword().keyword() == keyword_to_delete;
         });
@@ -732,9 +736,9 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(Utf16FlyString const& command, GC::Re
             return;
         }
 
-        auto new_style_value = CSS::StyleValueList::create(move(new_values), value_list.separator());
+        auto new_style_value = CSS::StyleValueList::create(move(new_values), CSS::StyleValueList::Separator::Space);
         MUST(inline_style->set_property(
-            CSS::PropertyID::TextDecoration,
+            CSS::PropertyID::TextDecorationLine,
             new_style_value->to_utf16_string(CSS::SerializationMode::Normal),
             {}));
     };
@@ -1292,9 +1296,9 @@ Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node> node, Utf16FlyS
     // 6. If command is "strikethrough", and the "text-decoration" property of node or any of its ancestors has resolved
     //    value containing "line-through", return "line-through". Otherwise, return null.
     if (command == CommandNames::strikethrough) {
-        auto inclusive_ancestor = node;
+        GC::Ptr<DOM::Node> inclusive_ancestor = node;
         do {
-            auto text_decoration_line = resolved_value(*node, CSS::PropertyID::TextDecorationLine);
+            auto text_decoration_line = resolved_value(*inclusive_ancestor, CSS::PropertyID::TextDecorationLine);
             if (text_decoration_line && value_contains_keyword(*text_decoration_line, CSS::Keyword::LineThrough))
                 return "line-through"_utf16;
             inclusive_ancestor = inclusive_ancestor->parent();
@@ -1306,9 +1310,9 @@ Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node> node, Utf16FlyS
     // 7. If command is "underline", and the "text-decoration" property of node or any of its ancestors has resolved
     //    value containing "underline", return "underline". Otherwise, return null.
     if (command == CommandNames::underline) {
-        auto inclusive_ancestor = node;
+        GC::Ptr<DOM::Node> inclusive_ancestor = node;
         do {
-            auto text_decoration_line = resolved_value(*node, CSS::PropertyID::TextDecorationLine);
+            auto text_decoration_line = resolved_value(*inclusive_ancestor, CSS::PropertyID::TextDecorationLine);
             if (text_decoration_line && value_contains_keyword(*text_decoration_line, CSS::Keyword::Underline))
                 return "underline"_utf16;
             inclusive_ancestor = inclusive_ancestor->parent();
@@ -4000,8 +4004,10 @@ Optional<Utf16String> specified_command_value(GC::Ref<DOM::Element> element, Utf
 
     // 4. If command is "strikethrough", and element has a style attribute set, and that attribute sets
     //    "text-decoration":
+    // AD-HOC: The style attribute stores expanded longhands, and a reconstructed `text-decoration` shorthand is not
+    //         a value list, so read the `text-decoration-line` longhand the attribute sets.
     if (command == CommandNames::strikethrough) {
-        auto text_decoration_style = property_in_style_attribute(element, CSS::PropertyID::TextDecoration);
+        auto text_decoration_style = property_in_style_attribute(element, CSS::PropertyID::TextDecorationLine);
         if (text_decoration_style) {
             // 1. If element's style attribute sets "text-decoration" to a value containing "line-through", return
             //    "line-through".
@@ -4018,8 +4024,9 @@ Optional<Utf16String> specified_command_value(GC::Ref<DOM::Element> element, Utf
         return "line-through"_utf16;
 
     // 6. If command is "underline", and element has a style attribute set, and that attribute sets "text-decoration":
+    // AD-HOC: Read the `text-decoration-line` longhand, as above.
     if (command == CommandNames::underline) {
-        auto text_decoration_style = property_in_style_attribute(element, CSS::PropertyID::TextDecoration);
+        auto text_decoration_style = property_in_style_attribute(element, CSS::PropertyID::TextDecorationLine);
         if (text_decoration_style) {
             // 1. If element's style attribute sets "text-decoration" to a value containing "underline", return "underline".
             if (value_contains_keyword(*text_decoration_style, CSS::Keyword::Underline))

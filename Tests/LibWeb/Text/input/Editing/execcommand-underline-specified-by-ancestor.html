@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div contenteditable id="editor"></div>
+<script>
+    test(() => {
+        const editor = document.getElementById("editor");
+        document.execCommand("styleWithCSS", false, "false");
+
+        // Underline set by the parent block's style attribute: toggling must remove it.
+        editor.innerHTML = `<p style="text-decoration: underline">foo</p>`;
+        editor.focus();
+        getSelection().selectAllChildren(editor.querySelector("p"));
+        println("state with parent-block underline: " + document.queryCommandState("underline"));
+        document.execCommand("underline");
+        println("after toggle: " + editor.innerHTML);
+
+        // Underline set outside the editing host: the state must still see it, so toggling
+        // must not wrap the text in <u>.
+        editor.innerHTML = `<p>foo</p>`;
+        document.body.style.textDecoration = "underline";
+        editor.focus();
+        getSelection().selectAllChildren(editor.querySelector("p"));
+        println("state with body underline: " + document.queryCommandState("underline"));
+        document.execCommand("underline");
+        println("after toggle: " + editor.innerHTML);
+        document.body.style.textDecoration = "";
+    });
+</script>
