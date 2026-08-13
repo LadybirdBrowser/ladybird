@@ -1066,6 +1066,14 @@ impl StyleEngine {
         root: StyleNodeID,
         arrival_regions: &ImpactRegions,
     ) -> TransactionFactView {
+        // Old-side workspace answers cached while planning an earlier transaction describe that
+        // transaction's before state. This transaction has a different before state, so stale
+        // old-side answers would let exact planning compare wrong old positions and miss changes.
+        let workspace_before = self.match_workspace.capacity_bytes();
+        self.match_workspace.clear_old_evaluation_sides();
+        let workspace_after = self.match_workspace.capacity_bytes();
+        self.memory
+            .release(MemoryCategory::BatchScratch, workspace_before - workspace_after);
         let plan_before_commit = self.facts.has_pending_input();
         let classification = self.classify_transaction_facts(transaction, arrival_regions);
         let before_facts = transaction.take_before_facts(&mut self.memory);

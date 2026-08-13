@@ -4036,6 +4036,12 @@ impl MatchEvaluationWorkspace {
     /// Keep only reusable current-tree, current-fact data for the following matching traversal.
     pub(super) fn retain_current_for_matching(&mut self) {
         self.relations_by_evaluation_side[MatchEvaluationSide::Current as usize].clear_selector_answers();
+        self.clear_old_evaluation_sides();
+    }
+
+    /// Old-side answers describe one transaction's before state, so they must not survive into
+    /// the next transaction, whose before state is a different topology.
+    pub(super) fn clear_old_evaluation_sides(&mut self) {
         self.relations_by_evaluation_side[MatchEvaluationSide::OldTree as usize] = MatchRelationCache::default();
         self.relations_by_evaluation_side[MatchEvaluationSide::OldFacts as usize] = MatchRelationCache::default();
         *self.sibling_geometry_by_tree_side[MatchEvaluationSide::OldTree.tree_side()].get_mut() =
