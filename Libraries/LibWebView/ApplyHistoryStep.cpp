@@ -231,6 +231,11 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
         //       https://html.spec.whatwg.org/multipage/browsing-the-web.html#sync-navigation-steps-queue-jumping-examples
         // 1. If traversable's running nested apply history step is false, then:
         if (!m_traversable_state.running_nested_apply_history_step) {
+            // IPC allows WebContent to append more steps while a nested run is pending. Limit this pass to the steps present at its
+            // start so a ready continuation cannot be starved.
+            if (!m_synchronous_navigation_steps_to_jump_through.has_value())
+                m_synchronous_navigation_steps_to_jump_through = m_session_history_traversal_queue.last_enqueued_sequence_number();
+
             // 1. While traversable's session history traversal queue's algorithm set contains one or more synchronous
             //    navigation steps with a target navigable not contained in navigablesThatMustWaitBeforeHandlingSyncNavigation:
             //    1. Let steps be the first item in traversable's session history traversal queue's algorithm set
@@ -238,7 +243,9 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
             //       navigablesThatMustWaitBeforeHandlingSyncNavigation.
             //    2. Remove steps from traversable's session history traversal queue's algorithm set.
             for (;;) {
-                auto item = m_session_history_traversal_queue.take_first_synchronous_navigation_steps_not_targeting(m_navigables_that_must_wait_before_handling_sync_navigation);
+                auto item = m_session_history_traversal_queue.take_first_synchronous_navigation_steps_not_targeting(
+                    m_navigables_that_must_wait_before_handling_sync_navigation,
+                    *m_synchronous_navigation_steps_to_jump_through);
                 if (!item.has_value())
                     break;
 
@@ -264,6 +271,8 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
                 });
                 return;
             }
+
+            m_synchronous_navigation_steps_to_jump_through.clear();
         }
 
         // 3. Let changingNavigableContinuation be the result of dequeuing from changingNavigableContinuations.

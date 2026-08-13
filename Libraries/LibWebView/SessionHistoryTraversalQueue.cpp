@@ -11,20 +11,27 @@ namespace WebView {
 
 void SessionHistoryTraversalQueue::append_session_history_traversal_steps(SessionHistoryTraversalSteps steps)
 {
-    m_algorithm_set.append({ {}, move(steps) });
+    m_algorithm_set.append({ {}, move(steps), ++m_last_enqueued_sequence_number });
     schedule_processing();
 }
 
 void SessionHistoryTraversalQueue::append_session_history_synchronous_navigation_steps(Web::HTML::CrossProcessId target_navigable, SessionHistoryTraversalSteps steps)
 {
-    m_algorithm_set.append({ target_navigable, move(steps) });
+    m_algorithm_set.append({ target_navigable, move(steps), ++m_last_enqueued_sequence_number });
     schedule_processing();
 }
 
 Optional<SessionHistoryTraversalQueue::Item> SessionHistoryTraversalQueue::take_first_synchronous_navigation_steps_not_targeting(HashTable<Web::HTML::CrossProcessId> const& excluded_navigables)
 {
-    auto index = m_algorithm_set.find_first_index_if([&excluded_navigables](auto const& item) {
-        return item.target_navigable.has_value() && !excluded_navigables.contains(*item.target_navigable);
+    return take_first_synchronous_navigation_steps_not_targeting(excluded_navigables, m_last_enqueued_sequence_number);
+}
+
+Optional<SessionHistoryTraversalQueue::Item> SessionHistoryTraversalQueue::take_first_synchronous_navigation_steps_not_targeting(HashTable<Web::HTML::CrossProcessId> const& excluded_navigables, u64 maximum_sequence_number)
+{
+    auto index = m_algorithm_set.find_first_index_if([&](auto const& item) {
+        return item.sequence_number <= maximum_sequence_number
+            && item.target_navigable.has_value()
+            && !excluded_navigables.contains(*item.target_navigable);
     });
     if (!index.has_value())
         return {};

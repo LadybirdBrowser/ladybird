@@ -339,6 +339,32 @@ TEST_CASE(synchronous_navigation_steps_jump_the_queue_before_continuations)
     EXPECT_EQ(test.current_step(), 0);
 }
 
+TEST_CASE(synchronous_navigation_steps_queued_by_a_nested_step_do_not_starve_the_continuation)
+{
+    Core::EventLoop event_loop;
+    TestTraversable test;
+    test.with_two_top_level_entries();
+
+    bool later_synchronous_steps_ran = false;
+    RefPtr<Core::Promise<Empty>> synchronous_steps_signal;
+    test.queue.append_session_history_synchronous_navigation_steps(child_id(), [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
+        synchronous_steps_signal = signal;
+        test.queue.append_session_history_synchronous_navigation_steps(child_id(), [&](NonnullRefPtr<Core::Promise<Empty>>) {
+            later_synchronous_steps_ran = true;
+        });
+    });
+
+    test.traverse_to_step(0);
+    test.runner.changing_jobs[0].on_complete(Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready);
+    EXPECT(synchronous_steps_signal);
+    EXPECT(test.runner.continuations.is_empty());
+
+    synchronous_steps_signal->resolve({});
+    EXPECT(!later_synchronous_steps_ran);
+    EXPECT_EQ(test.runner.continuations.size(), 1uz);
+    EXPECT(!test.queue.is_empty());
+}
+
 TEST_CASE(canceled_run_does_not_resume_after_synchronous_navigation)
 {
     Core::EventLoop event_loop;

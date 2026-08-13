@@ -182,6 +182,7 @@ private:
     //     continuations are ready to be applied.
     Vector<Web::HTML::CrossProcessId> m_changing_navigable_continuations;
     HashTable<Web::HTML::CrossProcessId> m_navigables_that_must_wait_before_handling_sync_navigation;
+    Optional<u64> m_synchronous_navigation_steps_to_jump_through;
     size_t m_completed_nonchanging_jobs { 0 };
 
     // The synchronous navigation steps this run is paused on ("running nested apply history step" is true).
