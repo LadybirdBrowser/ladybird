@@ -3387,6 +3387,35 @@ fn rule_declaration_edits_repair_only_their_property_inventory() {
 }
 
 #[test]
+fn rule_declaration_repair_falls_back_when_winner_retention_is_refused() {
+    let (mut engine, nodes) = linear_document();
+    let target = StyleAtomID(200);
+    let rule = add_target_rule(&mut engine, StyleSheetObjectID(1), target);
+    engine.set_rule_declared_properties_with_values(rule, &[(1, false, SpecifiedValueID(101))], true);
+    add_feature(&mut engine, nodes[1], FeatureKey::Class(target));
+    discard_transaction(&mut engine);
+
+    let exact_answer = engine.match_element(nodes[1]).unwrap();
+    let compact_answer = engine.matches_for_cascade(exact_answer.clone(), false, Some(nodes[1]));
+    engine.remember_retained_match_answer(nodes[1], &exact_answer);
+    engine.remember_cascade_input(nodes[1], &compact_answer);
+
+    engine.set_rule_declared_properties_with_values(rule, &[(2, false, SpecifiedValueID(202))], true);
+    let mut version = engine.program.rule_version(rule);
+    version.declaration_block = Some(DeclarationBlockID(2));
+    engine.replace_rule_version(rule, version);
+    engine.memory.set_tier3_limit_for_test(0);
+
+    let mut planned = Vec::new();
+    assert!(engine.take_style_transaction(nodes[0], |_, _, answers| {
+        planned.extend(answers.iter().map(|answer| answer.style_node));
+    }));
+    assert_eq!(planned, vec![nodes[1].raw()]);
+    assert_eq!(engine.memory().bytes_in_category(MemoryCategory::CascadeWinnerGroup), 0);
+    engine.discard_style_transaction_outputs();
+}
+
+#[test]
 fn cascade_state_omits_incomplete_element_declarations() {
     let (mut engine, nodes) = linear_document();
     let author = add_target_rule(&mut engine, StyleSheetObjectID(1), StyleAtomID(200));
