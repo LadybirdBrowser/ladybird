@@ -136,8 +136,6 @@ public:
     virtual Optional<URL::Origin> active_document_origin() const override;
     ReplicatedNavigableState replicated_state() const;
 
-    RefPtr<SessionHistoryEntry> get_the_target_history_entry(int target_step) const;
-    RefPtr<SessionHistoryEntry> get_the_target_history_entry_if_present(int target_step) const;
     RefPtr<SessionHistoryEntry> find_session_history_entry(Utf16String const& navigation_api_key, CrossProcessId document_state_id) const;
 
     void save_persisted_state_to_active_session_history_entry();
