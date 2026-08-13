@@ -311,6 +311,24 @@ enum class MissingSessionHistoryEntryDisposition {
     Install,
 };
 
+static NonnullRefPtr<SessionHistoryEntry> install_session_history_entry(Vector<NonnullRefPtr<SessionHistoryEntry>>& local_entries, NonnullRefPtr<SessionHistoryEntry> entry)
+{
+    auto entry_step = *entry->step_value();
+    for (size_t i = 0; i < local_entries.size(); ++i) {
+        auto local_entry_step = local_entries[i]->step_value();
+        if (!local_entry_step.has_value() || *local_entry_step > entry_step) {
+            local_entries.insert(i, entry);
+            return entry;
+        }
+        if (*local_entry_step == entry_step) {
+            local_entries[i] = entry;
+            return entry;
+        }
+    }
+    local_entries.append(entry);
+    return entry;
+}
+
 static RefPtr<SessionHistoryEntry> resolve_local_session_history_entry(LocalNavigable& navigable, SessionHistoryEntryDescriptor entry_descriptor, MissingSessionHistoryEntryDisposition missing_entry_disposition)
 {
     if (auto local_target_entry = navigable.find_session_history_entry(entry_descriptor.navigation_api_key, entry_descriptor.document_state.id))
@@ -327,42 +345,23 @@ static RefPtr<SessionHistoryEntry> resolve_local_session_history_entry(LocalNavi
         local_entries = &navigable.get_session_history_entries();
     }
 
-    RefPtr<SessionHistoryEntry> target_entry;
-    if (auto active_window = navigable.active_window()) {
-        for (auto const& navigation_entry : active_window->navigation()->entries()) {
-            auto& candidate = navigation_entry->session_history_entry();
-            auto candidate_document_state = candidate.document_state();
-            if (candidate.navigation_api_key() == entry_descriptor.navigation_api_key
-                && candidate_document_state
-                && candidate_document_state->cross_process_id() == entry_descriptor.document_state.id) {
-                target_entry = candidate;
-                break;
-            }
-        }
-    }
-
-    if (target_entry && !local_entries)
-        return target_entry;
-
     auto document_state_id = entry_descriptor.document_state.id;
-    if (!target_entry) {
-        SessionHistoryEntryReconstructionState reconstruction_state;
-        if (local_entries) {
-            for (auto const& entry : *local_entries) {
-                auto document_state = entry->document_state();
-                if (document_state)
-                    reconstruction_state.document_states.set(document_state->cross_process_id(), document_state);
-            }
-            for (auto const& entry : { navigable.active_session_history_entry(), navigable.current_session_history_entry() }) {
-                if (!entry)
-                    continue;
-                auto document_state = entry->document_state();
-                if (document_state)
-                    reconstruction_state.document_states.set(document_state->cross_process_id(), document_state);
-            }
+    SessionHistoryEntryReconstructionState reconstruction_state;
+    if (local_entries) {
+        for (auto const& entry : *local_entries) {
+            auto document_state = entry->document_state();
+            if (document_state)
+                reconstruction_state.document_states.set(document_state->cross_process_id(), document_state);
         }
-        target_entry = create_session_history_entry_from_ui_process(move(entry_descriptor), reconstruction_state);
+        for (auto const& entry : { navigable.active_session_history_entry(), navigable.current_session_history_entry() }) {
+            if (!entry)
+                continue;
+            auto document_state = entry->document_state();
+            if (document_state)
+                reconstruction_state.document_states.set(document_state->cross_process_id(), document_state);
+        }
     }
+    auto target_entry = create_session_history_entry_from_ui_process(move(entry_descriptor), reconstruction_state);
 
     if (!local_entries) {
         for (auto const& local_entry : { navigable.active_session_history_entry(), navigable.current_session_history_entry() }) {
@@ -377,21 +376,7 @@ static RefPtr<SessionHistoryEntry> resolve_local_session_history_entry(LocalNavi
         return target_entry;
     }
 
-    auto retained_target_entry = target_entry.release_nonnull();
-    auto entry_step_to_install = *retained_target_entry->step_value();
-    for (size_t i = 0; i < local_entries->size(); ++i) {
-        auto entry_step = local_entries->at(i)->step_value();
-        if (!entry_step.has_value() || *entry_step > entry_step_to_install) {
-            local_entries->insert(i, retained_target_entry);
-            return retained_target_entry;
-        }
-        if (*entry_step == entry_step_to_install) {
-            local_entries->at(i) = retained_target_entry;
-            return retained_target_entry;
-        }
-    }
-    local_entries->append(retained_target_entry);
-    return retained_target_entry;
+    return install_session_history_entry(*local_entries, target_entry);
 }
 
 static bool synchronous_same_document_navigation_must_preserve_ongoing_navigation(LocalNavigable const& navigable)
@@ -1947,7 +1932,9 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operat
 
 static Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_navigation_api_from_ui_process(LocalNavigable& navigable, Vector<SessionHistoryEntryDescriptor> entry_descriptors)
 {
-    auto const& local_entries = navigable.get_session_history_entries();
+    // The UI supplies the canonical Navigation API projection. Materialized entries are installed locally so this
+    // projection never becomes a second source of SessionHistoryEntry objects.
+    auto& local_entries = navigable.get_session_history_entries();
     SessionHistoryEntryReconstructionState reconstruction_state;
     for (auto const& local_entry : local_entries) {
         auto document_state = local_entry->document_state();
@@ -1959,30 +1946,7 @@ static Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_na
     entries.ensure_capacity(entry_descriptors.size());
 
     for (auto& entry_descriptor : entry_descriptors) {
-        RefPtr<SessionHistoryEntry> local_entry;
-        for (auto const& candidate : local_entries) {
-            if (candidate->navigation_api_key() == entry_descriptor.navigation_api_key) {
-                local_entry = candidate;
-                break;
-            }
-        }
-
-        // NB: The canonical mirror's key can lag a finalization it has not incorporated yet; the navigation API
-        //     matches entries by object identity, so prefer the local entry at the same step sharing the document
-        //     state over fabricating a detached one.
-        if (!local_entry) {
-            for (auto const& candidate : local_entries) {
-                auto candidate_document_state = candidate->document_state();
-                if (candidate_document_state
-                    && candidate_document_state->cross_process_id() == entry_descriptor.document_state.id
-                    && candidate->step_value() == entry_descriptor.step) {
-                    local_entry = candidate;
-                    break;
-                }
-            }
-        }
-
-        if (local_entry) {
+        if (auto local_entry = navigable.find_session_history_entry(entry_descriptor.navigation_api_key, entry_descriptor.document_state.id)) {
             apply_session_history_entry_descriptor_from_ui_process(*local_entry, entry_descriptor);
             entries.append(local_entry.release_nonnull());
             continue;
@@ -1991,7 +1955,7 @@ static Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_na
         auto entry = SessionHistoryEntry::create();
         apply_session_history_entry_descriptor_from_ui_process(*entry, entry_descriptor);
         entry->set_document_state(get_or_create_document_state_from_ui_process(entry_descriptor.document_state, reconstruction_state));
-        entries.append(move(entry));
+        entries.append(install_session_history_entry(local_entries, move(entry)));
     }
 
     return entries;
@@ -2016,9 +1980,8 @@ void LocalTraversableNavigable::apply_ui_changing_navigable_continuation(u64 ope
         entries_for_navigation_api = session_history_entries_for_navigation_api_from_ui_process(*navigable, move(entry_descriptors_for_navigation_api));
 
         // AD-HOC: The navigation API matches entries by object identity, so the list must contain the entry this
-        //         continuation activates. When the canonical mirror has not incorporated this navigable's latest
-        //         finalization, its list can miss it entirely; compute the list locally then, like the in-process
-        //         coordinator did.
+        //         continuation activates. An operation's descriptors can omit its locally finalized target entry;
+        //         derive the projection from the local collection in that case.
         if (auto target_entry = navigable->current_session_history_entry()) {
             auto contains_target_entry = any_of(entries_for_navigation_api, [&](auto const& entry) { return entry.ptr() == target_entry.ptr(); });
             if (!contains_target_entry && navigable->has_session_history_entries()) {
