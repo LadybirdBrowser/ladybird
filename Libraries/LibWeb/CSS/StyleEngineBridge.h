@@ -165,6 +165,7 @@ public:
     void flush();
 
     using PublishedStyleDelta = StyleEngineFFI::FfiStyleDelta;
+    [[nodiscard]] static bool published_style_delta_can_absorb_reaction(PublishedStyleDelta const&, u8 reaction, u8 inherited_style_groups);
     struct PublishedTransactionVersion {
         u64 transaction;
         u64 program;
