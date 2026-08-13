@@ -65,6 +65,7 @@ public:
         VERIFY(size <= max_values);
         m_top = m_base + size;
     }
+    void reset_and_clear();
 
     void remove(size_t index, size_t count)
     {
@@ -91,12 +92,14 @@ public:
 
     // The conservative GC scans a little past the top;
     // a value handed out by unsafe_take_last() can still be live in a caller's register when a collection runs.
-    size_t conservative_scan_size() const { return min(size() + 8, max_values); }
+    size_t conservative_scan_size() const { return min(size() + conservative_scan_slack, max_values); }
 
     static constexpr size_t base_offset() { return __builtin_offsetof(ValueStack, m_base); }
     static constexpr size_t top_offset() { return __builtin_offsetof(ValueStack, m_top); }
 
 private:
+    static constexpr size_t conservative_scan_slack = 8;
+
     Value* m_base { nullptr };
     Value* m_top { nullptr };
     Value* m_limit { nullptr };

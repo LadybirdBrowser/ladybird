@@ -19,6 +19,14 @@
 
 namespace Wasm {
 
+AbstractMachine::AbstractMachine(GC::Heap* heap)
+{
+    if (heap)
+        adopt_heap(*heap);
+}
+
+AbstractMachine::~AbstractMachine() = default;
+
 static auto& module_stats()
 {
     static NeverDestroyed<Sync::MutexProtected<Vector<ModuleStats>>> stats;
@@ -1167,19 +1175,36 @@ Optional<InstantiationError> AbstractMachine::allocate_all_final_phase(Module co
 
 Result AbstractMachine::invoke(FunctionAddress address, Vector<Value> arguments)
 {
-    BytecodeInterpreter interpreter(m_stack_info);
-    auto handle = register_scoped(interpreter);
-    return invoke(interpreter, address, move(arguments));
+    auto interpreter = m_available_interpreters.is_empty()
+        ? make<BytecodeInterpreter>(m_stack_info)
+        : m_available_interpreters.take_last();
+
+    auto result = [&] {
+        auto handle = register_scoped(*interpreter);
+        return invoke(*interpreter, address, move(arguments));
+    }();
+
+    interpreter->clear_trap();
+    if (m_available_interpreters.size() < MAX_AVAILABLE_EXECUTION_STATES)
+        m_available_interpreters.append(move(interpreter));
+    return result;
 }
 
 Result AbstractMachine::invoke(Interpreter& interpreter, FunctionAddress address, Vector<Value> arguments)
 {
-    Configuration configuration { m_store };
+    auto configuration = m_available_configurations.is_empty()
+        ? make<Configuration>(m_store)
+        : m_available_configurations.take_last();
     if (m_should_limit_instruction_count)
-        configuration.enable_instruction_count_limit();
+        configuration->enable_instruction_count_limit();
 
     Vector<Value, ArgumentsStaticSize> args = move(arguments);
-    return configuration.call(interpreter, address, args);
+    auto result = configuration->call(interpreter, address, args);
+
+    configuration->reset_after_invoke({});
+    if (m_available_configurations.size() < MAX_AVAILABLE_EXECUTION_STATES)
+        m_available_configurations.append(move(configuration));
+    return result;
 }
 
 void Linker::link(ModuleInstance const& instance)

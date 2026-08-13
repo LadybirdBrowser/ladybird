@@ -47,6 +47,48 @@ TEST_CASE(compiled_to_interpreter_call_restores_label_stack)
     EXPECT_EQ(result.values()[0].to<i32>(), 1);
 }
 
+TEST_CASE(reentrant_invoke_uses_independent_execution_state)
+{
+    auto file = MUST(Core::File::open("Fixtures/label-stack-cleanup.wasm"sv, Core::File::OpenMode::Read));
+    auto bytes = MUST(file->read_until_eof());
+    FixedMemoryStream stream { bytes.bytes() };
+    auto module = MUST(Wasm::Module::parse(stream));
+
+    Wasm::AbstractMachine machine;
+    Optional<Wasm::FunctionAddress> run;
+    bool should_reenter { true };
+    Wasm::FunctionType label_stack_size_type { {}, { Wasm::ValueType(Wasm::ValueType::I32) } };
+    auto label_stack_size = machine.store().allocate(Wasm::HostFunction {
+        [&](Wasm::Configuration& configuration, Span<Wasm::Value>) -> Wasm::Result {
+            if (should_reenter) {
+                should_reenter = false;
+                return machine.invoke(*run, {});
+            }
+
+            Vector<Wasm::Value> result;
+            result.append(Wasm::Value(static_cast<i32>(configuration.label_stack().size())));
+            return Wasm::Result { move(result) };
+        },
+        label_stack_size_type,
+        "label_stack_size" });
+    VERIFY(label_stack_size.has_value());
+
+    Vector<Wasm::ExternValue> imports;
+    imports.append(*label_stack_size);
+    auto instance = MUST(machine.instantiate(*module, move(imports)));
+
+    for (auto const& export_ : instance->exports()) {
+        if (export_.name() == "run"sv)
+            run = export_.value().get<Wasm::FunctionAddress>();
+    }
+    VERIFY(run.has_value());
+
+    auto result = machine.invoke(*run, {});
+    EXPECT(!result.is_trap());
+    EXPECT_EQ(result.values().size(), 1u);
+    EXPECT_EQ(result.values()[0].to<i32>(), 1);
+}
+
 TEST_CASE(compiled_memory_access_traps_out_of_bounds)
 {
     auto file = MUST(Core::File::open("Fixtures/memory-guard-trap.wasm"sv, Core::File::OpenMode::Read));

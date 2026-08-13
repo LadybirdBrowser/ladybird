@@ -171,6 +171,8 @@ public:
     void enable_instruction_count_limit() { m_should_limit_instruction_count = true; }
     bool should_limit_instruction_count() const { return m_should_limit_instruction_count; }
 
+    void reset_after_invoke(Badge<AbstractMachine>);
+
     void dump_stack();
 
     void get_arguments_allocation_if_possible(Vector<Value, ArgumentsStaticSize>& arguments, size_t max_size)

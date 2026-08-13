@@ -70,4 +70,11 @@ ValueStack::~ValueStack()
         free_region(m_base);
 }
 
+void ValueStack::reset_and_clear()
+{
+    m_top = m_base;
+    for (size_t i = 0; i < conservative_scan_slack; ++i)
+        m_base[i] = Value(0);
+}
+
 }

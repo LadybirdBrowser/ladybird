@@ -123,6 +123,26 @@ ErrorOr<void, Trap> Configuration::execute_for_compiled_call(Interpreter& interp
     return {};
 }
 
+void Configuration::reset_after_invoke(Badge<AbstractMachine>)
+{
+    m_value_stack.reset_and_clear();
+    m_call_record_stack.reset_and_clear();
+
+    m_label_stack.clear_with_capacity();
+    m_frame_stack.clear_with_capacity();
+    m_owned_locals_stack.clear_with_capacity();
+    m_call_argument_freelist.clear_with_capacity();
+    regs.fill(Value(0));
+
+    m_depth = 0;
+    m_ip = 0;
+    m_locals_base = nullptr;
+    m_call_record_base = nullptr;
+    m_memory_instances = nullptr;
+    m_global_instances = nullptr;
+    m_compiled_call_result_scratch = Value(0);
+}
+
 void Configuration::dump_stack()
 {
     auto print_value = []<typename... Ts>(CheckedFormatString<Ts...> format, Ts... vs) {
