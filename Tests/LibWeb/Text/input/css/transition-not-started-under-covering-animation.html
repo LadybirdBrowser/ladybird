@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    asyncTest(async done => {
+        const div = document.getElementById("target");
+        let gotTransition = false;
+        div.addEventListener("transitionrun", () => {
+            gotTransition = true;
+        });
+
+        div.style.transition = "opacity 100s";
+        getComputedStyle(div).opacity;
+
+        // Update the specified style, then cover the property with an animation before the next style
+        // change event. The animation overrides both the before-change and the after-change style, so
+        // no transition may start.
+        div.style.opacity = "0.5";
+        const animation = div.animate({ opacity: [0, 1] }, 100000);
+
+        await animation.ready;
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        println(gotTransition ? "FAIL: a transition started" : "PASS: no transition started");
+        done();
+    });
+</script>
