@@ -4229,6 +4229,13 @@ return location.href;
                 f"Expected same-document nested setup to be {url_nested_same_document}, "
                 f"got {same_document_nested_setup}\n" + "\n".join(log)
             )
+        wait_for_session_history(
+            webdriver_port,
+            session_id,
+            "after same-document nested setup reaches UI",
+            lambda snapshot: history_current_entry(snapshot["ui"])["url"] == url_nested_same_document,
+            log,
+        )
         expect_current_entry_nested_history(
             webdriver_port,
             session_id,

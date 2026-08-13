@@ -1932,19 +1932,19 @@ void WebContentClient::history_step_unload_cancelation_result(u64 page_id, u64 o
 void WebContentClient::changing_navigable_history_job_ready(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_receive_changing_navigable_history_job_ready({}, operation_id, navigable_id, disposition);
+        view->did_receive_changing_navigable_history_job_ready({}, *this, page_id, operation_id, navigable_id, disposition);
 }
 
 void WebContentClient::changing_navigable_continuation_applied(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_receive_changing_navigable_continuation_applied({}, operation_id, navigable_id, move(previous_entry_persisted_state));
+        view->did_receive_changing_navigable_continuation_applied({}, *this, page_id, operation_id, navigable_id, move(previous_entry_persisted_state));
 }
 
 void WebContentClient::nonchanging_navigable_history_state_updated(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_receive_nonchanging_navigable_history_state_updated({}, operation_id, navigable_id);
+        view->did_receive_nonchanging_navigable_history_state_updated({}, *this, page_id, operation_id, navigable_id);
 }
 
 void WebContentClient::did_present_backing_stores(u64 page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)

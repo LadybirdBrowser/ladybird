@@ -122,7 +122,6 @@ public:
         Web::HTML::UserNavigationInvolvement user_involvement,
         Optional<Web::Bindings::NavigationType> navigation_type,
         Web::HTML::SynchronousNavigation synchronous_navigation,
-        Optional<Web::HTML::CrossProcessId> navigable_to_reload,
         Function<void(Web::HTML::HistoryStepResult)> on_complete);
     ~ApplyHistoryStep();
 
@@ -163,9 +162,6 @@ private:
     Optional<Web::Bindings::NavigationType> const m_navigation_type;
     // AD-HOC: Marks a run that applies an already-finalized synchronous same-document navigation.
     Web::HTML::SynchronousNavigation const m_synchronous_navigation;
-    // AD-HOC: A reload of an entry that is not canonical yet, or reconstruction in a replacement process, must still
-    //         repopulate that navigable even when the canonical reload-pending flag cannot express it.
-    Optional<Web::HTML::CrossProcessId> const m_navigable_to_reload;
     Function<void(Web::HTML::HistoryStepResult)> m_on_complete;
 
     // The algorithm's variables.

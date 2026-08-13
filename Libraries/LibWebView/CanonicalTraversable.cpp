@@ -252,11 +252,12 @@ void CanonicalTraversable::reconstruct_the_history_to_step(i32 step, Function<vo
                 return;
             }
 
-            traverse_the_history(*target, CheckForCancelation::No, nullptr, move(on_top_level_traversal_applied), move(promise), id());
+            set_current_session_history_entry_identity({});
+            traverse_the_history(*target, CheckForCancelation::No, nullptr, move(on_top_level_traversal_applied), move(promise));
         });
 }
 
-void CanonicalTraversable::traverse_the_history(TraversableSessionHistory::TraversalTarget const& target, CheckForCancelation check_for_cancelation, Function<void(HistoryTraversalOutcome)> on_complete, Function<void()> on_top_level_traversal_applied, NonnullRefPtr<Core::Promise<Empty>> promise, Optional<Web::HTML::CrossProcessId> navigable_to_reload)
+void CanonicalTraversable::traverse_the_history(TraversableSessionHistory::TraversalTarget const& target, CheckForCancelation check_for_cancelation, Function<void(HistoryTraversalOutcome)> on_complete, Function<void()> on_top_level_traversal_applied, NonnullRefPtr<Core::Promise<Empty>> promise)
 {
     auto view = ViewImplementation::find_view_for_traversable(*this);
     VERIFY(view.has_value());
@@ -274,7 +275,6 @@ void CanonicalTraversable::traverse_the_history(TraversableSessionHistory::Trave
             .user_involvement = Web::HTML::UserNavigationInvolvement::BrowserUI,
         },
         check_for_cancelation == CheckForCancelation::Yes,
-        navigable_to_reload,
         traversal_state,
         [this, traversal_state](Web::HTML::HistoryStepResult result, Optional<i32>) {
             auto view = ViewImplementation::find_view_for_traversable(*this);
@@ -355,14 +355,54 @@ struct CanonicalTraversable::HistoryOperation {
     Optional<i32> assigned_target_step;
     bool was_initiated_by_browser { false };
     bool check_for_cancelation { false };
-    Optional<Web::HTML::CrossProcessId> navigable_to_reload;
     RefPtr<BrowserHistoryTraversalState> browser_traversal_state;
     Function<void(ApplyHistoryStepJobs::InitiatorSandboxingCheckResult)> pending_sandboxing_check;
     Function<void(Web::HTML::HistoryStepResult)> pending_unload_cancelation;
-    HashMap<Web::HTML::CrossProcessId, Function<void(Web::HTML::ChangingNavigableHistoryStepJobDisposition)>> pending_changing_jobs;
+
+    struct PendingChangingJob {
+        enum class Phase : u8 {
+            Dispatched,
+            ReadyReported,
+            ContinuationDispatched,
+            RedispatchedBeforeReady,
+            RedispatchedAfterReady,
+            RedispatchFailed,
+        };
+
+        enum class Purpose : u8 {
+            ApplyHistoryStep,
+            CrashRecovery,
+        };
+
+        PendingChangingJob(ApplyHistoryStepJobs::ChangingNavigableHistoryStepJob job, Function<void(Web::HTML::ChangingNavigableHistoryStepJobDisposition)> on_complete)
+            : job(move(job))
+            , on_complete(move(on_complete))
+        {
+        }
+
+        ApplyHistoryStepJobs::ChangingNavigableHistoryStepJob job;
+        Function<void(Web::HTML::ChangingNavigableHistoryStepJobDisposition)> on_complete;
+        Optional<ApplyHistoryStepJobs::ApplyChangingNavigableHistoryStepContinuation> continuation;
+        Function<void()> on_continuation_complete;
+        Phase phase { Phase::Dispatched };
+        Purpose purpose { Purpose::ApplyHistoryStep };
+    };
+    HashMap<Web::HTML::CrossProcessId, NonnullOwnPtr<PendingChangingJob>> pending_changing_jobs;
     HashMap<Web::HTML::CrossProcessId, HistoryJobEndpoint> changing_job_endpoints;
-    HashMap<Web::HTML::CrossProcessId, Function<void()>> pending_continuations;
-    HashMap<Web::HTML::CrossProcessId, Function<void()>> pending_nonchanging_updates;
+    struct PendingNonchangingUpdate {
+        Web::HTML::HistoryObjectLengthAndIndex history_object_length_and_index;
+        Function<void()> on_complete;
+        HistoryJobEndpoint endpoint;
+    };
+    HashMap<Web::HTML::CrossProcessId, PendingNonchangingUpdate> pending_nonchanging_updates;
+    // Unload recovery resumes ApplyHistoryStep synchronously. Its later endpoint selection must not route a child job
+    // back to the process whose unload check just died.
+    Vector<HistoryJobEndpoint> unavailable_job_endpoints;
+    struct DeferredCompletion {
+        Web::HTML::HistoryStepResult result;
+        Optional<i32> committed_step;
+    };
+    Optional<DeferredCompletion> deferred_completion;
     OwnPtr<ApplyHistoryStep> algorithm;
     RefPtr<Core::Promise<Empty>> queue_promise;
 
@@ -406,26 +446,140 @@ Web::HTML::SessionHistoryEntryDescriptor const* CanonicalTraversable::ongoing_br
     return nullptr;
 }
 
-void CanonicalTraversable::recover_from_web_content_process_crash(OnHistoryOperationComplete on_complete)
+void CanonicalTraversable::recover_from_web_content_process_crash(Optional<HistoryJobEndpoint> crashed_endpoint, OnHistoryOperationComplete on_complete)
 {
     for (auto& operation : m_history_operations) {
         if (!operation.value->is_browser_traversal())
             continue;
 
-        auto endpoint = history_job_endpoint_for(*this);
-        VERIFY(endpoint.client);
+        auto replacement_endpoint = history_job_endpoint_for(*this);
+        VERIFY(replacement_endpoint.client);
+
+        auto endpoint_crashed = [&](HistoryJobEndpoint const& endpoint) {
+            return crashed_endpoint.has_value()
+                && endpoint.client.ptr() == crashed_endpoint->client.ptr()
+                && endpoint.page_id == crashed_endpoint->page_id;
+        };
+        auto initiating_endpoint_crashed = crashed_endpoint.has_value()
+            && operation.value->initiating_client.ptr() == crashed_endpoint->client.ptr()
+            && operation.value->initiating_page_id == crashed_endpoint->page_id;
+
+        if (crashed_endpoint.has_value())
+            operation.value->unavailable_job_endpoints.append(*crashed_endpoint);
+
+        if (initiating_endpoint_crashed) {
+            operation.value->initiating_client = replacement_endpoint.client;
+            operation.value->initiating_page_id = replacement_endpoint.page_id;
+        }
+        auto replaced_completion_endpoint = operation.value->completion_endpoints.remove_all_matching([&](auto const& endpoint) {
+            return crashed_endpoint.has_value()
+                && endpoint.client.ptr() == crashed_endpoint->client.ptr()
+                && endpoint.page_id == crashed_endpoint->page_id;
+        });
+        if (replaced_completion_endpoint)
+            add_history_operation_completion_endpoint(*operation.value, replacement_endpoint);
+
+        if (initiating_endpoint_crashed) {
+            if (auto pending = move(operation.value->pending_unload_cancelation)) {
+                set_current_session_history_entry_identity({});
+                pending(Web::HTML::HistoryStepResult::Applied);
+                return;
+            }
+        }
+
+        Vector<Web::HTML::CrossProcessId> crashed_changing_jobs;
+        for (auto const& endpoint : operation.value->changing_job_endpoints) {
+            if (endpoint_crashed(endpoint.value))
+                crashed_changing_jobs.append(endpoint.key);
+        }
+        Vector<Web::HTML::CrossProcessId> crashed_nonchanging_updates;
+        for (auto const& update : operation.value->pending_nonchanging_updates) {
+            if (endpoint_crashed(update.value.endpoint))
+                crashed_nonchanging_updates.append(update.key);
+        }
+
+        if (crashed_changing_jobs.contains_slow(id())) {
+            // Repopulating the retained top-level job reconstructs its descendants. Complete their dead-endpoint jobs
+            // exactly once, then resume the top-level job from the phase it had reached.
+            crashed_changing_jobs.remove_first_matching([&](auto navigable_id) { return navigable_id == id(); });
+            auto pending_job = operation.value->pending_changing_jobs.get(id());
+            VERIFY(pending_job.has_value());
+            switch (pending_job.value()->phase) {
+            case HistoryOperation::PendingChangingJob::Phase::Dispatched:
+            case HistoryOperation::PendingChangingJob::Phase::RedispatchedBeforeReady:
+                pending_job.value()->phase = HistoryOperation::PendingChangingJob::Phase::RedispatchedBeforeReady;
+                break;
+            case HistoryOperation::PendingChangingJob::Phase::ReadyReported:
+            case HistoryOperation::PendingChangingJob::Phase::ContinuationDispatched:
+            case HistoryOperation::PendingChangingJob::Phase::RedispatchedAfterReady:
+                pending_job.value()->phase = HistoryOperation::PendingChangingJob::Phase::RedispatchedAfterReady;
+                break;
+            case HistoryOperation::PendingChangingJob::Phase::RedispatchFailed:
+                VERIFY_NOT_REACHED();
+            }
+            operation.value->changing_job_endpoints.set(id(), replacement_endpoint);
+            complete_history_jobs_after_crash(*operation.value, move(crashed_changing_jobs), move(crashed_nonchanging_updates));
+            dispatch_changing_navigable_history_step_job(*operation.value, id());
+            return;
+        }
+
+        if (crashed_nonchanging_updates.contains_slow(id())) {
+            // Scalars cannot reconstruct a fresh process. Substitute an entry-addressed changing job for this update,
+            // and use its continuation to complete the original nonchanging job.
+            crashed_nonchanging_updates.remove_first_matching([&](auto navigable_id) { return navigable_id == id(); });
+            auto pending_update = operation.value->pending_nonchanging_updates.take(id());
+            VERIFY(pending_update.has_value());
+            complete_history_jobs_after_crash(*operation.value, move(crashed_changing_jobs), move(crashed_nonchanging_updates));
+            dispatch_crash_recovery_changing_job(*operation.value, replacement_endpoint,
+                pending_update->history_object_length_and_index, move(pending_update->on_complete));
+            return;
+        }
+
+        if (!crashed_changing_jobs.is_empty() || !crashed_nonchanging_updates.is_empty()) {
+            auto const& parameters = operation.value->parameters.get<Web::TraverseToStepHistoryOperationParameters>();
+            auto history_object_length_and_index = m_session_history.get_the_history_object_length_and_index(parameters.target_step);
+            if (!history_object_length_and_index.has_value()) {
+                complete_history_jobs_after_crash(*operation.value, move(crashed_changing_jobs), move(crashed_nonchanging_updates));
+                return;
+            }
+
+            dispatch_crash_recovery_changing_job(*operation.value, replacement_endpoint,
+                *history_object_length_and_index,
+                [this, operation_id = operation.value->operation_id,
+                    changing_jobs = move(crashed_changing_jobs),
+                    nonchanging_updates = move(crashed_nonchanging_updates)]() mutable {
+                    auto* operation = find_history_operation(operation_id);
+                    if (operation)
+                        complete_history_jobs_after_crash(*operation, move(changing_jobs), move(nonchanging_updates));
+                });
+            return;
+        }
+
+        if (auto pending = move(operation.value->pending_unload_cancelation)) {
+            set_current_session_history_entry_identity({});
+            pending(Web::HTML::HistoryStepResult::Applied);
+            return;
+        }
+
+        if (crashed_endpoint.has_value()) {
+            auto const& parameters = operation.value->parameters.get<Web::TraverseToStepHistoryOperationParameters>();
+            auto history_object_length_and_index = m_session_history.get_the_history_object_length_and_index(parameters.target_step);
+            if (!history_object_length_and_index.has_value()) {
+                finish_history_operation(operation.value->operation_id, Web::HTML::HistoryStepResult::CanceledByMissingPage, {});
+                return;
+            }
+            dispatch_crash_recovery_changing_job(*operation.value, replacement_endpoint,
+                *history_object_length_and_index, nullptr);
+            return;
+        }
+
         operation.value->pending_sandboxing_check = nullptr;
-        operation.value->pending_unload_cancelation = nullptr;
         operation.value->pending_changing_jobs.clear();
         operation.value->changing_job_endpoints.clear();
-        operation.value->pending_continuations.clear();
         operation.value->pending_nonchanging_updates.clear();
         operation.value->algorithm = nullptr;
-        operation.value->initiating_client = endpoint.client;
-        operation.value->initiating_page_id = endpoint.page_id;
-        operation.value->completion_endpoints.clear();
         operation.value->check_for_cancelation = false;
-        operation.value->navigable_to_reload = id();
+        set_current_session_history_entry_identity({});
         VERIFY(operation.value->queue_promise);
         start_history_operation(*operation.value, *operation.value->queue_promise);
         return;
@@ -439,6 +593,7 @@ void CanonicalTraversable::recover_from_web_content_process_crash(OnHistoryOpera
             on_complete(Web::HTML::HistoryStepResult::CanceledByMissingPage, {});
         return;
     }
+    set_current_session_history_entry_identity({});
     enqueue_browser_history_traversal(
         Web::TraverseToStepHistoryOperationParameters {
             .traversable_id = id(),
@@ -446,7 +601,6 @@ void CanonicalTraversable::recover_from_web_content_process_crash(OnHistoryOpera
             .user_involvement = Web::HTML::UserNavigationInvolvement::BrowserUI,
         },
         false,
-        id(),
         nullptr,
         move(on_complete));
 }
@@ -510,6 +664,11 @@ bool CanonicalTraversable::select_changing_navigable_history_step_job_endpoint(H
     auto endpoint = history_job_endpoint_for(*navigable);
     if (!endpoint.client)
         return false;
+    for (auto const& unavailable_endpoint : operation.unavailable_job_endpoints) {
+        if (endpoint.client.ptr() == unavailable_endpoint.client.ptr()
+            && endpoint.page_id == unavailable_endpoint.page_id)
+            return false;
+    }
 
     if (navigable->is_top_level_traversable() && operation.browser_traversal_state && !replaces_web_content_process)
         operation.browser_traversal_state->notify_traversal_outcome(HistoryTraversalStatus::Started);
@@ -518,6 +677,130 @@ bool CanonicalTraversable::select_changing_navigable_history_step_job_endpoint(H
     operation.changing_job_endpoints.set(job.navigable_id, endpoint);
     add_history_operation_completion_endpoint(operation, endpoint);
     return true;
+}
+
+void CanonicalTraversable::dispatch_changing_navigable_history_step_job(HistoryOperation& operation, Web::HTML::CrossProcessId navigable_id)
+{
+    auto endpoint = operation.changing_job_endpoints.get(navigable_id);
+    VERIFY(endpoint.has_value());
+    auto pending_job = operation.pending_changing_jobs.get(navigable_id);
+    VERIFY(pending_job.has_value());
+
+    auto initiation_id = endpoint->client.ptr() == operation.initiating_client.ptr()
+            && endpoint->page_id == operation.initiating_page_id
+        ? operation.initiation_id
+        : Optional<u64> {};
+    auto target_entry = pending_job.value()->job.target_entry;
+    endpoint->client->async_run_changing_navigable_history_job(
+        endpoint->page_id, operation.operation_id, navigable_id,
+        move(target_entry), pending_job.value()->job.user_involvement,
+        pending_job.value()->job.navigation_type,
+        pending_job.value()->job.synchronous_navigation == Web::HTML::SynchronousNavigation::Yes,
+        pending_job.value()->job.navigation_api_abort_behavior, initiation_id);
+}
+
+void CanonicalTraversable::dispatch_changing_navigable_history_step_continuation(HistoryOperation& operation, Web::HTML::CrossProcessId navigable_id)
+{
+    auto endpoint = operation.changing_job_endpoints.get(navigable_id);
+    VERIFY(endpoint.has_value());
+    auto pending_job = operation.pending_changing_jobs.get(navigable_id);
+    VERIFY(pending_job.has_value());
+    VERIFY(pending_job.value()->continuation.has_value());
+    VERIFY(pending_job.value()->phase == HistoryOperation::PendingChangingJob::Phase::ReadyReported);
+    pending_job.value()->phase = HistoryOperation::PendingChangingJob::Phase::ContinuationDispatched;
+
+    auto continuation = *pending_job.value()->continuation;
+    endpoint->client->async_apply_changing_navigable_continuation(
+        endpoint->page_id, operation.operation_id, navigable_id,
+        continuation.history_object_length_and_index.script_history_length,
+        continuation.history_object_length_and_index.script_history_index,
+        move(continuation.entries_for_navigation_api));
+}
+
+void CanonicalTraversable::dispatch_crash_recovery_changing_job(HistoryOperation& operation, HistoryJobEndpoint endpoint, Web::HTML::HistoryObjectLengthAndIndex history_object_length_and_index, Function<void()> on_complete)
+{
+    auto const& parameters = operation.parameters.get<Web::TraverseToStepHistoryOperationParameters>();
+    auto const* target_entry = m_session_history.get_the_target_history_entry(*this, parameters.target_step);
+    auto entries_for_navigation_api = m_session_history.get_session_history_entries_for_the_navigation_api(*this, parameters.target_step);
+    VERIFY(target_entry);
+    VERIFY(entries_for_navigation_api.has_value());
+
+    set_current_session_history_entry(*target_entry);
+    operation.changing_job_endpoints.set(id(), endpoint);
+    add_history_operation_completion_endpoint(operation, endpoint);
+    auto pending_job = make<HistoryOperation::PendingChangingJob>(
+        ApplyHistoryStepJobs::ChangingNavigableHistoryStepJob {
+            .navigable_id = id(),
+            .target_entry = *target_entry,
+            .user_involvement = parameters.user_involvement,
+            .navigation_type = Web::Bindings::NavigationType::Traverse,
+            .synchronous_navigation = Web::HTML::SynchronousNavigation::No,
+            .navigation_api_abort_behavior = Web::HTML::LocalNavigable::NavigationAPIAbortBehavior::Abort,
+        },
+        [this, operation_id = operation.operation_id, navigable_id = id()](Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition) {
+            if (disposition != Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready)
+                return;
+            auto* operation = find_history_operation(operation_id);
+            if (operation)
+                dispatch_changing_navigable_history_step_continuation(*operation, navigable_id);
+        });
+    pending_job->continuation = ApplyHistoryStepJobs::ApplyChangingNavigableHistoryStepContinuation {
+        .navigable_id = id(),
+        .history_object_length_and_index = history_object_length_and_index,
+        .entries_for_navigation_api = entries_for_navigation_api.release_value(),
+    };
+    pending_job->on_continuation_complete = move(on_complete);
+    pending_job->purpose = HistoryOperation::PendingChangingJob::Purpose::CrashRecovery;
+    operation.pending_changing_jobs.set(id(), move(pending_job));
+    dispatch_changing_navigable_history_step_job(operation, id());
+}
+
+void CanonicalTraversable::finish_deferred_history_operation_after_crash_recovery(u64 operation_id)
+{
+    auto* operation = find_history_operation(operation_id);
+    if (!operation || !operation->deferred_completion.has_value())
+        return;
+    auto completion = operation->deferred_completion.release_value();
+    finish_history_operation(operation_id, completion.result, completion.committed_step);
+}
+
+void CanonicalTraversable::complete_history_jobs_after_crash(HistoryOperation& operation, Vector<Web::HTML::CrossProcessId> changing_jobs, Vector<Web::HTML::CrossProcessId> nonchanging_updates)
+{
+    Vector<Function<void()>> completions;
+    for (auto navigable_id : changing_jobs) {
+        auto pending_job = operation.pending_changing_jobs.take(navigable_id);
+        operation.changing_job_endpoints.remove(navigable_id);
+        if (!pending_job.has_value())
+            continue;
+
+        switch (pending_job.value()->phase) {
+        case HistoryOperation::PendingChangingJob::Phase::Dispatched:
+        case HistoryOperation::PendingChangingJob::Phase::RedispatchedBeforeReady:
+            completions.append([on_complete = move(pending_job.value()->on_complete)]() mutable {
+                on_complete(Web::HTML::ChangingNavigableHistoryStepJobDisposition::Skipped);
+            });
+            break;
+        case HistoryOperation::PendingChangingJob::Phase::ReadyReported:
+        case HistoryOperation::PendingChangingJob::Phase::RedispatchedAfterReady:
+            // ApplyHistoryStep already retained this navigable in its continuation queue. If it has not supplied the
+            // continuation yet, removing the retained job makes that future application complete locally.
+            if (pending_job.value()->continuation.has_value())
+                completions.append(move(pending_job.value()->on_continuation_complete));
+            break;
+        case HistoryOperation::PendingChangingJob::Phase::ContinuationDispatched:
+        case HistoryOperation::PendingChangingJob::Phase::RedispatchFailed:
+            completions.append(move(pending_job.value()->on_continuation_complete));
+            break;
+        }
+    }
+    for (auto navigable_id : nonchanging_updates) {
+        if (auto pending_update = operation.pending_nonchanging_updates.take(navigable_id); pending_update.has_value())
+            completions.append(move(pending_update->on_complete));
+    }
+    for (auto& completion : completions) {
+        if (completion)
+            completion();
+    }
 }
 
 ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(u64 operation_id)
@@ -547,28 +830,29 @@ ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(u64 op
             auto* operation = find_history_operation(operation_id);
             if (!operation)
                 return;
-            auto endpoint = operation->changing_job_endpoints.get(job.navigable_id);
-            VERIFY(endpoint.has_value());
             auto navigable_id = job.navigable_id;
-            auto initiation_id = endpoint->client.ptr() == operation->initiating_client.ptr() && endpoint->page_id == operation->initiating_page_id
-                ? operation->initiation_id
-                : Optional<u64> {};
-            operation->pending_changing_jobs.set(navigable_id, move(on_complete));
-            endpoint->client->async_run_changing_navigable_history_job(endpoint->page_id, operation_id, navigable_id, move(job.target_entry), job.user_involvement, job.navigation_type, job.synchronous_navigation == Web::HTML::SynchronousNavigation::Yes, job.navigation_api_abort_behavior, initiation_id); },
+            operation->pending_changing_jobs.set(navigable_id, make<HistoryOperation::PendingChangingJob>(move(job), move(on_complete)));
+            dispatch_changing_navigable_history_step_job(*operation, navigable_id); },
         .apply_changing_navigable_history_step_continuation = [this, operation_id](ApplyHistoryStepJobs::ApplyChangingNavigableHistoryStepContinuation continuation, Function<void()> on_complete) {
             auto* operation = find_history_operation(operation_id);
             if (!operation)
                 return;
-            auto endpoint = operation->changing_job_endpoints.get(continuation.navigable_id);
-            if (!endpoint.has_value()) {
+            auto navigable_id = continuation.navigable_id;
+            auto pending_job = operation->pending_changing_jobs.get(navigable_id);
+            if (!pending_job.has_value()) {
                 on_complete();
                 return;
             }
-            auto navigable_id = continuation.navigable_id;
-            operation->pending_continuations.set(navigable_id, move(on_complete));
-            endpoint->client->async_apply_changing_navigable_continuation(endpoint->page_id, operation_id, navigable_id,
-                continuation.history_object_length_and_index.script_history_length, continuation.history_object_length_and_index.script_history_index,
-                move(continuation.entries_for_navigation_api)); },
+            pending_job.value()->continuation = move(continuation);
+            pending_job.value()->on_continuation_complete = move(on_complete);
+            if (pending_job.value()->phase == HistoryOperation::PendingChangingJob::Phase::RedispatchFailed) {
+                auto taken_job = operation->pending_changing_jobs.take(navigable_id);
+                operation->changing_job_endpoints.remove(navigable_id);
+                taken_job.value()->on_continuation_complete();
+                return;
+            }
+            if (pending_job.value()->phase == HistoryOperation::PendingChangingJob::Phase::ReadyReported)
+                dispatch_changing_navigable_history_step_continuation(*operation, navigable_id); },
         .update_nonchanging_navigable_history_step_state = [this, operation_id](Web::HTML::CrossProcessId navigable_id, Web::HTML::HistoryObjectLengthAndIndex history_object_length_and_index, Function<void()> on_complete) {
             auto* operation = find_history_operation(operation_id);
             if (!operation)
@@ -579,8 +863,20 @@ ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(u64 op
                 on_complete();
                 return;
             }
+            for (auto const& unavailable_endpoint : operation->unavailable_job_endpoints) {
+                if (endpoint.client.ptr() == unavailable_endpoint.client.ptr()
+                    && endpoint.page_id == unavailable_endpoint.page_id) {
+                    on_complete();
+                    return;
+                }
+            }
             add_history_operation_completion_endpoint(*operation, endpoint);
-            operation->pending_nonchanging_updates.set(navigable_id, move(on_complete));
+            operation->pending_nonchanging_updates.set(navigable_id,
+                HistoryOperation::PendingNonchangingUpdate {
+                    history_object_length_and_index,
+                    move(on_complete),
+                    endpoint,
+                });
             endpoint.client->async_update_nonchanging_navigable_history_state(endpoint.page_id, operation_id, navigable_id,
                 history_object_length_and_index.script_history_length, history_object_length_and_index.script_history_index); },
     };
@@ -596,13 +892,12 @@ void CanonicalTraversable::run_history_operation_at_queue_position(u64 initiatio
     start_history_operation(*operation, promise);
 }
 
-void CanonicalTraversable::run_browser_history_traversal_at_queue_position(Web::TraverseToStepHistoryOperationParameters parameters, bool check_for_cancelation, Optional<Web::HTML::CrossProcessId> navigable_to_reload, RefPtr<BrowserHistoryTraversalState> traversal_state, OnHistoryOperationComplete on_complete, NonnullRefPtr<Core::Promise<Empty>> promise)
+void CanonicalTraversable::run_browser_history_traversal_at_queue_position(Web::TraverseToStepHistoryOperationParameters parameters, bool check_for_cancelation, RefPtr<BrowserHistoryTraversalState> traversal_state, OnHistoryOperationComplete on_complete, NonnullRefPtr<Core::Promise<Empty>> promise)
 {
     auto operation_id = m_next_history_operation_id++;
     auto owned_operation = make<HistoryOperation>(operation_id, Web::HistoryOperationParameters { move(parameters) }, Optional<u64> {}, nullptr, 0, Optional<i32> {}, move(on_complete));
     owned_operation->was_initiated_by_browser = true;
     owned_operation->check_for_cancelation = check_for_cancelation;
-    owned_operation->navigable_to_reload = navigable_to_reload;
     owned_operation->browser_traversal_state = move(traversal_state);
     m_history_operations.set(operation_id, move(owned_operation));
     auto* operation = find_history_operation(operation_id);
@@ -651,25 +946,35 @@ void CanonicalTraversable::enqueue_history_operation(u64 initiation_id, Web::His
         m_history_traversal_queue.append_session_history_traversal_steps(move(steps));
 }
 
-void CanonicalTraversable::enqueue_browser_history_traversal(Web::TraverseToStepHistoryOperationParameters parameters, bool check_for_cancelation, Optional<Web::HTML::CrossProcessId> navigable_to_reload, RefPtr<BrowserHistoryTraversalState> traversal_state, OnHistoryOperationComplete on_complete)
+void CanonicalTraversable::enqueue_browser_history_traversal(Web::TraverseToStepHistoryOperationParameters parameters, bool check_for_cancelation, RefPtr<BrowserHistoryTraversalState> traversal_state, OnHistoryOperationComplete on_complete)
 {
-    auto steps = [this, parameters = move(parameters), check_for_cancelation, navigable_to_reload, traversal_state = move(traversal_state), on_complete = move(on_complete)](NonnullRefPtr<Core::Promise<Empty>> promise) mutable {
-        run_browser_history_traversal_at_queue_position(move(parameters), check_for_cancelation, navigable_to_reload, move(traversal_state), move(on_complete), move(promise));
+    auto steps = [this, parameters = move(parameters), check_for_cancelation, traversal_state = move(traversal_state), on_complete = move(on_complete)](NonnullRefPtr<Core::Promise<Empty>> promise) mutable {
+        run_browser_history_traversal_at_queue_position(move(parameters), check_for_cancelation, move(traversal_state), move(on_complete), move(promise));
     };
     m_history_traversal_queue.append_session_history_traversal_steps(move(steps));
 }
 
-void CanonicalTraversable::apply_history_step(HistoryOperation& operation, i32 step, bool check_for_cancelation, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type, Web::HTML::SynchronousNavigation synchronous_navigation, Optional<Web::HTML::CrossProcessId> navigable_to_reload)
+void CanonicalTraversable::apply_history_step(HistoryOperation& operation, i32 step, bool check_for_cancelation, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type, Web::HTML::SynchronousNavigation synchronous_navigation)
 {
     VERIFY(!operation.algorithm);
     auto operation_id = operation.operation_id;
     operation.algorithm = make<ApplyHistoryStep>(
         m_session_history, *this, m_history_traversal_queue, m_apply_history_step_traversable_state, create_apply_history_step_jobs(operation_id),
         step, check_for_cancelation, initiator_to_check, user_involvement, navigation_type, synchronous_navigation,
-        navigable_to_reload,
         [this, operation_id](Web::HTML::HistoryStepResult result) {
             auto* operation = find_history_operation(operation_id);
             auto committed_step = operation && operation->algorithm ? operation->algorithm->committed_step() : Optional<i32> {};
+            if (operation) {
+                auto recovery_job = operation->pending_changing_jobs.get(id());
+                if (recovery_job.has_value()
+                    && recovery_job.value()->purpose == HistoryOperation::PendingChangingJob::Purpose::CrashRecovery) {
+                    operation->deferred_completion = HistoryOperation::DeferredCompletion {
+                        .result = result,
+                        .committed_step = committed_step,
+                    };
+                    return;
+                }
+            }
             finish_history_operation(operation_id, result, committed_step);
         });
     operation.algorithm->apply_the_history_step();
@@ -686,7 +991,7 @@ void CanonicalTraversable::update_for_navigable_creation_or_destruction(HistoryO
     }
 
     // 2. Return the result of applying the history step step to traversable given false, null, null, "none", and null.
-    apply_history_step(operation, *step, false, {}, Web::HTML::UserNavigationInvolvement::None, {}, Web::HTML::SynchronousNavigation::No, {});
+    apply_history_step(operation, *step, false, {}, Web::HTML::UserNavigationInvolvement::None, {}, Web::HTML::SynchronousNavigation::No);
 }
 
 void CanonicalTraversable::start_history_operation(HistoryOperation& operation, NonnullRefPtr<Core::Promise<Empty>>)
@@ -705,8 +1010,7 @@ void CanonicalTraversable::start_history_operation(HistoryOperation& operation, 
     if (operation.is_browser_traversal()) {
         VERIFY(operation.parameters.has<Web::TraverseToStepHistoryOperationParameters>());
         auto const& parameters = operation.parameters.get<Web::TraverseToStepHistoryOperationParameters>();
-        apply_history_step(operation, parameters.target_step, operation.check_for_cancelation, {}, parameters.user_involvement, Web::Bindings::NavigationType::Traverse, Web::HTML::SynchronousNavigation::No,
-            operation.navigable_to_reload);
+        apply_history_step(operation, parameters.target_step, operation.check_for_cancelation, {}, parameters.user_involvement, Web::Bindings::NavigationType::Traverse, Web::HTML::SynchronousNavigation::No);
         return;
     }
 
@@ -748,14 +1052,14 @@ void CanonicalTraversable::did_receive_history_operation_ready(u64 operation_id,
     }
 
     auto apply_current_step = [&](bool check_for_cancelation, Web::HTML::UserNavigationInvolvement user_involvement,
-                                  Optional<Web::Bindings::NavigationType> navigation_type, Optional<Web::HTML::CrossProcessId> navigable_to_reload) {
+                                  Optional<Web::Bindings::NavigationType> navigation_type) {
         auto step = m_session_history.current_step();
         if (!step.has_value()) {
             finish_history_operation(operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
             return;
         }
         apply_history_step(*operation, *step, check_for_cancelation, {}, user_involvement, navigation_type,
-            Web::HTML::SynchronousNavigation::No, navigable_to_reload);
+            Web::HTML::SynchronousNavigation::No);
     };
 
     VERIFY(!operation->is_browser_traversal());
@@ -798,35 +1102,46 @@ void CanonicalTraversable::did_receive_history_operation_ready(u64 operation_id,
             if (!finalize_cross_document_navigation(parameters.navigable_id, parameters.pending_document_state_id, operation->assigned_target_step))
                 return;
             apply_history_step(*operation, *operation->assigned_target_step, false, {}, parameters.user_involvement, Web::Bindings::NavigationType::Push,
-                Web::HTML::SynchronousNavigation::No, {});
+                Web::HTML::SynchronousNavigation::No);
         },
         [&](Web::ReplaceHistoryOperationParameters const& parameters) {
             VERIFY(operation->assigned_target_step.has_value());
             if (!finalize_cross_document_navigation(parameters.navigable_id, parameters.pending_document_state_id, {}))
                 return;
             apply_history_step(*operation, *operation->assigned_target_step, false, {}, parameters.user_involvement, Web::Bindings::NavigationType::Replace,
-                Web::HTML::SynchronousNavigation::No, {});
+                Web::HTML::SynchronousNavigation::No);
         },
         [&](Web::ReloadHistoryOperationParameters const& parameters) {
-            apply_current_step(true, parameters.user_involvement, Web::Bindings::NavigationType::Reload, parameters.navigable_id);
+            auto current_step = m_session_history.current_step();
+            auto navigable = find(parameters.navigable_id);
+            auto const* target_entry = current_step.has_value() && navigable.has_value()
+                ? m_session_history.get_the_target_history_entry(*navigable, *current_step)
+                : nullptr;
+            if (!target_entry
+                || !set_session_history_entry_document_state_reload_pending(
+                    *navigable, target_entry->navigation_api_key, true)) {
+                finish_history_operation(operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
+                return;
+            }
+            apply_current_step(true, parameters.user_involvement, Web::Bindings::NavigationType::Reload);
         },
         [&](Web::TraverseByDeltaHistoryOperationParameters const& parameters) {
             VERIFY(operation->resolved_step.has_value());
             apply_history_step(*operation, *operation->resolved_step, true, parameters.initiator_to_check, parameters.user_involvement, Web::Bindings::NavigationType::Traverse,
-                Web::HTML::SynchronousNavigation::No, {});
+                Web::HTML::SynchronousNavigation::No);
         },
         [&](Web::TraverseToStepHistoryOperationParameters const& parameters) {
             apply_history_step(*operation, parameters.target_step, true, {}, parameters.user_involvement, Web::Bindings::NavigationType::Traverse,
-                Web::HTML::SynchronousNavigation::No, {});
+                Web::HTML::SynchronousNavigation::No);
         },
         [&](Web::NavigationAPITraverseHistoryOperationParameters const& parameters) {
             VERIFY(operation->resolved_step.has_value());
             apply_history_step(*operation, *operation->resolved_step, true, parameters.navigable_id, parameters.user_involvement, Web::Bindings::NavigationType::Traverse,
-                Web::HTML::SynchronousNavigation::No, {});
+                Web::HTML::SynchronousNavigation::No);
         },
         [&](Web::ResumeTraverseHistoryOperationParameters const& parameters) {
             apply_history_step(*operation, parameters.target_step, false, {}, parameters.user_involvement, Web::Bindings::NavigationType::Traverse,
-                Web::HTML::SynchronousNavigation::No, {});
+                Web::HTML::SynchronousNavigation::No);
         },
         [&](Web::NavigableCreationHistoryOperationParameters const& parameters) {
             VERIFY(creation_parent_document_state_id.has_value());
@@ -876,7 +1191,7 @@ void CanonicalTraversable::did_receive_history_operation_ready(u64 operation_id,
                 ? Web::Bindings::NavigationType::Replace
                 : Web::Bindings::NavigationType::Push;
             apply_history_step(*operation, *target_step, false, {}, parameters.user_involvement, navigation_type,
-                Web::HTML::SynchronousNavigation::Yes, {});
+                Web::HTML::SynchronousNavigation::Yes);
         },
         [&](Web::CloseTopLevelTraversableHistoryOperationParameters const&) {
             // Close runs entirely in the requesting process at this queue position and must complete with proceed=false.
@@ -945,44 +1260,110 @@ void CanonicalTraversable::did_receive_history_step_unload_cancelation_result(u6
     }
 }
 
-void CanonicalTraversable::did_receive_changing_navigable_history_job_ready(u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition)
+void CanonicalTraversable::did_receive_changing_navigable_history_job_ready(WebContentClient& source_client, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition)
 {
     if (auto* operation = find_history_operation(operation_id)) {
-        if (disposition != Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready)
-            operation->changing_job_endpoints.remove(navigable_id);
-        if (auto pending = operation->pending_changing_jobs.take(navigable_id); pending.has_value())
-            (*pending)(disposition);
-    }
-}
+        auto pending_job = operation->pending_changing_jobs.get(navigable_id);
+        if (!pending_job.has_value())
+            return;
+        auto endpoint = operation->changing_job_endpoints.get(navigable_id);
+        if (!endpoint.has_value()
+            || endpoint->client.ptr() != &source_client
+            || endpoint->page_id != source_page_id)
+            return;
 
-void CanonicalTraversable::did_receive_changing_navigable_continuation_applied(u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state)
-{
-    if (auto* operation = find_history_operation(operation_id)) {
-        operation->changing_job_endpoints.remove(navigable_id);
-        if (auto pending = operation->pending_continuations.take(navigable_id); pending.has_value()) {
-            if (previous_entry_persisted_state.has_value()) {
-                auto navigable = find(navigable_id);
-                if (navigable.has_value()) {
-                    m_session_history.update_entry_persisted_state(
-                        nested_history_id_for(*navigable),
-                        *previous_entry_persisted_state);
-                }
+        switch (pending_job.value()->phase) {
+        case HistoryOperation::PendingChangingJob::Phase::RedispatchedAfterReady:
+            if (disposition == Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready) {
+                pending_job.value()->phase = HistoryOperation::PendingChangingJob::Phase::ReadyReported;
+                if (pending_job.value()->continuation.has_value())
+                    dispatch_changing_navigable_history_step_continuation(*operation, navigable_id);
+                return;
             }
-            // A replacement document's creation operation also applies a top-level continuation, but it runs before
-            // the document has accepted the UI-owned history state. Only the browser traversal itself reaches the
-            // observable top-level completion point here.
-            if (navigable_id == id() && operation->browser_traversal_state)
-                operation->browser_traversal_state->notify_top_level_traversal_applied();
-            (*pending)();
+            pending_job.value()->phase = HistoryOperation::PendingChangingJob::Phase::RedispatchFailed;
+            operation->changing_job_endpoints.remove(navigable_id);
+            if (pending_job.value()->continuation.has_value()) {
+                auto taken_job = operation->pending_changing_jobs.take(navigable_id);
+                auto purpose = taken_job.value()->purpose;
+                if (taken_job.value()->on_continuation_complete)
+                    taken_job.value()->on_continuation_complete();
+                if (purpose == HistoryOperation::PendingChangingJob::Purpose::CrashRecovery)
+                    finish_deferred_history_operation_after_crash_recovery(operation_id);
+            }
+            return;
+        case HistoryOperation::PendingChangingJob::Phase::Dispatched:
+        case HistoryOperation::PendingChangingJob::Phase::RedispatchedBeforeReady:
+            break;
+        case HistoryOperation::PendingChangingJob::Phase::ReadyReported:
+        case HistoryOperation::PendingChangingJob::Phase::ContinuationDispatched:
+        case HistoryOperation::PendingChangingJob::Phase::RedispatchFailed:
+            return;
         }
+
+        auto on_complete = move(pending_job.value()->on_complete);
+        if (disposition == Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready) {
+            pending_job.value()->phase = HistoryOperation::PendingChangingJob::Phase::ReadyReported;
+            on_complete(disposition);
+            return;
+        }
+
+        auto purpose = pending_job.value()->purpose;
+        auto on_continuation_complete = move(pending_job.value()->on_continuation_complete);
+        operation->pending_changing_jobs.remove(navigable_id);
+        operation->changing_job_endpoints.remove(navigable_id);
+        if (purpose != HistoryOperation::PendingChangingJob::Purpose::ApplyHistoryStep) {
+            if (on_continuation_complete)
+                on_continuation_complete();
+            finish_deferred_history_operation_after_crash_recovery(operation_id);
+            return;
+        }
+        on_complete(disposition);
     }
 }
 
-void CanonicalTraversable::did_receive_nonchanging_navigable_history_state_updated(u64 operation_id, Web::HTML::CrossProcessId navigable_id)
+void CanonicalTraversable::did_receive_changing_navigable_continuation_applied(WebContentClient& source_client, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state)
 {
     if (auto* operation = find_history_operation(operation_id)) {
-        if (auto pending = operation->pending_nonchanging_updates.take(navigable_id); pending.has_value())
-            (*pending)();
+        auto endpoint = operation->changing_job_endpoints.get(navigable_id);
+        if (!endpoint.has_value()
+            || endpoint->client.ptr() != &source_client
+            || endpoint->page_id != source_page_id)
+            return;
+        auto pending_job = operation->pending_changing_jobs.take(navigable_id);
+        if (!pending_job.has_value())
+            return;
+        operation->changing_job_endpoints.remove(navigable_id);
+        if (previous_entry_persisted_state.has_value()) {
+            auto navigable = find(navigable_id);
+            if (navigable.has_value()) {
+                m_session_history.update_entry_persisted_state(
+                    nested_history_id_for(*navigable),
+                    *previous_entry_persisted_state);
+            }
+        }
+        // A replacement document's creation operation also applies a top-level continuation, but it runs before
+        // the document has accepted the UI-owned history state. Only the browser traversal itself reaches the
+        // observable top-level completion point here.
+        if (navigable_id == id() && operation->browser_traversal_state)
+            operation->browser_traversal_state->notify_top_level_traversal_applied();
+        auto purpose = pending_job.value()->purpose;
+        if (pending_job.value()->on_continuation_complete)
+            pending_job.value()->on_continuation_complete();
+        if (purpose == HistoryOperation::PendingChangingJob::Purpose::CrashRecovery)
+            finish_deferred_history_operation_after_crash_recovery(operation_id);
+    }
+}
+
+void CanonicalTraversable::did_receive_nonchanging_navigable_history_state_updated(WebContentClient& source_client, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id)
+{
+    if (auto* operation = find_history_operation(operation_id)) {
+        auto pending = operation->pending_nonchanging_updates.get(navigable_id);
+        if (!pending.has_value()
+            || pending->endpoint.client.ptr() != &source_client
+            || pending->endpoint.page_id != source_page_id)
+            return;
+        auto taken_pending = operation->pending_nonchanging_updates.take(navigable_id);
+        taken_pending->on_complete();
     }
 }
 
