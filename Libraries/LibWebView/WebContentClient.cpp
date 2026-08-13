@@ -1905,10 +1905,10 @@ void WebContentClient::request_history_operation(u64 page_id, u64 initiation_id,
         view->request_history_operation({}, initiation_id, move(parameters));
 }
 
-void WebContentClient::history_operation_ready(u64 page_id, u64 operation_id, bool proceed, Optional<Web::HTML::CrossProcessId> creation_parent_document_state_id, Optional<Web::HTML::SameDocumentNavigationEntry> same_document_navigation_finalization, Optional<Web::CrossDocumentNavigationFinalization> cross_document_navigation_finalization, Web::HTML::HistoryStepResult abandon_result)
+void WebContentClient::history_operation_ready(u64 page_id, u64 operation_id, Web::HistoryOperationReadyResult result)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_receive_history_operation_ready({}, operation_id, proceed, creation_parent_document_state_id, move(same_document_navigation_finalization), move(cross_document_navigation_finalization), abandon_result);
+        view->did_receive_history_operation_ready({}, operation_id, move(result));
 }
 
 void WebContentClient::initiator_sandboxing_check_result(u64 page_id, u64 operation_id, bool allowed)

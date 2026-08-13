@@ -18,6 +18,7 @@
 #include <AK/WeakPtr.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/Navigation.h>
+#include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Page/Page.h>
@@ -72,7 +73,7 @@ public:
     };
     HistoryJobEndpoint history_job_endpoint_for(CanonicalNavigable const&) const;
 
-    void did_receive_history_operation_ready(u64 operation_id, bool proceed, Optional<Web::HTML::CrossProcessId> creation_parent_document_state_id, Optional<Web::HTML::SameDocumentNavigationEntry>, Optional<Web::CrossDocumentNavigationFinalization>, Web::HTML::HistoryStepResult abandon_result);
+    void did_receive_history_operation_ready(u64 operation_id, Web::HistoryOperationReadyResult);
     void did_receive_initiator_sandboxing_check_result(u64 operation_id, bool allowed);
     void did_receive_history_step_unload_cancelation_result(u64 operation_id, Web::HTML::HistoryStepResult);
     void did_receive_changing_navigable_history_job_ready(WebContentClient&, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition);

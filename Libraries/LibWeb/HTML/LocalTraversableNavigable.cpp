@@ -460,7 +460,7 @@ void LocalTraversableNavigable::reset_session_history_for_testing(GC::Ref<GC::Fu
                 Vector<NonnullRefPtr<SessionHistoryEntry>> entries_for_navigation_api { active_entry };
                 active_window()->navigation()->initialize_the_navigation_api_entries_for_reconstructed_session_history(entries_for_navigation_api, active_entry);
 
-                ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
+                ready->function()(HistoryStepResult::Applied);
                 on_complete->function()();
             }),
         });
@@ -1386,24 +1386,14 @@ void LocalTraversableNavigable::request_history_operation(HistoryOperationParame
     page().client().page_did_request_history_operation(initiation_id, move(parameters));
 }
 
-void LocalTraversableNavigable::request_synchronous_navigation_history_operation(HistoryOperationParameters parameters, HistoryOperationState state)
-{
-    request_history_operation(move(parameters), move(state));
-}
-
-void LocalTraversableNavigable::handle_ui_history_operation_started(u64 operation_id, Optional<u64> initiation_id, Optional<SessionHistoryEntryDescriptor> creation_target_entry, GC::Ref<OnHistoryOperationReady> ready)
+void LocalTraversableNavigable::handle_ui_history_operation_started(u64 operation_id, u64 initiation_id, Optional<SessionHistoryEntryDescriptor> creation_target_entry, GC::Ref<OnHistoryOperationReady> ready)
 {
     auto& operation = m_ui_history_operations.ensure(operation_id);
     operation.initiation_id = initiation_id;
 
-    if (!initiation_id.has_value()) {
-        ready->function()(true, {}, {}, {}, HistoryStepResult::Applied);
-        return;
-    }
-
-    auto initiation = m_history_operation_states.find(*initiation_id);
+    auto initiation = m_history_operation_states.find(initiation_id);
     if (initiation == m_history_operation_states.end()) {
-        ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
+        ready->function()(HistoryStepResult::Applied);
         return;
     }
 
@@ -1414,17 +1404,17 @@ void LocalTraversableNavigable::handle_ui_history_operation_started(u64 operatio
     if (expected_ongoing_navigation_was_superseded(
             initiation->value.expected_ongoing_navigation_navigable ? Optional<CrossProcessId> { initiation->value.expected_ongoing_navigation_navigable->id() } : OptionalNone {},
             initiation->value.expected_ongoing_navigation_id)) {
-        ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
+        ready->function()(HistoryStepResult::Applied);
         return;
     }
 
     operation.navigation_api_abort_behavior = initiation->value.navigation_api_abort_behavior;
 
     if (initiation->value.pre_steps) {
-        initiation->value.pre_steps->function()(*initiation_id, move(creation_target_entry), ready);
+        initiation->value.pre_steps->function()(initiation_id, move(creation_target_entry), ready);
         return;
     }
-    ready->function()(true, {}, {}, {}, HistoryStepResult::Applied);
+    ready->function()(Empty {});
 }
 
 bool LocalTraversableNavigable::run_ui_initiator_sandboxing_check_job(CrossProcessId initiator_to_check_id, Vector<CrossProcessId> const& navigable_ids, u64 initiation_id)
@@ -1716,7 +1706,7 @@ void LocalTraversableNavigable::finalize_same_document_navigation(GC::Ref<LocalN
         .user_involvement = user_involvement,
     };
 
-    request_synchronous_navigation_history_operation(
+    request_history_operation(
         move(parameters),
         {
             .local_target_navigable_id = target_navigable->id(),
@@ -1731,11 +1721,11 @@ void LocalTraversableNavigable::finalize_same_document_navigation(GC::Ref<LocalN
                 if (target_navigable->has_been_destroyed()
                     || !active_entry
                     || active_entry->document_state() != target_entry->document_state()) {
-                    ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
+                    ready->function()(HistoryStepResult::Applied);
                     return;
                 }
 
-                ready->function()(true, {}, create_same_document_navigation_entry(target_entry), {}, HistoryStepResult::Applied);
+                ready->function()(create_same_document_navigation_entry(target_entry));
             }),
         });
 }
@@ -1779,7 +1769,7 @@ void LocalTraversableNavigable::definitely_close_top_level_traversable()
 
                     // 2. Unload a document and its descendants given traversable's active document, null, and afterAllUnloads.
                     active_document()->unload_a_document_and_its_descendants({}, after_all_unloads);
-                    ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
+                    ready->function()(HistoryStepResult::Applied);
                 }),
             });
     }));

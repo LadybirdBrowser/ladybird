@@ -24,6 +24,7 @@
 #include <LibWeb/HTML/BroadcastChannelMessage.h>
 #include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/HTML/ApplyHistoryStep.h>
+#include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigationSourceSnapshot.h>
 #include <LibWeb/HTML/CrossProcessId.h>
@@ -191,7 +192,7 @@ endpoint WebContentClient
     did_request_ui_process_session_history_for_testing(u64 page_id) => (String session_history)
     did_request_site_isolation_process_tree_for_testing(u64 page_id) => (String process_tree)
     request_history_operation(u64 page_id, u64 initiation_id, Web::HistoryOperationParameters parameters) =|
-    history_operation_ready(u64 page_id, u64 operation_id, bool proceed, Optional<Web::HTML::CrossProcessId> creation_parent_document_state_id, Optional<Web::HTML::SameDocumentNavigationEntry> same_document_navigation_finalization, Optional<Web::CrossDocumentNavigationFinalization> cross_document_navigation_finalization, Web::HTML::HistoryStepResult abandon_result) =|
+    history_operation_ready(u64 page_id, u64 operation_id, Web::HistoryOperationReadyResult result) =|
     initiator_sandboxing_check_result(u64 page_id, u64 operation_id, bool allowed) =|
     history_step_unload_cancelation_result(u64 page_id, u64 operation_id, Web::HTML::HistoryStepResult result) =|
     changing_navigable_history_job_ready(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition) =|
