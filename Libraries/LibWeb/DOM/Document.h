@@ -106,6 +106,7 @@ enum class InvalidateLayoutTreeReason {
     X(DocumentElementsFromPoint)             \
     X(DocumentCaretPositionFromPoint)        \
     X(DocumentFindMatchingText)              \
+    X(DocumentReadinessComplete)             \
     X(DocumentSetDesignMode)                 \
     X(DumpDisplayList)                       \
     X(ElementCheckVisibility)                \
