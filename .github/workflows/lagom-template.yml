@@ -180,6 +180,63 @@ jobs:
       # cannot. Logging it everywhere means the answer is in the log rather than in someone's memory. This reports,
       # it does not gate: each probe tolerates a non-match, which matters under bash -e where a bare pgrep that
       # finds nothing would abort the step.
+      # The Blacksmith runners boot with the session screen-locked and no active displays, which is what breaks
+      # the accessibility tests: macOS withholds a window's accessibility representation while the session is
+      # locked, so AXFocusedWindow answers with the application element itself and no AXWebArea is reachable under
+      # it. The window is real — the window server reports one on-screen — and the engine renders the page fine
+      # headlessly, so the lock is the only thing in the way. Try to wake a display and clear the lock UI, and
+      # print the session state before and after so a remedy that does not work is visible rather than inferred.
+      - name: Wake the macOS session for the accessibility tests
+        if: ${{ inputs.os_name == 'macOS' }}
+        continue-on-error: true
+        run: |
+          py=""
+          for candidate in python3 /usr/bin/python3 /Library/Developer/CommandLineTools/usr/bin/python3; do
+            if command -v "${candidate}" >/dev/null 2>&1 && "${candidate}" -c "import Quartz" >/dev/null 2>&1; then
+              py="${candidate}"
+              break
+            fi
+          done
+          session_state() {
+            if [ -z "${py}" ]; then
+              echo "  (no python3 with Quartz on this runner; cannot read session state)"
+              return 0
+            fi
+            "${py}" - <<'SESSEOF'
+          import re
+
+          from Quartz import CGGetActiveDisplayList
+          from Quartz import CGSessionCopyCurrentDictionary
+
+          err, _displays, count = CGGetActiveDisplayList(16, None, None)
+          print("  active displays : err=%s count=%s" % (err, count))
+          session = CGSessionCopyCurrentDictionary() or {}
+          print("  screen locked   : %s" % ("YES" if session.get("CGSSessionScreenIsLocked") else "no"))
+          print("  session dict    : %s" % re.sub(r"\s+", " ", repr(dict(session)))[:300])
+          SESSEOF
+          }
+
+          echo "=== session state BEFORE ==="
+          session_state
+
+          # Stop the screen saver arming again mid-job, and keep the display and machine awake for the run.
+          defaults -currentHost write com.apple.screensaver idleTime -int 0 || true
+          sudo pmset -a displaysleep 0 sleep 0 disksleep 0 || true
+
+          # Dismiss the lock UI if a screen saver is what put it up. A bare killall with no match exits non-zero,
+          # which would abort this step under bash -e, so tolerate that.
+          killall ScreenSaverEngine 2>/dev/null || true
+
+          # Assert user activity and keep a display awake for the rest of the job. This wakes a slept display; on
+          # its own it does not clear a session lock, which is why it runs alongside the steps above rather than
+          # instead of them.
+          nohup caffeinate -u -d -i -t 7200 >/dev/null 2>&1 &
+          caffeinate -u -t 1 || true
+
+          sleep 3
+          echo "=== session state AFTER ==="
+          session_state
+
       - name: Report macOS GUI session state
         if: ${{ inputs.os_name == 'macOS' }}
         continue-on-error: true
