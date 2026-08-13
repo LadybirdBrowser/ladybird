@@ -4400,7 +4400,9 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
             compute_transitioned_properties(*sharing->shared_values, abstract_element);
             // An entry is only published by a computation that read nothing beyond the key, so an
             // element answered from one is one whose own next computation can be skipped.
-            if (auto* record = abstract_element.element().style_input_record()) {
+            if (!abstract_element.pseudo_element().has_value()) {
+                auto* record = abstract_element.element().style_input_record();
+                VERIFY(record);
                 record->read_beyond_the_record = false;
                 record->style_uses_var_css_function = entry.style_uses_var_css_function;
                 record->style_uses_inherit_css_function = entry.style_uses_inherit_css_function;
