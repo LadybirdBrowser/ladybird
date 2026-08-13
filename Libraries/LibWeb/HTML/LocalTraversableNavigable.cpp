@@ -304,65 +304,27 @@ static NonnullRefPtr<SessionHistoryEntry> create_session_history_entry_from_ui_p
     return entry;
 }
 
-static NonnullRefPtr<SessionHistoryEntry> resolve_unload_cancelation_target_entry_from_ui_process(LocalTraversableNavigable& traversable, SessionHistoryEntryDescriptor entry_descriptor)
-{
-    if (auto local_target_entry = traversable.find_session_history_entry(entry_descriptor.navigation_api_key, entry_descriptor.document_state.id))
-        return local_target_entry.release_nonnull();
+// Unload cancelation only inspects its target entry. A changing job must also make a reconstructed target reachable
+// from the navigable's local entry collection so the subsequent continuation can activate it.
+enum class MissingSessionHistoryEntryDisposition {
+    LeaveDetached,
+    Install,
+};
 
-    if (auto active_window = traversable.active_window()) {
-        for (auto const& navigation_entry : active_window->navigation()->entries()) {
-            auto& candidate = navigation_entry->session_history_entry();
-            auto candidate_document_state = candidate.document_state();
-            if (candidate.navigation_api_key() == entry_descriptor.navigation_api_key
-                && candidate_document_state
-                && candidate_document_state->cross_process_id() == entry_descriptor.document_state.id)
-                return candidate;
-        }
-    }
-
-    auto document_state_id = entry_descriptor.document_state.id;
-    SessionHistoryEntryReconstructionState reconstruction_state;
-    auto target_entry = create_session_history_entry_from_ui_process(move(entry_descriptor), reconstruction_state);
-
-    for (auto const& local_entry : { traversable.active_session_history_entry(), traversable.current_session_history_entry() }) {
-        if (!local_entry)
-            continue;
-        auto local_document_state = local_entry->document_state();
-        if (!local_document_state || local_document_state->cross_process_id() != document_state_id)
-            continue;
-        target_entry->document_state()->set_document_id(local_document_state->document_id());
-        break;
-    }
-
-    return target_entry;
-}
-
-static RefPtr<SessionHistoryEntry> resolve_changing_navigable_target_entry_from_ui_process(LocalNavigable& navigable, SessionHistoryEntryDescriptor entry_descriptor)
+static RefPtr<SessionHistoryEntry> resolve_local_session_history_entry(LocalNavigable& navigable, SessionHistoryEntryDescriptor entry_descriptor, MissingSessionHistoryEntryDisposition missing_entry_disposition)
 {
     if (auto local_target_entry = navigable.find_session_history_entry(entry_descriptor.navigation_api_key, entry_descriptor.document_state.id))
         return local_target_entry;
 
-    if (navigable.is_top_level_traversable()) {
-        auto active_document = navigable.active_document();
-        if (!active_document)
+    Vector<NonnullRefPtr<SessionHistoryEntry>>* local_entries = nullptr;
+    if (missing_entry_disposition == MissingSessionHistoryEntryDisposition::Install) {
+        if (navigable.is_top_level_traversable()) {
+            if (!navigable.active_document())
+                return nullptr;
+        } else if (!navigable.has_session_history_entries()) {
             return nullptr;
-    } else if (!navigable.has_session_history_entries()) {
-        return nullptr;
-    }
-
-    auto& local_entries = navigable.get_session_history_entries();
-    SessionHistoryEntryReconstructionState reconstruction_state;
-    for (auto const& entry : local_entries) {
-        auto document_state = entry->document_state();
-        if (document_state)
-            reconstruction_state.document_states.set(document_state->cross_process_id(), document_state);
-    }
-    for (auto const& entry : { navigable.active_session_history_entry(), navigable.current_session_history_entry() }) {
-        if (!entry)
-            continue;
-        auto document_state = entry->document_state();
-        if (document_state)
-            reconstruction_state.document_states.set(document_state->cross_process_id(), document_state);
+        }
+        local_entries = &navigable.get_session_history_entries();
     }
 
     RefPtr<SessionHistoryEntry> target_entry;
@@ -378,22 +340,57 @@ static RefPtr<SessionHistoryEntry> resolve_changing_navigable_target_entry_from_
             }
         }
     }
-    if (!target_entry)
+
+    if (target_entry && !local_entries)
+        return target_entry;
+
+    auto document_state_id = entry_descriptor.document_state.id;
+    if (!target_entry) {
+        SessionHistoryEntryReconstructionState reconstruction_state;
+        if (local_entries) {
+            for (auto const& entry : *local_entries) {
+                auto document_state = entry->document_state();
+                if (document_state)
+                    reconstruction_state.document_states.set(document_state->cross_process_id(), document_state);
+            }
+            for (auto const& entry : { navigable.active_session_history_entry(), navigable.current_session_history_entry() }) {
+                if (!entry)
+                    continue;
+                auto document_state = entry->document_state();
+                if (document_state)
+                    reconstruction_state.document_states.set(document_state->cross_process_id(), document_state);
+            }
+        }
         target_entry = create_session_history_entry_from_ui_process(move(entry_descriptor), reconstruction_state);
+    }
+
+    if (!local_entries) {
+        for (auto const& local_entry : { navigable.active_session_history_entry(), navigable.current_session_history_entry() }) {
+            if (!local_entry)
+                continue;
+            auto local_document_state = local_entry->document_state();
+            if (!local_document_state || local_document_state->cross_process_id() != document_state_id)
+                continue;
+            target_entry->document_state()->set_document_id(local_document_state->document_id());
+            break;
+        }
+        return target_entry;
+    }
+
     auto retained_target_entry = target_entry.release_nonnull();
     auto entry_step_to_install = *retained_target_entry->step_value();
-    for (size_t i = 0; i < local_entries.size(); ++i) {
-        auto entry_step = local_entries[i]->step_value();
+    for (size_t i = 0; i < local_entries->size(); ++i) {
+        auto entry_step = local_entries->at(i)->step_value();
         if (!entry_step.has_value() || *entry_step > entry_step_to_install) {
-            local_entries.insert(i, retained_target_entry);
+            local_entries->insert(i, retained_target_entry);
             return retained_target_entry;
         }
         if (*entry_step == entry_step_to_install) {
-            local_entries[i] = retained_target_entry;
+            local_entries->at(i) = retained_target_entry;
             return retained_target_entry;
         }
     }
-    local_entries.append(retained_target_entry);
+    local_entries->append(retained_target_entry);
     return retained_target_entry;
 }
 
@@ -1831,7 +1828,8 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(u64 o
 {
     (void)operation_id;
 
-    auto target_entry = resolve_unload_cancelation_target_entry_from_ui_process(*this, move(target_entry_descriptor));
+    auto target_entry = resolve_local_session_history_entry(*this, move(target_entry_descriptor), MissingSessionHistoryEntryDisposition::LeaveDetached);
+    VERIFY(target_entry);
     if (user_involvement == UserNavigationInvolvement::BrowserUI
         && ongoing_navigation().has<Utf16String>()
         && target_entry == current_session_history_entry()
@@ -1912,7 +1910,7 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operat
         return;
     }
     if (!local_target_entry)
-        local_target_entry = resolve_changing_navigable_target_entry_from_ui_process(*navigable, move(target_entry));
+        local_target_entry = resolve_local_session_history_entry(*navigable, move(target_entry), MissingSessionHistoryEntryDisposition::Install);
     if (!local_target_entry) {
         on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale);
         return;
