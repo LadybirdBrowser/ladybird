@@ -92,25 +92,39 @@ void Range::visit_edges(GC::Cell::Visitor& visitor)
 
 void Range::set_associated_selection(Badge<Selection::Selection>, GC::Ptr<Selection::Selection> selection)
 {
+    auto had_selection = m_associated_selection != nullptr;
     m_associated_selection = selection;
-    update_associated_selection();
+    if (m_associated_selection) {
+        update_associated_selection();
+    } else if (had_selection) {
+        // The range this selection painted through is no longer its range; take the highlight back.
+        auto& document = m_start_container->document();
+        if (auto viewport = document.unsafe_paintable()) {
+            viewport->reset_selection_states();
+            viewport->set_needs_repaint();
+        }
+
+        // https://w3c.github.io/selection-api/#selectionchange-event
+        // When the selection is dissociated with its range, the user agent must schedule a selectionchange event on
+        // document. Association with a new range schedules it through that range's update.
+        schedule_a_selectionchange_event(document, document);
+    }
 }
 
 void Range::update_associated_selection()
 {
+    // A range no selection paints through must not touch the viewport's selection states:
+    // mutating a free-standing range would wipe the highlight the real selection owns.
+    if (!m_associated_selection)
+        return;
+
     auto& document = m_start_container->document();
 
     // NB: Called during selection update after range change.
     if (auto viewport = document.unsafe_paintable()) {
-        if (m_associated_selection)
-            viewport->recompute_selection_states(*this);
-        else
-            viewport->reset_selection_states();
+        viewport->recompute_selection_states(*this);
         viewport->set_needs_repaint();
     }
-
-    if (!m_associated_selection)
-        return;
 
     document.reset_cursor_blink_cycle();
     document.set_cursor_position_needs_repaint();
