@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const markup = ["<ol id=list class=wide>"];
+        for (let index = 0; index < 6000; ++index) {
+            markup.push(`<li class="row n${index % 64}"><span class="cell glyph">g</span><span class=cell>c</span><b class=dot>.</b></li>`);
+        }
+        markup.push("</ol>");
+        const holder = document.createElement("div");
+        holder.innerHTML = markup.join("");
+        document.body.appendChild(holder);
+
+        const list = document.getElementById("list");
+        const rows = Array.from(list.children);
+        const style = document.createElement("style");
+        style.textContent = `
+            * { box-sizing: border-box }
+            .row { list-style: none }
+            .cell { padding: 0 1px }
+            .glyph { color: rgb(90, 96, 102) }
+            .wide > li:first-child .glyph { color: rgb(200, 40, 40) }
+            .wide > li:first-child + li .glyph { color: rgb(40, 160, 60) }
+            .wide > li:nth-child(3000) .glyph { color: rgb(40, 60, 200) }
+            .wide > li:nth-last-child(3) .glyph { color: rgb(180, 120, 20) }
+        `;
+        document.head.appendChild(style);
+
+        const spare = rows[0].cloneNode(true);
+        const flushProbes = () => {
+            getComputedStyle(rows[0]).color;
+            getComputedStyle(rows[3000]).color;
+            getComputedStyle(rows[5999]).color;
+        };
+        flushProbes();
+
+        list.prepend(spare);
+        flushProbes();
+        spare.remove();
+        flushProbes();
+        list.prepend(spare);
+        flushProbes();
+
+        const color = row => getComputedStyle(row.firstElementChild).color;
+        println(`inserted old 2999th: ${color(rows[2998])}`);
+        println(`inserted old 3000th: ${color(rows[2999])}`);
+
+        for (let iteration = 0; iteration < 15; ++iteration) {
+            if (spare.isConnected)
+                spare.remove();
+            else
+                list.prepend(spare);
+            flushProbes();
+        }
+        println(`restored old 2999th: ${color(rows[2998])}`);
+        println(`restored old 3000th: ${color(rows[2999])}`);
+    });
+</script>
