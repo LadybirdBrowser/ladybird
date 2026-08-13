@@ -809,17 +809,11 @@ GC::Ptr<JS::NativeFunction> create_native_function(JS::Realm& realm, Wasm::Funct
 JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::Realm& realm, JS::Value value, Wasm::ValueType const& type)
 {
     auto& vm = realm.vm();
-    static auto const& two_64 = *new ::Crypto::SignedBigInteger(
-        TRY_OR_THROW_OOM(vm, "1"_sbigint.shift_left(64)));
 
     switch (type.kind()) {
     case Wasm::ValueType::I64: {
         auto bigint = TRY(value.to_bigint(vm));
-        auto value = bigint->big_integer().divided_by(two_64).remainder;
-        VERIFY(value.unsigned_value().byte_length() <= sizeof(i64));
-        auto magnitude = value.unsigned_value().to_u64();
-        i64 integer = static_cast<i64>(value.is_negative() ? 0 - magnitude : magnitude);
-        return Wasm::Value { integer };
+        return Wasm::Value { bigint->big_integer().to_i64() };
     }
     case Wasm::ValueType::I32: {
         auto _i32 = TRY(value.to_i32(vm));
