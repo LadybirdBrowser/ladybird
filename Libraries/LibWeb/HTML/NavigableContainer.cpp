@@ -126,7 +126,7 @@ void NavigableContainer::create_new_child_navigable()
             .local_target_entry = history_entry,
             .pre_steps = GC::create_function(heap(), [navigable, parent_navigable, history_entry](u64, Optional<SessionHistoryEntryDescriptor> creation_target_entry, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) mutable {
                 if (navigable->has_been_destroyed() || parent_navigable->has_been_destroyed()) {
-                    ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
+                    ready->function()(HistoryStepResult::Applied);
                     return;
                 }
 
@@ -134,14 +134,14 @@ void NavigableContainer::create_new_child_navigable()
                 if (creation_target_entry.has_value()) {
                     VERIFY(navigable->traversable_navigable()->route_child_created_during_history_reconstruction(
                         *parent_navigable, *navigable, *history_entry, creation_target_entry.release_value()));
-                    ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
+                    ready->function()(HistoryStepResult::Applied);
                     return;
                 }
 
                 auto parent_document_state = parent_navigable->active_session_history_entry()->document_state();
 
                 // 7. Update for navigable creation/destruction given traversable
-                ready->function()(true, parent_document_state->cross_process_id(), {}, {}, HistoryStepResult::Applied);
+                ready->function()(parent_document_state->cross_process_id());
             }),
             .on_complete = GC::create_function(heap(), [this, navigable](HistoryStepResult) {
                 if (navigable->has_been_destroyed() || content_navigable() != navigable)

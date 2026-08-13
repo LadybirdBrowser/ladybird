@@ -3540,10 +3540,10 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             .pre_steps = GC::create_function(navigable->heap(), [navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id = move(expected_ongoing_navigation_id), entry_to_restore = move(entry_to_restore)](u64, Optional<SessionHistoryEntryDescriptor>, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) mutable {
                 auto finalization = finalize_a_cross_document_navigation_at_queued_position(navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id, move(entry_to_restore));
                 if (!finalization.has_value()) {
-                    ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
+                    ready->function()(HistoryStepResult::Applied);
                     return;
                 }
-                ready->function()(true, {}, {}, finalization.release_value(), HistoryStepResult::Applied);
+                ready->function()(finalization.release_value());
             }),
             .on_complete = GC::create_function(navigable->heap(), [navigable, on_complete](HistoryStepResult result) {
                 // AD-HOC: Trigger a relayout in the container document for size negotiation with SVG documents.

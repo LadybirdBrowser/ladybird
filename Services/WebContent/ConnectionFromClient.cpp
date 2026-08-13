@@ -340,17 +340,17 @@ void ConnectionFromClient::cancel_download(u64 page_id, u64 download_id)
         page->cancel_download(download_id);
 }
 
-void ConnectionFromClient::history_operation_started(u64 page_id, u64 operation_id, Optional<u64> initiation_id, Optional<Web::HTML::SessionHistoryEntryDescriptor> creation_target_entry)
+void ConnectionFromClient::history_operation_started(u64 page_id, u64 operation_id, u64 initiation_id, Optional<Web::HTML::SessionHistoryEntryDescriptor> creation_target_entry)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
-        async_history_operation_ready(page_id, operation_id, false, {}, {}, {}, Web::HTML::HistoryStepResult::CanceledByMissingPage);
+        async_history_operation_ready(page_id, operation_id, Web::HTML::HistoryStepResult::CanceledByMissingPage);
         return;
     }
 
     page->page().top_level_traversable()->handle_ui_history_operation_started(operation_id, initiation_id, move(creation_target_entry),
-        GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id](bool proceed, Optional<Web::HTML::CrossProcessId> creation_parent_document_state_id, Optional<Web::HTML::SameDocumentNavigationEntry> same_document_navigation_finalization, Optional<Web::CrossDocumentNavigationFinalization> cross_document_navigation_finalization, Web::HTML::HistoryStepResult abandon_result) {
-            async_history_operation_ready(page_id, operation_id, proceed, creation_parent_document_state_id, move(same_document_navigation_finalization), move(cross_document_navigation_finalization), abandon_result);
+        GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id](Web::HistoryOperationReadyResult result) {
+            async_history_operation_ready(page_id, operation_id, move(result));
         }));
 }
 

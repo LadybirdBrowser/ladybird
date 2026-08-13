@@ -15,6 +15,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Geolocation/Geolocation.h>
 #include <LibWeb/HTML/ApplyHistoryStep.h>
+#include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Page/Page.h>
@@ -53,7 +54,7 @@ public:
     bool is_created_by_web_content() const { return m_is_created_by_web_content; }
     void set_is_created_by_web_content(bool value) { m_is_created_by_web_content = value; }
 
-    using OnHistoryOperationReady = GC::Function<void(bool proceed, Optional<CrossProcessId> creation_parent_document_state_id, Optional<SameDocumentNavigationEntry>, Optional<Web::CrossDocumentNavigationFinalization>, HistoryStepResult abandon_result)>;
+    using OnHistoryOperationReady = GC::Function<void(Web::HistoryOperationReadyResult)>;
     using OnHistoryOperationPreSteps = GC::Function<void(u64 history_initiation_id, Optional<SessionHistoryEntryDescriptor> creation_target_entry, GC::Ref<OnHistoryOperationReady>)>;
     struct HistoryOperationState {
         GC::Ptr<DOM::Document> pending_document {};
@@ -70,8 +71,7 @@ public:
     };
     void request_history_operation(HistoryOperationParameters);
     void request_history_operation(HistoryOperationParameters, HistoryOperationState);
-    void request_synchronous_navigation_history_operation(HistoryOperationParameters, HistoryOperationState);
-    void handle_ui_history_operation_started(u64 operation_id, Optional<u64> initiation_id, Optional<SessionHistoryEntryDescriptor> creation_target_entry, GC::Ref<OnHistoryOperationReady>);
+    void handle_ui_history_operation_started(u64 operation_id, u64 initiation_id, Optional<SessionHistoryEntryDescriptor> creation_target_entry, GC::Ref<OnHistoryOperationReady>);
     bool run_ui_initiator_sandboxing_check_job(CrossProcessId initiator_to_check_id, Vector<CrossProcessId> const& navigables, u64 initiation_id);
     void run_ui_history_step_unload_cancelation_job(u64 operation_id, SessionHistoryEntryDescriptor target_entry, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>>);
     void run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, bool synchronous_navigation, LocalNavigable::NavigationAPIAbortBehavior, Optional<u64> initiation_id, GC::Ref<OnChangingNavigableHistoryStepJobComplete>);

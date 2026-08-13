@@ -10,6 +10,7 @@
 #include <AK/Variant.h>
 #include <LibIPC/Forward.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/HTML/ApplyHistoryStep.h>
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
@@ -34,6 +35,13 @@ struct CrossDocumentNavigationFinalization {
     HTML::PendingSessionHistoryEntryDescriptor history_entry;
     Optional<Utf16String> entry_to_replace_navigation_api_key;
 };
+
+using HistoryOperationReadyResult = Variant<
+    Empty,
+    HTML::HistoryStepResult,
+    HTML::CrossProcessId,
+    HTML::SameDocumentNavigationEntry,
+    CrossDocumentNavigationFinalization>;
 
 struct ReloadHistoryOperationParameters {
     HTML::CrossProcessId navigable_id;

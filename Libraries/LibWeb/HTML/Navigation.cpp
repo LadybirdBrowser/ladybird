@@ -769,10 +769,10 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
                 // 3. If targetSHE is navigable's active session history entry:
                 // NOTE: This can occur if a previously queued traversal already took us to this session history entry.
                 if (auto active_entry = navigable->active_session_history_entry(); active_entry && active_entry->navigation_api_key() == key) {
-                    ready->function()(false, {}, {}, {}, HistoryStepResult::NoMatchingEntry);
+                    ready->function()(HistoryStepResult::NoMatchingEntry);
                     return;
                 }
-                ready->function()(true, {}, {}, {}, HistoryStepResult::Applied);
+                ready->function()(Empty {});
             }),
             .on_complete = on_complete,
         });
@@ -1349,10 +1349,10 @@ bool Navigation::inner_navigate_event_firing_algorithm(
                         // NB: This operation can start after a later navigation has aborted the intercepted
                         //     traverse. In that case, the aborted traverse must not be resumed.
                         if (event->abort_controller()->signal()->aborted() || event != m_ongoing_navigate_event) {
-                            ready->function()(false, {}, {}, {}, HistoryStepResult::Applied);
+                            ready->function()(HistoryStepResult::Applied);
                             return;
                         }
-                        ready->function()(true, {}, {}, {}, HistoryStepResult::Applied);
+                        ready->function()(Empty {});
                     }),
                 });
         }
