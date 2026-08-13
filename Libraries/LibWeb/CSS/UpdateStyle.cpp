@@ -228,6 +228,20 @@ static void record_assigned_slottable_style_engine_reactions(DOM::Element& eleme
     }
 }
 
+// The static inherited-group swap answers a pure inherited-style reaction without recomputing the element. That
+// is only sound while the element's computed style is a pure function of its cascade inputs and the swapped
+// groups: an element with animations may resolve keyframe values (`inherit`, neutral keyframes) against the
+// parent's style, and an element with transitions or transition-property entries must compare before-change and
+// after-change styles at every style change event. These are the conditions under which
+// Element::apply_style_engine_reaction declines its own inherited-style group swap.
+static bool element_style_depends_on_more_than_the_inherited_groups(DOM::Element const& element)
+{
+    return element.has_relevant_animations()
+        || element.has_css_defined_animations()
+        || !element.property_ids_with_existing_transitions({}).is_empty()
+        || !element.property_ids_with_matching_transition_property_entry({}).is_empty();
+}
+
 static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Document& document, Span<StyleEngine::PublishedStyleDelta> reactions)
 {
     HashMap<u32, StyleEngine::PublishedStyleDelta*> reaction_batch;
@@ -286,20 +300,27 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             VERIFY(needs_inherited_style_recompute);
             VERIFY(!needs_custom_property_recompute);
             VERIFY(reaction.pseudo_kind == NumericLimits<u8>::max());
-            auto* input_record = element->style_input_record();
-            VERIFY(input_record);
-            auto const* payloads = static_cast<void const* const*>(document.style_computer().style_record_payloads(StyleRecordID { reaction.new_style_record }));
-            VERIFY(payloads);
-            constexpr size_t inherited_group_count = ComputedValues::inherited_style_group_count;
-            VERIFY(input_record->words.size() >= inherited_group_count);
-            input_record->pinned_parent_groups.set({ payloads, inherited_group_count });
-            for (size_t index = 0; index < inherited_group_count; ++index)
-                input_record->words[index] = bit_cast<FlatPtr>(payloads[index]);
-            element->set_computed_style({}, StyleRecordID { reaction.new_style_record });
-            invalidation = RequiredInvalidationAfterStyleChange::full();
-            for (size_t index = 0; index < inherited_group_count; ++index) {
-                if (reaction.inherited_style_groups & (1 << index))
-                    invalidation.mark_inherited_style_group_changed(index);
+            if (element_style_depends_on_more_than_the_inherited_groups(*element)) {
+                invalidation = element->apply_style_engine_reaction(
+                    did_change_custom_properties,
+                    DOM::Element::StyleEngineRecomputeReason::General,
+                    0);
+            } else {
+                auto* input_record = element->style_input_record();
+                VERIFY(input_record);
+                auto const* payloads = static_cast<void const* const*>(document.style_computer().style_record_payloads(StyleRecordID { reaction.new_style_record }));
+                VERIFY(payloads);
+                constexpr size_t inherited_group_count = ComputedValues::inherited_style_group_count;
+                VERIFY(input_record->words.size() >= inherited_group_count);
+                input_record->pinned_parent_groups.set({ payloads, inherited_group_count });
+                for (size_t index = 0; index < inherited_group_count; ++index)
+                    input_record->words[index] = bit_cast<FlatPtr>(payloads[index]);
+                element->set_computed_style({}, StyleRecordID { reaction.new_style_record });
+                invalidation = RequiredInvalidationAfterStyleChange::full();
+                for (size_t index = 0; index < inherited_group_count; ++index) {
+                    if (reaction.inherited_style_groups & (1 << index))
+                        invalidation.mark_inherited_style_group_changed(index);
+                }
             }
         } else if (needs_regular_style_recompute || needs_inherited_style_recompute || needs_full_custom_property_recompute) {
             if (!needs_regular_style_recompute

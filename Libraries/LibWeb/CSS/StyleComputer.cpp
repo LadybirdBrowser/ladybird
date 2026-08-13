@@ -452,7 +452,16 @@ void StyleComputer::collect_animations_into(DOM::AbstractElement abstract_elemen
 
 void StyleComputer::collect_animations_into(DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedProperties& computed_properties) const
 {
+    m_keyframes_inherited_non_inherited_property = false;
     collect_animation_effects_into(abstract_element, effects, computed_properties, nullptr);
+    // An animation-only overlay update resolves keyframe values just like a full style computation does, so a
+    // keyframe-borne `inherit` on a non-inherited property discovered here must leave the same invalidation
+    // mark behind, or a later change to the parent's value never reaches this element's animated style.
+    if (m_keyframes_inherited_non_inherited_property) {
+        if (auto* parent = abstract_element.element().parent())
+            parent->set_children_may_depend_on_non_inherited_property_inheritance();
+        m_keyframes_inherited_non_inherited_property = false;
+    }
     adjust_animated_element_style_if_needed(computed_properties, abstract_element);
 }
 
