@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Selectors Invalidation: :heading() pseudo-class in :has() argument with slot reassignment</title>
+<link rel="help" href="https://drafts.csswg.org/selectors-5/#headings">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  div { color: grey }
+  #ancestor:has(:heading(1)) ~ #has_heading_1 { color: red }
+  #ancestor:has(:heading(3)) ~ #has_heading_3 { color: yellow }
+  #ancestor:has(:heading(5)) ~ #has_heading_5 { color: green }
+</style>
+<div id="ancestor">
+  <template shadowrootmode="open">
+    <div headingoffset="2">
+      <slot id="slot_a" name="a"></slot>
+    </div>
+    <div headingoffset="4">
+      <slot id="slot_b" name="b"></slot>
+    </div>
+  </template>
+  <h1 id="h1" slot="a"></h1>
+</div>
+<div id="has_heading_1"></div>
+<div id="has_heading_3"></div>
+<div id="has_heading_5"></div>
+<script>
+const grey = "rgb(128, 128, 128)";
+const red = "rgb(255, 0, 0)";
+const yellow = "rgb(255, 255, 0)";
+const green = "rgb(0, 128, 0)";
+
+const slotA = ancestor.shadowRoot.getElementById("slot_a");
+const slotB = ancestor.shadowRoot.getElementById("slot_b");
+const slotAContainer = slotA.parentElement;
+
+function testColors(test_name,
+                    has_heading_1_color,
+                    has_heading_3_color,
+                    has_heading_5_color) {
+  test(function() {
+      assert_equals(getComputedStyle(has_heading_1).color, has_heading_1_color);
+  }, test_name + ": #has_heading_1");
+  test(function() {
+      assert_equals(getComputedStyle(has_heading_3).color, has_heading_3_color);
+  }, test_name + ": #has_heading_3");
+  test(function() {
+      assert_equals(getComputedStyle(has_heading_5).color, has_heading_5_color);
+  }, test_name + ": #has_heading_5");
+}
+
+// A slotted heading's level depends on its host chain, not on the shadow-tree
+// slot containers. Slot reassignment must therefore not change its level.
+
+// Initial: h1 slotted into slot_a, ancestor has no headingoffset, level 1.
+testColors("Initial (h1 slotted into slot_a)", red, grey, grey);
+
+// Move h1 to slot_b: still level 1.
+h1.slot = "b";
+testColors("h1.slot = 'b'", red, grey, grey);
+
+// Point h1 at a non-existent slot: unslotted, still level 1.
+h1.slot = "nonexistent";
+testColors("h1.slot = 'nonexistent'", red, grey, grey);
+
+// Back to slot_a: still level 1.
+h1.slot = "a";
+testColors("h1.slot = 'a'", red, grey, grey);
+
+// Rename slot_a so h1 no longer matches: unslotted, still level 1.
+slotA.name = "c";
+testColors("slotA.name = 'c'", red, grey, grey);
+
+// Rename slot_b to 'a' so h1 now slots into it: still level 1.
+slotB.name = "a";
+testColors("slotB.name = 'a'", red, grey, grey);
+
+// Reset names: still level 1.
+slotA.name = "a";
+slotB.name = "b";
+testColors("Reset slot names", red, grey, grey);
+
+// Remove slot_a: still level 1.
+slotA.remove();
+testColors("slotA.remove()", red, grey, grey);
+
+// Re-insert slot_a: still level 1.
+slotAContainer.appendChild(slotA);
+testColors("Re-insert slot_a", red, grey, grey);
+
+// Toggling the host's headingoffset (which IS on the slotted h1's chain) does
+// change the level, and :has() must invalidate.
+ancestor.setAttribute("headingoffset", "2");
+testColors("ancestor[headingoffset=2]", grey, yellow, grey);
+
+// Slot reassignment with a non-zero host offset still doesn't change level.
+h1.slot = "b";
+testColors("h1.slot = 'b' with ancestor[headingoffset=2]", grey, yellow, grey);
+
+ancestor.setAttribute("headingoffset", "4");
+testColors("ancestor[headingoffset=4]", grey, grey, green);
+
+ancestor.removeAttribute("headingoffset");
+testColors("ancestor with headingoffset removed", red, grey, grey);
+</script>

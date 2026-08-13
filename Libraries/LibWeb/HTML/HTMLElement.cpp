@@ -2601,8 +2601,15 @@ WebIDL::UnsignedLong HTMLElement::computed_heading_offset() const
         if (inclusive_ancestor_html_element && inclusive_ancestor_html_element->has_attribute(AttributeNames::headingreset))
             return offset;
 
-        // 5. Set inclusiveAncestor to the parent node of inclusiveAncestor within the flat tree.
-        inclusive_ancestor = inclusive_ancestor->flat_tree_parent();
+        // 5. If inclusiveAncestor's parent is a shadow root, then set inclusiveAncestor to that shadow root's host
+        //    and continue.
+        if (auto const* shadow_root = as_if<DOM::ShadowRoot>(inclusive_ancestor->parent())) {
+            inclusive_ancestor = shadow_root->host();
+            continue;
+        }
+
+        // 6. Set inclusiveAncestor to inclusiveAncestor's parent element.
+        inclusive_ancestor = inclusive_ancestor->parent_element().ptr();
     }
 
     // 4. Return offset.
