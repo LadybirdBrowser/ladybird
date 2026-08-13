@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="container"><div id="element"></div></div>
+<script>
+    test(() => {
+        const container = document.getElementById("container");
+        const element = document.getElementById("element");
+
+        // A previous paused animation on another property, like the earlier
+        // subtests of WPT web-animations/responsive/opacity.html leave behind.
+        container.style.fillOpacity = 1;
+        const previous = element.animate([{ fillOpacity: "inherit" }, { fillOpacity: "0.5" }], 10);
+        previous.pause();
+        previous.currentTime = 5;
+        println(getComputedStyle(element).fillOpacity);
+
+        container.style.opacity = 1;
+        const player = element.animate([{ opacity: "inherit" }, { opacity: "0.5" }], 10);
+        player.pause();
+        player.currentTime = 5;
+        println(getComputedStyle(element).opacity);
+        container.style.opacity = 0.25;
+        println(getComputedStyle(element).opacity);
+        container.style.opacity = 2;
+        println(getComputedStyle(element).opacity);
+    });
+</script>
