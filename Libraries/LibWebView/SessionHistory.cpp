@@ -65,31 +65,6 @@ static Optional<size_t> top_level_entry_index_for_step(Vector<TraversableSession
     return result;
 }
 
-static TraversableSessionHistory::Entry const* entry_for_step_in_entry_list(Vector<TraversableSessionHistory::Entry> const& entries, i32 step)
-{
-    TraversableSessionHistory::Entry const* result = nullptr;
-    for (auto const& entry : entries) {
-        if (entry.step > step)
-            break;
-        result = &entry;
-    }
-    return result;
-}
-
-static bool nested_histories_need_restore_after_loading_entry(TraversableSessionHistory::Entry const& entry, i32 step)
-{
-    for (auto const& nested_history : entry.document_state.nested_histories) {
-        auto target_entry = entry_for_step_in_entry_list(nested_history.entries, step);
-        if (!target_entry)
-            continue;
-        if (target_entry->step != entry.step)
-            return true;
-        if (nested_histories_need_restore_after_loading_entry(*target_entry, step))
-            return true;
-    }
-    return false;
-}
-
 static void clear_forward_session_history_entries(Vector<TraversableSessionHistory::Entry>& entries, i32 step)
 {
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#clear-the-forward-session-history
@@ -650,29 +625,6 @@ bool TraversableSessionHistory::has_only_top_level_used_steps() const
             return false;
     }
     return true;
-}
-
-bool TraversableSessionHistory::current_step_is_top_level_entry() const
-{
-    if (!m_current_used_step_index.has_value())
-        return false;
-    return entry_for_step(m_used_steps[*m_current_used_step_index]) != nullptr;
-}
-
-Optional<i32> TraversableSessionHistory::current_step_to_restore_after_loading_top_level_entry() const
-{
-    if (!m_current_used_step_index.has_value())
-        return {};
-
-    auto current_step = m_used_steps[*m_current_used_step_index];
-    auto const* current_entry = entry_for_step(current_step);
-    if (current_entry) {
-        if (nested_histories_need_restore_after_loading_entry(*current_entry, current_step))
-            return current_step;
-        return {};
-    }
-
-    return current_step;
 }
 
 Optional<TraversableSessionHistory::TraversalTarget> TraversableSessionHistory::traversal_target_for_delta(int delta) const

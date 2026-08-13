@@ -634,35 +634,6 @@ GC::Ptr<LocalNavigable> local_navigable_with_id(CrossProcessId id)
     return nullptr;
 }
 
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-session-history-entries
-static Vector<NonnullRefPtr<SessionHistoryEntry>>* get_session_history_entries_if_present(LocalTraversableNavigable& traversable, LocalNavigable const& navigable)
-{
-    // 4. Let docStates be an empty ordered set of document states.
-    Vector<RefPtr<DocumentState>> doc_states;
-
-    // 5. For each entry of traversable's session history entries, append entry's document state to docStates.
-    for (auto& entry : traversable.session_history_entries())
-        doc_states.append(entry->document_state());
-
-    // 6. For each docState of docStates:
-    for (size_t i = 0; i < doc_states.size(); ++i) {
-        auto doc_state = doc_states[i];
-
-        // 1. For each nestedHistory of docState's nested histories:
-        for (auto& nested_history : doc_state->nested_histories()) {
-            // 1. If nestedHistory's id equals navigable's id, return nestedHistory's entries.
-            if (nested_history.id == navigable.id())
-                return &nested_history.entries;
-
-            // 2. For each entry of nestedHistory's entries, append entry's document state to docStates.
-            for (auto& entry : nested_history.entries)
-                doc_states.append(entry->document_state());
-        }
-    }
-
-    return nullptr;
-}
-
 // https://html.spec.whatwg.org/multipage/document-sequences.html#child-navigable
 Vector<GC::Root<LocalNavigable>> LocalNavigable::child_navigables() const
 {
@@ -772,7 +743,7 @@ bool LocalNavigable::is_script_closable()
         return false;
 
     return as<LocalTraversableNavigable>(this)->is_created_by_web_content()
-        || get_session_history_entries().size() == 1;
+        || as<LocalTraversableNavigable>(this)->session_history_entry_count() == 1;
 }
 
 void LocalNavigable::set_delaying_load_events(bool value)
@@ -816,6 +787,19 @@ void LocalNavigable::set_current_session_history_entry(RefPtr<SessionHistoryEntr
     m_current_session_history_entry = move(entry);
 }
 
+Optional<CrossProcessId> LocalNavigable::child_navigable_history_reconstruction_id(size_t index) const
+{
+    if (index >= m_child_navigable_history_reconstruction_ids.size())
+        return {};
+    return m_child_navigable_history_reconstruction_ids[index];
+}
+
+void LocalNavigable::consume_child_navigable_history_reconstruction_id(size_t index)
+{
+    VERIFY(index < m_child_navigable_history_reconstruction_ids.size());
+    m_child_navigable_history_reconstruction_ids[index].clear();
+}
+
 // https://html.spec.whatwg.org/multipage/document-sequences.html#initialize-the-navigable
 void LocalNavigable::initialize_navigable(NonnullRefPtr<DocumentState> document_state, GC::Ptr<LocalNavigable> parent, GC::Ref<DOM::Document> document)
 {
@@ -852,28 +836,6 @@ void LocalNavigable::initialize_navigable(NonnullRefPtr<DocumentState> document_
 
     // 6. Set the initial visibility state of documentState's document to navigable's traversable navigable's system visibility state.
     document->set_initial_visibility_state(traversable_navigable()->system_visibility_state());
-}
-
-RefPtr<SessionHistoryEntry> LocalNavigable::find_session_history_entry(Utf16String const& navigation_api_key, CrossProcessId document_state_id) const
-{
-    auto traversable = traversable_navigable();
-    Vector<NonnullRefPtr<SessionHistoryEntry>> const* entries = nullptr;
-    if (this == traversable.ptr())
-        entries = &traversable->session_history_entries();
-    else
-        entries = get_session_history_entries_if_present(*traversable, *this);
-
-    if (!entries)
-        return nullptr;
-
-    for (auto const& entry : *entries) {
-        auto document_state = entry->document_state();
-        if (entry->navigation_api_key() == navigation_api_key
-            && document_state
-            && document_state->cross_process_id() == document_state_id)
-            return entry;
-    }
-    return nullptr;
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#activate-history-entry
@@ -1433,34 +1395,6 @@ GC::Ptr<LocalNavigable> LocalNavigable::find_a_navigable_by_target_name(Utf16Vie
 
     // 8. Return null.
     return nullptr;
-}
-
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-session-history-entries
-Vector<NonnullRefPtr<SessionHistoryEntry>>& LocalNavigable::get_session_history_entries() const
-{
-    // 1. Let traversable be navigable's traversable navigable.
-    auto traversable = traversable_navigable();
-
-    // FIXME: 2. Assert: this is running within traversable's session history traversal queue.
-
-    // 3. If navigable is traversable, return traversable's session history entries.
-    if (this == traversable.ptr())
-        return traversable->session_history_entries();
-
-    if (auto* entries = get_session_history_entries_if_present(*traversable, *this))
-        return *entries;
-
-    VERIFY_NOT_REACHED();
-}
-
-bool LocalNavigable::has_session_history_entries() const
-{
-    auto traversable = traversable_navigable();
-    if (!traversable)
-        return false;
-    if (this == traversable.ptr())
-        return true;
-    return get_session_history_entries_if_present(*traversable, *this) != nullptr;
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#determining-navigation-params-policy-container

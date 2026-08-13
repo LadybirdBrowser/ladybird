@@ -140,7 +140,7 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
     initial_history_entry->set_step(0);
 
     // 9. Append initialHistoryEntry to traversable's session history entries.
-    traversable->m_session_history_entries.append(*initial_history_entry);
+    // NB: The UI process performs this step in canonical session history.
     traversable->set_has_session_history_entry_and_ready_for_navigation();
 
     // 10. If opener is non-null, then legacy-clone a traversable storage shed given opener's top-level traversable and traversable. [STORAGE]
@@ -205,48 +205,61 @@ struct SessionHistoryEntryReconstructionState {
     HashMap<CrossProcessId, RefPtr<DocumentState>> document_states;
 };
 
-static NonnullRefPtr<SessionHistoryEntry> create_session_history_entry_from_ui_process(SessionHistoryEntryDescriptor, SessionHistoryEntryReconstructionState&);
-
-static DocumentState::NestedHistory create_nested_history_from_ui_process(SessionHistoryNestedHistoryDescriptor nested_history_descriptor, SessionHistoryEntryReconstructionState& reconstruction_state)
+static Vector<NonnullRefPtr<SessionHistoryEntry>> retained_session_history_entries(LocalNavigable& navigable)
 {
     Vector<NonnullRefPtr<SessionHistoryEntry>> entries;
-    entries.ensure_capacity(nested_history_descriptor.entries.size());
-    for (auto& entry_descriptor : nested_history_descriptor.entries)
-        entries.unchecked_append(create_session_history_entry_from_ui_process(move(entry_descriptor), reconstruction_state));
-
-    return {
-        .id = move(nested_history_descriptor.id),
-        .entries = move(entries),
+    auto append = [&](RefPtr<SessionHistoryEntry> entry) {
+        if (!entry)
+            return;
+        if (entries.find_if([&](auto const& candidate) {
+                return candidate.ptr() == entry.ptr();
+            })
+            != entries.end()) {
+            return;
+        }
+        entries.append(entry.release_nonnull());
     };
+
+    append(navigable.current_session_history_entry());
+    append(navigable.active_session_history_entry());
+
+    if (auto window = navigable.active_window()) {
+        for (auto const& navigation_entry : window->navigation()->entries())
+            append(navigation_entry->session_history_entry());
+    }
+
+    return entries;
 }
 
-static void populate_nested_histories_from_ui_process(DocumentState& document_state, Vector<SessionHistoryNestedHistoryDescriptor> nested_history_descriptors, SessionHistoryEntryReconstructionState& reconstruction_state)
+static void prepare_child_navigable_history_reconstruction(LocalNavigable& navigable, SessionHistoryDocumentStateDescriptor const& document_state_descriptor)
 {
-    auto& nested_histories = document_state.nested_histories();
-    if (nested_histories.size() == nested_history_descriptors.size()) {
-        // FIXME: This is temporary glue for the current load-then-seed ordering.
-        //        A replacement WebContent process can create live child navigables
-        //        before the UI process sends its canonical session-history tree.
-        //        Now that nested history ids are canonical CrossProcessIds, the UI id
-        //        must win; retarget the already-created child to match it. The
-        //        longer-term model should avoid creating a distinct temporary id
-        //        for a child the UI process already knows about.
-        for (size_t i = 0; i < nested_history_descriptors.size(); ++i) {
-            auto previous_id = nested_histories[i].id;
-            auto canonical_id = nested_history_descriptors[i].id;
-            if (previous_id == canonical_id)
-                continue;
+    Vector<Optional<CrossProcessId>> child_navigable_ids;
+    child_navigable_ids.ensure_capacity(document_state_descriptor.nested_histories.size());
+    for (auto const& nested_history : document_state_descriptor.nested_histories)
+        child_navigable_ids.unchecked_append(nested_history.id);
 
-            for (auto& navigable : all_local_navigables()) {
-                if (navigable->id() == previous_id)
-                    navigable->set_id_for_session_history_reconstruction(canonical_id);
+    auto active_entry = navigable.active_session_history_entry();
+    auto active_document = navigable.active_document();
+    if (active_entry && active_document
+        && active_entry->document_state()->cross_process_id() == document_state_descriptor.id) {
+        auto child_navigables = active_document->document_tree_child_navigables();
+        if (child_navigables.size() == child_navigable_ids.size()) {
+            // FIXME: This is temporary glue for the current load-then-seed ordering.
+            //        A replacement WebContent process can create live child navigables
+            //        before the UI process sends its canonical session-history tree.
+            //        Now that nested history ids are canonical CrossProcessIds, the UI id
+            //        must win; retarget the already-created child to match it. The
+            //        longer-term model should avoid creating a distinct temporary id
+            //        for a child the UI process already knows about.
+            for (size_t i = 0; i < child_navigables.size(); ++i) {
+                auto canonical_id = *child_navigable_ids[i];
+                child_navigables[i]->set_id_for_session_history_reconstruction(canonical_id);
+                child_navigable_ids[i].clear();
             }
         }
     }
-    nested_histories.clear();
-    nested_histories.ensure_capacity(nested_history_descriptors.size());
-    for (auto& nested_history_descriptor : nested_history_descriptors)
-        nested_histories.unchecked_append(create_nested_history_from_ui_process(move(nested_history_descriptor), reconstruction_state));
+
+    navigable.set_child_navigable_history_reconstruction_ids(move(child_navigable_ids));
 }
 
 static void apply_session_history_entry_descriptor_from_ui_process(SessionHistoryEntry& entry, SessionHistoryEntryDescriptor& entry_descriptor)
@@ -298,105 +311,41 @@ static NonnullRefPtr<SessionHistoryEntry> create_session_history_entry_from_ui_p
 
     auto document_state = get_or_create_document_state_from_ui_process(entry_descriptor.document_state, reconstruction_state);
     VERIFY(document_state);
-    populate_nested_histories_from_ui_process(*document_state, move(entry_descriptor.document_state.nested_histories), reconstruction_state);
     entry->set_document_state(move(document_state));
     return entry;
 }
 
-// Unload cancelation only inspects its target entry. A changing job must also make a reconstructed target reachable
-// from the navigable's local entry collection so the subsequent continuation can activate it.
-enum class MissingSessionHistoryEntryDisposition {
-    LeaveDetached,
-    Install,
+enum class PrepareChildHistoryReconstruction {
+    No,
+    Yes,
 };
 
-static NonnullRefPtr<SessionHistoryEntry> upsert_session_history_entry(Vector<NonnullRefPtr<SessionHistoryEntry>>& local_entries, NonnullRefPtr<SessionHistoryEntry> entry)
+static NonnullRefPtr<SessionHistoryEntry> resolve_local_session_history_entry(LocalNavigable& navigable, SessionHistoryEntryDescriptor entry_descriptor, PrepareChildHistoryReconstruction prepare_child_history_reconstruction)
 {
-    // The UI owns canonical ordering and supplies ordered Navigation API projections. WebContent only replaces a
-    // stale local projection at the same used step or retains the new entry object for later identity lookup.
-    auto entry_step = *entry->step_value();
-    for (auto& local_entry : local_entries) {
-        if (local_entry->step_value() == entry_step) {
-            local_entry = entry;
-            return entry;
+    auto retained_entries = retained_session_history_entries(navigable);
+    auto target_identity = session_history_entry_identity(entry_descriptor);
+    for (auto& retained_entry : retained_entries) {
+        if (session_history_entry_identity(*retained_entry) == target_identity) {
+            apply_session_history_entry_descriptor_from_ui_process(*retained_entry, entry_descriptor);
+            apply_session_history_document_state_descriptor_from_ui_process(*retained_entry->document_state(), entry_descriptor.document_state);
+            if (prepare_child_history_reconstruction == PrepareChildHistoryReconstruction::Yes) {
+                prepare_child_navigable_history_reconstruction(navigable, entry_descriptor.document_state);
+            }
+            return retained_entry;
         }
     }
-    local_entries.append(entry);
-    return entry;
-}
 
-static bool install_new_child_session_history_entry(LocalNavigable& child, SessionHistoryEntry& entry)
-{
-    auto parent = child.parent();
-    if (!parent)
-        return false;
-
-    auto parent_entry = as<LocalNavigable>(*parent).active_session_history_entry();
-    if (!parent_entry)
-        return false;
-    auto parent_document_state = parent_entry->document_state();
-    if (!parent_document_state)
-        return false;
-
-    auto& nested_histories = parent_document_state->nested_histories();
-    if (nested_histories.find_if([&](auto const& nested_history) { return nested_history.id == child.id(); }) != nested_histories.end())
-        return false;
-
-    nested_histories.append({
-        .id = child.id(),
-        .entries { entry },
-    });
-    return child.has_session_history_entries();
-}
-
-static RefPtr<SessionHistoryEntry> resolve_local_session_history_entry(LocalNavigable& navigable, SessionHistoryEntryDescriptor entry_descriptor, MissingSessionHistoryEntryDisposition missing_entry_disposition)
-{
-    if (auto local_target_entry = navigable.find_session_history_entry(entry_descriptor.navigation_api_key, entry_descriptor.document_state.id))
-        return local_target_entry;
-
-    Vector<NonnullRefPtr<SessionHistoryEntry>>* local_entries = nullptr;
-    if (missing_entry_disposition == MissingSessionHistoryEntryDisposition::Install) {
-        if (navigable.is_top_level_traversable()) {
-            if (!navigable.active_document())
-                return nullptr;
-        } else if (!navigable.has_session_history_entries()) {
-            return nullptr;
-        }
-        local_entries = &navigable.get_session_history_entries();
-    }
-
-    auto document_state_id = entry_descriptor.document_state.id;
     SessionHistoryEntryReconstructionState reconstruction_state;
-    if (local_entries) {
-        for (auto const& entry : *local_entries) {
-            auto document_state = entry->document_state();
-            if (document_state)
-                reconstruction_state.document_states.set(document_state->cross_process_id(), document_state);
-        }
-        for (auto const& entry : { navigable.active_session_history_entry(), navigable.current_session_history_entry() }) {
-            if (!entry)
-                continue;
-            auto document_state = entry->document_state();
-            if (document_state)
-                reconstruction_state.document_states.set(document_state->cross_process_id(), document_state);
-        }
-    }
-    auto target_entry = create_session_history_entry_from_ui_process(move(entry_descriptor), reconstruction_state);
-
-    if (!local_entries) {
-        for (auto const& local_entry : { navigable.active_session_history_entry(), navigable.current_session_history_entry() }) {
-            if (!local_entry)
-                continue;
-            auto local_document_state = local_entry->document_state();
-            if (!local_document_state || local_document_state->cross_process_id() != document_state_id)
-                continue;
-            target_entry->document_state()->set_document_id(local_document_state->document_id());
-            break;
-        }
-        return target_entry;
+    for (auto const& retained_entry : retained_entries) {
+        auto document_state = retained_entry->document_state();
+        if (document_state)
+            reconstruction_state.document_states.set(document_state->cross_process_id(), document_state);
     }
 
-    return upsert_session_history_entry(*local_entries, target_entry);
+    if (prepare_child_history_reconstruction == PrepareChildHistoryReconstruction::Yes) {
+        prepare_child_navigable_history_reconstruction(navigable, entry_descriptor.document_state);
+    }
+    return create_session_history_entry_from_ui_process(move(entry_descriptor), reconstruction_state);
 }
 
 static bool synchronous_same_document_navigation_must_preserve_ongoing_navigation(LocalNavigable const& navigable)
@@ -422,6 +371,7 @@ static bool expected_ongoing_navigation_was_superseded(Optional<CrossProcessId> 
 
 void LocalTraversableNavigable::restore_session_history_entry_from_ui_process(LocalNavigable& navigable, SessionHistoryEntry& entry, SessionHistoryEntryDescriptor entry_descriptor)
 {
+    auto retained_entries = retained_session_history_entries(navigable);
     auto was_pending = !entry.step_value().has_value();
     auto document_state = entry.document_state();
     VERIFY(document_state);
@@ -437,12 +387,9 @@ void LocalTraversableNavigable::restore_session_history_entry_from_ui_process(Lo
     if (was_pending)
         entry.set_step(SessionHistoryEntry::Pending::Tag);
     apply_session_history_document_state_descriptor_from_ui_process(*document_state, entry_descriptor.document_state);
+    prepare_child_navigable_history_reconstruction(navigable, entry_descriptor.document_state);
 
-    SessionHistoryEntryReconstructionState reconstruction_state;
-    reconstruction_state.document_states.set(document_state_id, document_state);
-    populate_nested_histories_from_ui_process(*document_state, move(entry_descriptor.document_state.nested_histories), reconstruction_state);
-
-    for (auto& existing_entry : navigable.get_session_history_entries()) {
+    for (auto& existing_entry : retained_entries) {
         auto existing_document_state = existing_entry->document_state();
         VERIFY(existing_document_state);
         if (existing_document_state->cross_process_id() == document_state_id)
@@ -450,34 +397,30 @@ void LocalTraversableNavigable::restore_session_history_entry_from_ui_process(Lo
     }
 }
 
-bool LocalTraversableNavigable::adopt_nested_history_for_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child)
+bool LocalTraversableNavigable::adopt_canonical_id_for_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child)
 {
     VERIFY(child.parent().ptr() == &parent);
 
-    auto parent_entry = parent.active_session_history_entry();
-    VERIFY(parent_entry);
-    auto parent_document_state = parent_entry->document_state();
-    VERIFY(parent_document_state);
     auto parent_document = parent.active_document();
     VERIFY(parent_document);
     if (parent_document->is_completely_loaded())
         return false;
 
-    // Canonical nested histories are installed before a reconstructed document creates its child navigables. An
-    // unclaimed nested history at the child's position identifies that case without separate reconstruction state.
+    // The UI-selected entry supplies child identities before a reconstructed document creates its child navigables. Consume the
+    // identity at the child's position instead of retaining the nested history entries.
     auto child_navigables = parent_document->document_tree_child_navigables();
     auto child_index = child_navigables.find_first_index(child);
     if (!child_index.has_value())
         return false;
 
-    auto& nested_histories = parent_document_state->nested_histories();
-    if (*child_index >= nested_histories.size())
+    auto child_id = parent.child_navigable_history_reconstruction_id(*child_index);
+    if (!child_id.has_value())
         return false;
-    auto& nested_history = nested_histories[*child_index];
-    if (local_navigable_with_id(nested_history.id))
+    if (local_navigable_with_id(*child_id))
         return false;
 
-    child.set_id_for_session_history_reconstruction(nested_history.id);
+    child.set_id_for_session_history_reconstruction(*child_id);
+    parent.consume_child_navigable_history_reconstruction_id(*child_index);
     return true;
 }
 
@@ -485,26 +428,7 @@ bool LocalTraversableNavigable::route_child_created_during_history_reconstructio
 {
     VERIFY(child.parent().ptr() == &parent);
 
-    auto parent_entry = parent.active_session_history_entry();
-    VERIFY(parent_entry);
-    auto parent_document_state = parent_entry->document_state();
-    VERIFY(parent_document_state);
-
-    auto nested_history = parent_document_state->nested_histories().find_if([&](auto const& candidate) {
-        return candidate.id == child.id();
-    });
-    if (nested_history == parent_document_state->nested_histories().end())
-        return false;
-
-    auto target_identity = session_history_entry_identity(target_entry);
-    auto local_target_entry = nested_history->entries.find_if([&](auto const& entry) {
-        return session_history_entry_identity(*entry) == target_identity;
-    });
-    if (local_target_entry == nested_history->entries.end())
-        return false;
-
     auto entry_to_restore = target_entry;
-    *local_target_entry = initial_entry;
     restore_session_history_entry_from_ui_process(child, initial_entry, move(entry_to_restore));
 
     auto source_document = parent.active_document();
@@ -524,11 +448,9 @@ void LocalTraversableNavigable::reset_session_history_for_testing(GC::Ref<GC::Fu
                 auto active_entry = maybe_active_entry.release_nonnull();
 
                 active_entry->set_step(0);
-                m_session_history_entries.clear();
-                m_session_history_entries.append(active_entry);
                 set_active_session_history_entry(active_entry);
                 set_current_session_history_entry(active_entry);
-                m_current_session_history_step = 0;
+                m_session_history_entry_count = 1;
 
                 auto document = active_document();
                 VERIFY(document);
@@ -651,9 +573,9 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
     }
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-child-navigable
-    // NB: The creation/destruction update is the bookkeeping step after the child's nested history has been
-    //     attached to its parent document state. If the container's requested navigation has already started, it
-    //     owns the ongoing navigation ID and eventual document activation.
+    // NB: The creation/destruction update is the bookkeeping step after the child's nested history has been attached to its canonical
+    //     parent document state. If the container's requested navigation has already started, it owns the ongoing navigation ID and
+    //     eventual document activation.
     if (!job.navigation_type.has_value() && navigable->ongoing_navigation().has<Utf16String>()) {
         on_complete->function()({ ChangingNavigableHistoryStepJobDisposition::Skipped, nullptr });
         return false;
@@ -1534,8 +1456,9 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(u64 o
 {
     (void)operation_id;
 
-    auto target_entry = resolve_local_session_history_entry(*this, move(target_entry_descriptor), MissingSessionHistoryEntryDisposition::LeaveDetached);
-    VERIFY(target_entry);
+    auto target_entry = resolve_local_session_history_entry(
+        *this, move(target_entry_descriptor),
+        PrepareChildHistoryReconstruction::No);
     if (user_involvement == UserNavigationInvolvement::BrowserUI
         && ongoing_navigation().has<Utf16String>()
         && target_entry == current_session_history_entry()
@@ -1618,17 +1541,18 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operat
     if (local_target_entry) {
         auto document_state = local_target_entry->document_state();
         if (!document_state
-            || document_state->cross_process_id() != target_entry.document_state.id
-            || !navigable->has_session_history_entries()) {
+            || document_state->cross_process_id() != target_entry.document_state.id) {
             on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale);
             return;
         }
 
         apply_session_history_entry_descriptor_from_ui_process(*local_target_entry, target_entry);
-        local_target_entry = upsert_session_history_entry(
-            navigable->get_session_history_entries(), local_target_entry.release_nonnull());
+        apply_session_history_document_state_descriptor_from_ui_process(*document_state, target_entry.document_state);
+        prepare_child_navigable_history_reconstruction(*navigable, target_entry.document_state);
     } else {
-        local_target_entry = resolve_local_session_history_entry(*navigable, move(target_entry), MissingSessionHistoryEntryDisposition::Install);
+        local_target_entry = resolve_local_session_history_entry(
+            *navigable, move(target_entry),
+            PrepareChildHistoryReconstruction::Yes);
     }
     if (!local_target_entry) {
         on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale);
@@ -1666,12 +1590,10 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operat
 
 static Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_navigation_api_from_ui_process(LocalNavigable& navigable, Vector<SessionHistoryEntryDescriptor> entry_descriptors)
 {
-    // The UI supplies the canonical Navigation API projection. Materialized entries are installed locally so this
-    // projection never becomes a second source of SessionHistoryEntry objects.
-    auto& local_entries = navigable.get_session_history_entries();
+    auto retained_entries = retained_session_history_entries(navigable);
     SessionHistoryEntryReconstructionState reconstruction_state;
-    for (auto const& local_entry : local_entries) {
-        auto document_state = local_entry->document_state();
+    for (auto const& retained_entry : retained_entries) {
+        auto document_state = retained_entry->document_state();
         if (document_state)
             reconstruction_state.document_states.set(document_state->cross_process_id(), document_state);
     }
@@ -1680,31 +1602,26 @@ static Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_na
     entries.ensure_capacity(entry_descriptors.size());
 
     for (auto& entry_descriptor : entry_descriptors) {
-        auto local_entry = navigable.find_session_history_entry(entry_descriptor.navigation_api_key, entry_descriptor.document_state.id);
-        if (!local_entry) {
-            for (auto const& candidate : { navigable.current_session_history_entry(), navigable.active_session_history_entry() }) {
-                if (!candidate)
-                    continue;
-                auto document_state = candidate->document_state();
-                if (candidate->navigation_api_id() == entry_descriptor.navigation_api_id
-                    && document_state
-                    && document_state->cross_process_id() == entry_descriptor.document_state.id) {
-                    local_entry = candidate;
-                    break;
-                }
+        RefPtr<SessionHistoryEntry> local_entry;
+        auto entry_identity = session_history_entry_identity(entry_descriptor);
+        for (auto const& retained_entry : retained_entries) {
+            if (session_history_entry_identity(*retained_entry) == entry_identity) {
+                local_entry = retained_entry;
+                break;
             }
         }
 
         if (local_entry) {
             apply_session_history_entry_descriptor_from_ui_process(*local_entry, entry_descriptor);
-            entries.append(upsert_session_history_entry(local_entries, local_entry.release_nonnull()));
+            apply_session_history_document_state_descriptor_from_ui_process(*local_entry->document_state(), entry_descriptor.document_state);
+            entries.append(local_entry.release_nonnull());
             continue;
         }
 
         auto entry = SessionHistoryEntry::create();
         apply_session_history_entry_descriptor_from_ui_process(*entry, entry_descriptor);
         entry->set_document_state(get_or_create_document_state_from_ui_process(entry_descriptor.document_state, reconstruction_state));
-        entries.append(upsert_session_history_entry(local_entries, move(entry)));
+        entries.append(move(entry));
     }
 
     return entries;
@@ -1740,9 +1657,10 @@ void LocalTraversableNavigable::apply_ui_changing_navigable_continuation(u64 ope
         on_complete);
 }
 
-void LocalTraversableNavigable::complete_ui_history_operation(u64 operation_id, HistoryStepResult result, Optional<i32> committed_step, Optional<u64> initiation_id)
+void LocalTraversableNavigable::complete_ui_history_operation(u64 operation_id, HistoryStepResult result, Optional<i32> committed_step, u64 session_history_entry_count, Optional<u64> initiation_id)
 {
     auto operation = m_ui_history_operations.take(operation_id);
+    m_session_history_entry_count = session_history_entry_count;
 
     auto navigation_api_abort_behavior = LocalNavigable::NavigationAPIAbortBehavior::Abort;
     if (operation.has_value()) {
@@ -1757,9 +1675,9 @@ void LocalTraversableNavigable::complete_ui_history_operation(u64 operation_id, 
 
     if (committed_step.has_value()) {
         // 20. Set traversable's current session history step to targetStep.
-        m_current_session_history_step = *committed_step;
+        // NB: The UI process performs this step in canonical session history.
 
-        if (!m_session_history_entries.is_empty())
+        if (current_session_history_entry())
             page().client().page_did_change_url(current_session_history_entry()->url());
     }
 
@@ -1770,11 +1688,8 @@ void LocalTraversableNavigable::complete_ui_history_operation(u64 operation_id, 
                 && initiation->local_target_entry
                 && !initiation->local_target_entry->step_value().has_value()) {
                 if (auto navigable = local_navigable_with_id(*initiation->local_target_navigable_id);
-                    navigable && !navigable->is_top_level_traversable() && !navigable->has_session_history_entries()) {
-                    // Child creation assigned this entry's concrete step in canonical history. Install that result in
-                    // the temporary local projection before releasing the child's pending navigation.
+                    navigable && !navigable->is_top_level_traversable()) {
                     initiation->local_target_entry->set_step(*committed_step);
-                    VERIFY(install_new_child_session_history_entry(*navigable, *initiation->local_target_entry));
                 }
             }
             if (initiation->on_apply_complete)

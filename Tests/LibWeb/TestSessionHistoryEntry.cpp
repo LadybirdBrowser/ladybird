@@ -10,11 +10,6 @@
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 
-static Web::HTML::CrossProcessId frame_1_id()
-{
-    return { 1, 1 };
-}
-
 static URL::URL parse_url(StringView url)
 {
     auto parsed_url = URL::Parser::basic_parse(url);
@@ -22,30 +17,22 @@ static URL::URL parse_url(StringView url)
     return parsed_url.release_value();
 }
 
-TEST_CASE(descriptor_creation_preserves_nested_history_with_only_pending_entries)
+TEST_CASE(concretizing_a_pending_entry_preserves_its_identity)
 {
     auto vm = JS::VM::create();
 
     Web::HTML::CrossProcessIdAllocator cross_process_id_allocator { .namespace_id = 3 };
-    auto top_level_document_state = Web::HTML::DocumentState::create(cross_process_id_allocator.allocate());
+    auto entry = Web::HTML::SessionHistoryEntry::create();
+    entry->set_url(parse_url("https://example.com/pending"sv));
+    entry->set_document_state(Web::HTML::DocumentState::create(
+        cross_process_id_allocator.allocate()));
 
-    auto pending_child_entry = Web::HTML::SessionHistoryEntry::create();
-    pending_child_entry->set_url(parse_url("https://frame.example/pending"sv));
-    pending_child_entry->set_document_state(Web::HTML::DocumentState::create(cross_process_id_allocator.allocate()));
+    auto navigation_api_key = entry->navigation_api_key();
+    auto navigation_api_id = entry->navigation_api_id();
+    auto descriptor = Web::HTML::create_session_history_entry_descriptor(
+        Web::HTML::create_pending_session_history_entry_descriptor(*entry), 7);
 
-    top_level_document_state->nested_histories().append({
-        .id = frame_1_id(),
-        .entries = { pending_child_entry },
-    });
-
-    auto top_level_entry = Web::HTML::SessionHistoryEntry::create();
-    top_level_entry->set_step(0);
-    top_level_entry->set_url(parse_url("https://a.example/"sv));
-    top_level_entry->set_document_state(top_level_document_state);
-
-    auto descriptor = Web::HTML::create_session_history_entry_descriptor(top_level_entry);
-
-    EXPECT_EQ(descriptor.document_state.nested_histories.size(), 1u);
-    EXPECT_EQ(descriptor.document_state.nested_histories[0].id, frame_1_id());
-    EXPECT(descriptor.document_state.nested_histories[0].entries.is_empty());
+    EXPECT_EQ(descriptor.step, 7);
+    EXPECT_EQ(descriptor.navigation_api_key, navigation_api_key);
+    EXPECT_EQ(descriptor.navigation_api_id, navigation_api_id);
 }

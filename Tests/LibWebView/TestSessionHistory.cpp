@@ -236,12 +236,6 @@ static void expect_used_step(WebView::TraversableSessionHistory const& history, 
     EXPECT_EQ(*step, expected_step);
 }
 
-static void expect_step_to_restore(Optional<i32> step, i32 expected_step)
-{
-    VERIFY(step.has_value());
-    EXPECT_EQ(*step, expected_step);
-}
-
 static void expect_nested_history(Web::HTML::SessionHistoryEntryDescriptor const& entry, size_t index, StringView expected_id, size_t expected_size)
 {
     VERIFY(index < entry.document_state.nested_histories.size());
@@ -382,8 +376,6 @@ TEST_CASE(used_steps_include_nested_history_steps)
     EXPECT_EQ(history.size(), 2uz);
     EXPECT_EQ(history.used_step_count(), 3uz);
     EXPECT(!history.has_only_top_level_used_steps());
-    EXPECT(history.current_step_is_top_level_entry());
-    EXPECT(!history.current_step_to_restore_after_loading_top_level_entry().has_value());
     EXPECT(history.can_go_back());
     EXPECT(!history.can_go_forward());
     expect_entry(history, 0, 0, "https://a.example/"sv);
@@ -412,8 +404,6 @@ TEST_CASE(used_steps_include_nested_history_steps)
 
     history.traverse_to(*target_step_index);
     expect_current_entry(history, 0, "https://a.example/"sv);
-    EXPECT(!history.current_step_is_top_level_entry());
-    expect_step_to_restore(history.current_step_to_restore_after_loading_top_level_entry(), 1);
     EXPECT(history.can_go_back());
     EXPECT(history.can_go_forward());
 }
@@ -429,9 +419,6 @@ TEST_CASE(traversal_target_for_top_level_step)
         { 0, 1, 2 }, 2);
     EXPECT_EQ(update_result, true);
     history.traverse_to(1);
-
-    EXPECT(history.current_step_is_top_level_entry());
-    EXPECT(!history.current_step_to_restore_after_loading_top_level_entry().has_value());
 
     auto traversal_target = history.traversal_target_for_delta(1);
     VERIFY(traversal_target.has_value());
@@ -469,11 +456,9 @@ TEST_CASE(traversal_target_for_nested_step_in_current_top_level_entry)
     EXPECT(!traversal_target->changes_top_level_entry);
 
     history.traverse_to(traversal_target->target_step_index);
-    EXPECT(!history.current_step_is_top_level_entry());
-    expect_step_to_restore(history.current_step_to_restore_after_loading_top_level_entry(), 1);
 }
 
-TEST_CASE(current_top_level_step_can_need_nested_history_restore)
+TEST_CASE(traversal_target_for_nested_step_in_earlier_top_level_entry)
 {
     WebView::TraversableSessionHistory history;
 
@@ -494,8 +479,6 @@ TEST_CASE(current_top_level_step_can_need_nested_history_restore)
         { 0, 1, 2 }, 2);
 
     EXPECT_EQ(update_result, true);
-    EXPECT(history.current_step_is_top_level_entry());
-    expect_step_to_restore(history.current_step_to_restore_after_loading_top_level_entry(), 2);
 
     auto traversal_target = history.traversal_target_for_delta(-1);
     VERIFY(traversal_target.has_value());

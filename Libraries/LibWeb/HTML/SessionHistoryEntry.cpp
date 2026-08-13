@@ -41,28 +41,6 @@ SessionHistoryEntry::SessionHistoryEntry()
 
 static SessionHistoryDocumentStateDescriptor create_session_history_document_state_descriptor(DocumentState& document_state)
 {
-    Vector<SessionHistoryNestedHistoryDescriptor> nested_history_descriptors;
-    nested_history_descriptors.ensure_capacity(document_state.nested_histories().size());
-    for (auto const& nested_history : document_state.nested_histories()) {
-        Vector<SessionHistoryEntryDescriptor> nested_entry_descriptors;
-        nested_entry_descriptors.ensure_capacity(nested_history.entries.size());
-        for (auto const& nested_entry : nested_history.entries) {
-            // NB: UI-process session history mirrors only concrete used history steps. A child entry whose step is
-            //     still "pending" has not been attached to the traversable's step graph yet.
-            if (!nested_entry->step_value().has_value())
-                continue;
-            nested_entry_descriptors.unchecked_append(create_session_history_entry_descriptor(nested_entry));
-        }
-
-        // NB: Keep the nested-history descriptor even when every entry in it is still pending. The entries are not
-        //     used history steps yet, but the descriptor id preserves the live child navigable identity when the UI
-        //     process later installs its history projection.
-        nested_history_descriptors.unchecked_append({
-            .id = nested_history.id,
-            .entries = move(nested_entry_descriptors),
-        });
-    }
-
     return {
         .id = document_state.cross_process_id(),
         .history_policy_container = document_state.history_policy_container(),
@@ -75,7 +53,7 @@ static SessionHistoryDocumentStateDescriptor create_session_history_document_sta
         .reload_pending = document_state.reload_pending(),
         .ever_populated = document_state.ever_populated(),
         .navigable_target_name = document_state.navigable_target_name(),
-        .nested_histories = move(nested_history_descriptors),
+        .nested_histories = {},
     };
 }
 

@@ -168,8 +168,9 @@ WebIDL::ExceptionOr<void> Navigation::update_current_entry(NavigationUpdateCurre
     // 4. Set current's session history entry's navigation API state to serializedState.
     current->session_history_entry().set_navigation_api_state(serialized_state);
 
-    // NB: The UI-process session history mirror needs to observe updateCurrentEntry() state changes so restored
-    //     WebContent processes can reconstruct Navigation API state from the authoritative UI-owned history.
+    // NB: Canonical session history needs to observe updateCurrentEntry()
+    //     state changes so replacement WebContent processes can reconstruct
+    //     Navigation API state.
     auto& document = window().associated_document();
     report_navigation_api_state_update(document, current->session_history_entry());
 

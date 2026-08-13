@@ -45,10 +45,7 @@ public:
 
     virtual bool is_top_level_traversable() const override;
 
-    int current_session_history_step() const { return m_current_session_history_step; }
-
-    Vector<NonnullRefPtr<SessionHistoryEntry>>& session_history_entries() { return m_session_history_entries; }
-    Vector<NonnullRefPtr<SessionHistoryEntry>> const& session_history_entries() const { return m_session_history_entries; }
+    u64 session_history_entry_count() const { return m_session_history_entry_count; }
 
     VisibilityState system_visibility_state() const { return m_system_visibility_state; }
     void set_system_visibility_state(VisibilityState);
@@ -80,12 +77,12 @@ public:
     void run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, bool synchronous_navigation, LocalNavigable::NavigationAPIAbortBehavior, Optional<u64> initiation_id, GC::Ref<OnChangingNavigableHistoryStepJobComplete>);
     void apply_ui_changing_navigable_continuation(u64 operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, GC::Ref<GC::Function<void(Optional<SessionHistoryEntryPersistedState>)>>);
     void update_nonchanging_navigable_history_step_state(CrossProcessId navigable_id, HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);
-    void complete_ui_history_operation(u64 operation_id, HistoryStepResult, Optional<i32> committed_step, Optional<u64> initiation_id);
+    void complete_ui_history_operation(u64 operation_id, HistoryStepResult, Optional<i32> committed_step, u64 session_history_entry_count, Optional<u64> initiation_id);
 
     void finalize_same_document_navigation(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement, Optional<SessionHistoryEntryPersistedState> previous_entry_persisted_state);
     void traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document = {});
     void restore_session_history_entry_from_ui_process(LocalNavigable&, SessionHistoryEntry&, SessionHistoryEntryDescriptor);
-    bool adopt_nested_history_for_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child);
+    bool adopt_canonical_id_for_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child);
     bool route_child_created_during_history_reconstruction(LocalNavigable& parent, LocalNavigable& child, SessionHistoryEntry& initial_entry, SessionHistoryEntryDescriptor target_entry);
     void reset_session_history_for_testing(GC::Ref<GC::Function<void()>> on_complete);
 
@@ -156,11 +153,8 @@ private:
 
     void check_if_unloading_is_canceled(Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload, GC::Ptr<LocalTraversableNavigable> traversable, RefPtr<SessionHistoryEntry> target_entry, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback);
 
-    // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-current-session-history-step
-    int m_current_session_history_step { 0 };
-
-    // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-entries
-    Vector<NonnullRefPtr<SessionHistoryEntry>> m_session_history_entries;
+    // WebContent needs the canonical top-level entry count synchronously for is_script_closable().
+    u64 m_session_history_entry_count { 1 };
 
     // Per-operation state for UI-coordinated apply-history-step runs. An operation is in flight from
     // history_operation_started until complete_history_operation.

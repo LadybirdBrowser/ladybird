@@ -107,7 +107,7 @@ void NavigableContainer::create_new_child_navigable()
     m_content_navigable = navigable;
 
     auto traversable = parent_navigable->traversable_navigable();
-    (void)traversable->adopt_nested_history_for_child_created_during_history_reconstruction(*parent_navigable, navigable);
+    (void)traversable->adopt_canonical_id_for_child_created_during_history_reconstruction(*parent_navigable, navigable);
 
     page.client().page_did_create_child_frame(parent_navigable->id(), navigable->id(), navigable->replicated_state());
 
@@ -348,9 +348,7 @@ void NavigableContainer::destroy_the_child_navigable()
         auto parent_doc_state = parent_navigable->active_session_history_entry()->document_state();
 
         // 7. Remove the nested history from parentDocState's nested histories whose id equals navigable's id.
-        parent_doc_state->nested_histories().remove_all_matching([&](auto& nested_history) {
-            return navigable->id() == nested_history.id;
-        });
+        // NB: The UI process performs this step in canonical session history.
 
         // 8. Let traversable be container's node navigable's traversable navigable.
         auto traversable = parent_navigable->traversable_navigable();
