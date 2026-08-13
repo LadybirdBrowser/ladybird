@@ -7,6 +7,7 @@
 import argparse
 import re
 import shutil
+import signal
 import sys
 
 from pathlib import Path
@@ -84,6 +85,9 @@ def get_files_to_format(use_git: bool, additional_files: List[str]) -> List[str]
 
 
 def main():
+    # Terminate by SIGINT on Ctrl+C, so that Meta/lint-ci.sh stops instead of counting the interrupt as a lint failure.
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+
     parser = argparse.ArgumentParser(description=f"Format C/C++ files using {CLANG_FORMAT_EXECUTABLE}")
     parser.add_argument("--overwrite-inplace", action="store_true", help="Overwrite files in place", required=True)
     parser.add_argument("files", nargs="*", help="Additional files to format (if none provided, uses git ls-files)")
