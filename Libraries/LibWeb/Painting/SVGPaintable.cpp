@@ -46,7 +46,8 @@ Optional<CSSPixelRect> SVGPaintable::clip_path_geometry_bounds(Gfx::AffineTransf
         if (!svg_paintable)
             return IterationDecision::Continue;
 
-        auto child_bounds = svg_paintable->clip_path_geometry_bounds(additional_transform);
+        auto child_transform = Gfx::AffineTransform { additional_transform }.multiply(child.layout_node().used_svg_element_transform());
+        auto child_bounds = svg_paintable->clip_path_geometry_bounds(child_transform);
         if (!child_bounds.has_value())
             return IterationDecision::Continue;
 
@@ -62,14 +63,10 @@ Optional<CSSPixelRect> SVGPaintable::clip_path_geometry_bounds(Gfx::AffineTransf
 
 CSSPixelRect SVGPaintable::compute_absolute_rect() const
 {
-    if (auto* svg_svg_box = layout_box().first_ancestor_of_type<Layout::SVGSVGBox>()) {
-        CSSPixelRect rect { offset(), content_size() };
-        for (Layout::Box const* ancestor = svg_svg_box; ancestor; ancestor = ancestor->containing_block()) {
-            if (auto paintable_box = ancestor->paintable_box())
-                rect.translate_by(paintable_box->offset());
-        }
-        return rect;
-    }
+    // SVG content geometry lives in the user space of the nearest ancestor viewport, and layout
+    // places every box viewport-relative already, so no ancestor offsets accumulate.
+    if (layout_box().first_ancestor_of_type<Layout::SVGSVGBox>())
+        return { offset(), content_size() };
     return Paintable::compute_absolute_rect();
 }
 

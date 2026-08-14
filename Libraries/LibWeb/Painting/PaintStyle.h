@@ -97,7 +97,7 @@ private:
 };
 
 struct PatternPaintStyle final {
-    PatternPaintStyle(DisplayListResource tile_display_list, Gfx::FloatRect tile_rect, Gfx::FloatSize content_scale, Optional<Gfx::AffineTransform> pattern_transform);
+    PatternPaintStyle(DisplayListResource tile_display_list, Gfx::FloatRect tile_rect, Gfx::FloatSize content_scale = { 1, 1 }, Optional<Gfx::AffineTransform> pattern_transform = {});
     ~PatternPaintStyle();
 
     DisplayListResource const& tile_display_list() const { return m_tile_display_list; }

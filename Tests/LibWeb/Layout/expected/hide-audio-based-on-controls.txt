@@ -11,24 +11,24 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                   BlockContainer <div.timeline-fill> at [8,8] [0+0+0 0 0+0+300] [0+0+0 5 0+0+0] children: not-inline
               Box <div.button-bar> at [16,17] flex-container(row) flex-item [0+0+8 284 8+0+0] [0+0+4 30 4+0+0] [FFC] children: not-inline
                 Box <button.control-button.play-pause-button> at [16,20] flex-container(row) flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] [FFC] children: not-inline
-                  SVGSVGBox <svg.icon.play-pause-icon> at [16,20] flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] [SVG] children: not-inline
-                    SVGGeometryBox <path.play-path> at [22,25] [0+0+0 13 0+0+0] [0+0+0 14 0+0+0] children: not-inline
+                  SVGSVGBox <svg.icon.play-pause-icon> at [16,20] flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: not-inline
+                    SVGGeometryBox <path.play-path> at [6,5] [0+0+0 13 0+0+0] [0+0+0 14 0+0+0] children: not-inline
                 BlockContainer <span.timestamp> at [48,26] flex-item [0+0+0 80.84375 0+0+0] [0+0+0 12 0+0+0] [BFC] children: inline
                   frag 0 from TextNode start: 0, length: 13, rect: [48,26 80.84375x12] baseline: 9.59375
                       "00:00 / 00:00"
                   TextNode <#text> (not painted)
                 Box <button.control-button.mute-button.high.muted> at [276,20] flex-container(row) flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] [FFC] children: not-inline
-                  SVGSVGBox <svg.icon> at [276,20] flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] [SVG] children: not-inline
-                    SVGGeometryBox <path.muted-line> at [279.5,25] [0+0+0 15.5 0+0+0] [0+0+0 15.5 0+0+0] children: not-inline
-                    SVGGeometryBox <path.volume-high> at [290,24.078125] [0+0+0 6 0+0+0] [0+0+0 15.84375 0+0+0] children: not-inline
-                      SVGClipBox <clipPath#muted-clip> at [276,20] [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] children: not-inline
-                        SVGGeometryBox <path> at [276,20] [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] children: not-inline
-                    SVGGeometryBox <path.volume-low> at [290,27.671875] [0+0+0 2.03125 0+0+0] [0+0+0 8.65625 0+0+0] children: not-inline
-                      SVGClipBox <clipPath#muted-clip> at [276,20] [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] children: not-inline
-                        SVGGeometryBox <path> at [276,20] [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] children: not-inline
-                    SVGGeometryBox <path.speaker> at [280,24] [0+0+0 8 0+0+0] [0+0+0 16 0+0+0] children: not-inline
-                      SVGClipBox <clipPath#muted-clip> at [276,20] [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] children: not-inline
-                        SVGGeometryBox <path> at [276,20] [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] children: not-inline
+                  SVGSVGBox <svg.icon> at [276,20] flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: not-inline
+                    SVGGeometryBox <path.muted-line> at [3.5,5] [0+0+0 15.5 0+0+0] [0+0+0 15.5 0+0+0] children: not-inline
+                    SVGGeometryBox <path.volume-high> at [14,4.078125] [0+0+0 6 0+0+0] [0+0+0 15.84375 0+0+0] children: not-inline
+                      SVGClipBox <clipPath#muted-clip> at [0,0] [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] children: not-inline
+                        SVGGeometryBox <path> at [0,0] [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] children: not-inline
+                    SVGGeometryBox <path.volume-low> at [14,7.671875] [0+0+0 2.03125 0+0+0] [0+0+0 8.65625 0+0+0] children: not-inline
+                      SVGClipBox <clipPath#muted-clip> at [0,0] [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] children: not-inline
+                        SVGGeometryBox <path> at [0,0] [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] children: not-inline
+                    SVGGeometryBox <path.speaker> at [4,4] [0+0+0 8 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+                      SVGClipBox <clipPath#muted-clip> at [0,0] [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] children: not-inline
+                        SVGGeometryBox <path> at [0,0] [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] children: not-inline
       TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
@@ -44,14 +44,14 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
               Paintable (Box<DIV>.button-bar) [8,13 300x38]
                 Paintable (Box<BUTTON>.control-button.play-pause-button) [16,20 24x24]
                   SVGSVGPaintable (SVGSVGBox<svg>.icon.play-pause-icon) [16,20 24x24]
-                    SVGPathPaintable (SVGGeometryBox<path>.play-path) [22,25 13x14]
+                    SVGPathPaintable (SVGGeometryBox<path>.play-path) [6,5 13x14]
                 PaintableWithLines (BlockContainer<SPAN>.timestamp) [48,26 80.84375x12]
                 Paintable (Box<BUTTON>.control-button.mute-button.high.muted) [276,20 24x24]
                   SVGSVGPaintable (SVGSVGBox<svg>.icon) [276,20 24x24]
-                    SVGPathPaintable (SVGGeometryBox<path>.muted-line) [279.5,25 15.5x15.5]
-                    SVGPathPaintable (SVGGeometryBox<path>.volume-high) [290,24.078125 6x15.84375]
-                    SVGPathPaintable (SVGGeometryBox<path>.volume-low) [290,27.671875 2.03125x8.65625]
-                    SVGPathPaintable (SVGGeometryBox<path>.speaker) [280,24 8x16]
+                    SVGPathPaintable (SVGGeometryBox<path>.muted-line) [3.5,5 15.5x15.5]
+                    SVGPathPaintable (SVGGeometryBox<path>.volume-high) [14,4.078125 6x15.84375]
+                    SVGPathPaintable (SVGGeometryBox<path>.volume-low) [14,7.671875 2.03125x8.65625]
+                    SVGPathPaintable (SVGGeometryBox<path>.speaker) [4,4 8x16]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x59] (z-index: auto)

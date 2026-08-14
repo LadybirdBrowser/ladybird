@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/mask-nested-svg-viewbox-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+</style>
+<svg width="100" height="100">
+    <defs>
+        <mask id="m">
+            <svg x="20" y="20" width="40" height="40" viewBox="0 0 10 10">
+                <rect width="10" height="10" fill="white"/>
+            </svg>
+        </mask>
+    </defs>
+    <rect width="100" height="100" fill="green" mask="url(#m)"/>
+</svg>

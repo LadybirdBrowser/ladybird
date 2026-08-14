@@ -6,7 +6,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           ImageBox <img> at [0,0] [0+0+0 800 0+0+0] [0+0+0 40 0+0+0] children: not-inline
             (SVG-as-image isolated context)
             Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
-              SVGSVGBox <svg> at [0,0] [0+0+0 800 0+0+0] [0+0+0 40 0+0+0] [SVG] children: not-inline
+              SVGSVGBox <svg> at [0,0] [0+0+0 800 0+0+0] [0+0+0 40 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: not-inline
                 SVGGeometryBox <rect> at [0,0] [0+0+0 800 0+0+0] [0+0+0 40 0+0+0] children: not-inline
       BlockContainer <(anonymous)> at [0,40] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)

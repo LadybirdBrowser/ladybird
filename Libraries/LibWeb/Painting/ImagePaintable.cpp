@@ -53,7 +53,7 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
                     context.display_list_recorder().save();
                     context.display_list_recorder().add_clip_rect(image_int_rect_device_pixels);
                 }
-                decoded_image_data->paint(context, draw_rect, layout_node().image_rendering(), layout_node().color_scheme());
+                decoded_image_data->paint(context, draw_rect.to_type<float>(), layout_node().image_rendering(), layout_node().color_scheme());
                 if (draw_rect_needs_clip)
                     context.display_list_recorder().restore();
             }

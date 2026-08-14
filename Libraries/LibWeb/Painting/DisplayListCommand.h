@@ -584,9 +584,11 @@ struct PaintNestedDisplayList {
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::PaintNestedDisplayList;
 
     DisplayListResourceId display_list_id;
-    Gfx::IntRect rect;
+    Gfx::FloatRect rect;
+    // The size the nested list was recorded at; replay scales it into the destination rect.
+    Gfx::IntSize list_size;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const { return Gfx::enclosing_int_rect(rect); }
 
     void dump(StringBuilder&) const;
 };

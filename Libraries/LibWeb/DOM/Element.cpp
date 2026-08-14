@@ -142,6 +142,8 @@
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/SVG/SVGAElement.h>
+#include <LibWeb/SVG/SVGForeignObjectElement.h>
+#include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
@@ -1212,7 +1214,7 @@ static bool style_value_changed(CSS::StyleValue const& old_value, CSS::StyleValu
     return !old_value.equals(new_value);
 }
 
-static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidation_between_computed_values(CSS::ComputedValues const& old_computed_values, CSS::ComputedValues const& new_computed_values)
+static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidation_between_computed_values(CSS::ComputedValues const& old_computed_values, CSS::ComputedValues const& new_computed_values, bool element_folds_transform_into_layout = false)
 {
     CSS::StyleComputer::ComputedStyleInvalidation result;
 
@@ -1257,7 +1259,13 @@ static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidati
                 else
                     result.invalidation.mark_all_inherited_style_groups_changed();
             }
-            result.invalidation |= CSS::compute_property_invalidation(property_id, old_value.ptr(), new_value.ptr(), &old_computed_values, &new_computed_values);
+            auto property_invalidation = CSS::compute_property_invalidation(property_id, old_value.ptr(), new_value.ptr(), &old_computed_values, &new_computed_values);
+            // SVG layout folds element transforms into container bounding boxes, so a transform
+            // change needs layout there even though it stays paint-only for CSS boxes.
+            if (element_folds_transform_into_layout
+                && AK::first_is_one_of(property_id, CSS::PropertyID::Transform, CSS::PropertyID::Translate, CSS::PropertyID::Rotate, CSS::PropertyID::Scale))
+                property_invalidation.ensure_at_least(CSS::InvalidationLevel::Relayout);
+            result.invalidation |= property_invalidation;
         }
 
         // With the verification mode enabled, the full diff must agree that a skippable style
@@ -1330,17 +1338,29 @@ static bool style_record_is_unchanged(CSS::StyleEngine::StyleRecordDelta const& 
     return !!delta.old_style_record && delta.old_style_record == delta.new_style_record;
 }
 
+// SVG container layout unions each child's bounding box mapped by the child's own transform. An
+// outermost <svg> is laid out by its CSS parent (as is one re-rooted by foreignObject), so its
+// own transform stays paint-only like any CSS box.
+static bool element_folds_transform_into_svg_container_layout(DOM::Element const& element)
+{
+    if (!is<SVG::SVGGraphicsElement>(element))
+        return false;
+    auto parent = element.parent_element();
+    return parent && is<SVG::SVGElement>(*parent) && !is<SVG::SVGForeignObjectElement>(*parent);
+}
+
 static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidation_with_cache(CSS::StyleComputer& style_computer, CSS::ComputedValues const& old_computed_values, CSS::ComputedValues const& new_computed_values, ElementDependentInvalidationState const& old_state, DOM::AbstractElement& abstract_element, CSS::StyleEngine::StyleRecordDelta const& style_record_delta, ElementDependentInvalidationMode mode = ElementDependentInvalidationMode::Full)
 {
     CSS::StyleComputer::ComputedStyleInvalidation result;
+    bool element_folds_transform_into_layout = element_folds_transform_into_svg_container_layout(abstract_element.element());
     if (style_record_is_unchanged(style_record_delta)) {
         ++abstract_element.document().style_invalidation_counters().style_record_property_diffs_skipped;
-    } else if (auto cached = style_computer.cached_computed_style_invalidation(style_record_delta); cached.has_value()) {
+    } else if (auto cached = style_computer.cached_computed_style_invalidation(style_record_delta, element_folds_transform_into_layout); cached.has_value()) {
         ++abstract_element.document().style_invalidation_counters().style_record_property_damage_cache_hits;
         result = cached.release_value();
     } else {
-        result = compute_required_invalidation_between_computed_values(old_computed_values, new_computed_values);
-        style_computer.cache_computed_style_invalidation(style_record_delta, result);
+        result = compute_required_invalidation_between_computed_values(old_computed_values, new_computed_values, element_folds_transform_into_layout);
+        style_computer.cache_computed_style_invalidation(style_record_delta, element_folds_transform_into_layout, result);
     }
 
     // The table fixup algorithm needs an authored box's display from before box type

@@ -26,6 +26,15 @@ public:
     void set_svg_viewport_size(CSSPixelSize viewport_size) { m_svg_viewport_size = viewport_size; }
     CSSPixelSize svg_viewport_size() const { return m_svg_viewport_size; }
 
+    virtual Optional<Gfx::AffineTransform> svg_viewport_transform() const override { return m_svg_viewport_transform; }
+    virtual void set_svg_viewport_transform(Gfx::AffineTransform transform) override { m_svg_viewport_transform = transform; }
+
+    virtual void reset_for_relayout() override
+    {
+        Paintable::reset_for_relayout();
+        m_svg_viewport_transform = {};
+    }
+
 protected:
     SVGSVGPaintable(Layout::SVGSVGBox const&);
 
@@ -34,6 +43,7 @@ private:
 
     SVGGraphicsPaintable::ComputedTransforms m_computed_transforms;
     CSSPixelSize m_svg_viewport_size;
+    Optional<Gfx::AffineTransform> m_svg_viewport_transform;
 };
 
 template<>

@@ -7,7 +7,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <div#b> at [8,8] inline-block [0+0+0 100 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
           frag 0 from SVGSVGBox start: 0, length: 0, rect: [8,8 100x50] baseline: 50
           TextNode <#text> (not painted)
-          SVGSVGBox <svg> at [8,8] [0+0+0 100 0+0+0] [0+0+0 50 0+0+0] [SVG] children: inline
+          SVGSVGBox <svg> at [8,8] [0+0+0 100 0+0+0] [0+0+0 50 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: inline
             TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]

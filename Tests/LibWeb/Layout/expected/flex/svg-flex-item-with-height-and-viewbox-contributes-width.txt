@@ -2,8 +2,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 24 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 24 0+0+0] children: not-inline
       Box <div.row> at [0,0] flex-container(row) [0+0+0 800 0+0+0] [0+0+0 24 0+0+0] [FFC] children: not-inline
-        SVGSVGBox <svg> at [0,0] flex-item [0+0+0 190.53125 0+0+0] [0+0+0 24 0+0+0] [SVG] children: not-inline
-          SVGGeometryBox <rect> at [0,0] [0+0+0 190.53125 0+0+0] [0+0+0 24 0+0+0] children: not-inline
+        SVGSVGBox <svg> at [0,0] flex-item [0+0+0 190.53125 0+0+0] [0+0+0 24 0+0+0] viewport-transform=[0.7272185 0 0 0.7272185 0 0] [SVG] children: not-inline
+          SVGGeometryBox <rect> at [0,0] [0+0+0 262 0+0+0] [0+0+0 33 0+0+0] children: not-inline
         BlockContainer <div.sibling> at [190.53125,0] flex-item [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
       BlockContainer <(anonymous)> at [0,24] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
@@ -13,7 +13,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [0,0 800x24]
       Paintable (Box<DIV>.row) [0,0 800x24]
         SVGSVGPaintable (SVGSVGBox<svg>) [0,0 190.53125x24]
-          SVGPathPaintable (SVGGeometryBox<rect>) [0,0 190.53125x24]
+          SVGPathPaintable (SVGGeometryBox<rect>) [0,0 262x33]
         PaintableWithLines (BlockContainer<DIV>.sibling) [190.53125,0 20x20]
       PaintableWithLines (BlockContainer(anonymous)) [0,24 800x0]
 

@@ -4,7 +4,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       Box <section> at [0,0] flex-container(row) [0+0+0 50 0+0+750] [0+0+0 20 0+0+0] [FFC] children: not-inline
         BlockContainer <div> at [0,0] flex-item [0+0+0 10 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
         Box <span> at [10,0] flex-container(row) flex-item [0+0+0 40 0+0+0] [0+0+0 20 0+0+0] [FFC] children: not-inline
-          SVGSVGBox <svg> at [10,0] flex-item [0+0+0 40 0+0+0] [0+0+0 20 0+0+0] [SVG] children: not-inline
+          SVGSVGBox <svg> at [10,0] flex-item [0+0+0 40 0+0+0] [0+0+0 20 0+0+0] viewport-transform=[20 0 0 20 0 0] [SVG] children: not-inline
       BlockContainer <(anonymous)> at [0,20] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 

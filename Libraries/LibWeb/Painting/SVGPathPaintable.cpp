@@ -28,13 +28,7 @@ Optional<CSSPixelRect> SVGPathPaintable::clip_path_geometry_bounds(Gfx::AffineTr
     if (!contributes_to_clip_path() || !computed_path().has_value())
         return {};
 
-    auto const* svg_node = layout_box().first_ancestor_of_type<Layout::SVGSVGBox>();
-    if (!svg_node || !svg_node->paintable_box())
-        return {};
-
-    auto path = computed_path()->copy_transformed(computed_transforms().svg_to_css_pixels_transform(additional_transform));
-    path.offset(svg_node->paintable_box()->absolute_rect().location().to_type<float>());
-
+    auto path = computed_path()->copy_transformed(additional_transform);
     return path.bounding_box().to_type<CSSPixels>();
 }
 
@@ -69,12 +63,11 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
 
     auto& graphics_element = dom_node();
 
-    auto const* svg_node = layout_box().first_ancestor_of_type<Layout::SVGSVGBox>();
-    auto offset = context.rounded_device_point(svg_node->paintable_box()->absolute_position()).to_type<int>().to_type<float>();
-
-    auto paint_transform = computed_transforms().svg_to_device_pixels_transform(context);
+    // Content below the viewport transform node records in user units scaled by the device pixel
+    // ratio; the visual context tree applies the viewport and element transforms at replay.
+    auto device_scale = static_cast<float>(context.device_pixels_per_css_pixel());
+    auto paint_transform = Gfx::AffineTransform {}.scale(device_scale, device_scale);
     auto path = computed_path()->copy_transformed(paint_transform);
-    path.offset(offset);
 
     if (context.draw_svg_geometry_for_clip_path()) {
         // https://drafts.fxtf.org/css-masking/#ClipPathElement:
@@ -90,8 +83,11 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
         return;
     }
 
+    Gfx::FloatRect viewport_rect {};
+    if (auto const* viewport_paintable = nearest_svg_viewport_paintable_of(layout_node()))
+        viewport_rect = svg_viewport_user_rect(*viewport_paintable);
     SVG::SVGPaintContext paint_context {
-        .viewport = svg_node->view_box_or_viewport_rect(),
+        .viewport = viewport_rect,
         .path_bounding_box = computed_path()->bounding_box(),
         .paint_transform = paint_transform,
     };
@@ -149,8 +145,16 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
 
         // https://svgwg.org/svg2-draft/painting.html#PaintingVectorEffects
         // With the non-scaling-stroke vector effect, stroke outline shall be calculated in the "host" coordinate space instead of user coordinate system.
-        // Note: This is assuming .x_scale() == .y_scale() (which it does currently).
-        auto stroke_scale = layout_node().vector_effect() == CSS::VectorEffect::NonScalingStroke ? 1.0f : paint_transform.x_scale();
+        // NB: A scalar cannot compensate a non-uniform accumulated scale exactly; the geometric
+        //     mean spreads the residual error over both axes.
+        auto stroke_scale = device_scale;
+        if (layout_node().vector_effect() == CSS::VectorEffect::NonScalingStroke) {
+            auto accumulated_scale = context.display_list_recorder().visual_context_tree().accumulated_2d_scale(
+                context.accumulated_visual_context_index_of(*this), ScrollStateSnapshot {}, AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
+            auto accumulated_scale_area = accumulated_scale.width() * accumulated_scale.height();
+            if (accumulated_scale_area > 0)
+                stroke_scale = device_scale / sqrtf(accumulated_scale_area);
+        }
         float stroke_thickness = graphics_element.stroke_width().value_or(1) * stroke_scale;
         auto stroke_dasharray = graphics_element.stroke_dasharray();
         for (auto& value : stroke_dasharray)
@@ -221,18 +225,16 @@ void SVGPathPaintable::record_hit_test_items(DisplayListRecordingContext& contex
     if (!graphics_element.fill_color().has_value())
         return;
 
-    auto const* svg_node = layout_box().first_ancestor_of_type<Layout::SVGSVGBox>();
-    if (!svg_node || !svg_node->paintable_box())
-        return;
-
-    auto transformed_path = computed_path()->copy_transformed(computed_transforms().svg_to_css_pixels_transform());
-    transformed_path.offset(svg_node->paintable_box()->absolute_rect().location().to_type<float>());
-    auto bounding_box = transformed_path.bounding_box().to_type<CSSPixels>();
+    // The path records raw in user units; hit-test points inverse-map through the visual context
+    // chain into the same space. The item rect rounds outward so fixed-point quantization can
+    // never reject a valid hit.
+    auto path = *computed_path();
+    auto bounding_box = Gfx::enclosing_int_rect(path.bounding_box()).to_type<CSSPixels>();
     if (bounding_box.is_empty())
         return;
 
     auto winding_rule = to_gfx_winding_rule(graphics_element.fill_rule().value_or(SVG::FillRule::Nonzero));
-    hit_test_display_list->append_svg_path(const_cast<SVGPathPaintable&>(*this), move(transformed_path), winding_rule, bounding_box, accumulated_visual_context_index());
+    hit_test_display_list->append_svg_path(const_cast<SVGPathPaintable&>(*this), move(path), winding_rule, bounding_box, accumulated_visual_context_index());
 }
 
 }

@@ -60,6 +60,7 @@
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/ResizeHandle.h>
+#include <LibWeb/Painting/SVGForeignObjectPaintable.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/Painting/SVGPaintable.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
@@ -70,6 +71,7 @@
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
+#include <LibWeb/SVG/SVGFitToViewBox.h>
 
 namespace Web::Painting {
 
@@ -841,6 +843,28 @@ static void record_blocking_wheel_event_region(Paintable const& paintable_box, D
     });
 }
 
+Paintable const* nearest_svg_viewport_paintable_of(Layout::Node const& layout_node)
+{
+    for (auto const* ancestor = layout_node.parent(); ancestor; ancestor = ancestor->parent()) {
+        if (auto paintable = ancestor->paintable(); paintable && paintable->svg_viewport_transform().has_value())
+            return paintable.ptr();
+    }
+    return nullptr;
+}
+
+Gfx::FloatRect svg_viewport_user_rect(Paintable const& viewport_paintable)
+{
+    if (auto const* svg_svg_box = as_if<Layout::SVGSVGBox>(viewport_paintable.layout_node()))
+        return svg_svg_box->view_box_or_viewport_rect();
+    if (auto dom_node = viewport_paintable.dom_node()) {
+        if (auto const* fit_to_view_box = as_if<SVG::SVGFitToViewBox>(*dom_node)) {
+            if (auto view_box = fit_to_view_box->view_box(); view_box.has_value())
+                return { static_cast<float>(view_box->min_x), static_cast<float>(view_box->min_y), static_cast<float>(view_box->width), static_cast<float>(view_box->height) };
+        }
+    }
+    return { {}, viewport_paintable.absolute_rect().size().to_type<float>() };
+}
+
 ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, Paintable const& paintable_box)
 {
     auto const& layout_node = paintable_box.layout_node();
@@ -862,17 +886,18 @@ ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, Paintab
                 // Filter primitive lengths are specified in the filtered element's user coordinate system, but the
                 // resulting filter operates in device pixels. Compute the user-unit-to-device-pixel scale so the
                 // filter can convert its lengths accordingly.
+                // The replay-time layer maps filter parameters through the accumulated transform,
+                // so only the device pixel ratio — which lives in recorded coordinates, not in the
+                // transform chain — converts here.
                 auto device_pixels_per_css_pixel = paintable_box.document().page().client().device_pixels_per_css_pixel();
                 auto filter_scale = Gfx::FloatPoint { device_pixels_per_css_pixel, device_pixels_per_css_pixel };
-                if (auto const* svg_graphics_paintable = as_if<SVGGraphicsPaintable>(paintable_box)) {
-                    auto svg_to_css_pixels = svg_graphics_paintable->computed_transforms().svg_to_css_pixels_transform();
-                    filter_scale.scale_by(svg_to_css_pixels.x_scale(), svg_to_css_pixels.y_scale());
-                }
                 result.svg_filter = filter_element->gfx_filter(layout_node, filter_scale);
+                // The bounds live in the filtered element's user space; an element without
+                // geometry of its own falls back to the whole enclosing viewport rect there.
                 auto bounds = paintable_box.absolute_border_box_rect();
                 if (bounds.is_empty()) {
-                    if (auto svg_ancestor = paintable_box.first_ancestor_of_type<SVGSVGPaintable>())
-                        result.svg_filter_bounds = svg_ancestor->absolute_rect();
+                    if (auto const* viewport_paintable = nearest_svg_viewport_paintable_of(paintable_box.layout_node()))
+                        result.svg_filter_bounds = svg_viewport_user_rect(*viewport_paintable).to_type<CSSPixels>();
                 }
                 if (!bounds.is_empty())
                     result.svg_filter_bounds = bounds;
@@ -1349,8 +1374,16 @@ CSSPixelPoint Paintable::offset() const
 CSSPixelRect Paintable::compute_absolute_rect() const
 {
     CSSPixelRect rect { offset(), content_size() };
-    for (auto block = containing_block(); block; block = block->containing_block())
+    for (auto block = containing_block(); block; block = block->containing_block()) {
+        // SVG content offsets are viewport-relative: accumulation never crosses into an enclosing
+        // SVG coordinate space, and a foreignObject's own offset is the last one that applies to
+        // the CSS content inside it.
+        if (is<SVGSVGPaintable>(*block) || is<SVGPaintable>(*block))
+            break;
         rect.translate_by(block->offset());
+        if (is<SVGForeignObjectPaintable>(*block))
+            break;
+    }
     return rect;
 }
 
@@ -2930,15 +2963,16 @@ CSSPixelRect Paintable::transform_reference_box() const
         // Uses the stroke bounding box as reference box.
         // FIXME: For now we're using the border rect as an approximation.
         return absolute_border_box_rect();
-    case CSS::TransformBox::ViewBox:
+    case CSS::TransformBox::ViewBox: {
         // Uses the nearest SVG viewport as reference box.
         // FIXME: If a viewBox attribute is specified for the SVG viewport creating element:
         //  - The reference box is positioned at the origin of the coordinate system established by the viewBox attribute.
         //  - The dimension of the reference box is set to the width and height values of the viewBox attribute.
-        auto svg_paintable = first_ancestor_of_type<Painting::SVGSVGPaintable>();
-        if (!svg_paintable)
+        auto const* viewport_paintable = nearest_svg_viewport_paintable_of(layout_node());
+        if (!viewport_paintable)
             return absolute_border_box_rect();
-        return svg_paintable->absolute_rect();
+        return svg_viewport_user_rect(*viewport_paintable).to_type<CSSPixels>();
+    }
     }
     VERIFY_NOT_REACHED();
 }

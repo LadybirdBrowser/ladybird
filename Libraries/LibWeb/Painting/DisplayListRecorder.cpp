@@ -270,12 +270,13 @@ DisplayListCommandRange DisplayListRecorder::append_cached_command_range(Display
     return { destination_offset, source_range.size };
 }
 
-void DisplayListRecorder::paint_nested_display_list(DisplayListResource const& display_list, Gfx::IntRect rect)
+void DisplayListRecorder::paint_nested_display_list(DisplayListResource const& display_list, Gfx::FloatRect rect, Gfx::IntSize list_size)
 {
     auto display_list_id = resource_storage().add_display_list(display_list.display_list, display_list.visual_context_tree);
     append_command(PaintNestedDisplayList {
         display_list_id,
         rect,
+        list_size,
     });
 }
 

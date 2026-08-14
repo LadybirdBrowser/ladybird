@@ -93,7 +93,7 @@ pub struct FfiCommitSink {
     pub emit_fragment: unsafe extern "C" fn(*mut c_void, FfiCommittedFragment),
     pub emit_inline_box_piece: unsafe extern "C" fn(*mut c_void, FfiInlineBoxPiece),
     pub finish_line_data: unsafe extern "C" fn(*mut c_void),
-    pub set_computed_svg_transforms: unsafe extern "C" fn(*mut c_void, *mut c_void, crate::layout::FfiSvgComputedTransforms),
+    pub set_svg_viewport_transform: unsafe extern "C" fn(*mut c_void, *mut c_void, crate::layout::FfiAffineTransform),
     pub set_svg_viewport_size: unsafe extern "C" fn(*mut c_void, *mut c_void, crate::layout::FfiCssPixelSize),
     pub set_computed_svg_path: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, u64),
     pub set_grid_layout_data: unsafe extern "C" fn(*mut c_void, *mut c_void, *const FfiGridLayoutData),
@@ -223,8 +223,8 @@ fn commit_subtree(
         }
 
         unsafe {
-            if let Some(transforms) = fragment.computed_svg_transforms {
-                (sink.set_computed_svg_transforms)(sink.context, paintable, transforms);
+            if let Some(transform) = fragment.svg_viewport_transform {
+                (sink.set_svg_viewport_transform)(sink.context, paintable, transform);
             }
             if let Some(viewport_size) = fragment.svg_viewport_size {
                 (sink.set_svg_viewport_size)(sink.context, paintable, viewport_size);

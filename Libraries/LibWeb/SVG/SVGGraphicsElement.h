@@ -31,8 +31,6 @@ class WEB_API SVGGraphicsElement : public SVGElement {
     WEB_WRAPPABLE(SVGGraphicsElement, SVGElement);
 
 public:
-    virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
-
     Optional<Gfx::Color> fill_color() const;
     Optional<Gfx::Color> stroke_color() const;
     Vector<float> stroke_dasharray() const;
@@ -76,17 +74,17 @@ public:
     GC::Ptr<Geometry::DOMMatrix> get_ctm();
     GC::Ptr<Geometry::DOMMatrix> get_screen_ctm();
 
-    virtual Gfx::AffineTransform element_transform() const
+    // The transform property carries the transform attribute through the cascade; this is the
+    // extra transformation some elements apply beyond it, such as the x/y translation of <use>.
+    virtual Gfx::AffineTransform additional_element_transform() const
     {
-        return m_transform;
+        return {};
     }
 
 protected:
     SVGGraphicsElement(DOM::Document&, DOM::QualifiedName);
 
     Optional<Painting::PaintStyle> svg_paint_computed_value_to_gfx_paint_style(SVGPaintContext const& paint_context, Optional<CSS::SVGPaint> const& paint_value, DisplayListRecordingContext* = nullptr) const;
-
-    Gfx::AffineTransform m_transform = {};
 
     GC::Ptr<DOM::Element> resolve_url_to_element(CSS::URL const& url) const;
     GC::Ptr<DOM::Element> resolve_url_to_element(Utf16String const& url) const;

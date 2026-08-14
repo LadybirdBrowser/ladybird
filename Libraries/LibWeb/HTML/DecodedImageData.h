@@ -40,7 +40,7 @@ public:
     [[nodiscard]] bool is_cors_cross_origin() const { return m_is_cors_cross_origin; }
     void set_is_cors_cross_origin(bool value) { m_is_cors_cross_origin = value; }
 
-    virtual void paint([[maybe_unused]] DisplayListRecordingContext&, [[maybe_unused]] Gfx::IntRect dst_rect, CSS::ImageRendering, CSS::PreferredColorScheme) const = 0;
+    virtual void paint([[maybe_unused]] DisplayListRecordingContext&, [[maybe_unused]] Gfx::FloatRect dst_rect, CSS::ImageRendering, CSS::PreferredColorScheme) const = 0;
     // An SVG used as an image resolves `prefers-color-scheme` from the used `color-scheme` of the
     // element referencing it, so the scheme is part of what is being asked for rather than a
     // property of the page.

@@ -251,13 +251,13 @@ Optional<CSSPixelFraction> AnimatedBitmapDecodedImageData::intrinsic_aspect_rati
     return CSSPixels(m_size.width()) / CSSPixels(m_size.height());
 }
 
-void AnimatedBitmapDecodedImageData::paint(DisplayListRecordingContext& context, Gfx::IntRect dst_rect, CSS::ImageRendering image_rendering, CSS::PreferredColorScheme) const
+void AnimatedBitmapDecodedImageData::paint(DisplayListRecordingContext& context, Gfx::FloatRect dst_rect, CSS::ImageRendering image_rendering, CSS::PreferredColorScheme) const
 {
     auto decoded_frame = current_frame();
     if (!decoded_frame.has_value())
         return;
 
-    auto scaling_mode = CSS::to_gfx_scaling_mode(image_rendering, m_size, dst_rect.size());
+    auto scaling_mode = CSS::to_gfx_scaling_mode(image_rendering, m_size, dst_rect.to_rounded<int>().size());
 
     context.display_list_recorder().draw_scaled_decoded_image_frame(dst_rect, *decoded_frame, scaling_mode);
 }

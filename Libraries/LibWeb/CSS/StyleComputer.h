@@ -128,8 +128,8 @@ public:
         RequiredInvalidationAfterStyleChange invalidation;
         bool any_computed_value_changed { false };
     };
-    [[nodiscard]] Optional<ComputedStyleInvalidation> cached_computed_style_invalidation(StyleEngine::StyleRecordDelta const&) const;
-    void cache_computed_style_invalidation(StyleEngine::StyleRecordDelta const&, ComputedStyleInvalidation) const;
+    [[nodiscard]] Optional<ComputedStyleInvalidation> cached_computed_style_invalidation(StyleEngine::StyleRecordDelta const&, bool element_folds_transform_into_layout) const;
+    void cache_computed_style_invalidation(StyleEngine::StyleRecordDelta const&, bool element_folds_transform_into_layout, ComputedStyleInvalidation) const;
 
     // Publish a computed style built outside the ordinary cascade path, such as an inherited-group
     // swap, so StyleEngine's final node-to-style relation remains authoritative.
@@ -395,6 +395,7 @@ private:
     struct ComputedStyleInvalidationCacheEntry {
         StyleRecordID old_style_record;
         StyleRecordID new_style_record;
+        bool element_folds_transform_into_layout { false };
         ComputedStyleInvalidation result;
     };
     mutable HashMap<u32, Vector<ComputedStyleInvalidationCacheEntry>> m_computed_style_invalidation_cache;

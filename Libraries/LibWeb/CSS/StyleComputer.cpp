@@ -3437,7 +3437,7 @@ static Optional<u32> style_record_transition_key(StyleEngine::StyleRecordDelta c
     return pair_int_hash(Traits<CSS::StyleRecordID>::hash(delta.old_style_record), Traits<CSS::StyleRecordID>::hash(delta.new_style_record));
 }
 
-Optional<StyleComputer::ComputedStyleInvalidation> StyleComputer::cached_computed_style_invalidation(StyleEngine::StyleRecordDelta const& delta) const
+Optional<StyleComputer::ComputedStyleInvalidation> StyleComputer::cached_computed_style_invalidation(StyleEngine::StyleRecordDelta const& delta, bool element_folds_transform_into_layout) const
 {
     auto key = style_record_transition_key(delta);
     if (!key.has_value())
@@ -3446,13 +3446,15 @@ Optional<StyleComputer::ComputedStyleInvalidation> StyleComputer::cached_compute
     if (!entries.has_value())
         return {};
     for (auto const& entry : entries.value()) {
-        if (entry.old_style_record == delta.old_style_record && entry.new_style_record == delta.new_style_record)
+        if (entry.old_style_record == delta.old_style_record
+            && entry.new_style_record == delta.new_style_record
+            && entry.element_folds_transform_into_layout == element_folds_transform_into_layout)
             return entry.result;
     }
     return {};
 }
 
-void StyleComputer::cache_computed_style_invalidation(StyleEngine::StyleRecordDelta const& delta, ComputedStyleInvalidation result) const
+void StyleComputer::cache_computed_style_invalidation(StyleEngine::StyleRecordDelta const& delta, bool element_folds_transform_into_layout, ComputedStyleInvalidation result) const
 {
     auto key = style_record_transition_key(delta);
     if (!key.has_value())
@@ -3460,6 +3462,7 @@ void StyleComputer::cache_computed_style_invalidation(StyleEngine::StyleRecordDe
     m_computed_style_invalidation_cache.ensure(*key).append({
         .old_style_record = delta.old_style_record,
         .new_style_record = delta.new_style_record,
+        .element_folds_transform_into_layout = element_folds_transform_into_layout,
         .result = move(result),
     });
 }

@@ -2,8 +2,10 @@ AccumulatedVisualContext Tree:
   [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
     [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
       [2] clip=[8,8 100x100]
-        [3] mask=[-1,-2 120x120] kind=luminance origin=svg-mask (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>#fo))
-          [4] clip=[9,8 100x100] (PaintableWithLines(BlockContainer(anonymous)))
+        [3] svg-viewport-transform=[1,0,0,1,8,8] origin=(0,0)
+          [4] transform=[1,0,0,1,1,0] origin=(0,0)
+            [5] mask=[-10,-10 120x120] kind=luminance origin=svg-mask (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>#fo))
+              [6] clip=[0,0 100x100] (PaintableWithLines(BlockContainer(anonymous)))
 
 DisplayList:
 SaveLayer@0
@@ -12,10 +14,10 @@ SaveLayer@0
   CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x100]
   CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x100]
   CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 100x100]
-  CompositorWheelHitTestTarget@3 target_scroll_node_index=0 rect=[9,8 100x100]
-  CompositorWheelHitTestTarget@4 target_scroll_node_index=0 rect=[9,8 100x100]
-  FillRect@4 rect=[9,8 100x100] color=rgb(0, 0, 0)
+  CompositorWheelHitTestTarget@5 target_scroll_node_index=0 rect=[0,0 100x100]
+  CompositorWheelHitTestTarget@6 target_scroll_node_index=0 rect=[0,0 100x100]
+  FillRect@6 rect=[0,0 100x100] color=rgb(0, 0, 0)
 Restore@0
-MaskDisplayList for context 3:
-  FillPath@0 path_bounding_rect=[8,8 100x100]
+MaskDisplayList for context 5:
+  FillPath@0 path_bounding_rect=[0,0 100x100]
 

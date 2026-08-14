@@ -124,7 +124,7 @@ pub(crate) struct LineData {
 pub(crate) struct UsedValuesRareData {
     pub(crate) table_cell_coordinates: Option<FfiTableCellCoordinates>,
     pub(crate) computed_svg_path: Option<std::rc::Rc<libgfx_rust::path::OwnedPath>>,
-    pub(crate) computed_svg_transforms: Option<crate::layout::FfiSvgComputedTransforms>,
+    pub(crate) svg_viewport_transform: Option<crate::layout::FfiAffineTransform>,
     pub(crate) svg_viewport_size: Option<crate::layout::FfiCssPixelSize>,
     pub(crate) grid_layout_data: Option<std::rc::Rc<OwnedGridLayoutData>>,
     pub(crate) flex_layout_data: Option<std::rc::Rc<OwnedFlexLayoutData>>,
@@ -138,7 +138,7 @@ impl UsedValuesRareData {
         let Self {
             table_cell_coordinates,
             computed_svg_path,
-            computed_svg_transforms,
+            svg_viewport_transform,
             svg_viewport_size,
             grid_layout_data,
             flex_layout_data,
@@ -151,7 +151,7 @@ impl UsedValuesRareData {
             "a run authored a parent-owned rare payload on its root record"
         );
         if computed_svg_path.is_none()
-            && computed_svg_transforms.is_none()
+            && svg_viewport_transform.is_none()
             && svg_viewport_size.is_none()
             && grid_layout_data.is_none()
             && flex_layout_data.is_none()
@@ -163,8 +163,8 @@ impl UsedValuesRareData {
         if let Some(path) = computed_svg_path {
             rare.computed_svg_path = Some(path);
         }
-        if let Some(transforms) = computed_svg_transforms {
-            rare.computed_svg_transforms = Some(transforms);
+        if let Some(transform) = svg_viewport_transform {
+            rare.svg_viewport_transform = Some(transform);
         }
         if let Some(size) = svg_viewport_size {
             rare.svg_viewport_size = Some(size);

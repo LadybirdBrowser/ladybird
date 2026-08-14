@@ -588,6 +588,19 @@ public:
     RefPtr<CSS::TransformationStyleValue const> const& rotate() const { return style_group<CSS::ComputedValues::TransformValues>().rotate; }
     RefPtr<CSS::TransformationStyleValue const> const& translate() const { return style_group<CSS::ComputedValues::TransformValues>().translate; }
     RefPtr<CSS::TransformationStyleValue const> const& scale() const { return style_group<CSS::ComputedValues::TransformValues>().scale; }
+    // https://drafts.csswg.org/css-transforms-2/#ctm steps 3-7.
+    template<typename Callback>
+    void for_each_transform_component(Callback&& callback) const
+    {
+        if (auto const& translate = this->translate())
+            callback(*translate);
+        if (auto const& rotate = this->rotate())
+            callback(*rotate);
+        if (auto const& scale = this->scale())
+            callback(*scale);
+        for (auto const& transform : transformations())
+            callback(*transform);
+    }
     Optional<CSSPixels> const& perspective() const { return style_group<CSS::ComputedValues::TransformValues>().perspective; }
     CSS::Position const& perspective_origin() const { return style_group<CSS::ComputedValues::TransformValues>().perspective_origin; }
     Optional<CSS::MaskReference> const& mask() const { return style_group<CSS::ComputedValues::MaskValues>().mask; }
@@ -619,6 +632,7 @@ public:
     bool is_inline_table() const;
     bool has_replaced_element_table_display_adjustment() const;
     bool is_transformable() const;
+    Gfx::AffineTransform used_svg_element_transform() const;
     CSS::TransformStyle used_transform_style() const;
     bool establishes_or_extends_a_3d_rendering_context() const;
     bool participates_in_a_3d_rendering_context() const;

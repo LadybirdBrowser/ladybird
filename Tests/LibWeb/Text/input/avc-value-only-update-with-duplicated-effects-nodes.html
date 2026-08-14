@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="static-box" style="width: 100px; height: 100px; opacity: 0.5"></div>
+<div id="relative-box" style="position: relative; width: 100px; height: 100px; opacity: 0.5"></div>
+<script>
+    test(() => {
+        const staticBox = document.getElementById('static-box');
+        const relativeBox = document.getElementById('relative-box');
+        const lines = [];
+
+        staticBox.getBoundingClientRect();
+        const initialBuildCount = internals.accumulatedVisualContextTreeBuildCount();
+
+        staticBox.style.opacity = '0.6';
+        staticBox.getBoundingClientRect();
+        lines.push(`builds after opacity change on a static box: ${internals.accumulatedVisualContextTreeBuildCount() - initialBuildCount}`);
+
+        relativeBox.style.opacity = '0.7';
+        relativeBox.getBoundingClientRect();
+        lines.push(`builds after opacity change on a relative box: ${internals.accumulatedVisualContextTreeBuildCount() - initialBuildCount}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

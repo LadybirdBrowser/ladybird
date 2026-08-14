@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/pattern-under-viewbox-scale-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+</style>
+<svg width="200" height="200" viewBox="0 0 50 50">
+    <defs>
+        <pattern id="checker" width="20" height="20" patternUnits="userSpaceOnUse">
+            <rect width="10" height="10" fill="teal"/>
+            <rect x="10" y="10" width="10" height="10" fill="teal"/>
+        </pattern>
+    </defs>
+    <rect width="40" height="40" fill="url(#checker)"/>
+</svg>

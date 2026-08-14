@@ -32,10 +32,12 @@ CSS::SizeWithAspectRatio SVGSVGBox::natural_size() const
 
 Gfx::FloatRect SVGSVGBox::view_box_or_viewport_rect() const
 {
-    if (auto view_box = dom_node().view_box(); view_box.has_value())
+    // active_view_box covers <view> redirection and the svg-as-image fallback viewBox, which
+    // layout used to build the geometry these callers interpret.
+    if (auto view_box = dom_node().active_view_box(); view_box.has_value())
         return { view_box->min_x, view_box->min_y, view_box->width, view_box->height };
-    if (auto paintable = paintable_box())
-        return { {}, paintable->absolute_rect().size().to_type<float>() };
+    if (auto const* paintable = as_if<Painting::SVGSVGPaintable>(paintable_box().ptr()))
+        return { {}, { paintable->svg_viewport_size().width().to_float(), paintable->svg_viewport_size().height().to_float() } };
     return {};
 }
 

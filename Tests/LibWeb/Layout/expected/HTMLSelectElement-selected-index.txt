@@ -10,8 +10,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             TextNode <#text> (not painted)
           BlockContainer <div> at [75.390625,10] positioned [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
             frag 0 from SVGSVGBox start: 0, length: 0, rect: [75.390625,10 16x16] baseline: 16
-            SVGSVGBox <svg> at [75.390625,10] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [SVG] children: not-inline
-              SVGGeometryBox <path> at [79.390625,15.71875] [0+0+0 8 0+0+0] [0+0+0 4.953125 0+0+0] children: not-inline
+            SVGSVGBox <svg> at [75.390625,10] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] viewport-transform=[0.6666667 0 0 0.6666667 0 0] [SVG] children: not-inline
+              SVGGeometryBox <path> at [6,8.578125] [0+0+0 12 0+0+0] [0+0+0 7.421875 0+0+0] children: not-inline
       TextNode <#text> (not painted)
       TextNode <#text> (not painted)
 
@@ -23,7 +23,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           PaintableWithLines (BlockContainer<DIV>) [13,10 58.390625x16]
           PaintableWithLines (BlockContainer<DIV>) [75.390625,10 16x16]
             SVGSVGPaintable (SVGSVGBox<svg>) [75.390625,10 16x16]
-              SVGPathPaintable (SVGGeometryBox<path>) [79.390625,15.71875 8x4.953125]
+              SVGPathPaintable (SVGGeometryBox<path>) [6,8.578125 12x7.421875]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x36] (z-index: auto)

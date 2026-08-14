@@ -3,7 +3,8 @@ AccumulatedVisualContext Tree:
   [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
     [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
       [2] clip=[8,8 200x200]
-        [3] mask=[-2,-2 120x120] kind=alpha origin=svg-mask (SVGPathPaintable(SVGGeometryBox<rect>))
+        [3] svg-viewport-transform=[1,0,0,1,8,8] origin=(0,0)
+          [4] mask=[-10,-10 120x120] kind=alpha origin=svg-mask (SVGPathPaintable(SVGGeometryBox<rect>))
 
 DisplayList:
 SaveLayer@0
@@ -12,21 +13,22 @@ SaveLayer@0
   CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x200]
   CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x200]
   CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 200x200]
-  FillPath@3 path_bounding_rect=[8,8 100x100]
+  FillPath@4 path_bounding_rect=[0,0 100x100]
 Restore@0
-MaskDisplayList for context 3:
-  FillPath@0 path_bounding_rect=[8,8 100x50]
 MaskDisplayList for context 4:
-  FillPath@0 path_bounding_rect=[8,8 100x50]
+  FillPath@0 path_bounding_rect=[0,0 100x50]
 MaskDisplayList for context 5:
-  FillPath@0 path_bounding_rect=[8,8 100x50]
+  FillPath@0 path_bounding_rect=[0,0 100x50]
+MaskDisplayList for context 6:
+  FillPath@0 path_bounding_rect=[0,0 100x50]
 
 After switching to mask-type luminance:
 AccumulatedVisualContext Tree:
   [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
     [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
       [2] clip=[8,8 200x200]
-        [3] mask=[-2,-2 120x120] kind=luminance origin=svg-mask (SVGPathPaintable(SVGGeometryBox<rect>))
+        [3] svg-viewport-transform=[1,0,0,1,8,8] origin=(0,0)
+          [4] mask=[-10,-10 120x120] kind=luminance origin=svg-mask (SVGPathPaintable(SVGGeometryBox<rect>))
 
 DisplayList:
 SaveLayer@0
@@ -35,12 +37,12 @@ SaveLayer@0
   CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x200]
   CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x200]
   CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 200x200]
-  FillPath@3 path_bounding_rect=[8,8 100x100]
+  FillPath@4 path_bounding_rect=[0,0 100x100]
 Restore@0
-MaskDisplayList for context 3:
-  FillPath@0 path_bounding_rect=[8,8 100x50]
 MaskDisplayList for context 4:
-  FillPath@0 path_bounding_rect=[8,8 100x50]
+  FillPath@0 path_bounding_rect=[0,0 100x50]
 MaskDisplayList for context 5:
-  FillPath@0 path_bounding_rect=[8,8 100x50]
+  FillPath@0 path_bounding_rect=[0,0 100x50]
+MaskDisplayList for context 6:
+  FillPath@0 path_bounding_rect=[0,0 100x50]
 

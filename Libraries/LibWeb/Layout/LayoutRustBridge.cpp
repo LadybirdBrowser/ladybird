@@ -342,7 +342,7 @@ static RustFFI::FfiSvgElementFacts build_svg_element_facts(NodeWithStyle const& 
     Gfx::AffineTransform element_transform;
     float visible_stroke_width = 0;
     if (auto const* graphics_element = as_if<SVG::SVGGraphicsElement>(*dom_node)) {
-        element_transform = graphics_element->element_transform();
+        element_transform = node.used_svg_element_transform();
         visible_stroke_width = graphics_element->visible_stroke_width();
     }
 
@@ -361,17 +361,12 @@ static RustFFI::FfiSvgElementFacts build_svg_element_facts(NodeWithStyle const& 
         pattern_height = pattern_box->dom_node().pattern_height();
     }
 
-    bool has_own_view_box = false;
-    if (auto const* svg_element = as_if<SVG::SVGSVGElement>(*dom_node))
-        has_own_view_box = svg_element->view_box().has_value();
-
     return {
         .is_document_element = node.document().document_element() == dom_node,
         .document_is_decoded_svg = node.document().is_decoded_svg(),
         .is_fit_to_view_box = is<SVG::SVGFitToViewBox>(*dom_node),
         .has_active_view_box = active_view_box.has_value(),
         .active_view_box = active_view_box.has_value() ? to_ffi_svg_view_box(*active_view_box) : RustFFI::FfiSvgViewBox {},
-        .has_own_view_box = has_own_view_box,
         .preserve_aspect_ratio_align = static_cast<u8>(to_underlying(preserve_aspect_ratio.align)),
         .preserve_aspect_ratio_meet_or_slice = static_cast<u8>(to_underlying(preserve_aspect_ratio.meet_or_slice)),
         .element_transform = to_ffi_affine_transform(element_transform),
@@ -943,18 +938,9 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
             // consumers read out of bounds.
             for (auto const& piece : line_context->paintable.inline_box_pieces())
                 VERIFY(piece.first_fragment_index + piece.fragment_count <= line_context->paintable.fragments().size()); },
-        .set_computed_svg_transforms = [](void*, void* paintable_pointer, RustFFI::FfiSvgComputedTransforms transforms) {
-            Painting::SVGGraphicsPaintable::ComputedTransforms converted {
-                from_ffi_affine_transform(transforms.viewbox_transform),
-                from_ffi_affine_transform(transforms.svg_transform),
-            };
+        .set_svg_viewport_transform = [](void*, void* paintable_pointer, RustFFI::FfiAffineTransform transform) {
             auto& paintable = *static_cast<Painting::Paintable*>(paintable_pointer);
-            if (auto* svg_graphics_paintable = as_if<Painting::SVGGraphicsPaintable>(paintable))
-                svg_graphics_paintable->set_computed_transforms(converted);
-            if (auto* svg_foreign_object_paintable = as_if<Painting::SVGForeignObjectPaintable>(paintable))
-                svg_foreign_object_paintable->set_computed_transforms(converted);
-            if (auto* svg_svg_paintable = as_if<Painting::SVGSVGPaintable>(paintable))
-                svg_svg_paintable->set_computed_transforms(converted); },
+            paintable.set_svg_viewport_transform(from_ffi_affine_transform(transform)); },
         .set_svg_viewport_size = [](void*, void* paintable_pointer, RustFFI::FfiCssPixelSize viewport_size) {
             auto& paintable = *static_cast<Painting::Paintable*>(paintable_pointer);
             if (auto* svg_svg_paintable = as_if<Painting::SVGSVGPaintable>(paintable)) {
