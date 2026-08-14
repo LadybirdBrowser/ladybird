@@ -11,6 +11,7 @@
 <div id="prevented">prevented</div>
 <div id="existing">existing selection</div>
 <div id="other">other target</div>
+<a id="anchor" href="https://example.com/">anchor selection</a>
 <img id="image" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" style="width: 20px; height: 20px;">
 <div id="none" style="user-select: none;">hidden.org</div>
 <script>
@@ -48,6 +49,14 @@
         getSelection().addRange(range);
         rightClick(other);
         println(`existing selection replaced: "${selectedText()}"`);
+
+        const anchorRange = document.createRange();
+        anchorRange.setStart(anchor.firstChild, 0);
+        anchorRange.setEnd(anchor.firstChild, 6);
+        getSelection().removeAllRanges();
+        getSelection().addRange(anchorRange);
+        rightClick(anchor);
+        println(`anchor selection preserved: "${selectedText()}"`);
 
         getSelection().removeAllRanges();
         getSelection().addRange(range);
