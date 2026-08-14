@@ -15,6 +15,29 @@
 
 namespace Web::CSS {
 
+bool subtree_affects_counters(DOM::Node const& node)
+{
+    auto style_affects_counters = [](auto style) {
+        return style
+            && (!style->counter_increment().is_empty() || !style->counter_reset().is_empty() || !style->counter_set().is_empty());
+    };
+    bool affects_counters = false;
+    node.for_each_in_inclusive_subtree([&](DOM::Node const& descendant) {
+        auto const* element = as_if<DOM::Element>(descendant);
+        if (!element)
+            return TraversalDecision::Continue;
+        if (!style_affects_counters(element->computed_style())
+            && !style_affects_counters(element->computed_style(CSS::PseudoElement::Before))
+            && !style_affects_counters(element->computed_style(CSS::PseudoElement::After))
+            && !style_affects_counters(element->computed_style(CSS::PseudoElement::Marker))) {
+            return TraversalDecision::Continue;
+        }
+        affects_counters = true;
+        return TraversalDecision::Break;
+    });
+    return affects_counters;
+}
+
 void CountersSet::visit_edges(GC::Cell::Visitor& visitor)
 {
     for (auto const& counter : m_counters)

@@ -20,6 +20,7 @@
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Bindings/Node.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/CSS/Invalidation/PseudoClassInvalidator.h>
@@ -972,14 +973,41 @@ static bool can_detach_layout_subtree_for_removal(Node const& node, Node const& 
 {
     auto const* layout_node = as_if<Layout::NodeWithStyle>(node.unsafe_layout_node());
     auto const* parent_layout_node = parent.unsafe_layout_node();
-    if (!layout_node || !parent_layout_node || layout_node->parent() != parent_layout_node)
+    if (!layout_node || !parent_layout_node || layout_node->parent() != parent_layout_node || layout_node->is_out_of_flow())
+        return false;
+    if (CSS::subtree_affects_counters(node))
         return false;
 
-    // Removing an in-flow atomic inline from an existing inline run cannot alter anonymous wrapper structure.
-    // Other box kinds still rebuild the parent so tree fixup can reconstruct any affected wrappers.
-    return parent_layout_node->children_are_inline()
-        && layout_node->is_inline_block()
-        && !layout_node->is_out_of_flow();
+    auto const* parent_with_style = as_if<Layout::NodeWithStyle>(parent_layout_node);
+    if (!parent_with_style)
+        return false;
+
+    auto sibling_is_direct_layout_child = [&](Node const* sibling) {
+        if (!sibling)
+            return true;
+        if (auto const* sibling_layout_node = sibling->unsafe_layout_node())
+            return sibling_layout_node->parent() == parent_layout_node;
+        auto const* sibling_element = as_if<Element>(*sibling);
+        return !sibling_element || !sibling_element->has_style()
+            || !CSS::display_from_ffi_display(sibling_element->style_group<CSS::ComputedValues::BoxValues>()->display).is_contents();
+    };
+    if (!sibling_is_direct_layout_child(node.previous_sibling())
+        && !sibling_is_direct_layout_child(node.next_sibling())) {
+        return false;
+    }
+
+    auto parent_display = parent_with_style->display();
+    if (parent_display.is_flex_inside() || parent_display.is_grid_inside())
+        return true;
+
+    // Direct block children and in-flow atomic inline children can be detached without changing
+    // anonymous wrapper structure. Other box kinds still rebuild the parent so tree fixup can
+    // reconstruct any affected wrappers.
+    if ((parent_display.is_flow_inside() || parent_display.is_flow_root_inside())
+        && !parent_layout_node->children_are_inline()) {
+        return layout_node->display().is_block_outside();
+    }
+    return parent_layout_node->children_are_inline() && layout_node->is_inline_block() && !layout_node->is_out_of_flow();
 }
 
 // https://dom.spec.whatwg.org/#concept-node-remove

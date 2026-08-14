@@ -123,15 +123,23 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
         return false;
 
     auto parent_display = layout_node->display();
-    if ((!parent_display.is_flow_inside() && !parent_display.is_flow_root_inside())
-        || (!layout_node->children_are_inline() && layout_node->has_children())) {
+    auto parent_has_children = layout_node->has_children();
+    auto parent_lays_out_flex_or_grid_children = parent_display.is_flex_inside() || parent_display.is_grid_inside();
+    auto parent_lays_out_inline_children = (parent_display.is_flow_inside() || parent_display.is_flow_root_inside())
+        && (layout_node->children_are_inline() || !parent_has_children);
+    auto parent_lays_out_block_children = (parent_display.is_flow_inside() || parent_display.is_flow_root_inside())
+        && !layout_node->children_are_inline();
+    if (!parent_lays_out_flex_or_grid_children && !parent_lays_out_inline_children && !parent_lays_out_block_children) {
         return false;
     }
 
+    bool will_insert_inline_child = false;
+    bool will_insert_block_child = false;
+    bool has_indirect_existing_child = false;
     for (auto const* child = node.first_child(); child; child = child->next_sibling()) {
         if (auto const* child_layout_node = child->unsafe_layout_node()) {
             if (child_layout_node->parent() != layout_node)
-                return false;
+                has_indirect_existing_child = true;
             continue;
         }
 
@@ -147,15 +155,29 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
             return false;
         if (!child->needs_layout_tree_update() || computed_style->display().is_none())
             continue;
-        auto child_display = computed_style->display();
-        if (!child_display.is_inline_outside()
-            || (!child_display.is_flow_root_inside() && !child_display.is_flex_inside() && !child_display.is_grid_inside())
-            || child_element->rendered_in_top_layer()
-            || is<SVG::SVGElement>(*child_element)) {
+        if (CSS::subtree_affects_counters(*child_element))
             return false;
+        auto child_display = computed_style->display();
+        if (child_element->rendered_in_top_layer() || is<SVG::SVGElement>(*child_element))
+            return false;
+        if (parent_lays_out_flex_or_grid_children)
+            continue;
+        if (parent_lays_out_block_children && child_display.is_block_outside()) {
+            will_insert_block_child = true;
+            if (will_insert_inline_child)
+                return false;
+            continue;
         }
+        if (parent_lays_out_inline_children && child_display.is_inline_outside()
+            && (child_display.is_flow_root_inside() || child_display.is_flex_inside() || child_display.is_grid_inside())) {
+            will_insert_inline_child = true;
+            if (will_insert_block_child)
+                return false;
+            continue;
+        }
+        return false;
     }
-    return true;
+    return !has_indirect_existing_child;
 }
 
 static size_t ffi_assigned_node_count(void* slot_element_pointer)

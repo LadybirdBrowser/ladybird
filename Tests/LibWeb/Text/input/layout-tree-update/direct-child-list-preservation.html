@@ -1,0 +1,261 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .parent.flex { display: flex; }
+    .parent.grid { display: grid; }
+    .parent.generated::before { content: "before"; display: block; }
+    .parent.generated::after { content: "after"; display: block; }
+    .parent.counter { counter-reset: direct-child-counter; }
+    .increment { counter-increment: direct-child-counter; }
+    .counter-value::before { content: counter(direct-child-counter); }
+    .child { display: block; }
+    .inline { display: inline; }
+    .inline-block { display: inline-block; }
+    .absolute { position: absolute; }
+    .float { float: left; }
+    .contents { display: contents; }
+</style>
+<div id="fixture"></div>
+<script>
+    const insertionCases = [
+        {
+            name: "append block child in block flow",
+            markup: '<div class="parent"><i class="before child"></i></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<section class="target child"><b></b></section>'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "prepend block child in block flow",
+            markup: '<div class="parent"><i class="after child"></i></div>',
+            mutate: parent => parent.insertAdjacentHTML("afterbegin", '<section class="target child"><b></b></section>'),
+            tracked: ["parent", "after"],
+        },
+        {
+            name: "insert middle block child in block flow",
+            markup: '<div class="parent"><i class="before child"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<section class="target child"><b></b></section>'),
+            tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "fall back when inserted block affects following counters",
+            markup: '<div class="parent counter"><i class="before child"></i><i class="after child counter-value"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<section class="target child increment"></section>'),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "insert block sibling run in block flow",
+            markup: '<div class="parent"><i class="before child"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<section class="target child"><b></b></section><section class="target child"><b></b></section><section class="target child"><b></b></section>'),
+            tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "insert block child around generated content",
+            markup: '<div class="parent generated"><i class="before child"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<section class="target child"><b></b></section>'),
+            tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "insert absolute child in block flow",
+            markup: '<div class="parent"><i class="before child"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<section class="target absolute"><b></b></section>'),
+            tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "insert floated child in block flow",
+            markup: '<div class="parent"><i class="before child"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<section class="target float"><b></b></section>'),
+            tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "insert block child in flex",
+            markup: '<div class="parent flex"><i class="before child"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<section class="target child"><b></b></section>'),
+            tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "insert inline child in flex",
+            markup: '<div class="parent flex"><i class="before child"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<span class="target inline"><b></b></span>'),
+            tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "insert absolute child in flex",
+            markup: '<div class="parent flex"><i class="before child"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<section class="target absolute"><b></b></section>'),
+            tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "insert child in grid",
+            markup: '<div class="parent grid"><i class="before child"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<section class="target child"><b></b></section>'),
+            tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "fall back for boxless insertion beside anonymous inline run",
+            markup: '<div class="parent"><i class="before child"></i><span class="inline">inline</span></div>',
+            mutate(parent) {
+                const emptyText = document.createTextNode("");
+                parent.append(emptyText, document.createComment("boxless"));
+                emptyText.remove();
+            },
+            tracked: ["parent", "before"],
+            preserve: false,
+        },
+        {
+            name: "fall back for inline child among block children",
+            markup: '<div class="parent"><i class="before child"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<span class="target inline"><b></b></span>'),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back for block child among inline children",
+            markup: '<div class="parent"><i class="before inline-block"></i><i class="after inline-block"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<section class="target child"><b></b></section>'),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back for block child beside anonymous inline run",
+            markup: '<div class="parent"><i class="before child"></i><span class="inline">inline</span></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<section class="target child"><b></b></section>'),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back for display contents child in flex",
+            markup: '<div class="parent flex"><i class="before child"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<section class="target contents"><b></b></section>'),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back for SVG child in flex",
+            markup: '<div class="parent flex"><i class="before child"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<svg class="target"><rect></rect></svg>'),
+            tracked: ["parent"],
+            preserve: false,
+        },
+    ];
+
+    const removalCases = [
+        ["remove first block child in block flow", "parent", "target child", "after child"],
+        ["remove middle block child in block flow", "parent", "before child", "target child", "after child"],
+        ["remove last block child in block flow", "parent", "before child", "target child"],
+        ["remove only block child in block flow", "parent", "target child"],
+        ["remove block subtree in block flow", "parent", "before child", "target child subtree", "after child"],
+        ["remove block sibling run in block flow", "parent", "before child", "target child", "target child", "target child", "after child"],
+        ["remove block child around generated content", "parent generated", "before child", "target child", "after child"],
+        ["remove block child beside one inline run", "parent", "seed inline", "target child", "after child"],
+        ["remove child in flex", "parent flex", "before child", "target inline", "after child"],
+        ["remove child in grid", "parent grid", "before child", "target child", "after child"],
+    ].map(([name, parentClasses, ...childClasses]) => ({
+        name,
+        markup: `<div class="${parentClasses}">${childClasses.map(classes => classes === "comment" ? "<!-- separator -->" : `<i class="${classes}">${classes.includes("subtree") ? "<b></b>" : ""}</i>`).join("")}</div>`,
+        mutate: parent => parent.querySelectorAll(".target").forEach(node => node.remove()),
+        tracked: ["parent", "before", "after"].filter(className => className === "parent" || childClasses.some(classes => classes.split(" ").includes(className))),
+    }));
+
+    const fallbackRemovalCases = [
+        {
+            name: "fall back when removed block affects following counters",
+            markup: '<div class="parent counter"><i class="target child increment"></i><i class="after child counter-value"></i></div>',
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back for floated child removal in block flow",
+            markup: '<div class="parent"><i class="before child"></i><i class="target float"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back for absolute child removal in block flow",
+            markup: '<div class="parent"><i class="before child"></i><i class="target absolute"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back for absolute child removal in flex",
+            markup: '<div class="parent flex"><i class="before child"></i><i class="target absolute"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back for nested absolute child removal",
+            markup: '<div class="parent"><i class="before child"></i><i class="seed inline"></i><!-- separator --><i class="target absolute"></i></div>',
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back for inline child removal",
+            markup: '<div class="parent"><i class="before inline"></i><i class="target inline"></i><i class="after inline"></i></div>',
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back for block removal between inline runs",
+            markup: '<div class="parent"><i class="before inline"></i><i class="target child"></i><i class="after inline"></i></div>',
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back for display contents removal",
+            markup: '<div class="parent"><i class="before child"></i><i class="target contents"><b></b></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back for table-internal removal",
+            markup: '<table class="parent"><tbody><tr class="target"><td></td></tr></tbody></table>',
+            parentSelector: "tbody",
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent"],
+            preserve: false,
+        },
+    ];
+
+    function runCase(case_, expectNoBuild) {
+        fixture.innerHTML = case_.markup;
+        const parent = case_.parentSelector ? fixture.querySelector(case_.parentSelector) : fixture.firstElementChild;
+        document.body.offsetHeight;
+
+        const trackedNodes = case_.tracked.map(className => ({
+            label: className,
+            node: className === "parent" ? parent : parent.querySelector(`.${className}`),
+        }));
+        const identities = trackedNodes.map(({ node }) => internals.layoutNodeIdentity(node));
+        const buildsBefore = internals.layoutTreeBuildStats().builds;
+
+        case_.mutate(parent);
+        document.body.offsetHeight;
+        const builds = internals.layoutTreeBuildStats().builds - buildsBefore;
+
+        for (let index = 0; index < trackedNodes.length; ++index) {
+            const { label, node } = trackedNodes[index];
+            const preserved = internals.layoutNodeIdentity(node) === identities[index];
+            const expectedPreserved = case_.preserve !== false;
+            println(`${preserved === expectedPreserved ? "PASS" : "FAIL"}: ${case_.name} | ${expectedPreserved ? "preserve" : "rebuild"} ${label}`);
+        }
+        if (expectNoBuild)
+            println(`${builds === 0 ? "PASS" : "FAIL"}: ${case_.name} | layout tree builds=${builds}`);
+        else
+            println(`${builds === 1 ? "PASS" : "FAIL"}: ${case_.name} | layout tree builds=${builds}`);
+        println(`${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}: ${case_.name} | incremental tree matches full rebuild`);
+    }
+
+    test(() => {
+        insertionCases.forEach(case_ => runCase(case_, false));
+        removalCases.forEach(case_ => runCase(case_, true));
+        fallbackRemovalCases.forEach(case_ => runCase(case_, false));
+    });
+</script>
