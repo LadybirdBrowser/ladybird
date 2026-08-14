@@ -6,6 +6,7 @@
  */
 
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web {
 
@@ -64,6 +65,24 @@ DevicePixelSize DisplayListRecordingContext::enclosing_device_size(CSSPixelSize 
 DevicePixelSize DisplayListRecordingContext::rounded_device_size(CSSPixelSize size) const
 {
     return m_device_pixel_converter.rounded_device_size(size);
+}
+
+Painting::VisualContextIndex DisplayListRecordingContext::accumulated_visual_context_index_of(Painting::Paintable const& paintable) const
+{
+    if (m_nested_visual_context_assignments.has_value()) {
+        if (auto assignment = m_nested_visual_context_assignments->paintable_indices.find(&paintable); assignment != m_nested_visual_context_assignments->paintable_indices.end())
+            return assignment->value.own;
+    }
+    return paintable.accumulated_visual_context_index();
+}
+
+Painting::VisualContextIndex DisplayListRecordingContext::accumulated_visual_context_for_descendants_index_of(Painting::Paintable const& paintable) const
+{
+    if (m_nested_visual_context_assignments.has_value()) {
+        if (auto assignment = m_nested_visual_context_assignments->paintable_indices.find(&paintable); assignment != m_nested_visual_context_assignments->paintable_indices.end())
+            return assignment->value.for_descendants;
+    }
+    return paintable.accumulated_visual_context_for_descendants_index();
 }
 
 }

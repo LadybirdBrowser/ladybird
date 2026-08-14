@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<svg width="100" height="100">
+    <defs>
+        <mask id="m"><rect id="mask-rect" width="100" height="100" fill="white"/></mask>
+        <pattern id="p" width="20" height="20" patternUnits="userSpaceOnUse"><rect id="pattern-rect" width="10" height="10" fill="red"/></pattern>
+    </defs>
+    <rect width="100" height="100" fill="url(#p)" mask="url(#m)"/>
+</svg>
+<script>
+    test(() => {
+        const targets = ['mask-rect', 'pattern-rect'];
+        const rects_before_paint = targets.map(id => JSON.stringify(document.getElementById(id).getBoundingClientRect()));
+        internals.dumpDisplayList();
+        const rects_after_paint = targets.map(id => JSON.stringify(document.getElementById(id).getBoundingClientRect()));
+        for (let i = 0; i < targets.length; ++i) {
+            if (rects_before_paint[i] === rects_after_paint[i])
+                println(`PASS: ${targets[i]} rect is stable across a paint`);
+            else
+                println(`FAIL: ${targets[i]} rect changed from ${rects_before_paint[i]} to ${rects_after_paint[i]}`);
+        }
+    });
+</script>
