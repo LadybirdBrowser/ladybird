@@ -9,6 +9,7 @@ set(TEST_SOURCES
     TestCSSTokenizer.cpp
     TestCSSTokenStream.cpp
     TestDisplayListDamage.cpp
+    TestDownloadReader.cpp
     TestFetchResponse.cpp
     TestFetchURL.cpp
     TestHTMLTokenizer.cpp
@@ -60,6 +61,7 @@ ladybird_utility(css-tokenizer SOURCES css-tokenizer.cpp LIBS LibFileSystem LibM
 target_link_libraries(TestContentBlocker PRIVATE LibURL)
 target_link_libraries(TestControlMessageQueue PRIVATE LibSync)
 target_link_libraries(TestDisplayListDamage PRIVATE LibGfx)
+target_link_libraries(TestDownloadReader PRIVATE LibGC LibJS LibURL)
 target_link_libraries(TestFetchResponse PRIVATE LibGC LibHTTP LibJS LibRequests LibURL)
 target_link_libraries(TestFetchURL PRIVATE LibURL)
 target_link_libraries(TestAccumulatedVisualContext PRIVATE LibGfx)
