@@ -274,16 +274,32 @@ Optional<float> SVGGraphicsElement::stroke_opacity() const
 
 float SVGGraphicsElement::resolve_relative_to_viewport_size(CSS::LengthPercentage const& length_percentage) const
 {
-    // FIXME: Converting to pixels isn't really correct - values should be in "user units"
-    //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits
     // Resolved relative to the "Scaled viewport size": https://www.w3.org/TR/2017/WD-fill-stroke-3-20170413/#scaled-viewport-size
-    // FIXME: This isn't right, but it's something.
+    // FIXME: The spec formula is the normalized diagonal sqrt((width² + height²) / 2); this keeps
+    //        the historical (width + height) / 2 approximation.
+    // NB: Resolution happens during layout, so only the viewBox and computed style are available,
+    //     not committed viewport geometry.
     CSSPixels viewport_width = 0;
     CSSPixels viewport_height = 0;
-    if (auto* svg_svg_element = first_flat_tree_ancestor_of_type<SVGSVGElement>()) {
-        if (auto svg_svg_layout_node = svg_svg_element->unsafe_layout_node()) {
-            viewport_width = svg_svg_layout_node->width().to_px(0);
-            viewport_height = svg_svg_layout_node->height().to_px(0);
+    auto resolve_viewport_size_from = [&](SVGElement const& viewport_element, Optional<ViewBox> const& view_box) {
+        if (view_box.has_value()) {
+            viewport_width = CSSPixels::nearest_value_for(view_box->width);
+            viewport_height = CSSPixels::nearest_value_for(view_box->height);
+        } else if (auto viewport_layout_node = viewport_element.unsafe_layout_node()) {
+            viewport_width = viewport_layout_node->width().to_px(0);
+            viewport_height = viewport_layout_node->height().to_px(0);
+        }
+    };
+    // <symbol> instances establish nested viewports; percentages inside one resolve against it,
+    // not the enclosing <svg>.
+    for (auto* ancestor = first_flat_tree_ancestor_of_type<SVGElement>(); ancestor; ancestor = ancestor->first_flat_tree_ancestor_of_type<SVGElement>()) {
+        if (auto* svg_svg_element = as_if<SVGSVGElement>(*ancestor)) {
+            resolve_viewport_size_from(*svg_svg_element, svg_svg_element->active_view_box());
+            break;
+        }
+        if (auto* symbol_element = as_if<SVGSymbolElement>(*ancestor)) {
+            resolve_viewport_size_from(*symbol_element, symbol_element->view_box());
+            break;
         }
     }
     auto scaled_viewport_size = (viewport_width + viewport_height) * CSSPixels(0.5);
