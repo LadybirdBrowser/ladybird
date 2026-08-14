@@ -163,14 +163,17 @@ static ErrorOr<void> skip_ui_process_session_history_tests_unless_enabled(Applic
     if (app.run_ui_process_session_history_tests)
         return {};
 
-    static constexpr Array ui_process_session_history_tests {
-        "Text/input/navigation/ui-process-session-history-dump.html"sv,
-        "Text/input/navigation/ui-process-session-history-same-document-back.html"sv,
-        "Text/input/navigation/ui-process-session-history-same-document.html"sv,
-    };
+    auto directory = LexicalPath::join(app.test_root_path, "Text/input/navigation/"sv).string();
+    if (!FileSystem::exists(directory))
+        return {};
 
-    for (auto const& test : ui_process_session_history_tests) {
-        auto path = LexicalPath::join(app.test_root_path, test).string();
+    Core::DirIterator it(directory, Core::DirIterator::Flags::SkipDots);
+    while (it.has_next()) {
+        auto path = it.next_full_path();
+        if (!LexicalPath::basename(path).starts_with("ui-process-session-history-"sv))
+            continue;
+        if (!is_valid_test_name(path))
+            continue;
         s_skipped_tests.append(TRY(real_path_for_test_input(path)));
     }
 

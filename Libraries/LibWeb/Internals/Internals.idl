@@ -119,6 +119,7 @@ interface Internals {
     Utf16DOMString dumpGCGraph();
     Utf16DOMString dumpSessionHistory();
     Utf16DOMString dumpUIProcessSessionHistory();
+    Utf16DOMString dumpUIProcessSessionHistoryWithoutUpdate();
     Utf16DOMString dumpSiteIsolationProcessTree();
     Promise<undefined> flushSessionHistoryTraversalQueue();
 

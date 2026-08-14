@@ -875,6 +875,11 @@ Utf16String Internals::dump_ui_process_session_history()
     return dump_string_to_utf16(document.page().client().page_did_request_ui_process_session_history_for_testing());
 }
 
+Utf16String Internals::dump_ui_process_session_history_without_update()
+{
+    return dump_string_to_utf16(window().associated_document().page().client().page_did_request_ui_process_session_history_for_testing());
+}
+
 Utf16String Internals::dump_site_isolation_process_tree()
 {
     return dump_string_to_utf16(window().associated_document().page().client().dump_site_isolation_process_tree_for_testing());

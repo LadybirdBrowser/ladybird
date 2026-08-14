@@ -246,7 +246,12 @@ WebIDL::ExceptionOr<void> History::set_scroll_restoration(Bindings::ScrollRestor
         return WebIDL::SecurityError::create("Cannot set scroll restoration mode for a document that isn't fully active."_utf16);
 
     // 2. Set this's relevant global object's navigable's active session history entry's scroll restoration mode to the given value.
-    m_document->navigable()->active_session_history_entry()->set_scroll_restoration_mode(scroll_restoration == Bindings::ScrollRestoration::Auto ? ScrollRestorationMode::Auto : ScrollRestorationMode::Manual);
+    auto navigable = m_document->navigable();
+    auto active_session_history_entry = navigable->active_session_history_entry();
+    active_session_history_entry->set_scroll_restoration_mode(scroll_restoration == Bindings::ScrollRestoration::Auto ? ScrollRestorationMode::Auto : ScrollRestorationMode::Manual);
+
+    navigable->traversable_navigable()->page().client().page_did_update_session_history_entry_scroll_restoration_mode(navigable->id(), active_session_history_entry->navigation_api_key(), active_session_history_entry->scroll_restoration_mode());
+
     return {};
 }
 

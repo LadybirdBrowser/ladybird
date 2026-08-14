@@ -1,0 +1,2 @@
+initial UI scroll restoration: auto
+updated UI scroll restoration: manual
