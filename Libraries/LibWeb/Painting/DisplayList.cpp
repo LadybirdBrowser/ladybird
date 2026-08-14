@@ -381,14 +381,14 @@ void DisplayListPlayer::execute_impl(
                                 .corner_clip = Gfx::CornerClip::Outside,
                             });
                         } else {
-                            play_command(AddClipRect { .rect = clip.rect.to_type<int>() });
+                            play_command(AddClipRect { .rect = clip.rect.to_type<int>().to_type<float>() });
                         }
                     },
                     [&](ClipPathData const& clip_path) {
                         add_clip_path(clip_path.path, clip_path.fill_rule);
                     },
                     [&](MaskData const& mask) {
-                        play_command(AddClipRect { .rect = mask.rect.to_type<int>() });
+                        play_command(AddClipRect { .rect = mask.rect.to_type<int>().to_type<float>() });
                         play_command(SaveLayer {});
                         ++applied_mask_frame_count;
                     },
@@ -425,7 +425,7 @@ void DisplayListPlayer::execute_impl(
                 if (header.type == DisplayListCommandType::AddClipRect)
                     play_command(read_display_list_command_payload<AddClipRect>(payload));
                 else
-                    play_command(AddClipRect { bounding_rect.release_value() });
+                    play_command(AddClipRect { bounding_rect.release_value().to_type<float>() });
             }
             return;
         }

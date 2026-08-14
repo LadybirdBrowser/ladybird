@@ -489,7 +489,7 @@ void DisplayListRecorder::draw_video_frame(Gfx::IntRect const& dst_rect, VideoSi
     });
 }
 
-void DisplayListRecorder::draw_scaled_decoded_image_frame(Gfx::IntRect const& dst_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<Color> isolated_backdrop_color)
+void DisplayListRecorder::draw_scaled_decoded_image_frame(Gfx::FloatRect const& dst_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<Color> isolated_backdrop_color)
 {
     if (dst_rect.is_empty())
         return;
@@ -503,7 +503,7 @@ void DisplayListRecorder::draw_scaled_decoded_image_frame(Gfx::IntRect const& ds
     });
 }
 
-void DisplayListRecorder::draw_scaled_decoded_image_frame(Gfx::IntRect const& dst_rect, Gfx::FloatRect const& src_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<Color> isolated_backdrop_color)
+void DisplayListRecorder::draw_scaled_decoded_image_frame(Gfx::FloatRect const& dst_rect, Gfx::FloatRect const& src_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, Optional<Color> isolated_backdrop_color)
 {
     if (dst_rect.is_empty())
         return;
@@ -622,7 +622,7 @@ void DisplayListRecorder::draw_glyph_run(Gfx::FloatPoint baseline_start, Gfx::Gl
         payload_builder.inline_data());
 }
 
-void DisplayListRecorder::add_clip_rect(Gfx::IntRect const& rect)
+void DisplayListRecorder::add_clip_rect(Gfx::FloatRect const& rect)
 {
     append_command(AddClipRect { rect });
 }
