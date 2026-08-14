@@ -179,6 +179,9 @@ PASS: fall back when removing a nested ancestor first-letter block child | incre
 PASS: fall back when moving a nested ancestor first-letter block child | rebuild parent
 PASS: fall back when moving a nested ancestor first-letter block child | layout tree builds=1
 PASS: fall back when moving a nested ancestor first-letter block child | incremental tree matches full rebuild
+PASS: fall back when moving a display contents subtree | rebuild parent
+PASS: fall back when moving a display contents subtree | layout tree builds=1
+PASS: fall back when moving a display contents subtree | incremental tree matches full rebuild
 PASS: remove outside the ancestor first-letter subtree | preserve parent
 PASS: remove outside the ancestor first-letter subtree | preserve after
 PASS: remove outside the ancestor first-letter subtree | layout tree builds=0

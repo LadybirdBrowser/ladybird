@@ -285,6 +285,13 @@
             preserve: false,
         },
         {
+            name: "fall back when moving a display contents subtree",
+            markup: '<div class="parent"><i class="before child"></i><span class="target contents"><i class="inline"></i></span><i class="after child"></i></div><div class="destination"></div>',
+            mutate: parent => fixture.querySelector(".destination").moveBefore(parent.querySelector(".target"), null),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
             name: "remove outside the ancestor first-letter subtree",
             markup: '<div class="parent first-letter"><div class="seed child">seed</div><div class="inner"><i class="target child">target</i><i class="after child">after</i></div></div>',
             parentSelector: ".inner",

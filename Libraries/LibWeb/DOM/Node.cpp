@@ -969,6 +969,16 @@ void Node::live_range_pre_remove()
     }
 }
 
+static bool node_contributes_to_layout_tree(Node const& node)
+{
+    if (node.unsafe_layout_node())
+        return true;
+
+    auto const* element = as_if<Element>(node);
+    return element && element->has_style()
+        && CSS::display_from_ffi_display(element->style_group<CSS::ComputedValues::BoxValues>()->display).is_contents();
+}
+
 static bool can_detach_layout_subtree_for_removal(Node const& node, Node const& parent)
 {
     auto const* layout_node = as_if<Layout::NodeWithStyle>(node.unsafe_layout_node());
@@ -1078,10 +1088,7 @@ void Node::remove(bool suppress_observers)
         // A display: contents element has no principal layout node of its own, but removing it also removes
         // all of its children's boxes from the parent's layout subtree.
         // NB: Called during DOM removal, layout is not up to date.
-        auto contributed_to_layout_tree = unsafe_layout_node() != nullptr;
-        if (auto* element = as_if<Element>(*this); !contributed_to_layout_tree && element && element->has_style())
-            contributed_to_layout_tree = CSS::display_from_ffi_display(element->style_group<CSS::ComputedValues::BoxValues>()->display).is_contents();
-        if (contributed_to_layout_tree) {
+        if (node_contributes_to_layout_tree(*this)) {
             if (auto* first_letter_owner = first_letter_owner_for_layout_subtree_from(*parent)) {
                 first_letter_owner->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
             } else if (can_detach_layout_subtree_for_removal(*this, *parent)) {
@@ -1441,10 +1448,10 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     GC::Ptr<Element> const moved_from_next = moved_element ? moved_element->next_element_sibling() : nullptr;
 
     if (old_parent->is_connected()) {
-        // NOTE: If we didn’t have a layout node before, rebuilding the layout tree isn’t gonna give us one
-        //       after we’ve been removed from the DOM.
+        // NOTE: If we did not contribute to the layout tree before, rebuilding it will not create a box
+        //       after we have been removed from the DOM.
         // NB: Called during DOM node move, layout is not up to date.
-        if (unsafe_layout_node()) {
+        if (node_contributes_to_layout_tree(*this)) {
             if (auto* first_letter_owner = first_letter_owner_for_layout_subtree_from(*old_parent))
                 first_letter_owner->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
             else
