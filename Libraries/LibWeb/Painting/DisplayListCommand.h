@@ -167,14 +167,14 @@ struct DrawScaledDecodedImageFrame {
     static constexpr StringView command_name = "DrawScaledDecodedImageFrame"sv;
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::DrawScaledDecodedImageFrame;
 
-    Gfx::IntRect dst_rect;
+    Gfx::FloatRect dst_rect;
     Optional<Gfx::FloatRect> src_rect;
     ImageFrameResourceId frame_id;
     Gfx::ScalingMode scaling_mode;
     Gfx::CompositingAndBlendingOperator compositing_and_blending_operator { Gfx::CompositingAndBlendingOperator::Normal };
     Optional<Color> isolated_backdrop_color;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const { return Gfx::enclosing_int_rect(dst_rect); }
     void dump(StringBuilder&) const;
 };
 
@@ -303,9 +303,9 @@ struct AddClipRect {
     static constexpr StringView command_name = "AddClipRect"sv;
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::AddClipRect;
 
-    Gfx::IntRect rect;
+    Gfx::FloatRect rect;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const { return Gfx::enclosing_int_rect(rect); }
     bool is_clip() const { return true; }
     void dump(StringBuilder&) const;
 };

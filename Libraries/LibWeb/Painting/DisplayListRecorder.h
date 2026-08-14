@@ -71,8 +71,16 @@ public:
 
     void draw_rect(Gfx::IntRect const& rect, Color color, bool rough = false);
 
-    void draw_scaled_decoded_image_frame(Gfx::IntRect const& dst_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor, Gfx::CompositingAndBlendingOperator = Gfx::CompositingAndBlendingOperator::Normal, Optional<Color> isolated_backdrop_color = {});
-    void draw_scaled_decoded_image_frame(Gfx::IntRect const& dst_rect, Gfx::FloatRect const& src_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode, Gfx::CompositingAndBlendingOperator = Gfx::CompositingAndBlendingOperator::Normal, Optional<Color> isolated_backdrop_color = {});
+    void draw_scaled_decoded_image_frame(Gfx::FloatRect const& dst_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor, Gfx::CompositingAndBlendingOperator = Gfx::CompositingAndBlendingOperator::Normal, Optional<Color> isolated_backdrop_color = {});
+    void draw_scaled_decoded_image_frame(Gfx::FloatRect const& dst_rect, Gfx::FloatRect const& src_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode, Gfx::CompositingAndBlendingOperator = Gfx::CompositingAndBlendingOperator::Normal, Optional<Color> isolated_backdrop_color = {});
+    void draw_scaled_decoded_image_frame(Gfx::IntRect const& dst_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::Normal, Optional<Color> isolated_backdrop_color = {})
+    {
+        draw_scaled_decoded_image_frame(dst_rect.to_type<float>(), move(frame), scaling_mode, compositing_and_blending_operator, isolated_backdrop_color);
+    }
+    void draw_scaled_decoded_image_frame(Gfx::IntRect const& dst_rect, Gfx::FloatRect const& src_rect, Gfx::DecodedImageFrame frame, Gfx::ScalingMode scaling_mode, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::Normal, Optional<Color> isolated_backdrop_color = {})
+    {
+        draw_scaled_decoded_image_frame(dst_rect.to_type<float>(), src_rect, move(frame), scaling_mode, compositing_and_blending_operator, isolated_backdrop_color);
+    }
     void draw_composited_context(Gfx::IntRect const& dst_rect, Web::Compositor::CompositorContextId, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor);
     void draw_canvas(Gfx::IntRect const& dst_rect, CanvasId, u64 content_generation, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor);
     void draw_video_frame(Gfx::IntRect const& dst_rect, VideoSinkResourceId, Media::VideoSinkHandle, Gfx::ScalingMode scaling_mode = Gfx::ScalingMode::NearestNeighbor);
@@ -98,7 +106,8 @@ public:
     // Streamlined text drawing routine that does no wrapping/elision/alignment.
     void draw_glyph_run(Gfx::FloatPoint baseline_start, Gfx::GlyphRun const& glyph_run, Color color, Gfx::IntRect const& rect, double scale, Gfx::Orientation);
 
-    void add_clip_rect(Gfx::IntRect const& rect);
+    void add_clip_rect(Gfx::FloatRect const& rect);
+    void add_clip_rect(Gfx::IntRect const& rect) { add_clip_rect(rect.to_type<float>()); }
     void add_clip_path(Gfx::Path const& path, Gfx::WindingRule winding_rule);
 
     void set_accumulated_visual_context(VisualContextIndex index) { m_accumulated_visual_context_index = index; }

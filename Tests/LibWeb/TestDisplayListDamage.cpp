@@ -89,12 +89,12 @@ TEST_CASE(inactive_optional_storage_does_not_damage_scaled_images)
         .compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::Normal,
         .isolated_backdrop_color = {},
     };
-    auto old_display_list = command_bytes(command, command.dst_rect);
+    auto old_display_list = command_bytes(command, command.bounding_rect());
     auto new_display_list = MUST(ByteBuffer::copy(old_display_list));
 
     // Optional<T> leaves its inactive T storage unspecified. Alter that storage
     // without changing the empty src_rect value represented by the command.
-    new_display_list[sizeof(DisplayListCommandHeader) + sizeof(Gfx::IntRect)] ^= 0xff;
+    new_display_list[sizeof(DisplayListCommandHeader) + sizeof(Gfx::FloatRect)] ^= 0xff;
 
     ScrollStateSnapshot scroll_state;
     auto damage = compute_display_list_damage(old_display_list, visual_context_tree, scroll_state, new_display_list, visual_context_tree, scroll_state, { 0, 0, 100, 100 });
