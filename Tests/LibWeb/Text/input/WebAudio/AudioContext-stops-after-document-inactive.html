@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        internals.setTestTimeout(10000);
+
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+
+        const context = new iframe.contentWindow.AudioContext();
+        const source = context.createConstantSource();
+        source.connect(context.destination);
+        source.start();
+        await context.resume();
+
+        while (context.currentTime === 0)
+            await new Promise(resolve => setTimeout(resolve, 10));
+        println(`audio clock started: ${context.currentTime > 0}`);
+
+        iframe.remove();
+        await new Promise(resolve => setTimeout(resolve, 50));
+        const settledTime = context.currentTime;
+        await new Promise(resolve => setTimeout(resolve, 100));
+        println(`audio clock stopped after document became inactive: ${context.currentTime === settledTime}`);
+        done();
+    });
+</script>

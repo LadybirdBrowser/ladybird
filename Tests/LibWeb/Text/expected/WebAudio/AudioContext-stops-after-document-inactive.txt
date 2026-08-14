@@ -1,0 +1,2 @@
+audio clock started: true
+audio clock stopped after document became inactive: true
