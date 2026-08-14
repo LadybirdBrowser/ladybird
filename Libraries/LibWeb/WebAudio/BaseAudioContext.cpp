@@ -14,6 +14,7 @@
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -75,6 +76,13 @@ BaseAudioContext::BaseAudioContext(GC::Ref<DOM::EventTarget> relevant_global_obj
     , m_global_object(relevant_global_object)
     , m_control_message_queue(adopt_ref(*new ControlMessageQueue))
 {
+    if (auto* window = as_if<HTML::Window>(*m_global_object)) {
+        // FIXME: Also handle the document becoming active again, e.g. when restored from the back/forward cache.
+        m_document_observer = DOM::DocumentObserver::create(window->associated_document());
+        m_document_observer->set_document_became_inactive([this]() {
+            document_became_inactive();
+        });
+    }
 }
 
 BaseAudioContext::~BaseAudioContext() = default;
