@@ -132,6 +132,8 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
     if (!parent_lays_out_flex_or_grid_children && !parent_lays_out_inline_children && !parent_lays_out_block_children) {
         return false;
     }
+    if (element->has_style(CSS::PseudoElement::FirstLetter))
+        return false;
 
     bool will_insert_inline_child = false;
     bool will_insert_block_child = false;
