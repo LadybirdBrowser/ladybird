@@ -1,0 +1,4 @@
+Unused face status: unloaded
+Font requests while unused: 0
+Used face status: loaded
+Font requests after use: 1

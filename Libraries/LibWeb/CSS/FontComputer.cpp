@@ -310,6 +310,15 @@ struct FontComputer::MatchingFontCandidate {
 
         auto font_list = Gfx::FontCascadeList::create();
         for (auto const& face : it->value) {
+            // https://drafts.csswg.org/css-font-loading/#font-face-load
+            // User agents can initiate font loads on their own, whenever they determine that a given font face is
+            // necessary to render something on the page. When this happens, they must act as if they had called the
+            // corresponding FontFace’s load() method described here.
+            // NB: An unloaded face with no subsetting unicode-range starts loading once a style actually selects
+            //     it. Loading happens via FontFace::load(). The font_with_point_size() call below then observes the
+            //     fetch in flight — and so delays the document load event until the fetch has settled.
+            if (face->has_urls() && !face->has_non_default_unicode_range() && face->status() == FontFaceLoadStatus::Unloaded)
+                face->load();
             if (auto face_fonts = face->font_with_point_size(point_size, variations, shape_features)) {
                 font_list->extend(*face_fonts);
                 continue;
@@ -372,7 +381,6 @@ RefPtr<Gfx::FontCascadeList const> FontComputer::font_matching_algorithm(Utf16Fl
     // If a font family match occurs, the user agent assembles the set of font faces in that family and then
     // narrows the set to a single face using other font properties in the order given below.
     Vector<MatchingFontCandidate> matching_family_fonts;
-    // FIXME: URL-backed faces with no typeface yet should trigger a load on demand, matching other engines.
     for (auto const& [map_key, faces] : m_font_faces) {
         if (map_key.family_name.equals_ignoring_ascii_case(family_name)) {
             matching_family_fonts.empend(map_key);
@@ -906,18 +914,11 @@ void FontComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)
             auto font_face = FontFace::create_css_connected(HTML::relevant_realm(document()), *font_face_rule);
             document().fonts()->add_css_connected_font(font_face);
 
-            if (font_face->has_non_default_unicode_range()) {
-                // Register for matching, but defer loading until a rendered codepoint
-                // actually falls in this face's unicode-range.
-                register_font_face(font_face);
-            } else {
-                // NB: Load via FontFace::load(), to satisfy this requirement:
-                // https://drafts.csswg.org/css-font-loading/#font-face-load
-                // User agents can initiate font loads on their own, whenever they determine that a given font face is
-                // necessary to render something on the page. When this happens, they must act as if they had called the
-                // corresponding FontFace’s load() method described here.
-                font_face->load();
-            }
+            // Register the face for font matching without fetching anything. The fetch starts once the face is actually
+            // needed for rendering: When style computation first selects the face — or, for a face with a subsetting
+            // unicode-range, once a rendered codepoint falls within that range.
+            // INTEROP: Blink, Gecko, and WebKit similarly defer @font-face fetches.
+            register_font_face(font_face);
         }
 
         if (auto* font_feature_values_rule = as_if<CSSFontFeatureValuesRule>(rule))

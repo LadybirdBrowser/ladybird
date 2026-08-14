@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Verifies that a font declared by @font-face but never selected by any style is not fetched — and that the first
+    // style use of the font family is what starts the fetch. Blink/Gecko/WebKit also only fetch declared fonts on use.
+    promiseTest(async () => {
+        // Serve a copy of Ahem.ttf through the echo server, on a URL unique to this test run.
+        const fontBytes = new Uint8Array(await (await fetch("../wpt-import/fonts/Ahem.ttf")).arrayBuffer());
+        let binary = "";
+        for (const byte of fontBytes)
+            binary += String.fromCharCode(byte);
+        const token = crypto.randomUUID();
+        const registration = await fetch("/echo", {
+            method: "POST",
+            body: JSON.stringify({
+                method: "GET",
+                path: `/echo/unused-face-${token}.ttf`,
+                status: 200,
+                headers: { "Content-Type": "font/ttf", "Access-Control-Allow-Origin": "*" },
+                body: btoa(binary),
+                body_encoding: "base64",
+            }),
+        });
+        const fontUrl = (await registration.json()).url;
+
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = `
+            <style>@font-face { font-family: LazyFace; src: url("${fontUrl}"); }</style>
+            <body>Text that never uses the declared font family</body>`;
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        document.body.appendChild(iframe);
+        await loaded;
+
+        // Force a style and layout pass, then give a wrongly-started fetch time to become observable.
+        iframe.contentDocument.body.offsetHeight;
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const fontRequestCount = () =>
+            iframe.contentWindow.performance
+                .getEntriesByType("resource")
+                .filter(entry => entry.name.includes(token)).length;
+
+        const face = [...iframe.contentDocument.fonts][0];
+        println(`Unused face status: ${face.status}`);
+        println(`Font requests while unused: ${fontRequestCount()}`);
+
+        // Control arm: using the family must start the fetch.
+        iframe.contentDocument.body.style.fontFamily = "LazyFace";
+        iframe.contentDocument.body.offsetHeight;
+        await face.loaded;
+        // The resource-timing entry lands in a separately queued task; poll until it appears.
+        // Bounded, so a missing entry fails with a diff rather than hanging until the harness timeout.
+        for (let attempt = 0; attempt < 200 && fontRequestCount() === 0; ++attempt)
+            await new Promise(resolve => setTimeout(resolve, 10));
+        println(`Used face status: ${face.status}`);
+        println(`Font requests after use: ${fontRequestCount()}`);
+    });
+</script>
