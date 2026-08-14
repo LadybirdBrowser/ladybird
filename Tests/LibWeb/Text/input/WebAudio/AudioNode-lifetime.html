@@ -36,18 +36,15 @@
         const playingSource = new WeakRef(source);
         source = null;
 
-        setTimeout(() => {
-            internals.gc();
-            // Churn the heap to dislodge any stale references, then collect again.
-            for (let i = 0; i < 10000; ++i)
-                document.body.appendChild(document.createElement("div"));
-            internals.gc();
-
-            println(`gain nothing feeds into is collected: ${unreachableGain.deref() === undefined}`);
-            println(`playing source is kept alive: ${playingSource.deref() !== undefined}`);
-            println(`gain fed by a playing source is kept alive: ${gainFedBySource.deref() !== undefined}`);
-            println(`gain held through its AudioParam is kept alive: ${gainHeldThroughParam.deref() !== undefined}`);
-            done();
-        }, 0);
+        internals
+            .gcAsync()
+            .then(() => internals.gcAsync())
+            .then(() => {
+                println(`gain nothing feeds into is collected: ${unreachableGain.deref() === undefined}`);
+                println(`playing source is kept alive: ${playingSource.deref() !== undefined}`);
+                println(`gain fed by a playing source is kept alive: ${gainFedBySource.deref() !== undefined}`);
+                println(`gain held through its AudioParam is kept alive: ${gainHeldThroughParam.deref() !== undefined}`);
+                done();
+            });
     });
 </script>
