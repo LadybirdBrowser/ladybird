@@ -1136,9 +1136,15 @@ WindowOrWorkerGlobalScopeMixin::AffectedAnyWebSockets WindowOrWorkerGlobalScopeM
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#run-steps-after-a-timeout
-void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout(i32 timeout, Function<void()> completion_step)
+i32 WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout(i32 timeout, Function<void()> completion_step)
 {
-    run_steps_after_a_timeout_impl(timeout, move(completion_step), {});
+    auto timer_key = m_timer_id_allocator.allocate();
+    auto remove_timer_and_complete = [this, timer_key, completion_step = move(completion_step)] mutable {
+        m_timers.remove(timer_key);
+        completion_step();
+    };
+    run_steps_after_a_timeout_impl(timeout, move(remove_timer_and_complete), timer_key);
+    return timer_key;
 }
 
 void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout, Function<void()> completion_step, Optional<i32> timer_key, Repeat repeat)

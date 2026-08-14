@@ -259,10 +259,14 @@ public:
 
     JS::Completion invoke(GC::Ref<RequestIdleCallback::IdleDeadline> deadline) { return m_handler(deadline); }
     u32 handle() const { return m_handle; }
+    Optional<i32> timeout_timer_id() const { return m_timeout_timer_id; }
+    void set_timeout_timer_id(i32 timeout_timer_id) { m_timeout_timer_id = timeout_timer_id; }
+    void clear_timeout_timer_id() { m_timeout_timer_id.clear(); }
 
 private:
     IdleCallbackHandler m_handler;
     u32 m_handle { 0 };
+    Optional<i32> m_timeout_timer_id;
 };
 
 GC::Ref<Window> Window::create()
@@ -829,7 +833,8 @@ void Window::start_an_idle_period()
     //    which performs the steps defined in the invoke idle callbacks algorithm with window and getDeadline as parameters.
     queue_global_task(Task::Source::IdleTask, relevant_global_object(*this), GC::create_function(GC::Heap::the(), [this] {
         invoke_idle_callbacks();
-    }));
+    }),
+        Task::Priority::Idle);
 }
 
 // https://w3c.github.io/requestidlecallback/#invoke-idle-callbacks-algorithm
@@ -843,6 +848,10 @@ void Window::invoke_idle_callbacks()
     if (now < event_loop.compute_deadline() && !m_runnable_idle_callbacks.is_empty()) {
         // 1. Pop the top callback from window's list of runnable idle callbacks.
         auto callback = m_runnable_idle_callbacks.take_first();
+        if (callback->timeout_timer_id().has_value()) {
+            clear_timeout(*callback->timeout_timer_id());
+            callback->clear_timeout_timer_id();
+        }
         // 2. Let deadlineArg be a new IdleDeadline whose [get deadline time algorithm] is getDeadline.
         auto deadline_arg = RequestIdleCallback::IdleDeadline::create();
         // 3. Call callback with deadlineArg as its argument. If an uncaught runtime script error occurs, then report the exception.
@@ -854,9 +863,49 @@ void Window::invoke_idle_callbacks()
         if (!m_runnable_idle_callbacks.is_empty()) {
             queue_global_task(Task::Source::IdleTask, relevant_global_object(*this), GC::create_function(GC::Heap::the(), [this] {
                 invoke_idle_callbacks();
-            }));
+            }),
+                Task::Priority::Idle);
         }
     }
+}
+
+// https://w3c.github.io/requestidlecallback/#invoke-idle-callback-timeout-algorithm
+void Window::invoke_idle_callback_timeout(u32 handle)
+{
+    // 1. Let callback be the result of finding the entry in window's list of idle request callbacks or the list of
+    //    runnable idle callbacks that is associated with the value given by the handle argument passed to the algorithm.
+    RefPtr<IdleCallback> callback;
+    auto take_callback = [&](auto& callbacks) {
+        for (size_t index = 0; index < callbacks.size(); ++index) {
+            if (callbacks[index]->handle() == handle) {
+                callback = callbacks.take(index);
+                return;
+            }
+        }
+    };
+    take_callback(m_idle_request_callbacks);
+    if (!callback)
+        take_callback(m_runnable_idle_callbacks);
+
+    // 2. If callback is not undefined:
+    if (!callback)
+        return;
+
+    callback->clear_timeout_timer_id();
+
+    // 2.1. Remove callback from both window's list of idle request callbacks and the list of runnable idle callbacks.
+    // NB: Taking the callback from whichever list contained it above implements this step, since it can only be in one.
+
+    // 2.2. Let now be the current time.
+
+    // 2.3. Let deadlineArg be a new IdleDeadline. Set the get deadline time algorithm associated with deadlineArg to an
+    //      algorithm returning now and set the timeout associated with deadlineArg to true.
+    auto deadline_arg = RequestIdleCallback::IdleDeadline::create(true);
+
+    // 2.4. Invoke callback with « deadlineArg » and "report".
+    auto result = callback->invoke(deadline_arg);
+    if (result.is_error())
+        report_exception(result, principal_realm());
 }
 
 void Window::set_associated_document(DOM::Document& document)
@@ -1918,17 +1967,30 @@ u32 Window::request_idle_callback(IdleCallbackHandler callback, IdleRequestOptio
     auto handle = m_idle_callback_identifier;
 
     // 4. Push callback to the end of window's list of idle request callbacks, associated with handle.
-    m_idle_request_callbacks.append(adopt_ref(*new IdleCallback(move(callback), handle)));
+    auto idle_callback = adopt_ref(*new IdleCallback(move(callback), handle));
+    m_idle_request_callbacks.append(idle_callback);
 
     // 5. Return handle and then continue running this algorithm asynchronously.
-    return handle;
 
-    // FIXME: 6. If the timeout property is present in options and has a positive value:
-    // FIXME:    1. Wait for timeout milliseconds.
-    // FIXME:    2. Wait until all invocations of this algorithm, whose timeout added to their posted time occurred before this one's, have completed.
-    // FIXME:    3. Optionally, wait a further user-agent defined length of time.
-    // FIXME:    4. Queue a task on the queue associated with the idle-task task source, which performs the invoke idle callback timeout algorithm, passing handle and window as arguments.
-    (void)options;
+    // 6. If the timeout property is present in options and has a positive value:
+    if (options.timeout.has_value() && *options.timeout > 0) {
+        // 1. Wait for timeout milliseconds.
+        auto timeout = min(*options.timeout, static_cast<u32>(NumericLimits<i32>::max()));
+        auto timeout_timer_id = run_steps_after_a_timeout(static_cast<i32>(timeout), [this, handle] {
+            // FIXME: 2. Wait until all invocations of this algorithm, whose timeout added to their posted time occurred before this one's, have completed.
+            // FIXME: 3. Optionally, wait a further user-agent defined length of time.
+
+            // 4. Queue a task on the queue associated with the idle-task task source, which performs the invoke idle callback timeout algorithm, passing handle and window as arguments.
+            // NB: A timed-out idle task has normal scheduling priority so that higher-priority work cannot keep it from
+            //     running indefinitely. Its task source remains the idle-task task source as required by the specification.
+            queue_global_task(Task::Source::IdleTask, relevant_global_object(*this), GC::create_function(GC::Heap::the(), [this, handle] {
+                invoke_idle_callback_timeout(handle);
+            }));
+        });
+        idle_callback->set_timeout_timer_id(timeout_timer_id);
+    }
+
+    return handle;
 }
 
 // https://w3c.github.io/requestidlecallback/#dom-window-cancelidlecallback
@@ -1939,12 +2001,18 @@ void Window::cancel_idle_callback(u32 handle)
     // 2. Find the entry in either the window's list of idle request callbacks or list of runnable idle callbacks
     //    that is associated with the value handle.
     // 3. If there is such an entry, remove it from both window's list of idle request callbacks and the list of runnable idle callbacks.
-    m_idle_request_callbacks.remove_first_matching([&](auto& callback) {
-        return callback->handle() == handle;
-    });
-    m_runnable_idle_callbacks.remove_first_matching([&](auto& callback) {
-        return callback->handle() == handle;
-    });
+    auto remove_callback = [&](auto& callbacks) {
+        for (size_t index = 0; index < callbacks.size(); ++index) {
+            if (callbacks[index]->handle() != handle)
+                continue;
+            auto callback = callbacks.take(index);
+            if (callback->timeout_timer_id().has_value())
+                clear_timeout(*callback->timeout_timer_id());
+            return;
+        }
+    };
+    remove_callback(m_idle_request_callbacks);
+    remove_callback(m_runnable_idle_callbacks);
 }
 
 // https://w3c.github.io/selection-api/#dom-window-getselection

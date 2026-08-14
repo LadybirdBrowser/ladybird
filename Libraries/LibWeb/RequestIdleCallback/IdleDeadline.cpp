@@ -31,6 +31,9 @@ IdleDeadline::~IdleDeadline() = default;
 // https://w3c.github.io/requestidlecallback/#dom-idledeadline-timeremaining
 double IdleDeadline::time_remaining() const
 {
+    if (m_did_timeout)
+        return 0;
+
     auto const& event_loop = HTML::main_thread_event_loop();
     // 1. Let now be a DOMHighResTimeStamp representing current high resolution time in milliseconds.
     auto now = HighResolutionTime::current_high_resolution_time(HTML::current_global_object());

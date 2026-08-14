@@ -26,14 +26,15 @@ static IDAllocator& unique_task_source_allocator()
     return next_task_id++;
 }
 
-GC::Ref<Task> Task::create(Source source, GC::Ptr<DOM::Document const> document, GC::Ref<GC::Function<void()>> steps)
+GC::Ref<Task> Task::create(Source source, GC::Ptr<DOM::Document const> document, GC::Ref<GC::Function<void()>> steps, Priority priority)
 {
-    return GC::Heap::the().allocate<Task>(source, document, move(steps));
+    return GC::Heap::the().allocate<Task>(source, document, move(steps), priority);
 }
 
-Task::Task(Source source, GC::Ptr<DOM::Document const> document, GC::Ref<GC::Function<void()>> steps)
+Task::Task(Source source, GC::Ptr<DOM::Document const> document, GC::Ref<GC::Function<void()>> steps, Priority priority)
     : m_id(allocate_task_id())
     , m_source(source)
+    , m_priority(priority)
     , m_steps(steps)
     , m_document(document)
 {
