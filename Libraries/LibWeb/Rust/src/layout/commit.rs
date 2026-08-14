@@ -82,7 +82,7 @@ pub struct FfiPaintableGeometry {
 #[repr(C)]
 pub struct FfiCommitSink {
     pub context: *mut c_void,
-    pub begin_commit: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiCommitPosition,
+    pub begin_commit: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiCommitPosition,
     pub finish_commit: unsafe extern "C" fn(*mut c_void),
     pub prepare_node: unsafe extern "C" fn(*mut c_void, *mut c_void, bool) -> *mut c_void,
     pub set_box_metrics: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiCommittedBoxMetrics),
@@ -297,16 +297,15 @@ fn commit_subtree(
 
 pub(crate) fn commit_replacing(
     root: Node,
-    paintable_to_replace: *mut c_void,
     callbacks: &FfiLayoutFcCallbacks,
     sink: &FfiCommitSink,
     pass_fragments: &crate::layout::CompletedPassFragments,
 ) {
     let mut scopes = crate::layout::CommitScopes::for_pass(pass_fragments);
-    // SAFETY: The sink retains the replaced paintable, detaches it, and
-    // returns borrowed insertion pointers that stay live until
-    // finish_commit().
-    let position = unsafe { (sink.begin_commit)(sink.context, callbacks.shell(root), paintable_to_replace) };
+    // SAFETY: The sink resolves and retains the paintable to replace from the
+    // root, detaches it, and returns borrowed insertion pointers that stay
+    // live until finish_commit().
+    let position = unsafe { (sink.begin_commit)(sink.context, callbacks.shell(root)) };
     commit_subtree(
         root,
         position.parent_paintable,

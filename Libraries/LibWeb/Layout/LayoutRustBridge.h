@@ -33,8 +33,8 @@ public:
     ~LayoutRustBridge();
 
     void run_root_layout(Box& viewport, CSSPixels viewport_inline_size, CSSPixels viewport_block_size, bool should_collect_devtools_layout_data);
-    void compute_subtree_layout(Box&, Painting::Paintable& paintable_to_replace);
-    void replay_saved_abspos_layout(Box&, Painting::Paintable& paintable_to_replace);
+    void compute_subtree_layout(Box&);
+    void replay_saved_abspos_layout(Box&);
 
 private:
     [[nodiscard]] RustFFI::FfiLayoutFcCallbacks formatting_context_callbacks();
