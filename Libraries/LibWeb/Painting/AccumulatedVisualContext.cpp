@@ -67,6 +67,20 @@ static TransformData identity_visual_viewport_transform()
     return { Gfx::FloatMatrix4x4::identity(), { 0.f, 0.f } };
 }
 
+// Whole-tree transform root: the visual viewport transform for document trees, the content
+// placement for nested display list trees, identity otherwise.
+static Vector<AccumulatedVisualContextNode> root_only_nodes(TransformData root_transform)
+{
+    Vector<AccumulatedVisualContextNode> nodes;
+    nodes.append({ move(root_transform), {}, 0, false });
+    return nodes;
+}
+
+static u64 next_accumulated_visual_context_tree_version()
+{
+    return s_next_accumulated_visual_context_tree_version.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
+}
+
 AccumulatedVisualContextTree AccumulatedVisualContextTree::create()
 {
     return create(identity_visual_viewport_transform());
@@ -74,19 +88,17 @@ AccumulatedVisualContextTree AccumulatedVisualContextTree::create()
 
 AccumulatedVisualContextTree AccumulatedVisualContextTree::create(TransformData visual_viewport_transform)
 {
-    Vector<AccumulatedVisualContextNode> nodes;
-    // Whole-tree transform root: the visual viewport transform for document trees, the content
-    // offset for nested display list trees, identity otherwise.
-    nodes.append({ move(visual_viewport_transform), {}, 0, false });
-    return AccumulatedVisualContextTree {
-        s_next_accumulated_visual_context_tree_version.fetch_add(1, AK::MemoryOrder::memory_order_relaxed),
-        move(nodes)
-    };
+    return AccumulatedVisualContextTree { next_accumulated_visual_context_tree_version(), root_only_nodes(move(visual_viewport_transform)), true };
+}
+
+AccumulatedVisualContextTree AccumulatedVisualContextTree::create_with_content_root(TransformData content_transform)
+{
+    return AccumulatedVisualContextTree { next_accumulated_visual_context_tree_version(), root_only_nodes(move(content_transform)), false };
 }
 
 AccumulatedVisualContextTree AccumulatedVisualContextTree::create_with_content_offset(Gfx::IntPoint content_offset)
 {
-    return create(TransformData {
+    return create_with_content_root(TransformData {
         Gfx::translation_matrix(Vector3<float>(static_cast<float>(content_offset.x()), static_cast<float>(content_offset.y()), 0)),
         {},
     });
@@ -494,21 +506,21 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
             nearest_scroll_nodes_for_descendants = { sticky_scroll_node_index, sticky_scroll_node_index };
         }
 
+        Optional<TransformData> transform_data;
+        if (style_has_transform(layout_node))
+            transform_data = compute_transform(paintable_box, pixel_ratio);
+
         if (auto effects = compute_effects_data(paintable_box, pixel_ratio); effects.has_value())
             append_to_own_and_positioned_descendant_contexts(effects.value());
 
         auto flattens_inherited_transform = inherited_contexts.flattens_inherited_transform;
 
         bool appended_transform_node = false;
-        if (style_has_transform(layout_node)) {
-            if (auto transform_data = compute_transform(paintable_box, pixel_ratio); transform_data.has_value()) {
-                transform_data->flattens_inherited_transform = flattens_inherited_transform;
-                paintable_box.set_has_non_invertible_css_transform(!transform_data->matrix.is_invertible());
-                own_state = append_node(own_state, *transform_data);
-                appended_transform_node = true;
-            } else {
-                paintable_box.set_has_non_invertible_css_transform(false);
-            }
+        if (transform_data.has_value()) {
+            transform_data->flattens_inherited_transform = flattens_inherited_transform;
+            paintable_box.set_has_non_invertible_css_transform(!transform_data->matrix.is_invertible());
+            own_state = append_node(own_state, *transform_data);
+            appended_transform_node = true;
         } else {
             paintable_box.set_has_non_invertible_css_transform(false);
         }
@@ -774,8 +786,8 @@ bool update_accumulated_visual_context_values(ViewportPaintable& viewport_painta
         return false;
 
     auto pixel_ratio = viewport_paintable.document().page().client().device_pixels_per_css_pixel();
-    auto effects = compute_effects_data(paintable_box, pixel_ratio);
     auto transform = compute_transform(paintable_box, pixel_ratio);
+    auto effects = compute_effects_data(paintable_box, pixel_ratio);
     auto perspective = compute_perspective_data(paintable_box, static_cast<float>(pixel_ratio));
 
     paintable_box.set_has_non_invertible_css_transform(transform.has_value() && !transform->matrix.is_invertible());
@@ -1146,26 +1158,37 @@ Gfx::FloatPoint AccumulatedVisualContextTree::inverse_transform_point(VisualCont
     return point;
 }
 
+Gfx::FloatMatrix4x4 AccumulatedVisualContextTree::accumulated_matrix(VisualContextIndex index, ScrollStateSnapshot const& scroll_state, IncludeVisualViewportTransform include_visual_viewport_transform) const
+{
+    auto chain = build_ancestor_chain(index);
+    auto matrix = Gfx::FloatMatrix4x4::identity();
+    for (size_t i = chain.size(); i > 0; --i) {
+        auto node_index = VisualContextIndex { chain[i - 1] };
+        if (node_index == VISUAL_VIEWPORT_NODE_INDEX && m_root_is_visual_viewport && include_visual_viewport_transform == IncludeVisualViewportTransform::No)
+            continue;
+        auto local = local_spatial_matrix(m_nodes[node_index.value()], node_index, scroll_state);
+        matrix = (local.flattens_inherited_transform ? Gfx::flattened(matrix) : matrix) * local.matrix;
+    }
+    return matrix;
+}
+
+Gfx::FloatSize AccumulatedVisualContextTree::accumulated_2d_scale(VisualContextIndex index, ScrollStateSnapshot const& scroll_state, IncludeVisualViewportTransform include_visual_viewport_transform) const
+{
+    auto affine = Gfx::extract_2d_affine_transform(accumulated_matrix(index, scroll_state, include_visual_viewport_transform));
+    return { affine.x_scale(), affine.y_scale() };
+}
+
 Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(VisualContextIndex index, Gfx::FloatRect const& source_rect, ScrollStateSnapshot const& scroll_state, IncludeVisualViewportTransform include_visual_viewport_transform) const
 {
     // A chain with three-dimensional transforms cannot be applied one two-dimensional projection at a time.
     if (chain_contains_3d_transform(index)) {
-        auto chain = build_ancestor_chain(index);
-        auto matrix = Gfx::FloatMatrix4x4::identity();
-        for (size_t i = chain.size(); i > 0; --i) {
-            auto node_index = VisualContextIndex { chain[i - 1] };
-            if (node_index == VISUAL_VIEWPORT_NODE_INDEX && include_visual_viewport_transform == IncludeVisualViewportTransform::No)
-                continue;
-            auto local = local_spatial_matrix(m_nodes[node_index.value()], node_index, scroll_state);
-            matrix = (local.flattens_inherited_transform ? Gfx::flattened(matrix) : matrix) * local.matrix;
-        }
-        return map_rect_through_matrix(matrix, source_rect);
+        return map_rect_through_matrix(accumulated_matrix(index, scroll_state, include_visual_viewport_transform), source_rect);
     }
 
     auto rect = source_rect;
     for (size_t i = index.value();; i = m_nodes[i].parent_index.value()) {
         auto const& node = m_nodes[i];
-        if (i != VISUAL_VIEWPORT_NODE_INDEX.value() || include_visual_viewport_transform == IncludeVisualViewportTransform::Yes) {
+        if (i != VISUAL_VIEWPORT_NODE_INDEX.value() || !m_root_is_visual_viewport || include_visual_viewport_transform == IncludeVisualViewportTransform::Yes) {
             node.data.visit(
                 [&](TransformData const& transform) {
                     auto affine = Gfx::extract_2d_affine_transform(transform.matrix);
@@ -1513,6 +1536,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::Painting::AccumulatedVisualContextTr
 {
     TRY(encoder.encode(tree.m_version));
     TRY(encoder.encode(tree.m_nodes));
+    TRY(encoder.encode(tree.m_root_is_visual_viewport));
     return {};
 }
 
@@ -1521,11 +1545,12 @@ ErrorOr<Web::Painting::AccumulatedVisualContextTree> decode(Decoder& decoder)
 {
     auto version = TRY(decoder.decode<u64>());
     auto nodes = TRY(decoder.decode<Vector<Web::Painting::AccumulatedVisualContextNode>>());
+    auto root_is_visual_viewport = TRY(decoder.decode<bool>());
     if (nodes.is_empty())
         return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree missing visual viewport node");
     if (!nodes[Web::Painting::VISUAL_VIEWPORT_NODE_INDEX.value()].data.has<Web::Painting::TransformData>())
         return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree visual viewport node is not a transform");
-    return Web::Painting::AccumulatedVisualContextTree { version, move(nodes) };
+    return Web::Painting::AccumulatedVisualContextTree { version, move(nodes), root_is_visual_viewport };
 }
 
 }

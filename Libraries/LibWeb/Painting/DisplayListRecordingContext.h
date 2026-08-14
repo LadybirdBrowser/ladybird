@@ -25,20 +25,7 @@ namespace Web::Painting {
 class AccumulatedVisualContextTree;
 class DisplayList;
 class HitTestDisplayList;
-class Paintable;
 class ScrollState;
-
-// Nested display list trees (masks, clips) assign visual context indices to paintables outside
-// the main tree. The recording context carries the assignments, leaving the paintables' stored
-// indices owned by the main tree for geometry APIs.
-struct NestedVisualContextAssignments {
-    struct PaintableIndices {
-        VisualContextIndex own;
-        VisualContextIndex for_descendants;
-    };
-    HashMap<Paintable const*, PaintableIndices> paintable_indices;
-    HashMap<Paintable const*, Vector<VisualContextIndex>> mask_node_indices;
-};
 
 enum class PaintCommandCacheMode : u8 {
     ReadOnly,

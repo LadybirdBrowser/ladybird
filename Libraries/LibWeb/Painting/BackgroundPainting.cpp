@@ -443,7 +443,7 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
             path.close();
             display_list_recorder.fill_path({
                 .path = move(path),
-                .paint_style_or_color = PaintStyle { PatternPaintStyle { { *tile_display_list, move(visual_context_tree) }, tile_device_rect.to_type<int>().to_type<float>(), {} } },
+                .paint_style_or_color = PaintStyle { PatternPaintStyle { { *tile_display_list, move(visual_context_tree) }, tile_device_rect.to_type<int>().to_type<float>(), { 1, 1 }, {} } },
                 .winding_rule = Gfx::WindingRule::Nonzero,
             });
         } else {

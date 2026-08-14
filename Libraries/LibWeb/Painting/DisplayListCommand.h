@@ -435,6 +435,7 @@ struct DisplayListPaintStyle {
     float radial_gradient_end_radius { 0.0f };
     DisplayListResourceId pattern_tile_display_list_id;
     Gfx::FloatRect pattern_tile_rect;
+    Gfx::FloatSize pattern_content_scale { 1, 1 };
     Optional<Gfx::AffineTransform> pattern_transform;
 };
 

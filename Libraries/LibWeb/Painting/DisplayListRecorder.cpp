@@ -233,6 +233,7 @@ static DisplayListPaintStyle to_display_list_paint_style(
             auto const& tile_display_list = pattern.tile_display_list();
             display_list_paint_style.pattern_tile_display_list_id = resource_storage.add_display_list(tile_display_list.display_list, tile_display_list.visual_context_tree);
             display_list_paint_style.pattern_tile_rect = pattern.tile_rect();
+            display_list_paint_style.pattern_content_scale = pattern.content_scale();
             display_list_paint_style.pattern_transform = pattern.pattern_transform();
         });
     return display_list_paint_style;

@@ -132,13 +132,22 @@ static void build_nested_svg_visual_context_tree_for_subtree(AccumulatedVisualCo
     });
 }
 
-static AccumulatedVisualContextTree build_nested_svg_visual_context_tree(Paintable& root_paintable, Gfx::IntPoint content_offset, NestedVisualContextAssignments& assignments)
+AccumulatedVisualContextTree build_nested_svg_visual_context_tree(Paintable& root_paintable, TransformData root_transform, NestedVisualContextAssignments& assignments)
 {
-    auto visual_context_tree = AccumulatedVisualContextTree::create_with_content_offset(content_offset);
+    auto visual_context_tree = AccumulatedVisualContextTree::create_with_content_root(move(root_transform));
     auto pixel_ratio = root_paintable.document().page().client().device_pixels_per_css_pixel();
     DevicePixelConverter converter(pixel_ratio);
     build_nested_svg_visual_context_tree_for_subtree(visual_context_tree, assignments, converter, root_paintable, {}, pixel_ratio);
     return visual_context_tree;
+}
+
+static AccumulatedVisualContextTree build_nested_svg_visual_context_tree(Paintable& root_paintable, Gfx::IntPoint content_offset, NestedVisualContextAssignments& assignments)
+{
+    TransformData content_offset_transform {
+        Gfx::translation_matrix(Vector3<float>(static_cast<float>(content_offset.x()), static_cast<float>(content_offset.y()), 0)),
+        {},
+    };
+    return build_nested_svg_visual_context_tree(root_paintable, move(content_offset_transform), assignments);
 }
 
 Optional<Gfx::MaskKind> SVGMaskable::get_svg_mask_type() const
