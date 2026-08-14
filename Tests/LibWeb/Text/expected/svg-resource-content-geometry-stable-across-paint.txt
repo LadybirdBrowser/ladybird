@@ -1,0 +1,2 @@
+PASS: mask-rect rect is stable across a paint
+PASS: pattern-rect rect is stable across a paint
