@@ -2,6 +2,10 @@ PASS: append block child in block flow | preserve parent
 PASS: append block child in block flow | preserve before
 PASS: append block child in block flow | layout tree builds=1
 PASS: append block child in block flow | incremental tree matches full rebuild
+PASS: append block child before wrapped after pseudo-element | preserve parent
+PASS: append block child before wrapped after pseudo-element | preserve before
+PASS: append block child before wrapped after pseudo-element | layout tree builds=1
+PASS: append block child before wrapped after pseudo-element | incremental tree matches full rebuild
 PASS: prepend block child in block flow | preserve parent
 PASS: prepend block child in block flow | preserve after
 PASS: prepend block child in block flow | layout tree builds=1
@@ -124,6 +128,9 @@ PASS: remove child in grid | incremental tree matches full rebuild
 PASS: fall back when removed block affects following counters | rebuild parent
 PASS: fall back when removed block affects following counters | layout tree builds=1
 PASS: fall back when removed block affects following counters | incremental tree matches full rebuild
+PASS: fall back when block removal joins generated inline wrappers | rebuild parent
+PASS: fall back when block removal joins generated inline wrappers | layout tree builds=1
+PASS: fall back when block removal joins generated inline wrappers | incremental tree matches full rebuild
 PASS: fall back when removing the first-letter block child | rebuild parent
 PASS: fall back when removing the first-letter block child | layout tree builds=1
 PASS: fall back when removing the first-letter block child | incremental tree matches full rebuild

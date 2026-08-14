@@ -1466,6 +1466,18 @@ static void ffi_insert_child(void*, void* parent_pointer, void* child_pointer, R
         }
     }
 
+    if (auto const* parent_element = as_if<DOM::Element>(parent.dom_node())) {
+        if (auto* after_layout_node = parent_element->pseudo_element_unsafe_layout_node(CSS::PseudoElement::After)) {
+            auto* after_layout_child = after_layout_node;
+            while (after_layout_child->parent() && after_layout_child->parent() != &parent)
+                after_layout_child = after_layout_child->parent();
+            if (after_layout_child->parent() == &parent) {
+                parent.insert_before(*child, after_layout_child);
+                return;
+            }
+        }
+    }
+
     for (auto layout_child = parent.first_child(); layout_child; layout_child = layout_child->next_sibling()) {
         if (layout_child->is_generated_for_after_pseudo_element()) {
             parent.insert_before(*child, layout_child);

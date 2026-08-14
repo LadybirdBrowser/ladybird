@@ -8,6 +8,8 @@
     .parent.counter { counter-reset: direct-child-counter; }
     .increment { counter-increment: direct-child-counter; }
     .counter-value::before { content: counter(direct-child-counter); }
+    .parent.inline-generated::before { content: "before"; }
+    .parent.inline-generated::after { content: "after"; }
     .parent.first-letter::first-letter { color: red; }
     .child { display: block; }
     .inline { display: inline; }
@@ -22,6 +24,12 @@
         {
             name: "append block child in block flow",
             markup: '<div class="parent"><i class="before child"></i></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<section class="target child"><b></b></section>'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "append block child before wrapped after pseudo-element",
+            markup: '<div class="parent inline-generated"><i class="before child"></i></div>',
             mutate: parent => parent.insertAdjacentHTML("beforeend", '<section class="target child"><b></b></section>'),
             tracked: ["parent", "before"],
         },
@@ -169,6 +177,13 @@
         {
             name: "fall back when removed block affects following counters",
             markup: '<div class="parent counter"><i class="target child increment"></i><i class="after child counter-value"></i></div>',
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back when block removal joins generated inline wrappers",
+            markup: '<div class="parent inline-generated"><i class="target child"></i></div>',
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent"],
             preserve: false,
