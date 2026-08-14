@@ -253,13 +253,13 @@ PASS: ::before remove -webkit-box on inline in table-footer-group | incremental 
 PRESERVED: ::before remove block flow-root on inline in block grid | fixture ancestor
 PRESERVED: ::before remove block flow-root on inline in block grid | distant sibling
 PRESERVED: ::before remove block flow-root on inline in block grid | distant sibling descendant
-RECREATED: ::before remove block flow-root on inline in block grid | DOM parent
-RECREATED: ::before remove block flow-root on inline in block grid | preceding sibling
-RECREATED: ::before remove block flow-root on inline in block grid | preceding sibling descendant
+PRESERVED: ::before remove block flow-root on inline in block grid | DOM parent
+PRESERVED: ::before remove block flow-root on inline in block grid | preceding sibling
+PRESERVED: ::before remove block flow-root on inline in block grid | preceding sibling descendant
 RECREATED: ::before remove block flow-root on inline in block grid | target
 RECREATED: ::before remove block flow-root on inline in block grid | target descendant
-RECREATED: ::before remove block flow-root on inline in block grid | following sibling
-RECREATED: ::before remove block flow-root on inline in block grid | following sibling descendant
+PRESERVED: ::before remove block flow-root on inline in block grid | following sibling
+PRESERVED: ::before remove block flow-root on inline in block grid | following sibling descendant
 STATS: ::before remove block flow-root on inline in block grid | rebuilt subtree roots=1, escaped=false
 PASS: ::before remove block flow-root on inline in block grid | incremental tree matches full rebuild
 PRESERVED: ::after create block on inline in list-item | fixture ancestor
@@ -286,16 +286,16 @@ RECREATED: ::after create inline-table on inline in table-header-group | followi
 RECREATED: ::after create inline-table on inline in table-header-group | following sibling descendant
 STATS: ::after create inline-table on inline in table-header-group | rebuilt subtree roots=1, escaped=false
 PASS: ::after create inline-table on inline in table-header-group | incremental tree matches full rebuild
-RECREATED: ::after create block flow on inline in inline flex | fixture ancestor
-RECREATED: ::after create block flow on inline in inline flex | distant sibling
-RECREATED: ::after create block flow on inline in inline flex | distant sibling descendant
-RECREATED: ::after create block flow on inline in inline flex | DOM parent
-RECREATED: ::after create block flow on inline in inline flex | preceding sibling
-RECREATED: ::after create block flow on inline in inline flex | preceding sibling descendant
+PRESERVED: ::after create block flow on inline in inline flex | fixture ancestor
+PRESERVED: ::after create block flow on inline in inline flex | distant sibling
+PRESERVED: ::after create block flow on inline in inline flex | distant sibling descendant
+PRESERVED: ::after create block flow on inline in inline flex | DOM parent
+PRESERVED: ::after create block flow on inline in inline flex | preceding sibling
+PRESERVED: ::after create block flow on inline in inline flex | preceding sibling descendant
 RECREATED: ::after create block flow on inline in inline flex | target
 RECREATED: ::after create block flow on inline in inline flex | target descendant
-RECREATED: ::after create block flow on inline in inline flex | following sibling
-RECREATED: ::after create block flow on inline in inline flex | following sibling descendant
+PRESERVED: ::after create block flow on inline in inline flex | following sibling
+PRESERVED: ::after create block flow on inline in inline flex | following sibling descendant
 STATS: ::after create block flow on inline in inline flex | rebuilt subtree roots=1, escaped=false
 PASS: ::after create block flow on inline in inline flex | incremental tree matches full rebuild
 PRESERVED: ::before change clear none on flow-root in inline-block | fixture ancestor
@@ -526,16 +526,16 @@ RECREATED: ::after change float block flow on run-in in block table | following 
 RECREATED: ::after change float block flow on run-in in block table | following sibling descendant
 STATS: ::after change float block flow on run-in in block table | rebuilt subtree roots=1, escaped=false
 PASS: ::after change float block flow on run-in in block table | incremental tree matches full rebuild
-RECREATED: ::before remove none on list-item in inline list-item | fixture ancestor
-RECREATED: ::before remove none on list-item in inline list-item | distant sibling
-RECREATED: ::before remove none on list-item in inline list-item | distant sibling descendant
-RECREATED: ::before remove none on list-item in inline list-item | DOM parent
-RECREATED: ::before remove none on list-item in inline list-item | preceding sibling
-RECREATED: ::before remove none on list-item in inline list-item | preceding sibling descendant
+PRESERVED: ::before remove none on list-item in inline list-item | fixture ancestor
+PRESERVED: ::before remove none on list-item in inline list-item | distant sibling
+PRESERVED: ::before remove none on list-item in inline list-item | distant sibling descendant
+PRESERVED: ::before remove none on list-item in inline list-item | DOM parent
+PRESERVED: ::before remove none on list-item in inline list-item | preceding sibling
+PRESERVED: ::before remove none on list-item in inline list-item | preceding sibling descendant
 RECREATED: ::before remove none on list-item in inline list-item | target
 RECREATED: ::before remove none on list-item in inline list-item | target descendant
-RECREATED: ::before remove none on list-item in inline list-item | following sibling
-RECREATED: ::before remove none on list-item in inline list-item | following sibling descendant
+PRESERVED: ::before remove none on list-item in inline list-item | following sibling
+PRESERVED: ::before remove none on list-item in inline list-item | following sibling descendant
 STATS: ::before remove none on list-item in inline list-item | rebuilt subtree roots=1, escaped=false
 PASS: ::before remove none on list-item in inline list-item | incremental tree matches full rebuild
 RECREATED: ::before remove inline-grid on list-item in table-footer-group | fixture ancestor
@@ -553,25 +553,25 @@ PASS: ::before remove inline-grid on list-item in table-footer-group | increment
 PRESERVED: ::before remove table-column on list-item in block grid | fixture ancestor
 PRESERVED: ::before remove table-column on list-item in block grid | distant sibling
 PRESERVED: ::before remove table-column on list-item in block grid | distant sibling descendant
-RECREATED: ::before remove table-column on list-item in block grid | DOM parent
-RECREATED: ::before remove table-column on list-item in block grid | preceding sibling
-RECREATED: ::before remove table-column on list-item in block grid | preceding sibling descendant
+PRESERVED: ::before remove table-column on list-item in block grid | DOM parent
+PRESERVED: ::before remove table-column on list-item in block grid | preceding sibling
+PRESERVED: ::before remove table-column on list-item in block grid | preceding sibling descendant
 RECREATED: ::before remove table-column on list-item in block grid | target
 RECREATED: ::before remove table-column on list-item in block grid | target descendant
-RECREATED: ::before remove table-column on list-item in block grid | following sibling
-RECREATED: ::before remove table-column on list-item in block grid | following sibling descendant
+PRESERVED: ::before remove table-column on list-item in block grid | following sibling
+PRESERVED: ::before remove table-column on list-item in block grid | following sibling descendant
 STATS: ::before remove table-column on list-item in block grid | rebuilt subtree roots=1, escaped=false
 PASS: ::before remove table-column on list-item in block grid | incremental tree matches full rebuild
 PRESERVED: ::before remove block flow list-item on list-item in list-item | fixture ancestor
 PRESERVED: ::before remove block flow list-item on list-item in list-item | distant sibling
 PRESERVED: ::before remove block flow list-item on list-item in list-item | distant sibling descendant
-RECREATED: ::before remove block flow list-item on list-item in list-item | DOM parent
-RECREATED: ::before remove block flow list-item on list-item in list-item | preceding sibling
-RECREATED: ::before remove block flow list-item on list-item in list-item | preceding sibling descendant
+PRESERVED: ::before remove block flow list-item on list-item in list-item | DOM parent
+PRESERVED: ::before remove block flow list-item on list-item in list-item | preceding sibling
+PRESERVED: ::before remove block flow list-item on list-item in list-item | preceding sibling descendant
 RECREATED: ::before remove block flow list-item on list-item in list-item | target
 RECREATED: ::before remove block flow list-item on list-item in list-item | target descendant
-RECREATED: ::before remove block flow list-item on list-item in list-item | following sibling
-RECREATED: ::before remove block flow list-item on list-item in list-item | following sibling descendant
+PRESERVED: ::before remove block flow list-item on list-item in list-item | following sibling
+PRESERVED: ::before remove block flow list-item on list-item in list-item | following sibling descendant
 STATS: ::before remove block flow list-item on list-item in list-item | rebuilt subtree roots=1, escaped=false
 PASS: ::before remove block flow list-item on list-item in list-item | incremental tree matches full rebuild
 RECREATED: ::after create inline-flex on list-item in table-header-group | fixture ancestor
@@ -586,28 +586,28 @@ RECREATED: ::after create inline-flex on list-item in table-header-group | follo
 RECREATED: ::after create inline-flex on list-item in table-header-group | following sibling descendant
 STATS: ::after create inline-flex on list-item in table-header-group | rebuilt subtree roots=1, escaped=false
 PASS: ::after create inline-flex on list-item in table-header-group | incremental tree matches full rebuild
-RECREATED: ::after create table-cell on list-item in inline flex | fixture ancestor
-RECREATED: ::after create table-cell on list-item in inline flex | distant sibling
-RECREATED: ::after create table-cell on list-item in inline flex | distant sibling descendant
-RECREATED: ::after create table-cell on list-item in inline flex | DOM parent
-RECREATED: ::after create table-cell on list-item in inline flex | preceding sibling
-RECREATED: ::after create table-cell on list-item in inline flex | preceding sibling descendant
+PRESERVED: ::after create table-cell on list-item in inline flex | fixture ancestor
+PRESERVED: ::after create table-cell on list-item in inline flex | distant sibling
+PRESERVED: ::after create table-cell on list-item in inline flex | distant sibling descendant
+PRESERVED: ::after create table-cell on list-item in inline flex | DOM parent
+PRESERVED: ::after create table-cell on list-item in inline flex | preceding sibling
+PRESERVED: ::after create table-cell on list-item in inline flex | preceding sibling descendant
 RECREATED: ::after create table-cell on list-item in inline flex | target
 RECREATED: ::after create table-cell on list-item in inline flex | target descendant
-RECREATED: ::after create table-cell on list-item in inline flex | following sibling
-RECREATED: ::after create table-cell on list-item in inline flex | following sibling descendant
+PRESERVED: ::after create table-cell on list-item in inline flex | following sibling
+PRESERVED: ::after create table-cell on list-item in inline flex | following sibling descendant
 STATS: ::after create table-cell on list-item in inline flex | rebuilt subtree roots=1, escaped=false
 PASS: ::after create table-cell on list-item in inline flex | incremental tree matches full rebuild
 PRESERVED: ::after create block table on list-item in run-in | fixture ancestor
 PRESERVED: ::after create block table on list-item in run-in | distant sibling
 PRESERVED: ::after create block table on list-item in run-in | distant sibling descendant
-RECREATED: ::after create block table on list-item in run-in | DOM parent
-RECREATED: ::after create block table on list-item in run-in | preceding sibling
-RECREATED: ::after create block table on list-item in run-in | preceding sibling descendant
+PRESERVED: ::after create block table on list-item in run-in | DOM parent
+PRESERVED: ::after create block table on list-item in run-in | preceding sibling
+PRESERVED: ::after create block table on list-item in run-in | preceding sibling descendant
 RECREATED: ::after create block table on list-item in run-in | target
 RECREATED: ::after create block table on list-item in run-in | target descendant
-RECREATED: ::after create block table on list-item in run-in | following sibling
-RECREATED: ::after create block table on list-item in run-in | following sibling descendant
+PRESERVED: ::after create block table on list-item in run-in | following sibling
+PRESERVED: ::after create block table on list-item in run-in | following sibling descendant
 STATS: ::after create block table on list-item in run-in | rebuilt subtree roots=1, escaped=false
 PASS: ::after create block table on list-item in run-in | incremental tree matches full rebuild
 RECREATED: ::before change clear inline list-item on inline list-item in -webkit-inline-box | fixture ancestor
@@ -697,25 +697,25 @@ PASS: ::before remove flow-root on flex in inline-table | incremental tree match
 PRESERVED: ::before remove -webkit-box on flex in block flow | fixture ancestor
 PRESERVED: ::before remove -webkit-box on flex in block flow | distant sibling
 PRESERVED: ::before remove -webkit-box on flex in block flow | distant sibling descendant
-RECREATED: ::before remove -webkit-box on flex in block flow | DOM parent
-RECREATED: ::before remove -webkit-box on flex in block flow | preceding sibling
-RECREATED: ::before remove -webkit-box on flex in block flow | preceding sibling descendant
+PRESERVED: ::before remove -webkit-box on flex in block flow | DOM parent
+PRESERVED: ::before remove -webkit-box on flex in block flow | preceding sibling
+PRESERVED: ::before remove -webkit-box on flex in block flow | preceding sibling descendant
 RECREATED: ::before remove -webkit-box on flex in block flow | target
 RECREATED: ::before remove -webkit-box on flex in block flow | target descendant
-RECREATED: ::before remove -webkit-box on flex in block flow | following sibling
-RECREATED: ::before remove -webkit-box on flex in block flow | following sibling descendant
+PRESERVED: ::before remove -webkit-box on flex in block flow | following sibling
+PRESERVED: ::before remove -webkit-box on flex in block flow | following sibling descendant
 STATS: ::before remove -webkit-box on flex in block flow | rebuilt subtree roots=1, escaped=false
 PASS: ::before remove -webkit-box on flex in block flow | incremental tree matches full rebuild
-RECREATED: ::before remove block flow-root on flex in contents | fixture ancestor
-RECREATED: ::before remove block flow-root on flex in contents | distant sibling
-RECREATED: ::before remove block flow-root on flex in contents | distant sibling descendant
+PRESERVED: ::before remove block flow-root on flex in contents | fixture ancestor
+PRESERVED: ::before remove block flow-root on flex in contents | distant sibling
+PRESERVED: ::before remove block flow-root on flex in contents | distant sibling descendant
 ABSENT: ::before remove block flow-root on flex in contents | DOM parent
-RECREATED: ::before remove block flow-root on flex in contents | preceding sibling
-RECREATED: ::before remove block flow-root on flex in contents | preceding sibling descendant
+PRESERVED: ::before remove block flow-root on flex in contents | preceding sibling
+PRESERVED: ::before remove block flow-root on flex in contents | preceding sibling descendant
 RECREATED: ::before remove block flow-root on flex in contents | target
 RECREATED: ::before remove block flow-root on flex in contents | target descendant
-RECREATED: ::before remove block flow-root on flex in contents | following sibling
-RECREATED: ::before remove block flow-root on flex in contents | following sibling descendant
+PRESERVED: ::before remove block flow-root on flex in contents | following sibling
+PRESERVED: ::before remove block flow-root on flex in contents | following sibling descendant
 STATS: ::before remove block flow-root on flex in contents | rebuilt subtree roots=1, escaped=false
 PASS: ::before remove block flow-root on flex in contents | incremental tree matches full rebuild
 RECREATED: ::after create block on flex in table | fixture ancestor
@@ -730,28 +730,28 @@ RECREATED: ::after create block on flex in table | following sibling
 RECREATED: ::after create block on flex in table | following sibling descendant
 STATS: ::after create block on flex in table | rebuilt subtree roots=1, escaped=false
 PASS: ::after create block on flex in table | incremental tree matches full rebuild
-RECREATED: ::after create inline-table on flex in table-caption | fixture ancestor
-RECREATED: ::after create inline-table on flex in table-caption | distant sibling
-RECREATED: ::after create inline-table on flex in table-caption | distant sibling descendant
-RECREATED: ::after create inline-table on flex in table-caption | DOM parent
-RECREATED: ::after create inline-table on flex in table-caption | preceding sibling
-RECREATED: ::after create inline-table on flex in table-caption | preceding sibling descendant
+PRESERVED: ::after create inline-table on flex in table-caption | fixture ancestor
+PRESERVED: ::after create inline-table on flex in table-caption | distant sibling
+PRESERVED: ::after create inline-table on flex in table-caption | distant sibling descendant
+PRESERVED: ::after create inline-table on flex in table-caption | DOM parent
+PRESERVED: ::after create inline-table on flex in table-caption | preceding sibling
+PRESERVED: ::after create inline-table on flex in table-caption | preceding sibling descendant
 RECREATED: ::after create inline-table on flex in table-caption | target
 RECREATED: ::after create inline-table on flex in table-caption | target descendant
-RECREATED: ::after create inline-table on flex in table-caption | following sibling
-RECREATED: ::after create inline-table on flex in table-caption | following sibling descendant
+PRESERVED: ::after create inline-table on flex in table-caption | following sibling
+PRESERVED: ::after create inline-table on flex in table-caption | following sibling descendant
 STATS: ::after create inline-table on flex in table-caption | rebuilt subtree roots=1, escaped=false
 PASS: ::after create inline-table on flex in table-caption | incremental tree matches full rebuild
-RECREATED: ::after create block flow on flex in inline flow list-item | fixture ancestor
-RECREATED: ::after create block flow on flex in inline flow list-item | distant sibling
-RECREATED: ::after create block flow on flex in inline flow list-item | distant sibling descendant
-RECREATED: ::after create block flow on flex in inline flow list-item | DOM parent
-RECREATED: ::after create block flow on flex in inline flow list-item | preceding sibling
-RECREATED: ::after create block flow on flex in inline flow list-item | preceding sibling descendant
+PRESERVED: ::after create block flow on flex in inline flow list-item | fixture ancestor
+PRESERVED: ::after create block flow on flex in inline flow list-item | distant sibling
+PRESERVED: ::after create block flow on flex in inline flow list-item | distant sibling descendant
+PRESERVED: ::after create block flow on flex in inline flow list-item | DOM parent
+PRESERVED: ::after create block flow on flex in inline flow list-item | preceding sibling
+PRESERVED: ::after create block flow on flex in inline flow list-item | preceding sibling descendant
 RECREATED: ::after create block flow on flex in inline flow list-item | target
 RECREATED: ::after create block flow on flex in inline flow list-item | target descendant
-RECREATED: ::after create block flow on flex in inline flow list-item | following sibling
-RECREATED: ::after create block flow on flex in inline flow list-item | following sibling descendant
+PRESERVED: ::after create block flow on flex in inline flow list-item | following sibling
+PRESERVED: ::after create block flow on flex in inline flow list-item | following sibling descendant
 STATS: ::after create block flow on flex in inline flow list-item | rebuilt subtree roots=1, escaped=false
 PASS: ::after create block flow on flex in inline flow list-item | incremental tree matches full rebuild
 PRESERVED: ::before change clear none on inline-flex in grid | fixture ancestor
@@ -853,25 +853,25 @@ PASS: ::before remove inline list-item on grid in table-footer-group | increment
 PRESERVED: ::before remove table-footer-group on grid in block grid | fixture ancestor
 PRESERVED: ::before remove table-footer-group on grid in block grid | distant sibling
 PRESERVED: ::before remove table-footer-group on grid in block grid | distant sibling descendant
-RECREATED: ::before remove table-footer-group on grid in block grid | DOM parent
-RECREATED: ::before remove table-footer-group on grid in block grid | preceding sibling
-RECREATED: ::before remove table-footer-group on grid in block grid | preceding sibling descendant
+PRESERVED: ::before remove table-footer-group on grid in block grid | DOM parent
+PRESERVED: ::before remove table-footer-group on grid in block grid | preceding sibling
+PRESERVED: ::before remove table-footer-group on grid in block grid | preceding sibling descendant
 RECREATED: ::before remove table-footer-group on grid in block grid | target
 RECREATED: ::before remove table-footer-group on grid in block grid | target descendant
-RECREATED: ::before remove table-footer-group on grid in block grid | following sibling
-RECREATED: ::before remove table-footer-group on grid in block grid | following sibling descendant
+PRESERVED: ::before remove table-footer-group on grid in block grid | following sibling
+PRESERVED: ::before remove table-footer-group on grid in block grid | following sibling descendant
 STATS: ::before remove table-footer-group on grid in block grid | rebuilt subtree roots=1, escaped=false
 PASS: ::before remove table-footer-group on grid in block grid | incremental tree matches full rebuild
 PRESERVED: ::before remove block grid on grid in list-item | fixture ancestor
 PRESERVED: ::before remove block grid on grid in list-item | distant sibling
 PRESERVED: ::before remove block grid on grid in list-item | distant sibling descendant
-RECREATED: ::before remove block grid on grid in list-item | DOM parent
-RECREATED: ::before remove block grid on grid in list-item | preceding sibling
-RECREATED: ::before remove block grid on grid in list-item | preceding sibling descendant
+PRESERVED: ::before remove block grid on grid in list-item | DOM parent
+PRESERVED: ::before remove block grid on grid in list-item | preceding sibling
+PRESERVED: ::before remove block grid on grid in list-item | preceding sibling descendant
 RECREATED: ::before remove block grid on grid in list-item | target
 RECREATED: ::before remove block grid on grid in list-item | target descendant
-RECREATED: ::before remove block grid on grid in list-item | following sibling
-RECREATED: ::before remove block grid on grid in list-item | following sibling descendant
+PRESERVED: ::before remove block grid on grid in list-item | following sibling
+PRESERVED: ::before remove block grid on grid in list-item | following sibling descendant
 STATS: ::before remove block grid on grid in list-item | rebuilt subtree roots=1, escaped=false
 PASS: ::before remove block grid on grid in list-item | incremental tree matches full rebuild
 RECREATED: ::after create run-in on grid in table-header-group | fixture ancestor
@@ -886,28 +886,28 @@ RECREATED: ::after create run-in on grid in table-header-group | following sibli
 RECREATED: ::after create run-in on grid in table-header-group | following sibling descendant
 STATS: ::after create run-in on grid in table-header-group | rebuilt subtree roots=1, escaped=false
 PASS: ::after create run-in on grid in table-header-group | incremental tree matches full rebuild
-RECREATED: ::after create table-row-group on grid in inline flex | fixture ancestor
-RECREATED: ::after create table-row-group on grid in inline flex | distant sibling
-RECREATED: ::after create table-row-group on grid in inline flex | distant sibling descendant
-RECREATED: ::after create table-row-group on grid in inline flex | DOM parent
-RECREATED: ::after create table-row-group on grid in inline flex | preceding sibling
-RECREATED: ::after create table-row-group on grid in inline flex | preceding sibling descendant
+PRESERVED: ::after create table-row-group on grid in inline flex | fixture ancestor
+PRESERVED: ::after create table-row-group on grid in inline flex | distant sibling
+PRESERVED: ::after create table-row-group on grid in inline flex | distant sibling descendant
+PRESERVED: ::after create table-row-group on grid in inline flex | DOM parent
+PRESERVED: ::after create table-row-group on grid in inline flex | preceding sibling
+PRESERVED: ::after create table-row-group on grid in inline flex | preceding sibling descendant
 RECREATED: ::after create table-row-group on grid in inline flex | target
 RECREATED: ::after create table-row-group on grid in inline flex | target descendant
-RECREATED: ::after create table-row-group on grid in inline flex | following sibling
-RECREATED: ::after create table-row-group on grid in inline flex | following sibling descendant
+PRESERVED: ::after create table-row-group on grid in inline flex | following sibling
+PRESERVED: ::after create table-row-group on grid in inline flex | following sibling descendant
 STATS: ::after create table-row-group on grid in inline flex | rebuilt subtree roots=1, escaped=false
 PASS: ::after create table-row-group on grid in inline flex | incremental tree matches full rebuild
 PRESERVED: ::after create block flex on grid in run-in | fixture ancestor
 PRESERVED: ::after create block flex on grid in run-in | distant sibling
 PRESERVED: ::after create block flex on grid in run-in | distant sibling descendant
-RECREATED: ::after create block flex on grid in run-in | DOM parent
-RECREATED: ::after create block flex on grid in run-in | preceding sibling
-RECREATED: ::after create block flex on grid in run-in | preceding sibling descendant
+PRESERVED: ::after create block flex on grid in run-in | DOM parent
+PRESERVED: ::after create block flex on grid in run-in | preceding sibling
+PRESERVED: ::after create block flex on grid in run-in | preceding sibling descendant
 RECREATED: ::after create block flex on grid in run-in | target
 RECREATED: ::after create block flex on grid in run-in | target descendant
-RECREATED: ::after create block flex on grid in run-in | following sibling
-RECREATED: ::after create block flex on grid in run-in | following sibling descendant
+PRESERVED: ::after create block flex on grid in run-in | following sibling
+PRESERVED: ::after create block flex on grid in run-in | following sibling descendant
 STATS: ::after create block flex on grid in run-in | rebuilt subtree roots=1, escaped=false
 PASS: ::after create block flex on grid in run-in | incremental tree matches full rebuild
 PRESERVED: ::before change clear flow-root on inline-grid in -webkit-inline-box | fixture ancestor
@@ -1153,13 +1153,13 @@ PASS: ::before remove flow-root on math in table-footer-group | incremental tree
 PRESERVED: ::before remove -webkit-box on math in block grid | fixture ancestor
 PRESERVED: ::before remove -webkit-box on math in block grid | distant sibling
 PRESERVED: ::before remove -webkit-box on math in block grid | distant sibling descendant
-RECREATED: ::before remove -webkit-box on math in block grid | DOM parent
-RECREATED: ::before remove -webkit-box on math in block grid | preceding sibling
-RECREATED: ::before remove -webkit-box on math in block grid | preceding sibling descendant
+PRESERVED: ::before remove -webkit-box on math in block grid | DOM parent
+PRESERVED: ::before remove -webkit-box on math in block grid | preceding sibling
+PRESERVED: ::before remove -webkit-box on math in block grid | preceding sibling descendant
 RECREATED: ::before remove -webkit-box on math in block grid | target
 RECREATED: ::before remove -webkit-box on math in block grid | target descendant
-RECREATED: ::before remove -webkit-box on math in block grid | following sibling
-RECREATED: ::before remove -webkit-box on math in block grid | following sibling descendant
+PRESERVED: ::before remove -webkit-box on math in block grid | following sibling
+PRESERVED: ::before remove -webkit-box on math in block grid | following sibling descendant
 STATS: ::before remove -webkit-box on math in block grid | rebuilt subtree roots=1, escaped=false
 PASS: ::before remove -webkit-box on math in block grid | incremental tree matches full rebuild
 PRESERVED: ::before remove block flow-root on math in list-item | fixture ancestor
@@ -1186,16 +1186,16 @@ RECREATED: ::after create block on math in table-header-group | following siblin
 RECREATED: ::after create block on math in table-header-group | following sibling descendant
 STATS: ::after create block on math in table-header-group | rebuilt subtree roots=1, escaped=false
 PASS: ::after create block on math in table-header-group | incremental tree matches full rebuild
-RECREATED: ::after create inline-table on math in inline flex | fixture ancestor
-RECREATED: ::after create inline-table on math in inline flex | distant sibling
-RECREATED: ::after create inline-table on math in inline flex | distant sibling descendant
-RECREATED: ::after create inline-table on math in inline flex | DOM parent
-RECREATED: ::after create inline-table on math in inline flex | preceding sibling
-RECREATED: ::after create inline-table on math in inline flex | preceding sibling descendant
+PRESERVED: ::after create inline-table on math in inline flex | fixture ancestor
+PRESERVED: ::after create inline-table on math in inline flex | distant sibling
+PRESERVED: ::after create inline-table on math in inline flex | distant sibling descendant
+PRESERVED: ::after create inline-table on math in inline flex | DOM parent
+PRESERVED: ::after create inline-table on math in inline flex | preceding sibling
+PRESERVED: ::after create inline-table on math in inline flex | preceding sibling descendant
 RECREATED: ::after create inline-table on math in inline flex | target
 RECREATED: ::after create inline-table on math in inline flex | target descendant
-RECREATED: ::after create inline-table on math in inline flex | following sibling
-RECREATED: ::after create inline-table on math in inline flex | following sibling descendant
+PRESERVED: ::after create inline-table on math in inline flex | following sibling
+PRESERVED: ::after create inline-table on math in inline flex | following sibling descendant
 STATS: ::after create inline-table on math in inline flex | rebuilt subtree roots=1, escaped=false
 PASS: ::after create inline-table on math in inline flex | incremental tree matches full rebuild
 PRESERVED: ::after create block flow on math in run-in | fixture ancestor
@@ -1354,16 +1354,16 @@ RECREATED: ::after create table-row-group on -webkit-inline-box in inline flow l
 RECREATED: ::after create table-row-group on -webkit-inline-box in inline flow list-item | following sibling descendant
 STATS: ::after create table-row-group on -webkit-inline-box in inline flow list-item | rebuilt subtree roots=1, escaped=false
 PASS: ::after create table-row-group on -webkit-inline-box in inline flow list-item | incremental tree matches full rebuild
-RECREATED: ::after create block flex on -webkit-inline-box in inline-grid | fixture ancestor
-RECREATED: ::after create block flex on -webkit-inline-box in inline-grid | distant sibling
-RECREATED: ::after create block flex on -webkit-inline-box in inline-grid | distant sibling descendant
-RECREATED: ::after create block flex on -webkit-inline-box in inline-grid | DOM parent
-RECREATED: ::after create block flex on -webkit-inline-box in inline-grid | preceding sibling
-RECREATED: ::after create block flex on -webkit-inline-box in inline-grid | preceding sibling descendant
+PRESERVED: ::after create block flex on -webkit-inline-box in inline-grid | fixture ancestor
+PRESERVED: ::after create block flex on -webkit-inline-box in inline-grid | distant sibling
+PRESERVED: ::after create block flex on -webkit-inline-box in inline-grid | distant sibling descendant
+PRESERVED: ::after create block flex on -webkit-inline-box in inline-grid | DOM parent
+PRESERVED: ::after create block flex on -webkit-inline-box in inline-grid | preceding sibling
+PRESERVED: ::after create block flex on -webkit-inline-box in inline-grid | preceding sibling descendant
 RECREATED: ::after create block flex on -webkit-inline-box in inline-grid | target
 RECREATED: ::after create block flex on -webkit-inline-box in inline-grid | target descendant
-RECREATED: ::after create block flex on -webkit-inline-box in inline-grid | following sibling
-RECREATED: ::after create block flex on -webkit-inline-box in inline-grid | following sibling descendant
+PRESERVED: ::after create block flex on -webkit-inline-box in inline-grid | following sibling
+PRESERVED: ::after create block flex on -webkit-inline-box in inline-grid | following sibling descendant
 STATS: ::after create block flex on -webkit-inline-box in inline-grid | rebuilt subtree roots=1, escaped=false
 PASS: ::after create block flex on -webkit-inline-box in inline-grid | incremental tree matches full rebuild
 PRESERVED: ::before change clear flow-root on table-row-group in table-column-group | fixture ancestor
@@ -1618,16 +1618,16 @@ RECREATED: ::before remove -webkit-box on table-row in contents | following sibl
 RECREATED: ::before remove -webkit-box on table-row in contents | following sibling descendant
 STATS: ::before remove -webkit-box on table-row in contents | rebuilt subtree roots=1, escaped=false
 PASS: ::before remove -webkit-box on table-row in contents | incremental tree matches full rebuild
-RECREATED: ::before remove block flow-root on table-row in table | fixture ancestor
-RECREATED: ::before remove block flow-root on table-row in table | distant sibling
-RECREATED: ::before remove block flow-root on table-row in table | distant sibling descendant
-RECREATED: ::before remove block flow-root on table-row in table | DOM parent
-RECREATED: ::before remove block flow-root on table-row in table | preceding sibling
-RECREATED: ::before remove block flow-root on table-row in table | preceding sibling descendant
+PRESERVED: ::before remove block flow-root on table-row in table | fixture ancestor
+PRESERVED: ::before remove block flow-root on table-row in table | distant sibling
+PRESERVED: ::before remove block flow-root on table-row in table | distant sibling descendant
+PRESERVED: ::before remove block flow-root on table-row in table | DOM parent
+PRESERVED: ::before remove block flow-root on table-row in table | preceding sibling
+PRESERVED: ::before remove block flow-root on table-row in table | preceding sibling descendant
 RECREATED: ::before remove block flow-root on table-row in table | target
 RECREATED: ::before remove block flow-root on table-row in table | target descendant
-RECREATED: ::before remove block flow-root on table-row in table | following sibling
-RECREATED: ::before remove block flow-root on table-row in table | following sibling descendant
+PRESERVED: ::before remove block flow-root on table-row in table | following sibling
+PRESERVED: ::before remove block flow-root on table-row in table | following sibling descendant
 STATS: ::before remove block flow-root on table-row in table | rebuilt subtree roots=1, escaped=false
 PASS: ::before remove block flow-root on table-row in table | incremental tree matches full rebuild
 RECREATED: ::after create block on table-row in table-caption | fixture ancestor
@@ -1654,16 +1654,16 @@ RECREATED: ::after create inline-table on table-row in inline flow list-item | f
 RECREATED: ::after create inline-table on table-row in inline flow list-item | following sibling descendant
 STATS: ::after create inline-table on table-row in inline flow list-item | rebuilt subtree roots=1, escaped=false
 PASS: ::after create inline-table on table-row in inline flow list-item | incremental tree matches full rebuild
-RECREATED: ::after create block flow on table-row in inline-grid | fixture ancestor
-RECREATED: ::after create block flow on table-row in inline-grid | distant sibling
-RECREATED: ::after create block flow on table-row in inline-grid | distant sibling descendant
-RECREATED: ::after create block flow on table-row in inline-grid | DOM parent
-RECREATED: ::after create block flow on table-row in inline-grid | preceding sibling
-RECREATED: ::after create block flow on table-row in inline-grid | preceding sibling descendant
+PRESERVED: ::after create block flow on table-row in inline-grid | fixture ancestor
+PRESERVED: ::after create block flow on table-row in inline-grid | distant sibling
+PRESERVED: ::after create block flow on table-row in inline-grid | distant sibling descendant
+PRESERVED: ::after create block flow on table-row in inline-grid | DOM parent
+PRESERVED: ::after create block flow on table-row in inline-grid | preceding sibling
+PRESERVED: ::after create block flow on table-row in inline-grid | preceding sibling descendant
 RECREATED: ::after create block flow on table-row in inline-grid | target
 RECREATED: ::after create block flow on table-row in inline-grid | target descendant
-RECREATED: ::after create block flow on table-row in inline-grid | following sibling
-RECREATED: ::after create block flow on table-row in inline-grid | following sibling descendant
+PRESERVED: ::after create block flow on table-row in inline-grid | following sibling
+PRESERVED: ::after create block flow on table-row in inline-grid | following sibling descendant
 STATS: ::after create block flow on table-row in inline-grid | rebuilt subtree roots=1, escaped=false
 PASS: ::after create block flow on table-row in inline-grid | incremental tree matches full rebuild
 PRESERVED: ::before change clear none on table-cell in table-column-group | fixture ancestor
@@ -1918,16 +1918,16 @@ RECREATED: ::before remove inline-grid on table-caption in contents | following 
 RECREATED: ::before remove inline-grid on table-caption in contents | following sibling descendant
 STATS: ::before remove inline-grid on table-caption in contents | rebuilt subtree roots=1, escaped=false
 PASS: ::before remove inline-grid on table-caption in contents | incremental tree matches full rebuild
-RECREATED: ::before remove table-column on table-caption in table | fixture ancestor
-RECREATED: ::before remove table-column on table-caption in table | distant sibling
-RECREATED: ::before remove table-column on table-caption in table | distant sibling descendant
-RECREATED: ::before remove table-column on table-caption in table | DOM parent
-RECREATED: ::before remove table-column on table-caption in table | preceding sibling
-RECREATED: ::before remove table-column on table-caption in table | preceding sibling descendant
+PRESERVED: ::before remove table-column on table-caption in table | fixture ancestor
+PRESERVED: ::before remove table-column on table-caption in table | distant sibling
+PRESERVED: ::before remove table-column on table-caption in table | distant sibling descendant
+PRESERVED: ::before remove table-column on table-caption in table | DOM parent
+PRESERVED: ::before remove table-column on table-caption in table | preceding sibling
+PRESERVED: ::before remove table-column on table-caption in table | preceding sibling descendant
 RECREATED: ::before remove table-column on table-caption in table | target
 RECREATED: ::before remove table-column on table-caption in table | target descendant
-RECREATED: ::before remove table-column on table-caption in table | following sibling
-RECREATED: ::before remove table-column on table-caption in table | following sibling descendant
+PRESERVED: ::before remove table-column on table-caption in table | following sibling
+PRESERVED: ::before remove table-column on table-caption in table | following sibling descendant
 STATS: ::before remove table-column on table-caption in table | rebuilt subtree roots=1, escaped=false
 PASS: ::before remove table-column on table-caption in table | incremental tree matches full rebuild
 RECREATED: ::before remove block flow list-item on table-caption in table-caption | fixture ancestor
@@ -1966,17 +1966,17 @@ RECREATED: ::after create table-cell on table-caption in inline-grid | following
 RECREATED: ::after create table-cell on table-caption in inline-grid | following sibling descendant
 STATS: ::after create table-cell on table-caption in inline-grid | rebuilt subtree roots=1, escaped=false
 PASS: ::after create table-cell on table-caption in inline-grid | incremental tree matches full rebuild
-RECREATED: ::after create block table on table-caption in table-column | fixture ancestor
-RECREATED: ::after create block table on table-caption in table-column | distant sibling
-RECREATED: ::after create block table on table-caption in table-column | distant sibling descendant
-RECREATED: ::after create block table on table-caption in table-column | DOM parent
+PRESERVED: ::after create block table on table-caption in table-column | fixture ancestor
+PRESERVED: ::after create block table on table-caption in table-column | distant sibling
+PRESERVED: ::after create block table on table-caption in table-column | distant sibling descendant
+PRESERVED: ::after create block table on table-caption in table-column | DOM parent
 ABSENT: ::after create block table on table-caption in table-column | preceding sibling
 ABSENT: ::after create block table on table-caption in table-column | preceding sibling descendant
 ABSENT: ::after create block table on table-caption in table-column | target
 ABSENT: ::after create block table on table-caption in table-column | target descendant
 ABSENT: ::after create block table on table-caption in table-column | following sibling
 ABSENT: ::after create block table on table-caption in table-column | following sibling descendant
-STATS: ::after create block table on table-caption in table-column | rebuilt subtree roots=1, escaped=false
+STATS: ::after create block table on table-caption in table-column | rebuilt subtree roots=0, escaped=true
 PASS: ::after create block table on table-caption in table-column | incremental tree matches full rebuild
 RECREATED: ::before change clear inline list-item on block flow in inline table | fixture ancestor
 RECREATED: ::before change clear inline list-item on block flow in inline table | distant sibling
@@ -2053,13 +2053,13 @@ PASS: ::after change float block flex on block flow in table-row | incremental t
 PRESERVED: ::before remove flow-root on inline flow in block grid | fixture ancestor
 PRESERVED: ::before remove flow-root on inline flow in block grid | distant sibling
 PRESERVED: ::before remove flow-root on inline flow in block grid | distant sibling descendant
-RECREATED: ::before remove flow-root on inline flow in block grid | DOM parent
-RECREATED: ::before remove flow-root on inline flow in block grid | preceding sibling
-RECREATED: ::before remove flow-root on inline flow in block grid | preceding sibling descendant
+PRESERVED: ::before remove flow-root on inline flow in block grid | DOM parent
+PRESERVED: ::before remove flow-root on inline flow in block grid | preceding sibling
+PRESERVED: ::before remove flow-root on inline flow in block grid | preceding sibling descendant
 RECREATED: ::before remove flow-root on inline flow in block grid | target
 RECREATED: ::before remove flow-root on inline flow in block grid | target descendant
-RECREATED: ::before remove flow-root on inline flow in block grid | following sibling
-RECREATED: ::before remove flow-root on inline flow in block grid | following sibling descendant
+PRESERVED: ::before remove flow-root on inline flow in block grid | following sibling
+PRESERVED: ::before remove flow-root on inline flow in block grid | following sibling descendant
 STATS: ::before remove flow-root on inline flow in block grid | rebuilt subtree roots=1, escaped=false
 PASS: ::before remove flow-root on inline flow in block grid | incremental tree matches full rebuild
 PRESERVED: ::before remove -webkit-box on inline flow in list-item | fixture ancestor
@@ -2086,28 +2086,28 @@ RECREATED: ::before remove block flow-root on inline flow in table-header-group 
 RECREATED: ::before remove block flow-root on inline flow in table-header-group | following sibling descendant
 STATS: ::before remove block flow-root on inline flow in table-header-group | rebuilt subtree roots=1, escaped=false
 PASS: ::before remove block flow-root on inline flow in table-header-group | incremental tree matches full rebuild
-RECREATED: ::after create block on inline flow in inline flex | fixture ancestor
-RECREATED: ::after create block on inline flow in inline flex | distant sibling
-RECREATED: ::after create block on inline flow in inline flex | distant sibling descendant
-RECREATED: ::after create block on inline flow in inline flex | DOM parent
-RECREATED: ::after create block on inline flow in inline flex | preceding sibling
-RECREATED: ::after create block on inline flow in inline flex | preceding sibling descendant
+PRESERVED: ::after create block on inline flow in inline flex | fixture ancestor
+PRESERVED: ::after create block on inline flow in inline flex | distant sibling
+PRESERVED: ::after create block on inline flow in inline flex | distant sibling descendant
+PRESERVED: ::after create block on inline flow in inline flex | DOM parent
+PRESERVED: ::after create block on inline flow in inline flex | preceding sibling
+PRESERVED: ::after create block on inline flow in inline flex | preceding sibling descendant
 RECREATED: ::after create block on inline flow in inline flex | target
 RECREATED: ::after create block on inline flow in inline flex | target descendant
-RECREATED: ::after create block on inline flow in inline flex | following sibling
-RECREATED: ::after create block on inline flow in inline flex | following sibling descendant
+PRESERVED: ::after create block on inline flow in inline flex | following sibling
+PRESERVED: ::after create block on inline flow in inline flex | following sibling descendant
 STATS: ::after create block on inline flow in inline flex | rebuilt subtree roots=1, escaped=false
 PASS: ::after create block on inline flow in inline flex | incremental tree matches full rebuild
 PRESERVED: ::after create inline-table on inline flow in run-in | fixture ancestor
 PRESERVED: ::after create inline-table on inline flow in run-in | distant sibling
 PRESERVED: ::after create inline-table on inline flow in run-in | distant sibling descendant
-RECREATED: ::after create inline-table on inline flow in run-in | DOM parent
-RECREATED: ::after create inline-table on inline flow in run-in | preceding sibling
-RECREATED: ::after create inline-table on inline flow in run-in | preceding sibling descendant
+PRESERVED: ::after create inline-table on inline flow in run-in | DOM parent
+PRESERVED: ::after create inline-table on inline flow in run-in | preceding sibling
+PRESERVED: ::after create inline-table on inline flow in run-in | preceding sibling descendant
 RECREATED: ::after create inline-table on inline flow in run-in | target
 RECREATED: ::after create inline-table on inline flow in run-in | target descendant
-RECREATED: ::after create inline-table on inline flow in run-in | following sibling
-RECREATED: ::after create inline-table on inline flow in run-in | following sibling descendant
+PRESERVED: ::after create inline-table on inline flow in run-in | following sibling
+PRESERVED: ::after create inline-table on inline flow in run-in | following sibling descendant
 STATS: ::after create inline-table on inline flow in run-in | rebuilt subtree roots=1, escaped=false
 PASS: ::after create inline-table on inline flow in run-in | incremental tree matches full rebuild
 RECREATED: ::after create block flow on inline flow in table-row-group | fixture ancestor
@@ -2254,16 +2254,16 @@ RECREATED: ::after create run-in on inline flow-root in inline flow list-item | 
 RECREATED: ::after create run-in on inline flow-root in inline flow list-item | following sibling descendant
 STATS: ::after create run-in on inline flow-root in inline flow list-item | rebuilt subtree roots=1, escaped=false
 PASS: ::after create run-in on inline flow-root in inline flow list-item | incremental tree matches full rebuild
-RECREATED: ::after create table-row-group on inline flow-root in inline-grid | fixture ancestor
-RECREATED: ::after create table-row-group on inline flow-root in inline-grid | distant sibling
-RECREATED: ::after create table-row-group on inline flow-root in inline-grid | distant sibling descendant
-RECREATED: ::after create table-row-group on inline flow-root in inline-grid | DOM parent
-RECREATED: ::after create table-row-group on inline flow-root in inline-grid | preceding sibling
-RECREATED: ::after create table-row-group on inline flow-root in inline-grid | preceding sibling descendant
+PRESERVED: ::after create table-row-group on inline flow-root in inline-grid | fixture ancestor
+PRESERVED: ::after create table-row-group on inline flow-root in inline-grid | distant sibling
+PRESERVED: ::after create table-row-group on inline flow-root in inline-grid | distant sibling descendant
+PRESERVED: ::after create table-row-group on inline flow-root in inline-grid | DOM parent
+PRESERVED: ::after create table-row-group on inline flow-root in inline-grid | preceding sibling
+PRESERVED: ::after create table-row-group on inline flow-root in inline-grid | preceding sibling descendant
 RECREATED: ::after create table-row-group on inline flow-root in inline-grid | target
 RECREATED: ::after create table-row-group on inline flow-root in inline-grid | target descendant
-RECREATED: ::after create table-row-group on inline flow-root in inline-grid | following sibling
-RECREATED: ::after create table-row-group on inline flow-root in inline-grid | following sibling descendant
+PRESERVED: ::after create table-row-group on inline flow-root in inline-grid | following sibling
+PRESERVED: ::after create table-row-group on inline flow-root in inline-grid | following sibling descendant
 STATS: ::after create table-row-group on inline flow-root in inline-grid | rebuilt subtree roots=1, escaped=false
 PASS: ::after create table-row-group on inline flow-root in inline-grid | incremental tree matches full rebuild
 RECREATED: ::after create block flex on inline flow-root in table-column | fixture ancestor
@@ -2353,13 +2353,13 @@ PASS: ::after change float block flow on block flex in table-row | incremental t
 PRESERVED: ::before remove none on inline flex in block grid | fixture ancestor
 PRESERVED: ::before remove none on inline flex in block grid | distant sibling
 PRESERVED: ::before remove none on inline flex in block grid | distant sibling descendant
-RECREATED: ::before remove none on inline flex in block grid | DOM parent
-RECREATED: ::before remove none on inline flex in block grid | preceding sibling
-RECREATED: ::before remove none on inline flex in block grid | preceding sibling descendant
+PRESERVED: ::before remove none on inline flex in block grid | DOM parent
+PRESERVED: ::before remove none on inline flex in block grid | preceding sibling
+PRESERVED: ::before remove none on inline flex in block grid | preceding sibling descendant
 RECREATED: ::before remove none on inline flex in block grid | target
 RECREATED: ::before remove none on inline flex in block grid | target descendant
-RECREATED: ::before remove none on inline flex in block grid | following sibling
-RECREATED: ::before remove none on inline flex in block grid | following sibling descendant
+PRESERVED: ::before remove none on inline flex in block grid | following sibling
+PRESERVED: ::before remove none on inline flex in block grid | following sibling descendant
 STATS: ::before remove none on inline flex in block grid | rebuilt subtree roots=1, escaped=false
 PASS: ::before remove none on inline flex in block grid | incremental tree matches full rebuild
 PRESERVED: ::before remove inline-grid on inline flex in list-item | fixture ancestor
@@ -2386,16 +2386,16 @@ RECREATED: ::before remove table-column on inline flex in table-header-group | f
 RECREATED: ::before remove table-column on inline flex in table-header-group | following sibling descendant
 STATS: ::before remove table-column on inline flex in table-header-group | rebuilt subtree roots=1, escaped=false
 PASS: ::before remove table-column on inline flex in table-header-group | incremental tree matches full rebuild
-RECREATED: ::before remove block flow list-item on inline flex in inline flex | fixture ancestor
-RECREATED: ::before remove block flow list-item on inline flex in inline flex | distant sibling
-RECREATED: ::before remove block flow list-item on inline flex in inline flex | distant sibling descendant
-RECREATED: ::before remove block flow list-item on inline flex in inline flex | DOM parent
-RECREATED: ::before remove block flow list-item on inline flex in inline flex | preceding sibling
-RECREATED: ::before remove block flow list-item on inline flex in inline flex | preceding sibling descendant
+PRESERVED: ::before remove block flow list-item on inline flex in inline flex | fixture ancestor
+PRESERVED: ::before remove block flow list-item on inline flex in inline flex | distant sibling
+PRESERVED: ::before remove block flow list-item on inline flex in inline flex | distant sibling descendant
+PRESERVED: ::before remove block flow list-item on inline flex in inline flex | DOM parent
+PRESERVED: ::before remove block flow list-item on inline flex in inline flex | preceding sibling
+PRESERVED: ::before remove block flow list-item on inline flex in inline flex | preceding sibling descendant
 RECREATED: ::before remove block flow list-item on inline flex in inline flex | target
 RECREATED: ::before remove block flow list-item on inline flex in inline flex | target descendant
-RECREATED: ::before remove block flow list-item on inline flex in inline flex | following sibling
-RECREATED: ::before remove block flow list-item on inline flex in inline flex | following sibling descendant
+PRESERVED: ::before remove block flow list-item on inline flex in inline flex | following sibling
+PRESERVED: ::before remove block flow list-item on inline flex in inline flex | following sibling descendant
 STATS: ::before remove block flow list-item on inline flex in inline flex | rebuilt subtree roots=1, escaped=false
 PASS: ::before remove block flow list-item on inline flex in inline flex | incremental tree matches full rebuild
 PRESERVED: ::after create inline-flex on inline flex in run-in | fixture ancestor
@@ -2425,13 +2425,13 @@ PASS: ::after create table-cell on inline flex in table-row-group | incremental 
 PRESERVED: ::after create block table on inline flex in block flex | fixture ancestor
 PRESERVED: ::after create block table on inline flex in block flex | distant sibling
 PRESERVED: ::after create block table on inline flex in block flex | distant sibling descendant
-RECREATED: ::after create block table on inline flex in block flex | DOM parent
-RECREATED: ::after create block table on inline flex in block flex | preceding sibling
-RECREATED: ::after create block table on inline flex in block flex | preceding sibling descendant
+PRESERVED: ::after create block table on inline flex in block flex | DOM parent
+PRESERVED: ::after create block table on inline flex in block flex | preceding sibling
+PRESERVED: ::after create block table on inline flex in block flex | preceding sibling descendant
 RECREATED: ::after create block table on inline flex in block flex | target
 RECREATED: ::after create block table on inline flex in block flex | target descendant
-RECREATED: ::after create block table on inline flex in block flex | following sibling
-RECREATED: ::after create block table on inline flex in block flex | following sibling descendant
+PRESERVED: ::after create block table on inline flex in block flex | following sibling
+PRESERVED: ::after create block table on inline flex in block flex | following sibling descendant
 STATS: ::after create block table on inline flex in block flex | rebuilt subtree roots=1, escaped=false
 PASS: ::after create block table on inline flex in block flex | incremental tree matches full rebuild
 PRESERVED: ::before change clear inline list-item on block grid in flow-root | fixture ancestor
@@ -2554,16 +2554,16 @@ RECREATED: ::after create block on inline grid in inline flow list-item | follow
 RECREATED: ::after create block on inline grid in inline flow list-item | following sibling descendant
 STATS: ::after create block on inline grid in inline flow list-item | rebuilt subtree roots=1, escaped=false
 PASS: ::after create block on inline grid in inline flow list-item | incremental tree matches full rebuild
-RECREATED: ::after create inline-table on inline grid in inline-grid | fixture ancestor
-RECREATED: ::after create inline-table on inline grid in inline-grid | distant sibling
-RECREATED: ::after create inline-table on inline grid in inline-grid | distant sibling descendant
-RECREATED: ::after create inline-table on inline grid in inline-grid | DOM parent
-RECREATED: ::after create inline-table on inline grid in inline-grid | preceding sibling
-RECREATED: ::after create inline-table on inline grid in inline-grid | preceding sibling descendant
+PRESERVED: ::after create inline-table on inline grid in inline-grid | fixture ancestor
+PRESERVED: ::after create inline-table on inline grid in inline-grid | distant sibling
+PRESERVED: ::after create inline-table on inline grid in inline-grid | distant sibling descendant
+PRESERVED: ::after create inline-table on inline grid in inline-grid | DOM parent
+PRESERVED: ::after create inline-table on inline grid in inline-grid | preceding sibling
+PRESERVED: ::after create inline-table on inline grid in inline-grid | preceding sibling descendant
 RECREATED: ::after create inline-table on inline grid in inline-grid | target
 RECREATED: ::after create inline-table on inline grid in inline-grid | target descendant
-RECREATED: ::after create inline-table on inline grid in inline-grid | following sibling
-RECREATED: ::after create inline-table on inline grid in inline-grid | following sibling descendant
+PRESERVED: ::after create inline-table on inline grid in inline-grid | following sibling
+PRESERVED: ::after create inline-table on inline grid in inline-grid | following sibling descendant
 STATS: ::after create inline-table on inline grid in inline-grid | rebuilt subtree roots=1, escaped=false
 PASS: ::after create inline-table on inline grid in inline-grid | incremental tree matches full rebuild
 RECREATED: ::after create block flow on inline grid in table-column | fixture ancestor
@@ -2854,16 +2854,16 @@ RECREATED: ::before remove block flow list-item on inline flow list-item in inli
 RECREATED: ::before remove block flow list-item on inline flow list-item in inline flow list-item | following sibling descendant
 STATS: ::before remove block flow list-item on inline flow list-item in inline flow list-item | rebuilt subtree roots=1, escaped=false
 PASS: ::before remove block flow list-item on inline flow list-item in inline flow list-item | incremental tree matches full rebuild
-RECREATED: ::after create inline-flex on inline flow list-item in inline-grid | fixture ancestor
-RECREATED: ::after create inline-flex on inline flow list-item in inline-grid | distant sibling
-RECREATED: ::after create inline-flex on inline flow list-item in inline-grid | distant sibling descendant
-RECREATED: ::after create inline-flex on inline flow list-item in inline-grid | DOM parent
-RECREATED: ::after create inline-flex on inline flow list-item in inline-grid | preceding sibling
-RECREATED: ::after create inline-flex on inline flow list-item in inline-grid | preceding sibling descendant
+PRESERVED: ::after create inline-flex on inline flow list-item in inline-grid | fixture ancestor
+PRESERVED: ::after create inline-flex on inline flow list-item in inline-grid | distant sibling
+PRESERVED: ::after create inline-flex on inline flow list-item in inline-grid | distant sibling descendant
+PRESERVED: ::after create inline-flex on inline flow list-item in inline-grid | DOM parent
+PRESERVED: ::after create inline-flex on inline flow list-item in inline-grid | preceding sibling
+PRESERVED: ::after create inline-flex on inline flow list-item in inline-grid | preceding sibling descendant
 RECREATED: ::after create inline-flex on inline flow list-item in inline-grid | target
 RECREATED: ::after create inline-flex on inline flow list-item in inline-grid | target descendant
-RECREATED: ::after create inline-flex on inline flow list-item in inline-grid | following sibling
-RECREATED: ::after create inline-flex on inline flow list-item in inline-grid | following sibling descendant
+PRESERVED: ::after create inline-flex on inline flow list-item in inline-grid | following sibling
+PRESERVED: ::after create inline-flex on inline flow list-item in inline-grid | following sibling descendant
 STATS: ::after create inline-flex on inline flow list-item in inline-grid | rebuilt subtree roots=1, escaped=false
 PASS: ::after create inline-flex on inline flow list-item in inline-grid | incremental tree matches full rebuild
 RECREATED: ::after create table-cell on inline flow list-item in table-column | fixture ancestor

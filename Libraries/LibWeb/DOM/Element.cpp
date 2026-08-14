@@ -1417,7 +1417,15 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         if (style_record_is_unchanged(style_record_delta))
             ++document().style_invalidation_counters().unchanged_style_record_deltas;
 
-        // TODO: Can we be smarter about invalidation?
+        // A non-inline generated box can split an inline originating element and mutate anonymous structure in its
+        // parent. Inline ::before and ::after boxes remain confined to the originating element's layout subtree.
+        auto pseudo_style_can_escape_originating_element = [&](CSS::ComputedValues const* pseudo_style) {
+            if (!pseudo_style || !originating_style->display().is_inline_outside())
+                return false;
+            auto pseudo_display = pseudo_style->display();
+            return !pseudo_display.is_none() && !pseudo_display.is_contents() && !pseudo_display.is_inline_outside();
+        };
+
         if (pseudo_element_values && new_pseudo_element_style) {
             DOM::AbstractElement abstract_element { *this, pseudo_element };
             auto result = compute_required_invalidation_with_cache(style_computer, *pseudo_element_values, *new_pseudo_element_style, old_state, abstract_element, style_record_delta);
@@ -1432,11 +1440,11 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
                     || new_pseudo_element_style->display().is_list_item())) {
                 result.invalidation.ensure_at_least(CSS::InvalidationLevel::RebuildLayoutTree);
             }
-            // A pseudo-element's self scope is relative to its own principal box, while this invalidation is applied
-            // to the originating element. Its box can participate in anonymous layout outside the originating
-            // element's principal box, so widen the rebuild to the originating element's parent.
             if (result.invalidation.needs_layout_tree_rebuild()
-                && result.invalidation.layout_tree_rebuild_root() != CSS::LayoutTreeRebuildRoot::Parent) {
+                && result.invalidation.layout_tree_rebuild_root() != CSS::LayoutTreeRebuildRoot::Parent
+                && (!first_is_one_of(pseudo_element, CSS::PseudoElement::Before, CSS::PseudoElement::After)
+                    || pseudo_style_can_escape_originating_element(pseudo_element_values)
+                    || pseudo_style_can_escape_originating_element(new_pseudo_element_style.ptr()))) {
                 result.invalidation.ensure_at_least(CSS::InvalidationLevel::RebuildLayoutTree);
             }
             if (result.any_computed_value_changed)
@@ -1444,7 +1452,12 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             invalidation |= result.invalidation;
         } else if (pseudo_element_values || new_pseudo_element_style) {
             document().style_invalidation_counters().element_computed_style_changes++;
-            invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
+            auto rebuild_root = first_is_one_of(pseudo_element, CSS::PseudoElement::Before, CSS::PseudoElement::After)
+                    && !pseudo_style_can_escape_originating_element(pseudo_element_values)
+                    && !pseudo_style_can_escape_originating_element(new_pseudo_element_style.ptr())
+                ? CSS::LayoutTreeRebuildRoot::Self
+                : CSS::LayoutTreeRebuildRoot::Parent;
+            invalidation |= CSS::RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(rebuild_root);
         }
 
         if (new_pseudo_element_style) {
