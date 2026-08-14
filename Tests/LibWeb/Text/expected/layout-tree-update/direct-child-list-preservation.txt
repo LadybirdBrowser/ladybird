@@ -6,6 +6,9 @@ PASS: append block child before wrapped after pseudo-element | preserve parent
 PASS: append block child before wrapped after pseudo-element | preserve before
 PASS: append block child before wrapped after pseudo-element | layout tree builds=1
 PASS: append block child before wrapped after pseudo-element | incremental tree matches full rebuild
+PASS: fall back when block insertion splits generated inline wrapper | rebuild parent
+PASS: fall back when block insertion splits generated inline wrapper | layout tree builds=1
+PASS: fall back when block insertion splits generated inline wrapper | incremental tree matches full rebuild
 PASS: prepend block child in block flow | preserve parent
 PASS: prepend block child in block flow | preserve after
 PASS: prepend block child in block flow | layout tree builds=1
@@ -13,6 +16,42 @@ PASS: prepend block child in block flow | incremental tree matches full rebuild
 PASS: fall back when prepending the first-letter block child | rebuild parent
 PASS: fall back when prepending the first-letter block child | layout tree builds=1
 PASS: fall back when prepending the first-letter block child | incremental tree matches full rebuild
+PASS: fall back when prepending a nested ancestor first-letter block child | rebuild parent
+PASS: fall back when prepending a nested ancestor first-letter block child | layout tree builds=1
+PASS: fall back when prepending a nested ancestor first-letter block child | incremental tree matches full rebuild
+PASS: prepend outside the ancestor first-letter subtree | preserve parent
+PASS: prepend outside the ancestor first-letter subtree | preserve after
+PASS: prepend outside the ancestor first-letter subtree | layout tree builds=1
+PASS: prepend outside the ancestor first-letter subtree | incremental tree matches full rebuild
+PASS: prepend block child under local first-line | preserve parent
+PASS: prepend block child under local first-line | preserve after
+PASS: prepend block child under local first-line | layout tree builds=1
+PASS: prepend block child under local first-line | incremental tree matches full rebuild
+PASS: prepend block child under ancestor first-line | preserve parent
+PASS: prepend block child under ancestor first-line | preserve after
+PASS: prepend block child under ancestor first-line | layout tree builds=1
+PASS: prepend block child under ancestor first-line | incremental tree matches full rebuild
+PASS: insert implicit list-item counter | preserve parent
+PASS: insert implicit list-item counter | preserve before
+PASS: insert implicit list-item counter | preserve after
+PASS: insert implicit list-item counter | layout tree builds=1
+PASS: insert implicit list-item counter | incremental tree matches full rebuild
+PASS: fall back when inserted pseudo-element changes quote depth | rebuild parent
+PASS: fall back when inserted pseudo-element changes quote depth | layout tree builds=1
+PASS: fall back when inserted pseudo-element changes quote depth | incremental tree matches full rebuild
+PASS: fall back when inserted pseudo-element affects following counters | rebuild parent
+PASS: fall back when inserted pseudo-element affects following counters | layout tree builds=1
+PASS: fall back when inserted pseudo-element affects following counters | incremental tree matches full rebuild
+PASS: insert pseudo-element reading a preceding counter | preserve parent
+PASS: insert pseudo-element reading a preceding counter | preserve before
+PASS: insert pseudo-element reading a preceding counter | preserve after
+PASS: insert pseudo-element reading a preceding counter | layout tree builds=1
+PASS: insert pseudo-element reading a preceding counter | incremental tree matches full rebuild
+PASS: insert block child in multi-column flow | preserve parent
+PASS: insert block child in multi-column flow | preserve before
+PASS: insert block child in multi-column flow | preserve after
+PASS: insert block child in multi-column flow | layout tree builds=1
+PASS: insert block child in multi-column flow | incremental tree matches full rebuild
 PASS: insert middle block child in block flow | preserve parent
 PASS: insert middle block child in block flow | preserve before
 PASS: insert middle block child in block flow | preserve after
@@ -134,6 +173,43 @@ PASS: fall back when block removal joins generated inline wrappers | incremental
 PASS: fall back when removing the first-letter block child | rebuild parent
 PASS: fall back when removing the first-letter block child | layout tree builds=1
 PASS: fall back when removing the first-letter block child | incremental tree matches full rebuild
+PASS: fall back when removing a nested ancestor first-letter block child | rebuild parent
+PASS: fall back when removing a nested ancestor first-letter block child | layout tree builds=1
+PASS: fall back when removing a nested ancestor first-letter block child | incremental tree matches full rebuild
+PASS: fall back when moving a nested ancestor first-letter block child | rebuild parent
+PASS: fall back when moving a nested ancestor first-letter block child | layout tree builds=1
+PASS: fall back when moving a nested ancestor first-letter block child | incremental tree matches full rebuild
+PASS: remove outside the ancestor first-letter subtree | preserve parent
+PASS: remove outside the ancestor first-letter subtree | preserve after
+PASS: remove outside the ancestor first-letter subtree | layout tree builds=0
+PASS: remove outside the ancestor first-letter subtree | incremental tree matches full rebuild
+PASS: remove block child under local first-line | preserve parent
+PASS: remove block child under local first-line | preserve after
+PASS: remove block child under local first-line | layout tree builds=0
+PASS: remove block child under local first-line | incremental tree matches full rebuild
+PASS: remove block child under ancestor first-line | preserve parent
+PASS: remove block child under ancestor first-line | preserve after
+PASS: remove block child under ancestor first-line | layout tree builds=0
+PASS: remove block child under ancestor first-line | incremental tree matches full rebuild
+PASS: remove implicit list-item counter | preserve parent
+PASS: remove implicit list-item counter | preserve after
+PASS: remove implicit list-item counter | layout tree builds=0
+PASS: remove implicit list-item counter | incremental tree matches full rebuild
+PASS: fall back when removed pseudo-element changes quote depth | rebuild parent
+PASS: fall back when removed pseudo-element changes quote depth | layout tree builds=1
+PASS: fall back when removed pseudo-element changes quote depth | incremental tree matches full rebuild
+PASS: fall back when removed pseudo-element affects following counters | rebuild parent
+PASS: fall back when removed pseudo-element affects following counters | layout tree builds=1
+PASS: fall back when removed pseudo-element affects following counters | incremental tree matches full rebuild
+PASS: remove pseudo-element reading a preceding counter | preserve parent
+PASS: remove pseudo-element reading a preceding counter | preserve before
+PASS: remove pseudo-element reading a preceding counter | preserve after
+PASS: remove pseudo-element reading a preceding counter | layout tree builds=0
+PASS: remove pseudo-element reading a preceding counter | incremental tree matches full rebuild
+PASS: remove block child in multi-column flow | preserve parent
+PASS: remove block child in multi-column flow | preserve after
+PASS: remove block child in multi-column flow | layout tree builds=0
+PASS: remove block child in multi-column flow | incremental tree matches full rebuild
 PASS: fall back for floated child removal in block flow | rebuild parent
 PASS: fall back for floated child removal in block flow | layout tree builds=1
 PASS: fall back for floated child removal in block flow | incremental tree matches full rebuild

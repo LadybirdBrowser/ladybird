@@ -11,6 +11,12 @@
     .parent.inline-generated::before { content: "before"; }
     .parent.inline-generated::after { content: "after"; }
     .parent.first-letter::first-letter { color: red; }
+    .parent.first-line::first-line { color: red; }
+    .parent.quotes { quotes: "«" "»" "‹" "›"; }
+    .quote-open::before { content: open-quote; }
+    .pseudo-increment::before { counter-increment: direct-child-counter; content: ""; }
+    .columns { columns: 2; }
+    .list-item { display: list-item; }
     .child { display: block; }
     .inline { display: inline; }
     .inline-block { display: inline-block; }
@@ -34,6 +40,13 @@
             tracked: ["parent", "before"],
         },
         {
+            name: "fall back when block insertion splits generated inline wrapper",
+            markup: '<div class="parent inline-generated"></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<section class="target child"></section>'),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
             name: "prepend block child in block flow",
             markup: '<div class="parent"><i class="after child"></i></div>',
             mutate: parent => parent.insertAdjacentHTML("afterbegin", '<section class="target child"><b></b></section>'),
@@ -45,6 +58,66 @@
             mutate: parent => parent.insertAdjacentHTML("afterbegin", '<section class="target child">target</section>'),
             tracked: ["parent"],
             preserve: false,
+        },
+        {
+            name: "fall back when prepending a nested ancestor first-letter block child",
+            markup: '<div class="parent first-letter"><div class="inner"><i class="after child">after</i></div></div>',
+            parentSelector: ".inner",
+            mutate: parent => parent.insertAdjacentHTML("afterbegin", '<section class="target child">target</section>'),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "prepend outside the ancestor first-letter subtree",
+            markup: '<div class="parent first-letter"><div class="seed child">seed</div><div class="inner"><i class="after child">after</i></div></div>',
+            parentSelector: ".inner",
+            mutate: parent => parent.insertAdjacentHTML("afterbegin", '<section class="target child">target</section>'),
+            tracked: ["parent", "after"],
+        },
+        {
+            name: "prepend block child under local first-line",
+            markup: '<div class="parent first-line"><i class="after child">after</i></div>',
+            mutate: parent => parent.insertAdjacentHTML("afterbegin", '<section class="target child">target</section>'),
+            tracked: ["parent", "after"],
+        },
+        {
+            name: "prepend block child under ancestor first-line",
+            markup: '<div class="parent first-line"><div class="inner"><i class="after child">after</i></div></div>',
+            parentSelector: ".inner",
+            mutate: parent => parent.insertAdjacentHTML("afterbegin", '<section class="target child">target</section>'),
+            tracked: ["parent", "after"],
+        },
+        {
+            name: "insert implicit list-item counter",
+            markup: '<div class="parent"><div class="before list-item">before</div><div class="after list-item">after</div></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<div class="target list-item">target</div>'),
+            tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "fall back when inserted pseudo-element changes quote depth",
+            markup: '<div class="parent quotes"><i class="before child"></i><i class="after child quote-open"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<section class="target child quote-open"></section>'),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back when inserted pseudo-element affects following counters",
+            markup: '<div class="parent counter"><i class="before child"></i><i class="after child counter-value"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<section class="target child pseudo-increment"></section>'),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "insert pseudo-element reading a preceding counter",
+            markup: '<div class="parent counter"><i class="before child increment"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<section class="target child counter-value"></section>'),
+            tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "insert block child in multi-column flow",
+            markup: '<div class="parent columns"><i class="before child"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<section class="target child"></section>'),
+            tracked: ["parent", "before", "after"],
         },
         {
             name: "insert middle block child in block flow",
@@ -196,6 +269,80 @@
             preserve: false,
         },
         {
+            name: "fall back when removing a nested ancestor first-letter block child",
+            markup: '<div class="parent first-letter"><div class="inner"><i class="target child">target</i><i class="after child">after</i></div></div>',
+            parentSelector: ".inner",
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back when moving a nested ancestor first-letter block child",
+            markup: '<div class="parent first-letter"><div class="inner"><i class="target child">target</i><i class="after child">after</i></div></div><div class="destination"></div>',
+            parentSelector: ".inner",
+            mutate: parent => fixture.querySelector(".destination").append(parent.querySelector(".target")),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "remove outside the ancestor first-letter subtree",
+            markup: '<div class="parent first-letter"><div class="seed child">seed</div><div class="inner"><i class="target child">target</i><i class="after child">after</i></div></div>',
+            parentSelector: ".inner",
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent", "after"],
+            expectNoBuild: true,
+        },
+        {
+            name: "remove block child under local first-line",
+            markup: '<div class="parent first-line"><i class="target child">target</i><i class="after child">after</i></div>',
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent", "after"],
+            expectNoBuild: true,
+        },
+        {
+            name: "remove block child under ancestor first-line",
+            markup: '<div class="parent first-line"><div class="inner"><i class="target child">target</i><i class="after child">after</i></div></div>',
+            parentSelector: ".inner",
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent", "after"],
+            expectNoBuild: true,
+        },
+        {
+            name: "remove implicit list-item counter",
+            markup: '<div class="parent"><div class="target list-item">target</div><div class="after list-item">after</div></div>',
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent", "after"],
+            expectNoBuild: true,
+        },
+        {
+            name: "fall back when removed pseudo-element changes quote depth",
+            markup: '<div class="parent quotes"><i class="target child quote-open"></i><i class="after child quote-open"></i></div>',
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back when removed pseudo-element affects following counters",
+            markup: '<div class="parent counter"><i class="target child pseudo-increment"></i><i class="after child counter-value"></i></div>',
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "remove pseudo-element reading a preceding counter",
+            markup: '<div class="parent counter"><i class="before child increment"></i><i class="target child counter-value"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent", "before", "after"],
+            expectNoBuild: true,
+        },
+        {
+            name: "remove block child in multi-column flow",
+            markup: '<div class="parent columns"><i class="target child"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent", "after"],
+            expectNoBuild: true,
+        },
+        {
             name: "fall back for floated child removal in block flow",
             markup: '<div class="parent"><i class="before child"></i><i class="target float"></i><i class="after child"></i></div>',
             mutate: parent => parent.querySelector(".target").remove(),
@@ -286,6 +433,6 @@
     test(() => {
         insertionCases.forEach(case_ => runCase(case_, false));
         removalCases.forEach(case_ => runCase(case_, true));
-        fallbackRemovalCases.forEach(case_ => runCase(case_, false));
+        fallbackRemovalCases.forEach(case_ => runCase(case_, case_.expectNoBuild === true));
     });
 </script>

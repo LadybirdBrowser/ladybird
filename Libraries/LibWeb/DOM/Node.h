@@ -371,6 +371,11 @@ public:
 
     Layout::Node const* unsafe_layout_node() const { return m_layout_node.ptr(); }
     Layout::Node* unsafe_layout_node() { return m_layout_node.ptr(); }
+    Element const* first_letter_owner_for_layout_subtree_from(Node const& inclusive_ancestor) const;
+    Element* first_letter_owner_for_layout_subtree_from(Node const& inclusive_ancestor)
+    {
+        return const_cast<Element*>(const_cast<Node const*>(this)->first_letter_owner_for_layout_subtree_from(inclusive_ancestor));
+    }
 
     RefPtr<Painting::Paintable const> paintable_box() const;
     RefPtr<Painting::Paintable> paintable_box();
