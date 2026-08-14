@@ -355,7 +355,10 @@ void XMLDocumentBuilder::document_end()
     }));
 
     // Spin the event loop until there is nothing that delays the load event in the Document.
+    // AD-HOC: Update style first, so any font fetches that the computed styles depend on get started; an in-flight font
+    //         fetch delays the load event.
     HTML::main_thread_event_loop().spin_until(GC::create_function(GC::Heap::the(), [&] {
+        m_document->update_style();
         return !m_document->anything_is_delaying_the_load_event();
     }));
 
