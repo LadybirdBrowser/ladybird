@@ -725,7 +725,7 @@ PASS: ::before change mode fixed -> sticky inline table on block flex
 PASS: ::before change mode sticky -> float-left block flow list-item on block flex
 PASS: ::before change mode float-left -> float-left-clear-both inline flow list-item on block flex
 PASS: ::before change mode float-left-clear-both -> float-right none on block flex
-FAIL: ::before change mode float-right -> float-right-clear-both contents on block flex
+PASS: ::before change mode float-right -> float-right-clear-both contents on block flex
 PASS: ::before change mode float-right-clear-both -> float-inline-start block on block flex
 PASS: ::before change mode float-inline-start -> float-inline-end inline on block flex
 PASS: ::before change mode float-inline-end -> relative-float-left flow-root on block flex
@@ -737,7 +737,7 @@ PASS: ::after change mode fixed -> sticky inline table on block flex
 PASS: ::after change mode sticky -> float-left block flow list-item on block flex
 PASS: ::after change mode float-left -> float-left-clear-both inline flow list-item on block flex
 PASS: ::after change mode float-left-clear-both -> float-right none on block flex
-FAIL: ::after change mode float-right -> float-right-clear-both contents on block flex
+PASS: ::after change mode float-right -> float-right-clear-both contents on block flex
 PASS: ::after change mode float-right-clear-both -> float-inline-start block on block flex
 PASS: ::after change mode float-inline-start -> float-inline-end inline on block flex
 PASS: ::after change mode float-inline-end -> relative-float-left flow-root on block flex
@@ -771,7 +771,7 @@ PASS: ::before change mode relative -> absolute inline table on block grid
 PASS: ::before change mode absolute -> fixed block flow list-item on block grid
 PASS: ::before change mode fixed -> sticky inline flow list-item on block grid
 PASS: ::before change mode sticky -> float-left none on block grid
-FAIL: ::before change mode float-left -> float-left-clear-both contents on block grid
+PASS: ::before change mode float-left -> float-left-clear-both contents on block grid
 PASS: ::before change mode float-left-clear-both -> float-right block on block grid
 PASS: ::before change mode float-right -> float-right-clear-both inline on block grid
 PASS: ::before change mode float-right-clear-both -> float-inline-start flow-root on block grid
@@ -869,7 +869,7 @@ PASS: ::before change mode fixed -> sticky inline on block flow list-item
 PASS: ::before change mode sticky -> float-left flow-root on block flow list-item
 PASS: ::before change mode float-left -> float-left-clear-both inline-block on block flow list-item
 PASS: ::before change mode float-left-clear-both -> float-right run-in on block flow list-item
-FAIL: ::before change mode float-right -> float-right-clear-both list-item on block flow list-item
+PASS: ::before change mode float-right -> float-right-clear-both list-item on block flow list-item
 PASS: ::before change mode float-right-clear-both -> float-inline-start inline list-item on block flow list-item
 PASS: ::before change mode float-inline-start -> float-inline-end flex on block flow list-item
 PASS: ::before change mode float-inline-end -> relative-float-left inline-flex on block flow list-item
@@ -881,7 +881,7 @@ PASS: ::after change mode fixed -> sticky inline on block flow list-item
 PASS: ::after change mode sticky -> float-left flow-root on block flow list-item
 PASS: ::after change mode float-left -> float-left-clear-both inline-block on block flow list-item
 PASS: ::after change mode float-left-clear-both -> float-right run-in on block flow list-item
-FAIL: ::after change mode float-right -> float-right-clear-both list-item on block flow list-item
+PASS: ::after change mode float-right -> float-right-clear-both list-item on block flow list-item
 PASS: ::after change mode float-right-clear-both -> float-inline-start inline list-item on block flow list-item
 PASS: ::after change mode float-inline-start -> float-inline-end flex on block flow list-item
 PASS: ::after change mode float-inline-end -> relative-float-left inline-flex on block flow list-item
@@ -893,7 +893,7 @@ PASS: ::before change mode fixed -> sticky flow-root on inline flow list-item
 PASS: ::before change mode sticky -> float-left inline-block on inline flow list-item
 PASS: ::before change mode float-left -> float-left-clear-both run-in on inline flow list-item
 PASS: ::before change mode float-left-clear-both -> float-right list-item on inline flow list-item
-FAIL: ::before change mode float-right -> float-right-clear-both inline list-item on inline flow list-item
+PASS: ::before change mode float-right -> float-right-clear-both inline list-item on inline flow list-item
 PASS: ::before change mode float-right-clear-both -> float-inline-start flex on inline flow list-item
 PASS: ::before change mode float-inline-start -> float-inline-end inline-flex on inline flow list-item
 PASS: ::before change mode float-inline-end -> relative-float-left grid on inline flow list-item
@@ -905,9 +905,9 @@ PASS: ::after change mode fixed -> sticky flow-root on inline flow list-item
 PASS: ::after change mode sticky -> float-left inline-block on inline flow list-item
 PASS: ::after change mode float-left -> float-left-clear-both run-in on inline flow list-item
 PASS: ::after change mode float-left-clear-both -> float-right list-item on inline flow list-item
-FAIL: ::after change mode float-right -> float-right-clear-both inline list-item on inline flow list-item
+PASS: ::after change mode float-right -> float-right-clear-both inline list-item on inline flow list-item
 PASS: ::after change mode float-right-clear-both -> float-inline-start flex on inline flow list-item
 PASS: ::after change mode float-inline-start -> float-inline-end inline-flex on inline flow list-item
 PASS: ::after change mode float-inline-end -> relative-float-left grid on inline flow list-item
 PASS: ::after change mode relative-float-left -> static inline-grid on inline flow list-item
-912 cases; 905 matched; 7 mismatched
+912 cases; 912 matched; 0 mismatched

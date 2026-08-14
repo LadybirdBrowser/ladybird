@@ -1400,6 +1400,17 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         if (pseudo_element_values && new_pseudo_element_style) {
             DOM::AbstractElement abstract_element { *this, pseudo_element };
             auto result = compute_required_invalidation_with_cache(style_computer, *pseudo_element_values, *new_pseudo_element_style, old_state, abstract_element, style_record_delta);
+            // A display: contents pseudo-element has no principal layout node to receive its updated style. A
+            // list-item pseudo-element also owns a generated marker whose layout state is not updated through the
+            // originating element. Rebuild their layout subtrees when a style change otherwise requires relayout.
+            if (result.invalidation.needs_relayout()
+                && !result.invalidation.needs_layout_tree_rebuild()
+                && (pseudo_element_values->display().is_contents()
+                    || pseudo_element_values->display().is_list_item()
+                    || new_pseudo_element_style->display().is_contents()
+                    || new_pseudo_element_style->display().is_list_item())) {
+                result.invalidation.ensure_at_least(CSS::InvalidationLevel::RebuildLayoutTree);
+            }
             if (result.any_computed_value_changed)
                 document().style_invalidation_counters().element_computed_style_changes++;
             invalidation |= result.invalidation;
