@@ -707,6 +707,7 @@ public:
 
     void set_html_parser_end_state(GC::Ptr<HTML::HTMLParserEndState>);
     void schedule_html_parser_end_check();
+    bool has_html_parser_end_state() const { return m_html_parser_end_state != nullptr; }
 
     void add_pending_css_import_rule(Badge<CSS::CSSImportRule>, GC::Ref<CSS::CSSImportRule>);
     void remove_pending_css_import_rule(Badge<CSS::CSSImportRule>, GC::Ref<CSS::CSSImportRule>);

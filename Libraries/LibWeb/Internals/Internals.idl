@@ -123,6 +123,8 @@ interface Internals {
     Utf16DOMString dumpSiteIsolationProcessTree();
     Promise<undefined> flushSessionHistoryTraversalQueue();
 
+    boolean hasHTMLParserEndState(Document document);
+
     // Test-only: deterministically reproduce the navigation-vs-traversal race in Navigable::begin_navigation by
     // re-stamping the next navigation's ongoing navigation with a traversal during its unload check.
     undefined clobberNextNavigationWithATraversal();
