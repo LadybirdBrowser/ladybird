@@ -10,6 +10,7 @@
 
 #include <AK/TypeCasts.h>
 #include <LibWebView/Settings.h>
+#include <UI/Qt/Tab.h>
 
 #include <QPointer>
 #include <QPushButton>
@@ -37,7 +38,6 @@ class QWheelEvent;
 
 namespace Ladybird {
 
-class Tab;
 class TabPreviewPopup;
 class TabWidget;
 
