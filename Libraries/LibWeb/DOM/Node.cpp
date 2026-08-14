@@ -868,8 +868,15 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
             parent_element()->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBeforeWithDisplayContents);
         }
         set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
-        for (auto& inserted_node : nodes)
+        for (auto& inserted_node : nodes) {
+            auto inserted_subtree_already_needs_layout_tree_update = inserted_node->needs_layout_tree_update() || inserted_node->child_needs_layout_tree_update();
             inserted_node->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
+
+            // An inserted subtree may already need a layout tree update, for example after being adopted from another
+            // document. Setting the same value again is coalesced, so explicitly propagate it through its new parent.
+            if (inserted_subtree_already_needs_layout_tree_update)
+                set_child_needs_layout_tree_update(true);
+        }
     }
 
     // AD-HOC: An inserted list item renumbers the list-item counter for its list owner's whole list.
