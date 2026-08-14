@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function hasAudibleSamples(buffer) {
+        return buffer.getChannelData(0).some(sample => Math.abs(sample) > 0.000001)
+            || buffer.getChannelData(1).some(sample => Math.abs(sample) > 0.000001);
+    }
+
+    async function renderConstantSourceThrough(createPanner) {
+        const context = new OfflineAudioContext(2, 128, 48000);
+        const source = context.createConstantSource();
+        const panner = createPanner(context);
+        source.connect(panner);
+        panner.connect(context.destination);
+        source.start();
+        return await context.startRendering();
+    }
+
+    promiseTest(async () => {
+        const output = await renderConstantSourceThrough(context => {
+            const panner = context.createPanner();
+            panner.positionZ.value = -1;
+            return panner;
+        });
+        println(`PannerNode is present in the render graph: ${hasAudibleSamples(output)}`);
+
+        const attenuatedOutput = await renderConstantSourceThrough(context => {
+            const panner = context.createPanner();
+            panner.positionZ.value = -3;
+            panner.refDistance = 1;
+            panner.maxDistance = 2;
+            panner.rolloffFactor = 1;
+            panner.distanceModel = "linear";
+            return panner;
+        });
+        println(`PannerNode model changes reach the render graph: ${!hasAudibleSamples(attenuatedOutput)}`);
+    });
+</script>

@@ -1,0 +1,2 @@
+PannerNode is present in the render graph: true
+PannerNode model changes reach the render graph: true

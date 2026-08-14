@@ -5,6 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibWeb/WebAudio/AudioListener.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
@@ -46,6 +47,30 @@ WebIDL::ExceptionOr<GC::Ref<PannerNode>> PannerNode::create(GC::Ref<BaseAudioCon
     // FIXME: Set tail-time to maybe
 
     TRY(node->initialize_audio_node_options(options, default_options));
+
+    auto const& listener = context->listener();
+    node->queue_render_node_creation(make<Rendering::PannerRenderNode>(node->node_id(), BaseAudioContext::render_quantum_size(),
+        Rendering::PannerRenderNode::Params {
+            node->m_position_x->render_param(),
+            node->m_position_y->render_param(),
+            node->m_position_z->render_param(),
+            node->m_orientation_x->render_param(),
+            node->m_orientation_y->render_param(),
+            node->m_orientation_z->render_param(),
+        },
+        Rendering::PannerRenderNode::ListenerParams {
+            listener->position_x()->render_param(),
+            listener->position_y()->render_param(),
+            listener->position_z()->render_param(),
+            listener->forward_x()->render_param(),
+            listener->forward_y()->render_param(),
+            listener->forward_z()->render_param(),
+            listener->up_x()->render_param(),
+            listener->up_y()->render_param(),
+            listener->up_z()->render_param(),
+        }));
+    node->queue_panner_parameters_update();
+
     return node;
 }
 
@@ -109,6 +134,20 @@ void PannerNode::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_orientation_x);
     visitor.visit(m_orientation_y);
     visitor.visit(m_orientation_z);
+}
+
+// https://webaudio.github.io/web-audio-api/#dom-pannernode-panningmodel
+void PannerNode::set_panning_model(PanningModelType value)
+{
+    m_panning_model = value;
+    queue_panner_parameters_update();
+}
+
+// https://webaudio.github.io/web-audio-api/#dom-pannernode-distancemodel
+void PannerNode::set_distance_model(DistanceModelType value)
+{
+    m_distance_model = value;
+    queue_panner_parameters_update();
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-pannernode-refdistance
