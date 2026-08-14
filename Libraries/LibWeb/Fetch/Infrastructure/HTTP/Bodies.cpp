@@ -179,7 +179,7 @@ void Body::fully_read(JS::Realm& realm, Web::Fetch::Infrastructure::Body::Proces
 }
 
 // https://fetch.spec.whatwg.org/#body-incrementally-read
-void Body::incrementally_read(JS::Realm& realm, ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error, TaskDestination task_destination)
+GC::Ref<Streams::ReadableStreamDefaultReader> Body::incrementally_read(JS::Realm& realm, ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error, TaskDestination task_destination)
 {
     HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
@@ -194,12 +194,13 @@ void Body::incrementally_read(JS::Realm& realm, ProcessBodyChunkCallback process
     // 3. Perform the incrementally-read loop given reader, taskDestination, processBodyChunk, processEndOfBody, and processBodyError.
     VERIFY(!task_destination.has<Empty>());
     incrementally_read_loop(reader, task_destination.get<GC::Ref<JS::Object>>(), process_body_chunk, process_end_of_body, process_body_error);
+    return reader;
 }
 
-void Body::incrementally_read(ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error, TaskDestination task_destination)
+GC::Ref<Streams::ReadableStreamDefaultReader> Body::incrementally_read(ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error, TaskDestination task_destination)
 {
     VERIFY(task_destination.has<GC::Ref<JS::Object>>());
-    incrementally_read(HTML::relevant_realm(*task_destination.get<GC::Ref<JS::Object>>()), move(process_body_chunk), move(process_end_of_body), move(process_body_error), move(task_destination));
+    return incrementally_read(HTML::relevant_realm(*task_destination.get<GC::Ref<JS::Object>>()), move(process_body_chunk), move(process_end_of_body), move(process_body_error), move(task_destination));
 }
 
 // https://fetch.spec.whatwg.org/#incrementally-read-loop

@@ -483,7 +483,8 @@ void LocalNavigable::start_download_for_response(GC::Ref<Fetch::Infrastructure::
     });
 
     // https://fetch.spec.whatwg.org/#body-incrementally-read
-    response->body()->incrementally_read(process_body_chunk, process_end_of_body, process_body_error, GC::Ref { realm.global_object() });
+    auto reader = response->body()->incrementally_read(process_body_chunk, process_end_of_body, process_body_error, GC::Ref { realm.global_object() });
+    page().client().page_did_register_download_reader(*download_id, reader);
     response->resume_body_delivery();
 }
 
