@@ -1,0 +1,145 @@
+PASS: insert iframe with display block
+PASS: remove iframe with display block
+PASS: replace iframe with display block
+PASS: move into display contents iframe with display block
+PASS: move out of display contents iframe with display block
+PASS: hide iframe with display block
+PASS: show iframe with display block
+PASS: remove containing subtree iframe with display block
+PASS: insert iframe with display inline
+PASS: remove iframe with display inline
+PASS: replace iframe with display inline
+PASS: move into display contents iframe with display inline
+PASS: move out of display contents iframe with display inline
+PASS: hide iframe with display inline
+PASS: show iframe with display inline
+PASS: remove containing subtree iframe with display inline
+PASS: insert iframe with display contents
+PASS: remove iframe with display contents
+PASS: replace iframe with display contents
+PASS: move into display contents iframe with display contents
+PASS: move out of display contents iframe with display contents
+PASS: hide iframe with display contents
+PASS: show iframe with display contents
+PASS: remove containing subtree iframe with display contents
+PASS: insert iframe with display none
+PASS: remove iframe with display none
+PASS: replace iframe with display none
+PASS: move into display contents iframe with display none
+PASS: move out of display contents iframe with display none
+PASS: hide iframe with display none
+PASS: show iframe with display none
+PASS: remove containing subtree iframe with display none
+PASS: insert iframe with display flex
+PASS: remove iframe with display flex
+PASS: replace iframe with display flex
+PASS: move into display contents iframe with display flex
+PASS: move out of display contents iframe with display flex
+PASS: hide iframe with display flex
+PASS: show iframe with display flex
+PASS: remove containing subtree iframe with display flex
+PASS: insert iframe with display table-cell
+PASS: remove iframe with display table-cell
+PASS: replace iframe with display table-cell
+PASS: move into display contents iframe with display table-cell
+PASS: move out of display contents iframe with display table-cell
+PASS: hide iframe with display table-cell
+PASS: show iframe with display table-cell
+PASS: remove containing subtree iframe with display table-cell
+PASS: insert object with display block
+PASS: remove object with display block
+PASS: replace object with display block
+PASS: move into display contents object with display block
+PASS: move out of display contents object with display block
+PASS: hide object with display block
+PASS: show object with display block
+PASS: remove containing subtree object with display block
+PASS: insert object with display inline
+PASS: remove object with display inline
+PASS: replace object with display inline
+PASS: move into display contents object with display inline
+PASS: move out of display contents object with display inline
+PASS: hide object with display inline
+PASS: show object with display inline
+PASS: remove containing subtree object with display inline
+PASS: insert object with display contents
+PASS: remove object with display contents
+PASS: replace object with display contents
+PASS: move into display contents object with display contents
+PASS: move out of display contents object with display contents
+PASS: hide object with display contents
+PASS: show object with display contents
+PASS: remove containing subtree object with display contents
+PASS: insert object with display none
+PASS: remove object with display none
+PASS: replace object with display none
+PASS: move into display contents object with display none
+PASS: move out of display contents object with display none
+PASS: hide object with display none
+PASS: show object with display none
+PASS: remove containing subtree object with display none
+PASS: insert object with display flex
+PASS: remove object with display flex
+PASS: replace object with display flex
+PASS: move into display contents object with display flex
+PASS: move out of display contents object with display flex
+PASS: hide object with display flex
+PASS: show object with display flex
+PASS: remove containing subtree object with display flex
+PASS: insert object with display table-cell
+PASS: remove object with display table-cell
+PASS: replace object with display table-cell
+PASS: move into display contents object with display table-cell
+PASS: move out of display contents object with display table-cell
+PASS: hide object with display table-cell
+PASS: show object with display table-cell
+PASS: remove containing subtree object with display table-cell
+PASS: insert embed with display block
+PASS: remove embed with display block
+PASS: replace embed with display block
+PASS: move into display contents embed with display block
+PASS: move out of display contents embed with display block
+PASS: hide embed with display block
+PASS: show embed with display block
+PASS: remove containing subtree embed with display block
+PASS: insert embed with display inline
+PASS: remove embed with display inline
+PASS: replace embed with display inline
+PASS: move into display contents embed with display inline
+PASS: move out of display contents embed with display inline
+PASS: hide embed with display inline
+PASS: show embed with display inline
+PASS: remove containing subtree embed with display inline
+PASS: insert embed with display contents
+PASS: remove embed with display contents
+PASS: replace embed with display contents
+PASS: move into display contents embed with display contents
+PASS: move out of display contents embed with display contents
+PASS: hide embed with display contents
+PASS: show embed with display contents
+PASS: remove containing subtree embed with display contents
+PASS: insert embed with display none
+PASS: remove embed with display none
+PASS: replace embed with display none
+PASS: move into display contents embed with display none
+PASS: move out of display contents embed with display none
+PASS: hide embed with display none
+PASS: show embed with display none
+PASS: remove containing subtree embed with display none
+PASS: insert embed with display flex
+PASS: remove embed with display flex
+PASS: replace embed with display flex
+PASS: move into display contents embed with display flex
+PASS: move out of display contents embed with display flex
+PASS: hide embed with display flex
+PASS: show embed with display flex
+PASS: remove containing subtree embed with display flex
+PASS: insert embed with display table-cell
+PASS: remove embed with display table-cell
+PASS: replace embed with display table-cell
+PASS: move into display contents embed with display table-cell
+PASS: move out of display contents embed with display table-cell
+PASS: hide embed with display table-cell
+PASS: show embed with display table-cell
+PASS: remove containing subtree embed with display table-cell
+144 cases; 144 matched; 0 mismatched

@@ -1023,6 +1023,36 @@ GC::Ref<JS::Object> Internals::layout_tree_build_stats()
     return object;
 }
 
+GC::Ref<JS::Object> Internals::compare_layout_tree_with_full_rebuild()
+{
+    auto& document = window().associated_document();
+
+    auto snapshot_layout_tree = [&]() {
+        document.update_layout(DOM::UpdateLayoutReason::Debugging);
+        VERIFY(document.layout_node());
+
+        StringBuilder builder;
+        Web::dump_tree(builder, *document.layout_node(), false, false);
+        return builder.to_string_without_validation();
+    };
+
+    auto incremental_tree = snapshot_layout_tree();
+
+    // Deliberately tear down every layout node. The next snapshot is therefore produced by the
+    // builder's full-tree path and acts as an oracle for the incremental result above.
+    document.invalidate_layout_tree(DOM::InvalidateLayoutTreeReason::InternalsFullRebuildComparison);
+    auto full_tree = snapshot_layout_tree();
+
+    auto object = JS::Object::create(window().principal_realm(), nullptr);
+    auto matches = incremental_tree == full_tree;
+    object->define_direct_property("matches"_utf16_fly_string, JS::Value(matches), JS::default_attributes);
+    if (!matches) {
+        object->define_direct_property("incremental"_utf16_fly_string, JS::PrimitiveString::create(vm(), dump_string_to_utf16(incremental_tree)), JS::default_attributes);
+        object->define_direct_property("full"_utf16_fly_string, JS::PrimitiveString::create(vm(), dump_string_to_utf16(full_tree)), JS::default_attributes);
+    }
+    return object;
+}
+
 GC::Ref<JS::Object> Internals::style_ffi_counters()
 {
     auto object = JS::Object::create(window().principal_realm(), nullptr);
@@ -1074,6 +1104,13 @@ u64 Internals::paint_style_record_identity(DOM::Element& element)
         return 0;
     auto paintable = layout_node->paintable();
     return paintable ? paintable->style_record_identity().value() : 0;
+}
+
+u64 Internals::layout_node_identity(DOM::Node& node)
+{
+    node.document().update_layout(DOM::UpdateLayoutReason::Debugging);
+    auto const* layout_node = node.layout_node();
+    return layout_node ? static_cast<u64>(layout_node->arena_slot_index()) + 1 : 0;
 }
 
 GC::Ref<JS::Object> Internals::style_engine_transaction_reactions()

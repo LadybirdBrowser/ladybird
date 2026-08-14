@@ -1,0 +1,16 @@
+PASS: semantic table: table
+PASS: semantic table: direct cell under table
+PASS: semantic table: direct cell under tbody
+PASS: semantic table: block under row
+PASS: semantic table: row under cell
+PASS: semantic table: caption under row
+PASS: semantic table: second caption
+PASS: semantic table: colgroup after body
+PASS: semantic table: column under body
+PASS: semantic table: non-whitespace table text
+PASS: semantic table: whitespace table text
+PASS: semantic table: remove only cell
+PASS: semantic table: remove only row
+PASS: semantic table: remove row group
+PASS: semantic table: replace cell with block
+15 cases; 15 matched; 0 mismatched

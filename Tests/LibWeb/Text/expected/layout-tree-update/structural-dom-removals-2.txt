@@ -1,0 +1,221 @@
+PASS: remove leaf element from contents
+PASS: remove leaf text from contents
+PASS: remove shallow subtree from contents
+PASS: remove deep subtree from contents
+PASS: remove first sibling from contents
+PASS: remove middle sibling from contents
+PASS: remove last sibling from contents
+PASS: remove first sibling run from contents
+PASS: remove middle sibling run from contents
+PASS: remove last sibling run from contents
+PASS: remove alternating siblings from contents
+PASS: remove all siblings forwards from contents
+PASS: remove all siblings backwards from contents
+PASS: Range delete first sibling run from contents
+PASS: Range delete middle sibling run from contents
+PASS: Range delete last sibling run from contents
+PASS: replaceChildren removes subtree from contents
+PASS: innerHTML removes subtree from contents
+PASS: textContent removes subtree from contents
+FAIL: remove generating parent from contents
+PASS: remove block from inline run from contents
+FAIL: remove display contents subtree from contents
+PASS: remove leaf element from inline-block
+PASS: remove leaf text from inline-block
+PASS: remove shallow subtree from inline-block
+PASS: remove deep subtree from inline-block
+PASS: remove first sibling from inline-block
+PASS: remove middle sibling from inline-block
+PASS: remove last sibling from inline-block
+PASS: remove first sibling run from inline-block
+PASS: remove middle sibling run from inline-block
+PASS: remove last sibling run from inline-block
+PASS: remove alternating siblings from inline-block
+PASS: remove all siblings forwards from inline-block
+PASS: remove all siblings backwards from inline-block
+PASS: Range delete first sibling run from inline-block
+PASS: Range delete middle sibling run from inline-block
+PASS: Range delete last sibling run from inline-block
+PASS: replaceChildren removes subtree from inline-block
+PASS: innerHTML removes subtree from inline-block
+PASS: textContent removes subtree from inline-block
+PASS: remove generating parent from inline-block
+PASS: remove block from inline run from inline-block
+FAIL: remove display contents subtree from inline-block
+PASS: remove leaf element from flex
+PASS: remove leaf text from flex
+PASS: remove shallow subtree from flex
+PASS: remove deep subtree from flex
+PASS: remove first sibling from flex
+PASS: remove middle sibling from flex
+PASS: remove last sibling from flex
+PASS: remove first sibling run from flex
+PASS: remove middle sibling run from flex
+PASS: remove last sibling run from flex
+PASS: remove alternating siblings from flex
+PASS: remove all siblings forwards from flex
+PASS: remove all siblings backwards from flex
+PASS: Range delete first sibling run from flex
+PASS: Range delete middle sibling run from flex
+PASS: Range delete last sibling run from flex
+PASS: replaceChildren removes subtree from flex
+PASS: innerHTML removes subtree from flex
+PASS: textContent removes subtree from flex
+PASS: remove generating parent from flex
+PASS: remove block from inline run from flex
+FAIL: remove display contents subtree from flex
+PASS: remove leaf element from table
+PASS: remove leaf text from table
+PASS: remove shallow subtree from table
+PASS: remove deep subtree from table
+PASS: remove first sibling from table
+PASS: remove middle sibling from table
+PASS: remove last sibling from table
+PASS: remove first sibling run from table
+PASS: remove middle sibling run from table
+PASS: remove last sibling run from table
+PASS: remove alternating siblings from table
+PASS: remove all siblings forwards from table
+PASS: remove all siblings backwards from table
+PASS: Range delete first sibling run from table
+PASS: Range delete middle sibling run from table
+PASS: Range delete last sibling run from table
+PASS: replaceChildren removes subtree from table
+PASS: innerHTML removes subtree from table
+PASS: textContent removes subtree from table
+PASS: remove generating parent from table
+PASS: remove block from inline run from table
+FAIL: remove display contents subtree from table
+PASS: remove leaf element from -webkit-inline-box
+PASS: remove leaf text from -webkit-inline-box
+PASS: remove shallow subtree from -webkit-inline-box
+PASS: remove deep subtree from -webkit-inline-box
+PASS: remove first sibling from -webkit-inline-box
+PASS: remove middle sibling from -webkit-inline-box
+PASS: remove last sibling from -webkit-inline-box
+PASS: remove first sibling run from -webkit-inline-box
+PASS: remove middle sibling run from -webkit-inline-box
+PASS: remove last sibling run from -webkit-inline-box
+PASS: remove alternating siblings from -webkit-inline-box
+PASS: remove all siblings forwards from -webkit-inline-box
+PASS: remove all siblings backwards from -webkit-inline-box
+PASS: Range delete first sibling run from -webkit-inline-box
+PASS: Range delete middle sibling run from -webkit-inline-box
+PASS: Range delete last sibling run from -webkit-inline-box
+PASS: replaceChildren removes subtree from -webkit-inline-box
+PASS: innerHTML removes subtree from -webkit-inline-box
+PASS: textContent removes subtree from -webkit-inline-box
+PASS: remove generating parent from -webkit-inline-box
+PASS: remove block from inline run from -webkit-inline-box
+FAIL: remove display contents subtree from -webkit-inline-box
+PASS: remove leaf element from table-row
+PASS: remove leaf text from table-row
+PASS: remove shallow subtree from table-row
+PASS: remove deep subtree from table-row
+PASS: remove first sibling from table-row
+PASS: remove middle sibling from table-row
+PASS: remove last sibling from table-row
+PASS: remove first sibling run from table-row
+PASS: remove middle sibling run from table-row
+PASS: remove last sibling run from table-row
+PASS: remove alternating siblings from table-row
+PASS: remove all siblings forwards from table-row
+PASS: remove all siblings backwards from table-row
+PASS: Range delete first sibling run from table-row
+PASS: Range delete middle sibling run from table-row
+PASS: Range delete last sibling run from table-row
+PASS: replaceChildren removes subtree from table-row
+PASS: innerHTML removes subtree from table-row
+PASS: textContent removes subtree from table-row
+PASS: remove generating parent from table-row
+PASS: remove block from inline run from table-row
+FAIL: remove display contents subtree from table-row
+PASS: remove leaf element from table-caption
+PASS: remove leaf text from table-caption
+PASS: remove shallow subtree from table-caption
+PASS: remove deep subtree from table-caption
+PASS: remove first sibling from table-caption
+PASS: remove middle sibling from table-caption
+PASS: remove last sibling from table-caption
+PASS: remove first sibling run from table-caption
+PASS: remove middle sibling run from table-caption
+PASS: remove last sibling run from table-caption
+PASS: remove alternating siblings from table-caption
+PASS: remove all siblings forwards from table-caption
+PASS: remove all siblings backwards from table-caption
+PASS: Range delete first sibling run from table-caption
+PASS: Range delete middle sibling run from table-caption
+PASS: Range delete last sibling run from table-caption
+PASS: replaceChildren removes subtree from table-caption
+PASS: innerHTML removes subtree from table-caption
+PASS: textContent removes subtree from table-caption
+PASS: remove generating parent from table-caption
+PASS: remove block from inline run from table-caption
+FAIL: remove display contents subtree from table-caption
+PASS: remove leaf element from inline flow-root
+PASS: remove leaf text from inline flow-root
+PASS: remove shallow subtree from inline flow-root
+PASS: remove deep subtree from inline flow-root
+PASS: remove first sibling from inline flow-root
+PASS: remove middle sibling from inline flow-root
+PASS: remove last sibling from inline flow-root
+PASS: remove first sibling run from inline flow-root
+PASS: remove middle sibling run from inline flow-root
+PASS: remove last sibling run from inline flow-root
+PASS: remove alternating siblings from inline flow-root
+PASS: remove all siblings forwards from inline flow-root
+PASS: remove all siblings backwards from inline flow-root
+PASS: Range delete first sibling run from inline flow-root
+PASS: Range delete middle sibling run from inline flow-root
+PASS: Range delete last sibling run from inline flow-root
+PASS: replaceChildren removes subtree from inline flow-root
+PASS: innerHTML removes subtree from inline flow-root
+PASS: textContent removes subtree from inline flow-root
+PASS: remove generating parent from inline flow-root
+PASS: remove block from inline run from inline flow-root
+FAIL: remove display contents subtree from inline flow-root
+PASS: remove leaf element from inline grid
+PASS: remove leaf text from inline grid
+PASS: remove shallow subtree from inline grid
+PASS: remove deep subtree from inline grid
+PASS: remove first sibling from inline grid
+PASS: remove middle sibling from inline grid
+PASS: remove last sibling from inline grid
+PASS: remove first sibling run from inline grid
+PASS: remove middle sibling run from inline grid
+PASS: remove last sibling run from inline grid
+PASS: remove alternating siblings from inline grid
+PASS: remove all siblings forwards from inline grid
+PASS: remove all siblings backwards from inline grid
+PASS: Range delete first sibling run from inline grid
+PASS: Range delete middle sibling run from inline grid
+PASS: Range delete last sibling run from inline grid
+PASS: replaceChildren removes subtree from inline grid
+PASS: innerHTML removes subtree from inline grid
+PASS: textContent removes subtree from inline grid
+PASS: remove generating parent from inline grid
+PASS: remove block from inline run from inline grid
+FAIL: remove display contents subtree from inline grid
+PASS: remove leaf element from inline flow list-item
+PASS: remove leaf text from inline flow list-item
+PASS: remove shallow subtree from inline flow list-item
+PASS: remove deep subtree from inline flow list-item
+PASS: remove first sibling from inline flow list-item
+PASS: remove middle sibling from inline flow list-item
+PASS: remove last sibling from inline flow list-item
+PASS: remove first sibling run from inline flow list-item
+PASS: remove middle sibling run from inline flow list-item
+PASS: remove last sibling run from inline flow list-item
+PASS: remove alternating siblings from inline flow list-item
+PASS: remove all siblings forwards from inline flow list-item
+PASS: remove all siblings backwards from inline flow list-item
+PASS: Range delete first sibling run from inline flow list-item
+PASS: Range delete middle sibling run from inline flow list-item
+PASS: Range delete last sibling run from inline flow list-item
+PASS: replaceChildren removes subtree from inline flow list-item
+PASS: innerHTML removes subtree from inline flow list-item
+PASS: textContent removes subtree from inline flow list-item
+PASS: remove generating parent from inline flow list-item
+PASS: remove block from inline run from inline flow list-item
+FAIL: remove display contents subtree from inline flow list-item
+220 cases; 209 matched; 11 mismatched

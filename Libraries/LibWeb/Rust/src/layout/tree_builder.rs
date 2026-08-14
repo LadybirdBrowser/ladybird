@@ -68,7 +68,6 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub first_child: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
     pub next_sibling: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
     pub clear_dom_update_flags: unsafe extern "C" fn(*mut c_void),
-    pub needs_layout_tree_update: unsafe extern "C" fn(*mut c_void) -> bool,
     pub assigned_node_count: unsafe extern "C" fn(*mut c_void) -> usize,
     pub assigned_node_at: unsafe extern "C" fn(*mut c_void, usize) -> *mut c_void,
     pub is_svg_element: unsafe extern "C" fn(*mut c_void) -> bool,
@@ -684,9 +683,6 @@ unsafe fn update_layout_tree_for_assigned_slottables(
     abort_on_panic(|| {
         assert!(!slot_element.is_null());
         // SAFETY: `slot_element` remains live throughout the call.
-        let slot_needs_layout_tree_update = unsafe { (host.callbacks.needs_layout_tree_update)(slot_element) };
-        let must_create_subtree = must_create_subtree || slot_needs_layout_tree_update;
-        // SAFETY: `slot_element` remains live throughout the call.
         let assigned_node_count = unsafe { (host.callbacks.assigned_node_count)(slot_element) };
         for index in 0..assigned_node_count {
             // SAFETY: `index` is below the count reported for this unchanged assigned-node list.
@@ -836,7 +832,7 @@ unsafe fn update_layout_tree_for_display_contents(
                         state,
                         facts.slot_element,
                         context,
-                        must_create_subtree,
+                        must_create_subtree || should_create_layout_node,
                     );
                 }
             } else {
@@ -1122,7 +1118,7 @@ unsafe fn update_principal_node_descendants(
                         state,
                         facts.slot_element,
                         context,
-                        must_create_subtree,
+                        must_create_subtree || should_create_layout_node,
                     );
                 }
                 assert!(state.ancestor_stack.pop().is_some());

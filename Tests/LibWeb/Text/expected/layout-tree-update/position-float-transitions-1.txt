@@ -1,0 +1,1065 @@
+PASS: position static -> relative on none in block
+PASS: position static -> fixed on none in contents
+PASS: position relative -> static on none in flex
+PASS: position relative -> fixed on none in table
+PASS: position absolute -> static on none in table-row
+PASS: position absolute -> fixed on none in block
+PASS: position fixed -> static on none in contents
+PASS: position fixed -> absolute on none in flex
+PASS: position sticky -> static on none in table
+PASS: position sticky -> absolute on none in table-row
+PASS: float none -> left on none in block
+PASS: float none -> inline-start on none in contents
+PASS: float left -> none on none in flex
+PASS: float left -> inline-start on none in table
+PASS: float right -> none on none in table-row
+PASS: float right -> inline-start on none in block
+PASS: float inline-start -> none on none in contents
+PASS: float inline-start -> right on none in flex
+PASS: float inline-end -> none on none in table
+PASS: float inline-end -> right on none in table-row
+PASS: clear none -> left on none in block
+PASS: clear none -> both on none in contents
+PASS: clear left -> right on none in flex
+PASS: clear right -> none on none in table
+PASS: clear right -> both on none in table-row
+PASS: clear both -> left on none in block
+PASS: static none -> absolute left on none in contents
+PASS: relative right -> fixed none on none in flex
+PASS: position static -> relative on contents in inline
+PASS: position static -> fixed on contents in flow-root
+PASS: position relative -> static on contents in grid
+PASS: position relative -> fixed on contents in inline-table
+PASS: position absolute -> static on contents in table-cell
+PASS: position absolute -> fixed on contents in inline
+PASS: position fixed -> static on contents in flow-root
+PASS: position fixed -> absolute on contents in grid
+PASS: position sticky -> static on contents in inline-table
+PASS: position sticky -> absolute on contents in table-cell
+FAIL: float none -> left on contents in inline
+FAIL: float none -> inline-start on contents in flow-root
+FAIL: float left -> none on contents in grid
+PASS: float left -> inline-start on contents in inline-table
+FAIL: float right -> none on contents in table-cell
+FAIL: float right -> inline-start on contents in inline
+FAIL: float inline-start -> none on contents in flow-root
+FAIL: float inline-start -> right on contents in grid
+FAIL: float inline-end -> none on contents in inline-table
+PASS: float inline-end -> right on contents in table-cell
+PASS: clear none -> left on contents in inline
+PASS: clear none -> both on contents in flow-root
+PASS: clear left -> right on contents in grid
+PASS: clear right -> none on contents in inline-table
+PASS: clear right -> both on contents in table-cell
+PASS: clear both -> left on contents in inline
+PASS: static none -> absolute left on contents in flow-root
+PASS: relative right -> fixed none on contents in grid
+PASS: position static -> relative on block in contents
+PASS: position static -> fixed on block in flex
+PASS: position relative -> static on block in table
+PASS: position relative -> fixed on block in table-row
+PASS: position absolute -> static on block in block
+PASS: position absolute -> fixed on block in contents
+PASS: position fixed -> static on block in flex
+PASS: position fixed -> absolute on block in table
+PASS: position sticky -> static on block in table-row
+PASS: position sticky -> absolute on block in block
+FAIL: float none -> left on block in contents
+PASS: float none -> inline-start on block in flex
+FAIL: float left -> none on block in table
+PASS: float left -> inline-start on block in table-row
+FAIL: float right -> none on block in block
+PASS: float right -> inline-start on block in contents
+PASS: float inline-start -> none on block in flex
+PASS: float inline-start -> right on block in table
+FAIL: float inline-end -> none on block in table-row
+PASS: float inline-end -> right on block in block
+PASS: clear none -> left on block in contents
+PASS: clear none -> both on block in flex
+PASS: clear left -> right on block in table
+PASS: clear right -> none on block in table-row
+PASS: clear right -> both on block in block
+PASS: clear both -> left on block in contents
+PASS: static none -> absolute left on block in flex
+PASS: relative right -> fixed none on block in table
+PASS: position static -> relative on inline in flow-root
+PASS: position static -> fixed on inline in grid
+PASS: position relative -> static on inline in inline-table
+PASS: position relative -> fixed on inline in table-cell
+PASS: position absolute -> static on inline in inline
+PASS: position absolute -> fixed on inline in flow-root
+PASS: position fixed -> static on inline in grid
+PASS: position fixed -> absolute on inline in inline-table
+PASS: position sticky -> static on inline in table-cell
+PASS: position sticky -> absolute on inline in inline
+PASS: float none -> left on inline in flow-root
+PASS: float none -> inline-start on inline in grid
+PASS: float left -> none on inline in inline-table
+PASS: float left -> inline-start on inline in table-cell
+PASS: float right -> none on inline in inline
+PASS: float right -> inline-start on inline in flow-root
+PASS: float inline-start -> none on inline in grid
+PASS: float inline-start -> right on inline in inline-table
+PASS: float inline-end -> none on inline in table-cell
+PASS: float inline-end -> right on inline in inline
+PASS: clear none -> left on inline in flow-root
+PASS: clear none -> both on inline in grid
+PASS: clear left -> right on inline in inline-table
+PASS: clear right -> none on inline in table-cell
+PASS: clear right -> both on inline in inline
+PASS: clear both -> left on inline in flow-root
+PASS: static none -> absolute left on inline in grid
+PASS: relative right -> fixed none on inline in inline-table
+PASS: position static -> relative on flow-root in flex
+PASS: position static -> fixed on flow-root in table
+PASS: position relative -> static on flow-root in table-row
+PASS: position relative -> fixed on flow-root in block
+PASS: position absolute -> static on flow-root in contents
+PASS: position absolute -> fixed on flow-root in flex
+PASS: position fixed -> static on flow-root in table
+PASS: position fixed -> absolute on flow-root in table-row
+PASS: position sticky -> static on flow-root in block
+PASS: position sticky -> absolute on flow-root in contents
+PASS: float none -> left on flow-root in flex
+FAIL: float none -> inline-start on flow-root in table
+FAIL: float left -> none on flow-root in table-row
+PASS: float left -> inline-start on flow-root in block
+FAIL: float right -> none on flow-root in contents
+PASS: float right -> inline-start on flow-root in flex
+FAIL: float inline-start -> none on flow-root in table
+PASS: float inline-start -> right on flow-root in table-row
+FAIL: float inline-end -> none on flow-root in block
+PASS: float inline-end -> right on flow-root in contents
+PASS: clear none -> left on flow-root in flex
+PASS: clear none -> both on flow-root in table
+PASS: clear left -> right on flow-root in table-row
+PASS: clear right -> none on flow-root in block
+PASS: clear right -> both on flow-root in contents
+PASS: clear both -> left on flow-root in flex
+PASS: static none -> absolute left on flow-root in table
+PASS: relative right -> fixed none on flow-root in table-row
+PASS: position static -> relative on inline-block in grid
+PASS: position static -> fixed on inline-block in inline-table
+PASS: position relative -> static on inline-block in table-cell
+PASS: position relative -> fixed on inline-block in inline
+PASS: position absolute -> static on inline-block in flow-root
+PASS: position absolute -> fixed on inline-block in grid
+PASS: position fixed -> static on inline-block in inline-table
+PASS: position fixed -> absolute on inline-block in table-cell
+PASS: position sticky -> static on inline-block in inline
+PASS: position sticky -> absolute on inline-block in flow-root
+PASS: float none -> left on inline-block in grid
+PASS: float none -> inline-start on inline-block in inline-table
+PASS: float left -> none on inline-block in table-cell
+PASS: float left -> inline-start on inline-block in inline
+PASS: float right -> none on inline-block in flow-root
+PASS: float right -> inline-start on inline-block in grid
+PASS: float inline-start -> none on inline-block in inline-table
+PASS: float inline-start -> right on inline-block in table-cell
+PASS: float inline-end -> none on inline-block in inline
+PASS: float inline-end -> right on inline-block in flow-root
+PASS: clear none -> left on inline-block in grid
+PASS: clear none -> both on inline-block in inline-table
+PASS: clear left -> right on inline-block in table-cell
+PASS: clear right -> none on inline-block in inline
+PASS: clear right -> both on inline-block in flow-root
+PASS: clear both -> left on inline-block in grid
+PASS: static none -> absolute left on inline-block in inline-table
+PASS: relative right -> fixed none on inline-block in table-cell
+PASS: position static -> relative on run-in in table
+PASS: position static -> fixed on run-in in table-row
+PASS: position relative -> static on run-in in block
+PASS: position relative -> fixed on run-in in contents
+PASS: position absolute -> static on run-in in flex
+PASS: position absolute -> fixed on run-in in table
+PASS: position fixed -> static on run-in in table-row
+PASS: position fixed -> absolute on run-in in block
+PASS: position sticky -> static on run-in in contents
+PASS: position sticky -> absolute on run-in in flex
+PASS: float none -> left on run-in in table
+PASS: float none -> inline-start on run-in in table-row
+PASS: float left -> none on run-in in block
+PASS: float left -> inline-start on run-in in contents
+PASS: float right -> none on run-in in flex
+PASS: float right -> inline-start on run-in in table
+PASS: float inline-start -> none on run-in in table-row
+PASS: float inline-start -> right on run-in in block
+PASS: float inline-end -> none on run-in in contents
+PASS: float inline-end -> right on run-in in flex
+PASS: clear none -> left on run-in in table
+PASS: clear none -> both on run-in in table-row
+PASS: clear left -> right on run-in in block
+PASS: clear right -> none on run-in in contents
+PASS: clear right -> both on run-in in flex
+PASS: clear both -> left on run-in in table
+PASS: static none -> absolute left on run-in in table-row
+PASS: relative right -> fixed none on run-in in block
+PASS: position static -> relative on list-item in inline-table
+PASS: position static -> fixed on list-item in table-cell
+PASS: position relative -> static on list-item in inline
+PASS: position relative -> fixed on list-item in flow-root
+PASS: position absolute -> static on list-item in grid
+PASS: position absolute -> fixed on list-item in inline-table
+PASS: position fixed -> static on list-item in table-cell
+PASS: position fixed -> absolute on list-item in inline
+PASS: position sticky -> static on list-item in flow-root
+PASS: position sticky -> absolute on list-item in grid
+FAIL: float none -> left on list-item in inline-table
+FAIL: float none -> inline-start on list-item in table-cell
+PASS: float left -> none on list-item in inline
+PASS: float left -> inline-start on list-item in flow-root
+PASS: float right -> none on list-item in grid
+PASS: float right -> inline-start on list-item in inline-table
+FAIL: float inline-start -> none on list-item in table-cell
+PASS: float inline-start -> right on list-item in inline
+FAIL: float inline-end -> none on list-item in flow-root
+PASS: float inline-end -> right on list-item in grid
+PASS: clear none -> left on list-item in inline-table
+PASS: clear none -> both on list-item in table-cell
+PASS: clear left -> right on list-item in inline
+PASS: clear right -> none on list-item in flow-root
+PASS: clear right -> both on list-item in grid
+PASS: clear both -> left on list-item in inline-table
+PASS: static none -> absolute left on list-item in table-cell
+PASS: relative right -> fixed none on list-item in inline
+PASS: position static -> relative on inline list-item in table-row
+PASS: position static -> fixed on inline list-item in block
+PASS: position relative -> static on inline list-item in contents
+PASS: position relative -> fixed on inline list-item in flex
+PASS: position absolute -> static on inline list-item in table
+PASS: position absolute -> fixed on inline list-item in table-row
+PASS: position fixed -> static on inline list-item in block
+PASS: position fixed -> absolute on inline list-item in contents
+PASS: position sticky -> static on inline list-item in flex
+PASS: position sticky -> absolute on inline list-item in table
+PASS: float none -> left on inline list-item in table-row
+PASS: float none -> inline-start on inline list-item in block
+PASS: float left -> none on inline list-item in contents
+PASS: float left -> inline-start on inline list-item in flex
+PASS: float right -> none on inline list-item in table
+PASS: float right -> inline-start on inline list-item in table-row
+PASS: float inline-start -> none on inline list-item in block
+PASS: float inline-start -> right on inline list-item in contents
+PASS: float inline-end -> none on inline list-item in flex
+PASS: float inline-end -> right on inline list-item in table
+PASS: clear none -> left on inline list-item in table-row
+PASS: clear none -> both on inline list-item in block
+PASS: clear left -> right on inline list-item in contents
+PASS: clear right -> none on inline list-item in flex
+PASS: clear right -> both on inline list-item in table
+PASS: clear both -> left on inline list-item in table-row
+PASS: static none -> absolute left on inline list-item in block
+PASS: relative right -> fixed none on inline list-item in contents
+PASS: position static -> relative on flex in table-cell
+PASS: position static -> fixed on flex in inline
+PASS: position relative -> static on flex in flow-root
+PASS: position relative -> fixed on flex in grid
+PASS: position absolute -> static on flex in inline-table
+PASS: position absolute -> fixed on flex in table-cell
+PASS: position fixed -> static on flex in inline
+PASS: position fixed -> absolute on flex in flow-root
+PASS: position sticky -> static on flex in grid
+PASS: position sticky -> absolute on flex in inline-table
+FAIL: float none -> left on flex in table-cell
+PASS: float none -> inline-start on flex in inline
+FAIL: float left -> none on flex in flow-root
+PASS: float left -> inline-start on flex in grid
+FAIL: float right -> none on flex in inline-table
+PASS: float right -> inline-start on flex in table-cell
+PASS: float inline-start -> none on flex in inline
+PASS: float inline-start -> right on flex in flow-root
+PASS: float inline-end -> none on flex in grid
+PASS: float inline-end -> right on flex in inline-table
+PASS: clear none -> left on flex in table-cell
+PASS: clear none -> both on flex in inline
+PASS: clear left -> right on flex in flow-root
+PASS: clear right -> none on flex in grid
+PASS: clear right -> both on flex in inline-table
+PASS: clear both -> left on flex in table-cell
+PASS: static none -> absolute left on flex in inline
+PASS: relative right -> fixed none on flex in flow-root
+PASS: position static -> relative on inline-flex in block
+PASS: position static -> fixed on inline-flex in contents
+PASS: position relative -> static on inline-flex in flex
+PASS: position relative -> fixed on inline-flex in table
+PASS: position absolute -> static on inline-flex in table-row
+PASS: position absolute -> fixed on inline-flex in block
+PASS: position fixed -> static on inline-flex in contents
+PASS: position fixed -> absolute on inline-flex in flex
+PASS: position sticky -> static on inline-flex in table
+PASS: position sticky -> absolute on inline-flex in table-row
+PASS: float none -> left on inline-flex in block
+PASS: float none -> inline-start on inline-flex in contents
+PASS: float left -> none on inline-flex in flex
+PASS: float left -> inline-start on inline-flex in table
+PASS: float right -> none on inline-flex in table-row
+PASS: float right -> inline-start on inline-flex in block
+PASS: float inline-start -> none on inline-flex in contents
+PASS: float inline-start -> right on inline-flex in flex
+PASS: float inline-end -> none on inline-flex in table
+PASS: float inline-end -> right on inline-flex in table-row
+PASS: clear none -> left on inline-flex in block
+PASS: clear none -> both on inline-flex in contents
+PASS: clear left -> right on inline-flex in flex
+PASS: clear right -> none on inline-flex in table
+PASS: clear right -> both on inline-flex in table-row
+PASS: clear both -> left on inline-flex in block
+PASS: static none -> absolute left on inline-flex in contents
+PASS: relative right -> fixed none on inline-flex in flex
+PASS: position static -> relative on grid in inline
+PASS: position static -> fixed on grid in flow-root
+PASS: position relative -> static on grid in grid
+PASS: position relative -> fixed on grid in inline-table
+PASS: position absolute -> static on grid in table-cell
+PASS: position absolute -> fixed on grid in inline
+PASS: position fixed -> static on grid in flow-root
+PASS: position fixed -> absolute on grid in grid
+PASS: position sticky -> static on grid in inline-table
+PASS: position sticky -> absolute on grid in table-cell
+PASS: float none -> left on grid in inline
+FAIL: float none -> inline-start on grid in flow-root
+PASS: float left -> none on grid in grid
+PASS: float left -> inline-start on grid in inline-table
+FAIL: float right -> none on grid in table-cell
+PASS: float right -> inline-start on grid in inline
+FAIL: float inline-start -> none on grid in flow-root
+PASS: float inline-start -> right on grid in grid
+FAIL: float inline-end -> none on grid in inline-table
+PASS: float inline-end -> right on grid in table-cell
+PASS: clear none -> left on grid in inline
+PASS: clear none -> both on grid in flow-root
+PASS: clear left -> right on grid in grid
+PASS: clear right -> none on grid in inline-table
+PASS: clear right -> both on grid in table-cell
+PASS: clear both -> left on grid in inline
+PASS: static none -> absolute left on grid in flow-root
+PASS: relative right -> fixed none on grid in grid
+PASS: position static -> relative on inline-grid in contents
+PASS: position static -> fixed on inline-grid in flex
+PASS: position relative -> static on inline-grid in table
+PASS: position relative -> fixed on inline-grid in table-row
+PASS: position absolute -> static on inline-grid in block
+PASS: position absolute -> fixed on inline-grid in contents
+PASS: position fixed -> static on inline-grid in flex
+PASS: position fixed -> absolute on inline-grid in table
+PASS: position sticky -> static on inline-grid in table-row
+PASS: position sticky -> absolute on inline-grid in block
+PASS: float none -> left on inline-grid in contents
+PASS: float none -> inline-start on inline-grid in flex
+PASS: float left -> none on inline-grid in table
+PASS: float left -> inline-start on inline-grid in table-row
+PASS: float right -> none on inline-grid in block
+PASS: float right -> inline-start on inline-grid in contents
+PASS: float inline-start -> none on inline-grid in flex
+PASS: float inline-start -> right on inline-grid in table
+PASS: float inline-end -> none on inline-grid in table-row
+PASS: float inline-end -> right on inline-grid in block
+PASS: clear none -> left on inline-grid in contents
+PASS: clear none -> both on inline-grid in flex
+PASS: clear left -> right on inline-grid in table
+PASS: clear right -> none on inline-grid in table-row
+PASS: clear right -> both on inline-grid in block
+PASS: clear both -> left on inline-grid in contents
+PASS: static none -> absolute left on inline-grid in flex
+PASS: relative right -> fixed none on inline-grid in table
+PASS: position static -> relative on table in flow-root
+PASS: position static -> fixed on table in grid
+PASS: position relative -> static on table in inline-table
+PASS: position relative -> fixed on table in table-cell
+PASS: position absolute -> static on table in inline
+PASS: position absolute -> fixed on table in flow-root
+PASS: position fixed -> static on table in grid
+PASS: position fixed -> absolute on table in inline-table
+PASS: position sticky -> static on table in table-cell
+PASS: position sticky -> absolute on table in inline
+FAIL: float none -> left on table in flow-root
+PASS: float none -> inline-start on table in grid
+FAIL: float left -> none on table in inline-table
+PASS: float left -> inline-start on table in table-cell
+PASS: float right -> none on table in inline
+PASS: float right -> inline-start on table in flow-root
+PASS: float inline-start -> none on table in grid
+PASS: float inline-start -> right on table in inline-table
+FAIL: float inline-end -> none on table in table-cell
+PASS: float inline-end -> right on table in inline
+PASS: clear none -> left on table in flow-root
+PASS: clear none -> both on table in grid
+PASS: clear left -> right on table in inline-table
+PASS: clear right -> none on table in table-cell
+PASS: clear right -> both on table in inline
+PASS: clear both -> left on table in flow-root
+PASS: static none -> absolute left on table in grid
+PASS: relative right -> fixed none on table in inline-table
+PASS: position static -> relative on inline-table in flex
+PASS: position static -> fixed on inline-table in table
+PASS: position relative -> static on inline-table in table-row
+PASS: position relative -> fixed on inline-table in block
+PASS: position absolute -> static on inline-table in contents
+PASS: position absolute -> fixed on inline-table in flex
+PASS: position fixed -> static on inline-table in table
+PASS: position fixed -> absolute on inline-table in table-row
+PASS: position sticky -> static on inline-table in block
+PASS: position sticky -> absolute on inline-table in contents
+PASS: float none -> left on inline-table in flex
+PASS: float none -> inline-start on inline-table in table
+PASS: float left -> none on inline-table in table-row
+PASS: float left -> inline-start on inline-table in block
+PASS: float right -> none on inline-table in contents
+PASS: float right -> inline-start on inline-table in flex
+PASS: float inline-start -> none on inline-table in table
+PASS: float inline-start -> right on inline-table in table-row
+PASS: float inline-end -> none on inline-table in block
+PASS: float inline-end -> right on inline-table in contents
+PASS: clear none -> left on inline-table in flex
+PASS: clear none -> both on inline-table in table
+PASS: clear left -> right on inline-table in table-row
+PASS: clear right -> none on inline-table in block
+PASS: clear right -> both on inline-table in contents
+PASS: clear both -> left on inline-table in flex
+PASS: static none -> absolute left on inline-table in table
+PASS: relative right -> fixed none on inline-table in table-row
+PASS: position static -> relative on math in grid
+PASS: position static -> fixed on math in inline-table
+PASS: position relative -> static on math in table-cell
+PASS: position relative -> fixed on math in inline
+PASS: position absolute -> static on math in flow-root
+PASS: position absolute -> fixed on math in grid
+PASS: position fixed -> static on math in inline-table
+PASS: position fixed -> absolute on math in table-cell
+PASS: position sticky -> static on math in inline
+PASS: position sticky -> absolute on math in flow-root
+PASS: float none -> left on math in grid
+PASS: float none -> inline-start on math in inline-table
+PASS: float left -> none on math in table-cell
+PASS: float left -> inline-start on math in inline
+PASS: float right -> none on math in flow-root
+PASS: float right -> inline-start on math in grid
+PASS: float inline-start -> none on math in inline-table
+PASS: float inline-start -> right on math in table-cell
+PASS: float inline-end -> none on math in inline
+PASS: float inline-end -> right on math in flow-root
+PASS: clear none -> left on math in grid
+PASS: clear none -> both on math in inline-table
+PASS: clear left -> right on math in table-cell
+PASS: clear right -> none on math in inline
+PASS: clear right -> both on math in flow-root
+PASS: clear both -> left on math in grid
+PASS: static none -> absolute left on math in inline-table
+PASS: relative right -> fixed none on math in table-cell
+PASS: position static -> relative on -webkit-box in table
+PASS: position static -> fixed on -webkit-box in table-row
+PASS: position relative -> static on -webkit-box in block
+PASS: position relative -> fixed on -webkit-box in contents
+PASS: position absolute -> static on -webkit-box in flex
+PASS: position absolute -> fixed on -webkit-box in table
+PASS: position fixed -> static on -webkit-box in table-row
+PASS: position fixed -> absolute on -webkit-box in block
+PASS: position sticky -> static on -webkit-box in contents
+PASS: position sticky -> absolute on -webkit-box in flex
+FAIL: float none -> left on -webkit-box in table
+FAIL: float none -> inline-start on -webkit-box in table-row
+FAIL: float left -> none on -webkit-box in block
+PASS: float left -> inline-start on -webkit-box in contents
+PASS: float right -> none on -webkit-box in flex
+PASS: float right -> inline-start on -webkit-box in table
+FAIL: float inline-start -> none on -webkit-box in table-row
+PASS: float inline-start -> right on -webkit-box in block
+FAIL: float inline-end -> none on -webkit-box in contents
+PASS: float inline-end -> right on -webkit-box in flex
+PASS: clear none -> left on -webkit-box in table
+PASS: clear none -> both on -webkit-box in table-row
+PASS: clear left -> right on -webkit-box in block
+PASS: clear right -> none on -webkit-box in contents
+PASS: clear right -> both on -webkit-box in flex
+PASS: clear both -> left on -webkit-box in table
+PASS: static none -> absolute left on -webkit-box in table-row
+PASS: relative right -> fixed none on -webkit-box in block
+PASS: position static -> relative on -webkit-inline-box in inline-table
+PASS: position static -> fixed on -webkit-inline-box in table-cell
+PASS: position relative -> static on -webkit-inline-box in inline
+PASS: position relative -> fixed on -webkit-inline-box in flow-root
+PASS: position absolute -> static on -webkit-inline-box in grid
+PASS: position absolute -> fixed on -webkit-inline-box in inline-table
+PASS: position fixed -> static on -webkit-inline-box in table-cell
+PASS: position fixed -> absolute on -webkit-inline-box in inline
+PASS: position sticky -> static on -webkit-inline-box in flow-root
+PASS: position sticky -> absolute on -webkit-inline-box in grid
+PASS: float none -> left on -webkit-inline-box in inline-table
+PASS: float none -> inline-start on -webkit-inline-box in table-cell
+PASS: float left -> none on -webkit-inline-box in inline
+PASS: float left -> inline-start on -webkit-inline-box in flow-root
+PASS: float right -> none on -webkit-inline-box in grid
+PASS: float right -> inline-start on -webkit-inline-box in inline-table
+PASS: float inline-start -> none on -webkit-inline-box in table-cell
+PASS: float inline-start -> right on -webkit-inline-box in inline
+PASS: float inline-end -> none on -webkit-inline-box in flow-root
+PASS: float inline-end -> right on -webkit-inline-box in grid
+PASS: clear none -> left on -webkit-inline-box in inline-table
+PASS: clear none -> both on -webkit-inline-box in table-cell
+PASS: clear left -> right on -webkit-inline-box in inline
+PASS: clear right -> none on -webkit-inline-box in flow-root
+PASS: clear right -> both on -webkit-inline-box in grid
+PASS: clear both -> left on -webkit-inline-box in inline-table
+PASS: static none -> absolute left on -webkit-inline-box in table-cell
+PASS: relative right -> fixed none on -webkit-inline-box in inline
+PASS: position static -> relative on table-row-group in table-row
+PASS: position static -> fixed on table-row-group in block
+PASS: position relative -> static on table-row-group in contents
+PASS: position relative -> fixed on table-row-group in flex
+PASS: position absolute -> static on table-row-group in table
+PASS: position absolute -> fixed on table-row-group in table-row
+PASS: position fixed -> static on table-row-group in block
+PASS: position fixed -> absolute on table-row-group in contents
+PASS: position sticky -> static on table-row-group in flex
+PASS: position sticky -> absolute on table-row-group in table
+PASS: float none -> left on table-row-group in table-row
+PASS: float none -> inline-start on table-row-group in block
+PASS: float left -> none on table-row-group in contents
+PASS: float left -> inline-start on table-row-group in flex
+PASS: float right -> none on table-row-group in table
+PASS: float right -> inline-start on table-row-group in table-row
+PASS: float inline-start -> none on table-row-group in block
+PASS: float inline-start -> right on table-row-group in contents
+PASS: float inline-end -> none on table-row-group in flex
+PASS: float inline-end -> right on table-row-group in table
+PASS: clear none -> left on table-row-group in table-row
+PASS: clear none -> both on table-row-group in block
+PASS: clear left -> right on table-row-group in contents
+PASS: clear right -> none on table-row-group in flex
+PASS: clear right -> both on table-row-group in table
+PASS: clear both -> left on table-row-group in table-row
+PASS: static none -> absolute left on table-row-group in block
+PASS: relative right -> fixed none on table-row-group in contents
+PASS: position static -> relative on table-header-group in table-cell
+PASS: position static -> fixed on table-header-group in inline
+PASS: position relative -> static on table-header-group in flow-root
+PASS: position relative -> fixed on table-header-group in grid
+PASS: position absolute -> static on table-header-group in inline-table
+PASS: position absolute -> fixed on table-header-group in table-cell
+PASS: position fixed -> static on table-header-group in inline
+PASS: position fixed -> absolute on table-header-group in flow-root
+PASS: position sticky -> static on table-header-group in grid
+PASS: position sticky -> absolute on table-header-group in inline-table
+PASS: float none -> left on table-header-group in table-cell
+PASS: float none -> inline-start on table-header-group in inline
+PASS: float left -> none on table-header-group in flow-root
+PASS: float left -> inline-start on table-header-group in grid
+PASS: float right -> none on table-header-group in inline-table
+PASS: float right -> inline-start on table-header-group in table-cell
+PASS: float inline-start -> none on table-header-group in inline
+PASS: float inline-start -> right on table-header-group in flow-root
+PASS: float inline-end -> none on table-header-group in grid
+PASS: float inline-end -> right on table-header-group in inline-table
+PASS: clear none -> left on table-header-group in table-cell
+PASS: clear none -> both on table-header-group in inline
+PASS: clear left -> right on table-header-group in flow-root
+PASS: clear right -> none on table-header-group in grid
+PASS: clear right -> both on table-header-group in inline-table
+PASS: clear both -> left on table-header-group in table-cell
+PASS: static none -> absolute left on table-header-group in inline
+PASS: relative right -> fixed none on table-header-group in flow-root
+PASS: position static -> relative on table-footer-group in block
+PASS: position static -> fixed on table-footer-group in contents
+PASS: position relative -> static on table-footer-group in flex
+PASS: position relative -> fixed on table-footer-group in table
+PASS: position absolute -> static on table-footer-group in table-row
+PASS: position absolute -> fixed on table-footer-group in block
+PASS: position fixed -> static on table-footer-group in contents
+PASS: position fixed -> absolute on table-footer-group in flex
+PASS: position sticky -> static on table-footer-group in table
+PASS: position sticky -> absolute on table-footer-group in table-row
+PASS: float none -> left on table-footer-group in block
+PASS: float none -> inline-start on table-footer-group in contents
+PASS: float left -> none on table-footer-group in flex
+PASS: float left -> inline-start on table-footer-group in table
+PASS: float right -> none on table-footer-group in table-row
+PASS: float right -> inline-start on table-footer-group in block
+PASS: float inline-start -> none on table-footer-group in contents
+PASS: float inline-start -> right on table-footer-group in flex
+PASS: float inline-end -> none on table-footer-group in table
+PASS: float inline-end -> right on table-footer-group in table-row
+PASS: clear none -> left on table-footer-group in block
+PASS: clear none -> both on table-footer-group in contents
+PASS: clear left -> right on table-footer-group in flex
+PASS: clear right -> none on table-footer-group in table
+PASS: clear right -> both on table-footer-group in table-row
+PASS: clear both -> left on table-footer-group in block
+PASS: static none -> absolute left on table-footer-group in contents
+PASS: relative right -> fixed none on table-footer-group in flex
+PASS: position static -> relative on table-row in inline
+PASS: position static -> fixed on table-row in flow-root
+PASS: position relative -> static on table-row in grid
+PASS: position relative -> fixed on table-row in inline-table
+PASS: position absolute -> static on table-row in table-cell
+PASS: position absolute -> fixed on table-row in inline
+PASS: position fixed -> static on table-row in flow-root
+PASS: position fixed -> absolute on table-row in grid
+PASS: position sticky -> static on table-row in inline-table
+PASS: position sticky -> absolute on table-row in table-cell
+PASS: float none -> left on table-row in inline
+PASS: float none -> inline-start on table-row in flow-root
+PASS: float left -> none on table-row in grid
+PASS: float left -> inline-start on table-row in inline-table
+PASS: float right -> none on table-row in table-cell
+PASS: float right -> inline-start on table-row in inline
+PASS: float inline-start -> none on table-row in flow-root
+PASS: float inline-start -> right on table-row in grid
+PASS: float inline-end -> none on table-row in inline-table
+PASS: float inline-end -> right on table-row in table-cell
+PASS: clear none -> left on table-row in inline
+PASS: clear none -> both on table-row in flow-root
+PASS: clear left -> right on table-row in grid
+PASS: clear right -> none on table-row in inline-table
+PASS: clear right -> both on table-row in table-cell
+PASS: clear both -> left on table-row in inline
+PASS: static none -> absolute left on table-row in flow-root
+PASS: relative right -> fixed none on table-row in grid
+PASS: position static -> relative on table-cell in contents
+PASS: position static -> fixed on table-cell in flex
+PASS: position relative -> static on table-cell in table
+PASS: position relative -> fixed on table-cell in table-row
+PASS: position absolute -> static on table-cell in block
+PASS: position absolute -> fixed on table-cell in contents
+PASS: position fixed -> static on table-cell in flex
+PASS: position fixed -> absolute on table-cell in table
+PASS: position sticky -> static on table-cell in table-row
+PASS: position sticky -> absolute on table-cell in block
+PASS: float none -> left on table-cell in contents
+PASS: float none -> inline-start on table-cell in flex
+PASS: float left -> none on table-cell in table
+PASS: float left -> inline-start on table-cell in table-row
+PASS: float right -> none on table-cell in block
+PASS: float right -> inline-start on table-cell in contents
+PASS: float inline-start -> none on table-cell in flex
+PASS: float inline-start -> right on table-cell in table
+PASS: float inline-end -> none on table-cell in table-row
+PASS: float inline-end -> right on table-cell in block
+PASS: clear none -> left on table-cell in contents
+PASS: clear none -> both on table-cell in flex
+PASS: clear left -> right on table-cell in table
+PASS: clear right -> none on table-cell in table-row
+PASS: clear right -> both on table-cell in block
+PASS: clear both -> left on table-cell in contents
+PASS: static none -> absolute left on table-cell in flex
+PASS: relative right -> fixed none on table-cell in table
+PASS: position static -> relative on table-column-group in flow-root
+PASS: position static -> fixed on table-column-group in grid
+PASS: position relative -> static on table-column-group in inline-table
+PASS: position relative -> fixed on table-column-group in table-cell
+PASS: position absolute -> static on table-column-group in inline
+PASS: position absolute -> fixed on table-column-group in flow-root
+PASS: position fixed -> static on table-column-group in grid
+PASS: position fixed -> absolute on table-column-group in inline-table
+PASS: position sticky -> static on table-column-group in table-cell
+PASS: position sticky -> absolute on table-column-group in inline
+PASS: float none -> left on table-column-group in flow-root
+PASS: float none -> inline-start on table-column-group in grid
+PASS: float left -> none on table-column-group in inline-table
+PASS: float left -> inline-start on table-column-group in table-cell
+PASS: float right -> none on table-column-group in inline
+PASS: float right -> inline-start on table-column-group in flow-root
+PASS: float inline-start -> none on table-column-group in grid
+PASS: float inline-start -> right on table-column-group in inline-table
+PASS: float inline-end -> none on table-column-group in table-cell
+PASS: float inline-end -> right on table-column-group in inline
+PASS: clear none -> left on table-column-group in flow-root
+PASS: clear none -> both on table-column-group in grid
+PASS: clear left -> right on table-column-group in inline-table
+PASS: clear right -> none on table-column-group in table-cell
+PASS: clear right -> both on table-column-group in inline
+PASS: clear both -> left on table-column-group in flow-root
+PASS: static none -> absolute left on table-column-group in grid
+PASS: relative right -> fixed none on table-column-group in inline-table
+PASS: position static -> relative on table-column in flex
+PASS: position static -> fixed on table-column in table
+PASS: position relative -> static on table-column in table-row
+PASS: position relative -> fixed on table-column in block
+PASS: position absolute -> static on table-column in contents
+PASS: position absolute -> fixed on table-column in flex
+PASS: position fixed -> static on table-column in table
+PASS: position fixed -> absolute on table-column in table-row
+PASS: position sticky -> static on table-column in block
+PASS: position sticky -> absolute on table-column in contents
+PASS: float none -> left on table-column in flex
+PASS: float none -> inline-start on table-column in table
+PASS: float left -> none on table-column in table-row
+PASS: float left -> inline-start on table-column in block
+PASS: float right -> none on table-column in contents
+PASS: float right -> inline-start on table-column in flex
+PASS: float inline-start -> none on table-column in table
+PASS: float inline-start -> right on table-column in table-row
+PASS: float inline-end -> none on table-column in block
+PASS: float inline-end -> right on table-column in contents
+PASS: clear none -> left on table-column in flex
+PASS: clear none -> both on table-column in table
+PASS: clear left -> right on table-column in table-row
+PASS: clear right -> none on table-column in block
+PASS: clear right -> both on table-column in contents
+PASS: clear both -> left on table-column in flex
+PASS: static none -> absolute left on table-column in table
+PASS: relative right -> fixed none on table-column in table-row
+PASS: position static -> relative on table-caption in grid
+PASS: position static -> fixed on table-caption in inline-table
+PASS: position relative -> static on table-caption in table-cell
+PASS: position relative -> fixed on table-caption in inline
+PASS: position absolute -> static on table-caption in flow-root
+PASS: position absolute -> fixed on table-caption in grid
+PASS: position fixed -> static on table-caption in inline-table
+PASS: position fixed -> absolute on table-caption in table-cell
+PASS: position sticky -> static on table-caption in inline
+PASS: position sticky -> absolute on table-caption in flow-root
+PASS: float none -> left on table-caption in grid
+PASS: float none -> inline-start on table-caption in inline-table
+PASS: float left -> none on table-caption in table-cell
+PASS: float left -> inline-start on table-caption in inline
+PASS: float right -> none on table-caption in flow-root
+PASS: float right -> inline-start on table-caption in grid
+PASS: float inline-start -> none on table-caption in inline-table
+PASS: float inline-start -> right on table-caption in table-cell
+PASS: float inline-end -> none on table-caption in inline
+PASS: float inline-end -> right on table-caption in flow-root
+PASS: clear none -> left on table-caption in grid
+PASS: clear none -> both on table-caption in inline-table
+PASS: clear left -> right on table-caption in table-cell
+PASS: clear right -> none on table-caption in inline
+PASS: clear right -> both on table-caption in flow-root
+PASS: clear both -> left on table-caption in grid
+PASS: static none -> absolute left on table-caption in inline-table
+PASS: relative right -> fixed none on table-caption in table-cell
+PASS: position static -> relative on block flow in table
+PASS: position static -> fixed on block flow in table-row
+PASS: position relative -> static on block flow in block
+PASS: position relative -> fixed on block flow in contents
+PASS: position absolute -> static on block flow in flex
+PASS: position absolute -> fixed on block flow in table
+PASS: position fixed -> static on block flow in table-row
+PASS: position fixed -> absolute on block flow in block
+PASS: position sticky -> static on block flow in contents
+PASS: position sticky -> absolute on block flow in flex
+FAIL: float none -> left on block flow in table
+FAIL: float none -> inline-start on block flow in table-row
+FAIL: float left -> none on block flow in block
+PASS: float left -> inline-start on block flow in contents
+PASS: float right -> none on block flow in flex
+PASS: float right -> inline-start on block flow in table
+FAIL: float inline-start -> none on block flow in table-row
+PASS: float inline-start -> right on block flow in block
+FAIL: float inline-end -> none on block flow in contents
+PASS: float inline-end -> right on block flow in flex
+PASS: clear none -> left on block flow in table
+PASS: clear none -> both on block flow in table-row
+PASS: clear left -> right on block flow in block
+PASS: clear right -> none on block flow in contents
+PASS: clear right -> both on block flow in flex
+PASS: clear both -> left on block flow in table
+PASS: static none -> absolute left on block flow in table-row
+PASS: relative right -> fixed none on block flow in block
+PASS: position static -> relative on inline flow in inline-table
+PASS: position static -> fixed on inline flow in table-cell
+PASS: position relative -> static on inline flow in inline
+PASS: position relative -> fixed on inline flow in flow-root
+PASS: position absolute -> static on inline flow in grid
+PASS: position absolute -> fixed on inline flow in inline-table
+PASS: position fixed -> static on inline flow in table-cell
+PASS: position fixed -> absolute on inline flow in inline
+PASS: position sticky -> static on inline flow in flow-root
+PASS: position sticky -> absolute on inline flow in grid
+PASS: float none -> left on inline flow in inline-table
+PASS: float none -> inline-start on inline flow in table-cell
+PASS: float left -> none on inline flow in inline
+PASS: float left -> inline-start on inline flow in flow-root
+PASS: float right -> none on inline flow in grid
+PASS: float right -> inline-start on inline flow in inline-table
+PASS: float inline-start -> none on inline flow in table-cell
+PASS: float inline-start -> right on inline flow in inline
+PASS: float inline-end -> none on inline flow in flow-root
+PASS: float inline-end -> right on inline flow in grid
+PASS: clear none -> left on inline flow in inline-table
+PASS: clear none -> both on inline flow in table-cell
+PASS: clear left -> right on inline flow in inline
+PASS: clear right -> none on inline flow in flow-root
+PASS: clear right -> both on inline flow in grid
+PASS: clear both -> left on inline flow in inline-table
+PASS: static none -> absolute left on inline flow in table-cell
+PASS: relative right -> fixed none on inline flow in inline
+PASS: position static -> relative on block flow-root in table-row
+PASS: position static -> fixed on block flow-root in block
+PASS: position relative -> static on block flow-root in contents
+PASS: position relative -> fixed on block flow-root in flex
+PASS: position absolute -> static on block flow-root in table
+PASS: position absolute -> fixed on block flow-root in table-row
+PASS: position fixed -> static on block flow-root in block
+PASS: position fixed -> absolute on block flow-root in contents
+PASS: position sticky -> static on block flow-root in flex
+PASS: position sticky -> absolute on block flow-root in table
+FAIL: float none -> left on block flow-root in table-row
+FAIL: float none -> inline-start on block flow-root in block
+FAIL: float left -> none on block flow-root in contents
+PASS: float left -> inline-start on block flow-root in flex
+FAIL: float right -> none on block flow-root in table
+PASS: float right -> inline-start on block flow-root in table-row
+FAIL: float inline-start -> none on block flow-root in block
+PASS: float inline-start -> right on block flow-root in contents
+PASS: float inline-end -> none on block flow-root in flex
+PASS: float inline-end -> right on block flow-root in table
+PASS: clear none -> left on block flow-root in table-row
+PASS: clear none -> both on block flow-root in block
+PASS: clear left -> right on block flow-root in contents
+PASS: clear right -> none on block flow-root in flex
+PASS: clear right -> both on block flow-root in table
+PASS: clear both -> left on block flow-root in table-row
+PASS: static none -> absolute left on block flow-root in block
+PASS: relative right -> fixed none on block flow-root in contents
+PASS: position static -> relative on inline flow-root in table-cell
+PASS: position static -> fixed on inline flow-root in inline
+PASS: position relative -> static on inline flow-root in flow-root
+PASS: position relative -> fixed on inline flow-root in grid
+PASS: position absolute -> static on inline flow-root in inline-table
+PASS: position absolute -> fixed on inline flow-root in table-cell
+PASS: position fixed -> static on inline flow-root in inline
+PASS: position fixed -> absolute on inline flow-root in flow-root
+PASS: position sticky -> static on inline flow-root in grid
+PASS: position sticky -> absolute on inline flow-root in inline-table
+PASS: float none -> left on inline flow-root in table-cell
+PASS: float none -> inline-start on inline flow-root in inline
+PASS: float left -> none on inline flow-root in flow-root
+PASS: float left -> inline-start on inline flow-root in grid
+PASS: float right -> none on inline flow-root in inline-table
+PASS: float right -> inline-start on inline flow-root in table-cell
+PASS: float inline-start -> none on inline flow-root in inline
+PASS: float inline-start -> right on inline flow-root in flow-root
+PASS: float inline-end -> none on inline flow-root in grid
+PASS: float inline-end -> right on inline flow-root in inline-table
+PASS: clear none -> left on inline flow-root in table-cell
+PASS: clear none -> both on inline flow-root in inline
+PASS: clear left -> right on inline flow-root in flow-root
+PASS: clear right -> none on inline flow-root in grid
+PASS: clear right -> both on inline flow-root in inline-table
+PASS: clear both -> left on inline flow-root in table-cell
+PASS: static none -> absolute left on inline flow-root in inline
+PASS: relative right -> fixed none on inline flow-root in flow-root
+PASS: position static -> relative on block flex in block
+PASS: position static -> fixed on block flex in contents
+PASS: position relative -> static on block flex in flex
+PASS: position relative -> fixed on block flex in table
+PASS: position absolute -> static on block flex in table-row
+PASS: position absolute -> fixed on block flex in block
+PASS: position fixed -> static on block flex in contents
+PASS: position fixed -> absolute on block flex in flex
+PASS: position sticky -> static on block flex in table
+PASS: position sticky -> absolute on block flex in table-row
+FAIL: float none -> left on block flex in block
+FAIL: float none -> inline-start on block flex in contents
+PASS: float left -> none on block flex in flex
+PASS: float left -> inline-start on block flex in table
+FAIL: float right -> none on block flex in table-row
+PASS: float right -> inline-start on block flex in block
+FAIL: float inline-start -> none on block flex in contents
+PASS: float inline-start -> right on block flex in flex
+FAIL: float inline-end -> none on block flex in table
+PASS: float inline-end -> right on block flex in table-row
+PASS: clear none -> left on block flex in block
+PASS: clear none -> both on block flex in contents
+PASS: clear left -> right on block flex in flex
+PASS: clear right -> none on block flex in table
+PASS: clear right -> both on block flex in table-row
+PASS: clear both -> left on block flex in block
+PASS: static none -> absolute left on block flex in contents
+PASS: relative right -> fixed none on block flex in flex
+PASS: position static -> relative on inline flex in inline
+PASS: position static -> fixed on inline flex in flow-root
+PASS: position relative -> static on inline flex in grid
+PASS: position relative -> fixed on inline flex in inline-table
+PASS: position absolute -> static on inline flex in table-cell
+PASS: position absolute -> fixed on inline flex in inline
+PASS: position fixed -> static on inline flex in flow-root
+PASS: position fixed -> absolute on inline flex in grid
+PASS: position sticky -> static on inline flex in inline-table
+PASS: position sticky -> absolute on inline flex in table-cell
+PASS: float none -> left on inline flex in inline
+PASS: float none -> inline-start on inline flex in flow-root
+PASS: float left -> none on inline flex in grid
+PASS: float left -> inline-start on inline flex in inline-table
+PASS: float right -> none on inline flex in table-cell
+PASS: float right -> inline-start on inline flex in inline
+PASS: float inline-start -> none on inline flex in flow-root
+PASS: float inline-start -> right on inline flex in grid
+PASS: float inline-end -> none on inline flex in inline-table
+PASS: float inline-end -> right on inline flex in table-cell
+PASS: clear none -> left on inline flex in inline
+PASS: clear none -> both on inline flex in flow-root
+PASS: clear left -> right on inline flex in grid
+PASS: clear right -> none on inline flex in inline-table
+PASS: clear right -> both on inline flex in table-cell
+PASS: clear both -> left on inline flex in inline
+PASS: static none -> absolute left on inline flex in flow-root
+PASS: relative right -> fixed none on inline flex in grid
+PASS: position static -> relative on block grid in contents
+PASS: position static -> fixed on block grid in flex
+PASS: position relative -> static on block grid in table
+PASS: position relative -> fixed on block grid in table-row
+PASS: position absolute -> static on block grid in block
+PASS: position absolute -> fixed on block grid in contents
+PASS: position fixed -> static on block grid in flex
+PASS: position fixed -> absolute on block grid in table
+PASS: position sticky -> static on block grid in table-row
+PASS: position sticky -> absolute on block grid in block
+FAIL: float none -> left on block grid in contents
+PASS: float none -> inline-start on block grid in flex
+FAIL: float left -> none on block grid in table
+PASS: float left -> inline-start on block grid in table-row
+FAIL: float right -> none on block grid in block
+PASS: float right -> inline-start on block grid in contents
+PASS: float inline-start -> none on block grid in flex
+PASS: float inline-start -> right on block grid in table
+FAIL: float inline-end -> none on block grid in table-row
+PASS: float inline-end -> right on block grid in block
+PASS: clear none -> left on block grid in contents
+PASS: clear none -> both on block grid in flex
+PASS: clear left -> right on block grid in table
+PASS: clear right -> none on block grid in table-row
+PASS: clear right -> both on block grid in block
+PASS: clear both -> left on block grid in contents
+PASS: static none -> absolute left on block grid in flex
+PASS: relative right -> fixed none on block grid in table
+PASS: position static -> relative on inline grid in flow-root
+PASS: position static -> fixed on inline grid in grid
+PASS: position relative -> static on inline grid in inline-table
+PASS: position relative -> fixed on inline grid in table-cell
+PASS: position absolute -> static on inline grid in inline
+PASS: position absolute -> fixed on inline grid in flow-root
+PASS: position fixed -> static on inline grid in grid
+PASS: position fixed -> absolute on inline grid in inline-table
+PASS: position sticky -> static on inline grid in table-cell
+PASS: position sticky -> absolute on inline grid in inline
+PASS: float none -> left on inline grid in flow-root
+PASS: float none -> inline-start on inline grid in grid
+PASS: float left -> none on inline grid in inline-table
+PASS: float left -> inline-start on inline grid in table-cell
+PASS: float right -> none on inline grid in inline
+PASS: float right -> inline-start on inline grid in flow-root
+PASS: float inline-start -> none on inline grid in grid
+PASS: float inline-start -> right on inline grid in inline-table
+PASS: float inline-end -> none on inline grid in table-cell
+PASS: float inline-end -> right on inline grid in inline
+PASS: clear none -> left on inline grid in flow-root
+PASS: clear none -> both on inline grid in grid
+PASS: clear left -> right on inline grid in inline-table
+PASS: clear right -> none on inline grid in table-cell
+PASS: clear right -> both on inline grid in inline
+PASS: clear both -> left on inline grid in flow-root
+PASS: static none -> absolute left on inline grid in grid
+PASS: relative right -> fixed none on inline grid in inline-table
+PASS: position static -> relative on block table in flex
+PASS: position static -> fixed on block table in table
+PASS: position relative -> static on block table in table-row
+PASS: position relative -> fixed on block table in block
+PASS: position absolute -> static on block table in contents
+PASS: position absolute -> fixed on block table in flex
+PASS: position fixed -> static on block table in table
+PASS: position fixed -> absolute on block table in table-row
+PASS: position sticky -> static on block table in block
+PASS: position sticky -> absolute on block table in contents
+PASS: float none -> left on block table in flex
+FAIL: float none -> inline-start on block table in table
+FAIL: float left -> none on block table in table-row
+PASS: float left -> inline-start on block table in block
+FAIL: float right -> none on block table in contents
+PASS: float right -> inline-start on block table in flex
+FAIL: float inline-start -> none on block table in table
+PASS: float inline-start -> right on block table in table-row
+FAIL: float inline-end -> none on block table in block
+PASS: float inline-end -> right on block table in contents
+PASS: clear none -> left on block table in flex
+PASS: clear none -> both on block table in table
+PASS: clear left -> right on block table in table-row
+PASS: clear right -> none on block table in block
+PASS: clear right -> both on block table in contents
+PASS: clear both -> left on block table in flex
+PASS: static none -> absolute left on block table in table
+PASS: relative right -> fixed none on block table in table-row
+PASS: position static -> relative on inline table in grid
+PASS: position static -> fixed on inline table in inline-table
+PASS: position relative -> static on inline table in table-cell
+PASS: position relative -> fixed on inline table in inline
+PASS: position absolute -> static on inline table in flow-root
+PASS: position absolute -> fixed on inline table in grid
+PASS: position fixed -> static on inline table in inline-table
+PASS: position fixed -> absolute on inline table in table-cell
+PASS: position sticky -> static on inline table in inline
+PASS: position sticky -> absolute on inline table in flow-root
+PASS: float none -> left on inline table in grid
+PASS: float none -> inline-start on inline table in inline-table
+PASS: float left -> none on inline table in table-cell
+PASS: float left -> inline-start on inline table in inline
+PASS: float right -> none on inline table in flow-root
+PASS: float right -> inline-start on inline table in grid
+PASS: float inline-start -> none on inline table in inline-table
+PASS: float inline-start -> right on inline table in table-cell
+PASS: float inline-end -> none on inline table in inline
+PASS: float inline-end -> right on inline table in flow-root
+PASS: clear none -> left on inline table in grid
+PASS: clear none -> both on inline table in inline-table
+PASS: clear left -> right on inline table in table-cell
+PASS: clear right -> none on inline table in inline
+PASS: clear right -> both on inline table in flow-root
+PASS: clear both -> left on inline table in grid
+PASS: static none -> absolute left on inline table in inline-table
+PASS: relative right -> fixed none on inline table in table-cell
+PASS: position static -> relative on block flow list-item in table
+PASS: position static -> fixed on block flow list-item in table-row
+PASS: position relative -> static on block flow list-item in block
+PASS: position relative -> fixed on block flow list-item in contents
+PASS: position absolute -> static on block flow list-item in flex
+PASS: position absolute -> fixed on block flow list-item in table
+PASS: position fixed -> static on block flow list-item in table-row
+PASS: position fixed -> absolute on block flow list-item in block
+PASS: position sticky -> static on block flow list-item in contents
+PASS: position sticky -> absolute on block flow list-item in flex
+FAIL: float none -> left on block flow list-item in table
+FAIL: float none -> inline-start on block flow list-item in table-row
+FAIL: float left -> none on block flow list-item in block
+PASS: float left -> inline-start on block flow list-item in contents
+PASS: float right -> none on block flow list-item in flex
+PASS: float right -> inline-start on block flow list-item in table
+FAIL: float inline-start -> none on block flow list-item in table-row
+PASS: float inline-start -> right on block flow list-item in block
+FAIL: float inline-end -> none on block flow list-item in contents
+PASS: float inline-end -> right on block flow list-item in flex
+PASS: clear none -> left on block flow list-item in table
+PASS: clear none -> both on block flow list-item in table-row
+PASS: clear left -> right on block flow list-item in block
+PASS: clear right -> none on block flow list-item in contents
+PASS: clear right -> both on block flow list-item in flex
+PASS: clear both -> left on block flow list-item in table
+PASS: static none -> absolute left on block flow list-item in table-row
+PASS: relative right -> fixed none on block flow list-item in block
+PASS: position static -> relative on inline flow list-item in inline-table
+PASS: position static -> fixed on inline flow list-item in table-cell
+PASS: position relative -> static on inline flow list-item in inline
+PASS: position relative -> fixed on inline flow list-item in flow-root
+PASS: position absolute -> static on inline flow list-item in grid
+PASS: position absolute -> fixed on inline flow list-item in inline-table
+PASS: position fixed -> static on inline flow list-item in table-cell
+PASS: position fixed -> absolute on inline flow list-item in inline
+PASS: position sticky -> static on inline flow list-item in flow-root
+PASS: position sticky -> absolute on inline flow list-item in grid
+PASS: float none -> left on inline flow list-item in inline-table
+PASS: float none -> inline-start on inline flow list-item in table-cell
+PASS: float left -> none on inline flow list-item in inline
+PASS: float left -> inline-start on inline flow list-item in flow-root
+PASS: float right -> none on inline flow list-item in grid
+PASS: float right -> inline-start on inline flow list-item in inline-table
+PASS: float inline-start -> none on inline flow list-item in table-cell
+PASS: float inline-start -> right on inline flow list-item in inline
+PASS: float inline-end -> none on inline flow list-item in flow-root
+PASS: float inline-end -> right on inline flow list-item in grid
+PASS: clear none -> left on inline flow list-item in inline-table
+PASS: clear none -> both on inline flow list-item in table-cell
+PASS: clear left -> right on inline flow list-item in inline
+PASS: clear right -> none on inline flow list-item in flow-root
+PASS: clear right -> both on inline flow list-item in grid
+PASS: clear both -> left on inline flow list-item in inline-table
+PASS: static none -> absolute left on inline flow list-item in table-cell
+PASS: relative right -> fixed none on inline flow list-item in inline
+1064 cases; 999 matched; 65 mismatched

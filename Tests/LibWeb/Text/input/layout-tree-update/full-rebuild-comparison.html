@@ -1,0 +1,160 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #contents {
+        display: contents;
+    }
+    #hidden {
+        display: none;
+    }
+    #inline {
+        display: inline;
+    }
+    #generated::before {
+        content: attr(data-prefix);
+    }
+    #list {
+        list-style-position: inside;
+    }
+</style>
+<div id="ordinary"><span id="movable">ordinary child</span></div>
+<div id="move-target"></div>
+<div id="contents"><span>contents child</span></div>
+<div id="hidden"><span>hidden child</span></div>
+<div><span id="inline">inline child</span></div>
+<div id="generated" data-prefix="before">generated</div>
+<ul id="list">
+    <li>item</li>
+</ul>
+<table>
+    <tbody id="table-body">
+        <tr id="table-row">
+            <td>cell</td>
+        </tr>
+    </tbody>
+</table>
+<div id="shadow-host"></div>
+<svg id="svg" width="20" height="20">
+    <g id="svg-group"><rect width="5" height="5" /></g>
+</svg>
+<dialog id="dialog"><div id="dialog-content">dialog</div></dialog>
+<script>
+    // Every mutation is first handled by the normal incremental path. The Internals helper then
+    // serializes that result, tears the entire layout tree down, rebuilds it, and compares the
+    // two serializations. Keeping the mutations in one test makes it cheap to extend this into a
+    // broad regression matrix as the incremental builder becomes more ambitious.
+    test(() => {
+        const lines = [];
+        const ordinaryElement = document.getElementById("ordinary");
+        const moveTargetElement = document.getElementById("move-target");
+        const movableElement = document.getElementById("movable");
+        const contentsElement = document.getElementById("contents");
+        const hiddenElement = document.getElementById("hidden");
+        const inlineElement = document.getElementById("inline");
+        const generatedElement = document.getElementById("generated");
+        const listElement = document.getElementById("list");
+        const tableBodyElement = document.getElementById("table-body");
+        const tableRowElement = document.getElementById("table-row");
+        const shadowHostElement = document.getElementById("shadow-host");
+        const svgGroupElement = document.getElementById("svg-group");
+        const dialogElement = document.getElementById("dialog");
+        const dialogContentElement = document.getElementById("dialog-content");
+
+        function compare(label, mutate) {
+            mutate();
+            document.body.offsetHeight;
+
+            const comparison = internals.compareLayoutTreeWithFullRebuild();
+            lines.push(`${comparison.matches ? "PASS" : "FAIL"}: ${label}`);
+        }
+
+        document.body.offsetHeight;
+
+        compare("append ordinary child", () => {
+            const child = document.createElement("span");
+            child.textContent = "appended";
+            ordinaryElement.appendChild(child);
+        });
+
+        compare("replace text data", () => {
+            ordinaryElement.lastChild.firstChild.data = "changed";
+        });
+
+        compare("move existing subtree", () => {
+            moveTargetElement.appendChild(movableElement);
+        });
+
+        compare("append under display contents", () => {
+            contentsElement.appendChild(document.createElement("strong")).textContent = "new contents child";
+        });
+
+        compare("display contents to block", () => {
+            contentsElement.style.display = "block";
+        });
+
+        compare("block to display contents", () => {
+            contentsElement.style.display = "contents";
+        });
+
+        compare("display none to block", () => {
+            hiddenElement.style.display = "block";
+        });
+
+        compare("block to display none", () => {
+            hiddenElement.style.display = "none";
+        });
+
+        compare("block child inside inline", () => {
+            inlineElement.appendChild(document.createElement("div")).textContent = "block";
+        });
+
+        compare("generated content update", () => {
+            generatedElement.dataset.prefix = "updated-before";
+        });
+
+        compare("list marker update", () => {
+            listElement.firstElementChild.value = 4;
+            listElement.appendChild(document.createElement("li")).textContent = "second item";
+        });
+
+        compare("table fixup after cell insertion", () => {
+            tableRowElement.appendChild(document.createElement("td")).textContent = "second cell";
+        });
+
+        compare("table fixup after invalid child insertion", () => {
+            tableBodyElement.appendChild(document.createElement("div")).textContent = "anonymous table wrappers";
+        });
+
+        compare("attach shadow tree", () => {
+            const shadow = shadowHostElement.attachShadow({ mode: "open" });
+            shadow.innerHTML =
+                "<style>:host { display: block } span { display: inline-block }</style><span>shadow</span><slot></slot>";
+            shadowHostElement.appendChild(document.createTextNode("slotted"));
+        });
+
+        compare("mutate shadow tree", () => {
+            shadowHostElement.shadowRoot.querySelector("span").appendChild(document.createElement("b")).textContent =
+                " child";
+        });
+
+        compare("append SVG child", () => {
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute("r", "3");
+            svgGroupElement.appendChild(circle);
+        });
+
+        compare("enter top layer", () => {
+            dialogElement.showModal();
+        });
+
+        compare("mutate in top layer", () => {
+            dialogContentElement.appendChild(document.createElement("span")).textContent = " child";
+        });
+
+        compare("leave top layer", () => {
+            dialogElement.close();
+        });
+
+        for (const line of lines) println(line);
+    });
+</script>

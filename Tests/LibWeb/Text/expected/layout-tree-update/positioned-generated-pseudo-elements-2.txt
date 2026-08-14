@@ -1,0 +1,913 @@
+PASS: ::before remove, static contents on none
+PASS: ::before remove, relative block on none
+PASS: ::before remove, absolute inline on none
+PASS: ::before remove, fixed flow-root on none
+PASS: ::before remove, sticky inline-block on none
+PASS: ::before remove, float-left run-in on none
+PASS: ::before remove, float-left-clear-both list-item on none
+PASS: ::before remove, float-right inline list-item on none
+PASS: ::before remove, float-right-clear-both flex on none
+PASS: ::before remove, float-inline-start inline-flex on none
+PASS: ::before remove, float-inline-end grid on none
+PASS: ::before remove, relative-float-left inline-grid on none
+PASS: ::after remove, static contents on none
+PASS: ::after remove, relative block on none
+PASS: ::after remove, absolute inline on none
+PASS: ::after remove, fixed flow-root on none
+PASS: ::after remove, sticky inline-block on none
+PASS: ::after remove, float-left run-in on none
+PASS: ::after remove, float-left-clear-both list-item on none
+PASS: ::after remove, float-right inline list-item on none
+PASS: ::after remove, float-right-clear-both flex on none
+PASS: ::after remove, float-inline-start inline-flex on none
+PASS: ::after remove, float-inline-end grid on none
+PASS: ::after remove, relative-float-left inline-grid on none
+PASS: ::before remove, static block on contents
+PASS: ::before remove, relative inline on contents
+PASS: ::before remove, absolute flow-root on contents
+PASS: ::before remove, fixed inline-block on contents
+PASS: ::before remove, sticky run-in on contents
+PASS: ::before remove, float-left list-item on contents
+PASS: ::before remove, float-left-clear-both inline list-item on contents
+PASS: ::before remove, float-right flex on contents
+PASS: ::before remove, float-right-clear-both inline-flex on contents
+PASS: ::before remove, float-inline-start grid on contents
+PASS: ::before remove, float-inline-end inline-grid on contents
+PASS: ::before remove, relative-float-left table on contents
+PASS: ::after remove, static block on contents
+PASS: ::after remove, relative inline on contents
+PASS: ::after remove, absolute flow-root on contents
+PASS: ::after remove, fixed inline-block on contents
+PASS: ::after remove, sticky run-in on contents
+PASS: ::after remove, float-left list-item on contents
+PASS: ::after remove, float-left-clear-both inline list-item on contents
+PASS: ::after remove, float-right flex on contents
+PASS: ::after remove, float-right-clear-both inline-flex on contents
+PASS: ::after remove, float-inline-start grid on contents
+PASS: ::after remove, float-inline-end inline-grid on contents
+PASS: ::after remove, relative-float-left table on contents
+PASS: ::before remove, static inline on block
+PASS: ::before remove, relative flow-root on block
+PASS: ::before remove, absolute inline-block on block
+PASS: ::before remove, fixed run-in on block
+PASS: ::before remove, sticky list-item on block
+PASS: ::before remove, float-left inline list-item on block
+PASS: ::before remove, float-left-clear-both flex on block
+PASS: ::before remove, float-right inline-flex on block
+PASS: ::before remove, float-right-clear-both grid on block
+PASS: ::before remove, float-inline-start inline-grid on block
+PASS: ::before remove, float-inline-end table on block
+PASS: ::before remove, relative-float-left inline-table on block
+PASS: ::after remove, static inline on block
+PASS: ::after remove, relative flow-root on block
+PASS: ::after remove, absolute inline-block on block
+PASS: ::after remove, fixed run-in on block
+PASS: ::after remove, sticky list-item on block
+PASS: ::after remove, float-left inline list-item on block
+PASS: ::after remove, float-left-clear-both flex on block
+PASS: ::after remove, float-right inline-flex on block
+PASS: ::after remove, float-right-clear-both grid on block
+PASS: ::after remove, float-inline-start inline-grid on block
+PASS: ::after remove, float-inline-end table on block
+PASS: ::after remove, relative-float-left inline-table on block
+PASS: ::before remove, static flow-root on inline
+PASS: ::before remove, relative inline-block on inline
+PASS: ::before remove, absolute run-in on inline
+PASS: ::before remove, fixed list-item on inline
+PASS: ::before remove, sticky inline list-item on inline
+PASS: ::before remove, float-left flex on inline
+PASS: ::before remove, float-left-clear-both inline-flex on inline
+PASS: ::before remove, float-right grid on inline
+PASS: ::before remove, float-right-clear-both inline-grid on inline
+PASS: ::before remove, float-inline-start table on inline
+PASS: ::before remove, float-inline-end inline-table on inline
+PASS: ::before remove, relative-float-left math on inline
+PASS: ::after remove, static flow-root on inline
+PASS: ::after remove, relative inline-block on inline
+PASS: ::after remove, absolute run-in on inline
+PASS: ::after remove, fixed list-item on inline
+PASS: ::after remove, sticky inline list-item on inline
+PASS: ::after remove, float-left flex on inline
+PASS: ::after remove, float-left-clear-both inline-flex on inline
+PASS: ::after remove, float-right grid on inline
+PASS: ::after remove, float-right-clear-both inline-grid on inline
+PASS: ::after remove, float-inline-start table on inline
+PASS: ::after remove, float-inline-end inline-table on inline
+PASS: ::after remove, relative-float-left math on inline
+PASS: ::before remove, static inline-block on flow-root
+PASS: ::before remove, relative run-in on flow-root
+PASS: ::before remove, absolute list-item on flow-root
+PASS: ::before remove, fixed inline list-item on flow-root
+PASS: ::before remove, sticky flex on flow-root
+PASS: ::before remove, float-left inline-flex on flow-root
+PASS: ::before remove, float-left-clear-both grid on flow-root
+PASS: ::before remove, float-right inline-grid on flow-root
+PASS: ::before remove, float-right-clear-both table on flow-root
+PASS: ::before remove, float-inline-start inline-table on flow-root
+PASS: ::before remove, float-inline-end math on flow-root
+PASS: ::before remove, relative-float-left -webkit-box on flow-root
+PASS: ::after remove, static inline-block on flow-root
+PASS: ::after remove, relative run-in on flow-root
+PASS: ::after remove, absolute list-item on flow-root
+PASS: ::after remove, fixed inline list-item on flow-root
+PASS: ::after remove, sticky flex on flow-root
+PASS: ::after remove, float-left inline-flex on flow-root
+PASS: ::after remove, float-left-clear-both grid on flow-root
+PASS: ::after remove, float-right inline-grid on flow-root
+PASS: ::after remove, float-right-clear-both table on flow-root
+PASS: ::after remove, float-inline-start inline-table on flow-root
+PASS: ::after remove, float-inline-end math on flow-root
+PASS: ::after remove, relative-float-left -webkit-box on flow-root
+PASS: ::before remove, static run-in on inline-block
+PASS: ::before remove, relative list-item on inline-block
+PASS: ::before remove, absolute inline list-item on inline-block
+PASS: ::before remove, fixed flex on inline-block
+PASS: ::before remove, sticky inline-flex on inline-block
+PASS: ::before remove, float-left grid on inline-block
+PASS: ::before remove, float-left-clear-both inline-grid on inline-block
+PASS: ::before remove, float-right table on inline-block
+PASS: ::before remove, float-right-clear-both inline-table on inline-block
+PASS: ::before remove, float-inline-start math on inline-block
+PASS: ::before remove, float-inline-end -webkit-box on inline-block
+PASS: ::before remove, relative-float-left -webkit-inline-box on inline-block
+PASS: ::after remove, static run-in on inline-block
+PASS: ::after remove, relative list-item on inline-block
+PASS: ::after remove, absolute inline list-item on inline-block
+PASS: ::after remove, fixed flex on inline-block
+PASS: ::after remove, sticky inline-flex on inline-block
+PASS: ::after remove, float-left grid on inline-block
+PASS: ::after remove, float-left-clear-both inline-grid on inline-block
+PASS: ::after remove, float-right table on inline-block
+PASS: ::after remove, float-right-clear-both inline-table on inline-block
+PASS: ::after remove, float-inline-start math on inline-block
+PASS: ::after remove, float-inline-end -webkit-box on inline-block
+PASS: ::after remove, relative-float-left -webkit-inline-box on inline-block
+PASS: ::before remove, static list-item on run-in
+PASS: ::before remove, relative inline list-item on run-in
+PASS: ::before remove, absolute flex on run-in
+PASS: ::before remove, fixed inline-flex on run-in
+PASS: ::before remove, sticky grid on run-in
+PASS: ::before remove, float-left inline-grid on run-in
+PASS: ::before remove, float-left-clear-both table on run-in
+PASS: ::before remove, float-right inline-table on run-in
+PASS: ::before remove, float-right-clear-both math on run-in
+PASS: ::before remove, float-inline-start -webkit-box on run-in
+PASS: ::before remove, float-inline-end -webkit-inline-box on run-in
+PASS: ::before remove, relative-float-left table-row-group on run-in
+PASS: ::after remove, static list-item on run-in
+PASS: ::after remove, relative inline list-item on run-in
+PASS: ::after remove, absolute flex on run-in
+PASS: ::after remove, fixed inline-flex on run-in
+PASS: ::after remove, sticky grid on run-in
+PASS: ::after remove, float-left inline-grid on run-in
+PASS: ::after remove, float-left-clear-both table on run-in
+PASS: ::after remove, float-right inline-table on run-in
+PASS: ::after remove, float-right-clear-both math on run-in
+PASS: ::after remove, float-inline-start -webkit-box on run-in
+PASS: ::after remove, float-inline-end -webkit-inline-box on run-in
+PASS: ::after remove, relative-float-left table-row-group on run-in
+PASS: ::before remove, static inline list-item on list-item
+PASS: ::before remove, relative flex on list-item
+PASS: ::before remove, absolute inline-flex on list-item
+PASS: ::before remove, fixed grid on list-item
+PASS: ::before remove, sticky inline-grid on list-item
+PASS: ::before remove, float-left table on list-item
+PASS: ::before remove, float-left-clear-both inline-table on list-item
+PASS: ::before remove, float-right math on list-item
+PASS: ::before remove, float-right-clear-both -webkit-box on list-item
+PASS: ::before remove, float-inline-start -webkit-inline-box on list-item
+PASS: ::before remove, float-inline-end table-row-group on list-item
+PASS: ::before remove, relative-float-left table-header-group on list-item
+PASS: ::after remove, static inline list-item on list-item
+PASS: ::after remove, relative flex on list-item
+PASS: ::after remove, absolute inline-flex on list-item
+PASS: ::after remove, fixed grid on list-item
+PASS: ::after remove, sticky inline-grid on list-item
+PASS: ::after remove, float-left table on list-item
+PASS: ::after remove, float-left-clear-both inline-table on list-item
+PASS: ::after remove, float-right math on list-item
+PASS: ::after remove, float-right-clear-both -webkit-box on list-item
+PASS: ::after remove, float-inline-start -webkit-inline-box on list-item
+PASS: ::after remove, float-inline-end table-row-group on list-item
+PASS: ::after remove, relative-float-left table-header-group on list-item
+PASS: ::before remove, static flex on inline list-item
+PASS: ::before remove, relative inline-flex on inline list-item
+PASS: ::before remove, absolute grid on inline list-item
+PASS: ::before remove, fixed inline-grid on inline list-item
+PASS: ::before remove, sticky table on inline list-item
+PASS: ::before remove, float-left inline-table on inline list-item
+PASS: ::before remove, float-left-clear-both math on inline list-item
+PASS: ::before remove, float-right -webkit-box on inline list-item
+PASS: ::before remove, float-right-clear-both -webkit-inline-box on inline list-item
+PASS: ::before remove, float-inline-start table-row-group on inline list-item
+PASS: ::before remove, float-inline-end table-header-group on inline list-item
+PASS: ::before remove, relative-float-left table-footer-group on inline list-item
+PASS: ::after remove, static flex on inline list-item
+PASS: ::after remove, relative inline-flex on inline list-item
+PASS: ::after remove, absolute grid on inline list-item
+PASS: ::after remove, fixed inline-grid on inline list-item
+PASS: ::after remove, sticky table on inline list-item
+PASS: ::after remove, float-left inline-table on inline list-item
+PASS: ::after remove, float-left-clear-both math on inline list-item
+PASS: ::after remove, float-right -webkit-box on inline list-item
+PASS: ::after remove, float-right-clear-both -webkit-inline-box on inline list-item
+PASS: ::after remove, float-inline-start table-row-group on inline list-item
+PASS: ::after remove, float-inline-end table-header-group on inline list-item
+PASS: ::after remove, relative-float-left table-footer-group on inline list-item
+PASS: ::before remove, static inline-flex on flex
+PASS: ::before remove, relative grid on flex
+PASS: ::before remove, absolute inline-grid on flex
+PASS: ::before remove, fixed table on flex
+PASS: ::before remove, sticky inline-table on flex
+PASS: ::before remove, float-left math on flex
+PASS: ::before remove, float-left-clear-both -webkit-box on flex
+PASS: ::before remove, float-right -webkit-inline-box on flex
+PASS: ::before remove, float-right-clear-both table-row-group on flex
+PASS: ::before remove, float-inline-start table-header-group on flex
+PASS: ::before remove, float-inline-end table-footer-group on flex
+PASS: ::before remove, relative-float-left table-row on flex
+PASS: ::after remove, static inline-flex on flex
+PASS: ::after remove, relative grid on flex
+PASS: ::after remove, absolute inline-grid on flex
+PASS: ::after remove, fixed table on flex
+PASS: ::after remove, sticky inline-table on flex
+PASS: ::after remove, float-left math on flex
+PASS: ::after remove, float-left-clear-both -webkit-box on flex
+PASS: ::after remove, float-right -webkit-inline-box on flex
+PASS: ::after remove, float-right-clear-both table-row-group on flex
+PASS: ::after remove, float-inline-start table-header-group on flex
+PASS: ::after remove, float-inline-end table-footer-group on flex
+PASS: ::after remove, relative-float-left table-row on flex
+PASS: ::before remove, static grid on inline-flex
+PASS: ::before remove, relative inline-grid on inline-flex
+PASS: ::before remove, absolute table on inline-flex
+PASS: ::before remove, fixed inline-table on inline-flex
+PASS: ::before remove, sticky math on inline-flex
+PASS: ::before remove, float-left -webkit-box on inline-flex
+PASS: ::before remove, float-left-clear-both -webkit-inline-box on inline-flex
+PASS: ::before remove, float-right table-row-group on inline-flex
+PASS: ::before remove, float-right-clear-both table-header-group on inline-flex
+PASS: ::before remove, float-inline-start table-footer-group on inline-flex
+PASS: ::before remove, float-inline-end table-row on inline-flex
+PASS: ::before remove, relative-float-left table-cell on inline-flex
+PASS: ::after remove, static grid on inline-flex
+PASS: ::after remove, relative inline-grid on inline-flex
+PASS: ::after remove, absolute table on inline-flex
+PASS: ::after remove, fixed inline-table on inline-flex
+PASS: ::after remove, sticky math on inline-flex
+PASS: ::after remove, float-left -webkit-box on inline-flex
+PASS: ::after remove, float-left-clear-both -webkit-inline-box on inline-flex
+PASS: ::after remove, float-right table-row-group on inline-flex
+PASS: ::after remove, float-right-clear-both table-header-group on inline-flex
+PASS: ::after remove, float-inline-start table-footer-group on inline-flex
+PASS: ::after remove, float-inline-end table-row on inline-flex
+PASS: ::after remove, relative-float-left table-cell on inline-flex
+PASS: ::before remove, static inline-grid on grid
+PASS: ::before remove, relative table on grid
+PASS: ::before remove, absolute inline-table on grid
+PASS: ::before remove, fixed math on grid
+PASS: ::before remove, sticky -webkit-box on grid
+PASS: ::before remove, float-left -webkit-inline-box on grid
+PASS: ::before remove, float-left-clear-both table-row-group on grid
+PASS: ::before remove, float-right table-header-group on grid
+PASS: ::before remove, float-right-clear-both table-footer-group on grid
+PASS: ::before remove, float-inline-start table-row on grid
+PASS: ::before remove, float-inline-end table-cell on grid
+PASS: ::before remove, relative-float-left table-column-group on grid
+PASS: ::after remove, static inline-grid on grid
+PASS: ::after remove, relative table on grid
+PASS: ::after remove, absolute inline-table on grid
+PASS: ::after remove, fixed math on grid
+PASS: ::after remove, sticky -webkit-box on grid
+PASS: ::after remove, float-left -webkit-inline-box on grid
+PASS: ::after remove, float-left-clear-both table-row-group on grid
+PASS: ::after remove, float-right table-header-group on grid
+PASS: ::after remove, float-right-clear-both table-footer-group on grid
+PASS: ::after remove, float-inline-start table-row on grid
+PASS: ::after remove, float-inline-end table-cell on grid
+PASS: ::after remove, relative-float-left table-column-group on grid
+PASS: ::before remove, static table on inline-grid
+PASS: ::before remove, relative inline-table on inline-grid
+PASS: ::before remove, absolute math on inline-grid
+PASS: ::before remove, fixed -webkit-box on inline-grid
+PASS: ::before remove, sticky -webkit-inline-box on inline-grid
+PASS: ::before remove, float-left table-row-group on inline-grid
+PASS: ::before remove, float-left-clear-both table-header-group on inline-grid
+PASS: ::before remove, float-right table-footer-group on inline-grid
+PASS: ::before remove, float-right-clear-both table-row on inline-grid
+PASS: ::before remove, float-inline-start table-cell on inline-grid
+PASS: ::before remove, float-inline-end table-column-group on inline-grid
+PASS: ::before remove, relative-float-left table-column on inline-grid
+PASS: ::after remove, static table on inline-grid
+PASS: ::after remove, relative inline-table on inline-grid
+PASS: ::after remove, absolute math on inline-grid
+PASS: ::after remove, fixed -webkit-box on inline-grid
+PASS: ::after remove, sticky -webkit-inline-box on inline-grid
+PASS: ::after remove, float-left table-row-group on inline-grid
+PASS: ::after remove, float-left-clear-both table-header-group on inline-grid
+PASS: ::after remove, float-right table-footer-group on inline-grid
+PASS: ::after remove, float-right-clear-both table-row on inline-grid
+PASS: ::after remove, float-inline-start table-cell on inline-grid
+PASS: ::after remove, float-inline-end table-column-group on inline-grid
+PASS: ::after remove, relative-float-left table-column on inline-grid
+PASS: ::before remove, static inline-table on table
+PASS: ::before remove, relative math on table
+PASS: ::before remove, absolute -webkit-box on table
+PASS: ::before remove, fixed -webkit-inline-box on table
+PASS: ::before remove, sticky table-row-group on table
+PASS: ::before remove, float-left table-header-group on table
+PASS: ::before remove, float-left-clear-both table-footer-group on table
+PASS: ::before remove, float-right table-row on table
+PASS: ::before remove, float-right-clear-both table-cell on table
+PASS: ::before remove, float-inline-start table-column-group on table
+PASS: ::before remove, float-inline-end table-column on table
+PASS: ::before remove, relative-float-left table-caption on table
+PASS: ::after remove, static inline-table on table
+PASS: ::after remove, relative math on table
+PASS: ::after remove, absolute -webkit-box on table
+PASS: ::after remove, fixed -webkit-inline-box on table
+PASS: ::after remove, sticky table-row-group on table
+PASS: ::after remove, float-left table-header-group on table
+PASS: ::after remove, float-left-clear-both table-footer-group on table
+PASS: ::after remove, float-right table-row on table
+PASS: ::after remove, float-right-clear-both table-cell on table
+PASS: ::after remove, float-inline-start table-column-group on table
+PASS: ::after remove, float-inline-end table-column on table
+PASS: ::after remove, relative-float-left table-caption on table
+PASS: ::before remove, static math on inline-table
+PASS: ::before remove, relative -webkit-box on inline-table
+PASS: ::before remove, absolute -webkit-inline-box on inline-table
+PASS: ::before remove, fixed table-row-group on inline-table
+PASS: ::before remove, sticky table-header-group on inline-table
+PASS: ::before remove, float-left table-footer-group on inline-table
+PASS: ::before remove, float-left-clear-both table-row on inline-table
+PASS: ::before remove, float-right table-cell on inline-table
+PASS: ::before remove, float-right-clear-both table-column-group on inline-table
+PASS: ::before remove, float-inline-start table-column on inline-table
+PASS: ::before remove, float-inline-end table-caption on inline-table
+PASS: ::before remove, relative-float-left block flow on inline-table
+PASS: ::after remove, static math on inline-table
+PASS: ::after remove, relative -webkit-box on inline-table
+PASS: ::after remove, absolute -webkit-inline-box on inline-table
+PASS: ::after remove, fixed table-row-group on inline-table
+PASS: ::after remove, sticky table-header-group on inline-table
+PASS: ::after remove, float-left table-footer-group on inline-table
+PASS: ::after remove, float-left-clear-both table-row on inline-table
+PASS: ::after remove, float-right table-cell on inline-table
+PASS: ::after remove, float-right-clear-both table-column-group on inline-table
+PASS: ::after remove, float-inline-start table-column on inline-table
+PASS: ::after remove, float-inline-end table-caption on inline-table
+PASS: ::after remove, relative-float-left block flow on inline-table
+PASS: ::before remove, static -webkit-box on math
+PASS: ::before remove, relative -webkit-inline-box on math
+PASS: ::before remove, absolute table-row-group on math
+PASS: ::before remove, fixed table-header-group on math
+PASS: ::before remove, sticky table-footer-group on math
+PASS: ::before remove, float-left table-row on math
+PASS: ::before remove, float-left-clear-both table-cell on math
+PASS: ::before remove, float-right table-column-group on math
+PASS: ::before remove, float-right-clear-both table-column on math
+PASS: ::before remove, float-inline-start table-caption on math
+PASS: ::before remove, float-inline-end block flow on math
+PASS: ::before remove, relative-float-left inline flow on math
+PASS: ::after remove, static -webkit-box on math
+PASS: ::after remove, relative -webkit-inline-box on math
+PASS: ::after remove, absolute table-row-group on math
+PASS: ::after remove, fixed table-header-group on math
+PASS: ::after remove, sticky table-footer-group on math
+PASS: ::after remove, float-left table-row on math
+PASS: ::after remove, float-left-clear-both table-cell on math
+PASS: ::after remove, float-right table-column-group on math
+PASS: ::after remove, float-right-clear-both table-column on math
+PASS: ::after remove, float-inline-start table-caption on math
+PASS: ::after remove, float-inline-end block flow on math
+PASS: ::after remove, relative-float-left inline flow on math
+PASS: ::before remove, static -webkit-inline-box on -webkit-box
+PASS: ::before remove, relative table-row-group on -webkit-box
+PASS: ::before remove, absolute table-header-group on -webkit-box
+PASS: ::before remove, fixed table-footer-group on -webkit-box
+PASS: ::before remove, sticky table-row on -webkit-box
+PASS: ::before remove, float-left table-cell on -webkit-box
+PASS: ::before remove, float-left-clear-both table-column-group on -webkit-box
+PASS: ::before remove, float-right table-column on -webkit-box
+PASS: ::before remove, float-right-clear-both table-caption on -webkit-box
+PASS: ::before remove, float-inline-start block flow on -webkit-box
+PASS: ::before remove, float-inline-end inline flow on -webkit-box
+PASS: ::before remove, relative-float-left block flow-root on -webkit-box
+PASS: ::after remove, static -webkit-inline-box on -webkit-box
+PASS: ::after remove, relative table-row-group on -webkit-box
+PASS: ::after remove, absolute table-header-group on -webkit-box
+PASS: ::after remove, fixed table-footer-group on -webkit-box
+PASS: ::after remove, sticky table-row on -webkit-box
+PASS: ::after remove, float-left table-cell on -webkit-box
+PASS: ::after remove, float-left-clear-both table-column-group on -webkit-box
+PASS: ::after remove, float-right table-column on -webkit-box
+PASS: ::after remove, float-right-clear-both table-caption on -webkit-box
+PASS: ::after remove, float-inline-start block flow on -webkit-box
+PASS: ::after remove, float-inline-end inline flow on -webkit-box
+PASS: ::after remove, relative-float-left block flow-root on -webkit-box
+PASS: ::before remove, static table-row-group on -webkit-inline-box
+PASS: ::before remove, relative table-header-group on -webkit-inline-box
+PASS: ::before remove, absolute table-footer-group on -webkit-inline-box
+PASS: ::before remove, fixed table-row on -webkit-inline-box
+PASS: ::before remove, sticky table-cell on -webkit-inline-box
+PASS: ::before remove, float-left table-column-group on -webkit-inline-box
+PASS: ::before remove, float-left-clear-both table-column on -webkit-inline-box
+PASS: ::before remove, float-right table-caption on -webkit-inline-box
+PASS: ::before remove, float-right-clear-both block flow on -webkit-inline-box
+PASS: ::before remove, float-inline-start inline flow on -webkit-inline-box
+PASS: ::before remove, float-inline-end block flow-root on -webkit-inline-box
+PASS: ::before remove, relative-float-left inline flow-root on -webkit-inline-box
+PASS: ::after remove, static table-row-group on -webkit-inline-box
+PASS: ::after remove, relative table-header-group on -webkit-inline-box
+PASS: ::after remove, absolute table-footer-group on -webkit-inline-box
+PASS: ::after remove, fixed table-row on -webkit-inline-box
+PASS: ::after remove, sticky table-cell on -webkit-inline-box
+PASS: ::after remove, float-left table-column-group on -webkit-inline-box
+PASS: ::after remove, float-left-clear-both table-column on -webkit-inline-box
+PASS: ::after remove, float-right table-caption on -webkit-inline-box
+PASS: ::after remove, float-right-clear-both block flow on -webkit-inline-box
+PASS: ::after remove, float-inline-start inline flow on -webkit-inline-box
+PASS: ::after remove, float-inline-end block flow-root on -webkit-inline-box
+PASS: ::after remove, relative-float-left inline flow-root on -webkit-inline-box
+PASS: ::before remove, static table-header-group on table-row-group
+PASS: ::before remove, relative table-footer-group on table-row-group
+PASS: ::before remove, absolute table-row on table-row-group
+PASS: ::before remove, fixed table-cell on table-row-group
+PASS: ::before remove, sticky table-column-group on table-row-group
+PASS: ::before remove, float-left table-column on table-row-group
+PASS: ::before remove, float-left-clear-both table-caption on table-row-group
+PASS: ::before remove, float-right block flow on table-row-group
+PASS: ::before remove, float-right-clear-both inline flow on table-row-group
+PASS: ::before remove, float-inline-start block flow-root on table-row-group
+PASS: ::before remove, float-inline-end inline flow-root on table-row-group
+PASS: ::before remove, relative-float-left block flex on table-row-group
+PASS: ::after remove, static table-header-group on table-row-group
+PASS: ::after remove, relative table-footer-group on table-row-group
+PASS: ::after remove, absolute table-row on table-row-group
+PASS: ::after remove, fixed table-cell on table-row-group
+PASS: ::after remove, sticky table-column-group on table-row-group
+PASS: ::after remove, float-left table-column on table-row-group
+PASS: ::after remove, float-left-clear-both table-caption on table-row-group
+PASS: ::after remove, float-right block flow on table-row-group
+PASS: ::after remove, float-right-clear-both inline flow on table-row-group
+PASS: ::after remove, float-inline-start block flow-root on table-row-group
+PASS: ::after remove, float-inline-end inline flow-root on table-row-group
+PASS: ::after remove, relative-float-left block flex on table-row-group
+PASS: ::before remove, static table-footer-group on table-header-group
+PASS: ::before remove, relative table-row on table-header-group
+PASS: ::before remove, absolute table-cell on table-header-group
+PASS: ::before remove, fixed table-column-group on table-header-group
+PASS: ::before remove, sticky table-column on table-header-group
+PASS: ::before remove, float-left table-caption on table-header-group
+PASS: ::before remove, float-left-clear-both block flow on table-header-group
+PASS: ::before remove, float-right inline flow on table-header-group
+PASS: ::before remove, float-right-clear-both block flow-root on table-header-group
+PASS: ::before remove, float-inline-start inline flow-root on table-header-group
+PASS: ::before remove, float-inline-end block flex on table-header-group
+PASS: ::before remove, relative-float-left inline flex on table-header-group
+PASS: ::after remove, static table-footer-group on table-header-group
+PASS: ::after remove, relative table-row on table-header-group
+PASS: ::after remove, absolute table-cell on table-header-group
+PASS: ::after remove, fixed table-column-group on table-header-group
+PASS: ::after remove, sticky table-column on table-header-group
+PASS: ::after remove, float-left table-caption on table-header-group
+PASS: ::after remove, float-left-clear-both block flow on table-header-group
+PASS: ::after remove, float-right inline flow on table-header-group
+PASS: ::after remove, float-right-clear-both block flow-root on table-header-group
+PASS: ::after remove, float-inline-start inline flow-root on table-header-group
+PASS: ::after remove, float-inline-end block flex on table-header-group
+PASS: ::after remove, relative-float-left inline flex on table-header-group
+PASS: ::before remove, static table-row on table-footer-group
+PASS: ::before remove, relative table-cell on table-footer-group
+PASS: ::before remove, absolute table-column-group on table-footer-group
+PASS: ::before remove, fixed table-column on table-footer-group
+PASS: ::before remove, sticky table-caption on table-footer-group
+PASS: ::before remove, float-left block flow on table-footer-group
+PASS: ::before remove, float-left-clear-both inline flow on table-footer-group
+PASS: ::before remove, float-right block flow-root on table-footer-group
+PASS: ::before remove, float-right-clear-both inline flow-root on table-footer-group
+PASS: ::before remove, float-inline-start block flex on table-footer-group
+PASS: ::before remove, float-inline-end inline flex on table-footer-group
+PASS: ::before remove, relative-float-left block grid on table-footer-group
+PASS: ::after remove, static table-row on table-footer-group
+PASS: ::after remove, relative table-cell on table-footer-group
+PASS: ::after remove, absolute table-column-group on table-footer-group
+PASS: ::after remove, fixed table-column on table-footer-group
+PASS: ::after remove, sticky table-caption on table-footer-group
+PASS: ::after remove, float-left block flow on table-footer-group
+PASS: ::after remove, float-left-clear-both inline flow on table-footer-group
+PASS: ::after remove, float-right block flow-root on table-footer-group
+PASS: ::after remove, float-right-clear-both inline flow-root on table-footer-group
+PASS: ::after remove, float-inline-start block flex on table-footer-group
+PASS: ::after remove, float-inline-end inline flex on table-footer-group
+PASS: ::after remove, relative-float-left block grid on table-footer-group
+PASS: ::before remove, static table-cell on table-row
+PASS: ::before remove, relative table-column-group on table-row
+PASS: ::before remove, absolute table-column on table-row
+PASS: ::before remove, fixed table-caption on table-row
+PASS: ::before remove, sticky block flow on table-row
+PASS: ::before remove, float-left inline flow on table-row
+PASS: ::before remove, float-left-clear-both block flow-root on table-row
+PASS: ::before remove, float-right inline flow-root on table-row
+PASS: ::before remove, float-right-clear-both block flex on table-row
+PASS: ::before remove, float-inline-start inline flex on table-row
+PASS: ::before remove, float-inline-end block grid on table-row
+PASS: ::before remove, relative-float-left inline grid on table-row
+PASS: ::after remove, static table-cell on table-row
+PASS: ::after remove, relative table-column-group on table-row
+PASS: ::after remove, absolute table-column on table-row
+PASS: ::after remove, fixed table-caption on table-row
+PASS: ::after remove, sticky block flow on table-row
+PASS: ::after remove, float-left inline flow on table-row
+PASS: ::after remove, float-left-clear-both block flow-root on table-row
+PASS: ::after remove, float-right inline flow-root on table-row
+PASS: ::after remove, float-right-clear-both block flex on table-row
+PASS: ::after remove, float-inline-start inline flex on table-row
+PASS: ::after remove, float-inline-end block grid on table-row
+PASS: ::after remove, relative-float-left inline grid on table-row
+PASS: ::before remove, static table-column-group on table-cell
+PASS: ::before remove, relative table-column on table-cell
+PASS: ::before remove, absolute table-caption on table-cell
+PASS: ::before remove, fixed block flow on table-cell
+PASS: ::before remove, sticky inline flow on table-cell
+PASS: ::before remove, float-left block flow-root on table-cell
+PASS: ::before remove, float-left-clear-both inline flow-root on table-cell
+PASS: ::before remove, float-right block flex on table-cell
+PASS: ::before remove, float-right-clear-both inline flex on table-cell
+PASS: ::before remove, float-inline-start block grid on table-cell
+PASS: ::before remove, float-inline-end inline grid on table-cell
+PASS: ::before remove, relative-float-left block table on table-cell
+PASS: ::after remove, static table-column-group on table-cell
+PASS: ::after remove, relative table-column on table-cell
+PASS: ::after remove, absolute table-caption on table-cell
+PASS: ::after remove, fixed block flow on table-cell
+PASS: ::after remove, sticky inline flow on table-cell
+PASS: ::after remove, float-left block flow-root on table-cell
+PASS: ::after remove, float-left-clear-both inline flow-root on table-cell
+PASS: ::after remove, float-right block flex on table-cell
+PASS: ::after remove, float-right-clear-both inline flex on table-cell
+PASS: ::after remove, float-inline-start block grid on table-cell
+PASS: ::after remove, float-inline-end inline grid on table-cell
+PASS: ::after remove, relative-float-left block table on table-cell
+PASS: ::before remove, static table-column on table-column-group
+PASS: ::before remove, relative table-caption on table-column-group
+PASS: ::before remove, absolute block flow on table-column-group
+PASS: ::before remove, fixed inline flow on table-column-group
+PASS: ::before remove, sticky block flow-root on table-column-group
+PASS: ::before remove, float-left inline flow-root on table-column-group
+PASS: ::before remove, float-left-clear-both block flex on table-column-group
+PASS: ::before remove, float-right inline flex on table-column-group
+PASS: ::before remove, float-right-clear-both block grid on table-column-group
+PASS: ::before remove, float-inline-start inline grid on table-column-group
+PASS: ::before remove, float-inline-end block table on table-column-group
+PASS: ::before remove, relative-float-left inline table on table-column-group
+PASS: ::after remove, static table-column on table-column-group
+PASS: ::after remove, relative table-caption on table-column-group
+PASS: ::after remove, absolute block flow on table-column-group
+PASS: ::after remove, fixed inline flow on table-column-group
+PASS: ::after remove, sticky block flow-root on table-column-group
+PASS: ::after remove, float-left inline flow-root on table-column-group
+PASS: ::after remove, float-left-clear-both block flex on table-column-group
+PASS: ::after remove, float-right inline flex on table-column-group
+PASS: ::after remove, float-right-clear-both block grid on table-column-group
+PASS: ::after remove, float-inline-start inline grid on table-column-group
+PASS: ::after remove, float-inline-end block table on table-column-group
+PASS: ::after remove, relative-float-left inline table on table-column-group
+PASS: ::before remove, static table-caption on table-column
+PASS: ::before remove, relative block flow on table-column
+PASS: ::before remove, absolute inline flow on table-column
+PASS: ::before remove, fixed block flow-root on table-column
+PASS: ::before remove, sticky inline flow-root on table-column
+PASS: ::before remove, float-left block flex on table-column
+PASS: ::before remove, float-left-clear-both inline flex on table-column
+PASS: ::before remove, float-right block grid on table-column
+PASS: ::before remove, float-right-clear-both inline grid on table-column
+PASS: ::before remove, float-inline-start block table on table-column
+PASS: ::before remove, float-inline-end inline table on table-column
+PASS: ::before remove, relative-float-left block flow list-item on table-column
+PASS: ::after remove, static table-caption on table-column
+PASS: ::after remove, relative block flow on table-column
+PASS: ::after remove, absolute inline flow on table-column
+PASS: ::after remove, fixed block flow-root on table-column
+PASS: ::after remove, sticky inline flow-root on table-column
+PASS: ::after remove, float-left block flex on table-column
+PASS: ::after remove, float-left-clear-both inline flex on table-column
+PASS: ::after remove, float-right block grid on table-column
+PASS: ::after remove, float-right-clear-both inline grid on table-column
+PASS: ::after remove, float-inline-start block table on table-column
+PASS: ::after remove, float-inline-end inline table on table-column
+PASS: ::after remove, relative-float-left block flow list-item on table-column
+PASS: ::before remove, static block flow on table-caption
+PASS: ::before remove, relative inline flow on table-caption
+PASS: ::before remove, absolute block flow-root on table-caption
+PASS: ::before remove, fixed inline flow-root on table-caption
+PASS: ::before remove, sticky block flex on table-caption
+PASS: ::before remove, float-left inline flex on table-caption
+PASS: ::before remove, float-left-clear-both block grid on table-caption
+PASS: ::before remove, float-right inline grid on table-caption
+PASS: ::before remove, float-right-clear-both block table on table-caption
+PASS: ::before remove, float-inline-start inline table on table-caption
+PASS: ::before remove, float-inline-end block flow list-item on table-caption
+PASS: ::before remove, relative-float-left inline flow list-item on table-caption
+PASS: ::after remove, static block flow on table-caption
+PASS: ::after remove, relative inline flow on table-caption
+PASS: ::after remove, absolute block flow-root on table-caption
+PASS: ::after remove, fixed inline flow-root on table-caption
+PASS: ::after remove, sticky block flex on table-caption
+PASS: ::after remove, float-left inline flex on table-caption
+PASS: ::after remove, float-left-clear-both block grid on table-caption
+PASS: ::after remove, float-right inline grid on table-caption
+PASS: ::after remove, float-right-clear-both block table on table-caption
+PASS: ::after remove, float-inline-start inline table on table-caption
+PASS: ::after remove, float-inline-end block flow list-item on table-caption
+PASS: ::after remove, relative-float-left inline flow list-item on table-caption
+PASS: ::before remove, static inline flow on block flow
+PASS: ::before remove, relative block flow-root on block flow
+PASS: ::before remove, absolute inline flow-root on block flow
+PASS: ::before remove, fixed block flex on block flow
+PASS: ::before remove, sticky inline flex on block flow
+PASS: ::before remove, float-left block grid on block flow
+PASS: ::before remove, float-left-clear-both inline grid on block flow
+PASS: ::before remove, float-right block table on block flow
+PASS: ::before remove, float-right-clear-both inline table on block flow
+PASS: ::before remove, float-inline-start block flow list-item on block flow
+PASS: ::before remove, float-inline-end inline flow list-item on block flow
+PASS: ::before remove, relative-float-left none on block flow
+PASS: ::after remove, static inline flow on block flow
+PASS: ::after remove, relative block flow-root on block flow
+PASS: ::after remove, absolute inline flow-root on block flow
+PASS: ::after remove, fixed block flex on block flow
+PASS: ::after remove, sticky inline flex on block flow
+PASS: ::after remove, float-left block grid on block flow
+PASS: ::after remove, float-left-clear-both inline grid on block flow
+PASS: ::after remove, float-right block table on block flow
+PASS: ::after remove, float-right-clear-both inline table on block flow
+PASS: ::after remove, float-inline-start block flow list-item on block flow
+PASS: ::after remove, float-inline-end inline flow list-item on block flow
+PASS: ::after remove, relative-float-left none on block flow
+PASS: ::before remove, static block flow-root on inline flow
+PASS: ::before remove, relative inline flow-root on inline flow
+PASS: ::before remove, absolute block flex on inline flow
+PASS: ::before remove, fixed inline flex on inline flow
+PASS: ::before remove, sticky block grid on inline flow
+PASS: ::before remove, float-left inline grid on inline flow
+PASS: ::before remove, float-left-clear-both block table on inline flow
+PASS: ::before remove, float-right inline table on inline flow
+PASS: ::before remove, float-right-clear-both block flow list-item on inline flow
+PASS: ::before remove, float-inline-start inline flow list-item on inline flow
+PASS: ::before remove, float-inline-end none on inline flow
+PASS: ::before remove, relative-float-left contents on inline flow
+PASS: ::after remove, static block flow-root on inline flow
+PASS: ::after remove, relative inline flow-root on inline flow
+PASS: ::after remove, absolute block flex on inline flow
+PASS: ::after remove, fixed inline flex on inline flow
+PASS: ::after remove, sticky block grid on inline flow
+PASS: ::after remove, float-left inline grid on inline flow
+PASS: ::after remove, float-left-clear-both block table on inline flow
+PASS: ::after remove, float-right inline table on inline flow
+PASS: ::after remove, float-right-clear-both block flow list-item on inline flow
+PASS: ::after remove, float-inline-start inline flow list-item on inline flow
+PASS: ::after remove, float-inline-end none on inline flow
+PASS: ::after remove, relative-float-left contents on inline flow
+PASS: ::before remove, static inline flow-root on block flow-root
+PASS: ::before remove, relative block flex on block flow-root
+PASS: ::before remove, absolute inline flex on block flow-root
+PASS: ::before remove, fixed block grid on block flow-root
+PASS: ::before remove, sticky inline grid on block flow-root
+PASS: ::before remove, float-left block table on block flow-root
+PASS: ::before remove, float-left-clear-both inline table on block flow-root
+PASS: ::before remove, float-right block flow list-item on block flow-root
+PASS: ::before remove, float-right-clear-both inline flow list-item on block flow-root
+PASS: ::before remove, float-inline-start none on block flow-root
+PASS: ::before remove, float-inline-end contents on block flow-root
+PASS: ::before remove, relative-float-left block on block flow-root
+PASS: ::after remove, static inline flow-root on block flow-root
+PASS: ::after remove, relative block flex on block flow-root
+PASS: ::after remove, absolute inline flex on block flow-root
+PASS: ::after remove, fixed block grid on block flow-root
+PASS: ::after remove, sticky inline grid on block flow-root
+PASS: ::after remove, float-left block table on block flow-root
+PASS: ::after remove, float-left-clear-both inline table on block flow-root
+PASS: ::after remove, float-right block flow list-item on block flow-root
+PASS: ::after remove, float-right-clear-both inline flow list-item on block flow-root
+PASS: ::after remove, float-inline-start none on block flow-root
+PASS: ::after remove, float-inline-end contents on block flow-root
+PASS: ::after remove, relative-float-left block on block flow-root
+PASS: ::before remove, static block flex on inline flow-root
+PASS: ::before remove, relative inline flex on inline flow-root
+PASS: ::before remove, absolute block grid on inline flow-root
+PASS: ::before remove, fixed inline grid on inline flow-root
+PASS: ::before remove, sticky block table on inline flow-root
+PASS: ::before remove, float-left inline table on inline flow-root
+PASS: ::before remove, float-left-clear-both block flow list-item on inline flow-root
+PASS: ::before remove, float-right inline flow list-item on inline flow-root
+PASS: ::before remove, float-right-clear-both none on inline flow-root
+PASS: ::before remove, float-inline-start contents on inline flow-root
+PASS: ::before remove, float-inline-end block on inline flow-root
+PASS: ::before remove, relative-float-left inline on inline flow-root
+PASS: ::after remove, static block flex on inline flow-root
+PASS: ::after remove, relative inline flex on inline flow-root
+PASS: ::after remove, absolute block grid on inline flow-root
+PASS: ::after remove, fixed inline grid on inline flow-root
+PASS: ::after remove, sticky block table on inline flow-root
+PASS: ::after remove, float-left inline table on inline flow-root
+PASS: ::after remove, float-left-clear-both block flow list-item on inline flow-root
+PASS: ::after remove, float-right inline flow list-item on inline flow-root
+PASS: ::after remove, float-right-clear-both none on inline flow-root
+PASS: ::after remove, float-inline-start contents on inline flow-root
+PASS: ::after remove, float-inline-end block on inline flow-root
+PASS: ::after remove, relative-float-left inline on inline flow-root
+PASS: ::before remove, static inline flex on block flex
+PASS: ::before remove, relative block grid on block flex
+PASS: ::before remove, absolute inline grid on block flex
+PASS: ::before remove, fixed block table on block flex
+PASS: ::before remove, sticky inline table on block flex
+PASS: ::before remove, float-left block flow list-item on block flex
+PASS: ::before remove, float-left-clear-both inline flow list-item on block flex
+PASS: ::before remove, float-right none on block flex
+PASS: ::before remove, float-right-clear-both contents on block flex
+PASS: ::before remove, float-inline-start block on block flex
+PASS: ::before remove, float-inline-end inline on block flex
+PASS: ::before remove, relative-float-left flow-root on block flex
+PASS: ::after remove, static inline flex on block flex
+PASS: ::after remove, relative block grid on block flex
+PASS: ::after remove, absolute inline grid on block flex
+PASS: ::after remove, fixed block table on block flex
+PASS: ::after remove, sticky inline table on block flex
+PASS: ::after remove, float-left block flow list-item on block flex
+PASS: ::after remove, float-left-clear-both inline flow list-item on block flex
+PASS: ::after remove, float-right none on block flex
+PASS: ::after remove, float-right-clear-both contents on block flex
+PASS: ::after remove, float-inline-start block on block flex
+PASS: ::after remove, float-inline-end inline on block flex
+PASS: ::after remove, relative-float-left flow-root on block flex
+PASS: ::before remove, static block grid on inline flex
+PASS: ::before remove, relative inline grid on inline flex
+PASS: ::before remove, absolute block table on inline flex
+PASS: ::before remove, fixed inline table on inline flex
+PASS: ::before remove, sticky block flow list-item on inline flex
+PASS: ::before remove, float-left inline flow list-item on inline flex
+PASS: ::before remove, float-left-clear-both none on inline flex
+PASS: ::before remove, float-right contents on inline flex
+PASS: ::before remove, float-right-clear-both block on inline flex
+PASS: ::before remove, float-inline-start inline on inline flex
+PASS: ::before remove, float-inline-end flow-root on inline flex
+PASS: ::before remove, relative-float-left inline-block on inline flex
+PASS: ::after remove, static block grid on inline flex
+PASS: ::after remove, relative inline grid on inline flex
+PASS: ::after remove, absolute block table on inline flex
+PASS: ::after remove, fixed inline table on inline flex
+PASS: ::after remove, sticky block flow list-item on inline flex
+PASS: ::after remove, float-left inline flow list-item on inline flex
+PASS: ::after remove, float-left-clear-both none on inline flex
+PASS: ::after remove, float-right contents on inline flex
+PASS: ::after remove, float-right-clear-both block on inline flex
+PASS: ::after remove, float-inline-start inline on inline flex
+PASS: ::after remove, float-inline-end flow-root on inline flex
+PASS: ::after remove, relative-float-left inline-block on inline flex
+PASS: ::before remove, static inline grid on block grid
+PASS: ::before remove, relative block table on block grid
+PASS: ::before remove, absolute inline table on block grid
+PASS: ::before remove, fixed block flow list-item on block grid
+PASS: ::before remove, sticky inline flow list-item on block grid
+PASS: ::before remove, float-left none on block grid
+PASS: ::before remove, float-left-clear-both contents on block grid
+PASS: ::before remove, float-right block on block grid
+PASS: ::before remove, float-right-clear-both inline on block grid
+PASS: ::before remove, float-inline-start flow-root on block grid
+PASS: ::before remove, float-inline-end inline-block on block grid
+PASS: ::before remove, relative-float-left run-in on block grid
+PASS: ::after remove, static inline grid on block grid
+PASS: ::after remove, relative block table on block grid
+PASS: ::after remove, absolute inline table on block grid
+PASS: ::after remove, fixed block flow list-item on block grid
+PASS: ::after remove, sticky inline flow list-item on block grid
+PASS: ::after remove, float-left none on block grid
+PASS: ::after remove, float-left-clear-both contents on block grid
+PASS: ::after remove, float-right block on block grid
+PASS: ::after remove, float-right-clear-both inline on block grid
+PASS: ::after remove, float-inline-start flow-root on block grid
+PASS: ::after remove, float-inline-end inline-block on block grid
+PASS: ::after remove, relative-float-left run-in on block grid
+PASS: ::before remove, static block table on inline grid
+PASS: ::before remove, relative inline table on inline grid
+PASS: ::before remove, absolute block flow list-item on inline grid
+PASS: ::before remove, fixed inline flow list-item on inline grid
+PASS: ::before remove, sticky none on inline grid
+PASS: ::before remove, float-left contents on inline grid
+PASS: ::before remove, float-left-clear-both block on inline grid
+PASS: ::before remove, float-right inline on inline grid
+PASS: ::before remove, float-right-clear-both flow-root on inline grid
+PASS: ::before remove, float-inline-start inline-block on inline grid
+PASS: ::before remove, float-inline-end run-in on inline grid
+PASS: ::before remove, relative-float-left list-item on inline grid
+PASS: ::after remove, static block table on inline grid
+PASS: ::after remove, relative inline table on inline grid
+PASS: ::after remove, absolute block flow list-item on inline grid
+PASS: ::after remove, fixed inline flow list-item on inline grid
+PASS: ::after remove, sticky none on inline grid
+PASS: ::after remove, float-left contents on inline grid
+PASS: ::after remove, float-left-clear-both block on inline grid
+PASS: ::after remove, float-right inline on inline grid
+PASS: ::after remove, float-right-clear-both flow-root on inline grid
+PASS: ::after remove, float-inline-start inline-block on inline grid
+PASS: ::after remove, float-inline-end run-in on inline grid
+PASS: ::after remove, relative-float-left list-item on inline grid
+PASS: ::before remove, static inline table on block table
+PASS: ::before remove, relative block flow list-item on block table
+PASS: ::before remove, absolute inline flow list-item on block table
+PASS: ::before remove, fixed none on block table
+PASS: ::before remove, sticky contents on block table
+PASS: ::before remove, float-left block on block table
+PASS: ::before remove, float-left-clear-both inline on block table
+PASS: ::before remove, float-right flow-root on block table
+PASS: ::before remove, float-right-clear-both inline-block on block table
+PASS: ::before remove, float-inline-start run-in on block table
+PASS: ::before remove, float-inline-end list-item on block table
+PASS: ::before remove, relative-float-left inline list-item on block table
+PASS: ::after remove, static inline table on block table
+PASS: ::after remove, relative block flow list-item on block table
+PASS: ::after remove, absolute inline flow list-item on block table
+PASS: ::after remove, fixed none on block table
+PASS: ::after remove, sticky contents on block table
+PASS: ::after remove, float-left block on block table
+PASS: ::after remove, float-left-clear-both inline on block table
+PASS: ::after remove, float-right flow-root on block table
+PASS: ::after remove, float-right-clear-both inline-block on block table
+PASS: ::after remove, float-inline-start run-in on block table
+PASS: ::after remove, float-inline-end list-item on block table
+PASS: ::after remove, relative-float-left inline list-item on block table
+PASS: ::before remove, static block flow list-item on inline table
+PASS: ::before remove, relative inline flow list-item on inline table
+PASS: ::before remove, absolute none on inline table
+PASS: ::before remove, fixed contents on inline table
+PASS: ::before remove, sticky block on inline table
+PASS: ::before remove, float-left inline on inline table
+PASS: ::before remove, float-left-clear-both flow-root on inline table
+PASS: ::before remove, float-right inline-block on inline table
+PASS: ::before remove, float-right-clear-both run-in on inline table
+PASS: ::before remove, float-inline-start list-item on inline table
+PASS: ::before remove, float-inline-end inline list-item on inline table
+PASS: ::before remove, relative-float-left flex on inline table
+PASS: ::after remove, static block flow list-item on inline table
+PASS: ::after remove, relative inline flow list-item on inline table
+PASS: ::after remove, absolute none on inline table
+PASS: ::after remove, fixed contents on inline table
+PASS: ::after remove, sticky block on inline table
+PASS: ::after remove, float-left inline on inline table
+PASS: ::after remove, float-left-clear-both flow-root on inline table
+PASS: ::after remove, float-right inline-block on inline table
+PASS: ::after remove, float-right-clear-both run-in on inline table
+PASS: ::after remove, float-inline-start list-item on inline table
+PASS: ::after remove, float-inline-end inline list-item on inline table
+PASS: ::after remove, relative-float-left flex on inline table
+PASS: ::before remove, static inline flow list-item on block flow list-item
+PASS: ::before remove, relative none on block flow list-item
+PASS: ::before remove, absolute contents on block flow list-item
+PASS: ::before remove, fixed block on block flow list-item
+PASS: ::before remove, sticky inline on block flow list-item
+PASS: ::before remove, float-left flow-root on block flow list-item
+PASS: ::before remove, float-left-clear-both inline-block on block flow list-item
+PASS: ::before remove, float-right run-in on block flow list-item
+PASS: ::before remove, float-right-clear-both list-item on block flow list-item
+PASS: ::before remove, float-inline-start inline list-item on block flow list-item
+PASS: ::before remove, float-inline-end flex on block flow list-item
+PASS: ::before remove, relative-float-left inline-flex on block flow list-item
+PASS: ::after remove, static inline flow list-item on block flow list-item
+PASS: ::after remove, relative none on block flow list-item
+PASS: ::after remove, absolute contents on block flow list-item
+PASS: ::after remove, fixed block on block flow list-item
+PASS: ::after remove, sticky inline on block flow list-item
+PASS: ::after remove, float-left flow-root on block flow list-item
+PASS: ::after remove, float-left-clear-both inline-block on block flow list-item
+PASS: ::after remove, float-right run-in on block flow list-item
+PASS: ::after remove, float-right-clear-both list-item on block flow list-item
+PASS: ::after remove, float-inline-start inline list-item on block flow list-item
+PASS: ::after remove, float-inline-end flex on block flow list-item
+PASS: ::after remove, relative-float-left inline-flex on block flow list-item
+PASS: ::before remove, static none on inline flow list-item
+PASS: ::before remove, relative contents on inline flow list-item
+PASS: ::before remove, absolute block on inline flow list-item
+PASS: ::before remove, fixed inline on inline flow list-item
+PASS: ::before remove, sticky flow-root on inline flow list-item
+PASS: ::before remove, float-left inline-block on inline flow list-item
+PASS: ::before remove, float-left-clear-both run-in on inline flow list-item
+PASS: ::before remove, float-right list-item on inline flow list-item
+PASS: ::before remove, float-right-clear-both inline list-item on inline flow list-item
+PASS: ::before remove, float-inline-start flex on inline flow list-item
+PASS: ::before remove, float-inline-end inline-flex on inline flow list-item
+PASS: ::before remove, relative-float-left grid on inline flow list-item
+PASS: ::after remove, static none on inline flow list-item
+PASS: ::after remove, relative contents on inline flow list-item
+PASS: ::after remove, absolute block on inline flow list-item
+PASS: ::after remove, fixed inline on inline flow list-item
+PASS: ::after remove, sticky flow-root on inline flow list-item
+PASS: ::after remove, float-left inline-block on inline flow list-item
+PASS: ::after remove, float-left-clear-both run-in on inline flow list-item
+PASS: ::after remove, float-right list-item on inline flow list-item
+PASS: ::after remove, float-right-clear-both inline list-item on inline flow list-item
+PASS: ::after remove, float-inline-start flex on inline flow list-item
+PASS: ::after remove, float-inline-end inline-flex on inline flow list-item
+PASS: ::after remove, relative-float-left grid on inline flow list-item
+912 cases; 912 matched; 0 mismatched

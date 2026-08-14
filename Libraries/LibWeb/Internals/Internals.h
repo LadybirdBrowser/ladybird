@@ -165,12 +165,14 @@ public:
     GC::Ref<JS::Object> style_invalidation_counters_object() const;
     void reset_style_invalidation_counters();
     GC::Ref<JS::Object> layout_tree_build_stats();
+    GC::Ref<JS::Object> compare_layout_tree_with_full_rebuild();
     GC::Ref<JS::Object> computed_values_stats();
     GC::Ref<JS::Object> style_ffi_counters();
     GC::Ref<JS::Object> style_engine_counters();
     u64 style_record_identity(DOM::Element&);
     u64 layout_style_record_identity(DOM::Element&);
     u64 paint_style_record_identity(DOM::Element&);
+    u64 layout_node_identity(DOM::Node&);
     double style_engine_match_document();
     Utf16String style_engine_matched_rules();
     GC::Ref<JS::Object> style_engine_transaction_reactions();

@@ -1,0 +1,23 @@
+PASS: ::placeholder add placeholder on input
+PASS: ::placeholder remove placeholder on input
+PASS: ::placeholder hide placeholder with value on input
+PASS: ::placeholder show placeholder by clearing value on input
+PASS: ::placeholder remove host on input
+PASS: ::placeholder add placeholder on textarea
+PASS: ::placeholder remove placeholder on textarea
+PASS: ::placeholder hide placeholder with value on textarea
+PASS: ::placeholder show placeholder by clearing value on textarea
+PASS: ::placeholder remove host on textarea
+PASS: ::file-selector-button create by changing type
+PASS: ::file-selector-button remove by changing type
+PASS: ::file-selector-button remove file input
+PASS: ::file-selector-button hide file input
+PASS: ::file-selector-button show file input
+PASS: ::details-content open details
+PASS: ::details-content close details
+PASS: ::details-content append slotted child
+PASS: ::details-content remove slotted child
+PASS: ::details-content remove details
+PASS: ::details-content hide details
+PASS: ::details-content show details
+22 cases; 22 matched; 0 mismatched

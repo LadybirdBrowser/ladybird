@@ -150,6 +150,10 @@ interface Internals {
     // subtrees rebuilt in place), lastBuildEscapedRebuildRoots (whether any tree mutation
     // escaped the rebuilt subtrees, disqualifying the build from partial relayout).
     object layoutTreeBuildStats();
+    // Snapshots the current, incrementally-updated layout tree, rebuilds it from scratch, and
+    // returns { matches }, plus { incremental, full } on mismatch. This is a test oracle for
+    // incremental tree builds.
+    object compareLayoutTreeWithFullRebuild();
     // Returns process-wide ComputedValues instance and retained representation statistics.
     // Keys: liveComputedValues, totalComputedValuesCreated,
     // retainedLegacyComputedPropertyArrayHolders, retainedLegacyComputedPropertyArrayBytes.
@@ -161,6 +165,9 @@ interface Internals {
     unsigned long long styleRecordIdentity(Element element);
     unsigned long long layoutStyleRecordIdentity(Element element);
     unsigned long long paintStyleRecordIdentity(Element element);
+    // Stable for the lifetime of a layout node, and zero when the DOM node has no principal
+    // layout node. Useful for asserting that incremental tree builds preserve unaffected nodes.
+    unsigned long long layoutNodeIdentity(Node node);
     double styleEngineMatchDocument();
     // Reports a snapshot of StyleEngine's matched rules for the whole document.
     DOMString styleEngineMatchedRules();

@@ -1,0 +1,19 @@
+PASS: append ordinary child
+PASS: replace text data
+PASS: move existing subtree
+PASS: append under display contents
+PASS: display contents to block
+PASS: block to display contents
+PASS: display none to block
+PASS: block to display none
+PASS: block child inside inline
+PASS: generated content update
+PASS: list marker update
+PASS: table fixup after cell insertion
+FAIL: table fixup after invalid child insertion
+PASS: attach shadow tree
+PASS: mutate shadow tree
+PASS: append SVG child
+PASS: enter top layer
+PASS: mutate in top layer
+PASS: leave top layer

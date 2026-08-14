@@ -1,0 +1,1225 @@
+PASS: insert static none at start of block
+PASS: insert sticky none at middle of block
+PASS: insert float-right-clear-both none at end of block
+PASS: insert static contents at start of block
+PASS: insert sticky contents at middle of block
+PASS: insert float-right-clear-both contents at end of block
+PASS: insert static block at start of block
+PASS: insert sticky block at middle of block
+PASS: insert float-right-clear-both block at end of block
+PASS: insert static inline at start of block
+PASS: insert sticky inline at middle of block
+PASS: insert float-right-clear-both inline at end of block
+PASS: insert static flow-root at start of block
+PASS: insert sticky flow-root at middle of block
+PASS: insert float-right-clear-both flow-root at end of block
+PASS: insert static inline-block at start of block
+PASS: insert sticky inline-block at middle of block
+PASS: insert float-right-clear-both inline-block at end of block
+PASS: insert static run-in at start of block
+PASS: insert sticky run-in at middle of block
+PASS: insert float-right-clear-both run-in at end of block
+PASS: insert static list-item at start of block
+PASS: insert sticky list-item at middle of block
+PASS: insert float-right-clear-both list-item at end of block
+PASS: insert static inline list-item at start of block
+PASS: insert sticky inline list-item at middle of block
+PASS: insert float-right-clear-both inline list-item at end of block
+PASS: insert static flex at start of block
+PASS: insert sticky flex at middle of block
+PASS: insert float-right-clear-both flex at end of block
+PASS: insert static inline-flex at start of block
+PASS: insert sticky inline-flex at middle of block
+PASS: insert float-right-clear-both inline-flex at end of block
+PASS: insert static grid at start of block
+PASS: insert sticky grid at middle of block
+PASS: insert float-right-clear-both grid at end of block
+PASS: insert static inline-grid at start of block
+PASS: insert sticky inline-grid at middle of block
+PASS: insert float-right-clear-both inline-grid at end of block
+PASS: insert static table at start of block
+PASS: insert sticky table at middle of block
+PASS: insert float-right-clear-both table at end of block
+PASS: insert static inline-table at start of block
+PASS: insert sticky inline-table at middle of block
+PASS: insert float-right-clear-both inline-table at end of block
+PASS: insert static math at start of block
+PASS: insert sticky math at middle of block
+PASS: insert float-right-clear-both math at end of block
+PASS: insert static -webkit-box at start of block
+PASS: insert sticky -webkit-box at middle of block
+PASS: insert float-right-clear-both -webkit-box at end of block
+PASS: insert static -webkit-inline-box at start of block
+PASS: insert sticky -webkit-inline-box at middle of block
+PASS: insert float-right-clear-both -webkit-inline-box at end of block
+PASS: insert static table-row-group at start of block
+PASS: insert sticky table-row-group at middle of block
+PASS: insert float-right-clear-both table-row-group at end of block
+PASS: insert static table-header-group at start of block
+PASS: insert sticky table-header-group at middle of block
+PASS: insert float-right-clear-both table-header-group at end of block
+PASS: insert static table-footer-group at start of block
+PASS: insert sticky table-footer-group at middle of block
+PASS: insert float-right-clear-both table-footer-group at end of block
+PASS: insert static table-row at start of block
+PASS: insert sticky table-row at middle of block
+PASS: insert float-right-clear-both table-row at end of block
+PASS: insert static table-cell at start of block
+PASS: insert sticky table-cell at middle of block
+PASS: insert float-right-clear-both table-cell at end of block
+PASS: insert static table-column-group at start of block
+PASS: insert sticky table-column-group at middle of block
+PASS: insert float-right-clear-both table-column-group at end of block
+PASS: insert static table-column at start of block
+PASS: insert sticky table-column at middle of block
+PASS: insert float-right-clear-both table-column at end of block
+PASS: insert static table-caption at start of block
+PASS: insert sticky table-caption at middle of block
+PASS: insert float-right-clear-both table-caption at end of block
+PASS: insert static block flow at start of block
+PASS: insert sticky block flow at middle of block
+PASS: insert float-right-clear-both block flow at end of block
+PASS: insert static inline flow at start of block
+PASS: insert sticky inline flow at middle of block
+PASS: insert float-right-clear-both inline flow at end of block
+PASS: insert static block flow-root at start of block
+PASS: insert sticky block flow-root at middle of block
+PASS: insert float-right-clear-both block flow-root at end of block
+PASS: insert static inline flow-root at start of block
+PASS: insert sticky inline flow-root at middle of block
+PASS: insert float-right-clear-both inline flow-root at end of block
+PASS: insert static block flex at start of block
+PASS: insert sticky block flex at middle of block
+PASS: insert float-right-clear-both block flex at end of block
+PASS: insert static inline flex at start of block
+PASS: insert sticky inline flex at middle of block
+PASS: insert float-right-clear-both inline flex at end of block
+PASS: insert static block grid at start of block
+PASS: insert sticky block grid at middle of block
+PASS: insert float-right-clear-both block grid at end of block
+PASS: insert static inline grid at start of block
+PASS: insert sticky inline grid at middle of block
+PASS: insert float-right-clear-both inline grid at end of block
+PASS: insert static block table at start of block
+PASS: insert sticky block table at middle of block
+PASS: insert float-right-clear-both block table at end of block
+PASS: insert static inline table at start of block
+PASS: insert sticky inline table at middle of block
+PASS: insert float-right-clear-both inline table at end of block
+PASS: insert static block flow list-item at start of block
+PASS: insert sticky block flow list-item at middle of block
+PASS: insert float-right-clear-both block flow list-item at end of block
+PASS: insert static inline flow list-item at start of block
+PASS: insert sticky inline flow list-item at middle of block
+PASS: insert float-right-clear-both inline flow list-item at end of block
+PASS: insert static none at start of inline
+PASS: insert sticky none at middle of inline
+PASS: insert float-right-clear-both none at end of inline
+PASS: insert static contents at start of inline
+PASS: insert sticky contents at middle of inline
+PASS: insert float-right-clear-both contents at end of inline
+PASS: insert static block at start of inline
+PASS: insert sticky block at middle of inline
+PASS: insert float-right-clear-both block at end of inline
+PASS: insert static inline at start of inline
+PASS: insert sticky inline at middle of inline
+PASS: insert float-right-clear-both inline at end of inline
+PASS: insert static flow-root at start of inline
+PASS: insert sticky flow-root at middle of inline
+PASS: insert float-right-clear-both flow-root at end of inline
+PASS: insert static inline-block at start of inline
+PASS: insert sticky inline-block at middle of inline
+PASS: insert float-right-clear-both inline-block at end of inline
+PASS: insert static run-in at start of inline
+PASS: insert sticky run-in at middle of inline
+PASS: insert float-right-clear-both run-in at end of inline
+PASS: insert static list-item at start of inline
+PASS: insert sticky list-item at middle of inline
+PASS: insert float-right-clear-both list-item at end of inline
+PASS: insert static inline list-item at start of inline
+PASS: insert sticky inline list-item at middle of inline
+PASS: insert float-right-clear-both inline list-item at end of inline
+PASS: insert static flex at start of inline
+PASS: insert sticky flex at middle of inline
+PASS: insert float-right-clear-both flex at end of inline
+PASS: insert static inline-flex at start of inline
+PASS: insert sticky inline-flex at middle of inline
+PASS: insert float-right-clear-both inline-flex at end of inline
+PASS: insert static grid at start of inline
+PASS: insert sticky grid at middle of inline
+PASS: insert float-right-clear-both grid at end of inline
+PASS: insert static inline-grid at start of inline
+PASS: insert sticky inline-grid at middle of inline
+PASS: insert float-right-clear-both inline-grid at end of inline
+PASS: insert static table at start of inline
+PASS: insert sticky table at middle of inline
+PASS: insert float-right-clear-both table at end of inline
+PASS: insert static inline-table at start of inline
+PASS: insert sticky inline-table at middle of inline
+PASS: insert float-right-clear-both inline-table at end of inline
+PASS: insert static math at start of inline
+PASS: insert sticky math at middle of inline
+PASS: insert float-right-clear-both math at end of inline
+PASS: insert static -webkit-box at start of inline
+PASS: insert sticky -webkit-box at middle of inline
+PASS: insert float-right-clear-both -webkit-box at end of inline
+PASS: insert static -webkit-inline-box at start of inline
+PASS: insert sticky -webkit-inline-box at middle of inline
+PASS: insert float-right-clear-both -webkit-inline-box at end of inline
+PASS: insert static table-row-group at start of inline
+PASS: insert sticky table-row-group at middle of inline
+PASS: insert float-right-clear-both table-row-group at end of inline
+PASS: insert static table-header-group at start of inline
+PASS: insert sticky table-header-group at middle of inline
+PASS: insert float-right-clear-both table-header-group at end of inline
+PASS: insert static table-footer-group at start of inline
+PASS: insert sticky table-footer-group at middle of inline
+PASS: insert float-right-clear-both table-footer-group at end of inline
+PASS: insert static table-row at start of inline
+PASS: insert sticky table-row at middle of inline
+PASS: insert float-right-clear-both table-row at end of inline
+PASS: insert static table-cell at start of inline
+PASS: insert sticky table-cell at middle of inline
+PASS: insert float-right-clear-both table-cell at end of inline
+PASS: insert static table-column-group at start of inline
+PASS: insert sticky table-column-group at middle of inline
+PASS: insert float-right-clear-both table-column-group at end of inline
+PASS: insert static table-column at start of inline
+PASS: insert sticky table-column at middle of inline
+PASS: insert float-right-clear-both table-column at end of inline
+PASS: insert static table-caption at start of inline
+PASS: insert sticky table-caption at middle of inline
+PASS: insert float-right-clear-both table-caption at end of inline
+PASS: insert static block flow at start of inline
+PASS: insert sticky block flow at middle of inline
+PASS: insert float-right-clear-both block flow at end of inline
+PASS: insert static inline flow at start of inline
+PASS: insert sticky inline flow at middle of inline
+PASS: insert float-right-clear-both inline flow at end of inline
+PASS: insert static block flow-root at start of inline
+PASS: insert sticky block flow-root at middle of inline
+PASS: insert float-right-clear-both block flow-root at end of inline
+PASS: insert static inline flow-root at start of inline
+PASS: insert sticky inline flow-root at middle of inline
+PASS: insert float-right-clear-both inline flow-root at end of inline
+PASS: insert static block flex at start of inline
+PASS: insert sticky block flex at middle of inline
+PASS: insert float-right-clear-both block flex at end of inline
+PASS: insert static inline flex at start of inline
+PASS: insert sticky inline flex at middle of inline
+PASS: insert float-right-clear-both inline flex at end of inline
+PASS: insert static block grid at start of inline
+PASS: insert sticky block grid at middle of inline
+PASS: insert float-right-clear-both block grid at end of inline
+PASS: insert static inline grid at start of inline
+PASS: insert sticky inline grid at middle of inline
+PASS: insert float-right-clear-both inline grid at end of inline
+PASS: insert static block table at start of inline
+PASS: insert sticky block table at middle of inline
+PASS: insert float-right-clear-both block table at end of inline
+PASS: insert static inline table at start of inline
+PASS: insert sticky inline table at middle of inline
+PASS: insert float-right-clear-both inline table at end of inline
+PASS: insert static block flow list-item at start of inline
+PASS: insert sticky block flow list-item at middle of inline
+PASS: insert float-right-clear-both block flow list-item at end of inline
+PASS: insert static inline flow list-item at start of inline
+PASS: insert sticky inline flow list-item at middle of inline
+PASS: insert float-right-clear-both inline flow list-item at end of inline
+PASS: insert static none at start of contents
+PASS: insert sticky none at middle of contents
+PASS: insert float-right-clear-both none at end of contents
+PASS: insert static contents at start of contents
+PASS: insert sticky contents at middle of contents
+PASS: insert float-right-clear-both contents at end of contents
+PASS: insert static block at start of contents
+PASS: insert sticky block at middle of contents
+PASS: insert float-right-clear-both block at end of contents
+PASS: insert static inline at start of contents
+PASS: insert sticky inline at middle of contents
+PASS: insert float-right-clear-both inline at end of contents
+PASS: insert static flow-root at start of contents
+PASS: insert sticky flow-root at middle of contents
+PASS: insert float-right-clear-both flow-root at end of contents
+PASS: insert static inline-block at start of contents
+PASS: insert sticky inline-block at middle of contents
+PASS: insert float-right-clear-both inline-block at end of contents
+PASS: insert static run-in at start of contents
+PASS: insert sticky run-in at middle of contents
+PASS: insert float-right-clear-both run-in at end of contents
+PASS: insert static list-item at start of contents
+PASS: insert sticky list-item at middle of contents
+PASS: insert float-right-clear-both list-item at end of contents
+PASS: insert static inline list-item at start of contents
+PASS: insert sticky inline list-item at middle of contents
+PASS: insert float-right-clear-both inline list-item at end of contents
+PASS: insert static flex at start of contents
+PASS: insert sticky flex at middle of contents
+PASS: insert float-right-clear-both flex at end of contents
+PASS: insert static inline-flex at start of contents
+PASS: insert sticky inline-flex at middle of contents
+PASS: insert float-right-clear-both inline-flex at end of contents
+PASS: insert static grid at start of contents
+PASS: insert sticky grid at middle of contents
+PASS: insert float-right-clear-both grid at end of contents
+PASS: insert static inline-grid at start of contents
+PASS: insert sticky inline-grid at middle of contents
+PASS: insert float-right-clear-both inline-grid at end of contents
+PASS: insert static table at start of contents
+PASS: insert sticky table at middle of contents
+PASS: insert float-right-clear-both table at end of contents
+PASS: insert static inline-table at start of contents
+PASS: insert sticky inline-table at middle of contents
+PASS: insert float-right-clear-both inline-table at end of contents
+PASS: insert static math at start of contents
+PASS: insert sticky math at middle of contents
+PASS: insert float-right-clear-both math at end of contents
+PASS: insert static -webkit-box at start of contents
+PASS: insert sticky -webkit-box at middle of contents
+PASS: insert float-right-clear-both -webkit-box at end of contents
+PASS: insert static -webkit-inline-box at start of contents
+PASS: insert sticky -webkit-inline-box at middle of contents
+PASS: insert float-right-clear-both -webkit-inline-box at end of contents
+PASS: insert static table-row-group at start of contents
+PASS: insert sticky table-row-group at middle of contents
+PASS: insert float-right-clear-both table-row-group at end of contents
+PASS: insert static table-header-group at start of contents
+PASS: insert sticky table-header-group at middle of contents
+PASS: insert float-right-clear-both table-header-group at end of contents
+PASS: insert static table-footer-group at start of contents
+PASS: insert sticky table-footer-group at middle of contents
+PASS: insert float-right-clear-both table-footer-group at end of contents
+PASS: insert static table-row at start of contents
+PASS: insert sticky table-row at middle of contents
+PASS: insert float-right-clear-both table-row at end of contents
+PASS: insert static table-cell at start of contents
+PASS: insert sticky table-cell at middle of contents
+PASS: insert float-right-clear-both table-cell at end of contents
+PASS: insert static table-column-group at start of contents
+PASS: insert sticky table-column-group at middle of contents
+PASS: insert float-right-clear-both table-column-group at end of contents
+PASS: insert static table-column at start of contents
+PASS: insert sticky table-column at middle of contents
+PASS: insert float-right-clear-both table-column at end of contents
+PASS: insert static table-caption at start of contents
+PASS: insert sticky table-caption at middle of contents
+PASS: insert float-right-clear-both table-caption at end of contents
+PASS: insert static block flow at start of contents
+PASS: insert sticky block flow at middle of contents
+PASS: insert float-right-clear-both block flow at end of contents
+PASS: insert static inline flow at start of contents
+PASS: insert sticky inline flow at middle of contents
+PASS: insert float-right-clear-both inline flow at end of contents
+PASS: insert static block flow-root at start of contents
+PASS: insert sticky block flow-root at middle of contents
+PASS: insert float-right-clear-both block flow-root at end of contents
+PASS: insert static inline flow-root at start of contents
+PASS: insert sticky inline flow-root at middle of contents
+PASS: insert float-right-clear-both inline flow-root at end of contents
+PASS: insert static block flex at start of contents
+PASS: insert sticky block flex at middle of contents
+PASS: insert float-right-clear-both block flex at end of contents
+PASS: insert static inline flex at start of contents
+PASS: insert sticky inline flex at middle of contents
+PASS: insert float-right-clear-both inline flex at end of contents
+PASS: insert static block grid at start of contents
+PASS: insert sticky block grid at middle of contents
+PASS: insert float-right-clear-both block grid at end of contents
+PASS: insert static inline grid at start of contents
+PASS: insert sticky inline grid at middle of contents
+PASS: insert float-right-clear-both inline grid at end of contents
+PASS: insert static block table at start of contents
+PASS: insert sticky block table at middle of contents
+PASS: insert float-right-clear-both block table at end of contents
+PASS: insert static inline table at start of contents
+PASS: insert sticky inline table at middle of contents
+PASS: insert float-right-clear-both inline table at end of contents
+PASS: insert static block flow list-item at start of contents
+PASS: insert sticky block flow list-item at middle of contents
+PASS: insert float-right-clear-both block flow list-item at end of contents
+PASS: insert static inline flow list-item at start of contents
+PASS: insert sticky inline flow list-item at middle of contents
+PASS: insert float-right-clear-both inline flow list-item at end of contents
+PASS: insert static none at start of flow-root
+PASS: insert sticky none at middle of flow-root
+PASS: insert float-right-clear-both none at end of flow-root
+PASS: insert static contents at start of flow-root
+PASS: insert sticky contents at middle of flow-root
+PASS: insert float-right-clear-both contents at end of flow-root
+PASS: insert static block at start of flow-root
+PASS: insert sticky block at middle of flow-root
+PASS: insert float-right-clear-both block at end of flow-root
+PASS: insert static inline at start of flow-root
+PASS: insert sticky inline at middle of flow-root
+PASS: insert float-right-clear-both inline at end of flow-root
+PASS: insert static flow-root at start of flow-root
+PASS: insert sticky flow-root at middle of flow-root
+PASS: insert float-right-clear-both flow-root at end of flow-root
+PASS: insert static inline-block at start of flow-root
+PASS: insert sticky inline-block at middle of flow-root
+PASS: insert float-right-clear-both inline-block at end of flow-root
+PASS: insert static run-in at start of flow-root
+PASS: insert sticky run-in at middle of flow-root
+PASS: insert float-right-clear-both run-in at end of flow-root
+PASS: insert static list-item at start of flow-root
+PASS: insert sticky list-item at middle of flow-root
+PASS: insert float-right-clear-both list-item at end of flow-root
+PASS: insert static inline list-item at start of flow-root
+PASS: insert sticky inline list-item at middle of flow-root
+PASS: insert float-right-clear-both inline list-item at end of flow-root
+PASS: insert static flex at start of flow-root
+PASS: insert sticky flex at middle of flow-root
+PASS: insert float-right-clear-both flex at end of flow-root
+PASS: insert static inline-flex at start of flow-root
+PASS: insert sticky inline-flex at middle of flow-root
+PASS: insert float-right-clear-both inline-flex at end of flow-root
+PASS: insert static grid at start of flow-root
+PASS: insert sticky grid at middle of flow-root
+PASS: insert float-right-clear-both grid at end of flow-root
+PASS: insert static inline-grid at start of flow-root
+PASS: insert sticky inline-grid at middle of flow-root
+PASS: insert float-right-clear-both inline-grid at end of flow-root
+PASS: insert static table at start of flow-root
+PASS: insert sticky table at middle of flow-root
+PASS: insert float-right-clear-both table at end of flow-root
+PASS: insert static inline-table at start of flow-root
+PASS: insert sticky inline-table at middle of flow-root
+PASS: insert float-right-clear-both inline-table at end of flow-root
+PASS: insert static math at start of flow-root
+PASS: insert sticky math at middle of flow-root
+PASS: insert float-right-clear-both math at end of flow-root
+PASS: insert static -webkit-box at start of flow-root
+PASS: insert sticky -webkit-box at middle of flow-root
+PASS: insert float-right-clear-both -webkit-box at end of flow-root
+PASS: insert static -webkit-inline-box at start of flow-root
+PASS: insert sticky -webkit-inline-box at middle of flow-root
+PASS: insert float-right-clear-both -webkit-inline-box at end of flow-root
+PASS: insert static table-row-group at start of flow-root
+PASS: insert sticky table-row-group at middle of flow-root
+PASS: insert float-right-clear-both table-row-group at end of flow-root
+PASS: insert static table-header-group at start of flow-root
+PASS: insert sticky table-header-group at middle of flow-root
+PASS: insert float-right-clear-both table-header-group at end of flow-root
+PASS: insert static table-footer-group at start of flow-root
+PASS: insert sticky table-footer-group at middle of flow-root
+PASS: insert float-right-clear-both table-footer-group at end of flow-root
+PASS: insert static table-row at start of flow-root
+PASS: insert sticky table-row at middle of flow-root
+PASS: insert float-right-clear-both table-row at end of flow-root
+PASS: insert static table-cell at start of flow-root
+PASS: insert sticky table-cell at middle of flow-root
+PASS: insert float-right-clear-both table-cell at end of flow-root
+PASS: insert static table-column-group at start of flow-root
+PASS: insert sticky table-column-group at middle of flow-root
+PASS: insert float-right-clear-both table-column-group at end of flow-root
+PASS: insert static table-column at start of flow-root
+PASS: insert sticky table-column at middle of flow-root
+PASS: insert float-right-clear-both table-column at end of flow-root
+PASS: insert static table-caption at start of flow-root
+PASS: insert sticky table-caption at middle of flow-root
+PASS: insert float-right-clear-both table-caption at end of flow-root
+PASS: insert static block flow at start of flow-root
+PASS: insert sticky block flow at middle of flow-root
+PASS: insert float-right-clear-both block flow at end of flow-root
+PASS: insert static inline flow at start of flow-root
+PASS: insert sticky inline flow at middle of flow-root
+PASS: insert float-right-clear-both inline flow at end of flow-root
+PASS: insert static block flow-root at start of flow-root
+PASS: insert sticky block flow-root at middle of flow-root
+PASS: insert float-right-clear-both block flow-root at end of flow-root
+PASS: insert static inline flow-root at start of flow-root
+PASS: insert sticky inline flow-root at middle of flow-root
+PASS: insert float-right-clear-both inline flow-root at end of flow-root
+PASS: insert static block flex at start of flow-root
+PASS: insert sticky block flex at middle of flow-root
+PASS: insert float-right-clear-both block flex at end of flow-root
+PASS: insert static inline flex at start of flow-root
+PASS: insert sticky inline flex at middle of flow-root
+PASS: insert float-right-clear-both inline flex at end of flow-root
+PASS: insert static block grid at start of flow-root
+PASS: insert sticky block grid at middle of flow-root
+PASS: insert float-right-clear-both block grid at end of flow-root
+PASS: insert static inline grid at start of flow-root
+PASS: insert sticky inline grid at middle of flow-root
+PASS: insert float-right-clear-both inline grid at end of flow-root
+PASS: insert static block table at start of flow-root
+PASS: insert sticky block table at middle of flow-root
+PASS: insert float-right-clear-both block table at end of flow-root
+PASS: insert static inline table at start of flow-root
+PASS: insert sticky inline table at middle of flow-root
+PASS: insert float-right-clear-both inline table at end of flow-root
+PASS: insert static block flow list-item at start of flow-root
+PASS: insert sticky block flow list-item at middle of flow-root
+PASS: insert float-right-clear-both block flow list-item at end of flow-root
+PASS: insert static inline flow list-item at start of flow-root
+PASS: insert sticky inline flow list-item at middle of flow-root
+PASS: insert float-right-clear-both inline flow list-item at end of flow-root
+PASS: insert static none at start of flex
+PASS: insert sticky none at middle of flex
+PASS: insert float-right-clear-both none at end of flex
+PASS: insert static contents at start of flex
+PASS: insert sticky contents at middle of flex
+PASS: insert float-right-clear-both contents at end of flex
+PASS: insert static block at start of flex
+PASS: insert sticky block at middle of flex
+PASS: insert float-right-clear-both block at end of flex
+PASS: insert static inline at start of flex
+PASS: insert sticky inline at middle of flex
+PASS: insert float-right-clear-both inline at end of flex
+PASS: insert static flow-root at start of flex
+PASS: insert sticky flow-root at middle of flex
+PASS: insert float-right-clear-both flow-root at end of flex
+PASS: insert static inline-block at start of flex
+PASS: insert sticky inline-block at middle of flex
+PASS: insert float-right-clear-both inline-block at end of flex
+PASS: insert static run-in at start of flex
+PASS: insert sticky run-in at middle of flex
+PASS: insert float-right-clear-both run-in at end of flex
+PASS: insert static list-item at start of flex
+PASS: insert sticky list-item at middle of flex
+PASS: insert float-right-clear-both list-item at end of flex
+PASS: insert static inline list-item at start of flex
+PASS: insert sticky inline list-item at middle of flex
+PASS: insert float-right-clear-both inline list-item at end of flex
+PASS: insert static flex at start of flex
+PASS: insert sticky flex at middle of flex
+PASS: insert float-right-clear-both flex at end of flex
+PASS: insert static inline-flex at start of flex
+PASS: insert sticky inline-flex at middle of flex
+PASS: insert float-right-clear-both inline-flex at end of flex
+PASS: insert static grid at start of flex
+PASS: insert sticky grid at middle of flex
+PASS: insert float-right-clear-both grid at end of flex
+PASS: insert static inline-grid at start of flex
+PASS: insert sticky inline-grid at middle of flex
+PASS: insert float-right-clear-both inline-grid at end of flex
+PASS: insert static table at start of flex
+PASS: insert sticky table at middle of flex
+PASS: insert float-right-clear-both table at end of flex
+PASS: insert static inline-table at start of flex
+PASS: insert sticky inline-table at middle of flex
+PASS: insert float-right-clear-both inline-table at end of flex
+PASS: insert static math at start of flex
+PASS: insert sticky math at middle of flex
+PASS: insert float-right-clear-both math at end of flex
+PASS: insert static -webkit-box at start of flex
+PASS: insert sticky -webkit-box at middle of flex
+PASS: insert float-right-clear-both -webkit-box at end of flex
+PASS: insert static -webkit-inline-box at start of flex
+PASS: insert sticky -webkit-inline-box at middle of flex
+PASS: insert float-right-clear-both -webkit-inline-box at end of flex
+PASS: insert static table-row-group at start of flex
+PASS: insert sticky table-row-group at middle of flex
+PASS: insert float-right-clear-both table-row-group at end of flex
+PASS: insert static table-header-group at start of flex
+PASS: insert sticky table-header-group at middle of flex
+PASS: insert float-right-clear-both table-header-group at end of flex
+PASS: insert static table-footer-group at start of flex
+PASS: insert sticky table-footer-group at middle of flex
+PASS: insert float-right-clear-both table-footer-group at end of flex
+PASS: insert static table-row at start of flex
+PASS: insert sticky table-row at middle of flex
+PASS: insert float-right-clear-both table-row at end of flex
+PASS: insert static table-cell at start of flex
+PASS: insert sticky table-cell at middle of flex
+PASS: insert float-right-clear-both table-cell at end of flex
+PASS: insert static table-column-group at start of flex
+PASS: insert sticky table-column-group at middle of flex
+PASS: insert float-right-clear-both table-column-group at end of flex
+PASS: insert static table-column at start of flex
+PASS: insert sticky table-column at middle of flex
+PASS: insert float-right-clear-both table-column at end of flex
+PASS: insert static table-caption at start of flex
+PASS: insert sticky table-caption at middle of flex
+PASS: insert float-right-clear-both table-caption at end of flex
+PASS: insert static block flow at start of flex
+PASS: insert sticky block flow at middle of flex
+PASS: insert float-right-clear-both block flow at end of flex
+PASS: insert static inline flow at start of flex
+PASS: insert sticky inline flow at middle of flex
+PASS: insert float-right-clear-both inline flow at end of flex
+PASS: insert static block flow-root at start of flex
+PASS: insert sticky block flow-root at middle of flex
+PASS: insert float-right-clear-both block flow-root at end of flex
+PASS: insert static inline flow-root at start of flex
+PASS: insert sticky inline flow-root at middle of flex
+PASS: insert float-right-clear-both inline flow-root at end of flex
+PASS: insert static block flex at start of flex
+PASS: insert sticky block flex at middle of flex
+PASS: insert float-right-clear-both block flex at end of flex
+PASS: insert static inline flex at start of flex
+PASS: insert sticky inline flex at middle of flex
+PASS: insert float-right-clear-both inline flex at end of flex
+PASS: insert static block grid at start of flex
+PASS: insert sticky block grid at middle of flex
+PASS: insert float-right-clear-both block grid at end of flex
+PASS: insert static inline grid at start of flex
+PASS: insert sticky inline grid at middle of flex
+PASS: insert float-right-clear-both inline grid at end of flex
+PASS: insert static block table at start of flex
+PASS: insert sticky block table at middle of flex
+PASS: insert float-right-clear-both block table at end of flex
+PASS: insert static inline table at start of flex
+PASS: insert sticky inline table at middle of flex
+PASS: insert float-right-clear-both inline table at end of flex
+PASS: insert static block flow list-item at start of flex
+PASS: insert sticky block flow list-item at middle of flex
+PASS: insert float-right-clear-both block flow list-item at end of flex
+PASS: insert static inline flow list-item at start of flex
+PASS: insert sticky inline flow list-item at middle of flex
+PASS: insert float-right-clear-both inline flow list-item at end of flex
+PASS: insert static none at start of grid
+PASS: insert sticky none at middle of grid
+PASS: insert float-right-clear-both none at end of grid
+PASS: insert static contents at start of grid
+PASS: insert sticky contents at middle of grid
+PASS: insert float-right-clear-both contents at end of grid
+PASS: insert static block at start of grid
+PASS: insert sticky block at middle of grid
+PASS: insert float-right-clear-both block at end of grid
+PASS: insert static inline at start of grid
+PASS: insert sticky inline at middle of grid
+PASS: insert float-right-clear-both inline at end of grid
+PASS: insert static flow-root at start of grid
+PASS: insert sticky flow-root at middle of grid
+PASS: insert float-right-clear-both flow-root at end of grid
+PASS: insert static inline-block at start of grid
+PASS: insert sticky inline-block at middle of grid
+PASS: insert float-right-clear-both inline-block at end of grid
+PASS: insert static run-in at start of grid
+PASS: insert sticky run-in at middle of grid
+PASS: insert float-right-clear-both run-in at end of grid
+PASS: insert static list-item at start of grid
+PASS: insert sticky list-item at middle of grid
+PASS: insert float-right-clear-both list-item at end of grid
+PASS: insert static inline list-item at start of grid
+PASS: insert sticky inline list-item at middle of grid
+PASS: insert float-right-clear-both inline list-item at end of grid
+PASS: insert static flex at start of grid
+PASS: insert sticky flex at middle of grid
+PASS: insert float-right-clear-both flex at end of grid
+PASS: insert static inline-flex at start of grid
+PASS: insert sticky inline-flex at middle of grid
+PASS: insert float-right-clear-both inline-flex at end of grid
+PASS: insert static grid at start of grid
+PASS: insert sticky grid at middle of grid
+PASS: insert float-right-clear-both grid at end of grid
+PASS: insert static inline-grid at start of grid
+PASS: insert sticky inline-grid at middle of grid
+PASS: insert float-right-clear-both inline-grid at end of grid
+PASS: insert static table at start of grid
+PASS: insert sticky table at middle of grid
+PASS: insert float-right-clear-both table at end of grid
+PASS: insert static inline-table at start of grid
+PASS: insert sticky inline-table at middle of grid
+PASS: insert float-right-clear-both inline-table at end of grid
+PASS: insert static math at start of grid
+PASS: insert sticky math at middle of grid
+PASS: insert float-right-clear-both math at end of grid
+PASS: insert static -webkit-box at start of grid
+PASS: insert sticky -webkit-box at middle of grid
+PASS: insert float-right-clear-both -webkit-box at end of grid
+PASS: insert static -webkit-inline-box at start of grid
+PASS: insert sticky -webkit-inline-box at middle of grid
+PASS: insert float-right-clear-both -webkit-inline-box at end of grid
+PASS: insert static table-row-group at start of grid
+PASS: insert sticky table-row-group at middle of grid
+PASS: insert float-right-clear-both table-row-group at end of grid
+PASS: insert static table-header-group at start of grid
+PASS: insert sticky table-header-group at middle of grid
+PASS: insert float-right-clear-both table-header-group at end of grid
+PASS: insert static table-footer-group at start of grid
+PASS: insert sticky table-footer-group at middle of grid
+PASS: insert float-right-clear-both table-footer-group at end of grid
+PASS: insert static table-row at start of grid
+PASS: insert sticky table-row at middle of grid
+PASS: insert float-right-clear-both table-row at end of grid
+PASS: insert static table-cell at start of grid
+PASS: insert sticky table-cell at middle of grid
+PASS: insert float-right-clear-both table-cell at end of grid
+PASS: insert static table-column-group at start of grid
+PASS: insert sticky table-column-group at middle of grid
+PASS: insert float-right-clear-both table-column-group at end of grid
+PASS: insert static table-column at start of grid
+PASS: insert sticky table-column at middle of grid
+PASS: insert float-right-clear-both table-column at end of grid
+PASS: insert static table-caption at start of grid
+PASS: insert sticky table-caption at middle of grid
+PASS: insert float-right-clear-both table-caption at end of grid
+PASS: insert static block flow at start of grid
+PASS: insert sticky block flow at middle of grid
+PASS: insert float-right-clear-both block flow at end of grid
+PASS: insert static inline flow at start of grid
+PASS: insert sticky inline flow at middle of grid
+PASS: insert float-right-clear-both inline flow at end of grid
+PASS: insert static block flow-root at start of grid
+PASS: insert sticky block flow-root at middle of grid
+PASS: insert float-right-clear-both block flow-root at end of grid
+PASS: insert static inline flow-root at start of grid
+PASS: insert sticky inline flow-root at middle of grid
+PASS: insert float-right-clear-both inline flow-root at end of grid
+PASS: insert static block flex at start of grid
+PASS: insert sticky block flex at middle of grid
+PASS: insert float-right-clear-both block flex at end of grid
+PASS: insert static inline flex at start of grid
+PASS: insert sticky inline flex at middle of grid
+PASS: insert float-right-clear-both inline flex at end of grid
+PASS: insert static block grid at start of grid
+PASS: insert sticky block grid at middle of grid
+PASS: insert float-right-clear-both block grid at end of grid
+PASS: insert static inline grid at start of grid
+PASS: insert sticky inline grid at middle of grid
+PASS: insert float-right-clear-both inline grid at end of grid
+PASS: insert static block table at start of grid
+PASS: insert sticky block table at middle of grid
+PASS: insert float-right-clear-both block table at end of grid
+PASS: insert static inline table at start of grid
+PASS: insert sticky inline table at middle of grid
+PASS: insert float-right-clear-both inline table at end of grid
+PASS: insert static block flow list-item at start of grid
+PASS: insert sticky block flow list-item at middle of grid
+PASS: insert float-right-clear-both block flow list-item at end of grid
+PASS: insert static inline flow list-item at start of grid
+PASS: insert sticky inline flow list-item at middle of grid
+PASS: insert float-right-clear-both inline flow list-item at end of grid
+PASS: insert static none at start of table
+PASS: insert sticky none at middle of table
+PASS: insert float-right-clear-both none at end of table
+PASS: insert static contents at start of table
+PASS: insert sticky contents at middle of table
+PASS: insert float-right-clear-both contents at end of table
+PASS: insert static block at start of table
+PASS: insert sticky block at middle of table
+PASS: insert float-right-clear-both block at end of table
+PASS: insert static inline at start of table
+PASS: insert sticky inline at middle of table
+PASS: insert float-right-clear-both inline at end of table
+PASS: insert static flow-root at start of table
+PASS: insert sticky flow-root at middle of table
+PASS: insert float-right-clear-both flow-root at end of table
+PASS: insert static inline-block at start of table
+PASS: insert sticky inline-block at middle of table
+PASS: insert float-right-clear-both inline-block at end of table
+PASS: insert static run-in at start of table
+PASS: insert sticky run-in at middle of table
+PASS: insert float-right-clear-both run-in at end of table
+PASS: insert static list-item at start of table
+PASS: insert sticky list-item at middle of table
+PASS: insert float-right-clear-both list-item at end of table
+PASS: insert static inline list-item at start of table
+PASS: insert sticky inline list-item at middle of table
+PASS: insert float-right-clear-both inline list-item at end of table
+PASS: insert static flex at start of table
+PASS: insert sticky flex at middle of table
+PASS: insert float-right-clear-both flex at end of table
+PASS: insert static inline-flex at start of table
+PASS: insert sticky inline-flex at middle of table
+PASS: insert float-right-clear-both inline-flex at end of table
+PASS: insert static grid at start of table
+PASS: insert sticky grid at middle of table
+PASS: insert float-right-clear-both grid at end of table
+PASS: insert static inline-grid at start of table
+PASS: insert sticky inline-grid at middle of table
+PASS: insert float-right-clear-both inline-grid at end of table
+PASS: insert static table at start of table
+PASS: insert sticky table at middle of table
+PASS: insert float-right-clear-both table at end of table
+PASS: insert static inline-table at start of table
+PASS: insert sticky inline-table at middle of table
+PASS: insert float-right-clear-both inline-table at end of table
+PASS: insert static math at start of table
+PASS: insert sticky math at middle of table
+PASS: insert float-right-clear-both math at end of table
+PASS: insert static -webkit-box at start of table
+PASS: insert sticky -webkit-box at middle of table
+PASS: insert float-right-clear-both -webkit-box at end of table
+PASS: insert static -webkit-inline-box at start of table
+PASS: insert sticky -webkit-inline-box at middle of table
+PASS: insert float-right-clear-both -webkit-inline-box at end of table
+PASS: insert static table-row-group at start of table
+PASS: insert sticky table-row-group at middle of table
+PASS: insert float-right-clear-both table-row-group at end of table
+PASS: insert static table-header-group at start of table
+PASS: insert sticky table-header-group at middle of table
+PASS: insert float-right-clear-both table-header-group at end of table
+PASS: insert static table-footer-group at start of table
+PASS: insert sticky table-footer-group at middle of table
+PASS: insert float-right-clear-both table-footer-group at end of table
+PASS: insert static table-row at start of table
+PASS: insert sticky table-row at middle of table
+PASS: insert float-right-clear-both table-row at end of table
+PASS: insert static table-cell at start of table
+PASS: insert sticky table-cell at middle of table
+PASS: insert float-right-clear-both table-cell at end of table
+PASS: insert static table-column-group at start of table
+PASS: insert sticky table-column-group at middle of table
+PASS: insert float-right-clear-both table-column-group at end of table
+PASS: insert static table-column at start of table
+PASS: insert sticky table-column at middle of table
+PASS: insert float-right-clear-both table-column at end of table
+PASS: insert static table-caption at start of table
+PASS: insert sticky table-caption at middle of table
+PASS: insert float-right-clear-both table-caption at end of table
+PASS: insert static block flow at start of table
+PASS: insert sticky block flow at middle of table
+PASS: insert float-right-clear-both block flow at end of table
+PASS: insert static inline flow at start of table
+PASS: insert sticky inline flow at middle of table
+PASS: insert float-right-clear-both inline flow at end of table
+PASS: insert static block flow-root at start of table
+PASS: insert sticky block flow-root at middle of table
+PASS: insert float-right-clear-both block flow-root at end of table
+PASS: insert static inline flow-root at start of table
+PASS: insert sticky inline flow-root at middle of table
+PASS: insert float-right-clear-both inline flow-root at end of table
+PASS: insert static block flex at start of table
+PASS: insert sticky block flex at middle of table
+PASS: insert float-right-clear-both block flex at end of table
+PASS: insert static inline flex at start of table
+PASS: insert sticky inline flex at middle of table
+PASS: insert float-right-clear-both inline flex at end of table
+PASS: insert static block grid at start of table
+PASS: insert sticky block grid at middle of table
+PASS: insert float-right-clear-both block grid at end of table
+PASS: insert static inline grid at start of table
+PASS: insert sticky inline grid at middle of table
+PASS: insert float-right-clear-both inline grid at end of table
+PASS: insert static block table at start of table
+PASS: insert sticky block table at middle of table
+PASS: insert float-right-clear-both block table at end of table
+PASS: insert static inline table at start of table
+PASS: insert sticky inline table at middle of table
+PASS: insert float-right-clear-both inline table at end of table
+PASS: insert static block flow list-item at start of table
+PASS: insert sticky block flow list-item at middle of table
+PASS: insert float-right-clear-both block flow list-item at end of table
+PASS: insert static inline flow list-item at start of table
+PASS: insert sticky inline flow list-item at middle of table
+PASS: insert float-right-clear-both inline flow list-item at end of table
+PASS: insert static none at start of inline-table
+PASS: insert sticky none at middle of inline-table
+PASS: insert float-right-clear-both none at end of inline-table
+PASS: insert static contents at start of inline-table
+PASS: insert sticky contents at middle of inline-table
+PASS: insert float-right-clear-both contents at end of inline-table
+PASS: insert static block at start of inline-table
+PASS: insert sticky block at middle of inline-table
+PASS: insert float-right-clear-both block at end of inline-table
+PASS: insert static inline at start of inline-table
+PASS: insert sticky inline at middle of inline-table
+PASS: insert float-right-clear-both inline at end of inline-table
+PASS: insert static flow-root at start of inline-table
+PASS: insert sticky flow-root at middle of inline-table
+PASS: insert float-right-clear-both flow-root at end of inline-table
+PASS: insert static inline-block at start of inline-table
+PASS: insert sticky inline-block at middle of inline-table
+PASS: insert float-right-clear-both inline-block at end of inline-table
+PASS: insert static run-in at start of inline-table
+PASS: insert sticky run-in at middle of inline-table
+PASS: insert float-right-clear-both run-in at end of inline-table
+PASS: insert static list-item at start of inline-table
+PASS: insert sticky list-item at middle of inline-table
+PASS: insert float-right-clear-both list-item at end of inline-table
+PASS: insert static inline list-item at start of inline-table
+PASS: insert sticky inline list-item at middle of inline-table
+PASS: insert float-right-clear-both inline list-item at end of inline-table
+PASS: insert static flex at start of inline-table
+PASS: insert sticky flex at middle of inline-table
+PASS: insert float-right-clear-both flex at end of inline-table
+PASS: insert static inline-flex at start of inline-table
+PASS: insert sticky inline-flex at middle of inline-table
+PASS: insert float-right-clear-both inline-flex at end of inline-table
+PASS: insert static grid at start of inline-table
+PASS: insert sticky grid at middle of inline-table
+PASS: insert float-right-clear-both grid at end of inline-table
+PASS: insert static inline-grid at start of inline-table
+PASS: insert sticky inline-grid at middle of inline-table
+PASS: insert float-right-clear-both inline-grid at end of inline-table
+PASS: insert static table at start of inline-table
+PASS: insert sticky table at middle of inline-table
+PASS: insert float-right-clear-both table at end of inline-table
+PASS: insert static inline-table at start of inline-table
+PASS: insert sticky inline-table at middle of inline-table
+PASS: insert float-right-clear-both inline-table at end of inline-table
+PASS: insert static math at start of inline-table
+PASS: insert sticky math at middle of inline-table
+PASS: insert float-right-clear-both math at end of inline-table
+PASS: insert static -webkit-box at start of inline-table
+PASS: insert sticky -webkit-box at middle of inline-table
+PASS: insert float-right-clear-both -webkit-box at end of inline-table
+PASS: insert static -webkit-inline-box at start of inline-table
+PASS: insert sticky -webkit-inline-box at middle of inline-table
+PASS: insert float-right-clear-both -webkit-inline-box at end of inline-table
+PASS: insert static table-row-group at start of inline-table
+PASS: insert sticky table-row-group at middle of inline-table
+PASS: insert float-right-clear-both table-row-group at end of inline-table
+PASS: insert static table-header-group at start of inline-table
+PASS: insert sticky table-header-group at middle of inline-table
+PASS: insert float-right-clear-both table-header-group at end of inline-table
+PASS: insert static table-footer-group at start of inline-table
+PASS: insert sticky table-footer-group at middle of inline-table
+PASS: insert float-right-clear-both table-footer-group at end of inline-table
+PASS: insert static table-row at start of inline-table
+PASS: insert sticky table-row at middle of inline-table
+PASS: insert float-right-clear-both table-row at end of inline-table
+PASS: insert static table-cell at start of inline-table
+PASS: insert sticky table-cell at middle of inline-table
+PASS: insert float-right-clear-both table-cell at end of inline-table
+PASS: insert static table-column-group at start of inline-table
+PASS: insert sticky table-column-group at middle of inline-table
+PASS: insert float-right-clear-both table-column-group at end of inline-table
+PASS: insert static table-column at start of inline-table
+PASS: insert sticky table-column at middle of inline-table
+PASS: insert float-right-clear-both table-column at end of inline-table
+PASS: insert static table-caption at start of inline-table
+PASS: insert sticky table-caption at middle of inline-table
+PASS: insert float-right-clear-both table-caption at end of inline-table
+PASS: insert static block flow at start of inline-table
+PASS: insert sticky block flow at middle of inline-table
+PASS: insert float-right-clear-both block flow at end of inline-table
+PASS: insert static inline flow at start of inline-table
+PASS: insert sticky inline flow at middle of inline-table
+PASS: insert float-right-clear-both inline flow at end of inline-table
+PASS: insert static block flow-root at start of inline-table
+PASS: insert sticky block flow-root at middle of inline-table
+PASS: insert float-right-clear-both block flow-root at end of inline-table
+PASS: insert static inline flow-root at start of inline-table
+PASS: insert sticky inline flow-root at middle of inline-table
+PASS: insert float-right-clear-both inline flow-root at end of inline-table
+PASS: insert static block flex at start of inline-table
+PASS: insert sticky block flex at middle of inline-table
+PASS: insert float-right-clear-both block flex at end of inline-table
+PASS: insert static inline flex at start of inline-table
+PASS: insert sticky inline flex at middle of inline-table
+PASS: insert float-right-clear-both inline flex at end of inline-table
+PASS: insert static block grid at start of inline-table
+PASS: insert sticky block grid at middle of inline-table
+PASS: insert float-right-clear-both block grid at end of inline-table
+PASS: insert static inline grid at start of inline-table
+PASS: insert sticky inline grid at middle of inline-table
+PASS: insert float-right-clear-both inline grid at end of inline-table
+PASS: insert static block table at start of inline-table
+PASS: insert sticky block table at middle of inline-table
+PASS: insert float-right-clear-both block table at end of inline-table
+PASS: insert static inline table at start of inline-table
+PASS: insert sticky inline table at middle of inline-table
+PASS: insert float-right-clear-both inline table at end of inline-table
+PASS: insert static block flow list-item at start of inline-table
+PASS: insert sticky block flow list-item at middle of inline-table
+PASS: insert float-right-clear-both block flow list-item at end of inline-table
+PASS: insert static inline flow list-item at start of inline-table
+PASS: insert sticky inline flow list-item at middle of inline-table
+PASS: insert float-right-clear-both inline flow list-item at end of inline-table
+PASS: insert static none at start of table-row
+PASS: insert sticky none at middle of table-row
+PASS: insert float-right-clear-both none at end of table-row
+PASS: insert static contents at start of table-row
+PASS: insert sticky contents at middle of table-row
+PASS: insert float-right-clear-both contents at end of table-row
+PASS: insert static block at start of table-row
+PASS: insert sticky block at middle of table-row
+PASS: insert float-right-clear-both block at end of table-row
+PASS: insert static inline at start of table-row
+PASS: insert sticky inline at middle of table-row
+PASS: insert float-right-clear-both inline at end of table-row
+PASS: insert static flow-root at start of table-row
+PASS: insert sticky flow-root at middle of table-row
+PASS: insert float-right-clear-both flow-root at end of table-row
+PASS: insert static inline-block at start of table-row
+PASS: insert sticky inline-block at middle of table-row
+PASS: insert float-right-clear-both inline-block at end of table-row
+PASS: insert static run-in at start of table-row
+PASS: insert sticky run-in at middle of table-row
+PASS: insert float-right-clear-both run-in at end of table-row
+PASS: insert static list-item at start of table-row
+PASS: insert sticky list-item at middle of table-row
+PASS: insert float-right-clear-both list-item at end of table-row
+PASS: insert static inline list-item at start of table-row
+PASS: insert sticky inline list-item at middle of table-row
+PASS: insert float-right-clear-both inline list-item at end of table-row
+PASS: insert static flex at start of table-row
+PASS: insert sticky flex at middle of table-row
+PASS: insert float-right-clear-both flex at end of table-row
+PASS: insert static inline-flex at start of table-row
+PASS: insert sticky inline-flex at middle of table-row
+PASS: insert float-right-clear-both inline-flex at end of table-row
+PASS: insert static grid at start of table-row
+PASS: insert sticky grid at middle of table-row
+PASS: insert float-right-clear-both grid at end of table-row
+PASS: insert static inline-grid at start of table-row
+PASS: insert sticky inline-grid at middle of table-row
+PASS: insert float-right-clear-both inline-grid at end of table-row
+PASS: insert static table at start of table-row
+PASS: insert sticky table at middle of table-row
+PASS: insert float-right-clear-both table at end of table-row
+PASS: insert static inline-table at start of table-row
+PASS: insert sticky inline-table at middle of table-row
+PASS: insert float-right-clear-both inline-table at end of table-row
+PASS: insert static math at start of table-row
+PASS: insert sticky math at middle of table-row
+PASS: insert float-right-clear-both math at end of table-row
+PASS: insert static -webkit-box at start of table-row
+PASS: insert sticky -webkit-box at middle of table-row
+PASS: insert float-right-clear-both -webkit-box at end of table-row
+PASS: insert static -webkit-inline-box at start of table-row
+PASS: insert sticky -webkit-inline-box at middle of table-row
+PASS: insert float-right-clear-both -webkit-inline-box at end of table-row
+PASS: insert static table-row-group at start of table-row
+PASS: insert sticky table-row-group at middle of table-row
+PASS: insert float-right-clear-both table-row-group at end of table-row
+PASS: insert static table-header-group at start of table-row
+PASS: insert sticky table-header-group at middle of table-row
+PASS: insert float-right-clear-both table-header-group at end of table-row
+PASS: insert static table-footer-group at start of table-row
+PASS: insert sticky table-footer-group at middle of table-row
+PASS: insert float-right-clear-both table-footer-group at end of table-row
+PASS: insert static table-row at start of table-row
+PASS: insert sticky table-row at middle of table-row
+PASS: insert float-right-clear-both table-row at end of table-row
+PASS: insert static table-cell at start of table-row
+PASS: insert sticky table-cell at middle of table-row
+PASS: insert float-right-clear-both table-cell at end of table-row
+PASS: insert static table-column-group at start of table-row
+PASS: insert sticky table-column-group at middle of table-row
+PASS: insert float-right-clear-both table-column-group at end of table-row
+PASS: insert static table-column at start of table-row
+PASS: insert sticky table-column at middle of table-row
+PASS: insert float-right-clear-both table-column at end of table-row
+PASS: insert static table-caption at start of table-row
+PASS: insert sticky table-caption at middle of table-row
+PASS: insert float-right-clear-both table-caption at end of table-row
+PASS: insert static block flow at start of table-row
+PASS: insert sticky block flow at middle of table-row
+PASS: insert float-right-clear-both block flow at end of table-row
+PASS: insert static inline flow at start of table-row
+PASS: insert sticky inline flow at middle of table-row
+PASS: insert float-right-clear-both inline flow at end of table-row
+PASS: insert static block flow-root at start of table-row
+PASS: insert sticky block flow-root at middle of table-row
+PASS: insert float-right-clear-both block flow-root at end of table-row
+PASS: insert static inline flow-root at start of table-row
+PASS: insert sticky inline flow-root at middle of table-row
+PASS: insert float-right-clear-both inline flow-root at end of table-row
+PASS: insert static block flex at start of table-row
+PASS: insert sticky block flex at middle of table-row
+PASS: insert float-right-clear-both block flex at end of table-row
+PASS: insert static inline flex at start of table-row
+PASS: insert sticky inline flex at middle of table-row
+PASS: insert float-right-clear-both inline flex at end of table-row
+PASS: insert static block grid at start of table-row
+PASS: insert sticky block grid at middle of table-row
+PASS: insert float-right-clear-both block grid at end of table-row
+PASS: insert static inline grid at start of table-row
+PASS: insert sticky inline grid at middle of table-row
+PASS: insert float-right-clear-both inline grid at end of table-row
+PASS: insert static block table at start of table-row
+PASS: insert sticky block table at middle of table-row
+PASS: insert float-right-clear-both block table at end of table-row
+PASS: insert static inline table at start of table-row
+PASS: insert sticky inline table at middle of table-row
+PASS: insert float-right-clear-both inline table at end of table-row
+PASS: insert static block flow list-item at start of table-row
+PASS: insert sticky block flow list-item at middle of table-row
+PASS: insert float-right-clear-both block flow list-item at end of table-row
+PASS: insert static inline flow list-item at start of table-row
+PASS: insert sticky inline flow list-item at middle of table-row
+PASS: insert float-right-clear-both inline flow list-item at end of table-row
+PASS: insert static none at start of table-cell
+PASS: insert sticky none at middle of table-cell
+PASS: insert float-right-clear-both none at end of table-cell
+PASS: insert static contents at start of table-cell
+PASS: insert sticky contents at middle of table-cell
+PASS: insert float-right-clear-both contents at end of table-cell
+PASS: insert static block at start of table-cell
+PASS: insert sticky block at middle of table-cell
+PASS: insert float-right-clear-both block at end of table-cell
+PASS: insert static inline at start of table-cell
+PASS: insert sticky inline at middle of table-cell
+PASS: insert float-right-clear-both inline at end of table-cell
+PASS: insert static flow-root at start of table-cell
+PASS: insert sticky flow-root at middle of table-cell
+PASS: insert float-right-clear-both flow-root at end of table-cell
+PASS: insert static inline-block at start of table-cell
+PASS: insert sticky inline-block at middle of table-cell
+PASS: insert float-right-clear-both inline-block at end of table-cell
+PASS: insert static run-in at start of table-cell
+PASS: insert sticky run-in at middle of table-cell
+PASS: insert float-right-clear-both run-in at end of table-cell
+PASS: insert static list-item at start of table-cell
+PASS: insert sticky list-item at middle of table-cell
+PASS: insert float-right-clear-both list-item at end of table-cell
+PASS: insert static inline list-item at start of table-cell
+PASS: insert sticky inline list-item at middle of table-cell
+PASS: insert float-right-clear-both inline list-item at end of table-cell
+PASS: insert static flex at start of table-cell
+PASS: insert sticky flex at middle of table-cell
+PASS: insert float-right-clear-both flex at end of table-cell
+PASS: insert static inline-flex at start of table-cell
+PASS: insert sticky inline-flex at middle of table-cell
+PASS: insert float-right-clear-both inline-flex at end of table-cell
+PASS: insert static grid at start of table-cell
+PASS: insert sticky grid at middle of table-cell
+PASS: insert float-right-clear-both grid at end of table-cell
+PASS: insert static inline-grid at start of table-cell
+PASS: insert sticky inline-grid at middle of table-cell
+PASS: insert float-right-clear-both inline-grid at end of table-cell
+PASS: insert static table at start of table-cell
+PASS: insert sticky table at middle of table-cell
+PASS: insert float-right-clear-both table at end of table-cell
+PASS: insert static inline-table at start of table-cell
+PASS: insert sticky inline-table at middle of table-cell
+PASS: insert float-right-clear-both inline-table at end of table-cell
+PASS: insert static math at start of table-cell
+PASS: insert sticky math at middle of table-cell
+PASS: insert float-right-clear-both math at end of table-cell
+PASS: insert static -webkit-box at start of table-cell
+PASS: insert sticky -webkit-box at middle of table-cell
+PASS: insert float-right-clear-both -webkit-box at end of table-cell
+PASS: insert static -webkit-inline-box at start of table-cell
+PASS: insert sticky -webkit-inline-box at middle of table-cell
+PASS: insert float-right-clear-both -webkit-inline-box at end of table-cell
+PASS: insert static table-row-group at start of table-cell
+PASS: insert sticky table-row-group at middle of table-cell
+PASS: insert float-right-clear-both table-row-group at end of table-cell
+PASS: insert static table-header-group at start of table-cell
+PASS: insert sticky table-header-group at middle of table-cell
+PASS: insert float-right-clear-both table-header-group at end of table-cell
+PASS: insert static table-footer-group at start of table-cell
+PASS: insert sticky table-footer-group at middle of table-cell
+PASS: insert float-right-clear-both table-footer-group at end of table-cell
+PASS: insert static table-row at start of table-cell
+PASS: insert sticky table-row at middle of table-cell
+PASS: insert float-right-clear-both table-row at end of table-cell
+PASS: insert static table-cell at start of table-cell
+PASS: insert sticky table-cell at middle of table-cell
+PASS: insert float-right-clear-both table-cell at end of table-cell
+PASS: insert static table-column-group at start of table-cell
+PASS: insert sticky table-column-group at middle of table-cell
+PASS: insert float-right-clear-both table-column-group at end of table-cell
+PASS: insert static table-column at start of table-cell
+PASS: insert sticky table-column at middle of table-cell
+PASS: insert float-right-clear-both table-column at end of table-cell
+PASS: insert static table-caption at start of table-cell
+PASS: insert sticky table-caption at middle of table-cell
+PASS: insert float-right-clear-both table-caption at end of table-cell
+PASS: insert static block flow at start of table-cell
+PASS: insert sticky block flow at middle of table-cell
+PASS: insert float-right-clear-both block flow at end of table-cell
+PASS: insert static inline flow at start of table-cell
+PASS: insert sticky inline flow at middle of table-cell
+PASS: insert float-right-clear-both inline flow at end of table-cell
+PASS: insert static block flow-root at start of table-cell
+PASS: insert sticky block flow-root at middle of table-cell
+PASS: insert float-right-clear-both block flow-root at end of table-cell
+PASS: insert static inline flow-root at start of table-cell
+PASS: insert sticky inline flow-root at middle of table-cell
+PASS: insert float-right-clear-both inline flow-root at end of table-cell
+PASS: insert static block flex at start of table-cell
+PASS: insert sticky block flex at middle of table-cell
+PASS: insert float-right-clear-both block flex at end of table-cell
+PASS: insert static inline flex at start of table-cell
+PASS: insert sticky inline flex at middle of table-cell
+PASS: insert float-right-clear-both inline flex at end of table-cell
+PASS: insert static block grid at start of table-cell
+PASS: insert sticky block grid at middle of table-cell
+PASS: insert float-right-clear-both block grid at end of table-cell
+PASS: insert static inline grid at start of table-cell
+PASS: insert sticky inline grid at middle of table-cell
+PASS: insert float-right-clear-both inline grid at end of table-cell
+PASS: insert static block table at start of table-cell
+PASS: insert sticky block table at middle of table-cell
+PASS: insert float-right-clear-both block table at end of table-cell
+PASS: insert static inline table at start of table-cell
+PASS: insert sticky inline table at middle of table-cell
+PASS: insert float-right-clear-both inline table at end of table-cell
+PASS: insert static block flow list-item at start of table-cell
+PASS: insert sticky block flow list-item at middle of table-cell
+PASS: insert float-right-clear-both block flow list-item at end of table-cell
+PASS: insert static inline flow list-item at start of table-cell
+PASS: insert sticky inline flow list-item at middle of table-cell
+PASS: insert float-right-clear-both inline flow list-item at end of table-cell
+PASS: insert static none at start of none
+PASS: insert sticky flow-root at middle of none
+PASS: insert float-right-clear-both inline list-item at end of none
+PASS: insert static inline-block at end of inline-block
+PASS: insert sticky flex at start of inline-block
+PASS: insert float-right-clear-both table at middle of inline-block
+PASS: insert static run-in at start of run-in
+PASS: insert sticky inline-flex at middle of run-in
+PASS: insert float-right-clear-both inline-table at end of run-in
+PASS: insert static list-item at middle of list-item
+PASS: insert sticky grid at end of list-item
+PASS: insert float-right-clear-both math at start of list-item
+PASS: insert static inline list-item at end of inline list-item
+PASS: insert sticky inline-grid at start of inline list-item
+PASS: insert float-right-clear-both -webkit-box at middle of inline list-item
+PASS: insert static inline-flex at middle of inline-flex
+PASS: insert sticky inline-table at end of inline-flex
+PASS: insert float-right-clear-both table-row-group at start of inline-flex
+PASS: insert static inline-grid at start of inline-grid
+PASS: insert sticky -webkit-box at middle of inline-grid
+PASS: insert float-right-clear-both table-footer-group at end of inline-grid
+PASS: insert static math at start of math
+PASS: insert sticky table-header-group at middle of math
+PASS: insert float-right-clear-both table-column-group at end of math
+PASS: insert static -webkit-box at middle of -webkit-box
+PASS: insert sticky table-footer-group at end of -webkit-box
+PASS: insert float-right-clear-both table-column at start of -webkit-box
+PASS: insert static -webkit-inline-box at end of -webkit-inline-box
+PASS: insert sticky table-row at start of -webkit-inline-box
+PASS: insert float-right-clear-both table-caption at middle of -webkit-inline-box
+PASS: insert static table-row-group at start of table-row-group
+PASS: insert sticky table-cell at middle of table-row-group
+PASS: insert float-right-clear-both block flow at end of table-row-group
+PASS: insert static table-header-group at middle of table-header-group
+PASS: insert sticky table-column-group at end of table-header-group
+PASS: insert float-right-clear-both inline flow at start of table-header-group
+PASS: insert static table-footer-group at end of table-footer-group
+PASS: insert sticky table-column at start of table-footer-group
+PASS: insert float-right-clear-both block flow-root at middle of table-footer-group
+PASS: insert static table-column-group at end of table-column-group
+PASS: insert sticky inline flow at start of table-column-group
+PASS: insert float-right-clear-both inline flex at middle of table-column-group
+PASS: insert static table-column at start of table-column
+PASS: insert sticky block flow-root at middle of table-column
+PASS: insert float-right-clear-both block grid at end of table-column
+PASS: insert static table-caption at middle of table-caption
+PASS: insert sticky inline flow-root at end of table-caption
+PASS: insert float-right-clear-both inline grid at start of table-caption
+PASS: insert static block flow at end of block flow
+PASS: insert sticky block flex at start of block flow
+PASS: insert float-right-clear-both block table at middle of block flow
+PASS: insert static inline flow at start of inline flow
+PASS: insert sticky inline flex at middle of inline flow
+PASS: insert float-right-clear-both inline table at end of inline flow
+PASS: insert static block flow-root at middle of block flow-root
+PASS: insert sticky block grid at end of block flow-root
+PASS: insert float-right-clear-both block flow list-item at start of block flow-root
+PASS: insert static inline flow-root at end of inline flow-root
+PASS: insert sticky inline grid at start of inline flow-root
+PASS: insert float-right-clear-both inline flow list-item at middle of inline flow-root
+PASS: insert static block flex at start of block flex
+PASS: insert sticky block table at middle of block flex
+PASS: insert float-right-clear-both none at end of block flex
+PASS: insert static inline flex at middle of inline flex
+PASS: insert sticky inline table at end of inline flex
+PASS: insert float-right-clear-both contents at start of inline flex
+PASS: insert static block grid at end of block grid
+PASS: insert sticky block flow list-item at start of block grid
+PASS: insert float-right-clear-both block at middle of block grid
+PASS: insert static inline grid at start of inline grid
+PASS: insert sticky inline flow list-item at middle of inline grid
+PASS: insert float-right-clear-both inline at end of inline grid
+PASS: insert static block table at middle of block table
+PASS: insert sticky none at end of block table
+PASS: insert float-right-clear-both flow-root at start of block table
+PASS: insert static inline table at end of inline table
+PASS: insert sticky contents at start of inline table
+PASS: insert float-right-clear-both inline-block at middle of inline table
+PASS: insert static block flow list-item at start of block flow list-item
+PASS: insert sticky block at middle of block flow list-item
+PASS: insert float-right-clear-both run-in at end of block flow list-item
+PASS: insert static inline flow list-item at middle of inline flow list-item
+PASS: insert sticky inline at end of inline flow list-item
+PASS: insert float-right-clear-both list-item at start of inline flow list-item
+1224 cases; 1224 matched; 0 mismatched

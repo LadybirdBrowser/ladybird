@@ -1,0 +1,33 @@
+PASS: ::marker list-item inside normal
+PASS: ::marker list-item inside none
+PASS: ::marker list-item inside "marker"
+PASS: ::marker list-item inside counter(list-item) "."
+PASS: ::marker list-item inside open-quote
+PASS: ::marker list-item inside linear-gradient(red, blue)
+PASS: ::marker list-item outside normal
+PASS: ::marker list-item outside none
+PASS: ::marker list-item outside "marker"
+PASS: ::marker list-item outside counter(list-item) "."
+PASS: ::marker list-item outside open-quote
+PASS: ::marker list-item outside linear-gradient(red, blue)
+PASS: ::marker inline list-item inside normal
+PASS: ::marker inline list-item inside none
+PASS: ::marker inline list-item inside "marker"
+PASS: ::marker inline list-item inside counter(list-item) "."
+PASS: ::marker inline list-item inside open-quote
+PASS: ::marker inline list-item inside linear-gradient(red, blue)
+PASS: ::marker inline list-item outside normal
+PASS: ::marker inline list-item outside none
+PASS: ::marker inline list-item outside "marker"
+PASS: ::marker inline list-item outside counter(list-item) "."
+PASS: ::marker inline list-item outside open-quote
+PASS: ::marker inline list-item outside linear-gradient(red, blue)
+PASS: ::marker create with content inside
+PASS: ::marker remove with content inside
+PASS: ::marker create with display inside
+PASS: ::marker remove with display inside
+PASS: ::marker create with content outside
+PASS: ::marker remove with content outside
+PASS: ::marker create with display outside
+PASS: ::marker remove with display outside
+32 cases; 32 matched; 0 mismatched

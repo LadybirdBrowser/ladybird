@@ -1,0 +1,1225 @@
+PASS: insert relative none at middle of block
+PASS: insert float-left none at end of block
+PASS: insert float-inline-start none at start of block
+PASS: insert relative contents at middle of block
+PASS: insert float-left contents at end of block
+PASS: insert float-inline-start contents at start of block
+PASS: insert relative block at middle of block
+PASS: insert float-left block at end of block
+PASS: insert float-inline-start block at start of block
+PASS: insert relative inline at middle of block
+PASS: insert float-left inline at end of block
+PASS: insert float-inline-start inline at start of block
+PASS: insert relative flow-root at middle of block
+PASS: insert float-left flow-root at end of block
+PASS: insert float-inline-start flow-root at start of block
+PASS: insert relative inline-block at middle of block
+PASS: insert float-left inline-block at end of block
+PASS: insert float-inline-start inline-block at start of block
+PASS: insert relative run-in at middle of block
+PASS: insert float-left run-in at end of block
+PASS: insert float-inline-start run-in at start of block
+PASS: insert relative list-item at middle of block
+PASS: insert float-left list-item at end of block
+PASS: insert float-inline-start list-item at start of block
+PASS: insert relative inline list-item at middle of block
+PASS: insert float-left inline list-item at end of block
+PASS: insert float-inline-start inline list-item at start of block
+PASS: insert relative flex at middle of block
+PASS: insert float-left flex at end of block
+PASS: insert float-inline-start flex at start of block
+PASS: insert relative inline-flex at middle of block
+PASS: insert float-left inline-flex at end of block
+PASS: insert float-inline-start inline-flex at start of block
+PASS: insert relative grid at middle of block
+PASS: insert float-left grid at end of block
+PASS: insert float-inline-start grid at start of block
+PASS: insert relative inline-grid at middle of block
+PASS: insert float-left inline-grid at end of block
+PASS: insert float-inline-start inline-grid at start of block
+PASS: insert relative table at middle of block
+PASS: insert float-left table at end of block
+PASS: insert float-inline-start table at start of block
+PASS: insert relative inline-table at middle of block
+PASS: insert float-left inline-table at end of block
+PASS: insert float-inline-start inline-table at start of block
+PASS: insert relative math at middle of block
+PASS: insert float-left math at end of block
+PASS: insert float-inline-start math at start of block
+PASS: insert relative -webkit-box at middle of block
+PASS: insert float-left -webkit-box at end of block
+PASS: insert float-inline-start -webkit-box at start of block
+PASS: insert relative -webkit-inline-box at middle of block
+PASS: insert float-left -webkit-inline-box at end of block
+PASS: insert float-inline-start -webkit-inline-box at start of block
+PASS: insert relative table-row-group at middle of block
+PASS: insert float-left table-row-group at end of block
+PASS: insert float-inline-start table-row-group at start of block
+PASS: insert relative table-header-group at middle of block
+PASS: insert float-left table-header-group at end of block
+PASS: insert float-inline-start table-header-group at start of block
+PASS: insert relative table-footer-group at middle of block
+PASS: insert float-left table-footer-group at end of block
+PASS: insert float-inline-start table-footer-group at start of block
+PASS: insert relative table-row at middle of block
+PASS: insert float-left table-row at end of block
+PASS: insert float-inline-start table-row at start of block
+PASS: insert relative table-cell at middle of block
+PASS: insert float-left table-cell at end of block
+PASS: insert float-inline-start table-cell at start of block
+PASS: insert relative table-column-group at middle of block
+PASS: insert float-left table-column-group at end of block
+PASS: insert float-inline-start table-column-group at start of block
+PASS: insert relative table-column at middle of block
+PASS: insert float-left table-column at end of block
+PASS: insert float-inline-start table-column at start of block
+PASS: insert relative table-caption at middle of block
+PASS: insert float-left table-caption at end of block
+PASS: insert float-inline-start table-caption at start of block
+PASS: insert relative block flow at middle of block
+PASS: insert float-left block flow at end of block
+PASS: insert float-inline-start block flow at start of block
+PASS: insert relative inline flow at middle of block
+PASS: insert float-left inline flow at end of block
+PASS: insert float-inline-start inline flow at start of block
+PASS: insert relative block flow-root at middle of block
+PASS: insert float-left block flow-root at end of block
+PASS: insert float-inline-start block flow-root at start of block
+PASS: insert relative inline flow-root at middle of block
+PASS: insert float-left inline flow-root at end of block
+PASS: insert float-inline-start inline flow-root at start of block
+PASS: insert relative block flex at middle of block
+PASS: insert float-left block flex at end of block
+PASS: insert float-inline-start block flex at start of block
+PASS: insert relative inline flex at middle of block
+PASS: insert float-left inline flex at end of block
+PASS: insert float-inline-start inline flex at start of block
+PASS: insert relative block grid at middle of block
+PASS: insert float-left block grid at end of block
+PASS: insert float-inline-start block grid at start of block
+PASS: insert relative inline grid at middle of block
+PASS: insert float-left inline grid at end of block
+PASS: insert float-inline-start inline grid at start of block
+PASS: insert relative block table at middle of block
+PASS: insert float-left block table at end of block
+PASS: insert float-inline-start block table at start of block
+PASS: insert relative inline table at middle of block
+PASS: insert float-left inline table at end of block
+PASS: insert float-inline-start inline table at start of block
+PASS: insert relative block flow list-item at middle of block
+PASS: insert float-left block flow list-item at end of block
+PASS: insert float-inline-start block flow list-item at start of block
+PASS: insert relative inline flow list-item at middle of block
+PASS: insert float-left inline flow list-item at end of block
+PASS: insert float-inline-start inline flow list-item at start of block
+PASS: insert relative none at middle of inline
+PASS: insert float-left none at end of inline
+PASS: insert float-inline-start none at start of inline
+PASS: insert relative contents at middle of inline
+PASS: insert float-left contents at end of inline
+PASS: insert float-inline-start contents at start of inline
+PASS: insert relative block at middle of inline
+PASS: insert float-left block at end of inline
+PASS: insert float-inline-start block at start of inline
+PASS: insert relative inline at middle of inline
+PASS: insert float-left inline at end of inline
+PASS: insert float-inline-start inline at start of inline
+PASS: insert relative flow-root at middle of inline
+PASS: insert float-left flow-root at end of inline
+PASS: insert float-inline-start flow-root at start of inline
+PASS: insert relative inline-block at middle of inline
+PASS: insert float-left inline-block at end of inline
+PASS: insert float-inline-start inline-block at start of inline
+PASS: insert relative run-in at middle of inline
+PASS: insert float-left run-in at end of inline
+PASS: insert float-inline-start run-in at start of inline
+PASS: insert relative list-item at middle of inline
+PASS: insert float-left list-item at end of inline
+PASS: insert float-inline-start list-item at start of inline
+PASS: insert relative inline list-item at middle of inline
+PASS: insert float-left inline list-item at end of inline
+PASS: insert float-inline-start inline list-item at start of inline
+PASS: insert relative flex at middle of inline
+PASS: insert float-left flex at end of inline
+PASS: insert float-inline-start flex at start of inline
+PASS: insert relative inline-flex at middle of inline
+PASS: insert float-left inline-flex at end of inline
+PASS: insert float-inline-start inline-flex at start of inline
+PASS: insert relative grid at middle of inline
+PASS: insert float-left grid at end of inline
+PASS: insert float-inline-start grid at start of inline
+PASS: insert relative inline-grid at middle of inline
+PASS: insert float-left inline-grid at end of inline
+PASS: insert float-inline-start inline-grid at start of inline
+PASS: insert relative table at middle of inline
+PASS: insert float-left table at end of inline
+PASS: insert float-inline-start table at start of inline
+PASS: insert relative inline-table at middle of inline
+PASS: insert float-left inline-table at end of inline
+PASS: insert float-inline-start inline-table at start of inline
+PASS: insert relative math at middle of inline
+PASS: insert float-left math at end of inline
+PASS: insert float-inline-start math at start of inline
+PASS: insert relative -webkit-box at middle of inline
+PASS: insert float-left -webkit-box at end of inline
+PASS: insert float-inline-start -webkit-box at start of inline
+PASS: insert relative -webkit-inline-box at middle of inline
+PASS: insert float-left -webkit-inline-box at end of inline
+PASS: insert float-inline-start -webkit-inline-box at start of inline
+PASS: insert relative table-row-group at middle of inline
+PASS: insert float-left table-row-group at end of inline
+PASS: insert float-inline-start table-row-group at start of inline
+PASS: insert relative table-header-group at middle of inline
+PASS: insert float-left table-header-group at end of inline
+PASS: insert float-inline-start table-header-group at start of inline
+PASS: insert relative table-footer-group at middle of inline
+PASS: insert float-left table-footer-group at end of inline
+PASS: insert float-inline-start table-footer-group at start of inline
+PASS: insert relative table-row at middle of inline
+PASS: insert float-left table-row at end of inline
+PASS: insert float-inline-start table-row at start of inline
+PASS: insert relative table-cell at middle of inline
+PASS: insert float-left table-cell at end of inline
+PASS: insert float-inline-start table-cell at start of inline
+PASS: insert relative table-column-group at middle of inline
+PASS: insert float-left table-column-group at end of inline
+PASS: insert float-inline-start table-column-group at start of inline
+PASS: insert relative table-column at middle of inline
+PASS: insert float-left table-column at end of inline
+PASS: insert float-inline-start table-column at start of inline
+PASS: insert relative table-caption at middle of inline
+PASS: insert float-left table-caption at end of inline
+PASS: insert float-inline-start table-caption at start of inline
+PASS: insert relative block flow at middle of inline
+PASS: insert float-left block flow at end of inline
+PASS: insert float-inline-start block flow at start of inline
+PASS: insert relative inline flow at middle of inline
+PASS: insert float-left inline flow at end of inline
+PASS: insert float-inline-start inline flow at start of inline
+PASS: insert relative block flow-root at middle of inline
+PASS: insert float-left block flow-root at end of inline
+PASS: insert float-inline-start block flow-root at start of inline
+PASS: insert relative inline flow-root at middle of inline
+PASS: insert float-left inline flow-root at end of inline
+PASS: insert float-inline-start inline flow-root at start of inline
+PASS: insert relative block flex at middle of inline
+PASS: insert float-left block flex at end of inline
+PASS: insert float-inline-start block flex at start of inline
+PASS: insert relative inline flex at middle of inline
+PASS: insert float-left inline flex at end of inline
+PASS: insert float-inline-start inline flex at start of inline
+PASS: insert relative block grid at middle of inline
+PASS: insert float-left block grid at end of inline
+PASS: insert float-inline-start block grid at start of inline
+PASS: insert relative inline grid at middle of inline
+PASS: insert float-left inline grid at end of inline
+PASS: insert float-inline-start inline grid at start of inline
+PASS: insert relative block table at middle of inline
+PASS: insert float-left block table at end of inline
+PASS: insert float-inline-start block table at start of inline
+PASS: insert relative inline table at middle of inline
+PASS: insert float-left inline table at end of inline
+PASS: insert float-inline-start inline table at start of inline
+PASS: insert relative block flow list-item at middle of inline
+PASS: insert float-left block flow list-item at end of inline
+PASS: insert float-inline-start block flow list-item at start of inline
+PASS: insert relative inline flow list-item at middle of inline
+PASS: insert float-left inline flow list-item at end of inline
+PASS: insert float-inline-start inline flow list-item at start of inline
+PASS: insert relative none at middle of contents
+PASS: insert float-left none at end of contents
+PASS: insert float-inline-start none at start of contents
+PASS: insert relative contents at middle of contents
+PASS: insert float-left contents at end of contents
+PASS: insert float-inline-start contents at start of contents
+PASS: insert relative block at middle of contents
+PASS: insert float-left block at end of contents
+PASS: insert float-inline-start block at start of contents
+PASS: insert relative inline at middle of contents
+PASS: insert float-left inline at end of contents
+PASS: insert float-inline-start inline at start of contents
+PASS: insert relative flow-root at middle of contents
+PASS: insert float-left flow-root at end of contents
+PASS: insert float-inline-start flow-root at start of contents
+PASS: insert relative inline-block at middle of contents
+PASS: insert float-left inline-block at end of contents
+PASS: insert float-inline-start inline-block at start of contents
+PASS: insert relative run-in at middle of contents
+PASS: insert float-left run-in at end of contents
+PASS: insert float-inline-start run-in at start of contents
+PASS: insert relative list-item at middle of contents
+PASS: insert float-left list-item at end of contents
+PASS: insert float-inline-start list-item at start of contents
+PASS: insert relative inline list-item at middle of contents
+PASS: insert float-left inline list-item at end of contents
+PASS: insert float-inline-start inline list-item at start of contents
+PASS: insert relative flex at middle of contents
+PASS: insert float-left flex at end of contents
+PASS: insert float-inline-start flex at start of contents
+PASS: insert relative inline-flex at middle of contents
+PASS: insert float-left inline-flex at end of contents
+PASS: insert float-inline-start inline-flex at start of contents
+PASS: insert relative grid at middle of contents
+PASS: insert float-left grid at end of contents
+PASS: insert float-inline-start grid at start of contents
+PASS: insert relative inline-grid at middle of contents
+PASS: insert float-left inline-grid at end of contents
+PASS: insert float-inline-start inline-grid at start of contents
+PASS: insert relative table at middle of contents
+PASS: insert float-left table at end of contents
+PASS: insert float-inline-start table at start of contents
+PASS: insert relative inline-table at middle of contents
+PASS: insert float-left inline-table at end of contents
+PASS: insert float-inline-start inline-table at start of contents
+PASS: insert relative math at middle of contents
+PASS: insert float-left math at end of contents
+PASS: insert float-inline-start math at start of contents
+PASS: insert relative -webkit-box at middle of contents
+PASS: insert float-left -webkit-box at end of contents
+PASS: insert float-inline-start -webkit-box at start of contents
+PASS: insert relative -webkit-inline-box at middle of contents
+PASS: insert float-left -webkit-inline-box at end of contents
+PASS: insert float-inline-start -webkit-inline-box at start of contents
+PASS: insert relative table-row-group at middle of contents
+PASS: insert float-left table-row-group at end of contents
+PASS: insert float-inline-start table-row-group at start of contents
+PASS: insert relative table-header-group at middle of contents
+PASS: insert float-left table-header-group at end of contents
+PASS: insert float-inline-start table-header-group at start of contents
+PASS: insert relative table-footer-group at middle of contents
+PASS: insert float-left table-footer-group at end of contents
+PASS: insert float-inline-start table-footer-group at start of contents
+PASS: insert relative table-row at middle of contents
+PASS: insert float-left table-row at end of contents
+PASS: insert float-inline-start table-row at start of contents
+PASS: insert relative table-cell at middle of contents
+PASS: insert float-left table-cell at end of contents
+PASS: insert float-inline-start table-cell at start of contents
+PASS: insert relative table-column-group at middle of contents
+PASS: insert float-left table-column-group at end of contents
+PASS: insert float-inline-start table-column-group at start of contents
+PASS: insert relative table-column at middle of contents
+PASS: insert float-left table-column at end of contents
+PASS: insert float-inline-start table-column at start of contents
+PASS: insert relative table-caption at middle of contents
+PASS: insert float-left table-caption at end of contents
+PASS: insert float-inline-start table-caption at start of contents
+PASS: insert relative block flow at middle of contents
+PASS: insert float-left block flow at end of contents
+PASS: insert float-inline-start block flow at start of contents
+PASS: insert relative inline flow at middle of contents
+PASS: insert float-left inline flow at end of contents
+PASS: insert float-inline-start inline flow at start of contents
+PASS: insert relative block flow-root at middle of contents
+PASS: insert float-left block flow-root at end of contents
+PASS: insert float-inline-start block flow-root at start of contents
+PASS: insert relative inline flow-root at middle of contents
+PASS: insert float-left inline flow-root at end of contents
+PASS: insert float-inline-start inline flow-root at start of contents
+PASS: insert relative block flex at middle of contents
+PASS: insert float-left block flex at end of contents
+PASS: insert float-inline-start block flex at start of contents
+PASS: insert relative inline flex at middle of contents
+PASS: insert float-left inline flex at end of contents
+PASS: insert float-inline-start inline flex at start of contents
+PASS: insert relative block grid at middle of contents
+PASS: insert float-left block grid at end of contents
+PASS: insert float-inline-start block grid at start of contents
+PASS: insert relative inline grid at middle of contents
+PASS: insert float-left inline grid at end of contents
+PASS: insert float-inline-start inline grid at start of contents
+PASS: insert relative block table at middle of contents
+PASS: insert float-left block table at end of contents
+PASS: insert float-inline-start block table at start of contents
+PASS: insert relative inline table at middle of contents
+PASS: insert float-left inline table at end of contents
+PASS: insert float-inline-start inline table at start of contents
+PASS: insert relative block flow list-item at middle of contents
+PASS: insert float-left block flow list-item at end of contents
+PASS: insert float-inline-start block flow list-item at start of contents
+PASS: insert relative inline flow list-item at middle of contents
+PASS: insert float-left inline flow list-item at end of contents
+PASS: insert float-inline-start inline flow list-item at start of contents
+PASS: insert relative none at middle of flow-root
+PASS: insert float-left none at end of flow-root
+PASS: insert float-inline-start none at start of flow-root
+PASS: insert relative contents at middle of flow-root
+PASS: insert float-left contents at end of flow-root
+PASS: insert float-inline-start contents at start of flow-root
+PASS: insert relative block at middle of flow-root
+PASS: insert float-left block at end of flow-root
+PASS: insert float-inline-start block at start of flow-root
+PASS: insert relative inline at middle of flow-root
+PASS: insert float-left inline at end of flow-root
+PASS: insert float-inline-start inline at start of flow-root
+PASS: insert relative flow-root at middle of flow-root
+PASS: insert float-left flow-root at end of flow-root
+PASS: insert float-inline-start flow-root at start of flow-root
+PASS: insert relative inline-block at middle of flow-root
+PASS: insert float-left inline-block at end of flow-root
+PASS: insert float-inline-start inline-block at start of flow-root
+PASS: insert relative run-in at middle of flow-root
+PASS: insert float-left run-in at end of flow-root
+PASS: insert float-inline-start run-in at start of flow-root
+PASS: insert relative list-item at middle of flow-root
+PASS: insert float-left list-item at end of flow-root
+PASS: insert float-inline-start list-item at start of flow-root
+PASS: insert relative inline list-item at middle of flow-root
+PASS: insert float-left inline list-item at end of flow-root
+PASS: insert float-inline-start inline list-item at start of flow-root
+PASS: insert relative flex at middle of flow-root
+PASS: insert float-left flex at end of flow-root
+PASS: insert float-inline-start flex at start of flow-root
+PASS: insert relative inline-flex at middle of flow-root
+PASS: insert float-left inline-flex at end of flow-root
+PASS: insert float-inline-start inline-flex at start of flow-root
+PASS: insert relative grid at middle of flow-root
+PASS: insert float-left grid at end of flow-root
+PASS: insert float-inline-start grid at start of flow-root
+PASS: insert relative inline-grid at middle of flow-root
+PASS: insert float-left inline-grid at end of flow-root
+PASS: insert float-inline-start inline-grid at start of flow-root
+PASS: insert relative table at middle of flow-root
+PASS: insert float-left table at end of flow-root
+PASS: insert float-inline-start table at start of flow-root
+PASS: insert relative inline-table at middle of flow-root
+PASS: insert float-left inline-table at end of flow-root
+PASS: insert float-inline-start inline-table at start of flow-root
+PASS: insert relative math at middle of flow-root
+PASS: insert float-left math at end of flow-root
+PASS: insert float-inline-start math at start of flow-root
+PASS: insert relative -webkit-box at middle of flow-root
+PASS: insert float-left -webkit-box at end of flow-root
+PASS: insert float-inline-start -webkit-box at start of flow-root
+PASS: insert relative -webkit-inline-box at middle of flow-root
+PASS: insert float-left -webkit-inline-box at end of flow-root
+PASS: insert float-inline-start -webkit-inline-box at start of flow-root
+PASS: insert relative table-row-group at middle of flow-root
+PASS: insert float-left table-row-group at end of flow-root
+PASS: insert float-inline-start table-row-group at start of flow-root
+PASS: insert relative table-header-group at middle of flow-root
+PASS: insert float-left table-header-group at end of flow-root
+PASS: insert float-inline-start table-header-group at start of flow-root
+PASS: insert relative table-footer-group at middle of flow-root
+PASS: insert float-left table-footer-group at end of flow-root
+PASS: insert float-inline-start table-footer-group at start of flow-root
+PASS: insert relative table-row at middle of flow-root
+PASS: insert float-left table-row at end of flow-root
+PASS: insert float-inline-start table-row at start of flow-root
+PASS: insert relative table-cell at middle of flow-root
+PASS: insert float-left table-cell at end of flow-root
+PASS: insert float-inline-start table-cell at start of flow-root
+PASS: insert relative table-column-group at middle of flow-root
+PASS: insert float-left table-column-group at end of flow-root
+PASS: insert float-inline-start table-column-group at start of flow-root
+PASS: insert relative table-column at middle of flow-root
+PASS: insert float-left table-column at end of flow-root
+PASS: insert float-inline-start table-column at start of flow-root
+PASS: insert relative table-caption at middle of flow-root
+PASS: insert float-left table-caption at end of flow-root
+PASS: insert float-inline-start table-caption at start of flow-root
+PASS: insert relative block flow at middle of flow-root
+PASS: insert float-left block flow at end of flow-root
+PASS: insert float-inline-start block flow at start of flow-root
+PASS: insert relative inline flow at middle of flow-root
+PASS: insert float-left inline flow at end of flow-root
+PASS: insert float-inline-start inline flow at start of flow-root
+PASS: insert relative block flow-root at middle of flow-root
+PASS: insert float-left block flow-root at end of flow-root
+PASS: insert float-inline-start block flow-root at start of flow-root
+PASS: insert relative inline flow-root at middle of flow-root
+PASS: insert float-left inline flow-root at end of flow-root
+PASS: insert float-inline-start inline flow-root at start of flow-root
+PASS: insert relative block flex at middle of flow-root
+PASS: insert float-left block flex at end of flow-root
+PASS: insert float-inline-start block flex at start of flow-root
+PASS: insert relative inline flex at middle of flow-root
+PASS: insert float-left inline flex at end of flow-root
+PASS: insert float-inline-start inline flex at start of flow-root
+PASS: insert relative block grid at middle of flow-root
+PASS: insert float-left block grid at end of flow-root
+PASS: insert float-inline-start block grid at start of flow-root
+PASS: insert relative inline grid at middle of flow-root
+PASS: insert float-left inline grid at end of flow-root
+PASS: insert float-inline-start inline grid at start of flow-root
+PASS: insert relative block table at middle of flow-root
+PASS: insert float-left block table at end of flow-root
+PASS: insert float-inline-start block table at start of flow-root
+PASS: insert relative inline table at middle of flow-root
+PASS: insert float-left inline table at end of flow-root
+PASS: insert float-inline-start inline table at start of flow-root
+PASS: insert relative block flow list-item at middle of flow-root
+PASS: insert float-left block flow list-item at end of flow-root
+PASS: insert float-inline-start block flow list-item at start of flow-root
+PASS: insert relative inline flow list-item at middle of flow-root
+PASS: insert float-left inline flow list-item at end of flow-root
+PASS: insert float-inline-start inline flow list-item at start of flow-root
+PASS: insert relative none at middle of flex
+PASS: insert float-left none at end of flex
+PASS: insert float-inline-start none at start of flex
+PASS: insert relative contents at middle of flex
+PASS: insert float-left contents at end of flex
+PASS: insert float-inline-start contents at start of flex
+PASS: insert relative block at middle of flex
+PASS: insert float-left block at end of flex
+PASS: insert float-inline-start block at start of flex
+PASS: insert relative inline at middle of flex
+PASS: insert float-left inline at end of flex
+PASS: insert float-inline-start inline at start of flex
+PASS: insert relative flow-root at middle of flex
+PASS: insert float-left flow-root at end of flex
+PASS: insert float-inline-start flow-root at start of flex
+PASS: insert relative inline-block at middle of flex
+PASS: insert float-left inline-block at end of flex
+PASS: insert float-inline-start inline-block at start of flex
+PASS: insert relative run-in at middle of flex
+PASS: insert float-left run-in at end of flex
+PASS: insert float-inline-start run-in at start of flex
+PASS: insert relative list-item at middle of flex
+PASS: insert float-left list-item at end of flex
+PASS: insert float-inline-start list-item at start of flex
+PASS: insert relative inline list-item at middle of flex
+PASS: insert float-left inline list-item at end of flex
+PASS: insert float-inline-start inline list-item at start of flex
+PASS: insert relative flex at middle of flex
+PASS: insert float-left flex at end of flex
+PASS: insert float-inline-start flex at start of flex
+PASS: insert relative inline-flex at middle of flex
+PASS: insert float-left inline-flex at end of flex
+PASS: insert float-inline-start inline-flex at start of flex
+PASS: insert relative grid at middle of flex
+PASS: insert float-left grid at end of flex
+PASS: insert float-inline-start grid at start of flex
+PASS: insert relative inline-grid at middle of flex
+PASS: insert float-left inline-grid at end of flex
+PASS: insert float-inline-start inline-grid at start of flex
+PASS: insert relative table at middle of flex
+PASS: insert float-left table at end of flex
+PASS: insert float-inline-start table at start of flex
+PASS: insert relative inline-table at middle of flex
+PASS: insert float-left inline-table at end of flex
+PASS: insert float-inline-start inline-table at start of flex
+PASS: insert relative math at middle of flex
+PASS: insert float-left math at end of flex
+PASS: insert float-inline-start math at start of flex
+PASS: insert relative -webkit-box at middle of flex
+PASS: insert float-left -webkit-box at end of flex
+PASS: insert float-inline-start -webkit-box at start of flex
+PASS: insert relative -webkit-inline-box at middle of flex
+PASS: insert float-left -webkit-inline-box at end of flex
+PASS: insert float-inline-start -webkit-inline-box at start of flex
+PASS: insert relative table-row-group at middle of flex
+PASS: insert float-left table-row-group at end of flex
+PASS: insert float-inline-start table-row-group at start of flex
+PASS: insert relative table-header-group at middle of flex
+PASS: insert float-left table-header-group at end of flex
+PASS: insert float-inline-start table-header-group at start of flex
+PASS: insert relative table-footer-group at middle of flex
+PASS: insert float-left table-footer-group at end of flex
+PASS: insert float-inline-start table-footer-group at start of flex
+PASS: insert relative table-row at middle of flex
+PASS: insert float-left table-row at end of flex
+PASS: insert float-inline-start table-row at start of flex
+PASS: insert relative table-cell at middle of flex
+PASS: insert float-left table-cell at end of flex
+PASS: insert float-inline-start table-cell at start of flex
+PASS: insert relative table-column-group at middle of flex
+PASS: insert float-left table-column-group at end of flex
+PASS: insert float-inline-start table-column-group at start of flex
+PASS: insert relative table-column at middle of flex
+PASS: insert float-left table-column at end of flex
+PASS: insert float-inline-start table-column at start of flex
+PASS: insert relative table-caption at middle of flex
+PASS: insert float-left table-caption at end of flex
+PASS: insert float-inline-start table-caption at start of flex
+PASS: insert relative block flow at middle of flex
+PASS: insert float-left block flow at end of flex
+PASS: insert float-inline-start block flow at start of flex
+PASS: insert relative inline flow at middle of flex
+PASS: insert float-left inline flow at end of flex
+PASS: insert float-inline-start inline flow at start of flex
+PASS: insert relative block flow-root at middle of flex
+PASS: insert float-left block flow-root at end of flex
+PASS: insert float-inline-start block flow-root at start of flex
+PASS: insert relative inline flow-root at middle of flex
+PASS: insert float-left inline flow-root at end of flex
+PASS: insert float-inline-start inline flow-root at start of flex
+PASS: insert relative block flex at middle of flex
+PASS: insert float-left block flex at end of flex
+PASS: insert float-inline-start block flex at start of flex
+PASS: insert relative inline flex at middle of flex
+PASS: insert float-left inline flex at end of flex
+PASS: insert float-inline-start inline flex at start of flex
+PASS: insert relative block grid at middle of flex
+PASS: insert float-left block grid at end of flex
+PASS: insert float-inline-start block grid at start of flex
+PASS: insert relative inline grid at middle of flex
+PASS: insert float-left inline grid at end of flex
+PASS: insert float-inline-start inline grid at start of flex
+PASS: insert relative block table at middle of flex
+PASS: insert float-left block table at end of flex
+PASS: insert float-inline-start block table at start of flex
+PASS: insert relative inline table at middle of flex
+PASS: insert float-left inline table at end of flex
+PASS: insert float-inline-start inline table at start of flex
+PASS: insert relative block flow list-item at middle of flex
+PASS: insert float-left block flow list-item at end of flex
+PASS: insert float-inline-start block flow list-item at start of flex
+PASS: insert relative inline flow list-item at middle of flex
+PASS: insert float-left inline flow list-item at end of flex
+PASS: insert float-inline-start inline flow list-item at start of flex
+PASS: insert relative none at middle of grid
+PASS: insert float-left none at end of grid
+PASS: insert float-inline-start none at start of grid
+PASS: insert relative contents at middle of grid
+PASS: insert float-left contents at end of grid
+PASS: insert float-inline-start contents at start of grid
+PASS: insert relative block at middle of grid
+PASS: insert float-left block at end of grid
+PASS: insert float-inline-start block at start of grid
+PASS: insert relative inline at middle of grid
+PASS: insert float-left inline at end of grid
+PASS: insert float-inline-start inline at start of grid
+PASS: insert relative flow-root at middle of grid
+PASS: insert float-left flow-root at end of grid
+PASS: insert float-inline-start flow-root at start of grid
+PASS: insert relative inline-block at middle of grid
+PASS: insert float-left inline-block at end of grid
+PASS: insert float-inline-start inline-block at start of grid
+PASS: insert relative run-in at middle of grid
+PASS: insert float-left run-in at end of grid
+PASS: insert float-inline-start run-in at start of grid
+PASS: insert relative list-item at middle of grid
+PASS: insert float-left list-item at end of grid
+PASS: insert float-inline-start list-item at start of grid
+PASS: insert relative inline list-item at middle of grid
+PASS: insert float-left inline list-item at end of grid
+PASS: insert float-inline-start inline list-item at start of grid
+PASS: insert relative flex at middle of grid
+PASS: insert float-left flex at end of grid
+PASS: insert float-inline-start flex at start of grid
+PASS: insert relative inline-flex at middle of grid
+PASS: insert float-left inline-flex at end of grid
+PASS: insert float-inline-start inline-flex at start of grid
+PASS: insert relative grid at middle of grid
+PASS: insert float-left grid at end of grid
+PASS: insert float-inline-start grid at start of grid
+PASS: insert relative inline-grid at middle of grid
+PASS: insert float-left inline-grid at end of grid
+PASS: insert float-inline-start inline-grid at start of grid
+PASS: insert relative table at middle of grid
+PASS: insert float-left table at end of grid
+PASS: insert float-inline-start table at start of grid
+PASS: insert relative inline-table at middle of grid
+PASS: insert float-left inline-table at end of grid
+PASS: insert float-inline-start inline-table at start of grid
+PASS: insert relative math at middle of grid
+PASS: insert float-left math at end of grid
+PASS: insert float-inline-start math at start of grid
+PASS: insert relative -webkit-box at middle of grid
+PASS: insert float-left -webkit-box at end of grid
+PASS: insert float-inline-start -webkit-box at start of grid
+PASS: insert relative -webkit-inline-box at middle of grid
+PASS: insert float-left -webkit-inline-box at end of grid
+PASS: insert float-inline-start -webkit-inline-box at start of grid
+PASS: insert relative table-row-group at middle of grid
+PASS: insert float-left table-row-group at end of grid
+PASS: insert float-inline-start table-row-group at start of grid
+PASS: insert relative table-header-group at middle of grid
+PASS: insert float-left table-header-group at end of grid
+PASS: insert float-inline-start table-header-group at start of grid
+PASS: insert relative table-footer-group at middle of grid
+PASS: insert float-left table-footer-group at end of grid
+PASS: insert float-inline-start table-footer-group at start of grid
+PASS: insert relative table-row at middle of grid
+PASS: insert float-left table-row at end of grid
+PASS: insert float-inline-start table-row at start of grid
+PASS: insert relative table-cell at middle of grid
+PASS: insert float-left table-cell at end of grid
+PASS: insert float-inline-start table-cell at start of grid
+PASS: insert relative table-column-group at middle of grid
+PASS: insert float-left table-column-group at end of grid
+PASS: insert float-inline-start table-column-group at start of grid
+PASS: insert relative table-column at middle of grid
+PASS: insert float-left table-column at end of grid
+PASS: insert float-inline-start table-column at start of grid
+PASS: insert relative table-caption at middle of grid
+PASS: insert float-left table-caption at end of grid
+PASS: insert float-inline-start table-caption at start of grid
+PASS: insert relative block flow at middle of grid
+PASS: insert float-left block flow at end of grid
+PASS: insert float-inline-start block flow at start of grid
+PASS: insert relative inline flow at middle of grid
+PASS: insert float-left inline flow at end of grid
+PASS: insert float-inline-start inline flow at start of grid
+PASS: insert relative block flow-root at middle of grid
+PASS: insert float-left block flow-root at end of grid
+PASS: insert float-inline-start block flow-root at start of grid
+PASS: insert relative inline flow-root at middle of grid
+PASS: insert float-left inline flow-root at end of grid
+PASS: insert float-inline-start inline flow-root at start of grid
+PASS: insert relative block flex at middle of grid
+PASS: insert float-left block flex at end of grid
+PASS: insert float-inline-start block flex at start of grid
+PASS: insert relative inline flex at middle of grid
+PASS: insert float-left inline flex at end of grid
+PASS: insert float-inline-start inline flex at start of grid
+PASS: insert relative block grid at middle of grid
+PASS: insert float-left block grid at end of grid
+PASS: insert float-inline-start block grid at start of grid
+PASS: insert relative inline grid at middle of grid
+PASS: insert float-left inline grid at end of grid
+PASS: insert float-inline-start inline grid at start of grid
+PASS: insert relative block table at middle of grid
+PASS: insert float-left block table at end of grid
+PASS: insert float-inline-start block table at start of grid
+PASS: insert relative inline table at middle of grid
+PASS: insert float-left inline table at end of grid
+PASS: insert float-inline-start inline table at start of grid
+PASS: insert relative block flow list-item at middle of grid
+PASS: insert float-left block flow list-item at end of grid
+PASS: insert float-inline-start block flow list-item at start of grid
+PASS: insert relative inline flow list-item at middle of grid
+PASS: insert float-left inline flow list-item at end of grid
+PASS: insert float-inline-start inline flow list-item at start of grid
+PASS: insert relative none at middle of table
+PASS: insert float-left none at end of table
+PASS: insert float-inline-start none at start of table
+PASS: insert relative contents at middle of table
+PASS: insert float-left contents at end of table
+PASS: insert float-inline-start contents at start of table
+PASS: insert relative block at middle of table
+PASS: insert float-left block at end of table
+PASS: insert float-inline-start block at start of table
+PASS: insert relative inline at middle of table
+PASS: insert float-left inline at end of table
+PASS: insert float-inline-start inline at start of table
+PASS: insert relative flow-root at middle of table
+PASS: insert float-left flow-root at end of table
+PASS: insert float-inline-start flow-root at start of table
+PASS: insert relative inline-block at middle of table
+PASS: insert float-left inline-block at end of table
+PASS: insert float-inline-start inline-block at start of table
+PASS: insert relative run-in at middle of table
+PASS: insert float-left run-in at end of table
+PASS: insert float-inline-start run-in at start of table
+PASS: insert relative list-item at middle of table
+PASS: insert float-left list-item at end of table
+PASS: insert float-inline-start list-item at start of table
+PASS: insert relative inline list-item at middle of table
+PASS: insert float-left inline list-item at end of table
+PASS: insert float-inline-start inline list-item at start of table
+PASS: insert relative flex at middle of table
+PASS: insert float-left flex at end of table
+PASS: insert float-inline-start flex at start of table
+PASS: insert relative inline-flex at middle of table
+PASS: insert float-left inline-flex at end of table
+PASS: insert float-inline-start inline-flex at start of table
+PASS: insert relative grid at middle of table
+PASS: insert float-left grid at end of table
+PASS: insert float-inline-start grid at start of table
+PASS: insert relative inline-grid at middle of table
+PASS: insert float-left inline-grid at end of table
+PASS: insert float-inline-start inline-grid at start of table
+PASS: insert relative table at middle of table
+PASS: insert float-left table at end of table
+PASS: insert float-inline-start table at start of table
+PASS: insert relative inline-table at middle of table
+PASS: insert float-left inline-table at end of table
+PASS: insert float-inline-start inline-table at start of table
+PASS: insert relative math at middle of table
+PASS: insert float-left math at end of table
+PASS: insert float-inline-start math at start of table
+PASS: insert relative -webkit-box at middle of table
+PASS: insert float-left -webkit-box at end of table
+PASS: insert float-inline-start -webkit-box at start of table
+PASS: insert relative -webkit-inline-box at middle of table
+PASS: insert float-left -webkit-inline-box at end of table
+PASS: insert float-inline-start -webkit-inline-box at start of table
+PASS: insert relative table-row-group at middle of table
+PASS: insert float-left table-row-group at end of table
+PASS: insert float-inline-start table-row-group at start of table
+PASS: insert relative table-header-group at middle of table
+PASS: insert float-left table-header-group at end of table
+PASS: insert float-inline-start table-header-group at start of table
+PASS: insert relative table-footer-group at middle of table
+PASS: insert float-left table-footer-group at end of table
+PASS: insert float-inline-start table-footer-group at start of table
+PASS: insert relative table-row at middle of table
+PASS: insert float-left table-row at end of table
+PASS: insert float-inline-start table-row at start of table
+PASS: insert relative table-cell at middle of table
+PASS: insert float-left table-cell at end of table
+PASS: insert float-inline-start table-cell at start of table
+PASS: insert relative table-column-group at middle of table
+PASS: insert float-left table-column-group at end of table
+PASS: insert float-inline-start table-column-group at start of table
+PASS: insert relative table-column at middle of table
+PASS: insert float-left table-column at end of table
+PASS: insert float-inline-start table-column at start of table
+PASS: insert relative table-caption at middle of table
+PASS: insert float-left table-caption at end of table
+PASS: insert float-inline-start table-caption at start of table
+PASS: insert relative block flow at middle of table
+PASS: insert float-left block flow at end of table
+PASS: insert float-inline-start block flow at start of table
+PASS: insert relative inline flow at middle of table
+PASS: insert float-left inline flow at end of table
+PASS: insert float-inline-start inline flow at start of table
+PASS: insert relative block flow-root at middle of table
+PASS: insert float-left block flow-root at end of table
+PASS: insert float-inline-start block flow-root at start of table
+PASS: insert relative inline flow-root at middle of table
+PASS: insert float-left inline flow-root at end of table
+PASS: insert float-inline-start inline flow-root at start of table
+PASS: insert relative block flex at middle of table
+PASS: insert float-left block flex at end of table
+PASS: insert float-inline-start block flex at start of table
+PASS: insert relative inline flex at middle of table
+PASS: insert float-left inline flex at end of table
+PASS: insert float-inline-start inline flex at start of table
+PASS: insert relative block grid at middle of table
+PASS: insert float-left block grid at end of table
+PASS: insert float-inline-start block grid at start of table
+PASS: insert relative inline grid at middle of table
+PASS: insert float-left inline grid at end of table
+PASS: insert float-inline-start inline grid at start of table
+PASS: insert relative block table at middle of table
+PASS: insert float-left block table at end of table
+PASS: insert float-inline-start block table at start of table
+PASS: insert relative inline table at middle of table
+PASS: insert float-left inline table at end of table
+PASS: insert float-inline-start inline table at start of table
+PASS: insert relative block flow list-item at middle of table
+PASS: insert float-left block flow list-item at end of table
+PASS: insert float-inline-start block flow list-item at start of table
+PASS: insert relative inline flow list-item at middle of table
+PASS: insert float-left inline flow list-item at end of table
+PASS: insert float-inline-start inline flow list-item at start of table
+PASS: insert relative none at middle of inline-table
+PASS: insert float-left none at end of inline-table
+PASS: insert float-inline-start none at start of inline-table
+PASS: insert relative contents at middle of inline-table
+PASS: insert float-left contents at end of inline-table
+PASS: insert float-inline-start contents at start of inline-table
+PASS: insert relative block at middle of inline-table
+PASS: insert float-left block at end of inline-table
+PASS: insert float-inline-start block at start of inline-table
+PASS: insert relative inline at middle of inline-table
+PASS: insert float-left inline at end of inline-table
+PASS: insert float-inline-start inline at start of inline-table
+PASS: insert relative flow-root at middle of inline-table
+PASS: insert float-left flow-root at end of inline-table
+PASS: insert float-inline-start flow-root at start of inline-table
+PASS: insert relative inline-block at middle of inline-table
+PASS: insert float-left inline-block at end of inline-table
+PASS: insert float-inline-start inline-block at start of inline-table
+PASS: insert relative run-in at middle of inline-table
+PASS: insert float-left run-in at end of inline-table
+PASS: insert float-inline-start run-in at start of inline-table
+PASS: insert relative list-item at middle of inline-table
+PASS: insert float-left list-item at end of inline-table
+PASS: insert float-inline-start list-item at start of inline-table
+PASS: insert relative inline list-item at middle of inline-table
+PASS: insert float-left inline list-item at end of inline-table
+PASS: insert float-inline-start inline list-item at start of inline-table
+PASS: insert relative flex at middle of inline-table
+PASS: insert float-left flex at end of inline-table
+PASS: insert float-inline-start flex at start of inline-table
+PASS: insert relative inline-flex at middle of inline-table
+PASS: insert float-left inline-flex at end of inline-table
+PASS: insert float-inline-start inline-flex at start of inline-table
+PASS: insert relative grid at middle of inline-table
+PASS: insert float-left grid at end of inline-table
+PASS: insert float-inline-start grid at start of inline-table
+PASS: insert relative inline-grid at middle of inline-table
+PASS: insert float-left inline-grid at end of inline-table
+PASS: insert float-inline-start inline-grid at start of inline-table
+PASS: insert relative table at middle of inline-table
+PASS: insert float-left table at end of inline-table
+PASS: insert float-inline-start table at start of inline-table
+PASS: insert relative inline-table at middle of inline-table
+PASS: insert float-left inline-table at end of inline-table
+PASS: insert float-inline-start inline-table at start of inline-table
+PASS: insert relative math at middle of inline-table
+PASS: insert float-left math at end of inline-table
+PASS: insert float-inline-start math at start of inline-table
+PASS: insert relative -webkit-box at middle of inline-table
+PASS: insert float-left -webkit-box at end of inline-table
+PASS: insert float-inline-start -webkit-box at start of inline-table
+PASS: insert relative -webkit-inline-box at middle of inline-table
+PASS: insert float-left -webkit-inline-box at end of inline-table
+PASS: insert float-inline-start -webkit-inline-box at start of inline-table
+PASS: insert relative table-row-group at middle of inline-table
+PASS: insert float-left table-row-group at end of inline-table
+PASS: insert float-inline-start table-row-group at start of inline-table
+PASS: insert relative table-header-group at middle of inline-table
+PASS: insert float-left table-header-group at end of inline-table
+PASS: insert float-inline-start table-header-group at start of inline-table
+PASS: insert relative table-footer-group at middle of inline-table
+PASS: insert float-left table-footer-group at end of inline-table
+PASS: insert float-inline-start table-footer-group at start of inline-table
+PASS: insert relative table-row at middle of inline-table
+PASS: insert float-left table-row at end of inline-table
+PASS: insert float-inline-start table-row at start of inline-table
+PASS: insert relative table-cell at middle of inline-table
+PASS: insert float-left table-cell at end of inline-table
+PASS: insert float-inline-start table-cell at start of inline-table
+PASS: insert relative table-column-group at middle of inline-table
+PASS: insert float-left table-column-group at end of inline-table
+PASS: insert float-inline-start table-column-group at start of inline-table
+PASS: insert relative table-column at middle of inline-table
+PASS: insert float-left table-column at end of inline-table
+PASS: insert float-inline-start table-column at start of inline-table
+PASS: insert relative table-caption at middle of inline-table
+PASS: insert float-left table-caption at end of inline-table
+PASS: insert float-inline-start table-caption at start of inline-table
+PASS: insert relative block flow at middle of inline-table
+PASS: insert float-left block flow at end of inline-table
+PASS: insert float-inline-start block flow at start of inline-table
+PASS: insert relative inline flow at middle of inline-table
+PASS: insert float-left inline flow at end of inline-table
+PASS: insert float-inline-start inline flow at start of inline-table
+PASS: insert relative block flow-root at middle of inline-table
+PASS: insert float-left block flow-root at end of inline-table
+PASS: insert float-inline-start block flow-root at start of inline-table
+PASS: insert relative inline flow-root at middle of inline-table
+PASS: insert float-left inline flow-root at end of inline-table
+PASS: insert float-inline-start inline flow-root at start of inline-table
+PASS: insert relative block flex at middle of inline-table
+PASS: insert float-left block flex at end of inline-table
+PASS: insert float-inline-start block flex at start of inline-table
+PASS: insert relative inline flex at middle of inline-table
+PASS: insert float-left inline flex at end of inline-table
+PASS: insert float-inline-start inline flex at start of inline-table
+PASS: insert relative block grid at middle of inline-table
+PASS: insert float-left block grid at end of inline-table
+PASS: insert float-inline-start block grid at start of inline-table
+PASS: insert relative inline grid at middle of inline-table
+PASS: insert float-left inline grid at end of inline-table
+PASS: insert float-inline-start inline grid at start of inline-table
+PASS: insert relative block table at middle of inline-table
+PASS: insert float-left block table at end of inline-table
+PASS: insert float-inline-start block table at start of inline-table
+PASS: insert relative inline table at middle of inline-table
+PASS: insert float-left inline table at end of inline-table
+PASS: insert float-inline-start inline table at start of inline-table
+PASS: insert relative block flow list-item at middle of inline-table
+PASS: insert float-left block flow list-item at end of inline-table
+PASS: insert float-inline-start block flow list-item at start of inline-table
+PASS: insert relative inline flow list-item at middle of inline-table
+PASS: insert float-left inline flow list-item at end of inline-table
+PASS: insert float-inline-start inline flow list-item at start of inline-table
+PASS: insert relative none at middle of table-row
+PASS: insert float-left none at end of table-row
+PASS: insert float-inline-start none at start of table-row
+PASS: insert relative contents at middle of table-row
+PASS: insert float-left contents at end of table-row
+PASS: insert float-inline-start contents at start of table-row
+PASS: insert relative block at middle of table-row
+PASS: insert float-left block at end of table-row
+PASS: insert float-inline-start block at start of table-row
+PASS: insert relative inline at middle of table-row
+PASS: insert float-left inline at end of table-row
+PASS: insert float-inline-start inline at start of table-row
+PASS: insert relative flow-root at middle of table-row
+PASS: insert float-left flow-root at end of table-row
+PASS: insert float-inline-start flow-root at start of table-row
+PASS: insert relative inline-block at middle of table-row
+PASS: insert float-left inline-block at end of table-row
+PASS: insert float-inline-start inline-block at start of table-row
+PASS: insert relative run-in at middle of table-row
+PASS: insert float-left run-in at end of table-row
+PASS: insert float-inline-start run-in at start of table-row
+PASS: insert relative list-item at middle of table-row
+PASS: insert float-left list-item at end of table-row
+PASS: insert float-inline-start list-item at start of table-row
+PASS: insert relative inline list-item at middle of table-row
+PASS: insert float-left inline list-item at end of table-row
+PASS: insert float-inline-start inline list-item at start of table-row
+PASS: insert relative flex at middle of table-row
+PASS: insert float-left flex at end of table-row
+PASS: insert float-inline-start flex at start of table-row
+PASS: insert relative inline-flex at middle of table-row
+PASS: insert float-left inline-flex at end of table-row
+PASS: insert float-inline-start inline-flex at start of table-row
+PASS: insert relative grid at middle of table-row
+PASS: insert float-left grid at end of table-row
+PASS: insert float-inline-start grid at start of table-row
+PASS: insert relative inline-grid at middle of table-row
+PASS: insert float-left inline-grid at end of table-row
+PASS: insert float-inline-start inline-grid at start of table-row
+PASS: insert relative table at middle of table-row
+PASS: insert float-left table at end of table-row
+PASS: insert float-inline-start table at start of table-row
+PASS: insert relative inline-table at middle of table-row
+PASS: insert float-left inline-table at end of table-row
+PASS: insert float-inline-start inline-table at start of table-row
+PASS: insert relative math at middle of table-row
+PASS: insert float-left math at end of table-row
+PASS: insert float-inline-start math at start of table-row
+PASS: insert relative -webkit-box at middle of table-row
+PASS: insert float-left -webkit-box at end of table-row
+PASS: insert float-inline-start -webkit-box at start of table-row
+PASS: insert relative -webkit-inline-box at middle of table-row
+PASS: insert float-left -webkit-inline-box at end of table-row
+PASS: insert float-inline-start -webkit-inline-box at start of table-row
+PASS: insert relative table-row-group at middle of table-row
+PASS: insert float-left table-row-group at end of table-row
+PASS: insert float-inline-start table-row-group at start of table-row
+PASS: insert relative table-header-group at middle of table-row
+PASS: insert float-left table-header-group at end of table-row
+PASS: insert float-inline-start table-header-group at start of table-row
+PASS: insert relative table-footer-group at middle of table-row
+PASS: insert float-left table-footer-group at end of table-row
+PASS: insert float-inline-start table-footer-group at start of table-row
+PASS: insert relative table-row at middle of table-row
+PASS: insert float-left table-row at end of table-row
+PASS: insert float-inline-start table-row at start of table-row
+PASS: insert relative table-cell at middle of table-row
+PASS: insert float-left table-cell at end of table-row
+PASS: insert float-inline-start table-cell at start of table-row
+PASS: insert relative table-column-group at middle of table-row
+PASS: insert float-left table-column-group at end of table-row
+PASS: insert float-inline-start table-column-group at start of table-row
+PASS: insert relative table-column at middle of table-row
+PASS: insert float-left table-column at end of table-row
+PASS: insert float-inline-start table-column at start of table-row
+PASS: insert relative table-caption at middle of table-row
+PASS: insert float-left table-caption at end of table-row
+PASS: insert float-inline-start table-caption at start of table-row
+PASS: insert relative block flow at middle of table-row
+PASS: insert float-left block flow at end of table-row
+PASS: insert float-inline-start block flow at start of table-row
+PASS: insert relative inline flow at middle of table-row
+PASS: insert float-left inline flow at end of table-row
+PASS: insert float-inline-start inline flow at start of table-row
+PASS: insert relative block flow-root at middle of table-row
+PASS: insert float-left block flow-root at end of table-row
+PASS: insert float-inline-start block flow-root at start of table-row
+PASS: insert relative inline flow-root at middle of table-row
+PASS: insert float-left inline flow-root at end of table-row
+PASS: insert float-inline-start inline flow-root at start of table-row
+PASS: insert relative block flex at middle of table-row
+PASS: insert float-left block flex at end of table-row
+PASS: insert float-inline-start block flex at start of table-row
+PASS: insert relative inline flex at middle of table-row
+PASS: insert float-left inline flex at end of table-row
+PASS: insert float-inline-start inline flex at start of table-row
+PASS: insert relative block grid at middle of table-row
+PASS: insert float-left block grid at end of table-row
+PASS: insert float-inline-start block grid at start of table-row
+PASS: insert relative inline grid at middle of table-row
+PASS: insert float-left inline grid at end of table-row
+PASS: insert float-inline-start inline grid at start of table-row
+PASS: insert relative block table at middle of table-row
+PASS: insert float-left block table at end of table-row
+PASS: insert float-inline-start block table at start of table-row
+PASS: insert relative inline table at middle of table-row
+PASS: insert float-left inline table at end of table-row
+PASS: insert float-inline-start inline table at start of table-row
+PASS: insert relative block flow list-item at middle of table-row
+PASS: insert float-left block flow list-item at end of table-row
+PASS: insert float-inline-start block flow list-item at start of table-row
+PASS: insert relative inline flow list-item at middle of table-row
+PASS: insert float-left inline flow list-item at end of table-row
+PASS: insert float-inline-start inline flow list-item at start of table-row
+PASS: insert relative none at middle of table-cell
+PASS: insert float-left none at end of table-cell
+PASS: insert float-inline-start none at start of table-cell
+PASS: insert relative contents at middle of table-cell
+PASS: insert float-left contents at end of table-cell
+PASS: insert float-inline-start contents at start of table-cell
+PASS: insert relative block at middle of table-cell
+PASS: insert float-left block at end of table-cell
+PASS: insert float-inline-start block at start of table-cell
+PASS: insert relative inline at middle of table-cell
+PASS: insert float-left inline at end of table-cell
+PASS: insert float-inline-start inline at start of table-cell
+PASS: insert relative flow-root at middle of table-cell
+PASS: insert float-left flow-root at end of table-cell
+PASS: insert float-inline-start flow-root at start of table-cell
+PASS: insert relative inline-block at middle of table-cell
+PASS: insert float-left inline-block at end of table-cell
+PASS: insert float-inline-start inline-block at start of table-cell
+PASS: insert relative run-in at middle of table-cell
+PASS: insert float-left run-in at end of table-cell
+PASS: insert float-inline-start run-in at start of table-cell
+PASS: insert relative list-item at middle of table-cell
+PASS: insert float-left list-item at end of table-cell
+PASS: insert float-inline-start list-item at start of table-cell
+PASS: insert relative inline list-item at middle of table-cell
+PASS: insert float-left inline list-item at end of table-cell
+PASS: insert float-inline-start inline list-item at start of table-cell
+PASS: insert relative flex at middle of table-cell
+PASS: insert float-left flex at end of table-cell
+PASS: insert float-inline-start flex at start of table-cell
+PASS: insert relative inline-flex at middle of table-cell
+PASS: insert float-left inline-flex at end of table-cell
+PASS: insert float-inline-start inline-flex at start of table-cell
+PASS: insert relative grid at middle of table-cell
+PASS: insert float-left grid at end of table-cell
+PASS: insert float-inline-start grid at start of table-cell
+PASS: insert relative inline-grid at middle of table-cell
+PASS: insert float-left inline-grid at end of table-cell
+PASS: insert float-inline-start inline-grid at start of table-cell
+PASS: insert relative table at middle of table-cell
+PASS: insert float-left table at end of table-cell
+PASS: insert float-inline-start table at start of table-cell
+PASS: insert relative inline-table at middle of table-cell
+PASS: insert float-left inline-table at end of table-cell
+PASS: insert float-inline-start inline-table at start of table-cell
+PASS: insert relative math at middle of table-cell
+PASS: insert float-left math at end of table-cell
+PASS: insert float-inline-start math at start of table-cell
+PASS: insert relative -webkit-box at middle of table-cell
+PASS: insert float-left -webkit-box at end of table-cell
+PASS: insert float-inline-start -webkit-box at start of table-cell
+PASS: insert relative -webkit-inline-box at middle of table-cell
+PASS: insert float-left -webkit-inline-box at end of table-cell
+PASS: insert float-inline-start -webkit-inline-box at start of table-cell
+PASS: insert relative table-row-group at middle of table-cell
+PASS: insert float-left table-row-group at end of table-cell
+PASS: insert float-inline-start table-row-group at start of table-cell
+PASS: insert relative table-header-group at middle of table-cell
+PASS: insert float-left table-header-group at end of table-cell
+PASS: insert float-inline-start table-header-group at start of table-cell
+PASS: insert relative table-footer-group at middle of table-cell
+PASS: insert float-left table-footer-group at end of table-cell
+PASS: insert float-inline-start table-footer-group at start of table-cell
+PASS: insert relative table-row at middle of table-cell
+PASS: insert float-left table-row at end of table-cell
+PASS: insert float-inline-start table-row at start of table-cell
+PASS: insert relative table-cell at middle of table-cell
+PASS: insert float-left table-cell at end of table-cell
+PASS: insert float-inline-start table-cell at start of table-cell
+PASS: insert relative table-column-group at middle of table-cell
+PASS: insert float-left table-column-group at end of table-cell
+PASS: insert float-inline-start table-column-group at start of table-cell
+PASS: insert relative table-column at middle of table-cell
+PASS: insert float-left table-column at end of table-cell
+PASS: insert float-inline-start table-column at start of table-cell
+PASS: insert relative table-caption at middle of table-cell
+PASS: insert float-left table-caption at end of table-cell
+PASS: insert float-inline-start table-caption at start of table-cell
+PASS: insert relative block flow at middle of table-cell
+PASS: insert float-left block flow at end of table-cell
+PASS: insert float-inline-start block flow at start of table-cell
+PASS: insert relative inline flow at middle of table-cell
+PASS: insert float-left inline flow at end of table-cell
+PASS: insert float-inline-start inline flow at start of table-cell
+PASS: insert relative block flow-root at middle of table-cell
+PASS: insert float-left block flow-root at end of table-cell
+PASS: insert float-inline-start block flow-root at start of table-cell
+PASS: insert relative inline flow-root at middle of table-cell
+PASS: insert float-left inline flow-root at end of table-cell
+PASS: insert float-inline-start inline flow-root at start of table-cell
+PASS: insert relative block flex at middle of table-cell
+PASS: insert float-left block flex at end of table-cell
+PASS: insert float-inline-start block flex at start of table-cell
+PASS: insert relative inline flex at middle of table-cell
+PASS: insert float-left inline flex at end of table-cell
+PASS: insert float-inline-start inline flex at start of table-cell
+PASS: insert relative block grid at middle of table-cell
+PASS: insert float-left block grid at end of table-cell
+PASS: insert float-inline-start block grid at start of table-cell
+PASS: insert relative inline grid at middle of table-cell
+PASS: insert float-left inline grid at end of table-cell
+PASS: insert float-inline-start inline grid at start of table-cell
+PASS: insert relative block table at middle of table-cell
+PASS: insert float-left block table at end of table-cell
+PASS: insert float-inline-start block table at start of table-cell
+PASS: insert relative inline table at middle of table-cell
+PASS: insert float-left inline table at end of table-cell
+PASS: insert float-inline-start inline table at start of table-cell
+PASS: insert relative block flow list-item at middle of table-cell
+PASS: insert float-left block flow list-item at end of table-cell
+PASS: insert float-inline-start block flow list-item at start of table-cell
+PASS: insert relative inline flow list-item at middle of table-cell
+PASS: insert float-left inline flow list-item at end of table-cell
+PASS: insert float-inline-start inline flow list-item at start of table-cell
+PASS: insert relative contents at middle of none
+PASS: insert float-left inline-block at end of none
+PASS: insert float-inline-start flex at start of none
+PASS: insert relative run-in at start of inline-block
+PASS: insert float-left inline-flex at middle of inline-block
+PASS: insert float-inline-start inline-table at end of inline-block
+PASS: insert relative list-item at middle of run-in
+PASS: insert float-left grid at end of run-in
+PASS: insert float-inline-start math at start of run-in
+PASS: insert relative inline list-item at end of list-item
+PASS: insert float-left inline-grid at start of list-item
+PASS: insert float-inline-start -webkit-box at middle of list-item
+PASS: insert relative flex at start of inline list-item
+PASS: insert float-left table at middle of inline list-item
+PASS: insert float-inline-start -webkit-inline-box at end of inline list-item
+PASS: insert relative grid at end of inline-flex
+PASS: insert float-left math at start of inline-flex
+PASS: insert float-inline-start table-header-group at middle of inline-flex
+PASS: insert relative table at middle of inline-grid
+PASS: insert float-left -webkit-inline-box at end of inline-grid
+PASS: insert float-inline-start table-row at start of inline-grid
+PASS: insert relative -webkit-box at middle of math
+PASS: insert float-left table-footer-group at end of math
+PASS: insert float-inline-start table-column at start of math
+PASS: insert relative -webkit-inline-box at end of -webkit-box
+PASS: insert float-left table-row at start of -webkit-box
+PASS: insert float-inline-start table-caption at middle of -webkit-box
+PASS: insert relative table-row-group at start of -webkit-inline-box
+PASS: insert float-left table-cell at middle of -webkit-inline-box
+PASS: insert float-inline-start block flow at end of -webkit-inline-box
+PASS: insert relative table-header-group at middle of table-row-group
+PASS: insert float-left table-column-group at end of table-row-group
+PASS: insert float-inline-start inline flow at start of table-row-group
+PASS: insert relative table-footer-group at end of table-header-group
+PASS: insert float-left table-column at start of table-header-group
+PASS: insert float-inline-start block flow-root at middle of table-header-group
+PASS: insert relative table-row at start of table-footer-group
+PASS: insert float-left table-caption at middle of table-footer-group
+PASS: insert float-inline-start inline flow-root at end of table-footer-group
+PASS: insert relative table-column at start of table-column-group
+PASS: insert float-left block flow-root at middle of table-column-group
+PASS: insert float-inline-start block grid at end of table-column-group
+PASS: insert relative table-caption at middle of table-column
+PASS: insert float-left inline flow-root at end of table-column
+PASS: insert float-inline-start inline grid at start of table-column
+PASS: insert relative block flow at end of table-caption
+PASS: insert float-left block flex at start of table-caption
+PASS: insert float-inline-start block table at middle of table-caption
+PASS: insert relative inline flow at start of block flow
+PASS: insert float-left inline flex at middle of block flow
+PASS: insert float-inline-start inline table at end of block flow
+PASS: insert relative block flow-root at middle of inline flow
+PASS: insert float-left block grid at end of inline flow
+PASS: insert float-inline-start block flow list-item at start of inline flow
+PASS: insert relative inline flow-root at end of block flow-root
+PASS: insert float-left inline grid at start of block flow-root
+PASS: insert float-inline-start inline flow list-item at middle of block flow-root
+PASS: insert relative block flex at start of inline flow-root
+PASS: insert float-left block table at middle of inline flow-root
+PASS: insert float-inline-start none at end of inline flow-root
+PASS: insert relative inline flex at middle of block flex
+PASS: insert float-left inline table at end of block flex
+PASS: insert float-inline-start contents at start of block flex
+PASS: insert relative block grid at end of inline flex
+PASS: insert float-left block flow list-item at start of inline flex
+PASS: insert float-inline-start block at middle of inline flex
+PASS: insert relative inline grid at start of block grid
+PASS: insert float-left inline flow list-item at middle of block grid
+PASS: insert float-inline-start inline at end of block grid
+PASS: insert relative block table at middle of inline grid
+PASS: insert float-left none at end of inline grid
+PASS: insert float-inline-start flow-root at start of inline grid
+PASS: insert relative inline table at end of block table
+PASS: insert float-left contents at start of block table
+PASS: insert float-inline-start inline-block at middle of block table
+PASS: insert relative block flow list-item at start of inline table
+PASS: insert float-left block at middle of inline table
+PASS: insert float-inline-start run-in at end of inline table
+PASS: insert relative inline flow list-item at middle of block flow list-item
+PASS: insert float-left inline at end of block flow list-item
+PASS: insert float-inline-start list-item at start of block flow list-item
+PASS: insert relative none at end of inline flow list-item
+PASS: insert float-left flow-root at start of inline flow list-item
+PASS: insert float-inline-start inline list-item at middle of inline flow list-item
+1224 cases; 1224 matched; 0 mismatched

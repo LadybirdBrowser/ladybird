@@ -369,6 +369,13 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
 
     auto dump_fragment = [&](auto& fragment, size_t fragment_index) {
         builder.append_repeated("  "sv, indent);
+        if (!fragment.has_layout_node()) {
+            builder.appendff("  {}frag {}{} with detached layout node\n",
+                fragment_color_on,
+                fragment_index,
+                color_off);
+            return;
+        }
         builder.appendff("  {}frag {}{} from {} ",
             fragment_color_on,
             fragment_index,
@@ -391,7 +398,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         auto paintable_with_lines = block_container->paintable_with_lines();
         for (auto const& fragment : paintable_with_lines->fragments()) {
             // Fragments inside inline boxes are dumped under their box's layout node below.
-            if (fragment.layout_node().nearest_fragmented_inline_ancestor())
+            if (fragment.has_layout_node() && fragment.layout_node().nearest_fragmented_inline_ancestor())
                 continue;
             dump_fragment(fragment, fragment_index++);
         }
@@ -406,7 +413,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
                 fragment_index_within_piece = 0;
             }
             // Fragments of nested inline boxes are dumped under their own box.
-            if (fragment.layout_node().nearest_fragmented_inline_ancestor() != &layout_node)
+            if (fragment.has_layout_node() && fragment.layout_node().nearest_fragmented_inline_ancestor() != &layout_node)
                 return;
             dump_fragment(fragment, fragment_index_within_piece++);
         });
