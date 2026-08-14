@@ -1470,6 +1470,12 @@ fn update_principal_node_after_entry(
                 {
                     arena.set_saved_abspos_layout_inputs(new_data, Some(inputs));
                 }
+                // SAFETY: data() returned pointers to live slots.
+                if unsafe { (*old_data).kind == NodeKind::SVGSVGBox && (*new_data).kind == NodeKind::SVGSVGBox }
+                    && let Some(geometry) = arena.saved_committed_geometry(old_data)
+                {
+                    arena.set_saved_committed_geometry(new_data, geometry);
+                }
             }
             unsafe {
                 (host.callbacks.place_principal_layout)(

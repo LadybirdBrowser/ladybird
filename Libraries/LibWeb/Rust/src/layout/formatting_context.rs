@@ -1062,6 +1062,10 @@ impl FfiLayoutFcCallbacks {
         self.arena().saved_abspos_layout_inputs(data)
     }
 
+    pub(crate) fn set_saved_committed_geometry(&self, node: Node, geometry: crate::layout::FfiPaintableGeometry) {
+        self.arena().set_saved_committed_geometry(self.arena().data(node), geometry);
+    }
+
     pub(crate) fn set_saved_abspos_layout_inputs(&self, node: Node, inputs: Option<crate::layout::AbsposLayoutInputs>) {
         let data = self.arena().data(node);
         // Match prepare_node's former as_if<Box>() guard.

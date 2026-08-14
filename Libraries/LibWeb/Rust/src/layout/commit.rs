@@ -117,6 +117,40 @@ fn commit_subtree(
     let entry = scopes.link_for_slot(slot_index);
     if let Some(link) = entry {
         callbacks.set_saved_abspos_layout_inputs(node, link.abspos_layout_inputs);
+        // SVG roots are the only non-abspos partial relayout boundaries; save their committed
+        // geometry so a later subtree pass can seed itself without reading the old paintable.
+        if callbacks.node_data(node).kind == NodeKind::SVGSVGBox {
+            let fragment = &link.fragment;
+            debug_assert!(
+                fragment.svg_viewport_size.is_some(),
+                "committed SVG root fragment carries no viewport size"
+            );
+            callbacks.set_saved_committed_geometry(
+                node,
+                FfiPaintableGeometry {
+                    content_inline_size: fragment.content_inline_size,
+                    content_block_size: fragment.content_block_size,
+                    content_offset: link.committed_offset,
+                    svg_viewport_size: fragment.svg_viewport_size.unwrap_or_default(),
+                    margin_left: fragment.margin_left,
+                    margin_right: fragment.margin_right,
+                    margin_top: fragment.margin_top,
+                    margin_bottom: fragment.margin_bottom,
+                    border_left: fragment.border_left,
+                    border_right: fragment.border_right,
+                    border_top: fragment.border_top,
+                    border_bottom: fragment.border_bottom,
+                    padding_left: fragment.padding_left,
+                    padding_right: fragment.padding_right,
+                    padding_top: fragment.padding_top,
+                    padding_bottom: fragment.padding_bottom,
+                    inset_left: link.inset_left,
+                    inset_right: link.inset_right,
+                    inset_top: link.inset_top,
+                    inset_bottom: link.inset_bottom,
+                },
+            );
+        }
     }
     // SAFETY: The C++ sink owns paintables and copies every plain-data
     // input synchronously.
