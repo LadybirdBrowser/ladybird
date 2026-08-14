@@ -36,15 +36,15 @@ PASS: position fixed -> static on contents in flow-root
 PASS: position fixed -> absolute on contents in grid
 PASS: position sticky -> static on contents in inline-table
 PASS: position sticky -> absolute on contents in table-cell
-FAIL: float none -> left on contents in inline
-FAIL: float none -> inline-start on contents in flow-root
-FAIL: float left -> none on contents in grid
+PASS: float none -> left on contents in inline
+PASS: float none -> inline-start on contents in flow-root
+PASS: float left -> none on contents in grid
 PASS: float left -> inline-start on contents in inline-table
-FAIL: float right -> none on contents in table-cell
-FAIL: float right -> inline-start on contents in inline
-FAIL: float inline-start -> none on contents in flow-root
-FAIL: float inline-start -> right on contents in grid
-FAIL: float inline-end -> none on contents in inline-table
+PASS: float right -> none on contents in table-cell
+PASS: float right -> inline-start on contents in inline
+PASS: float inline-start -> none on contents in flow-root
+PASS: float inline-start -> right on contents in grid
+PASS: float inline-end -> none on contents in inline-table
 PASS: float inline-end -> right on contents in table-cell
 PASS: clear none -> left on contents in inline
 PASS: clear none -> both on contents in flow-root
@@ -64,15 +64,15 @@ PASS: position fixed -> static on block in flex
 PASS: position fixed -> absolute on block in table
 PASS: position sticky -> static on block in table-row
 PASS: position sticky -> absolute on block in block
-FAIL: float none -> left on block in contents
+PASS: float none -> left on block in contents
 PASS: float none -> inline-start on block in flex
-FAIL: float left -> none on block in table
+PASS: float left -> none on block in table
 PASS: float left -> inline-start on block in table-row
-FAIL: float right -> none on block in block
+PASS: float right -> none on block in block
 PASS: float right -> inline-start on block in contents
 PASS: float inline-start -> none on block in flex
 PASS: float inline-start -> right on block in table
-FAIL: float inline-end -> none on block in table-row
+PASS: float inline-end -> none on block in table-row
 PASS: float inline-end -> right on block in block
 PASS: clear none -> left on block in contents
 PASS: clear none -> both on block in flex
@@ -121,14 +121,14 @@ PASS: position fixed -> absolute on flow-root in table-row
 PASS: position sticky -> static on flow-root in block
 PASS: position sticky -> absolute on flow-root in contents
 PASS: float none -> left on flow-root in flex
-FAIL: float none -> inline-start on flow-root in table
-FAIL: float left -> none on flow-root in table-row
+PASS: float none -> inline-start on flow-root in table
+PASS: float left -> none on flow-root in table-row
 PASS: float left -> inline-start on flow-root in block
-FAIL: float right -> none on flow-root in contents
+PASS: float right -> none on flow-root in contents
 PASS: float right -> inline-start on flow-root in flex
-FAIL: float inline-start -> none on flow-root in table
+PASS: float inline-start -> none on flow-root in table
 PASS: float inline-start -> right on flow-root in table-row
-FAIL: float inline-end -> none on flow-root in block
+PASS: float inline-end -> none on flow-root in block
 PASS: float inline-end -> right on flow-root in contents
 PASS: clear none -> left on flow-root in flex
 PASS: clear none -> both on flow-root in table
@@ -204,15 +204,15 @@ PASS: position fixed -> static on list-item in table-cell
 PASS: position fixed -> absolute on list-item in inline
 PASS: position sticky -> static on list-item in flow-root
 PASS: position sticky -> absolute on list-item in grid
-FAIL: float none -> left on list-item in inline-table
-FAIL: float none -> inline-start on list-item in table-cell
+PASS: float none -> left on list-item in inline-table
+PASS: float none -> inline-start on list-item in table-cell
 PASS: float left -> none on list-item in inline
 PASS: float left -> inline-start on list-item in flow-root
 PASS: float right -> none on list-item in grid
 PASS: float right -> inline-start on list-item in inline-table
-FAIL: float inline-start -> none on list-item in table-cell
+PASS: float inline-start -> none on list-item in table-cell
 PASS: float inline-start -> right on list-item in inline
-FAIL: float inline-end -> none on list-item in flow-root
+PASS: float inline-end -> none on list-item in flow-root
 PASS: float inline-end -> right on list-item in grid
 PASS: clear none -> left on list-item in inline-table
 PASS: clear none -> both on list-item in table-cell
@@ -260,11 +260,11 @@ PASS: position fixed -> static on flex in inline
 PASS: position fixed -> absolute on flex in flow-root
 PASS: position sticky -> static on flex in grid
 PASS: position sticky -> absolute on flex in inline-table
-FAIL: float none -> left on flex in table-cell
+PASS: float none -> left on flex in table-cell
 PASS: float none -> inline-start on flex in inline
-FAIL: float left -> none on flex in flow-root
+PASS: float left -> none on flex in flow-root
 PASS: float left -> inline-start on flex in grid
-FAIL: float right -> none on flex in inline-table
+PASS: float right -> none on flex in inline-table
 PASS: float right -> inline-start on flex in table-cell
 PASS: float inline-start -> none on flex in inline
 PASS: float inline-start -> right on flex in flow-root
@@ -317,14 +317,14 @@ PASS: position fixed -> absolute on grid in grid
 PASS: position sticky -> static on grid in inline-table
 PASS: position sticky -> absolute on grid in table-cell
 PASS: float none -> left on grid in inline
-FAIL: float none -> inline-start on grid in flow-root
+PASS: float none -> inline-start on grid in flow-root
 PASS: float left -> none on grid in grid
 PASS: float left -> inline-start on grid in inline-table
-FAIL: float right -> none on grid in table-cell
+PASS: float right -> none on grid in table-cell
 PASS: float right -> inline-start on grid in inline
-FAIL: float inline-start -> none on grid in flow-root
+PASS: float inline-start -> none on grid in flow-root
 PASS: float inline-start -> right on grid in grid
-FAIL: float inline-end -> none on grid in inline-table
+PASS: float inline-end -> none on grid in inline-table
 PASS: float inline-end -> right on grid in table-cell
 PASS: clear none -> left on grid in inline
 PASS: clear none -> both on grid in flow-root
@@ -372,15 +372,15 @@ PASS: position fixed -> static on table in grid
 PASS: position fixed -> absolute on table in inline-table
 PASS: position sticky -> static on table in table-cell
 PASS: position sticky -> absolute on table in inline
-FAIL: float none -> left on table in flow-root
+PASS: float none -> left on table in flow-root
 PASS: float none -> inline-start on table in grid
-FAIL: float left -> none on table in inline-table
+PASS: float left -> none on table in inline-table
 PASS: float left -> inline-start on table in table-cell
 PASS: float right -> none on table in inline
 PASS: float right -> inline-start on table in flow-root
 PASS: float inline-start -> none on table in grid
 PASS: float inline-start -> right on table in inline-table
-FAIL: float inline-end -> none on table in table-cell
+PASS: float inline-end -> none on table in table-cell
 PASS: float inline-end -> right on table in inline
 PASS: clear none -> left on table in flow-root
 PASS: clear none -> both on table in grid
@@ -456,15 +456,15 @@ PASS: position fixed -> static on -webkit-box in table-row
 PASS: position fixed -> absolute on -webkit-box in block
 PASS: position sticky -> static on -webkit-box in contents
 PASS: position sticky -> absolute on -webkit-box in flex
-FAIL: float none -> left on -webkit-box in table
-FAIL: float none -> inline-start on -webkit-box in table-row
-FAIL: float left -> none on -webkit-box in block
+PASS: float none -> left on -webkit-box in table
+PASS: float none -> inline-start on -webkit-box in table-row
+PASS: float left -> none on -webkit-box in block
 PASS: float left -> inline-start on -webkit-box in contents
 PASS: float right -> none on -webkit-box in flex
 PASS: float right -> inline-start on -webkit-box in table
-FAIL: float inline-start -> none on -webkit-box in table-row
+PASS: float inline-start -> none on -webkit-box in table-row
 PASS: float inline-start -> right on -webkit-box in block
-FAIL: float inline-end -> none on -webkit-box in contents
+PASS: float inline-end -> none on -webkit-box in contents
 PASS: float inline-end -> right on -webkit-box in flex
 PASS: clear none -> left on -webkit-box in table
 PASS: clear none -> both on -webkit-box in table-row
@@ -736,15 +736,15 @@ PASS: position fixed -> static on block flow in table-row
 PASS: position fixed -> absolute on block flow in block
 PASS: position sticky -> static on block flow in contents
 PASS: position sticky -> absolute on block flow in flex
-FAIL: float none -> left on block flow in table
-FAIL: float none -> inline-start on block flow in table-row
-FAIL: float left -> none on block flow in block
+PASS: float none -> left on block flow in table
+PASS: float none -> inline-start on block flow in table-row
+PASS: float left -> none on block flow in block
 PASS: float left -> inline-start on block flow in contents
 PASS: float right -> none on block flow in flex
 PASS: float right -> inline-start on block flow in table
-FAIL: float inline-start -> none on block flow in table-row
+PASS: float inline-start -> none on block flow in table-row
 PASS: float inline-start -> right on block flow in block
-FAIL: float inline-end -> none on block flow in contents
+PASS: float inline-end -> none on block flow in contents
 PASS: float inline-end -> right on block flow in flex
 PASS: clear none -> left on block flow in table
 PASS: clear none -> both on block flow in table-row
@@ -792,13 +792,13 @@ PASS: position fixed -> static on block flow-root in block
 PASS: position fixed -> absolute on block flow-root in contents
 PASS: position sticky -> static on block flow-root in flex
 PASS: position sticky -> absolute on block flow-root in table
-FAIL: float none -> left on block flow-root in table-row
-FAIL: float none -> inline-start on block flow-root in block
-FAIL: float left -> none on block flow-root in contents
+PASS: float none -> left on block flow-root in table-row
+PASS: float none -> inline-start on block flow-root in block
+PASS: float left -> none on block flow-root in contents
 PASS: float left -> inline-start on block flow-root in flex
-FAIL: float right -> none on block flow-root in table
+PASS: float right -> none on block flow-root in table
 PASS: float right -> inline-start on block flow-root in table-row
-FAIL: float inline-start -> none on block flow-root in block
+PASS: float inline-start -> none on block flow-root in block
 PASS: float inline-start -> right on block flow-root in contents
 PASS: float inline-end -> none on block flow-root in flex
 PASS: float inline-end -> right on block flow-root in table
@@ -848,15 +848,15 @@ PASS: position fixed -> static on block flex in contents
 PASS: position fixed -> absolute on block flex in flex
 PASS: position sticky -> static on block flex in table
 PASS: position sticky -> absolute on block flex in table-row
-FAIL: float none -> left on block flex in block
-FAIL: float none -> inline-start on block flex in contents
+PASS: float none -> left on block flex in block
+PASS: float none -> inline-start on block flex in contents
 PASS: float left -> none on block flex in flex
 PASS: float left -> inline-start on block flex in table
-FAIL: float right -> none on block flex in table-row
+PASS: float right -> none on block flex in table-row
 PASS: float right -> inline-start on block flex in block
-FAIL: float inline-start -> none on block flex in contents
+PASS: float inline-start -> none on block flex in contents
 PASS: float inline-start -> right on block flex in flex
-FAIL: float inline-end -> none on block flex in table
+PASS: float inline-end -> none on block flex in table
 PASS: float inline-end -> right on block flex in table-row
 PASS: clear none -> left on block flex in block
 PASS: clear none -> both on block flex in contents
@@ -904,15 +904,15 @@ PASS: position fixed -> static on block grid in flex
 PASS: position fixed -> absolute on block grid in table
 PASS: position sticky -> static on block grid in table-row
 PASS: position sticky -> absolute on block grid in block
-FAIL: float none -> left on block grid in contents
+PASS: float none -> left on block grid in contents
 PASS: float none -> inline-start on block grid in flex
-FAIL: float left -> none on block grid in table
+PASS: float left -> none on block grid in table
 PASS: float left -> inline-start on block grid in table-row
-FAIL: float right -> none on block grid in block
+PASS: float right -> none on block grid in block
 PASS: float right -> inline-start on block grid in contents
 PASS: float inline-start -> none on block grid in flex
 PASS: float inline-start -> right on block grid in table
-FAIL: float inline-end -> none on block grid in table-row
+PASS: float inline-end -> none on block grid in table-row
 PASS: float inline-end -> right on block grid in block
 PASS: clear none -> left on block grid in contents
 PASS: clear none -> both on block grid in flex
@@ -961,14 +961,14 @@ PASS: position fixed -> absolute on block table in table-row
 PASS: position sticky -> static on block table in block
 PASS: position sticky -> absolute on block table in contents
 PASS: float none -> left on block table in flex
-FAIL: float none -> inline-start on block table in table
-FAIL: float left -> none on block table in table-row
+PASS: float none -> inline-start on block table in table
+PASS: float left -> none on block table in table-row
 PASS: float left -> inline-start on block table in block
-FAIL: float right -> none on block table in contents
+PASS: float right -> none on block table in contents
 PASS: float right -> inline-start on block table in flex
-FAIL: float inline-start -> none on block table in table
+PASS: float inline-start -> none on block table in table
 PASS: float inline-start -> right on block table in table-row
-FAIL: float inline-end -> none on block table in block
+PASS: float inline-end -> none on block table in block
 PASS: float inline-end -> right on block table in contents
 PASS: clear none -> left on block table in flex
 PASS: clear none -> both on block table in table
@@ -1016,15 +1016,15 @@ PASS: position fixed -> static on block flow list-item in table-row
 PASS: position fixed -> absolute on block flow list-item in block
 PASS: position sticky -> static on block flow list-item in contents
 PASS: position sticky -> absolute on block flow list-item in flex
-FAIL: float none -> left on block flow list-item in table
-FAIL: float none -> inline-start on block flow list-item in table-row
-FAIL: float left -> none on block flow list-item in block
+PASS: float none -> left on block flow list-item in table
+PASS: float none -> inline-start on block flow list-item in table-row
+PASS: float left -> none on block flow list-item in block
 PASS: float left -> inline-start on block flow list-item in contents
 PASS: float right -> none on block flow list-item in flex
 PASS: float right -> inline-start on block flow list-item in table
-FAIL: float inline-start -> none on block flow list-item in table-row
+PASS: float inline-start -> none on block flow list-item in table-row
 PASS: float inline-start -> right on block flow list-item in block
-FAIL: float inline-end -> none on block flow list-item in contents
+PASS: float inline-end -> none on block flow list-item in contents
 PASS: float inline-end -> right on block flow list-item in flex
 PASS: clear none -> left on block flow list-item in table
 PASS: clear none -> both on block flow list-item in table-row
@@ -1062,4 +1062,4 @@ PASS: clear right -> both on inline flow list-item in grid
 PASS: clear both -> left on inline flow list-item in inline-table
 PASS: static none -> absolute left on inline flow list-item in table-cell
 PASS: relative right -> fixed none on inline flow list-item in inline
-1064 cases; 999 matched; 65 mismatched
+1064 cases; 1064 matched; 0 mismatched
