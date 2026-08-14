@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        performance.clearResourceTimings();
+
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = "<!DOCTYPE html><title>Fallback timing</title>";
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        document.body.appendChild(iframe);
+        await loaded;
+
+        const entries = performance.getEntriesByType("resource").filter(entry => {
+            return entry.name === "about:srcdoc" && entry.initiatorType === "iframe";
+        });
+        println(`iframe fallback resource timing entries: ${entries.length}`);
+        iframe.remove();
+    });
+</script>

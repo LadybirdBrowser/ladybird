@@ -14,6 +14,7 @@
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
@@ -22,6 +23,7 @@
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Layout/NavigableContainerViewport.h>
 #include <LibWeb/ResourceTiming/PerformanceResourceTiming.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
@@ -236,6 +238,33 @@ void run_iframe_load_event_steps(HTMLIFrameElement& element)
     if (element.pending_resource_start_time().has_value()) {
         // 1. Assert: element's pending resource-timing URL is not null.
         VERIFY(element.pending_resource_timing_url().has_value());
+
+        // 2. Let global be element's node document's relevant global object.
+        auto& global = relevant_global_object(element.document());
+
+        // 3. Let fallbackTimingInfo be a new fetch timing info whose start time is element's pending resource-timing
+        //    start time and whose response end time is the current high resolution time given global.
+        auto fallback_timing_info = Fetch::Infrastructure::FetchTimingInfo::create();
+        fallback_timing_info->set_start_time(element.pending_resource_start_time().value());
+        fallback_timing_info->set_end_time(HighResolutionTime::current_high_resolution_time(global));
+
+        // 4. Mark resource timing given fallbackTimingInfo, the result of parsing element's pending resource-timing
+        //    URL, "iframe", global, the empty string, a new response body info, and 0.
+        // FIXME: Our URL is already parsed, how are we supposed to parse it?
+        ResourceTiming::PerformanceResourceTiming::mark_resource_timing(
+            fallback_timing_info,
+            utf16_string_from_url_ascii(element.pending_resource_timing_url()->to_string()),
+            "iframe"_utf16_fly_string,
+            global,
+            Optional<Fetch::Infrastructure::Response::CacheState> {},
+            Fetch::Infrastructure::Response::BodyInfo {},
+            0);
+
+        // 5. Set element's pending resource-timing start time to null.
+        element.set_pending_resource_start_time({});
+
+        // 6. Set element's pending resource-timing URL to null.
+        element.set_pending_resource_timing_url({});
     }
 
     // 5. Fire an event named load at element.
