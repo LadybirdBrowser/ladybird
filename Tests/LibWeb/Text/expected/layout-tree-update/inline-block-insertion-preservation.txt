@@ -1,0 +1,88 @@
+PASS: prepend inline-block leaf | preserve run
+PASS: prepend inline-block leaf | preserve after
+PASS: prepend inline-block leaf | inserted node layout state
+PASS: prepend inline-block leaf | rebuild only inserted roots
+PASS: prepend inline-block leaf | keep update within rebuild roots
+PASS: prepend inline-block leaf | incremental tree matches full rebuild
+PASS: insert middle inline-block leaf | preserve run
+PASS: insert middle inline-block leaf | preserve before
+PASS: insert middle inline-block leaf | preserve after
+PASS: insert middle inline-block leaf | inserted node layout state
+PASS: insert middle inline-block leaf | rebuild only inserted roots
+PASS: insert middle inline-block leaf | keep update within rebuild roots
+PASS: insert middle inline-block leaf | incremental tree matches full rebuild
+PASS: append inline-block leaf | preserve run
+PASS: append inline-block leaf | preserve before
+PASS: append inline-block leaf | inserted node layout state
+PASS: append inline-block leaf | rebuild only inserted roots
+PASS: append inline-block leaf | keep update within rebuild roots
+PASS: append inline-block leaf | incremental tree matches full rebuild
+PASS: insert only inline-block child | preserve run
+PASS: insert only inline-block child | inserted node layout state
+PASS: insert only inline-block child | rebuild only inserted roots
+PASS: insert only inline-block child | keep update within rebuild roots
+PASS: insert only inline-block child | incremental tree matches full rebuild
+PASS: insert inline-block into block flow parent | preserve run
+PASS: insert inline-block into block flow parent | preserve before
+PASS: insert inline-block into block flow parent | preserve after
+PASS: insert inline-block into block flow parent | inserted node layout state
+PASS: insert inline-block into block flow parent | rebuild only inserted roots
+PASS: insert inline-block into block flow parent | keep update within rebuild roots
+PASS: insert inline-block into block flow parent | incremental tree matches full rebuild
+PASS: insert inline-flex child | preserve run
+PASS: insert inline-flex child | preserve before
+PASS: insert inline-flex child | preserve after
+PASS: insert inline-flex child | inserted node layout state
+PASS: insert inline-flex child | rebuild only inserted roots
+PASS: insert inline-flex child | keep update within rebuild roots
+PASS: insert inline-flex child | incremental tree matches full rebuild
+PASS: insert inline-grid child | preserve run
+PASS: insert inline-grid child | preserve before
+PASS: insert inline-grid child | preserve after
+PASS: insert inline-grid child | inserted node layout state
+PASS: insert inline-grid child | rebuild only inserted roots
+PASS: insert inline-grid child | keep update within rebuild roots
+PASS: insert inline-grid child | incremental tree matches full rebuild
+PASS: insert inline-block subtree | preserve run
+PASS: insert inline-block subtree | preserve before
+PASS: insert inline-block subtree | preserve after
+PASS: insert inline-block subtree | inserted node layout state
+PASS: insert inline-block subtree | rebuild only inserted roots
+PASS: insert inline-block subtree | keep update within rebuild roots
+PASS: insert inline-block subtree | incremental tree matches full rebuild
+PASS: insert inline-block sibling run | preserve run
+PASS: insert inline-block sibling run | preserve before
+PASS: insert inline-block sibling run | preserve after
+PASS: insert inline-block sibling run | inserted node layout state
+PASS: insert inline-block sibling run | inserted node layout state
+PASS: insert inline-block sibling run | inserted node layout state
+PASS: insert inline-block sibling run | rebuild only inserted roots
+PASS: insert inline-block sibling run | keep update within rebuild roots
+PASS: insert inline-block sibling run | incremental tree matches full rebuild
+PASS: append inline-block before generated after | preserve run
+PASS: append inline-block before generated after | preserve before
+PASS: append inline-block before generated after | inserted node layout state
+PASS: append inline-block before generated after | rebuild only inserted roots
+PASS: append inline-block before generated after | keep update within rebuild roots
+PASS: append inline-block before generated after | incremental tree matches full rebuild
+PASS: insert inline-block with generated content | preserve run
+PASS: insert inline-block with generated content | preserve before
+PASS: insert inline-block with generated content | preserve after
+PASS: insert inline-block with generated content | inserted node layout state
+PASS: insert inline-block with generated content | rebuild only inserted roots
+PASS: insert inline-block with generated content | keep update within rebuild roots
+PASS: insert inline-block with generated content | incremental tree matches full rebuild
+PASS: insert display-none child | preserve run
+PASS: insert display-none child | preserve before
+PASS: insert display-none child | preserve after
+PASS: insert display-none child | inserted node layout state
+PASS: insert display-none child | rebuild only inserted roots
+PASS: insert display-none child | keep update within rebuild roots
+PASS: insert display-none child | incremental tree matches full rebuild
+PASS: insert inline-flow child conservatively | incremental tree matches full rebuild
+PASS: insert block child conservatively | incremental tree matches full rebuild
+PASS: insert display-contents child conservatively | incremental tree matches full rebuild
+PASS: insert text child conservatively | incremental tree matches full rebuild
+PASS: insert absolutely positioned child conservatively | incremental tree matches full rebuild
+PASS: insert floated child conservatively | incremental tree matches full rebuild
+PASS: insert before structural display change conservatively | incremental tree matches full rebuild

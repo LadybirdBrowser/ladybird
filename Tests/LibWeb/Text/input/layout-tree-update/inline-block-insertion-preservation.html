@@ -1,0 +1,331 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .run,
+    .item {
+        display: inline-block;
+    }
+
+    .block-run {
+        display: block;
+    }
+
+    .generated-parent::before,
+    .generated-item::before {
+        content: "before";
+        display: inline-block;
+    }
+
+    .generated-parent::after,
+    .generated-item::after {
+        content: "after";
+        display: inline-block;
+    }
+
+    .hidden {
+        display: none;
+    }
+
+    .inline {
+        display: inline;
+    }
+
+    .block {
+        display: block;
+    }
+
+    .contents {
+        display: contents;
+    }
+
+    .absolute {
+        position: absolute;
+    }
+
+    .float {
+        float: left;
+    }
+
+    .structural > .item:first-child {
+        display: block;
+    }
+</style>
+<div id="fixture"></div>
+<script>
+    const cases = [
+        {
+            name: "prepend inline-block leaf",
+            markup: '<div class="run"><i class="after item"></i></div>',
+            mutate(run) {
+                const inserted = document.createElement("i");
+                inserted.className = "inserted item";
+                run.prepend(inserted);
+                return [inserted];
+            },
+            tracked: ["run", "after"],
+            expectedRoots: 1,
+        },
+        {
+            name: "insert middle inline-block leaf",
+            markup: '<div class="run"><i class="before item"></i><i class="after item"></i></div>',
+            mutate(run) {
+                const inserted = document.createElement("i");
+                inserted.className = "inserted item";
+                run.insertBefore(inserted, run.querySelector(".after"));
+                return [inserted];
+            },
+            tracked: ["run", "before", "after"],
+            expectedRoots: 1,
+        },
+        {
+            name: "append inline-block leaf",
+            markup: '<div class="run"><i class="before item"></i></div>',
+            mutate(run) {
+                const inserted = document.createElement("i");
+                inserted.className = "inserted item";
+                run.append(inserted);
+                return [inserted];
+            },
+            tracked: ["run", "before"],
+            expectedRoots: 1,
+        },
+        {
+            name: "insert only inline-block child",
+            markup: '<div class="run"></div>',
+            mutate(run) {
+                const inserted = document.createElement("i");
+                inserted.className = "inserted item";
+                run.append(inserted);
+                return [inserted];
+            },
+            tracked: ["run"],
+            expectedRoots: 1,
+        },
+        {
+            name: "insert inline-block into block flow parent",
+            markup: '<div class="run block-run"><i class="before item"></i><i class="after item"></i></div>',
+            mutate(run) {
+                const inserted = document.createElement("i");
+                inserted.className = "inserted item";
+                run.insertBefore(inserted, run.querySelector(".after"));
+                return [inserted];
+            },
+            tracked: ["run", "before", "after"],
+            expectedRoots: 1,
+        },
+        {
+            name: "insert inline-flex child",
+            markup: '<div class="run"><i class="before item"></i><i class="after item"></i></div>',
+            mutate(run) {
+                const inserted = document.createElement("i");
+                inserted.className = "inserted";
+                inserted.style.display = "inline-flex";
+                inserted.innerHTML = "<b>child</b>";
+                run.insertBefore(inserted, run.querySelector(".after"));
+                return [inserted];
+            },
+            tracked: ["run", "before", "after"],
+            expectedRoots: 1,
+        },
+        {
+            name: "insert inline-grid child",
+            markup: '<div class="run"><i class="before item"></i><i class="after item"></i></div>',
+            mutate(run) {
+                const inserted = document.createElement("i");
+                inserted.className = "inserted";
+                inserted.style.display = "inline-grid";
+                inserted.innerHTML = "<b>child</b>";
+                run.insertBefore(inserted, run.querySelector(".after"));
+                return [inserted];
+            },
+            tracked: ["run", "before", "after"],
+            expectedRoots: 1,
+        },
+        {
+            name: "insert inline-block subtree",
+            markup: '<div class="run"><i class="before item"></i><i class="after item"></i></div>',
+            mutate(run) {
+                const inserted = document.createElement("section");
+                inserted.className = "inserted item";
+                inserted.innerHTML = "<b>child</b><em>child</em>";
+                run.insertBefore(inserted, run.querySelector(".after"));
+                return [inserted];
+            },
+            tracked: ["run", "before", "after"],
+            expectedRoots: 1,
+        },
+        {
+            name: "insert inline-block sibling run",
+            markup: '<div class="run"><i class="before item"></i><i class="after item"></i></div>',
+            mutate(run) {
+                const fragment = document.createDocumentFragment();
+                const inserted = [];
+                for (let index = 0; index < 3; ++index) {
+                    const item = document.createElement("i");
+                    item.className = "inserted item";
+                    inserted.push(item);
+                    fragment.append(item);
+                }
+                run.insertBefore(fragment, run.querySelector(".after"));
+                return inserted;
+            },
+            tracked: ["run", "before", "after"],
+            expectedRoots: 3,
+        },
+        {
+            name: "append inline-block before generated after",
+            markup: '<div class="run generated-parent"><i class="before item"></i></div>',
+            mutate(run) {
+                const inserted = document.createElement("i");
+                inserted.className = "inserted item";
+                run.append(inserted);
+                return [inserted];
+            },
+            tracked: ["run", "before"],
+            expectedRoots: 1,
+        },
+        {
+            name: "insert inline-block with generated content",
+            markup: '<div class="run"><i class="before item"></i><i class="after item"></i></div>',
+            mutate(run) {
+                const inserted = document.createElement("i");
+                inserted.className = "inserted item generated-item";
+                run.insertBefore(inserted, run.querySelector(".after"));
+                return [inserted];
+            },
+            tracked: ["run", "before", "after"],
+            expectedRoots: 1,
+        },
+        {
+            name: "insert display-none child",
+            markup: '<div class="run"><i class="before item"></i><i class="after item"></i></div>',
+            mutate(run) {
+                const inserted = document.createElement("i");
+                inserted.className = "inserted hidden";
+                run.insertBefore(inserted, run.querySelector(".after"));
+                return [inserted];
+            },
+            tracked: ["run", "before", "after"],
+            expectedRoots: 0,
+            insertedHasLayout: false,
+        },
+        {
+            name: "insert inline-flow child conservatively",
+            markup: '<div class="run"><i class="before item"></i><i class="after item"></i></div>',
+            mutate(run) {
+                const inserted = document.createElement("i");
+                inserted.className = "inserted inline";
+                inserted.textContent = "inline";
+                run.insertBefore(inserted, run.querySelector(".after"));
+                return [inserted];
+            },
+        },
+        {
+            name: "insert block child conservatively",
+            markup: '<div class="run"><i class="before item"></i><i class="after item"></i></div>',
+            mutate(run) {
+                const inserted = document.createElement("i");
+                inserted.className = "inserted block";
+                run.insertBefore(inserted, run.querySelector(".after"));
+                return [inserted];
+            },
+        },
+        {
+            name: "insert display-contents child conservatively",
+            markup: '<div class="run"><i class="before item"></i><i class="after item"></i></div>',
+            mutate(run) {
+                const inserted = document.createElement("i");
+                inserted.className = "inserted contents";
+                inserted.innerHTML = '<b class="item"></b>';
+                run.insertBefore(inserted, run.querySelector(".after"));
+                return [inserted];
+            },
+        },
+        {
+            name: "insert text child conservatively",
+            markup: '<div class="run"><i class="before item"></i><i class="after item"></i></div>',
+            mutate(run) {
+                const inserted = document.createTextNode("text");
+                run.insertBefore(inserted, run.querySelector(".after"));
+                return [inserted];
+            },
+        },
+        {
+            name: "insert absolutely positioned child conservatively",
+            markup: '<div class="run"><i class="before item"></i><i class="after item"></i></div>',
+            mutate(run) {
+                const inserted = document.createElement("i");
+                inserted.className = "inserted item absolute";
+                run.insertBefore(inserted, run.querySelector(".after"));
+                return [inserted];
+            },
+        },
+        {
+            name: "insert floated child conservatively",
+            markup: '<div class="run"><i class="before item"></i><i class="after item"></i></div>',
+            mutate(run) {
+                const inserted = document.createElement("i");
+                inserted.className = "inserted item float";
+                run.insertBefore(inserted, run.querySelector(".after"));
+                return [inserted];
+            },
+        },
+        {
+            name: "insert before structural display change conservatively",
+            markup: '<div class="run structural"><i class="after item"></i></div>',
+            mutate(run) {
+                const inserted = document.createElement("i");
+                inserted.className = "inserted item";
+                run.prepend(inserted);
+                return [inserted];
+            },
+        },
+    ];
+
+    test(() => {
+        const results = [];
+        for (const case_ of cases) {
+            fixture.innerHTML = case_.markup;
+            const run = fixture.firstElementChild;
+            document.body.offsetHeight;
+
+            const trackedNodes = (case_.tracked || []).map(className => ({
+                label: className,
+                node: className === "run" ? run : run.querySelector(`.${className}`),
+            }));
+            const identities = trackedNodes.map(({ node }) => internals.layoutNodeIdentity(node));
+
+            const inserted = case_.mutate(run);
+            document.body.offsetHeight;
+
+            const stats = internals.layoutTreeBuildStats();
+            results.push({
+                name: case_.name,
+                preserved: trackedNodes.map(({ label, node }, index) => ({
+                    label,
+                    value: internals.layoutNodeIdentity(node) === identities[index],
+                })),
+                inserted: inserted.map(node => ({
+                    value: !!internals.layoutNodeIdentity(node),
+                    expected: case_.insertedHasLayout ?? true,
+                })),
+                roots: stats.lastBuildRebuiltSubtreeRoots,
+                expectedRoots: case_.expectedRoots,
+                escaped: stats.lastBuildEscapedRebuildRoots,
+                matches: internals.compareLayoutTreeWithFullRebuild().matches,
+            });
+        }
+
+        for (const result of results) {
+            for (const tracked of result.preserved)
+                println(`${tracked.value ? "PASS" : "FAIL"}: ${result.name} | preserve ${tracked.label}`);
+            if (result.expectedRoots !== undefined) {
+                for (const inserted of result.inserted)
+                    println(`${inserted.value === inserted.expected ? "PASS" : "FAIL"}: ${result.name} | inserted node layout state`);
+                println(`${result.roots === result.expectedRoots ? "PASS" : "FAIL"}: ${result.name} | rebuild only inserted roots`);
+                println(`${!result.escaped ? "PASS" : "FAIL"}: ${result.name} | keep update within rebuild roots`);
+            }
+            println(`${result.matches ? "PASS" : "FAIL"}: ${result.name} | incremental tree matches full rebuild`);
+        }
+    });
+</script>
