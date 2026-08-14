@@ -778,7 +778,8 @@ SkPaint DisplayListPlayerSkia::paint_style_to_skia_paint(DisplayListPaintStyle c
         });
     case DisplayListPaintStyleType::Pattern: {
         auto const& tile_rect = paint_style.pattern_tile_rect;
-        auto tile_size = Gfx::IntSize(ceilf(tile_rect.width()), ceilf(tile_rect.height()));
+        auto content_scale = paint_style.pattern_content_scale;
+        auto tile_size = Gfx::IntSize(ceilf(tile_rect.width() * content_scale.width()), ceilf(tile_rect.height() * content_scale.height()));
         if (tile_size.is_empty())
             return {};
 

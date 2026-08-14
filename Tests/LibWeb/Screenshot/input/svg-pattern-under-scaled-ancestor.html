@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-1100">
+<style>
+    body {
+        margin: 0;
+        background-color: white;
+    }
+    .scaled {
+        transform: scale(4);
+        transform-origin: 0 0;
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<div class="scaled">
+    <svg width="100" height="100">
+        <defs>
+            <pattern id="dot-tile" width="25" height="25" patternUnits="userSpaceOnUse">
+                <circle cx="12.5" cy="12.5" r="10" fill="blue"/>
+            </pattern>
+        </defs>
+        <rect width="100" height="100" fill="url(#dot-tile)"/>
+    </svg>
+</div>

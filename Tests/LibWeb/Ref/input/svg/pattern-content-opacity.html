@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/pattern-content-opacity-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+</style>
+<svg width="100" height="100">
+    <defs>
+        <pattern id="half-opacity-tile" width="10" height="10" patternUnits="userSpaceOnUse">
+            <rect width="10" height="10" fill="black" opacity="0.5"/>
+        </pattern>
+    </defs>
+    <rect width="100" height="100" fill="url(#half-opacity-tile)"/>
+</svg>
