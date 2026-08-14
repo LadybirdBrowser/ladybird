@@ -40,18 +40,14 @@ bool Box::is_partial_relayout_boundary() const
     if (!paintable_box() && !(dom_node() && dom_node()->unsafe_paintable()))
         return false;
 
-    // A nested <svg> never qualifies: its subtree is laid out in the outer SVG's
-    // viewBox-transformed coordinate system, which a relayout rooted at the inner <svg> cannot
-    // reproduce.
-    bool is_outermost_svg_root = is_svg_svg_box() && !(parent() && (parent()->is_svg_box() || parent()->is_svg_svg_box()));
-
-    // An in-flow SVG root's used size is determined solely by its own attributes and outer
+    // An in-flow SVG viewport's used size is determined solely by its own attributes and outer
     // context, never by its children, so its size and position from the previous layout can be
-    // reused - provided a commit has actually saved them. An absolutely positioned SVG root's
-    // placement is not frozen, so it must qualify through the saved-inputs replay path below
-    // instead.
+    // reused - provided a commit has actually saved them; its content lays out in the viewport's
+    // own user units, so a nested <svg> is just as reproducible from its own root as the
+    // outermost one. An absolutely positioned SVG root's placement is not frozen, so it must
+    // qualify through the saved-inputs replay path below instead.
     if (is_svg_svg_box() && !is_absolutely_positioned())
-        return is_outermost_svg_root && has_saved_committed_geometry();
+        return has_saved_committed_geometry();
 
     if (!is_absolutely_positioned())
         return false;
@@ -78,9 +74,8 @@ bool Box::is_partial_relayout_boundary() const
     case RustFFI::FfiFormattingContextType::Block:
     case RustFFI::FfiFormattingContextType::Flex:
     case RustFFI::FfiFormattingContextType::Grid:
-        return true;
     case RustFFI::FfiFormattingContextType::Svg:
-        return is_outermost_svg_root;
+        return true;
     default:
         return false;
     }
