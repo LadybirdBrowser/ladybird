@@ -1027,10 +1027,13 @@ void Node::remove(bool suppress_observers)
             return TraversalDecision::Continue;
         });
 
-        // NOTE: If we didn’t have a layout node before, rebuilding the layout tree isn’t gonna give us one
-        //       after we’ve been removed from the DOM.
+        // A display: contents element has no principal layout node of its own, but removing it also removes
+        // all of its children's boxes from the parent's layout subtree.
         // NB: Called during DOM removal, layout is not up to date.
-        if (unsafe_layout_node())
+        auto contributed_to_layout_tree = unsafe_layout_node() != nullptr;
+        if (auto* element = as_if<Element>(*this); !contributed_to_layout_tree && element && element->has_style())
+            contributed_to_layout_tree = CSS::display_from_ffi_display(element->style_group<CSS::ComputedValues::BoxValues>()->display).is_contents();
+        if (contributed_to_layout_tree)
             parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
     }
 

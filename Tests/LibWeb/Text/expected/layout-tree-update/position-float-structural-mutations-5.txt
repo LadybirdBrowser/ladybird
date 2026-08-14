@@ -473,7 +473,7 @@ PASS: remove first sibling run, float-inline-end block flow-root siblings in -we
 PASS: move node to start, float-inline-end block table siblings in -webkit-box
 PASS: remove individual node, relative-float-left inline flow siblings in -webkit-box
 PASS: replace individual node, relative-float-left inline grid siblings in -webkit-box
-FAIL: append positioned fragment, relative-float-left contents siblings in -webkit-box
+PASS: append positioned fragment, relative-float-left contents siblings in -webkit-box
 PASS: remove last sibling run, static table-row siblings in -webkit-inline-box
 PASS: move subtree across parents, static inline flow siblings in -webkit-inline-box
 PASS: remove first sibling run, relative table-footer-group siblings in -webkit-inline-box
@@ -550,7 +550,7 @@ PASS: remove first sibling run, float-right block flow-root siblings in table-he
 PASS: move node to start, float-right block table siblings in table-header-group
 PASS: remove individual node, float-right-clear-both inline flow siblings in table-header-group
 PASS: replace individual node, float-right-clear-both inline grid siblings in table-header-group
-FAIL: append positioned fragment, float-right-clear-both contents siblings in table-header-group
+PASS: append positioned fragment, float-right-clear-both contents siblings in table-header-group
 PASS: remove last sibling run, float-inline-start block grid siblings in table-header-group
 PASS: move subtree across parents, float-inline-start none siblings in table-header-group
 PASS: remove first sibling run, float-inline-end inline flex siblings in table-header-group
@@ -580,7 +580,7 @@ PASS: remove individual node, float-right-clear-both block flow-root siblings in
 PASS: replace individual node, float-right-clear-both block table siblings in table-footer-group
 PASS: append positioned fragment, float-right-clear-both block siblings in table-footer-group
 PASS: remove last sibling run, float-inline-start inline grid siblings in table-footer-group
-FAIL: move subtree across parents, float-inline-start contents siblings in table-footer-group
+PASS: move subtree across parents, float-inline-start contents siblings in table-footer-group
 PASS: remove first sibling run, float-inline-end block grid siblings in table-footer-group
 PASS: move node to start, float-inline-end none siblings in table-footer-group
 PASS: remove individual node, relative-float-left inline flex siblings in table-footer-group
@@ -627,7 +627,7 @@ PASS: remove first sibling run, sticky block flow-root siblings in table-cell
 PASS: move node to start, sticky block table siblings in table-cell
 PASS: remove individual node, float-left inline flow siblings in table-cell
 PASS: replace individual node, float-left inline grid siblings in table-cell
-FAIL: append positioned fragment, float-left contents siblings in table-cell
+PASS: append positioned fragment, float-left contents siblings in table-cell
 PASS: remove last sibling run, float-left-clear-both block grid siblings in table-cell
 PASS: move subtree across parents, float-left-clear-both none siblings in table-cell
 PASS: remove first sibling run, float-right inline flex siblings in table-cell
@@ -704,7 +704,7 @@ PASS: remove first sibling run, relative block flow-root siblings in table-capti
 PASS: move node to start, relative block table siblings in table-caption
 PASS: remove individual node, absolute inline flow siblings in table-caption
 PASS: replace individual node, absolute inline grid siblings in table-caption
-FAIL: append positioned fragment, absolute contents siblings in table-caption
+PASS: append positioned fragment, absolute contents siblings in table-caption
 PASS: remove last sibling run, fixed block grid siblings in table-caption
 PASS: move subtree across parents, fixed none siblings in table-caption
 PASS: remove first sibling run, sticky inline flex siblings in table-caption
@@ -734,7 +734,7 @@ PASS: remove individual node, absolute block flow-root siblings in block flow
 PASS: replace individual node, absolute block table siblings in block flow
 PASS: append positioned fragment, absolute block siblings in block flow
 PASS: remove last sibling run, fixed inline grid siblings in block flow
-FAIL: move subtree across parents, fixed contents siblings in block flow
+PASS: move subtree across parents, fixed contents siblings in block flow
 PASS: remove first sibling run, sticky block grid siblings in block flow
 PASS: move node to start, sticky none siblings in block flow
 PASS: remove individual node, float-left inline flex siblings in block flow
@@ -747,7 +747,7 @@ PASS: move node to start, float-right inline siblings in block flow
 PASS: remove individual node, float-right-clear-both block table siblings in block flow
 PASS: replace individual node, float-right-clear-both block siblings in block flow
 PASS: append positioned fragment, float-right-clear-both inline list-item siblings in block flow
-FAIL: remove last sibling run, float-inline-start contents siblings in block flow
+PASS: remove last sibling run, float-inline-start contents siblings in block flow
 PASS: move subtree across parents, float-inline-start list-item siblings in block flow
 PASS: remove first sibling run, float-inline-end none siblings in block flow
 PASS: move node to start, float-inline-end run-in siblings in block flow
@@ -777,7 +777,7 @@ PASS: replace individual node, float-right-clear-both inline siblings in inline 
 PASS: append positioned fragment, float-right-clear-both flex siblings in inline flow
 PASS: remove last sibling run, float-inline-start block siblings in inline flow
 PASS: move subtree across parents, float-inline-start inline list-item siblings in inline flow
-FAIL: remove first sibling run, float-inline-end contents siblings in inline flow
+PASS: remove first sibling run, float-inline-end contents siblings in inline flow
 PASS: move node to start, float-inline-end list-item siblings in inline flow
 PASS: remove individual node, relative-float-left none siblings in inline flow
 PASS: replace individual node, relative-float-left run-in siblings in inline flow
@@ -807,11 +807,11 @@ PASS: remove last sibling run, float-inline-start inline siblings in block flow-
 PASS: move subtree across parents, float-inline-start flex siblings in block flow-root
 PASS: remove first sibling run, float-inline-end block siblings in block flow-root
 PASS: move node to start, float-inline-end inline list-item siblings in block flow-root
-FAIL: remove individual node, relative-float-left contents siblings in block flow-root
+PASS: remove individual node, relative-float-left contents siblings in block flow-root
 PASS: replace individual node, relative-float-left list-item siblings in block flow-root
 PASS: append positioned fragment, relative-float-left table siblings in block flow-root
 PASS: remove last sibling run, static inline grid siblings in inline flow-root
-FAIL: move subtree across parents, static contents siblings in inline flow-root
+PASS: move subtree across parents, static contents siblings in inline flow-root
 PASS: remove first sibling run, relative block grid siblings in inline flow-root
 PASS: move node to start, relative none siblings in inline flow-root
 PASS: remove individual node, absolute inline flex siblings in inline flow-root
@@ -824,7 +824,7 @@ PASS: move node to start, sticky inline siblings in inline flow-root
 PASS: remove individual node, float-left block table siblings in inline flow-root
 PASS: replace individual node, float-left block siblings in inline flow-root
 PASS: append positioned fragment, float-left inline list-item siblings in inline flow-root
-FAIL: remove last sibling run, float-left-clear-both contents siblings in inline flow-root
+PASS: remove last sibling run, float-left-clear-both contents siblings in inline flow-root
 PASS: move subtree across parents, float-left-clear-both list-item siblings in inline flow-root
 PASS: remove first sibling run, float-right none siblings in inline flow-root
 PASS: move node to start, float-right run-in siblings in inline flow-root
@@ -854,7 +854,7 @@ PASS: replace individual node, float-left inline siblings in block flex
 PASS: append positioned fragment, float-left flex siblings in block flex
 PASS: remove last sibling run, float-left-clear-both block siblings in block flex
 PASS: move subtree across parents, float-left-clear-both inline list-item siblings in block flex
-FAIL: remove first sibling run, float-right contents siblings in block flex
+PASS: remove first sibling run, float-right contents siblings in block flex
 PASS: move node to start, float-right list-item siblings in block flex
 PASS: remove individual node, float-right-clear-both none siblings in block flex
 PASS: replace individual node, float-right-clear-both run-in siblings in block flex
@@ -884,7 +884,7 @@ PASS: remove last sibling run, float-left-clear-both inline siblings in inline f
 PASS: move subtree across parents, float-left-clear-both flex siblings in inline flex
 PASS: remove first sibling run, float-right block siblings in inline flex
 PASS: move node to start, float-right inline list-item siblings in inline flex
-FAIL: remove individual node, float-right-clear-both contents siblings in inline flex
+PASS: remove individual node, float-right-clear-both contents siblings in inline flex
 PASS: replace individual node, float-right-clear-both list-item siblings in inline flex
 PASS: append positioned fragment, float-right-clear-both table siblings in inline flex
 PASS: remove last sibling run, float-inline-start run-in siblings in inline flex
@@ -901,7 +901,7 @@ PASS: move node to start, relative inline siblings in block grid
 PASS: remove individual node, absolute block table siblings in block grid
 PASS: replace individual node, absolute block siblings in block grid
 PASS: append positioned fragment, absolute inline list-item siblings in block grid
-FAIL: remove last sibling run, fixed contents siblings in block grid
+PASS: remove last sibling run, fixed contents siblings in block grid
 PASS: move subtree across parents, fixed list-item siblings in block grid
 PASS: remove first sibling run, sticky none siblings in block grid
 PASS: move node to start, sticky run-in siblings in block grid
@@ -931,7 +931,7 @@ PASS: replace individual node, absolute inline siblings in inline grid
 PASS: append positioned fragment, absolute flex siblings in inline grid
 PASS: remove last sibling run, fixed block siblings in inline grid
 PASS: move subtree across parents, fixed inline list-item siblings in inline grid
-FAIL: remove first sibling run, sticky contents siblings in inline grid
+PASS: remove first sibling run, sticky contents siblings in inline grid
 PASS: move node to start, sticky list-item siblings in inline grid
 PASS: remove individual node, float-left none siblings in inline grid
 PASS: replace individual node, float-left run-in siblings in inline grid
@@ -961,7 +961,7 @@ PASS: remove last sibling run, fixed inline siblings in block table
 PASS: move subtree across parents, fixed flex siblings in block table
 PASS: remove first sibling run, sticky block siblings in block table
 PASS: move node to start, sticky inline list-item siblings in block table
-FAIL: remove individual node, float-left contents siblings in block table
+PASS: remove individual node, float-left contents siblings in block table
 PASS: replace individual node, float-left list-item siblings in block table
 PASS: append positioned fragment, float-left table siblings in block table
 PASS: remove last sibling run, float-left-clear-both run-in siblings in block table
@@ -978,7 +978,7 @@ PASS: move node to start, float-inline-end inline-table siblings in block table
 PASS: remove individual node, relative-float-left list-item siblings in block table
 PASS: replace individual node, relative-float-left table siblings in block table
 PASS: append positioned fragment, relative-float-left table-header-group siblings in block table
-FAIL: remove last sibling run, static contents siblings in inline table
+PASS: remove last sibling run, static contents siblings in inline table
 PASS: move subtree across parents, static list-item siblings in inline table
 PASS: remove first sibling run, relative none siblings in inline table
 PASS: move node to start, relative run-in siblings in inline table
@@ -1008,7 +1008,7 @@ PASS: replace individual node, relative-float-left inline-table siblings in inli
 PASS: append positioned fragment, relative-float-left table-footer-group siblings in inline table
 PASS: remove last sibling run, static block siblings in block flow list-item
 PASS: move subtree across parents, static inline list-item siblings in block flow list-item
-FAIL: remove first sibling run, relative contents siblings in block flow list-item
+PASS: remove first sibling run, relative contents siblings in block flow list-item
 PASS: move node to start, relative list-item siblings in block flow list-item
 PASS: remove individual node, absolute none siblings in block flow list-item
 PASS: replace individual node, absolute run-in siblings in block flow list-item
@@ -1038,7 +1038,7 @@ PASS: remove last sibling run, static inline siblings in inline flow list-item
 PASS: move subtree across parents, static flex siblings in inline flow list-item
 PASS: remove first sibling run, relative block siblings in inline flow list-item
 PASS: move node to start, relative inline list-item siblings in inline flow list-item
-FAIL: remove individual node, absolute contents siblings in inline flow list-item
+PASS: remove individual node, absolute contents siblings in inline flow list-item
 PASS: replace individual node, absolute list-item siblings in inline flow list-item
 PASS: append positioned fragment, absolute table siblings in inline flow list-item
 PASS: remove last sibling run, fixed run-in siblings in inline flow list-item
@@ -1062,4 +1062,4 @@ PASS: move node to start, float-inline-end -webkit-inline-box siblings in inline
 PASS: remove individual node, relative-float-left inline-flex siblings in inline flow list-item
 PASS: replace individual node, relative-float-left -webkit-box siblings in inline flow list-item
 PASS: append positioned fragment, relative-float-left table-cell siblings in inline flow list-item
-1064 cases; 1045 matched; 19 mismatched
+1064 cases; 1064 matched; 0 mismatched

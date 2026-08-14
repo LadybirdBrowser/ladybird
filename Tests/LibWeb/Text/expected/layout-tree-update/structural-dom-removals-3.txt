@@ -19,7 +19,7 @@ PASS: innerHTML removes subtree from block
 PASS: textContent removes subtree from block
 PASS: remove generating parent from block
 PASS: remove block from inline run from block
-FAIL: remove display contents subtree from block
+PASS: remove display contents subtree from block
 PASS: remove leaf element from run-in
 PASS: remove leaf text from run-in
 PASS: remove shallow subtree from run-in
@@ -41,7 +41,7 @@ PASS: innerHTML removes subtree from run-in
 PASS: textContent removes subtree from run-in
 PASS: remove generating parent from run-in
 PASS: remove block from inline run from run-in
-FAIL: remove display contents subtree from run-in
+PASS: remove display contents subtree from run-in
 PASS: remove leaf element from inline-flex
 PASS: remove leaf text from inline-flex
 PASS: remove shallow subtree from inline-flex
@@ -63,7 +63,7 @@ PASS: innerHTML removes subtree from inline-flex
 PASS: textContent removes subtree from inline-flex
 PASS: remove generating parent from inline-flex
 PASS: remove block from inline run from inline-flex
-FAIL: remove display contents subtree from inline-flex
+PASS: remove display contents subtree from inline-flex
 PASS: remove leaf element from inline-table
 PASS: remove leaf text from inline-table
 PASS: remove shallow subtree from inline-table
@@ -85,7 +85,7 @@ PASS: innerHTML removes subtree from inline-table
 PASS: textContent removes subtree from inline-table
 PASS: remove generating parent from inline-table
 PASS: remove block from inline run from inline-table
-FAIL: remove display contents subtree from inline-table
+PASS: remove display contents subtree from inline-table
 PASS: remove leaf element from table-row-group
 PASS: remove leaf text from table-row-group
 PASS: remove shallow subtree from table-row-group
@@ -107,7 +107,7 @@ PASS: innerHTML removes subtree from table-row-group
 PASS: textContent removes subtree from table-row-group
 PASS: remove generating parent from table-row-group
 PASS: remove block from inline run from table-row-group
-FAIL: remove display contents subtree from table-row-group
+PASS: remove display contents subtree from table-row-group
 PASS: remove leaf element from table-cell
 PASS: remove leaf text from table-cell
 PASS: remove shallow subtree from table-cell
@@ -129,7 +129,7 @@ PASS: innerHTML removes subtree from table-cell
 PASS: textContent removes subtree from table-cell
 PASS: remove generating parent from table-cell
 PASS: remove block from inline run from table-cell
-FAIL: remove display contents subtree from table-cell
+PASS: remove display contents subtree from table-cell
 PASS: remove leaf element from block flow
 PASS: remove leaf text from block flow
 PASS: remove shallow subtree from block flow
@@ -151,7 +151,7 @@ PASS: innerHTML removes subtree from block flow
 PASS: textContent removes subtree from block flow
 PASS: remove generating parent from block flow
 PASS: remove block from inline run from block flow
-FAIL: remove display contents subtree from block flow
+PASS: remove display contents subtree from block flow
 PASS: remove leaf element from block flex
 PASS: remove leaf text from block flex
 PASS: remove shallow subtree from block flex
@@ -173,7 +173,7 @@ PASS: innerHTML removes subtree from block flex
 PASS: textContent removes subtree from block flex
 PASS: remove generating parent from block flex
 PASS: remove block from inline run from block flex
-FAIL: remove display contents subtree from block flex
+PASS: remove display contents subtree from block flex
 PASS: remove leaf element from block table
 PASS: remove leaf text from block table
 PASS: remove shallow subtree from block table
@@ -195,5 +195,5 @@ PASS: innerHTML removes subtree from block table
 PASS: textContent removes subtree from block table
 PASS: remove generating parent from block table
 PASS: remove block from inline run from block table
-FAIL: remove display contents subtree from block table
-198 cases; 189 matched; 9 mismatched
+PASS: remove display contents subtree from block table
+198 cases; 198 matched; 0 mismatched

@@ -22,30 +22,30 @@ PASS: ::after remove origin, float-right-clear-both grid on none
 PASS: ::after remove origin, float-inline-start inline-grid on none
 PASS: ::after remove origin, float-inline-end table on none
 PASS: ::after remove origin, relative-float-left inline-table on none
-FAIL: ::before remove origin, static flow-root on contents
-FAIL: ::before remove origin, relative inline-block on contents
-FAIL: ::before remove origin, absolute run-in on contents
-FAIL: ::before remove origin, fixed list-item on contents
-FAIL: ::before remove origin, sticky inline list-item on contents
-FAIL: ::before remove origin, float-left flex on contents
-FAIL: ::before remove origin, float-left-clear-both inline-flex on contents
-FAIL: ::before remove origin, float-right grid on contents
-FAIL: ::before remove origin, float-right-clear-both inline-grid on contents
-FAIL: ::before remove origin, float-inline-start table on contents
-FAIL: ::before remove origin, float-inline-end inline-table on contents
-FAIL: ::before remove origin, relative-float-left math on contents
-FAIL: ::after remove origin, static flow-root on contents
-FAIL: ::after remove origin, relative inline-block on contents
-FAIL: ::after remove origin, absolute run-in on contents
-FAIL: ::after remove origin, fixed list-item on contents
-FAIL: ::after remove origin, sticky inline list-item on contents
-FAIL: ::after remove origin, float-left flex on contents
-FAIL: ::after remove origin, float-left-clear-both inline-flex on contents
-FAIL: ::after remove origin, float-right grid on contents
-FAIL: ::after remove origin, float-right-clear-both inline-grid on contents
-FAIL: ::after remove origin, float-inline-start table on contents
-FAIL: ::after remove origin, float-inline-end inline-table on contents
-FAIL: ::after remove origin, relative-float-left math on contents
+PASS: ::before remove origin, static flow-root on contents
+PASS: ::before remove origin, relative inline-block on contents
+PASS: ::before remove origin, absolute run-in on contents
+PASS: ::before remove origin, fixed list-item on contents
+PASS: ::before remove origin, sticky inline list-item on contents
+PASS: ::before remove origin, float-left flex on contents
+PASS: ::before remove origin, float-left-clear-both inline-flex on contents
+PASS: ::before remove origin, float-right grid on contents
+PASS: ::before remove origin, float-right-clear-both inline-grid on contents
+PASS: ::before remove origin, float-inline-start table on contents
+PASS: ::before remove origin, float-inline-end inline-table on contents
+PASS: ::before remove origin, relative-float-left math on contents
+PASS: ::after remove origin, static flow-root on contents
+PASS: ::after remove origin, relative inline-block on contents
+PASS: ::after remove origin, absolute run-in on contents
+PASS: ::after remove origin, fixed list-item on contents
+PASS: ::after remove origin, sticky inline list-item on contents
+PASS: ::after remove origin, float-left flex on contents
+PASS: ::after remove origin, float-left-clear-both inline-flex on contents
+PASS: ::after remove origin, float-right grid on contents
+PASS: ::after remove origin, float-right-clear-both inline-grid on contents
+PASS: ::after remove origin, float-inline-start table on contents
+PASS: ::after remove origin, float-inline-end inline-table on contents
+PASS: ::after remove origin, relative-float-left math on contents
 PASS: ::before remove origin, static inline-block on block
 PASS: ::before remove origin, relative run-in on block
 PASS: ::before remove origin, absolute list-item on block
@@ -910,4 +910,4 @@ PASS: ::after remove origin, float-right-clear-both inline-flex on inline flow l
 PASS: ::after remove origin, float-inline-start grid on inline flow list-item
 PASS: ::after remove origin, float-inline-end inline-grid on inline flow list-item
 PASS: ::after remove origin, relative-float-left table on inline flow list-item
-912 cases; 888 matched; 24 mismatched
+912 cases; 912 matched; 0 mismatched
