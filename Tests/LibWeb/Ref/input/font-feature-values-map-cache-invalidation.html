@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/font-feature-values-map-cache-invalidation-ref.html">
+<link rel="help" href="https://drafts.csswg.org/css-fonts/#font-feature-values-syntax">
+<style>
+    @font-face {
+        font-family: FeatureFont;
+        src: url("wpt-import/css/css-fonts/support/fonts/FontWithFancyFeatures.otf");
+    }
+
+    @font-feature-values FeatureFont {
+        @stylistic {
+            fancy: 1;
+        }
+    }
+
+    p {
+        font-family: FeatureFont;
+        font-size: 2em;
+        font-variant-alternates: stylistic(fancy);
+    }
+</style>
+<p id="primer">Xnophijklmqrstuvwxyz</p>
+<script>
+    document.fonts.ready.then(() => {
+        primer.getBoundingClientRect();
+        document.styleSheets[0].cssRules[1].stylistic.set("fancy", 2);
+
+        const result = document.createElement("p");
+        result.textContent = primer.textContent;
+        primer.replaceWith(result);
+        requestAnimationFrame(() => document.documentElement.classList.remove("reftest-wait"));
+    });
+</script>

@@ -46,16 +46,21 @@ bool CSSFontFeatureValuesMap::map_has(FlyString const& key) const
 void CSSFontFeatureValuesMap::map_set(FlyString const& key, Vector<u32> const& values)
 {
     m_entries.set(key, values);
+    m_parent_rule->clear_caches();
 }
 
 bool CSSFontFeatureValuesMap::map_remove(FlyString const& key)
 {
-    return m_entries.remove(key);
+    auto removed = m_entries.remove(key);
+    if (removed)
+        m_parent_rule->clear_caches();
+    return removed;
 }
 
 void CSSFontFeatureValuesMap::map_clear()
 {
     m_entries.clear();
+    m_parent_rule->clear_caches();
 }
 
 WebIDL::ExceptionOr<void> CSSFontFeatureValuesMap::set(Utf16String const& feature_value_name, Variant<u32, Vector<u32>> const& values)
