@@ -20,7 +20,6 @@
 
 namespace Web {
 
-struct AsyncScrollOperation;
 class AutoScrollHandler;
 class CSSPixels;
 class DisplayListRecordingContext;
@@ -38,6 +37,9 @@ class XMLDocumentBuilder;
 
 enum class InvalidateDisplayList;
 enum class TraversalDecision;
+
+struct AsyncScrollOperation;
+struct InitiatorSourceSnapshot;
 
 AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(i64, UniqueNodeID, Comparison, Increment, CastToUnderlying);
 

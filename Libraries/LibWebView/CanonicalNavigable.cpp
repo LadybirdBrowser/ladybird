@@ -6,6 +6,7 @@
 
 #include <LibWebView/CanonicalNavigable.h>
 
+#include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/WebContentClient.h>
@@ -76,6 +77,72 @@ NonnullOwnPtr<CanonicalNavigable> CanonicalNavigable::remove_child(CanonicalNavi
     }
 
     VERIFY_NOT_REACHED();
+}
+
+bool CanonicalNavigable::is_ancestor_of(CanonicalNavigable const& potential_descendant) const
+{
+    for (auto const* parent = potential_descendant.parent(); parent; parent = parent->parent()) {
+        if (parent == this)
+            return true;
+    }
+    return false;
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#allowed-to-navigate
+bool CanonicalNavigable::allowed_by_sandboxing_to_navigate(CanonicalNavigable const& target, Web::InitiatorSourceSnapshot const& source_snapshot_params) const
+{
+    auto const& source = *this;
+
+    // 1. If source is target, then return true.
+    if (&source == &target)
+        return true;
+
+    // 2. If source is an ancestor of target, then return true.
+    if (source.is_ancestor_of(target))
+        return true;
+
+    // 3. If target is an ancestor of source, then:
+    if (target.is_ancestor_of(source)) {
+        // 1. If target is not a top-level traversable, then return true.
+        if (!target.is_top_level_traversable())
+            return true;
+
+        // 2. If sourceSnapshotParams's has transient activation is true, and sourceSnapshotParams's sandboxing flags's
+        //    sandboxed top-level navigation with user activation browsing context flag is set, then return false.
+        if (source_snapshot_params.has_transient_activation
+            && has_flag(source_snapshot_params.sandboxing_flags, Web::HTML::SandboxingFlagSet::SandboxedTopLevelNavigationWithUserActivation)) {
+            return false;
+        }
+
+        // 3. If sourceSnapshotParams's has transient activation is false, and sourceSnapshotParams's sandboxing flags's
+        //    sandboxed top-level navigation without user activation browsing context flag is set, then return false.
+        if (!source_snapshot_params.has_transient_activation
+            && has_flag(source_snapshot_params.sandboxing_flags, Web::HTML::SandboxingFlagSet::SandboxedTopLevelNavigationWithoutUserActivation)) {
+            return false;
+        }
+
+        // 4. Return true.
+        return true;
+    }
+
+    // 4. If target is a top-level traversable:
+    if (target.is_top_level_traversable()) {
+        // FIXME: 1. If source is the one permitted sandboxed navigator of target, then return true.
+
+        // 2. If sourceSnapshotParams's sandboxing flags's sandboxed navigation browsing context flag is set, then return false.
+        if (has_flag(source_snapshot_params.sandboxing_flags, Web::HTML::SandboxingFlagSet::SandboxedNavigation))
+            return false;
+
+        // 3. Return true.
+        return true;
+    }
+
+    // 5. If sourceSnapshotParams's sandboxing flags's sandboxed navigation browsing context flag is set, then return false.
+    if (has_flag(source_snapshot_params.sandboxing_flags, Web::HTML::SandboxingFlagSet::SandboxedNavigation))
+        return false;
+
+    // 6. Return true.
+    return true;
 }
 
 IterationDecision CanonicalNavigable::for_each_in_inclusive_subtree(Function<IterationDecision(CanonicalNavigable&)> const& callback)

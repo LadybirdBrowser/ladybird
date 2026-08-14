@@ -63,7 +63,6 @@ void LocalTraversableNavigable::visit_edges(Cell::Visitor& visitor)
     }
     for (auto& initiation : m_history_operation_states) {
         visitor.visit(initiation.value.source_snapshot_params);
-        visitor.visit(initiation.value.initiator_to_check);
         visitor.visit(initiation.value.pending_document);
         visitor.visit(initiation.value.expected_ongoing_navigation_navigable);
         visitor.visit(initiation.value.pre_steps);
@@ -1363,11 +1362,13 @@ void LocalTraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr
             .traversable_id = id(),
             .delta = delta,
             .initiator_to_check = initiator_to_check ? Optional<CrossProcessId> { initiator_to_check->id() } : OptionalNone {},
+            .initiator_source_snapshot = source_snapshot_params
+                ? Optional<Web::InitiatorSourceSnapshot> { { .sandboxing_flags = source_snapshot_params->sandboxing_flags, .has_transient_activation = source_snapshot_params->has_transient_activation } }
+                : OptionalNone {},
             .user_involvement = user_involvement,
         },
         {
             .source_snapshot_params = source_snapshot_params,
-            .initiator_to_check = initiator_to_check,
         });
 }
 
@@ -1426,31 +1427,6 @@ void LocalTraversableNavigable::handle_ui_history_operation_started(u64 operatio
         return;
     }
     ready->function()(Empty {});
-}
-
-bool LocalTraversableNavigable::run_ui_initiator_sandboxing_check_job(CrossProcessId initiator_to_check_id, Vector<CrossProcessId> const& navigable_ids, u64 initiation_id)
-{
-    // 3. If initiatorToCheck is not null, then:
-    auto initiation = m_history_operation_states.find(initiation_id);
-    VERIFY(initiation != m_history_operation_states.end());
-    auto initiator_to_check = initiation->value.initiator_to_check;
-    auto source_snapshot_params = initiation->value.source_snapshot_params;
-
-    // 1. Assert: sourceSnapshotParams is not null.
-    VERIFY(source_snapshot_params);
-    VERIFY(initiator_to_check);
-    VERIFY(initiator_to_check->id() == initiator_to_check_id);
-    // 2. For each navigable of get all navigables whose current session history entry will change or reload: if
-    //    initiatorToCheck is not allowed by sandboxing to navigate navigable given sourceSnapshotParams, then return
-    //    "initiator-disallowed".
-    for (auto navigable_id : navigable_ids) {
-        auto navigable = local_navigable_with_id(navigable_id);
-        if (!navigable || navigable->has_been_destroyed())
-            continue;
-        if (!initiator_to_check->allowed_by_sandboxing_to_navigate(*navigable, *source_snapshot_params))
-            return false;
-    }
-    return true;
 }
 
 void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(u64 operation_id, SessionHistoryEntryDescriptor target_entry_descriptor, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement user_involvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete)

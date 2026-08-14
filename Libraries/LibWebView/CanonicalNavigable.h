@@ -17,6 +17,7 @@
 #include <AK/Vector.h>
 #include <AK/Weakable.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
@@ -64,6 +65,8 @@ public:
 
     CanonicalNavigable& append_child(NonnullOwnPtr<CanonicalNavigable>);
     NonnullOwnPtr<CanonicalNavigable> remove_child(CanonicalNavigable&);
+    bool is_ancestor_of(CanonicalNavigable const&) const;
+    bool allowed_by_sandboxing_to_navigate(CanonicalNavigable const& target, Web::InitiatorSourceSnapshot const& source_snapshot_params) const;
     IterationDecision for_each_in_inclusive_subtree(Function<IterationDecision(CanonicalNavigable&)> const&);
     IterationDecision for_each_in_subtree(Function<IterationDecision(CanonicalNavigable&)> const&);
     IterationDecision for_each_in_inclusive_subtree(Function<IterationDecision(CanonicalNavigable const&)> const&) const;

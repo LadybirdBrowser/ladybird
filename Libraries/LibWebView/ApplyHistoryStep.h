@@ -16,6 +16,7 @@
 #include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/HTML/ApplyHistoryStep.h>
 #include <LibWeb/HTML/CrossProcessId.h>
+#include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 #include <LibWebView/Export.h>
@@ -32,17 +33,6 @@ namespace WebView {
 // has crashed (for example with a Skipped disposition), and must not invoke a job's completion callback after the
 // operation that dispatched it has completed.
 struct WEBVIEW_API ApplyHistoryStepJobs {
-
-    // "3.2. For each navigable of the result of getting all navigables whose current session history entry will
-    //  change or reload ...: if initiatorToCheck is not allowed by sandboxing to navigate navigable given
-    //  sourceSnapshotParams, then return "initiator-disallowed"."
-    // NB: initiatorToCheck's document and sourceSnapshotParams live in the initiating process, so the check runs
-    //     there as a job.
-    enum class InitiatorSandboxingCheckResult : u8 {
-        Allowed,
-        Disallowed,
-    };
-    Function<void(Web::HTML::CrossProcessId initiator_to_check, Vector<Web::HTML::CrossProcessId> navigables, Function<void(InitiatorSandboxingCheckResult)> on_complete)> run_initiator_sandboxing_check_job;
 
     // "5. If checkForCancelation is true, and the result of checking if unloading is canceled given
     //  navigablesCrossingDocuments, traversable, targetStep, and userInvolvement is not "continue", then return that
@@ -118,6 +108,7 @@ public:
         i32 step,
         bool check_for_cancelation,
         Optional<Web::HTML::CrossProcessId> initiator_to_check,
+        Optional<Web::InitiatorSourceSnapshot> initiator_source_snapshot,
         Web::HTML::UserNavigationInvolvement user_involvement,
         Optional<Web::Bindings::NavigationType> navigation_type,
         Function<void(Web::HTML::HistoryStepResult)> on_complete);
@@ -132,7 +123,6 @@ public:
 private:
     // The algorithm's steps. Asynchronous work resumes the algorithm by entering the next phase (or re-entering the
     // current one) from its completion callback.
-    void check_if_unloading_is_canceled();
     void get_changing_and_nonchanging_navigables();
     void run_changing_navigable_jobs();
     void process_changing_navigable_continuations();
@@ -156,6 +146,7 @@ private:
     // NB: The HTML Standard spells this algorithm argument "checkForCancelation".
     bool const m_check_for_cancelation;
     Optional<Web::HTML::CrossProcessId> const m_initiator_to_check;
+    Optional<Web::InitiatorSourceSnapshot> const m_initiator_source_snapshot;
     Web::HTML::UserNavigationInvolvement const m_user_involvement;
     Optional<Web::Bindings::NavigationType> const m_navigation_type;
     Function<void(Web::HTML::HistoryStepResult)> m_on_complete;

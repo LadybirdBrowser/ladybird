@@ -70,15 +70,9 @@ namespace {
 
 class FakeJobRunner {
 public:
-    using InitiatorSandboxingCheckResult = WebView::ApplyHistoryStepJobs::InitiatorSandboxingCheckResult;
     using ChangingNavigableHistoryStepJob = WebView::ApplyHistoryStepJobs::ChangingNavigableHistoryStepJob;
     using ApplyChangingNavigableHistoryStepContinuation = WebView::ApplyHistoryStepJobs::ApplyChangingNavigableHistoryStepContinuation;
 
-    struct InitiatorSandboxingCheckJob {
-        Web::HTML::CrossProcessId initiator_to_check;
-        Vector<Web::HTML::CrossProcessId> navigables;
-        Function<void(InitiatorSandboxingCheckResult)> on_complete;
-    };
     struct UnloadCancelationJob {
         Web::HTML::SessionHistoryEntryDescriptor target_entry;
         Vector<Web::HTML::CrossProcessId> navigables_crossing_documents;
@@ -101,7 +95,6 @@ public:
     WebView::ApplyHistoryStepJobs jobs()
     {
         return {
-            .run_initiator_sandboxing_check_job = [this](Web::HTML::CrossProcessId initiator_to_check, Vector<Web::HTML::CrossProcessId> navigables, Function<void(InitiatorSandboxingCheckResult)> on_complete) { initiator_sandboxing_check_jobs.append({ initiator_to_check, move(navigables), move(on_complete) }); },
             .run_unload_cancelation_job = [this](WebView::ApplyHistoryStepJobs::UnloadCancelationJob job, Function<void(Web::HTML::HistoryStepResult)> on_complete) { unload_cancelation_jobs.append({ move(job.target_entry), move(job.navigables_crossing_documents), move(on_complete) }); },
             .select_changing_navigable_history_step_job_endpoint = [this](ChangingNavigableHistoryStepJob const& job) {
                 selected_changing_job_endpoints.append(job.navigable_id);
@@ -112,7 +105,6 @@ public:
         };
     }
 
-    Vector<InitiatorSandboxingCheckJob> initiator_sandboxing_check_jobs;
     Vector<UnloadCancelationJob> unload_cancelation_jobs;
     Vector<Web::HTML::CrossProcessId> selected_changing_job_endpoints;
     Vector<ChangingJob> changing_jobs;
@@ -178,19 +170,19 @@ struct TestTraversable {
         VERIFY(history.finalize_cross_document_navigation({}, pending_entry(move(replacement_entry)), initial_entry.navigation_api_key).has_value());
     }
 
-    WebView::ApplyHistoryStep& apply_step(i32 step, Optional<Web::Bindings::NavigationType> navigation_type, bool check_for_cancelation = false, Optional<Web::HTML::CrossProcessId> initiator_to_check = {})
+    WebView::ApplyHistoryStep& apply_step(i32 step, Optional<Web::Bindings::NavigationType> navigation_type, bool check_for_cancelation = false, Optional<Web::HTML::CrossProcessId> initiator_to_check = {}, Optional<Web::InitiatorSourceSnapshot> initiator_source_snapshot = {})
     {
         operation = make<WebView::ApplyHistoryStep>(history, traversable, queue, state, runner.jobs(), step,
-            check_for_cancelation, initiator_to_check, Web::HTML::UserNavigationInvolvement::BrowserUI,
+            check_for_cancelation, initiator_to_check, initiator_source_snapshot, Web::HTML::UserNavigationInvolvement::BrowserUI,
             navigation_type,
             [this](Web::HTML::HistoryStepResult history_step_result) { result = history_step_result; });
         operation->apply_the_history_step();
         return *operation;
     }
 
-    WebView::ApplyHistoryStep& traverse_to_step(i32 step, bool check_for_cancelation = false, Optional<Web::HTML::CrossProcessId> initiator_to_check = {})
+    WebView::ApplyHistoryStep& traverse_to_step(i32 step, bool check_for_cancelation = false, Optional<Web::HTML::CrossProcessId> initiator_to_check = {}, Optional<Web::InitiatorSourceSnapshot> initiator_source_snapshot = {})
     {
-        return apply_step(step, Web::Bindings::NavigationType::Traverse, check_for_cancelation, initiator_to_check);
+        return apply_step(step, Web::Bindings::NavigationType::Traverse, check_for_cancelation, initiator_to_check, initiator_source_snapshot);
     }
 
     Optional<i32> current_step() const
@@ -241,7 +233,6 @@ TEST_CASE(traversal_runs_the_changing_root_job_and_commits_the_target_step)
     test.with_two_top_level_entries();
 
     auto& operation = test.traverse_to_step(0);
-    EXPECT(test.runner.initiator_sandboxing_check_jobs.is_empty());
     EXPECT(test.runner.unload_cancelation_jobs.is_empty());
 
     EXPECT_EQ(test.runner.selected_changing_job_endpoints.size(), 1uz);
@@ -308,19 +299,63 @@ TEST_CASE(disallowed_initiator_returns_before_the_cancelation_check)
 {
     TestTraversable test;
     test.with_two_top_level_entries();
+    test.add_child(child_id());
 
-    test.traverse_to_step(0, true, child_id());
-    EXPECT_EQ(test.runner.initiator_sandboxing_check_jobs.size(), 1uz);
-    auto& job = test.runner.initiator_sandboxing_check_jobs[0];
-    EXPECT_EQ(job.initiator_to_check, child_id());
-    EXPECT_EQ(job.navigables.size(), 1uz);
-    EXPECT_EQ(job.navigables[0], root_id());
-    job.on_complete(WebView::ApplyHistoryStepJobs::InitiatorSandboxingCheckResult::Disallowed);
+    test.traverse_to_step(0, true, child_id(),
+        Web::InitiatorSourceSnapshot { .sandboxing_flags = Web::HTML::SandboxingFlagSet::SandboxedTopLevelNavigationWithoutUserActivation, .has_transient_activation = false });
 
     EXPECT(test.runner.unload_cancelation_jobs.is_empty());
     EXPECT(test.runner.changing_jobs.is_empty());
     EXPECT(test.result == Web::HTML::HistoryStepResult::InitiatorDisallowed);
     EXPECT_EQ(test.current_step(), 1);
+}
+
+TEST_CASE(allowed_initiator_proceeds_to_the_cancelation_check)
+{
+    TestTraversable test;
+    test.with_two_top_level_entries();
+    test.add_child(child_id());
+
+    test.traverse_to_step(0, true, child_id(), Web::InitiatorSourceSnapshot {});
+
+    EXPECT_EQ(test.runner.unload_cancelation_jobs.size(), 1uz);
+    EXPECT(!test.result.has_value());
+}
+
+TEST_CASE(initiator_without_a_snapshot_fails_closed)
+{
+    TestTraversable test;
+    test.with_two_top_level_entries();
+    test.add_child(child_id());
+
+    test.traverse_to_step(0, true, child_id());
+
+    EXPECT(test.runner.unload_cancelation_jobs.is_empty());
+    EXPECT(test.runner.changing_jobs.is_empty());
+    EXPECT(test.result == Web::HTML::HistoryStepResult::InitiatorDisallowed);
+}
+
+TEST_CASE(sandboxed_removed_initiator_is_disallowed)
+{
+    TestTraversable test;
+    test.with_two_top_level_entries();
+
+    test.traverse_to_step(0, true, child_id(), Web::InitiatorSourceSnapshot { .sandboxing_flags = Web::HTML::SandboxingFlagSet::SandboxedNavigation });
+
+    EXPECT(test.runner.unload_cancelation_jobs.is_empty());
+    EXPECT(test.runner.changing_jobs.is_empty());
+    EXPECT(test.result == Web::HTML::HistoryStepResult::InitiatorDisallowed);
+}
+
+TEST_CASE(unsandboxed_removed_initiator_proceeds_to_the_cancelation_check)
+{
+    TestTraversable test;
+    test.with_two_top_level_entries();
+
+    test.traverse_to_step(0, true, child_id(), Web::InitiatorSourceSnapshot {});
+
+    EXPECT_EQ(test.runner.unload_cancelation_jobs.size(), 1uz);
+    EXPECT(!test.result.has_value());
 }
 
 TEST_CASE(child_navigable_traversal_updates_the_nonchanging_root)
@@ -488,7 +523,7 @@ TEST_CASE(an_older_run_does_not_commit_over_a_newer_runs_step)
 
     Optional<Web::HTML::HistoryStepResult> older_result;
     WebView::ApplyHistoryStep older_operation(test.history, test.traversable, test.queue, test.state, test.runner.jobs(), 0,
-        false, {}, Web::HTML::UserNavigationInvolvement::BrowserUI, Web::Bindings::NavigationType::Traverse,
+        false, {}, {}, Web::HTML::UserNavigationInvolvement::BrowserUI, Web::Bindings::NavigationType::Traverse,
         [&](Web::HTML::HistoryStepResult result) { older_result = result; });
 
     // A newer run (for example a synchronous navigation that jumped the queue) commits first.
