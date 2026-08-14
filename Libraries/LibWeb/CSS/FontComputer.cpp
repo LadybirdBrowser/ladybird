@@ -124,6 +124,11 @@ RefPtr<Gfx::Font const> FontLoader::font_with_point_size(float point_size, Gfx::
     if (!m_typeface) {
         if (!m_fetch_controller)
             start_loading_next_url();
+        // INTEROP: Delay the document load event til the fetch for this font has settled. Blink, Gecko, and WebKit all
+        //          keep the document from completing while a font load requested for rendering is pending — so pages
+        //          that measure font-dependent geometry in a load-event handler see the loaded font, not a fallback.
+        if (is_loading() && !m_document_load_event_delayer.has_value())
+            m_document_load_event_delayer.emplace(m_font_computer->document());
         return nullptr;
     }
     return m_typeface->font(point_size, variations, shape_features);
@@ -214,6 +219,7 @@ void FontLoader::font_did_load_or_fail(RefPtr<Gfx::Typeface const> typeface)
         m_font_computer->clear_computed_font_cache(m_family_name);
     }
     m_has_completed = true;
+    m_document_load_event_delayer.clear();
     for (auto& callback : m_subscribers)
         callback->function()(m_typeface);
     m_subscribers.clear();

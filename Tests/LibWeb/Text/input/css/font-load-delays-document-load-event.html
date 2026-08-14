@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Verifies that a document's load event waits for in-flight @font-face fetches — so geometry measured in a load-
+    // event handler reflects the loaded font rather than a fallback font.
+    promiseTest(async () => {
+        // Serve a copy of Ahem.ttf through the echo server with a response delay — so the font fetch reliably outlasts
+        // every other part of the iframe document's load.
+        const fontBytes = new Uint8Array(await (await fetch("../wpt-import/fonts/Ahem.ttf")).arrayBuffer());
+        let binary = "";
+        for (const byte of fontBytes)
+            binary += String.fromCharCode(byte);
+        // A unique path per run: the echo-server registration namespace is shared across parallel
+        // workers and --repeat clones, so a fixed path lets one run serve another run's registration.
+        const token = crypto.randomUUID();
+        const registration = await fetch("/echo", {
+            method: "POST",
+            body: JSON.stringify({
+                method: "GET",
+                path: `/echo/slow-ahem-${token}.ttf`,
+                status: 200,
+                headers: { "Content-Type": "font/ttf", "Access-Control-Allow-Origin": "*" },
+                body: btoa(binary),
+                body_encoding: "base64",
+                delay_ms: 400,
+            }),
+        });
+        const fontUrl = (await registration.json()).url;
+
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = `
+            <style>@font-face { font-family: SlowAhem; src: url("${fontUrl}"); }</style>
+            <svg><text y="180" font-size="100" font-family="SlowAhem">X<tspan>XX</tspan></text></svg>`;
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve));
+        document.body.appendChild(iframe);
+        await loaded;
+
+        const rect = iframe.contentDocument.querySelector("tspan").getBoundingClientRect();
+        println(`tspan rect at iframe load: left=${rect.left} top=${rect.top} width=${rect.width} height=${rect.height}`);
+    });
+</script>

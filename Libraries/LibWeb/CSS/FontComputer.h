@@ -18,6 +18,7 @@
 #include <LibWeb/CSS/FontFeatureData.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
+#include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
@@ -109,6 +110,7 @@ private:
     Vector<URL> m_urls;
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
     Vector<GC::Ref<GC::Function<void(RefPtr<Gfx::Typeface const>)>>> m_subscribers;
+    Optional<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer;
     bool m_has_completed { false };
 };
 
