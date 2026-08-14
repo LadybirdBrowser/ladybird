@@ -135,6 +135,12 @@ struct SavedAbsposLayoutInputsSlot {
 }
 
 #[derive(Default)]
+struct SavedCommittedGeometrySlot {
+    generation: u8,
+    geometry: Option<Box<crate::layout::FfiPaintableGeometry>>,
+}
+
+#[derive(Default)]
 pub(crate) struct TextContent {
     pub(crate) text: Vec<u16>,
     pub(crate) untransformed_text_is_ascii_whitespace: bool,
@@ -223,6 +229,7 @@ pub(crate) struct LayoutNodeArena {
     live_count: u32,
     intrinsic_size_caches: RefCell<Vec<IntrinsicSizeCacheSlot>>,
     saved_abspos_layout_inputs: RefCell<Vec<SavedAbsposLayoutInputsSlot>>,
+    saved_committed_geometries: RefCell<Vec<SavedCommittedGeometrySlot>>,
     text_contents: Vec<TextContentSlot>,
     text_chunk_caches: RefCell<Vec<TextChunkCacheSlot>>,
     replaced_content_facts: Vec<ReplacedContentFactsSlot>,
@@ -244,6 +251,7 @@ impl LayoutNodeArena {
             live_count: 0,
             intrinsic_size_caches: RefCell::new(Vec::new()),
             saved_abspos_layout_inputs: RefCell::new(Vec::new()),
+            saved_committed_geometries: RefCell::new(Vec::new()),
             text_contents: Vec::new(),
             text_chunk_caches: RefCell::new(Vec::new()),
             replaced_content_facts: Vec::new(),
@@ -362,6 +370,9 @@ impl LayoutNodeArena {
         }
         if let Some(slot) = self.saved_abspos_layout_inputs.get_mut().get_mut(index as usize) {
             *slot = SavedAbsposLayoutInputsSlot::default();
+        }
+        if let Some(slot) = self.saved_committed_geometries.get_mut().get_mut(index as usize) {
+            *slot = SavedCommittedGeometrySlot::default();
         }
         if let Some(slot) = self.text_contents.get_mut(index as usize) {
             *slot = TextContentSlot::default();
@@ -706,6 +717,60 @@ impl LayoutNodeArena {
                 }
             }
             flags.write(value);
+        }
+    }
+
+    pub(crate) fn saved_committed_geometry(
+        &self,
+        data: *const NodeData,
+    ) -> Option<crate::layout::FfiPaintableGeometry> {
+        let (index, metadata) = self.slot_for_data(data);
+        let slots = self.saved_committed_geometries.borrow();
+        let geometry = slots
+            .get(index as usize)
+            .filter(|slot| slot.generation == metadata.generation)
+            .and_then(|slot| slot.geometry.as_deref().copied());
+
+        // SAFETY: slot_for_data() established that data points to a live slot
+        // in this arena.
+        let flags = unsafe { (&raw const (*data).flags).read() };
+        assert_eq!(
+            flags & NodeFlag::HasSavedCommittedGeometry as u32 != 0,
+            geometry.is_some(),
+            "saved committed geometry presence flag disagrees with the arena side table"
+        );
+        geometry
+    }
+
+    pub(crate) fn set_saved_committed_geometry(
+        &self,
+        data: *mut NodeData,
+        geometry: crate::layout::FfiPaintableGeometry,
+    ) {
+        let (index, metadata) = self.slot_for_data(data);
+        let mut slots = self.saved_committed_geometries.borrow_mut();
+        if slots.len() <= index as usize {
+            slots.resize_with(index as usize + 1, SavedCommittedGeometrySlot::default);
+        }
+        let slot = &mut slots[index as usize];
+        if slot.generation != metadata.generation {
+            *slot = SavedCommittedGeometrySlot {
+                generation: metadata.generation,
+                geometry: Some(Box::new(geometry)),
+            };
+        } else if let Some(saved_geometry) = &mut slot.geometry {
+            **saved_geometry = geometry;
+        } else {
+            slot.geometry = Some(Box::new(geometry));
+        }
+        drop(slots);
+
+        // SAFETY: slot_for_data() established that data points to a live slot
+        // in this arena, and layout/tree building serialize mutation on the
+        // arena's owner thread.
+        unsafe {
+            let flags = &raw mut (*data).flags;
+            flags.write(flags.read() | NodeFlag::HasSavedCommittedGeometry as u32);
         }
     }
 

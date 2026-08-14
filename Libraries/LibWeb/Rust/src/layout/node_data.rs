@@ -160,6 +160,7 @@ pub enum NodeFlag {
     ListMarkerIsInside = 1 << 23,
     HasAnchorNames = 1 << 24,
     InsetsUseAnchorFunctions = 1 << 25,
+    HasSavedCommittedGeometry = 1 << 26,
 }
 
 #[repr(C)]
@@ -258,6 +259,11 @@ mod tests {
     #[test]
     fn list_marker_position_uses_expected_flag_bit() {
         assert_eq!(NodeFlag::ListMarkerIsInside as u32, 1 << 23);
+    }
+
+    #[test]
+    fn saved_committed_geometry_flag_uses_a_previously_unassigned_bit() {
+        assert_eq!(NodeFlag::HasSavedCommittedGeometry as u32, 1 << 26);
     }
 
     #[test]
