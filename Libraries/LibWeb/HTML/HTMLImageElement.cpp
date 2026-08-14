@@ -810,7 +810,8 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
         ListOfAvailableImages::Key key;
         key.url = *url_string;
         key.mode = m_cors_setting;
-        key.origin = document().origin();
+        if (m_cors_setting != CORSSettingAttribute::NoCORS)
+            key.origin = document().origin();
 
         // 4. If the list of available images contains an entry for key, then:
         if (auto* entry = document().list_of_available_images().get(key)) {
@@ -1001,7 +1002,8 @@ after_step_7:
         ListOfAvailableImages::Key key;
         key.url = *url_string;
         key.mode = m_cors_setting;
-        key.origin = document().origin();
+        if (m_cors_setting != CORSSettingAttribute::NoCORS)
+            key.origin = document().origin();
         if (auto* entry = document().list_of_available_images().get(key)) {
             entry->ignore_higher_layer_caching = true;
 
@@ -1141,10 +1143,17 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
 {
     auto captured_url_string = Utf16String::from_utf16(url_string);
     auto captured_previous_url = Utf16String::from_utf16(previous_url);
+    auto originating_document = GC::Ref { document() };
+
+    ListOfAvailableImages::Key cache_key;
+    cache_key.url = captured_url_string;
+    cache_key.mode = m_cors_setting;
+    if (m_cors_setting != CORSSettingAttribute::NoCORS)
+        cache_key.origin = originating_document->origin();
 
     image_request->add_callbacks(
-        [this, image_request, maybe_omit_events, url_string = captured_url_string, previous_url = captured_previous_url]() {
-            batching_dispatcher().enqueue(GC::create_function(GC::Heap::the(), [this, image_request, maybe_omit_events, url_string, previous_url] {
+        [this, image_request, maybe_omit_events, url_string = captured_url_string, previous_url = captured_previous_url, originating_document, cache_key]() {
+            batching_dispatcher().enqueue(GC::create_function(GC::Heap::the(), [this, image_request, maybe_omit_events, url_string, previous_url, originating_document, cache_key] {
                 // AD-HOC: Bail out if the document became inactive (e.g. iframe removed or navigated)
                 //         between when the fetch completed and when this batched callback runs.
                 if (!document().is_fully_active()) {
@@ -1166,11 +1175,6 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
                 auto image_data = image_request->shared_resource_request()->image_data();
                 image_request->set_image_data(image_data);
 
-                ListOfAvailableImages::Key key;
-                key.url = url_string;
-                key.mode = m_cors_setting;
-                key.origin = document().origin();
-
                 // 1. If image request is the pending request, abort the image request for the current request,
                 //    upgrade the pending request to the current request
                 //    and prepare image request for presentation given the img element.
@@ -1187,8 +1191,8 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
                 image_request->set_state(ImageRequest::State::CompletelyAvailable);
 
                 // 3. Add the image to the list of available images using the key key, with the ignore higher-layer caching flag set.
-                document().list_of_available_images().add(key, *image_data, true);
-                document().prune_image_resource_caches();
+                originating_document->list_of_available_images().add(cache_key, *image_data, true);
+                originating_document->prune_image_resource_caches();
 
                 document().style_computer().style_engine().record_element_style_input_change(style_node_id());
                 set_needs_layout_update_or_repaint_after_image_data_change(DOM::SetNeedsLayoutReason::HTMLImageElementUpdateTheImageData);
