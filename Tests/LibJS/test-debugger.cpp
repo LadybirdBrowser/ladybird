@@ -148,6 +148,46 @@ TEST_CASE(breakpoints_slide_to_the_next_source_position)
     EXPECT(executable->has_debugger_breakpoint_at(source_map_entry->bytecode_offset));
 }
 
+TEST_CASE(breakpoints_slide_to_the_closest_position_across_nested_executables)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto declaration_or_error = JS::Script::parse(
+        "function target() {\n"
+        "    // Breakpoint requested here.\n"
+        "    let inside = 1;\n"
+        "}\n"
+        "let outside = 2;\n"sv,
+        realm, "nested-slide.js"sv);
+    VERIFY(!declaration_or_error.is_error());
+
+    vm->enable_debugging();
+    auto declaration_result = vm->run(*declaration_or_error.value());
+    EXPECT(!declaration_result.is_error());
+
+    auto breakpoint_id = MUST(vm->debugger()->add_breakpoint("nested-slide.js"_utf16, 2));
+    auto* top_level_executable = declaration_or_error.value()->cached_executable();
+    VERIFY(top_level_executable);
+    EXPECT(top_level_executable->has_debugger_breakpoint(breakpoint_id));
+
+    Vector<u32> paused_lines;
+    vm->debugger()->set_pause_callback([&](JS::Debugger::PauseInfo const& pause_info) {
+        VERIFY(pause_info.source_range.has_value());
+        paused_lines.append(pause_info.source_range->start.line);
+        vm->debugger()->continue_execution();
+    });
+
+    auto call_or_error = JS::Script::parse("target();"_utf16, realm, "caller.js"sv);
+    VERIFY(!call_or_error.is_error());
+    auto call_result = vm->run(*call_or_error.value());
+    EXPECT(!call_result.is_error());
+
+    EXPECT_EQ(paused_lines, (Vector<u32> { 3 }));
+    EXPECT(!top_level_executable->has_debugger_breakpoint(breakpoint_id));
+}
+
 TEST_CASE(breakpoints_resolve_when_precompiled_functions_are_called_inline)
 {
     auto vm = JS::VM::create();

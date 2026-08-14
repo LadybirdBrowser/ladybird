@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashMap.h>
 #include <AK/NumericLimits.h>
 #include <LibGC/Heap.h>
 #include <LibGC/WeakInlines.h>
@@ -79,8 +80,7 @@ ErrorOr<BreakpointID> Debugger::add_breakpoint(Utf16View filename, u32 line, Opt
 
     m_breakpoints.empend(m_next_breakpoint_id++, Utf16String::from_utf16(filename), line, column);
     auto const& breakpoint = m_breakpoints.last();
-    for (auto& executable : m_executables)
-        resolve_breakpoint_in_executable(breakpoint, executable);
+    resolve_breakpoint(breakpoint);
     return breakpoint.id;
 }
 
@@ -116,11 +116,8 @@ void Debugger::register_executable(Bytecode::Executable& executable)
         resolve_breakpoint_in_executable(breakpoint, executable);
 }
 
-void Debugger::resolve_breakpoint_in_executable(Breakpoint const& breakpoint, Bytecode::Executable& executable)
+static Bytecode::SourceMapEntry const* breakpoint_candidate_for_executable(Breakpoint const& breakpoint, Bytecode::Executable const& executable)
 {
-    if (executable.source_code->filename() != breakpoint.filename)
-        return;
-
     Bytecode::SourceMapEntry const* matching_entry = nullptr;
     for (auto const& entry : executable.source_map) {
         if (entry.line == 0 || entry.line < breakpoint.line)
@@ -130,9 +127,78 @@ void Debugger::resolve_breakpoint_in_executable(Breakpoint const& breakpoint, By
         if (!matching_entry || entry.line < matching_entry->line || (entry.line == matching_entry->line && entry.column < matching_entry->column))
             matching_entry = &entry;
     }
+    return matching_entry;
+}
 
-    if (matching_entry)
-        executable.add_debugger_breakpoint(matching_entry->bytecode_offset, breakpoint.id);
+void Debugger::resolve_breakpoint(Breakpoint const& breakpoint)
+{
+    struct Candidate {
+        GC::Ptr<Bytecode::Executable> executable;
+        Bytecode::SourceMapEntry const* source_map_entry { nullptr };
+    };
+
+    Vector<Candidate> candidates;
+    HashMap<SourceCode const*, Position> resolved_positions;
+
+    for (auto& executable : m_executables) {
+        executable.remove_debugger_breakpoint(breakpoint.id);
+        if (executable.source_code->filename() != breakpoint.filename)
+            continue;
+
+        auto const* candidate = breakpoint_candidate_for_executable(breakpoint, executable);
+        if (!candidate)
+            continue;
+        candidates.append({ &executable, candidate });
+
+        Position candidate_position { candidate->line, candidate->column };
+        auto resolved_position = resolved_positions.find(executable.source_code.ptr());
+        if (resolved_position == resolved_positions.end()
+            || candidate_position.line < resolved_position->value.line
+            || (candidate_position.line == resolved_position->value.line && candidate_position.column < resolved_position->value.column)) {
+            resolved_positions.set(executable.source_code.ptr(), candidate_position);
+        }
+    }
+
+    for (auto const& candidate : candidates) {
+        auto resolved_position = resolved_positions.find(candidate.executable->source_code.ptr());
+        if (resolved_position == resolved_positions.end())
+            continue;
+
+        if (candidate.source_map_entry->line == resolved_position->value.line && candidate.source_map_entry->column == resolved_position->value.column)
+            candidate.executable->add_debugger_breakpoint(candidate.source_map_entry->bytecode_offset, breakpoint.id);
+    }
+}
+
+void Debugger::resolve_breakpoint_in_executable(Breakpoint const& breakpoint, Bytecode::Executable& executable)
+{
+    auto const* candidate = breakpoint_candidate_for_executable(breakpoint, executable);
+    if (!candidate)
+        return;
+
+    Bytecode::SourceMapEntry const* resolved_candidate = nullptr;
+    for (auto& existing_executable : m_executables) {
+        if (existing_executable.source_code.ptr() != executable.source_code.ptr())
+            continue;
+        if (existing_executable.has_debugger_breakpoint(breakpoint.id)) {
+            resolved_candidate = breakpoint_candidate_for_executable(breakpoint, existing_executable);
+            break;
+        }
+    }
+
+    auto position_is_before = [](Bytecode::SourceMapEntry const& a, Bytecode::SourceMapEntry const& b) {
+        return a.line < b.line || (a.line == b.line && a.column < b.column);
+    };
+    if (resolved_candidate && position_is_before(*resolved_candidate, *candidate))
+        return;
+
+    if (resolved_candidate && position_is_before(*candidate, *resolved_candidate)) {
+        for (auto& existing_executable : m_executables) {
+            if (existing_executable.source_code.ptr() == executable.source_code.ptr())
+                existing_executable.remove_debugger_breakpoint(breakpoint.id);
+        }
+    }
+
+    executable.add_debugger_breakpoint(candidate->bytecode_offset, breakpoint.id);
 }
 
 void Debugger::clear_executable_breakpoints()

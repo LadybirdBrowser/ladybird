@@ -62,6 +62,7 @@ public:
     void register_executable(Bytecode::Executable&);
 
 private:
+    void resolve_breakpoint(Breakpoint const&);
     void resolve_breakpoint_in_executable(Breakpoint const&, Bytecode::Executable&);
     void clear_executable_breakpoints();
 
