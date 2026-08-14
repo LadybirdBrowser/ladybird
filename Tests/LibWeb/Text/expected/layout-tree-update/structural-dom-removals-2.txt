@@ -17,9 +17,9 @@ PASS: Range delete last sibling run from contents
 PASS: replaceChildren removes subtree from contents
 PASS: innerHTML removes subtree from contents
 PASS: textContent removes subtree from contents
-FAIL: remove generating parent from contents
+PASS: remove generating parent from contents
 PASS: remove block from inline run from contents
-FAIL: remove display contents subtree from contents
+PASS: remove display contents subtree from contents
 PASS: remove leaf element from inline-block
 PASS: remove leaf text from inline-block
 PASS: remove shallow subtree from inline-block
@@ -41,7 +41,7 @@ PASS: innerHTML removes subtree from inline-block
 PASS: textContent removes subtree from inline-block
 PASS: remove generating parent from inline-block
 PASS: remove block from inline run from inline-block
-FAIL: remove display contents subtree from inline-block
+PASS: remove display contents subtree from inline-block
 PASS: remove leaf element from flex
 PASS: remove leaf text from flex
 PASS: remove shallow subtree from flex
@@ -63,7 +63,7 @@ PASS: innerHTML removes subtree from flex
 PASS: textContent removes subtree from flex
 PASS: remove generating parent from flex
 PASS: remove block from inline run from flex
-FAIL: remove display contents subtree from flex
+PASS: remove display contents subtree from flex
 PASS: remove leaf element from table
 PASS: remove leaf text from table
 PASS: remove shallow subtree from table
@@ -85,7 +85,7 @@ PASS: innerHTML removes subtree from table
 PASS: textContent removes subtree from table
 PASS: remove generating parent from table
 PASS: remove block from inline run from table
-FAIL: remove display contents subtree from table
+PASS: remove display contents subtree from table
 PASS: remove leaf element from -webkit-inline-box
 PASS: remove leaf text from -webkit-inline-box
 PASS: remove shallow subtree from -webkit-inline-box
@@ -107,7 +107,7 @@ PASS: innerHTML removes subtree from -webkit-inline-box
 PASS: textContent removes subtree from -webkit-inline-box
 PASS: remove generating parent from -webkit-inline-box
 PASS: remove block from inline run from -webkit-inline-box
-FAIL: remove display contents subtree from -webkit-inline-box
+PASS: remove display contents subtree from -webkit-inline-box
 PASS: remove leaf element from table-row
 PASS: remove leaf text from table-row
 PASS: remove shallow subtree from table-row
@@ -129,7 +129,7 @@ PASS: innerHTML removes subtree from table-row
 PASS: textContent removes subtree from table-row
 PASS: remove generating parent from table-row
 PASS: remove block from inline run from table-row
-FAIL: remove display contents subtree from table-row
+PASS: remove display contents subtree from table-row
 PASS: remove leaf element from table-caption
 PASS: remove leaf text from table-caption
 PASS: remove shallow subtree from table-caption
@@ -151,7 +151,7 @@ PASS: innerHTML removes subtree from table-caption
 PASS: textContent removes subtree from table-caption
 PASS: remove generating parent from table-caption
 PASS: remove block from inline run from table-caption
-FAIL: remove display contents subtree from table-caption
+PASS: remove display contents subtree from table-caption
 PASS: remove leaf element from inline flow-root
 PASS: remove leaf text from inline flow-root
 PASS: remove shallow subtree from inline flow-root
@@ -173,7 +173,7 @@ PASS: innerHTML removes subtree from inline flow-root
 PASS: textContent removes subtree from inline flow-root
 PASS: remove generating parent from inline flow-root
 PASS: remove block from inline run from inline flow-root
-FAIL: remove display contents subtree from inline flow-root
+PASS: remove display contents subtree from inline flow-root
 PASS: remove leaf element from inline grid
 PASS: remove leaf text from inline grid
 PASS: remove shallow subtree from inline grid
@@ -195,7 +195,7 @@ PASS: innerHTML removes subtree from inline grid
 PASS: textContent removes subtree from inline grid
 PASS: remove generating parent from inline grid
 PASS: remove block from inline run from inline grid
-FAIL: remove display contents subtree from inline grid
+PASS: remove display contents subtree from inline grid
 PASS: remove leaf element from inline flow list-item
 PASS: remove leaf text from inline flow list-item
 PASS: remove shallow subtree from inline flow list-item
@@ -217,5 +217,5 @@ PASS: innerHTML removes subtree from inline flow list-item
 PASS: textContent removes subtree from inline flow list-item
 PASS: remove generating parent from inline flow list-item
 PASS: remove block from inline run from inline flow list-item
-FAIL: remove display contents subtree from inline flow list-item
-220 cases; 209 matched; 11 mismatched
+PASS: remove display contents subtree from inline flow list-item
+220 cases; 220 matched; 0 mismatched

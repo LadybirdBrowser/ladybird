@@ -749,7 +749,7 @@ PASS: replace sibling run, float-right-clear-both inline siblings in block flow
 PASS: clear with innerHTML, float-right-clear-both flex siblings in block flow
 PASS: remove all siblings forwards, float-inline-start block siblings in block flow
 PASS: move sibling run across parents, float-inline-start inline list-item siblings in block flow
-FAIL: remove middle sibling run, float-inline-end contents siblings in block flow
+PASS: remove middle sibling run, float-inline-end contents siblings in block flow
 PASS: move node to end, float-inline-end list-item siblings in block flow
 PASS: remove subtree, relative-float-left none siblings in block flow
 PASS: replace sibling run, relative-float-left run-in siblings in block flow
@@ -779,7 +779,7 @@ PASS: remove all siblings forwards, float-inline-start inline siblings in inline
 PASS: move sibling run across parents, float-inline-start flex siblings in inline flow
 PASS: remove middle sibling run, float-inline-end block siblings in inline flow
 PASS: move node to end, float-inline-end inline list-item siblings in inline flow
-FAIL: remove subtree, relative-float-left contents siblings in inline flow
+PASS: remove subtree, relative-float-left contents siblings in inline flow
 PASS: replace sibling run, relative-float-left list-item siblings in inline flow
 PASS: clear with innerHTML, relative-float-left table siblings in inline flow
 PASS: remove all siblings forwards, static inline grid siblings in block flow-root
@@ -826,7 +826,7 @@ PASS: replace sibling run, float-left inline siblings in inline flow-root
 PASS: clear with innerHTML, float-left flex siblings in inline flow-root
 PASS: remove all siblings forwards, float-left-clear-both block siblings in inline flow-root
 PASS: move sibling run across parents, float-left-clear-both inline list-item siblings in inline flow-root
-FAIL: remove middle sibling run, float-right contents siblings in inline flow-root
+PASS: remove middle sibling run, float-right contents siblings in inline flow-root
 PASS: move node to end, float-right list-item siblings in inline flow-root
 PASS: remove subtree, float-right-clear-both none siblings in inline flow-root
 PASS: replace sibling run, float-right-clear-both run-in siblings in inline flow-root
@@ -856,7 +856,7 @@ PASS: remove all siblings forwards, float-left-clear-both inline siblings in blo
 PASS: move sibling run across parents, float-left-clear-both flex siblings in block flex
 PASS: remove middle sibling run, float-right block siblings in block flex
 PASS: move node to end, float-right inline list-item siblings in block flex
-FAIL: remove subtree, float-right-clear-both contents siblings in block flex
+PASS: remove subtree, float-right-clear-both contents siblings in block flex
 PASS: replace sibling run, float-right-clear-both list-item siblings in block flex
 PASS: clear with innerHTML, float-right-clear-both table siblings in block flex
 PASS: remove all siblings forwards, float-inline-start run-in siblings in block flex
@@ -903,7 +903,7 @@ PASS: replace sibling run, absolute inline siblings in block grid
 PASS: clear with innerHTML, absolute flex siblings in block grid
 PASS: remove all siblings forwards, fixed block siblings in block grid
 PASS: move sibling run across parents, fixed inline list-item siblings in block grid
-FAIL: remove middle sibling run, sticky contents siblings in block grid
+PASS: remove middle sibling run, sticky contents siblings in block grid
 PASS: move node to end, sticky list-item siblings in block grid
 PASS: remove subtree, float-left none siblings in block grid
 PASS: replace sibling run, float-left run-in siblings in block grid
@@ -933,7 +933,7 @@ PASS: remove all siblings forwards, fixed inline siblings in inline grid
 PASS: move sibling run across parents, fixed flex siblings in inline grid
 PASS: remove middle sibling run, sticky block siblings in inline grid
 PASS: move node to end, sticky inline list-item siblings in inline grid
-FAIL: remove subtree, float-left contents siblings in inline grid
+PASS: remove subtree, float-left contents siblings in inline grid
 PASS: replace sibling run, float-left list-item siblings in inline grid
 PASS: clear with innerHTML, float-left table siblings in inline grid
 PASS: remove all siblings forwards, float-left-clear-both run-in siblings in inline grid
@@ -980,7 +980,7 @@ PASS: replace sibling run, relative-float-left inline-table siblings in block ta
 PASS: clear with innerHTML, relative-float-left table-footer-group siblings in block table
 PASS: remove all siblings forwards, static block siblings in inline table
 PASS: move sibling run across parents, static inline list-item siblings in inline table
-FAIL: remove middle sibling run, relative contents siblings in inline table
+PASS: remove middle sibling run, relative contents siblings in inline table
 PASS: move node to end, relative list-item siblings in inline table
 PASS: remove subtree, absolute none siblings in inline table
 PASS: replace sibling run, absolute run-in siblings in inline table
@@ -1010,7 +1010,7 @@ PASS: remove all siblings forwards, static inline siblings in block flow list-it
 PASS: move sibling run across parents, static flex siblings in block flow list-item
 PASS: remove middle sibling run, relative block siblings in block flow list-item
 PASS: move node to end, relative inline list-item siblings in block flow list-item
-FAIL: remove subtree, absolute contents siblings in block flow list-item
+PASS: remove subtree, absolute contents siblings in block flow list-item
 PASS: replace sibling run, absolute list-item siblings in block flow list-item
 PASS: clear with innerHTML, absolute table siblings in block flow list-item
 PASS: remove all siblings forwards, fixed run-in siblings in block flow list-item
@@ -1062,4 +1062,4 @@ PASS: move node to end, float-inline-end table-row-group siblings in inline flow
 PASS: remove subtree, relative-float-left grid siblings in inline flow list-item
 PASS: replace sibling run, relative-float-left -webkit-inline-box siblings in inline flow list-item
 PASS: clear with innerHTML, relative-float-left table-column-group siblings in inline flow list-item
-1064 cases; 1049 matched; 15 mismatched
+1064 cases; 1057 matched; 7 mismatched

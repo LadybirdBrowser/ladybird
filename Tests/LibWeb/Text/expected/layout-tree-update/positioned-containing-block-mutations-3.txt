@@ -24,27 +24,27 @@ PASS: wrap target in relative block, absolute block table under none
 PASS: make ancestor relative, fixed inline table under none
 PASS: make ancestor static, absolute inline flow list-item under none
 PASS: move target to relative destination, fixed none under contents
-FAIL: move ancestor across parents, absolute block under contents
+PASS: move ancestor across parents, absolute block under contents
 PASS: unwrap target from relative block, fixed inline under contents
 PASS: make ancestor relative, absolute inline-block under contents
 PASS: move target to relative destination, fixed run-in under contents
-FAIL: move ancestor across parents, absolute inline list-item under contents
+PASS: move ancestor across parents, absolute inline list-item under contents
 PASS: unwrap target from relative block, fixed flex under contents
 PASS: make ancestor relative, absolute grid under contents
 PASS: move target to relative destination, fixed inline-grid under contents
-FAIL: move ancestor across parents, absolute inline-table under contents
+PASS: move ancestor across parents, absolute inline-table under contents
 PASS: unwrap target from relative block, fixed math under contents
 PASS: make ancestor relative, absolute -webkit-inline-box under contents
 PASS: move target to relative destination, fixed table-row-group under contents
-FAIL: move ancestor across parents, absolute table-footer-group under contents
+PASS: move ancestor across parents, absolute table-footer-group under contents
 PASS: unwrap target from relative block, fixed table-row under contents
 PASS: make ancestor relative, absolute table-column-group under contents
 PASS: move target to relative destination, fixed table-column under contents
-FAIL: move ancestor across parents, absolute block flow under contents
+PASS: move ancestor across parents, absolute block flow under contents
 PASS: unwrap target from relative block, fixed inline flow under contents
 PASS: make ancestor relative, absolute inline flow-root under contents
 PASS: move target to relative destination, fixed block flex under contents
-FAIL: move ancestor across parents, absolute block grid under contents
+PASS: move ancestor across parents, absolute block grid under contents
 PASS: unwrap target from relative block, fixed inline grid under contents
 PASS: make ancestor relative, absolute inline table under contents
 PASS: move target to relative destination, fixed block flow list-item under contents
@@ -960,4 +960,4 @@ PASS: move ancestor across parents, absolute block grid under inline flow list-i
 PASS: unwrap target from relative block, fixed inline grid under inline flow list-item
 PASS: make ancestor relative, absolute inline table under inline flow list-item
 PASS: move target to relative destination, fixed block flow list-item under inline flow list-item
-962 cases; 956 matched; 6 mismatched
+962 cases; 962 matched; 0 mismatched

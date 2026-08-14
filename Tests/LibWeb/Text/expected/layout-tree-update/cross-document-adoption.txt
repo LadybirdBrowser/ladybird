@@ -10,10 +10,10 @@ PASS: implicit adoption of deep subtree parent to iframe
 PASS: explicit adoption of deep subtree parent to iframe
 PASS: implicit adoption of deep subtree iframe to parent
 PASS: explicit adoption of deep subtree iframe to parent
-FAIL: implicit adoption of display contents subtree parent to iframe
-FAIL: explicit adoption of display contents subtree parent to iframe
-FAIL: implicit adoption of display contents subtree iframe to parent
-FAIL: explicit adoption of display contents subtree iframe to parent
+PASS: implicit adoption of display contents subtree parent to iframe
+PASS: explicit adoption of display contents subtree parent to iframe
+PASS: implicit adoption of display contents subtree iframe to parent
+PASS: explicit adoption of display contents subtree iframe to parent
 PASS: implicit adoption of table subtree parent to iframe
 PASS: explicit adoption of table subtree parent to iframe
 PASS: implicit adoption of table subtree iframe to parent
@@ -34,4 +34,4 @@ PASS: implicit adoption of sibling run parent to iframe
 PASS: implicit adoption of sibling run iframe to parent
 PASS: adopt DocumentFragment children parent to iframe
 PASS: adopt DocumentFragment children iframe to parent
-36 cases; 32 matched; 4 mismatched
+36 cases; 36 matched; 0 mismatched

@@ -41,7 +41,7 @@ PASS: innerHTML removes subtree from flow-root
 PASS: textContent removes subtree from flow-root
 PASS: remove generating parent from flow-root
 PASS: remove block from inline run from flow-root
-FAIL: remove display contents subtree from flow-root
+PASS: remove display contents subtree from flow-root
 PASS: remove leaf element from inline list-item
 PASS: remove leaf text from inline list-item
 PASS: remove shallow subtree from inline list-item
@@ -63,7 +63,7 @@ PASS: innerHTML removes subtree from inline list-item
 PASS: textContent removes subtree from inline list-item
 PASS: remove generating parent from inline list-item
 PASS: remove block from inline run from inline list-item
-FAIL: remove display contents subtree from inline list-item
+PASS: remove display contents subtree from inline list-item
 PASS: remove leaf element from inline-grid
 PASS: remove leaf text from inline-grid
 PASS: remove shallow subtree from inline-grid
@@ -85,7 +85,7 @@ PASS: innerHTML removes subtree from inline-grid
 PASS: textContent removes subtree from inline-grid
 PASS: remove generating parent from inline-grid
 PASS: remove block from inline run from inline-grid
-FAIL: remove display contents subtree from inline-grid
+PASS: remove display contents subtree from inline-grid
 PASS: remove leaf element from -webkit-box
 PASS: remove leaf text from -webkit-box
 PASS: remove shallow subtree from -webkit-box
@@ -107,7 +107,7 @@ PASS: innerHTML removes subtree from -webkit-box
 PASS: textContent removes subtree from -webkit-box
 PASS: remove generating parent from -webkit-box
 PASS: remove block from inline run from -webkit-box
-FAIL: remove display contents subtree from -webkit-box
+PASS: remove display contents subtree from -webkit-box
 PASS: remove leaf element from table-footer-group
 PASS: remove leaf text from table-footer-group
 PASS: remove shallow subtree from table-footer-group
@@ -129,7 +129,7 @@ PASS: innerHTML removes subtree from table-footer-group
 PASS: textContent removes subtree from table-footer-group
 PASS: remove generating parent from table-footer-group
 PASS: remove block from inline run from table-footer-group
-FAIL: remove display contents subtree from table-footer-group
+PASS: remove display contents subtree from table-footer-group
 PASS: remove leaf element from table-column
 PASS: remove leaf text from table-column
 PASS: remove shallow subtree from table-column
@@ -173,7 +173,7 @@ PASS: innerHTML removes subtree from block flow-root
 PASS: textContent removes subtree from block flow-root
 PASS: remove generating parent from block flow-root
 PASS: remove block from inline run from block flow-root
-FAIL: remove display contents subtree from block flow-root
+PASS: remove display contents subtree from block flow-root
 PASS: remove leaf element from block grid
 PASS: remove leaf text from block grid
 PASS: remove shallow subtree from block grid
@@ -195,7 +195,7 @@ PASS: innerHTML removes subtree from block grid
 PASS: textContent removes subtree from block grid
 PASS: remove generating parent from block grid
 PASS: remove block from inline run from block grid
-FAIL: remove display contents subtree from block grid
+PASS: remove display contents subtree from block grid
 PASS: remove leaf element from block flow list-item
 PASS: remove leaf text from block flow list-item
 PASS: remove shallow subtree from block flow list-item
@@ -217,5 +217,5 @@ PASS: innerHTML removes subtree from block flow list-item
 PASS: textContent removes subtree from block flow list-item
 PASS: remove generating parent from block flow list-item
 PASS: remove block from inline run from block flow list-item
-FAIL: remove display contents subtree from block flow list-item
-220 cases; 212 matched; 8 mismatched
+PASS: remove display contents subtree from block flow list-item
+220 cases; 220 matched; 0 mismatched
