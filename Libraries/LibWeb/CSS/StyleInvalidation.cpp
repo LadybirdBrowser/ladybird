@@ -326,24 +326,46 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     if (old_value && new_value && old_value->equals(*new_value))
         return invalidation;
 
-    // NOTE: If the computed CSS display, float, position, content, or content-visibility property changes, we have to rebuild the entire layout tree.
-    //       In the future, we should figure out ways to rebuild a smaller part of the tree.
-    if (AK::first_is_one_of(property_id, CSS::PropertyID::Display, CSS::PropertyID::Float, CSS::PropertyID::Position, CSS::PropertyID::Content, CSS::PropertyID::ContentVisibility)) {
+    // Entering or leaving out-of-flow or floated layout can restructure runs of inline content around the element,
+    // even when its adjusted outer display type remains block.
+    if (property_id == CSS::PropertyID::Position && old_computed_values && new_computed_values) {
+        auto is_out_of_flow = [](CSS::Positioning position) {
+            return position == CSS::Positioning::Absolute || position == CSS::Positioning::Fixed;
+        };
+        if (is_out_of_flow(old_computed_values->position()) != is_out_of_flow(new_computed_values->position()))
+            return RequiredInvalidationAfterStyleChange::full();
+    }
+    if (property_id == CSS::PropertyID::Float && old_computed_values && new_computed_values) {
+        if ((old_computed_values->float_() == CSS::Float::None) != (new_computed_values->float_() == CSS::Float::None))
+            return RequiredInvalidationAfterStyleChange::full();
+    }
+
+    // Other display, float, and position changes which preserve the outer display type cannot change whether the
+    // element participates in inline or block layout among its siblings. Its principal box can be replaced in place
+    // while rebuilding its descendants for the new inner type.
+    if (AK::first_is_one_of(property_id, CSS::PropertyID::Display, CSS::PropertyID::Float, CSS::PropertyID::Position)
+        && old_computed_values && new_computed_values) {
+        auto old_display = old_computed_values->display();
+        auto new_display = new_computed_values->display();
+        if (old_display.is_outside_and_inside()
+            && new_display.is_outside_and_inside()
+            && old_display.outside() == new_display.outside())
+            return RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(LayoutTreeRebuildRoot::Self);
+    }
+
+    // These properties only change the contents of the element's own layout subtree.
+    if (AK::first_is_one_of(property_id, CSS::PropertyID::Content, CSS::PropertyID::ContentVisibility, CSS::PropertyID::TextTransform))
+        return RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(LayoutTreeRebuildRoot::Self);
+
+    // NB: Other display, float, or position changes have to rebuild from the parent.
+    if (AK::first_is_one_of(property_id, CSS::PropertyID::Display, CSS::PropertyID::Float, CSS::PropertyID::Position)) {
         return RequiredInvalidationAfterStyleChange::full();
     }
 
-    // NOTE: If the text-transform property changes, it may affect layout. Furthermore, since the
-    //       Layout::TextNode caches the post-transform text, we have to update the layout tree.
-    if (property_id == CSS::PropertyID::TextTransform) {
-        invalidation.ensure_at_least(InvalidationLevel::RebuildLayoutTree);
-        return invalidation;
-    }
-
-    // NOTE: If one of the overflow properties change, we rebuild the entire layout tree.
-    //       This ensures that overflow propagation from root/body to viewport happens correctly.
-    //       In the future, we can make this invalidation narrower.
+    // Overflow propagation from the document element or body reaches the viewport. Other overflow changes are
+    // confined to the element's own subtree.
     if (property_id == CSS::PropertyID::OverflowX || property_id == CSS::PropertyID::OverflowY) {
-        return RequiredInvalidationAfterStyleChange::full();
+        return RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(LayoutTreeRebuildRoot::SelfUnlessDocumentElementOrBody);
     }
 
     if (AK::first_is_one_of(property_id, CSS::PropertyID::CounterReset, CSS::PropertyID::CounterSet, CSS::PropertyID::CounterIncrement)) {

@@ -448,6 +448,7 @@ class VisualViewport;
 enum class FeatureComparison : u8;
 enum class FontFeatureValueType : u8;
 enum class Keyword : u16;
+enum class LayoutTreeRebuildRoot : u8;
 enum class MediaFeatureID : u8;
 enum class PropertyID : u16;
 enum class SizeFeatureID : u8;
