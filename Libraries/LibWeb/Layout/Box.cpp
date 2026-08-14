@@ -26,12 +26,18 @@ Box::~Box()
 {
 }
 
-bool Box::is_partial_relayout_boundary(RequireExistingPaintable require_existing_paintable) const
+bool Box::is_partial_relayout_boundary() const
 {
     // An absolutely or fixed positioned descendant whose containing block is outside this
     // box's subtree is laid out by a formatting context outside it, which makes subtree
     // isolation impossible for any kind of boundary.
     if (abspos_descendant_escapes())
+        return false;
+
+    // Committing a subtree splices the new paint subtree into the old paintable's paint-tree
+    // position, so a boundary must still have one - either on the box or, for a box the tree
+    // builder just rebuilt, held by the DOM node until the next commit replaces it there.
+    if (!paintable_box() && !(dom_node() && dom_node()->unsafe_paintable()))
         return false;
 
     // A nested <svg> never qualifies: its subtree is laid out in the outer SVG's
@@ -50,8 +56,6 @@ bool Box::is_partial_relayout_boundary(RequireExistingPaintable require_existing
     if (!is_absolutely_positioned())
         return false;
     if (is_anonymous())
-        return false;
-    if (require_existing_paintable == RequireExistingPaintable::Yes && !paintable_box())
         return false;
     if (dom_node() == document().document_element())
         return false;

@@ -684,7 +684,7 @@ void LayoutRustBridge::run_root_layout(Box& viewport, CSSPixels viewport_inline_
     VERIFY(!m_line_commit_context);
 }
 
-void LayoutRustBridge::compute_subtree_layout(Box& root, Painting::Paintable& paintable_to_replace)
+void LayoutRustBridge::compute_subtree_layout(Box& root)
 {
     VERIFY(!m_commit_root);
     m_commit_root = &root;
@@ -702,7 +702,6 @@ void LayoutRustBridge::compute_subtree_layout(Box& root, Painting::Paintable& pa
         RustFFI::rust_layout_compute_subtree_layout(
             Node::slot_id(&root),
             Node::slot_id(&root.root()),
-            &paintable_to_replace,
             viewport_rect.width().raw_value(),
             viewport_rect.height().raw_value(),
             &callbacks,
@@ -711,7 +710,7 @@ void LayoutRustBridge::compute_subtree_layout(Box& root, Painting::Paintable& pa
     VERIFY(!m_line_commit_context);
 }
 
-void LayoutRustBridge::replay_saved_abspos_layout(Box& box, Painting::Paintable& paintable_to_replace)
+void LayoutRustBridge::replay_saved_abspos_layout(Box& box)
 {
     VERIFY(!m_commit_root);
     m_commit_root = &box;
@@ -725,7 +724,7 @@ void LayoutRustBridge::replay_saved_abspos_layout(Box& box, Painting::Paintable&
     auto sink = commit_sink();
     {
         ActiveLayoutPassScope active_pass;
-        RustFFI::rust_layout_replay_saved_abspos_layout(Node::slot_id(&box), &paintable_to_replace, &callbacks, &sink);
+        RustFFI::rust_layout_replay_saved_abspos_layout(Node::slot_id(&box), &callbacks, &sink);
     }
     VERIFY(!m_line_commit_context);
 }
@@ -755,17 +754,20 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
 {
     return {
         .context = this,
-        .begin_commit = [](void* context, void* root_pointer, void* paintable_to_replace_pointer) {
+        .begin_commit = [](void* context, void* root_pointer) {
             auto& bridge = *static_cast<LayoutRustBridge*>(context);
             auto& root = *static_cast<Box*>(root_pointer);
             VERIFY(!bridge.m_replaced_paintable);
             VERIFY(!bridge.m_commit_parent_paintable);
             VERIFY(!bridge.m_commit_insert_before_paintable);
 
-            if (paintable_to_replace_pointer) {
-                bridge.m_replaced_paintable = *static_cast<Painting::Paintable*>(paintable_to_replace_pointer);
-            } else if (!root.is_viewport()) {
+            if (!root.is_viewport()) {
                 bridge.m_replaced_paintable = root.paintable();
+                if (!bridge.m_replaced_paintable && root.dom_node()) {
+                    // A rebuilt box has no paintable yet; the previous one stays referenced by
+                    // the DOM node (and alive in the paint tree) until this commit replaces it.
+                    bridge.m_replaced_paintable = root.dom_node()->unsafe_paintable();
+                }
             }
 
             if (bridge.m_replaced_paintable) {

@@ -14,11 +14,6 @@
 
 namespace Web::Layout {
 
-enum class RequireExistingPaintable : u8 {
-    No,
-    Yes,
-};
-
 struct LineBoxFragmentCoordinate {
     size_t line_box_index { 0 };
     size_t fragment_index { 0 };
@@ -34,7 +29,7 @@ public:
     // A partial relayout boundary is a box whose subtree can be re-laid out in
     // isolation: its own used size and position are guaranteed not to change
     // when layout is invalidated somewhere inside its subtree.
-    bool is_partial_relayout_boundary(RequireExistingPaintable = RequireExistingPaintable::Yes) const;
+    bool is_partial_relayout_boundary() const;
 
     // https://www.w3.org/TR/css-images-3/#natural-dimensions
     virtual CSS::SizeWithAspectRatio natural_size() const { return {}; }
