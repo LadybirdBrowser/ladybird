@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const context = new OfflineAudioContext(2, 128, 48000);
+        const source = context.createConstantSource();
+        const analyser = context.createAnalyser();
+        source.connect(analyser);
+        analyser.connect(context.destination);
+        source.start();
+
+        const output = await context.startRendering();
+        const hasAudibleSamples = output.getChannelData(0).some(sample => Math.abs(sample) > 0.000001)
+            || output.getChannelData(1).some(sample => Math.abs(sample) > 0.000001);
+        println(`AnalyserNode is present in the render graph: ${hasAudibleSamples}`);
+    });
+</script>

@@ -49,6 +49,8 @@ WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> AnalyserNode::create(GC::Ref<BaseAudi
 
     TRY(node->initialize_audio_node_options(options, default_options));
 
+    node->queue_render_node_creation(make<Rendering::PassthroughRenderNode>(node->node_id(), BaseAudioContext::render_quantum_size()));
+
     return node;
 }
 
