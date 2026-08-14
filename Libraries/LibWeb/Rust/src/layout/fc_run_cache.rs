@@ -345,7 +345,7 @@ macro_rules! shadow_comparable_rare_payloads {
         (
             $carrier.table_cell_coordinates,
             $carrier.override_borders_data,
-            $carrier.computed_svg_transforms,
+            $carrier.svg_viewport_transform,
             $carrier.svg_viewport_size,
             &$carrier.computed_svg_path,
             &$carrier.grid_layout_data,

@@ -1,7 +1,7 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 200 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 200 0+0+0] children: not-inline
-      SVGSVGBox <svg> at [0,0] [0+0+0 300 0+0+500] [0+0+0 200 0+0+0] [SVG] children: inline
+      SVGSVGBox <svg> at [0,0] [0+0+0 300 0+0+500] [0+0+0 200 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: inline
         TextNode <#text> (not painted)
         SVGForeignObjectBox <foreignObject> at [20,30] flex-container(row) [0+0+0 200 0+0+0] [0+0+0 120 0+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline

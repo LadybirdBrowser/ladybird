@@ -52,6 +52,8 @@
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
+#include <LibWeb/Painting/SVGGraphicsPaintable.h>
+#include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 
 namespace Web {
@@ -316,6 +318,13 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
             builder.appendff(" {}table-cell{}", table_color_on, color_off);
 
         dump_box_model();
+
+        // SVG content geometry below is in this viewport's user units; the transform shown here is
+        // what maps it into the viewport's content box.
+        if (auto const* box_paintable = box.paintable_box().ptr()) {
+            if (auto viewport_transform = box_paintable->svg_viewport_transform(); viewport_transform.has_value())
+                builder.appendff(" viewport-transform={}", *viewport_transform);
+        }
 
         if (auto formatting_context_type = Layout::formatting_context_type_created_by_box(box); formatting_context_type.has_value()) {
             switch (formatting_context_type.value()) {

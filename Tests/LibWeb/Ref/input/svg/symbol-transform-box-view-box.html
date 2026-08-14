@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/symbol-transform-box-view-box-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+</style>
+<svg width="100" height="100">
+    <symbol id="s" viewBox="0 0 10 10">
+        <rect width="4" height="4" fill="green" style="transform-box: view-box; transform: rotate(45deg)"/>
+    </symbol>
+    <use href="#s" width="100" height="100"/>
+</svg>

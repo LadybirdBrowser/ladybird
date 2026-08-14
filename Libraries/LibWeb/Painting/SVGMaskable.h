@@ -29,8 +29,7 @@ public:
     Optional<DisplayListResource> calculate_svg_clip_display_list(DisplayListRecordingContext&, CSSPixelRect const& clip_area) const;
 
 private:
-    Gfx::AffineTransform target_svg_transform() const;
-    Gfx::AffineTransform target_svg_to_css_pixels_transform() const;
+    Gfx::AffineTransform object_bounding_box_content_units_transform() const;
 };
 
 }

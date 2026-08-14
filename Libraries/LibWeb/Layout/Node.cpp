@@ -1010,6 +1010,23 @@ NodeWithStyle const* Node::nearest_fragmented_inline_ancestor() const
 }
 
 // https://drafts.csswg.org/css-transforms-1/#transformable-element
+// The used transform of an SVG element in its own user space, for bounding box computation:
+// style transforms in property-application order plus the element's additional transform, without
+// transform-origin conjugation. Components whose percentages need a reference box are skipped —
+// the box is not available at layout time, so such transforms under-report the bounding box.
+Gfx::AffineTransform NodeWithStyle::used_svg_element_transform() const
+{
+    auto matrix = Gfx::FloatMatrix4x4::identity();
+    for_each_transform_component([&](auto const& component) {
+        if (component.can_be_converted_to_matrix_without_reference_box())
+            matrix = matrix * component.to_matrix({});
+    });
+    auto transform = Gfx::extract_2d_affine_transform(matrix);
+    if (auto const* graphics_element = as_if<SVG::SVGGraphicsElement>(dom_node()))
+        transform.multiply(graphics_element->additional_element_transform());
+    return transform;
+}
+
 bool NodeWithStyle::is_transformable() const
 {
     // A transformable element is an element in one of these categories:

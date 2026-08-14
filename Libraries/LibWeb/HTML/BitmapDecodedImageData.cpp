@@ -62,9 +62,9 @@ Optional<CSSPixelFraction> BitmapDecodedImageData::intrinsic_aspect_ratio() cons
     return CSSPixels(m_frame.width()) / CSSPixels(m_frame.height());
 }
 
-void BitmapDecodedImageData::paint(DisplayListRecordingContext& context, Gfx::IntRect dst_rect, CSS::ImageRendering image_rendering, CSS::PreferredColorScheme) const
+void BitmapDecodedImageData::paint(DisplayListRecordingContext& context, Gfx::FloatRect dst_rect, CSS::ImageRendering image_rendering, CSS::PreferredColorScheme) const
 {
-    auto scaling_mode = CSS::to_gfx_scaling_mode(image_rendering, m_frame.size(), dst_rect.size());
+    auto scaling_mode = CSS::to_gfx_scaling_mode(image_rendering, m_frame.size(), dst_rect.to_rounded<int>().size());
 
     context.display_list_recorder().draw_scaled_decoded_image_frame(dst_rect, m_frame, scaling_mode);
 }

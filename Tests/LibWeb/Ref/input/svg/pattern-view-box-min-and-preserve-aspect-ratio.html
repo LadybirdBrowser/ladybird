@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/pattern-view-box-min-and-preserve-aspect-ratio-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+</style>
+<svg width="200" height="80">
+    <defs>
+        <pattern id="offset" width="40" height="40" patternUnits="userSpaceOnUse" viewBox="5 5 10 10">
+            <rect x="5" y="5" width="10" height="10" fill="red"/>
+        </pattern>
+        <pattern id="letterboxed" width="40" height="40" patternUnits="userSpaceOnUse" viewBox="0 0 10 20">
+            <rect width="10" height="20" fill="blue"/>
+        </pattern>
+    </defs>
+    <rect width="80" height="80" fill="url(#offset)"/>
+    <rect x="120" width="80" height="80" fill="url(#letterboxed)"/>
+</svg>

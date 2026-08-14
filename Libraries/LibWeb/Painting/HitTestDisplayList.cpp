@@ -579,14 +579,17 @@ void HitTestDisplayList::add_item_to_caret_items(size_t item_index) const
     });
 }
 
-Optional<CSSPixelPoint> HitTestDisplayList::local_point_for_visual_context(VisualContextIndex visual_context_index, CSSPixelPoint point, ViewportPaintable const& viewport_paintable, double device_pixels_per_css_pixel, AccumulatedVisualContextTree::ClipBehavior clip_behavior) const
+// Returned in float local units: fixed-point CSSPixels quantization here would be magnified by the
+// accumulated transform for content in scaled-down local spaces, such as SVG user units under a
+// small viewBox.
+Optional<Gfx::FloatPoint> HitTestDisplayList::local_point_for_visual_context(VisualContextIndex visual_context_index, CSSPixelPoint point, ViewportPaintable const& viewport_paintable, double device_pixels_per_css_pixel, AccumulatedVisualContextTree::ClipBehavior clip_behavior) const
 {
     auto pixel_ratio = static_cast<float>(device_pixels_per_css_pixel);
     auto const& visual_context_tree = viewport_paintable.visual_context_tree();
     auto result = visual_context_tree.transform_point_for_hit_test(visual_context_index, point.to_type<float>() * pixel_ratio, viewport_paintable.scroll_state_snapshot(), clip_behavior);
     if (!result.has_value())
         return {};
-    return (*result / pixel_ratio).to_type<CSSPixels>();
+    return *result / pixel_ratio;
 }
 
 CSSPixelRect HitTestDisplayList::viewport_rect_for_item(Item const& item, CSSPixelRect const& rect, ViewportPaintable const& viewport_paintable, double device_pixels_per_css_pixel) const
@@ -597,13 +600,16 @@ CSSPixelRect HitTestDisplayList::viewport_rect_for_item(Item const& item, CSSPix
     return result.scaled(1.0f / pixel_ratio).to_type<CSSPixels>();
 }
 
-bool HitTestDisplayList::item_contains(Item const& item, CSSPixelPoint local_point, ChromeMetrics const& chrome_metrics) const
+bool HitTestDisplayList::item_contains(Item const& item, Gfx::FloatPoint local_float_point, ChromeMetrics const& chrome_metrics) const
 {
+    auto local_point = local_float_point.to_type<CSSPixels>();
     switch (item.kind) {
     case ItemKind::Box:
         return item.rect.contains(local_point) && item.border_radii.contains(local_point, item.rect);
     case ItemKind::SvgPath:
-        return item.rect.contains(local_point) && item.path->contains(local_point.to_type<float>(), item.winding_rule);
+        // SVG paths test in float: their local units can map to many device pixels each, so the
+        // CSSPixels quantization would visibly misplace hit edges.
+        return item.rect.to_type<float>().contains(local_float_point) && item.path->contains(local_float_point, item.winding_rule);
     case ItemKind::TextFragment:
         return item.rect.contains(local_point);
     case ItemKind::EmptyLine:
@@ -1105,19 +1111,19 @@ bool HitTestDisplayList::item_is_inline_adjacent_to_line(Item const& item, Caret
         || inline_axis_end(line.rect, writing_mode) <= inline_axis_start(item.rect, writing_mode);
 }
 
-void HitTestDisplayList::find_topmost_item_in_list(Vector<size_t> const& item_indices, CSSPixelPoint local_point, ChromeMetrics const& chrome_metrics, Optional<size_t>& topmost_item_index) const
+void HitTestDisplayList::find_topmost_item_in_list(Vector<size_t> const& item_indices, Gfx::FloatPoint local_float_point, ChromeMetrics const& chrome_metrics, Optional<size_t>& topmost_item_index) const
 {
     for (auto item_index : item_indices.in_reverse()) {
         if (topmost_item_index.has_value() && item_index <= *topmost_item_index)
             return;
-        if (!item_contains(m_items[item_index], local_point, chrome_metrics))
+        if (!item_contains(m_items[item_index], local_float_point, chrome_metrics))
             continue;
         topmost_item_index = item_index;
         return;
     }
 }
 
-void HitTestDisplayList::find_topmost_caret_item_in_list(Vector<size_t> const& item_indices, CSSPixelPoint local_point, ChromeMetrics const& chrome_metrics, Optional<size_t>& topmost_item_index) const
+void HitTestDisplayList::find_topmost_caret_item_in_list(Vector<size_t> const& item_indices, Gfx::FloatPoint local_float_point, ChromeMetrics const& chrome_metrics, Optional<size_t>& topmost_item_index) const
 {
     for (auto item_index : item_indices.in_reverse()) {
         if (topmost_item_index.has_value() && item_index <= *topmost_item_index)
@@ -1125,17 +1131,17 @@ void HitTestDisplayList::find_topmost_caret_item_in_list(Vector<size_t> const& i
         auto const& item = m_items[item_index];
         if (!item_can_produce_caret_position(item))
             continue;
-        if (!item_contains(item, local_point, chrome_metrics))
+        if (!item_contains(item, local_float_point, chrome_metrics))
             continue;
         topmost_item_index = item_index;
         return;
     }
 }
 
-void HitTestDisplayList::find_items_in_list(Vector<size_t> const& item_indices, CSSPixelPoint local_point, ChromeMetrics const& chrome_metrics, Vector<size_t>& hit_item_indices) const
+void HitTestDisplayList::find_items_in_list(Vector<size_t> const& item_indices, Gfx::FloatPoint local_float_point, ChromeMetrics const& chrome_metrics, Vector<size_t>& hit_item_indices) const
 {
     for (auto item_index : item_indices) {
-        if (item_contains(m_items[item_index], local_point, chrome_metrics))
+        if (item_contains(m_items[item_index], local_float_point, chrome_metrics))
             hit_item_indices.append(item_index);
     }
 }
@@ -1157,20 +1163,21 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
         auto const& spatial_index = m_spatial_indexes[visual_context_index.value()];
         VERIFY(spatial_index);
 
-        auto local_point = local_point_for_visual_context(visual_context_index, point, viewport_paintable, device_pixels_per_css_pixel);
-        if (!local_point.has_value())
+        auto local_float_point = local_point_for_visual_context(visual_context_index, point, viewport_paintable, device_pixels_per_css_pixel);
+        if (!local_float_point.has_value())
             continue;
+        auto local_point = local_float_point->to_type<CSSPixels>();
 
         auto previous_topmost_item_index = topmost_item_index;
         auto previous_topmost_hit_item_index = topmost_hit_item_index;
-        find_topmost_item_in_list(spatial_index->unbucketed_items, *local_point, chrome_metrics, topmost_hit_item_index);
-        find_topmost_caret_item_in_list(spatial_index->unbucketed_items, *local_point, chrome_metrics, topmost_item_index);
+        find_topmost_item_in_list(spatial_index->unbucketed_items, *local_float_point, chrome_metrics, topmost_hit_item_index);
+        find_topmost_caret_item_in_list(spatial_index->unbucketed_items, *local_float_point, chrome_metrics, topmost_item_index);
 
-        auto x = spatial_index_cell_for(local_point->x());
-        auto y = spatial_index_cell_for(local_point->y());
+        auto x = spatial_index_cell_for(local_point.x());
+        auto y = spatial_index_cell_for(local_point.y());
         if (auto bucket = spatial_index->cells.get(spatial_index_cell_key(x, y)); bucket.has_value()) {
-            find_topmost_item_in_list(*bucket, *local_point, chrome_metrics, topmost_hit_item_index);
-            find_topmost_caret_item_in_list(*bucket, *local_point, chrome_metrics, topmost_item_index);
+            find_topmost_item_in_list(*bucket, *local_float_point, chrome_metrics, topmost_hit_item_index);
+            find_topmost_caret_item_in_list(*bucket, *local_float_point, chrome_metrics, topmost_item_index);
         }
 
         if (topmost_item_index != previous_topmost_item_index)
@@ -1247,7 +1254,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
             if (scope_dom_node && !line_contains_descendant_of(line, *scope_dom_node))
                 continue;
 
-            auto local_point = local_point_for_visual_context(line.visual_context_index, point, viewport_paintable, device_pixels_per_css_pixel, clip_behavior);
+            auto local_point = local_css_pixel_point_for_visual_context(line.visual_context_index, point, viewport_paintable, device_pixels_per_css_pixel, clip_behavior);
             if (!local_point.has_value())
                 continue;
 
@@ -1407,17 +1414,18 @@ Optional<HitTestResult> HitTestDisplayList::hit_test(CSSPixelPoint point, HitTes
         auto const& spatial_index = m_spatial_indexes[visual_context_index.value()];
         VERIFY(spatial_index);
 
-        auto local_point = local_point_for_visual_context(visual_context_index, point, viewport_paintable, device_pixels_per_css_pixel);
-        if (!local_point.has_value())
+        auto local_float_point = local_point_for_visual_context(visual_context_index, point, viewport_paintable, device_pixels_per_css_pixel);
+        if (!local_float_point.has_value())
             continue;
+        auto local_point = local_float_point->to_type<CSSPixels>();
 
         auto previous_topmost_item_index = topmost_item_index;
-        find_topmost_item_in_list(spatial_index->unbucketed_items, *local_point, chrome_metrics, topmost_item_index);
+        find_topmost_item_in_list(spatial_index->unbucketed_items, *local_float_point, chrome_metrics, topmost_item_index);
 
-        auto x = spatial_index_cell_for(local_point->x());
-        auto y = spatial_index_cell_for(local_point->y());
+        auto x = spatial_index_cell_for(local_point.x());
+        auto y = spatial_index_cell_for(local_point.y());
         if (auto bucket = spatial_index->cells.get(spatial_index_cell_key(x, y)); bucket.has_value())
-            find_topmost_item_in_list(*bucket, *local_point, chrome_metrics, topmost_item_index);
+            find_topmost_item_in_list(*bucket, *local_float_point, chrome_metrics, topmost_item_index);
 
         if (topmost_item_index != previous_topmost_item_index)
             topmost_item_local_point = local_point;
@@ -1428,7 +1436,7 @@ Optional<HitTestResult> HitTestDisplayList::hit_test(CSSPixelPoint point, HitTes
 
     auto const& item = m_items[*topmost_item_index];
     if (!topmost_item_local_point.has_value()) {
-        topmost_item_local_point = local_point_for_visual_context(item.visual_context_index, point, viewport_paintable, device_pixels_per_css_pixel);
+        topmost_item_local_point = local_css_pixel_point_for_visual_context(item.visual_context_index, point, viewport_paintable, device_pixels_per_css_pixel);
         if (!topmost_item_local_point.has_value()) {
             VERIFY_NOT_REACHED();
         }
@@ -1449,16 +1457,17 @@ TraversalDecision HitTestDisplayList::hit_test_all(CSSPixelPoint point, Viewport
         auto const& spatial_index = m_spatial_indexes[visual_context_index.value()];
         VERIFY(spatial_index);
 
-        auto local_point = local_point_for_visual_context(visual_context_index, point, viewport_paintable, device_pixels_per_css_pixel);
-        if (!local_point.has_value())
+        auto local_float_point = local_point_for_visual_context(visual_context_index, point, viewport_paintable, device_pixels_per_css_pixel);
+        if (!local_float_point.has_value())
             continue;
+        auto local_point = local_float_point->to_type<CSSPixels>();
 
-        find_items_in_list(spatial_index->unbucketed_items, *local_point, chrome_metrics, hit_item_indices);
+        find_items_in_list(spatial_index->unbucketed_items, *local_float_point, chrome_metrics, hit_item_indices);
 
-        auto x = spatial_index_cell_for(local_point->x());
-        auto y = spatial_index_cell_for(local_point->y());
+        auto x = spatial_index_cell_for(local_point.x());
+        auto y = spatial_index_cell_for(local_point.y());
         if (auto bucket = spatial_index->cells.get(spatial_index_cell_key(x, y)); bucket.has_value())
-            find_items_in_list(*bucket, *local_point, chrome_metrics, hit_item_indices);
+            find_items_in_list(*bucket, *local_float_point, chrome_metrics, hit_item_indices);
     }
 
     quick_sort(hit_item_indices, [](auto a, auto b) { return a > b; });
@@ -1470,7 +1479,7 @@ TraversalDecision HitTestDisplayList::hit_test_all(CSSPixelPoint point, Viewport
         previous_item_index = item_index;
 
         auto const& item = m_items[item_index];
-        auto local_point = local_point_for_visual_context(item.visual_context_index, point, viewport_paintable, device_pixels_per_css_pixel);
+        auto local_point = local_css_pixel_point_for_visual_context(item.visual_context_index, point, viewport_paintable, device_pixels_per_css_pixel);
         if (!local_point.has_value())
             continue;
         if (callback(hit_test_result_for_item(item, *local_point)) == TraversalDecision::Break)

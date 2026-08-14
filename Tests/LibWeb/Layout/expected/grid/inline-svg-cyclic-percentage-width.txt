@@ -6,8 +6,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           TextNode <#text> (not painted)
         BlockContainer <p> at [0,16] [0+0+0 300 0+0+0] [16+0+0 300 0+0+16] [BFC] children: inline
           frag 0 from SVGSVGBox start: 0, length: 0, rect: [0,16 300x300] baseline: 300
-          SVGSVGBox <svg> at [0,16] [0+0+0 300 0+0+0] [0+0+0 300 0+0+0] [SVG] children: not-inline
-            SVGGeometryBox <circle> at [0,16] [0+0+0 303.03125 0+0+0] [0+0+0 303.03125 0+0+0] children: not-inline
+          SVGSVGBox <svg> at [0,16] [0+0+0 300 0+0+0] [0+0+0 300 0+0+0] viewport-transform=[3.030303 0 0 3.030303 0 0] [SVG] children: not-inline
+            SVGGeometryBox <circle> at [0,0] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [0,332] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
@@ -19,7 +19,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       Paintable (Box<DIV>.grid) [0,0 800x332]
         PaintableWithLines (BlockContainer<P>) [0,16 300x300]
           SVGSVGPaintable (SVGSVGBox<svg>) [0,16 300x300]
-            SVGPathPaintable (SVGGeometryBox<circle>) [0,16 303.03125x303.03125]
+            SVGPathPaintable (SVGGeometryBox<circle>) [0,0 100x100]
       PaintableWithLines (BlockContainer(anonymous)) [0,332 800x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

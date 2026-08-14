@@ -187,8 +187,7 @@ void ImageStyleValue::paint(DisplayListRecordingContext& context, DOM::Document 
     if (!image_data)
         return;
 
-    auto dest_int_rect = dest_rect.to_type<int>();
-    image_data->paint(context, dest_int_rect, image_rendering, color_scheme);
+    image_data->paint(context, dest_rect.to_type<int>().to_type<float>(), image_rendering, color_scheme);
 }
 
 Optional<Painting::DisplayListResource> ImageStyleValue::record_display_list(DisplayListRecordingContext& context, DOM::Document const& document, DevicePixelRect const& dest_rect, PreferredColorScheme color_scheme) const

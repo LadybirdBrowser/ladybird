@@ -19,14 +19,14 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             BlockContainer <(anonymous)> at [176,11] flex-container(column) [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
               BlockContainer <(anonymous)> at [176,11] flex-item [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
                 frag 0 from SVGSVGBox start: 0, length: 0, rect: [176,11 16x16] baseline: 16
-                SVGSVGBox <svg> at [176,11] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [SVG] children: not-inline
-                  SVGGeometryBox <path> at [180,16.328125] [0+0+0 8 0+0+0] [0+0+0 4.9375 0+0+0] children: not-inline
+                SVGSVGBox <svg> at [176,11] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] viewport-transform=[0.6666667 0 0 0.6666667 0 0] [SVG] children: not-inline
+                  SVGGeometryBox <path> at [6,8] [0+0+0 12 0+0+0] [0+0+0 7.40625 0+0+0] children: not-inline
           BlockContainer <button> at [194,11] flex-item [0+1+0 16 0+1+0] [0+1+0 16 0+1+0] [BFC] children: not-inline
             BlockContainer <(anonymous)> at [194,11] flex-container(column) [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
               BlockContainer <(anonymous)> at [194,11] flex-item [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
                 frag 0 from SVGSVGBox start: 0, length: 0, rect: [194,11 16x16] baseline: 16
-                SVGSVGBox <svg> at [194,11] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [SVG] children: not-inline
-                  SVGGeometryBox <path> at [198,16.71875] [0+0+0 8 0+0+0] [0+0+0 4.953125 0+0+0] children: not-inline
+                SVGSVGBox <svg> at [194,11] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] viewport-transform=[0.6666667 0 0 0.6666667 0 0] [SVG] children: not-inline
+                  SVGGeometryBox <path> at [6,8.578125] [0+0+0 12 0+0+0] [0+0+0 7.421875 0+0+0] children: not-inline
       TextNode <#text> (not painted)
       TextInputBox <input> at [225,10] inline-block [0+1+2 200 2+1+0] [0+1+1 16 1+1+0] [BFC] children: not-inline
         Box <div> at [225,10] flex-container(row) [0+0+0 200 0+0+0] [0+0+0 18 0+0+0] [FFC] children: not-inline
@@ -39,14 +39,14 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             BlockContainer <(anonymous)> at [390,11] flex-container(column) [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
               BlockContainer <(anonymous)> at [390,11] flex-item [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
                 frag 0 from SVGSVGBox start: 0, length: 0, rect: [390,11 16x16] baseline: 16
-                SVGSVGBox <svg> at [390,11] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [SVG] children: not-inline
-                  SVGGeometryBox <path> at [394,16.328125] [0+0+0 8 0+0+0] [0+0+0 4.9375 0+0+0] children: not-inline
+                SVGSVGBox <svg> at [390,11] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] viewport-transform=[0.6666667 0 0 0.6666667 0 0] [SVG] children: not-inline
+                  SVGGeometryBox <path> at [6,8] [0+0+0 12 0+0+0] [0+0+0 7.40625 0+0+0] children: not-inline
           BlockContainer <button> at [408,11] flex-item [0+1+0 16 0+1+0] [0+1+0 16 0+1+0] [BFC] children: not-inline
             BlockContainer <(anonymous)> at [408,11] flex-container(column) [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
               BlockContainer <(anonymous)> at [408,11] flex-item [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
                 frag 0 from SVGSVGBox start: 0, length: 0, rect: [408,11 16x16] baseline: 16
-                SVGSVGBox <svg> at [408,11] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [SVG] children: not-inline
-                  SVGGeometryBox <path> at [412,16.71875] [0+0+0 8 0+0+0] [0+0+0 4.953125 0+0+0] children: not-inline
+                SVGSVGBox <svg> at [408,11] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] viewport-transform=[0.6666667 0 0 0.6666667 0 0] [SVG] children: not-inline
+                  SVGGeometryBox <path> at [6,8.578125] [0+0+0 12 0+0+0] [0+0+0 7.421875 0+0+0] children: not-inline
       TextNode <#text> (not painted)
       TextInputBox <input> at [439,11] inline-block [0+1+2 200 2+1+0] [0+1+1 16 1+1+0] [BFC] children: not-inline
         Box <div> at [439,11] flex-container(row) [0+0+0 200 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
@@ -68,12 +68,12 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
             PaintableWithLines (BlockContainer(anonymous)) [176,11 16x16]
               PaintableWithLines (BlockContainer(anonymous)) [176,11 16x16]
                 SVGSVGPaintable (SVGSVGBox<svg>) [176,11 16x16]
-                  SVGPathPaintable (SVGGeometryBox<path>) [180,16.328125 8x4.9375]
+                  SVGPathPaintable (SVGGeometryBox<path>) [6,8 12x7.40625]
           PaintableWithLines (BlockContainer<BUTTON>) [193,10 18x18]
             PaintableWithLines (BlockContainer(anonymous)) [194,11 16x16]
               PaintableWithLines (BlockContainer(anonymous)) [194,11 16x16]
                 SVGSVGPaintable (SVGSVGBox<svg>) [194,11 16x16]
-                  SVGPathPaintable (SVGGeometryBox<path>) [198,16.71875 8x4.953125]
+                  SVGPathPaintable (SVGGeometryBox<path>) [6,8.578125 12x7.421875]
       PaintableWithLines (TextInputBox<INPUT>) [222,8 206x20]
         Paintable (Box<DIV>) [225,10 200x18]
           Paintable (Box<DIV>) [225,11 164x16]
@@ -82,12 +82,12 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
             PaintableWithLines (BlockContainer(anonymous)) [390,11 16x16]
               PaintableWithLines (BlockContainer(anonymous)) [390,11 16x16]
                 SVGSVGPaintable (SVGSVGBox<svg>) [390,11 16x16]
-                  SVGPathPaintable (SVGGeometryBox<path>) [394,16.328125 8x4.9375]
+                  SVGPathPaintable (SVGGeometryBox<path>) [6,8 12x7.40625]
           PaintableWithLines (BlockContainer<BUTTON>) [407,10 18x18]
             PaintableWithLines (BlockContainer(anonymous)) [408,11 16x16]
               PaintableWithLines (BlockContainer(anonymous)) [408,11 16x16]
                 SVGSVGPaintable (SVGSVGBox<svg>) [408,11 16x16]
-                  SVGPathPaintable (SVGGeometryBox<path>) [412,16.71875 8x4.953125]
+                  SVGPathPaintable (SVGGeometryBox<path>) [6,8.578125 12x7.421875]
       PaintableWithLines (TextInputBox<INPUT>) [436,9 206x20]
         Paintable (Box<DIV>) [439,11 200x16]
           Paintable (Box<DIV>) [439,11 200x16]

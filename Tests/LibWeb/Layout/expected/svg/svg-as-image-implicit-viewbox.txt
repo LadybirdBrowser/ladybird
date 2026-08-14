@@ -4,8 +4,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       ImageBox <img> at [8,8] [0+0+0 50 0+0+734] [0+0+0 100 0+0+0] children: not-inline
         (SVG-as-image isolated context)
         Viewport <#document> at [0,0] [0+0+0 50 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
-          SVGSVGBox <svg> at [0,0] [0+0+0 50 0+0+0] [0+0+0 100 0+0+0] [SVG] children: not-inline
-            SVGGeometryBox <rect> at [0,0] [0+0+0 50 0+0+0] [0+0+0 100 0+0+0] children: not-inline
+          SVGSVGBox <svg> at [0,0] [0+0+0 50 0+0+0] [0+0+0 100 0+0+0] viewport-transform=[0.5 0 0 0.5 0 0] [SVG] children: not-inline
+            SVGGeometryBox <rect> at [0,0] [0+0+0 100 0+0+0] [0+0+0 200 0+0+0] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x116]

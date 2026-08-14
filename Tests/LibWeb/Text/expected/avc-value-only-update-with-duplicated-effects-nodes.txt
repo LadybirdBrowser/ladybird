@@ -1,0 +1,2 @@
+builds after opacity change on a static box: 0
+builds after opacity change on a relative box: 0

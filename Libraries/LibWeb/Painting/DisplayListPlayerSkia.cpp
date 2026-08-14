@@ -1020,68 +1020,103 @@ void DisplayListPlayerSkia::play_command(PaintNestedDisplayList const& command)
     // Nested display lists (used for SVG images and mask contents) are immutable and are replayed with identical
     // commands on every compositor frame between content updates; some carry huge command streams (thousands of
     // paths, dozens of layers) and can be far larger than the viewport. Rasterize a list into an offscreen surface
-    // and reuse the snapshot, instead of re-encoding the entire vector command stream on every frame. Each list
-    // keeps a small set of rasters in the per-client resource storage, keyed by display list id and removed
-    // together with the display list itself; the same list can be painted at several places in one frame (repeated
-    // SVG images, atlases), and each place then hits its own raster. Only draw from the cache when the canvas
-    // transform is an integer translation, so the cached raster is pixel-identical to replaying the commands.
-    // Lists that are painted for the first time or whose blending could read page content painted underneath them
-    // replay directly (see should_cache_nested_display_list_raster).
+    // at list resolution and reuse the snapshot, instead of re-encoding the entire vector command stream on every
+    // frame. Each list keeps a small set of rasters in the per-client resource storage, keyed by display list id
+    // and removed together with the display list itself; the same list can be painted at several places in one
+    // frame (repeated SVG images, atlases), and each place then hits its own raster. A placement matching the list
+    // resolution at near-integer device offsets blits the raster pixel-identically to replaying the commands; any
+    // other axis-aligned placement resamples it through the placement matrix with linear filtering. Lists that are
+    // painted for the first time, whose blending could read page content painted underneath them (see
+    // should_cache_nested_display_list_raster), or that sit under a rotated/skewed/mirrored transform replay
+    // directly.
     auto total_matrix = canvas.getTotalMatrix();
-    bool is_integer_translation = total_matrix.isTranslate()
-        && total_matrix.getTranslateX() == SkScalarFloorToScalar(total_matrix.getTranslateX())
-        && total_matrix.getTranslateY() == SkScalarFloorToScalar(total_matrix.getTranslateY());
+    auto list_bounds = Gfx::IntRect { {}, command.list_size };
+    if (m_skia_backend_context && total_matrix.isScaleTranslate() && total_matrix.getScaleX() > 0 && total_matrix.getScaleY() > 0
+        && !command.rect.is_empty() && !list_bounds.is_empty()) {
+        auto device_rect = total_matrix.mapRect(to_skia_rect(command.rect));
+        constexpr float pixel_exact_epsilon = 1.f / 64.f;
+        auto snapped_device_rect = SkRect::MakeLTRB(
+            SkScalarRoundToScalar(device_rect.left()), SkScalarRoundToScalar(device_rect.top()),
+            SkScalarRoundToScalar(device_rect.right()), SkScalarRoundToScalar(device_rect.bottom()));
+        bool draws_pixel_exact = fabsf(device_rect.left() - snapped_device_rect.left()) <= pixel_exact_epsilon
+            && fabsf(device_rect.top() - snapped_device_rect.top()) <= pixel_exact_epsilon
+            && fabsf(snapped_device_rect.width() - static_cast<float>(command.list_size.width())) <= pixel_exact_epsilon
+            && fabsf(snapped_device_rect.height() - static_cast<float>(command.list_size.height())) <= pixel_exact_epsilon;
+        auto placement_device_rect = draws_pixel_exact ? snapped_device_rect : device_rect;
+        auto placement = SkMatrix::RectToRect(SkRect::MakeWH(command.list_size.width(), command.list_size.height()), placement_device_rect);
+        SkMatrix inverse_placement;
+        if (!placement_device_rect.isEmpty() && placement.invert(&inverse_placement)) {
+            auto visible_device_rect = SkRect::Make(canvas.getDeviceClipBounds());
+            if (!visible_device_rect.intersect(placement_device_rect))
+                return;
+            auto visible_in_list_space = inverse_placement.mapRect(visible_device_rect);
+            auto visible_rect_in_list_space = Gfx::enclosing_int_rect(
+                Gfx::FloatRect { visible_in_list_space.left(), visible_in_list_space.top(), visible_in_list_space.width(), visible_in_list_space.height() })
+                                                  .intersected(list_bounds);
+            if (visible_rect_in_list_space.is_empty())
+                return;
 
-    if (m_skia_backend_context && is_integer_translation && !command.rect.is_empty()) {
-        auto device_clip_bounds = canvas.getDeviceClipBounds();
-        auto translation = Gfx::IntPoint { static_cast<int>(total_matrix.getTranslateX()), static_cast<int>(total_matrix.getTranslateY()) };
-        auto clip_in_local_space = Gfx::IntRect { device_clip_bounds.x(), device_clip_bounds.y(), device_clip_bounds.width(), device_clip_bounds.height() }.translated(-translation);
-        auto visible_rect = command.rect.intersected(clip_in_local_space);
-        if (visible_rect.is_empty())
-            return;
-
-        auto visible_rect_in_list_space = visible_rect.translated(-command.rect.location());
-        Gfx::IntRect raster_rect;
-        auto cached_image = resource_storage().cached_nested_display_list_raster(command.display_list_id, m_skia_backend_context, visible_rect_in_list_space, raster_rect);
-        if (!cached_image && resource_storage().should_cache_nested_display_list_raster(command.display_list_id)) {
-            // Small lists are rasterized whole, so lists painted as many little slices (atlases, repeated
-            // images) hit one raster for every slice. Larger lists are rasterized at the visible portion.
-            auto list_bounds = Gfx::IntRect { {}, command.rect.size() };
-            constexpr size_t max_full_list_raster_bytes = 16 * MiB;
-            constexpr int max_full_list_raster_dimension = 16384;
-            auto full_list_bytes = static_cast<size_t>(list_bounds.width()) * list_bounds.height() * 4;
-            bool rasterize_whole_list = full_list_bytes <= max_full_list_raster_bytes
-                && list_bounds.width() <= max_full_list_raster_dimension
-                && list_bounds.height() <= max_full_list_raster_dimension;
-            auto raster_candidate_rect = rasterize_whole_list ? list_bounds : visible_rect_in_list_space;
-            constexpr size_t max_raster_bytes = 128 * MiB;
-            if (static_cast<size_t>(raster_candidate_rect.width()) * raster_candidate_rect.height() * 4 <= max_raster_bytes) {
-                auto offscreen_surface = Gfx::PaintingSurface::create_with_size(
-                    raster_candidate_rect.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
-                offscreen_surface->canvas().clear(SK_ColorTRANSPARENT);
-                offscreen_surface->canvas().translate(-raster_candidate_rect.x(), -raster_candidate_rect.y());
-                execute_display_list_into_surface(
-                    *nested_display_list.display_list, nested_display_list.visual_context_tree, *offscreen_surface);
-                offscreen_surface->canvas().resetMatrix();
-                auto image = offscreen_surface->sk_surface().makeImageSnapshot();
-                if (image) {
-                    resource_storage().add_cached_nested_display_list_raster(command.display_list_id, m_skia_backend_context, raster_candidate_rect, image);
-                    cached_image = move(image);
-                    raster_rect = raster_candidate_rect;
+            Gfx::IntRect raster_rect;
+            auto cached_image = resource_storage().cached_nested_display_list_raster(command.display_list_id, m_skia_backend_context, visible_rect_in_list_space, raster_rect);
+            if (!cached_image && resource_storage().should_cache_nested_display_list_raster(command.display_list_id)) {
+                // Small lists are rasterized whole, so lists painted as many little slices (atlases, repeated
+                // images) hit one raster for every slice. Larger lists are rasterized at the visible portion.
+                constexpr size_t max_full_list_raster_bytes = 16 * MiB;
+                constexpr int max_full_list_raster_dimension = 16384;
+                auto full_list_bytes = static_cast<size_t>(list_bounds.width()) * list_bounds.height() * 4;
+                bool rasterize_whole_list = full_list_bytes <= max_full_list_raster_bytes
+                    && list_bounds.width() <= max_full_list_raster_dimension
+                    && list_bounds.height() <= max_full_list_raster_dimension;
+                auto raster_candidate_rect = rasterize_whole_list ? list_bounds : visible_rect_in_list_space;
+                constexpr size_t max_raster_bytes = 128 * MiB;
+                if (static_cast<size_t>(raster_candidate_rect.width()) * raster_candidate_rect.height() * 4 <= max_raster_bytes) {
+                    auto offscreen_surface = Gfx::PaintingSurface::create_with_size(
+                        raster_candidate_rect.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
+                    offscreen_surface->canvas().clear(SK_ColorTRANSPARENT);
+                    offscreen_surface->canvas().translate(-raster_candidate_rect.x(), -raster_candidate_rect.y());
+                    execute_display_list_into_surface(
+                        *nested_display_list.display_list, nested_display_list.visual_context_tree, *offscreen_surface);
+                    offscreen_surface->canvas().resetMatrix();
+                    auto image = offscreen_surface->sk_surface().makeImageSnapshot();
+                    if (image) {
+                        resource_storage().add_cached_nested_display_list_raster(command.display_list_id, m_skia_backend_context, raster_candidate_rect, image);
+                        cached_image = move(image);
+                        raster_rect = raster_candidate_rect;
+                    }
                 }
             }
-        }
-        if (cached_image) {
-            auto source_rect = visible_rect_in_list_space.translated(-raster_rect.location());
-            canvas.drawImageRect(cached_image.get(), to_skia_rect(source_rect), to_skia_rect(visible_rect),
-                SkSamplingOptions(), nullptr, SkCanvas::kStrict_SrcRectConstraint);
-            return;
+            if (cached_image) {
+                auto source_rect = visible_rect_in_list_space.translated(-raster_rect.location());
+                auto destination_rect = placement.mapRect(to_skia_rect(visible_rect_in_list_space));
+                auto sampling = draws_pixel_exact ? SkSamplingOptions() : SkSamplingOptions(SkFilterMode::kLinear);
+                canvas.save();
+                canvas.setMatrix(SkMatrix::I());
+                canvas.drawImageRect(cached_image.get(), to_skia_rect(source_rect), destination_rect,
+                    sampling, nullptr, SkCanvas::kStrict_SrcRectConstraint);
+                canvas.restore();
+                return;
+            }
         }
     }
 
     canvas.save();
-    canvas.clipRect(to_skia_rect(command.rect));
-    canvas.translate(command.rect.x(), command.rect.y());
+    // Axis-aligned content edges snap to the device pixel grid, the way integer-rect drawing
+    // commands land there by construction — otherwise float rounding in the transform chain
+    // leaves single-pixel antialiasing slivers along edges meant to be pixel-exact. The snapped
+    // placement replaces the canvas matrix outright so no further float composition disturbs it.
+    if (auto device_rect = total_matrix.mapRect(to_skia_rect(command.rect));
+        total_matrix.isScaleTranslate() && total_matrix.getScaleX() > 0 && total_matrix.getScaleY() > 0 && !list_bounds.is_empty()
+        && roundf(device_rect.right()) > roundf(device_rect.left()) && roundf(device_rect.bottom()) > roundf(device_rect.top())) {
+        auto snapped_device_rect = SkRect::MakeLTRB(
+            roundf(device_rect.left()), roundf(device_rect.top()), roundf(device_rect.right()), roundf(device_rect.bottom()));
+        canvas.setMatrix(SkMatrix::RectToRect(SkRect::MakeWH(command.list_size.width(), command.list_size.height()), snapped_device_rect));
+        canvas.clipRect(SkRect::MakeWH(command.list_size.width(), command.list_size.height()));
+    } else {
+        canvas.clipRect(to_skia_rect(command.rect));
+        canvas.translate(command.rect.x(), command.rect.y());
+        if (!list_bounds.is_empty() && !command.rect.is_empty())
+            canvas.scale(command.rect.width() / command.list_size.width(), command.rect.height() / command.list_size.height());
+    }
     ScrollStateSnapshot scroll_state_snapshot;
     execute_nested_display_list(
         *nested_display_list.display_list,

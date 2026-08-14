@@ -144,10 +144,15 @@ private:
     void add_item_to_caret_items(size_t item_index) const;
     SpatialIndex& spatial_index_for(VisualContextIndex) const;
 
-    [[nodiscard]] Optional<CSSPixelPoint> local_point_for_visual_context(VisualContextIndex, CSSPixelPoint, ViewportPaintable const&, double device_pixels_per_css_pixel, AccumulatedVisualContextTree::ClipBehavior = AccumulatedVisualContextTree::ClipBehavior::Respect) const;
+    [[nodiscard]] Optional<Gfx::FloatPoint> local_point_for_visual_context(VisualContextIndex, CSSPixelPoint, ViewportPaintable const&, double device_pixels_per_css_pixel, AccumulatedVisualContextTree::ClipBehavior = AccumulatedVisualContextTree::ClipBehavior::Respect) const;
+    [[nodiscard]] Optional<CSSPixelPoint> local_css_pixel_point_for_visual_context(VisualContextIndex index, CSSPixelPoint point, ViewportPaintable const& viewport_paintable, double device_pixels_per_css_pixel, AccumulatedVisualContextTree::ClipBehavior clip_behavior = AccumulatedVisualContextTree::ClipBehavior::Respect) const
+    {
+        return local_point_for_visual_context(index, point, viewport_paintable, device_pixels_per_css_pixel, clip_behavior)
+            .map([](auto float_point) { return float_point.template to_type<CSSPixels>(); });
+    }
     [[nodiscard]] CSSPixelRect viewport_rect_for_item(Item const&, CSSPixelRect const&, ViewportPaintable const&, double device_pixels_per_css_pixel) const;
     [[nodiscard]] CSSPixelRect caret_line_rect_for_item(Item const&) const;
-    [[nodiscard]] bool item_contains(Item const&, CSSPixelPoint local_point, ChromeMetrics const&) const;
+    [[nodiscard]] bool item_contains(Item const&, Gfx::FloatPoint local_float_point, ChromeMetrics const&) const;
     [[nodiscard]] DOM::Node const* item_dom_node(Item const&) const;
     [[nodiscard]] DOM::Node const* event_dispatch_dom_node_for_item(Item const&) const;
     [[nodiscard]] bool item_can_produce_caret_position(Item const&) const;
@@ -161,9 +166,9 @@ private:
     [[nodiscard]] Optional<size_t> caret_line_index_for_position(DOM::Node const&, size_t offset, TextAffinity) const;
     [[nodiscard]] bool line_contains_descendant_of(CaretLine const&, DOM::Node const&) const;
     [[nodiscard]] bool item_is_inline_adjacent_to_line(Item const&, CaretLine const&) const;
-    void find_topmost_item_in_list(Vector<size_t> const&, CSSPixelPoint local_point, ChromeMetrics const&, Optional<size_t>& topmost_item_index) const;
-    void find_topmost_caret_item_in_list(Vector<size_t> const&, CSSPixelPoint local_point, ChromeMetrics const&, Optional<size_t>& topmost_item_index) const;
-    void find_items_in_list(Vector<size_t> const&, CSSPixelPoint local_point, ChromeMetrics const&, Vector<size_t>& hit_item_indices) const;
+    void find_topmost_item_in_list(Vector<size_t> const&, Gfx::FloatPoint local_float_point, ChromeMetrics const&, Optional<size_t>& topmost_item_index) const;
+    void find_topmost_caret_item_in_list(Vector<size_t> const&, Gfx::FloatPoint local_float_point, ChromeMetrics const&, Optional<size_t>& topmost_item_index) const;
+    void find_items_in_list(Vector<size_t> const&, Gfx::FloatPoint local_float_point, ChromeMetrics const&, Vector<size_t>& hit_item_indices) const;
 
     static bool items_equal_for_cache_verification(Item const&, Item const&);
     static String dump_item_for_cache_verification(Item const&);

@@ -2,25 +2,25 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 116 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 100 0+0+8] children: inline
       frag 0 from SVGSVGBox start: 0, length: 0, rect: [8,8 100x100] baseline: 100
-      SVGSVGBox <svg> at [8,8] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [SVG] children: not-inline
-        SVGForeignObjectBox <foreignObject> at [8,8] [0+0+0 80 0+0+0] [0+0+0 80 0+0+0] [BFC] children: not-inline
-          BlockContainer <div> at [8,8] [0+0+0 80 0+0+0] [0+0+0 0 0+0+0] children: not-inline
-          BlockContainer <(anonymous)> at [8,8] [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] children: inline
-            frag 0 from SVGSVGBox start: 0, length: 0, rect: [8,8 20x20] baseline: 20
-            SVGSVGBox <svg> at [8,8] [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [SVG] children: not-inline
-              SVGGeometryBox <rect> at [8,8] [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] children: not-inline
+      SVGSVGBox <svg> at [8,8] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: not-inline
+        SVGForeignObjectBox <foreignObject> at [0,0] [0+0+0 80 0+0+0] [0+0+0 80 0+0+0] [BFC] children: not-inline
+          BlockContainer <div> at [0,0] [0+0+0 80 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+          BlockContainer <(anonymous)> at [0,0] [0+0+0 80 0+0+0] [0+0+0 20 0+0+0] children: inline
+            frag 0 from SVGSVGBox start: 0, length: 0, rect: [0,0 20x20] baseline: 20
+            SVGSVGBox <svg> at [0,0] [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: not-inline
+              SVGGeometryBox <rect> at [0,0] [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] children: not-inline
       TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x116]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x100]
       SVGSVGPaintable (SVGSVGBox<svg>) [8,8 100x100]
-        SVGForeignObjectPaintable (SVGForeignObjectBox<foreignObject>) [8,8 80x80]
-          PaintableWithLines (BlockContainer<DIV>) [8,8 80x0]
-          PaintableWithLines (BlockContainer(anonymous)) [8,8 80x20]
-            SVGSVGPaintable (SVGSVGBox<svg>) [8,8 20x20]
-              SVGPathPaintable (SVGGeometryBox<rect>) [8,8 20x20]
+        SVGForeignObjectPaintable (SVGForeignObjectBox<foreignObject>) [0,0 80x80]
+          PaintableWithLines (BlockContainer<DIV>) [0,0 80x0]
+          PaintableWithLines (BlockContainer(anonymous)) [0,0 80x20]
+            SVGSVGPaintable (SVGSVGBox<svg>) [0,0 20x20]
+              SVGPathPaintable (SVGGeometryBox<rect>) [0,0 20x20]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x116] (z-index: auto)
-  SC for SVGForeignObjectBox<foreignObject> [8,8 80x80] (z-index: auto)
+  SC for SVGForeignObjectBox<foreignObject> [0,0 80x80] (z-index: auto)

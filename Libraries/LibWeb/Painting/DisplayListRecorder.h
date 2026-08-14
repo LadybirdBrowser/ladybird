@@ -124,7 +124,7 @@ public:
     void save_layer();
     void restore();
 
-    void paint_nested_display_list(DisplayListResource const&, Gfx::IntRect rect);
+    void paint_nested_display_list(DisplayListResource const&, Gfx::FloatRect rect, Gfx::IntSize list_size);
     void register_mask_display_list(ReadonlySpan<VisualContextIndex> context_indices, DisplayListResource const&);
 
     void add_rounded_rect_clip(Gfx::CornerRadii corner_radii, Gfx::IntRect border_rect, Gfx::CornerClip corner_clip);

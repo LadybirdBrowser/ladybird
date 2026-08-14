@@ -15,6 +15,7 @@
 #include <AK/Weakable.h>
 #include <AK/kmalloc.h>
 #include <LibGC/Ptr.h>
+#include <LibGfx/AffineTransform.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Display.h>
@@ -51,6 +52,11 @@ class Scrollbar;
 WEB_API void set_paint_viewport_scrollbars(bool enabled);
 bool should_paint_viewport_scrollbars();
 ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, Paintable const& paintable_box);
+
+// Walks layout ancestors so it also covers content of unconnected resource subtrees.
+WEB_API Paintable const* nearest_svg_viewport_paintable_of(Layout::Node const&);
+// The viewport's rect in its own user units: the active viewBox rect, else {0,0} + the used size.
+WEB_API Gfx::FloatRect svg_viewport_user_rect(Paintable const& viewport_paintable);
 
 bool body_background_is_propagated_to_root(Layout::NodeWithStyle const&);
 
@@ -178,6 +184,12 @@ public:
     friend class Layout::Node;
 
     virtual void reset_for_relayout();
+
+    // The viewBox/preserveAspectRatio transform a viewport-establishing box applies to its
+    // content, in content-box-local user coordinates. Presence marks the paintable as
+    // viewport-establishing for the accumulated visual context tree.
+    virtual Optional<Gfx::AffineTransform> svg_viewport_transform() const { return {}; }
+    virtual void set_svg_viewport_transform(Gfx::AffineTransform) { VERIFY_NOT_REACHED(); }
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const;
     virtual void record_hit_test_items(DisplayListRecordingContext&, PaintPhase) const;

@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 62 tests
 
-61 Pass
-1 Fail
+62 Pass
 Pass	clip-path presentation attribute supported on a relevant element
 Pass	clip-rule presentation attribute supported on a relevant element
 Pass	color presentation attribute supported on a relevant element
@@ -56,7 +55,7 @@ Pass	text-decoration presentation attribute supported on a relevant element
 Pass	text-overflow presentation attribute supported on a relevant element
 Pass	text-rendering presentation attribute supported on a relevant element
 Pass	transform-origin presentation attribute supported on a relevant element
-Fail	transform presentation attribute supported on a relevant element
+Pass	transform presentation attribute supported on a relevant element
 Pass	unicode-bidi presentation attribute supported on a relevant element
 Pass	vector-effect presentation attribute supported on a relevant element
 Pass	visibility presentation attribute supported on a relevant element

@@ -41,6 +41,18 @@ static auto get_clip_box(SVG::SVGGraphicsElement const& graphics_element)
     return first_child_layout_node_of_type<Layout::SVGClipBox>(graphics_element);
 }
 
+// The object bounding box covers the target's geometry alone. The paintable's border box is not
+// that: SVG layout inflates it by the visible stroke width. So, take the bounding box from the
+// target's geometry path, which carries no stroke.
+// AD-HOC: A group or a foreign object has no single geometry path, and we have no object bounding
+//         box for it — so its border box still stands in there.
+static CSSPixelRect target_user_space_object_bounding_box(Paintable const& target_paintable)
+{
+    if (auto const* path_paintable = as_if<SVGPathPaintable>(target_paintable); path_paintable && path_paintable->computed_path().has_value())
+        return path_paintable->computed_path()->bounding_box().to_type<CSSPixels>();
+    return target_paintable.absolute_border_box_rect();
+}
+
 Optional<CSSPixelRect> SVGMaskable::get_svg_mask_area() const
 {
     auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
@@ -52,26 +64,15 @@ Optional<CSSPixelRect> SVGMaskable::get_svg_mask_area() const
     if (!target_paintable)
         return {};
 
-    // Percentages in a userSpaceOnUse masking area resolve against the SVG viewport — and the resulting user-space
-    // rectangle maps to CSS pixels relative to the containing svg box.
+    // Percentages in a userSpaceOnUse masking area resolve against the SVG viewport. The whole
+    // computation stays in the target's user space: that is the coordinate space of the mask node
+    // in the visual context tree.
     Gfx::FloatSize viewport_size {};
-    auto user_space_to_css_pixels = Gfx::AffineTransform {};
-    if (auto const* svg_box = mask_box->first_ancestor_of_type<Layout::SVGSVGBox>(); svg_box && svg_box->paintable_box()) {
-        viewport_size = svg_box->view_box_or_viewport_rect().size();
-        user_space_to_css_pixels.translate(svg_box->paintable_box()->absolute_position().to_type<float>());
-    }
-    user_space_to_css_pixels.multiply(target_svg_to_css_pixels_transform());
+    if (auto const* viewport_paintable = nearest_svg_viewport_paintable_of(*mask_box))
+        viewport_size = svg_viewport_user_rect(*viewport_paintable).size();
 
-    // objectBoundingBox units resolve against the target's object bounding box — which covers its geometry alone. The
-    // paintable's border box is not that: SVG layout inflates it by the visible stroke width. So, take the bounding box
-    // from the target's geometry path, which carries no stroke, and map it into CSS pixels, the same way painting does.
-    // AD-HOC: A group or a foreign object has no single geometry path, and we have no object bounding box for it — so
-    //         its border box still stands in there.
-    auto target_object_bounding_box = target_paintable->absolute_border_box_rect();
-    if (auto const* path_paintable = as_if<SVGPathPaintable>(*target_paintable); path_paintable && path_paintable->computed_path().has_value())
-        target_object_bounding_box = user_space_to_css_pixels.map(path_paintable->computed_path()->bounding_box()).to_type<CSSPixels>();
-
-    return mask_box->dom_node().resolve_masking_area(target_object_bounding_box, viewport_size, user_space_to_css_pixels);
+    auto target_object_bounding_box = target_user_space_object_bounding_box(*target_paintable);
+    return mask_box->dom_node().resolve_masking_area(target_object_bounding_box, viewport_size, Gfx::AffineTransform {});
 }
 
 Optional<CSSPixelRect> SVGMaskable::get_svg_clip_area() const
@@ -83,7 +84,10 @@ Optional<CSSPixelRect> SVGMaskable::get_svg_clip_area() const
 
     auto const& clip_paintable = as<SVGPaintable>(*clip_box->paintable_box());
 
-    auto clip_path_transform = Gfx::AffineTransform { target_svg_transform() }.multiply(clip_box->dom_node().element_transform());
+    // The area must cover the same space calculate_svg_clip_display_list paints the content in.
+    auto clip_path_transform = clip_paintable.layout_node().used_svg_element_transform();
+    if (clip_box->dom_node().clip_path_units() == SVG::SVGUnits::ObjectBoundingBox)
+        clip_path_transform = object_bounding_box_content_units_transform().multiply(clip_path_transform);
     // An empty clipping path will completely clip away the element that had the clip-path property applied.
     return clip_paintable.clip_path_geometry_bounds(clip_path_transform).value_or(CSSPixelRect {});
 }
@@ -100,56 +104,6 @@ static Gfx::MaskKind mask_type_to_gfx_mask_kind(CSS::MaskType mask_type)
     }
 }
 
-static void build_nested_svg_visual_context_tree_for_subtree(AccumulatedVisualContextTree& visual_context_tree, NestedVisualContextAssignments& assignments, DevicePixelConverter const& converter, Paintable& paintable_box, VisualContextIndex inherited_state, float pixel_ratio)
-{
-    auto const& style_source = paintable_box.layout_node();
-    if (style_source.filter().has_filters())
-        paintable_box.set_filter(resolve_css_filter(style_source.filter(), paintable_box));
-    else
-        paintable_box.set_filter({});
-
-    auto gfx_filter = to_gfx_filter(paintable_box.filter(), pixel_ratio);
-    EffectsData effects {
-        style_source.opacity(),
-        mix_blend_mode_to_compositing_and_blending_operator(style_source.mix_blend_mode()),
-        move(gfx_filter)
-    };
-
-    auto own_state = inherited_state;
-    if (effects.needs_layer())
-        own_state = visual_context_tree.append(move(effects), inherited_state);
-
-    for (auto const& mask_layer : paintable_box.mask_layer_presence(MaskLayerSet::SvgOnly)) {
-        own_state = visual_context_tree.append(MaskData { converter.enclosing_device_rect(mask_layer.area), mask_layer.kind, mask_layer.origin }, own_state);
-        assignments.mask_node_indices.ensure(&paintable_box).append(own_state);
-    }
-
-    assignments.paintable_indices.set(&paintable_box, { own_state, own_state });
-
-    paintable_box.for_each_child_of_type<Paintable>([&](Paintable& child) {
-        build_nested_svg_visual_context_tree_for_subtree(visual_context_tree, assignments, converter, child, own_state, pixel_ratio);
-        return IterationDecision::Continue;
-    });
-}
-
-AccumulatedVisualContextTree build_nested_svg_visual_context_tree(Paintable& root_paintable, TransformData root_transform, NestedVisualContextAssignments& assignments)
-{
-    auto visual_context_tree = AccumulatedVisualContextTree::create_with_content_root(move(root_transform));
-    auto pixel_ratio = root_paintable.document().page().client().device_pixels_per_css_pixel();
-    DevicePixelConverter converter(pixel_ratio);
-    build_nested_svg_visual_context_tree_for_subtree(visual_context_tree, assignments, converter, root_paintable, {}, pixel_ratio);
-    return visual_context_tree;
-}
-
-static AccumulatedVisualContextTree build_nested_svg_visual_context_tree(Paintable& root_paintable, Gfx::IntPoint content_offset, NestedVisualContextAssignments& assignments)
-{
-    TransformData content_offset_transform {
-        Gfx::translation_matrix(Vector3<float>(static_cast<float>(content_offset.x()), static_cast<float>(content_offset.y()), 0)),
-        {},
-    };
-    return build_nested_svg_visual_context_tree(root_paintable, move(content_offset_transform), assignments);
-}
-
 Optional<Gfx::MaskKind> SVGMaskable::get_svg_mask_type() const
 {
     auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
@@ -160,44 +114,44 @@ Optional<Gfx::MaskKind> SVGMaskable::get_svg_mask_type() const
 
 static Optional<DisplayListResource> paint_mask_or_clip_to_display_list(
     DisplayListRecordingContext& context,
-    Gfx::AffineTransform const& target_svg_transform,
+    Gfx::AffineTransform const& content_units_transform,
     Paintable const& paintable,
     CSSPixelRect const& area,
     bool is_clip_path)
 {
     auto mask_rect = context.enclosing_device_rect(area);
+    auto device_scale = static_cast<float>(context.device_pixels_per_css_pixel());
+    // Content records in the resource's own units scaled by the device pixel ratio; the root maps
+    // it through the content-units transform into the target's user space and rebases onto the
+    // mask surface origin.
+    auto content_units_transform_in_recorded_space = content_units_transform;
+    content_units_transform_in_recorded_space.set_translation({ content_units_transform.translation().x() * device_scale, content_units_transform.translation().y() * device_scale });
+    auto surface_origin = mask_rect.location().to_type<int>().to_type<float>();
+    auto recorded_to_surface = Gfx::AffineTransform {}
+                                   .translate(-surface_origin)
+                                   .multiply(content_units_transform_in_recorded_space);
+    TransformData root_transform { recorded_to_surface.to_matrix(), {} };
     NestedVisualContextAssignments nested_visual_context_assignments;
-    auto visual_context_tree = build_nested_svg_visual_context_tree(const_cast<Paintable&>(paintable), -mask_rect.location().to_type<int>(), nested_visual_context_assignments);
+    auto visual_context_tree = build_nested_svg_visual_context_tree(const_cast<Paintable&>(paintable), move(root_transform), nested_visual_context_assignments);
     auto display_list = DisplayList::create(visual_context_tree);
     DisplayListRecorder display_list_recorder(*display_list, visual_context_tree, context.display_list_recorder().resource_storage());
     auto paint_context = context.clone(display_list_recorder);
     paint_context.set_nested_visual_context_assignments(move(nested_visual_context_assignments));
-    auto const& mask_element = as<SVG::SVGGraphicsElement const>(*paintable.dom_node());
-    // Layout computes transforms only within the mask/clip subtree, so prepend the target's accumulated transform here.
-    auto svg_transform = Gfx::AffineTransform { target_svg_transform }.multiply(mask_element.element_transform());
-    paint_context.set_svg_transform(svg_transform);
     paint_context.set_draw_svg_geometry_for_clip_path(is_clip_path);
     StackingContext::paint_svg(paint_context, paintable, PaintPhase::Foreground);
     return DisplayListResource { *display_list, move(visual_context_tree) };
 }
 
-Gfx::AffineTransform SVGMaskable::target_svg_transform() const
+Gfx::AffineTransform SVGMaskable::object_bounding_box_content_units_transform() const
 {
-    // Only SVGGraphicsPaintable carries an SVG transform; other targets (e.g. foreign objects) use identity.
-    if (auto const* svg_graphics_paintable = as_if<SVGGraphicsPaintable>(*this))
-        return svg_graphics_paintable->computed_transforms().svg_transform();
-    return {};
-}
-
-Gfx::AffineTransform SVGMaskable::target_svg_to_css_pixels_transform() const
-{
-    if (auto const* svg_graphics_paintable = as_if<SVGGraphicsPaintable>(*this))
-        return svg_graphics_paintable->computed_transforms().svg_to_css_pixels_transform();
-    // The contents of a mask applied to a foreign object are painted without the foreign object's SVG transform (see
-    // target_svg_transform above) — so the masking area likewise maps through the viewbox transform alone.
-    if (auto const* foreign_object_paintable = as_if<SVGForeignObjectPaintable>(*this))
-        return foreign_object_paintable->computed_transforms().svg_to_viewbox_transform();
-    return {};
+    auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
+    auto target_paintable = as<Layout::Box>(*graphics_element.unsafe_layout_node()).paintable_box();
+    if (!target_paintable)
+        return {};
+    auto bounding_box = target_user_space_object_bounding_box(*target_paintable);
+    return Gfx::AffineTransform {}
+        .translate(bounding_box.location().to_type<float>())
+        .scale({ bounding_box.width().to_float(), bounding_box.height().to_float() });
 }
 
 Optional<DisplayListResource> SVGMaskable::calculate_svg_mask_display_list(DisplayListRecordingContext& context, CSSPixelRect const& mask_area) const
@@ -207,7 +161,10 @@ Optional<DisplayListResource> SVGMaskable::calculate_svg_mask_display_list(Displ
     if (!mask_box)
         return {};
     auto& mask_paintable = static_cast<Paintable const&>(*mask_box->paintable());
-    return paint_mask_or_clip_to_display_list(context, target_svg_transform(), mask_paintable, mask_area, false);
+    auto content_units_transform = Gfx::AffineTransform {};
+    if (mask_box->dom_node().mask_content_units() == SVG::SVGUnits::ObjectBoundingBox)
+        content_units_transform = object_bounding_box_content_units_transform();
+    return paint_mask_or_clip_to_display_list(context, content_units_transform, mask_paintable, mask_area, false);
 }
 
 Optional<DisplayListResource> SVGMaskable::calculate_svg_clip_display_list(DisplayListRecordingContext& context, CSSPixelRect const& clip_area) const
@@ -217,7 +174,10 @@ Optional<DisplayListResource> SVGMaskable::calculate_svg_clip_display_list(Displ
     if (!clip_box)
         return {};
     auto& clip_paintable = static_cast<Paintable const&>(*clip_box->paintable());
-    return paint_mask_or_clip_to_display_list(context, target_svg_transform(), clip_paintable, clip_area, true);
+    auto content_units_transform = Gfx::AffineTransform {};
+    if (clip_box->dom_node().clip_path_units() == SVG::SVGUnits::ObjectBoundingBox)
+        content_units_transform = object_bounding_box_content_units_transform();
+    return paint_mask_or_clip_to_display_list(context, content_units_transform, clip_paintable, clip_area, true);
 }
 
 }

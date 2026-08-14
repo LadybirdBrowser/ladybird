@@ -13,16 +13,12 @@ SaveLayer@0
     SaveLayer@0
       CompositorWheelHitTestTarget@0 target_scroll_node_index=0 rect=[0,0 300x200]
       CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 300x200]
-      FillPath@1 path_bounding_rect=[5.6041603,0.8715575 54.167522x54.167522]
-      FillPath@1 path_bounding_rect=[1.2463732,50.681293 54.167522x54.167522]
-      FillPath@2 path_bounding_rect=[5.6041603,0.8715575 54.167522x54.167522]
-      FillPath@2 path_bounding_rect=[1.2463732,50.681293 54.167522x54.167522]
+      FillPath@6 path_bounding_rect=[0,0 100x100]
+      FillPath@6 path_bounding_rect=[0,100 100x100]
+      FillPath@8 path_bounding_rect=[0,0 100x100]
+      FillPath@8 path_bounding_rect=[0,100 100x100]
     Restore@0
-    MaskDisplayList for context 2:
-      FillPath@0 path_bounding_rect=[4.732603,10.833505 54.16752x54.167526]
-    MaskDisplayList for context 3:
-      FillPath@0 path_bounding_rect=[4.732603,10.833505 54.16752x54.167526]
-    MaskDisplayList for context 4:
-      FillPath@0 path_bounding_rect=[4.732603,10.833505 54.16752x54.167526]
+    MaskDisplayList for context 8:
+      FillPath@1 path_bounding_rect=[0,0 100x100]
 Restore@0
 

@@ -307,9 +307,11 @@ void DisplayListPlayer::execute_impl(
                     nullptr);
                 if (auto display_list_id = display_list.mask_display_list_id(frame_node_index);
                     display_list_id.has_value() && resource_storage().has_display_list(*display_list_id)) {
+                    auto mask_rect = mask->rect.to_type<int>();
                     play_command(PaintNestedDisplayList {
                         .display_list_id = *display_list_id,
-                        .rect = mask->rect.to_type<int>(),
+                        .rect = mask_rect.to_type<float>(),
+                        .list_size = mask_rect.size(),
                     });
                 }
                 play_command(Restore {}); // DstIn layer

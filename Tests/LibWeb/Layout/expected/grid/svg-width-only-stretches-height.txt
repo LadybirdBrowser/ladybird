@@ -5,7 +5,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
           TextNode <#text> (not painted)
-        SVGSVGBox <svg> at [0,0] [0+0+0 50 0+0+0] [0+0+0 200 0+0+0] [SVG] children: not-inline
+        SVGSVGBox <svg> at [0,0] [0+0+0 50 0+0+0] [0+0+0 200 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [0,200] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline

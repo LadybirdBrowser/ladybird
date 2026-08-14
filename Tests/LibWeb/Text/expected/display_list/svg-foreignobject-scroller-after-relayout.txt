@@ -1,10 +1,11 @@
 AccumulatedVisualContext Tree:
   [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
     [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
-      [2] clip=[8,8 100x100] (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>))
-        [3] clip=[8,8 100x100] (PaintableWithLines(BlockContainer(anonymous)))
-          [4] clip=[8,8 80x80]
-            [5] scroll (PaintableWithLines(BlockContainer(anonymous)))
+      [2] clip=[8,8 100x100]
+        [3] svg-viewport-transform=[1,0,0,1,8,8] origin=(0,0) (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>))
+          [4] clip=[0,0 100x100] (PaintableWithLines(BlockContainer(anonymous)))
+            [5] clip=[0,0 80x80]
+              [6] scroll (PaintableWithLines(BlockContainer(anonymous)))
 
 DisplayList:
 SaveLayer@0
@@ -13,12 +14,12 @@ SaveLayer@0
   CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x100]
   CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x100]
   CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 100x100]
-  StrokePath@2 path_bounding_rect=[17.5,17.5 81x81] thickness=1 color=rgb(0, 0, 0)
-  CompositorWheelHitTestTarget@2 target_scroll_node_index=0 rect=[8,8 100x100]
-  CompositorWheelHitTestTarget@3 target_scroll_node_index=5 rect=[8,8 80x80]
-  CompositorScrollNode@3 scroll_node_index=5 parent_scroll_node_index=0 scrollport_rect=[8,8 80x80] min_scroll_offset=[0,0] max_scroll_offset=[0,220] is_viewport=false
-  CompositorWheelHitTestTarget@5 target_scroll_node_index=5 rect=[8,8 80x300]
-  FillRect@5 rect=[8,8 80x300] color=rgb(0, 0, 0)
-  PaintScrollBar@3
+  StrokePath@3 path_bounding_rect=[9.5,9.5 81x81] thickness=1 color=rgb(0, 0, 0)
+  CompositorWheelHitTestTarget@3 target_scroll_node_index=0 rect=[0,0 100x100]
+  CompositorWheelHitTestTarget@4 target_scroll_node_index=6 rect=[0,0 80x80]
+  CompositorScrollNode@4 scroll_node_index=6 parent_scroll_node_index=0 scrollport_rect=[0,0 80x80] min_scroll_offset=[0,0] max_scroll_offset=[0,220] is_viewport=false
+  CompositorWheelHitTestTarget@6 target_scroll_node_index=6 rect=[0,0 80x300]
+  FillRect@6 rect=[0,0 80x300] color=rgb(0, 0, 0)
+  PaintScrollBar@4
 Restore@0
 

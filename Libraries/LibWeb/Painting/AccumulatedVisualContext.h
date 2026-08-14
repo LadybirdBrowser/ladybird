@@ -50,10 +50,19 @@ struct ClipData {
     bool contains(DevicePixelPoint point) const;
 };
 
+// Distinguishes the two producers of transform nodes so value-only updates can patch each from its
+// own source: CSS transforms recompute from style, SVG viewport transforms from the viewport
+// paintable's committed viewBox transform and box position.
+enum class TransformDataRole : u8 {
+    CssTransform,
+    SvgViewportTransform,
+};
+
 struct TransformData {
     Gfx::FloatMatrix4x4 matrix;
     Gfx::FloatPoint origin;
     bool flattens_inherited_transform { false };
+    TransformDataRole role { TransformDataRole::CssTransform };
 
     Gfx::FloatMatrix4x4 matrix_including_origin() const;
 };
@@ -205,7 +214,14 @@ private:
     friend ErrorOr<T> IPC::decode(IPC::Decoder&);
 };
 
-WEB_API AccumulatedVisualContextTree build_nested_svg_visual_context_tree(Paintable& root_paintable, TransformData root_transform, NestedVisualContextAssignments&);
+// Pattern tiles exclude the root's own transform: patternTransform reaches the replay-side tile
+// shader instead, so the tiling grid repeats under it rather than the content scaling twice.
+enum class IncludeRootElementTransform : u8 {
+    No,
+    Yes,
+};
+
+WEB_API AccumulatedVisualContextTree build_nested_svg_visual_context_tree(Paintable& root_paintable, TransformData root_transform, NestedVisualContextAssignments&, IncludeRootElementTransform = IncludeRootElementTransform::Yes);
 
 }
 

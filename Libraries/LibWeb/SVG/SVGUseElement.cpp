@@ -207,7 +207,7 @@ bool SVGUseElement::is_referenced_element_same_document() const
     return m_href->equals(document().url(), URL::ExcludeFragment::Yes);
 }
 
-Gfx::AffineTransform SVGUseElement::element_transform() const
+Gfx::AffineTransform SVGUseElement::additional_element_transform() const
 {
     CSSPixelSize viewport_size;
     if (auto* svg_svg_element = first_flat_tree_ancestor_of_type<SVGSVGElement>()) {
@@ -225,7 +225,7 @@ Gfx::AffineTransform SVGUseElement::element_transform() const
 
     // The x and y properties define an additional transformation (translate(x,y), where x and y represent the computed value of the corresponding property)
     // to be applied to the ‘use’ element, after any transformations specified with other properties
-    return Base::element_transform().translate(x, y);
+    return Gfx::AffineTransform {}.translate(x, y);
 }
 
 void SVGUseElement::svg_element_changed(SVGElement& svg_element)

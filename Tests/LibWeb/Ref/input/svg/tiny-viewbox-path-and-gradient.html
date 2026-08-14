@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/tiny-viewbox-path-and-gradient-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+</style>
+<svg width="200" height="200" viewBox="0 0 1 1">
+    <defs>
+        <linearGradient id="halves" x1="0" y1="0" x2="1" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0.5" stop-color="blue"/>
+            <stop offset="0.5" stop-color="orange"/>
+        </linearGradient>
+    </defs>
+    <rect width="1" height="1" fill="url(#halves)"/>
+    <rect x="0.25" y="0.25" width="0.5" height="0.5" fill="green"/>
+</svg>
