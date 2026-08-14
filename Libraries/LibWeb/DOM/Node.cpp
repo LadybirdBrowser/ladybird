@@ -966,6 +966,20 @@ void Node::live_range_pre_remove()
     }
 }
 
+static bool can_detach_layout_subtree_for_removal(Node const& node, Node const& parent)
+{
+    auto const* layout_node = as_if<Layout::NodeWithStyle>(node.unsafe_layout_node());
+    auto const* parent_layout_node = parent.unsafe_layout_node();
+    if (!layout_node || !parent_layout_node || layout_node->parent() != parent_layout_node)
+        return false;
+
+    // Removing an in-flow atomic inline from an existing inline run cannot alter anonymous wrapper structure.
+    // Other box kinds still rebuild the parent so tree fixup can reconstruct any affected wrappers.
+    return parent_layout_node->children_are_inline()
+        && layout_node->is_inline_block()
+        && !layout_node->is_out_of_flow();
+}
+
 // https://dom.spec.whatwg.org/#concept-node-remove
 void Node::remove(bool suppress_observers)
 {
@@ -1033,8 +1047,22 @@ void Node::remove(bool suppress_observers)
         auto contributed_to_layout_tree = unsafe_layout_node() != nullptr;
         if (auto* element = as_if<Element>(*this); !contributed_to_layout_tree && element && element->has_style())
             contributed_to_layout_tree = CSS::display_from_ffi_display(element->style_group<CSS::ComputedValues::BoxValues>()->display).is_contents();
-        if (contributed_to_layout_tree)
-            parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
+        if (contributed_to_layout_tree) {
+            if (can_detach_layout_subtree_for_removal(*this, *parent)) {
+                RefPtr<Layout::Node> layout_node = unsafe_layout_node();
+                layout_node->for_each_in_inclusive_subtree([](Layout::Node& node) {
+                    node.clear_paintable();
+                    return TraversalDecision::Continue;
+                });
+                layout_node->prepare_subtree_for_detach_from_layout_tree();
+                layout_node->remove();
+                if (auto* parent_layout_node = parent->unsafe_layout_node(); !parent_layout_node->has_children())
+                    parent_layout_node->set_children_are_inline(false);
+                parent->set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate);
+            } else {
+                parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
+            }
+        }
     }
 
     // 7. Remove node from its parent’s children.

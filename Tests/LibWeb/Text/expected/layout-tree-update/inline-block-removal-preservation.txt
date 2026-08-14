@@ -1,0 +1,33 @@
+PASS: remove middle inline-block leaf | preserve run
+PASS: remove middle inline-block leaf | preserve before
+PASS: remove middle inline-block leaf | preserve after
+PASS: remove middle inline-block leaf | avoid layout tree build
+PASS: remove middle inline-block leaf | incremental tree matches full rebuild
+PASS: remove first inline-block leaf | preserve run
+PASS: remove first inline-block leaf | preserve after
+PASS: remove first inline-block leaf | avoid layout tree build
+PASS: remove first inline-block leaf | incremental tree matches full rebuild
+PASS: remove last inline-block leaf | preserve run
+PASS: remove last inline-block leaf | preserve before
+PASS: remove last inline-block leaf | avoid layout tree build
+PASS: remove last inline-block leaf | incremental tree matches full rebuild
+PASS: remove only inline-block child | preserve run
+PASS: remove only inline-block child | avoid layout tree build
+PASS: remove only inline-block child | incremental tree matches full rebuild
+PASS: remove inline-block subtree | preserve run
+PASS: remove inline-block subtree | preserve before
+PASS: remove inline-block subtree | preserve after
+PASS: remove inline-block subtree | avoid layout tree build
+PASS: remove inline-block subtree | incremental tree matches full rebuild
+PASS: remove inline-block with generated content | preserve run
+PASS: remove inline-block with generated content | preserve before
+PASS: remove inline-block with generated content | preserve after
+PASS: remove inline-block with generated content | avoid layout tree build
+PASS: remove inline-block with generated content | incremental tree matches full rebuild
+PASS: remove inline-block sibling run | preserve run
+PASS: remove inline-block sibling run | preserve before
+PASS: remove inline-block sibling run | preserve after
+PASS: remove inline-block sibling run | avoid layout tree build
+PASS: remove inline-block sibling run | incremental tree matches full rebuild
+PASS: remove inline-block before structural display change | perform layout tree build
+PASS: remove inline-block before structural display change | incremental tree matches full rebuild
