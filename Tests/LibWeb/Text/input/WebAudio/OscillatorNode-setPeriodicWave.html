@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const context = new OfflineAudioContext(1, 128, 48000);
+        const oscillator = context.createOscillator();
+        const periodicWave = context.createPeriodicWave(new Float32Array([0, 1]), new Float32Array([0, 0]), { disableNormalization: true });
+        oscillator.frequency.value = 0;
+        oscillator.setPeriodicWave(periodicWave);
+        oscillator.connect(context.destination);
+        oscillator.start();
+
+        const output = await context.startRendering();
+        const hasAudibleSamples = output.getChannelData(0).some(sample => Math.abs(sample) > 0.000001);
+        println(`OscillatorNode waveform changes reach the render graph: ${hasAudibleSamples}`);
+    });
+</script>

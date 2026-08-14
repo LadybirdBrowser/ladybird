@@ -103,6 +103,7 @@ void OscillatorNode::set_periodic_wave(GC::Ptr<PeriodicWave> periodic_wave)
 {
     m_periodic_wave = periodic_wave;
     m_type = OscillatorType::Custom;
+    queue_waveform_update();
 }
 
 void OscillatorNode::visit_edges(Cell::Visitor& visitor)
