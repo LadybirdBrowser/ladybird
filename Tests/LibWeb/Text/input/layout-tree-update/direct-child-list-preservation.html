@@ -8,6 +8,7 @@
     .parent.counter { counter-reset: direct-child-counter; }
     .increment { counter-increment: direct-child-counter; }
     .counter-value::before { content: counter(direct-child-counter); }
+    .parent.first-letter::first-letter { color: red; }
     .child { display: block; }
     .inline { display: inline; }
     .inline-block { display: inline-block; }
@@ -29,6 +30,13 @@
             markup: '<div class="parent"><i class="after child"></i></div>',
             mutate: parent => parent.insertAdjacentHTML("afterbegin", '<section class="target child"><b></b></section>'),
             tracked: ["parent", "after"],
+        },
+        {
+            name: "fall back when prepending the first-letter block child",
+            markup: '<div class="parent first-letter"><i class="after child">after</i></div>',
+            mutate: parent => parent.insertAdjacentHTML("afterbegin", '<section class="target child">target</section>'),
+            tracked: ["parent"],
+            preserve: false,
         },
         {
             name: "insert middle block child in block flow",
@@ -161,6 +169,13 @@
         {
             name: "fall back when removed block affects following counters",
             markup: '<div class="parent counter"><i class="target child increment"></i><i class="after child counter-value"></i></div>',
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back when removing the first-letter block child",
+            markup: '<div class="parent first-letter"><i class="target child">target</i><i class="after child">after</i></div>',
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent"],
             preserve: false,

@@ -982,6 +982,15 @@ static bool can_detach_layout_subtree_for_removal(Node const& node, Node const& 
     if (!parent_with_style)
         return false;
 
+    if (auto const* parent_element = as_if<Element>(parent)) {
+        if (auto const* first_letter_layout_node = parent_element->pseudo_element_unsafe_layout_node(CSS::PseudoElement::FirstLetter)) {
+            for (auto const* ancestor = first_letter_layout_node; ancestor; ancestor = ancestor->parent()) {
+                if (ancestor == layout_node)
+                    return false;
+            }
+        }
+    }
+
     auto sibling_is_direct_layout_child = [&](Node const* sibling) {
         if (!sibling)
             return true;

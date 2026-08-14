@@ -6,6 +6,9 @@ PASS: prepend block child in block flow | preserve parent
 PASS: prepend block child in block flow | preserve after
 PASS: prepend block child in block flow | layout tree builds=1
 PASS: prepend block child in block flow | incremental tree matches full rebuild
+PASS: fall back when prepending the first-letter block child | rebuild parent
+PASS: fall back when prepending the first-letter block child | layout tree builds=1
+PASS: fall back when prepending the first-letter block child | incremental tree matches full rebuild
 PASS: insert middle block child in block flow | preserve parent
 PASS: insert middle block child in block flow | preserve before
 PASS: insert middle block child in block flow | preserve after
@@ -121,6 +124,9 @@ PASS: remove child in grid | incremental tree matches full rebuild
 PASS: fall back when removed block affects following counters | rebuild parent
 PASS: fall back when removed block affects following counters | layout tree builds=1
 PASS: fall back when removed block affects following counters | incremental tree matches full rebuild
+PASS: fall back when removing the first-letter block child | rebuild parent
+PASS: fall back when removing the first-letter block child | layout tree builds=1
+PASS: fall back when removing the first-letter block child | incremental tree matches full rebuild
 PASS: fall back for floated child removal in block flow | rebuild parent
 PASS: fall back for floated child removal in block flow | layout tree builds=1
 PASS: fall back for floated child removal in block flow | incremental tree matches full rebuild
