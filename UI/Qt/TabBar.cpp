@@ -17,7 +17,6 @@
 #endif
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/StringUtils.h>
-#include <UI/Qt/Tab.h>
 #include <UI/Qt/TabBar.h>
 #include <UI/Qt/WindowControlButton.h>
 
