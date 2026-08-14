@@ -239,8 +239,10 @@ void assign_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
     // NOTE: We do this step last so that we can move the slottables list.
     slot->set_assigned_nodes(move(slottables));
 
-    if (assignment_changed)
+    if (assignment_changed) {
+        slot->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::SlotAssignmentChange);
         CSS::Invalidation::invalidate_style_after_slot_assignment_change(slot);
+    }
 }
 
 // https://dom.spec.whatwg.org/#assign-slotables-for-a-tree

@@ -1,9 +1,9 @@
 PASS: append assigned node with block shadow host
 PASS: remove assigned node with block shadow host
 PASS: replace assigned subtree with block shadow host
-FAIL: assign node to named slot with block shadow host
+PASS: assign node to named slot with block shadow host
 PASS: unassign node from named slot with block shadow host
-FAIL: rename slot with block shadow host
+PASS: rename slot with block shadow host
 PASS: remove default slot with block shadow host
 PASS: remove named slot with block shadow host
 PASS: insert additional slot with block shadow host
@@ -13,9 +13,9 @@ PASS: remove fallback content with block shadow host
 PASS: append assigned node with inline shadow host
 PASS: remove assigned node with inline shadow host
 PASS: replace assigned subtree with inline shadow host
-FAIL: assign node to named slot with inline shadow host
+PASS: assign node to named slot with inline shadow host
 PASS: unassign node from named slot with inline shadow host
-FAIL: rename slot with inline shadow host
+PASS: rename slot with inline shadow host
 PASS: remove default slot with inline shadow host
 PASS: remove named slot with inline shadow host
 PASS: insert additional slot with inline shadow host
@@ -25,9 +25,9 @@ PASS: remove fallback content with inline shadow host
 PASS: append assigned node with contents shadow host
 PASS: remove assigned node with contents shadow host
 PASS: replace assigned subtree with contents shadow host
-FAIL: assign node to named slot with contents shadow host
+PASS: assign node to named slot with contents shadow host
 PASS: unassign node from named slot with contents shadow host
-FAIL: rename slot with contents shadow host
+PASS: rename slot with contents shadow host
 PASS: remove default slot with contents shadow host
 PASS: remove named slot with contents shadow host
 PASS: insert additional slot with contents shadow host
@@ -37,9 +37,9 @@ PASS: remove fallback content with contents shadow host
 PASS: append assigned node with flex shadow host
 PASS: remove assigned node with flex shadow host
 PASS: replace assigned subtree with flex shadow host
-FAIL: assign node to named slot with flex shadow host
+PASS: assign node to named slot with flex shadow host
 PASS: unassign node from named slot with flex shadow host
-FAIL: rename slot with flex shadow host
+PASS: rename slot with flex shadow host
 PASS: remove default slot with flex shadow host
 PASS: remove named slot with flex shadow host
 PASS: insert additional slot with flex shadow host
@@ -49,9 +49,9 @@ PASS: remove fallback content with flex shadow host
 PASS: append assigned node with grid shadow host
 PASS: remove assigned node with grid shadow host
 PASS: replace assigned subtree with grid shadow host
-FAIL: assign node to named slot with grid shadow host
+PASS: assign node to named slot with grid shadow host
 PASS: unassign node from named slot with grid shadow host
-FAIL: rename slot with grid shadow host
+PASS: rename slot with grid shadow host
 PASS: remove default slot with grid shadow host
 PASS: remove named slot with grid shadow host
 PASS: insert additional slot with grid shadow host
@@ -61,9 +61,9 @@ PASS: remove fallback content with grid shadow host
 PASS: append assigned node with table-cell shadow host
 PASS: remove assigned node with table-cell shadow host
 PASS: replace assigned subtree with table-cell shadow host
-FAIL: assign node to named slot with table-cell shadow host
+PASS: assign node to named slot with table-cell shadow host
 PASS: unassign node from named slot with table-cell shadow host
-FAIL: rename slot with table-cell shadow host
+PASS: rename slot with table-cell shadow host
 PASS: remove default slot with table-cell shadow host
 PASS: remove named slot with table-cell shadow host
 PASS: insert additional slot with table-cell shadow host
@@ -82,4 +82,4 @@ PASS: insert additional slot with none shadow host
 PASS: replace shadow slot tree with none shadow host
 PASS: append fallback content with none shadow host
 PASS: remove fallback content with none shadow host
-84 cases; 72 matched; 12 mismatched
+84 cases; 84 matched; 0 mismatched
