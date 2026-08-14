@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const testID = crypto.randomUUID();
+        const token = `image-request-cache-after-adoption-${testID}`;
+        const imageURL = await server.createEcho("GET", `/image-request-cache-after-adoption-${testID}.svg`, {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "image/svg+xml",
+            },
+            body: `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>`,
+            wait_for_unblock: token,
+        });
+
+        const frame = document.createElement("iframe");
+        frame.srcdoc = "<body></body>";
+        document.body.appendChild(frame);
+        await new Promise(resolve => frame.addEventListener("load", resolve));
+
+        const originatingDocument = frame.contentDocument;
+        const image = originatingDocument.createElement("img");
+        image.crossOrigin = "anonymous";
+        image.src = imageURL;
+        originatingDocument.body.appendChild(image);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        const loadPromise = new Promise((resolve, reject) => {
+            image.onload = resolve;
+            image.onerror = () => reject(new Error("Failed to load adopted image"));
+        });
+        document.body.appendChild(document.adoptNode(image));
+        await fetch(new URL(`/unblock/${token}`, imageURL));
+        await loadPromise;
+
+        const recreatedImage = originatingDocument.createElement("img");
+        recreatedImage.crossOrigin = "anonymous";
+        recreatedImage.src = imageURL;
+        originatingDocument.body.appendChild(recreatedImage);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        println(`originating document retained cache entry: ${recreatedImage.complete && recreatedImage.naturalWidth > 0}`);
+    });
+</script>
