@@ -285,7 +285,7 @@ PASS: replaceChild in table-column
 PASS: replaceWith in table-column
 PASS: replaceWith empty in table-column
 PASS: replaceChildren mixed in table-column
-FAIL: replaceChildren empty in table-column
+PASS: replaceChildren empty in table-column
 PASS: innerHTML replace in table-column
 PASS: innerHTML clear in table-column
 PASS: outerHTML replace in table-column
@@ -448,4 +448,4 @@ PASS: append imported subtree in block flow list-item
 PASS: append cloned subtree in block flow list-item
 PASS: append template contents in block flow list-item
 PASS: append DOMParser subtree in block flow list-item
-450 cases; 449 matched; 1 mismatched
+450 cases; 450 matched; 0 mismatched
