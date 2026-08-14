@@ -395,7 +395,8 @@ Optional<URL::URL> generate_text_fragment_url(DOM::Document& document, DOM::Rang
         return {};
 
     document.update_layout(DOM::UpdateLayoutReason::DocumentFindMatchingText);
-    auto* viewport = document.layout_node();
+    Layout::ForcedReadScope read { document };
+    auto* viewport = document.layout_node(read);
     if (!viewport)
         return {};
     auto const& searchable_text = viewport->searchable_text();
@@ -578,13 +579,13 @@ Optional<URL::URL> generate_text_fragment_url(DOM::Document& document, DOM::Rang
     // Retain the ordinary fragment and unknown directive parameters, but replace existing text directives with the
     // newly generated selection.
     auto result = current_url;
-    auto ordinary_fragment = String {};
+    auto ordinary_fragment = ""sv;
     Vector<StringView> retained_directives;
     if (auto const& fragment = result.fragment(); fragment.has_value()) {
-        auto delimiter = fragment->find_byte_offset(":~:"sv);
+        auto delimiter = fragment->find(":~:"sv);
         if (delimiter.has_value()) {
-            ordinary_fragment = MUST(fragment->substring_from_byte_offset(0, *delimiter));
-            auto directive_part = fragment->bytes_as_string_view().substring_view(*delimiter + 3);
+            ordinary_fragment = fragment->substring_view(0, *delimiter);
+            auto directive_part = fragment->substring_view(*delimiter + 3);
             for (auto parameter : directive_part.split_view('&', SplitBehavior::KeepEmpty)) {
                 if (!parameter.starts_with("text="sv) && !parameter.is_empty())
                     retained_directives.append(parameter);
@@ -600,7 +601,8 @@ Optional<URL::URL> generate_text_fragment_url(DOM::Document& document, DOM::Rang
     for (auto parameter : retained_directives)
         fragment_builder.appendff("{}&", parameter);
     fragment_builder.append(generated_directive);
-    result.set_fragment(MUST(fragment_builder.to_string()));
+    auto fragment_string = MUST(fragment_builder.to_string());
+    result.set_fragment(fragment_string.bytes_as_string_view());
     return result;
 }
 

@@ -27,6 +27,7 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
+#include <LibWeb/Geometry/DOMRectList.h>
 #include <LibWeb/GraphemeEdgeTracker.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
 #include <LibWeb/HTML/DataTransfer.h>
@@ -52,6 +53,7 @@
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/TextDirectiveGenerator.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -3377,14 +3379,45 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
 
     auto local_root_id = m_navigable->local_root()->id();
     auto page_viewport_position = m_navigable->to_page_position(viewport_position);
+    auto selected_text_range_at_context_menu_position = [&]() -> GC::Ptr<DOM::Range> {
+        if (!m_navigable->is_top_level_traversable())
+            return nullptr;
+
+        auto selection = document->get_selection();
+        if (!selection || selection->is_collapsed())
+            return nullptr;
+
+        auto range = selection->range();
+        if (!range)
+            return nullptr;
+
+        auto selection_rects = range->get_client_rects();
+        auto click_x = coordinates.viewport_position.x().to_double();
+        auto click_y = coordinates.viewport_position.y().to_double();
+        for (u32 index = 0; index < selection_rects->length(); ++index) {
+            auto const* rect = selection_rects->item(index);
+            if (click_x >= rect->left() && click_x < rect->right()
+                && click_y >= rect->top() && click_y < rect->bottom()) {
+                if (HTML::selection_is_eligible_for_text_fragment_generation(*document, *range))
+                    return range->clone_range();
+                return nullptr;
+            }
+        }
+
+        return nullptr;
+    };
+
     if (auto const* link = node_under_pointer->enclosing_link_element()) {
+        // Right-clicking link text without an existing selection first selects the word under the pointer, as the
+        // ordinary page context menu does. A selected range is still only offered when the click lands within it.
+        (void)select_context_menu_text(read, document, coordinates.visual_viewport_position);
         auto href = link->href();
         auto url = document->encoding_parse_url(href);
         if (url.has_value()) {
             auto const& element = link->hyperlink_element_utils_element();
             auto navigation = HTML::prepare_navigation_from_document(*document, url.release_value(), element.hyperlink_referrer_policy());
             m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Link, .target = const_cast<DOM::Element&>(element) });
-            m_navigable->page().client().page_did_request_link_context_menu(local_root_id, page_viewport_position, move(navigation), link->target().to_byte_string(), modifiers);
+            m_navigable->page().client().page_did_request_link_context_menu(local_root_id, page_viewport_position, move(navigation), link->target().to_byte_string(), modifiers, selected_text_range_at_context_menu_position());
         }
     } else {
         // AD-HOC: Skip up the tree to the first ancestor that is not a UA shadow DOM node, and use its context menu.
@@ -3438,7 +3471,7 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
 
             auto for_input_events_target = document->active_input_events_target() ? ContextMenuForInputEventsTarget::Yes : ContextMenuForInputEventsTarget::No;
             m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Page, .target = context_menu_node });
-            m_navigable->page().client().page_did_request_context_menu(local_root_id, page_viewport_position, for_input_events_target, move(misspelled_word));
+            m_navigable->page().client().page_did_request_context_menu(local_root_id, page_viewport_position, for_input_events_target, move(misspelled_word), selected_text_range_at_context_menu_position());
         }
     }
 }

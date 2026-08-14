@@ -2781,6 +2781,14 @@ void ConnectionFromClient::get_selected_text(Web::PageId page_id, u64 request_id
     async_did_get_selected_text(page_id, request_id, selection);
 }
 
+void ConnectionFromClient::generate_text_fragment_url(Web::PageId page_id, u64 request_id, u64 generation_id)
+{
+    Optional<URL::URL> generated_url;
+    if (auto page = this->page(page_id); page.has_value())
+        generated_url = page->generate_text_fragment_url(generation_id);
+    async_did_generate_text_fragment_url(page_id, request_id, move(generated_url));
+}
+
 static WebView::DictionaryLookupTextStyle dictionary_lookup_text_style_from_layout_node(Web::Layout::Node const& layout_node, double zoom_level)
 {
     auto const& font = layout_node.first_available_font();

@@ -296,6 +296,7 @@ private:
     virtual void request_internal_page_info(Web::PageId page_id, WebView::PageInfoType) override;
 
     virtual void get_selected_text(Web::PageId page_id, u64 request_id) override;
+    virtual void generate_text_fragment_url(Web::PageId page_id, u64 request_id, u64 generation_id) override;
     virtual void get_selected_text_for_lookup(Web::PageId page_id, u64 request_id) override;
     virtual void select_word_for_dictionary_lookup(Web::PageId page_id, u64 request_id, Web::DevicePixelPoint position) override;
     virtual void cut_selected_text(Web::PageId page_id, u64 request_id) override;
