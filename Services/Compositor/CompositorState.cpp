@@ -342,12 +342,12 @@ void CompositorState::update_video_sinks_for_display(Optional<u64> display_id)
     // Keep this display's vsync ticking while any sink painted on it may require updates.
     for (auto& context_entry : m_contexts) {
         auto& context = *context_entry.value;
-        if (context.display_id() != display_id)
+        if (display_id_for_context(context) != display_id)
             continue;
         for (auto const& resource_entry : context.video_sink_handles()) {
             auto* sink_state = video_sink_state(context.web_content_client(), resource_entry.value);
             if (sink_state != nullptr && sink_state->requires_updates) {
-                vsync_scheduler_for_display(display_id).schedule(context.display_refresh_rate());
+                vsync_scheduler_for_display(display_id).schedule(display_refresh_rate_for_context(context));
                 break;
             }
         }
