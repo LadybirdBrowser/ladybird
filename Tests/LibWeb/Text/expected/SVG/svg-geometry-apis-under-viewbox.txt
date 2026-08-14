@@ -1,0 +1,16 @@
+uniform-rect gBCR: 20 40 60 80
+uniform-rect client rects: 1
+uniform-rect getBBox: 10 20 30 40
+transformed-rect gBCR: 30 60 60 80
+transformed-rect client rects: 1
+transformed-rect getBBox: 10 20 30 40
+nested-rect gBCR: 120 20 40 40
+nested-rect client rects: 1
+nested-rect getBBox: 5 5 10 10
+nonuniform-rect gBCR: 110 610 20 20
+nonuniform-rect client rects: 1
+nonuniform-rect getBBox: 10 10 20 20
+scaled-ancestor-rect gBCR: 10 820 30 40
+scaled-ancestor-rect client rects: 1
+hit at circle center: hit-circle
+hit inside bbox outside circle: hit-target
