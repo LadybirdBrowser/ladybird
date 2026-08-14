@@ -456,6 +456,34 @@ SearchableText SearchableText::collect(Viewport& viewport)
     return SearchableText { move(blocks), move(find_in_page_blocks) };
 }
 
+Optional<DOM::BoundaryPoint> SearchableText::boundary_point_at_offset(Block const& block, size_t offset, bool is_end) const
+{
+    if (block.segments.is_empty() || block.offset_mapping.is_empty() || offset > block.offset_mapping.size())
+        return {};
+
+    auto segment_for_code_unit = [&](size_t code_unit_offset) -> Segment const& {
+        auto const* segment = &block.segments.first();
+        for (size_t i = 1; i < block.segments.size() && block.segments[i].start_offset <= code_unit_offset; ++i)
+            segment = &block.segments[i];
+        return *segment;
+    };
+
+    auto const mapping_index = is_end && offset > 0
+        ? offset - 1
+        : min(offset, block.offset_mapping.size() - 1);
+    auto const& mapping = block.offset_mapping[mapping_index];
+    auto node = segment_for_code_unit(mapping_index).dom_node.ptr();
+    if (!node)
+        return {};
+
+    auto const dom_offset = is_end
+        ? (offset > 0 ? mapping.dom_end_offset : mapping.dom_start_offset)
+        : (offset < block.offset_mapping.size() ? mapping.dom_start_offset : mapping.dom_end_offset);
+    if (!node->is_connected() || dom_offset > node->length())
+        return {};
+    return DOM::BoundaryPoint { *node, static_cast<WebIDL::UnsignedLong>(dom_offset) };
+}
+
 Optional<GC::Ref<DOM::Range>> SearchableText::range_from_offsets(Block const& block, size_t start_offset, size_t end_offset) const
 {
     if (block.segments.is_empty() || block.offset_mapping.is_empty() || start_offset > end_offset || end_offset > block.offset_mapping.size())

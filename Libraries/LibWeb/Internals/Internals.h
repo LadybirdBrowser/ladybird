@@ -122,6 +122,7 @@ public:
     Utf16String theme_color();
 
     Utf16String selected_text_for_clipboard();
+    Optional<Utf16String> generate_text_fragment_url(DOM::Range&, Utf16String const& current_url);
 
     void find_in_page(Utf16String const& query, bool highlight_all);
     void find_in_page_next_match();
