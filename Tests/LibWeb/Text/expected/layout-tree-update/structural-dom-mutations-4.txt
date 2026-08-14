@@ -240,7 +240,7 @@ PASS: replaceChild in table-column-group
 PASS: replaceWith in table-column-group
 PASS: replaceWith empty in table-column-group
 PASS: replaceChildren mixed in table-column-group
-FAIL: replaceChildren empty in table-column-group
+PASS: replaceChildren empty in table-column-group
 PASS: innerHTML replace in table-column-group
 PASS: innerHTML clear in table-column-group
 PASS: outerHTML replace in table-column-group
@@ -403,4 +403,4 @@ PASS: append imported subtree in inline table
 PASS: append cloned subtree in inline table
 PASS: append template contents in inline table
 PASS: append DOMParser subtree in inline table
-405 cases; 404 matched; 1 mismatched
+405 cases; 405 matched; 0 mismatched

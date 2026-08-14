@@ -2993,6 +2993,7 @@ fn remove_irrelevant_boxes(host: &TreeBuilderHost<'_>, root: LayoutNode) {
 
         // 1. Children of a table-column.
         if node_kind_is_box(data.kind) && host.display(node).is_table_column() {
+            host.set_children_are_inline(node, false);
             let mut child = host.first_child(node);
             while !child.is_invalid() {
                 to_remove.push(child);
@@ -3002,6 +3003,7 @@ fn remove_irrelevant_boxes(host: &TreeBuilderHost<'_>, root: LayoutNode) {
 
         // 2. Children of a table-column-group which are not a table-column.
         if node_kind_is_box(data.kind) && host.display(node).is_table_column_group() {
+            host.set_children_are_inline(node, false);
             let mut child = host.first_child(node);
             while !child.is_invalid() {
                 if !host.display(child).is_table_column() {
