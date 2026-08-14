@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="frame" width="400" height="300" srcdoc="
+    <style>html, body { margin: 0 }</style>
+    <div id='scroller' style='width: 100px; height: 100px; overflow: hidden'>
+        <div id='child' style='width: 50vw; height: 50vh'></div>
+    </div>
+"></iframe>
+<script>
+    asyncTest(done => {
+        const frame = document.getElementById("frame");
+        frame.onload = () => {
+            const scroller = frame.contentDocument.getElementById("scroller");
+            const child = frame.contentDocument.getElementById("child");
+            const printOverflow = label => {
+                println(`${label}: scroller=${scroller.scrollWidth}x${scroller.scrollHeight} child=${child.scrollWidth}x${child.scrollHeight}`);
+            };
+
+            printOverflow("before viewport resize");
+            frame.width = 200;
+            frame.height = 160;
+            document.body.offsetWidth;
+            printOverflow("after viewport resize");
+            done();
+        };
+    });
+</script>

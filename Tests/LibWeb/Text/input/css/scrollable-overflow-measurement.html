@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .fixture { position: absolute; left: 0; top: 0; }
+    .scroller { position: relative; width: 100px; height: 100px; overflow: hidden; }
+</style>
+
+<div id="direct" class="fixture scroller">
+    <div style="width: 150px; height: 160px;"></div>
+</div>
+
+<div id="nested-visible" class="fixture scroller">
+    <div style="width: 40px; height: 40px; overflow: visible;">
+        <div style="width: 30px; height: 30px; transform: translate(120px, 130px);"></div>
+    </div>
+</div>
+
+<div id="nested-clipped" class="fixture scroller">
+    <div style="width: 40px; height: 40px; overflow: hidden;">
+        <div style="width: 30px; height: 30px; transform: translate(120px, 130px);"></div>
+    </div>
+</div>
+
+<div id="transformed" class="fixture scroller">
+    <div style="width: 20px; height: 30px; transform: translate(140px, 150px);"></div>
+</div>
+
+<div id="positioned" class="fixture scroller">
+    <div style="position: absolute; left: 140px; top: 150px; width: 20px; height: 30px;"></div>
+</div>
+
+<div id="fixed" class="fixture scroller">
+    <div style="position: fixed; left: 140px; top: 150px; width: 20px; height: 30px;"></div>
+</div>
+
+<div id="paint-contained" class="fixture scroller">
+    <div style="contain: paint; width: 40px; height: 40px;">
+        <div style="width: 30px; height: 30px; transform: translate(120px, 130px);"></div>
+    </div>
+</div>
+
+<div id="layout-contained" class="fixture scroller">
+    <div style="contain: layout; width: 40px; height: 40px;">
+        <div style="width: 30px; height: 30px; transform: translate(120px, 130px);"></div>
+    </div>
+</div>
+
+<div id="zero-area" class="fixture scroller">
+    <div style="width: 0; height: 0; transform: translate(200px, 200px);"></div>
+</div>
+
+<div id="visible-overflow" class="fixture" style="width: 100px; height: 100px; overflow: visible;">
+    <div style="width: 170px; height: 180px;"></div>
+</div>
+
+<div id="line-box" class="fixture" style="width: 100px; height: 100px; overflow: visible; white-space: nowrap;">
+    <span style="display: inline-block; width: 190px; height: 20px;"></span>
+</div>
+
+<div id="line-box-border-padding" class="fixture scroller" style="white-space: nowrap; font-size: 0;">
+    <span style="display: inline-block; width: 90px; height: 90px; padding: 10px; border: 5px solid;"></span>
+</div>
+
+<div id="relative-positioned" class="fixture scroller">
+    <div style="position: relative; left: 140px; top: 150px; width: 20px; height: 30px;"></div>
+</div>
+
+<div id="relative-positioned-inline" class="fixture scroller" style="white-space: nowrap;">
+    <span style="position: relative; left: 140px; top: 150px;">
+        <span style="display: inline-block; width: 20px; height: 30px;"></span>
+    </span>
+</div>
+
+<div id="floated" class="fixture scroller">
+    <div style="float: left; width: 150px; height: 160px;"></div>
+</div>
+
+<div id="visible-x-clipped-y" class="fixture scroller">
+    <div style="width: 40px; height: 40px; overflow-x: visible; overflow-y: clip;">
+        <div style="width: 30px; height: 30px; transform: translate(120px, 130px);"></div>
+    </div>
+</div>
+
+<div id="clipped-x-visible-y" class="fixture scroller">
+    <div style="width: 40px; height: 40px; overflow-x: clip; overflow-y: visible;">
+        <div style="width: 30px; height: 30px; transform: translate(120px, 130px);"></div>
+    </div>
+</div>
+
+<div id="padded-in-flow" class="fixture scroller" style="padding: 10px;">
+    <div style="width: 150px; height: 160px;"></div>
+</div>
+
+<div id="nested-scroll-container" class="fixture scroller">
+    <div id="inner-scroll-container" style="width: 40px; height: 40px; overflow: hidden;">
+        <div style="width: 200px; height: 210px;"></div>
+    </div>
+</div>
+
+<div id="replaced-svg" class="fixture scroller">
+    <svg width="40" height="40" overflow="visible">
+        <rect width="200" height="210"></rect>
+    </svg>
+</div>
+
+<div id="resized-containing-block" class="fixture" style="width: 300px; height: 100px; overflow: hidden;">
+    <div id="percentage-sized-child" style="width: 50%; height: 50px;"></div>
+</div>
+
+<script>
+    test(() => {
+        // Prime the child's overflow cache, then relayout its line without changing the child.
+        const lineBoxWithBorderAndPadding = document.getElementById("line-box-border-padding");
+        lineBoxWithBorderAndPadding.scrollWidth;
+        const layoutTrigger = document.createElement("span");
+        layoutTrigger.style.cssText = "display: inline-block; width: 0; height: 0";
+        lineBoxWithBorderAndPadding.appendChild(layoutTrigger);
+
+        for (const id of [
+            "direct",
+            "nested-visible",
+            "nested-clipped",
+            "transformed",
+            "positioned",
+            "fixed",
+            "paint-contained",
+            "layout-contained",
+            "zero-area",
+            "visible-overflow",
+            "line-box",
+            "line-box-border-padding",
+            "relative-positioned",
+            "relative-positioned-inline",
+            "floated",
+            "visible-x-clipped-y",
+            "clipped-x-visible-y",
+            "padded-in-flow",
+            "nested-scroll-container",
+            "inner-scroll-container",
+            "replaced-svg",
+        ]) {
+            const box = document.getElementById(id);
+            println(`${id}: ${box.scrollWidth}x${box.scrollHeight}`);
+        }
+
+        const resizedContainingBlock = document.getElementById("resized-containing-block");
+        const percentageSizedChild = document.getElementById("percentage-sized-child");
+        println(`before containing block resize: ${resizedContainingBlock.scrollWidth}x${percentageSizedChild.scrollWidth}`);
+        resizedContainingBlock.style.width = "100px";
+        println(`after containing block resize: ${resizedContainingBlock.scrollWidth}x${percentageSizedChild.scrollWidth}`);
+    });
+</script>

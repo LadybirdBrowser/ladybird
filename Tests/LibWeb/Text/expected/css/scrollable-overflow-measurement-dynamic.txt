@@ -1,0 +1,12 @@
+initial: 100x100
+after transform: 210x240
+after clipping: 100x100
+after unclipping: 210x240
+after relayout: 230x260
+at maximum: 130,160
+after shrink: 100x100
+after clamp: 0,0
+after insertion: 300x320
+after removal: 100x100
+before moving reused subtree: 100x130
+after moving reused subtree: 100x230

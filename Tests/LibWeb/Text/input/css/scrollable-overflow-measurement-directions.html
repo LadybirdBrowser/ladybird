@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .fixture { position: absolute; left: 0; top: 0; width: 100px; height: 100px; overflow: hidden; }
+    .child { position: absolute; width: 20px; height: 20px; }
+</style>
+
+<div id="ltr-negative-x" class="fixture"><div class="child" style="left: -80px;"></div></div>
+<div id="ltr-positive-x" class="fixture"><div class="child" style="left: 160px;"></div></div>
+<div id="rtl-negative-x" class="fixture" style="direction: rtl;"><div class="child" style="left: -80px;"></div></div>
+<div id="rtl-positive-x" class="fixture" style="direction: rtl;"><div class="child" style="left: 160px;"></div></div>
+<div id="horizontal-negative-y" class="fixture"><div class="child" style="top: -80px;"></div></div>
+<div id="horizontal-positive-y" class="fixture"><div class="child" style="top: 160px;"></div></div>
+<div id="vertical-rl-negative-x" class="fixture" style="writing-mode: vertical-rl;"><div class="child" style="left: -80px;"></div></div>
+<div id="vertical-rl-positive-x" class="fixture" style="writing-mode: vertical-rl;"><div class="child" style="left: 160px;"></div></div>
+<div id="vertical-lr-negative-x" class="fixture" style="writing-mode: vertical-lr;"><div class="child" style="left: -80px;"></div></div>
+<div id="vertical-lr-positive-x" class="fixture" style="writing-mode: vertical-lr;"><div class="child" style="left: 160px;"></div></div>
+<div id="vertical-rtl-negative-y" class="fixture" style="writing-mode: vertical-rl; direction: rtl;"><div class="child" style="top: -80px;"></div></div>
+<div id="vertical-rtl-positive-y" class="fixture" style="writing-mode: vertical-rl; direction: rtl;"><div class="child" style="top: 160px;"></div></div>
+<div id="sideways-rl-negative-x" class="fixture" style="writing-mode: sideways-rl;"><div class="child" style="left: -80px;"></div></div>
+<div id="sideways-rl-positive-x" class="fixture" style="writing-mode: sideways-rl;"><div class="child" style="left: 160px;"></div></div>
+<div id="sideways-lr-negative-x" class="fixture" style="writing-mode: sideways-lr;"><div class="child" style="left: -80px;"></div></div>
+<div id="sideways-lr-positive-x" class="fixture" style="writing-mode: sideways-lr;"><div class="child" style="left: 160px;"></div></div>
+<div id="sideways-lr-negative-y" class="fixture" style="writing-mode: sideways-lr;"><div class="child" style="top: -80px;"></div></div>
+<div id="sideways-lr-positive-y" class="fixture" style="writing-mode: sideways-lr;"><div class="child" style="top: 160px;"></div></div>
+
+<script>
+    test(() => {
+        for (const id of [
+            "ltr-negative-x",
+            "ltr-positive-x",
+            "rtl-negative-x",
+            "rtl-positive-x",
+            "horizontal-negative-y",
+            "horizontal-positive-y",
+            "vertical-rl-negative-x",
+            "vertical-rl-positive-x",
+            "vertical-lr-negative-x",
+            "vertical-lr-positive-x",
+            "vertical-rtl-negative-y",
+            "vertical-rtl-positive-y",
+            "sideways-rl-negative-x",
+            "sideways-rl-positive-x",
+            "sideways-lr-negative-x",
+            "sideways-lr-positive-x",
+            "sideways-lr-negative-y",
+            "sideways-lr-positive-y",
+        ]) {
+            const box = document.getElementById(id);
+            println(`${id}: ${box.scrollWidth}x${box.scrollHeight}`);
+        }
+    });
+</script>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #scroller { position: absolute; left: 0; top: 0; width: 100px; height: 100px; overflow: hidden; }
+</style>
+
+<div id="scroller">
+    <div id="spacer" style="height: 20px;"></div>
+    <div id="wrapper" style="width: 40px; height: 40px; overflow: visible;">
+        <div id="child" style="width: 30px; height: 30px;"></div>
+    </div>
+</div>
+
+<script>
+    test(() => {
+        const scroller = document.getElementById("scroller");
+        const spacer = document.getElementById("spacer");
+        const wrapper = document.getElementById("wrapper");
+        const child = document.getElementById("child");
+        const printSize = label => println(`${label}: ${scroller.scrollWidth}x${scroller.scrollHeight}`);
+
+        printSize("initial");
+
+        child.style.transform = "translate(180px, 190px)";
+        printSize("after transform");
+
+        wrapper.style.overflow = "hidden";
+        printSize("after clipping");
+
+        wrapper.style.overflow = "visible";
+        printSize("after unclipping");
+
+        child.style.transform = "";
+        child.style.width = "230px";
+        child.style.height = "240px";
+        printSize("after relayout");
+
+        scroller.scrollTo(10000, 10000);
+        println(`at maximum: ${scroller.scrollLeft},${scroller.scrollTop}`);
+        child.style.width = "30px";
+        child.style.height = "30px";
+        printSize("after shrink");
+        println(`after clamp: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        const positioned = document.createElement("div");
+        positioned.style.cssText = "position: absolute; left: 280px; top: 290px; width: 20px; height: 30px";
+        scroller.appendChild(positioned);
+        printSize("after insertion");
+        positioned.remove();
+        printSize("after removal");
+
+        child.style.transform = "translateY(80px)";
+        printSize("before moving reused subtree");
+        spacer.style.height = "120px";
+        printSize("after moving reused subtree");
+    });
+</script>
