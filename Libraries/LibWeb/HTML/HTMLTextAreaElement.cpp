@@ -462,10 +462,8 @@ void HTMLTextAreaElement::form_associated_element_attribute_changed(Utf16FlyStri
     } else if (first_is_one_of(name, HTML::AttributeNames::rows, HTML::AttributeNames::cols)) {
         // rows and cols feed the element's default preferred size, which reaches layout
         // only through the replaced-content facts; nothing else schedules a relayout.
-        if (old_value != value) {
-            if (auto* layout_node = this->layout_node())
-                layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::DefaultPreferredSizeAttributeChange);
-        }
+        if (old_value != value)
+            set_needs_layout_update(DOM::SetNeedsLayoutReason::DefaultPreferredSizeAttributeChange);
     }
 
     // AD-HOC: A change to any of these attributes can change whether the element satisfies its constraints, and
