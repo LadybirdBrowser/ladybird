@@ -685,12 +685,11 @@ impl SvgFormattingContext {
         } else if kind == NodeKind::SVGForeignObjectBox {
             let child_used_pointer = self.create_used_values(child);
             let style = self.style(child);
-            let available_space = self.available_space.unwrap();
             let rect = SvgCssPixelRect {
-                x: style.x().to_px(available_space.inline_size.to_px_or_zero()),
-                y: style.y().to_px(available_space.block_size.to_px_or_zero()),
-                width: style.width().to_px(available_space.inline_size.to_px_or_zero()),
-                height: style.height().to_px(available_space.block_size.to_px_or_zero()),
+                x: style.x().to_px(self.viewport_width),
+                y: style.y().to_px(self.viewport_height),
+                width: style.width().to_px(self.viewport_width),
+                height: style.height().to_px(self.viewport_height),
             };
 
             let mut svg_transform = parent_svg_transform;
