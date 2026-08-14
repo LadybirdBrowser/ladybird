@@ -1,0 +1,2 @@
+before viewport resize: scroller=200x150 child=200x150
+after viewport resize: scroller=100x100 child=100x80

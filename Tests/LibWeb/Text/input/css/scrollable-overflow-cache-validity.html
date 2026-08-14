@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .fixture { position: fixed; left: 0; top: 0; overflow: hidden; }
+</style>
+
+<script>
+    test(() => {
+        function measuredElements(root) {
+            const elements = [];
+            if (root.matches("[data-measure]"))
+                elements.push(root);
+            elements.push(...root.querySelectorAll("[data-measure]"));
+            return elements;
+        }
+
+        function readOverflow(root) {
+            return measuredElements(root).map(element => [
+                element.scrollWidth,
+                element.scrollHeight,
+                element.clientWidth,
+                element.clientHeight,
+            ]);
+        }
+
+        function createFixture(markup, mutations) {
+            const container = document.createElement("div");
+            container.innerHTML = markup;
+            const root = container.firstElementChild;
+            for (const mutate of mutations)
+                mutate(root);
+            document.body.appendChild(root);
+            return root;
+        }
+
+        function runScenario(name, markup, mutations) {
+            const cached = createFixture(markup, []);
+            readOverflow(cached);
+
+            const appliedMutations = [];
+            let passed = true;
+            for (const mutate of mutations) {
+                mutate(cached);
+                appliedMutations.push(mutate);
+                const cachedOverflow = readOverflow(cached);
+
+                const fresh = createFixture(markup, appliedMutations);
+                const freshOverflow = readOverflow(fresh);
+                if (JSON.stringify(cachedOverflow) !== JSON.stringify(freshOverflow)) {
+                    println(`${name}: FAIL cached=${JSON.stringify(cachedOverflow)} fresh=${JSON.stringify(freshOverflow)}`);
+                    passed = false;
+                }
+                fresh.remove();
+            }
+
+            if (passed)
+                println(`${name}: PASS`);
+            cached.remove();
+        }
+
+        const resizeTo = (width, height) => root => {
+            root.style.width = `${width}px`;
+            root.style.height = `${height}px`;
+        };
+
+        runScenario("percentage size", `
+            <div class="fixture" data-measure style="width: 300px; height: 240px">
+                <div data-measure style="width: 50%; height: 50%"></div>
+            </div>`, [resizeTo(100, 80), resizeTo(420, 300)]);
+
+        runScenario("nested percentage size", `
+            <div class="fixture" data-measure style="width: 320px; height: 220px">
+                <div data-measure style="width: 75%; height: 75%; overflow: visible">
+                    <div data-measure style="width: 200%; height: 200%"></div>
+                </div>
+            </div>`, [resizeTo(120, 100), resizeTo(400, 260)]);
+
+        runScenario("min max constrained size", `
+            <div class="fixture" data-measure style="width: 300px; height: 200px">
+                <div data-measure style="width: clamp(80px, 50%, 200px); height: clamp(60px, 50%, 160px)"></div>
+            </div>`, [resizeTo(100, 80), resizeTo(500, 400)]);
+
+        runScenario("absolute percentage geometry", `
+            <div class="fixture" data-measure style="width: 300px; height: 240px">
+                <div data-measure style="position: absolute; left: 50%; top: 25%; width: 60%; height: 80%"></div>
+            </div>`, [resizeTo(100, 80), resizeTo(360, 280)]);
+
+        runScenario("relative percentage offset", `
+            <div class="fixture" data-measure style="width: 300px; height: 240px">
+                <div data-measure style="position: relative; left: 50%; top: 50%; width: 80px; height: 70px"></div>
+            </div>`, [resizeTo(100, 80), resizeTo(400, 300)]);
+
+        runScenario("percentage transform", `
+            <div class="fixture" data-measure style="width: 300px; height: 240px">
+                <div data-measure style="width: 50%; height: 50%; transform: translate(100%, 50%)"></div>
+            </div>`, [resizeTo(100, 80), resizeTo(420, 320)]);
+
+        runScenario("wrapped text", `
+            <div class="fixture" data-measure style="width: 300px; height: 40px">
+                <div data-measure style="width: 100%">one two three four five six seven eight nine ten eleven twelve thirteen fourteen</div>
+            </div>`, [resizeTo(90, 40), resizeTo(420, 40)]);
+
+        runScenario("inline box wrapping", `
+            <div class="fixture" data-measure style="width: 260px; height: 50px; font-size: 0">
+                <span data-measure style="display: inline-block; width: 40%; height: 30px"></span>
+                <span data-measure style="display: inline-block; width: 40%; height: 30px"></span>
+                <span data-measure style="display: inline-block; width: 40%; height: 30px"></span>
+            </div>`, [resizeTo(100, 50), resizeTo(360, 50)]);
+
+        runScenario("flex wrapping", `
+            <div class="fixture" data-measure style="display: flex; flex-wrap: wrap; width: 260px; height: 50px">
+                <div data-measure style="width: 100px; height: 40px"></div>
+                <div data-measure style="width: 100px; height: 40px"></div>
+                <div data-measure style="width: 100px; height: 40px"></div>
+            </div>`, [resizeTo(120, 50), resizeTo(340, 50)]);
+
+        runScenario("flex percentage basis", `
+            <div class="fixture" data-measure style="display: flex; width: 300px; height: 80px">
+                <div data-measure style="flex: none; width: 60%; height: 120%"></div>
+                <div data-measure style="flex: none; width: 60%; height: 120%"></div>
+            </div>`, [resizeTo(100, 50), resizeTo(420, 100)]);
+
+        runScenario("grid percentage tracks", `
+            <div class="fixture" data-measure style="display: grid; grid-template-columns: 50% 50%; gap: 20px; width: 300px; height: 80px">
+                <div data-measure style="height: 120%"></div>
+                <div data-measure style="height: 140%"></div>
+            </div>`, [resizeTo(100, 50), resizeTo(420, 100)]);
+
+        runScenario("grid item placement", `
+            <div class="fixture" data-measure style="display: grid; grid-template-columns: repeat(3, 1fr); width: 300px; height: 80px">
+                <div data-measure style="grid-column: 3; width: 150%; height: 120px"></div>
+            </div>`, [resizeTo(90, 50), resizeTo(450, 100)]);
+
+        runScenario("nested scroll containers", `
+            <div class="fixture" data-measure style="width: 300px; height: 240px">
+                <div data-measure style="width: 75%; height: 75%; overflow: hidden">
+                    <div data-measure style="width: 200%; height: 200%"></div>
+                </div>
+            </div>`, [resizeTo(100, 80), resizeTo(400, 300)]);
+
+        runScenario("clipping boundary", `
+            <div class="fixture" data-measure style="width: 300px; height: 240px">
+                <div data-measure style="width: 50%; height: 50%; overflow: clip">
+                    <div data-measure style="width: 200%; height: 200%"></div>
+                </div>
+            </div>`, [resizeTo(100, 80), resizeTo(420, 320)]);
+
+        runScenario("layout containment boundary", `
+            <div class="fixture" data-measure style="width: 300px; height: 240px">
+                <div data-measure style="contain: layout; width: 50%; height: 50%">
+                    <div data-measure style="width: 200%; height: 200%"></div>
+                </div>
+            </div>`, [resizeTo(100, 80), resizeTo(420, 320)]);
+
+        runScenario("vertical writing mode", `
+            <div class="fixture" data-measure style="writing-mode: vertical-rl; direction: rtl; width: 300px; height: 240px">
+                <div data-measure style="width: 150%; height: 50%"></div>
+            </div>`, [resizeTo(100, 80), resizeTo(420, 320)]);
+
+        runScenario("inherited font size", `
+            <div class="fixture" data-measure style="width: 120px; height: 30px; font-size: 10px; white-space: nowrap">
+                <div data-measure>overflow changes when inherited text metrics change</div>
+            </div>`, [
+                root => root.style.fontSize = "30px",
+                root => root.style.fontSize = "6px",
+            ]);
+
+        runScenario("aspect ratio", `
+            <div class="fixture" data-measure style="width: 300px; height: 80px">
+                <div data-measure style="width: 50%; aspect-ratio: 1 / 1"></div>
+            </div>`, [resizeTo(100, 40), resizeTo(420, 100)]);
+
+        runScenario("descendant insertion", `
+            <div class="fixture" data-measure style="width: 100px; height: 80px">
+                <div data-measure style="width: 50px; height: 40px"></div>
+            </div>`, [
+                root => root.firstElementChild.insertAdjacentHTML("beforeend", `<div data-measure style="width: 240px; height: 180px"></div>`),
+            ]);
+
+        runScenario("descendant removal", `
+            <div class="fixture" data-measure style="width: 100px; height: 80px">
+                <div data-measure style="width: 50px; height: 40px">
+                    <div class="removable" data-measure style="width: 240px; height: 180px"></div>
+                </div>
+            </div>`, [
+                root => root.querySelector(".removable").remove(),
+            ]);
+
+        runScenario("display tree rebuild", `
+            <div class="fixture" data-measure style="width: 100px; height: 80px">
+                <div class="toggle" data-measure style="display: none; width: 240px; height: 180px"></div>
+            </div>`, [
+                root => root.querySelector(".toggle").style.display = "block",
+                root => root.querySelector(".toggle").style.display = "none",
+            ]);
+
+        runScenario("containing block change", `
+            <div class="fixture" data-measure style="position: fixed; width: 100px; height: 80px">
+                <div class="containing-block" data-measure style="width: 50px; height: 40px">
+                    <div data-measure style="position: absolute; left: 140px; top: 120px; width: 30px; height: 20px"></div>
+                </div>
+            </div>`, [
+                root => root.querySelector(".containing-block").style.position = "relative",
+                root => root.querySelector(".containing-block").style.position = "static",
+            ]);
+    });
+</script>

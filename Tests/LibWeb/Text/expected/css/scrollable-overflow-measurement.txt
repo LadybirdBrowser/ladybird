@@ -1,0 +1,23 @@
+direct: 150x160
+nested-visible: 150x160
+nested-clipped: 100x100
+transformed: 160x180
+positioned: 160x180
+fixed: 100x100
+paint-contained: 100x100
+layout-contained: 100x100
+zero-area: 100x100
+visible-overflow: 170x180
+line-box: 190x100
+line-box-border-padding: 120x120
+relative-positioned: 160x180
+relative-positioned-inline: 160x180
+floated: 150x160
+visible-x-clipped-y: 150x100
+clipped-x-visible-y: 100x160
+padded-in-flow: 170x180
+nested-scroll-container: 100x100
+inner-scroll-container: 200x210
+replaced-svg: 100x100
+before containing block resize: 300x150
+after containing block resize: 100x50
