@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function currentUIProcessEntry() {
+        const history = JSON.parse(internals.dumpUIProcessSessionHistoryWithoutUpdate());
+        return history.entries.find(entry => entry.current);
+    }
+
+    test(() => {
+        println(`initial UI scroll restoration: ${currentUIProcessEntry().scrollRestoration}`);
+        history.scrollRestoration = "manual";
+        println(`updated UI scroll restoration: ${currentUIProcessEntry().scrollRestoration}`);
+    });
+</script>
