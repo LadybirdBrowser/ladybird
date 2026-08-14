@@ -309,8 +309,7 @@ void DisplayListRecorder::fill_path(FillPathParams params)
     if (params.paint_style_or_color.has<Gfx::Color>() && params.paint_style_or_color.get<Gfx::Color>().alpha() == 0)
         return;
     auto path_bounding_rect = params.path.bounding_box();
-    auto path_bounding_int_rect = enclosing_int_rect(path_bounding_rect);
-    if (path_bounding_int_rect.is_empty())
+    if (path_bounding_rect.is_empty())
         return;
     CommandPayloadBuilder<FillPath> payload_builder(m_display_list);
     auto path_span = append_path_data(payload_builder, params.path);
@@ -325,7 +324,7 @@ void DisplayListRecorder::fill_path(FillPathParams params)
     }
     append_command(
         FillPath {
-            .path_bounding_rect = path_bounding_int_rect,
+            .path_bounding_rect = path_bounding_rect,
             .path_data = path_span,
             .opacity = params.opacity,
             .paint_kind = paint_kind,
@@ -347,8 +346,7 @@ void DisplayListRecorder::stroke_path(StrokePathParams params)
     auto path_bounding_rect = params.path.bounding_box();
     // Increase path bounding box by `thickness` to account for stroke.
     path_bounding_rect.inflate(params.thickness, params.thickness);
-    auto path_bounding_int_rect = enclosing_int_rect(path_bounding_rect);
-    if (path_bounding_int_rect.is_empty())
+    if (path_bounding_rect.is_empty())
         return;
     CommandPayloadBuilder<StrokePath> payload_builder(m_display_list);
     auto path_span = append_path_data(payload_builder, params.path);
@@ -369,7 +367,7 @@ void DisplayListRecorder::stroke_path(StrokePathParams params)
             .miter_limit = params.miter_limit,
             .dash_array = dash_array,
             .dash_offset = params.dash_offset,
-            .path_bounding_rect = path_bounding_int_rect,
+            .path_bounding_rect = path_bounding_rect,
             .path_data = path_span,
             .opacity = params.opacity,
             .paint_kind = paint_kind,

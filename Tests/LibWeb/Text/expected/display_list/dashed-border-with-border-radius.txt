@@ -12,19 +12,19 @@ SaveLayer@0
   CompositorWheelHitTestTargetWithCornerRadii@1 target_scroll_node_index=0 rect=[8,88 120x80] corner_radii=[30x30,30x30,30x30,30x30]
   Save@1
     AddClipPath@1 path_bounding_rect=[112,96 16x64]
-    StrokePath@1 path_bounding_rect=[110,95 18x66] thickness=10 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=14.75
+    StrokePath@1 path_bounding_rect=[110.677666,95.322334 17.322334x65.35534] thickness=10 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=14.75
   Restore@1
   Save@1
     AddClipPath@1 path_bounding_rect=[16,152 104x17]
-    StrokePath@1 path_bounding_rect=[15,150 106x18] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=12.38
+    StrokePath@1 path_bounding_rect=[15.322332,150.67767 105.35533x17.322327] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=12.38
   Restore@1
   Save@1
     AddClipPath@1 path_bounding_rect=[7,96 17x64]
-    StrokePath@1 path_bounding_rect=[8,95 18x66] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=14.75
+    StrokePath@1 path_bounding_rect=[8,95.322334 17.322332x65.35534] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=14.75
   Restore@1
   Save@1
     AddClipPath@1 path_bounding_rect=[16,88 104x16]
-    StrokePath@1 path_bounding_rect=[15,87 106x19] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=12.38
+    StrokePath@1 path_bounding_rect=[15.322332,87.99999 105.35533x17.322342] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=12.38
   Restore@1
   CompositorWheelHitTestTargetWithCornerRadii@1 target_scroll_node_index=0 rect=[8,168 120x80] corner_radii=[0x0,80x80,0x0,0x0]
   StrokePath@1 path_bounding_rect=[8,168 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=30.92
@@ -33,19 +33,19 @@ SaveLayer@0
   CompositorWheelHitTestTargetWithCornerRadii@1 target_scroll_node_index=0 rect=[8,328 120x80] corner_radii=[30x30,30x30,30x30,30x30]
   Save@1
     AddClipPath@1 path_bounding_rect=[112,336 16x64]
-    StrokePath@1 path_bounding_rect=[110,335 18x66] thickness=10 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=9.84
+    StrokePath@1 path_bounding_rect=[110.677666,335.32233 17.322334x65.35535] thickness=10 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=9.84
   Restore@1
   Save@1
     AddClipPath@1 path_bounding_rect=[16,392 104x16]
-    StrokePath@1 path_bounding_rect=[15,390 106x18] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.90
+    StrokePath@1 path_bounding_rect=[15.322332,390.67767 105.35533x17.322327] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.90
   Restore@1
   Save@1
     AddClipPath@1 path_bounding_rect=[7,336 17x64]
-    StrokePath@1 path_bounding_rect=[8,335 18x66] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.84
+    StrokePath@1 path_bounding_rect=[8,335.32233 17.322332x65.35535] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.84
   Restore@1
   Save@1
     AddClipPath@1 path_bounding_rect=[16,328 104x16]
-    StrokePath@1 path_bounding_rect=[15,327 106x19] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.90
+    StrokePath@1 path_bounding_rect=[15.322332,327.99997 105.35533x17.322357] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.90
   Restore@1
   CompositorWheelHitTestTargetWithCornerRadii@1 target_scroll_node_index=0 rect=[8,408 120x80] corner_radii=[0x0,80x80,0x0,0x0]
   StrokePath@1 path_bounding_rect=[8,408 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=10.31
