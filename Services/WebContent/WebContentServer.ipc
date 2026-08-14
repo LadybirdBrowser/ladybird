@@ -74,7 +74,6 @@ endpoint WebContentServer
     set_page_parent_context(u64 page_id, Optional<Web::Compositor::CompositorContextId> parent_context_id) =|
     set_remote_child_frame_compositor_context(u64 page_id, Web::HTML::CrossProcessId frame_id, Optional<Web::Compositor::CompositorContextId> context_id) =|
     history_operation_started(u64 page_id, u64 operation_id, u64 initiation_id, Optional<Web::HTML::SessionHistoryEntryDescriptor> creation_target_entry) =|
-    run_initiator_sandboxing_check_job(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId initiator_to_check, Vector<Web::HTML::CrossProcessId> navigables, u64 initiation_id) =|
     run_history_step_unload_cancelation_job(u64 page_id, u64 operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Vector<Web::HTML::CrossProcessId> navigables_crossing_documents, Web::HTML::UserNavigationInvolvement user_involvement) =|
     run_changing_navigable_history_job(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type, Web::HTML::LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior, Optional<u64> initiation_id) =|
     apply_changing_navigable_continuation(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api) =|

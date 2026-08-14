@@ -1906,12 +1906,6 @@ void WebContentClient::history_operation_ready(u64 page_id, u64 operation_id, We
         view->did_receive_history_operation_ready({}, operation_id, move(result));
 }
 
-void WebContentClient::initiator_sandboxing_check_result(u64 page_id, u64 operation_id, bool allowed)
-{
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_receive_initiator_sandboxing_check_result({}, operation_id, allowed);
-}
-
 void WebContentClient::history_step_unload_cancelation_result(u64 page_id, u64 operation_id, Web::HTML::HistoryStepResult result)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())

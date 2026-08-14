@@ -296,7 +296,6 @@ public:
     void did_create_top_level_traversable(Badge<WebContentClient>, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry);
     void request_history_operation(Badge<WebContentClient>, u64 initiation_id, Web::HistoryOperationParameters);
     void did_receive_history_operation_ready(Badge<WebContentClient>, u64 operation_id, Web::HistoryOperationReadyResult);
-    void did_receive_initiator_sandboxing_check_result(Badge<WebContentClient>, u64 operation_id, bool allowed);
     void did_receive_history_step_unload_cancelation_result(Badge<WebContentClient>, u64 operation_id, Web::HTML::HistoryStepResult);
     void did_receive_changing_navigable_history_job_ready(Badge<WebContentClient>, WebContentClient&, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition);
     void did_receive_changing_navigable_continuation_applied(Badge<WebContentClient>, WebContentClient&, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state);

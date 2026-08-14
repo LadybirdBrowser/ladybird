@@ -318,7 +318,6 @@ struct CanonicalTraversable::HistoryOperation {
     bool was_initiated_by_browser { false };
     bool check_for_cancelation { false };
     Function<void()> on_browser_traversal_ready;
-    Function<void(ApplyHistoryStepJobs::InitiatorSandboxingCheckResult)> pending_sandboxing_check;
     Function<void(Web::HTML::HistoryStepResult)> pending_unload_cancelation;
 
     struct PendingChangingJob {
@@ -771,7 +770,6 @@ void CanonicalTraversable::recover_from_web_content_process_crash(Optional<Histo
             return;
         }
 
-        operation.value->pending_sandboxing_check = nullptr;
         operation.value->pending_changing_jobs.clear();
         operation.value->changing_job_endpoints.clear();
         operation.value->pending_nonchanging_updates.clear();
@@ -1002,16 +1000,6 @@ void CanonicalTraversable::complete_history_jobs_after_crash(HistoryOperation& o
 ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(u64 operation_id)
 {
     return {
-        .run_initiator_sandboxing_check_job = [this, operation_id](Web::HTML::CrossProcessId initiator_to_check, Vector<Web::HTML::CrossProcessId> navigables, Function<void(ApplyHistoryStepJobs::InitiatorSandboxingCheckResult)> on_complete) {
-            auto* operation = find_history_operation(operation_id);
-            if (!operation)
-                return;
-
-            // sourceSnapshotParams remains parked under this operation's initiation ID in the initiating process.
-            VERIFY(operation->initiating_client);
-            VERIFY(operation->initiation_id.has_value());
-            operation->pending_sandboxing_check = move(on_complete);
-            operation->initiating_client->async_run_initiator_sandboxing_check_job(operation->initiating_page_id, operation_id, initiator_to_check, move(navigables), *operation->initiation_id); },
         .run_unload_cancelation_job = [this, operation_id](ApplyHistoryStepJobs::UnloadCancelationJob job, Function<void(Web::HTML::HistoryStepResult)> on_complete) {
             auto* operation = find_history_operation(operation_id);
             if (!operation)
@@ -1159,13 +1147,13 @@ void CanonicalTraversable::enqueue_browser_history_traversal(Web::TraverseToStep
     m_history_traversal_queue.append_session_history_traversal_steps(move(steps));
 }
 
-void CanonicalTraversable::apply_history_step(HistoryOperation& operation, i32 step, bool check_for_cancelation, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type)
+void CanonicalTraversable::apply_history_step(HistoryOperation& operation, i32 step, bool check_for_cancelation, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type, Optional<Web::InitiatorSourceSnapshot> initiator_source_snapshot)
 {
     VERIFY(!operation.algorithm);
     auto operation_id = operation.operation_id;
     operation.algorithm = make<ApplyHistoryStep>(
         m_session_history, *this, m_history_traversal_queue, m_apply_history_step_traversable_state, create_apply_history_step_jobs(operation_id),
-        step, check_for_cancelation, initiator_to_check, user_involvement, navigation_type,
+        step, check_for_cancelation, initiator_to_check, initiator_source_snapshot, user_involvement, navigation_type,
         [this, operation_id](Web::HTML::HistoryStepResult result) {
             auto* operation = find_history_operation(operation_id);
             auto committed_step = operation && operation->algorithm ? operation->algorithm->committed_step() : Optional<i32> {};
@@ -1328,14 +1316,14 @@ void CanonicalTraversable::did_receive_history_operation_ready(u64 operation_id,
         },
         [&](Web::TraverseByDeltaHistoryOperationParameters const& parameters) {
             VERIFY(operation->resolved_step.has_value());
-            apply_history_step(*operation, *operation->resolved_step, true, parameters.initiator_to_check, parameters.user_involvement, Web::Bindings::NavigationType::Traverse);
+            apply_history_step(*operation, *operation->resolved_step, true, parameters.initiator_to_check, parameters.user_involvement, Web::Bindings::NavigationType::Traverse, parameters.initiator_source_snapshot);
         },
         [&](Web::TraverseToStepHistoryOperationParameters const& parameters) {
             apply_history_step(*operation, parameters.target_step, true, {}, parameters.user_involvement, Web::Bindings::NavigationType::Traverse);
         },
         [&](Web::NavigationAPITraverseHistoryOperationParameters const& parameters) {
             VERIFY(operation->resolved_step.has_value());
-            apply_history_step(*operation, *operation->resolved_step, true, parameters.navigable_id, parameters.user_involvement, Web::Bindings::NavigationType::Traverse);
+            apply_history_step(*operation, *operation->resolved_step, true, parameters.navigable_id, parameters.user_involvement, Web::Bindings::NavigationType::Traverse, parameters.initiator_source_snapshot);
         },
         [&](Web::ResumeTraverseHistoryOperationParameters const& parameters) {
             apply_history_step(*operation, parameters.target_step, false, {}, parameters.user_involvement, Web::Bindings::NavigationType::Traverse);
@@ -1449,14 +1437,6 @@ void CanonicalTraversable::abandon_history_operations()
         m_pending_browser_history_traversal.clear();
         for (auto& callback : callbacks)
             callback();
-    }
-}
-
-void CanonicalTraversable::did_receive_initiator_sandboxing_check_result(u64 operation_id, bool allowed)
-{
-    if (auto* operation = find_history_operation(operation_id)) {
-        if (auto pending = move(operation->pending_sandboxing_check))
-            pending(allowed ? ApplyHistoryStepJobs::InitiatorSandboxingCheckResult::Allowed : ApplyHistoryStepJobs::InitiatorSandboxingCheckResult::Disallowed);
     }
 }
 

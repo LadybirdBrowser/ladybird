@@ -61,7 +61,6 @@ public:
         GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable {};
         Optional<Utf16String> expected_ongoing_navigation_id {};
         GC::Ptr<SourceSnapshotParams> source_snapshot_params {};
-        GC::Ptr<LocalNavigable> initiator_to_check {};
         Optional<CrossProcessId> local_target_navigable_id {};
         RefPtr<SessionHistoryEntry> local_target_entry {};
         Optional<LocalNavigable::NavigationAPIAbortBehavior> navigation_api_abort_behavior {};
@@ -72,7 +71,6 @@ public:
     void request_history_operation(HistoryOperationParameters);
     void request_history_operation(HistoryOperationParameters, HistoryOperationState);
     void handle_ui_history_operation_started(u64 operation_id, u64 initiation_id, Optional<SessionHistoryEntryDescriptor> creation_target_entry, GC::Ref<OnHistoryOperationReady>);
-    bool run_ui_initiator_sandboxing_check_job(CrossProcessId initiator_to_check_id, Vector<CrossProcessId> const& navigables, u64 initiation_id);
     void run_ui_history_step_unload_cancelation_job(u64 operation_id, SessionHistoryEntryDescriptor target_entry, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>>);
     void run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, LocalNavigable::NavigationAPIAbortBehavior, Optional<u64> initiation_id, GC::Ref<OnChangingNavigableHistoryStepJobComplete>);
     void apply_ui_changing_navigable_continuation(u64 operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, GC::Ref<GC::Function<void(Optional<SessionHistoryEntryPersistedState>)>>);

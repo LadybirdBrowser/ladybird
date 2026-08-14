@@ -2317,11 +2317,6 @@ void ViewImplementation::did_receive_history_operation_ready(Badge<WebContentCli
     m_top_level_traversable.did_receive_history_operation_ready(operation_id, move(result));
 }
 
-void ViewImplementation::did_receive_initiator_sandboxing_check_result(Badge<WebContentClient>, u64 operation_id, bool allowed)
-{
-    m_top_level_traversable.did_receive_initiator_sandboxing_check_result(operation_id, allowed);
-}
-
 void ViewImplementation::did_receive_history_step_unload_cancelation_result(Badge<WebContentClient>, u64 operation_id, Web::HTML::HistoryStepResult result)
 {
     m_top_level_traversable.did_receive_history_step_unload_cancelation_result(operation_id, result);

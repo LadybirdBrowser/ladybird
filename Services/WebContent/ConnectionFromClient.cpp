@@ -354,20 +354,6 @@ void ConnectionFromClient::history_operation_started(u64 page_id, u64 operation_
         }));
 }
 
-void ConnectionFromClient::run_initiator_sandboxing_check_job(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId initiator_to_check, Vector<Web::HTML::CrossProcessId> navigables, u64 initiation_id)
-{
-    auto page = this->page(page_id);
-    if (!page.has_value()) {
-        // NB: With the page gone there are no local navigables left to protect; the operation will
-        //     collapse when its jobs report against missing navigables.
-        async_initiator_sandboxing_check_result(page_id, operation_id, true);
-        return;
-    }
-
-    auto allowed = page->page().top_level_traversable()->run_ui_initiator_sandboxing_check_job(initiator_to_check, move(navigables), initiation_id);
-    async_initiator_sandboxing_check_result(page_id, operation_id, allowed);
-}
-
 void ConnectionFromClient::run_history_step_unload_cancelation_job(u64 page_id, u64 operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Vector<Web::HTML::CrossProcessId> navigables_crossing_documents, Web::HTML::UserNavigationInvolvement user_involvement)
 {
     auto page = this->page(page_id);

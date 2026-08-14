@@ -18,6 +18,7 @@ ApplyHistoryStep::ApplyHistoryStep(
     i32 step,
     bool check_for_cancelation,
     Optional<Web::HTML::CrossProcessId> initiator_to_check,
+    Optional<Web::InitiatorSourceSnapshot> initiator_source_snapshot,
     Web::HTML::UserNavigationInvolvement user_involvement,
     Optional<Web::Bindings::NavigationType> navigation_type,
     Function<void(Web::HTML::HistoryStepResult)> on_complete)
@@ -29,6 +30,7 @@ ApplyHistoryStep::ApplyHistoryStep(
     , m_step(step)
     , m_check_for_cancelation(check_for_cancelation)
     , m_initiator_to_check(initiator_to_check)
+    , m_initiator_source_snapshot(initiator_source_snapshot)
     , m_user_involvement(user_involvement)
     , m_navigation_type(navigation_type)
     , m_on_complete(move(on_complete))
@@ -59,29 +61,33 @@ void ApplyHistoryStep::apply_the_history_step()
     // 3. If initiatorToCheck is not null, then:
     if (m_initiator_to_check.has_value()) {
         // 1. Assert: sourceSnapshotParams is not null.
-        // NB: sourceSnapshotParams lives in the initiating process; the job asserts it there.
+        // NB: A traversal with an initiator must also include its sandboxing state. Reject an incomplete request.
+        if (!m_initiator_source_snapshot.has_value()) {
+            return_result(Web::HTML::HistoryStepResult::InitiatorDisallowed);
+            return;
+        }
 
         // 2. For each navigable of get all navigables whose current session history entry will change or reload:
         //    if initiatorToCheck is not allowed by sandboxing to navigate navigable given sourceSnapshotParams, then
         //    return "initiator-disallowed".
-        auto navigables = m_session_history.get_all_navigables_whose_current_session_history_entry_will_change_or_reload(m_traversable_navigable, m_target_step);
-        m_jobs.run_initiator_sandboxing_check_job(*m_initiator_to_check, move(navigables), [this](ApplyHistoryStepJobs::InitiatorSandboxingCheckResult result) {
-            if (m_completed)
-                return;
-            if (result == ApplyHistoryStepJobs::InitiatorSandboxingCheckResult::Disallowed) {
+        auto const* initiator = find_navigable(*m_initiator_to_check);
+        for (auto navigable_id : m_session_history.get_all_navigables_whose_current_session_history_entry_will_change_or_reload(m_traversable_navigable, m_target_step)) {
+            auto const* navigable = find_navigable(navigable_id);
+            if (!navigable)
+                continue;
+
+            // NB: A removed initiator is no longer related to any navigable in the canonical tree. Apply the sandboxed
+            //     navigation flag instead of treating the missing relationship as permission.
+            auto allowed = initiator
+                ? initiator->allowed_by_sandboxing_to_navigate(*navigable, *m_initiator_source_snapshot)
+                : !has_flag(m_initiator_source_snapshot->sandboxing_flags, Web::HTML::SandboxingFlagSet::SandboxedNavigation);
+            if (!allowed) {
                 return_result(Web::HTML::HistoryStepResult::InitiatorDisallowed);
                 return;
             }
-            check_if_unloading_is_canceled();
-        });
-        return;
+        }
     }
 
-    check_if_unloading_is_canceled();
-}
-
-void ApplyHistoryStep::check_if_unloading_is_canceled()
-{
     // 4. Let navigablesCrossingDocuments be the result of getting all navigables that might experience a
     //    cross-document traversal given traversable and targetStep.
     auto navigables_crossing_documents = m_session_history.get_all_navigables_that_might_experience_a_cross_document_traversal(m_traversable_navigable, m_target_step);

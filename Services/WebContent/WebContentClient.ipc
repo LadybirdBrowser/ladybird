@@ -193,7 +193,6 @@ endpoint WebContentClient
     did_request_site_isolation_process_tree_for_testing(u64 page_id) => (String process_tree)
     request_history_operation(u64 page_id, u64 initiation_id, Web::HistoryOperationParameters parameters) =|
     history_operation_ready(u64 page_id, u64 operation_id, Web::HistoryOperationReadyResult result) =|
-    initiator_sandboxing_check_result(u64 page_id, u64 operation_id, bool allowed) =|
     history_step_unload_cancelation_result(u64 page_id, u64 operation_id, Web::HTML::HistoryStepResult result) =|
     changing_navigable_history_job_ready(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition) =|
     changing_navigable_continuation_applied(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) =|

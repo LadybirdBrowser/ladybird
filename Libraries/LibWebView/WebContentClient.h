@@ -268,7 +268,6 @@ private:
     virtual Messages::WebContentClient::DidRequestSiteIsolationProcessTreeForTestingResponse did_request_site_isolation_process_tree_for_testing(u64 page_id) override;
     virtual void request_history_operation(u64 page_id, u64 initiation_id, Web::HistoryOperationParameters) override;
     virtual void history_operation_ready(u64 page_id, u64 operation_id, Web::HistoryOperationReadyResult) override;
-    virtual void initiator_sandboxing_check_result(u64 page_id, u64 operation_id, bool allowed) override;
     virtual void history_step_unload_cancelation_result(u64 page_id, u64 operation_id, Web::HTML::HistoryStepResult result) override;
     virtual void changing_navigable_history_job_ready(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition) override;
     virtual void changing_navigable_continuation_applied(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) override;
