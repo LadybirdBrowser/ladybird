@@ -37,7 +37,6 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -788,75 +787,77 @@ GC::Ref<WebIDL::Promise> FontFace::load()
         }
     }
 
-    Web::Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this] {
-        // 4. Using the value of font face’s [[Urls]] slot, attempt to load a font as defined in [CSS-FONTS-3],
-        //     as if it was the value of a @font-face rule’s src descriptor.
+    // AD-HOC: The remaining steps run on the current task rather than truly async. So the fetch is observably in flight
+    //         by the time load() returns. Style computation depends on that: When computing a style starts a font load,
+    //         the in-flight fetch must engage the document-load-event delayer within that same style update. Only the
+    //         fetch kickoff happens sync; the load operation itself, and the completion steps below, remain async.
+    // 4. Using the value of font face’s [[Urls]] slot, attempt to load a font as defined in [CSS-FONTS-3],
+    //     as if it was the value of a @font-face rule’s src descriptor.
 
-        // 5. When the load operation completes, successfully or not, queue a task to run the following steps synchronously:
-        auto on_load = GC::create_function(GC::Heap::the(), [this](RefPtr<Gfx::Typeface const> maybe_typeface) {
-            HTML::queue_global_task(HTML::Task::Source::FontLoading, task_global_object(), GC::create_function(GC::Heap::the(), [this, maybe_typeface] {
-                HTML::TemporaryExecutionContext context(*m_environment, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-                // 1. If the attempt to load fails, reject font face’s [[FontStatusPromise]] with a DOMException whose name
-                //    is "NetworkError" and set font face’s status attribute to "error".
-                if (!maybe_typeface) {
-                    // NB: reject_status_promise() also marks the promise as handled: A font that fails to load must not
-                    //     surface an unhandled rejection on a page that never looks at the FontFace API.
-                    reject_status_promise(WebIDL::NetworkError::create("Failed to load font"_utf16));
+    // 5. When the load operation completes, successfully or not, queue a task to run the following steps synchronously:
+    auto on_load = GC::create_function(GC::Heap::the(), [this](RefPtr<Gfx::Typeface const> maybe_typeface) {
+        HTML::queue_global_task(HTML::Task::Source::FontLoading, task_global_object(), GC::create_function(GC::Heap::the(), [this, maybe_typeface] {
+            HTML::TemporaryExecutionContext context(*m_environment, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+            // 1. If the attempt to load fails, reject font face’s [[FontStatusPromise]] with a DOMException whose name
+            //    is "NetworkError" and set font face’s status attribute to "error".
+            if (!maybe_typeface) {
+                // NB: reject_status_promise() also marks the promise as handled: A font that fails to load must not
+                //     surface an unhandled rejection on a page that never looks at the FontFace API.
+                reject_status_promise(WebIDL::NetworkError::create("Failed to load font"_utf16));
 
-                    // For each FontFaceSet font face is in:
-                    for (auto& font_face_set : m_containing_sets) {
-                        // 1. Add font face to the FontFaceSet’s [[FailedFonts]] list.
-                        font_face_set->failed_fonts().append(*this);
+                // For each FontFaceSet font face is in:
+                for (auto& font_face_set : m_containing_sets) {
+                    // 1. Add font face to the FontFaceSet’s [[FailedFonts]] list.
+                    font_face_set->failed_fonts().append(*this);
 
-                        // 2. Remove font face from the FontFaceSet’s [[LoadingFonts]] list. If font was the last item
-                        //    in that list (and so the list is now empty), switch the FontFaceSet to loaded.
-                        font_face_set->loading_fonts().remove_all_matching([this](auto const& entry) { return entry == GC::Ref<FontFace> { *this }; });
-                        if (font_face_set->loading_fonts().is_empty())
-                            font_face_set->switch_to_loaded();
-                    }
+                    // 2. Remove font face from the FontFaceSet’s [[LoadingFonts]] list. If font was the last item
+                    //    in that list (and so the list is now empty), switch the FontFaceSet to loaded.
+                    font_face_set->loading_fonts().remove_all_matching([this](auto const& entry) { return entry == GC::Ref<FontFace> { *this }; });
+                    if (font_face_set->loading_fonts().is_empty())
+                        font_face_set->switch_to_loaded();
                 }
-
-                // 2. Otherwise, font face now represents the loaded font; fulfill font face’s [[FontStatusPromise]] with font face
-                //    and set font face’s status attribute to "loaded".
-                else {
-                    auto& realm = m_environment->realm();
-                    m_parsed_font = maybe_typeface;
-                    m_status = FontFaceLoadStatus::Loaded;
-                    resolve_font_face_promise(realm, m_font_status_promise, *this);
-
-                    if (auto font_computer = this->font_computer(); font_computer.has_value())
-                        font_computer->register_font_face(*this);
-
-                    // For each FontFaceSet font face is in:
-                    for (auto& font_face_set : m_containing_sets) {
-                        // 1. Add font face to the FontFaceSet’s [[LoadedFonts]] list.
-                        font_face_set->loaded_fonts().append(*this);
-
-                        // 2. Remove font face from the FontFaceSet’s [[LoadingFonts]] list. If font was the last item
-                        //    in that list (and so the list is now empty), switch the FontFaceSet to loaded.
-                        font_face_set->loading_fonts().remove_all_matching([this](auto const& entry) { return entry == GC::Ref<FontFace> { *this }; });
-                        if (font_face_set->loading_fonts().is_empty())
-                            font_face_set->switch_to_loaded();
-                    }
-                }
-
-                m_font_loader = nullptr;
-            }));
-        });
-
-        // FIXME: We should probably put the 'font cache' on the WindowOrWorkerGlobalScope instead of tying it to the document's style computer
-        if (auto document = m_environment->responsible_document()) {
-            auto& font_computer = document->font_computer();
-
-            if (auto loader = font_computer.load_font_face(parsed_font_face(), move(on_load))) {
-                m_font_loader = loader;
-                loader->start_loading_next_url();
             }
-        } else {
-            // FIXME: Don't know how to load fonts in workers! They don't have a StyleComputer
-            dbgln("FIXME: Worker font loading not implemented");
+
+            // 2. Otherwise, font face now represents the loaded font; fulfill font face’s [[FontStatusPromise]] with font face
+            //    and set font face’s status attribute to "loaded".
+            else {
+                auto& realm = m_environment->realm();
+                m_parsed_font = maybe_typeface;
+                m_status = FontFaceLoadStatus::Loaded;
+                resolve_font_face_promise(realm, m_font_status_promise, *this);
+
+                if (auto font_computer = this->font_computer(); font_computer.has_value())
+                    font_computer->register_font_face(*this);
+
+                // For each FontFaceSet font face is in:
+                for (auto& font_face_set : m_containing_sets) {
+                    // 1. Add font face to the FontFaceSet’s [[LoadedFonts]] list.
+                    font_face_set->loaded_fonts().append(*this);
+
+                    // 2. Remove font face from the FontFaceSet’s [[LoadingFonts]] list. If font was the last item
+                    //    in that list (and so the list is now empty), switch the FontFaceSet to loaded.
+                    font_face_set->loading_fonts().remove_all_matching([this](auto const& entry) { return entry == GC::Ref<FontFace> { *this }; });
+                    if (font_face_set->loading_fonts().is_empty())
+                        font_face_set->switch_to_loaded();
+                }
+            }
+
+            m_font_loader = nullptr;
+        }));
+    });
+
+    // FIXME: We should probably put the 'font cache' on the WindowOrWorkerGlobalScope instead of tying it to the document's style computer
+    if (auto document = m_environment->responsible_document()) {
+        auto& font_computer = document->font_computer();
+
+        if (auto loader = font_computer.load_font_face(parsed_font_face(), move(on_load))) {
+            m_font_loader = loader;
+            loader->start_loading_next_url();
         }
-    }));
+    } else {
+        // FIXME: Don't know how to load fonts in workers! They don't have a StyleComputer
+        dbgln("FIXME: Worker font loading not implemented");
+    }
 
     return font_face.loaded();
 }
