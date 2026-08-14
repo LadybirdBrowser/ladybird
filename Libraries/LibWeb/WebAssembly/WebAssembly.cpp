@@ -496,34 +496,37 @@ JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webass
         auto synthetic_url = URL::Parser::basic_parse(ByteString::formatted("wasm-cache://{}", hex_builder.to_byte_string()));
         if (synthetic_url.has_value()) {
             auto method = "GET"_string.to_byte_string();
-            (void)ResourceLoader::the().request_client()->create_synthetic_cache_entry(*synthetic_url, method);
 
             Wasm::CompileCacheConfig config;
             __builtin_memcpy(config.wasm_hash.data(), digest.bytes().data(), 32);
 
-            auto retrieve_result = ResourceLoader::the().request_client()->retrieve_cache_associated_data(
-                *synthetic_url, method, OptionalNone {}, 0u,
-                HTTP::CacheEntryAssociatedData::WebAssemblyCompiledCode);
-            if (!retrieve_result.is_error()) {
-                if (auto buf = retrieve_result.release_value(); buf.has_value()) {
-                    // Copy into an owned buffer: compilation may run on another thread long after the AnonymousBuffer here goes away.
-                    if (auto copy = ByteBuffer::copy(buf->bytes()); !copy.is_error())
-                        config.existing_blob = copy.release_value();
+            auto cache_entry_result = ResourceLoader::the().request_client()->create_synthetic_cache_entry(*synthetic_url, method);
+            if (!cache_entry_result.is_error() && cache_entry_result.value()) {
+                auto retrieve_result = ResourceLoader::the().request_client()->retrieve_cache_associated_data(
+                    *synthetic_url, method, OptionalNone {}, 0u,
+                    HTTP::CacheEntryAssociatedData::WebAssemblyCompiledCode);
+                if (!retrieve_result.is_error()) {
+                    if (auto buf = retrieve_result.release_value(); buf.has_value()) {
+                        // Copy into an owned buffer: compilation may run on another thread long after the AnonymousBuffer here goes away.
+                        if (auto copy = ByteBuffer::copy(buf->bytes()); !copy.is_error())
+                            config.existing_blob = copy.release_value();
+                    }
                 }
+
+                config.on_compiled = [url = *synthetic_url, method = move(method), event_loop_weak = Core::EventLoop::current_weak()](ByteBuffer blob) mutable {
+                    auto origin = event_loop_weak->take();
+                    if (!origin)
+                        return;
+                    origin->deferred_invoke([url = move(url), method = move(method), blob = move(blob)]() mutable {
+                        if (!ResourceLoader::is_initialized() || !ResourceLoader::the().request_client())
+                            return;
+                        (void)ResourceLoader::the().request_client()->store_cache_associated_data(
+                            url, method, OptionalNone {}, 0u,
+                            HTTP::CacheEntryAssociatedData::WebAssemblyCompiledCode, blob.bytes());
+                    });
+                };
             }
 
-            config.on_compiled = [url = *synthetic_url, method = move(method), event_loop_weak = Core::EventLoop::current_weak()](ByteBuffer blob) mutable {
-                auto origin = event_loop_weak->take();
-                if (!origin)
-                    return;
-                origin->deferred_invoke([url = move(url), method = move(method), blob = move(blob)]() mutable {
-                    if (!ResourceLoader::is_initialized() || !ResourceLoader::the().request_client())
-                        return;
-                    (void)ResourceLoader::the().request_client()->store_cache_associated_data(
-                        url, method, OptionalNone {}, 0u,
-                        HTTP::CacheEntryAssociatedData::WebAssemblyCompiledCode, blob.bytes());
-                });
-            };
             wasm_cache_config = move(config);
         }
     }
