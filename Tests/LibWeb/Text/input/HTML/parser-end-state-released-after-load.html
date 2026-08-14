@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        addEventListener("load", () => {
+            setTimeout(() => {
+                println(`parser end state retained after load: ${internals.hasHTMLParserEndState(document)}`);
+                done();
+            }, 0);
+        });
+    });
+</script>

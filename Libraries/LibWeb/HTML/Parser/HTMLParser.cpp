@@ -714,6 +714,10 @@ void HTMLParserEndState::complete()
         // parser mark the replacement document ready for post-load tasks.
         if (parser_was_replaced(document, parser, parser_generation))
             return;
+
+        state->m_timeout->stop();
+        document->set_html_parser_end_state(nullptr);
+
         // 1. Update the current document readiness to "complete".
         document->update_readiness(HTML::DocumentReadyState::Complete);
 
