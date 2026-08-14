@@ -133,17 +133,6 @@ static TransformData visual_viewport_transform_data(DOM::Document& document)
     return TransformData { matrix, { 0.f, 0.f } };
 }
 
-static Optional<Gfx::AffineTransform> svg_to_css_pixels_transform(Paintable const& paintable)
-{
-    if (auto const* svg_graphics_paintable = as_if<SVGGraphicsPaintable>(paintable))
-        return svg_graphics_paintable->computed_transforms().svg_to_css_pixels_transform();
-    if (auto const* svg_foreign_object_paintable = as_if<SVGForeignObjectPaintable>(paintable))
-        return svg_foreign_object_paintable->computed_transforms().svg_to_css_pixels_transform();
-    if (auto const* svg_svg_paintable = as_if<SVGSVGPaintable>(paintable))
-        return svg_svg_paintable->computed_transforms().svg_to_css_pixels_transform();
-    return {};
-}
-
 // Content below a viewport node records in the viewport's user units scaled by the device pixel
 // ratio, mirroring how ordinary content records in CSS pixels scaled by it; the node folds the
 // viewport box's position in its own recorded space together with the viewBox transform.
@@ -209,13 +198,6 @@ Optional<TransformData> compute_transform(Paintable const& paintable_box, double
 
     // 8. Translate by the negated computed X, Y and Z values of transform-origin.
     matrix = matrix * Gfx::translation_matrix(Vector3 { 0.f, 0.f, -origin_z });
-
-    // https://svgwg.org/svg2-draft/coords.html#ViewBoxAttribute
-    // The presence of the viewBox attribute results in a transformation being applied to the viewport coordinate system
-    if (auto svg_to_css_pixels = svg_to_css_pixels_transform(paintable_box); svg_to_css_pixels.has_value() && !svg_to_css_pixels->is_identity()) {
-        if (auto inverse_svg_to_css_pixels = svg_to_css_pixels->inverse(); inverse_svg_to_css_pixels.has_value())
-            matrix = svg_to_css_pixels->to_matrix() * matrix * inverse_svg_to_css_pixels->to_matrix();
-    }
 
     auto origin = reference_box.location() + CSSPixelPoint { origin_x, origin_y };
     auto scale = static_cast<float>(pixel_ratio);
