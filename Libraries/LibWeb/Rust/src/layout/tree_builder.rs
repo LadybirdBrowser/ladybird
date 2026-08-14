@@ -1991,7 +1991,6 @@ pub struct FfiTreeBuilderCallbacks {
     pub remove_nodes: unsafe extern "C" fn(*mut c_void, *const *mut c_void, usize),
     pub wrap_in_anonymous:
         unsafe extern "C" fn(*mut c_void, *const *mut c_void, usize, *mut c_void, FfiAnonymousTableBoxKind),
-    pub update_existing_table_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
     pub wrap_table_root: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
     pub append_missing_table_cell: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub create_and_append_anonymous_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
@@ -3087,13 +3086,9 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
     // 3. Generate missing parents:
     let mut table_roots_to_wrap = Vec::new();
     host.for_each_in_inclusive_subtree(root, |parent| {
-        let (has_style, is_box, has_been_wrapped_in_table_wrapper) = {
+        let (has_style, is_box) = {
             let data = host.data(parent);
-            (
-                node_has_flag(data, NodeFlag::HasStyle),
-                node_kind_is_box(data.kind),
-                node_has_flag(data, NodeFlag::HasBeenWrappedInTableWrapper),
-            )
+            (node_has_flag(data, NodeFlag::HasStyle), node_kind_is_box(data.kind))
         };
         let current_display = host.display(parent);
         let is_inline_outside = node_is_inline_outside(host, parent);
@@ -3173,12 +3168,6 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
 
         // 3. An anonymous table-wrapper box must be generated around each table-root.
         if is_box && current_display.is_table_inside() {
-            if has_been_wrapped_in_table_wrapper {
-                let parent = host.parent(parent);
-                assert!(!parent.is_invalid());
-                assert_eq!(host.data(parent).kind, NodeKind::TableWrapper);
-                return TraversalDecision::Continue;
-            }
             table_roots_to_wrap.push(parent);
         }
 
@@ -3189,16 +3178,7 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
         let nearest_sibling = host.next_sibling(table_root);
         let parent = host.parent(table_root);
         assert!(!parent.is_invalid());
-        if host.data(parent).kind == NodeKind::TableWrapper {
-            // SAFETY: Both nodes are live and `parent` is a TableWrapper.
-            unsafe {
-                (host.callbacks.update_existing_table_wrapper)(
-                    host.callbacks.context,
-                    host.shell(table_root),
-                    host.shell(parent),
-                );
-            };
-        } else {
+        if host.data(parent).kind != NodeKind::TableWrapper {
             // SAFETY: `table_root` is attached and `nearest_sibling` is either null or its live next sibling.
             unsafe {
                 (host.callbacks.wrap_table_root)(

@@ -10,7 +10,7 @@ PASS: block child inside inline
 PASS: generated content update
 PASS: list marker update
 PASS: table fixup after cell insertion
-FAIL: table fixup after invalid child insertion
+PASS: table fixup after invalid child insertion
 PASS: attach shadow tree
 PASS: mutate shadow tree
 PASS: append SVG child
