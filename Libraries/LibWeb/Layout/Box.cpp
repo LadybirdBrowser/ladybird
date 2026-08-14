@@ -41,10 +41,11 @@ bool Box::is_partial_relayout_boundary(RequireExistingPaintable require_existing
 
     // An in-flow SVG root's used size is determined solely by its own attributes and outer
     // context, never by its children, so its size and position from the previous layout can be
-    // reused. An absolutely positioned SVG root's placement is not frozen, so it must qualify
-    // through the saved-inputs replay path below instead.
+    // reused - provided a commit has actually saved them. An absolutely positioned SVG root's
+    // placement is not frozen, so it must qualify through the saved-inputs replay path below
+    // instead.
     if (is_svg_svg_box() && !is_absolutely_positioned())
-        return is_outermost_svg_root;
+        return is_outermost_svg_root && has_saved_committed_geometry();
 
     if (!is_absolutely_positioned())
         return false;
