@@ -583,7 +583,7 @@ void run_when_event_loop_reaches_step_1(GC::Ref<GC::Function<void()>> steps)
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-task
-TaskID queue_a_task(HTML::Task::Source source, GC::Ptr<EventLoop> event_loop, GC::Ptr<DOM::Document> document, GC::Ref<GC::Function<void()>> steps)
+TaskID queue_a_task(HTML::Task::Source source, GC::Ptr<EventLoop> event_loop, GC::Ptr<DOM::Document> document, GC::Ref<GC::Function<void()>> steps, Task::Priority priority)
 {
     // 1. If event loop was not given, set event loop to the implied event loop.
     if (!event_loop)
@@ -596,7 +596,7 @@ TaskID queue_a_task(HTML::Task::Source source, GC::Ptr<EventLoop> event_loop, GC
     // 5. Set task's source to source.
     // 6. Set task's document to the document.
     // 7. Set task's script evaluation environment settings object set to an empty set.
-    auto task = HTML::Task::create(source, document, steps);
+    auto task = HTML::Task::create(source, document, steps, priority);
 
     // 8. Let queue be the task queue to which source is associated on event loop.
     // 9. Append task to queue.
@@ -609,7 +609,7 @@ TaskID queue_a_task(HTML::Task::Source source, GC::Ptr<EventLoop> event_loop, GC
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-global-task
-TaskID queue_global_task(HTML::Task::Source source, JS::Object& global_object, GC::Ref<GC::Function<void()>> steps)
+TaskID queue_global_task(HTML::Task::Source source, JS::Object& global_object, GC::Ref<GC::Function<void()>> steps, Task::Priority priority)
 {
     // 1. Let event loop be global's relevant agent's event loop.
     auto& event_loop = relevant_agent(global_object).event_loop;
@@ -620,7 +620,7 @@ TaskID queue_global_task(HTML::Task::Source source, JS::Object& global_object, G
         document = &window_object->associated_document();
 
     // 3. Queue a task given source, event loop, document, and steps.
-    return queue_a_task(source, *event_loop, document, steps);
+    return queue_a_task(source, *event_loop, document, steps, priority);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-microtask

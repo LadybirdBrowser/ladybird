@@ -322,6 +322,7 @@ private:
     virtual GC::Ptr<DOM::EventTarget> window_event_handlers_to_event_target() override { return *this; }
 
     void invoke_idle_callbacks();
+    void invoke_idle_callback_timeout(u32 handle);
 
     struct [[nodiscard]] NamedObjects {
         Vector<GC::Ref<LocalNavigable>> navigables;

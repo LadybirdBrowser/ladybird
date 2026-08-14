@@ -1,3 +1,5 @@
 handle is number: number
 deadline is IdleDeadline: true
 timeRemaining is function: function
+timed out callback didTimeout: true
+timed out callback timeRemaining: 0

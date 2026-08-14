@@ -1,12 +1,32 @@
 <!DOCTYPE html>
 <script src="include.js"></script>
 <script>
-    asyncTest(done => {
+    asyncTest(async done => {
         const handle = requestIdleCallback(deadline => {
             println(`deadline is IdleDeadline: ${deadline instanceof IdleDeadline}`);
             println(`timeRemaining is function: ${typeof deadline.timeRemaining}`);
-            done();
         });
         println(`handle is number: ${typeof handle}`);
+
+        await new Promise(resolve => requestIdleCallback(resolve));
+
+        const channel = new MessageChannel();
+        let keepEventLoopBusy = true;
+        channel.port1.onmessage = () => {
+            if (keepEventLoopBusy)
+                channel.port2.postMessage(undefined);
+        };
+        channel.port2.postMessage(undefined);
+
+        await new Promise(resolve => requestIdleCallback(deadline => {
+            println(`timed out callback didTimeout: ${deadline.didTimeout}`);
+            println(`timed out callback timeRemaining: ${deadline.timeRemaining()}`);
+            keepEventLoopBusy = false;
+            resolve();
+        }, { timeout: 1 }));
+
+        channel.port1.close();
+        channel.port2.close();
+        done();
     });
 </script>

@@ -39,7 +39,7 @@ void TaskQueue::add(GC::Ref<Task> task)
         return;
 
     m_last_added_task = task.ptr();
-    if (task->source() == Task::Source::IdleTask)
+    if (task->priority() == Task::Priority::Idle)
         m_idle_tasks.append(*task);
     else
         m_tasks.append(*task);

@@ -87,7 +87,7 @@ public:
     };
     AffectedAnyWebSockets make_disappear_all_web_sockets();
 
-    void run_steps_after_a_timeout(i32 timeout, Function<void()> completion_step);
+    i32 run_steps_after_a_timeout(i32 timeout, Function<void()> completion_step);
 
     [[nodiscard]] GC::Ref<HighResolutionTime::Performance> performance();
 
