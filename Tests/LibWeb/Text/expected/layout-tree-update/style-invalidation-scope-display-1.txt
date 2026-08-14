@@ -1093,15 +1093,15 @@ PASS: display table-header-group -> -webkit-inline-box in inline flow list-item 
 PRESERVED: display table-header-group -> block flow in flex | fixture ancestor
 PRESERVED: display table-header-group -> block flow in flex | distant sibling
 PRESERVED: display table-header-group -> block flow in flex | distant sibling descendant
-PRESERVED: display table-header-group -> block flow in flex | DOM parent
-PRESERVED: display table-header-group -> block flow in flex | preceding sibling
-PRESERVED: display table-header-group -> block flow in flex | preceding sibling descendant
-PRESERVED: display table-header-group -> block flow in flex | target
-PRESERVED: display table-header-group -> block flow in flex | target descendant
-PRESERVED: display table-header-group -> block flow in flex | following sibling
-PRESERVED: display table-header-group -> block flow in flex | following sibling descendant
+RECREATED: display table-header-group -> block flow in flex | DOM parent
+RECREATED: display table-header-group -> block flow in flex | preceding sibling
+RECREATED: display table-header-group -> block flow in flex | preceding sibling descendant
+RECREATED: display table-header-group -> block flow in flex | target
+RECREATED: display table-header-group -> block flow in flex | target descendant
+RECREATED: display table-header-group -> block flow in flex | following sibling
+RECREATED: display table-header-group -> block flow in flex | following sibling descendant
 STATS: display table-header-group -> block flow in flex | rebuilt subtree roots=1, escaped=false
-FAIL: display table-header-group -> block flow in flex | incremental tree matches full rebuild
+PASS: display table-header-group -> block flow in flex | incremental tree matches full rebuild
 RECREATED: display table-header-group -> block table in -webkit-inline-box | fixture ancestor
 RECREATED: display table-header-group -> block table in -webkit-inline-box | distant sibling
 RECREATED: display table-header-group -> block table in -webkit-inline-box | distant sibling descendant
@@ -1537,15 +1537,15 @@ PASS: display inline flow -> -webkit-inline-box in inline list-item | incrementa
 PRESERVED: display inline flow -> table-caption in -webkit-box | fixture ancestor
 PRESERVED: display inline flow -> table-caption in -webkit-box | distant sibling
 PRESERVED: display inline flow -> table-caption in -webkit-box | distant sibling descendant
-PRESERVED: display inline flow -> table-caption in -webkit-box | DOM parent
-PRESERVED: display inline flow -> table-caption in -webkit-box | preceding sibling
-PRESERVED: display inline flow -> table-caption in -webkit-box | preceding sibling descendant
-PRESERVED: display inline flow -> table-caption in -webkit-box | target
-PRESERVED: display inline flow -> table-caption in -webkit-box | target descendant
-PRESERVED: display inline flow -> table-caption in -webkit-box | following sibling
-PRESERVED: display inline flow -> table-caption in -webkit-box | following sibling descendant
+RECREATED: display inline flow -> table-caption in -webkit-box | DOM parent
+RECREATED: display inline flow -> table-caption in -webkit-box | preceding sibling
+RECREATED: display inline flow -> table-caption in -webkit-box | preceding sibling descendant
+RECREATED: display inline flow -> table-caption in -webkit-box | target
+RECREATED: display inline flow -> table-caption in -webkit-box | target descendant
+RECREATED: display inline flow -> table-caption in -webkit-box | following sibling
+RECREATED: display inline flow -> table-caption in -webkit-box | following sibling descendant
 STATS: display inline flow -> table-caption in -webkit-box | rebuilt subtree roots=1, escaped=false
-FAIL: display inline flow -> table-caption in -webkit-box | incremental tree matches full rebuild
+PASS: display inline flow -> table-caption in -webkit-box | incremental tree matches full rebuild
 RECREATED: display inline flow -> block table in table-caption | fixture ancestor
 RECREATED: display inline flow -> block table in table-caption | distant sibling
 RECREATED: display inline flow -> block table in table-caption | distant sibling descendant
@@ -1645,15 +1645,15 @@ PASS: display inline flow-root -> math in inline list-item | incremental tree ma
 PRESERVED: display inline flow-root -> table-column-group in -webkit-box | fixture ancestor
 PRESERVED: display inline flow-root -> table-column-group in -webkit-box | distant sibling
 PRESERVED: display inline flow-root -> table-column-group in -webkit-box | distant sibling descendant
-PRESERVED: display inline flow-root -> table-column-group in -webkit-box | DOM parent
-PRESERVED: display inline flow-root -> table-column-group in -webkit-box | preceding sibling
-PRESERVED: display inline flow-root -> table-column-group in -webkit-box | preceding sibling descendant
-PRESERVED: display inline flow-root -> table-column-group in -webkit-box | target
-PRESERVED: display inline flow-root -> table-column-group in -webkit-box | target descendant
-PRESERVED: display inline flow-root -> table-column-group in -webkit-box | following sibling
-PRESERVED: display inline flow-root -> table-column-group in -webkit-box | following sibling descendant
+RECREATED: display inline flow-root -> table-column-group in -webkit-box | DOM parent
+RECREATED: display inline flow-root -> table-column-group in -webkit-box | preceding sibling
+RECREATED: display inline flow-root -> table-column-group in -webkit-box | preceding sibling descendant
+RECREATED: display inline flow-root -> table-column-group in -webkit-box | target
+RECREATED: display inline flow-root -> table-column-group in -webkit-box | target descendant
+RECREATED: display inline flow-root -> table-column-group in -webkit-box | following sibling
+RECREATED: display inline flow-root -> table-column-group in -webkit-box | following sibling descendant
 STATS: display inline flow-root -> table-column-group in -webkit-box | rebuilt subtree roots=1, escaped=false
-FAIL: display inline flow-root -> table-column-group in -webkit-box | incremental tree matches full rebuild
+PASS: display inline flow-root -> table-column-group in -webkit-box | incremental tree matches full rebuild
 RECREATED: display inline flow-root -> block grid in table-caption | fixture ancestor
 RECREATED: display inline flow-root -> block grid in table-caption | distant sibling
 RECREATED: display inline flow-root -> block grid in table-caption | distant sibling descendant
@@ -2110,4 +2110,4 @@ RECREATED: display inline flow list-item -> inline flex in block grid | followin
 RECREATED: display inline flow list-item -> inline flex in block grid | following sibling descendant
 STATS: display inline flow list-item -> inline flex in block grid | rebuilt subtree roots=1, escaped=false
 PASS: display inline flow list-item -> inline flex in block grid | incremental tree matches full rebuild
-176 cases; 173 matched; 3 mismatched
+176 cases; 176 matched; 0 mismatched

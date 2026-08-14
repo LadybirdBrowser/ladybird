@@ -2877,10 +2877,12 @@ fn display_for_table_fixup(host: &TreeBuilderHost<'_>, node: LayoutNode) -> FfiD
     // For the purposes of these rules, out-of-flow elements are represented as inline elements of zero width and
     // height. Their containing blocks are chosen accordingly.
     //
-    // AD-HOC: Table-internal boxes can be blockified before fixup. Use the pre-transformation display for authored
-    // boxes so an out-of-flow table-header-group is still recognized as a proper table child during fixup.
+    // AD-HOC: Table-internal boxes can be blockified before fixup. Use the pre-transformation display for ordinary
+    // authored boxes so an out-of-flow table-header-group is still recognized as a proper table child during fixup.
+    // Element-specific display adjustments for replaced elements and buttons take precedence over that display.
     if node_has_replaced_element_table_display_adjustment(host, node)
         || node_has_flag(host.data(node), NodeFlag::Anonymous)
+        || node_has_flag(host.data(node), NodeFlag::UsesButtonLayout)
     {
         host.display(node)
     } else {

@@ -1342,6 +1342,27 @@ static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidati
         result = compute_required_invalidation_between_computed_values(old_computed_values, new_computed_values);
         style_computer.cache_computed_style_invalidation(style_record_delta, result);
     }
+
+    // The table fixup algorithm needs an authored box's display from before box type
+    // transformation. A flex or grid item can therefore keep the same blockified display while
+    // changing whether it needs anonymous table wrappers. Generated pseudo-element boxes are
+    // anonymous, so fixup uses their adjusted display instead.
+    if (!abstract_element.pseudo_element().has_value()) {
+        auto is_table_fixup_child = [](CSS::Display const& display) {
+            return display.is_table_row_group()
+                || display.is_table_header_group()
+                || display.is_table_footer_group()
+                || display.is_table_column_group()
+                || display.is_table_caption();
+        };
+        auto old_display = old_computed_values.display_before_box_type_transformation();
+        auto new_display = new_computed_values.display_before_box_type_transformation();
+        if (is_table_fixup_child(old_display) != is_table_fixup_child(new_display)) {
+            result.any_computed_value_changed = true;
+            result.invalidation |= CSS::RequiredInvalidationAfterStyleChange::full();
+        }
+    }
+
     // An unchanged style record already names the same counter-style environment. A group swap
     // changes only inherited payloads under that environment. In either case, re-resolving through
     // a temporary record projection can manufacture a change even though the durable inputs did

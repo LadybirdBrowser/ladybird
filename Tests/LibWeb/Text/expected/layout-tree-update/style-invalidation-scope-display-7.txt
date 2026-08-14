@@ -361,15 +361,15 @@ PASS: display run-in -> -webkit-inline-box in table-column | incremental tree ma
 PRESERVED: display run-in -> table-caption in block grid | fixture ancestor
 PRESERVED: display run-in -> table-caption in block grid | distant sibling
 PRESERVED: display run-in -> table-caption in block grid | distant sibling descendant
-PRESERVED: display run-in -> table-caption in block grid | DOM parent
-PRESERVED: display run-in -> table-caption in block grid | preceding sibling
-PRESERVED: display run-in -> table-caption in block grid | preceding sibling descendant
-PRESERVED: display run-in -> table-caption in block grid | target
-PRESERVED: display run-in -> table-caption in block grid | target descendant
-PRESERVED: display run-in -> table-caption in block grid | following sibling
-PRESERVED: display run-in -> table-caption in block grid | following sibling descendant
+RECREATED: display run-in -> table-caption in block grid | DOM parent
+RECREATED: display run-in -> table-caption in block grid | preceding sibling
+RECREATED: display run-in -> table-caption in block grid | preceding sibling descendant
+RECREATED: display run-in -> table-caption in block grid | target
+RECREATED: display run-in -> table-caption in block grid | target descendant
+RECREATED: display run-in -> table-caption in block grid | following sibling
+RECREATED: display run-in -> table-caption in block grid | following sibling descendant
 STATS: display run-in -> table-caption in block grid | rebuilt subtree roots=1, escaped=false
-FAIL: display run-in -> table-caption in block grid | incremental tree matches full rebuild
+PASS: display run-in -> table-caption in block grid | incremental tree matches full rebuild
 RECREATED: display run-in -> inline grid in inline | fixture ancestor
 RECREATED: display run-in -> inline grid in inline | distant sibling
 RECREATED: display run-in -> inline grid in inline | distant sibling descendant
@@ -1033,15 +1033,15 @@ PASS: display table-row-group -> table-row in inline | incremental tree matches 
 PRESERVED: display table-row-group -> inline flow-root in grid | fixture ancestor
 PRESERVED: display table-row-group -> inline flow-root in grid | distant sibling
 PRESERVED: display table-row-group -> inline flow-root in grid | distant sibling descendant
-PRESERVED: display table-row-group -> inline flow-root in grid | DOM parent
-PRESERVED: display table-row-group -> inline flow-root in grid | preceding sibling
-PRESERVED: display table-row-group -> inline flow-root in grid | preceding sibling descendant
-PRESERVED: display table-row-group -> inline flow-root in grid | target
-PRESERVED: display table-row-group -> inline flow-root in grid | target descendant
-PRESERVED: display table-row-group -> inline flow-root in grid | following sibling
-PRESERVED: display table-row-group -> inline flow-root in grid | following sibling descendant
+RECREATED: display table-row-group -> inline flow-root in grid | DOM parent
+RECREATED: display table-row-group -> inline flow-root in grid | preceding sibling
+RECREATED: display table-row-group -> inline flow-root in grid | preceding sibling descendant
+RECREATED: display table-row-group -> inline flow-root in grid | target
+RECREATED: display table-row-group -> inline flow-root in grid | target descendant
+RECREATED: display table-row-group -> inline flow-root in grid | following sibling
+RECREATED: display table-row-group -> inline flow-root in grid | following sibling descendant
 STATS: display table-row-group -> inline flow-root in grid | rebuilt subtree roots=1, escaped=false
-FAIL: display table-row-group -> inline flow-root in grid | incremental tree matches full rebuild
+PASS: display table-row-group -> inline flow-root in grid | incremental tree matches full rebuild
 RECREATED: display table-row-group -> inline flow list-item in table-header-group | fixture ancestor
 RECREATED: display table-row-group -> inline flow list-item in table-header-group | distant sibling
 RECREATED: display table-row-group -> inline flow list-item in table-header-group | distant sibling descendant
@@ -1141,15 +1141,15 @@ PASS: display table-footer-group -> table-row-group in block | incremental tree 
 PRESERVED: display table-footer-group -> inline flow in grid | fixture ancestor
 PRESERVED: display table-footer-group -> inline flow in grid | distant sibling
 PRESERVED: display table-footer-group -> inline flow in grid | distant sibling descendant
-PRESERVED: display table-footer-group -> inline flow in grid | DOM parent
-PRESERVED: display table-footer-group -> inline flow in grid | preceding sibling
-PRESERVED: display table-footer-group -> inline flow in grid | preceding sibling descendant
-PRESERVED: display table-footer-group -> inline flow in grid | target
-PRESERVED: display table-footer-group -> inline flow in grid | target descendant
-PRESERVED: display table-footer-group -> inline flow in grid | following sibling
-PRESERVED: display table-footer-group -> inline flow in grid | following sibling descendant
+RECREATED: display table-footer-group -> inline flow in grid | DOM parent
+RECREATED: display table-footer-group -> inline flow in grid | preceding sibling
+RECREATED: display table-footer-group -> inline flow in grid | preceding sibling descendant
+RECREATED: display table-footer-group -> inline flow in grid | target
+RECREATED: display table-footer-group -> inline flow in grid | target descendant
+RECREATED: display table-footer-group -> inline flow in grid | following sibling
+RECREATED: display table-footer-group -> inline flow in grid | following sibling descendant
 STATS: display table-footer-group -> inline flow in grid | rebuilt subtree roots=1, escaped=false
-FAIL: display table-footer-group -> inline flow in grid | incremental tree matches full rebuild
+PASS: display table-footer-group -> inline flow in grid | incremental tree matches full rebuild
 RECREATED: display table-footer-group -> inline table in table-header-group | fixture ancestor
 RECREATED: display table-footer-group -> inline table in table-header-group | distant sibling
 RECREATED: display table-footer-group -> inline table in table-header-group | distant sibling descendant
@@ -1249,15 +1249,15 @@ PASS: display table-cell -> -webkit-box in block | incremental tree matches full
 PRESERVED: display table-cell -> table-caption in grid | fixture ancestor
 PRESERVED: display table-cell -> table-caption in grid | distant sibling
 PRESERVED: display table-cell -> table-caption in grid | distant sibling descendant
-PRESERVED: display table-cell -> table-caption in grid | DOM parent
-PRESERVED: display table-cell -> table-caption in grid | preceding sibling
-PRESERVED: display table-cell -> table-caption in grid | preceding sibling descendant
-PRESERVED: display table-cell -> table-caption in grid | target
-PRESERVED: display table-cell -> table-caption in grid | target descendant
-PRESERVED: display table-cell -> table-caption in grid | following sibling
-PRESERVED: display table-cell -> table-caption in grid | following sibling descendant
+RECREATED: display table-cell -> table-caption in grid | DOM parent
+RECREATED: display table-cell -> table-caption in grid | preceding sibling
+RECREATED: display table-cell -> table-caption in grid | preceding sibling descendant
+RECREATED: display table-cell -> table-caption in grid | target
+RECREATED: display table-cell -> table-caption in grid | target descendant
+RECREATED: display table-cell -> table-caption in grid | following sibling
+RECREATED: display table-cell -> table-caption in grid | following sibling descendant
 STATS: display table-cell -> table-caption in grid | rebuilt subtree roots=1, escaped=false
-FAIL: display table-cell -> table-caption in grid | incremental tree matches full rebuild
+PASS: display table-cell -> table-caption in grid | incremental tree matches full rebuild
 RECREATED: display table-cell -> inline grid in table-header-group | fixture ancestor
 RECREATED: display table-cell -> inline grid in table-header-group | distant sibling
 RECREATED: display table-cell -> inline grid in table-header-group | distant sibling descendant
@@ -1462,18 +1462,18 @@ RECREATED: display block flow -> inline-grid in block | following sibling
 RECREATED: display block flow -> inline-grid in block | following sibling descendant
 STATS: display block flow -> inline-grid in block | rebuilt subtree roots=1, escaped=false
 PASS: display block flow -> inline-grid in block | incremental tree matches full rebuild
-PRESERVED: display block flow -> table-footer-group in inline-flex | fixture ancestor
-PRESERVED: display block flow -> table-footer-group in inline-flex | distant sibling
-PRESERVED: display block flow -> table-footer-group in inline-flex | distant sibling descendant
-PRESERVED: display block flow -> table-footer-group in inline-flex | DOM parent
-PRESERVED: display block flow -> table-footer-group in inline-flex | preceding sibling
-PRESERVED: display block flow -> table-footer-group in inline-flex | preceding sibling descendant
-PRESERVED: display block flow -> table-footer-group in inline-flex | target
-PRESERVED: display block flow -> table-footer-group in inline-flex | target descendant
-PRESERVED: display block flow -> table-footer-group in inline-flex | following sibling
-PRESERVED: display block flow -> table-footer-group in inline-flex | following sibling descendant
+RECREATED: display block flow -> table-footer-group in inline-flex | fixture ancestor
+RECREATED: display block flow -> table-footer-group in inline-flex | distant sibling
+RECREATED: display block flow -> table-footer-group in inline-flex | distant sibling descendant
+RECREATED: display block flow -> table-footer-group in inline-flex | DOM parent
+RECREATED: display block flow -> table-footer-group in inline-flex | preceding sibling
+RECREATED: display block flow -> table-footer-group in inline-flex | preceding sibling descendant
+RECREATED: display block flow -> table-footer-group in inline-flex | target
+RECREATED: display block flow -> table-footer-group in inline-flex | target descendant
+RECREATED: display block flow -> table-footer-group in inline-flex | following sibling
+RECREATED: display block flow -> table-footer-group in inline-flex | following sibling descendant
 STATS: display block flow -> table-footer-group in inline-flex | rebuilt subtree roots=1, escaped=false
-FAIL: display block flow -> table-footer-group in inline-flex | incremental tree matches full rebuild
+PASS: display block flow -> table-footer-group in inline-flex | incremental tree matches full rebuild
 RECREATED: display block flow -> inline flow-root in table-header-group | fixture ancestor
 RECREATED: display block flow -> inline flow-root in table-header-group | distant sibling
 RECREATED: display block flow -> inline flow-root in table-header-group | distant sibling descendant
@@ -2098,4 +2098,4 @@ RECREATED: display inline flow list-item -> inline flow-root in block flex | fol
 RECREATED: display inline flow list-item -> inline flow-root in block flex | following sibling descendant
 STATS: display inline flow list-item -> inline flow-root in block flex | rebuilt subtree roots=1, escaped=false
 PASS: display inline flow list-item -> inline flow-root in block flex | incremental tree matches full rebuild
-175 cases; 170 matched; 5 mismatched
+175 cases; 175 matched; 0 mismatched
