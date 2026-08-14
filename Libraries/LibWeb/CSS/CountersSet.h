@@ -54,6 +54,7 @@ private:
 
 void resolve_counters(DOM::AbstractElement&);
 void inherit_counters(DOM::AbstractElement&);
+bool subtree_affects_counters(DOM::Node const&);
 
 Utf16FlyString const& list_item_counter_name();
 

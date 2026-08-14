@@ -1,0 +1,147 @@
+PASS: append block child in block flow | preserve parent
+PASS: append block child in block flow | preserve before
+PASS: append block child in block flow | layout tree builds=1
+PASS: append block child in block flow | incremental tree matches full rebuild
+PASS: prepend block child in block flow | preserve parent
+PASS: prepend block child in block flow | preserve after
+PASS: prepend block child in block flow | layout tree builds=1
+PASS: prepend block child in block flow | incremental tree matches full rebuild
+PASS: insert middle block child in block flow | preserve parent
+PASS: insert middle block child in block flow | preserve before
+PASS: insert middle block child in block flow | preserve after
+PASS: insert middle block child in block flow | layout tree builds=1
+PASS: insert middle block child in block flow | incremental tree matches full rebuild
+PASS: fall back when inserted block affects following counters | rebuild parent
+PASS: fall back when inserted block affects following counters | layout tree builds=1
+PASS: fall back when inserted block affects following counters | incremental tree matches full rebuild
+PASS: insert block sibling run in block flow | preserve parent
+PASS: insert block sibling run in block flow | preserve before
+PASS: insert block sibling run in block flow | preserve after
+PASS: insert block sibling run in block flow | layout tree builds=1
+PASS: insert block sibling run in block flow | incremental tree matches full rebuild
+PASS: insert block child around generated content | preserve parent
+PASS: insert block child around generated content | preserve before
+PASS: insert block child around generated content | preserve after
+PASS: insert block child around generated content | layout tree builds=1
+PASS: insert block child around generated content | incremental tree matches full rebuild
+PASS: insert absolute child in block flow | preserve parent
+PASS: insert absolute child in block flow | preserve before
+PASS: insert absolute child in block flow | preserve after
+PASS: insert absolute child in block flow | layout tree builds=1
+PASS: insert absolute child in block flow | incremental tree matches full rebuild
+PASS: insert floated child in block flow | preserve parent
+PASS: insert floated child in block flow | preserve before
+PASS: insert floated child in block flow | preserve after
+PASS: insert floated child in block flow | layout tree builds=1
+PASS: insert floated child in block flow | incremental tree matches full rebuild
+PASS: insert block child in flex | preserve parent
+PASS: insert block child in flex | preserve before
+PASS: insert block child in flex | preserve after
+PASS: insert block child in flex | layout tree builds=1
+PASS: insert block child in flex | incremental tree matches full rebuild
+PASS: insert inline child in flex | preserve parent
+PASS: insert inline child in flex | preserve before
+PASS: insert inline child in flex | preserve after
+PASS: insert inline child in flex | layout tree builds=1
+PASS: insert inline child in flex | incremental tree matches full rebuild
+PASS: insert absolute child in flex | preserve parent
+PASS: insert absolute child in flex | preserve before
+PASS: insert absolute child in flex | preserve after
+PASS: insert absolute child in flex | layout tree builds=1
+PASS: insert absolute child in flex | incremental tree matches full rebuild
+PASS: insert child in grid | preserve parent
+PASS: insert child in grid | preserve before
+PASS: insert child in grid | preserve after
+PASS: insert child in grid | layout tree builds=1
+PASS: insert child in grid | incremental tree matches full rebuild
+PASS: fall back for boxless insertion beside anonymous inline run | rebuild parent
+PASS: fall back for boxless insertion beside anonymous inline run | rebuild before
+PASS: fall back for boxless insertion beside anonymous inline run | layout tree builds=1
+PASS: fall back for boxless insertion beside anonymous inline run | incremental tree matches full rebuild
+PASS: fall back for inline child among block children | rebuild parent
+PASS: fall back for inline child among block children | layout tree builds=1
+PASS: fall back for inline child among block children | incremental tree matches full rebuild
+PASS: fall back for block child among inline children | rebuild parent
+PASS: fall back for block child among inline children | layout tree builds=1
+PASS: fall back for block child among inline children | incremental tree matches full rebuild
+PASS: fall back for block child beside anonymous inline run | rebuild parent
+PASS: fall back for block child beside anonymous inline run | layout tree builds=1
+PASS: fall back for block child beside anonymous inline run | incremental tree matches full rebuild
+PASS: fall back for display contents child in flex | rebuild parent
+PASS: fall back for display contents child in flex | layout tree builds=1
+PASS: fall back for display contents child in flex | incremental tree matches full rebuild
+PASS: fall back for SVG child in flex | rebuild parent
+PASS: fall back for SVG child in flex | layout tree builds=1
+PASS: fall back for SVG child in flex | incremental tree matches full rebuild
+PASS: remove first block child in block flow | preserve parent
+PASS: remove first block child in block flow | preserve after
+PASS: remove first block child in block flow | layout tree builds=0
+PASS: remove first block child in block flow | incremental tree matches full rebuild
+PASS: remove middle block child in block flow | preserve parent
+PASS: remove middle block child in block flow | preserve before
+PASS: remove middle block child in block flow | preserve after
+PASS: remove middle block child in block flow | layout tree builds=0
+PASS: remove middle block child in block flow | incremental tree matches full rebuild
+PASS: remove last block child in block flow | preserve parent
+PASS: remove last block child in block flow | preserve before
+PASS: remove last block child in block flow | layout tree builds=0
+PASS: remove last block child in block flow | incremental tree matches full rebuild
+PASS: remove only block child in block flow | preserve parent
+PASS: remove only block child in block flow | layout tree builds=0
+PASS: remove only block child in block flow | incremental tree matches full rebuild
+PASS: remove block subtree in block flow | preserve parent
+PASS: remove block subtree in block flow | preserve before
+PASS: remove block subtree in block flow | preserve after
+PASS: remove block subtree in block flow | layout tree builds=0
+PASS: remove block subtree in block flow | incremental tree matches full rebuild
+PASS: remove block sibling run in block flow | preserve parent
+PASS: remove block sibling run in block flow | preserve before
+PASS: remove block sibling run in block flow | preserve after
+PASS: remove block sibling run in block flow | layout tree builds=0
+PASS: remove block sibling run in block flow | incremental tree matches full rebuild
+PASS: remove block child around generated content | preserve parent
+PASS: remove block child around generated content | preserve before
+PASS: remove block child around generated content | preserve after
+PASS: remove block child around generated content | layout tree builds=0
+PASS: remove block child around generated content | incremental tree matches full rebuild
+PASS: remove block child beside one inline run | preserve parent
+PASS: remove block child beside one inline run | preserve after
+PASS: remove block child beside one inline run | layout tree builds=0
+PASS: remove block child beside one inline run | incremental tree matches full rebuild
+PASS: remove child in flex | preserve parent
+PASS: remove child in flex | preserve before
+PASS: remove child in flex | preserve after
+PASS: remove child in flex | layout tree builds=0
+PASS: remove child in flex | incremental tree matches full rebuild
+PASS: remove child in grid | preserve parent
+PASS: remove child in grid | preserve before
+PASS: remove child in grid | preserve after
+PASS: remove child in grid | layout tree builds=0
+PASS: remove child in grid | incremental tree matches full rebuild
+PASS: fall back when removed block affects following counters | rebuild parent
+PASS: fall back when removed block affects following counters | layout tree builds=1
+PASS: fall back when removed block affects following counters | incremental tree matches full rebuild
+PASS: fall back for floated child removal in block flow | rebuild parent
+PASS: fall back for floated child removal in block flow | layout tree builds=1
+PASS: fall back for floated child removal in block flow | incremental tree matches full rebuild
+PASS: fall back for absolute child removal in block flow | rebuild parent
+PASS: fall back for absolute child removal in block flow | layout tree builds=1
+PASS: fall back for absolute child removal in block flow | incremental tree matches full rebuild
+PASS: fall back for absolute child removal in flex | rebuild parent
+PASS: fall back for absolute child removal in flex | layout tree builds=1
+PASS: fall back for absolute child removal in flex | incremental tree matches full rebuild
+PASS: fall back for nested absolute child removal | rebuild parent
+PASS: fall back for nested absolute child removal | layout tree builds=1
+PASS: fall back for nested absolute child removal | incremental tree matches full rebuild
+PASS: fall back for inline child removal | rebuild parent
+PASS: fall back for inline child removal | layout tree builds=1
+PASS: fall back for inline child removal | incremental tree matches full rebuild
+PASS: fall back for block removal between inline runs | rebuild parent
+PASS: fall back for block removal between inline runs | layout tree builds=1
+PASS: fall back for block removal between inline runs | incremental tree matches full rebuild
+PASS: fall back for display contents removal | rebuild parent
+PASS: fall back for display contents removal | layout tree builds=1
+PASS: fall back for display contents removal | incremental tree matches full rebuild
+PASS: fall back for table-internal removal | rebuild parent
+PASS: fall back for table-internal removal | layout tree builds=1
+PASS: fall back for table-internal removal | incremental tree matches full rebuild
