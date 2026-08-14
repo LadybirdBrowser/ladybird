@@ -442,7 +442,7 @@ struct FillPath {
     static constexpr StringView command_name = "FillPath"sv;
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::FillPath;
 
-    Gfx::IntRect path_bounding_rect;
+    Gfx::FloatRect path_bounding_rect;
     DisplayListDataSpan path_data;
     float opacity { 1.0f };
     PathPaintKind paint_kind { PathPaintKind::Color };
@@ -451,7 +451,7 @@ struct FillPath {
     Gfx::WindingRule winding_rule;
     Gfx::ShouldAntiAlias should_anti_alias { Gfx::ShouldAntiAlias::Yes };
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return path_bounding_rect; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const { return Gfx::enclosing_int_rect(path_bounding_rect); }
 
     void dump(StringBuilder&) const;
 };
@@ -465,7 +465,7 @@ struct StrokePath {
     float miter_limit;
     DisplayListDataSpan dash_array;
     float dash_offset;
-    Gfx::IntRect path_bounding_rect;
+    Gfx::FloatRect path_bounding_rect;
     DisplayListDataSpan path_data;
     float opacity;
     PathPaintKind paint_kind { PathPaintKind::Color };
@@ -474,7 +474,7 @@ struct StrokePath {
     float thickness;
     Gfx::ShouldAntiAlias should_anti_alias { Gfx::ShouldAntiAlias::Yes };
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return path_bounding_rect; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const { return Gfx::enclosing_int_rect(path_bounding_rect); }
 
     void dump(StringBuilder&) const;
 };

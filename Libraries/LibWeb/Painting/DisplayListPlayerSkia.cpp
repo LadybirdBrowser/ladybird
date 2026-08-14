@@ -820,7 +820,7 @@ void DisplayListPlayerSkia::play_command(FillPath const& command)
 
     SkPaint paint;
     if (command.paint_kind == PathPaintKind::PaintStyle) {
-        paint = paint_style_to_skia_paint(command.paint_style, command.bounding_rect().to_type<float>());
+        paint = paint_style_to_skia_paint(command.paint_style, command.path_bounding_rect);
         paint.setAlphaf(command.opacity);
     } else {
         paint.setColor(to_skia_color(command.color));
@@ -834,7 +834,7 @@ void DisplayListPlayerSkia::play_command(StrokePath const& command)
     auto path = Gfx::to_skia_path(path_from_data(command.path_data));
     SkPaint paint;
     if (command.paint_kind == PathPaintKind::PaintStyle) {
-        paint = paint_style_to_skia_paint(command.paint_style, command.bounding_rect().to_type<float>());
+        paint = paint_style_to_skia_paint(command.paint_style, command.path_bounding_rect);
         paint.setAlphaf(command.opacity);
     } else {
         paint.setColor(to_skia_color(command.color));
