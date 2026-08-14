@@ -1,0 +1,262 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Generate text-fragment URLs from ranges</title>
+<link rel="help" href="https://wicg.github.io/scroll-to-text-fragment/#generating-text-fragment-directives">
+<script src="../wpt-import/resources/testharness.js"></script>
+<script src="../wpt-import/resources/testharnessreport.js"></script>
+
+<main id="fixture"></main>
+
+<script>
+function setFixture(markup) {
+    fixture.innerHTML = markup;
+}
+
+function rangeWithin(element, start, end) {
+    const range = document.createRange();
+    range.setStart(element.firstChild, start);
+    range.setEnd(element.firstChild, end);
+    return range;
+}
+
+function generate(range, url = "https://example.com/page.html") {
+    return internals.generateTextFragmentURL(range, url);
+}
+
+test(() => {
+    setFixture(`<p id="target">these five words form unique text</p>`);
+    const range = rangeWithin(target, 0, target.textContent.length);
+    assert_equals(generate(range), "https://example.com/page.html#:~:text=these%20five%20words%20form%20unique%20text");
+}, "An exact directive is preferred for unique selections shorter than 300 code points");
+
+test(() => {
+    setFixture(`<p id="target">before target after</p>`);
+    const range = rangeWithin(target, 7, 13);
+    assert_equals(generate(range), "https://example.com/page.html#:~:text=before-,target");
+}, "A short selection receives the shortest available context");
+
+test(() => {
+    setFixture(`<p id="target">before partially after</p>`);
+    const range = rangeWithin(target, 10, 15);
+    assert_equals(generate(range), "https://example.com/page.html#:~:text=before-,partially");
+}, "Selection endpoints inside words expand to word boundaries");
+
+test(() => {
+    setFixture(`<p id="target">these <span>five words</span> form unique text</p>`);
+    const range = document.createRange();
+    range.setStart(target.firstChild, 0);
+    range.setEnd(target.lastChild, target.lastChild.length);
+    assert_equals(generate(range), "https://example.com/page.html#:~:text=these%20five%20words%20form%20unique%20text");
+}, "Selections spanning inline text nodes retain the correct DOM boundaries");
+
+test(() => {
+    setFixture(`
+        <p>left café phrase right</p>
+        <p id="target">unique Café phrase after</p>
+    `);
+    const range = rangeWithin(target, 7, 11);
+    assert_equals(generate(range), "https://example.com/page.html#:~:text=unique-,Caf%C3%A9");
+}, "Uniqueness checks use primary-strength Unicode matching");
+
+test(() => {
+    setFixture(`
+        <p>alpha repeated phrase omega</p>
+        <p id="target">beta repeated phrase gamma</p>
+    `);
+    const range = rangeWithin(target, 5, 20);
+    assert_equals(generate(range), "https://example.com/page.html#:~:text=beta-,repeated%20phrase");
+}, "Prefix context disambiguates repeated selected text");
+
+test(() => {
+    setFixture(`
+        <p id="target">same repeated phrase first</p>
+        <p>same repeated phrase second</p>
+    `);
+    const range = rangeWithin(target, 5, 20);
+    assert_equals(generate(range), "https://example.com/page.html#:~:text=repeated%20phrase,-first");
+}, "Suffix context is used when prefix context remains ambiguous");
+
+test(() => {
+    setFixture(`
+        <p id="target">alpha repeated phrase omega</p>
+        <p>alpha repeated phrase beta</p>
+        <p>gamma repeated phrase omega</p>
+    `);
+    const range = rangeWithin(target, 6, 21);
+    assert_equals(generate(range), "https://example.com/page.html#:~:text=alpha-,repeated%20phrase,-omega");
+}, "Prefix and suffix context are combined when neither is sufficient alone");
+
+test(() => {
+    setFixture(`
+        <p>alpha</p><p id="target">target</p>
+        <p>beta</p><p>target</p>
+    `);
+    const range = rangeWithin(target, 0, target.textContent.length);
+    assert_equals(generate(range), "https://example.com/page.html#:~:text=alpha-,target");
+}, "Prefix context can come from an adjacent searchable block");
+
+test(() => {
+    setFixture(`
+        <p id="target">target</p><p>alpha</p>
+        <p>target</p><p>beta</p>
+    `);
+    const range = rangeWithin(target, 0, target.textContent.length);
+    assert_equals(generate(range), "https://example.com/page.html#:~:text=target,-alpha");
+}, "Suffix context can come from an adjacent searchable block");
+
+test(() => {
+    setFixture(`
+        <p id="target">alpha one repeated phrase omega</p>
+        <p>alpha one repeated phrase beta</p>
+        <p>gamma repeated phrase omega</p>
+        <p>delta one repeated phrase omega</p>
+    `);
+    const start = target.textContent.indexOf("repeated phrase");
+    const range = rangeWithin(target, start, start + "repeated phrase".length);
+    assert_equals(generate(range), "https://example.com/page.html#:~:text=alpha%20one-,repeated%20phrase,-omega");
+}, "The shortest combined context may use different word counts on each side");
+
+test(() => {
+    const sharedPrefix = Array.from({ length: 10 }, (_, index) => `prefix${index}`).join(" ");
+    const sharedSuffix = Array.from({ length: 10 }, (_, index) => `suffix${index}`).join(" ");
+    setFixture(`
+        <p id="target">first ${sharedPrefix} repeated phrase ${sharedSuffix} first-end</p>
+        <p>second ${sharedPrefix} repeated phrase ${sharedSuffix} second-end</p>
+    `);
+    const start = target.textContent.indexOf("repeated phrase");
+    const range = rangeWithin(target, start, start + "repeated phrase".length);
+    assert_equals(generate(range), null);
+}, "Generation fails when ten words of context on each side remain ambiguous");
+
+test(() => {
+    const text = Array.from({ length: 80 }, (_, index) => `word${index}`).join(" ");
+    setFixture(`<p id="target"></p>`);
+    target.textContent = text;
+    const range = rangeWithin(target, 0, text.length);
+    const generated = generate(range);
+    assert_not_equals(generated, null);
+    assert_true(generated.includes(","), "A range directive contains separate start and end terms");
+    assert_false(generated.includes(encodeURIComponent(text)), "The full long selection is not embedded in the URL");
+}, "Selections longer than 300 code points use range directives");
+
+test(() => {
+    const text = "x".repeat(301);
+    setFixture(`<p id="target"></p>`);
+    target.textContent = text;
+    assert_equals(generate(rangeWithin(target, 0, text.length)), null);
+}, "A long single word is rejected when it cannot form a range directive");
+
+test(() => {
+    const filler = Array.from({ length: 50 }, (_, index) => `filler${index}`).join(" ");
+    const text = `start unique words ${filler} the final phrase ${filler} the final phrase after context`;
+    setFixture(`<p id="target"></p>`);
+    target.textContent = text;
+    const range = rangeWithin(target, 0, text.lastIndexOf(" after context"));
+    assert_equals(generate(range), "https://example.com/page.html#:~:text=start%20unique%20words,the%20final%20phrase,-after");
+}, "Suffix context retries later range-end matches");
+
+test(() => {
+    setFixture(`<p id="start">first block contains selected words</p><p id="end">second block finishes the selection</p>`);
+    const range = document.createRange();
+    range.setStart(start.firstChild, 0);
+    range.setEnd(end.firstChild, end.textContent.length);
+    const generated = generate(range);
+    assert_not_equals(generated, null);
+    assert_true(generated.includes(","));
+}, "Selections crossing searchable blocks use range directives");
+
+test(() => {
+    setFixture(`<p id="target">before target after</p>`);
+    const range = rangeWithin(target, 7, 13);
+    assert_equals(
+        generate(range, "https://example.com/page.html#section:~:text=old&custom=value"),
+        "https://example.com/page.html#section:~:custom=value&text=before-,target"
+    );
+}, "Existing ordinary fragments and non-text directives are preserved while text directives are replaced");
+
+test(() => {
+    setFixture(`<p id="target">these five words form unique text</p>`);
+    const range = rangeWithin(target, 0, target.textContent.length);
+    assert_equals(
+        generate(range, "https://example.com/page.html#section"),
+        "https://example.com/page.html#section:~:text=these%20five%20words%20form%20unique%20text"
+    );
+    assert_equals(
+        generate(range, "https://example.com/page.html#:~:custom=value&text=old&TEXT=retained&text=older"),
+        "https://example.com/page.html#:~:custom=value&TEXT=retained&text=these%20five%20words%20form%20unique%20text"
+    );
+}, "Ordinary fragments are retained and only lowercase text directives are replaced");
+
+test(() => {
+    setFixture(`<p id="target">before a-b,c&amp;d after</p>`);
+    const range = rangeWithin(target, 7, 14);
+    assert_equals(generate(range), "https://example.com/page.html#:~:text=a%2Db%2Cc%26d");
+}, "Text-directive syntax characters are percent encoded");
+
+test(() => {
+    setFixture(`<div contenteditable id="target">editable selected text</div>`);
+    const range = rangeWithin(target, 0, target.textContent.length);
+    assert_equals(generate(range), null);
+}, "Selections in editable content are rejected");
+
+test(() => {
+    setFixture(`<div contenteditable><span id="target">nested editable selected text</span></div>`);
+    const range = rangeWithin(target, 0, target.textContent.length);
+    assert_equals(generate(range), null);
+}, "Selections nested inside an editing host are rejected");
+
+test(() => {
+    setFixture(`<p><span id="target">these five words form unique text</span> <span contenteditable>unrelated editable text</span></p>`);
+    const range = rangeWithin(target, 0, target.textContent.length);
+    assert_equals(generate(range), "https://example.com/page.html#:~:text=these%20five%20words%20form%20unique%20text");
+}, "Editable text outside the selection does not prevent generation");
+
+test(() => {
+    setFixture(`<p id="target">ordinary text <span contenteditable>editable text</span> ordinary ending</p>`);
+    const range = document.createRange();
+    range.selectNodeContents(target);
+    assert_equals(generate(range), null);
+}, "Selections partly containing an editing host are rejected");
+
+test(() => {
+    setFixture(`<p>before <span id="target">part</span><span contenteditable>ially</span> after</p>`);
+    const range = rangeWithin(target, 0, target.textContent.length);
+    assert_equals(generate(range), null);
+}, "Word-boundary expansion into editable content is rejected");
+
+test(() => {
+    setFixture(`<p id="target">ordinary text <input value="editable text"> ordinary ending</p>`);
+    const range = document.createRange();
+    range.selectNodeContents(target);
+    assert_equals(generate(range), null);
+}, "Selections containing form controls are rejected");
+
+test(() => {
+    setFixture(`<p id="target">these five words form unique text</p>`);
+    const range = rangeWithin(target, 0, target.textContent.length);
+    document.designMode = "on";
+    assert_equals(generate(range), null);
+    document.designMode = "off";
+}, "Selections in design-mode documents are rejected");
+
+test(() => {
+    setFixture(`<p id="target" hidden>these five words form unique text</p>`);
+    const range = rangeWithin(target, 0, target.textContent.length);
+    assert_equals(generate(range), null);
+}, "Selections outside the searchable text are rejected");
+
+test(() => {
+    setFixture(`<p id="target">   </p>`);
+    const range = rangeWithin(target, 0, target.textContent.length);
+    assert_equals(generate(range), null);
+    range.collapse();
+    assert_equals(generate(range), null);
+}, "Whitespace-only and collapsed selections are rejected");
+
+test(() => {
+    setFixture(`<p id="target">detached selected text</p>`);
+    const range = rangeWithin(target, 0, target.textContent.length);
+    target.remove();
+    assert_equals(generate(range), null);
+}, "Disconnected selections are rejected");
+</script>

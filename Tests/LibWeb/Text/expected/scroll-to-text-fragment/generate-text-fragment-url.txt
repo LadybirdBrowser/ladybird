@@ -1,0 +1,34 @@
+Harness status: OK
+
+Found 29 tests
+
+29 Pass
+Pass	An exact directive is preferred for unique selections shorter than 300 code points
+Pass	A short selection receives the shortest available context
+Pass	Selection endpoints inside words expand to word boundaries
+Pass	Selections spanning inline text nodes retain the correct DOM boundaries
+Pass	Uniqueness checks use primary-strength Unicode matching
+Pass	Prefix context disambiguates repeated selected text
+Pass	Suffix context is used when prefix context remains ambiguous
+Pass	Prefix and suffix context are combined when neither is sufficient alone
+Pass	Prefix context can come from an adjacent searchable block
+Pass	Suffix context can come from an adjacent searchable block
+Pass	The shortest combined context may use different word counts on each side
+Pass	Generation fails when ten words of context on each side remain ambiguous
+Pass	Selections longer than 300 code points use range directives
+Pass	A long single word is rejected when it cannot form a range directive
+Pass	Suffix context retries later range-end matches
+Pass	Selections crossing searchable blocks use range directives
+Pass	Existing ordinary fragments and non-text directives are preserved while text directives are replaced
+Pass	Ordinary fragments are retained and only lowercase text directives are replaced
+Pass	Text-directive syntax characters are percent encoded
+Pass	Selections in editable content are rejected
+Pass	Selections nested inside an editing host are rejected
+Pass	Editable text outside the selection does not prevent generation
+Pass	Selections partly containing an editing host are rejected
+Pass	Word-boundary expansion into editable content is rejected
+Pass	Selections containing form controls are rejected
+Pass	Selections in design-mode documents are rejected
+Pass	Selections outside the searchable text are rejected
+Pass	Whitespace-only and collapsed selections are rejected
+Pass	Disconnected selections are rejected
