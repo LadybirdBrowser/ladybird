@@ -1014,6 +1014,10 @@ static bool can_detach_layout_subtree_for_removal(Node const& node, Node const& 
     // reconstruct any affected wrappers.
     if ((parent_display.is_flow_inside() || parent_display.is_flow_root_inside())
         && !parent_layout_node->children_are_inline()) {
+        if (auto previous_layout_sibling = layout_node->previous_sibling(); previous_layout_sibling && previous_layout_sibling->is_anonymous()) {
+            if (auto next_layout_sibling = layout_node->next_sibling(); next_layout_sibling && next_layout_sibling->is_anonymous())
+                return false;
+        }
         return layout_node->display().is_block_outside();
     }
     return parent_layout_node->children_are_inline() && layout_node->is_inline_block() && !layout_node->is_out_of_flow();
