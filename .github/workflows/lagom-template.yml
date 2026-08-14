@@ -212,10 +212,10 @@ jobs:
         working-directory: ${{ github.workspace }}
         shell: bash
         run: |
-          git fetch --no-tags --depth=1 origin ${{ github.event.pull_request.base.sha }}
+          git fetch --no-tags --depth=2 origin "$(git rev-parse HEAD)"
           "${{ env.pythonLocation }}/bin/python" Meta/check-test-flakiness.py \
             --test-web-binary Build/bin/test-web \
-            --base-ref ${{ github.event.pull_request.base.sha }} \
+            --base-ref HEAD^1 \
             --deadline-seconds 1200 \
             --python-executable "${{ env.pythonLocation }}/bin/python" \
             | tee -a "$GITHUB_STEP_SUMMARY"
