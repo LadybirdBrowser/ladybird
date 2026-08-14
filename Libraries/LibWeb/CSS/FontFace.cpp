@@ -799,8 +799,9 @@ GC::Ref<WebIDL::Promise> FontFace::load()
                 // 1. If the attempt to load fails, reject font face’s [[FontStatusPromise]] with a DOMException whose name
                 //    is "NetworkError" and set font face’s status attribute to "error".
                 if (!maybe_typeface) {
-                    m_status = FontFaceLoadStatus::Error;
-                    WebIDL::reject_promise(m_font_status_promise, WebIDL::NetworkError::create("Failed to load font"_utf16));
+                    // NB: reject_status_promise() also marks the promise as handled: A font that fails to load must not
+                    //     surface an unhandled rejection on a page that never looks at the FontFace API.
+                    reject_status_promise(WebIDL::NetworkError::create("Failed to load font"_utf16));
 
                     // For each FontFaceSet font face is in:
                     for (auto& font_face_set : m_containing_sets) {
