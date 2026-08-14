@@ -995,6 +995,48 @@ after_step_7:
             return;
         }
 
+        // INTEROP: The cache shortcut in step 7 cannot handle responsive images because their source is not selected
+        //          until step 10. Reuse an already decoded selected source here so that replacing an img element does
+        //          not make the image disappear while the higher-layer cache processes the same resource again.
+        ListOfAvailableImages::Key key;
+        key.url = *url_string;
+        key.mode = m_cors_setting;
+        key.origin = document().origin();
+        if (auto* entry = document().list_of_available_images().get(key)) {
+            entry->ignore_higher_layer_caching = true;
+
+            unregister_with_decoded_image_data_if_needed();
+            abort_the_image_request(m_current_request);
+            abort_the_image_request(m_pending_request);
+            m_pending_request = nullptr;
+            m_load_event_delayer.clear();
+
+            m_current_request = ImageRequest::create();
+            m_current_request->set_image_data(entry->image_data);
+            m_current_request->set_state(ImageRequest::State::CompletelyAvailable);
+            m_current_request->set_current_pixel_density(pixel_density.value_or(1.0f));
+            register_with_decoded_image_data_if_needed();
+            m_current_request->prepare_for_presentation(*this);
+
+            document().style_computer().style_engine().record_element_style_input_change(style_node_id());
+            set_needs_layout_update_or_repaint_after_image_data_change(DOM::SetNeedsLayoutReason::HTMLImageElementUpdateTheImageData);
+
+            queue_an_element_task(HTML::Task::Source::DOMManipulation, [this, restart_animations, maybe_omit_events, url_string, previous_url, update_the_image_data_count] {
+                if (update_the_image_data_count != m_update_the_image_data_count)
+                    return;
+                if (!document().is_fully_active()) {
+                    m_load_event_delayer.clear();
+                    return;
+                }
+                if (restart_animations)
+                    restart_the_animation();
+                m_current_request->set_current_url(document(), *url_string);
+                if (!maybe_omit_events || previous_url != *url_string)
+                    dispatch_event(DOM::Event::create(HTML::relevant_global_object(*this), HTML::EventNames::load));
+            });
+            return;
+        }
+
         // 14. If the pending request is not null and urlString is the same as the pending request's current URL, then return.
         if (m_pending_request && *url_string == m_pending_request->current_url())
             return;

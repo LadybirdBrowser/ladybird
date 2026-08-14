@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    promiseTest(async () => {
+        const fallbackSource = "../../../Assets/120.png?fallback";
+        const selectedSource = "../../../Assets/120.png?selected";
+
+        const firstImage = document.createElement("img");
+        firstImage.src = fallbackSource;
+        firstImage.srcset = `${selectedSource} 1x`;
+        document.body.appendChild(firstImage);
+        await new Promise((resolve, reject) => {
+            firstImage.onload = resolve;
+            firstImage.onerror = () => reject(new Error("Failed to load first image"));
+        });
+        firstImage.remove();
+
+        const container = document.createElement("div");
+        container.innerHTML = `<img src="${fallbackSource}" srcset="${selectedSource} 1x">`;
+        const recreatedImage = container.firstElementChild;
+        document.body.appendChild(recreatedImage);
+
+        // Allow the image data update microtasks to select the srcset candidate. A cached image
+        // must remain completely available when a framework recreates its element.
+        await Promise.resolve();
+        await Promise.resolve();
+        println(`recreated image is completely available: ${recreatedImage.complete && recreatedImage.naturalWidth > 0}`);
+    });
+</script>
