@@ -1,0 +1,12 @@
+PASS: append element inside iframe document
+PASS: append text inside iframe document
+PASS: remove leaf inside iframe document
+PASS: remove subtree inside iframe document
+PASS: remove sibling run inside iframe document
+PASS: replace subtree inside iframe document
+PASS: move sibling inside iframe document
+PASS: clear with replaceChildren inside iframe document
+PASS: clear with innerHTML inside iframe document
+PASS: insert table subtree inside iframe document
+PASS: insert display contents subtree inside iframe document
+11 cases; 11 matched; 0 mismatched

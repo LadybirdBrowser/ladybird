@@ -1,0 +1,406 @@
+PASS: append element in inline
+PASS: append text in inline
+PASS: prepend element in inline
+PASS: insertBefore first in inline
+PASS: insertBefore middle in inline
+PASS: before element in inline
+PASS: after element in inline
+PASS: append mixed nodes in inline
+PASS: prepend mixed nodes in inline
+PASS: remove first in inline
+PASS: remove middle in inline
+PASS: remove last in inline
+PASS: removeChild in inline
+PASS: replaceChild in inline
+PASS: replaceWith in inline
+PASS: replaceWith empty in inline
+PASS: replaceChildren mixed in inline
+PASS: replaceChildren empty in inline
+PASS: innerHTML replace in inline
+PASS: innerHTML clear in inline
+PASS: outerHTML replace in inline
+PASS: outerHTML remove in inline
+PASS: textContent replace in inline
+PASS: textContent clear in inline
+PASS: move first to end in inline
+PASS: move last to start in inline
+PASS: move middle across parents in inline
+PASS: append DocumentFragment in inline
+PASS: insertAdjacentHTML beforebegin in inline
+PASS: insertAdjacentHTML afterbegin in inline
+PASS: insertAdjacentHTML beforeend in inline
+PASS: insertAdjacentHTML afterend in inline
+PASS: insertAdjacentElement in inline
+PASS: insertAdjacentText in inline
+PASS: splitText in inline
+PASS: CharacterData replaceData in inline
+PASS: normalize adjacent text in inline
+PASS: Range insertNode in inline
+PASS: Range deleteContents in inline
+PASS: Range extractContents in inline
+PASS: Range surroundContents in inline
+PASS: append imported subtree in inline
+PASS: append cloned subtree in inline
+PASS: append template contents in inline
+PASS: append DOMParser subtree in inline
+PASS: append element in list-item
+PASS: append text in list-item
+PASS: prepend element in list-item
+PASS: insertBefore first in list-item
+PASS: insertBefore middle in list-item
+PASS: before element in list-item
+PASS: after element in list-item
+PASS: append mixed nodes in list-item
+PASS: prepend mixed nodes in list-item
+PASS: remove first in list-item
+PASS: remove middle in list-item
+PASS: remove last in list-item
+PASS: removeChild in list-item
+PASS: replaceChild in list-item
+PASS: replaceWith in list-item
+PASS: replaceWith empty in list-item
+PASS: replaceChildren mixed in list-item
+PASS: replaceChildren empty in list-item
+PASS: innerHTML replace in list-item
+PASS: innerHTML clear in list-item
+PASS: outerHTML replace in list-item
+PASS: outerHTML remove in list-item
+PASS: textContent replace in list-item
+PASS: textContent clear in list-item
+PASS: move first to end in list-item
+PASS: move last to start in list-item
+PASS: move middle across parents in list-item
+PASS: append DocumentFragment in list-item
+PASS: insertAdjacentHTML beforebegin in list-item
+PASS: insertAdjacentHTML afterbegin in list-item
+PASS: insertAdjacentHTML beforeend in list-item
+PASS: insertAdjacentHTML afterend in list-item
+PASS: insertAdjacentElement in list-item
+PASS: insertAdjacentText in list-item
+PASS: splitText in list-item
+PASS: CharacterData replaceData in list-item
+PASS: normalize adjacent text in list-item
+PASS: Range insertNode in list-item
+PASS: Range deleteContents in list-item
+PASS: Range extractContents in list-item
+PASS: Range surroundContents in list-item
+PASS: append imported subtree in list-item
+PASS: append cloned subtree in list-item
+PASS: append template contents in list-item
+PASS: append DOMParser subtree in list-item
+PASS: append element in grid
+PASS: append text in grid
+PASS: prepend element in grid
+PASS: insertBefore first in grid
+PASS: insertBefore middle in grid
+PASS: before element in grid
+PASS: after element in grid
+PASS: append mixed nodes in grid
+PASS: prepend mixed nodes in grid
+PASS: remove first in grid
+PASS: remove middle in grid
+PASS: remove last in grid
+PASS: removeChild in grid
+PASS: replaceChild in grid
+PASS: replaceWith in grid
+PASS: replaceWith empty in grid
+PASS: replaceChildren mixed in grid
+PASS: replaceChildren empty in grid
+PASS: innerHTML replace in grid
+PASS: innerHTML clear in grid
+PASS: outerHTML replace in grid
+PASS: outerHTML remove in grid
+PASS: textContent replace in grid
+PASS: textContent clear in grid
+PASS: move first to end in grid
+PASS: move last to start in grid
+PASS: move middle across parents in grid
+PASS: append DocumentFragment in grid
+PASS: insertAdjacentHTML beforebegin in grid
+PASS: insertAdjacentHTML afterbegin in grid
+PASS: insertAdjacentHTML beforeend in grid
+PASS: insertAdjacentHTML afterend in grid
+PASS: insertAdjacentElement in grid
+PASS: insertAdjacentText in grid
+PASS: splitText in grid
+PASS: CharacterData replaceData in grid
+PASS: normalize adjacent text in grid
+PASS: Range insertNode in grid
+PASS: Range deleteContents in grid
+PASS: Range extractContents in grid
+PASS: Range surroundContents in grid
+PASS: append imported subtree in grid
+PASS: append cloned subtree in grid
+PASS: append template contents in grid
+PASS: append DOMParser subtree in grid
+PASS: append element in math
+PASS: append text in math
+PASS: prepend element in math
+PASS: insertBefore first in math
+PASS: insertBefore middle in math
+PASS: before element in math
+PASS: after element in math
+PASS: append mixed nodes in math
+PASS: prepend mixed nodes in math
+PASS: remove first in math
+PASS: remove middle in math
+PASS: remove last in math
+PASS: removeChild in math
+PASS: replaceChild in math
+PASS: replaceWith in math
+PASS: replaceWith empty in math
+PASS: replaceChildren mixed in math
+PASS: replaceChildren empty in math
+PASS: innerHTML replace in math
+PASS: innerHTML clear in math
+PASS: outerHTML replace in math
+PASS: outerHTML remove in math
+PASS: textContent replace in math
+PASS: textContent clear in math
+PASS: move first to end in math
+PASS: move last to start in math
+PASS: move middle across parents in math
+PASS: append DocumentFragment in math
+PASS: insertAdjacentHTML beforebegin in math
+PASS: insertAdjacentHTML afterbegin in math
+PASS: insertAdjacentHTML beforeend in math
+PASS: insertAdjacentHTML afterend in math
+PASS: insertAdjacentElement in math
+PASS: insertAdjacentText in math
+PASS: splitText in math
+PASS: CharacterData replaceData in math
+PASS: normalize adjacent text in math
+PASS: Range insertNode in math
+PASS: Range deleteContents in math
+PASS: Range extractContents in math
+PASS: Range surroundContents in math
+PASS: append imported subtree in math
+PASS: append cloned subtree in math
+PASS: append template contents in math
+PASS: append DOMParser subtree in math
+PASS: append element in table-header-group
+PASS: append text in table-header-group
+PASS: prepend element in table-header-group
+PASS: insertBefore first in table-header-group
+PASS: insertBefore middle in table-header-group
+PASS: before element in table-header-group
+PASS: after element in table-header-group
+PASS: append mixed nodes in table-header-group
+PASS: prepend mixed nodes in table-header-group
+PASS: remove first in table-header-group
+PASS: remove middle in table-header-group
+PASS: remove last in table-header-group
+PASS: removeChild in table-header-group
+PASS: replaceChild in table-header-group
+PASS: replaceWith in table-header-group
+PASS: replaceWith empty in table-header-group
+PASS: replaceChildren mixed in table-header-group
+PASS: replaceChildren empty in table-header-group
+PASS: innerHTML replace in table-header-group
+PASS: innerHTML clear in table-header-group
+PASS: outerHTML replace in table-header-group
+PASS: outerHTML remove in table-header-group
+PASS: textContent replace in table-header-group
+PASS: textContent clear in table-header-group
+PASS: move first to end in table-header-group
+PASS: move last to start in table-header-group
+PASS: move middle across parents in table-header-group
+PASS: append DocumentFragment in table-header-group
+PASS: insertAdjacentHTML beforebegin in table-header-group
+PASS: insertAdjacentHTML afterbegin in table-header-group
+PASS: insertAdjacentHTML beforeend in table-header-group
+PASS: insertAdjacentHTML afterend in table-header-group
+PASS: insertAdjacentElement in table-header-group
+PASS: insertAdjacentText in table-header-group
+PASS: splitText in table-header-group
+PASS: CharacterData replaceData in table-header-group
+PASS: normalize adjacent text in table-header-group
+PASS: Range insertNode in table-header-group
+PASS: Range deleteContents in table-header-group
+PASS: Range extractContents in table-header-group
+PASS: Range surroundContents in table-header-group
+PASS: append imported subtree in table-header-group
+PASS: append cloned subtree in table-header-group
+PASS: append template contents in table-header-group
+PASS: append DOMParser subtree in table-header-group
+PASS: append element in table-column-group
+PASS: append text in table-column-group
+PASS: prepend element in table-column-group
+PASS: insertBefore first in table-column-group
+PASS: insertBefore middle in table-column-group
+PASS: before element in table-column-group
+PASS: after element in table-column-group
+PASS: append mixed nodes in table-column-group
+PASS: prepend mixed nodes in table-column-group
+PASS: remove first in table-column-group
+PASS: remove middle in table-column-group
+PASS: remove last in table-column-group
+PASS: removeChild in table-column-group
+PASS: replaceChild in table-column-group
+PASS: replaceWith in table-column-group
+PASS: replaceWith empty in table-column-group
+PASS: replaceChildren mixed in table-column-group
+FAIL: replaceChildren empty in table-column-group
+PASS: innerHTML replace in table-column-group
+PASS: innerHTML clear in table-column-group
+PASS: outerHTML replace in table-column-group
+PASS: outerHTML remove in table-column-group
+PASS: textContent replace in table-column-group
+PASS: textContent clear in table-column-group
+PASS: move first to end in table-column-group
+PASS: move last to start in table-column-group
+PASS: move middle across parents in table-column-group
+PASS: append DocumentFragment in table-column-group
+PASS: insertAdjacentHTML beforebegin in table-column-group
+PASS: insertAdjacentHTML afterbegin in table-column-group
+PASS: insertAdjacentHTML beforeend in table-column-group
+PASS: insertAdjacentHTML afterend in table-column-group
+PASS: insertAdjacentElement in table-column-group
+PASS: insertAdjacentText in table-column-group
+PASS: splitText in table-column-group
+PASS: CharacterData replaceData in table-column-group
+PASS: normalize adjacent text in table-column-group
+PASS: Range insertNode in table-column-group
+PASS: Range deleteContents in table-column-group
+PASS: Range extractContents in table-column-group
+PASS: Range surroundContents in table-column-group
+PASS: append imported subtree in table-column-group
+PASS: append cloned subtree in table-column-group
+PASS: append template contents in table-column-group
+PASS: append DOMParser subtree in table-column-group
+PASS: append element in inline flow
+PASS: append text in inline flow
+PASS: prepend element in inline flow
+PASS: insertBefore first in inline flow
+PASS: insertBefore middle in inline flow
+PASS: before element in inline flow
+PASS: after element in inline flow
+PASS: append mixed nodes in inline flow
+PASS: prepend mixed nodes in inline flow
+PASS: remove first in inline flow
+PASS: remove middle in inline flow
+PASS: remove last in inline flow
+PASS: removeChild in inline flow
+PASS: replaceChild in inline flow
+PASS: replaceWith in inline flow
+PASS: replaceWith empty in inline flow
+PASS: replaceChildren mixed in inline flow
+PASS: replaceChildren empty in inline flow
+PASS: innerHTML replace in inline flow
+PASS: innerHTML clear in inline flow
+PASS: outerHTML replace in inline flow
+PASS: outerHTML remove in inline flow
+PASS: textContent replace in inline flow
+PASS: textContent clear in inline flow
+PASS: move first to end in inline flow
+PASS: move last to start in inline flow
+PASS: move middle across parents in inline flow
+PASS: append DocumentFragment in inline flow
+PASS: insertAdjacentHTML beforebegin in inline flow
+PASS: insertAdjacentHTML afterbegin in inline flow
+PASS: insertAdjacentHTML beforeend in inline flow
+PASS: insertAdjacentHTML afterend in inline flow
+PASS: insertAdjacentElement in inline flow
+PASS: insertAdjacentText in inline flow
+PASS: splitText in inline flow
+PASS: CharacterData replaceData in inline flow
+PASS: normalize adjacent text in inline flow
+PASS: Range insertNode in inline flow
+PASS: Range deleteContents in inline flow
+PASS: Range extractContents in inline flow
+PASS: Range surroundContents in inline flow
+PASS: append imported subtree in inline flow
+PASS: append cloned subtree in inline flow
+PASS: append template contents in inline flow
+PASS: append DOMParser subtree in inline flow
+PASS: append element in inline flex
+PASS: append text in inline flex
+PASS: prepend element in inline flex
+PASS: insertBefore first in inline flex
+PASS: insertBefore middle in inline flex
+PASS: before element in inline flex
+PASS: after element in inline flex
+PASS: append mixed nodes in inline flex
+PASS: prepend mixed nodes in inline flex
+PASS: remove first in inline flex
+PASS: remove middle in inline flex
+PASS: remove last in inline flex
+PASS: removeChild in inline flex
+PASS: replaceChild in inline flex
+PASS: replaceWith in inline flex
+PASS: replaceWith empty in inline flex
+PASS: replaceChildren mixed in inline flex
+PASS: replaceChildren empty in inline flex
+PASS: innerHTML replace in inline flex
+PASS: innerHTML clear in inline flex
+PASS: outerHTML replace in inline flex
+PASS: outerHTML remove in inline flex
+PASS: textContent replace in inline flex
+PASS: textContent clear in inline flex
+PASS: move first to end in inline flex
+PASS: move last to start in inline flex
+PASS: move middle across parents in inline flex
+PASS: append DocumentFragment in inline flex
+PASS: insertAdjacentHTML beforebegin in inline flex
+PASS: insertAdjacentHTML afterbegin in inline flex
+PASS: insertAdjacentHTML beforeend in inline flex
+PASS: insertAdjacentHTML afterend in inline flex
+PASS: insertAdjacentElement in inline flex
+PASS: insertAdjacentText in inline flex
+PASS: splitText in inline flex
+PASS: CharacterData replaceData in inline flex
+PASS: normalize adjacent text in inline flex
+PASS: Range insertNode in inline flex
+PASS: Range deleteContents in inline flex
+PASS: Range extractContents in inline flex
+PASS: Range surroundContents in inline flex
+PASS: append imported subtree in inline flex
+PASS: append cloned subtree in inline flex
+PASS: append template contents in inline flex
+PASS: append DOMParser subtree in inline flex
+PASS: append element in inline table
+PASS: append text in inline table
+PASS: prepend element in inline table
+PASS: insertBefore first in inline table
+PASS: insertBefore middle in inline table
+PASS: before element in inline table
+PASS: after element in inline table
+PASS: append mixed nodes in inline table
+PASS: prepend mixed nodes in inline table
+PASS: remove first in inline table
+PASS: remove middle in inline table
+PASS: remove last in inline table
+PASS: removeChild in inline table
+PASS: replaceChild in inline table
+PASS: replaceWith in inline table
+PASS: replaceWith empty in inline table
+PASS: replaceChildren mixed in inline table
+PASS: replaceChildren empty in inline table
+PASS: innerHTML replace in inline table
+PASS: innerHTML clear in inline table
+PASS: outerHTML replace in inline table
+PASS: outerHTML remove in inline table
+PASS: textContent replace in inline table
+PASS: textContent clear in inline table
+PASS: move first to end in inline table
+PASS: move last to start in inline table
+PASS: move middle across parents in inline table
+PASS: append DocumentFragment in inline table
+PASS: insertAdjacentHTML beforebegin in inline table
+PASS: insertAdjacentHTML afterbegin in inline table
+PASS: insertAdjacentHTML beforeend in inline table
+PASS: insertAdjacentHTML afterend in inline table
+PASS: insertAdjacentElement in inline table
+PASS: insertAdjacentText in inline table
+PASS: splitText in inline table
+PASS: CharacterData replaceData in inline table
+PASS: normalize adjacent text in inline table
+PASS: Range insertNode in inline table
+PASS: Range deleteContents in inline table
+PASS: Range extractContents in inline table
+PASS: Range surroundContents in inline table
+PASS: append imported subtree in inline table
+PASS: append cloned subtree in inline table
+PASS: append template contents in inline table
+PASS: append DOMParser subtree in inline table
+405 cases; 404 matched; 1 mismatched

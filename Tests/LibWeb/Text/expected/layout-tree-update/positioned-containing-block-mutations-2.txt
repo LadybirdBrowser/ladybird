@@ -1,0 +1,964 @@
+PASS: make ancestor static, fixed none under none
+PASS: move target to relative destination, absolute block under none
+PASS: wrap target in relative block, fixed inline under none
+PASS: unwrap target from relative block, absolute inline-block under none
+PASS: make ancestor static, fixed run-in under none
+PASS: move target to relative destination, absolute inline list-item under none
+PASS: wrap target in relative block, fixed flex under none
+PASS: unwrap target from relative block, absolute grid under none
+PASS: make ancestor static, fixed inline-grid under none
+PASS: move target to relative destination, absolute inline-table under none
+PASS: wrap target in relative block, fixed math under none
+PASS: unwrap target from relative block, absolute -webkit-inline-box under none
+PASS: make ancestor static, fixed table-row-group under none
+PASS: move target to relative destination, absolute table-footer-group under none
+PASS: wrap target in relative block, fixed table-row under none
+PASS: unwrap target from relative block, absolute table-column-group under none
+PASS: make ancestor static, fixed table-column under none
+PASS: move target to relative destination, absolute block flow under none
+PASS: wrap target in relative block, fixed inline flow under none
+PASS: unwrap target from relative block, absolute inline flow-root under none
+PASS: make ancestor static, fixed block flex under none
+PASS: move target to relative destination, absolute block grid under none
+PASS: wrap target in relative block, fixed inline grid under none
+PASS: unwrap target from relative block, absolute inline table under none
+PASS: make ancestor static, fixed block flow list-item under none
+PASS: make ancestor static, absolute none under contents
+FAIL: move ancestor across parents, fixed contents under contents
+PASS: wrap target in relative block, absolute inline under contents
+PASS: make ancestor relative, fixed flow-root under contents
+PASS: make ancestor static, absolute run-in under contents
+FAIL: move ancestor across parents, fixed list-item under contents
+PASS: wrap target in relative block, absolute flex under contents
+PASS: make ancestor relative, fixed inline-flex under contents
+PASS: make ancestor static, absolute inline-grid under contents
+FAIL: move ancestor across parents, fixed table under contents
+PASS: wrap target in relative block, absolute math under contents
+PASS: make ancestor relative, fixed -webkit-box under contents
+PASS: make ancestor static, absolute table-row-group under contents
+FAIL: move ancestor across parents, fixed table-header-group under contents
+PASS: wrap target in relative block, absolute table-row under contents
+PASS: make ancestor relative, fixed table-cell under contents
+PASS: make ancestor static, absolute table-column under contents
+FAIL: move ancestor across parents, fixed table-caption under contents
+PASS: wrap target in relative block, absolute inline flow under contents
+PASS: make ancestor relative, fixed block flow-root under contents
+PASS: make ancestor static, absolute block flex under contents
+FAIL: move ancestor across parents, fixed inline flex under contents
+PASS: wrap target in relative block, absolute inline grid under contents
+PASS: make ancestor relative, fixed block table under contents
+PASS: make ancestor static, absolute block flow list-item under contents
+FAIL: move ancestor across parents, fixed inline flow list-item under contents
+PASS: move ancestor across parents, absolute contents under block
+PASS: unwrap target from relative block, fixed block under block
+PASS: make ancestor relative, absolute flow-root under block
+PASS: move target to relative destination, fixed inline-block under block
+PASS: move ancestor across parents, absolute list-item under block
+PASS: unwrap target from relative block, fixed inline list-item under block
+PASS: make ancestor relative, absolute inline-flex under block
+PASS: move target to relative destination, fixed grid under block
+PASS: move ancestor across parents, absolute table under block
+PASS: unwrap target from relative block, fixed inline-table under block
+PASS: make ancestor relative, absolute -webkit-box under block
+PASS: move target to relative destination, fixed -webkit-inline-box under block
+PASS: move ancestor across parents, absolute table-header-group under block
+PASS: unwrap target from relative block, fixed table-footer-group under block
+PASS: make ancestor relative, absolute table-cell under block
+PASS: move target to relative destination, fixed table-column-group under block
+PASS: move ancestor across parents, absolute table-caption under block
+PASS: unwrap target from relative block, fixed block flow under block
+PASS: make ancestor relative, absolute block flow-root under block
+PASS: move target to relative destination, fixed inline flow-root under block
+PASS: move ancestor across parents, absolute inline flex under block
+PASS: unwrap target from relative block, fixed block grid under block
+PASS: make ancestor relative, absolute block table under block
+PASS: move target to relative destination, fixed inline table under block
+PASS: move ancestor across parents, absolute inline flow list-item under block
+PASS: wrap target in relative block, fixed none under inline
+PASS: unwrap target from relative block, absolute block under inline
+PASS: make ancestor static, fixed inline under inline
+PASS: move target to relative destination, absolute inline-block under inline
+PASS: wrap target in relative block, fixed run-in under inline
+PASS: unwrap target from relative block, absolute inline list-item under inline
+PASS: make ancestor static, fixed flex under inline
+PASS: move target to relative destination, absolute grid under inline
+PASS: wrap target in relative block, fixed inline-grid under inline
+PASS: unwrap target from relative block, absolute inline-table under inline
+PASS: make ancestor static, fixed math under inline
+PASS: move target to relative destination, absolute -webkit-inline-box under inline
+PASS: wrap target in relative block, fixed table-row-group under inline
+PASS: unwrap target from relative block, absolute table-footer-group under inline
+PASS: make ancestor static, fixed table-row under inline
+PASS: move target to relative destination, absolute table-column-group under inline
+PASS: wrap target in relative block, fixed table-column under inline
+PASS: unwrap target from relative block, absolute block flow under inline
+PASS: make ancestor static, fixed inline flow under inline
+PASS: move target to relative destination, absolute inline flow-root under inline
+PASS: wrap target in relative block, fixed block flex under inline
+PASS: unwrap target from relative block, absolute block grid under inline
+PASS: make ancestor static, fixed inline grid under inline
+PASS: move target to relative destination, absolute inline table under inline
+PASS: wrap target in relative block, fixed block flow list-item under inline
+PASS: wrap target in relative block, absolute none under flow-root
+PASS: make ancestor relative, fixed contents under flow-root
+PASS: make ancestor static, absolute inline under flow-root
+PASS: move ancestor across parents, fixed flow-root under flow-root
+PASS: wrap target in relative block, absolute run-in under flow-root
+PASS: make ancestor relative, fixed list-item under flow-root
+PASS: make ancestor static, absolute flex under flow-root
+PASS: move ancestor across parents, fixed inline-flex under flow-root
+PASS: wrap target in relative block, absolute inline-grid under flow-root
+PASS: make ancestor relative, fixed table under flow-root
+PASS: make ancestor static, absolute math under flow-root
+PASS: move ancestor across parents, fixed -webkit-box under flow-root
+PASS: wrap target in relative block, absolute table-row-group under flow-root
+PASS: make ancestor relative, fixed table-header-group under flow-root
+PASS: make ancestor static, absolute table-row under flow-root
+PASS: move ancestor across parents, fixed table-cell under flow-root
+PASS: wrap target in relative block, absolute table-column under flow-root
+PASS: make ancestor relative, fixed table-caption under flow-root
+PASS: make ancestor static, absolute inline flow under flow-root
+PASS: move ancestor across parents, fixed block flow-root under flow-root
+PASS: wrap target in relative block, absolute block flex under flow-root
+PASS: make ancestor relative, fixed inline flex under flow-root
+PASS: make ancestor static, absolute inline grid under flow-root
+PASS: move ancestor across parents, fixed block table under flow-root
+PASS: wrap target in relative block, absolute block flow list-item under flow-root
+PASS: make ancestor relative, fixed inline flow list-item under flow-root
+PASS: make ancestor relative, absolute contents under inline-block
+PASS: move target to relative destination, fixed block under inline-block
+PASS: move ancestor across parents, absolute flow-root under inline-block
+PASS: unwrap target from relative block, fixed inline-block under inline-block
+PASS: make ancestor relative, absolute list-item under inline-block
+PASS: move target to relative destination, fixed inline list-item under inline-block
+PASS: move ancestor across parents, absolute inline-flex under inline-block
+PASS: unwrap target from relative block, fixed grid under inline-block
+PASS: make ancestor relative, absolute table under inline-block
+PASS: move target to relative destination, fixed inline-table under inline-block
+PASS: move ancestor across parents, absolute -webkit-box under inline-block
+PASS: unwrap target from relative block, fixed -webkit-inline-box under inline-block
+PASS: make ancestor relative, absolute table-header-group under inline-block
+PASS: move target to relative destination, fixed table-footer-group under inline-block
+PASS: move ancestor across parents, absolute table-cell under inline-block
+PASS: unwrap target from relative block, fixed table-column-group under inline-block
+PASS: make ancestor relative, absolute table-caption under inline-block
+PASS: move target to relative destination, fixed block flow under inline-block
+PASS: move ancestor across parents, absolute block flow-root under inline-block
+PASS: unwrap target from relative block, fixed inline flow-root under inline-block
+PASS: make ancestor relative, absolute inline flex under inline-block
+PASS: move target to relative destination, fixed block grid under inline-block
+PASS: move ancestor across parents, absolute block table under inline-block
+PASS: unwrap target from relative block, fixed inline table under inline-block
+PASS: make ancestor relative, absolute inline flow list-item under inline-block
+PASS: make ancestor static, fixed none under run-in
+PASS: move target to relative destination, absolute block under run-in
+PASS: wrap target in relative block, fixed inline under run-in
+PASS: unwrap target from relative block, absolute inline-block under run-in
+PASS: make ancestor static, fixed run-in under run-in
+PASS: move target to relative destination, absolute inline list-item under run-in
+PASS: wrap target in relative block, fixed flex under run-in
+PASS: unwrap target from relative block, absolute grid under run-in
+PASS: make ancestor static, fixed inline-grid under run-in
+PASS: move target to relative destination, absolute inline-table under run-in
+PASS: wrap target in relative block, fixed math under run-in
+PASS: unwrap target from relative block, absolute -webkit-inline-box under run-in
+PASS: make ancestor static, fixed table-row-group under run-in
+PASS: move target to relative destination, absolute table-footer-group under run-in
+PASS: wrap target in relative block, fixed table-row under run-in
+PASS: unwrap target from relative block, absolute table-column-group under run-in
+PASS: make ancestor static, fixed table-column under run-in
+PASS: move target to relative destination, absolute block flow under run-in
+PASS: wrap target in relative block, fixed inline flow under run-in
+PASS: unwrap target from relative block, absolute inline flow-root under run-in
+PASS: make ancestor static, fixed block flex under run-in
+PASS: move target to relative destination, absolute block grid under run-in
+PASS: wrap target in relative block, fixed inline grid under run-in
+PASS: unwrap target from relative block, absolute inline table under run-in
+PASS: make ancestor static, fixed block flow list-item under run-in
+PASS: make ancestor static, absolute none under list-item
+PASS: move ancestor across parents, fixed contents under list-item
+PASS: wrap target in relative block, absolute inline under list-item
+PASS: make ancestor relative, fixed flow-root under list-item
+PASS: make ancestor static, absolute run-in under list-item
+PASS: move ancestor across parents, fixed list-item under list-item
+PASS: wrap target in relative block, absolute flex under list-item
+PASS: make ancestor relative, fixed inline-flex under list-item
+PASS: make ancestor static, absolute inline-grid under list-item
+PASS: move ancestor across parents, fixed table under list-item
+PASS: wrap target in relative block, absolute math under list-item
+PASS: make ancestor relative, fixed -webkit-box under list-item
+PASS: make ancestor static, absolute table-row-group under list-item
+PASS: move ancestor across parents, fixed table-header-group under list-item
+PASS: wrap target in relative block, absolute table-row under list-item
+PASS: make ancestor relative, fixed table-cell under list-item
+PASS: make ancestor static, absolute table-column under list-item
+PASS: move ancestor across parents, fixed table-caption under list-item
+PASS: wrap target in relative block, absolute inline flow under list-item
+PASS: make ancestor relative, fixed block flow-root under list-item
+PASS: make ancestor static, absolute block flex under list-item
+PASS: move ancestor across parents, fixed inline flex under list-item
+PASS: wrap target in relative block, absolute inline grid under list-item
+PASS: make ancestor relative, fixed block table under list-item
+PASS: make ancestor static, absolute block flow list-item under list-item
+PASS: move ancestor across parents, fixed inline flow list-item under list-item
+PASS: move ancestor across parents, absolute contents under inline list-item
+PASS: unwrap target from relative block, fixed block under inline list-item
+PASS: make ancestor relative, absolute flow-root under inline list-item
+PASS: move target to relative destination, fixed inline-block under inline list-item
+PASS: move ancestor across parents, absolute list-item under inline list-item
+PASS: unwrap target from relative block, fixed inline list-item under inline list-item
+PASS: make ancestor relative, absolute inline-flex under inline list-item
+PASS: move target to relative destination, fixed grid under inline list-item
+PASS: move ancestor across parents, absolute table under inline list-item
+PASS: unwrap target from relative block, fixed inline-table under inline list-item
+PASS: make ancestor relative, absolute -webkit-box under inline list-item
+PASS: move target to relative destination, fixed -webkit-inline-box under inline list-item
+PASS: move ancestor across parents, absolute table-header-group under inline list-item
+PASS: unwrap target from relative block, fixed table-footer-group under inline list-item
+PASS: make ancestor relative, absolute table-cell under inline list-item
+PASS: move target to relative destination, fixed table-column-group under inline list-item
+PASS: move ancestor across parents, absolute table-caption under inline list-item
+PASS: unwrap target from relative block, fixed block flow under inline list-item
+PASS: make ancestor relative, absolute block flow-root under inline list-item
+PASS: move target to relative destination, fixed inline flow-root under inline list-item
+PASS: move ancestor across parents, absolute inline flex under inline list-item
+PASS: unwrap target from relative block, fixed block grid under inline list-item
+PASS: make ancestor relative, absolute block table under inline list-item
+PASS: move target to relative destination, fixed inline table under inline list-item
+PASS: move ancestor across parents, absolute inline flow list-item under inline list-item
+PASS: wrap target in relative block, fixed none under flex
+PASS: unwrap target from relative block, absolute block under flex
+PASS: make ancestor static, fixed inline under flex
+PASS: move target to relative destination, absolute inline-block under flex
+PASS: wrap target in relative block, fixed run-in under flex
+PASS: unwrap target from relative block, absolute inline list-item under flex
+PASS: make ancestor static, fixed flex under flex
+PASS: move target to relative destination, absolute grid under flex
+PASS: wrap target in relative block, fixed inline-grid under flex
+PASS: unwrap target from relative block, absolute inline-table under flex
+PASS: make ancestor static, fixed math under flex
+PASS: move target to relative destination, absolute -webkit-inline-box under flex
+PASS: wrap target in relative block, fixed table-row-group under flex
+PASS: unwrap target from relative block, absolute table-footer-group under flex
+PASS: make ancestor static, fixed table-row under flex
+PASS: move target to relative destination, absolute table-column-group under flex
+PASS: wrap target in relative block, fixed table-column under flex
+PASS: unwrap target from relative block, absolute block flow under flex
+PASS: make ancestor static, fixed inline flow under flex
+PASS: move target to relative destination, absolute inline flow-root under flex
+PASS: wrap target in relative block, fixed block flex under flex
+PASS: unwrap target from relative block, absolute block grid under flex
+PASS: make ancestor static, fixed inline grid under flex
+PASS: move target to relative destination, absolute inline table under flex
+PASS: wrap target in relative block, fixed block flow list-item under flex
+PASS: wrap target in relative block, absolute none under inline-flex
+PASS: make ancestor relative, fixed contents under inline-flex
+PASS: make ancestor static, absolute inline under inline-flex
+PASS: move ancestor across parents, fixed flow-root under inline-flex
+PASS: wrap target in relative block, absolute run-in under inline-flex
+PASS: make ancestor relative, fixed list-item under inline-flex
+PASS: make ancestor static, absolute flex under inline-flex
+PASS: move ancestor across parents, fixed inline-flex under inline-flex
+PASS: wrap target in relative block, absolute inline-grid under inline-flex
+PASS: make ancestor relative, fixed table under inline-flex
+PASS: make ancestor static, absolute math under inline-flex
+PASS: move ancestor across parents, fixed -webkit-box under inline-flex
+PASS: wrap target in relative block, absolute table-row-group under inline-flex
+PASS: make ancestor relative, fixed table-header-group under inline-flex
+PASS: make ancestor static, absolute table-row under inline-flex
+PASS: move ancestor across parents, fixed table-cell under inline-flex
+PASS: wrap target in relative block, absolute table-column under inline-flex
+PASS: make ancestor relative, fixed table-caption under inline-flex
+PASS: make ancestor static, absolute inline flow under inline-flex
+PASS: move ancestor across parents, fixed block flow-root under inline-flex
+PASS: wrap target in relative block, absolute block flex under inline-flex
+PASS: make ancestor relative, fixed inline flex under inline-flex
+PASS: make ancestor static, absolute inline grid under inline-flex
+PASS: move ancestor across parents, fixed block table under inline-flex
+PASS: wrap target in relative block, absolute block flow list-item under inline-flex
+PASS: make ancestor relative, fixed inline flow list-item under inline-flex
+PASS: make ancestor relative, absolute contents under grid
+PASS: move target to relative destination, fixed block under grid
+PASS: move ancestor across parents, absolute flow-root under grid
+PASS: unwrap target from relative block, fixed inline-block under grid
+PASS: make ancestor relative, absolute list-item under grid
+PASS: move target to relative destination, fixed inline list-item under grid
+PASS: move ancestor across parents, absolute inline-flex under grid
+PASS: unwrap target from relative block, fixed grid under grid
+PASS: make ancestor relative, absolute table under grid
+PASS: move target to relative destination, fixed inline-table under grid
+PASS: move ancestor across parents, absolute -webkit-box under grid
+PASS: unwrap target from relative block, fixed -webkit-inline-box under grid
+PASS: make ancestor relative, absolute table-header-group under grid
+PASS: move target to relative destination, fixed table-footer-group under grid
+PASS: move ancestor across parents, absolute table-cell under grid
+PASS: unwrap target from relative block, fixed table-column-group under grid
+PASS: make ancestor relative, absolute table-caption under grid
+PASS: move target to relative destination, fixed block flow under grid
+PASS: move ancestor across parents, absolute block flow-root under grid
+PASS: unwrap target from relative block, fixed inline flow-root under grid
+PASS: make ancestor relative, absolute inline flex under grid
+PASS: move target to relative destination, fixed block grid under grid
+PASS: move ancestor across parents, absolute block table under grid
+PASS: unwrap target from relative block, fixed inline table under grid
+PASS: make ancestor relative, absolute inline flow list-item under grid
+PASS: make ancestor static, fixed none under inline-grid
+PASS: move target to relative destination, absolute block under inline-grid
+PASS: wrap target in relative block, fixed inline under inline-grid
+PASS: unwrap target from relative block, absolute inline-block under inline-grid
+PASS: make ancestor static, fixed run-in under inline-grid
+PASS: move target to relative destination, absolute inline list-item under inline-grid
+PASS: wrap target in relative block, fixed flex under inline-grid
+PASS: unwrap target from relative block, absolute grid under inline-grid
+PASS: make ancestor static, fixed inline-grid under inline-grid
+PASS: move target to relative destination, absolute inline-table under inline-grid
+PASS: wrap target in relative block, fixed math under inline-grid
+PASS: unwrap target from relative block, absolute -webkit-inline-box under inline-grid
+PASS: make ancestor static, fixed table-row-group under inline-grid
+PASS: move target to relative destination, absolute table-footer-group under inline-grid
+PASS: wrap target in relative block, fixed table-row under inline-grid
+PASS: unwrap target from relative block, absolute table-column-group under inline-grid
+PASS: make ancestor static, fixed table-column under inline-grid
+PASS: move target to relative destination, absolute block flow under inline-grid
+PASS: wrap target in relative block, fixed inline flow under inline-grid
+PASS: unwrap target from relative block, absolute inline flow-root under inline-grid
+PASS: make ancestor static, fixed block flex under inline-grid
+PASS: move target to relative destination, absolute block grid under inline-grid
+PASS: wrap target in relative block, fixed inline grid under inline-grid
+PASS: unwrap target from relative block, absolute inline table under inline-grid
+PASS: make ancestor static, fixed block flow list-item under inline-grid
+PASS: make ancestor static, absolute none under table
+PASS: move ancestor across parents, fixed contents under table
+PASS: wrap target in relative block, absolute inline under table
+PASS: make ancestor relative, fixed flow-root under table
+PASS: make ancestor static, absolute run-in under table
+PASS: move ancestor across parents, fixed list-item under table
+PASS: wrap target in relative block, absolute flex under table
+PASS: make ancestor relative, fixed inline-flex under table
+PASS: make ancestor static, absolute inline-grid under table
+PASS: move ancestor across parents, fixed table under table
+PASS: wrap target in relative block, absolute math under table
+PASS: make ancestor relative, fixed -webkit-box under table
+PASS: make ancestor static, absolute table-row-group under table
+PASS: move ancestor across parents, fixed table-header-group under table
+PASS: wrap target in relative block, absolute table-row under table
+PASS: make ancestor relative, fixed table-cell under table
+PASS: make ancestor static, absolute table-column under table
+PASS: move ancestor across parents, fixed table-caption under table
+PASS: wrap target in relative block, absolute inline flow under table
+PASS: make ancestor relative, fixed block flow-root under table
+PASS: make ancestor static, absolute block flex under table
+PASS: move ancestor across parents, fixed inline flex under table
+PASS: wrap target in relative block, absolute inline grid under table
+PASS: make ancestor relative, fixed block table under table
+PASS: make ancestor static, absolute block flow list-item under table
+PASS: move ancestor across parents, fixed inline flow list-item under table
+PASS: move ancestor across parents, absolute contents under inline-table
+PASS: unwrap target from relative block, fixed block under inline-table
+PASS: make ancestor relative, absolute flow-root under inline-table
+PASS: move target to relative destination, fixed inline-block under inline-table
+PASS: move ancestor across parents, absolute list-item under inline-table
+PASS: unwrap target from relative block, fixed inline list-item under inline-table
+PASS: make ancestor relative, absolute inline-flex under inline-table
+PASS: move target to relative destination, fixed grid under inline-table
+PASS: move ancestor across parents, absolute table under inline-table
+PASS: unwrap target from relative block, fixed inline-table under inline-table
+PASS: make ancestor relative, absolute -webkit-box under inline-table
+PASS: move target to relative destination, fixed -webkit-inline-box under inline-table
+PASS: move ancestor across parents, absolute table-header-group under inline-table
+PASS: unwrap target from relative block, fixed table-footer-group under inline-table
+PASS: make ancestor relative, absolute table-cell under inline-table
+PASS: move target to relative destination, fixed table-column-group under inline-table
+PASS: move ancestor across parents, absolute table-caption under inline-table
+PASS: unwrap target from relative block, fixed block flow under inline-table
+PASS: make ancestor relative, absolute block flow-root under inline-table
+PASS: move target to relative destination, fixed inline flow-root under inline-table
+PASS: move ancestor across parents, absolute inline flex under inline-table
+PASS: unwrap target from relative block, fixed block grid under inline-table
+PASS: make ancestor relative, absolute block table under inline-table
+PASS: move target to relative destination, fixed inline table under inline-table
+PASS: move ancestor across parents, absolute inline flow list-item under inline-table
+PASS: wrap target in relative block, fixed none under math
+PASS: unwrap target from relative block, absolute block under math
+PASS: make ancestor static, fixed inline under math
+PASS: move target to relative destination, absolute inline-block under math
+PASS: wrap target in relative block, fixed run-in under math
+PASS: unwrap target from relative block, absolute inline list-item under math
+PASS: make ancestor static, fixed flex under math
+PASS: move target to relative destination, absolute grid under math
+PASS: wrap target in relative block, fixed inline-grid under math
+PASS: unwrap target from relative block, absolute inline-table under math
+PASS: make ancestor static, fixed math under math
+PASS: move target to relative destination, absolute -webkit-inline-box under math
+PASS: wrap target in relative block, fixed table-row-group under math
+PASS: unwrap target from relative block, absolute table-footer-group under math
+PASS: make ancestor static, fixed table-row under math
+PASS: move target to relative destination, absolute table-column-group under math
+PASS: wrap target in relative block, fixed table-column under math
+PASS: unwrap target from relative block, absolute block flow under math
+PASS: make ancestor static, fixed inline flow under math
+PASS: move target to relative destination, absolute inline flow-root under math
+PASS: wrap target in relative block, fixed block flex under math
+PASS: unwrap target from relative block, absolute block grid under math
+PASS: make ancestor static, fixed inline grid under math
+PASS: move target to relative destination, absolute inline table under math
+PASS: wrap target in relative block, fixed block flow list-item under math
+PASS: wrap target in relative block, absolute none under -webkit-box
+PASS: make ancestor relative, fixed contents under -webkit-box
+PASS: make ancestor static, absolute inline under -webkit-box
+PASS: move ancestor across parents, fixed flow-root under -webkit-box
+PASS: wrap target in relative block, absolute run-in under -webkit-box
+PASS: make ancestor relative, fixed list-item under -webkit-box
+PASS: make ancestor static, absolute flex under -webkit-box
+PASS: move ancestor across parents, fixed inline-flex under -webkit-box
+PASS: wrap target in relative block, absolute inline-grid under -webkit-box
+PASS: make ancestor relative, fixed table under -webkit-box
+PASS: make ancestor static, absolute math under -webkit-box
+PASS: move ancestor across parents, fixed -webkit-box under -webkit-box
+PASS: wrap target in relative block, absolute table-row-group under -webkit-box
+PASS: make ancestor relative, fixed table-header-group under -webkit-box
+PASS: make ancestor static, absolute table-row under -webkit-box
+PASS: move ancestor across parents, fixed table-cell under -webkit-box
+PASS: wrap target in relative block, absolute table-column under -webkit-box
+PASS: make ancestor relative, fixed table-caption under -webkit-box
+PASS: make ancestor static, absolute inline flow under -webkit-box
+PASS: move ancestor across parents, fixed block flow-root under -webkit-box
+PASS: wrap target in relative block, absolute block flex under -webkit-box
+PASS: make ancestor relative, fixed inline flex under -webkit-box
+PASS: make ancestor static, absolute inline grid under -webkit-box
+PASS: move ancestor across parents, fixed block table under -webkit-box
+PASS: wrap target in relative block, absolute block flow list-item under -webkit-box
+PASS: make ancestor relative, fixed inline flow list-item under -webkit-box
+PASS: make ancestor relative, absolute contents under -webkit-inline-box
+PASS: move target to relative destination, fixed block under -webkit-inline-box
+PASS: move ancestor across parents, absolute flow-root under -webkit-inline-box
+PASS: unwrap target from relative block, fixed inline-block under -webkit-inline-box
+PASS: make ancestor relative, absolute list-item under -webkit-inline-box
+PASS: move target to relative destination, fixed inline list-item under -webkit-inline-box
+PASS: move ancestor across parents, absolute inline-flex under -webkit-inline-box
+PASS: unwrap target from relative block, fixed grid under -webkit-inline-box
+PASS: make ancestor relative, absolute table under -webkit-inline-box
+PASS: move target to relative destination, fixed inline-table under -webkit-inline-box
+PASS: move ancestor across parents, absolute -webkit-box under -webkit-inline-box
+PASS: unwrap target from relative block, fixed -webkit-inline-box under -webkit-inline-box
+PASS: make ancestor relative, absolute table-header-group under -webkit-inline-box
+PASS: move target to relative destination, fixed table-footer-group under -webkit-inline-box
+PASS: move ancestor across parents, absolute table-cell under -webkit-inline-box
+PASS: unwrap target from relative block, fixed table-column-group under -webkit-inline-box
+PASS: make ancestor relative, absolute table-caption under -webkit-inline-box
+PASS: move target to relative destination, fixed block flow under -webkit-inline-box
+PASS: move ancestor across parents, absolute block flow-root under -webkit-inline-box
+PASS: unwrap target from relative block, fixed inline flow-root under -webkit-inline-box
+PASS: make ancestor relative, absolute inline flex under -webkit-inline-box
+PASS: move target to relative destination, fixed block grid under -webkit-inline-box
+PASS: move ancestor across parents, absolute block table under -webkit-inline-box
+PASS: unwrap target from relative block, fixed inline table under -webkit-inline-box
+PASS: make ancestor relative, absolute inline flow list-item under -webkit-inline-box
+PASS: make ancestor static, fixed none under table-row-group
+PASS: move target to relative destination, absolute block under table-row-group
+PASS: wrap target in relative block, fixed inline under table-row-group
+PASS: unwrap target from relative block, absolute inline-block under table-row-group
+PASS: make ancestor static, fixed run-in under table-row-group
+PASS: move target to relative destination, absolute inline list-item under table-row-group
+PASS: wrap target in relative block, fixed flex under table-row-group
+PASS: unwrap target from relative block, absolute grid under table-row-group
+PASS: make ancestor static, fixed inline-grid under table-row-group
+PASS: move target to relative destination, absolute inline-table under table-row-group
+PASS: wrap target in relative block, fixed math under table-row-group
+PASS: unwrap target from relative block, absolute -webkit-inline-box under table-row-group
+PASS: make ancestor static, fixed table-row-group under table-row-group
+PASS: move target to relative destination, absolute table-footer-group under table-row-group
+PASS: wrap target in relative block, fixed table-row under table-row-group
+PASS: unwrap target from relative block, absolute table-column-group under table-row-group
+PASS: make ancestor static, fixed table-column under table-row-group
+PASS: move target to relative destination, absolute block flow under table-row-group
+PASS: wrap target in relative block, fixed inline flow under table-row-group
+PASS: unwrap target from relative block, absolute inline flow-root under table-row-group
+PASS: make ancestor static, fixed block flex under table-row-group
+PASS: move target to relative destination, absolute block grid under table-row-group
+PASS: wrap target in relative block, fixed inline grid under table-row-group
+PASS: unwrap target from relative block, absolute inline table under table-row-group
+PASS: make ancestor static, fixed block flow list-item under table-row-group
+PASS: make ancestor static, absolute none under table-header-group
+PASS: move ancestor across parents, fixed contents under table-header-group
+PASS: wrap target in relative block, absolute inline under table-header-group
+PASS: make ancestor relative, fixed flow-root under table-header-group
+PASS: make ancestor static, absolute run-in under table-header-group
+PASS: move ancestor across parents, fixed list-item under table-header-group
+PASS: wrap target in relative block, absolute flex under table-header-group
+PASS: make ancestor relative, fixed inline-flex under table-header-group
+PASS: make ancestor static, absolute inline-grid under table-header-group
+PASS: move ancestor across parents, fixed table under table-header-group
+PASS: wrap target in relative block, absolute math under table-header-group
+PASS: make ancestor relative, fixed -webkit-box under table-header-group
+PASS: make ancestor static, absolute table-row-group under table-header-group
+PASS: move ancestor across parents, fixed table-header-group under table-header-group
+PASS: wrap target in relative block, absolute table-row under table-header-group
+PASS: make ancestor relative, fixed table-cell under table-header-group
+PASS: make ancestor static, absolute table-column under table-header-group
+PASS: move ancestor across parents, fixed table-caption under table-header-group
+PASS: wrap target in relative block, absolute inline flow under table-header-group
+PASS: make ancestor relative, fixed block flow-root under table-header-group
+PASS: make ancestor static, absolute block flex under table-header-group
+PASS: move ancestor across parents, fixed inline flex under table-header-group
+PASS: wrap target in relative block, absolute inline grid under table-header-group
+PASS: make ancestor relative, fixed block table under table-header-group
+PASS: make ancestor static, absolute block flow list-item under table-header-group
+PASS: move ancestor across parents, fixed inline flow list-item under table-header-group
+PASS: move ancestor across parents, absolute contents under table-footer-group
+PASS: unwrap target from relative block, fixed block under table-footer-group
+PASS: make ancestor relative, absolute flow-root under table-footer-group
+PASS: move target to relative destination, fixed inline-block under table-footer-group
+PASS: move ancestor across parents, absolute list-item under table-footer-group
+PASS: unwrap target from relative block, fixed inline list-item under table-footer-group
+PASS: make ancestor relative, absolute inline-flex under table-footer-group
+PASS: move target to relative destination, fixed grid under table-footer-group
+PASS: move ancestor across parents, absolute table under table-footer-group
+PASS: unwrap target from relative block, fixed inline-table under table-footer-group
+PASS: make ancestor relative, absolute -webkit-box under table-footer-group
+PASS: move target to relative destination, fixed -webkit-inline-box under table-footer-group
+PASS: move ancestor across parents, absolute table-header-group under table-footer-group
+PASS: unwrap target from relative block, fixed table-footer-group under table-footer-group
+PASS: make ancestor relative, absolute table-cell under table-footer-group
+PASS: move target to relative destination, fixed table-column-group under table-footer-group
+PASS: move ancestor across parents, absolute table-caption under table-footer-group
+PASS: unwrap target from relative block, fixed block flow under table-footer-group
+PASS: make ancestor relative, absolute block flow-root under table-footer-group
+PASS: move target to relative destination, fixed inline flow-root under table-footer-group
+PASS: move ancestor across parents, absolute inline flex under table-footer-group
+PASS: unwrap target from relative block, fixed block grid under table-footer-group
+PASS: make ancestor relative, absolute block table under table-footer-group
+PASS: move target to relative destination, fixed inline table under table-footer-group
+PASS: move ancestor across parents, absolute inline flow list-item under table-footer-group
+PASS: wrap target in relative block, fixed none under table-row
+PASS: unwrap target from relative block, absolute block under table-row
+PASS: make ancestor static, fixed inline under table-row
+PASS: move target to relative destination, absolute inline-block under table-row
+PASS: wrap target in relative block, fixed run-in under table-row
+PASS: unwrap target from relative block, absolute inline list-item under table-row
+PASS: make ancestor static, fixed flex under table-row
+PASS: move target to relative destination, absolute grid under table-row
+PASS: wrap target in relative block, fixed inline-grid under table-row
+PASS: unwrap target from relative block, absolute inline-table under table-row
+PASS: make ancestor static, fixed math under table-row
+PASS: move target to relative destination, absolute -webkit-inline-box under table-row
+PASS: wrap target in relative block, fixed table-row-group under table-row
+PASS: unwrap target from relative block, absolute table-footer-group under table-row
+PASS: make ancestor static, fixed table-row under table-row
+PASS: move target to relative destination, absolute table-column-group under table-row
+PASS: wrap target in relative block, fixed table-column under table-row
+PASS: unwrap target from relative block, absolute block flow under table-row
+PASS: make ancestor static, fixed inline flow under table-row
+PASS: move target to relative destination, absolute inline flow-root under table-row
+PASS: wrap target in relative block, fixed block flex under table-row
+PASS: unwrap target from relative block, absolute block grid under table-row
+PASS: make ancestor static, fixed inline grid under table-row
+PASS: move target to relative destination, absolute inline table under table-row
+PASS: wrap target in relative block, fixed block flow list-item under table-row
+PASS: wrap target in relative block, absolute none under table-cell
+PASS: make ancestor relative, fixed contents under table-cell
+PASS: make ancestor static, absolute inline under table-cell
+PASS: move ancestor across parents, fixed flow-root under table-cell
+PASS: wrap target in relative block, absolute run-in under table-cell
+PASS: make ancestor relative, fixed list-item under table-cell
+PASS: make ancestor static, absolute flex under table-cell
+PASS: move ancestor across parents, fixed inline-flex under table-cell
+PASS: wrap target in relative block, absolute inline-grid under table-cell
+PASS: make ancestor relative, fixed table under table-cell
+PASS: make ancestor static, absolute math under table-cell
+PASS: move ancestor across parents, fixed -webkit-box under table-cell
+PASS: wrap target in relative block, absolute table-row-group under table-cell
+PASS: make ancestor relative, fixed table-header-group under table-cell
+PASS: make ancestor static, absolute table-row under table-cell
+PASS: move ancestor across parents, fixed table-cell under table-cell
+PASS: wrap target in relative block, absolute table-column under table-cell
+PASS: make ancestor relative, fixed table-caption under table-cell
+PASS: make ancestor static, absolute inline flow under table-cell
+PASS: move ancestor across parents, fixed block flow-root under table-cell
+PASS: wrap target in relative block, absolute block flex under table-cell
+PASS: make ancestor relative, fixed inline flex under table-cell
+PASS: make ancestor static, absolute inline grid under table-cell
+PASS: move ancestor across parents, fixed block table under table-cell
+PASS: wrap target in relative block, absolute block flow list-item under table-cell
+PASS: make ancestor relative, fixed inline flow list-item under table-cell
+PASS: make ancestor relative, absolute contents under table-column-group
+PASS: move target to relative destination, fixed block under table-column-group
+PASS: move ancestor across parents, absolute flow-root under table-column-group
+PASS: unwrap target from relative block, fixed inline-block under table-column-group
+PASS: make ancestor relative, absolute list-item under table-column-group
+PASS: move target to relative destination, fixed inline list-item under table-column-group
+PASS: move ancestor across parents, absolute inline-flex under table-column-group
+PASS: unwrap target from relative block, fixed grid under table-column-group
+PASS: make ancestor relative, absolute table under table-column-group
+PASS: move target to relative destination, fixed inline-table under table-column-group
+PASS: move ancestor across parents, absolute -webkit-box under table-column-group
+PASS: unwrap target from relative block, fixed -webkit-inline-box under table-column-group
+PASS: make ancestor relative, absolute table-header-group under table-column-group
+PASS: move target to relative destination, fixed table-footer-group under table-column-group
+PASS: move ancestor across parents, absolute table-cell under table-column-group
+PASS: unwrap target from relative block, fixed table-column-group under table-column-group
+PASS: make ancestor relative, absolute table-caption under table-column-group
+PASS: move target to relative destination, fixed block flow under table-column-group
+PASS: move ancestor across parents, absolute block flow-root under table-column-group
+PASS: unwrap target from relative block, fixed inline flow-root under table-column-group
+PASS: make ancestor relative, absolute inline flex under table-column-group
+PASS: move target to relative destination, fixed block grid under table-column-group
+PASS: move ancestor across parents, absolute block table under table-column-group
+PASS: unwrap target from relative block, fixed inline table under table-column-group
+PASS: make ancestor relative, absolute inline flow list-item under table-column-group
+PASS: make ancestor static, fixed none under table-column
+PASS: move target to relative destination, absolute block under table-column
+PASS: wrap target in relative block, fixed inline under table-column
+PASS: unwrap target from relative block, absolute inline-block under table-column
+PASS: make ancestor static, fixed run-in under table-column
+PASS: move target to relative destination, absolute inline list-item under table-column
+PASS: wrap target in relative block, fixed flex under table-column
+PASS: unwrap target from relative block, absolute grid under table-column
+PASS: make ancestor static, fixed inline-grid under table-column
+PASS: move target to relative destination, absolute inline-table under table-column
+PASS: wrap target in relative block, fixed math under table-column
+PASS: unwrap target from relative block, absolute -webkit-inline-box under table-column
+PASS: make ancestor static, fixed table-row-group under table-column
+PASS: move target to relative destination, absolute table-footer-group under table-column
+PASS: wrap target in relative block, fixed table-row under table-column
+PASS: unwrap target from relative block, absolute table-column-group under table-column
+PASS: make ancestor static, fixed table-column under table-column
+PASS: move target to relative destination, absolute block flow under table-column
+PASS: wrap target in relative block, fixed inline flow under table-column
+PASS: unwrap target from relative block, absolute inline flow-root under table-column
+PASS: make ancestor static, fixed block flex under table-column
+PASS: move target to relative destination, absolute block grid under table-column
+PASS: wrap target in relative block, fixed inline grid under table-column
+PASS: unwrap target from relative block, absolute inline table under table-column
+PASS: make ancestor static, fixed block flow list-item under table-column
+PASS: make ancestor static, absolute none under table-caption
+PASS: move ancestor across parents, fixed contents under table-caption
+PASS: wrap target in relative block, absolute inline under table-caption
+PASS: make ancestor relative, fixed flow-root under table-caption
+PASS: make ancestor static, absolute run-in under table-caption
+PASS: move ancestor across parents, fixed list-item under table-caption
+PASS: wrap target in relative block, absolute flex under table-caption
+PASS: make ancestor relative, fixed inline-flex under table-caption
+PASS: make ancestor static, absolute inline-grid under table-caption
+PASS: move ancestor across parents, fixed table under table-caption
+PASS: wrap target in relative block, absolute math under table-caption
+PASS: make ancestor relative, fixed -webkit-box under table-caption
+PASS: make ancestor static, absolute table-row-group under table-caption
+PASS: move ancestor across parents, fixed table-header-group under table-caption
+PASS: wrap target in relative block, absolute table-row under table-caption
+PASS: make ancestor relative, fixed table-cell under table-caption
+PASS: make ancestor static, absolute table-column under table-caption
+PASS: move ancestor across parents, fixed table-caption under table-caption
+PASS: wrap target in relative block, absolute inline flow under table-caption
+PASS: make ancestor relative, fixed block flow-root under table-caption
+PASS: make ancestor static, absolute block flex under table-caption
+PASS: move ancestor across parents, fixed inline flex under table-caption
+PASS: wrap target in relative block, absolute inline grid under table-caption
+PASS: make ancestor relative, fixed block table under table-caption
+PASS: make ancestor static, absolute block flow list-item under table-caption
+PASS: move ancestor across parents, fixed inline flow list-item under table-caption
+PASS: move ancestor across parents, absolute contents under block flow
+PASS: unwrap target from relative block, fixed block under block flow
+PASS: make ancestor relative, absolute flow-root under block flow
+PASS: move target to relative destination, fixed inline-block under block flow
+PASS: move ancestor across parents, absolute list-item under block flow
+PASS: unwrap target from relative block, fixed inline list-item under block flow
+PASS: make ancestor relative, absolute inline-flex under block flow
+PASS: move target to relative destination, fixed grid under block flow
+PASS: move ancestor across parents, absolute table under block flow
+PASS: unwrap target from relative block, fixed inline-table under block flow
+PASS: make ancestor relative, absolute -webkit-box under block flow
+PASS: move target to relative destination, fixed -webkit-inline-box under block flow
+PASS: move ancestor across parents, absolute table-header-group under block flow
+PASS: unwrap target from relative block, fixed table-footer-group under block flow
+PASS: make ancestor relative, absolute table-cell under block flow
+PASS: move target to relative destination, fixed table-column-group under block flow
+PASS: move ancestor across parents, absolute table-caption under block flow
+PASS: unwrap target from relative block, fixed block flow under block flow
+PASS: make ancestor relative, absolute block flow-root under block flow
+PASS: move target to relative destination, fixed inline flow-root under block flow
+PASS: move ancestor across parents, absolute inline flex under block flow
+PASS: unwrap target from relative block, fixed block grid under block flow
+PASS: make ancestor relative, absolute block table under block flow
+PASS: move target to relative destination, fixed inline table under block flow
+PASS: move ancestor across parents, absolute inline flow list-item under block flow
+PASS: wrap target in relative block, fixed none under inline flow
+PASS: unwrap target from relative block, absolute block under inline flow
+PASS: make ancestor static, fixed inline under inline flow
+PASS: move target to relative destination, absolute inline-block under inline flow
+PASS: wrap target in relative block, fixed run-in under inline flow
+PASS: unwrap target from relative block, absolute inline list-item under inline flow
+PASS: make ancestor static, fixed flex under inline flow
+PASS: move target to relative destination, absolute grid under inline flow
+PASS: wrap target in relative block, fixed inline-grid under inline flow
+PASS: unwrap target from relative block, absolute inline-table under inline flow
+PASS: make ancestor static, fixed math under inline flow
+PASS: move target to relative destination, absolute -webkit-inline-box under inline flow
+PASS: wrap target in relative block, fixed table-row-group under inline flow
+PASS: unwrap target from relative block, absolute table-footer-group under inline flow
+PASS: make ancestor static, fixed table-row under inline flow
+PASS: move target to relative destination, absolute table-column-group under inline flow
+PASS: wrap target in relative block, fixed table-column under inline flow
+PASS: unwrap target from relative block, absolute block flow under inline flow
+PASS: make ancestor static, fixed inline flow under inline flow
+PASS: move target to relative destination, absolute inline flow-root under inline flow
+PASS: wrap target in relative block, fixed block flex under inline flow
+PASS: unwrap target from relative block, absolute block grid under inline flow
+PASS: make ancestor static, fixed inline grid under inline flow
+PASS: move target to relative destination, absolute inline table under inline flow
+PASS: wrap target in relative block, fixed block flow list-item under inline flow
+PASS: wrap target in relative block, absolute none under block flow-root
+PASS: make ancestor relative, fixed contents under block flow-root
+PASS: make ancestor static, absolute inline under block flow-root
+PASS: move ancestor across parents, fixed flow-root under block flow-root
+PASS: wrap target in relative block, absolute run-in under block flow-root
+PASS: make ancestor relative, fixed list-item under block flow-root
+PASS: make ancestor static, absolute flex under block flow-root
+PASS: move ancestor across parents, fixed inline-flex under block flow-root
+PASS: wrap target in relative block, absolute inline-grid under block flow-root
+PASS: make ancestor relative, fixed table under block flow-root
+PASS: make ancestor static, absolute math under block flow-root
+PASS: move ancestor across parents, fixed -webkit-box under block flow-root
+PASS: wrap target in relative block, absolute table-row-group under block flow-root
+PASS: make ancestor relative, fixed table-header-group under block flow-root
+PASS: make ancestor static, absolute table-row under block flow-root
+PASS: move ancestor across parents, fixed table-cell under block flow-root
+PASS: wrap target in relative block, absolute table-column under block flow-root
+PASS: make ancestor relative, fixed table-caption under block flow-root
+PASS: make ancestor static, absolute inline flow under block flow-root
+PASS: move ancestor across parents, fixed block flow-root under block flow-root
+PASS: wrap target in relative block, absolute block flex under block flow-root
+PASS: make ancestor relative, fixed inline flex under block flow-root
+PASS: make ancestor static, absolute inline grid under block flow-root
+PASS: move ancestor across parents, fixed block table under block flow-root
+PASS: wrap target in relative block, absolute block flow list-item under block flow-root
+PASS: make ancestor relative, fixed inline flow list-item under block flow-root
+PASS: make ancestor relative, absolute contents under inline flow-root
+PASS: move target to relative destination, fixed block under inline flow-root
+PASS: move ancestor across parents, absolute flow-root under inline flow-root
+PASS: unwrap target from relative block, fixed inline-block under inline flow-root
+PASS: make ancestor relative, absolute list-item under inline flow-root
+PASS: move target to relative destination, fixed inline list-item under inline flow-root
+PASS: move ancestor across parents, absolute inline-flex under inline flow-root
+PASS: unwrap target from relative block, fixed grid under inline flow-root
+PASS: make ancestor relative, absolute table under inline flow-root
+PASS: move target to relative destination, fixed inline-table under inline flow-root
+PASS: move ancestor across parents, absolute -webkit-box under inline flow-root
+PASS: unwrap target from relative block, fixed -webkit-inline-box under inline flow-root
+PASS: make ancestor relative, absolute table-header-group under inline flow-root
+PASS: move target to relative destination, fixed table-footer-group under inline flow-root
+PASS: move ancestor across parents, absolute table-cell under inline flow-root
+PASS: unwrap target from relative block, fixed table-column-group under inline flow-root
+PASS: make ancestor relative, absolute table-caption under inline flow-root
+PASS: move target to relative destination, fixed block flow under inline flow-root
+PASS: move ancestor across parents, absolute block flow-root under inline flow-root
+PASS: unwrap target from relative block, fixed inline flow-root under inline flow-root
+PASS: make ancestor relative, absolute inline flex under inline flow-root
+PASS: move target to relative destination, fixed block grid under inline flow-root
+PASS: move ancestor across parents, absolute block table under inline flow-root
+PASS: unwrap target from relative block, fixed inline table under inline flow-root
+PASS: make ancestor relative, absolute inline flow list-item under inline flow-root
+PASS: make ancestor static, fixed none under block flex
+PASS: move target to relative destination, absolute block under block flex
+PASS: wrap target in relative block, fixed inline under block flex
+PASS: unwrap target from relative block, absolute inline-block under block flex
+PASS: make ancestor static, fixed run-in under block flex
+PASS: move target to relative destination, absolute inline list-item under block flex
+PASS: wrap target in relative block, fixed flex under block flex
+PASS: unwrap target from relative block, absolute grid under block flex
+PASS: make ancestor static, fixed inline-grid under block flex
+PASS: move target to relative destination, absolute inline-table under block flex
+PASS: wrap target in relative block, fixed math under block flex
+PASS: unwrap target from relative block, absolute -webkit-inline-box under block flex
+PASS: make ancestor static, fixed table-row-group under block flex
+PASS: move target to relative destination, absolute table-footer-group under block flex
+PASS: wrap target in relative block, fixed table-row under block flex
+PASS: unwrap target from relative block, absolute table-column-group under block flex
+PASS: make ancestor static, fixed table-column under block flex
+PASS: move target to relative destination, absolute block flow under block flex
+PASS: wrap target in relative block, fixed inline flow under block flex
+PASS: unwrap target from relative block, absolute inline flow-root under block flex
+PASS: make ancestor static, fixed block flex under block flex
+PASS: move target to relative destination, absolute block grid under block flex
+PASS: wrap target in relative block, fixed inline grid under block flex
+PASS: unwrap target from relative block, absolute inline table under block flex
+PASS: make ancestor static, fixed block flow list-item under block flex
+PASS: make ancestor static, absolute none under inline flex
+PASS: move ancestor across parents, fixed contents under inline flex
+PASS: wrap target in relative block, absolute inline under inline flex
+PASS: make ancestor relative, fixed flow-root under inline flex
+PASS: make ancestor static, absolute run-in under inline flex
+PASS: move ancestor across parents, fixed list-item under inline flex
+PASS: wrap target in relative block, absolute flex under inline flex
+PASS: make ancestor relative, fixed inline-flex under inline flex
+PASS: make ancestor static, absolute inline-grid under inline flex
+PASS: move ancestor across parents, fixed table under inline flex
+PASS: wrap target in relative block, absolute math under inline flex
+PASS: make ancestor relative, fixed -webkit-box under inline flex
+PASS: make ancestor static, absolute table-row-group under inline flex
+PASS: move ancestor across parents, fixed table-header-group under inline flex
+PASS: wrap target in relative block, absolute table-row under inline flex
+PASS: make ancestor relative, fixed table-cell under inline flex
+PASS: make ancestor static, absolute table-column under inline flex
+PASS: move ancestor across parents, fixed table-caption under inline flex
+PASS: wrap target in relative block, absolute inline flow under inline flex
+PASS: make ancestor relative, fixed block flow-root under inline flex
+PASS: make ancestor static, absolute block flex under inline flex
+PASS: move ancestor across parents, fixed inline flex under inline flex
+PASS: wrap target in relative block, absolute inline grid under inline flex
+PASS: make ancestor relative, fixed block table under inline flex
+PASS: make ancestor static, absolute block flow list-item under inline flex
+PASS: move ancestor across parents, fixed inline flow list-item under inline flex
+PASS: move ancestor across parents, absolute contents under block grid
+PASS: unwrap target from relative block, fixed block under block grid
+PASS: make ancestor relative, absolute flow-root under block grid
+PASS: move target to relative destination, fixed inline-block under block grid
+PASS: move ancestor across parents, absolute list-item under block grid
+PASS: unwrap target from relative block, fixed inline list-item under block grid
+PASS: make ancestor relative, absolute inline-flex under block grid
+PASS: move target to relative destination, fixed grid under block grid
+PASS: move ancestor across parents, absolute table under block grid
+PASS: unwrap target from relative block, fixed inline-table under block grid
+PASS: make ancestor relative, absolute -webkit-box under block grid
+PASS: move target to relative destination, fixed -webkit-inline-box under block grid
+PASS: move ancestor across parents, absolute table-header-group under block grid
+PASS: unwrap target from relative block, fixed table-footer-group under block grid
+PASS: make ancestor relative, absolute table-cell under block grid
+PASS: move target to relative destination, fixed table-column-group under block grid
+PASS: move ancestor across parents, absolute table-caption under block grid
+PASS: unwrap target from relative block, fixed block flow under block grid
+PASS: make ancestor relative, absolute block flow-root under block grid
+PASS: move target to relative destination, fixed inline flow-root under block grid
+PASS: move ancestor across parents, absolute inline flex under block grid
+PASS: unwrap target from relative block, fixed block grid under block grid
+PASS: make ancestor relative, absolute block table under block grid
+PASS: move target to relative destination, fixed inline table under block grid
+PASS: move ancestor across parents, absolute inline flow list-item under block grid
+PASS: wrap target in relative block, fixed none under inline grid
+PASS: unwrap target from relative block, absolute block under inline grid
+PASS: make ancestor static, fixed inline under inline grid
+PASS: move target to relative destination, absolute inline-block under inline grid
+PASS: wrap target in relative block, fixed run-in under inline grid
+PASS: unwrap target from relative block, absolute inline list-item under inline grid
+PASS: make ancestor static, fixed flex under inline grid
+PASS: move target to relative destination, absolute grid under inline grid
+PASS: wrap target in relative block, fixed inline-grid under inline grid
+PASS: unwrap target from relative block, absolute inline-table under inline grid
+PASS: make ancestor static, fixed math under inline grid
+PASS: move target to relative destination, absolute -webkit-inline-box under inline grid
+PASS: wrap target in relative block, fixed table-row-group under inline grid
+PASS: unwrap target from relative block, absolute table-footer-group under inline grid
+PASS: make ancestor static, fixed table-row under inline grid
+PASS: move target to relative destination, absolute table-column-group under inline grid
+PASS: wrap target in relative block, fixed table-column under inline grid
+PASS: unwrap target from relative block, absolute block flow under inline grid
+PASS: make ancestor static, fixed inline flow under inline grid
+PASS: move target to relative destination, absolute inline flow-root under inline grid
+PASS: wrap target in relative block, fixed block flex under inline grid
+PASS: unwrap target from relative block, absolute block grid under inline grid
+PASS: make ancestor static, fixed inline grid under inline grid
+PASS: move target to relative destination, absolute inline table under inline grid
+PASS: wrap target in relative block, fixed block flow list-item under inline grid
+PASS: wrap target in relative block, absolute none under block table
+PASS: make ancestor relative, fixed contents under block table
+PASS: make ancestor static, absolute inline under block table
+PASS: move ancestor across parents, fixed flow-root under block table
+PASS: wrap target in relative block, absolute run-in under block table
+PASS: make ancestor relative, fixed list-item under block table
+PASS: make ancestor static, absolute flex under block table
+PASS: move ancestor across parents, fixed inline-flex under block table
+PASS: wrap target in relative block, absolute inline-grid under block table
+PASS: make ancestor relative, fixed table under block table
+PASS: make ancestor static, absolute math under block table
+PASS: move ancestor across parents, fixed -webkit-box under block table
+PASS: wrap target in relative block, absolute table-row-group under block table
+PASS: make ancestor relative, fixed table-header-group under block table
+PASS: make ancestor static, absolute table-row under block table
+PASS: move ancestor across parents, fixed table-cell under block table
+PASS: wrap target in relative block, absolute table-column under block table
+PASS: make ancestor relative, fixed table-caption under block table
+PASS: make ancestor static, absolute inline flow under block table
+PASS: move ancestor across parents, fixed block flow-root under block table
+PASS: wrap target in relative block, absolute block flex under block table
+PASS: make ancestor relative, fixed inline flex under block table
+PASS: make ancestor static, absolute inline grid under block table
+PASS: move ancestor across parents, fixed block table under block table
+PASS: wrap target in relative block, absolute block flow list-item under block table
+PASS: make ancestor relative, fixed inline flow list-item under block table
+PASS: make ancestor relative, absolute contents under inline table
+PASS: move target to relative destination, fixed block under inline table
+PASS: move ancestor across parents, absolute flow-root under inline table
+PASS: unwrap target from relative block, fixed inline-block under inline table
+PASS: make ancestor relative, absolute list-item under inline table
+PASS: move target to relative destination, fixed inline list-item under inline table
+PASS: move ancestor across parents, absolute inline-flex under inline table
+PASS: unwrap target from relative block, fixed grid under inline table
+PASS: make ancestor relative, absolute table under inline table
+PASS: move target to relative destination, fixed inline-table under inline table
+PASS: move ancestor across parents, absolute -webkit-box under inline table
+PASS: unwrap target from relative block, fixed -webkit-inline-box under inline table
+PASS: make ancestor relative, absolute table-header-group under inline table
+PASS: move target to relative destination, fixed table-footer-group under inline table
+PASS: move ancestor across parents, absolute table-cell under inline table
+PASS: unwrap target from relative block, fixed table-column-group under inline table
+PASS: make ancestor relative, absolute table-caption under inline table
+PASS: move target to relative destination, fixed block flow under inline table
+PASS: move ancestor across parents, absolute block flow-root under inline table
+PASS: unwrap target from relative block, fixed inline flow-root under inline table
+PASS: make ancestor relative, absolute inline flex under inline table
+PASS: move target to relative destination, fixed block grid under inline table
+PASS: move ancestor across parents, absolute block table under inline table
+PASS: unwrap target from relative block, fixed inline table under inline table
+PASS: make ancestor relative, absolute inline flow list-item under inline table
+PASS: make ancestor static, fixed none under block flow list-item
+PASS: move target to relative destination, absolute block under block flow list-item
+PASS: wrap target in relative block, fixed inline under block flow list-item
+PASS: unwrap target from relative block, absolute inline-block under block flow list-item
+PASS: make ancestor static, fixed run-in under block flow list-item
+PASS: move target to relative destination, absolute inline list-item under block flow list-item
+PASS: wrap target in relative block, fixed flex under block flow list-item
+PASS: unwrap target from relative block, absolute grid under block flow list-item
+PASS: make ancestor static, fixed inline-grid under block flow list-item
+PASS: move target to relative destination, absolute inline-table under block flow list-item
+PASS: wrap target in relative block, fixed math under block flow list-item
+PASS: unwrap target from relative block, absolute -webkit-inline-box under block flow list-item
+PASS: make ancestor static, fixed table-row-group under block flow list-item
+PASS: move target to relative destination, absolute table-footer-group under block flow list-item
+PASS: wrap target in relative block, fixed table-row under block flow list-item
+PASS: unwrap target from relative block, absolute table-column-group under block flow list-item
+PASS: make ancestor static, fixed table-column under block flow list-item
+PASS: move target to relative destination, absolute block flow under block flow list-item
+PASS: wrap target in relative block, fixed inline flow under block flow list-item
+PASS: unwrap target from relative block, absolute inline flow-root under block flow list-item
+PASS: make ancestor static, fixed block flex under block flow list-item
+PASS: move target to relative destination, absolute block grid under block flow list-item
+PASS: wrap target in relative block, fixed inline grid under block flow list-item
+PASS: unwrap target from relative block, absolute inline table under block flow list-item
+PASS: make ancestor static, fixed block flow list-item under block flow list-item
+PASS: make ancestor static, absolute none under inline flow list-item
+PASS: move ancestor across parents, fixed contents under inline flow list-item
+PASS: wrap target in relative block, absolute inline under inline flow list-item
+PASS: make ancestor relative, fixed flow-root under inline flow list-item
+PASS: make ancestor static, absolute run-in under inline flow list-item
+PASS: move ancestor across parents, fixed list-item under inline flow list-item
+PASS: wrap target in relative block, absolute flex under inline flow list-item
+PASS: make ancestor relative, fixed inline-flex under inline flow list-item
+PASS: make ancestor static, absolute inline-grid under inline flow list-item
+PASS: move ancestor across parents, fixed table under inline flow list-item
+PASS: wrap target in relative block, absolute math under inline flow list-item
+PASS: make ancestor relative, fixed -webkit-box under inline flow list-item
+PASS: make ancestor static, absolute table-row-group under inline flow list-item
+PASS: move ancestor across parents, fixed table-header-group under inline flow list-item
+PASS: wrap target in relative block, absolute table-row under inline flow list-item
+PASS: make ancestor relative, fixed table-cell under inline flow list-item
+PASS: make ancestor static, absolute table-column under inline flow list-item
+PASS: move ancestor across parents, fixed table-caption under inline flow list-item
+PASS: wrap target in relative block, absolute inline flow under inline flow list-item
+PASS: make ancestor relative, fixed block flow-root under inline flow list-item
+PASS: make ancestor static, absolute block flex under inline flow list-item
+PASS: move ancestor across parents, fixed inline flex under inline flow list-item
+PASS: wrap target in relative block, absolute inline grid under inline flow list-item
+PASS: make ancestor relative, fixed block table under inline flow list-item
+PASS: make ancestor static, absolute block flow list-item under inline flow list-item
+PASS: move ancestor across parents, fixed inline flow list-item under inline flow list-item
+963 cases; 956 matched; 7 mismatched

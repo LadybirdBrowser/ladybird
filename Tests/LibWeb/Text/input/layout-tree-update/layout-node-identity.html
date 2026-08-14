@@ -1,0 +1,20 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="container">
+    <div id="target">target</div>
+    <div id="sibling">sibling</div>
+</div>
+<script>
+    test(() => {
+        document.body.offsetHeight;
+        const containerIdentity = internals.layoutNodeIdentity(container);
+        const siblingIdentity = internals.layoutNodeIdentity(sibling);
+
+        target.appendChild(document.createElement("span")).textContent = "inserted";
+        document.body.offsetHeight;
+
+        println(`unaffected parent preserved: ${internals.layoutNodeIdentity(container) === containerIdentity}`);
+        println(`unaffected sibling preserved: ${internals.layoutNodeIdentity(sibling) === siblingIdentity}`);
+        println(`incremental tree matches full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+    });
+</script>

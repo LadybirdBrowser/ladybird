@@ -1,0 +1,13 @@
+PASS: object append fallback element
+PASS: object append fallback text
+PASS: object remove fallback leaf
+PASS: object remove fallback subtree
+PASS: object remove fallback sibling run
+PASS: object replace fallback subtree
+PASS: object clear fallback with replaceChildren
+PASS: object clear fallback with innerHTML
+PASS: object insert display contents fallback
+PASS: object remove display contents fallback
+PASS: object change fallback child to block
+PASS: object change fallback child to contents
+12 cases; 12 matched; 0 mismatched

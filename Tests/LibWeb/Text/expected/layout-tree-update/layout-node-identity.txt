@@ -1,0 +1,3 @@
+unaffected parent preserved: true
+unaffected sibling preserved: true
+incremental tree matches full rebuild: true

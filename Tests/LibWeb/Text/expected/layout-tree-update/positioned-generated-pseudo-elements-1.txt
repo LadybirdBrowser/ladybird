@@ -1,0 +1,913 @@
+PASS: ::before create, static none on none
+PASS: ::before create, relative contents on none
+PASS: ::before create, absolute block on none
+PASS: ::before create, fixed inline on none
+PASS: ::before create, sticky flow-root on none
+PASS: ::before create, float-left inline-block on none
+PASS: ::before create, float-left-clear-both run-in on none
+PASS: ::before create, float-right list-item on none
+PASS: ::before create, float-right-clear-both inline list-item on none
+PASS: ::before create, float-inline-start flex on none
+PASS: ::before create, float-inline-end inline-flex on none
+PASS: ::before create, relative-float-left grid on none
+PASS: ::after create, static none on none
+PASS: ::after create, relative contents on none
+PASS: ::after create, absolute block on none
+PASS: ::after create, fixed inline on none
+PASS: ::after create, sticky flow-root on none
+PASS: ::after create, float-left inline-block on none
+PASS: ::after create, float-left-clear-both run-in on none
+PASS: ::after create, float-right list-item on none
+PASS: ::after create, float-right-clear-both inline list-item on none
+PASS: ::after create, float-inline-start flex on none
+PASS: ::after create, float-inline-end inline-flex on none
+PASS: ::after create, relative-float-left grid on none
+PASS: ::before create, static contents on contents
+PASS: ::before create, relative block on contents
+PASS: ::before create, absolute inline on contents
+PASS: ::before create, fixed flow-root on contents
+PASS: ::before create, sticky inline-block on contents
+PASS: ::before create, float-left run-in on contents
+PASS: ::before create, float-left-clear-both list-item on contents
+PASS: ::before create, float-right inline list-item on contents
+PASS: ::before create, float-right-clear-both flex on contents
+PASS: ::before create, float-inline-start inline-flex on contents
+PASS: ::before create, float-inline-end grid on contents
+PASS: ::before create, relative-float-left inline-grid on contents
+PASS: ::after create, static contents on contents
+PASS: ::after create, relative block on contents
+PASS: ::after create, absolute inline on contents
+PASS: ::after create, fixed flow-root on contents
+PASS: ::after create, sticky inline-block on contents
+PASS: ::after create, float-left run-in on contents
+PASS: ::after create, float-left-clear-both list-item on contents
+PASS: ::after create, float-right inline list-item on contents
+PASS: ::after create, float-right-clear-both flex on contents
+PASS: ::after create, float-inline-start inline-flex on contents
+PASS: ::after create, float-inline-end grid on contents
+PASS: ::after create, relative-float-left inline-grid on contents
+PASS: ::before create, static block on block
+PASS: ::before create, relative inline on block
+PASS: ::before create, absolute flow-root on block
+PASS: ::before create, fixed inline-block on block
+PASS: ::before create, sticky run-in on block
+PASS: ::before create, float-left list-item on block
+PASS: ::before create, float-left-clear-both inline list-item on block
+PASS: ::before create, float-right flex on block
+PASS: ::before create, float-right-clear-both inline-flex on block
+PASS: ::before create, float-inline-start grid on block
+PASS: ::before create, float-inline-end inline-grid on block
+PASS: ::before create, relative-float-left table on block
+PASS: ::after create, static block on block
+PASS: ::after create, relative inline on block
+PASS: ::after create, absolute flow-root on block
+PASS: ::after create, fixed inline-block on block
+PASS: ::after create, sticky run-in on block
+PASS: ::after create, float-left list-item on block
+PASS: ::after create, float-left-clear-both inline list-item on block
+PASS: ::after create, float-right flex on block
+PASS: ::after create, float-right-clear-both inline-flex on block
+PASS: ::after create, float-inline-start grid on block
+PASS: ::after create, float-inline-end inline-grid on block
+PASS: ::after create, relative-float-left table on block
+PASS: ::before create, static inline on inline
+PASS: ::before create, relative flow-root on inline
+PASS: ::before create, absolute inline-block on inline
+PASS: ::before create, fixed run-in on inline
+PASS: ::before create, sticky list-item on inline
+PASS: ::before create, float-left inline list-item on inline
+PASS: ::before create, float-left-clear-both flex on inline
+PASS: ::before create, float-right inline-flex on inline
+PASS: ::before create, float-right-clear-both grid on inline
+PASS: ::before create, float-inline-start inline-grid on inline
+PASS: ::before create, float-inline-end table on inline
+PASS: ::before create, relative-float-left inline-table on inline
+PASS: ::after create, static inline on inline
+PASS: ::after create, relative flow-root on inline
+PASS: ::after create, absolute inline-block on inline
+PASS: ::after create, fixed run-in on inline
+PASS: ::after create, sticky list-item on inline
+PASS: ::after create, float-left inline list-item on inline
+PASS: ::after create, float-left-clear-both flex on inline
+PASS: ::after create, float-right inline-flex on inline
+PASS: ::after create, float-right-clear-both grid on inline
+PASS: ::after create, float-inline-start inline-grid on inline
+PASS: ::after create, float-inline-end table on inline
+PASS: ::after create, relative-float-left inline-table on inline
+PASS: ::before create, static flow-root on flow-root
+PASS: ::before create, relative inline-block on flow-root
+PASS: ::before create, absolute run-in on flow-root
+PASS: ::before create, fixed list-item on flow-root
+PASS: ::before create, sticky inline list-item on flow-root
+PASS: ::before create, float-left flex on flow-root
+PASS: ::before create, float-left-clear-both inline-flex on flow-root
+PASS: ::before create, float-right grid on flow-root
+PASS: ::before create, float-right-clear-both inline-grid on flow-root
+PASS: ::before create, float-inline-start table on flow-root
+PASS: ::before create, float-inline-end inline-table on flow-root
+PASS: ::before create, relative-float-left math on flow-root
+PASS: ::after create, static flow-root on flow-root
+PASS: ::after create, relative inline-block on flow-root
+PASS: ::after create, absolute run-in on flow-root
+PASS: ::after create, fixed list-item on flow-root
+PASS: ::after create, sticky inline list-item on flow-root
+PASS: ::after create, float-left flex on flow-root
+PASS: ::after create, float-left-clear-both inline-flex on flow-root
+PASS: ::after create, float-right grid on flow-root
+PASS: ::after create, float-right-clear-both inline-grid on flow-root
+PASS: ::after create, float-inline-start table on flow-root
+PASS: ::after create, float-inline-end inline-table on flow-root
+PASS: ::after create, relative-float-left math on flow-root
+PASS: ::before create, static inline-block on inline-block
+PASS: ::before create, relative run-in on inline-block
+PASS: ::before create, absolute list-item on inline-block
+PASS: ::before create, fixed inline list-item on inline-block
+PASS: ::before create, sticky flex on inline-block
+PASS: ::before create, float-left inline-flex on inline-block
+PASS: ::before create, float-left-clear-both grid on inline-block
+PASS: ::before create, float-right inline-grid on inline-block
+PASS: ::before create, float-right-clear-both table on inline-block
+PASS: ::before create, float-inline-start inline-table on inline-block
+PASS: ::before create, float-inline-end math on inline-block
+PASS: ::before create, relative-float-left -webkit-box on inline-block
+PASS: ::after create, static inline-block on inline-block
+PASS: ::after create, relative run-in on inline-block
+PASS: ::after create, absolute list-item on inline-block
+PASS: ::after create, fixed inline list-item on inline-block
+PASS: ::after create, sticky flex on inline-block
+PASS: ::after create, float-left inline-flex on inline-block
+PASS: ::after create, float-left-clear-both grid on inline-block
+PASS: ::after create, float-right inline-grid on inline-block
+PASS: ::after create, float-right-clear-both table on inline-block
+PASS: ::after create, float-inline-start inline-table on inline-block
+PASS: ::after create, float-inline-end math on inline-block
+PASS: ::after create, relative-float-left -webkit-box on inline-block
+PASS: ::before create, static run-in on run-in
+PASS: ::before create, relative list-item on run-in
+PASS: ::before create, absolute inline list-item on run-in
+PASS: ::before create, fixed flex on run-in
+PASS: ::before create, sticky inline-flex on run-in
+PASS: ::before create, float-left grid on run-in
+PASS: ::before create, float-left-clear-both inline-grid on run-in
+PASS: ::before create, float-right table on run-in
+PASS: ::before create, float-right-clear-both inline-table on run-in
+PASS: ::before create, float-inline-start math on run-in
+PASS: ::before create, float-inline-end -webkit-box on run-in
+PASS: ::before create, relative-float-left -webkit-inline-box on run-in
+PASS: ::after create, static run-in on run-in
+PASS: ::after create, relative list-item on run-in
+PASS: ::after create, absolute inline list-item on run-in
+PASS: ::after create, fixed flex on run-in
+PASS: ::after create, sticky inline-flex on run-in
+PASS: ::after create, float-left grid on run-in
+PASS: ::after create, float-left-clear-both inline-grid on run-in
+PASS: ::after create, float-right table on run-in
+PASS: ::after create, float-right-clear-both inline-table on run-in
+PASS: ::after create, float-inline-start math on run-in
+PASS: ::after create, float-inline-end -webkit-box on run-in
+PASS: ::after create, relative-float-left -webkit-inline-box on run-in
+PASS: ::before create, static list-item on list-item
+PASS: ::before create, relative inline list-item on list-item
+PASS: ::before create, absolute flex on list-item
+PASS: ::before create, fixed inline-flex on list-item
+PASS: ::before create, sticky grid on list-item
+PASS: ::before create, float-left inline-grid on list-item
+PASS: ::before create, float-left-clear-both table on list-item
+PASS: ::before create, float-right inline-table on list-item
+PASS: ::before create, float-right-clear-both math on list-item
+PASS: ::before create, float-inline-start -webkit-box on list-item
+PASS: ::before create, float-inline-end -webkit-inline-box on list-item
+PASS: ::before create, relative-float-left table-row-group on list-item
+PASS: ::after create, static list-item on list-item
+PASS: ::after create, relative inline list-item on list-item
+PASS: ::after create, absolute flex on list-item
+PASS: ::after create, fixed inline-flex on list-item
+PASS: ::after create, sticky grid on list-item
+PASS: ::after create, float-left inline-grid on list-item
+PASS: ::after create, float-left-clear-both table on list-item
+PASS: ::after create, float-right inline-table on list-item
+PASS: ::after create, float-right-clear-both math on list-item
+PASS: ::after create, float-inline-start -webkit-box on list-item
+PASS: ::after create, float-inline-end -webkit-inline-box on list-item
+PASS: ::after create, relative-float-left table-row-group on list-item
+PASS: ::before create, static inline list-item on inline list-item
+PASS: ::before create, relative flex on inline list-item
+PASS: ::before create, absolute inline-flex on inline list-item
+PASS: ::before create, fixed grid on inline list-item
+PASS: ::before create, sticky inline-grid on inline list-item
+PASS: ::before create, float-left table on inline list-item
+PASS: ::before create, float-left-clear-both inline-table on inline list-item
+PASS: ::before create, float-right math on inline list-item
+PASS: ::before create, float-right-clear-both -webkit-box on inline list-item
+PASS: ::before create, float-inline-start -webkit-inline-box on inline list-item
+PASS: ::before create, float-inline-end table-row-group on inline list-item
+PASS: ::before create, relative-float-left table-header-group on inline list-item
+PASS: ::after create, static inline list-item on inline list-item
+PASS: ::after create, relative flex on inline list-item
+PASS: ::after create, absolute inline-flex on inline list-item
+PASS: ::after create, fixed grid on inline list-item
+PASS: ::after create, sticky inline-grid on inline list-item
+PASS: ::after create, float-left table on inline list-item
+PASS: ::after create, float-left-clear-both inline-table on inline list-item
+PASS: ::after create, float-right math on inline list-item
+PASS: ::after create, float-right-clear-both -webkit-box on inline list-item
+PASS: ::after create, float-inline-start -webkit-inline-box on inline list-item
+PASS: ::after create, float-inline-end table-row-group on inline list-item
+PASS: ::after create, relative-float-left table-header-group on inline list-item
+PASS: ::before create, static flex on flex
+PASS: ::before create, relative inline-flex on flex
+PASS: ::before create, absolute grid on flex
+PASS: ::before create, fixed inline-grid on flex
+PASS: ::before create, sticky table on flex
+PASS: ::before create, float-left inline-table on flex
+PASS: ::before create, float-left-clear-both math on flex
+PASS: ::before create, float-right -webkit-box on flex
+PASS: ::before create, float-right-clear-both -webkit-inline-box on flex
+PASS: ::before create, float-inline-start table-row-group on flex
+PASS: ::before create, float-inline-end table-header-group on flex
+PASS: ::before create, relative-float-left table-footer-group on flex
+PASS: ::after create, static flex on flex
+PASS: ::after create, relative inline-flex on flex
+PASS: ::after create, absolute grid on flex
+PASS: ::after create, fixed inline-grid on flex
+PASS: ::after create, sticky table on flex
+PASS: ::after create, float-left inline-table on flex
+PASS: ::after create, float-left-clear-both math on flex
+PASS: ::after create, float-right -webkit-box on flex
+PASS: ::after create, float-right-clear-both -webkit-inline-box on flex
+PASS: ::after create, float-inline-start table-row-group on flex
+PASS: ::after create, float-inline-end table-header-group on flex
+PASS: ::after create, relative-float-left table-footer-group on flex
+PASS: ::before create, static inline-flex on inline-flex
+PASS: ::before create, relative grid on inline-flex
+PASS: ::before create, absolute inline-grid on inline-flex
+PASS: ::before create, fixed table on inline-flex
+PASS: ::before create, sticky inline-table on inline-flex
+PASS: ::before create, float-left math on inline-flex
+PASS: ::before create, float-left-clear-both -webkit-box on inline-flex
+PASS: ::before create, float-right -webkit-inline-box on inline-flex
+PASS: ::before create, float-right-clear-both table-row-group on inline-flex
+PASS: ::before create, float-inline-start table-header-group on inline-flex
+PASS: ::before create, float-inline-end table-footer-group on inline-flex
+PASS: ::before create, relative-float-left table-row on inline-flex
+PASS: ::after create, static inline-flex on inline-flex
+PASS: ::after create, relative grid on inline-flex
+PASS: ::after create, absolute inline-grid on inline-flex
+PASS: ::after create, fixed table on inline-flex
+PASS: ::after create, sticky inline-table on inline-flex
+PASS: ::after create, float-left math on inline-flex
+PASS: ::after create, float-left-clear-both -webkit-box on inline-flex
+PASS: ::after create, float-right -webkit-inline-box on inline-flex
+PASS: ::after create, float-right-clear-both table-row-group on inline-flex
+PASS: ::after create, float-inline-start table-header-group on inline-flex
+PASS: ::after create, float-inline-end table-footer-group on inline-flex
+PASS: ::after create, relative-float-left table-row on inline-flex
+PASS: ::before create, static grid on grid
+PASS: ::before create, relative inline-grid on grid
+PASS: ::before create, absolute table on grid
+PASS: ::before create, fixed inline-table on grid
+PASS: ::before create, sticky math on grid
+PASS: ::before create, float-left -webkit-box on grid
+PASS: ::before create, float-left-clear-both -webkit-inline-box on grid
+PASS: ::before create, float-right table-row-group on grid
+PASS: ::before create, float-right-clear-both table-header-group on grid
+PASS: ::before create, float-inline-start table-footer-group on grid
+PASS: ::before create, float-inline-end table-row on grid
+PASS: ::before create, relative-float-left table-cell on grid
+PASS: ::after create, static grid on grid
+PASS: ::after create, relative inline-grid on grid
+PASS: ::after create, absolute table on grid
+PASS: ::after create, fixed inline-table on grid
+PASS: ::after create, sticky math on grid
+PASS: ::after create, float-left -webkit-box on grid
+PASS: ::after create, float-left-clear-both -webkit-inline-box on grid
+PASS: ::after create, float-right table-row-group on grid
+PASS: ::after create, float-right-clear-both table-header-group on grid
+PASS: ::after create, float-inline-start table-footer-group on grid
+PASS: ::after create, float-inline-end table-row on grid
+PASS: ::after create, relative-float-left table-cell on grid
+PASS: ::before create, static inline-grid on inline-grid
+PASS: ::before create, relative table on inline-grid
+PASS: ::before create, absolute inline-table on inline-grid
+PASS: ::before create, fixed math on inline-grid
+PASS: ::before create, sticky -webkit-box on inline-grid
+PASS: ::before create, float-left -webkit-inline-box on inline-grid
+PASS: ::before create, float-left-clear-both table-row-group on inline-grid
+PASS: ::before create, float-right table-header-group on inline-grid
+PASS: ::before create, float-right-clear-both table-footer-group on inline-grid
+PASS: ::before create, float-inline-start table-row on inline-grid
+PASS: ::before create, float-inline-end table-cell on inline-grid
+PASS: ::before create, relative-float-left table-column-group on inline-grid
+PASS: ::after create, static inline-grid on inline-grid
+PASS: ::after create, relative table on inline-grid
+PASS: ::after create, absolute inline-table on inline-grid
+PASS: ::after create, fixed math on inline-grid
+PASS: ::after create, sticky -webkit-box on inline-grid
+PASS: ::after create, float-left -webkit-inline-box on inline-grid
+PASS: ::after create, float-left-clear-both table-row-group on inline-grid
+PASS: ::after create, float-right table-header-group on inline-grid
+PASS: ::after create, float-right-clear-both table-footer-group on inline-grid
+PASS: ::after create, float-inline-start table-row on inline-grid
+PASS: ::after create, float-inline-end table-cell on inline-grid
+PASS: ::after create, relative-float-left table-column-group on inline-grid
+PASS: ::before create, static table on table
+PASS: ::before create, relative inline-table on table
+PASS: ::before create, absolute math on table
+PASS: ::before create, fixed -webkit-box on table
+PASS: ::before create, sticky -webkit-inline-box on table
+PASS: ::before create, float-left table-row-group on table
+PASS: ::before create, float-left-clear-both table-header-group on table
+PASS: ::before create, float-right table-footer-group on table
+PASS: ::before create, float-right-clear-both table-row on table
+PASS: ::before create, float-inline-start table-cell on table
+PASS: ::before create, float-inline-end table-column-group on table
+PASS: ::before create, relative-float-left table-column on table
+PASS: ::after create, static table on table
+PASS: ::after create, relative inline-table on table
+PASS: ::after create, absolute math on table
+PASS: ::after create, fixed -webkit-box on table
+PASS: ::after create, sticky -webkit-inline-box on table
+PASS: ::after create, float-left table-row-group on table
+PASS: ::after create, float-left-clear-both table-header-group on table
+PASS: ::after create, float-right table-footer-group on table
+PASS: ::after create, float-right-clear-both table-row on table
+PASS: ::after create, float-inline-start table-cell on table
+PASS: ::after create, float-inline-end table-column-group on table
+PASS: ::after create, relative-float-left table-column on table
+PASS: ::before create, static inline-table on inline-table
+PASS: ::before create, relative math on inline-table
+PASS: ::before create, absolute -webkit-box on inline-table
+PASS: ::before create, fixed -webkit-inline-box on inline-table
+PASS: ::before create, sticky table-row-group on inline-table
+PASS: ::before create, float-left table-header-group on inline-table
+PASS: ::before create, float-left-clear-both table-footer-group on inline-table
+PASS: ::before create, float-right table-row on inline-table
+PASS: ::before create, float-right-clear-both table-cell on inline-table
+PASS: ::before create, float-inline-start table-column-group on inline-table
+PASS: ::before create, float-inline-end table-column on inline-table
+PASS: ::before create, relative-float-left table-caption on inline-table
+PASS: ::after create, static inline-table on inline-table
+PASS: ::after create, relative math on inline-table
+PASS: ::after create, absolute -webkit-box on inline-table
+PASS: ::after create, fixed -webkit-inline-box on inline-table
+PASS: ::after create, sticky table-row-group on inline-table
+PASS: ::after create, float-left table-header-group on inline-table
+PASS: ::after create, float-left-clear-both table-footer-group on inline-table
+PASS: ::after create, float-right table-row on inline-table
+PASS: ::after create, float-right-clear-both table-cell on inline-table
+PASS: ::after create, float-inline-start table-column-group on inline-table
+PASS: ::after create, float-inline-end table-column on inline-table
+PASS: ::after create, relative-float-left table-caption on inline-table
+PASS: ::before create, static math on math
+PASS: ::before create, relative -webkit-box on math
+PASS: ::before create, absolute -webkit-inline-box on math
+PASS: ::before create, fixed table-row-group on math
+PASS: ::before create, sticky table-header-group on math
+PASS: ::before create, float-left table-footer-group on math
+PASS: ::before create, float-left-clear-both table-row on math
+PASS: ::before create, float-right table-cell on math
+PASS: ::before create, float-right-clear-both table-column-group on math
+PASS: ::before create, float-inline-start table-column on math
+PASS: ::before create, float-inline-end table-caption on math
+PASS: ::before create, relative-float-left block flow on math
+PASS: ::after create, static math on math
+PASS: ::after create, relative -webkit-box on math
+PASS: ::after create, absolute -webkit-inline-box on math
+PASS: ::after create, fixed table-row-group on math
+PASS: ::after create, sticky table-header-group on math
+PASS: ::after create, float-left table-footer-group on math
+PASS: ::after create, float-left-clear-both table-row on math
+PASS: ::after create, float-right table-cell on math
+PASS: ::after create, float-right-clear-both table-column-group on math
+PASS: ::after create, float-inline-start table-column on math
+PASS: ::after create, float-inline-end table-caption on math
+PASS: ::after create, relative-float-left block flow on math
+PASS: ::before create, static -webkit-box on -webkit-box
+PASS: ::before create, relative -webkit-inline-box on -webkit-box
+PASS: ::before create, absolute table-row-group on -webkit-box
+PASS: ::before create, fixed table-header-group on -webkit-box
+PASS: ::before create, sticky table-footer-group on -webkit-box
+PASS: ::before create, float-left table-row on -webkit-box
+PASS: ::before create, float-left-clear-both table-cell on -webkit-box
+PASS: ::before create, float-right table-column-group on -webkit-box
+PASS: ::before create, float-right-clear-both table-column on -webkit-box
+PASS: ::before create, float-inline-start table-caption on -webkit-box
+PASS: ::before create, float-inline-end block flow on -webkit-box
+PASS: ::before create, relative-float-left inline flow on -webkit-box
+PASS: ::after create, static -webkit-box on -webkit-box
+PASS: ::after create, relative -webkit-inline-box on -webkit-box
+PASS: ::after create, absolute table-row-group on -webkit-box
+PASS: ::after create, fixed table-header-group on -webkit-box
+PASS: ::after create, sticky table-footer-group on -webkit-box
+PASS: ::after create, float-left table-row on -webkit-box
+PASS: ::after create, float-left-clear-both table-cell on -webkit-box
+PASS: ::after create, float-right table-column-group on -webkit-box
+PASS: ::after create, float-right-clear-both table-column on -webkit-box
+PASS: ::after create, float-inline-start table-caption on -webkit-box
+PASS: ::after create, float-inline-end block flow on -webkit-box
+PASS: ::after create, relative-float-left inline flow on -webkit-box
+PASS: ::before create, static -webkit-inline-box on -webkit-inline-box
+PASS: ::before create, relative table-row-group on -webkit-inline-box
+PASS: ::before create, absolute table-header-group on -webkit-inline-box
+PASS: ::before create, fixed table-footer-group on -webkit-inline-box
+PASS: ::before create, sticky table-row on -webkit-inline-box
+PASS: ::before create, float-left table-cell on -webkit-inline-box
+PASS: ::before create, float-left-clear-both table-column-group on -webkit-inline-box
+PASS: ::before create, float-right table-column on -webkit-inline-box
+PASS: ::before create, float-right-clear-both table-caption on -webkit-inline-box
+PASS: ::before create, float-inline-start block flow on -webkit-inline-box
+PASS: ::before create, float-inline-end inline flow on -webkit-inline-box
+PASS: ::before create, relative-float-left block flow-root on -webkit-inline-box
+PASS: ::after create, static -webkit-inline-box on -webkit-inline-box
+PASS: ::after create, relative table-row-group on -webkit-inline-box
+PASS: ::after create, absolute table-header-group on -webkit-inline-box
+PASS: ::after create, fixed table-footer-group on -webkit-inline-box
+PASS: ::after create, sticky table-row on -webkit-inline-box
+PASS: ::after create, float-left table-cell on -webkit-inline-box
+PASS: ::after create, float-left-clear-both table-column-group on -webkit-inline-box
+PASS: ::after create, float-right table-column on -webkit-inline-box
+PASS: ::after create, float-right-clear-both table-caption on -webkit-inline-box
+PASS: ::after create, float-inline-start block flow on -webkit-inline-box
+PASS: ::after create, float-inline-end inline flow on -webkit-inline-box
+PASS: ::after create, relative-float-left block flow-root on -webkit-inline-box
+PASS: ::before create, static table-row-group on table-row-group
+PASS: ::before create, relative table-header-group on table-row-group
+PASS: ::before create, absolute table-footer-group on table-row-group
+PASS: ::before create, fixed table-row on table-row-group
+PASS: ::before create, sticky table-cell on table-row-group
+PASS: ::before create, float-left table-column-group on table-row-group
+PASS: ::before create, float-left-clear-both table-column on table-row-group
+PASS: ::before create, float-right table-caption on table-row-group
+PASS: ::before create, float-right-clear-both block flow on table-row-group
+PASS: ::before create, float-inline-start inline flow on table-row-group
+PASS: ::before create, float-inline-end block flow-root on table-row-group
+PASS: ::before create, relative-float-left inline flow-root on table-row-group
+PASS: ::after create, static table-row-group on table-row-group
+PASS: ::after create, relative table-header-group on table-row-group
+PASS: ::after create, absolute table-footer-group on table-row-group
+PASS: ::after create, fixed table-row on table-row-group
+PASS: ::after create, sticky table-cell on table-row-group
+PASS: ::after create, float-left table-column-group on table-row-group
+PASS: ::after create, float-left-clear-both table-column on table-row-group
+PASS: ::after create, float-right table-caption on table-row-group
+PASS: ::after create, float-right-clear-both block flow on table-row-group
+PASS: ::after create, float-inline-start inline flow on table-row-group
+PASS: ::after create, float-inline-end block flow-root on table-row-group
+PASS: ::after create, relative-float-left inline flow-root on table-row-group
+PASS: ::before create, static table-header-group on table-header-group
+PASS: ::before create, relative table-footer-group on table-header-group
+PASS: ::before create, absolute table-row on table-header-group
+PASS: ::before create, fixed table-cell on table-header-group
+PASS: ::before create, sticky table-column-group on table-header-group
+PASS: ::before create, float-left table-column on table-header-group
+PASS: ::before create, float-left-clear-both table-caption on table-header-group
+PASS: ::before create, float-right block flow on table-header-group
+PASS: ::before create, float-right-clear-both inline flow on table-header-group
+PASS: ::before create, float-inline-start block flow-root on table-header-group
+PASS: ::before create, float-inline-end inline flow-root on table-header-group
+PASS: ::before create, relative-float-left block flex on table-header-group
+PASS: ::after create, static table-header-group on table-header-group
+PASS: ::after create, relative table-footer-group on table-header-group
+PASS: ::after create, absolute table-row on table-header-group
+PASS: ::after create, fixed table-cell on table-header-group
+PASS: ::after create, sticky table-column-group on table-header-group
+PASS: ::after create, float-left table-column on table-header-group
+PASS: ::after create, float-left-clear-both table-caption on table-header-group
+PASS: ::after create, float-right block flow on table-header-group
+PASS: ::after create, float-right-clear-both inline flow on table-header-group
+PASS: ::after create, float-inline-start block flow-root on table-header-group
+PASS: ::after create, float-inline-end inline flow-root on table-header-group
+PASS: ::after create, relative-float-left block flex on table-header-group
+PASS: ::before create, static table-footer-group on table-footer-group
+PASS: ::before create, relative table-row on table-footer-group
+PASS: ::before create, absolute table-cell on table-footer-group
+PASS: ::before create, fixed table-column-group on table-footer-group
+PASS: ::before create, sticky table-column on table-footer-group
+PASS: ::before create, float-left table-caption on table-footer-group
+PASS: ::before create, float-left-clear-both block flow on table-footer-group
+PASS: ::before create, float-right inline flow on table-footer-group
+PASS: ::before create, float-right-clear-both block flow-root on table-footer-group
+PASS: ::before create, float-inline-start inline flow-root on table-footer-group
+PASS: ::before create, float-inline-end block flex on table-footer-group
+PASS: ::before create, relative-float-left inline flex on table-footer-group
+PASS: ::after create, static table-footer-group on table-footer-group
+PASS: ::after create, relative table-row on table-footer-group
+PASS: ::after create, absolute table-cell on table-footer-group
+PASS: ::after create, fixed table-column-group on table-footer-group
+PASS: ::after create, sticky table-column on table-footer-group
+PASS: ::after create, float-left table-caption on table-footer-group
+PASS: ::after create, float-left-clear-both block flow on table-footer-group
+PASS: ::after create, float-right inline flow on table-footer-group
+PASS: ::after create, float-right-clear-both block flow-root on table-footer-group
+PASS: ::after create, float-inline-start inline flow-root on table-footer-group
+PASS: ::after create, float-inline-end block flex on table-footer-group
+PASS: ::after create, relative-float-left inline flex on table-footer-group
+PASS: ::before create, static table-row on table-row
+PASS: ::before create, relative table-cell on table-row
+PASS: ::before create, absolute table-column-group on table-row
+PASS: ::before create, fixed table-column on table-row
+PASS: ::before create, sticky table-caption on table-row
+PASS: ::before create, float-left block flow on table-row
+PASS: ::before create, float-left-clear-both inline flow on table-row
+PASS: ::before create, float-right block flow-root on table-row
+PASS: ::before create, float-right-clear-both inline flow-root on table-row
+PASS: ::before create, float-inline-start block flex on table-row
+PASS: ::before create, float-inline-end inline flex on table-row
+PASS: ::before create, relative-float-left block grid on table-row
+PASS: ::after create, static table-row on table-row
+PASS: ::after create, relative table-cell on table-row
+PASS: ::after create, absolute table-column-group on table-row
+PASS: ::after create, fixed table-column on table-row
+PASS: ::after create, sticky table-caption on table-row
+PASS: ::after create, float-left block flow on table-row
+PASS: ::after create, float-left-clear-both inline flow on table-row
+PASS: ::after create, float-right block flow-root on table-row
+PASS: ::after create, float-right-clear-both inline flow-root on table-row
+PASS: ::after create, float-inline-start block flex on table-row
+PASS: ::after create, float-inline-end inline flex on table-row
+PASS: ::after create, relative-float-left block grid on table-row
+PASS: ::before create, static table-cell on table-cell
+PASS: ::before create, relative table-column-group on table-cell
+PASS: ::before create, absolute table-column on table-cell
+PASS: ::before create, fixed table-caption on table-cell
+PASS: ::before create, sticky block flow on table-cell
+PASS: ::before create, float-left inline flow on table-cell
+PASS: ::before create, float-left-clear-both block flow-root on table-cell
+PASS: ::before create, float-right inline flow-root on table-cell
+PASS: ::before create, float-right-clear-both block flex on table-cell
+PASS: ::before create, float-inline-start inline flex on table-cell
+PASS: ::before create, float-inline-end block grid on table-cell
+PASS: ::before create, relative-float-left inline grid on table-cell
+PASS: ::after create, static table-cell on table-cell
+PASS: ::after create, relative table-column-group on table-cell
+PASS: ::after create, absolute table-column on table-cell
+PASS: ::after create, fixed table-caption on table-cell
+PASS: ::after create, sticky block flow on table-cell
+PASS: ::after create, float-left inline flow on table-cell
+PASS: ::after create, float-left-clear-both block flow-root on table-cell
+PASS: ::after create, float-right inline flow-root on table-cell
+PASS: ::after create, float-right-clear-both block flex on table-cell
+PASS: ::after create, float-inline-start inline flex on table-cell
+PASS: ::after create, float-inline-end block grid on table-cell
+PASS: ::after create, relative-float-left inline grid on table-cell
+PASS: ::before create, static table-column-group on table-column-group
+PASS: ::before create, relative table-column on table-column-group
+PASS: ::before create, absolute table-caption on table-column-group
+PASS: ::before create, fixed block flow on table-column-group
+PASS: ::before create, sticky inline flow on table-column-group
+PASS: ::before create, float-left block flow-root on table-column-group
+PASS: ::before create, float-left-clear-both inline flow-root on table-column-group
+PASS: ::before create, float-right block flex on table-column-group
+PASS: ::before create, float-right-clear-both inline flex on table-column-group
+PASS: ::before create, float-inline-start block grid on table-column-group
+PASS: ::before create, float-inline-end inline grid on table-column-group
+PASS: ::before create, relative-float-left block table on table-column-group
+PASS: ::after create, static table-column-group on table-column-group
+PASS: ::after create, relative table-column on table-column-group
+PASS: ::after create, absolute table-caption on table-column-group
+PASS: ::after create, fixed block flow on table-column-group
+PASS: ::after create, sticky inline flow on table-column-group
+PASS: ::after create, float-left block flow-root on table-column-group
+PASS: ::after create, float-left-clear-both inline flow-root on table-column-group
+PASS: ::after create, float-right block flex on table-column-group
+PASS: ::after create, float-right-clear-both inline flex on table-column-group
+PASS: ::after create, float-inline-start block grid on table-column-group
+PASS: ::after create, float-inline-end inline grid on table-column-group
+PASS: ::after create, relative-float-left block table on table-column-group
+PASS: ::before create, static table-column on table-column
+PASS: ::before create, relative table-caption on table-column
+PASS: ::before create, absolute block flow on table-column
+PASS: ::before create, fixed inline flow on table-column
+PASS: ::before create, sticky block flow-root on table-column
+PASS: ::before create, float-left inline flow-root on table-column
+PASS: ::before create, float-left-clear-both block flex on table-column
+PASS: ::before create, float-right inline flex on table-column
+PASS: ::before create, float-right-clear-both block grid on table-column
+PASS: ::before create, float-inline-start inline grid on table-column
+PASS: ::before create, float-inline-end block table on table-column
+PASS: ::before create, relative-float-left inline table on table-column
+PASS: ::after create, static table-column on table-column
+PASS: ::after create, relative table-caption on table-column
+PASS: ::after create, absolute block flow on table-column
+PASS: ::after create, fixed inline flow on table-column
+PASS: ::after create, sticky block flow-root on table-column
+PASS: ::after create, float-left inline flow-root on table-column
+PASS: ::after create, float-left-clear-both block flex on table-column
+PASS: ::after create, float-right inline flex on table-column
+PASS: ::after create, float-right-clear-both block grid on table-column
+PASS: ::after create, float-inline-start inline grid on table-column
+PASS: ::after create, float-inline-end block table on table-column
+PASS: ::after create, relative-float-left inline table on table-column
+PASS: ::before create, static table-caption on table-caption
+PASS: ::before create, relative block flow on table-caption
+PASS: ::before create, absolute inline flow on table-caption
+PASS: ::before create, fixed block flow-root on table-caption
+PASS: ::before create, sticky inline flow-root on table-caption
+PASS: ::before create, float-left block flex on table-caption
+PASS: ::before create, float-left-clear-both inline flex on table-caption
+PASS: ::before create, float-right block grid on table-caption
+PASS: ::before create, float-right-clear-both inline grid on table-caption
+PASS: ::before create, float-inline-start block table on table-caption
+PASS: ::before create, float-inline-end inline table on table-caption
+PASS: ::before create, relative-float-left block flow list-item on table-caption
+PASS: ::after create, static table-caption on table-caption
+PASS: ::after create, relative block flow on table-caption
+PASS: ::after create, absolute inline flow on table-caption
+PASS: ::after create, fixed block flow-root on table-caption
+PASS: ::after create, sticky inline flow-root on table-caption
+PASS: ::after create, float-left block flex on table-caption
+PASS: ::after create, float-left-clear-both inline flex on table-caption
+PASS: ::after create, float-right block grid on table-caption
+PASS: ::after create, float-right-clear-both inline grid on table-caption
+PASS: ::after create, float-inline-start block table on table-caption
+PASS: ::after create, float-inline-end inline table on table-caption
+PASS: ::after create, relative-float-left block flow list-item on table-caption
+PASS: ::before create, static block flow on block flow
+PASS: ::before create, relative inline flow on block flow
+PASS: ::before create, absolute block flow-root on block flow
+PASS: ::before create, fixed inline flow-root on block flow
+PASS: ::before create, sticky block flex on block flow
+PASS: ::before create, float-left inline flex on block flow
+PASS: ::before create, float-left-clear-both block grid on block flow
+PASS: ::before create, float-right inline grid on block flow
+PASS: ::before create, float-right-clear-both block table on block flow
+PASS: ::before create, float-inline-start inline table on block flow
+PASS: ::before create, float-inline-end block flow list-item on block flow
+PASS: ::before create, relative-float-left inline flow list-item on block flow
+PASS: ::after create, static block flow on block flow
+PASS: ::after create, relative inline flow on block flow
+PASS: ::after create, absolute block flow-root on block flow
+PASS: ::after create, fixed inline flow-root on block flow
+PASS: ::after create, sticky block flex on block flow
+PASS: ::after create, float-left inline flex on block flow
+PASS: ::after create, float-left-clear-both block grid on block flow
+PASS: ::after create, float-right inline grid on block flow
+PASS: ::after create, float-right-clear-both block table on block flow
+PASS: ::after create, float-inline-start inline table on block flow
+PASS: ::after create, float-inline-end block flow list-item on block flow
+PASS: ::after create, relative-float-left inline flow list-item on block flow
+PASS: ::before create, static inline flow on inline flow
+PASS: ::before create, relative block flow-root on inline flow
+PASS: ::before create, absolute inline flow-root on inline flow
+PASS: ::before create, fixed block flex on inline flow
+PASS: ::before create, sticky inline flex on inline flow
+PASS: ::before create, float-left block grid on inline flow
+PASS: ::before create, float-left-clear-both inline grid on inline flow
+PASS: ::before create, float-right block table on inline flow
+PASS: ::before create, float-right-clear-both inline table on inline flow
+PASS: ::before create, float-inline-start block flow list-item on inline flow
+PASS: ::before create, float-inline-end inline flow list-item on inline flow
+PASS: ::before create, relative-float-left none on inline flow
+PASS: ::after create, static inline flow on inline flow
+PASS: ::after create, relative block flow-root on inline flow
+PASS: ::after create, absolute inline flow-root on inline flow
+PASS: ::after create, fixed block flex on inline flow
+PASS: ::after create, sticky inline flex on inline flow
+PASS: ::after create, float-left block grid on inline flow
+PASS: ::after create, float-left-clear-both inline grid on inline flow
+PASS: ::after create, float-right block table on inline flow
+PASS: ::after create, float-right-clear-both inline table on inline flow
+PASS: ::after create, float-inline-start block flow list-item on inline flow
+PASS: ::after create, float-inline-end inline flow list-item on inline flow
+PASS: ::after create, relative-float-left none on inline flow
+PASS: ::before create, static block flow-root on block flow-root
+PASS: ::before create, relative inline flow-root on block flow-root
+PASS: ::before create, absolute block flex on block flow-root
+PASS: ::before create, fixed inline flex on block flow-root
+PASS: ::before create, sticky block grid on block flow-root
+PASS: ::before create, float-left inline grid on block flow-root
+PASS: ::before create, float-left-clear-both block table on block flow-root
+PASS: ::before create, float-right inline table on block flow-root
+PASS: ::before create, float-right-clear-both block flow list-item on block flow-root
+PASS: ::before create, float-inline-start inline flow list-item on block flow-root
+PASS: ::before create, float-inline-end none on block flow-root
+PASS: ::before create, relative-float-left contents on block flow-root
+PASS: ::after create, static block flow-root on block flow-root
+PASS: ::after create, relative inline flow-root on block flow-root
+PASS: ::after create, absolute block flex on block flow-root
+PASS: ::after create, fixed inline flex on block flow-root
+PASS: ::after create, sticky block grid on block flow-root
+PASS: ::after create, float-left inline grid on block flow-root
+PASS: ::after create, float-left-clear-both block table on block flow-root
+PASS: ::after create, float-right inline table on block flow-root
+PASS: ::after create, float-right-clear-both block flow list-item on block flow-root
+PASS: ::after create, float-inline-start inline flow list-item on block flow-root
+PASS: ::after create, float-inline-end none on block flow-root
+PASS: ::after create, relative-float-left contents on block flow-root
+PASS: ::before create, static inline flow-root on inline flow-root
+PASS: ::before create, relative block flex on inline flow-root
+PASS: ::before create, absolute inline flex on inline flow-root
+PASS: ::before create, fixed block grid on inline flow-root
+PASS: ::before create, sticky inline grid on inline flow-root
+PASS: ::before create, float-left block table on inline flow-root
+PASS: ::before create, float-left-clear-both inline table on inline flow-root
+PASS: ::before create, float-right block flow list-item on inline flow-root
+PASS: ::before create, float-right-clear-both inline flow list-item on inline flow-root
+PASS: ::before create, float-inline-start none on inline flow-root
+PASS: ::before create, float-inline-end contents on inline flow-root
+PASS: ::before create, relative-float-left block on inline flow-root
+PASS: ::after create, static inline flow-root on inline flow-root
+PASS: ::after create, relative block flex on inline flow-root
+PASS: ::after create, absolute inline flex on inline flow-root
+PASS: ::after create, fixed block grid on inline flow-root
+PASS: ::after create, sticky inline grid on inline flow-root
+PASS: ::after create, float-left block table on inline flow-root
+PASS: ::after create, float-left-clear-both inline table on inline flow-root
+PASS: ::after create, float-right block flow list-item on inline flow-root
+PASS: ::after create, float-right-clear-both inline flow list-item on inline flow-root
+PASS: ::after create, float-inline-start none on inline flow-root
+PASS: ::after create, float-inline-end contents on inline flow-root
+PASS: ::after create, relative-float-left block on inline flow-root
+PASS: ::before create, static block flex on block flex
+PASS: ::before create, relative inline flex on block flex
+PASS: ::before create, absolute block grid on block flex
+PASS: ::before create, fixed inline grid on block flex
+PASS: ::before create, sticky block table on block flex
+PASS: ::before create, float-left inline table on block flex
+PASS: ::before create, float-left-clear-both block flow list-item on block flex
+PASS: ::before create, float-right inline flow list-item on block flex
+PASS: ::before create, float-right-clear-both none on block flex
+PASS: ::before create, float-inline-start contents on block flex
+PASS: ::before create, float-inline-end block on block flex
+PASS: ::before create, relative-float-left inline on block flex
+PASS: ::after create, static block flex on block flex
+PASS: ::after create, relative inline flex on block flex
+PASS: ::after create, absolute block grid on block flex
+PASS: ::after create, fixed inline grid on block flex
+PASS: ::after create, sticky block table on block flex
+PASS: ::after create, float-left inline table on block flex
+PASS: ::after create, float-left-clear-both block flow list-item on block flex
+PASS: ::after create, float-right inline flow list-item on block flex
+PASS: ::after create, float-right-clear-both none on block flex
+PASS: ::after create, float-inline-start contents on block flex
+PASS: ::after create, float-inline-end block on block flex
+PASS: ::after create, relative-float-left inline on block flex
+PASS: ::before create, static inline flex on inline flex
+PASS: ::before create, relative block grid on inline flex
+PASS: ::before create, absolute inline grid on inline flex
+PASS: ::before create, fixed block table on inline flex
+PASS: ::before create, sticky inline table on inline flex
+PASS: ::before create, float-left block flow list-item on inline flex
+PASS: ::before create, float-left-clear-both inline flow list-item on inline flex
+PASS: ::before create, float-right none on inline flex
+PASS: ::before create, float-right-clear-both contents on inline flex
+PASS: ::before create, float-inline-start block on inline flex
+PASS: ::before create, float-inline-end inline on inline flex
+PASS: ::before create, relative-float-left flow-root on inline flex
+PASS: ::after create, static inline flex on inline flex
+PASS: ::after create, relative block grid on inline flex
+PASS: ::after create, absolute inline grid on inline flex
+PASS: ::after create, fixed block table on inline flex
+PASS: ::after create, sticky inline table on inline flex
+PASS: ::after create, float-left block flow list-item on inline flex
+PASS: ::after create, float-left-clear-both inline flow list-item on inline flex
+PASS: ::after create, float-right none on inline flex
+PASS: ::after create, float-right-clear-both contents on inline flex
+PASS: ::after create, float-inline-start block on inline flex
+PASS: ::after create, float-inline-end inline on inline flex
+PASS: ::after create, relative-float-left flow-root on inline flex
+PASS: ::before create, static block grid on block grid
+PASS: ::before create, relative inline grid on block grid
+PASS: ::before create, absolute block table on block grid
+PASS: ::before create, fixed inline table on block grid
+PASS: ::before create, sticky block flow list-item on block grid
+PASS: ::before create, float-left inline flow list-item on block grid
+PASS: ::before create, float-left-clear-both none on block grid
+PASS: ::before create, float-right contents on block grid
+PASS: ::before create, float-right-clear-both block on block grid
+PASS: ::before create, float-inline-start inline on block grid
+PASS: ::before create, float-inline-end flow-root on block grid
+PASS: ::before create, relative-float-left inline-block on block grid
+PASS: ::after create, static block grid on block grid
+PASS: ::after create, relative inline grid on block grid
+PASS: ::after create, absolute block table on block grid
+PASS: ::after create, fixed inline table on block grid
+PASS: ::after create, sticky block flow list-item on block grid
+PASS: ::after create, float-left inline flow list-item on block grid
+PASS: ::after create, float-left-clear-both none on block grid
+PASS: ::after create, float-right contents on block grid
+PASS: ::after create, float-right-clear-both block on block grid
+PASS: ::after create, float-inline-start inline on block grid
+PASS: ::after create, float-inline-end flow-root on block grid
+PASS: ::after create, relative-float-left inline-block on block grid
+PASS: ::before create, static inline grid on inline grid
+PASS: ::before create, relative block table on inline grid
+PASS: ::before create, absolute inline table on inline grid
+PASS: ::before create, fixed block flow list-item on inline grid
+PASS: ::before create, sticky inline flow list-item on inline grid
+PASS: ::before create, float-left none on inline grid
+PASS: ::before create, float-left-clear-both contents on inline grid
+PASS: ::before create, float-right block on inline grid
+PASS: ::before create, float-right-clear-both inline on inline grid
+PASS: ::before create, float-inline-start flow-root on inline grid
+PASS: ::before create, float-inline-end inline-block on inline grid
+PASS: ::before create, relative-float-left run-in on inline grid
+PASS: ::after create, static inline grid on inline grid
+PASS: ::after create, relative block table on inline grid
+PASS: ::after create, absolute inline table on inline grid
+PASS: ::after create, fixed block flow list-item on inline grid
+PASS: ::after create, sticky inline flow list-item on inline grid
+PASS: ::after create, float-left none on inline grid
+PASS: ::after create, float-left-clear-both contents on inline grid
+PASS: ::after create, float-right block on inline grid
+PASS: ::after create, float-right-clear-both inline on inline grid
+PASS: ::after create, float-inline-start flow-root on inline grid
+PASS: ::after create, float-inline-end inline-block on inline grid
+PASS: ::after create, relative-float-left run-in on inline grid
+PASS: ::before create, static block table on block table
+PASS: ::before create, relative inline table on block table
+PASS: ::before create, absolute block flow list-item on block table
+PASS: ::before create, fixed inline flow list-item on block table
+PASS: ::before create, sticky none on block table
+PASS: ::before create, float-left contents on block table
+PASS: ::before create, float-left-clear-both block on block table
+PASS: ::before create, float-right inline on block table
+PASS: ::before create, float-right-clear-both flow-root on block table
+PASS: ::before create, float-inline-start inline-block on block table
+PASS: ::before create, float-inline-end run-in on block table
+PASS: ::before create, relative-float-left list-item on block table
+PASS: ::after create, static block table on block table
+PASS: ::after create, relative inline table on block table
+PASS: ::after create, absolute block flow list-item on block table
+PASS: ::after create, fixed inline flow list-item on block table
+PASS: ::after create, sticky none on block table
+PASS: ::after create, float-left contents on block table
+PASS: ::after create, float-left-clear-both block on block table
+PASS: ::after create, float-right inline on block table
+PASS: ::after create, float-right-clear-both flow-root on block table
+PASS: ::after create, float-inline-start inline-block on block table
+PASS: ::after create, float-inline-end run-in on block table
+PASS: ::after create, relative-float-left list-item on block table
+PASS: ::before create, static inline table on inline table
+PASS: ::before create, relative block flow list-item on inline table
+PASS: ::before create, absolute inline flow list-item on inline table
+PASS: ::before create, fixed none on inline table
+PASS: ::before create, sticky contents on inline table
+PASS: ::before create, float-left block on inline table
+PASS: ::before create, float-left-clear-both inline on inline table
+PASS: ::before create, float-right flow-root on inline table
+PASS: ::before create, float-right-clear-both inline-block on inline table
+PASS: ::before create, float-inline-start run-in on inline table
+PASS: ::before create, float-inline-end list-item on inline table
+PASS: ::before create, relative-float-left inline list-item on inline table
+PASS: ::after create, static inline table on inline table
+PASS: ::after create, relative block flow list-item on inline table
+PASS: ::after create, absolute inline flow list-item on inline table
+PASS: ::after create, fixed none on inline table
+PASS: ::after create, sticky contents on inline table
+PASS: ::after create, float-left block on inline table
+PASS: ::after create, float-left-clear-both inline on inline table
+PASS: ::after create, float-right flow-root on inline table
+PASS: ::after create, float-right-clear-both inline-block on inline table
+PASS: ::after create, float-inline-start run-in on inline table
+PASS: ::after create, float-inline-end list-item on inline table
+PASS: ::after create, relative-float-left inline list-item on inline table
+PASS: ::before create, static block flow list-item on block flow list-item
+PASS: ::before create, relative inline flow list-item on block flow list-item
+PASS: ::before create, absolute none on block flow list-item
+PASS: ::before create, fixed contents on block flow list-item
+PASS: ::before create, sticky block on block flow list-item
+PASS: ::before create, float-left inline on block flow list-item
+PASS: ::before create, float-left-clear-both flow-root on block flow list-item
+PASS: ::before create, float-right inline-block on block flow list-item
+PASS: ::before create, float-right-clear-both run-in on block flow list-item
+PASS: ::before create, float-inline-start list-item on block flow list-item
+PASS: ::before create, float-inline-end inline list-item on block flow list-item
+PASS: ::before create, relative-float-left flex on block flow list-item
+PASS: ::after create, static block flow list-item on block flow list-item
+PASS: ::after create, relative inline flow list-item on block flow list-item
+PASS: ::after create, absolute none on block flow list-item
+PASS: ::after create, fixed contents on block flow list-item
+PASS: ::after create, sticky block on block flow list-item
+PASS: ::after create, float-left inline on block flow list-item
+PASS: ::after create, float-left-clear-both flow-root on block flow list-item
+PASS: ::after create, float-right inline-block on block flow list-item
+PASS: ::after create, float-right-clear-both run-in on block flow list-item
+PASS: ::after create, float-inline-start list-item on block flow list-item
+PASS: ::after create, float-inline-end inline list-item on block flow list-item
+PASS: ::after create, relative-float-left flex on block flow list-item
+PASS: ::before create, static inline flow list-item on inline flow list-item
+PASS: ::before create, relative none on inline flow list-item
+PASS: ::before create, absolute contents on inline flow list-item
+PASS: ::before create, fixed block on inline flow list-item
+PASS: ::before create, sticky inline on inline flow list-item
+PASS: ::before create, float-left flow-root on inline flow list-item
+PASS: ::before create, float-left-clear-both inline-block on inline flow list-item
+PASS: ::before create, float-right run-in on inline flow list-item
+PASS: ::before create, float-right-clear-both list-item on inline flow list-item
+PASS: ::before create, float-inline-start inline list-item on inline flow list-item
+PASS: ::before create, float-inline-end flex on inline flow list-item
+PASS: ::before create, relative-float-left inline-flex on inline flow list-item
+PASS: ::after create, static inline flow list-item on inline flow list-item
+PASS: ::after create, relative none on inline flow list-item
+PASS: ::after create, absolute contents on inline flow list-item
+PASS: ::after create, fixed block on inline flow list-item
+PASS: ::after create, sticky inline on inline flow list-item
+PASS: ::after create, float-left flow-root on inline flow list-item
+PASS: ::after create, float-left-clear-both inline-block on inline flow list-item
+PASS: ::after create, float-right run-in on inline flow list-item
+PASS: ::after create, float-right-clear-both list-item on inline flow list-item
+PASS: ::after create, float-inline-start inline list-item on inline flow list-item
+PASS: ::after create, float-inline-end flex on inline flow list-item
+PASS: ::after create, relative-float-left inline-flex on inline flow list-item
+912 cases; 912 matched; 0 mismatched

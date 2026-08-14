@@ -773,9 +773,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             auto& node = *static_cast<DOM::Node*>(node_pointer);
             node.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
             node.set_child_needs_layout_tree_update(false); },
-        .needs_layout_tree_update = [](void* node_pointer) {
-            VERIFY(node_pointer);
-            return static_cast<DOM::Node*>(node_pointer)->needs_layout_tree_update(); },
         .assigned_node_count = ffi_assigned_node_count,
         .assigned_node_at = ffi_assigned_node_at,
         .is_svg_element = [](void* node_pointer) {

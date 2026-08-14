@@ -1,0 +1,153 @@
+PASS: nested displays list-item > none
+PASS: nested displays list-item > contents
+PASS: nested displays list-item > block
+PASS: nested displays list-item > inline
+PASS: nested displays list-item > flow-root
+PASS: nested displays list-item > inline-block
+PASS: nested displays list-item > run-in
+PASS: nested displays list-item > list-item
+PASS: nested displays list-item > inline list-item
+PASS: nested displays list-item > flex
+PASS: nested displays list-item > inline-flex
+PASS: nested displays list-item > grid
+PASS: nested displays list-item > inline-grid
+PASS: nested displays list-item > table
+PASS: nested displays list-item > inline-table
+PASS: nested displays list-item > math
+PASS: nested displays list-item > -webkit-box
+PASS: nested displays list-item > -webkit-inline-box
+PASS: nested displays list-item > table-row-group
+PASS: nested displays list-item > table-header-group
+PASS: nested displays list-item > table-footer-group
+PASS: nested displays list-item > table-row
+PASS: nested displays list-item > table-cell
+PASS: nested displays list-item > table-column-group
+PASS: nested displays list-item > table-column
+PASS: nested displays list-item > table-caption
+PASS: nested displays list-item > block flow
+PASS: nested displays list-item > inline flow
+PASS: nested displays list-item > block flow-root
+PASS: nested displays list-item > inline flow-root
+PASS: nested displays list-item > block flex
+PASS: nested displays list-item > inline flex
+PASS: nested displays list-item > block grid
+PASS: nested displays list-item > inline grid
+PASS: nested displays list-item > block table
+PASS: nested displays list-item > inline table
+PASS: nested displays list-item > block flow list-item
+PASS: nested displays list-item > inline flow list-item
+PASS: nested displays math > none
+PASS: nested displays math > contents
+PASS: nested displays math > block
+PASS: nested displays math > inline
+PASS: nested displays math > flow-root
+PASS: nested displays math > inline-block
+PASS: nested displays math > run-in
+PASS: nested displays math > list-item
+PASS: nested displays math > inline list-item
+PASS: nested displays math > flex
+PASS: nested displays math > inline-flex
+PASS: nested displays math > grid
+PASS: nested displays math > inline-grid
+PASS: nested displays math > table
+PASS: nested displays math > inline-table
+PASS: nested displays math > math
+PASS: nested displays math > -webkit-box
+PASS: nested displays math > -webkit-inline-box
+PASS: nested displays math > table-row-group
+PASS: nested displays math > table-header-group
+PASS: nested displays math > table-footer-group
+PASS: nested displays math > table-row
+PASS: nested displays math > table-cell
+PASS: nested displays math > table-column-group
+PASS: nested displays math > table-column
+PASS: nested displays math > table-caption
+PASS: nested displays math > block flow
+PASS: nested displays math > inline flow
+PASS: nested displays math > block flow-root
+PASS: nested displays math > inline flow-root
+PASS: nested displays math > block flex
+PASS: nested displays math > inline flex
+PASS: nested displays math > block grid
+PASS: nested displays math > inline grid
+PASS: nested displays math > block table
+PASS: nested displays math > inline table
+PASS: nested displays math > block flow list-item
+PASS: nested displays math > inline flow list-item
+PASS: nested displays table-column-group > none
+PASS: nested displays table-column-group > contents
+PASS: nested displays table-column-group > block
+PASS: nested displays table-column-group > inline
+PASS: nested displays table-column-group > flow-root
+PASS: nested displays table-column-group > inline-block
+PASS: nested displays table-column-group > run-in
+PASS: nested displays table-column-group > list-item
+PASS: nested displays table-column-group > inline list-item
+PASS: nested displays table-column-group > flex
+PASS: nested displays table-column-group > inline-flex
+PASS: nested displays table-column-group > grid
+PASS: nested displays table-column-group > inline-grid
+PASS: nested displays table-column-group > table
+PASS: nested displays table-column-group > inline-table
+PASS: nested displays table-column-group > math
+PASS: nested displays table-column-group > -webkit-box
+PASS: nested displays table-column-group > -webkit-inline-box
+PASS: nested displays table-column-group > table-row-group
+PASS: nested displays table-column-group > table-header-group
+PASS: nested displays table-column-group > table-footer-group
+PASS: nested displays table-column-group > table-row
+PASS: nested displays table-column-group > table-cell
+PASS: nested displays table-column-group > table-column-group
+PASS: nested displays table-column-group > table-column
+PASS: nested displays table-column-group > table-caption
+PASS: nested displays table-column-group > block flow
+PASS: nested displays table-column-group > inline flow
+PASS: nested displays table-column-group > block flow-root
+PASS: nested displays table-column-group > inline flow-root
+PASS: nested displays table-column-group > block flex
+PASS: nested displays table-column-group > inline flex
+PASS: nested displays table-column-group > block grid
+PASS: nested displays table-column-group > inline grid
+PASS: nested displays table-column-group > block table
+PASS: nested displays table-column-group > inline table
+PASS: nested displays table-column-group > block flow list-item
+PASS: nested displays table-column-group > inline flow list-item
+PASS: nested displays inline flex > none
+PASS: nested displays inline flex > contents
+PASS: nested displays inline flex > block
+PASS: nested displays inline flex > inline
+PASS: nested displays inline flex > flow-root
+PASS: nested displays inline flex > inline-block
+PASS: nested displays inline flex > run-in
+PASS: nested displays inline flex > list-item
+PASS: nested displays inline flex > inline list-item
+PASS: nested displays inline flex > flex
+PASS: nested displays inline flex > inline-flex
+PASS: nested displays inline flex > grid
+PASS: nested displays inline flex > inline-grid
+PASS: nested displays inline flex > table
+PASS: nested displays inline flex > inline-table
+PASS: nested displays inline flex > math
+PASS: nested displays inline flex > -webkit-box
+PASS: nested displays inline flex > -webkit-inline-box
+PASS: nested displays inline flex > table-row-group
+PASS: nested displays inline flex > table-header-group
+PASS: nested displays inline flex > table-footer-group
+PASS: nested displays inline flex > table-row
+PASS: nested displays inline flex > table-cell
+PASS: nested displays inline flex > table-column-group
+PASS: nested displays inline flex > table-column
+PASS: nested displays inline flex > table-caption
+PASS: nested displays inline flex > block flow
+PASS: nested displays inline flex > inline flow
+PASS: nested displays inline flex > block flow-root
+PASS: nested displays inline flex > inline flow-root
+PASS: nested displays inline flex > block flex
+PASS: nested displays inline flex > inline flex
+PASS: nested displays inline flex > block grid
+PASS: nested displays inline flex > inline grid
+PASS: nested displays inline flex > block table
+PASS: nested displays inline flex > inline table
+PASS: nested displays inline flex > block flow list-item
+PASS: nested displays inline flex > inline flow list-item
+152 cases; 152 matched; 0 mismatched

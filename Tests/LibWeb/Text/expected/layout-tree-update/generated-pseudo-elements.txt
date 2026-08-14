@@ -1,0 +1,277 @@
+PASS: ::before create with display none
+PASS: ::before remove with display none
+PASS: ::before create with display contents
+PASS: ::before remove with display contents
+PASS: ::before create with display block
+PASS: ::before remove with display block
+PASS: ::before create with display inline
+PASS: ::before remove with display inline
+PASS: ::before create with display flow-root
+PASS: ::before remove with display flow-root
+PASS: ::before create with display inline-block
+PASS: ::before remove with display inline-block
+PASS: ::before create with display run-in
+PASS: ::before remove with display run-in
+PASS: ::before create with display list-item
+PASS: ::before remove with display list-item
+PASS: ::before create with display inline list-item
+PASS: ::before remove with display inline list-item
+PASS: ::before create with display flex
+PASS: ::before remove with display flex
+PASS: ::before create with display inline-flex
+PASS: ::before remove with display inline-flex
+PASS: ::before create with display grid
+PASS: ::before remove with display grid
+PASS: ::before create with display inline-grid
+PASS: ::before remove with display inline-grid
+PASS: ::before create with display table
+PASS: ::before remove with display table
+PASS: ::before create with display inline-table
+PASS: ::before remove with display inline-table
+PASS: ::before create with display math
+PASS: ::before remove with display math
+PASS: ::before create with display -webkit-box
+PASS: ::before remove with display -webkit-box
+PASS: ::before create with display -webkit-inline-box
+PASS: ::before remove with display -webkit-inline-box
+PASS: ::before create with display table-row-group
+PASS: ::before remove with display table-row-group
+PASS: ::before create with display table-header-group
+PASS: ::before remove with display table-header-group
+PASS: ::before create with display table-footer-group
+PASS: ::before remove with display table-footer-group
+PASS: ::before create with display table-row
+PASS: ::before remove with display table-row
+PASS: ::before create with display table-cell
+PASS: ::before remove with display table-cell
+PASS: ::before create with display table-column-group
+PASS: ::before remove with display table-column-group
+PASS: ::before create with display table-column
+PASS: ::before remove with display table-column
+PASS: ::before create with display table-caption
+PASS: ::before remove with display table-caption
+PASS: ::before create with display block flow
+PASS: ::before remove with display block flow
+PASS: ::before create with display inline flow
+PASS: ::before remove with display inline flow
+PASS: ::before create with display block flow-root
+PASS: ::before remove with display block flow-root
+PASS: ::before create with display inline flow-root
+PASS: ::before remove with display inline flow-root
+PASS: ::before create with display block flex
+PASS: ::before remove with display block flex
+PASS: ::before create with display inline flex
+PASS: ::before remove with display inline flex
+PASS: ::before create with display block grid
+PASS: ::before remove with display block grid
+PASS: ::before create with display inline grid
+PASS: ::before remove with display inline grid
+PASS: ::before create with display block table
+PASS: ::before remove with display block table
+PASS: ::before create with display inline table
+PASS: ::before remove with display inline table
+PASS: ::before create with display block flow list-item
+PASS: ::before remove with display block flow list-item
+PASS: ::before create with display inline flow list-item
+PASS: ::before remove with display inline flow list-item
+PASS: ::after create with display none
+PASS: ::after remove with display none
+PASS: ::after create with display contents
+PASS: ::after remove with display contents
+PASS: ::after create with display block
+PASS: ::after remove with display block
+PASS: ::after create with display inline
+PASS: ::after remove with display inline
+PASS: ::after create with display flow-root
+PASS: ::after remove with display flow-root
+PASS: ::after create with display inline-block
+PASS: ::after remove with display inline-block
+PASS: ::after create with display run-in
+PASS: ::after remove with display run-in
+PASS: ::after create with display list-item
+PASS: ::after remove with display list-item
+PASS: ::after create with display inline list-item
+PASS: ::after remove with display inline list-item
+PASS: ::after create with display flex
+PASS: ::after remove with display flex
+PASS: ::after create with display inline-flex
+PASS: ::after remove with display inline-flex
+PASS: ::after create with display grid
+PASS: ::after remove with display grid
+PASS: ::after create with display inline-grid
+PASS: ::after remove with display inline-grid
+PASS: ::after create with display table
+PASS: ::after remove with display table
+PASS: ::after create with display inline-table
+PASS: ::after remove with display inline-table
+PASS: ::after create with display math
+PASS: ::after remove with display math
+PASS: ::after create with display -webkit-box
+PASS: ::after remove with display -webkit-box
+PASS: ::after create with display -webkit-inline-box
+PASS: ::after remove with display -webkit-inline-box
+PASS: ::after create with display table-row-group
+PASS: ::after remove with display table-row-group
+PASS: ::after create with display table-header-group
+PASS: ::after remove with display table-header-group
+PASS: ::after create with display table-footer-group
+PASS: ::after remove with display table-footer-group
+PASS: ::after create with display table-row
+PASS: ::after remove with display table-row
+PASS: ::after create with display table-cell
+PASS: ::after remove with display table-cell
+PASS: ::after create with display table-column-group
+PASS: ::after remove with display table-column-group
+PASS: ::after create with display table-column
+PASS: ::after remove with display table-column
+PASS: ::after create with display table-caption
+PASS: ::after remove with display table-caption
+PASS: ::after create with display block flow
+PASS: ::after remove with display block flow
+PASS: ::after create with display inline flow
+PASS: ::after remove with display inline flow
+PASS: ::after create with display block flow-root
+PASS: ::after remove with display block flow-root
+PASS: ::after create with display inline flow-root
+PASS: ::after remove with display inline flow-root
+PASS: ::after create with display block flex
+PASS: ::after remove with display block flex
+PASS: ::after create with display inline flex
+PASS: ::after remove with display inline flex
+PASS: ::after create with display block grid
+PASS: ::after remove with display block grid
+PASS: ::after create with display inline grid
+PASS: ::after remove with display inline grid
+PASS: ::after create with display block table
+PASS: ::after remove with display block table
+PASS: ::after create with display inline table
+PASS: ::after remove with display inline table
+PASS: ::after create with display block flow list-item
+PASS: ::after remove with display block flow list-item
+PASS: ::after create with display inline flow list-item
+PASS: ::after remove with display inline flow list-item
+PASS: ::before content "text" on block
+PASS: ::before content "text" on inline
+PASS: ::before content "text" on list-item
+PASS: ::before content "text" on contents
+PASS: ::before content attr(data-content) on block
+PASS: ::before content attr(data-content) on inline
+PASS: ::before content attr(data-content) on list-item
+PASS: ::before content attr(data-content) on contents
+PASS: ::before content counter(item) on block
+PASS: ::before content counter(item) on inline
+PASS: ::before content counter(item) on list-item
+PASS: ::before content counter(item) on contents
+PASS: ::before content open-quote "quoted" close-quote on block
+PASS: ::before content open-quote "quoted" close-quote on inline
+PASS: ::before content open-quote "quoted" close-quote on list-item
+PASS: ::before content open-quote "quoted" close-quote on contents
+PASS: ::before content linear-gradient(red, blue) on block
+PASS: ::before content linear-gradient(red, blue) on inline
+PASS: ::before content linear-gradient(red, blue) on list-item
+PASS: ::before content linear-gradient(red, blue) on contents
+PASS: ::before content "a" / "alternative text" on block
+PASS: ::before content "a" / "alternative text" on inline
+PASS: ::before content "a" / "alternative text" on list-item
+PASS: ::before content "a" / "alternative text" on contents
+PASS: ::after content "text" on block
+PASS: ::after content "text" on inline
+PASS: ::after content "text" on list-item
+PASS: ::after content "text" on contents
+PASS: ::after content attr(data-content) on block
+PASS: ::after content attr(data-content) on inline
+PASS: ::after content attr(data-content) on list-item
+PASS: ::after content attr(data-content) on contents
+PASS: ::after content counter(item) on block
+PASS: ::after content counter(item) on inline
+PASS: ::after content counter(item) on list-item
+PASS: ::after content counter(item) on contents
+PASS: ::after content open-quote "quoted" close-quote on block
+PASS: ::after content open-quote "quoted" close-quote on inline
+PASS: ::after content open-quote "quoted" close-quote on list-item
+PASS: ::after content open-quote "quoted" close-quote on contents
+PASS: ::after content linear-gradient(red, blue) on block
+PASS: ::after content linear-gradient(red, blue) on inline
+PASS: ::after content linear-gradient(red, blue) on list-item
+PASS: ::after content linear-gradient(red, blue) on contents
+PASS: ::after content "a" / "alternative text" on block
+PASS: ::after content "a" / "alternative text" on inline
+PASS: ::after content "a" / "alternative text" on list-item
+PASS: ::after content "a" / "alternative text" on contents
+PASS: remove origin with ::before display none
+PASS: remove origin with ::before display contents
+PASS: remove origin with ::before display block
+PASS: remove origin with ::before display inline
+PASS: remove origin with ::before display flow-root
+PASS: remove origin with ::before display inline-block
+PASS: remove origin with ::before display run-in
+PASS: remove origin with ::before display list-item
+PASS: remove origin with ::before display inline list-item
+PASS: remove origin with ::before display flex
+PASS: remove origin with ::before display inline-flex
+PASS: remove origin with ::before display grid
+PASS: remove origin with ::before display inline-grid
+PASS: remove origin with ::before display table
+PASS: remove origin with ::before display inline-table
+PASS: remove origin with ::before display math
+PASS: remove origin with ::before display -webkit-box
+PASS: remove origin with ::before display -webkit-inline-box
+PASS: remove origin with ::before display table-row-group
+PASS: remove origin with ::before display table-header-group
+PASS: remove origin with ::before display table-footer-group
+PASS: remove origin with ::before display table-row
+PASS: remove origin with ::before display table-cell
+PASS: remove origin with ::before display table-column-group
+PASS: remove origin with ::before display table-column
+PASS: remove origin with ::before display table-caption
+PASS: remove origin with ::before display block flow
+PASS: remove origin with ::before display inline flow
+PASS: remove origin with ::before display block flow-root
+PASS: remove origin with ::before display inline flow-root
+PASS: remove origin with ::before display block flex
+PASS: remove origin with ::before display inline flex
+PASS: remove origin with ::before display block grid
+PASS: remove origin with ::before display inline grid
+PASS: remove origin with ::before display block table
+PASS: remove origin with ::before display inline table
+PASS: remove origin with ::before display block flow list-item
+PASS: remove origin with ::before display inline flow list-item
+PASS: remove origin with ::after display none
+PASS: remove origin with ::after display contents
+PASS: remove origin with ::after display block
+PASS: remove origin with ::after display inline
+PASS: remove origin with ::after display flow-root
+PASS: remove origin with ::after display inline-block
+PASS: remove origin with ::after display run-in
+PASS: remove origin with ::after display list-item
+PASS: remove origin with ::after display inline list-item
+PASS: remove origin with ::after display flex
+PASS: remove origin with ::after display inline-flex
+PASS: remove origin with ::after display grid
+PASS: remove origin with ::after display inline-grid
+PASS: remove origin with ::after display table
+PASS: remove origin with ::after display inline-table
+PASS: remove origin with ::after display math
+PASS: remove origin with ::after display -webkit-box
+PASS: remove origin with ::after display -webkit-inline-box
+PASS: remove origin with ::after display table-row-group
+PASS: remove origin with ::after display table-header-group
+PASS: remove origin with ::after display table-footer-group
+PASS: remove origin with ::after display table-row
+PASS: remove origin with ::after display table-cell
+PASS: remove origin with ::after display table-column-group
+PASS: remove origin with ::after display table-column
+PASS: remove origin with ::after display table-caption
+PASS: remove origin with ::after display block flow
+PASS: remove origin with ::after display inline flow
+PASS: remove origin with ::after display block flow-root
+PASS: remove origin with ::after display inline flow-root
+PASS: remove origin with ::after display block flex
+PASS: remove origin with ::after display inline flex
+PASS: remove origin with ::after display block grid
+PASS: remove origin with ::after display inline grid
+PASS: remove origin with ::after display block table
+PASS: remove origin with ::after display inline table
+PASS: remove origin with ::after display block flow list-item
+PASS: remove origin with ::after display inline flow list-item
+276 cases; 276 matched; 0 mismatched

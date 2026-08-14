@@ -1,0 +1,149 @@
+PASS: display transition run-in -> none
+PASS: display transition run-in -> contents
+PASS: display transition run-in -> block
+PASS: display transition run-in -> inline
+PASS: display transition run-in -> flow-root
+PASS: display transition run-in -> inline-block
+PASS: display transition run-in -> list-item
+PASS: display transition run-in -> inline list-item
+PASS: display transition run-in -> flex
+PASS: display transition run-in -> inline-flex
+PASS: display transition run-in -> grid
+PASS: display transition run-in -> inline-grid
+PASS: display transition run-in -> table
+PASS: display transition run-in -> inline-table
+PASS: display transition run-in -> math
+PASS: display transition run-in -> -webkit-box
+PASS: display transition run-in -> -webkit-inline-box
+PASS: display transition run-in -> table-row-group
+PASS: display transition run-in -> table-header-group
+PASS: display transition run-in -> table-footer-group
+PASS: display transition run-in -> table-row
+PASS: display transition run-in -> table-cell
+PASS: display transition run-in -> table-column-group
+PASS: display transition run-in -> table-column
+PASS: display transition run-in -> table-caption
+PASS: display transition run-in -> block flow
+PASS: display transition run-in -> inline flow
+PASS: display transition run-in -> block flow-root
+PASS: display transition run-in -> inline flow-root
+PASS: display transition run-in -> block flex
+PASS: display transition run-in -> inline flex
+PASS: display transition run-in -> block grid
+PASS: display transition run-in -> inline grid
+PASS: display transition run-in -> block table
+PASS: display transition run-in -> inline table
+PASS: display transition run-in -> block flow list-item
+PASS: display transition run-in -> inline flow list-item
+PASS: display transition inline-table -> none
+PASS: display transition inline-table -> contents
+PASS: display transition inline-table -> block
+PASS: display transition inline-table -> inline
+PASS: display transition inline-table -> flow-root
+PASS: display transition inline-table -> inline-block
+PASS: display transition inline-table -> run-in
+PASS: display transition inline-table -> list-item
+PASS: display transition inline-table -> inline list-item
+PASS: display transition inline-table -> flex
+PASS: display transition inline-table -> inline-flex
+PASS: display transition inline-table -> grid
+PASS: display transition inline-table -> inline-grid
+PASS: display transition inline-table -> table
+PASS: display transition inline-table -> math
+PASS: display transition inline-table -> -webkit-box
+PASS: display transition inline-table -> -webkit-inline-box
+PASS: display transition inline-table -> table-row-group
+PASS: display transition inline-table -> table-header-group
+PASS: display transition inline-table -> table-footer-group
+PASS: display transition inline-table -> table-row
+PASS: display transition inline-table -> table-cell
+PASS: display transition inline-table -> table-column-group
+PASS: display transition inline-table -> table-column
+PASS: display transition inline-table -> table-caption
+PASS: display transition inline-table -> block flow
+PASS: display transition inline-table -> inline flow
+PASS: display transition inline-table -> block flow-root
+PASS: display transition inline-table -> inline flow-root
+PASS: display transition inline-table -> block flex
+PASS: display transition inline-table -> inline flex
+PASS: display transition inline-table -> block grid
+PASS: display transition inline-table -> inline grid
+PASS: display transition inline-table -> block table
+PASS: display transition inline-table -> inline table
+PASS: display transition inline-table -> block flow list-item
+PASS: display transition inline-table -> inline flow list-item
+PASS: display transition table-cell -> none
+PASS: display transition table-cell -> contents
+PASS: display transition table-cell -> block
+PASS: display transition table-cell -> inline
+PASS: display transition table-cell -> flow-root
+PASS: display transition table-cell -> inline-block
+PASS: display transition table-cell -> run-in
+PASS: display transition table-cell -> list-item
+PASS: display transition table-cell -> inline list-item
+PASS: display transition table-cell -> flex
+PASS: display transition table-cell -> inline-flex
+PASS: display transition table-cell -> grid
+PASS: display transition table-cell -> inline-grid
+PASS: display transition table-cell -> table
+PASS: display transition table-cell -> inline-table
+PASS: display transition table-cell -> math
+PASS: display transition table-cell -> -webkit-box
+PASS: display transition table-cell -> -webkit-inline-box
+PASS: display transition table-cell -> table-row-group
+PASS: display transition table-cell -> table-header-group
+PASS: display transition table-cell -> table-footer-group
+PASS: display transition table-cell -> table-row
+PASS: display transition table-cell -> table-column-group
+PASS: display transition table-cell -> table-column
+PASS: display transition table-cell -> table-caption
+PASS: display transition table-cell -> block flow
+PASS: display transition table-cell -> inline flow
+PASS: display transition table-cell -> block flow-root
+PASS: display transition table-cell -> inline flow-root
+PASS: display transition table-cell -> block flex
+PASS: display transition table-cell -> inline flex
+PASS: display transition table-cell -> block grid
+PASS: display transition table-cell -> inline grid
+PASS: display transition table-cell -> block table
+PASS: display transition table-cell -> inline table
+PASS: display transition table-cell -> block flow list-item
+PASS: display transition table-cell -> inline flow list-item
+PASS: display transition block flex -> none
+PASS: display transition block flex -> contents
+PASS: display transition block flex -> block
+PASS: display transition block flex -> inline
+PASS: display transition block flex -> flow-root
+PASS: display transition block flex -> inline-block
+PASS: display transition block flex -> run-in
+PASS: display transition block flex -> list-item
+PASS: display transition block flex -> inline list-item
+PASS: display transition block flex -> flex
+PASS: display transition block flex -> inline-flex
+PASS: display transition block flex -> grid
+PASS: display transition block flex -> inline-grid
+PASS: display transition block flex -> table
+PASS: display transition block flex -> inline-table
+PASS: display transition block flex -> math
+PASS: display transition block flex -> -webkit-box
+PASS: display transition block flex -> -webkit-inline-box
+PASS: display transition block flex -> table-row-group
+PASS: display transition block flex -> table-header-group
+PASS: display transition block flex -> table-footer-group
+PASS: display transition block flex -> table-row
+PASS: display transition block flex -> table-cell
+PASS: display transition block flex -> table-column-group
+PASS: display transition block flex -> table-column
+PASS: display transition block flex -> table-caption
+PASS: display transition block flex -> block flow
+PASS: display transition block flex -> inline flow
+PASS: display transition block flex -> block flow-root
+PASS: display transition block flex -> inline flow-root
+PASS: display transition block flex -> inline flex
+PASS: display transition block flex -> block grid
+PASS: display transition block flex -> inline grid
+PASS: display transition block flex -> block table
+PASS: display transition block flex -> inline table
+PASS: display transition block flex -> block flow list-item
+PASS: display transition block flex -> inline flow list-item
+148 cases; 148 matched; 0 mismatched

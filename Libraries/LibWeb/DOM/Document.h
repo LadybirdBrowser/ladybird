@@ -87,6 +87,7 @@ enum class QuirksMode {
 };
 
 #define ENUMERATE_INVALIDATE_LAYOUT_TREE_REASONS(X) \
+    X(InternalsFullRebuildComparison)               \
     X(TopLayerElementStillRenderedAfterRemoval)
 
 enum class InvalidateLayoutTreeReason {

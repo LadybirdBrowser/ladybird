@@ -1,0 +1,37 @@
+PASS: implicit adoption of leaf element parent to iframe
+PASS: explicit adoption of leaf element parent to iframe
+PASS: implicit adoption of leaf element iframe to parent
+PASS: explicit adoption of leaf element iframe to parent
+PASS: implicit adoption of text node parent to iframe
+PASS: explicit adoption of text node parent to iframe
+PASS: implicit adoption of text node iframe to parent
+PASS: explicit adoption of text node iframe to parent
+PASS: implicit adoption of deep subtree parent to iframe
+PASS: explicit adoption of deep subtree parent to iframe
+PASS: implicit adoption of deep subtree iframe to parent
+PASS: explicit adoption of deep subtree iframe to parent
+FAIL: implicit adoption of display contents subtree parent to iframe
+FAIL: explicit adoption of display contents subtree parent to iframe
+FAIL: implicit adoption of display contents subtree iframe to parent
+FAIL: explicit adoption of display contents subtree iframe to parent
+PASS: implicit adoption of table subtree parent to iframe
+PASS: explicit adoption of table subtree parent to iframe
+PASS: implicit adoption of table subtree iframe to parent
+PASS: explicit adoption of table subtree iframe to parent
+PASS: implicit adoption of list item parent to iframe
+PASS: explicit adoption of list item parent to iframe
+PASS: implicit adoption of list item iframe to parent
+PASS: explicit adoption of list item iframe to parent
+PASS: implicit adoption of object fallback subtree parent to iframe
+PASS: explicit adoption of object fallback subtree parent to iframe
+PASS: implicit adoption of object fallback subtree iframe to parent
+PASS: explicit adoption of object fallback subtree iframe to parent
+PASS: implicit adoption of embed element parent to iframe
+PASS: explicit adoption of embed element parent to iframe
+PASS: implicit adoption of embed element iframe to parent
+PASS: explicit adoption of embed element iframe to parent
+PASS: implicit adoption of sibling run parent to iframe
+PASS: implicit adoption of sibling run iframe to parent
+PASS: adopt DocumentFragment children parent to iframe
+PASS: adopt DocumentFragment children iframe to parent
+36 cases; 32 matched; 4 mismatched

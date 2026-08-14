@@ -1,0 +1,1513 @@
+PASS: anonymous wrapper insert block, inline, block, depth 1, start
+PASS: anonymous wrapper remove block, inline, block, depth 1, start
+PASS: anonymous wrapper insert second block, inline, block, depth 1, start
+PASS: anonymous wrapper remove first block, inline, block, depth 1, start
+PASS: anonymous wrapper remove second block, inline, block, depth 1, start
+PASS: anonymous wrapper block to inline, inline, block, depth 1, start
+PASS: anonymous wrapper inline to block, inline, block, depth 1, start
+PASS: anonymous wrapper insert block, inline, block, depth 1, middle
+PASS: anonymous wrapper remove block, inline, block, depth 1, middle
+PASS: anonymous wrapper insert second block, inline, block, depth 1, middle
+PASS: anonymous wrapper remove first block, inline, block, depth 1, middle
+PASS: anonymous wrapper remove second block, inline, block, depth 1, middle
+PASS: anonymous wrapper block to inline, inline, block, depth 1, middle
+PASS: anonymous wrapper inline to block, inline, block, depth 1, middle
+PASS: anonymous wrapper insert block, inline, block, depth 1, end
+PASS: anonymous wrapper remove block, inline, block, depth 1, end
+PASS: anonymous wrapper insert second block, inline, block, depth 1, end
+PASS: anonymous wrapper remove first block, inline, block, depth 1, end
+PASS: anonymous wrapper remove second block, inline, block, depth 1, end
+PASS: anonymous wrapper block to inline, inline, block, depth 1, end
+PASS: anonymous wrapper inline to block, inline, block, depth 1, end
+PASS: anonymous wrapper insert block, inline, block, depth 2, start
+PASS: anonymous wrapper remove block, inline, block, depth 2, start
+PASS: anonymous wrapper insert second block, inline, block, depth 2, start
+PASS: anonymous wrapper remove first block, inline, block, depth 2, start
+PASS: anonymous wrapper remove second block, inline, block, depth 2, start
+PASS: anonymous wrapper block to inline, inline, block, depth 2, start
+PASS: anonymous wrapper inline to block, inline, block, depth 2, start
+PASS: anonymous wrapper insert block, inline, block, depth 2, middle
+PASS: anonymous wrapper remove block, inline, block, depth 2, middle
+PASS: anonymous wrapper insert second block, inline, block, depth 2, middle
+PASS: anonymous wrapper remove first block, inline, block, depth 2, middle
+PASS: anonymous wrapper remove second block, inline, block, depth 2, middle
+PASS: anonymous wrapper block to inline, inline, block, depth 2, middle
+PASS: anonymous wrapper inline to block, inline, block, depth 2, middle
+PASS: anonymous wrapper insert block, inline, block, depth 2, end
+PASS: anonymous wrapper remove block, inline, block, depth 2, end
+PASS: anonymous wrapper insert second block, inline, block, depth 2, end
+PASS: anonymous wrapper remove first block, inline, block, depth 2, end
+PASS: anonymous wrapper remove second block, inline, block, depth 2, end
+PASS: anonymous wrapper block to inline, inline, block, depth 2, end
+PASS: anonymous wrapper inline to block, inline, block, depth 2, end
+PASS: anonymous wrapper insert block, inline, block, depth 3, start
+PASS: anonymous wrapper remove block, inline, block, depth 3, start
+PASS: anonymous wrapper insert second block, inline, block, depth 3, start
+PASS: anonymous wrapper remove first block, inline, block, depth 3, start
+PASS: anonymous wrapper remove second block, inline, block, depth 3, start
+PASS: anonymous wrapper block to inline, inline, block, depth 3, start
+PASS: anonymous wrapper inline to block, inline, block, depth 3, start
+PASS: anonymous wrapper insert block, inline, block, depth 3, middle
+PASS: anonymous wrapper remove block, inline, block, depth 3, middle
+PASS: anonymous wrapper insert second block, inline, block, depth 3, middle
+PASS: anonymous wrapper remove first block, inline, block, depth 3, middle
+PASS: anonymous wrapper remove second block, inline, block, depth 3, middle
+PASS: anonymous wrapper block to inline, inline, block, depth 3, middle
+PASS: anonymous wrapper inline to block, inline, block, depth 3, middle
+PASS: anonymous wrapper insert block, inline, block, depth 3, end
+PASS: anonymous wrapper remove block, inline, block, depth 3, end
+PASS: anonymous wrapper insert second block, inline, block, depth 3, end
+PASS: anonymous wrapper remove first block, inline, block, depth 3, end
+PASS: anonymous wrapper remove second block, inline, block, depth 3, end
+PASS: anonymous wrapper block to inline, inline, block, depth 3, end
+PASS: anonymous wrapper inline to block, inline, block, depth 3, end
+PASS: anonymous wrapper insert block, inline, block, depth 4, start
+PASS: anonymous wrapper remove block, inline, block, depth 4, start
+PASS: anonymous wrapper insert second block, inline, block, depth 4, start
+PASS: anonymous wrapper remove first block, inline, block, depth 4, start
+PASS: anonymous wrapper remove second block, inline, block, depth 4, start
+PASS: anonymous wrapper block to inline, inline, block, depth 4, start
+PASS: anonymous wrapper inline to block, inline, block, depth 4, start
+PASS: anonymous wrapper insert block, inline, block, depth 4, middle
+PASS: anonymous wrapper remove block, inline, block, depth 4, middle
+PASS: anonymous wrapper insert second block, inline, block, depth 4, middle
+PASS: anonymous wrapper remove first block, inline, block, depth 4, middle
+PASS: anonymous wrapper remove second block, inline, block, depth 4, middle
+PASS: anonymous wrapper block to inline, inline, block, depth 4, middle
+PASS: anonymous wrapper inline to block, inline, block, depth 4, middle
+PASS: anonymous wrapper insert block, inline, block, depth 4, end
+PASS: anonymous wrapper remove block, inline, block, depth 4, end
+PASS: anonymous wrapper insert second block, inline, block, depth 4, end
+PASS: anonymous wrapper remove first block, inline, block, depth 4, end
+PASS: anonymous wrapper remove second block, inline, block, depth 4, end
+PASS: anonymous wrapper block to inline, inline, block, depth 4, end
+PASS: anonymous wrapper inline to block, inline, block, depth 4, end
+PASS: anonymous wrapper insert block, inline, flow-root, depth 1, start
+PASS: anonymous wrapper remove block, inline, flow-root, depth 1, start
+PASS: anonymous wrapper insert second block, inline, flow-root, depth 1, start
+PASS: anonymous wrapper remove first block, inline, flow-root, depth 1, start
+PASS: anonymous wrapper remove second block, inline, flow-root, depth 1, start
+PASS: anonymous wrapper block to inline, inline, flow-root, depth 1, start
+PASS: anonymous wrapper inline to block, inline, flow-root, depth 1, start
+PASS: anonymous wrapper insert block, inline, flow-root, depth 1, middle
+PASS: anonymous wrapper remove block, inline, flow-root, depth 1, middle
+PASS: anonymous wrapper insert second block, inline, flow-root, depth 1, middle
+PASS: anonymous wrapper remove first block, inline, flow-root, depth 1, middle
+PASS: anonymous wrapper remove second block, inline, flow-root, depth 1, middle
+PASS: anonymous wrapper block to inline, inline, flow-root, depth 1, middle
+PASS: anonymous wrapper inline to block, inline, flow-root, depth 1, middle
+PASS: anonymous wrapper insert block, inline, flow-root, depth 1, end
+PASS: anonymous wrapper remove block, inline, flow-root, depth 1, end
+PASS: anonymous wrapper insert second block, inline, flow-root, depth 1, end
+PASS: anonymous wrapper remove first block, inline, flow-root, depth 1, end
+PASS: anonymous wrapper remove second block, inline, flow-root, depth 1, end
+PASS: anonymous wrapper block to inline, inline, flow-root, depth 1, end
+PASS: anonymous wrapper inline to block, inline, flow-root, depth 1, end
+PASS: anonymous wrapper insert block, inline, flow-root, depth 2, start
+PASS: anonymous wrapper remove block, inline, flow-root, depth 2, start
+PASS: anonymous wrapper insert second block, inline, flow-root, depth 2, start
+PASS: anonymous wrapper remove first block, inline, flow-root, depth 2, start
+PASS: anonymous wrapper remove second block, inline, flow-root, depth 2, start
+PASS: anonymous wrapper block to inline, inline, flow-root, depth 2, start
+PASS: anonymous wrapper inline to block, inline, flow-root, depth 2, start
+PASS: anonymous wrapper insert block, inline, flow-root, depth 2, middle
+PASS: anonymous wrapper remove block, inline, flow-root, depth 2, middle
+PASS: anonymous wrapper insert second block, inline, flow-root, depth 2, middle
+PASS: anonymous wrapper remove first block, inline, flow-root, depth 2, middle
+PASS: anonymous wrapper remove second block, inline, flow-root, depth 2, middle
+PASS: anonymous wrapper block to inline, inline, flow-root, depth 2, middle
+PASS: anonymous wrapper inline to block, inline, flow-root, depth 2, middle
+PASS: anonymous wrapper insert block, inline, flow-root, depth 2, end
+PASS: anonymous wrapper remove block, inline, flow-root, depth 2, end
+PASS: anonymous wrapper insert second block, inline, flow-root, depth 2, end
+PASS: anonymous wrapper remove first block, inline, flow-root, depth 2, end
+PASS: anonymous wrapper remove second block, inline, flow-root, depth 2, end
+PASS: anonymous wrapper block to inline, inline, flow-root, depth 2, end
+PASS: anonymous wrapper inline to block, inline, flow-root, depth 2, end
+PASS: anonymous wrapper insert block, inline, flow-root, depth 3, start
+PASS: anonymous wrapper remove block, inline, flow-root, depth 3, start
+PASS: anonymous wrapper insert second block, inline, flow-root, depth 3, start
+PASS: anonymous wrapper remove first block, inline, flow-root, depth 3, start
+PASS: anonymous wrapper remove second block, inline, flow-root, depth 3, start
+PASS: anonymous wrapper block to inline, inline, flow-root, depth 3, start
+PASS: anonymous wrapper inline to block, inline, flow-root, depth 3, start
+PASS: anonymous wrapper insert block, inline, flow-root, depth 3, middle
+PASS: anonymous wrapper remove block, inline, flow-root, depth 3, middle
+PASS: anonymous wrapper insert second block, inline, flow-root, depth 3, middle
+PASS: anonymous wrapper remove first block, inline, flow-root, depth 3, middle
+PASS: anonymous wrapper remove second block, inline, flow-root, depth 3, middle
+PASS: anonymous wrapper block to inline, inline, flow-root, depth 3, middle
+PASS: anonymous wrapper inline to block, inline, flow-root, depth 3, middle
+PASS: anonymous wrapper insert block, inline, flow-root, depth 3, end
+PASS: anonymous wrapper remove block, inline, flow-root, depth 3, end
+PASS: anonymous wrapper insert second block, inline, flow-root, depth 3, end
+PASS: anonymous wrapper remove first block, inline, flow-root, depth 3, end
+PASS: anonymous wrapper remove second block, inline, flow-root, depth 3, end
+PASS: anonymous wrapper block to inline, inline, flow-root, depth 3, end
+PASS: anonymous wrapper inline to block, inline, flow-root, depth 3, end
+PASS: anonymous wrapper insert block, inline, flow-root, depth 4, start
+PASS: anonymous wrapper remove block, inline, flow-root, depth 4, start
+PASS: anonymous wrapper insert second block, inline, flow-root, depth 4, start
+PASS: anonymous wrapper remove first block, inline, flow-root, depth 4, start
+PASS: anonymous wrapper remove second block, inline, flow-root, depth 4, start
+PASS: anonymous wrapper block to inline, inline, flow-root, depth 4, start
+PASS: anonymous wrapper inline to block, inline, flow-root, depth 4, start
+PASS: anonymous wrapper insert block, inline, flow-root, depth 4, middle
+PASS: anonymous wrapper remove block, inline, flow-root, depth 4, middle
+PASS: anonymous wrapper insert second block, inline, flow-root, depth 4, middle
+PASS: anonymous wrapper remove first block, inline, flow-root, depth 4, middle
+PASS: anonymous wrapper remove second block, inline, flow-root, depth 4, middle
+PASS: anonymous wrapper block to inline, inline, flow-root, depth 4, middle
+PASS: anonymous wrapper inline to block, inline, flow-root, depth 4, middle
+PASS: anonymous wrapper insert block, inline, flow-root, depth 4, end
+PASS: anonymous wrapper remove block, inline, flow-root, depth 4, end
+PASS: anonymous wrapper insert second block, inline, flow-root, depth 4, end
+PASS: anonymous wrapper remove first block, inline, flow-root, depth 4, end
+PASS: anonymous wrapper remove second block, inline, flow-root, depth 4, end
+PASS: anonymous wrapper block to inline, inline, flow-root, depth 4, end
+PASS: anonymous wrapper inline to block, inline, flow-root, depth 4, end
+PASS: anonymous wrapper insert block, inline, flex, depth 1, start
+PASS: anonymous wrapper remove block, inline, flex, depth 1, start
+PASS: anonymous wrapper insert second block, inline, flex, depth 1, start
+PASS: anonymous wrapper remove first block, inline, flex, depth 1, start
+PASS: anonymous wrapper remove second block, inline, flex, depth 1, start
+PASS: anonymous wrapper block to inline, inline, flex, depth 1, start
+PASS: anonymous wrapper inline to block, inline, flex, depth 1, start
+PASS: anonymous wrapper insert block, inline, flex, depth 1, middle
+PASS: anonymous wrapper remove block, inline, flex, depth 1, middle
+PASS: anonymous wrapper insert second block, inline, flex, depth 1, middle
+PASS: anonymous wrapper remove first block, inline, flex, depth 1, middle
+PASS: anonymous wrapper remove second block, inline, flex, depth 1, middle
+PASS: anonymous wrapper block to inline, inline, flex, depth 1, middle
+PASS: anonymous wrapper inline to block, inline, flex, depth 1, middle
+PASS: anonymous wrapper insert block, inline, flex, depth 1, end
+PASS: anonymous wrapper remove block, inline, flex, depth 1, end
+PASS: anonymous wrapper insert second block, inline, flex, depth 1, end
+PASS: anonymous wrapper remove first block, inline, flex, depth 1, end
+PASS: anonymous wrapper remove second block, inline, flex, depth 1, end
+PASS: anonymous wrapper block to inline, inline, flex, depth 1, end
+PASS: anonymous wrapper inline to block, inline, flex, depth 1, end
+PASS: anonymous wrapper insert block, inline, flex, depth 2, start
+PASS: anonymous wrapper remove block, inline, flex, depth 2, start
+PASS: anonymous wrapper insert second block, inline, flex, depth 2, start
+PASS: anonymous wrapper remove first block, inline, flex, depth 2, start
+PASS: anonymous wrapper remove second block, inline, flex, depth 2, start
+PASS: anonymous wrapper block to inline, inline, flex, depth 2, start
+PASS: anonymous wrapper inline to block, inline, flex, depth 2, start
+PASS: anonymous wrapper insert block, inline, flex, depth 2, middle
+PASS: anonymous wrapper remove block, inline, flex, depth 2, middle
+PASS: anonymous wrapper insert second block, inline, flex, depth 2, middle
+PASS: anonymous wrapper remove first block, inline, flex, depth 2, middle
+PASS: anonymous wrapper remove second block, inline, flex, depth 2, middle
+PASS: anonymous wrapper block to inline, inline, flex, depth 2, middle
+PASS: anonymous wrapper inline to block, inline, flex, depth 2, middle
+PASS: anonymous wrapper insert block, inline, flex, depth 2, end
+PASS: anonymous wrapper remove block, inline, flex, depth 2, end
+PASS: anonymous wrapper insert second block, inline, flex, depth 2, end
+PASS: anonymous wrapper remove first block, inline, flex, depth 2, end
+PASS: anonymous wrapper remove second block, inline, flex, depth 2, end
+PASS: anonymous wrapper block to inline, inline, flex, depth 2, end
+PASS: anonymous wrapper inline to block, inline, flex, depth 2, end
+PASS: anonymous wrapper insert block, inline, flex, depth 3, start
+PASS: anonymous wrapper remove block, inline, flex, depth 3, start
+PASS: anonymous wrapper insert second block, inline, flex, depth 3, start
+PASS: anonymous wrapper remove first block, inline, flex, depth 3, start
+PASS: anonymous wrapper remove second block, inline, flex, depth 3, start
+PASS: anonymous wrapper block to inline, inline, flex, depth 3, start
+PASS: anonymous wrapper inline to block, inline, flex, depth 3, start
+PASS: anonymous wrapper insert block, inline, flex, depth 3, middle
+PASS: anonymous wrapper remove block, inline, flex, depth 3, middle
+PASS: anonymous wrapper insert second block, inline, flex, depth 3, middle
+PASS: anonymous wrapper remove first block, inline, flex, depth 3, middle
+PASS: anonymous wrapper remove second block, inline, flex, depth 3, middle
+PASS: anonymous wrapper block to inline, inline, flex, depth 3, middle
+PASS: anonymous wrapper inline to block, inline, flex, depth 3, middle
+PASS: anonymous wrapper insert block, inline, flex, depth 3, end
+PASS: anonymous wrapper remove block, inline, flex, depth 3, end
+PASS: anonymous wrapper insert second block, inline, flex, depth 3, end
+PASS: anonymous wrapper remove first block, inline, flex, depth 3, end
+PASS: anonymous wrapper remove second block, inline, flex, depth 3, end
+PASS: anonymous wrapper block to inline, inline, flex, depth 3, end
+PASS: anonymous wrapper inline to block, inline, flex, depth 3, end
+PASS: anonymous wrapper insert block, inline, flex, depth 4, start
+PASS: anonymous wrapper remove block, inline, flex, depth 4, start
+PASS: anonymous wrapper insert second block, inline, flex, depth 4, start
+PASS: anonymous wrapper remove first block, inline, flex, depth 4, start
+PASS: anonymous wrapper remove second block, inline, flex, depth 4, start
+PASS: anonymous wrapper block to inline, inline, flex, depth 4, start
+PASS: anonymous wrapper inline to block, inline, flex, depth 4, start
+PASS: anonymous wrapper insert block, inline, flex, depth 4, middle
+PASS: anonymous wrapper remove block, inline, flex, depth 4, middle
+PASS: anonymous wrapper insert second block, inline, flex, depth 4, middle
+PASS: anonymous wrapper remove first block, inline, flex, depth 4, middle
+PASS: anonymous wrapper remove second block, inline, flex, depth 4, middle
+PASS: anonymous wrapper block to inline, inline, flex, depth 4, middle
+PASS: anonymous wrapper inline to block, inline, flex, depth 4, middle
+PASS: anonymous wrapper insert block, inline, flex, depth 4, end
+PASS: anonymous wrapper remove block, inline, flex, depth 4, end
+PASS: anonymous wrapper insert second block, inline, flex, depth 4, end
+PASS: anonymous wrapper remove first block, inline, flex, depth 4, end
+PASS: anonymous wrapper remove second block, inline, flex, depth 4, end
+PASS: anonymous wrapper block to inline, inline, flex, depth 4, end
+PASS: anonymous wrapper inline to block, inline, flex, depth 4, end
+PASS: anonymous wrapper insert block, inline, grid, depth 1, start
+PASS: anonymous wrapper remove block, inline, grid, depth 1, start
+PASS: anonymous wrapper insert second block, inline, grid, depth 1, start
+PASS: anonymous wrapper remove first block, inline, grid, depth 1, start
+PASS: anonymous wrapper remove second block, inline, grid, depth 1, start
+PASS: anonymous wrapper block to inline, inline, grid, depth 1, start
+PASS: anonymous wrapper inline to block, inline, grid, depth 1, start
+PASS: anonymous wrapper insert block, inline, grid, depth 1, middle
+PASS: anonymous wrapper remove block, inline, grid, depth 1, middle
+PASS: anonymous wrapper insert second block, inline, grid, depth 1, middle
+PASS: anonymous wrapper remove first block, inline, grid, depth 1, middle
+PASS: anonymous wrapper remove second block, inline, grid, depth 1, middle
+PASS: anonymous wrapper block to inline, inline, grid, depth 1, middle
+PASS: anonymous wrapper inline to block, inline, grid, depth 1, middle
+PASS: anonymous wrapper insert block, inline, grid, depth 1, end
+PASS: anonymous wrapper remove block, inline, grid, depth 1, end
+PASS: anonymous wrapper insert second block, inline, grid, depth 1, end
+PASS: anonymous wrapper remove first block, inline, grid, depth 1, end
+PASS: anonymous wrapper remove second block, inline, grid, depth 1, end
+PASS: anonymous wrapper block to inline, inline, grid, depth 1, end
+PASS: anonymous wrapper inline to block, inline, grid, depth 1, end
+PASS: anonymous wrapper insert block, inline, grid, depth 2, start
+PASS: anonymous wrapper remove block, inline, grid, depth 2, start
+PASS: anonymous wrapper insert second block, inline, grid, depth 2, start
+PASS: anonymous wrapper remove first block, inline, grid, depth 2, start
+PASS: anonymous wrapper remove second block, inline, grid, depth 2, start
+PASS: anonymous wrapper block to inline, inline, grid, depth 2, start
+PASS: anonymous wrapper inline to block, inline, grid, depth 2, start
+PASS: anonymous wrapper insert block, inline, grid, depth 2, middle
+PASS: anonymous wrapper remove block, inline, grid, depth 2, middle
+PASS: anonymous wrapper insert second block, inline, grid, depth 2, middle
+PASS: anonymous wrapper remove first block, inline, grid, depth 2, middle
+PASS: anonymous wrapper remove second block, inline, grid, depth 2, middle
+PASS: anonymous wrapper block to inline, inline, grid, depth 2, middle
+PASS: anonymous wrapper inline to block, inline, grid, depth 2, middle
+PASS: anonymous wrapper insert block, inline, grid, depth 2, end
+PASS: anonymous wrapper remove block, inline, grid, depth 2, end
+PASS: anonymous wrapper insert second block, inline, grid, depth 2, end
+PASS: anonymous wrapper remove first block, inline, grid, depth 2, end
+PASS: anonymous wrapper remove second block, inline, grid, depth 2, end
+PASS: anonymous wrapper block to inline, inline, grid, depth 2, end
+PASS: anonymous wrapper inline to block, inline, grid, depth 2, end
+PASS: anonymous wrapper insert block, inline, grid, depth 3, start
+PASS: anonymous wrapper remove block, inline, grid, depth 3, start
+PASS: anonymous wrapper insert second block, inline, grid, depth 3, start
+PASS: anonymous wrapper remove first block, inline, grid, depth 3, start
+PASS: anonymous wrapper remove second block, inline, grid, depth 3, start
+PASS: anonymous wrapper block to inline, inline, grid, depth 3, start
+PASS: anonymous wrapper inline to block, inline, grid, depth 3, start
+PASS: anonymous wrapper insert block, inline, grid, depth 3, middle
+PASS: anonymous wrapper remove block, inline, grid, depth 3, middle
+PASS: anonymous wrapper insert second block, inline, grid, depth 3, middle
+PASS: anonymous wrapper remove first block, inline, grid, depth 3, middle
+PASS: anonymous wrapper remove second block, inline, grid, depth 3, middle
+PASS: anonymous wrapper block to inline, inline, grid, depth 3, middle
+PASS: anonymous wrapper inline to block, inline, grid, depth 3, middle
+PASS: anonymous wrapper insert block, inline, grid, depth 3, end
+PASS: anonymous wrapper remove block, inline, grid, depth 3, end
+PASS: anonymous wrapper insert second block, inline, grid, depth 3, end
+PASS: anonymous wrapper remove first block, inline, grid, depth 3, end
+PASS: anonymous wrapper remove second block, inline, grid, depth 3, end
+PASS: anonymous wrapper block to inline, inline, grid, depth 3, end
+PASS: anonymous wrapper inline to block, inline, grid, depth 3, end
+PASS: anonymous wrapper insert block, inline, grid, depth 4, start
+PASS: anonymous wrapper remove block, inline, grid, depth 4, start
+PASS: anonymous wrapper insert second block, inline, grid, depth 4, start
+PASS: anonymous wrapper remove first block, inline, grid, depth 4, start
+PASS: anonymous wrapper remove second block, inline, grid, depth 4, start
+PASS: anonymous wrapper block to inline, inline, grid, depth 4, start
+PASS: anonymous wrapper inline to block, inline, grid, depth 4, start
+PASS: anonymous wrapper insert block, inline, grid, depth 4, middle
+PASS: anonymous wrapper remove block, inline, grid, depth 4, middle
+PASS: anonymous wrapper insert second block, inline, grid, depth 4, middle
+PASS: anonymous wrapper remove first block, inline, grid, depth 4, middle
+PASS: anonymous wrapper remove second block, inline, grid, depth 4, middle
+PASS: anonymous wrapper block to inline, inline, grid, depth 4, middle
+PASS: anonymous wrapper inline to block, inline, grid, depth 4, middle
+PASS: anonymous wrapper insert block, inline, grid, depth 4, end
+PASS: anonymous wrapper remove block, inline, grid, depth 4, end
+PASS: anonymous wrapper insert second block, inline, grid, depth 4, end
+PASS: anonymous wrapper remove first block, inline, grid, depth 4, end
+PASS: anonymous wrapper remove second block, inline, grid, depth 4, end
+PASS: anonymous wrapper block to inline, inline, grid, depth 4, end
+PASS: anonymous wrapper inline to block, inline, grid, depth 4, end
+PASS: anonymous wrapper insert block, inline, table, depth 1, start
+PASS: anonymous wrapper remove block, inline, table, depth 1, start
+PASS: anonymous wrapper insert second block, inline, table, depth 1, start
+PASS: anonymous wrapper remove first block, inline, table, depth 1, start
+PASS: anonymous wrapper remove second block, inline, table, depth 1, start
+PASS: anonymous wrapper block to inline, inline, table, depth 1, start
+PASS: anonymous wrapper inline to block, inline, table, depth 1, start
+PASS: anonymous wrapper insert block, inline, table, depth 1, middle
+PASS: anonymous wrapper remove block, inline, table, depth 1, middle
+PASS: anonymous wrapper insert second block, inline, table, depth 1, middle
+PASS: anonymous wrapper remove first block, inline, table, depth 1, middle
+PASS: anonymous wrapper remove second block, inline, table, depth 1, middle
+PASS: anonymous wrapper block to inline, inline, table, depth 1, middle
+PASS: anonymous wrapper inline to block, inline, table, depth 1, middle
+PASS: anonymous wrapper insert block, inline, table, depth 1, end
+PASS: anonymous wrapper remove block, inline, table, depth 1, end
+PASS: anonymous wrapper insert second block, inline, table, depth 1, end
+PASS: anonymous wrapper remove first block, inline, table, depth 1, end
+PASS: anonymous wrapper remove second block, inline, table, depth 1, end
+PASS: anonymous wrapper block to inline, inline, table, depth 1, end
+PASS: anonymous wrapper inline to block, inline, table, depth 1, end
+PASS: anonymous wrapper insert block, inline, table, depth 2, start
+PASS: anonymous wrapper remove block, inline, table, depth 2, start
+PASS: anonymous wrapper insert second block, inline, table, depth 2, start
+PASS: anonymous wrapper remove first block, inline, table, depth 2, start
+PASS: anonymous wrapper remove second block, inline, table, depth 2, start
+PASS: anonymous wrapper block to inline, inline, table, depth 2, start
+PASS: anonymous wrapper inline to block, inline, table, depth 2, start
+PASS: anonymous wrapper insert block, inline, table, depth 2, middle
+PASS: anonymous wrapper remove block, inline, table, depth 2, middle
+PASS: anonymous wrapper insert second block, inline, table, depth 2, middle
+PASS: anonymous wrapper remove first block, inline, table, depth 2, middle
+PASS: anonymous wrapper remove second block, inline, table, depth 2, middle
+PASS: anonymous wrapper block to inline, inline, table, depth 2, middle
+PASS: anonymous wrapper inline to block, inline, table, depth 2, middle
+PASS: anonymous wrapper insert block, inline, table, depth 2, end
+PASS: anonymous wrapper remove block, inline, table, depth 2, end
+PASS: anonymous wrapper insert second block, inline, table, depth 2, end
+PASS: anonymous wrapper remove first block, inline, table, depth 2, end
+PASS: anonymous wrapper remove second block, inline, table, depth 2, end
+PASS: anonymous wrapper block to inline, inline, table, depth 2, end
+PASS: anonymous wrapper inline to block, inline, table, depth 2, end
+PASS: anonymous wrapper insert block, inline, table, depth 3, start
+PASS: anonymous wrapper remove block, inline, table, depth 3, start
+PASS: anonymous wrapper insert second block, inline, table, depth 3, start
+PASS: anonymous wrapper remove first block, inline, table, depth 3, start
+PASS: anonymous wrapper remove second block, inline, table, depth 3, start
+PASS: anonymous wrapper block to inline, inline, table, depth 3, start
+PASS: anonymous wrapper inline to block, inline, table, depth 3, start
+PASS: anonymous wrapper insert block, inline, table, depth 3, middle
+PASS: anonymous wrapper remove block, inline, table, depth 3, middle
+PASS: anonymous wrapper insert second block, inline, table, depth 3, middle
+PASS: anonymous wrapper remove first block, inline, table, depth 3, middle
+PASS: anonymous wrapper remove second block, inline, table, depth 3, middle
+PASS: anonymous wrapper block to inline, inline, table, depth 3, middle
+PASS: anonymous wrapper inline to block, inline, table, depth 3, middle
+PASS: anonymous wrapper insert block, inline, table, depth 3, end
+PASS: anonymous wrapper remove block, inline, table, depth 3, end
+PASS: anonymous wrapper insert second block, inline, table, depth 3, end
+PASS: anonymous wrapper remove first block, inline, table, depth 3, end
+PASS: anonymous wrapper remove second block, inline, table, depth 3, end
+PASS: anonymous wrapper block to inline, inline, table, depth 3, end
+PASS: anonymous wrapper inline to block, inline, table, depth 3, end
+PASS: anonymous wrapper insert block, inline, table, depth 4, start
+PASS: anonymous wrapper remove block, inline, table, depth 4, start
+PASS: anonymous wrapper insert second block, inline, table, depth 4, start
+PASS: anonymous wrapper remove first block, inline, table, depth 4, start
+PASS: anonymous wrapper remove second block, inline, table, depth 4, start
+PASS: anonymous wrapper block to inline, inline, table, depth 4, start
+PASS: anonymous wrapper inline to block, inline, table, depth 4, start
+PASS: anonymous wrapper insert block, inline, table, depth 4, middle
+PASS: anonymous wrapper remove block, inline, table, depth 4, middle
+PASS: anonymous wrapper insert second block, inline, table, depth 4, middle
+PASS: anonymous wrapper remove first block, inline, table, depth 4, middle
+PASS: anonymous wrapper remove second block, inline, table, depth 4, middle
+PASS: anonymous wrapper block to inline, inline, table, depth 4, middle
+PASS: anonymous wrapper inline to block, inline, table, depth 4, middle
+PASS: anonymous wrapper insert block, inline, table, depth 4, end
+PASS: anonymous wrapper remove block, inline, table, depth 4, end
+PASS: anonymous wrapper insert second block, inline, table, depth 4, end
+PASS: anonymous wrapper remove first block, inline, table, depth 4, end
+PASS: anonymous wrapper remove second block, inline, table, depth 4, end
+PASS: anonymous wrapper block to inline, inline, table, depth 4, end
+PASS: anonymous wrapper inline to block, inline, table, depth 4, end
+PASS: anonymous wrapper insert block, inline, list-item, depth 1, start
+PASS: anonymous wrapper remove block, inline, list-item, depth 1, start
+PASS: anonymous wrapper insert second block, inline, list-item, depth 1, start
+PASS: anonymous wrapper remove first block, inline, list-item, depth 1, start
+PASS: anonymous wrapper remove second block, inline, list-item, depth 1, start
+PASS: anonymous wrapper block to inline, inline, list-item, depth 1, start
+PASS: anonymous wrapper inline to block, inline, list-item, depth 1, start
+PASS: anonymous wrapper insert block, inline, list-item, depth 1, middle
+PASS: anonymous wrapper remove block, inline, list-item, depth 1, middle
+PASS: anonymous wrapper insert second block, inline, list-item, depth 1, middle
+PASS: anonymous wrapper remove first block, inline, list-item, depth 1, middle
+PASS: anonymous wrapper remove second block, inline, list-item, depth 1, middle
+PASS: anonymous wrapper block to inline, inline, list-item, depth 1, middle
+PASS: anonymous wrapper inline to block, inline, list-item, depth 1, middle
+PASS: anonymous wrapper insert block, inline, list-item, depth 1, end
+PASS: anonymous wrapper remove block, inline, list-item, depth 1, end
+PASS: anonymous wrapper insert second block, inline, list-item, depth 1, end
+PASS: anonymous wrapper remove first block, inline, list-item, depth 1, end
+PASS: anonymous wrapper remove second block, inline, list-item, depth 1, end
+PASS: anonymous wrapper block to inline, inline, list-item, depth 1, end
+PASS: anonymous wrapper inline to block, inline, list-item, depth 1, end
+PASS: anonymous wrapper insert block, inline, list-item, depth 2, start
+PASS: anonymous wrapper remove block, inline, list-item, depth 2, start
+PASS: anonymous wrapper insert second block, inline, list-item, depth 2, start
+PASS: anonymous wrapper remove first block, inline, list-item, depth 2, start
+PASS: anonymous wrapper remove second block, inline, list-item, depth 2, start
+PASS: anonymous wrapper block to inline, inline, list-item, depth 2, start
+PASS: anonymous wrapper inline to block, inline, list-item, depth 2, start
+PASS: anonymous wrapper insert block, inline, list-item, depth 2, middle
+PASS: anonymous wrapper remove block, inline, list-item, depth 2, middle
+PASS: anonymous wrapper insert second block, inline, list-item, depth 2, middle
+PASS: anonymous wrapper remove first block, inline, list-item, depth 2, middle
+PASS: anonymous wrapper remove second block, inline, list-item, depth 2, middle
+PASS: anonymous wrapper block to inline, inline, list-item, depth 2, middle
+PASS: anonymous wrapper inline to block, inline, list-item, depth 2, middle
+PASS: anonymous wrapper insert block, inline, list-item, depth 2, end
+PASS: anonymous wrapper remove block, inline, list-item, depth 2, end
+PASS: anonymous wrapper insert second block, inline, list-item, depth 2, end
+PASS: anonymous wrapper remove first block, inline, list-item, depth 2, end
+PASS: anonymous wrapper remove second block, inline, list-item, depth 2, end
+PASS: anonymous wrapper block to inline, inline, list-item, depth 2, end
+PASS: anonymous wrapper inline to block, inline, list-item, depth 2, end
+PASS: anonymous wrapper insert block, inline, list-item, depth 3, start
+PASS: anonymous wrapper remove block, inline, list-item, depth 3, start
+PASS: anonymous wrapper insert second block, inline, list-item, depth 3, start
+PASS: anonymous wrapper remove first block, inline, list-item, depth 3, start
+PASS: anonymous wrapper remove second block, inline, list-item, depth 3, start
+PASS: anonymous wrapper block to inline, inline, list-item, depth 3, start
+PASS: anonymous wrapper inline to block, inline, list-item, depth 3, start
+PASS: anonymous wrapper insert block, inline, list-item, depth 3, middle
+PASS: anonymous wrapper remove block, inline, list-item, depth 3, middle
+PASS: anonymous wrapper insert second block, inline, list-item, depth 3, middle
+PASS: anonymous wrapper remove first block, inline, list-item, depth 3, middle
+PASS: anonymous wrapper remove second block, inline, list-item, depth 3, middle
+PASS: anonymous wrapper block to inline, inline, list-item, depth 3, middle
+PASS: anonymous wrapper inline to block, inline, list-item, depth 3, middle
+PASS: anonymous wrapper insert block, inline, list-item, depth 3, end
+PASS: anonymous wrapper remove block, inline, list-item, depth 3, end
+PASS: anonymous wrapper insert second block, inline, list-item, depth 3, end
+PASS: anonymous wrapper remove first block, inline, list-item, depth 3, end
+PASS: anonymous wrapper remove second block, inline, list-item, depth 3, end
+PASS: anonymous wrapper block to inline, inline, list-item, depth 3, end
+PASS: anonymous wrapper inline to block, inline, list-item, depth 3, end
+PASS: anonymous wrapper insert block, inline, list-item, depth 4, start
+PASS: anonymous wrapper remove block, inline, list-item, depth 4, start
+PASS: anonymous wrapper insert second block, inline, list-item, depth 4, start
+PASS: anonymous wrapper remove first block, inline, list-item, depth 4, start
+PASS: anonymous wrapper remove second block, inline, list-item, depth 4, start
+PASS: anonymous wrapper block to inline, inline, list-item, depth 4, start
+PASS: anonymous wrapper inline to block, inline, list-item, depth 4, start
+PASS: anonymous wrapper insert block, inline, list-item, depth 4, middle
+PASS: anonymous wrapper remove block, inline, list-item, depth 4, middle
+PASS: anonymous wrapper insert second block, inline, list-item, depth 4, middle
+PASS: anonymous wrapper remove first block, inline, list-item, depth 4, middle
+PASS: anonymous wrapper remove second block, inline, list-item, depth 4, middle
+PASS: anonymous wrapper block to inline, inline, list-item, depth 4, middle
+PASS: anonymous wrapper inline to block, inline, list-item, depth 4, middle
+PASS: anonymous wrapper insert block, inline, list-item, depth 4, end
+PASS: anonymous wrapper remove block, inline, list-item, depth 4, end
+PASS: anonymous wrapper insert second block, inline, list-item, depth 4, end
+PASS: anonymous wrapper remove first block, inline, list-item, depth 4, end
+PASS: anonymous wrapper remove second block, inline, list-item, depth 4, end
+PASS: anonymous wrapper block to inline, inline, list-item, depth 4, end
+PASS: anonymous wrapper inline to block, inline, list-item, depth 4, end
+PASS: anonymous wrapper insert block, inline flow, block, depth 1, start
+PASS: anonymous wrapper remove block, inline flow, block, depth 1, start
+PASS: anonymous wrapper insert second block, inline flow, block, depth 1, start
+PASS: anonymous wrapper remove first block, inline flow, block, depth 1, start
+PASS: anonymous wrapper remove second block, inline flow, block, depth 1, start
+PASS: anonymous wrapper block to inline, inline flow, block, depth 1, start
+PASS: anonymous wrapper inline to block, inline flow, block, depth 1, start
+PASS: anonymous wrapper insert block, inline flow, block, depth 1, middle
+PASS: anonymous wrapper remove block, inline flow, block, depth 1, middle
+PASS: anonymous wrapper insert second block, inline flow, block, depth 1, middle
+PASS: anonymous wrapper remove first block, inline flow, block, depth 1, middle
+PASS: anonymous wrapper remove second block, inline flow, block, depth 1, middle
+PASS: anonymous wrapper block to inline, inline flow, block, depth 1, middle
+PASS: anonymous wrapper inline to block, inline flow, block, depth 1, middle
+PASS: anonymous wrapper insert block, inline flow, block, depth 1, end
+PASS: anonymous wrapper remove block, inline flow, block, depth 1, end
+PASS: anonymous wrapper insert second block, inline flow, block, depth 1, end
+PASS: anonymous wrapper remove first block, inline flow, block, depth 1, end
+PASS: anonymous wrapper remove second block, inline flow, block, depth 1, end
+PASS: anonymous wrapper block to inline, inline flow, block, depth 1, end
+PASS: anonymous wrapper inline to block, inline flow, block, depth 1, end
+PASS: anonymous wrapper insert block, inline flow, block, depth 2, start
+PASS: anonymous wrapper remove block, inline flow, block, depth 2, start
+PASS: anonymous wrapper insert second block, inline flow, block, depth 2, start
+PASS: anonymous wrapper remove first block, inline flow, block, depth 2, start
+PASS: anonymous wrapper remove second block, inline flow, block, depth 2, start
+PASS: anonymous wrapper block to inline, inline flow, block, depth 2, start
+PASS: anonymous wrapper inline to block, inline flow, block, depth 2, start
+PASS: anonymous wrapper insert block, inline flow, block, depth 2, middle
+PASS: anonymous wrapper remove block, inline flow, block, depth 2, middle
+PASS: anonymous wrapper insert second block, inline flow, block, depth 2, middle
+PASS: anonymous wrapper remove first block, inline flow, block, depth 2, middle
+PASS: anonymous wrapper remove second block, inline flow, block, depth 2, middle
+PASS: anonymous wrapper block to inline, inline flow, block, depth 2, middle
+PASS: anonymous wrapper inline to block, inline flow, block, depth 2, middle
+PASS: anonymous wrapper insert block, inline flow, block, depth 2, end
+PASS: anonymous wrapper remove block, inline flow, block, depth 2, end
+PASS: anonymous wrapper insert second block, inline flow, block, depth 2, end
+PASS: anonymous wrapper remove first block, inline flow, block, depth 2, end
+PASS: anonymous wrapper remove second block, inline flow, block, depth 2, end
+PASS: anonymous wrapper block to inline, inline flow, block, depth 2, end
+PASS: anonymous wrapper inline to block, inline flow, block, depth 2, end
+PASS: anonymous wrapper insert block, inline flow, block, depth 3, start
+PASS: anonymous wrapper remove block, inline flow, block, depth 3, start
+PASS: anonymous wrapper insert second block, inline flow, block, depth 3, start
+PASS: anonymous wrapper remove first block, inline flow, block, depth 3, start
+PASS: anonymous wrapper remove second block, inline flow, block, depth 3, start
+PASS: anonymous wrapper block to inline, inline flow, block, depth 3, start
+PASS: anonymous wrapper inline to block, inline flow, block, depth 3, start
+PASS: anonymous wrapper insert block, inline flow, block, depth 3, middle
+PASS: anonymous wrapper remove block, inline flow, block, depth 3, middle
+PASS: anonymous wrapper insert second block, inline flow, block, depth 3, middle
+PASS: anonymous wrapper remove first block, inline flow, block, depth 3, middle
+PASS: anonymous wrapper remove second block, inline flow, block, depth 3, middle
+PASS: anonymous wrapper block to inline, inline flow, block, depth 3, middle
+PASS: anonymous wrapper inline to block, inline flow, block, depth 3, middle
+PASS: anonymous wrapper insert block, inline flow, block, depth 3, end
+PASS: anonymous wrapper remove block, inline flow, block, depth 3, end
+PASS: anonymous wrapper insert second block, inline flow, block, depth 3, end
+PASS: anonymous wrapper remove first block, inline flow, block, depth 3, end
+PASS: anonymous wrapper remove second block, inline flow, block, depth 3, end
+PASS: anonymous wrapper block to inline, inline flow, block, depth 3, end
+PASS: anonymous wrapper inline to block, inline flow, block, depth 3, end
+PASS: anonymous wrapper insert block, inline flow, block, depth 4, start
+PASS: anonymous wrapper remove block, inline flow, block, depth 4, start
+PASS: anonymous wrapper insert second block, inline flow, block, depth 4, start
+PASS: anonymous wrapper remove first block, inline flow, block, depth 4, start
+PASS: anonymous wrapper remove second block, inline flow, block, depth 4, start
+PASS: anonymous wrapper block to inline, inline flow, block, depth 4, start
+PASS: anonymous wrapper inline to block, inline flow, block, depth 4, start
+PASS: anonymous wrapper insert block, inline flow, block, depth 4, middle
+PASS: anonymous wrapper remove block, inline flow, block, depth 4, middle
+PASS: anonymous wrapper insert second block, inline flow, block, depth 4, middle
+PASS: anonymous wrapper remove first block, inline flow, block, depth 4, middle
+PASS: anonymous wrapper remove second block, inline flow, block, depth 4, middle
+PASS: anonymous wrapper block to inline, inline flow, block, depth 4, middle
+PASS: anonymous wrapper inline to block, inline flow, block, depth 4, middle
+PASS: anonymous wrapper insert block, inline flow, block, depth 4, end
+PASS: anonymous wrapper remove block, inline flow, block, depth 4, end
+PASS: anonymous wrapper insert second block, inline flow, block, depth 4, end
+PASS: anonymous wrapper remove first block, inline flow, block, depth 4, end
+PASS: anonymous wrapper remove second block, inline flow, block, depth 4, end
+PASS: anonymous wrapper block to inline, inline flow, block, depth 4, end
+PASS: anonymous wrapper inline to block, inline flow, block, depth 4, end
+PASS: anonymous wrapper insert block, inline flow, flow-root, depth 1, start
+PASS: anonymous wrapper remove block, inline flow, flow-root, depth 1, start
+PASS: anonymous wrapper insert second block, inline flow, flow-root, depth 1, start
+PASS: anonymous wrapper remove first block, inline flow, flow-root, depth 1, start
+PASS: anonymous wrapper remove second block, inline flow, flow-root, depth 1, start
+PASS: anonymous wrapper block to inline, inline flow, flow-root, depth 1, start
+PASS: anonymous wrapper inline to block, inline flow, flow-root, depth 1, start
+PASS: anonymous wrapper insert block, inline flow, flow-root, depth 1, middle
+PASS: anonymous wrapper remove block, inline flow, flow-root, depth 1, middle
+PASS: anonymous wrapper insert second block, inline flow, flow-root, depth 1, middle
+PASS: anonymous wrapper remove first block, inline flow, flow-root, depth 1, middle
+PASS: anonymous wrapper remove second block, inline flow, flow-root, depth 1, middle
+PASS: anonymous wrapper block to inline, inline flow, flow-root, depth 1, middle
+PASS: anonymous wrapper inline to block, inline flow, flow-root, depth 1, middle
+PASS: anonymous wrapper insert block, inline flow, flow-root, depth 1, end
+PASS: anonymous wrapper remove block, inline flow, flow-root, depth 1, end
+PASS: anonymous wrapper insert second block, inline flow, flow-root, depth 1, end
+PASS: anonymous wrapper remove first block, inline flow, flow-root, depth 1, end
+PASS: anonymous wrapper remove second block, inline flow, flow-root, depth 1, end
+PASS: anonymous wrapper block to inline, inline flow, flow-root, depth 1, end
+PASS: anonymous wrapper inline to block, inline flow, flow-root, depth 1, end
+PASS: anonymous wrapper insert block, inline flow, flow-root, depth 2, start
+PASS: anonymous wrapper remove block, inline flow, flow-root, depth 2, start
+PASS: anonymous wrapper insert second block, inline flow, flow-root, depth 2, start
+PASS: anonymous wrapper remove first block, inline flow, flow-root, depth 2, start
+PASS: anonymous wrapper remove second block, inline flow, flow-root, depth 2, start
+PASS: anonymous wrapper block to inline, inline flow, flow-root, depth 2, start
+PASS: anonymous wrapper inline to block, inline flow, flow-root, depth 2, start
+PASS: anonymous wrapper insert block, inline flow, flow-root, depth 2, middle
+PASS: anonymous wrapper remove block, inline flow, flow-root, depth 2, middle
+PASS: anonymous wrapper insert second block, inline flow, flow-root, depth 2, middle
+PASS: anonymous wrapper remove first block, inline flow, flow-root, depth 2, middle
+PASS: anonymous wrapper remove second block, inline flow, flow-root, depth 2, middle
+PASS: anonymous wrapper block to inline, inline flow, flow-root, depth 2, middle
+PASS: anonymous wrapper inline to block, inline flow, flow-root, depth 2, middle
+PASS: anonymous wrapper insert block, inline flow, flow-root, depth 2, end
+PASS: anonymous wrapper remove block, inline flow, flow-root, depth 2, end
+PASS: anonymous wrapper insert second block, inline flow, flow-root, depth 2, end
+PASS: anonymous wrapper remove first block, inline flow, flow-root, depth 2, end
+PASS: anonymous wrapper remove second block, inline flow, flow-root, depth 2, end
+PASS: anonymous wrapper block to inline, inline flow, flow-root, depth 2, end
+PASS: anonymous wrapper inline to block, inline flow, flow-root, depth 2, end
+PASS: anonymous wrapper insert block, inline flow, flow-root, depth 3, start
+PASS: anonymous wrapper remove block, inline flow, flow-root, depth 3, start
+PASS: anonymous wrapper insert second block, inline flow, flow-root, depth 3, start
+PASS: anonymous wrapper remove first block, inline flow, flow-root, depth 3, start
+PASS: anonymous wrapper remove second block, inline flow, flow-root, depth 3, start
+PASS: anonymous wrapper block to inline, inline flow, flow-root, depth 3, start
+PASS: anonymous wrapper inline to block, inline flow, flow-root, depth 3, start
+PASS: anonymous wrapper insert block, inline flow, flow-root, depth 3, middle
+PASS: anonymous wrapper remove block, inline flow, flow-root, depth 3, middle
+PASS: anonymous wrapper insert second block, inline flow, flow-root, depth 3, middle
+PASS: anonymous wrapper remove first block, inline flow, flow-root, depth 3, middle
+PASS: anonymous wrapper remove second block, inline flow, flow-root, depth 3, middle
+PASS: anonymous wrapper block to inline, inline flow, flow-root, depth 3, middle
+PASS: anonymous wrapper inline to block, inline flow, flow-root, depth 3, middle
+PASS: anonymous wrapper insert block, inline flow, flow-root, depth 3, end
+PASS: anonymous wrapper remove block, inline flow, flow-root, depth 3, end
+PASS: anonymous wrapper insert second block, inline flow, flow-root, depth 3, end
+PASS: anonymous wrapper remove first block, inline flow, flow-root, depth 3, end
+PASS: anonymous wrapper remove second block, inline flow, flow-root, depth 3, end
+PASS: anonymous wrapper block to inline, inline flow, flow-root, depth 3, end
+PASS: anonymous wrapper inline to block, inline flow, flow-root, depth 3, end
+PASS: anonymous wrapper insert block, inline flow, flow-root, depth 4, start
+PASS: anonymous wrapper remove block, inline flow, flow-root, depth 4, start
+PASS: anonymous wrapper insert second block, inline flow, flow-root, depth 4, start
+PASS: anonymous wrapper remove first block, inline flow, flow-root, depth 4, start
+PASS: anonymous wrapper remove second block, inline flow, flow-root, depth 4, start
+PASS: anonymous wrapper block to inline, inline flow, flow-root, depth 4, start
+PASS: anonymous wrapper inline to block, inline flow, flow-root, depth 4, start
+PASS: anonymous wrapper insert block, inline flow, flow-root, depth 4, middle
+PASS: anonymous wrapper remove block, inline flow, flow-root, depth 4, middle
+PASS: anonymous wrapper insert second block, inline flow, flow-root, depth 4, middle
+PASS: anonymous wrapper remove first block, inline flow, flow-root, depth 4, middle
+PASS: anonymous wrapper remove second block, inline flow, flow-root, depth 4, middle
+PASS: anonymous wrapper block to inline, inline flow, flow-root, depth 4, middle
+PASS: anonymous wrapper inline to block, inline flow, flow-root, depth 4, middle
+PASS: anonymous wrapper insert block, inline flow, flow-root, depth 4, end
+PASS: anonymous wrapper remove block, inline flow, flow-root, depth 4, end
+PASS: anonymous wrapper insert second block, inline flow, flow-root, depth 4, end
+PASS: anonymous wrapper remove first block, inline flow, flow-root, depth 4, end
+PASS: anonymous wrapper remove second block, inline flow, flow-root, depth 4, end
+PASS: anonymous wrapper block to inline, inline flow, flow-root, depth 4, end
+PASS: anonymous wrapper inline to block, inline flow, flow-root, depth 4, end
+PASS: anonymous wrapper insert block, inline flow, flex, depth 1, start
+PASS: anonymous wrapper remove block, inline flow, flex, depth 1, start
+PASS: anonymous wrapper insert second block, inline flow, flex, depth 1, start
+PASS: anonymous wrapper remove first block, inline flow, flex, depth 1, start
+PASS: anonymous wrapper remove second block, inline flow, flex, depth 1, start
+PASS: anonymous wrapper block to inline, inline flow, flex, depth 1, start
+PASS: anonymous wrapper inline to block, inline flow, flex, depth 1, start
+PASS: anonymous wrapper insert block, inline flow, flex, depth 1, middle
+PASS: anonymous wrapper remove block, inline flow, flex, depth 1, middle
+PASS: anonymous wrapper insert second block, inline flow, flex, depth 1, middle
+PASS: anonymous wrapper remove first block, inline flow, flex, depth 1, middle
+PASS: anonymous wrapper remove second block, inline flow, flex, depth 1, middle
+PASS: anonymous wrapper block to inline, inline flow, flex, depth 1, middle
+PASS: anonymous wrapper inline to block, inline flow, flex, depth 1, middle
+PASS: anonymous wrapper insert block, inline flow, flex, depth 1, end
+PASS: anonymous wrapper remove block, inline flow, flex, depth 1, end
+PASS: anonymous wrapper insert second block, inline flow, flex, depth 1, end
+PASS: anonymous wrapper remove first block, inline flow, flex, depth 1, end
+PASS: anonymous wrapper remove second block, inline flow, flex, depth 1, end
+PASS: anonymous wrapper block to inline, inline flow, flex, depth 1, end
+PASS: anonymous wrapper inline to block, inline flow, flex, depth 1, end
+PASS: anonymous wrapper insert block, inline flow, flex, depth 2, start
+PASS: anonymous wrapper remove block, inline flow, flex, depth 2, start
+PASS: anonymous wrapper insert second block, inline flow, flex, depth 2, start
+PASS: anonymous wrapper remove first block, inline flow, flex, depth 2, start
+PASS: anonymous wrapper remove second block, inline flow, flex, depth 2, start
+PASS: anonymous wrapper block to inline, inline flow, flex, depth 2, start
+PASS: anonymous wrapper inline to block, inline flow, flex, depth 2, start
+PASS: anonymous wrapper insert block, inline flow, flex, depth 2, middle
+PASS: anonymous wrapper remove block, inline flow, flex, depth 2, middle
+PASS: anonymous wrapper insert second block, inline flow, flex, depth 2, middle
+PASS: anonymous wrapper remove first block, inline flow, flex, depth 2, middle
+PASS: anonymous wrapper remove second block, inline flow, flex, depth 2, middle
+PASS: anonymous wrapper block to inline, inline flow, flex, depth 2, middle
+PASS: anonymous wrapper inline to block, inline flow, flex, depth 2, middle
+PASS: anonymous wrapper insert block, inline flow, flex, depth 2, end
+PASS: anonymous wrapper remove block, inline flow, flex, depth 2, end
+PASS: anonymous wrapper insert second block, inline flow, flex, depth 2, end
+PASS: anonymous wrapper remove first block, inline flow, flex, depth 2, end
+PASS: anonymous wrapper remove second block, inline flow, flex, depth 2, end
+PASS: anonymous wrapper block to inline, inline flow, flex, depth 2, end
+PASS: anonymous wrapper inline to block, inline flow, flex, depth 2, end
+PASS: anonymous wrapper insert block, inline flow, flex, depth 3, start
+PASS: anonymous wrapper remove block, inline flow, flex, depth 3, start
+PASS: anonymous wrapper insert second block, inline flow, flex, depth 3, start
+PASS: anonymous wrapper remove first block, inline flow, flex, depth 3, start
+PASS: anonymous wrapper remove second block, inline flow, flex, depth 3, start
+PASS: anonymous wrapper block to inline, inline flow, flex, depth 3, start
+PASS: anonymous wrapper inline to block, inline flow, flex, depth 3, start
+PASS: anonymous wrapper insert block, inline flow, flex, depth 3, middle
+PASS: anonymous wrapper remove block, inline flow, flex, depth 3, middle
+PASS: anonymous wrapper insert second block, inline flow, flex, depth 3, middle
+PASS: anonymous wrapper remove first block, inline flow, flex, depth 3, middle
+PASS: anonymous wrapper remove second block, inline flow, flex, depth 3, middle
+PASS: anonymous wrapper block to inline, inline flow, flex, depth 3, middle
+PASS: anonymous wrapper inline to block, inline flow, flex, depth 3, middle
+PASS: anonymous wrapper insert block, inline flow, flex, depth 3, end
+PASS: anonymous wrapper remove block, inline flow, flex, depth 3, end
+PASS: anonymous wrapper insert second block, inline flow, flex, depth 3, end
+PASS: anonymous wrapper remove first block, inline flow, flex, depth 3, end
+PASS: anonymous wrapper remove second block, inline flow, flex, depth 3, end
+PASS: anonymous wrapper block to inline, inline flow, flex, depth 3, end
+PASS: anonymous wrapper inline to block, inline flow, flex, depth 3, end
+PASS: anonymous wrapper insert block, inline flow, flex, depth 4, start
+PASS: anonymous wrapper remove block, inline flow, flex, depth 4, start
+PASS: anonymous wrapper insert second block, inline flow, flex, depth 4, start
+PASS: anonymous wrapper remove first block, inline flow, flex, depth 4, start
+PASS: anonymous wrapper remove second block, inline flow, flex, depth 4, start
+PASS: anonymous wrapper block to inline, inline flow, flex, depth 4, start
+PASS: anonymous wrapper inline to block, inline flow, flex, depth 4, start
+PASS: anonymous wrapper insert block, inline flow, flex, depth 4, middle
+PASS: anonymous wrapper remove block, inline flow, flex, depth 4, middle
+PASS: anonymous wrapper insert second block, inline flow, flex, depth 4, middle
+PASS: anonymous wrapper remove first block, inline flow, flex, depth 4, middle
+PASS: anonymous wrapper remove second block, inline flow, flex, depth 4, middle
+PASS: anonymous wrapper block to inline, inline flow, flex, depth 4, middle
+PASS: anonymous wrapper inline to block, inline flow, flex, depth 4, middle
+PASS: anonymous wrapper insert block, inline flow, flex, depth 4, end
+PASS: anonymous wrapper remove block, inline flow, flex, depth 4, end
+PASS: anonymous wrapper insert second block, inline flow, flex, depth 4, end
+PASS: anonymous wrapper remove first block, inline flow, flex, depth 4, end
+PASS: anonymous wrapper remove second block, inline flow, flex, depth 4, end
+PASS: anonymous wrapper block to inline, inline flow, flex, depth 4, end
+PASS: anonymous wrapper inline to block, inline flow, flex, depth 4, end
+PASS: anonymous wrapper insert block, inline flow, grid, depth 1, start
+PASS: anonymous wrapper remove block, inline flow, grid, depth 1, start
+PASS: anonymous wrapper insert second block, inline flow, grid, depth 1, start
+PASS: anonymous wrapper remove first block, inline flow, grid, depth 1, start
+PASS: anonymous wrapper remove second block, inline flow, grid, depth 1, start
+PASS: anonymous wrapper block to inline, inline flow, grid, depth 1, start
+PASS: anonymous wrapper inline to block, inline flow, grid, depth 1, start
+PASS: anonymous wrapper insert block, inline flow, grid, depth 1, middle
+PASS: anonymous wrapper remove block, inline flow, grid, depth 1, middle
+PASS: anonymous wrapper insert second block, inline flow, grid, depth 1, middle
+PASS: anonymous wrapper remove first block, inline flow, grid, depth 1, middle
+PASS: anonymous wrapper remove second block, inline flow, grid, depth 1, middle
+PASS: anonymous wrapper block to inline, inline flow, grid, depth 1, middle
+PASS: anonymous wrapper inline to block, inline flow, grid, depth 1, middle
+PASS: anonymous wrapper insert block, inline flow, grid, depth 1, end
+PASS: anonymous wrapper remove block, inline flow, grid, depth 1, end
+PASS: anonymous wrapper insert second block, inline flow, grid, depth 1, end
+PASS: anonymous wrapper remove first block, inline flow, grid, depth 1, end
+PASS: anonymous wrapper remove second block, inline flow, grid, depth 1, end
+PASS: anonymous wrapper block to inline, inline flow, grid, depth 1, end
+PASS: anonymous wrapper inline to block, inline flow, grid, depth 1, end
+PASS: anonymous wrapper insert block, inline flow, grid, depth 2, start
+PASS: anonymous wrapper remove block, inline flow, grid, depth 2, start
+PASS: anonymous wrapper insert second block, inline flow, grid, depth 2, start
+PASS: anonymous wrapper remove first block, inline flow, grid, depth 2, start
+PASS: anonymous wrapper remove second block, inline flow, grid, depth 2, start
+PASS: anonymous wrapper block to inline, inline flow, grid, depth 2, start
+PASS: anonymous wrapper inline to block, inline flow, grid, depth 2, start
+PASS: anonymous wrapper insert block, inline flow, grid, depth 2, middle
+PASS: anonymous wrapper remove block, inline flow, grid, depth 2, middle
+PASS: anonymous wrapper insert second block, inline flow, grid, depth 2, middle
+PASS: anonymous wrapper remove first block, inline flow, grid, depth 2, middle
+PASS: anonymous wrapper remove second block, inline flow, grid, depth 2, middle
+PASS: anonymous wrapper block to inline, inline flow, grid, depth 2, middle
+PASS: anonymous wrapper inline to block, inline flow, grid, depth 2, middle
+PASS: anonymous wrapper insert block, inline flow, grid, depth 2, end
+PASS: anonymous wrapper remove block, inline flow, grid, depth 2, end
+PASS: anonymous wrapper insert second block, inline flow, grid, depth 2, end
+PASS: anonymous wrapper remove first block, inline flow, grid, depth 2, end
+PASS: anonymous wrapper remove second block, inline flow, grid, depth 2, end
+PASS: anonymous wrapper block to inline, inline flow, grid, depth 2, end
+PASS: anonymous wrapper inline to block, inline flow, grid, depth 2, end
+PASS: anonymous wrapper insert block, inline flow, grid, depth 3, start
+PASS: anonymous wrapper remove block, inline flow, grid, depth 3, start
+PASS: anonymous wrapper insert second block, inline flow, grid, depth 3, start
+PASS: anonymous wrapper remove first block, inline flow, grid, depth 3, start
+PASS: anonymous wrapper remove second block, inline flow, grid, depth 3, start
+PASS: anonymous wrapper block to inline, inline flow, grid, depth 3, start
+PASS: anonymous wrapper inline to block, inline flow, grid, depth 3, start
+PASS: anonymous wrapper insert block, inline flow, grid, depth 3, middle
+PASS: anonymous wrapper remove block, inline flow, grid, depth 3, middle
+PASS: anonymous wrapper insert second block, inline flow, grid, depth 3, middle
+PASS: anonymous wrapper remove first block, inline flow, grid, depth 3, middle
+PASS: anonymous wrapper remove second block, inline flow, grid, depth 3, middle
+PASS: anonymous wrapper block to inline, inline flow, grid, depth 3, middle
+PASS: anonymous wrapper inline to block, inline flow, grid, depth 3, middle
+PASS: anonymous wrapper insert block, inline flow, grid, depth 3, end
+PASS: anonymous wrapper remove block, inline flow, grid, depth 3, end
+PASS: anonymous wrapper insert second block, inline flow, grid, depth 3, end
+PASS: anonymous wrapper remove first block, inline flow, grid, depth 3, end
+PASS: anonymous wrapper remove second block, inline flow, grid, depth 3, end
+PASS: anonymous wrapper block to inline, inline flow, grid, depth 3, end
+PASS: anonymous wrapper inline to block, inline flow, grid, depth 3, end
+PASS: anonymous wrapper insert block, inline flow, grid, depth 4, start
+PASS: anonymous wrapper remove block, inline flow, grid, depth 4, start
+PASS: anonymous wrapper insert second block, inline flow, grid, depth 4, start
+PASS: anonymous wrapper remove first block, inline flow, grid, depth 4, start
+PASS: anonymous wrapper remove second block, inline flow, grid, depth 4, start
+PASS: anonymous wrapper block to inline, inline flow, grid, depth 4, start
+PASS: anonymous wrapper inline to block, inline flow, grid, depth 4, start
+PASS: anonymous wrapper insert block, inline flow, grid, depth 4, middle
+PASS: anonymous wrapper remove block, inline flow, grid, depth 4, middle
+PASS: anonymous wrapper insert second block, inline flow, grid, depth 4, middle
+PASS: anonymous wrapper remove first block, inline flow, grid, depth 4, middle
+PASS: anonymous wrapper remove second block, inline flow, grid, depth 4, middle
+PASS: anonymous wrapper block to inline, inline flow, grid, depth 4, middle
+PASS: anonymous wrapper inline to block, inline flow, grid, depth 4, middle
+PASS: anonymous wrapper insert block, inline flow, grid, depth 4, end
+PASS: anonymous wrapper remove block, inline flow, grid, depth 4, end
+PASS: anonymous wrapper insert second block, inline flow, grid, depth 4, end
+PASS: anonymous wrapper remove first block, inline flow, grid, depth 4, end
+PASS: anonymous wrapper remove second block, inline flow, grid, depth 4, end
+PASS: anonymous wrapper block to inline, inline flow, grid, depth 4, end
+PASS: anonymous wrapper inline to block, inline flow, grid, depth 4, end
+PASS: anonymous wrapper insert block, inline flow, table, depth 1, start
+PASS: anonymous wrapper remove block, inline flow, table, depth 1, start
+PASS: anonymous wrapper insert second block, inline flow, table, depth 1, start
+PASS: anonymous wrapper remove first block, inline flow, table, depth 1, start
+PASS: anonymous wrapper remove second block, inline flow, table, depth 1, start
+PASS: anonymous wrapper block to inline, inline flow, table, depth 1, start
+PASS: anonymous wrapper inline to block, inline flow, table, depth 1, start
+PASS: anonymous wrapper insert block, inline flow, table, depth 1, middle
+PASS: anonymous wrapper remove block, inline flow, table, depth 1, middle
+PASS: anonymous wrapper insert second block, inline flow, table, depth 1, middle
+PASS: anonymous wrapper remove first block, inline flow, table, depth 1, middle
+PASS: anonymous wrapper remove second block, inline flow, table, depth 1, middle
+PASS: anonymous wrapper block to inline, inline flow, table, depth 1, middle
+PASS: anonymous wrapper inline to block, inline flow, table, depth 1, middle
+PASS: anonymous wrapper insert block, inline flow, table, depth 1, end
+PASS: anonymous wrapper remove block, inline flow, table, depth 1, end
+PASS: anonymous wrapper insert second block, inline flow, table, depth 1, end
+PASS: anonymous wrapper remove first block, inline flow, table, depth 1, end
+PASS: anonymous wrapper remove second block, inline flow, table, depth 1, end
+PASS: anonymous wrapper block to inline, inline flow, table, depth 1, end
+PASS: anonymous wrapper inline to block, inline flow, table, depth 1, end
+PASS: anonymous wrapper insert block, inline flow, table, depth 2, start
+PASS: anonymous wrapper remove block, inline flow, table, depth 2, start
+PASS: anonymous wrapper insert second block, inline flow, table, depth 2, start
+PASS: anonymous wrapper remove first block, inline flow, table, depth 2, start
+PASS: anonymous wrapper remove second block, inline flow, table, depth 2, start
+PASS: anonymous wrapper block to inline, inline flow, table, depth 2, start
+PASS: anonymous wrapper inline to block, inline flow, table, depth 2, start
+PASS: anonymous wrapper insert block, inline flow, table, depth 2, middle
+PASS: anonymous wrapper remove block, inline flow, table, depth 2, middle
+PASS: anonymous wrapper insert second block, inline flow, table, depth 2, middle
+PASS: anonymous wrapper remove first block, inline flow, table, depth 2, middle
+PASS: anonymous wrapper remove second block, inline flow, table, depth 2, middle
+PASS: anonymous wrapper block to inline, inline flow, table, depth 2, middle
+PASS: anonymous wrapper inline to block, inline flow, table, depth 2, middle
+PASS: anonymous wrapper insert block, inline flow, table, depth 2, end
+PASS: anonymous wrapper remove block, inline flow, table, depth 2, end
+PASS: anonymous wrapper insert second block, inline flow, table, depth 2, end
+PASS: anonymous wrapper remove first block, inline flow, table, depth 2, end
+PASS: anonymous wrapper remove second block, inline flow, table, depth 2, end
+PASS: anonymous wrapper block to inline, inline flow, table, depth 2, end
+PASS: anonymous wrapper inline to block, inline flow, table, depth 2, end
+PASS: anonymous wrapper insert block, inline flow, table, depth 3, start
+PASS: anonymous wrapper remove block, inline flow, table, depth 3, start
+PASS: anonymous wrapper insert second block, inline flow, table, depth 3, start
+PASS: anonymous wrapper remove first block, inline flow, table, depth 3, start
+PASS: anonymous wrapper remove second block, inline flow, table, depth 3, start
+PASS: anonymous wrapper block to inline, inline flow, table, depth 3, start
+PASS: anonymous wrapper inline to block, inline flow, table, depth 3, start
+PASS: anonymous wrapper insert block, inline flow, table, depth 3, middle
+PASS: anonymous wrapper remove block, inline flow, table, depth 3, middle
+PASS: anonymous wrapper insert second block, inline flow, table, depth 3, middle
+PASS: anonymous wrapper remove first block, inline flow, table, depth 3, middle
+PASS: anonymous wrapper remove second block, inline flow, table, depth 3, middle
+PASS: anonymous wrapper block to inline, inline flow, table, depth 3, middle
+PASS: anonymous wrapper inline to block, inline flow, table, depth 3, middle
+PASS: anonymous wrapper insert block, inline flow, table, depth 3, end
+PASS: anonymous wrapper remove block, inline flow, table, depth 3, end
+PASS: anonymous wrapper insert second block, inline flow, table, depth 3, end
+PASS: anonymous wrapper remove first block, inline flow, table, depth 3, end
+PASS: anonymous wrapper remove second block, inline flow, table, depth 3, end
+PASS: anonymous wrapper block to inline, inline flow, table, depth 3, end
+PASS: anonymous wrapper inline to block, inline flow, table, depth 3, end
+PASS: anonymous wrapper insert block, inline flow, table, depth 4, start
+PASS: anonymous wrapper remove block, inline flow, table, depth 4, start
+PASS: anonymous wrapper insert second block, inline flow, table, depth 4, start
+PASS: anonymous wrapper remove first block, inline flow, table, depth 4, start
+PASS: anonymous wrapper remove second block, inline flow, table, depth 4, start
+PASS: anonymous wrapper block to inline, inline flow, table, depth 4, start
+PASS: anonymous wrapper inline to block, inline flow, table, depth 4, start
+PASS: anonymous wrapper insert block, inline flow, table, depth 4, middle
+PASS: anonymous wrapper remove block, inline flow, table, depth 4, middle
+PASS: anonymous wrapper insert second block, inline flow, table, depth 4, middle
+PASS: anonymous wrapper remove first block, inline flow, table, depth 4, middle
+PASS: anonymous wrapper remove second block, inline flow, table, depth 4, middle
+PASS: anonymous wrapper block to inline, inline flow, table, depth 4, middle
+PASS: anonymous wrapper inline to block, inline flow, table, depth 4, middle
+PASS: anonymous wrapper insert block, inline flow, table, depth 4, end
+PASS: anonymous wrapper remove block, inline flow, table, depth 4, end
+PASS: anonymous wrapper insert second block, inline flow, table, depth 4, end
+PASS: anonymous wrapper remove first block, inline flow, table, depth 4, end
+PASS: anonymous wrapper remove second block, inline flow, table, depth 4, end
+PASS: anonymous wrapper block to inline, inline flow, table, depth 4, end
+PASS: anonymous wrapper inline to block, inline flow, table, depth 4, end
+PASS: anonymous wrapper insert block, inline flow, list-item, depth 1, start
+PASS: anonymous wrapper remove block, inline flow, list-item, depth 1, start
+PASS: anonymous wrapper insert second block, inline flow, list-item, depth 1, start
+PASS: anonymous wrapper remove first block, inline flow, list-item, depth 1, start
+PASS: anonymous wrapper remove second block, inline flow, list-item, depth 1, start
+PASS: anonymous wrapper block to inline, inline flow, list-item, depth 1, start
+PASS: anonymous wrapper inline to block, inline flow, list-item, depth 1, start
+PASS: anonymous wrapper insert block, inline flow, list-item, depth 1, middle
+PASS: anonymous wrapper remove block, inline flow, list-item, depth 1, middle
+PASS: anonymous wrapper insert second block, inline flow, list-item, depth 1, middle
+PASS: anonymous wrapper remove first block, inline flow, list-item, depth 1, middle
+PASS: anonymous wrapper remove second block, inline flow, list-item, depth 1, middle
+PASS: anonymous wrapper block to inline, inline flow, list-item, depth 1, middle
+PASS: anonymous wrapper inline to block, inline flow, list-item, depth 1, middle
+PASS: anonymous wrapper insert block, inline flow, list-item, depth 1, end
+PASS: anonymous wrapper remove block, inline flow, list-item, depth 1, end
+PASS: anonymous wrapper insert second block, inline flow, list-item, depth 1, end
+PASS: anonymous wrapper remove first block, inline flow, list-item, depth 1, end
+PASS: anonymous wrapper remove second block, inline flow, list-item, depth 1, end
+PASS: anonymous wrapper block to inline, inline flow, list-item, depth 1, end
+PASS: anonymous wrapper inline to block, inline flow, list-item, depth 1, end
+PASS: anonymous wrapper insert block, inline flow, list-item, depth 2, start
+PASS: anonymous wrapper remove block, inline flow, list-item, depth 2, start
+PASS: anonymous wrapper insert second block, inline flow, list-item, depth 2, start
+PASS: anonymous wrapper remove first block, inline flow, list-item, depth 2, start
+PASS: anonymous wrapper remove second block, inline flow, list-item, depth 2, start
+PASS: anonymous wrapper block to inline, inline flow, list-item, depth 2, start
+PASS: anonymous wrapper inline to block, inline flow, list-item, depth 2, start
+PASS: anonymous wrapper insert block, inline flow, list-item, depth 2, middle
+PASS: anonymous wrapper remove block, inline flow, list-item, depth 2, middle
+PASS: anonymous wrapper insert second block, inline flow, list-item, depth 2, middle
+PASS: anonymous wrapper remove first block, inline flow, list-item, depth 2, middle
+PASS: anonymous wrapper remove second block, inline flow, list-item, depth 2, middle
+PASS: anonymous wrapper block to inline, inline flow, list-item, depth 2, middle
+PASS: anonymous wrapper inline to block, inline flow, list-item, depth 2, middle
+PASS: anonymous wrapper insert block, inline flow, list-item, depth 2, end
+PASS: anonymous wrapper remove block, inline flow, list-item, depth 2, end
+PASS: anonymous wrapper insert second block, inline flow, list-item, depth 2, end
+PASS: anonymous wrapper remove first block, inline flow, list-item, depth 2, end
+PASS: anonymous wrapper remove second block, inline flow, list-item, depth 2, end
+PASS: anonymous wrapper block to inline, inline flow, list-item, depth 2, end
+PASS: anonymous wrapper inline to block, inline flow, list-item, depth 2, end
+PASS: anonymous wrapper insert block, inline flow, list-item, depth 3, start
+PASS: anonymous wrapper remove block, inline flow, list-item, depth 3, start
+PASS: anonymous wrapper insert second block, inline flow, list-item, depth 3, start
+PASS: anonymous wrapper remove first block, inline flow, list-item, depth 3, start
+PASS: anonymous wrapper remove second block, inline flow, list-item, depth 3, start
+PASS: anonymous wrapper block to inline, inline flow, list-item, depth 3, start
+PASS: anonymous wrapper inline to block, inline flow, list-item, depth 3, start
+PASS: anonymous wrapper insert block, inline flow, list-item, depth 3, middle
+PASS: anonymous wrapper remove block, inline flow, list-item, depth 3, middle
+PASS: anonymous wrapper insert second block, inline flow, list-item, depth 3, middle
+PASS: anonymous wrapper remove first block, inline flow, list-item, depth 3, middle
+PASS: anonymous wrapper remove second block, inline flow, list-item, depth 3, middle
+PASS: anonymous wrapper block to inline, inline flow, list-item, depth 3, middle
+PASS: anonymous wrapper inline to block, inline flow, list-item, depth 3, middle
+PASS: anonymous wrapper insert block, inline flow, list-item, depth 3, end
+PASS: anonymous wrapper remove block, inline flow, list-item, depth 3, end
+PASS: anonymous wrapper insert second block, inline flow, list-item, depth 3, end
+PASS: anonymous wrapper remove first block, inline flow, list-item, depth 3, end
+PASS: anonymous wrapper remove second block, inline flow, list-item, depth 3, end
+PASS: anonymous wrapper block to inline, inline flow, list-item, depth 3, end
+PASS: anonymous wrapper inline to block, inline flow, list-item, depth 3, end
+PASS: anonymous wrapper insert block, inline flow, list-item, depth 4, start
+PASS: anonymous wrapper remove block, inline flow, list-item, depth 4, start
+PASS: anonymous wrapper insert second block, inline flow, list-item, depth 4, start
+PASS: anonymous wrapper remove first block, inline flow, list-item, depth 4, start
+PASS: anonymous wrapper remove second block, inline flow, list-item, depth 4, start
+PASS: anonymous wrapper block to inline, inline flow, list-item, depth 4, start
+PASS: anonymous wrapper inline to block, inline flow, list-item, depth 4, start
+PASS: anonymous wrapper insert block, inline flow, list-item, depth 4, middle
+PASS: anonymous wrapper remove block, inline flow, list-item, depth 4, middle
+PASS: anonymous wrapper insert second block, inline flow, list-item, depth 4, middle
+PASS: anonymous wrapper remove first block, inline flow, list-item, depth 4, middle
+PASS: anonymous wrapper remove second block, inline flow, list-item, depth 4, middle
+PASS: anonymous wrapper block to inline, inline flow, list-item, depth 4, middle
+PASS: anonymous wrapper inline to block, inline flow, list-item, depth 4, middle
+PASS: anonymous wrapper insert block, inline flow, list-item, depth 4, end
+PASS: anonymous wrapper remove block, inline flow, list-item, depth 4, end
+PASS: anonymous wrapper insert second block, inline flow, list-item, depth 4, end
+PASS: anonymous wrapper remove first block, inline flow, list-item, depth 4, end
+PASS: anonymous wrapper remove second block, inline flow, list-item, depth 4, end
+PASS: anonymous wrapper block to inline, inline flow, list-item, depth 4, end
+PASS: anonymous wrapper inline to block, inline flow, list-item, depth 4, end
+PASS: anonymous wrapper insert block, contents, block, depth 1, start
+PASS: anonymous wrapper remove block, contents, block, depth 1, start
+PASS: anonymous wrapper insert second block, contents, block, depth 1, start
+PASS: anonymous wrapper remove first block, contents, block, depth 1, start
+PASS: anonymous wrapper remove second block, contents, block, depth 1, start
+PASS: anonymous wrapper block to inline, contents, block, depth 1, start
+PASS: anonymous wrapper inline to block, contents, block, depth 1, start
+PASS: anonymous wrapper insert block, contents, block, depth 1, middle
+PASS: anonymous wrapper remove block, contents, block, depth 1, middle
+PASS: anonymous wrapper insert second block, contents, block, depth 1, middle
+PASS: anonymous wrapper remove first block, contents, block, depth 1, middle
+PASS: anonymous wrapper remove second block, contents, block, depth 1, middle
+PASS: anonymous wrapper block to inline, contents, block, depth 1, middle
+PASS: anonymous wrapper inline to block, contents, block, depth 1, middle
+PASS: anonymous wrapper insert block, contents, block, depth 1, end
+PASS: anonymous wrapper remove block, contents, block, depth 1, end
+PASS: anonymous wrapper insert second block, contents, block, depth 1, end
+PASS: anonymous wrapper remove first block, contents, block, depth 1, end
+PASS: anonymous wrapper remove second block, contents, block, depth 1, end
+PASS: anonymous wrapper block to inline, contents, block, depth 1, end
+PASS: anonymous wrapper inline to block, contents, block, depth 1, end
+PASS: anonymous wrapper insert block, contents, block, depth 2, start
+PASS: anonymous wrapper remove block, contents, block, depth 2, start
+PASS: anonymous wrapper insert second block, contents, block, depth 2, start
+PASS: anonymous wrapper remove first block, contents, block, depth 2, start
+PASS: anonymous wrapper remove second block, contents, block, depth 2, start
+PASS: anonymous wrapper block to inline, contents, block, depth 2, start
+PASS: anonymous wrapper inline to block, contents, block, depth 2, start
+PASS: anonymous wrapper insert block, contents, block, depth 2, middle
+PASS: anonymous wrapper remove block, contents, block, depth 2, middle
+PASS: anonymous wrapper insert second block, contents, block, depth 2, middle
+PASS: anonymous wrapper remove first block, contents, block, depth 2, middle
+PASS: anonymous wrapper remove second block, contents, block, depth 2, middle
+PASS: anonymous wrapper block to inline, contents, block, depth 2, middle
+PASS: anonymous wrapper inline to block, contents, block, depth 2, middle
+PASS: anonymous wrapper insert block, contents, block, depth 2, end
+PASS: anonymous wrapper remove block, contents, block, depth 2, end
+PASS: anonymous wrapper insert second block, contents, block, depth 2, end
+PASS: anonymous wrapper remove first block, contents, block, depth 2, end
+PASS: anonymous wrapper remove second block, contents, block, depth 2, end
+PASS: anonymous wrapper block to inline, contents, block, depth 2, end
+PASS: anonymous wrapper inline to block, contents, block, depth 2, end
+PASS: anonymous wrapper insert block, contents, block, depth 3, start
+PASS: anonymous wrapper remove block, contents, block, depth 3, start
+PASS: anonymous wrapper insert second block, contents, block, depth 3, start
+PASS: anonymous wrapper remove first block, contents, block, depth 3, start
+PASS: anonymous wrapper remove second block, contents, block, depth 3, start
+PASS: anonymous wrapper block to inline, contents, block, depth 3, start
+PASS: anonymous wrapper inline to block, contents, block, depth 3, start
+PASS: anonymous wrapper insert block, contents, block, depth 3, middle
+PASS: anonymous wrapper remove block, contents, block, depth 3, middle
+PASS: anonymous wrapper insert second block, contents, block, depth 3, middle
+PASS: anonymous wrapper remove first block, contents, block, depth 3, middle
+PASS: anonymous wrapper remove second block, contents, block, depth 3, middle
+PASS: anonymous wrapper block to inline, contents, block, depth 3, middle
+PASS: anonymous wrapper inline to block, contents, block, depth 3, middle
+PASS: anonymous wrapper insert block, contents, block, depth 3, end
+PASS: anonymous wrapper remove block, contents, block, depth 3, end
+PASS: anonymous wrapper insert second block, contents, block, depth 3, end
+PASS: anonymous wrapper remove first block, contents, block, depth 3, end
+PASS: anonymous wrapper remove second block, contents, block, depth 3, end
+PASS: anonymous wrapper block to inline, contents, block, depth 3, end
+PASS: anonymous wrapper inline to block, contents, block, depth 3, end
+PASS: anonymous wrapper insert block, contents, block, depth 4, start
+PASS: anonymous wrapper remove block, contents, block, depth 4, start
+PASS: anonymous wrapper insert second block, contents, block, depth 4, start
+PASS: anonymous wrapper remove first block, contents, block, depth 4, start
+PASS: anonymous wrapper remove second block, contents, block, depth 4, start
+PASS: anonymous wrapper block to inline, contents, block, depth 4, start
+PASS: anonymous wrapper inline to block, contents, block, depth 4, start
+PASS: anonymous wrapper insert block, contents, block, depth 4, middle
+PASS: anonymous wrapper remove block, contents, block, depth 4, middle
+PASS: anonymous wrapper insert second block, contents, block, depth 4, middle
+PASS: anonymous wrapper remove first block, contents, block, depth 4, middle
+PASS: anonymous wrapper remove second block, contents, block, depth 4, middle
+PASS: anonymous wrapper block to inline, contents, block, depth 4, middle
+PASS: anonymous wrapper inline to block, contents, block, depth 4, middle
+PASS: anonymous wrapper insert block, contents, block, depth 4, end
+PASS: anonymous wrapper remove block, contents, block, depth 4, end
+PASS: anonymous wrapper insert second block, contents, block, depth 4, end
+PASS: anonymous wrapper remove first block, contents, block, depth 4, end
+PASS: anonymous wrapper remove second block, contents, block, depth 4, end
+PASS: anonymous wrapper block to inline, contents, block, depth 4, end
+PASS: anonymous wrapper inline to block, contents, block, depth 4, end
+PASS: anonymous wrapper insert block, contents, flow-root, depth 1, start
+PASS: anonymous wrapper remove block, contents, flow-root, depth 1, start
+PASS: anonymous wrapper insert second block, contents, flow-root, depth 1, start
+PASS: anonymous wrapper remove first block, contents, flow-root, depth 1, start
+PASS: anonymous wrapper remove second block, contents, flow-root, depth 1, start
+PASS: anonymous wrapper block to inline, contents, flow-root, depth 1, start
+PASS: anonymous wrapper inline to block, contents, flow-root, depth 1, start
+PASS: anonymous wrapper insert block, contents, flow-root, depth 1, middle
+PASS: anonymous wrapper remove block, contents, flow-root, depth 1, middle
+PASS: anonymous wrapper insert second block, contents, flow-root, depth 1, middle
+PASS: anonymous wrapper remove first block, contents, flow-root, depth 1, middle
+PASS: anonymous wrapper remove second block, contents, flow-root, depth 1, middle
+PASS: anonymous wrapper block to inline, contents, flow-root, depth 1, middle
+PASS: anonymous wrapper inline to block, contents, flow-root, depth 1, middle
+PASS: anonymous wrapper insert block, contents, flow-root, depth 1, end
+PASS: anonymous wrapper remove block, contents, flow-root, depth 1, end
+PASS: anonymous wrapper insert second block, contents, flow-root, depth 1, end
+PASS: anonymous wrapper remove first block, contents, flow-root, depth 1, end
+PASS: anonymous wrapper remove second block, contents, flow-root, depth 1, end
+PASS: anonymous wrapper block to inline, contents, flow-root, depth 1, end
+PASS: anonymous wrapper inline to block, contents, flow-root, depth 1, end
+PASS: anonymous wrapper insert block, contents, flow-root, depth 2, start
+PASS: anonymous wrapper remove block, contents, flow-root, depth 2, start
+PASS: anonymous wrapper insert second block, contents, flow-root, depth 2, start
+PASS: anonymous wrapper remove first block, contents, flow-root, depth 2, start
+PASS: anonymous wrapper remove second block, contents, flow-root, depth 2, start
+PASS: anonymous wrapper block to inline, contents, flow-root, depth 2, start
+PASS: anonymous wrapper inline to block, contents, flow-root, depth 2, start
+PASS: anonymous wrapper insert block, contents, flow-root, depth 2, middle
+PASS: anonymous wrapper remove block, contents, flow-root, depth 2, middle
+PASS: anonymous wrapper insert second block, contents, flow-root, depth 2, middle
+PASS: anonymous wrapper remove first block, contents, flow-root, depth 2, middle
+PASS: anonymous wrapper remove second block, contents, flow-root, depth 2, middle
+PASS: anonymous wrapper block to inline, contents, flow-root, depth 2, middle
+PASS: anonymous wrapper inline to block, contents, flow-root, depth 2, middle
+PASS: anonymous wrapper insert block, contents, flow-root, depth 2, end
+PASS: anonymous wrapper remove block, contents, flow-root, depth 2, end
+PASS: anonymous wrapper insert second block, contents, flow-root, depth 2, end
+PASS: anonymous wrapper remove first block, contents, flow-root, depth 2, end
+PASS: anonymous wrapper remove second block, contents, flow-root, depth 2, end
+PASS: anonymous wrapper block to inline, contents, flow-root, depth 2, end
+PASS: anonymous wrapper inline to block, contents, flow-root, depth 2, end
+PASS: anonymous wrapper insert block, contents, flow-root, depth 3, start
+PASS: anonymous wrapper remove block, contents, flow-root, depth 3, start
+PASS: anonymous wrapper insert second block, contents, flow-root, depth 3, start
+PASS: anonymous wrapper remove first block, contents, flow-root, depth 3, start
+PASS: anonymous wrapper remove second block, contents, flow-root, depth 3, start
+PASS: anonymous wrapper block to inline, contents, flow-root, depth 3, start
+PASS: anonymous wrapper inline to block, contents, flow-root, depth 3, start
+PASS: anonymous wrapper insert block, contents, flow-root, depth 3, middle
+PASS: anonymous wrapper remove block, contents, flow-root, depth 3, middle
+PASS: anonymous wrapper insert second block, contents, flow-root, depth 3, middle
+PASS: anonymous wrapper remove first block, contents, flow-root, depth 3, middle
+PASS: anonymous wrapper remove second block, contents, flow-root, depth 3, middle
+PASS: anonymous wrapper block to inline, contents, flow-root, depth 3, middle
+PASS: anonymous wrapper inline to block, contents, flow-root, depth 3, middle
+PASS: anonymous wrapper insert block, contents, flow-root, depth 3, end
+PASS: anonymous wrapper remove block, contents, flow-root, depth 3, end
+PASS: anonymous wrapper insert second block, contents, flow-root, depth 3, end
+PASS: anonymous wrapper remove first block, contents, flow-root, depth 3, end
+PASS: anonymous wrapper remove second block, contents, flow-root, depth 3, end
+PASS: anonymous wrapper block to inline, contents, flow-root, depth 3, end
+PASS: anonymous wrapper inline to block, contents, flow-root, depth 3, end
+PASS: anonymous wrapper insert block, contents, flow-root, depth 4, start
+PASS: anonymous wrapper remove block, contents, flow-root, depth 4, start
+PASS: anonymous wrapper insert second block, contents, flow-root, depth 4, start
+PASS: anonymous wrapper remove first block, contents, flow-root, depth 4, start
+PASS: anonymous wrapper remove second block, contents, flow-root, depth 4, start
+PASS: anonymous wrapper block to inline, contents, flow-root, depth 4, start
+PASS: anonymous wrapper inline to block, contents, flow-root, depth 4, start
+PASS: anonymous wrapper insert block, contents, flow-root, depth 4, middle
+PASS: anonymous wrapper remove block, contents, flow-root, depth 4, middle
+PASS: anonymous wrapper insert second block, contents, flow-root, depth 4, middle
+PASS: anonymous wrapper remove first block, contents, flow-root, depth 4, middle
+PASS: anonymous wrapper remove second block, contents, flow-root, depth 4, middle
+PASS: anonymous wrapper block to inline, contents, flow-root, depth 4, middle
+PASS: anonymous wrapper inline to block, contents, flow-root, depth 4, middle
+PASS: anonymous wrapper insert block, contents, flow-root, depth 4, end
+PASS: anonymous wrapper remove block, contents, flow-root, depth 4, end
+PASS: anonymous wrapper insert second block, contents, flow-root, depth 4, end
+PASS: anonymous wrapper remove first block, contents, flow-root, depth 4, end
+PASS: anonymous wrapper remove second block, contents, flow-root, depth 4, end
+PASS: anonymous wrapper block to inline, contents, flow-root, depth 4, end
+PASS: anonymous wrapper inline to block, contents, flow-root, depth 4, end
+PASS: anonymous wrapper insert block, contents, flex, depth 1, start
+PASS: anonymous wrapper remove block, contents, flex, depth 1, start
+PASS: anonymous wrapper insert second block, contents, flex, depth 1, start
+PASS: anonymous wrapper remove first block, contents, flex, depth 1, start
+PASS: anonymous wrapper remove second block, contents, flex, depth 1, start
+PASS: anonymous wrapper block to inline, contents, flex, depth 1, start
+PASS: anonymous wrapper inline to block, contents, flex, depth 1, start
+PASS: anonymous wrapper insert block, contents, flex, depth 1, middle
+PASS: anonymous wrapper remove block, contents, flex, depth 1, middle
+PASS: anonymous wrapper insert second block, contents, flex, depth 1, middle
+PASS: anonymous wrapper remove first block, contents, flex, depth 1, middle
+PASS: anonymous wrapper remove second block, contents, flex, depth 1, middle
+PASS: anonymous wrapper block to inline, contents, flex, depth 1, middle
+PASS: anonymous wrapper inline to block, contents, flex, depth 1, middle
+PASS: anonymous wrapper insert block, contents, flex, depth 1, end
+PASS: anonymous wrapper remove block, contents, flex, depth 1, end
+PASS: anonymous wrapper insert second block, contents, flex, depth 1, end
+PASS: anonymous wrapper remove first block, contents, flex, depth 1, end
+PASS: anonymous wrapper remove second block, contents, flex, depth 1, end
+PASS: anonymous wrapper block to inline, contents, flex, depth 1, end
+PASS: anonymous wrapper inline to block, contents, flex, depth 1, end
+PASS: anonymous wrapper insert block, contents, flex, depth 2, start
+PASS: anonymous wrapper remove block, contents, flex, depth 2, start
+PASS: anonymous wrapper insert second block, contents, flex, depth 2, start
+PASS: anonymous wrapper remove first block, contents, flex, depth 2, start
+PASS: anonymous wrapper remove second block, contents, flex, depth 2, start
+PASS: anonymous wrapper block to inline, contents, flex, depth 2, start
+PASS: anonymous wrapper inline to block, contents, flex, depth 2, start
+PASS: anonymous wrapper insert block, contents, flex, depth 2, middle
+PASS: anonymous wrapper remove block, contents, flex, depth 2, middle
+PASS: anonymous wrapper insert second block, contents, flex, depth 2, middle
+PASS: anonymous wrapper remove first block, contents, flex, depth 2, middle
+PASS: anonymous wrapper remove second block, contents, flex, depth 2, middle
+PASS: anonymous wrapper block to inline, contents, flex, depth 2, middle
+PASS: anonymous wrapper inline to block, contents, flex, depth 2, middle
+PASS: anonymous wrapper insert block, contents, flex, depth 2, end
+PASS: anonymous wrapper remove block, contents, flex, depth 2, end
+PASS: anonymous wrapper insert second block, contents, flex, depth 2, end
+PASS: anonymous wrapper remove first block, contents, flex, depth 2, end
+PASS: anonymous wrapper remove second block, contents, flex, depth 2, end
+PASS: anonymous wrapper block to inline, contents, flex, depth 2, end
+PASS: anonymous wrapper inline to block, contents, flex, depth 2, end
+PASS: anonymous wrapper insert block, contents, flex, depth 3, start
+PASS: anonymous wrapper remove block, contents, flex, depth 3, start
+PASS: anonymous wrapper insert second block, contents, flex, depth 3, start
+PASS: anonymous wrapper remove first block, contents, flex, depth 3, start
+PASS: anonymous wrapper remove second block, contents, flex, depth 3, start
+PASS: anonymous wrapper block to inline, contents, flex, depth 3, start
+PASS: anonymous wrapper inline to block, contents, flex, depth 3, start
+PASS: anonymous wrapper insert block, contents, flex, depth 3, middle
+PASS: anonymous wrapper remove block, contents, flex, depth 3, middle
+PASS: anonymous wrapper insert second block, contents, flex, depth 3, middle
+PASS: anonymous wrapper remove first block, contents, flex, depth 3, middle
+PASS: anonymous wrapper remove second block, contents, flex, depth 3, middle
+PASS: anonymous wrapper block to inline, contents, flex, depth 3, middle
+PASS: anonymous wrapper inline to block, contents, flex, depth 3, middle
+PASS: anonymous wrapper insert block, contents, flex, depth 3, end
+PASS: anonymous wrapper remove block, contents, flex, depth 3, end
+PASS: anonymous wrapper insert second block, contents, flex, depth 3, end
+PASS: anonymous wrapper remove first block, contents, flex, depth 3, end
+PASS: anonymous wrapper remove second block, contents, flex, depth 3, end
+PASS: anonymous wrapper block to inline, contents, flex, depth 3, end
+PASS: anonymous wrapper inline to block, contents, flex, depth 3, end
+PASS: anonymous wrapper insert block, contents, flex, depth 4, start
+PASS: anonymous wrapper remove block, contents, flex, depth 4, start
+PASS: anonymous wrapper insert second block, contents, flex, depth 4, start
+PASS: anonymous wrapper remove first block, contents, flex, depth 4, start
+PASS: anonymous wrapper remove second block, contents, flex, depth 4, start
+PASS: anonymous wrapper block to inline, contents, flex, depth 4, start
+PASS: anonymous wrapper inline to block, contents, flex, depth 4, start
+PASS: anonymous wrapper insert block, contents, flex, depth 4, middle
+PASS: anonymous wrapper remove block, contents, flex, depth 4, middle
+PASS: anonymous wrapper insert second block, contents, flex, depth 4, middle
+PASS: anonymous wrapper remove first block, contents, flex, depth 4, middle
+PASS: anonymous wrapper remove second block, contents, flex, depth 4, middle
+PASS: anonymous wrapper block to inline, contents, flex, depth 4, middle
+PASS: anonymous wrapper inline to block, contents, flex, depth 4, middle
+PASS: anonymous wrapper insert block, contents, flex, depth 4, end
+PASS: anonymous wrapper remove block, contents, flex, depth 4, end
+PASS: anonymous wrapper insert second block, contents, flex, depth 4, end
+PASS: anonymous wrapper remove first block, contents, flex, depth 4, end
+PASS: anonymous wrapper remove second block, contents, flex, depth 4, end
+PASS: anonymous wrapper block to inline, contents, flex, depth 4, end
+PASS: anonymous wrapper inline to block, contents, flex, depth 4, end
+PASS: anonymous wrapper insert block, contents, grid, depth 1, start
+PASS: anonymous wrapper remove block, contents, grid, depth 1, start
+PASS: anonymous wrapper insert second block, contents, grid, depth 1, start
+PASS: anonymous wrapper remove first block, contents, grid, depth 1, start
+PASS: anonymous wrapper remove second block, contents, grid, depth 1, start
+PASS: anonymous wrapper block to inline, contents, grid, depth 1, start
+PASS: anonymous wrapper inline to block, contents, grid, depth 1, start
+PASS: anonymous wrapper insert block, contents, grid, depth 1, middle
+PASS: anonymous wrapper remove block, contents, grid, depth 1, middle
+PASS: anonymous wrapper insert second block, contents, grid, depth 1, middle
+PASS: anonymous wrapper remove first block, contents, grid, depth 1, middle
+PASS: anonymous wrapper remove second block, contents, grid, depth 1, middle
+PASS: anonymous wrapper block to inline, contents, grid, depth 1, middle
+PASS: anonymous wrapper inline to block, contents, grid, depth 1, middle
+PASS: anonymous wrapper insert block, contents, grid, depth 1, end
+PASS: anonymous wrapper remove block, contents, grid, depth 1, end
+PASS: anonymous wrapper insert second block, contents, grid, depth 1, end
+PASS: anonymous wrapper remove first block, contents, grid, depth 1, end
+PASS: anonymous wrapper remove second block, contents, grid, depth 1, end
+PASS: anonymous wrapper block to inline, contents, grid, depth 1, end
+PASS: anonymous wrapper inline to block, contents, grid, depth 1, end
+PASS: anonymous wrapper insert block, contents, grid, depth 2, start
+PASS: anonymous wrapper remove block, contents, grid, depth 2, start
+PASS: anonymous wrapper insert second block, contents, grid, depth 2, start
+PASS: anonymous wrapper remove first block, contents, grid, depth 2, start
+PASS: anonymous wrapper remove second block, contents, grid, depth 2, start
+PASS: anonymous wrapper block to inline, contents, grid, depth 2, start
+PASS: anonymous wrapper inline to block, contents, grid, depth 2, start
+PASS: anonymous wrapper insert block, contents, grid, depth 2, middle
+PASS: anonymous wrapper remove block, contents, grid, depth 2, middle
+PASS: anonymous wrapper insert second block, contents, grid, depth 2, middle
+PASS: anonymous wrapper remove first block, contents, grid, depth 2, middle
+PASS: anonymous wrapper remove second block, contents, grid, depth 2, middle
+PASS: anonymous wrapper block to inline, contents, grid, depth 2, middle
+PASS: anonymous wrapper inline to block, contents, grid, depth 2, middle
+PASS: anonymous wrapper insert block, contents, grid, depth 2, end
+PASS: anonymous wrapper remove block, contents, grid, depth 2, end
+PASS: anonymous wrapper insert second block, contents, grid, depth 2, end
+PASS: anonymous wrapper remove first block, contents, grid, depth 2, end
+PASS: anonymous wrapper remove second block, contents, grid, depth 2, end
+PASS: anonymous wrapper block to inline, contents, grid, depth 2, end
+PASS: anonymous wrapper inline to block, contents, grid, depth 2, end
+PASS: anonymous wrapper insert block, contents, grid, depth 3, start
+PASS: anonymous wrapper remove block, contents, grid, depth 3, start
+PASS: anonymous wrapper insert second block, contents, grid, depth 3, start
+PASS: anonymous wrapper remove first block, contents, grid, depth 3, start
+PASS: anonymous wrapper remove second block, contents, grid, depth 3, start
+PASS: anonymous wrapper block to inline, contents, grid, depth 3, start
+PASS: anonymous wrapper inline to block, contents, grid, depth 3, start
+PASS: anonymous wrapper insert block, contents, grid, depth 3, middle
+PASS: anonymous wrapper remove block, contents, grid, depth 3, middle
+PASS: anonymous wrapper insert second block, contents, grid, depth 3, middle
+PASS: anonymous wrapper remove first block, contents, grid, depth 3, middle
+PASS: anonymous wrapper remove second block, contents, grid, depth 3, middle
+PASS: anonymous wrapper block to inline, contents, grid, depth 3, middle
+PASS: anonymous wrapper inline to block, contents, grid, depth 3, middle
+PASS: anonymous wrapper insert block, contents, grid, depth 3, end
+PASS: anonymous wrapper remove block, contents, grid, depth 3, end
+PASS: anonymous wrapper insert second block, contents, grid, depth 3, end
+PASS: anonymous wrapper remove first block, contents, grid, depth 3, end
+PASS: anonymous wrapper remove second block, contents, grid, depth 3, end
+PASS: anonymous wrapper block to inline, contents, grid, depth 3, end
+PASS: anonymous wrapper inline to block, contents, grid, depth 3, end
+PASS: anonymous wrapper insert block, contents, grid, depth 4, start
+PASS: anonymous wrapper remove block, contents, grid, depth 4, start
+PASS: anonymous wrapper insert second block, contents, grid, depth 4, start
+PASS: anonymous wrapper remove first block, contents, grid, depth 4, start
+PASS: anonymous wrapper remove second block, contents, grid, depth 4, start
+PASS: anonymous wrapper block to inline, contents, grid, depth 4, start
+PASS: anonymous wrapper inline to block, contents, grid, depth 4, start
+PASS: anonymous wrapper insert block, contents, grid, depth 4, middle
+PASS: anonymous wrapper remove block, contents, grid, depth 4, middle
+PASS: anonymous wrapper insert second block, contents, grid, depth 4, middle
+PASS: anonymous wrapper remove first block, contents, grid, depth 4, middle
+PASS: anonymous wrapper remove second block, contents, grid, depth 4, middle
+PASS: anonymous wrapper block to inline, contents, grid, depth 4, middle
+PASS: anonymous wrapper inline to block, contents, grid, depth 4, middle
+PASS: anonymous wrapper insert block, contents, grid, depth 4, end
+PASS: anonymous wrapper remove block, contents, grid, depth 4, end
+PASS: anonymous wrapper insert second block, contents, grid, depth 4, end
+PASS: anonymous wrapper remove first block, contents, grid, depth 4, end
+PASS: anonymous wrapper remove second block, contents, grid, depth 4, end
+PASS: anonymous wrapper block to inline, contents, grid, depth 4, end
+PASS: anonymous wrapper inline to block, contents, grid, depth 4, end
+PASS: anonymous wrapper insert block, contents, table, depth 1, start
+PASS: anonymous wrapper remove block, contents, table, depth 1, start
+PASS: anonymous wrapper insert second block, contents, table, depth 1, start
+PASS: anonymous wrapper remove first block, contents, table, depth 1, start
+PASS: anonymous wrapper remove second block, contents, table, depth 1, start
+PASS: anonymous wrapper block to inline, contents, table, depth 1, start
+PASS: anonymous wrapper inline to block, contents, table, depth 1, start
+PASS: anonymous wrapper insert block, contents, table, depth 1, middle
+PASS: anonymous wrapper remove block, contents, table, depth 1, middle
+PASS: anonymous wrapper insert second block, contents, table, depth 1, middle
+PASS: anonymous wrapper remove first block, contents, table, depth 1, middle
+PASS: anonymous wrapper remove second block, contents, table, depth 1, middle
+PASS: anonymous wrapper block to inline, contents, table, depth 1, middle
+PASS: anonymous wrapper inline to block, contents, table, depth 1, middle
+PASS: anonymous wrapper insert block, contents, table, depth 1, end
+PASS: anonymous wrapper remove block, contents, table, depth 1, end
+PASS: anonymous wrapper insert second block, contents, table, depth 1, end
+PASS: anonymous wrapper remove first block, contents, table, depth 1, end
+PASS: anonymous wrapper remove second block, contents, table, depth 1, end
+PASS: anonymous wrapper block to inline, contents, table, depth 1, end
+PASS: anonymous wrapper inline to block, contents, table, depth 1, end
+PASS: anonymous wrapper insert block, contents, table, depth 2, start
+PASS: anonymous wrapper remove block, contents, table, depth 2, start
+PASS: anonymous wrapper insert second block, contents, table, depth 2, start
+PASS: anonymous wrapper remove first block, contents, table, depth 2, start
+PASS: anonymous wrapper remove second block, contents, table, depth 2, start
+PASS: anonymous wrapper block to inline, contents, table, depth 2, start
+PASS: anonymous wrapper inline to block, contents, table, depth 2, start
+PASS: anonymous wrapper insert block, contents, table, depth 2, middle
+PASS: anonymous wrapper remove block, contents, table, depth 2, middle
+PASS: anonymous wrapper insert second block, contents, table, depth 2, middle
+PASS: anonymous wrapper remove first block, contents, table, depth 2, middle
+PASS: anonymous wrapper remove second block, contents, table, depth 2, middle
+PASS: anonymous wrapper block to inline, contents, table, depth 2, middle
+PASS: anonymous wrapper inline to block, contents, table, depth 2, middle
+PASS: anonymous wrapper insert block, contents, table, depth 2, end
+PASS: anonymous wrapper remove block, contents, table, depth 2, end
+PASS: anonymous wrapper insert second block, contents, table, depth 2, end
+PASS: anonymous wrapper remove first block, contents, table, depth 2, end
+PASS: anonymous wrapper remove second block, contents, table, depth 2, end
+PASS: anonymous wrapper block to inline, contents, table, depth 2, end
+PASS: anonymous wrapper inline to block, contents, table, depth 2, end
+PASS: anonymous wrapper insert block, contents, table, depth 3, start
+PASS: anonymous wrapper remove block, contents, table, depth 3, start
+PASS: anonymous wrapper insert second block, contents, table, depth 3, start
+PASS: anonymous wrapper remove first block, contents, table, depth 3, start
+PASS: anonymous wrapper remove second block, contents, table, depth 3, start
+PASS: anonymous wrapper block to inline, contents, table, depth 3, start
+PASS: anonymous wrapper inline to block, contents, table, depth 3, start
+PASS: anonymous wrapper insert block, contents, table, depth 3, middle
+PASS: anonymous wrapper remove block, contents, table, depth 3, middle
+PASS: anonymous wrapper insert second block, contents, table, depth 3, middle
+PASS: anonymous wrapper remove first block, contents, table, depth 3, middle
+PASS: anonymous wrapper remove second block, contents, table, depth 3, middle
+PASS: anonymous wrapper block to inline, contents, table, depth 3, middle
+PASS: anonymous wrapper inline to block, contents, table, depth 3, middle
+PASS: anonymous wrapper insert block, contents, table, depth 3, end
+PASS: anonymous wrapper remove block, contents, table, depth 3, end
+PASS: anonymous wrapper insert second block, contents, table, depth 3, end
+PASS: anonymous wrapper remove first block, contents, table, depth 3, end
+PASS: anonymous wrapper remove second block, contents, table, depth 3, end
+PASS: anonymous wrapper block to inline, contents, table, depth 3, end
+PASS: anonymous wrapper inline to block, contents, table, depth 3, end
+PASS: anonymous wrapper insert block, contents, table, depth 4, start
+PASS: anonymous wrapper remove block, contents, table, depth 4, start
+PASS: anonymous wrapper insert second block, contents, table, depth 4, start
+PASS: anonymous wrapper remove first block, contents, table, depth 4, start
+PASS: anonymous wrapper remove second block, contents, table, depth 4, start
+PASS: anonymous wrapper block to inline, contents, table, depth 4, start
+PASS: anonymous wrapper inline to block, contents, table, depth 4, start
+PASS: anonymous wrapper insert block, contents, table, depth 4, middle
+PASS: anonymous wrapper remove block, contents, table, depth 4, middle
+PASS: anonymous wrapper insert second block, contents, table, depth 4, middle
+PASS: anonymous wrapper remove first block, contents, table, depth 4, middle
+PASS: anonymous wrapper remove second block, contents, table, depth 4, middle
+PASS: anonymous wrapper block to inline, contents, table, depth 4, middle
+PASS: anonymous wrapper inline to block, contents, table, depth 4, middle
+PASS: anonymous wrapper insert block, contents, table, depth 4, end
+PASS: anonymous wrapper remove block, contents, table, depth 4, end
+PASS: anonymous wrapper insert second block, contents, table, depth 4, end
+PASS: anonymous wrapper remove first block, contents, table, depth 4, end
+PASS: anonymous wrapper remove second block, contents, table, depth 4, end
+PASS: anonymous wrapper block to inline, contents, table, depth 4, end
+PASS: anonymous wrapper inline to block, contents, table, depth 4, end
+PASS: anonymous wrapper insert block, contents, list-item, depth 1, start
+PASS: anonymous wrapper remove block, contents, list-item, depth 1, start
+PASS: anonymous wrapper insert second block, contents, list-item, depth 1, start
+PASS: anonymous wrapper remove first block, contents, list-item, depth 1, start
+PASS: anonymous wrapper remove second block, contents, list-item, depth 1, start
+PASS: anonymous wrapper block to inline, contents, list-item, depth 1, start
+PASS: anonymous wrapper inline to block, contents, list-item, depth 1, start
+PASS: anonymous wrapper insert block, contents, list-item, depth 1, middle
+PASS: anonymous wrapper remove block, contents, list-item, depth 1, middle
+PASS: anonymous wrapper insert second block, contents, list-item, depth 1, middle
+PASS: anonymous wrapper remove first block, contents, list-item, depth 1, middle
+PASS: anonymous wrapper remove second block, contents, list-item, depth 1, middle
+PASS: anonymous wrapper block to inline, contents, list-item, depth 1, middle
+PASS: anonymous wrapper inline to block, contents, list-item, depth 1, middle
+PASS: anonymous wrapper insert block, contents, list-item, depth 1, end
+PASS: anonymous wrapper remove block, contents, list-item, depth 1, end
+PASS: anonymous wrapper insert second block, contents, list-item, depth 1, end
+PASS: anonymous wrapper remove first block, contents, list-item, depth 1, end
+PASS: anonymous wrapper remove second block, contents, list-item, depth 1, end
+PASS: anonymous wrapper block to inline, contents, list-item, depth 1, end
+PASS: anonymous wrapper inline to block, contents, list-item, depth 1, end
+PASS: anonymous wrapper insert block, contents, list-item, depth 2, start
+PASS: anonymous wrapper remove block, contents, list-item, depth 2, start
+PASS: anonymous wrapper insert second block, contents, list-item, depth 2, start
+PASS: anonymous wrapper remove first block, contents, list-item, depth 2, start
+PASS: anonymous wrapper remove second block, contents, list-item, depth 2, start
+PASS: anonymous wrapper block to inline, contents, list-item, depth 2, start
+PASS: anonymous wrapper inline to block, contents, list-item, depth 2, start
+PASS: anonymous wrapper insert block, contents, list-item, depth 2, middle
+PASS: anonymous wrapper remove block, contents, list-item, depth 2, middle
+PASS: anonymous wrapper insert second block, contents, list-item, depth 2, middle
+PASS: anonymous wrapper remove first block, contents, list-item, depth 2, middle
+PASS: anonymous wrapper remove second block, contents, list-item, depth 2, middle
+PASS: anonymous wrapper block to inline, contents, list-item, depth 2, middle
+PASS: anonymous wrapper inline to block, contents, list-item, depth 2, middle
+PASS: anonymous wrapper insert block, contents, list-item, depth 2, end
+PASS: anonymous wrapper remove block, contents, list-item, depth 2, end
+PASS: anonymous wrapper insert second block, contents, list-item, depth 2, end
+PASS: anonymous wrapper remove first block, contents, list-item, depth 2, end
+PASS: anonymous wrapper remove second block, contents, list-item, depth 2, end
+PASS: anonymous wrapper block to inline, contents, list-item, depth 2, end
+PASS: anonymous wrapper inline to block, contents, list-item, depth 2, end
+PASS: anonymous wrapper insert block, contents, list-item, depth 3, start
+PASS: anonymous wrapper remove block, contents, list-item, depth 3, start
+PASS: anonymous wrapper insert second block, contents, list-item, depth 3, start
+PASS: anonymous wrapper remove first block, contents, list-item, depth 3, start
+PASS: anonymous wrapper remove second block, contents, list-item, depth 3, start
+PASS: anonymous wrapper block to inline, contents, list-item, depth 3, start
+PASS: anonymous wrapper inline to block, contents, list-item, depth 3, start
+PASS: anonymous wrapper insert block, contents, list-item, depth 3, middle
+PASS: anonymous wrapper remove block, contents, list-item, depth 3, middle
+PASS: anonymous wrapper insert second block, contents, list-item, depth 3, middle
+PASS: anonymous wrapper remove first block, contents, list-item, depth 3, middle
+PASS: anonymous wrapper remove second block, contents, list-item, depth 3, middle
+PASS: anonymous wrapper block to inline, contents, list-item, depth 3, middle
+PASS: anonymous wrapper inline to block, contents, list-item, depth 3, middle
+PASS: anonymous wrapper insert block, contents, list-item, depth 3, end
+PASS: anonymous wrapper remove block, contents, list-item, depth 3, end
+PASS: anonymous wrapper insert second block, contents, list-item, depth 3, end
+PASS: anonymous wrapper remove first block, contents, list-item, depth 3, end
+PASS: anonymous wrapper remove second block, contents, list-item, depth 3, end
+PASS: anonymous wrapper block to inline, contents, list-item, depth 3, end
+PASS: anonymous wrapper inline to block, contents, list-item, depth 3, end
+PASS: anonymous wrapper insert block, contents, list-item, depth 4, start
+PASS: anonymous wrapper remove block, contents, list-item, depth 4, start
+PASS: anonymous wrapper insert second block, contents, list-item, depth 4, start
+PASS: anonymous wrapper remove first block, contents, list-item, depth 4, start
+PASS: anonymous wrapper remove second block, contents, list-item, depth 4, start
+PASS: anonymous wrapper block to inline, contents, list-item, depth 4, start
+PASS: anonymous wrapper inline to block, contents, list-item, depth 4, start
+PASS: anonymous wrapper insert block, contents, list-item, depth 4, middle
+PASS: anonymous wrapper remove block, contents, list-item, depth 4, middle
+PASS: anonymous wrapper insert second block, contents, list-item, depth 4, middle
+PASS: anonymous wrapper remove first block, contents, list-item, depth 4, middle
+PASS: anonymous wrapper remove second block, contents, list-item, depth 4, middle
+PASS: anonymous wrapper block to inline, contents, list-item, depth 4, middle
+PASS: anonymous wrapper inline to block, contents, list-item, depth 4, middle
+PASS: anonymous wrapper insert block, contents, list-item, depth 4, end
+PASS: anonymous wrapper remove block, contents, list-item, depth 4, end
+PASS: anonymous wrapper insert second block, contents, list-item, depth 4, end
+PASS: anonymous wrapper remove first block, contents, list-item, depth 4, end
+PASS: anonymous wrapper remove second block, contents, list-item, depth 4, end
+PASS: anonymous wrapper block to inline, contents, list-item, depth 4, end
+PASS: anonymous wrapper inline to block, contents, list-item, depth 4, end
+1512 cases; 1512 matched; 0 mismatched
