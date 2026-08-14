@@ -28,10 +28,10 @@ PASS: ::before change mode absolute -> fixed inline-block on contents
 PASS: ::before change mode fixed -> sticky run-in on contents
 PASS: ::before change mode sticky -> float-left list-item on contents
 PASS: ::before change mode float-left -> float-left-clear-both inline list-item on contents
-FAIL: ::before change mode float-left-clear-both -> float-right flex on contents
+PASS: ::before change mode float-left-clear-both -> float-right flex on contents
 PASS: ::before change mode float-right -> float-right-clear-both inline-flex on contents
-FAIL: ::before change mode float-right-clear-both -> float-inline-start grid on contents
-FAIL: ::before change mode float-inline-start -> float-inline-end inline-grid on contents
+PASS: ::before change mode float-right-clear-both -> float-inline-start grid on contents
+PASS: ::before change mode float-inline-start -> float-inline-end inline-grid on contents
 PASS: ::before change mode float-inline-end -> relative-float-left table on contents
 PASS: ::before change mode relative-float-left -> static inline-table on contents
 PASS: ::after change mode static -> relative inline on contents
@@ -40,10 +40,10 @@ PASS: ::after change mode absolute -> fixed inline-block on contents
 PASS: ::after change mode fixed -> sticky run-in on contents
 PASS: ::after change mode sticky -> float-left list-item on contents
 PASS: ::after change mode float-left -> float-left-clear-both inline list-item on contents
-FAIL: ::after change mode float-left-clear-both -> float-right flex on contents
+PASS: ::after change mode float-left-clear-both -> float-right flex on contents
 PASS: ::after change mode float-right -> float-right-clear-both inline-flex on contents
-FAIL: ::after change mode float-right-clear-both -> float-inline-start grid on contents
-FAIL: ::after change mode float-inline-start -> float-inline-end inline-grid on contents
+PASS: ::after change mode float-right-clear-both -> float-inline-start grid on contents
+PASS: ::after change mode float-inline-start -> float-inline-end inline-grid on contents
 PASS: ::after change mode float-inline-end -> relative-float-left table on contents
 PASS: ::after change mode relative-float-left -> static inline-table on contents
 PASS: ::before change mode static -> relative flow-root on block
@@ -316,10 +316,10 @@ PASS: ::before change mode absolute -> fixed -webkit-inline-box on table
 PASS: ::before change mode fixed -> sticky table-row-group on table
 PASS: ::before change mode sticky -> float-left table-header-group on table
 PASS: ::before change mode float-left -> float-left-clear-both table-footer-group on table
-FAIL: ::before change mode float-left-clear-both -> float-right table-row on table
+PASS: ::before change mode float-left-clear-both -> float-right table-row on table
 PASS: ::before change mode float-right -> float-right-clear-both table-cell on table
-FAIL: ::before change mode float-right-clear-both -> float-inline-start table-column-group on table
-FAIL: ::before change mode float-inline-start -> float-inline-end table-column on table
+PASS: ::before change mode float-right-clear-both -> float-inline-start table-column-group on table
+PASS: ::before change mode float-inline-start -> float-inline-end table-column on table
 PASS: ::before change mode float-inline-end -> relative-float-left table-caption on table
 PASS: ::before change mode relative-float-left -> static block flow on table
 PASS: ::after change mode static -> relative math on table
@@ -328,10 +328,10 @@ PASS: ::after change mode absolute -> fixed -webkit-inline-box on table
 PASS: ::after change mode fixed -> sticky table-row-group on table
 PASS: ::after change mode sticky -> float-left table-header-group on table
 PASS: ::after change mode float-left -> float-left-clear-both table-footer-group on table
-FAIL: ::after change mode float-left-clear-both -> float-right table-row on table
+PASS: ::after change mode float-left-clear-both -> float-right table-row on table
 PASS: ::after change mode float-right -> float-right-clear-both table-cell on table
-FAIL: ::after change mode float-right-clear-both -> float-inline-start table-column-group on table
-FAIL: ::after change mode float-inline-start -> float-inline-end table-column on table
+PASS: ::after change mode float-right-clear-both -> float-inline-start table-column-group on table
+PASS: ::after change mode float-inline-start -> float-inline-end table-column on table
 PASS: ::after change mode float-inline-end -> relative-float-left table-caption on table
 PASS: ::after change mode relative-float-left -> static block flow on table
 PASS: ::before change mode static -> relative -webkit-box on inline-table
@@ -340,10 +340,10 @@ PASS: ::before change mode absolute -> fixed table-row-group on inline-table
 PASS: ::before change mode fixed -> sticky table-header-group on inline-table
 PASS: ::before change mode sticky -> float-left table-footer-group on inline-table
 PASS: ::before change mode float-left -> float-left-clear-both table-row on inline-table
-FAIL: ::before change mode float-left-clear-both -> float-right table-cell on inline-table
+PASS: ::before change mode float-left-clear-both -> float-right table-cell on inline-table
 PASS: ::before change mode float-right -> float-right-clear-both table-column-group on inline-table
-FAIL: ::before change mode float-right-clear-both -> float-inline-start table-column on inline-table
-FAIL: ::before change mode float-inline-start -> float-inline-end table-caption on inline-table
+PASS: ::before change mode float-right-clear-both -> float-inline-start table-column on inline-table
+PASS: ::before change mode float-inline-start -> float-inline-end table-caption on inline-table
 PASS: ::before change mode float-inline-end -> relative-float-left block flow on inline-table
 PASS: ::before change mode relative-float-left -> static inline flow on inline-table
 PASS: ::after change mode static -> relative -webkit-box on inline-table
@@ -352,10 +352,10 @@ PASS: ::after change mode absolute -> fixed table-row-group on inline-table
 PASS: ::after change mode fixed -> sticky table-header-group on inline-table
 PASS: ::after change mode sticky -> float-left table-footer-group on inline-table
 PASS: ::after change mode float-left -> float-left-clear-both table-row on inline-table
-FAIL: ::after change mode float-left-clear-both -> float-right table-cell on inline-table
+PASS: ::after change mode float-left-clear-both -> float-right table-cell on inline-table
 PASS: ::after change mode float-right -> float-right-clear-both table-column-group on inline-table
-FAIL: ::after change mode float-right-clear-both -> float-inline-start table-column on inline-table
-FAIL: ::after change mode float-inline-start -> float-inline-end table-caption on inline-table
+PASS: ::after change mode float-right-clear-both -> float-inline-start table-column on inline-table
+PASS: ::after change mode float-inline-start -> float-inline-end table-caption on inline-table
 PASS: ::after change mode float-inline-end -> relative-float-left block flow on inline-table
 PASS: ::after change mode relative-float-left -> static inline flow on inline-table
 PASS: ::before change mode static -> relative -webkit-inline-box on math
@@ -436,10 +436,10 @@ PASS: ::before change mode absolute -> fixed table-cell on table-row-group
 PASS: ::before change mode fixed -> sticky table-column-group on table-row-group
 PASS: ::before change mode sticky -> float-left table-column on table-row-group
 PASS: ::before change mode float-left -> float-left-clear-both table-caption on table-row-group
-FAIL: ::before change mode float-left-clear-both -> float-right block flow on table-row-group
+PASS: ::before change mode float-left-clear-both -> float-right block flow on table-row-group
 PASS: ::before change mode float-right -> float-right-clear-both inline flow on table-row-group
-FAIL: ::before change mode float-right-clear-both -> float-inline-start block flow-root on table-row-group
-FAIL: ::before change mode float-inline-start -> float-inline-end inline flow-root on table-row-group
+PASS: ::before change mode float-right-clear-both -> float-inline-start block flow-root on table-row-group
+PASS: ::before change mode float-inline-start -> float-inline-end inline flow-root on table-row-group
 PASS: ::before change mode float-inline-end -> relative-float-left block flex on table-row-group
 PASS: ::before change mode relative-float-left -> static inline flex on table-row-group
 PASS: ::after change mode static -> relative table-footer-group on table-row-group
@@ -448,10 +448,10 @@ PASS: ::after change mode absolute -> fixed table-cell on table-row-group
 PASS: ::after change mode fixed -> sticky table-column-group on table-row-group
 PASS: ::after change mode sticky -> float-left table-column on table-row-group
 PASS: ::after change mode float-left -> float-left-clear-both table-caption on table-row-group
-FAIL: ::after change mode float-left-clear-both -> float-right block flow on table-row-group
+PASS: ::after change mode float-left-clear-both -> float-right block flow on table-row-group
 PASS: ::after change mode float-right -> float-right-clear-both inline flow on table-row-group
-FAIL: ::after change mode float-right-clear-both -> float-inline-start block flow-root on table-row-group
-FAIL: ::after change mode float-inline-start -> float-inline-end inline flow-root on table-row-group
+PASS: ::after change mode float-right-clear-both -> float-inline-start block flow-root on table-row-group
+PASS: ::after change mode float-inline-start -> float-inline-end inline flow-root on table-row-group
 PASS: ::after change mode float-inline-end -> relative-float-left block flex on table-row-group
 PASS: ::after change mode relative-float-left -> static inline flex on table-row-group
 PASS: ::before change mode static -> relative table-row on table-header-group
@@ -460,10 +460,10 @@ PASS: ::before change mode absolute -> fixed table-column-group on table-header-
 PASS: ::before change mode fixed -> sticky table-column on table-header-group
 PASS: ::before change mode sticky -> float-left table-caption on table-header-group
 PASS: ::before change mode float-left -> float-left-clear-both block flow on table-header-group
-FAIL: ::before change mode float-left-clear-both -> float-right inline flow on table-header-group
+PASS: ::before change mode float-left-clear-both -> float-right inline flow on table-header-group
 PASS: ::before change mode float-right -> float-right-clear-both block flow-root on table-header-group
-FAIL: ::before change mode float-right-clear-both -> float-inline-start inline flow-root on table-header-group
-FAIL: ::before change mode float-inline-start -> float-inline-end block flex on table-header-group
+PASS: ::before change mode float-right-clear-both -> float-inline-start inline flow-root on table-header-group
+PASS: ::before change mode float-inline-start -> float-inline-end block flex on table-header-group
 PASS: ::before change mode float-inline-end -> relative-float-left inline flex on table-header-group
 PASS: ::before change mode relative-float-left -> static block grid on table-header-group
 PASS: ::after change mode static -> relative table-row on table-header-group
@@ -472,10 +472,10 @@ PASS: ::after change mode absolute -> fixed table-column-group on table-header-g
 PASS: ::after change mode fixed -> sticky table-column on table-header-group
 PASS: ::after change mode sticky -> float-left table-caption on table-header-group
 PASS: ::after change mode float-left -> float-left-clear-both block flow on table-header-group
-FAIL: ::after change mode float-left-clear-both -> float-right inline flow on table-header-group
+PASS: ::after change mode float-left-clear-both -> float-right inline flow on table-header-group
 PASS: ::after change mode float-right -> float-right-clear-both block flow-root on table-header-group
-FAIL: ::after change mode float-right-clear-both -> float-inline-start inline flow-root on table-header-group
-FAIL: ::after change mode float-inline-start -> float-inline-end block flex on table-header-group
+PASS: ::after change mode float-right-clear-both -> float-inline-start inline flow-root on table-header-group
+PASS: ::after change mode float-inline-start -> float-inline-end block flex on table-header-group
 PASS: ::after change mode float-inline-end -> relative-float-left inline flex on table-header-group
 PASS: ::after change mode relative-float-left -> static block grid on table-header-group
 PASS: ::before change mode static -> relative table-cell on table-footer-group
@@ -484,10 +484,10 @@ PASS: ::before change mode absolute -> fixed table-column on table-footer-group
 PASS: ::before change mode fixed -> sticky table-caption on table-footer-group
 PASS: ::before change mode sticky -> float-left block flow on table-footer-group
 PASS: ::before change mode float-left -> float-left-clear-both inline flow on table-footer-group
-FAIL: ::before change mode float-left-clear-both -> float-right block flow-root on table-footer-group
+PASS: ::before change mode float-left-clear-both -> float-right block flow-root on table-footer-group
 PASS: ::before change mode float-right -> float-right-clear-both inline flow-root on table-footer-group
-FAIL: ::before change mode float-right-clear-both -> float-inline-start block flex on table-footer-group
-FAIL: ::before change mode float-inline-start -> float-inline-end inline flex on table-footer-group
+PASS: ::before change mode float-right-clear-both -> float-inline-start block flex on table-footer-group
+PASS: ::before change mode float-inline-start -> float-inline-end inline flex on table-footer-group
 PASS: ::before change mode float-inline-end -> relative-float-left block grid on table-footer-group
 PASS: ::before change mode relative-float-left -> static inline grid on table-footer-group
 PASS: ::after change mode static -> relative table-cell on table-footer-group
@@ -496,10 +496,10 @@ PASS: ::after change mode absolute -> fixed table-column on table-footer-group
 PASS: ::after change mode fixed -> sticky table-caption on table-footer-group
 PASS: ::after change mode sticky -> float-left block flow on table-footer-group
 PASS: ::after change mode float-left -> float-left-clear-both inline flow on table-footer-group
-FAIL: ::after change mode float-left-clear-both -> float-right block flow-root on table-footer-group
+PASS: ::after change mode float-left-clear-both -> float-right block flow-root on table-footer-group
 PASS: ::after change mode float-right -> float-right-clear-both inline flow-root on table-footer-group
-FAIL: ::after change mode float-right-clear-both -> float-inline-start block flex on table-footer-group
-FAIL: ::after change mode float-inline-start -> float-inline-end inline flex on table-footer-group
+PASS: ::after change mode float-right-clear-both -> float-inline-start block flex on table-footer-group
+PASS: ::after change mode float-inline-start -> float-inline-end inline flex on table-footer-group
 PASS: ::after change mode float-inline-end -> relative-float-left block grid on table-footer-group
 PASS: ::after change mode relative-float-left -> static inline grid on table-footer-group
 PASS: ::before change mode static -> relative table-column-group on table-row
@@ -679,7 +679,7 @@ PASS: ::before change mode float-left -> float-left-clear-both inline table on b
 PASS: ::before change mode float-left-clear-both -> float-right block flow list-item on block flow-root
 PASS: ::before change mode float-right -> float-right-clear-both inline flow list-item on block flow-root
 PASS: ::before change mode float-right-clear-both -> float-inline-start none on block flow-root
-FAIL: ::before change mode float-inline-start -> float-inline-end contents on block flow-root
+PASS: ::before change mode float-inline-start -> float-inline-end contents on block flow-root
 PASS: ::before change mode float-inline-end -> relative-float-left block on block flow-root
 PASS: ::before change mode relative-float-left -> static inline on block flow-root
 PASS: ::after change mode static -> relative block flex on block flow-root
@@ -702,7 +702,7 @@ PASS: ::before change mode sticky -> float-left inline table on inline flow-root
 PASS: ::before change mode float-left -> float-left-clear-both block flow list-item on inline flow-root
 PASS: ::before change mode float-left-clear-both -> float-right inline flow list-item on inline flow-root
 PASS: ::before change mode float-right -> float-right-clear-both none on inline flow-root
-FAIL: ::before change mode float-right-clear-both -> float-inline-start contents on inline flow-root
+PASS: ::before change mode float-right-clear-both -> float-inline-start contents on inline flow-root
 PASS: ::before change mode float-inline-start -> float-inline-end block on inline flow-root
 PASS: ::before change mode float-inline-end -> relative-float-left inline on inline flow-root
 PASS: ::before change mode relative-float-left -> static flow-root on inline flow-root
@@ -714,7 +714,7 @@ PASS: ::after change mode sticky -> float-left inline table on inline flow-root
 PASS: ::after change mode float-left -> float-left-clear-both block flow list-item on inline flow-root
 PASS: ::after change mode float-left-clear-both -> float-right inline flow list-item on inline flow-root
 PASS: ::after change mode float-right -> float-right-clear-both none on inline flow-root
-FAIL: ::after change mode float-right-clear-both -> float-inline-start contents on inline flow-root
+PASS: ::after change mode float-right-clear-both -> float-inline-start contents on inline flow-root
 PASS: ::after change mode float-inline-start -> float-inline-end block on inline flow-root
 PASS: ::after change mode float-inline-end -> relative-float-left inline on inline flow-root
 PASS: ::after change mode relative-float-left -> static flow-root on inline flow-root
@@ -748,7 +748,7 @@ PASS: ::before change mode absolute -> fixed inline table on inline flex
 PASS: ::before change mode fixed -> sticky block flow list-item on inline flex
 PASS: ::before change mode sticky -> float-left inline flow list-item on inline flex
 PASS: ::before change mode float-left -> float-left-clear-both none on inline flex
-FAIL: ::before change mode float-left-clear-both -> float-right contents on inline flex
+PASS: ::before change mode float-left-clear-both -> float-right contents on inline flex
 PASS: ::before change mode float-right -> float-right-clear-both block on inline flex
 PASS: ::before change mode float-right-clear-both -> float-inline-start inline on inline flex
 PASS: ::before change mode float-inline-start -> float-inline-end flow-root on inline flex
@@ -760,7 +760,7 @@ PASS: ::after change mode absolute -> fixed inline table on inline flex
 PASS: ::after change mode fixed -> sticky block flow list-item on inline flex
 PASS: ::after change mode sticky -> float-left inline flow list-item on inline flex
 PASS: ::after change mode float-left -> float-left-clear-both none on inline flex
-FAIL: ::after change mode float-left-clear-both -> float-right contents on inline flex
+PASS: ::after change mode float-left-clear-both -> float-right contents on inline flex
 PASS: ::after change mode float-right -> float-right-clear-both block on inline flex
 PASS: ::after change mode float-right-clear-both -> float-inline-start inline on inline flex
 PASS: ::after change mode float-inline-start -> float-inline-end flow-root on inline flex
@@ -820,10 +820,10 @@ PASS: ::before change mode absolute -> fixed none on block table
 PASS: ::before change mode fixed -> sticky contents on block table
 PASS: ::before change mode sticky -> float-left block on block table
 PASS: ::before change mode float-left -> float-left-clear-both inline on block table
-FAIL: ::before change mode float-left-clear-both -> float-right flow-root on block table
+PASS: ::before change mode float-left-clear-both -> float-right flow-root on block table
 PASS: ::before change mode float-right -> float-right-clear-both inline-block on block table
-FAIL: ::before change mode float-right-clear-both -> float-inline-start run-in on block table
-FAIL: ::before change mode float-inline-start -> float-inline-end list-item on block table
+PASS: ::before change mode float-right-clear-both -> float-inline-start run-in on block table
+PASS: ::before change mode float-inline-start -> float-inline-end list-item on block table
 PASS: ::before change mode float-inline-end -> relative-float-left inline list-item on block table
 PASS: ::before change mode relative-float-left -> static flex on block table
 PASS: ::after change mode static -> relative block flow list-item on block table
@@ -832,10 +832,10 @@ PASS: ::after change mode absolute -> fixed none on block table
 PASS: ::after change mode fixed -> sticky contents on block table
 PASS: ::after change mode sticky -> float-left block on block table
 PASS: ::after change mode float-left -> float-left-clear-both inline on block table
-FAIL: ::after change mode float-left-clear-both -> float-right flow-root on block table
+PASS: ::after change mode float-left-clear-both -> float-right flow-root on block table
 PASS: ::after change mode float-right -> float-right-clear-both inline-block on block table
-FAIL: ::after change mode float-right-clear-both -> float-inline-start run-in on block table
-FAIL: ::after change mode float-inline-start -> float-inline-end list-item on block table
+PASS: ::after change mode float-right-clear-both -> float-inline-start run-in on block table
+PASS: ::after change mode float-inline-start -> float-inline-end list-item on block table
 PASS: ::after change mode float-inline-end -> relative-float-left inline list-item on block table
 PASS: ::after change mode relative-float-left -> static flex on block table
 PASS: ::before change mode static -> relative inline flow list-item on inline table
@@ -844,10 +844,10 @@ PASS: ::before change mode absolute -> fixed contents on inline table
 PASS: ::before change mode fixed -> sticky block on inline table
 PASS: ::before change mode sticky -> float-left inline on inline table
 PASS: ::before change mode float-left -> float-left-clear-both flow-root on inline table
-FAIL: ::before change mode float-left-clear-both -> float-right inline-block on inline table
+PASS: ::before change mode float-left-clear-both -> float-right inline-block on inline table
 PASS: ::before change mode float-right -> float-right-clear-both run-in on inline table
-FAIL: ::before change mode float-right-clear-both -> float-inline-start list-item on inline table
-FAIL: ::before change mode float-inline-start -> float-inline-end inline list-item on inline table
+PASS: ::before change mode float-right-clear-both -> float-inline-start list-item on inline table
+PASS: ::before change mode float-inline-start -> float-inline-end inline list-item on inline table
 PASS: ::before change mode float-inline-end -> relative-float-left flex on inline table
 PASS: ::before change mode relative-float-left -> static inline-flex on inline table
 PASS: ::after change mode static -> relative inline flow list-item on inline table
@@ -856,10 +856,10 @@ PASS: ::after change mode absolute -> fixed contents on inline table
 PASS: ::after change mode fixed -> sticky block on inline table
 PASS: ::after change mode sticky -> float-left inline on inline table
 PASS: ::after change mode float-left -> float-left-clear-both flow-root on inline table
-FAIL: ::after change mode float-left-clear-both -> float-right inline-block on inline table
+PASS: ::after change mode float-left-clear-both -> float-right inline-block on inline table
 PASS: ::after change mode float-right -> float-right-clear-both run-in on inline table
-FAIL: ::after change mode float-right-clear-both -> float-inline-start list-item on inline table
-FAIL: ::after change mode float-inline-start -> float-inline-end inline list-item on inline table
+PASS: ::after change mode float-right-clear-both -> float-inline-start list-item on inline table
+PASS: ::after change mode float-inline-start -> float-inline-end inline list-item on inline table
 PASS: ::after change mode float-inline-end -> relative-float-left flex on inline table
 PASS: ::after change mode relative-float-left -> static inline-flex on inline table
 PASS: ::before change mode static -> relative none on block flow list-item
@@ -870,7 +870,7 @@ PASS: ::before change mode sticky -> float-left flow-root on block flow list-ite
 PASS: ::before change mode float-left -> float-left-clear-both inline-block on block flow list-item
 PASS: ::before change mode float-left-clear-both -> float-right run-in on block flow list-item
 FAIL: ::before change mode float-right -> float-right-clear-both list-item on block flow list-item
-FAIL: ::before change mode float-right-clear-both -> float-inline-start inline list-item on block flow list-item
+PASS: ::before change mode float-right-clear-both -> float-inline-start inline list-item on block flow list-item
 PASS: ::before change mode float-inline-start -> float-inline-end flex on block flow list-item
 PASS: ::before change mode float-inline-end -> relative-float-left inline-flex on block flow list-item
 PASS: ::before change mode relative-float-left -> static grid on block flow list-item
@@ -882,7 +882,7 @@ PASS: ::after change mode sticky -> float-left flow-root on block flow list-item
 PASS: ::after change mode float-left -> float-left-clear-both inline-block on block flow list-item
 PASS: ::after change mode float-left-clear-both -> float-right run-in on block flow list-item
 FAIL: ::after change mode float-right -> float-right-clear-both list-item on block flow list-item
-FAIL: ::after change mode float-right-clear-both -> float-inline-start inline list-item on block flow list-item
+PASS: ::after change mode float-right-clear-both -> float-inline-start inline list-item on block flow list-item
 PASS: ::after change mode float-inline-start -> float-inline-end flex on block flow list-item
 PASS: ::after change mode float-inline-end -> relative-float-left inline-flex on block flow list-item
 PASS: ::after change mode relative-float-left -> static grid on block flow list-item
@@ -892,7 +892,7 @@ PASS: ::before change mode absolute -> fixed inline on inline flow list-item
 PASS: ::before change mode fixed -> sticky flow-root on inline flow list-item
 PASS: ::before change mode sticky -> float-left inline-block on inline flow list-item
 PASS: ::before change mode float-left -> float-left-clear-both run-in on inline flow list-item
-FAIL: ::before change mode float-left-clear-both -> float-right list-item on inline flow list-item
+PASS: ::before change mode float-left-clear-both -> float-right list-item on inline flow list-item
 FAIL: ::before change mode float-right -> float-right-clear-both inline list-item on inline flow list-item
 PASS: ::before change mode float-right-clear-both -> float-inline-start flex on inline flow list-item
 PASS: ::before change mode float-inline-start -> float-inline-end inline-flex on inline flow list-item
@@ -904,10 +904,10 @@ PASS: ::after change mode absolute -> fixed inline on inline flow list-item
 PASS: ::after change mode fixed -> sticky flow-root on inline flow list-item
 PASS: ::after change mode sticky -> float-left inline-block on inline flow list-item
 PASS: ::after change mode float-left -> float-left-clear-both run-in on inline flow list-item
-FAIL: ::after change mode float-left-clear-both -> float-right list-item on inline flow list-item
+PASS: ::after change mode float-left-clear-both -> float-right list-item on inline flow list-item
 FAIL: ::after change mode float-right -> float-right-clear-both inline list-item on inline flow list-item
 PASS: ::after change mode float-right-clear-both -> float-inline-start flex on inline flow list-item
 PASS: ::after change mode float-inline-start -> float-inline-end inline-flex on inline flow list-item
 PASS: ::after change mode float-inline-end -> relative-float-left grid on inline flow list-item
 PASS: ::after change mode relative-float-left -> static inline-grid on inline flow list-item
-912 cases; 848 matched; 64 mismatched
+912 cases; 905 matched; 7 mismatched
