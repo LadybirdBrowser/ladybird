@@ -1518,6 +1518,11 @@ void Element::set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason reaso
         set_needs_layout_tree_update(true, reason);
         return;
     }
+    // A newly inserted element already has its entire subtree scheduled for construction. Its
+    // initial style computation cannot require rebuilding an existing principal box, so keep
+    // the insertion-specific invalidation on its parent instead of widening it to StyleChange.
+    if (!layout_node && may_reuse_layout_node_for_child_list_insertion())
+        return;
     bool can_rebuild_from_self = rebuild_root == CSS::LayoutTreeRebuildRoot::Self
         || (rebuild_root == CSS::LayoutTreeRebuildRoot::SelfUnlessDocumentElementOrBody
             && !is_html_html_element() && !is_html_body_element());

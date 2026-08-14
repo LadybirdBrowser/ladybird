@@ -867,6 +867,8 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
             parent_element()->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBeforeWithDisplayContents);
         }
         set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
+        for (auto& inserted_node : nodes)
+            inserted_node->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
     }
 
     // AD-HOC: An inserted list item renumbers the list-item counter for its list owner's whole list.
@@ -1929,9 +1931,13 @@ static bool is_structural_boundary_self_rebuild_reason(SetNeedsLayoutTreeUpdateR
 
 void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReason reason)
 {
-    if (m_needs_layout_tree_update == value)
+    if (m_needs_layout_tree_update == value) {
+        if (value && reason != SetNeedsLayoutTreeUpdateReason::NodeInsertBefore)
+            m_may_reuse_layout_node_for_child_list_insertion = false;
         return;
+    }
     m_needs_layout_tree_update = value;
+    m_may_reuse_layout_node_for_child_list_insertion = value && reason == SetNeedsLayoutTreeUpdateReason::NodeInsertBefore;
 
     if constexpr (UPDATE_LAYOUT_DEBUG) {
         if (m_needs_layout_tree_update) {

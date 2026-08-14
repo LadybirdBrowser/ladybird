@@ -112,6 +112,52 @@ static RustFFI::FfiPrincipalDisplayFacts ffi_principal_display_facts(CSS::Displa
 static void update_style_if_needed_for_layout_tree_bypass_path(DOM::Element&);
 static RefPtr<Layout::Node> create_layout_node_for_text(DOM::Text&, bool needs_style_wrapper);
 
+static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node)
+{
+    if (!node.may_reuse_layout_node_for_child_list_insertion())
+        return false;
+
+    auto const* element = as_if<DOM::Element>(node);
+    auto const* layout_node = as_if<NodeWithStyle>(node.unsafe_layout_node());
+    if (!element || !layout_node || element->shadow_root() || is<HTML::HTMLSlotElement>(*element))
+        return false;
+
+    auto parent_display = layout_node->display();
+    if ((!parent_display.is_flow_inside() && !parent_display.is_flow_root_inside())
+        || (!layout_node->children_are_inline() && layout_node->has_children())) {
+        return false;
+    }
+
+    for (auto const* child = node.first_child(); child; child = child->next_sibling()) {
+        if (auto const* child_layout_node = child->unsafe_layout_node()) {
+            if (child_layout_node->parent() != layout_node)
+                return false;
+            continue;
+        }
+
+        auto const* child_element = as_if<DOM::Element>(*child);
+        if (!child_element) {
+            if (child->needs_layout_tree_update() && is<DOM::Text>(*child))
+                return false;
+            continue;
+        }
+
+        auto computed_style = child_element->computed_style();
+        if (!computed_style || computed_style->display().is_contents())
+            return false;
+        if (!child->needs_layout_tree_update() || computed_style->display().is_none())
+            continue;
+        auto child_display = computed_style->display();
+        if (!child_display.is_inline_outside()
+            || (!child_display.is_flow_root_inside() && !child_display.is_flex_inside() && !child_display.is_grid_inside())
+            || child_element->rendered_in_top_layer()
+            || is<SVG::SVGElement>(*child_element)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static size_t ffi_assigned_node_count(void* slot_element_pointer)
 {
     VERIFY(slot_element_pointer);
@@ -921,6 +967,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             return {
                 .must_create_subtree = must_create_subtree,
                 .needs_layout_tree_update = node.needs_layout_tree_update(),
+                .may_reuse_layout_node_for_child_list_insertion = may_reuse_layout_node_for_child_list_insertion(node),
                 .document_needs_full_layout_tree_update = node.document().needs_full_layout_tree_update(),
                 .is_document = node.is_document(),
                 .has_layout_node = existing_layout_node != nullptr,
@@ -1375,10 +1422,33 @@ static void ffi_insert_child(void*, void* parent_pointer, void* child_pointer, R
     VERIFY(child_pointer);
     auto& parent = *static_cast<Node*>(parent_pointer);
     NonnullRefPtr child = *static_cast<Node*>(child_pointer);
-    if (mode == RustFFI::FfiInsertionMode::Prepend)
+    if (mode == RustFFI::FfiInsertionMode::Prepend) {
         parent.prepend_child(*child);
-    else
+        return;
+    }
+    if (mode == RustFFI::FfiInsertionMode::Append) {
         parent.append_child(*child);
+        return;
+    }
+
+    VERIFY(mode == RustFFI::FfiInsertionMode::InDomOrder);
+    auto* dom_node = child->dom_node();
+    VERIFY(dom_node);
+    for (auto* sibling = dom_node->next_sibling(); sibling; sibling = sibling->next_sibling()) {
+        auto* sibling_layout_node = sibling->unsafe_layout_node();
+        if (sibling_layout_node && sibling_layout_node->parent() == &parent) {
+            parent.insert_before(*child, sibling_layout_node);
+            return;
+        }
+    }
+
+    for (auto layout_child = parent.first_child(); layout_child; layout_child = layout_child->next_sibling()) {
+        if (layout_child->is_generated_for_after_pseudo_element()) {
+            parent.insert_before(*child, layout_child);
+            return;
+        }
+    }
+    parent.append_child(*child);
 }
 
 static RustFFI::NodeSlotId ffi_create_button_content_wrapper(void*, void* layout_node_pointer)

@@ -186,6 +186,7 @@ pub struct FfiPrincipalDescendantFacts {
 pub struct FfiPrincipalNodeEntryFacts {
     pub must_create_subtree: bool,
     pub needs_layout_tree_update: bool,
+    pub may_reuse_layout_node_for_child_list_insertion: bool,
     pub document_needs_full_layout_tree_update: bool,
     pub is_document: bool,
     pub has_layout_node: bool,
@@ -466,6 +467,7 @@ pub(crate) struct PrincipalBoxPlacementFacts {
     pub(crate) old_layout_node_is_attached: bool,
     pub(crate) old_and_new_layout_nodes_are_same: bool,
     pub(crate) has_current_rebuild_root: bool,
+    pub(crate) is_in_dom_order_insertion: bool,
     pub(crate) is_document: bool,
     pub(crate) is_element: bool,
     pub(crate) rendered_in_top_layer: bool,
@@ -501,10 +503,13 @@ pub(crate) fn principal_box_placement_decision(
             && facts.has_old_layout_node
             && facts.old_layout_node_is_attached
             && !facts.old_and_new_layout_nodes_are_same;
-        let start_rebuild_root = may_replace_existing_layout_node && !facts.has_current_rebuild_root;
+        let start_rebuild_root = (may_replace_existing_layout_node
+            || (facts.should_create_layout_node && !facts.has_old_layout_node && facts.is_in_dom_order_insertion))
+            && !facts.has_current_rebuild_root;
         let mark_update_escaped_rebuild_roots = facts.should_create_layout_node
             && !facts.has_old_layout_node
             && !facts.has_current_rebuild_root
+            && !facts.is_in_dom_order_insertion
             && !facts.is_document;
 
         let placement = if facts.is_document {
@@ -537,7 +542,7 @@ pub(crate) fn principal_node_entry_decision(
 ) -> PrincipalNodeEntryDecision {
     abort_on_panic(|| {
         let should_create_layout_node = facts.must_create_subtree
-            || facts.needs_layout_tree_update
+            || (facts.needs_layout_tree_update && !facts.may_reuse_layout_node_for_child_list_insertion)
             || facts.document_needs_full_layout_tree_update
             || (facts.is_document && !facts.has_layout_node);
 
@@ -633,12 +638,13 @@ unsafe fn update_layout_tree_for_dom_children(
     parent: *mut c_void,
     context: &mut TreeBuilderContext,
     must_create_subtree: bool,
+    insertion_mode: FfiInsertionMode,
 ) {
     abort_on_panic(|| {
         assert!(!parent.is_null());
         let mut node = host.first_child(parent);
         while !node.is_null() {
-            update_layout_tree(host, state, node, context, must_create_subtree);
+            update_layout_tree(host, state, node, context, must_create_subtree, insertion_mode);
             node = host.next_sibling(node);
         }
     });
@@ -660,7 +666,14 @@ unsafe fn update_layout_tree_for_shadow_root_children(
         assert!(!shadow_root.is_null());
         let mut node = host.first_child(shadow_root);
         while !node.is_null() {
-            update_layout_tree(host, state, node, context, must_create_subtree);
+            update_layout_tree(
+                host,
+                state,
+                node,
+                context,
+                must_create_subtree,
+                FfiInsertionMode::Append,
+            );
             node = host.next_sibling(node);
         }
         // SAFETY: `shadow_root` remains live throughout the call.
@@ -688,7 +701,14 @@ unsafe fn update_layout_tree_for_assigned_slottables(
             // SAFETY: `index` is below the count reported for this unchanged assigned-node list.
             let node = unsafe { (host.callbacks.assigned_node_at)(slot_element, index) };
             assert!(!node.is_null());
-            update_layout_tree(host, state, node, context, must_create_subtree);
+            update_layout_tree(
+                host,
+                state,
+                node,
+                context,
+                must_create_subtree,
+                FfiInsertionMode::Append,
+            );
         }
     });
 }
@@ -738,7 +758,14 @@ unsafe fn update_layout_tree_for_svg_switch_children(
         }
 
         if !rendered_child.is_null() {
-            update_layout_tree(host, state, rendered_child, context, must_create_subtree);
+            update_layout_tree(
+                host,
+                state,
+                rendered_child,
+                context,
+                must_create_subtree,
+                FfiInsertionMode::Append,
+            );
         }
     });
 }
@@ -818,6 +845,7 @@ unsafe fn update_layout_tree_for_display_contents(
                         facts.dom_children_parent,
                         context,
                         must_create_children,
+                        FfiInsertionMode::Append,
                     );
                 }
             }
@@ -898,7 +926,7 @@ fn update_svg_resource(
     state.ancestor_stack.push(layout_node);
 
     if !ancestor_stack_contains_element_layout_node(host, state, resource) {
-        update_layout_tree(host, state, resource, context, true);
+        update_layout_tree(host, state, resource, context, true, FfiInsertionMode::Append);
         // SAFETY: Both pointers denote live SVG elements held by the graphics element.
         unsafe { (host.callbacks.register_svg_resource_reference)(resource, graphics_element) };
     } else {
@@ -924,7 +952,7 @@ fn update_svg_pattern(
     state.ancestor_stack.push(layout_node);
 
     if !ancestor_stack_contains_element_layout_node(host, state, content_element) {
-        update_layout_tree(host, state, content_element, context, true);
+        update_layout_tree(host, state, content_element, context, true, FfiInsertionMode::Append);
         // The referenced pattern may inherit its content from another pattern via href. Removing either element
         // invalidates the attached resource box, so register the referencer with both.
         // SAFETY: All pointers denote live SVG elements held by the graphics element or pattern chain.
@@ -940,6 +968,12 @@ fn update_svg_pattern(
     context.layout_svg_pattern = prior_context_value;
 }
 
+struct PrincipalDescendantUpdate {
+    should_create_layout_node: bool,
+    must_create_subtree: bool,
+    insertion_mode: FfiInsertionMode,
+}
+
 /// Updates the descendants and post-child state of a node with a principal layout box.
 ///
 /// # Safety
@@ -951,10 +985,10 @@ unsafe fn update_principal_node_descendants(
     dom_node: *mut c_void,
     layout_node: LayoutNode,
     context: &mut TreeBuilderContext,
-    should_create_layout_node: bool,
-    must_create_subtree: bool,
+    update: PrincipalDescendantUpdate,
 ) {
     abort_on_panic(|| {
+        let should_create_layout_node = update.should_create_layout_node;
         assert!(!dom_node.is_null());
         assert!(!layout_node.is_invalid());
         let layout_host = host.layout();
@@ -1065,6 +1099,7 @@ unsafe fn update_principal_node_descendants(
                             facts.dom_children_parent,
                             context,
                             should_create_layout_node,
+                            update.insertion_mode,
                         );
                     }
                 }
@@ -1100,7 +1135,14 @@ unsafe fn update_principal_node_descendants(
                         }
                         continue;
                     }
-                    update_layout_tree(host, state, element, context, should_create_layout_node);
+                    update_layout_tree(
+                        host,
+                        state,
+                        element,
+                        context,
+                        should_create_layout_node,
+                        FfiInsertionMode::Append,
+                    );
                 }
                 context.layout_top_layer = prior_layout_top_layer;
             }
@@ -1118,7 +1160,7 @@ unsafe fn update_principal_node_descendants(
                         state,
                         facts.slot_element,
                         context,
-                        must_create_subtree || should_create_layout_node,
+                        update.must_create_subtree || should_create_layout_node,
                     );
                 }
                 assert!(state.ancestor_stack.pop().is_some());
@@ -1238,6 +1280,7 @@ struct PrincipalNodeUpdate<'host, 'callbacks, 'state, 'context> {
     dom_node: *mut c_void,
     context: &'context mut TreeBuilderContext,
     must_create_subtree: bool,
+    insertion_mode: FfiInsertionMode,
 }
 
 fn construct_principal_layout_node(
@@ -1385,6 +1428,7 @@ fn update_principal_node_after_entry(
                 && !host.layout().parent(old_layout_node).is_invalid(),
             old_and_new_layout_nodes_are_same: old_layout_node == layout_node,
             has_current_rebuild_root: !update.state.current_rebuild_root.is_invalid(),
+            is_in_dom_order_insertion: update.insertion_mode == FfiInsertionMode::InDomOrder,
             is_document: entry_facts.is_document,
             is_element: entry_facts.is_element,
             rendered_in_top_layer: entry_facts.rendered_in_top_layer,
@@ -1452,7 +1496,7 @@ fn update_principal_node_after_entry(
                 current_parent,
                 layout_node,
                 is_inline_outside,
-                FfiInsertionMode::Append,
+                update.insertion_mode,
             );
         } else {
             if placement.placement == FfiPrincipalBoxPlacement::ReplaceExisting {
@@ -1490,8 +1534,15 @@ fn update_principal_node_after_entry(
                 dom_node,
                 (host.callbacks.principal_layout_node)(frame),
                 context,
-                entry_decision.should_create_layout_node,
-                update.must_create_subtree,
+                PrincipalDescendantUpdate {
+                    should_create_layout_node: entry_decision.should_create_layout_node,
+                    must_create_subtree: update.must_create_subtree,
+                    insertion_mode: if entry_facts.may_reuse_layout_node_for_child_list_insertion {
+                        FfiInsertionMode::InDomOrder
+                    } else {
+                        FfiInsertionMode::Append
+                    },
+                },
             );
         }
 
@@ -1532,6 +1583,7 @@ fn update_layout_tree(
     dom_node: *mut c_void,
     context: &mut TreeBuilderContext,
     must_create_subtree: bool,
+    insertion_mode: FfiInsertionMode,
 ) {
     abort_on_panic(|| {
         assert!(!dom_node.is_null());
@@ -1562,6 +1614,7 @@ fn update_layout_tree(
             dom_node,
             context,
             must_create_subtree,
+            insertion_mode,
         };
         update_principal_node_after_entry(&mut update, entry_facts, entry_decision);
         // SAFETY: `frame` is the most recently pushed principal frame and is no longer used by Rust.
@@ -1591,7 +1644,14 @@ pub unsafe extern "C" fn rust_build_layout_tree(
             unsafe { (host.callbacks.principal_node_entry_facts)(host.callbacks.builder, document, false) };
         assert!(entry_facts.is_document);
 
-        update_layout_tree(&host, &mut state, document, &mut context, false);
+        update_layout_tree(
+            &host,
+            &mut state,
+            document,
+            &mut context,
+            false,
+            FfiInsertionMode::Append,
+        );
 
         // NB: Called during layout tree construction.
         // SAFETY: The document remains live and any attached layout root is owned by it and the builder.
@@ -1983,6 +2043,7 @@ pub enum FfiAnonymousTableBoxKind {
 pub enum FfiInsertionMode {
     Append,
     Prepend,
+    InDomOrder,
 }
 
 #[repr(C)]
@@ -2534,8 +2595,12 @@ fn insert_node_into_inline_or_block_ancestor(
     };
 
     // Insertion parents can be above the subtree being rebuilt in place: inline ancestors are
-    // skipped, and out-of-flow boxes can join a trailing anonymous sibling.
-    note_layout_tree_restructuring_at(host, state, insertion_point);
+    // skipped, and out-of-flow boxes can join a trailing anonymous sibling. InDomOrder is only
+    // selected after proving that an inline box can be added directly to a retained parent, so
+    // that parent insertion is the planned update rather than an escape from its new subtree.
+    if mode != FfiInsertionMode::InDomOrder {
+        note_layout_tree_restructuring_at(host, state, insertion_point);
+    }
     // SAFETY: The callback retains `node` while inserting it into the live insertion point.
     unsafe {
         (host.callbacks.insert_child)(
@@ -3439,6 +3504,7 @@ mod tests {
         let mut facts = FfiPrincipalNodeEntryFacts {
             must_create_subtree: false,
             needs_layout_tree_update: false,
+            may_reuse_layout_node_for_child_list_insertion: false,
             document_needs_full_layout_tree_update: false,
             is_document: false,
             has_layout_node: true,
@@ -3532,6 +3598,7 @@ mod tests {
             old_layout_node_is_attached: true,
             old_and_new_layout_nodes_are_same: false,
             has_current_rebuild_root: false,
+            is_in_dom_order_insertion: false,
             is_document: false,
             is_element: true,
             rendered_in_top_layer: true,
@@ -3544,6 +3611,13 @@ mod tests {
 
         facts.has_old_layout_node = false;
         facts.old_layout_node_is_attached = false;
+        facts.is_in_dom_order_insertion = true;
+        let decision = principal_box_placement_decision(facts, false, false);
+        assert_eq!(decision.placement, FfiPrincipalBoxPlacement::NormalInsertion);
+        assert!(decision.start_rebuild_root);
+        assert!(!decision.mark_update_escaped_rebuild_roots);
+
+        facts.is_in_dom_order_insertion = false;
         let decision = principal_box_placement_decision(facts, true, true);
         assert_eq!(decision.placement, FfiPrincipalBoxPlacement::AppendSvg);
         assert!(decision.mark_update_escaped_rebuild_roots);
