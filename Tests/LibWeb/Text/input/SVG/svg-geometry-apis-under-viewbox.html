@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    svg, .scaled-ancestor {
+        position: absolute;
+        left: 0;
+    }
+</style>
+<svg id="uniform" width="200" height="200" viewBox="0 0 100 100" style="top: 0">
+    <rect id="uniform-rect" x="10" y="20" width="30" height="40"/>
+    <rect id="transformed-rect" x="10" y="20" width="30" height="40" transform="translate(5, 10)"/>
+    <svg id="nested" x="50" y="0" width="50" height="50" viewBox="0 0 25 25">
+        <rect id="nested-rect" x="5" y="5" width="10" height="10"/>
+    </svg>
+</svg>
+<svg id="hit-target" width="200" height="200" viewBox="0 0 100 100" style="top: 300px">
+    <circle id="hit-circle" cx="50" cy="50" r="20" fill="blue"/>
+</svg>
+<svg id="nonuniform" width="300" height="100" viewBox="0 0 100 100" style="top: 600px">
+    <rect id="nonuniform-rect" x="10" y="10" width="20" height="20"/>
+</svg>
+<div class="scaled-ancestor" style="top: 800px; transform: scale(0.5); transform-origin: 0 0">
+    <svg width="200" height="200" viewBox="0 0 100 100">
+        <rect id="scaled-ancestor-rect" x="10" y="20" width="30" height="40"/>
+    </svg>
+</div>
+<script>
+    test(() => {
+        function printClientRect(label, element) {
+            const rect = element.getBoundingClientRect();
+            println(`${label} gBCR: ${rect.x} ${rect.y} ${rect.width} ${rect.height}`);
+            println(`${label} client rects: ${element.getClientRects().length}`);
+        }
+        function printBBox(label, element) {
+            const box = element.getBBox();
+            println(`${label} getBBox: ${box.x} ${box.y} ${box.width} ${box.height}`);
+        }
+
+        printClientRect("uniform-rect", document.getElementById("uniform-rect"));
+        printBBox("uniform-rect", document.getElementById("uniform-rect"));
+
+        printClientRect("transformed-rect", document.getElementById("transformed-rect"));
+        printBBox("transformed-rect", document.getElementById("transformed-rect"));
+
+        printClientRect("nested-rect", document.getElementById("nested-rect"));
+        printBBox("nested-rect", document.getElementById("nested-rect"));
+
+        printClientRect("nonuniform-rect", document.getElementById("nonuniform-rect"));
+        printBBox("nonuniform-rect", document.getElementById("nonuniform-rect"));
+
+        printClientRect("scaled-ancestor-rect", document.getElementById("scaled-ancestor-rect"));
+
+        const centerHit = document.elementFromPoint(100, 400);
+        println(`hit at circle center: ${centerHit ? centerHit.id || centerHit.tagName : "none"}`);
+        const cornerHit = document.elementFromPoint(64, 364);
+        println(`hit inside bbox outside circle: ${cornerHit ? cornerHit.id || cornerHit.tagName : "none"}`);
+    });
+</script>
