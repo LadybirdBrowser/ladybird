@@ -21,6 +21,7 @@
 #include <LibWeb/CSS/CounterStyle.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/Enums.h>
+#include <LibWeb/CSS/GeneratedContent.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
@@ -132,7 +133,7 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
     if (!parent_lays_out_flex_or_grid_children && !parent_lays_out_inline_children && !parent_lays_out_block_children) {
         return false;
     }
-    if (element->has_style(CSS::PseudoElement::FirstLetter))
+    if (node.first_letter_owner_for_layout_subtree_from(node))
         return false;
 
     bool will_insert_inline_child = false;
@@ -157,7 +158,7 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
             return false;
         if (!child->needs_layout_tree_update() || computed_style->display().is_none())
             continue;
-        if (CSS::subtree_affects_counters(*child_element))
+        if (CSS::subtree_affects_generated_content_state(*child_element))
             return false;
         auto child_display = computed_style->display();
         if (child_element->rendered_in_top_layer() || is<SVG::SVGElement>(*child_element))

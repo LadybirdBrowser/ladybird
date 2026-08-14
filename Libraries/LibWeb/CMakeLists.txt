@@ -102,6 +102,7 @@ set(SOURCES
     CSS/CounterStyle.cpp
     CSS/CounterStyleDefinition.cpp
     CSS/CustomPropertyRegistration.cpp
+    CSS/GeneratedContent.cpp
     CSS/CSS.cpp
     CSS/CSSAnimation.cpp
     CSS/CSSConditionRule.cpp

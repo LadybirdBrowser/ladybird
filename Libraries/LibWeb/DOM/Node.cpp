@@ -20,7 +20,7 @@
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Bindings/Node.h>
 #include <LibWeb/CSS/ComputedProperties.h>
-#include <LibWeb/CSS/CountersSet.h>
+#include <LibWeb/CSS/GeneratedContent.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/CSS/Invalidation/PseudoClassInvalidator.h>
@@ -975,21 +975,12 @@ static bool can_detach_layout_subtree_for_removal(Node const& node, Node const& 
     auto const* parent_layout_node = parent.unsafe_layout_node();
     if (!layout_node || !parent_layout_node || layout_node->parent() != parent_layout_node || layout_node->is_out_of_flow())
         return false;
-    if (CSS::subtree_affects_counters(node))
+    if (CSS::subtree_affects_generated_content_state(node))
         return false;
 
     auto const* parent_with_style = as_if<Layout::NodeWithStyle>(parent_layout_node);
     if (!parent_with_style)
         return false;
-
-    if (auto const* parent_element = as_if<Element>(parent)) {
-        if (auto const* first_letter_layout_node = parent_element->pseudo_element_unsafe_layout_node(CSS::PseudoElement::FirstLetter)) {
-            for (auto const* ancestor = first_letter_layout_node; ancestor; ancestor = ancestor->parent()) {
-                if (ancestor == layout_node)
-                    return false;
-            }
-        }
-    }
 
     auto sibling_is_direct_layout_child = [&](Node const* sibling) {
         if (!sibling)
@@ -1091,7 +1082,9 @@ void Node::remove(bool suppress_observers)
         if (auto* element = as_if<Element>(*this); !contributed_to_layout_tree && element && element->has_style())
             contributed_to_layout_tree = CSS::display_from_ffi_display(element->style_group<CSS::ComputedValues::BoxValues>()->display).is_contents();
         if (contributed_to_layout_tree) {
-            if (can_detach_layout_subtree_for_removal(*this, *parent)) {
+            if (auto* first_letter_owner = first_letter_owner_for_layout_subtree_from(*parent)) {
+                first_letter_owner->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
+            } else if (can_detach_layout_subtree_for_removal(*this, *parent)) {
                 RefPtr<Layout::Node> layout_node = unsafe_layout_node();
                 layout_node->for_each_in_inclusive_subtree([](Layout::Node& node) {
                     node.clear_paintable();
@@ -1451,8 +1444,12 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         // NOTE: If we didn’t have a layout node before, rebuilding the layout tree isn’t gonna give us one
         //       after we’ve been removed from the DOM.
         // NB: Called during DOM node move, layout is not up to date.
-        if (unsafe_layout_node())
-            old_parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
+        if (unsafe_layout_node()) {
+            if (auto* first_letter_owner = first_letter_owner_for_layout_subtree_from(*old_parent))
+                first_letter_owner->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
+            else
+                old_parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
+        }
     }
 
     // 13. Remove node from oldParent’s children.
@@ -1972,6 +1969,11 @@ static bool is_structural_boundary_self_rebuild_reason(SetNeedsLayoutTreeUpdateR
 
 void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReason reason)
 {
+    if (value && reason == SetNeedsLayoutTreeUpdateReason::NodeInsertBefore) {
+        if (auto* first_letter_owner = first_letter_owner_for_layout_subtree_from(*this); first_letter_owner && first_letter_owner != this)
+            first_letter_owner->set_needs_layout_tree_update(true, reason);
+    }
+
     if (m_needs_layout_tree_update == value) {
         if (value && reason != SetNeedsLayoutTreeUpdateReason::NodeInsertBefore)
             m_may_reuse_layout_node_for_child_list_insertion = false;
@@ -3829,6 +3831,28 @@ void Node::add_registered_observer(RegisteredObserver& registered_observer)
     if (!m_registered_observer_list)
         m_registered_observer_list = make<Vector<GC::Ref<RegisteredObserver>>>();
     m_registered_observer_list->append(registered_observer);
+}
+
+Element const* Node::first_letter_owner_for_layout_subtree_from(Node const& inclusive_ancestor) const
+{
+    auto const* layout_subtree_root = unsafe_layout_node();
+    if (!layout_subtree_root)
+        return nullptr;
+
+    for (auto const* ancestor = &inclusive_ancestor; ancestor; ancestor = ancestor->parent_or_shadow_host_node()) {
+        auto const* element = as_if<Element>(*ancestor);
+        if (!element || !element->has_style(CSS::PseudoElement::FirstLetter))
+            continue;
+
+        auto const* first_letter_layout_node = element->pseudo_element_unsafe_layout_node(CSS::PseudoElement::FirstLetter);
+        if (!first_letter_layout_node)
+            return element;
+        for (auto const* layout_ancestor = first_letter_layout_node; layout_ancestor; layout_ancestor = layout_ancestor->parent()) {
+            if (layout_ancestor == layout_subtree_root)
+                return element;
+        }
+    }
+    return nullptr;
 }
 
 bool Node::has_inclusive_ancestor_with_display_none_ignoring_animations() const
