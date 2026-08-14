@@ -740,23 +740,15 @@ pub(crate) fn create_used_values(
     std::rc::Rc::new(used)
 }
 
-pub(crate) fn used_values_from_paintable(
+pub(crate) fn used_values_from_saved_committed_geometry(
     callbacks: &FfiLayoutFcCallbacks,
     node: Node,
-    paintable: *mut c_void,
 ) -> Option<std::rc::Rc<UsedValues>> {
-    let mut geometry = FfiPaintableGeometry::default();
-    let found =
-        unsafe {
-            (callbacks.read_paintable_geometry)(callbacks.context, callbacks.shell(node), paintable, &raw mut geometry)
-        };
-    if !found {
-        return None;
-    }
+    let geometry = callbacks.saved_committed_geometry(node)?;
 
     // Skip normal node initialization: resolving computed sizes requires
     // percentage bases, and every resulting geometry field is replaced by
-    // the previous paintable's committed value immediately.
+    // the previously committed value immediately.
     let used = UsedValues::default();
     used.set_content_inline_size(geometry.content_inline_size);
     used.set_content_block_size(geometry.content_block_size);
@@ -779,8 +771,8 @@ pub(crate) fn used_values_from_paintable(
     used.inset_right.set(geometry.inset_right);
     used.inset_top.set(geometry.inset_top);
     used.inset_bottom.set(geometry.inset_bottom);
-    // Materialization is this box's placement: the previous paintable's
-    // committed geometry is final from the moment it is adopted.
+    // Materialization is this box's placement: the previously committed
+    // geometry is final from the moment it is adopted.
     used.has_content_offset.set(true);
     used.seal_committed_box_metrics();
 
