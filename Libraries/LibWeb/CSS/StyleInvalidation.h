@@ -26,8 +26,19 @@ enum class AccumulatedVisualContextInvalidation : u8 {
     Rebuild,
 };
 
+enum class LayoutTreeRebuildRoot : u8 {
+    Self,
+    SelfUnlessDocumentElementOrBody,
+    Parent,
+};
+
 struct RequiredInvalidationAfterStyleChange {
-    void ensure_at_least(InvalidationLevel level) { m_level = max(m_level, level); }
+    void ensure_at_least(InvalidationLevel level)
+    {
+        m_level = max(m_level, level);
+        if (level >= InvalidationLevel::RebuildLayoutTree)
+            m_layout_tree_rebuild_root = LayoutTreeRebuildRoot::Parent;
+    }
     void ensure_at_least(AccumulatedVisualContextInvalidation invalidation) { m_accumulated_visual_contexts = max(m_accumulated_visual_contexts, invalidation); }
 
     void set_needs_stacking_context_tree_rebuild()
@@ -43,6 +54,11 @@ struct RequiredInvalidationAfterStyleChange {
     [[nodiscard]] bool needs_repaint() const { return m_level >= InvalidationLevel::Repaint; }
     [[nodiscard]] bool needs_relayout() const { return m_level >= InvalidationLevel::Relayout; }
     [[nodiscard]] bool needs_layout_tree_rebuild() const { return m_level >= InvalidationLevel::RebuildLayoutTree; }
+    [[nodiscard]] LayoutTreeRebuildRoot layout_tree_rebuild_root() const
+    {
+        VERIFY(needs_layout_tree_rebuild());
+        return m_layout_tree_rebuild_root;
+    }
     [[nodiscard]] bool needs_stacking_context_tree_rebuild() const { return m_rebuild_stacking_context_tree; }
     // NB: A pending relayout re-measures all scrollable overflow anyway, so this reports true only
     //     when the recalculation has to run as a separate step.
@@ -68,6 +84,12 @@ struct RequiredInvalidationAfterStyleChange {
 
     void operator|=(RequiredInvalidationAfterStyleChange const& other)
     {
+        if (other.needs_layout_tree_rebuild()) {
+            if (needs_layout_tree_rebuild())
+                m_layout_tree_rebuild_root = max(m_layout_tree_rebuild_root, other.m_layout_tree_rebuild_root);
+            else
+                m_layout_tree_rebuild_root = other.m_layout_tree_rebuild_root;
+        }
         m_level = max(m_level, other.m_level);
         m_accumulated_visual_contexts = max(m_accumulated_visual_contexts, other.m_accumulated_visual_contexts);
         m_rebuild_stacking_context_tree |= other.m_rebuild_stacking_context_tree;
@@ -97,9 +119,19 @@ struct RequiredInvalidationAfterStyleChange {
         return invalidation;
     }
 
+    static RequiredInvalidationAfterStyleChange rebuild_layout_tree_from(LayoutTreeRebuildRoot rebuild_root)
+    {
+        RequiredInvalidationAfterStyleChange invalidation;
+        invalidation.m_level = InvalidationLevel::RebuildLayoutTree;
+        invalidation.m_layout_tree_rebuild_root = rebuild_root;
+        invalidation.set_needs_stacking_context_tree_rebuild();
+        return invalidation;
+    }
+
 private:
     InvalidationLevel m_level { InvalidationLevel::None };
     AccumulatedVisualContextInvalidation m_accumulated_visual_contexts { AccumulatedVisualContextInvalidation::None };
+    LayoutTreeRebuildRoot m_layout_tree_rebuild_root { LayoutTreeRebuildRoot::Parent };
     bool m_rebuild_stacking_context_tree : 1 { false };
     bool m_needs_scrollable_overflow_recalculation : 1 { false };
     u8 m_inherited_style_groups_changed { 0 };

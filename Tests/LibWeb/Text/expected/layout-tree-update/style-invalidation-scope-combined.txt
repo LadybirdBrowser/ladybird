@@ -1,0 +1,64 @@
+PRESERVED: self-scoped display and content changes | fixture ancestor
+PRESERVED: self-scoped display and content changes | distant sibling
+PRESERVED: self-scoped display and content changes | distant sibling descendant
+PRESERVED: self-scoped display and content changes | DOM parent
+PRESERVED: self-scoped display and content changes | preceding sibling
+PRESERVED: self-scoped display and content changes | preceding sibling descendant
+RECREATED: self-scoped display and content changes | target
+RECREATED: self-scoped display and content changes | target descendant
+PRESERVED: self-scoped display and content changes | following sibling
+PRESERVED: self-scoped display and content changes | following sibling descendant
+STATS: self-scoped display and content changes | rebuilt subtree roots=1, escaped=false
+PASS: self-scoped display and content changes | incremental tree matches full rebuild
+PRESERVED: self-scoped display and position changes | fixture ancestor
+PRESERVED: self-scoped display and position changes | distant sibling
+PRESERVED: self-scoped display and position changes | distant sibling descendant
+PRESERVED: self-scoped display and position changes | DOM parent
+PRESERVED: self-scoped display and position changes | preceding sibling
+PRESERVED: self-scoped display and position changes | preceding sibling descendant
+RECREATED: self-scoped display and position changes | target
+RECREATED: self-scoped display and position changes | target descendant
+PRESERVED: self-scoped display and position changes | following sibling
+PRESERVED: self-scoped display and position changes | following sibling descendant
+STATS: self-scoped display and position changes | rebuilt subtree roots=1, escaped=false
+PASS: self-scoped display and position changes | incremental tree matches full rebuild
+PRESERVED: self-scoped overflow and display changes | fixture ancestor
+PRESERVED: self-scoped overflow and display changes | distant sibling
+PRESERVED: self-scoped overflow and display changes | distant sibling descendant
+PRESERVED: self-scoped overflow and display changes | DOM parent
+PRESERVED: self-scoped overflow and display changes | preceding sibling
+PRESERVED: self-scoped overflow and display changes | preceding sibling descendant
+RECREATED: self-scoped overflow and display changes | target
+RECREATED: self-scoped overflow and display changes | target descendant
+PRESERVED: self-scoped overflow and display changes | following sibling
+PRESERVED: self-scoped overflow and display changes | following sibling descendant
+STATS: self-scoped overflow and display changes | rebuilt subtree roots=1, escaped=false
+PASS: self-scoped overflow and display changes | incremental tree matches full rebuild
+PRESERVED: parent-scoped counter change widens display change | fixture ancestor
+PRESERVED: parent-scoped counter change widens display change | distant sibling
+PRESERVED: parent-scoped counter change widens display change | distant sibling descendant
+RECREATED: parent-scoped counter change widens display change | DOM parent
+RECREATED: parent-scoped counter change widens display change | preceding sibling
+RECREATED: parent-scoped counter change widens display change | preceding sibling descendant
+RECREATED: parent-scoped counter change widens display change | target
+RECREATED: parent-scoped counter change widens display change | target descendant
+RECREATED: parent-scoped counter change widens display change | following sibling
+RECREATED: parent-scoped counter change widens display change | following sibling descendant
+STATS: parent-scoped counter change widens display change | rebuilt subtree roots=1, escaped=false
+PASS: parent-scoped counter change widens display change | incremental tree matches full rebuild
+RECREATED: outer-changing float change widens display change | fixture ancestor
+RECREATED: outer-changing float change widens display change | distant sibling
+RECREATED: outer-changing float change widens display change | distant sibling descendant
+RECREATED: outer-changing float change widens display change | DOM parent
+RECREATED: outer-changing float change widens display change | preceding sibling
+RECREATED: outer-changing float change widens display change | preceding sibling descendant
+RECREATED: outer-changing float change widens display change | target
+RECREATED: outer-changing float change widens display change | target descendant
+RECREATED: outer-changing float change widens display change | following sibling
+RECREATED: outer-changing float change widens display change | following sibling descendant
+STATS: outer-changing float change widens display change | rebuilt subtree roots=1, escaped=false
+PASS: outer-changing float change widens display change | incremental tree matches full rebuild
+5 cases; 5 matched; 0 mismatched
+PASS: document element overflow propagation
+PASS: body overflow propagation
+2 cases; 2 matched; 0 mismatched

@@ -61,7 +61,7 @@ static void apply_element_style_invalidation_after_style_change(DOM::Element& el
         }
     }
     if (invalidation.needs_layout_tree_rebuild())
-        element.set_needs_layout_tree_rebuild(DOM::SetNeedsLayoutTreeUpdateReason::StyleChange);
+        element.set_needs_layout_tree_rebuild(DOM::SetNeedsLayoutTreeUpdateReason::StyleChange, invalidation.layout_tree_rebuild_root());
 }
 
 static void apply_document_style_invalidation_after_style_change(DOM::Document& document, RequiredInvalidationAfterStyleChange const& invalidation)

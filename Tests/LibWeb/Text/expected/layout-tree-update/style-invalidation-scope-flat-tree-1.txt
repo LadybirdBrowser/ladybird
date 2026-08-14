@@ -180,7 +180,7 @@ STATS: assigned slottable display inline -> contents | rebuilt subtree roots=1, 
 PASS: assigned slottable display inline -> contents | incremental tree matches full rebuild
 PRESERVED: assigned slottable display inline -> inline-flex | fixture ancestor
 PRESERVED: assigned slottable display inline -> inline-flex | distant sibling
-RECREATED: assigned slottable display inline -> inline-flex | shadow host
+PRESERVED: assigned slottable display inline -> inline-flex | shadow host
 RECREATED: assigned slottable display inline -> inline-flex | shadow container
 RECREATED: assigned slottable display inline -> inline-flex | preceding flat-tree sibling
 RECREATED: assigned slottable display inline -> inline-flex | preceding sibling descendant
@@ -241,13 +241,13 @@ PASS: direct shadow child display flow-root -> inline-block | incremental tree m
 PRESERVED: slot fallback child display flow-root -> table | fixture ancestor
 PRESERVED: slot fallback child display flow-root -> table | distant sibling
 PRESERVED: slot fallback child display flow-root -> table | shadow host
-RECREATED: slot fallback child display flow-root -> table | shadow container
-RECREATED: slot fallback child display flow-root -> table | preceding flat-tree sibling
-RECREATED: slot fallback child display flow-root -> table | preceding sibling descendant
+PRESERVED: slot fallback child display flow-root -> table | shadow container
+PRESERVED: slot fallback child display flow-root -> table | preceding flat-tree sibling
+PRESERVED: slot fallback child display flow-root -> table | preceding sibling descendant
 RECREATED: slot fallback child display flow-root -> table | target
 RECREATED: slot fallback child display flow-root -> table | target descendant
-RECREATED: slot fallback child display flow-root -> table | following flat-tree sibling
-RECREATED: slot fallback child display flow-root -> table | following sibling descendant
+PRESERVED: slot fallback child display flow-root -> table | following flat-tree sibling
+PRESERVED: slot fallback child display flow-root -> table | following sibling descendant
 STATS: slot fallback child display flow-root -> table | rebuilt subtree roots=1, escaped=false
 PASS: slot fallback child display flow-root -> table | incremental tree matches full rebuild
 PRESERVED: assigned slottable display flow-root -> table-row | fixture ancestor
@@ -540,14 +540,14 @@ STATS: slot fallback child display flex -> table-footer-group | rebuilt subtree 
 PASS: slot fallback child display flex -> table-footer-group | incremental tree matches full rebuild
 PRESERVED: assigned slottable display flex -> block flow-root | fixture ancestor
 PRESERVED: assigned slottable display flex -> block flow-root | distant sibling
-RECREATED: assigned slottable display flex -> block flow-root | shadow host
-RECREATED: assigned slottable display flex -> block flow-root | shadow container
-RECREATED: assigned slottable display flex -> block flow-root | preceding flat-tree sibling
-RECREATED: assigned slottable display flex -> block flow-root | preceding sibling descendant
+PRESERVED: assigned slottable display flex -> block flow-root | shadow host
+PRESERVED: assigned slottable display flex -> block flow-root | shadow container
+PRESERVED: assigned slottable display flex -> block flow-root | preceding flat-tree sibling
+PRESERVED: assigned slottable display flex -> block flow-root | preceding sibling descendant
 RECREATED: assigned slottable display flex -> block flow-root | target
 RECREATED: assigned slottable display flex -> block flow-root | target descendant
-RECREATED: assigned slottable display flex -> block flow-root | following flat-tree sibling
-RECREATED: assigned slottable display flex -> block flow-root | following sibling descendant
+PRESERVED: assigned slottable display flex -> block flow-root | following flat-tree sibling
+PRESERVED: assigned slottable display flex -> block flow-root | following sibling descendant
 STATS: assigned slottable display flex -> block flow-root | rebuilt subtree roots=1, escaped=false
 PASS: assigned slottable display flex -> block flow-root | incremental tree matches full rebuild
 PRESERVED: direct shadow child display flex -> block flow list-item | fixture ancestor
@@ -576,7 +576,7 @@ STATS: assigned slottable display inline-flex -> run-in | rebuilt subtree roots=
 PASS: assigned slottable display inline-flex -> run-in | incremental tree matches full rebuild
 PRESERVED: assigned slottable display inline-flex -> math | fixture ancestor
 PRESERVED: assigned slottable display inline-flex -> math | distant sibling
-RECREATED: assigned slottable display inline-flex -> math | shadow host
+PRESERVED: assigned slottable display inline-flex -> math | shadow host
 RECREATED: assigned slottable display inline-flex -> math | shadow container
 RECREATED: assigned slottable display inline-flex -> math | preceding flat-tree sibling
 RECREATED: assigned slottable display inline-flex -> math | preceding sibling descendant
@@ -625,13 +625,13 @@ PASS: direct shadow child display grid -> contents | incremental tree matches fu
 PRESERVED: slot fallback child display grid -> flex | fixture ancestor
 PRESERVED: slot fallback child display grid -> flex | distant sibling
 PRESERVED: slot fallback child display grid -> flex | shadow host
-RECREATED: slot fallback child display grid -> flex | shadow container
-RECREATED: slot fallback child display grid -> flex | preceding flat-tree sibling
-RECREATED: slot fallback child display grid -> flex | preceding sibling descendant
+PRESERVED: slot fallback child display grid -> flex | shadow container
+PRESERVED: slot fallback child display grid -> flex | preceding flat-tree sibling
+PRESERVED: slot fallback child display grid -> flex | preceding sibling descendant
 RECREATED: slot fallback child display grid -> flex | target
 RECREATED: slot fallback child display grid -> flex | target descendant
-RECREATED: slot fallback child display grid -> flex | following flat-tree sibling
-RECREATED: slot fallback child display grid -> flex | following sibling descendant
+PRESERVED: slot fallback child display grid -> flex | following flat-tree sibling
+PRESERVED: slot fallback child display grid -> flex | following sibling descendant
 STATS: slot fallback child display grid -> flex | rebuilt subtree roots=1, escaped=false
 PASS: slot fallback child display grid -> flex | incremental tree matches full rebuild
 PRESERVED: slot fallback child display grid -> table-row-group | fixture ancestor
@@ -648,26 +648,26 @@ STATS: slot fallback child display grid -> table-row-group | rebuilt subtree roo
 PASS: slot fallback child display grid -> table-row-group | incremental tree matches full rebuild
 PRESERVED: assigned slottable display grid -> block flow | fixture ancestor
 PRESERVED: assigned slottable display grid -> block flow | distant sibling
-RECREATED: assigned slottable display grid -> block flow | shadow host
-RECREATED: assigned slottable display grid -> block flow | shadow container
-RECREATED: assigned slottable display grid -> block flow | preceding flat-tree sibling
-RECREATED: assigned slottable display grid -> block flow | preceding sibling descendant
+PRESERVED: assigned slottable display grid -> block flow | shadow host
+PRESERVED: assigned slottable display grid -> block flow | shadow container
+PRESERVED: assigned slottable display grid -> block flow | preceding flat-tree sibling
+PRESERVED: assigned slottable display grid -> block flow | preceding sibling descendant
 RECREATED: assigned slottable display grid -> block flow | target
 RECREATED: assigned slottable display grid -> block flow | target descendant
-RECREATED: assigned slottable display grid -> block flow | following flat-tree sibling
-RECREATED: assigned slottable display grid -> block flow | following sibling descendant
+PRESERVED: assigned slottable display grid -> block flow | following flat-tree sibling
+PRESERVED: assigned slottable display grid -> block flow | following sibling descendant
 STATS: assigned slottable display grid -> block flow | rebuilt subtree roots=1, escaped=false
 PASS: assigned slottable display grid -> block flow | incremental tree matches full rebuild
 PRESERVED: direct shadow child display grid -> block table | fixture ancestor
 PRESERVED: direct shadow child display grid -> block table | distant sibling
 PRESERVED: direct shadow child display grid -> block table | shadow host
-RECREATED: direct shadow child display grid -> block table | shadow container
-RECREATED: direct shadow child display grid -> block table | preceding flat-tree sibling
-RECREATED: direct shadow child display grid -> block table | preceding sibling descendant
+PRESERVED: direct shadow child display grid -> block table | shadow container
+PRESERVED: direct shadow child display grid -> block table | preceding flat-tree sibling
+PRESERVED: direct shadow child display grid -> block table | preceding sibling descendant
 RECREATED: direct shadow child display grid -> block table | target
 RECREATED: direct shadow child display grid -> block table | target descendant
-RECREATED: direct shadow child display grid -> block table | following flat-tree sibling
-RECREATED: direct shadow child display grid -> block table | following sibling descendant
+PRESERVED: direct shadow child display grid -> block table | following flat-tree sibling
+PRESERVED: direct shadow child display grid -> block table | following sibling descendant
 STATS: direct shadow child display grid -> block table | rebuilt subtree roots=1, escaped=false
 PASS: direct shadow child display grid -> block table | incremental tree matches full rebuild
 PRESERVED: assigned slottable display inline-grid -> flow-root | fixture ancestor
@@ -1669,13 +1669,13 @@ PASS: assigned slottable display inline flow-root -> block grid | incremental tr
 PRESERVED: slot fallback child display block flex -> block | fixture ancestor
 PRESERVED: slot fallback child display block flex -> block | distant sibling
 PRESERVED: slot fallback child display block flex -> block | shadow host
-RECREATED: slot fallback child display block flex -> block | shadow container
-RECREATED: slot fallback child display block flex -> block | preceding flat-tree sibling
-RECREATED: slot fallback child display block flex -> block | preceding sibling descendant
+PRESERVED: slot fallback child display block flex -> block | shadow container
+PRESERVED: slot fallback child display block flex -> block | preceding flat-tree sibling
+PRESERVED: slot fallback child display block flex -> block | preceding sibling descendant
 RECREATED: slot fallback child display block flex -> block | target
 RECREATED: slot fallback child display block flex -> block | target descendant
-RECREATED: slot fallback child display block flex -> block | following flat-tree sibling
-RECREATED: slot fallback child display block flex -> block | following sibling descendant
+PRESERVED: slot fallback child display block flex -> block | following flat-tree sibling
+PRESERVED: slot fallback child display block flex -> block | following sibling descendant
 STATS: slot fallback child display block flex -> block | rebuilt subtree roots=1, escaped=false
 PASS: slot fallback child display block flex -> block | incremental tree matches full rebuild
 PRESERVED: assigned slottable display block flex -> inline-flex | fixture ancestor
@@ -1705,13 +1705,13 @@ PASS: direct shadow child display block flex -> table-row-group | incremental tr
 PRESERVED: slot fallback child display block flex -> block flow | fixture ancestor
 PRESERVED: slot fallback child display block flex -> block flow | distant sibling
 PRESERVED: slot fallback child display block flex -> block flow | shadow host
-RECREATED: slot fallback child display block flex -> block flow | shadow container
-RECREATED: slot fallback child display block flex -> block flow | preceding flat-tree sibling
-RECREATED: slot fallback child display block flex -> block flow | preceding sibling descendant
+PRESERVED: slot fallback child display block flex -> block flow | shadow container
+PRESERVED: slot fallback child display block flex -> block flow | preceding flat-tree sibling
+PRESERVED: slot fallback child display block flex -> block flow | preceding sibling descendant
 RECREATED: slot fallback child display block flex -> block flow | target
 RECREATED: slot fallback child display block flex -> block flow | target descendant
-RECREATED: slot fallback child display block flex -> block flow | following flat-tree sibling
-RECREATED: slot fallback child display block flex -> block flow | following sibling descendant
+PRESERVED: slot fallback child display block flex -> block flow | following flat-tree sibling
+PRESERVED: slot fallback child display block flex -> block flow | following sibling descendant
 STATS: slot fallback child display block flex -> block flow | rebuilt subtree roots=1, escaped=false
 PASS: slot fallback child display block flex -> block flow | incremental tree matches full rebuild
 PRESERVED: slot fallback child display block flex -> inline table | fixture ancestor
@@ -1801,13 +1801,13 @@ PASS: assigned slottable display block grid -> inline list-item | incremental tr
 PRESERVED: direct shadow child display block grid -> -webkit-box | fixture ancestor
 PRESERVED: direct shadow child display block grid -> -webkit-box | distant sibling
 PRESERVED: direct shadow child display block grid -> -webkit-box | shadow host
-RECREATED: direct shadow child display block grid -> -webkit-box | shadow container
-RECREATED: direct shadow child display block grid -> -webkit-box | preceding flat-tree sibling
-RECREATED: direct shadow child display block grid -> -webkit-box | preceding sibling descendant
+PRESERVED: direct shadow child display block grid -> -webkit-box | shadow container
+PRESERVED: direct shadow child display block grid -> -webkit-box | preceding flat-tree sibling
+PRESERVED: direct shadow child display block grid -> -webkit-box | preceding sibling descendant
 RECREATED: direct shadow child display block grid -> -webkit-box | target
 RECREATED: direct shadow child display block grid -> -webkit-box | target descendant
-RECREATED: direct shadow child display block grid -> -webkit-box | following flat-tree sibling
-RECREATED: direct shadow child display block grid -> -webkit-box | following sibling descendant
+PRESERVED: direct shadow child display block grid -> -webkit-box | following flat-tree sibling
+PRESERVED: direct shadow child display block grid -> -webkit-box | following sibling descendant
 STATS: direct shadow child display block grid -> -webkit-box | rebuilt subtree roots=1, escaped=false
 PASS: direct shadow child display block grid -> -webkit-box | incremental tree matches full rebuild
 PRESERVED: slot fallback child display block grid -> table-column | fixture ancestor
@@ -1932,7 +1932,7 @@ STATS: slot fallback child display block table -> table-cell | rebuilt subtree r
 PASS: slot fallback child display block table -> table-cell | incremental tree matches full rebuild
 PRESERVED: assigned slottable display block table -> block flex | fixture ancestor
 PRESERVED: assigned slottable display block table -> block flex | distant sibling
-RECREATED: assigned slottable display block table -> block flex | shadow host
+PRESERVED: assigned slottable display block table -> block flex | shadow host
 RECREATED: assigned slottable display block table -> block flex | shadow container
 RECREATED: assigned slottable display block table -> block flex | preceding flat-tree sibling
 RECREATED: assigned slottable display block table -> block flex | preceding sibling descendant
@@ -1968,7 +1968,7 @@ STATS: slot fallback child display inline table -> flex | rebuilt subtree roots=
 PASS: slot fallback child display inline table -> flex | incremental tree matches full rebuild
 PRESERVED: assigned slottable display inline table -> -webkit-inline-box | fixture ancestor
 PRESERVED: assigned slottable display inline table -> -webkit-inline-box | distant sibling
-RECREATED: assigned slottable display inline table -> -webkit-inline-box | shadow host
+PRESERVED: assigned slottable display inline table -> -webkit-inline-box | shadow host
 RECREATED: assigned slottable display inline table -> -webkit-inline-box | shadow container
 RECREATED: assigned slottable display inline table -> -webkit-inline-box | preceding flat-tree sibling
 RECREATED: assigned slottable display inline table -> -webkit-inline-box | preceding sibling descendant
@@ -2004,14 +2004,14 @@ STATS: slot fallback child display inline table -> inline grid | rebuilt subtree
 PASS: slot fallback child display inline table -> inline grid | incremental tree matches full rebuild
 PRESERVED: assigned slottable display block flow list-item -> flow-root | fixture ancestor
 PRESERVED: assigned slottable display block flow list-item -> flow-root | distant sibling
-RECREATED: assigned slottable display block flow list-item -> flow-root | shadow host
-RECREATED: assigned slottable display block flow list-item -> flow-root | shadow container
-RECREATED: assigned slottable display block flow list-item -> flow-root | preceding flat-tree sibling
-RECREATED: assigned slottable display block flow list-item -> flow-root | preceding sibling descendant
+PRESERVED: assigned slottable display block flow list-item -> flow-root | shadow host
+PRESERVED: assigned slottable display block flow list-item -> flow-root | shadow container
+PRESERVED: assigned slottable display block flow list-item -> flow-root | preceding flat-tree sibling
+PRESERVED: assigned slottable display block flow list-item -> flow-root | preceding sibling descendant
 RECREATED: assigned slottable display block flow list-item -> flow-root | target
 RECREATED: assigned slottable display block flow list-item -> flow-root | target descendant
-RECREATED: assigned slottable display block flow list-item -> flow-root | following flat-tree sibling
-RECREATED: assigned slottable display block flow list-item -> flow-root | following sibling descendant
+PRESERVED: assigned slottable display block flow list-item -> flow-root | following flat-tree sibling
+PRESERVED: assigned slottable display block flow list-item -> flow-root | following sibling descendant
 STATS: assigned slottable display block flow list-item -> flow-root | rebuilt subtree roots=1, escaped=false
 PASS: assigned slottable display block flow list-item -> flow-root | incremental tree matches full rebuild
 PRESERVED: direct shadow child display block flow list-item -> inline-grid | fixture ancestor
@@ -2040,14 +2040,14 @@ STATS: slot fallback child display block flow list-item -> table-footer-group | 
 PASS: slot fallback child display block flow list-item -> table-footer-group | incremental tree matches full rebuild
 PRESERVED: assigned slottable display block flow list-item -> block flow-root | fixture ancestor
 PRESERVED: assigned slottable display block flow list-item -> block flow-root | distant sibling
-RECREATED: assigned slottable display block flow list-item -> block flow-root | shadow host
-RECREATED: assigned slottable display block flow list-item -> block flow-root | shadow container
-RECREATED: assigned slottable display block flow list-item -> block flow-root | preceding flat-tree sibling
-RECREATED: assigned slottable display block flow list-item -> block flow-root | preceding sibling descendant
+PRESERVED: assigned slottable display block flow list-item -> block flow-root | shadow host
+PRESERVED: assigned slottable display block flow list-item -> block flow-root | shadow container
+PRESERVED: assigned slottable display block flow list-item -> block flow-root | preceding flat-tree sibling
+PRESERVED: assigned slottable display block flow list-item -> block flow-root | preceding sibling descendant
 RECREATED: assigned slottable display block flow list-item -> block flow-root | target
 RECREATED: assigned slottable display block flow list-item -> block flow-root | target descendant
-RECREATED: assigned slottable display block flow list-item -> block flow-root | following flat-tree sibling
-RECREATED: assigned slottable display block flow list-item -> block flow-root | following sibling descendant
+PRESERVED: assigned slottable display block flow list-item -> block flow-root | following flat-tree sibling
+PRESERVED: assigned slottable display block flow list-item -> block flow-root | following sibling descendant
 STATS: assigned slottable display block flow list-item -> block flow-root | rebuilt subtree roots=1, escaped=false
 PASS: assigned slottable display block flow list-item -> block flow-root | incremental tree matches full rebuild
 PRESERVED: assigned slottable display block flow list-item -> inline flow list-item | fixture ancestor
@@ -2076,7 +2076,7 @@ STATS: slot fallback child display inline flow list-item -> list-item | rebuilt 
 PASS: slot fallback child display inline flow list-item -> list-item | incremental tree matches full rebuild
 PRESERVED: assigned slottable display inline flow list-item -> math | fixture ancestor
 PRESERVED: assigned slottable display inline flow list-item -> math | distant sibling
-RECREATED: assigned slottable display inline flow list-item -> math | shadow host
+PRESERVED: assigned slottable display inline flow list-item -> math | shadow host
 RECREATED: assigned slottable display inline flow list-item -> math | shadow container
 RECREATED: assigned slottable display inline flow list-item -> math | preceding flat-tree sibling
 RECREATED: assigned slottable display inline flow list-item -> math | preceding sibling descendant

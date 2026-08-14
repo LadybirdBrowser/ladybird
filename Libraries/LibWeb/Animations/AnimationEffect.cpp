@@ -949,8 +949,12 @@ AnimationUpdateContext::~AnimationUpdateContext()
 
         if (invalidation.needs_relayout())
             target->set_needs_layout_update(DOM::SetNeedsLayoutReason::KeyframeEffect);
-        if (invalidation.needs_layout_tree_rebuild())
-            target->set_needs_layout_tree_rebuild(DOM::SetNeedsLayoutTreeUpdateReason::KeyframeEffect);
+        if (invalidation.needs_layout_tree_rebuild()) {
+            auto rebuild_root = element.pseudo_element().has_value()
+                ? CSS::LayoutTreeRebuildRoot::Parent
+                : invalidation.layout_tree_rebuild_root();
+            target->set_needs_layout_tree_rebuild(DOM::SetNeedsLayoutTreeUpdateReason::KeyframeEffect, rebuild_root);
+        }
         if (invalidation.accumulated_visual_contexts() == CSS::AccumulatedVisualContextInvalidation::Rebuild) {
             element.document().set_needs_accumulated_visual_contexts_update(true);
         } else if (invalidation.accumulated_visual_contexts() == CSS::AccumulatedVisualContextInvalidation::UpdateValues) {

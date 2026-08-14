@@ -1432,6 +1432,13 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
                     || new_pseudo_element_style->display().is_list_item())) {
                 result.invalidation.ensure_at_least(CSS::InvalidationLevel::RebuildLayoutTree);
             }
+            // A pseudo-element's self scope is relative to its own principal box, while this invalidation is applied
+            // to the originating element. Its box can participate in anonymous layout outside the originating
+            // element's principal box, so widen the rebuild to the originating element's parent.
+            if (result.invalidation.needs_layout_tree_rebuild()
+                && result.invalidation.layout_tree_rebuild_root() != CSS::LayoutTreeRebuildRoot::Parent) {
+                result.invalidation.ensure_at_least(CSS::InvalidationLevel::RebuildLayoutTree);
+            }
             if (result.any_computed_value_changed)
                 document().style_invalidation_counters().element_computed_style_changes++;
             invalidation |= result.invalidation;
@@ -1479,16 +1486,12 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     return invalidation;
 }
 
-void Element::set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason reason)
+void Element::set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason reason, CSS::LayoutTreeRebuildRoot rebuild_root)
 {
-    // NB: We normally mark the parent element for the rebuild rather than this element itself, so that a "display"
-    //     change to or from "contents" is handled correctly: an element with display:contents generates no box of its
-    //     own, so its children's boxes have to be inserted into (or removed from) the parent's subtree.
-    //     Top layer elements (open modal dialogs, popovers, fullscreen elements) are the exception. They generate
-    //     boxes as siblings of the root, and a dedicated top layer pass in the layout tree builder recreates their
-    //     boxes based on the element's own needs-layout-tree-update flag; the DOM parent's subtree rebuild skips them
-    //     entirely. Mark the element itself in that case. This still propagates child-needs-layout-tree-update up to
-    //     the document, which is what makes the top layer pass run.
+    // A self-scoped style invalidation can replace the element's principal box in place. Anonymous-parent escalation
+    // in Node::set_needs_layout_tree_update() still widens the rebuild when the old box participates in an outer
+    // wrapper. Other style changes rebuild from the parent. Top layer elements are handled separately because their
+    // boxes are siblings of the root.
     // NB: Called outside layout tree construction.
     auto* layout_node = unsafe_layout_node();
     // An element that just left the top layer keeps its box as a viewport child until the
@@ -1499,6 +1502,13 @@ void Element::set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason reaso
         // insert of a detached member appends out of order, so it needs a zone rebuild.
         if (!layout_node || !layout_node->parent())
             document().set_top_layer_needs_layout_zone_rebuild();
+        set_needs_layout_tree_update(true, reason);
+        return;
+    }
+    bool can_rebuild_from_self = rebuild_root == CSS::LayoutTreeRebuildRoot::Self
+        || (rebuild_root == CSS::LayoutTreeRebuildRoot::SelfUnlessDocumentElementOrBody
+            && !is_html_html_element() && !is_html_body_element());
+    if (can_rebuild_from_self) {
         set_needs_layout_tree_update(true, reason);
         return;
     }

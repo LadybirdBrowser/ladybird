@@ -1,0 +1,104 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const combinedScopeCases = [
+        createLayoutTreeInvalidationScopeCase(
+            "self-scoped display and content changes",
+            "block",
+            "block",
+            target => {
+                target.style.content = "normal";
+            },
+            target => {
+                target.style.display = "grid";
+                target.style.content = '"replacement"';
+            }
+        ),
+        createLayoutTreeInvalidationScopeCase(
+            "self-scoped display and position changes",
+            "flex",
+            "block",
+            target => {
+                target.style.position = "relative";
+            },
+            target => {
+                target.style.display = "flex";
+                target.style.position = "sticky";
+            }
+        ),
+        createLayoutTreeInvalidationScopeCase(
+            "self-scoped overflow and display changes",
+            "block",
+            "block",
+            target => {
+                target.style.overflowX = "visible";
+            },
+            target => {
+                target.style.display = "flex";
+                target.style.overflowX = "hidden";
+            }
+        ),
+        createLayoutTreeInvalidationScopeCase(
+            "parent-scoped counter change widens display change",
+            "block",
+            "block",
+            target => {
+                target.style.counterReset = "none";
+            },
+            target => {
+                target.style.display = "flex";
+                target.style.counterReset = "scope-counter 1";
+            }
+        ),
+        createLayoutTreeInvalidationScopeCase(
+            "outer-changing float change widens display change",
+            "inline",
+            "inline-block",
+            target => {
+                target.style.cssFloat = "none";
+            },
+            target => {
+                target.style.display = "inline-flex";
+                target.style.cssFloat = "left";
+            }
+        ),
+    ];
+
+    const rootOverflowCases = [
+        {
+            name: "document element overflow propagation",
+            setup() {
+                const oldStyle = document.documentElement.getAttribute("style");
+                document.documentElement.style.overflowX = "visible";
+                this.cleanup = () => {
+                    if (oldStyle === null) document.documentElement.removeAttribute("style");
+                    else document.documentElement.setAttribute("style", oldStyle);
+                };
+                return () => {
+                    document.documentElement.style.overflowX = "hidden";
+                };
+            },
+        },
+        {
+            name: "body overflow propagation",
+            setup() {
+                const oldStyle = document.body.getAttribute("style");
+                document.body.style.overflowX = "visible";
+                this.cleanup = () => {
+                    if (oldStyle === null) document.body.removeAttribute("style");
+                    else document.body.setAttribute("style", oldStyle);
+                };
+                return () => {
+                    document.body.style.overflowX = "hidden";
+                };
+            },
+        },
+    ];
+
+    test(() => {
+        runLayoutTreeInvalidationScopeCases(combinedScopeCases);
+        runLayoutTreeFullRebuildComparisonCases(rootOverflowCases);
+    });
+</script>
