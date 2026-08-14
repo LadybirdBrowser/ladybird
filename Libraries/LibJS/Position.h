@@ -7,12 +7,15 @@
 #pragma once
 
 #include <AK/Types.h>
+#include <compare>
 
 namespace JS {
 
 struct Position {
     u32 line { 0 };
     u32 column { 0 };
+
+    auto operator<=>(Position const&) const = default;
 };
 
 }
