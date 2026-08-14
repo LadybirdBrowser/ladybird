@@ -38,10 +38,10 @@ public:
     GC::Ref<AudioParam const> orientation_z() const { return m_orientation_z; }
 
     PanningModelType panning_model() const { return m_panning_model; }
-    void set_panning_model(PanningModelType value) { m_panning_model = value; }
+    void set_panning_model(PanningModelType);
 
     DistanceModelType distance_model() const { return m_distance_model; }
-    void set_distance_model(DistanceModelType value) { m_distance_model = value; }
+    void set_distance_model(DistanceModelType);
 
     double ref_distance() const { return m_ref_distance; }
     WebIDL::ExceptionOr<void> set_ref_distance(double);
