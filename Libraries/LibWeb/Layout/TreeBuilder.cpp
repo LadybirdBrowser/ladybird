@@ -1317,15 +1317,6 @@ static NonnullRefPtr<CSS::ComputedValues const> table_wrapper_computed_values(Bo
     return move(builder).build();
 }
 
-static void ffi_update_existing_table_wrapper(void*, void* table_root_pointer, void* wrapper_pointer)
-{
-    VERIFY(table_root_pointer);
-    VERIFY(wrapper_pointer);
-    auto& table_box = as<Box>(*static_cast<Node*>(table_root_pointer));
-    auto& wrapper = as<TableWrapper>(*static_cast<Node*>(wrapper_pointer));
-    wrapper.set_computed_values(table_wrapper_computed_values(table_box));
-}
-
 static void ffi_wrap_table_root(void*, void* table_root_pointer, void* nearest_sibling_pointer)
 {
     VERIFY(table_root_pointer);
@@ -1444,7 +1435,6 @@ RustFFI::FfiTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_tree_builder_ca
         .context = this,
         .remove_nodes = ffi_remove_layout_nodes,
         .wrap_in_anonymous = ffi_wrap_in_anonymous_table_box,
-        .update_existing_table_wrapper = ffi_update_existing_table_wrapper,
         .wrap_table_root = ffi_wrap_table_root,
         .append_missing_table_cell = ffi_append_missing_table_cell,
         .create_and_append_anonymous_wrapper = ffi_create_and_append_anonymous_wrapper,

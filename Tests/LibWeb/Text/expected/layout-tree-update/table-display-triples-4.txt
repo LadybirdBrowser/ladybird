@@ -68,20 +68,20 @@ PASS: table triple table-header-group > table-footer-group > block
 PASS: table triple table-header-group > table-footer-group > inline
 PASS: table triple table-header-group > table-footer-group > contents
 PASS: table triple table-header-group > table-footer-group > none
-FAIL: table triple table-header-group > table-row > table
-FAIL: table triple table-header-group > table-row > inline-table
-FAIL: table triple table-header-group > table-row > table-row-group
-FAIL: table triple table-header-group > table-row > table-header-group
-FAIL: table triple table-header-group > table-row > table-footer-group
-FAIL: table triple table-header-group > table-row > table-row
-FAIL: table triple table-header-group > table-row > table-cell
-FAIL: table triple table-header-group > table-row > table-column-group
-FAIL: table triple table-header-group > table-row > table-column
-FAIL: table triple table-header-group > table-row > table-caption
-FAIL: table triple table-header-group > table-row > block
-FAIL: table triple table-header-group > table-row > inline
-FAIL: table triple table-header-group > table-row > contents
-FAIL: table triple table-header-group > table-row > none
+PASS: table triple table-header-group > table-row > table
+PASS: table triple table-header-group > table-row > inline-table
+PASS: table triple table-header-group > table-row > table-row-group
+PASS: table triple table-header-group > table-row > table-header-group
+PASS: table triple table-header-group > table-row > table-footer-group
+PASS: table triple table-header-group > table-row > table-row
+PASS: table triple table-header-group > table-row > table-cell
+PASS: table triple table-header-group > table-row > table-column-group
+PASS: table triple table-header-group > table-row > table-column
+PASS: table triple table-header-group > table-row > table-caption
+PASS: table triple table-header-group > table-row > block
+PASS: table triple table-header-group > table-row > inline
+PASS: table triple table-header-group > table-row > contents
+PASS: table triple table-header-group > table-row > none
 PASS: table triple table-header-group > table-cell > table
 PASS: table triple table-header-group > table-cell > inline-table
 PASS: table triple table-header-group > table-cell > table-row-group
@@ -390,4 +390,4 @@ PASS: table triple block > none > block
 PASS: table triple block > none > inline
 PASS: table triple block > none > contents
 PASS: table triple block > none > none
-392 cases; 378 matched; 14 mismatched
+392 cases; 392 matched; 0 mismatched
