@@ -107,6 +107,112 @@ async function runAsyncLayoutTreeFullRebuildComparisonCases(cases) {
     );
 }
 
+function layoutTreeIdentityTransition(before, after) {
+    if (before === 0 && after === 0) return "ABSENT";
+    if (before === 0) return "CREATED";
+    if (after === 0) return "REMOVED";
+    if (before === after) return "PRESERVED";
+    return "RECREATED";
+}
+
+function runLayoutTreeInvalidationScopeCases(cases) {
+    const fixture = document.getElementById("fixture");
+    const results = [];
+    let mismatchCount = 0;
+
+    for (const case_ of cases) {
+        fixture.replaceChildren();
+        fixture.removeAttribute("style");
+
+        const { mutate, trackedNodes } = case_.setup(fixture);
+        document.body.offsetHeight;
+        const identitiesBefore = trackedNodes.map(({ node }) => internals.layoutNodeIdentity(node));
+        const buildsBefore = internals.layoutTreeBuildStats().builds;
+
+        mutate();
+        document.body.offsetHeight;
+        const identitiesAfter = trackedNodes.map(({ node }) => internals.layoutNodeIdentity(node));
+        const stats = internals.layoutTreeBuildStats();
+        const didBuildLayoutTree = stats.builds !== buildsBefore;
+        const comparison = internals.compareLayoutTreeWithFullRebuild();
+        if (!comparison.matches) ++mismatchCount;
+
+        results.push({
+            name: case_.name,
+            identities: trackedNodes.map(({ label }, index) => ({
+                label,
+                transition: layoutTreeIdentityTransition(identitiesBefore[index], identitiesAfter[index]),
+            })),
+            didBuildLayoutTree,
+            rebuiltSubtreeRoots: stats.lastBuildRebuiltSubtreeRoots,
+            escapedRebuildRoots: stats.lastBuildEscapedRebuildRoots,
+            matches: comparison.matches,
+        });
+    }
+
+    for (const result of results) {
+        for (const identity of result.identities) println(`${identity.transition}: ${result.name} | ${identity.label}`);
+        if (result.didBuildLayoutTree) {
+            println(
+                `STATS: ${result.name} | rebuilt subtree roots=${result.rebuiltSubtreeRoots}, escaped=${result.escapedRebuildRoots}`
+            );
+        } else {
+            println(`STATS: ${result.name} | no layout tree build`);
+        }
+        println(`${result.matches ? "PASS" : "FAIL"}: ${result.name} | incremental tree matches full rebuild`);
+    }
+    println(`${cases.length} cases; ${cases.length - mismatchCount} matched; ${mismatchCount} mismatched`);
+}
+
+const layoutTreeInvalidationScopeContextDisplays = layoutTreeDisplayValues.filter(display => display !== "none");
+
+function createLayoutTreeInvalidationScopeCase(name, contextDisplay, targetDisplay, configureInitial, mutateTarget) {
+    return {
+        name,
+        setup(fixture) {
+            const distant = document.createElement("aside");
+            const distantChild = document.createElement("small");
+            const context = document.createElement("section");
+            const before = document.createElement("div");
+            const beforeChild = document.createElement("span");
+            const target = document.createElement("div");
+            const targetChild = document.createElement("span");
+            const after = document.createElement("div");
+            const afterChild = document.createElement("span");
+
+            distant.append("distant-before", distantChild, "distant-after");
+            distantChild.textContent = "distant-child";
+            context.style.display = contextDisplay;
+            before.append("before", beforeChild);
+            beforeChild.textContent = "before-child";
+            target.style.display = targetDisplay;
+            target.append("target-before", targetChild, "target-after");
+            targetChild.textContent = "target-child";
+            after.append(afterChild, "after");
+            afterChild.textContent = "after-child";
+            context.append(before, target, after);
+            fixture.append(distant, context);
+            configureInitial(target);
+
+            return {
+                mutate: () => mutateTarget(target),
+                trackedNodes: [
+                    { label: "fixture ancestor", node: fixture },
+                    { label: "distant sibling", node: distant },
+                    { label: "distant sibling descendant", node: distantChild },
+                    { label: "DOM parent", node: context },
+                    { label: "preceding sibling", node: before },
+                    { label: "preceding sibling descendant", node: beforeChild },
+                    { label: "target", node: target },
+                    { label: "target descendant", node: targetChild },
+                    { label: "following sibling", node: after },
+                    { label: "following sibling descendant", node: afterChild },
+                ],
+            };
+        },
+    };
+}
+
 function createComparisonIframe(fixture) {
     const iframe = document.createElement("iframe");
     iframe.style.display = "block";
@@ -138,6 +244,111 @@ function displayTransitionCases(partition, partitionCount) {
                     fixture.append(before, target, after);
                     return () => {
                         target.style.display = to;
+                    };
+                },
+            });
+        }
+    }
+    return cases;
+}
+
+function displayInvalidationScopeCases(partition, partitionCount) {
+    const cases = [];
+    let caseIndex = 0;
+    for (let fromIndex = 0; fromIndex < layoutTreeDisplayValues.length; ++fromIndex) {
+        const from = layoutTreeDisplayValues[fromIndex];
+        for (let toIndex = 0; toIndex < layoutTreeDisplayValues.length; ++toIndex) {
+            const to = layoutTreeDisplayValues[toIndex];
+            if (from === to) continue;
+            const index = caseIndex++;
+            if (index % partitionCount !== partition) continue;
+            const contextDisplay =
+                layoutTreeInvalidationScopeContextDisplays[
+                    (fromIndex * layoutTreeDisplayValues.length + toIndex) %
+                        layoutTreeInvalidationScopeContextDisplays.length
+                ];
+            cases.push(
+                createLayoutTreeInvalidationScopeCase(
+                    `display ${from} -> ${to} in ${contextDisplay}`,
+                    contextDisplay,
+                    from,
+                    () => {},
+                    target => {
+                        target.style.display = to;
+                    }
+                )
+            );
+        }
+    }
+    return cases;
+}
+
+function flatTreeInvalidationScopeCases(partition, partitionCount) {
+    const modes = ["direct shadow child", "assigned slottable", "slot fallback child"];
+    const cases = [];
+    let caseIndex = 0;
+    for (let fromIndex = 0; fromIndex < layoutTreeDisplayValues.length; ++fromIndex) {
+        const from = layoutTreeDisplayValues[fromIndex];
+        for (let toIndex = 0; toIndex < layoutTreeDisplayValues.length; ++toIndex) {
+            const to = layoutTreeDisplayValues[toIndex];
+            if (from === to) continue;
+            const index = caseIndex++;
+            if (index % partitionCount !== partition) continue;
+            const mode = modes[(fromIndex + toIndex) % modes.length];
+            cases.push({
+                name: `${mode} display ${from} -> ${to}`,
+                setup(fixture) {
+                    const distant = document.createElement("aside");
+                    const host = document.createElement("div");
+                    const shadow = host.attachShadow({ mode: "open" });
+                    const shadowContainer = document.createElement("section");
+                    const before = document.createElement("div");
+                    const beforeChild = document.createElement("span");
+                    const target = document.createElement("div");
+                    const targetChild = document.createElement("span");
+                    const after = document.createElement("div");
+                    const afterChild = document.createElement("span");
+                    const slot = document.createElement("slot");
+
+                    distant.textContent = "distant";
+                    before.append("before", beforeChild);
+                    beforeChild.textContent = "before-child";
+                    target.style.display = from;
+                    target.append("target-before", targetChild, "target-after");
+                    targetChild.textContent = "target-child";
+                    after.append(afterChild, "after");
+                    afterChild.textContent = "after-child";
+
+                    if (mode === "direct shadow child") shadowContainer.append(before, target, after);
+                    else {
+                        slot.name = "target";
+                        shadowContainer.append(before, slot, after);
+                        if (mode === "assigned slottable") {
+                            target.slot = "target";
+                            host.appendChild(target);
+                        } else {
+                            slot.appendChild(target);
+                        }
+                    }
+                    shadow.appendChild(shadowContainer);
+                    fixture.append(distant, host);
+
+                    return {
+                        mutate: () => {
+                            target.style.display = to;
+                        },
+                        trackedNodes: [
+                            { label: "fixture ancestor", node: fixture },
+                            { label: "distant sibling", node: distant },
+                            { label: "shadow host", node: host },
+                            { label: "shadow container", node: shadowContainer },
+                            { label: "preceding flat-tree sibling", node: before },
+                            { label: "preceding sibling descendant", node: beforeChild },
+                            { label: "target", node: target },
+                            { label: "target descendant", node: targetChild },
+                            { label: "following flat-tree sibling", node: after },
+                            { label: "following sibling descendant", node: afterChild },
+                        ],
                     };
                 },
             });
@@ -1352,7 +1563,7 @@ function positionFloatInsertionCases(partition, partitionCount) {
     return cases;
 }
 
-function positionFloatTransitionCases(partition, partitionCount) {
+function layoutTreePositionFloatTransitions() {
     const transitions = [];
     for (const from of ["static", "relative", "absolute", "fixed", "sticky"]) {
         for (const to of ["static", "relative", "absolute", "fixed", "sticky"]) {
@@ -1394,7 +1605,11 @@ function positionFloatTransitionCases(partition, partitionCount) {
             to: { position: "sticky", float: "right" },
         }
     );
+    return transitions;
+}
 
+function positionFloatTransitionCases(partition, partitionCount) {
+    const transitions = layoutTreePositionFloatTransitions();
     const cases = [];
     let caseIndex = 0;
     for (let displayIndex = 0; displayIndex < layoutTreeDisplayValues.length; ++displayIndex) {
@@ -1428,6 +1643,152 @@ function positionFloatTransitionCases(partition, partitionCount) {
                     };
                 },
             });
+        }
+    }
+    return cases;
+}
+
+function positionFloatInvalidationScopeCases(partition, partitionCount) {
+    const transitions = layoutTreePositionFloatTransitions();
+    const cases = [];
+    let caseIndex = 0;
+    for (let displayIndex = 0; displayIndex < layoutTreeDisplayValues.length; ++displayIndex) {
+        const display = layoutTreeDisplayValues[displayIndex];
+        for (let transitionIndex = 0; transitionIndex < transitions.length; ++transitionIndex) {
+            const transition = transitions[transitionIndex];
+            const index = caseIndex++;
+            if (index % partitionCount !== partition) continue;
+            const contextDisplay =
+                layoutTreeInvalidationScopeContextDisplays[
+                    (displayIndex + transitionIndex) % layoutTreeInvalidationScopeContextDisplays.length
+                ];
+            cases.push(
+                createLayoutTreeInvalidationScopeCase(
+                    `${transition.name} on ${display} in ${contextDisplay}`,
+                    contextDisplay,
+                    display,
+                    target => {
+                        target.style.position = transition.from.position || "static";
+                        target.style.cssFloat = transition.from.float || "none";
+                        target.style.clear = transition.from.clear || "none";
+                        target.style.inset = "1px auto auto 2px";
+                    },
+                    target => {
+                        if (transition.to.position) target.style.position = transition.to.position;
+                        if (transition.to.float) target.style.cssFloat = transition.to.float;
+                        if (transition.to.clear) target.style.clear = transition.to.clear;
+                    }
+                )
+            );
+        }
+    }
+    return cases;
+}
+
+function otherStyleInvalidationScopeTransitions() {
+    const transitions = [];
+    const addCrossProduct = (property, values) => {
+        for (const from of values) {
+            for (const to of values) {
+                if (from === to) continue;
+                transitions.push({ name: `${property} ${from} -> ${to}`, property, from, to });
+            }
+        }
+    };
+
+    addCrossProduct("content-visibility", ["visible", "auto", "hidden"]);
+    addCrossProduct("overflow-x", ["visible", "hidden", "clip", "scroll", "auto"]);
+    addCrossProduct("overflow-y", ["visible", "hidden", "clip", "scroll", "auto"]);
+    addCrossProduct("text-transform", ["none", "uppercase", "lowercase", "capitalize"]);
+    addCrossProduct("content", ["normal", "none", '"replacement"', 'open-quote "replacement" close-quote']);
+    return transitions;
+}
+
+function otherStyleInvalidationScopeCases(partition, partitionCount) {
+    const transitions = otherStyleInvalidationScopeTransitions();
+    const cases = [];
+    let caseIndex = 0;
+    for (let displayIndex = 0; displayIndex < layoutTreeDisplayValues.length; ++displayIndex) {
+        const display = layoutTreeDisplayValues[displayIndex];
+        for (let transitionIndex = 0; transitionIndex < transitions.length; ++transitionIndex) {
+            const transition = transitions[transitionIndex];
+            const index = caseIndex++;
+            if (index % partitionCount !== partition) continue;
+            const contextDisplay =
+                layoutTreeInvalidationScopeContextDisplays[
+                    (displayIndex * transitions.length + transitionIndex) %
+                        layoutTreeInvalidationScopeContextDisplays.length
+                ];
+            cases.push(
+                createLayoutTreeInvalidationScopeCase(
+                    `${transition.name} on ${display} in ${contextDisplay}`,
+                    contextDisplay,
+                    display,
+                    target => target.style.setProperty(transition.property, transition.from),
+                    target => target.style.setProperty(transition.property, transition.to)
+                )
+            );
+        }
+    }
+    return cases;
+}
+
+function pseudoElementInvalidationScopeCases(partition, partitionCount) {
+    const actions = ["create", "remove", "change display", "change float", "change clear", "change position"];
+    const cases = [];
+    let caseIndex = 0;
+    for (let originDisplayIndex = 0; originDisplayIndex < layoutTreeDisplayValues.length; ++originDisplayIndex) {
+        const originDisplay = layoutTreeDisplayValues[originDisplayIndex];
+        for (let pseudoIndex = 0; pseudoIndex < 2; ++pseudoIndex) {
+            const pseudo = ["before", "after"][pseudoIndex];
+            for (
+                let pseudoDisplayIndex = 0;
+                pseudoDisplayIndex < layoutTreeDisplayValues.length;
+                ++pseudoDisplayIndex
+            ) {
+                const pseudoDisplay = layoutTreeDisplayValues[pseudoDisplayIndex];
+                const action = actions[(originDisplayIndex + pseudoIndex + pseudoDisplayIndex) % actions.length];
+                const index = caseIndex++;
+                if (index % partitionCount !== partition) continue;
+                const contextDisplay =
+                    layoutTreeInvalidationScopeContextDisplays[
+                        (originDisplayIndex + pseudoIndex + pseudoDisplayIndex) %
+                            layoutTreeInvalidationScopeContextDisplays.length
+                    ];
+                const nextDisplay = layoutTreeDisplayValues[(pseudoDisplayIndex + 1) % layoutTreeDisplayValues.length];
+                let style;
+                const rule = state => {
+                    const content = state === "without content" ? "none" : '"generated"';
+                    const display = state === "next display" ? nextDisplay : pseudoDisplay;
+                    const float = state === "next float" ? "left" : "none";
+                    const clear = state === "next clear" ? "both" : "none";
+                    const position = state === "next position" ? "absolute" : "static";
+                    return `#scope-pseudo-target::${pseudo} { content: ${content}; display: ${display}; float: ${float}; clear: ${clear}; position: ${position}; }`;
+                };
+                cases.push(
+                    createLayoutTreeInvalidationScopeCase(
+                        `::${pseudo} ${action} ${pseudoDisplay} on ${originDisplay} in ${contextDisplay}`,
+                        contextDisplay,
+                        originDisplay,
+                        target => {
+                            target.id = "scope-pseudo-target";
+                            target.previousElementSibling.style.display = "inline-block";
+                            target.nextElementSibling.style.display = "inline-block";
+                            style = document.createElement("style");
+                            style.textContent = rule(action === "create" ? "without content" : "initial");
+                            target.parentNode.parentNode.prepend(style);
+                        },
+                        () => {
+                            if (action === "create") style.textContent = rule("initial");
+                            else if (action === "remove") style.textContent = rule("without content");
+                            else if (action === "change display") style.textContent = rule("next display");
+                            else if (action === "change float") style.textContent = rule("next float");
+                            else if (action === "change clear") style.textContent = rule("next clear");
+                            else style.textContent = rule("next position");
+                        }
+                    )
+                );
+            }
         }
     }
     return cases;
