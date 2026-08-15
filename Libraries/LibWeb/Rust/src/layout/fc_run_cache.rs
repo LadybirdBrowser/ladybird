@@ -209,6 +209,11 @@ impl FcRunCacheAttempt {
                 fc_type,
                 FfiFormattingContextType::InternalReplaced | FfiFormattingContextType::InternalDummy
             )
+            // The direct normal-layout path for an empty atomic block only sizes and snapshots its root.
+            // Replaying a stored output costs more than rebuilding it and retains an entry needlessly.
+            || (fc_type == FfiFormattingContextType::Block
+                && input.participation == ParticipationInParentFormattingContext::AtomicInline
+                && callbacks.first_child(box_).is_invalid())
         {
             return Ok(Self::Bypass);
         }

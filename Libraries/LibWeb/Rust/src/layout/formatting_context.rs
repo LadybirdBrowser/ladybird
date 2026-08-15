@@ -1706,6 +1706,15 @@ fn execute_formatting_context_run(
             baselines: cached_baselines,
             ..ChildLayoutResult::default()
         }
+    } else if layout_mode == LayoutMode::Normal
+        && !purpose.is_measurement()
+        && matches!(input.participation, ParticipationInParentFormattingContext::AtomicInline)
+        && fc_type == FfiFormattingContextType::Block
+        && callbacks.first_child(box_).is_invalid()
+    {
+        // An empty atomic block context has no body output. Root sizing and finalization still
+        // run through the shared paths around this branch.
+        ChildLayoutResult::default()
     } else {
         let mut context_implementation = create_formatting_context_implementation(run, parent_grid, fc_type);
         let result = match &mut context_implementation {
@@ -1809,22 +1818,23 @@ fn execute_formatting_context_run(
     if registered_abspos_children_could_never_be_laid_out {
         return run.outputs(result, take_run_fragments());
     }
-    let implementation = implementation.expect("cached measurement replay only occurs on measurement states");
-    match &implementation {
-        FormattingContextImplementation::Block(_) => {}
-        FormattingContextImplementation::Table(_) => {
-            let box_ = run.box_;
-            register_table_abspos_descendants(run, box_);
-        }
-        FormattingContextImplementation::Flex(context) => {
-            context.parent_did_dimension();
-        }
-        FormattingContextImplementation::Grid(context) => {
-            context.parent_did_dimension();
-        }
-        FormattingContextImplementation::Svg(_) | FormattingContextImplementation::ReplacedWithChildren => {}
-        FormattingContextImplementation::InternalReplaced | FormattingContextImplementation::InternalDummy => {
-            return run.outputs(result, take_run_fragments());
+    if let Some(implementation) = implementation {
+        match &implementation {
+            FormattingContextImplementation::Block(_) => {}
+            FormattingContextImplementation::Table(_) => {
+                let box_ = run.box_;
+                register_table_abspos_descendants(run, box_);
+            }
+            FormattingContextImplementation::Flex(context) => {
+                context.parent_did_dimension();
+            }
+            FormattingContextImplementation::Grid(context) => {
+                context.parent_did_dimension();
+            }
+            FormattingContextImplementation::Svg(_) | FormattingContextImplementation::ReplacedWithChildren => {}
+            FormattingContextImplementation::InternalReplaced | FormattingContextImplementation::InternalDummy => {
+                return run.outputs(result, take_run_fragments());
+            }
         }
     }
     run.records.used_values(run.box_).seal_own_metrics();
