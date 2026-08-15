@@ -52,11 +52,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
 
-#ifdef AK_OS_MACOS
-    // The web content view is a native QRhiWidget child. Keep it from forcing
-    // every sibling in the tab UI to become native as well.
+    // The web content view is presented in a native child window. Without this attribute, a widget
+    // gaining a native window would force every other widget in the browser window to become native
+    // as well.
     QCoreApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
 
+#ifdef AK_OS_MACOS
     auto surface_format = QSurfaceFormat::defaultFormat();
     surface_format.setColorSpace(QColorSpace::SRgb);
     QSurfaceFormat::setDefaultFormat(surface_format);
