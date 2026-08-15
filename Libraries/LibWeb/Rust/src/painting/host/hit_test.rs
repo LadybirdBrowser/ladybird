@@ -98,6 +98,8 @@ pub struct FfiHitTestQueryCallbacks {
     pub local_point_for_visual_context: unsafe extern "C" fn(*mut c_void, usize, i32, i32, bool, *mut f32) -> bool,
     pub chrome_widget_contains: unsafe extern "C" fn(*mut c_void, *mut c_void, u8, i32, i32) -> bool,
     pub line_in_scope: unsafe extern "C" fn(*mut c_void, usize) -> bool,
+    pub sorting_context_group: unsafe extern "C" fn(*mut c_void, usize, *mut usize) -> bool,
+    pub plane_depth_key: unsafe extern "C" fn(*mut c_void, usize, i32, i32, *mut i64) -> bool,
 }
 
 impl FfiHitTestQueryCallbacks {
@@ -135,6 +137,32 @@ impl FfiHitTestQueryCallbacks {
     pub(crate) fn line_in_scope(&self, line_index: usize) -> bool {
         // SAFETY: The C++ host answers synchronously.
         unsafe { (self.line_in_scope)(self.context, line_index) }
+    }
+    // The outermost 3D rendering context sorting the plane the visual context node renders into.
+    pub(crate) fn sorting_context_group(&self, visual_context_index: usize) -> Option<usize> {
+        let mut group = 0usize;
+        // SAFETY: The C++ host writes the group index synchronously.
+        let in_context = unsafe { (self.sorting_context_group)(self.context, visual_context_index, &raw mut group) };
+        in_context.then_some(group)
+    }
+    // The depth of that plane at the queried point, quantized so coplanar planes compare equal.
+    pub(crate) fn plane_depth_key(
+        &self,
+        visual_context_index: usize,
+        point: crate::css::css_pixels::CssPixelPoint,
+    ) -> Option<i64> {
+        let mut depth = 0i64;
+        // SAFETY: The C++ host writes the depth key synchronously.
+        let has_depth = unsafe {
+            (self.plane_depth_key)(
+                self.context,
+                visual_context_index,
+                point.x.raw_value(),
+                point.y.raw_value(),
+                &raw mut depth,
+            )
+        };
+        has_depth.then_some(depth)
     }
 }
 

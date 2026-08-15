@@ -1,0 +1,13 @@
+Element at (100, 30): front
+Element at (100, 150): scene
+== Elements at (100, 30) ==
+<DIV id="front">
+<DIV id="scene">
+<DIV id="behind">
+<BODY>
+<HTML>
+== Elements at (100, 150) ==
+<DIV id="scene">
+<DIV id="behind">
+<BODY>
+<HTML>

@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Pass
+Pass	Point mapping through 3D transform hierarchies, hittesting top-left-light-gray
+Pass	Point mapping through 3D transform hierarchies, hittesting top-left-light-green
+Pass	Point mapping through 3D transform hierarchies, hittesting top-middle-light-gray
+Pass	Point mapping through 3D transform hierarchies, hittesting top-middle-light-green
+Pass	Point mapping through 3D transform hierarchies, hittesting top-middle-medium-blue
+Pass	Point mapping through 3D transform hierarchies, hittesting top-right-light-gray
+Pass	Point mapping through 3D transform hierarchies, hittesting top-right-light-green
+Pass	Point mapping through 3D transform hierarchies, hittesting top-right-medium-blue
+Pass	Point mapping through 3D transform hierarchies, hittesting bottom-left-light-gray
+Pass	Point mapping through 3D transform hierarchies, hittesting bottom-left-light-green
+Pass	Point mapping through 3D transform hierarchies, hittesting bottom-left-light-yellow
+Pass	Point mapping through 3D transform hierarchies, hittesting bottom-middle-light-gray
+Pass	Point mapping through 3D transform hierarchies, hittesting bottom-middle-light-green
+Pass	Point mapping through 3D transform hierarchies, hittesting bottom-middle-light-yellow
+Pass	Point mapping through 3D transform hierarchies, hittesting bottom-middle-medium-blue
+Pass	Point mapping through 3D transform hierarchies, hittesting bottom-right-light-gray
+Pass	Point mapping through 3D transform hierarchies, hittesting bottom-right-light-green
+Pass	Point mapping through 3D transform hierarchies, hittesting bottom-right-light-yellow
+Pass	Point mapping through 3D transform hierarchies, hittesting bottom-right-light-rose
+Pass	Point mapping through 3D transform hierarchies, hittesting bottom-right-medium-blue
