@@ -26,6 +26,8 @@ private:
     virtual void die() override;
 
     virtual void close_session() override;
+    virtual void traverse_history(u64 command_id, String window_handle, i32 delta, bool handle_user_prompts) override;
+    virtual void get_session_history(u64 command_id, String window_handle) override;
 };
 
 }

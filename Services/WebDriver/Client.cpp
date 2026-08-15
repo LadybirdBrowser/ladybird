@@ -206,17 +206,7 @@ Web::WebDriver::Response Client::back(Web::WebDriver::Parameters parameters, Jso
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/back");
     auto session = TRY(Session::find_session(parameters[0]));
 
-    auto response = TRY(session->perform_async_action(
-        [&](auto& connection) -> Web::WebDriver::Response {
-            // A torn-down WebContent process leaves this reply unanswered. Treat the lost reply as an
-            // empty success, so only this command fails over to the replacement process instead of
-            // aborting WebDriver; the wait below then adopts the incoming process.
-            auto reply = connection.template send_sync_but_allow_failure<Messages::WebDriverClient::Back>();
-            if (!reply)
-                return JsonValue {};
-            return reply->take_response();
-        },
-        Session::WebContentReplacement::Allow));
+    auto response = TRY(session->traverse_history(-1, Session::HandleUserPrompts::Yes));
     TRY(session->wait_for_current_window_to_have_web_content_connection());
     response = TRY(session->perform_async_action(
         [&](auto& connection) { return connection.wait_for_navigation_completion(); },
@@ -232,17 +222,7 @@ Web::WebDriver::Response Client::forward(Web::WebDriver::Parameters parameters, 
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/forward");
     auto session = TRY(Session::find_session(parameters[0]));
 
-    auto response = TRY(session->perform_async_action(
-        [&](auto& connection) -> Web::WebDriver::Response {
-            // A torn-down WebContent process leaves this reply unanswered. Treat the lost reply as an
-            // empty success, so only this command fails over to the replacement process instead of
-            // aborting WebDriver; the wait below then adopts the incoming process.
-            auto reply = connection.template send_sync_but_allow_failure<Messages::WebDriverClient::Forward>();
-            if (!reply)
-                return JsonValue {};
-            return reply->take_response();
-        },
-        Session::WebContentReplacement::Allow));
+    auto response = TRY(session->traverse_history(1, Session::HandleUserPrompts::Yes));
     TRY(session->wait_for_current_window_to_have_web_content_connection());
     response = TRY(session->perform_async_action(
         [&](auto& connection) { return connection.wait_for_navigation_completion(); },
@@ -332,9 +312,10 @@ Web::WebDriver::Response Client::traverse_history_from_ui(Web::WebDriver::Parame
     if (payload.is_object())
         wait_for_navigation_completion = payload.as_object().get_bool("waitForNavigationCompletion"sv).value_or(true);
 
-    auto response = TRY(session->perform_async_action(
-        [&](auto& connection) { return connection.traverse_history_from_ui(move(payload)); },
-        Session::WebContentReplacement::Allow));
+    if (!payload.is_object() || !payload.as_object().has_i32("delta"sv))
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload doesn't have an integer `delta`"sv);
+
+    auto response = TRY(session->traverse_history(payload.as_object().get_i32("delta"sv).value(), Session::HandleUserPrompts::No));
 
     TRY(session->wait_for_current_window_to_have_web_content_connection());
     if (!wait_for_navigation_completion)
@@ -353,9 +334,7 @@ Web::WebDriver::Response Client::get_session_history(Web::WebDriver::Parameters 
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/ladybird/session-history");
     auto session = TRY(find_session_with_ladybird_test_hooks(parameters));
 
-    return session->perform_async_action([&](auto& connection) {
-        return connection.get_session_history();
-    });
+    return session->session_history();
 }
 
 // 11.1 Get Window Handle, https://w3c.github.io/webdriver/#get-window-handle

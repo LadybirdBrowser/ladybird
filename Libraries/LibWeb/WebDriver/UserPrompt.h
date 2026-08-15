@@ -10,8 +10,12 @@
 #include <AK/JsonValue.h>
 #include <AK/Optional.h>
 #include <AK/StringView.h>
+#include <AK/Utf16String.h>
+#include <LibGC/Function.h>
+#include <LibGC/Ptr.h>
 #include <LibIPC/Forward.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/WebDriver/Response.h>
 
 namespace Web::WebDriver {
@@ -61,6 +65,9 @@ Response deserialize_as_an_unhandled_prompt_behavior(JsonValue);
 bool check_user_prompt_handler_matches(JsonObject const&);
 WEB_API void update_the_user_prompt_handler(JsonObject const&);
 WEB_API JsonValue serialize_the_user_prompt_handler();
+
+WEB_API Error create_annotated_unexpected_alert_open_error(Optional<Utf16String> const& text);
+WEB_API void handle_any_user_prompts(Page&, GC::Ref<GC::Function<void(Optional<Error>)>> on_complete);
 
 }
 

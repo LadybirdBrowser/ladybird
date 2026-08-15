@@ -217,10 +217,10 @@ void ConnectionFromClient::complete_webdriver_navigation_completion(u64 page_id,
         page->did_complete_webdriver_navigation_completion(request_id, move(response));
 }
 
-void ConnectionFromClient::complete_webdriver_history_traversal(u64 page_id, u64 request_id, bool accepted)
+void ConnectionFromClient::run_webdriver_user_prompt_handling(u64 page_id, u64 request_id)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->did_complete_webdriver_history_traversal(request_id, accepted);
+        page->run_webdriver_user_prompt_handling(request_id);
 }
 
 void ConnectionFromClient::connect_to_web_ui(u64 page_id, IPC::TransportHandle handle)

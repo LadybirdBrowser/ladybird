@@ -73,6 +73,13 @@ public:
     Web::WebDriver::Response close_window();
     Web::WebDriver::Response switch_to_window(StringView);
     Web::WebDriver::Response get_window_handles() const;
+
+    enum class HandleUserPrompts {
+        No,
+        Yes,
+    };
+    Web::WebDriver::Response traverse_history(i32 delta, HandleUserPrompts);
+    Web::WebDriver::Response session_history();
     ErrorOr<void, Web::WebDriver::Error> ensure_current_window_handle_is_valid() const;
     ErrorOr<bool, Web::WebDriver::Error> wait_for_current_window_to_have_web_content_connection();
 
@@ -123,6 +130,7 @@ private:
     ErrorOr<void> start(LaunchBrowserCallback const&);
     ErrorOr<void> accept_web_content_transport(NonnullOwnPtr<IPC::Transport>, NonnullRefPtr<ServerPromise> promise);
     ErrorOr<void> accept_browser_transport(NonnullOwnPtr<IPC::Transport>);
+    Web::WebDriver::Response perform_browser_command(Function<void(u64 command_id)> send_command);
     ErrorOr<void> create_server(NonnullRefPtr<ServerPromise> promise);
     void web_content_connection_closed(WebContentConnection const&);
     void did_update_window_handle(String window_handle, WebContentConnection const&);
@@ -143,6 +151,9 @@ private:
 
     RefPtr<BrowserConnection> m_browser_connection;
     bool m_closing { false };
+
+    u64 m_next_browser_command_id { 1 };
+    HashMap<u64, Function<void(Web::WebDriver::Response)>> m_pending_browser_commands;
 
     ByteString m_web_content_endpoint;
     ByteString m_browser_endpoint;

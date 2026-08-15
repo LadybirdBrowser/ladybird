@@ -82,7 +82,7 @@ private:
     virtual void set_window_handle(u64 page_id, String handle) override;
     virtual void connect_to_webdriver(u64 page_id, ByteString webdriver_endpoint) override;
     virtual void notify_webdriver_of_window_replacement(u64 page_id) override;
-    virtual void complete_webdriver_history_traversal(u64 page_id, u64 request_id, bool accepted) override;
+    virtual void run_webdriver_user_prompt_handling(u64 page_id, u64 request_id) override;
     virtual void complete_webdriver_navigation_completion(u64 page_id, u64 request_id, Web::WebDriver::Response response) override;
     virtual void connect_to_web_ui(u64 page_id, IPC::TransportHandle handle) override;
     virtual void connect_to_request_server(IPC::TransportHandle handle) override;

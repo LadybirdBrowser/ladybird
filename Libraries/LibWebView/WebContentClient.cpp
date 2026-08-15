@@ -1493,40 +1493,10 @@ void WebContentClient::did_change_needs_beforeunload_check(u64 page_id, bool nee
         view->did_change_needs_beforeunload_check({}, needs_beforeunload_check);
 }
 
-void WebContentClient::did_request_webdriver_history_traversal(u64 page_id, u64 request_id, i32 delta)
+void WebContentClient::webdriver_user_prompt_handling_complete(u64 page_id, u64 request_id, Web::WebDriver::Response response)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        auto view_id = view->view_id();
-        auto weak_this = static_cast<Core::EventReceiver&>(*this).make_weak_ptr();
-        // This request originates from WebDriver in WebContent. Defer the UI
-        // traversal so it can safely call back into WebContent for the
-        // cancelation checks from the traverse history step algorithm.
-        Core::deferred_invoke([weak_this, page_id, request_id, view_id, delta] {
-            auto self = weak_this.strong_ref();
-            if (!self)
-                return;
-            auto& client = static_cast<WebContentClient&>(*self);
-
-            auto view = ViewImplementation::find_view_by_id(view_id);
-            if (!view.has_value()) {
-                client.async_complete_webdriver_history_traversal(page_id, request_id, false);
-                return;
-            }
-
-            view->traverse_the_history_by_delta(delta, CheckForCancelation::Yes,
-                [weak_this, page_id, request_id] {
-                    auto self = weak_this.strong_ref();
-                    if (!self)
-                        return;
-                    auto& client = static_cast<WebContentClient&>(*self);
-
-                    client.async_complete_webdriver_history_traversal(page_id, request_id, true);
-                });
-        });
-        return;
-    }
-
-    async_complete_webdriver_history_traversal(page_id, request_id, false);
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_complete_webdriver_user_prompt_handling({}, request_id, move(response));
 }
 
 Messages::WebContentClient::DidRequestWebdriverLoadUrlFromUiResponse WebContentClient::did_request_webdriver_load_url_from_ui(u64 page_id, URL::URL url)
@@ -1543,32 +1513,6 @@ Messages::WebContentClient::DidRequestWebdriverLoadUrlFromUiResponse WebContentC
         });
         return { JsonValue {} };
     }
-
-    return { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv) };
-}
-
-Messages::WebContentClient::DidRequestWebdriverTraverseHistoryFromUiResponse WebContentClient::did_request_webdriver_traverse_history_from_ui(u64 page_id, i32 delta)
-{
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        auto view_id = view->view_id();
-        // This request is already a synchronous IPC from WebContent, so defer the
-        // UI traversal before running cancelation checks against WebContent.
-        Core::deferred_invoke([view_id, delta] {
-            auto view = ViewImplementation::find_view_by_id(view_id);
-            if (!view.has_value())
-                return;
-            view->traverse_the_history_by_delta(delta, CheckForCancelation::Yes);
-        });
-        return { JsonValue {} };
-    }
-
-    return { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv) };
-}
-
-Messages::WebContentClient::DidRequestWebdriverSessionHistoryResponse WebContentClient::did_request_webdriver_session_history(u64 page_id)
-{
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        return { view->webdriver_session_history() };
 
     return { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv) };
 }

@@ -420,52 +420,6 @@ Messages::WebDriverClient::GetCurrentUrlResponse WebDriverConnection::get_curren
     return JsonValue {};
 }
 
-// 10.3 Back, https://w3c.github.io/webdriver/#dfn-back
-Messages::WebDriverClient::BackResponse WebDriverConnection::back()
-{
-    // 1. If session's current top-level browsing context is no longer open, return error with error code no such window.
-    if (auto result = ensure_current_top_level_browsing_context_is_open(); result.is_error())
-        return Web::WebDriver::Response { result.release_error() };
-
-    // 2. Try to handle any user prompts with session.
-    handle_any_user_prompts([this]() {
-        auto& page_client = static_cast<WebContent::PageClient&>(current_top_level_browsing_context()->page().client());
-        page_client.request_webdriver_history_traversal(-1, [this](auto traversal_result) {
-            if (!traversal_result.accepted) {
-                async_driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
-                return;
-            }
-
-            async_driver_execution_complete(JsonValue {});
-        });
-    });
-
-    return JsonValue {};
-}
-
-// 10.4 Forward, https://w3c.github.io/webdriver/#dfn-forward
-Messages::WebDriverClient::ForwardResponse WebDriverConnection::forward()
-{
-    // 1. If session's current top-level browsing context is no longer open, return error with error code no such window.
-    if (auto result = ensure_current_top_level_browsing_context_is_open(); result.is_error())
-        return Web::WebDriver::Response { result.release_error() };
-
-    // 2. Try to handle any user prompts with session.
-    handle_any_user_prompts([this]() {
-        auto& page_client = static_cast<WebContent::PageClient&>(current_top_level_browsing_context()->page().client());
-        page_client.request_webdriver_history_traversal(1, [this](auto traversal_result) {
-            if (!traversal_result.accepted) {
-                async_driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
-                return;
-            }
-
-            async_driver_execution_complete(JsonValue {});
-        });
-    });
-
-    return JsonValue {};
-}
-
 // 10.5 Refresh, https://w3c.github.io/webdriver/#dfn-refresh
 Messages::WebDriverClient::RefreshResponse WebDriverConnection::refresh()
 {
@@ -532,40 +486,6 @@ Messages::WebDriverClient::LoadUrlFromUiResponse WebDriverConnection::load_url_f
 
     JsonObject result;
     result.set("willReplaceWebContentProcess"sv, will_replace_web_content_process);
-    async_driver_execution_complete(JsonValue { move(result) });
-    return JsonValue {};
-}
-
-Messages::WebDriverClient::TraverseHistoryFromUiResponse WebDriverConnection::traverse_history_from_ui(JsonValue payload)
-{
-    TRY(ensure_current_top_level_browsing_context_is_open());
-
-    if (!payload.is_object() || !payload.as_object().has_i32("delta"sv))
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload doesn't have an integer `delta`"sv);
-
-    auto& page_client = static_cast<WebContent::PageClient&>(current_top_level_browsing_context()->page().client());
-    page_client.request_webdriver_history_traversal(payload.as_object().get_i32("delta"sv).value(), [this](auto traversal_result) {
-        if (!traversal_result.accepted) {
-            async_driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
-            return;
-        }
-
-        async_driver_execution_complete(JsonValue {});
-    });
-    return JsonValue {};
-}
-
-Messages::WebDriverClient::GetSessionHistoryResponse WebDriverConnection::get_session_history()
-{
-    TRY(ensure_current_top_level_browsing_context_is_open());
-
-    auto& page_client = static_cast<WebContent::PageClient&>(current_top_level_browsing_context()->page().client());
-    auto ui_session_history = page_client.request_webdriver_session_history();
-    if (ui_session_history.is_error())
-        return ui_session_history.release_error();
-
-    JsonObject result;
-    result.set("ui"sv, ui_session_history.release_value());
     async_driver_execution_complete(JsonValue { move(result) });
     return JsonValue {};
 }
@@ -2725,92 +2645,18 @@ ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::ensure_current_top_lev
     return Web::WebDriver::ensure_browsing_context_is_open(current_top_level_browsing_context());
 }
 
-// https://w3c.github.io/webdriver/#dfn-get-the-prompt-handler
-Web::WebDriver::PromptHandlerConfiguration WebDriverConnection::get_the_prompt_handler(Web::WebDriver::PromptType type) const
-{
-    return Web::WebDriver::get_the_prompt_handler(type);
-}
-
-// https://w3c.github.io/webdriver/#dfn-annotated-unexpected-alert-open-error
-static Web::WebDriver::Error create_annotated_unexpected_alert_open_error(Optional<Utf16String> const& text)
-{
-    // An annotated unexpected alert open error is an error with error code unexpected alert open and an optional error
-    // data dictionary with the following entries:
-    //     "text"
-    //         The current user prompt's message.
-    auto data = text.map([&](auto const& text) -> JsonValue {
-        JsonObject data;
-        data.set("text"sv, text.to_utf8());
-        return data;
-    });
-
-    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnexpectedAlertOpen, "A user prompt is open"sv, move(data));
-}
-
 // https://w3c.github.io/webdriver/#dfn-handle-any-user-prompts
 void WebDriverConnection::handle_any_user_prompts(Function<void()> on_dialog_closed)
 {
-    auto& page = current_browsing_context().page();
+    Web::WebDriver::handle_any_user_prompts(current_browsing_context().page(),
+        GC::create_function(GC::Heap::the(), [this, on_dialog_closed = GC::create_function(GC::Heap::the(), move(on_dialog_closed))](Optional<Web::WebDriver::Error> error) {
+            if (error.has_value()) {
+                async_driver_execution_complete(error.release_value());
+                return;
+            }
 
-    // 1. If the current browsing context is not blocked by a dialog return success.
-    if (!page.has_pending_dialog()) {
-        on_dialog_closed();
-        return;
-    }
-
-    // 2. Let type be "default".
-    auto type = Web::WebDriver::PromptType::Default;
-
-    // 3. If the current user prompt is an alert dialog, set type to "alert". Otherwise, if the current user prompt is a
-    //    beforeunload dialog, set type to "beforeUnload". Otherwise, if the current user prompt is a confirm dialog,
-    //    set type to "confirm". Otherwise, if the current user prompt is a prompt dialog, set type to "prompt".
-    // FIXME: Handle beforeunload dialogs when they are implemented.
-    switch (page.pending_dialog()) {
-    case Web::Page::PendingDialog::Alert:
-        type = Web::WebDriver::PromptType::Alert;
-        break;
-    case Web::Page::PendingDialog::Confirm:
-        type = Web::WebDriver::PromptType::Confirm;
-        break;
-    case Web::Page::PendingDialog::Prompt:
-        type = Web::WebDriver::PromptType::Prompt;
-        break;
-    case Web::Page::PendingDialog::None:
-        VERIFY_NOT_REACHED();
-    }
-
-    // 3. Let handler be get the prompt handler with type.
-    auto handler = get_the_prompt_handler(type);
-
-    auto on_complete = GC::create_function(GC::Heap::the(), [this, notify = handler.notify, pending_dialog_text = page.pending_dialog_text(), on_dialog_closed = GC::create_function(GC::Heap::the(), move(on_dialog_closed))]() {
-        // 5. If handler's notify is true, return annotated unexpected alert open error.
-        if (notify == Web::WebDriver::PromptHandlerConfiguration::Notify::Yes) {
-            async_driver_execution_complete(create_annotated_unexpected_alert_open_error(pending_dialog_text));
-            return;
-        }
-
-        // 6. Return success.
-        on_dialog_closed->function()();
-    });
-
-    // 4. Perform the following substeps based on handler's handler:
-    switch (handler.handler) {
-    // -> "accept"
-    case Web::WebDriver::PromptHandler::Accept:
-        // Accept the current user prompt.
-        page.accept_dialog(on_complete);
-        break;
-    // -> "dismiss"
-    case Web::WebDriver::PromptHandler::Dismiss:
-        // Dismiss the current user prompt.
-        page.dismiss_dialog(on_complete);
-        break;
-    // -> "ignore"
-    case Web::WebDriver::PromptHandler::Ignore:
-        // Do nothing.
-        on_complete->function()();
-        break;
-    }
+            on_dialog_closed->function()();
+        }));
 }
 
 // https://w3c.github.io/webdriver/#dfn-wait-for-navigation-to-complete

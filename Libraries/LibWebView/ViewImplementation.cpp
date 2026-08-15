@@ -2101,6 +2101,28 @@ bool ViewImplementation::cancel_uncommitted_top_level_navigation(StringView reas
     return true;
 }
 
+void ViewImplementation::run_webdriver_user_prompt_handling(Function<void(Web::WebDriver::Response)> on_complete)
+{
+    auto request_id = m_next_webdriver_user_prompt_request_id++;
+    m_pending_webdriver_user_prompt_requests.set(request_id, move(on_complete));
+    client().async_run_webdriver_user_prompt_handling(page_id(), request_id);
+}
+
+void ViewImplementation::did_complete_webdriver_user_prompt_handling(Badge<WebContentClient>, u64 request_id, Web::WebDriver::Response response)
+{
+    if (auto on_complete = m_pending_webdriver_user_prompt_requests.take(request_id); on_complete.has_value())
+        on_complete.value()(move(response));
+}
+
+Optional<ViewImplementation&> ViewImplementation::find_view_by_handle(StringView handle)
+{
+    for (auto& view : all_views()) {
+        if (view.value->handle() == handle)
+            return *view.value;
+    }
+    return {};
+}
+
 void ViewImplementation::did_start_webdriver_navigation(Badge<WebContentClient>)
 {
     set_loading_state(true);
@@ -2550,6 +2572,11 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
 {
     set_loading_state(false);
     clear_ongoing_top_level_navigation_load();
+
+    auto pending_user_prompt_requests = move(m_pending_webdriver_user_prompt_requests);
+    for (auto& request : pending_user_prompt_requests)
+        request.value(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, "WebContent crashed while handling user prompts"sv));
+
     auto const headless_mode = Application::browser_options().headless_mode.has_value();
 
     if (!headless_mode) {

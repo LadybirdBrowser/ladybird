@@ -12,8 +12,6 @@ endpoint WebDriverClient {
     set_timeouts(JsonValue payload) => (Web::WebDriver::Response response)
     navigate_to(JsonValue payload) => (Web::WebDriver::Response response, bool will_replace_web_content_process)
     get_current_url() => (Web::WebDriver::Response response)
-    back() => (Web::WebDriver::Response response)
-    forward() => (Web::WebDriver::Response response)
     refresh() => (Web::WebDriver::Response response)
     wait_for_navigation_completion() => (Web::WebDriver::Response response)
     get_title() => (Web::WebDriver::Response response)
@@ -30,8 +28,6 @@ endpoint WebDriverClient {
     consume_user_activation() => (Web::WebDriver::Response response)
     crash_current_page() =|
     load_url_from_ui(JsonValue payload) => (Web::WebDriver::Response response)
-    traverse_history_from_ui(JsonValue payload) => (Web::WebDriver::Response response)
-    get_session_history() => (Web::WebDriver::Response response)
     find_element(JsonValue payload) => (Web::WebDriver::Response response)
     find_elements(JsonValue payload) => (Web::WebDriver::Response response)
     find_element_from_element(JsonValue payload, String element_id) => (Web::WebDriver::Response response)
