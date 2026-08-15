@@ -56,24 +56,6 @@ ValueComparingNonnullRefPtr<StyleValue const> RadialSizeStyleValue::absolutized(
     return RadialSizeStyleValue::create(move(absolutized_components));
 }
 
-void RadialSizeStyleValue::serialize(StringBuilder& builder, SerializationMode serialization_mode) const
-{
-    bool first = true;
-    for (auto const& component : components()) {
-        if (!first)
-            builder.append(' ');
-        first = false;
-
-        component.visit(
-            [&](RadialExtent extent) {
-                builder.append(CSS::to_string(extent));
-            },
-            [&](NonnullRefPtr<StyleValue const> const& length_percentage) {
-                length_percentage->serialize(builder, serialization_mode);
-            });
-    }
-}
-
 static CSSPixelSize side_shape(CSSPixelPoint const& center, CSSPixelRect const& reference_box, Function<CSSPixels(CSSPixels, CSSPixels)> distance_function)
 {
     auto x_dist = distance_function(abs(reference_box.left() - center.x()), abs(reference_box.right() - center.x()));

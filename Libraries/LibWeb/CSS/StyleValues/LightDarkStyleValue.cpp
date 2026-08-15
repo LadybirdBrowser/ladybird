@@ -36,14 +36,4 @@ bool LightDarkStyleValue::equals(StyleValue const& other) const
     return light() == other_light_dark->light() && dark() == other_light_dark->dark();
 }
 
-void LightDarkStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    // FIXME: We don't have enough information to determine the computed value here.
-    builder.append("light-dark("sv);
-    light()->serialize(builder, mode);
-    builder.append(", "sv);
-    dark()->serialize(builder, mode);
-    builder.append(')');
-}
-
 }

@@ -28,20 +28,6 @@ ValueComparingNonnullRefPtr<StyleValue const> RatioStyleValue::absolutized(Compu
     return RatioStyleValue::create(move(absolutized_numerator), move(absolutized_denominator));
 }
 
-void RatioStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    numerator()->serialize(builder, mode);
-    builder.append(" / "sv);
-    denominator()->serialize(builder, mode);
-}
-
-void RatioStyleValue::serialize(Utf16StringBuilder& builder, SerializationMode mode) const
-{
-    numerator()->serialize(builder, mode);
-    builder.append_ascii(" / "sv);
-    denominator()->serialize(builder, mode);
-}
-
 Vector<Parser::ComponentValue> RatioStyleValue::tokenize() const
 {
     Vector<Parser::ComponentValue> component_values;

@@ -147,20 +147,6 @@ void EasingStyleValue::Steps::serialize(Utf16StringBuilder& builder, Serializati
     builder.append_ascii(')');
 }
 
-void EasingStyleValue::Function::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    Utf16StringBuilder utf16_builder;
-    serialize(utf16_builder, mode);
-    builder.append(utf16_builder.to_string().to_utf8());
-}
-
-void EasingStyleValue::Function::serialize(Utf16StringBuilder& builder, SerializationMode mode) const
-{
-    visit([&](auto const& curve) {
-        curve.serialize(builder, mode);
-    });
-}
-
 ValueComparingNonnullRefPtr<StyleValue const> EasingStyleValue::absolutized(ComputationContext const& computation_context) const
 {
     auto const& absolutized_function = function().visit(

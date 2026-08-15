@@ -20,17 +20,6 @@ BackgroundSizeStyleValue::BackgroundSizeStyleValue(ValueComparingNonnullRefPtr<S
 
 BackgroundSizeStyleValue::~BackgroundSizeStyleValue() = default;
 
-void BackgroundSizeStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    if (size_x()->has_auto() && size_y()->has_auto()) {
-        builder.append("auto"sv);
-        return;
-    }
-    size_x()->serialize(builder, mode);
-    builder.append(' ');
-    size_y()->serialize(builder, mode);
-}
-
 ValueComparingNonnullRefPtr<StyleValue const> BackgroundSizeStyleValue::absolutized(ComputationContext const& computation_context) const
 {
     auto absolutized_size_x = size_x()->absolutized(computation_context);

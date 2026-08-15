@@ -9,24 +9,4 @@
 
 namespace Web::CSS {
 
-void TextUnderlinePositionStyleValue::serialize(StringBuilder& builder, SerializationMode) const
-{
-    if (horizontal() == TextUnderlinePositionHorizontal::Auto && vertical() == TextUnderlinePositionVertical::Auto) {
-        builder.append("auto"sv);
-        return;
-    }
-
-    if (vertical() == TextUnderlinePositionVertical::Auto) {
-        builder.append(CSS::to_string(horizontal()));
-        return;
-    }
-
-    if (horizontal() == TextUnderlinePositionHorizontal::Auto) {
-        builder.append(CSS::to_string(vertical()));
-        return;
-    }
-
-    builder.appendff("{} {}", CSS::to_string(horizontal()), CSS::to_string(vertical()));
-}
-
 }

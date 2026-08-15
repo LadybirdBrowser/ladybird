@@ -115,11 +115,6 @@ UnresolvedStyleValue::UnresolvedStyleValue(String source_text, String value_comp
 {
 }
 
-void UnresolvedStyleValue::serialize(StringBuilder& builder, SerializationMode) const
-{
-    builder.append(source_text());
-}
-
 Vector<Parser::ComponentValue> UnresolvedStyleValue::values() const
 {
     auto source_text = this->source_text();

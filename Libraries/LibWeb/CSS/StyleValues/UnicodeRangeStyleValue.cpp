@@ -15,11 +15,6 @@ UnicodeRangeStyleValue::UnicodeRangeStyleValue(Gfx::UnicodeRange unicode_range)
 
 UnicodeRangeStyleValue::~UnicodeRangeStyleValue() = default;
 
-void UnicodeRangeStyleValue::serialize(StringBuilder& builder, SerializationMode) const
-{
-    builder.append(unicode_range().to_string());
-}
-
 bool UnicodeRangeStyleValue::properties_equal(UnicodeRangeStyleValue const& other) const
 {
     return unicode_range() == other.unicode_range();

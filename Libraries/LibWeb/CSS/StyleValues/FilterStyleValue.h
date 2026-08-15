@@ -27,7 +27,6 @@ public:
     virtual ~FilterStyleValue() override = default;
 
     Kind kind() const { return static_cast<Kind>(m_value->filter.kind); }
-    void serialize(StringBuilder&, SerializationMode) const;
     bool equals(StyleValue const& other) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
@@ -66,7 +65,6 @@ public:
     ValueComparingNonnullRefPtr<StyleValue const> radius() const { return filter_value(); }
     float resolved_radius() const;
 
-    void serialize(StringBuilder&, SerializationMode) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     bool equals(StyleValue const&) const;
 
@@ -115,7 +113,6 @@ public:
     ValueComparingRefPtr<StyleValue const> radius() const { return shadow().blur_radius_or_null(); }
     ValueComparingRefPtr<StyleValue const> color() const { return shadow().color_or_null(); }
 
-    void serialize(StringBuilder&, SerializationMode) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     bool equals(StyleValue const&) const;
 
@@ -144,7 +141,6 @@ public:
     ValueComparingNonnullRefPtr<StyleValue const> angle() const { return filter_value(); }
     float angle_degrees() const;
 
-    void serialize(StringBuilder&, SerializationMode) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     bool equals(StyleValue const&) const;
 
@@ -175,7 +171,6 @@ public:
     ValueComparingNonnullRefPtr<StyleValue const> amount() const { return filter_value(); }
     float resolved_amount() const;
 
-    void serialize(StringBuilder&, SerializationMode) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     bool equals(StyleValue const&) const;
 

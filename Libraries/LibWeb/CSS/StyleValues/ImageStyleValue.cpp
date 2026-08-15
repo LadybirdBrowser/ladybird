@@ -143,11 +143,6 @@ void ImageStyleValue::load_any_resources(DOM::Document& document)
     fetch_image(document);
 }
 
-void ImageStyleValue::serialize(StringBuilder& builder, SerializationMode) const
-{
-    builder.append(url_value().to_string());
-}
-
 bool ImageStyleValue::equals(StyleValue const& other) const
 {
     if (type() != other.type())

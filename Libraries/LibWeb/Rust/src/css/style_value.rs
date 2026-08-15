@@ -112,6 +112,14 @@ impl RetainedStyleValueData {
         let pointer = unsafe { rust_style_value_retain(self.pointer.cast()) };
         unsafe { Self::from_retained_optional_pointer(pointer) }
     }
+
+    /// Converts the retained reference into an Arc, transferring the strong reference.
+    pub(crate) fn into_arc(self) -> std::sync::Arc<StyleValueData> {
+        let pointer = self.pointer();
+        std::mem::forget(self);
+        // SAFETY: The retained reference owns exactly one strong reference.
+        unsafe { std::sync::Arc::from_raw(pointer) }
+    }
 }
 
 impl Clone for RetainedStyleValueData {
@@ -301,7 +309,7 @@ impl RetainedString {
         result
     }
 
-    fn as_bytes(&self) -> &[u8] {
+    pub(crate) fn as_bytes(&self) -> &[u8] {
         if self.bytes.is_null() {
             return &[];
         }
@@ -405,6 +413,20 @@ pub struct RetainedRequestUrlModifier {
     string_value: RetainedUtf16FlyString,
 }
 
+impl RetainedRequestUrlModifier {
+    pub(crate) fn modifier_type(&self) -> u8 {
+        self.modifier_type
+    }
+
+    pub(crate) fn enum_value(&self) -> u8 {
+        self.enum_value
+    }
+
+    pub(crate) fn string_value(&self) -> &RetainedUtf16FlyString {
+        &self.string_value
+    }
+}
+
 /// A Rust-owned array of retained request URL modifiers.
 #[repr(C)]
 pub struct RetainedRequestUrlModifierList {
@@ -440,6 +462,24 @@ pub struct RetainedCounterDefinition {
     name: RetainedUtf16FlyString,
     is_reversed: bool,
     value: RetainedStyleValueData,
+}
+
+impl RetainedCounterDefinition {
+    pub(crate) fn name(&self) -> &RetainedUtf16FlyString {
+        &self.name
+    }
+
+    pub(crate) fn is_reversed(&self) -> bool {
+        self.is_reversed
+    }
+
+    pub(crate) fn with_value(&self, value: RetainedStyleValueData) -> Self {
+        Self {
+            name: self.name.clone(),
+            is_reversed: self.is_reversed,
+            value,
+        }
+    }
 }
 
 /// A Rust-owned array of retained counter definitions.
@@ -502,11 +542,28 @@ impl RetainedImageSetOption {
     pub(crate) fn values(&self) -> [&RetainedStyleValueData; 2] {
         [&self.image, &self.resolution]
     }
+
+    pub(crate) fn type_string(&self) -> Option<&RetainedUtf16FlyString> {
+        self.has_type.then_some(&self.type_string)
+    }
+
+    pub(crate) fn with_values(&self, image: RetainedStyleValueData, resolution: RetainedStyleValueData) -> Self {
+        Self {
+            image,
+            resolution,
+            has_type: self.has_type,
+            type_string: self.type_string.clone(),
+        }
+    }
 }
 
 impl RetainedLinearEasingStop {
     pub(crate) fn values(&self) -> [&RetainedStyleValueData; 2] {
         [&self.output, &self.input]
+    }
+
+    pub(crate) fn from_retained_values(output: RetainedStyleValueData, input: RetainedStyleValueData) -> Self {
+        Self { output, input }
     }
 }
 
@@ -536,6 +593,28 @@ impl RetainedShapePoint {
     }
 }
 retained_list_as_slice!(RetainedShapePointList, RetainedShapePoint);
+retained_list_as_slice!(RetainedRequestUrlModifierList, RetainedRequestUrlModifier);
+retained_list_as_slice!(RetainedGridAreaList, RetainedGridArea);
+
+macro_rules! retained_list_from_vec {
+    ($list:ident, $element:ty) => {
+        impl $list {
+            // Consumers arrive with the per-type absolutization and color ports.
+            #[allow(dead_code)]
+            pub(crate) fn from_retained_elements(elements: Vec<$element>) -> Self {
+                let slice = elements.into_boxed_slice();
+                let length = slice.len();
+                let pointer = Box::into_raw(slice) as *mut $element;
+                Self { pointer, length }
+            }
+        }
+    };
+}
+retained_list_from_vec!(RetainedLinearEasingStopList, RetainedLinearEasingStop);
+retained_list_from_vec!(RetainedImageSetOptionList, RetainedImageSetOption);
+retained_list_from_vec!(RetainedCounterDefinitionList, RetainedCounterDefinition);
+retained_list_from_vec!(RetainedColorStopList, RetainedColorStop);
+retained_list_from_vec!(RetainedGridTrackEntryList, RetainedGridTrackEntry);
 
 impl RetainedShapePointList {
     pub(crate) fn from_retained_points(points: Vec<RetainedShapePoint>) -> Self {
@@ -555,6 +634,20 @@ impl RetainedColorStop {
             &self.position,
             &self.second_position,
         ]
+    }
+
+    pub(crate) fn from_retained_values(
+        transition_hint: RetainedStyleValueData,
+        color: RetainedStyleValueData,
+        position: RetainedStyleValueData,
+        second_position: RetainedStyleValueData,
+    ) -> Self {
+        Self {
+            transition_hint,
+            color,
+            position,
+            second_position,
+        }
     }
 }
 
@@ -578,6 +671,16 @@ pub struct RetainedGridArea {
     column_end: usize,
 }
 
+impl RetainedGridArea {
+    pub(crate) fn name(&self) -> &RetainedUtf16FlyString {
+        &self.name
+    }
+
+    pub(crate) fn covers_cell(&self, row: usize, column: usize) -> bool {
+        row >= self.row_start && row < self.row_end && column >= self.column_start && column < self.column_end
+    }
+}
+
 /// A Rust-owned array of retained named grid areas.
 #[repr(C)]
 pub struct RetainedGridAreaList {
@@ -593,6 +696,16 @@ retained_list!(RetainedGridAreaList, RetainedGridArea);
 pub struct RetainedLinearEasingStop {
     output: RetainedStyleValueData,
     input: RetainedStyleValueData,
+}
+
+impl RetainedLinearEasingStop {
+    pub(crate) fn output(&self) -> &RetainedStyleValueData {
+        &self.output
+    }
+
+    pub(crate) fn input(&self) -> &RetainedStyleValueData {
+        &self.input
+    }
 }
 
 /// A Rust-owned array of retained linear() easing stops.

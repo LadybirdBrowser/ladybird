@@ -28,8 +28,6 @@ public:
     }
     virtual ~TreeCountingFunctionStyleValue() override = default;
 
-    void serialize(StringBuilder&, SerializationMode) const;
-
     size_t resolve(DOM::AbstractElement const&) const;
 
     virtual Optional<CalcNodeRef> resolve_to_calculation_node(CalculationContext const&, CalculationResolutionContext const&) const override;

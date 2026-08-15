@@ -39,8 +39,6 @@ public:
 
     double random_base_value() const;
 
-    void serialize(StringBuilder&, SerializationMode) const;
-
     bool properties_equal(RandomValueSharingStyleValue const& other) const
     {
         return fixed_value() == other.fixed_value()

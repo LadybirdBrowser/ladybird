@@ -29,15 +29,6 @@ bool ContentStyleValue::properties_equal(ContentStyleValue const& other) const
     return content().equals(other.content()) && lists_equal(alt_text(), other.alt_text());
 }
 
-void ContentStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    content().serialize(builder, mode);
-    if (auto const* alt_text_list = alt_text()) {
-        builder.append(" / "sv);
-        alt_text_list->serialize(builder, mode);
-    }
-}
-
 void ContentStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
 {
     const_cast<StyleValueList&>(content()).set_style_sheet(style_sheet);

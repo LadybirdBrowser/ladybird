@@ -17,11 +17,6 @@
 
 namespace Web::CSS {
 
-void NumberStyleValue::serialize(StringBuilder& builder, SerializationMode) const
-{
-    serialize_a_number(builder, number());
-}
-
 Vector<Parser::ComponentValue> NumberStyleValue::tokenize() const
 {
     return { Parser::Token::create_number(Number { Number::Type::Number, number() }) };

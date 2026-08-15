@@ -84,26 +84,6 @@ Optional<ImageSetStyleValue::Option> ImageSetStyleValue::select_option(double de
     return best_below_or_equal;
 }
 
-void ImageSetStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    builder.append("image-set("sv);
-    auto options = this->options();
-    for (size_t i = 0; i < options.size(); ++i) {
-        if (i > 0)
-            builder.append(", "sv);
-        auto const& option = options[i];
-        option.image->serialize(builder, mode);
-        builder.append(' ');
-        option.resolution->serialize(builder, mode);
-        if (option.type.has_value()) {
-            builder.append(" type(\""sv);
-            builder.append_escaped_for_json(MUST(option.type->utf16_view().to_utf8()));
-            builder.append("\")"sv);
-        }
-    }
-    builder.append(')');
-}
-
 bool ImageSetStyleValue::equals(StyleValue const& other) const
 {
     if (type() != other.type())

@@ -10,24 +10,12 @@
 #include "KeywordStyleValue.h"
 #include <LibGfx/Palette.h>
 #include <LibWeb/CSS/CSSKeywordValue.h>
-#include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
 
 namespace Web::CSS {
-
-void KeywordStyleValue::serialize(StringBuilder& builder, SerializationMode) const
-{
-    builder.append(string_from_keyword(keyword()));
-}
-
-void KeywordStyleValue::serialize(Utf16StringBuilder& builder, SerializationMode) const
-{
-    builder.append_ascii(string_from_keyword(keyword()));
-}
 
 bool KeywordStyleValue::is_color(Keyword keyword)
 {
@@ -90,6 +78,13 @@ bool KeywordStyleValue::has_color() const
 
 Optional<Color> KeywordStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
+    {
+        Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_storage;
+        auto input = make_rust_color_resolution_input(color_resolution_context, length_storage);
+        auto resolved = StyleValueFFI::rust_style_value_to_color(m_value.operator->(), &input);
+        if (resolved.resolved)
+            return Color(resolved.rgba[0], resolved.rgba[1], resolved.rgba[2], resolved.rgba[3]);
+    }
     if (keyword() == Keyword::Currentcolor) {
         return color_resolution_context.current_color.value_or(Color::Black);
     }
@@ -172,35 +167,6 @@ Optional<Color> KeywordStyleValue::to_color(ColorResolutionContext color_resolut
     }
 
     return {};
-}
-
-ValueComparingNonnullRefPtr<StyleValue const> KeywordStyleValue::absolutized(ComputationContext const& context) const
-{
-    if (!has_color())
-        return *this;
-
-    // The currentcolor keyword computes to itself.
-    // https://drafts.csswg.org/css-color-4/#resolving-other-colors
-    if (keyword() == Keyword::Currentcolor)
-        return *this;
-
-    ColorResolutionContext color_resolution_context;
-    if (context.abstract_element.has_value()) {
-        color_resolution_context.calculation_resolution_context = CalculationResolutionContext::from_computation_context(context);
-        color_resolution_context.color_scheme = context.color_scheme;
-    }
-
-    auto resolved_color = to_color(color_resolution_context);
-    if (!resolved_color.has_value())
-        return *this;
-
-    return ColorFunctionStyleValue::create(
-        ColorStyleValue::ColorType::RGB,
-        NumberStyleValue::create(resolved_color->red()),
-        NumberStyleValue::create(resolved_color->green()),
-        NumberStyleValue::create(resolved_color->blue()),
-        NumberStyleValue::create(resolved_color->alpha() / 255.0f),
-        ColorSyntax::Legacy);
 }
 
 Vector<Parser::ComponentValue> KeywordStyleValue::tokenize() const

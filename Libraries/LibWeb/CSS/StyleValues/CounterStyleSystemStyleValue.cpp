@@ -11,25 +11,6 @@
 
 namespace Web::CSS {
 
-void CounterStyleSystemStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    value().visit(
-        [&](CounterStyleSystem const& system) {
-            builder.append(CSS::to_string(system));
-        },
-        [&](Fixed const& fixed) {
-            builder.append("fixed"sv);
-            if (fixed.first_symbol) {
-                builder.append(' ');
-                fixed.first_symbol->serialize(builder, mode);
-            }
-        },
-        [&](Extends const& extends) {
-            builder.append("extends "sv);
-            serialize_an_identifier(builder, extends.name);
-        });
-}
-
 ValueComparingNonnullRefPtr<StyleValue const> CounterStyleSystemStyleValue::absolutized(ComputationContext const& context) const
 {
     return value().visit(

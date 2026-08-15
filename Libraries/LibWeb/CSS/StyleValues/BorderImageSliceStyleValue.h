@@ -26,8 +26,6 @@ public:
 
     bool fill() const { return m_value->border_image_slice.fill; }
 
-    void serialize(StringBuilder&, SerializationMode) const;
-
     bool properties_equal(BorderImageSliceStyleValue const& other) const { return top() == other.top() && right() == other.right() && bottom() == other.bottom() && left() == other.left() && fill() == other.fill(); }
 
 private:

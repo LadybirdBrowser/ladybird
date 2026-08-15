@@ -51,6 +51,7 @@ define_ffi_ops! {
     StyleValueCreateEntry => "styleValueCreateEntries",
     StyleValueDestroyEntry => "styleValueDestroyEntries",
     StyleValueQueryEntry => "styleValueQueryEntries",
+    StyleValueSerializeEntry => "styleValueSerializeEntries",
     StyleGroupCloneEntry => "styleGroupCloneEntries",
     StyleGroupFreeEntry => "styleGroupFreeEntries",
     AnimationEvaluationEntry => "animationEvaluationEntries",

@@ -26,10 +26,6 @@ public:
     virtual double raw_value() const override { return m_value->frequency.value; }
     virtual Utf16FlyString unit_name() const override { return frequency().unit_name(); }
 
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-
-    void serialize(StringBuilder& builder, SerializationMode mode) const { frequency().serialize(builder, mode); }
-
     bool equals(StyleValue const& other) const;
 
 private:

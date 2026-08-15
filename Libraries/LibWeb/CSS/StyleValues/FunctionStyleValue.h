@@ -22,7 +22,6 @@ public:
     ValueComparingNonnullRefPtr<StyleValue const> value() const { return m_argument_value; }
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-    void serialize(StringBuilder&, SerializationMode) const;
 
     bool properties_equal(FunctionStyleValue const& other) const { return name() == other.name() && value() == other.value(); }
 

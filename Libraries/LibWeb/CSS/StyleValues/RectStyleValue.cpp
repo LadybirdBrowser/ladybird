@@ -29,17 +29,4 @@ ValueComparingNonnullRefPtr<StyleValue const> RectStyleValue::absolutized(Comput
     return RectStyleValue::create(top_absolutized, right_absolutized, bottom_absolutized, left_absolutized);
 }
 
-void RectStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    builder.append("rect("sv);
-    top()->serialize(builder, mode);
-    builder.append(", "sv);
-    right()->serialize(builder, mode);
-    builder.append(", "sv);
-    bottom()->serialize(builder, mode);
-    builder.append(", "sv);
-    left()->serialize(builder, mode);
-    builder.append(")"sv);
-}
-
 }

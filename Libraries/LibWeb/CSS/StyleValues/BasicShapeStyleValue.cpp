@@ -20,6 +20,11 @@
 
 namespace Web::CSS {
 
+// The fill-rule discriminant crosses the style value FFI as a raw code; the Rust serializer
+// depends on it.
+static_assert(to_underlying(Gfx::WindingRule::Nonzero) == 0);
+static_assert(to_underlying(Gfx::WindingRule::EvenOdd) == 1);
+
 StyleValueFFI::StyleValueData const* BasicShapeStyleValue::make_basic_shape_data(BasicShape const& basic_shape)
 {
     auto retain = [](StyleValue const* value) {
@@ -207,55 +212,6 @@ Gfx::Path Inset::to_path(CSSPixelRect reference_box) const
     return path;
 }
 
-void Inset::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    builder.append("inset("sv);
-    builder.append(serialize_a_positional_value_list(StyleValueVector { top, right, bottom, left }, mode));
-
-    auto serialized_border_radius = border_radius->to_string(mode);
-
-    if (serialized_border_radius != "0px"sv)
-        builder.appendff(" round {}", serialized_border_radius);
-
-    builder.append(')');
-}
-
-void Xywh::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    builder.append("xywh("sv);
-    x->serialize(builder, mode);
-    builder.append(' ');
-    y->serialize(builder, mode);
-    builder.append(' ');
-    width->serialize(builder, mode);
-    builder.append(' ');
-    height->serialize(builder, mode);
-
-    auto serialized_border_radius = border_radius->to_string(mode);
-    if (serialized_border_radius != "0px"sv)
-        builder.appendff(" round {}", serialized_border_radius);
-
-    builder.append(')');
-}
-
-void Rect::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    builder.append("rect("sv);
-    top->serialize(builder, mode);
-    builder.append(' ');
-    right->serialize(builder, mode);
-    builder.append(' ');
-    bottom->serialize(builder, mode);
-    builder.append(' ');
-    left->serialize(builder, mode);
-
-    auto serialized_border_radius = border_radius->to_string(mode);
-    if (serialized_border_radius != "0px"sv)
-        builder.appendff(" round {}", serialized_border_radius);
-
-    builder.append(')');
-}
-
 Gfx::Path Circle::to_path(CSSPixelRect reference_box) const
 {
     // Translating the reference box because PositionStyleValues are resolved to an absolute position.
@@ -276,25 +232,6 @@ Gfx::Path Circle::to_path(CSSPixelRect reference_box) const
     path.arc_to(Gfx::FloatPoint { center.x().to_float(), center.y().to_float() - radius_px }, radius_px, true, true);
     path.arc_to(Gfx::FloatPoint { center.x().to_float(), center.y().to_float() + radius_px }, radius_px, true, true);
     return path;
-}
-
-void Circle::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    builder.append("circle("sv);
-    auto serialized_radius = radius->to_string(mode);
-
-    bool has_radius = serialized_radius != "closest-side"sv;
-    if (has_radius)
-        builder.append(serialized_radius);
-
-    if (position) {
-        if (has_radius)
-            builder.append(' ');
-        builder.append("at "sv);
-        position->serialize(builder, mode);
-    }
-
-    builder.append(')');
 }
 
 Gfx::Path Ellipse::to_path(CSSPixelRect reference_box) const
@@ -318,25 +255,6 @@ Gfx::Path Ellipse::to_path(CSSPixelRect reference_box) const
     return path;
 }
 
-void Ellipse::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    builder.append("ellipse("sv);
-    auto serialized_radius = radius->to_string(mode);
-
-    bool has_radius = serialized_radius != "closest-side closest-side"sv;
-    if (has_radius)
-        builder.append(serialized_radius);
-
-    if (position) {
-        if (has_radius)
-            builder.append(' ');
-        builder.append("at "sv);
-        position->serialize(builder, mode);
-    }
-
-    builder.append(')');
-}
-
 Gfx::Path Polygon::to_path(CSSPixelRect reference_box) const
 {
     Gfx::Path path;
@@ -357,55 +275,11 @@ Gfx::Path Polygon::to_path(CSSPixelRect reference_box) const
     return path;
 }
 
-void Polygon::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    builder.append("polygon("sv);
-    bool first = true;
-    switch (fill_rule) {
-    case Gfx::WindingRule::Nonzero:
-        break;
-    case Gfx::WindingRule::EvenOdd:
-        first = false;
-        builder.append("evenodd"sv);
-    }
-    for (auto const& point : points) {
-        if (!first)
-            builder.append(", "sv);
-        first = false;
-        point.x->serialize(builder, mode);
-        builder.append(' ');
-        point.y->serialize(builder, mode);
-    }
-    builder.append(')');
-}
-
 Gfx::Path Path::to_path(CSSPixelRect) const
 {
     auto result = path_instructions.to_gfx_path();
     result.set_fill_type(fill_rule);
     return result;
-}
-
-// https://drafts.csswg.org/css-shapes/#basic-shape-serialization
-void Path::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    builder.append("path("sv);
-
-    // For serializing computed values, component values are computed, and omitted when possible without changing the meaning.
-    // NB: So, we don't include `nonzero` in that case.
-    if (!(mode == SerializationMode::ResolvedValue && fill_rule == Gfx::WindingRule::Nonzero)) {
-        switch (fill_rule) {
-        case Gfx::WindingRule::Nonzero:
-            builder.append("nonzero, "sv);
-            break;
-        case Gfx::WindingRule::EvenOdd:
-            builder.append("evenodd, "sv);
-        }
-    }
-
-    serialize_a_string(builder, path_instructions.serialize());
-
-    builder.append(')');
 }
 
 BasicShapeStyleValue::~BasicShapeStyleValue() = default;
@@ -420,13 +294,6 @@ Gfx::Path BasicShapeStyleValue::to_path(CSSPixelRect reference_box) const
         }
 
         VERIFY_NOT_REACHED();
-    });
-}
-
-void BasicShapeStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    basic_shape().visit([&](auto const& shape) {
-        shape.serialize(builder, mode);
     });
 }
 

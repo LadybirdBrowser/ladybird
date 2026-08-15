@@ -13,11 +13,6 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<GridTemplateAreaStyleValue const> GridTemplateAreaStyleValue::create(HashMap<Utf16FlyString, GridArea> grid_areas, size_t row_count, size_t column_count)
-{
-    return adopt_ref(*new (nothrow) GridTemplateAreaStyleValue(move(grid_areas), row_count, column_count));
-}
-
 Utf16FlyString GridTemplateAreaStyleValue::cell_name_in(HashMap<Utf16FlyString, GridArea> const& grid_areas, size_t row, size_t column)
 {
     for (auto const& [name, area] : grid_areas) {
@@ -27,26 +22,9 @@ Utf16FlyString GridTemplateAreaStyleValue::cell_name_in(HashMap<Utf16FlyString, 
     return "."_utf16_fly_string;
 }
 
-void GridTemplateAreaStyleValue::serialize(StringBuilder& builder, SerializationMode) const
+ValueComparingNonnullRefPtr<GridTemplateAreaStyleValue const> GridTemplateAreaStyleValue::create(HashMap<Utf16FlyString, GridArea> grid_areas, size_t row_count, size_t column_count)
 {
-    if (row_count() == 0) {
-        builder.append("none"sv);
-        return;
-    }
-
-    auto grid_areas = this->grid_areas();
-    for (size_t y = 0; y < row_count(); ++y) {
-        if (y != 0)
-            builder.append(' ');
-        Utf16StringBuilder row_builder;
-        for (size_t x = 0; x < column_count(); ++x) {
-            if (x != 0)
-                row_builder.append_ascii(' ');
-            row_builder.append(cell_name_in(grid_areas, y, x).view());
-        }
-        auto row = row_builder.to_string();
-        serialize_a_string(builder, row.utf16_view());
-    }
+    return adopt_ref(*new (nothrow) GridTemplateAreaStyleValue(move(grid_areas), row_count, column_count));
 }
 
 }

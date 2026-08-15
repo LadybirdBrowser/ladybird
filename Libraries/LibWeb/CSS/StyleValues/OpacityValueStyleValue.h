@@ -20,8 +20,6 @@ public:
 
     virtual ~OpacityValueStyleValue() override = default;
 
-    void serialize(StringBuilder&, SerializationMode) const;
-
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     double resolved() const { return value()->as_number().number(); }

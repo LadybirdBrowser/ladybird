@@ -12,16 +12,6 @@
 
 namespace Web::CSS {
 
-void IntegerStyleValue::serialize(StringBuilder& builder, SerializationMode) const
-{
-    builder.appendff("{}", integer());
-}
-
-void IntegerStyleValue::serialize(Utf16StringBuilder& builder, SerializationMode) const
-{
-    builder.appendff("{}", integer());
-}
-
 Vector<Parser::ComponentValue> IntegerStyleValue::tokenize() const
 {
     return { Parser::Token::create_number(Number { Number::Type::Integer, static_cast<double>(integer()) }) };

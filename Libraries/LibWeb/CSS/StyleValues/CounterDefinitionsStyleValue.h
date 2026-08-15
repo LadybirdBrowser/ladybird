@@ -34,7 +34,6 @@ public:
     {
         return m_counter_definitions;
     }
-    void serialize(StringBuilder&, SerializationMode) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     bool properties_equal(CounterDefinitionsStyleValue const& other) const;

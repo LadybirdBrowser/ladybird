@@ -12,26 +12,6 @@
 
 namespace Web::CSS {
 
-void CounterStyleStyleValue::serialize(StringBuilder& builder, SerializationMode) const
-{
-    value().visit(
-        [&](Utf16FlyString const& name) {
-            builder.append(name);
-        },
-        [&](SymbolsFunction const& symbols_function) {
-            builder.append("symbols("sv);
-            if (symbols_function.type != SymbolsType::Symbolic)
-                builder.appendff("{} ", CSS::to_string(symbols_function.type));
-
-            for (size_t i = 0; i < symbols_function.symbols.size(); ++i) {
-                if (i > 0)
-                    builder.append(' ');
-                serialize_a_string(builder, symbols_function.symbols[i]);
-            }
-            builder.append(')');
-        });
-}
-
 RefPtr<CounterStyle const> CounterStyleStyleValue::resolve_counter_style(StyleScope const& style_scope) const
 {
     return value().visit(

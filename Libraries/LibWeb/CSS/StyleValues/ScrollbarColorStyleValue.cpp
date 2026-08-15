@@ -20,11 +20,4 @@ ValueComparingNonnullRefPtr<StyleValue const> ScrollbarColorStyleValue::absoluti
     return create(absolutized_thumb_color, absolutized_track_color);
 }
 
-void ScrollbarColorStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    thumb_color()->serialize(builder, mode);
-    builder.append(' ');
-    track_color()->serialize(builder, mode);
-}
-
 }

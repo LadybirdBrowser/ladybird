@@ -11,19 +11,6 @@
 
 namespace Web::CSS {
 
-void BorderRadiusStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    auto horizontal_radius = this->horizontal_radius();
-    auto vertical_radius = this->vertical_radius();
-    if (horizontal_radius == vertical_radius) {
-        horizontal_radius->serialize(builder, mode);
-        return;
-    }
-    horizontal_radius->serialize(builder, mode);
-    builder.append(' ');
-    vertical_radius->serialize(builder, mode);
-}
-
 ValueComparingNonnullRefPtr<StyleValue const> BorderRadiusStyleValue::absolutized(ComputationContext const& computation_context) const
 {
     auto horizontal_radius = this->horizontal_radius();

@@ -25,7 +25,6 @@ public:
     }
     StyleValue const& offset() const { return *m_offset; }
 
-    void serialize(StringBuilder&, SerializationMode) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     bool properties_equal(OverflowClipMarginStyleValue const&) const;
 

@@ -38,7 +38,6 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
-#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>

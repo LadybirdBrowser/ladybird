@@ -20,23 +20,6 @@ public:
 
     ScrollbarGutter value() const { return static_cast<ScrollbarGutter>(m_value->scrollbar_gutter.value); }
 
-    void serialize(StringBuilder& builder, SerializationMode) const
-    {
-        switch (value()) {
-        case ScrollbarGutter::Auto:
-            builder.append("auto"sv);
-            break;
-        case ScrollbarGutter::Stable:
-            builder.append("stable"sv);
-            break;
-        case ScrollbarGutter::BothEdges:
-            builder.append("stable both-edges"sv);
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }
-
     bool properties_equal(ScrollbarGutterStyleValue const& other) const { return value() == other.value(); }
 
 private:

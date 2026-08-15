@@ -27,27 +27,6 @@ CounterDefinitionsStyleValue::CounterDefinitionsStyleValue(StyleValueFFI::StyleV
     }
 }
 
-void CounterDefinitionsStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    bool first = true;
-    for (auto const& counter_definition : counter_definitions()) {
-        if (first)
-            first = false;
-        else
-            builder.append(' ');
-
-        if (counter_definition.is_reversed)
-            builder.appendff("reversed({})", serialize_an_identifier(counter_definition.name));
-        else
-            builder.append(serialize_an_identifier(counter_definition.name));
-
-        if (counter_definition.value) {
-            builder.append(' ');
-            counter_definition.value->serialize(builder, mode);
-        }
-    }
-}
-
 ValueComparingNonnullRefPtr<StyleValue const> CounterDefinitionsStyleValue::absolutized(ComputationContext const& computation_context) const
 {
     Vector<CounterDefinition> computed_definitions;

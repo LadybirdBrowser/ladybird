@@ -120,68 +120,6 @@ CalculationContext CalculationContext::for_property(PropertyNameAndID const& pro
     };
 }
 
-// https://drafts.csswg.org/css-values-4/#funcdef-min
-void CalculatedStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    struct Serialization {
-        StyleValueFFI::FfiCalcSerialization pieces;
-        ~Serialization() { StyleValueFFI::rust_calc_serialization_release(pieces.storage); }
-    } serialization { StyleValueFFI::rust_calc_serialize(m_value.operator->(), mode == SerializationMode::ResolvedValue) };
-
-    bool previous_piece_appended = false;
-    for (auto const& piece : ReadonlySpan<StyleValueFFI::FfiCalcSerializationPiece> { serialization.pieces.pieces, serialization.pieces.piece_count }) {
-        auto start_length = builder.length();
-        switch (piece.kind) {
-        case 0:
-            builder.append(StringView { piece.bytes, piece.length });
-            break;
-        case 1:
-            switch (piece.numeric_kind) {
-            case 0:
-                Number { static_cast<Number::Type>(piece.unit_or_channel), piece.value }.serialize(builder, mode);
-                break;
-            case 1:
-                Angle { piece.value, static_cast<AngleUnit>(piece.unit_or_channel) }.serialize(builder, mode);
-                break;
-            case 2:
-                Flex { piece.value, static_cast<FlexUnit>(piece.unit_or_channel) }.serialize(builder, mode);
-                break;
-            case 3:
-                Frequency { piece.value, static_cast<FrequencyUnit>(piece.unit_or_channel) }.serialize(builder, mode);
-                break;
-            case 4:
-                Length { piece.value, static_cast<LengthUnit>(piece.unit_or_channel) }.serialize(builder, mode);
-                break;
-            case 5:
-                Percentage { piece.value }.serialize(builder, mode);
-                break;
-            case 6:
-                Resolution { piece.value, static_cast<ResolutionUnit>(piece.unit_or_channel) }.serialize(builder, mode);
-                break;
-            case 7:
-                Time { piece.value, static_cast<TimeUnit>(piece.unit_or_channel) }.serialize(builder, mode);
-                break;
-            default:
-                VERIFY_NOT_REACHED();
-            }
-            break;
-        case 2:
-            wrap_borrowed_style_value_data(piece.style_value)->serialize(builder, mode);
-            break;
-        case 3:
-            builder.append(CSS::to_string(static_cast<ChannelKeyword>(piece.unit_or_channel)));
-            break;
-        case 4:
-            if (previous_piece_appended)
-                builder.append(StringView { piece.bytes, piece.length });
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-        previous_piece_appended = builder.length() > start_length;
-    }
-}
-
 // The RoundingStrategy discriminants cross the boundary as round()'s strategy code; pin them.
 static_assert(to_underlying(RoundingStrategy::Down) == 0);
 static_assert(to_underlying(RoundingStrategy::Nearest) == 1);

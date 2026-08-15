@@ -77,7 +77,6 @@ public:
     static ValueComparingNonnullRefPtr<ImageStyleValue const> create(::URL::URL const&);
     virtual ~ImageStyleValue() override;
 
-    void serialize(StringBuilder&, SerializationMode) const;
     bool equals(StyleValue const& other) const;
 
     virtual void load_any_resources(DOM::Document&) override;

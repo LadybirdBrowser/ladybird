@@ -34,8 +34,6 @@ public:
 
     i32 integer() const { return m_value->integer.value; }
 
-    void serialize(StringBuilder&, SerializationMode) const;
-    void serialize(Utf16StringBuilder&, SerializationMode) const;
     Vector<Parser::ComponentValue> tokenize() const;
     GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
 

@@ -19,6 +19,20 @@
 
 namespace Web::CSS {
 
+// The kind and color-operation discriminants cross the style value FFI as raw codes; the Rust
+// serializer's tables depend on them.
+static_assert(to_underlying(FilterStyleValue::Kind::Blur) == 0);
+static_assert(to_underlying(FilterStyleValue::Kind::DropShadow) == 1);
+static_assert(to_underlying(FilterStyleValue::Kind::HueRotate) == 2);
+static_assert(to_underlying(FilterStyleValue::Kind::Color) == 3);
+static_assert(to_underlying(Gfx::ColorFilterType::Brightness) == 0);
+static_assert(to_underlying(Gfx::ColorFilterType::Contrast) == 1);
+static_assert(to_underlying(Gfx::ColorFilterType::Grayscale) == 2);
+static_assert(to_underlying(Gfx::ColorFilterType::Invert) == 3);
+static_assert(to_underlying(Gfx::ColorFilterType::Opacity) == 4);
+static_assert(to_underlying(Gfx::ColorFilterType::Saturate) == 5);
+static_assert(to_underlying(Gfx::ColorFilterType::Sepia) == 6);
+
 // The C++ Type is Filter for every filter kind, so filter operations dispatch on the kind.
 ValueComparingNonnullRefPtr<StyleValue const> FilterStyleValue::absolutized(ComputationContext const& context) const
 {
@@ -50,31 +64,9 @@ bool FilterStyleValue::equals(StyleValue const& other) const
     VERIFY_NOT_REACHED();
 }
 
-void FilterStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    switch (kind()) {
-    case Kind::Blur:
-        return static_cast<BlurFilterStyleValue const&>(*this).serialize(builder, mode);
-    case Kind::DropShadow:
-        return static_cast<DropShadowFilterStyleValue const&>(*this).serialize(builder, mode);
-    case Kind::HueRotate:
-        return static_cast<HueRotateFilterStyleValue const&>(*this).serialize(builder, mode);
-    case Kind::Color:
-        return static_cast<ColorFilterStyleValue const&>(*this).serialize(builder, mode);
-    }
-    VERIFY_NOT_REACHED();
-}
-
 float BlurFilterStyleValue::resolved_radius() const
 {
     return Length::from_style_value(radius(), {}).absolute_length_to_px_without_rounding();
-}
-
-void BlurFilterStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    builder.append("blur("sv);
-    radius()->serialize(builder, mode);
-    builder.append(')');
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> BlurFilterStyleValue::absolutized(ComputationContext const& computation_context) const
@@ -92,13 +84,6 @@ bool BlurFilterStyleValue::equals(StyleValue const& other) const
         return false;
     auto const& other_blur = static_cast<BlurFilterStyleValue const&>(other);
     return radius() == other_blur.radius();
-}
-
-void DropShadowFilterStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    builder.append("drop-shadow("sv);
-    shadow().serialize(builder, mode);
-    builder.append(')');
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> DropShadowFilterStyleValue::absolutized(ComputationContext const& computation_context) const
@@ -135,13 +120,6 @@ float HueRotateFilterStyleValue::angle_degrees() const
     return Angle::from_style_value(angle(), {}).to_degrees();
 }
 
-void HueRotateFilterStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    builder.append("hue-rotate("sv);
-    angle()->serialize(builder, mode);
-    builder.append(')');
-}
-
 ValueComparingNonnullRefPtr<StyleValue const> HueRotateFilterStyleValue::absolutized(ComputationContext const& computation_context) const
 {
     auto angle = this->angle();
@@ -162,34 +140,6 @@ bool HueRotateFilterStyleValue::equals(StyleValue const& other) const
 float ColorFilterStyleValue::resolved_amount() const
 {
     return number_from_style_value(amount(), 1);
-}
-
-void ColorFilterStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    builder.appendff("{}(",
-        [&] {
-            switch (operation()) {
-            case Gfx::ColorFilterType::Brightness:
-                return "brightness"sv;
-            case Gfx::ColorFilterType::Contrast:
-                return "contrast"sv;
-            case Gfx::ColorFilterType::Grayscale:
-                return "grayscale"sv;
-            case Gfx::ColorFilterType::Invert:
-                return "invert"sv;
-            case Gfx::ColorFilterType::Opacity:
-                return "opacity"sv;
-            case Gfx::ColorFilterType::Saturate:
-                return "saturate"sv;
-            case Gfx::ColorFilterType::Sepia:
-                return "sepia"sv;
-            default:
-                VERIFY_NOT_REACHED();
-            }
-        }());
-
-    amount()->serialize(builder, mode);
-    builder.append(')');
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> ColorFilterStyleValue::absolutized(ComputationContext const& computation_context) const

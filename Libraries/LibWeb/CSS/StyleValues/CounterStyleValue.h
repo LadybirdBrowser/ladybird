@@ -36,8 +36,6 @@ public:
 
     Utf16String resolve(DOM::AbstractElement&) const;
 
-    void serialize(StringBuilder&, SerializationMode) const;
-
     bool properties_equal(CounterStyleValue const& other) const;
 
 private:

@@ -20,7 +20,6 @@ public:
         ValueComparingRefPtr<StyleValue const> const& fallback_value);
     virtual ~AnchorStyleValue() override = default;
 
-    void serialize(StringBuilder&, SerializationMode) const;
     virtual Optional<CalcNodeRef> resolve_to_calculation_node(CalculationContext const&, CalculationResolutionContext const&) const override;
 
     bool equals(StyleValue const& other) const;

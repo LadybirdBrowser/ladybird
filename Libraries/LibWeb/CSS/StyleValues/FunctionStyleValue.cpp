@@ -18,12 +18,4 @@ ValueComparingNonnullRefPtr<StyleValue const> FunctionStyleValue::absolutized(Co
     return FunctionStyleValue::create(name(), absolutized_value);
 }
 
-void FunctionStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    builder.append(name().view());
-    builder.append('(');
-    value()->serialize(builder, mode);
-    builder.append(')');
-}
-
 }

@@ -51,11 +51,4 @@ ValueComparingNonnullRefPtr<StyleValue const> PositionStyleValue::absolutized(Co
         edge_y()->absolutized(computation_context)->as_edge());
 }
 
-void PositionStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    edge_x()->serialize(builder, mode);
-    builder.append(' ');
-    edge_y()->serialize(builder, mode);
-}
-
 }

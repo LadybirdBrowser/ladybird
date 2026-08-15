@@ -95,9 +95,6 @@ public:
 
     struct WEB_API Function : public Variant<Linear, CubicBezier, Steps> {
         using Variant::Variant;
-
-        void serialize(StringBuilder&, SerializationMode) const;
-        void serialize(Utf16StringBuilder&, SerializationMode) const;
     };
 
     static ValueComparingNonnullRefPtr<EasingStyleValue const> create(Function const& function)
@@ -107,9 +104,6 @@ public:
     virtual ~EasingStyleValue() override = default;
 
     Function const& function() const;
-
-    void serialize(StringBuilder& builder, SerializationMode mode) const { function().serialize(builder, mode); }
-    void serialize(Utf16StringBuilder& builder, SerializationMode mode) const { function().serialize(builder, mode); }
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 

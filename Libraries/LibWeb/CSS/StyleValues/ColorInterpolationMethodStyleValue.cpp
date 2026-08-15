@@ -18,18 +18,4 @@ ColorInterpolationMethodStyleValue::ColorInterpolationMethod ColorInterpolationM
     return color_syntax == ColorSyntax::Legacy ? RectangularColorSpace::Srgb : RectangularColorSpace::Oklab;
 }
 
-void ColorInterpolationMethodStyleValue::serialize(StringBuilder& builder, SerializationMode) const
-{
-    builder.append("in "sv);
-    color_interpolation_method().visit(
-        [&](RectangularColorSpace color_space) {
-            builder.append(CSS::to_string(color_space));
-        },
-        [&](PolarColorInterpolationMethod const& color_space) {
-            builder.append(CSS::to_string(color_space.color_space));
-            if (color_space.hue_interpolation_method != HueInterpolationMethod::Shorter)
-                builder.appendff(" {} hue", CSS::to_string(color_space.hue_interpolation_method));
-        });
-}
-
 }

@@ -47,36 +47,6 @@ ConicGradientStyleValue::ConicGradientStyleValue(StyleValueFFI::StyleValueData c
 {
 }
 
-void ConicGradientStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    if (is_repeating())
-        builder.append("repeating-"sv);
-    builder.append("conic-gradient("sv);
-    bool has_from_angle = from_angle_value();
-    bool has_at_position = !position_value()->is_center(mode);
-    bool has_color_space = color_interpolation_method_value() && color_interpolation_method_value()->as_color_interpolation_method().color_interpolation_method() != ColorInterpolationMethodStyleValue::default_color_interpolation_method(gradient_color_syntax());
-
-    if (has_from_angle) {
-        builder.append("from "sv);
-        from_angle_value()->serialize(builder, mode);
-    }
-    if (has_at_position) {
-        if (has_from_angle)
-            builder.append(' ');
-        builder.append("at "sv);
-        position_value()->serialize(builder, mode);
-    }
-    if (has_color_space) {
-        if (has_from_angle || has_at_position)
-            builder.append(' ');
-        color_interpolation_method_value()->serialize(builder, mode);
-    }
-    if (has_from_angle || has_at_position || has_color_space)
-        builder.append(", "sv);
-    serialize_color_stop_list(builder, color_stop_list(), mode);
-    builder.append(')');
-}
-
 void ConicGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node, CSSPixelSize size) const
 {
     if (m_resolved_size != size) {

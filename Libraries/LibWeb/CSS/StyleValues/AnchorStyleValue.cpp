@@ -41,25 +41,6 @@ AnchorStyleValue::AnchorStyleValue(Optional<Utf16FlyString> const& anchor_name,
 {
 }
 
-void AnchorStyleValue::serialize(StringBuilder& builder, SerializationMode serialization_mode) const
-{
-    builder.append("anchor("sv);
-
-    if (anchor_name().has_value())
-        builder.append(serialize_an_identifier(anchor_name().value()));
-
-    if (anchor_name().has_value())
-        builder.append(' ');
-    anchor_side()->serialize(builder, serialization_mode);
-
-    if (fallback_value()) {
-        builder.append(", "sv);
-        fallback_value()->serialize(builder, serialization_mode);
-    }
-
-    builder.append(')');
-}
-
 // https://drafts.csswg.org/css-anchor-position-1/#anchor-pos
 Optional<CalcNodeRef> AnchorStyleValue::resolve_to_calculation_node(CalculationContext const& calculation_context, CalculationResolutionContext const& calculation_resolution_context) const
 {

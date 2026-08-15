@@ -20,23 +20,4 @@ RepeatStyleStyleValue::RepeatStyleStyleValue(Repetition repeat_x, Repetition rep
 
 RepeatStyleStyleValue::~RepeatStyleStyleValue() = default;
 
-void RepeatStyleStyleValue::serialize(StringBuilder& builder, SerializationMode) const
-{
-    if (repeat_x() == repeat_y()) {
-        builder.append(CSS::to_string(repeat_x()));
-        return;
-    }
-
-    if (repeat_x() == Repetition::Repeat && repeat_y() == Repetition::NoRepeat) {
-        builder.append("repeat-x"sv);
-        return;
-    }
-    if (repeat_x() == Repetition::NoRepeat && repeat_y() == Repetition::Repeat) {
-        builder.append("repeat-y"sv);
-        return;
-    }
-
-    builder.appendff("{} {}", CSS::to_string(repeat_x()), CSS::to_string(repeat_y()));
-}
-
 }

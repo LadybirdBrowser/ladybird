@@ -22,24 +22,6 @@ OverflowClipMarginStyleValue::OverflowClipMarginStyleValue(Optional<BackgroundBo
 
 OverflowClipMarginStyleValue::~OverflowClipMarginStyleValue() = default;
 
-// https://drafts.csswg.org/css-overflow-4/#overflow-clip-margin
-void OverflowClipMarginStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    bool has_explicit_box = visual_box().has_value();
-    bool is_default_box = has_explicit_box && *visual_box() == BackgroundBox::PaddingBox;
-    bool is_zero_offset = offset().is_length() && offset().as_length().length().raw_value() == 0;
-
-    if (!has_explicit_box || is_default_box) {
-        offset().serialize(builder, mode);
-    } else if (is_zero_offset) {
-        builder.append(CSS::to_string(*visual_box()));
-    } else {
-        builder.append(CSS::to_string(*visual_box()));
-        builder.append(' ');
-        offset().serialize(builder, mode);
-    }
-}
-
 ValueComparingNonnullRefPtr<StyleValue const> OverflowClipMarginStyleValue::absolutized(ComputationContext const& context) const
 {
     auto new_offset = offset().absolutized(context);

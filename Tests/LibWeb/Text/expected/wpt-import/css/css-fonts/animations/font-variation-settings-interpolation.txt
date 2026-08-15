@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 358 tests
 
-354 Pass
-4 Fail
+355 Pass
+3 Fail
 Pass	CSS Transitions: property <font-variation-settings> from neutral to ["test" 20] at (-0.5) should be ['test' 5]
 Pass	CSS Transitions: property <font-variation-settings> from neutral to ["test" 20] at (0) should be ['test' 10]
 Pass	CSS Transitions: property <font-variation-settings> from neutral to ["test" 20] at (0.3) should be ['test' 13]
@@ -360,5 +360,5 @@ Pass	Web Animations: property <font-variation-settings> from ['aaaa' 0, 'bbbb' 1
 Pass	Web Animations: property <font-variation-settings> from ['aaaa' 0, 'bbbb' 10, 'cccc' 20] to ['dddd' 10, 'eeee' 20, 'ffff' 30] at (1.5) should be ['dddd' 10, 'eeee' 20, 'ffff' 30]
 Fail	CSS Transitions: property <font-variation-settings> from ['aaaa' 30, 'bbbb' 20] to ['aaaa' 20, 'bbbb' 30] at (3.40282e+38) should be ['aaaa' -3.40282e+38, 'bbbb' 3.40282e+38]
 Fail	CSS Transitions with transition: all: property <font-variation-settings> from ['aaaa' 30, 'bbbb' 20] to ['aaaa' 20, 'bbbb' 30] at (3.40282e+38) should be ['aaaa' -3.40282e+38, 'bbbb' 3.40282e+38]
-Fail	CSS Animations: property <font-variation-settings> from ['aaaa' 30, 'bbbb' 20] to ['aaaa' 20, 'bbbb' 30] at (3.40282e+38) should be ['aaaa' -3.40282e+38, 'bbbb' 3.40282e+38]
+Pass	CSS Animations: property <font-variation-settings> from ['aaaa' 30, 'bbbb' 20] to ['aaaa' 20, 'bbbb' 30] at (3.40282e+38) should be ['aaaa' -3.40282e+38, 'bbbb' 3.40282e+38]
 Fail	Web Animations: property <font-variation-settings> from ['aaaa' 30, 'bbbb' 20] to ['aaaa' 20, 'bbbb' 30] at (3.40282e+38) should be ['aaaa' -3.40282e+38, 'bbbb' 3.40282e+38]

@@ -23,7 +23,6 @@ public:
     bool equals(StyleValue const&) const;
     Optional<Color> to_color(ColorResolutionContext) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-    void serialize(StringBuilder&, SerializationMode) const;
 
 private:
     friend class StyleValue;

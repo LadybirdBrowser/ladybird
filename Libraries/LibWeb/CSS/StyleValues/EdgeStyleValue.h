@@ -24,8 +24,6 @@ public:
 
     bool is_center(SerializationMode) const;
 
-    void serialize(StringBuilder&, SerializationMode) const;
-
     ValueComparingNonnullRefPtr<EdgeStyleValue const> with_resolved_keywords() const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& computation_context) const;
     bool properties_equal(EdgeStyleValue const& other) const { return edge() == other.edge() && offset_style_value() == other.offset_style_value(); }

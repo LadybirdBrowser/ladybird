@@ -20,8 +20,6 @@ public:
         ValueComparingRefPtr<StyleValue const> const& fallback_value);
     virtual ~AnchorSizeStyleValue() override = default;
 
-    void serialize(StringBuilder&, SerializationMode) const;
-
     bool properties_equal(AnchorSizeStyleValue const& other) const { return anchor_name() == other.anchor_name() && anchor_size() == other.anchor_size() && fallback_value() == other.fallback_value(); }
 
     Optional<Utf16FlyString> anchor_name() const

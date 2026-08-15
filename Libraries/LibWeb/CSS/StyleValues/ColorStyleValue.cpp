@@ -11,6 +11,7 @@
 #include <LibGfx/ColorConversion.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
@@ -23,6 +24,40 @@
 
 namespace Web::CSS {
 
+// Marshals the plain-data parts of a ColorResolutionContext for the Rust resolver;
+// length_storage keeps the marshalled length context alive across the call.
+StyleValueFFI::FfiColorResolutionInput make_rust_color_resolution_input(ColorResolutionContext const& context, Optional<ComputedValuesFFI::FfiLengthResolutionContext>& length_storage)
+{
+    StyleValueFFI::FfiColorResolutionInput input {};
+    if (context.color_scheme.has_value()) {
+        input.has_scheme = true;
+        input.scheme = to_underlying(*context.color_scheme);
+    }
+    if (context.current_color.has_value()) {
+        input.has_current_color = true;
+        input.current_color_rgba[0] = context.current_color->red();
+        input.current_color_rgba[1] = context.current_color->green();
+        input.current_color_rgba[2] = context.current_color->blue();
+        input.current_color_rgba[3] = context.current_color->alpha();
+    }
+    if (context.current_color_style_value)
+        input.current_color_value = context.current_color_style_value->rust_style_value_data();
+    if (context.calculation_resolution_context.length_resolution_context.has_value()) {
+        length_storage = to_ffi_length_resolution_context(*context.calculation_resolution_context.length_resolution_context);
+        input.length = &*length_storage;
+    }
+    if (context.calculation_resolution_context.relative_color.has_value()) {
+        input.has_channels = true;
+        for (size_t i = 0; i < RelativeColorContext::channel_count; ++i) {
+            if (auto value = context.calculation_resolution_context.relative_color->channel_values[i]; value.has_value()) {
+                input.channels_present[i] = true;
+                input.channels[i] = *value;
+            }
+        }
+    }
+    return input;
+}
+
 // The base class color_type()/color_syntax() accessors read the ColorBase prefix through the
 // color_function arm without knowing which color variant they have; every color variant payload
 // must keep the prefix as its first field.
@@ -34,6 +69,13 @@ static_assert(offsetof(StyleValueFFI::StyleValueData::ContrastColor_Body, color_
 // The C++ Type is Color for every color variant, so color operations dispatch on the Rust tag.
 Optional<Color> ColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
+    {
+        Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_storage;
+        auto input = make_rust_color_resolution_input(color_resolution_context, length_storage);
+        auto resolved = StyleValueFFI::rust_style_value_to_color(m_value.operator->(), &input);
+        if (resolved.resolved)
+            return Color(resolved.rgba[0], resolved.rgba[1], resolved.rgba[2], resolved.rgba[3]);
+    }
     switch (m_value->tag) {
     case StyleValueFFI::StyleValueData::Tag::ColorFunction:
         return static_cast<ColorFunctionStyleValue const&>(*this).to_color(color_resolution_context);
@@ -82,22 +124,6 @@ bool ColorStyleValue::equals(StyleValue const& other) const
         return static_cast<ContrastColorStyleValue const&>(*this).equals(other);
     case StyleValueFFI::StyleValueData::Tag::LightDark:
         return static_cast<LightDarkStyleValue const&>(*this).equals(other);
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
-void ColorStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    switch (m_value->tag) {
-    case StyleValueFFI::StyleValueData::Tag::ColorFunction:
-        return static_cast<ColorFunctionStyleValue const&>(*this).serialize(builder, mode);
-    case StyleValueFFI::StyleValueData::Tag::ColorMix:
-        return static_cast<ColorMixStyleValue const&>(*this).serialize(builder, mode);
-    case StyleValueFFI::StyleValueData::Tag::ContrastColor:
-        return static_cast<ContrastColorStyleValue const&>(*this).serialize(builder, mode);
-    case StyleValueFFI::StyleValueData::Tag::LightDark:
-        return static_cast<LightDarkStyleValue const&>(*this).serialize(builder, mode);
     default:
         VERIFY_NOT_REACHED();
     }
@@ -616,76 +642,6 @@ Optional<RelativeColorContext> ColorStyleValue::extract_channels_in_color_space(
     set_channels_for_target(context, target_color_type, Gfx::linear_srgb_to_xyz65(linear_srgb), srgb_fraction, linear_srgb);
 
     return context;
-}
-
-void ColorStyleValue::serialize_color_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component, float one_hundred_percent_value, Optional<double> clamp_min, Optional<double> clamp_max) const
-{
-    if (component.to_keyword() == Keyword::None) {
-        builder.append("none"sv);
-        return;
-    }
-    if (component.is_calculated() && mode == SerializationMode::Normal) {
-        component.serialize(builder, mode);
-        return;
-    }
-
-    auto maybe_resolved_value = resolve_with_reference_value(component, one_hundred_percent_value, {});
-
-    if (!maybe_resolved_value.has_value()) {
-        component.serialize(builder, mode);
-        return;
-    }
-
-    auto resolved_value = maybe_resolved_value.value();
-
-    if (clamp_min.has_value() && resolved_value < *clamp_min)
-        resolved_value = *clamp_min;
-    if (clamp_max.has_value() && resolved_value > *clamp_max)
-        resolved_value = *clamp_max;
-
-    serialize_a_number(builder, resolved_value);
-}
-
-void ColorStyleValue::serialize_alpha_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component) const
-{
-    if (component.to_keyword() == Keyword::None) {
-        builder.append("none"sv);
-        return;
-    }
-    if (component.is_calculated() && mode == SerializationMode::Normal) {
-        component.serialize(builder, mode);
-        return;
-    }
-
-    auto maybe_resolved_value = resolve_alpha(component, {});
-
-    if (!maybe_resolved_value.has_value()) {
-        component.serialize(builder, mode);
-        return;
-    }
-
-    serialize_a_number(builder, maybe_resolved_value.value());
-}
-
-void ColorStyleValue::serialize_hue_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component) const
-{
-    if (component.to_keyword() == Keyword::None) {
-        builder.append("none"sv);
-        return;
-    }
-    if (component.is_calculated() && mode == SerializationMode::Normal) {
-        component.serialize(builder, mode);
-        return;
-    }
-
-    auto maybe_resolved_value = resolve_hue(component, {});
-
-    if (!maybe_resolved_value.has_value()) {
-        component.serialize(builder, mode);
-        return;
-    }
-
-    builder.appendff("{:.4}", maybe_resolved_value.value());
 }
 
 }

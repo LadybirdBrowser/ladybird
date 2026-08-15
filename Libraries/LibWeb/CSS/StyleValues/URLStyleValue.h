@@ -68,8 +68,6 @@ public:
 
     bool properties_equal(URLStyleValue const& other) const { return url() == other.url(); }
 
-    void serialize(StringBuilder& builder, SerializationMode) const { builder.append(url().to_string()); }
-
 private:
     friend class StyleValue;
 
