@@ -1,0 +1,6 @@
+#include <LibCore/AnonymousBuffer.h>
+
+endpoint WasmCompilerClient
+{
+    did_compile(u64 request_id, Core::AnonymousBuffer output) =|
+}

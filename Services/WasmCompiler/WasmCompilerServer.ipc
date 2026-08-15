@@ -1,0 +1,10 @@
+#include <LibCore/AnonymousBuffer.h>
+#include <LibIPC/TransportHandle.h>
+
+endpoint WasmCompilerServer
+{
+    init_transport(int peer_pid) => (int peer_pid)
+    connect_new_clients(size_t count) => (Vector<IPC::TransportHandle> handles)
+
+    compile(Core::AnonymousBuffer input, u64 request_id) =|
+}
