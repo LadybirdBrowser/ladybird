@@ -4247,6 +4247,103 @@ fn partial_match_answer_completion_shares_prefix_states_between_nodes() {
 }
 
 #[test]
+fn a_cached_prefix_answer_is_returned_in_cascade_order() {
+    let (mut engine, nodes) = nested_document();
+    let guard = StyleAtomID(200);
+    let target = StyleAtomID(201);
+    let specific = add_guard_target_rule(&mut engine, guard, target);
+    let general = add_target_rule(&mut engine, StyleSheetObjectID(2), target);
+    engine.set_rule_declared_properties(specific, &[(1, false)], true);
+    engine.set_rule_declared_properties(general, &[(2, false)], true);
+    for &node in &nodes {
+        for kind in ElementDeclarationKind::ALL {
+            engine.set_element_declared_properties(node, kind, &[], true);
+        }
+    }
+    for (node, class) in [(nodes[1], guard), (nodes[2], target), (nodes[3], target)] {
+        add_feature(&mut engine, node, FeatureKey::Class(class));
+    }
+    discard_transaction(&mut engine);
+
+    assert!(engine.begin_cold_matching_batch(nodes[0]));
+    let first = engine.match_element_for_cascade(nodes[2]).unwrap();
+    let second = engine.match_element_for_cascade(nodes[3]).unwrap();
+    engine.end_cold_matching_batch();
+
+    for matches in [first, second] {
+        assert_eq!(
+            matches.iter().map(|matched| matched.rule).collect::<Vec<_>>(),
+            [general, specific]
+        );
+    }
+    assert_eq!(engine.counters().get(Counter::PrefixAnswerCacheMisses), 1);
+    assert_eq!(engine.counters().get(Counter::PrefixAnswerCacheHits), 1);
+}
+
+#[test]
+fn an_identity_only_published_prefix_answer_is_returned_in_cascade_order() {
+    let (mut engine, nodes) = nested_document();
+    let guard = StyleAtomID(200);
+    let target = StyleAtomID(201);
+    let specific = add_guard_target_rule(&mut engine, guard, target);
+    let general = add_target_rule(&mut engine, StyleSheetObjectID(2), target);
+    engine.set_rule_declared_properties(specific, &[(1, false)], true);
+    engine.set_rule_declared_properties(general, &[(2, false)], true);
+    for &node in &nodes {
+        for kind in ElementDeclarationKind::ALL {
+            engine.set_element_declared_properties(node, kind, &[], true);
+        }
+    }
+    for (node, class) in [(nodes[1], guard), (nodes[2], target), (nodes[3], target)] {
+        add_feature(&mut engine, node, FeatureKey::Class(class));
+    }
+    discard_transaction(&mut engine);
+
+    engine.begin_published_match_answer_completion_batch(nodes[0], false);
+    assert_eq!(
+        engine
+            .match_element_for_cascade(nodes[2])
+            .unwrap()
+            .iter()
+            .map(|matched| matched.rule)
+            .collect::<Vec<_>>(),
+        [general, specific]
+    );
+    let published = engine.complete_published_match_answer(nodes[3], None).unwrap();
+    assert!(published.cascade_input.is_some());
+    assert!(published.matches.is_none());
+    engine.end_published_match_answer_completion_batch();
+    assert_eq!(engine.counters().get(Counter::PrefixAnswerCacheMisses), 1);
+    assert_eq!(engine.counters().get(Counter::PrefixAnswerCacheHits), 1);
+
+    engine
+        .published_match_answers
+        .push(published, &mut engine.memory, &mut engine.counters);
+    engine.published_match_answers.sort();
+
+    let matches = engine.consume_published_match_answer(nodes[3]).unwrap();
+    assert_eq!(
+        matches.iter().map(|matched| matched.rule).collect::<Vec<_>>(),
+        [general, specific]
+    );
+
+    let mut streamed = Vec::new();
+    assert_eq!(
+        engine.consume_published_match_answer_with(nodes[3], 0, |_, _, rule, _, _, _, _| streamed.push(rule)),
+        Some(2)
+    );
+    assert!(streamed.is_empty());
+    assert_eq!(
+        engine.consume_published_match_answer_with(nodes[3], 2, |index, _, rule, _, _, _, _| {
+            assert_eq!(index, streamed.len());
+            streamed.push(rule);
+        }),
+        Some(2)
+    );
+    assert_eq!(streamed, [general, specific]);
+}
+
+#[test]
 fn shared_retained_answer_completion_reuses_compact_cascade_state() {
     let (mut engine, nodes) = nested_document();
     let target = StyleAtomID(200);

@@ -3173,6 +3173,8 @@ impl StyleEngine {
                 .append_catalog_answer(MatchAnswerID(cascade_input.0), node, None, &mut answer)
                 .is_some()
             {
+                // The catalog canonicalizes rule identities independently of cascade rank.
+                self.order_matches_in_cascade(&mut answer, false);
                 matches = Some(answer);
             }
         }
@@ -3231,7 +3233,8 @@ impl StyleEngine {
         Some(answer)
     }
 
-    /// Stream a published answer into its consumer without constructing another match vector.
+    /// Stream a published answer into its consumer. A materialized payload needs no copy; an
+    /// identity-only payload is restored in cascade order before it crosses the bridge.
     pub(super) fn consume_published_match_answer_with(
         &mut self,
         node: StyleNodeID,
@@ -3256,7 +3259,7 @@ impl StyleEngine {
                 .filter(|_| materialized_len.is_none())
                 .and_then(|identity| self.match_answers.answer(MatchAnswerID(identity.0)))
                 .map(|matches| matches.len());
-            if let Some(len) = materialized_len.or(compact_len) {
+            if let Some(len) = materialized_len {
                 self.published_match_answers.mark_observed(node);
                 self.counters.bump(Counter::PublishedMatchAnswerConsumptions);
                 if len > capacity {
@@ -3266,43 +3269,28 @@ impl StyleEngine {
                     .published_match_answers
                     .lookup(node)
                     .expect("a published answer remains live until the transaction ends");
-                if let Some(matches) = self.published_match_answers.matches_for(published) {
-                    for (index, matched) in matches.iter().enumerate() {
-                        consume(
-                            index,
-                            node,
-                            matched.rule,
-                            self.program.ensure_semantic_declaration(matched.rule),
-                            matched.pseudo_element,
-                            self.cascade_context_host(matched.rule, matched.tree_scope),
-                            matched.scope_proximity,
-                        );
-                    }
-                } else {
-                    let identity = cascade_input.expect("an identity-only answer has a cascade input");
-                    let matches = self
-                        .match_answers
-                        .answer(MatchAnswerID(identity.0))
-                        .expect("a published cascade input remains live");
-                    for (index, matched) in matches.iter().enumerate() {
-                        let pseudo_element = self
-                            .programs
-                            .get(matched.program)
-                            .entries()
-                            .get(matched.entry as usize)
-                            .expect("a retained match references a live selector entry")
-                            .pseudo_element;
-                        consume(
-                            index,
-                            node,
-                            matched.rule,
-                            self.program.ensure_semantic_declaration(matched.rule),
-                            pseudo_element,
-                            self.cascade_context_host(matched.rule, matched.tree_scope),
-                            matched.scope_proximity,
-                        );
-                    }
+                let matches = self
+                    .published_match_answers
+                    .matches_for(published)
+                    .expect("a materialized published answer remains live until the transaction ends");
+                for (index, matched) in matches.iter().enumerate() {
+                    consume(
+                        index,
+                        node,
+                        matched.rule,
+                        self.program.ensure_semantic_declaration(matched.rule),
+                        matched.pseudo_element,
+                        self.cascade_context_host(matched.rule, matched.tree_scope),
+                        matched.scope_proximity,
+                    );
                 }
+                return Some(len);
+            }
+            if let Some(len) = compact_len
+                && len > capacity
+            {
+                self.published_match_answers.mark_observed(node);
+                self.counters.bump(Counter::PublishedMatchAnswerConsumptions);
                 return Some(len);
             }
         }
@@ -3859,6 +3847,8 @@ impl StyleEngine {
                                     self.compact_matches_for_cascade(&mut matches, false, Some(node));
                                     cascade_input = Some(self.intern_cascade_input(&matches));
                                     cached_cascade_winner_inventory_is_complete = None;
+                                } else {
+                                    self.order_matches_in_cascade(&mut matches, false);
                                 }
                                 if scope == TreeScopeID::DOCUMENT
                                     && let Some((generation, group)) = winner_group
