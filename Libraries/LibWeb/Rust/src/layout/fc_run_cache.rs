@@ -29,7 +29,9 @@ fn fc_run_cache_mode_from_environment() -> FcRunCacheMode {
 
 /// The complete identity of a memoizable run: the layout input plus the
 /// pre-run root record state the dispatch seam captures anyway, so every
-/// value a parent hands a spawned run is part of the key.
+/// value a parent hands a spawned run is part of the key. Viewport changes
+/// reach a run through that input or through the normal style/layout epoch
+/// invalidation for viewport-dependent computed values.
 #[derive(Clone, Copy, PartialEq)]
 struct FcRunCacheKey {
     fc_type: FfiFormattingContextType,
@@ -39,14 +41,11 @@ struct FcRunCacheKey {
 
 /// What must still be true for a stored entry to be replayed: the slot
 /// holds the same box (generation), nothing in its subtree was invalidated
-/// (the fragment cache epoch, whose bump walk has no propagation
-/// boundary), and the viewport is unchanged (viewport-relative styles do
-/// not necessarily funnel through per-node invalidation).
+/// (the fragment cache epoch, whose bump walk has no propagation boundary).
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) struct FcRunCacheValidity {
     pub(crate) slot_generation: u8,
     pub(crate) fragment_cache_epoch: u32,
-    pub(crate) viewport: (i32, i32),
 }
 
 struct FcRunCacheEntry {
@@ -105,21 +104,12 @@ struct InlineLayoutDamage {
 /// surviving across layout passes on the node arena.
 #[derive(Default)]
 pub(crate) struct FcRunCacheArenaStore {
-    viewport: Cell<(i32, i32)>,
     hit_count: Cell<u64>,
     entries: RefCell<Vec<Option<std::rc::Rc<FcRunCacheEntry>>>>,
     inline_layout_damage: RefCell<Vec<InlineLayoutDamage>>,
 }
 
 impl FcRunCacheArenaStore {
-    pub(crate) fn note_viewport_size(&self, inline_size_raw: i32, block_size_raw: i32) {
-        self.viewport.set((inline_size_raw, block_size_raw));
-    }
-
-    pub(crate) fn viewport_size(&self) -> (i32, i32) {
-        self.viewport.get()
-    }
-
     pub(crate) fn hit_count(&self) -> u64 {
         self.hit_count.get()
     }
@@ -208,7 +198,6 @@ impl FcRunCacheArenaStore {
         let entries = self.entries.borrow();
         let entry = entries.get(slot as usize)?.as_ref()?;
         if entry.validity.slot_generation != validity.slot_generation
-            || entry.validity.viewport != validity.viewport
             || entry.key != *key
             // Each child-list edit bumps once when topology changes and once
             // when the parent is marked for layout-tree-update layout.
@@ -274,7 +263,6 @@ fn run_root_validity(callbacks: &FfiLayoutFcCallbacks, box_: Node) -> FcRunCache
     FcRunCacheValidity {
         slot_generation: data.slot_generation,
         fragment_cache_epoch: data.fragment_cache_epoch,
-        viewport: callbacks.arena().fc_run_cache_store().viewport.get(),
     }
 }
 

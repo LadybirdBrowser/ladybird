@@ -1,0 +1,3 @@
+hit delta: 1
+cached width: 100
+dependent width: 100
