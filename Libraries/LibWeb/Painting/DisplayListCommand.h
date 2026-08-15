@@ -112,6 +112,7 @@ inline Gfx::IntRect PaintConicGradient::bounding_rect() const { return rect; }
 inline Gfx::IntRect AddRoundedRectClip::bounding_rect() const { return border_rect; }
 inline bool AddRoundedRectClip::is_clip() const { return true; }
 inline Gfx::IntRect PaintNestedDisplayList::bounding_rect() const { return Gfx::enclosing_int_rect(rect); }
+inline Gfx::IntRect PaintScrollBar::bounding_rect() const { return track_rect.united(thumb_rect); }
 
 template<typename Command>
 concept DisplayListCommand = requires {

@@ -277,7 +277,7 @@ Optional<Gfx::IntRect> compute_display_list_damage(
         if (visual_context_chains_are_equal(old_command.header.context_index, old_visual_context_tree, old_scroll_state, new_command.header.context_index, new_visual_context_tree, new_scroll_state))
             return;
         if (!old_command.header.has_bounding_rect || !new_command.header.has_bounding_rect) {
-            if (old_command.header.command_type == DisplayListCommandType::CompositorViewportScrollbar || old_command.header.command_type == DisplayListCommandType::PaintScrollBar)
+            if (old_command.header.command_type == DisplayListCommandType::CompositorViewportScrollbar)
                 changed_unbounded_command = true;
             return;
         }
