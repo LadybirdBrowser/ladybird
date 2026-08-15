@@ -6,13 +6,7 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
-  CompositorWheelHitTestTarget@0 target_scroll_node_index=0 rect=[0,0 800x600]
-  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x111]
-  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x90]
-  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 100x64]
-  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,85 784x13]
   DrawGlyphRun@1 rect=[8,85 83x13] translation=[8,95.390625] color=rgb(0, 0, 0)
-  CompositorWheelHitTestTarget@2 target_scroll_node_index=0 rect=[8,8 81.21875x64]
   FillRect@2 rect=[8,8 81x16] color=rgb(255, 165, 0)
   FillRect@2 rect=[8,24 47x16] color=rgb(255, 165, 0)
   FillRect@2 rect=[8,40 60x16] color=rgb(255, 165, 0)
@@ -30,12 +24,6 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
-  CompositorWheelHitTestTarget@0 target_scroll_node_index=0 rect=[0,0 800x600]
-  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x436]
-  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x415]
-  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 100x64]
-  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,85 784x338]
-  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 81.21875x64]
   FillRect@1 rect=[8,8 81x16] color=rgb(255, 165, 0)
   FillRect@1 rect=[8,24 47x16] color=rgb(255, 165, 0)
   FillRect@1 rect=[8,40 60x16] color=rgb(255, 165, 0)
@@ -51,22 +39,16 @@ SaveLayer@0
   DrawGlyphRun@1 rect=[8,137 479x13] translation=[8,147.39062] color=rgb(0, 0, 0)
   DrawGlyphRun@1 rect=[8,163 74x13] translation=[8,173.39062] color=rgb(0, 0, 0)
   DrawGlyphRun@1 rect=[8,176 85x13] translation=[8,186.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,189 551x13] translation=[8,199.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,202 541x13] translation=[8,212.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,215 538x13] translation=[8,225.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,228 536x13] translation=[8,238.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,241 542x13] translation=[8,251.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,254 532x13] translation=[8,264.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,267 567x13] translation=[8,277.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,280 337x13] translation=[8,290.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,293 343x13] translation=[8,303.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,306 345x13] translation=[8,316.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,319 345x13] translation=[8,329.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,332 527x13] translation=[8,342.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,345 532x13] translation=[8,355.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,358 533x13] translation=[8,368.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,371 533x13] translation=[8,381.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,384 72x13] translation=[8,394.39062] color=rgb(0, 0, 0)
-  DrawGlyphRun@1 rect=[8,410 105x13] translation=[8,420.39062] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[8,189 532x13] translation=[8,199.39062] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[8,202 337x13] translation=[8,212.39062] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[8,215 343x13] translation=[8,225.39062] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[8,228 345x13] translation=[8,238.39062] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[8,241 345x13] translation=[8,251.39062] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[8,254 527x13] translation=[8,264.39062] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[8,267 532x13] translation=[8,277.39062] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[8,280 533x13] translation=[8,290.39062] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[8,293 533x13] translation=[8,303.39062] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[8,306 72x13] translation=[8,316.39062] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[8,332 105x13] translation=[8,342.39062] color=rgb(0, 0, 0)
 Restore@0
 

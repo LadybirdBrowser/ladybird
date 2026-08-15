@@ -4,12 +4,7 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
-  CompositorWheelHitTestTarget@0 target_scroll_node_index=0 rect=[0,0 800x600]
-  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x501]
-  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x480]
-  CompositorWheelHitTestTargetWithCornerRadii@1 target_scroll_node_index=0 rect=[8,8 120x80] corner_radii=[30x30,30x30,30x30,30x30]
   StrokePath@1 path_bounding_rect=[8,8 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=29.63
-  CompositorWheelHitTestTargetWithCornerRadii@1 target_scroll_node_index=0 rect=[8,88 120x80] corner_radii=[30x30,30x30,30x30,30x30]
   Save@1
     AddClipPath@1 path_bounding_rect=[112,96 16x64]
     StrokePath@1 path_bounding_rect=[110.677666,95.322334 17.322334x65.35534] thickness=10 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=14.75
@@ -26,11 +21,8 @@ SaveLayer@0
     AddClipPath@1 path_bounding_rect=[16,88 104x16]
     StrokePath@1 path_bounding_rect=[15.322332,87.99999 105.35533x17.322342] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=12.38
   Restore@1
-  CompositorWheelHitTestTargetWithCornerRadii@1 target_scroll_node_index=0 rect=[8,168 120x80] corner_radii=[0x0,80x80,0x0,0x0]
   StrokePath@1 path_bounding_rect=[8,168 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=30.92
-  CompositorWheelHitTestTargetWithCornerRadii@1 target_scroll_node_index=0 rect=[8,248 120x80] corner_radii=[30x30,30x30,30x30,30x30]
   StrokePath@1 path_bounding_rect=[8,248 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.88
-  CompositorWheelHitTestTargetWithCornerRadii@1 target_scroll_node_index=0 rect=[8,328 120x80] corner_radii=[30x30,30x30,30x30,30x30]
   Save@1
     AddClipPath@1 path_bounding_rect=[112,336 16x64]
     StrokePath@1 path_bounding_rect=[110.677666,335.32233 17.322334x65.35535] thickness=10 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=9.84
@@ -47,7 +39,6 @@ SaveLayer@0
     AddClipPath@1 path_bounding_rect=[16,328 104x16]
     StrokePath@1 path_bounding_rect=[15.322332,327.99997 105.35533x17.322357] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.90
   Restore@1
-  CompositorWheelHitTestTargetWithCornerRadii@1 target_scroll_node_index=0 rect=[8,408 120x80] corner_radii=[0x0,80x80,0x0,0x0]
   StrokePath@1 path_bounding_rect=[8,408 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=10.31
 Restore@0
 

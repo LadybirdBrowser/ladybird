@@ -4,16 +4,11 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
-  CompositorWheelHitTestTarget@0 target_scroll_node_index=0 rect=[0,0 800x600]
-  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x181]
-  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x160]
-  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 120x80]
   FillPath@1 path_bounding_rect=[8,8 120x80]
   Save@1
     AddClipPath@1 path_bounding_rect=[8,8 10x80]
     StrokePath@1 path_bounding_rect=[8,3 10x90] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=10.00
   Restore@1
-  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,88 120x80]
   Save@1
     AddClipPath@1 path_bounding_rect=[8,88 120x10]
     StrokePath@1 path_bounding_rect=[3,88 130x10] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=10.00

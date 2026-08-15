@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #spacer {
+        height: 2000px;
+    }
+</style>
+<div id="spacer"></div>
+<script>
+    test(() => {
+        println(`viewport wheel target: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, 100)}`);
+        println(`has explicit wheel hit test targets: ${internals.dumpDisplayList().includes("CompositorWheelHitTestTarget")}`);
+    });
+</script>
