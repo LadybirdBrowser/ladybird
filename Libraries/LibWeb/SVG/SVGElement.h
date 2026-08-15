@@ -33,6 +33,8 @@ class WEB_API SVGElement
 public:
     virtual bool requires_svg_container() const override { return true; }
 
+    virtual RefPtr<Layout::Node> create_layout_node(CSS::LayoutStyle) override;
+
     GC::Ref<SVGAnimatedString> class_name();
     GC::Ptr<SVGSVGElement> owner_svg_element();
     GC::Ptr<SVGElement> viewport_element();

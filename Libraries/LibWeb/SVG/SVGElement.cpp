@@ -11,6 +11,7 @@
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
@@ -31,6 +32,11 @@ GC_DEFINE_ALLOCATOR(SVGElement);
 SVGElement::SVGElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : Element(document, move(qualified_name))
 {
+}
+
+RefPtr<Layout::Node> SVGElement::create_layout_node(CSS::LayoutStyle)
+{
+    return nullptr;
 }
 
 struct NamedPropertyID {
