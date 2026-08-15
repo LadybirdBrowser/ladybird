@@ -101,7 +101,7 @@ static bool has_rendered_text_after(DOM::Text const& text, size_t offset)
 
 static bool is_rendered_atomic_inline(DOM::Node const& node)
 {
-    auto const* layout_node = node.layout_node();
+    auto const* layout_node = node.unsafe_layout_node();
     return layout_node && layout_node->is_atomic_inline();
 }
 
