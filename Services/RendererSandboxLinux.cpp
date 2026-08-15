@@ -6,7 +6,6 @@
 
 #include <AK/LexicalPath.h>
 #include <LibCore/Directory.h>
-#include <LibCore/Environment.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibGfx/Font/FontDatabase.h>
@@ -36,13 +35,6 @@ ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringVie
     for (auto const& path : TRY(Gfx::FontDatabase::font_directories()))
         TRY(Sandbox::add_landlock_path_if_exists(paths, path, Sandbox::LandlockPath::Access::ReadOnly));
 
-    if (auto cranelift_compiler_path = Core::Environment::get("LADYBIRD_CRANELIFT_COMPILER"sv); cranelift_compiler_path.has_value()) {
-        TRY(Sandbox::add_landlock_path_if_exists(paths, *cranelift_compiler_path, Sandbox::LandlockPath::Access::ReadAndExecute));
-    } else {
-        auto default_cranelift_compiler_path = LexicalPath::join(build_root, "bin/cranelift-compiler"sv).string();
-        TRY(Sandbox::add_landlock_path_if_exists(paths, default_cranelift_compiler_path, Sandbox::LandlockPath::Access::ReadAndExecute));
-    }
-
     auto pulse_runtime_path = LexicalPath::join(TRY(Core::StandardPaths::runtime_directory()), "pulse"sv).string();
     TRY(Core::Directory::create(pulse_runtime_path, Core::Directory::CreateDirectories::Yes, 0700));
     TRY(Sandbox::add_landlock_path_if_exists(paths, pulse_runtime_path, Sandbox::LandlockPath::Access::ReadWrite));
@@ -55,7 +47,6 @@ ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringVie
     policy.allow_filesystem_metadata_queries();
     policy.allow_filesystem_writes();
     policy.allow_file_descriptor_operations();
-    policy.allow_process_creation();
     policy.allow_ipc();
     policy.allow_common_runtime();
     policy.allow_executable_memory_mappings();
