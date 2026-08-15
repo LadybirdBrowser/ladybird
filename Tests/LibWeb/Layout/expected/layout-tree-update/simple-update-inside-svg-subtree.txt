@@ -4,9 +4,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       frag 0 from SVGSVGBox start: 0, length: 0, rect: [8,8 300x150] baseline: 150
       SVGSVGBox <svg> at [8,8] [0+0+0 300 0+0+0] [0+0+0 150 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: inline
         SVGGraphicsBox <use> at [0,0] [0+0+0 300 0+0+0] [0+0+0 150 0+0+0] children: not-inline
-          SVGGraphicsBox <symbol#a> at [0,0] [0+0+0 300 0+0+0] [0+0+0 150 0+0+0] viewport-transform=[1 0 0 1 0 0] [BFC] children: inline
-            InlineNode <set#set> at [0,0] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
-              TextNode <#text> (not painted)
+          SVGGraphicsBox <symbol#a> at [0,0] [0+0+0 300 0+0+0] [0+0+0 150 0+0+0] viewport-transform=[1 0 0 1 0 0] [BFC] children: not-inline
         TextNode <#text> (not painted)
         TextNode <#text> (not painted)
 
@@ -16,7 +14,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       SVGSVGPaintable (SVGSVGBox<svg>) [8,8 300x150]
         SVGGraphicsPaintable (SVGGraphicsBox<use>) [0,0 300x150]
           SVGGraphicsPaintable (SVGGraphicsBox<symbol>#a) [0,0 300x150]
-            InlinePaintable (InlineNode<set>#set) [0,0 0x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x166] (z-index: auto)
