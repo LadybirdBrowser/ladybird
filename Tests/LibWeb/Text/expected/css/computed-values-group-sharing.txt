@@ -7,7 +7,7 @@ unstyled child content at default: true
 unstyled child transform at default: true
 unstyled child effects at default: true
 unstyled child inheritedTable at default: true
-unstyled child inheritedList at default: false
+unstyled child inheritedList at default: true
 unstyled child inheritedSVG at default: true
 color-styled child inheritedText at default: false
 color-styled child inheritedText shared with parent: false

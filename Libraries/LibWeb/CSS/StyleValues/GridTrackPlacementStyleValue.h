@@ -21,25 +21,21 @@ public:
 
     GridTrackPlacement grid_track_placement() const
     {
-        return m_grid_track_placement;
+        return placement_from_data(m_value.data());
     }
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-
-    bool properties_equal(GridTrackPlacementStyleValue const& other) const { return grid_track_placement() == other.grid_track_placement(); }
 
 private:
     friend class StyleValue;
 
     explicit GridTrackPlacementStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValueWithDefaultOperators(Type::GridTrackPlacement, data)
-        , m_grid_track_placement(placement_from_data(data))
     {
     }
 
     explicit GridTrackPlacementStyleValue(GridTrackPlacement grid_track_placement)
         : StyleValueWithDefaultOperators(Type::GridTrackPlacement, make_grid_track_placement_data(grid_track_placement))
-        , m_grid_track_placement(move(grid_track_placement))
     {
     }
 
@@ -84,8 +80,6 @@ private:
         }
         return StyleValueFFI::rust_style_value_create_grid_track_placement(kind, value, name.has_value(), name.has_value() ? name->to_raw_leaked() : 0);
     }
-
-    GridTrackPlacement m_grid_track_placement;
 };
 
 }

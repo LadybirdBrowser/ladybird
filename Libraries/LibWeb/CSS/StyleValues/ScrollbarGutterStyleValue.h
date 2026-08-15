@@ -20,8 +20,6 @@ public:
 
     ScrollbarGutter value() const { return static_cast<ScrollbarGutter>(m_value->scrollbar_gutter.value); }
 
-    bool properties_equal(ScrollbarGutterStyleValue const& other) const { return value() == other.value(); }
-
 private:
     friend class StyleValue;
 

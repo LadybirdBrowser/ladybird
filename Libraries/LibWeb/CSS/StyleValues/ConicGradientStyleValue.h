@@ -30,10 +30,9 @@ public:
         return adopt_ref(*new (nothrow) ConicGradientStyleValue(move(from_angle), move(position), move(color_stop_list), repeating, move(color_interpolation_method), color_syntax));
     }
 
-    void paint(DisplayListRecordingContext&, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering, PreferredColorScheme) const override;
+    void paint(DisplayListRecordingContext&, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering, PreferredColorScheme, ResolvedImage const&) const override;
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-    bool equals(StyleValue const& other) const;
     Vector<ColorStopListElement> color_stop_list() const
     {
         auto const& list = m_value->conic_gradient.color_stop_list;
@@ -52,7 +51,7 @@ public:
 
     bool is_paintable(DOM::Document const&) const override { return true; }
 
-    void resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const override;
+    ResolvedImage resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const override;
 
     virtual ~ConicGradientStyleValue() override = default;
 
@@ -63,9 +62,6 @@ private:
 
     ConicGradientStyleValue(ValueComparingRefPtr<StyleValue const> from_angle, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<ColorStopListElement> color_stop_list, GradientRepeating repeating, ValueComparingRefPtr<StyleValue const> color_interpolation_method, ColorSyntax color_syntax)
         : AbstractImageStyleValue(Type::ConicGradient, make_conic_gradient_data(from_angle, position, color_stop_list, repeating, color_interpolation_method, color_syntax))
-        , m_from_angle(move(from_angle))
-        , m_position(move(position))
-        , m_color_interpolation_method(move(color_interpolation_method))
     {
     }
 
@@ -73,23 +69,11 @@ private:
 
     static StyleValueFFI::StyleValueData const* make_conic_gradient_data(RefPtr<StyleValue const> const&, NonnullRefPtr<PositionStyleValue const> const&, Vector<ColorStopListElement> const&, GradientRepeating, RefPtr<StyleValue const> const&, ColorSyntax);
 
-    ValueComparingRefPtr<StyleValue const> from_angle_value() const { return m_from_angle; }
+    ValueComparingRefPtr<StyleValue const> from_angle_value() const { return wrap_rust_child_or_null(m_value->conic_gradient.from_angle); }
     ColorSyntax gradient_color_syntax() const { return static_cast<ColorSyntax>(m_value->conic_gradient.color_syntax); }
-    ValueComparingNonnullRefPtr<PositionStyleValue const> position_value() const { return m_position; }
+    ValueComparingNonnullRefPtr<PositionStyleValue const> position_value() const { return wrap_rust_child(m_value->conic_gradient.position)->as_position(); }
 
-    ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return m_color_interpolation_method; }
-
-    ValueComparingRefPtr<StyleValue const> m_from_angle;
-    ValueComparingNonnullRefPtr<PositionStyleValue const> m_position;
-    ValueComparingRefPtr<StyleValue const> m_color_interpolation_method;
-
-    mutable Optional<CSSPixelSize> m_resolved_size;
-
-    struct ResolvedData {
-        Painting::ConicGradientData data;
-        CSSPixelPoint position;
-    };
-    mutable Optional<ResolvedData> m_resolved;
+    ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return wrap_rust_child_or_null(m_value->conic_gradient.color_interpolation_method); }
 };
 
 }

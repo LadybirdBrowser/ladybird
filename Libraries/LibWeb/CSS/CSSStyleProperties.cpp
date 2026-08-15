@@ -22,6 +22,7 @@
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -298,6 +299,24 @@ static NonnullRefPtr<StyleValue const> style_value_for_css_pixels(CSSPixels css_
     return LengthStyleValue::create(Length::make_px(css_pixels));
 }
 
+// https://www.w3.org/TR/css-grid-2/#resolved-track-list-standalone
+static NonnullRefPtr<StyleValue const> style_value_for_used_grid_track_list(Painting::UsedGridTrackList const& used_values)
+{
+    auto result = used_values.is_subgrid ? GridTrackSizeList::make_subgrid() : GridTrackSizeList::make_none();
+    for (size_t line_index = 0; line_index < used_values.lines.size(); ++line_index) {
+        auto line_names = used_values.lines[line_index];
+        if (used_values.is_subgrid || !line_names.is_empty())
+            result.append(move(line_names));
+
+        if (line_index < used_values.track_sizes.size()) {
+            result.append(ExplicitGridTrack {
+                GridSize { LengthStyleValue::create(Length::make_px(used_values.track_sizes[line_index])) },
+            });
+        }
+    }
+    return GridTrackSizeListStyleValue::create(move(result));
+}
+
 static NonnullRefPtr<StyleValue const> style_value_for_length_percentage(LengthPercentage const& length_percentage)
 {
     if (length_percentage.is_percentage())
@@ -369,10 +388,75 @@ static RefPtr<StyleValue const> style_value_for_shadow(ShadowStyleValue::ShadowT
     return StyleValueList::create(move(style_values), StyleValueList::Separator::Comma);
 }
 
+// The stored computed filter value keeps currentcolor inside drop-shadow(); the resolved value
+// serializes it against the element's used color, like the color-valued properties.
+static NonnullRefPtr<StyleValue const> resolve_filter_style_value(NonnullRefPtr<StyleValue const> value, Color current_color)
+{
+    if (!value->is_value_list())
+        return value;
+    auto const& list = value->as_value_list();
+    StyleValueVector filters;
+    MUST(filters.try_ensure_capacity(list.size()));
+    bool resolved_any = false;
+    for (auto const& filter_value : list.values()) {
+        if (filter_value->is_filter() && filter_value->as_filter().kind() == FilterStyleValue::Kind::DropShadow) {
+            auto const& drop_shadow = static_cast<DropShadowFilterStyleValue const&>(filter_value->as_filter());
+            auto const& drop_shadow_color = drop_shadow.color();
+            if (!drop_shadow_color || drop_shadow_color->to_keyword() == Keyword::Currentcolor) {
+                filters.unchecked_append(DropShadowFilterStyleValue::create(
+                    drop_shadow.offset_x(),
+                    drop_shadow.offset_y(),
+                    drop_shadow.radius(),
+                    ColorStyleValue::create_from_color(current_color, ColorSyntax::Modern)));
+                resolved_any = true;
+                continue;
+            }
+        }
+        filters.unchecked_append(filter_value);
+    }
+    if (!resolved_any)
+        return value;
+    return StyleValueList::create(move(filters), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
+}
+
+// The canonical serialization of the computed touch-action flags; notably, allowing exactly
+// panning and pinch-zoom serializes as `manipulation`, whatever form specified it.
+static NonnullRefPtr<StyleValue const> style_value_for_touch_action(TouchActionData const& action)
+{
+    if (action.allow_left && action.allow_right && action.allow_up && action.allow_down && action.allow_pinch_zoom) {
+        if (action.allow_other)
+            return KeywordStyleValue::create(Keyword::Auto);
+        return KeywordStyleValue::create(Keyword::Manipulation);
+    }
+    if (!action.allow_left && !action.allow_right && !action.allow_up && !action.allow_down && !action.allow_pinch_zoom)
+        return KeywordStyleValue::create(Keyword::None);
+
+    StyleValueVector values;
+    if (action.allow_left && action.allow_right)
+        values.append(KeywordStyleValue::create(Keyword::PanX));
+    else if (action.allow_left)
+        values.append(KeywordStyleValue::create(Keyword::PanLeft));
+    else if (action.allow_right)
+        values.append(KeywordStyleValue::create(Keyword::PanRight));
+    if (action.allow_up && action.allow_down)
+        values.append(KeywordStyleValue::create(Keyword::PanY));
+    else if (action.allow_up)
+        values.append(KeywordStyleValue::create(Keyword::PanUp));
+    else if (action.allow_down)
+        values.append(KeywordStyleValue::create(Keyword::PanDown));
+    if (action.allow_pinch_zoom)
+        values.append(KeywordStyleValue::create(Keyword::PinchZoom));
+    return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+}
+
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
 Utf16String CSSStyleProperties::get_property_value(Utf16FlyString const& property_name) const
 {
     if (auto property = PropertyNameAndID::from_name(property_name); property.has_value()) {
+        if (is_computed() && !property->is_custom_property()) {
+            if (auto serialized = serialized_computed_value_from_stored_handle(property->id()); serialized.has_value())
+                return serialized.release_value();
+        }
         if (auto style_property = get_property_internal(*property); style_property.has_value())
             return style_property->value->to_utf16_string(is_computed() ? SerializationMode::ResolvedValue : SerializationMode::Normal);
     }
@@ -524,10 +608,10 @@ Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyNameAn
             // values, or contain arbitrary substitution functions of their own that have not yet been substituted, the
             // shorthand property must serialize to the empty string.
             if (list.first()->is_pending_substitution()) {
-                auto const& original_shorthand_value = list.first()->as_pending_substitution().original_shorthand_value();
+                auto original_shorthand_value = list.first()->as_pending_substitution().original_shorthand_value();
                 auto all_from_same_original = all_of(list, [&](auto const& value) {
                     return value->is_pending_substitution()
-                        && value->as_pending_substitution().original_shorthand_value().rust_style_value_data() == original_shorthand_value.rust_style_value_data();
+                        && value->as_pending_substitution().original_shorthand_value()->rust_style_value_data() == original_shorthand_value->rust_style_value_data();
                 });
                 if (all_from_same_original) {
                     return StyleProperty {
@@ -587,6 +671,83 @@ static void ensure_pseudo_element_style_for_cssom(DOM::AbstractElement abstract_
 
 static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const&, Color, ColorResolutionContext const* = nullptr);
 
+// Brings style (and, when the property needs it, layout) up to date for computed-style property
+// access, and returns the layout node to read used values from (may be null). An empty Optional
+// means the element cannot expose computed style at all (disconnected, or no browsing context).
+static Optional<Layout::NodeWithStyle*> prepare_computed_style_and_layout_for_property(DOM::AbstractElement abstract_element, PropertyID property_id)
+{
+    // https://drafts.csswg.org/cssom/#dom-window-getcomputedstyle
+    // NB: This is a partial enforcement of step 5:
+    // If [...] elt is connected, part of the flat tree, and its shadow-including root has a browsing context which
+    // either doesn't have a browsing context container, or whose browsing context container is being rendered.
+    auto& element = abstract_element.element();
+    if (!element.is_connected())
+        return {};
+    auto browsing_context = element.shadow_including_root().document().browsing_context();
+    if (!browsing_context)
+        return {};
+    // FIXME: Check if the element is part of the flat tree.
+    // FIXME: Check that the browsing context either doesn't have a browsing context container, or that its
+    //        browsing context container is being rendered.
+
+    // NB: We grab the layout node before deciding whether update_layout() is needed.
+    //     For properties that don't need layout or a layout node (the else branch below),
+    //     we skip update_layout() entirely and use whatever layout node already exists.
+    //     For the other paths, we call update_layout() and re-fetch below.
+    Layout::NodeWithStyle* layout_node = abstract_element.unsafe_layout_node();
+
+    // Determine what work is needed for this property:
+    // 1. Properties that need layout computation (used values) - always run update_layout()
+    // 2. Properties that need a layout node for special resolution - ensure layout node exists
+    // 3. Everything else - just update_style() and return computed value
+    bool const needs_layout = property_needs_layout_for_getcomputedstyle(property_id);
+    bool const needs_layout_node = property_needs_layout_node_for_resolved_value(property_id);
+
+    if (needs_layout || needs_layout_node) {
+        // Properties that need layout computation or layout node for special resolution
+        // always need update_layout() to ensure both style and layout tree are up to date.
+        abstract_element.document().update_layout(DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
+        layout_node = abstract_element.layout_node();
+    }
+    // Ensure styles are up to date. update_layout()/update_style() skip display:none subtrees,
+    // so the leaf and its inheritance ancestors may still be stale at this point.
+    auto current_style = abstract_element.computed_style();
+    bool const style_is_in_display_none_subtree = !layout_node
+        && current_style
+        && current_style->in_display_none_subtree();
+    if (!current_style || style_is_in_display_none_subtree)
+        abstract_element.document().update_style_for_element(abstract_element);
+    else
+        abstract_element.document().update_style_for_element(abstract_element, DOM::Document::StyleUpdateMode::OnlyIfNeeded);
+    ensure_pseudo_element_style_for_cssom(abstract_element);
+
+    // Container queries and container-relative units need layout to resolve. Avoid forcing layout for every
+    // getComputedStyle() call; only elements that actually depend on a query container need the post-layout style.
+    bool style_or_inheritance_ancestor_depends_on_size_container_query = abstract_element.element().style_depends_on_size_container_query();
+    for (auto ancestor = abstract_element.element_to_inherit_style_from();
+        ancestor.has_value() && !style_or_inheritance_ancestor_depends_on_size_container_query;
+        ancestor = ancestor->element_to_inherit_style_from()) {
+        style_or_inheritance_ancestor_depends_on_size_container_query = ancestor->element().style_depends_on_size_container_query();
+    }
+    bool const needs_layout_for_container_queries = style_or_inheritance_ancestor_depends_on_size_container_query
+        && !abstract_element.document().layout_is_up_to_date();
+    if (needs_layout_for_container_queries) {
+        abstract_element.document().update_layout(DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
+        layout_node = abstract_element.layout_node();
+        // A synthetic pseudo which is not rendered is not part of the layout-driven pseudo
+        // recomputation above. Refresh its CSSOM-only style against the settled container size.
+        ensure_pseudo_element_style_for_cssom(abstract_element);
+    }
+
+    if (auto pseudo_element = abstract_element.pseudo_element(); layout_node && pseudo_element.has_value()) {
+        auto pseudo_style = abstract_element.element().computed_style(*pseudo_element);
+        if (!pseudo_style || pseudo_style->display().is_contents())
+            layout_node = nullptr;
+    }
+
+    return layout_node;
+}
+
 Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndID const& property_name_and_id) const
 {
     auto const property_id = property_name_and_id.id();
@@ -597,74 +758,10 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
 
         auto abstract_element = *owner_node();
 
-        // https://drafts.csswg.org/cssom/#dom-window-getcomputedstyle
-        // NB: This is a partial enforcement of step 5:
-        // If [...] elt is connected, part of the flat tree, and its shadow-including root has a browsing context which
-        // either doesn't have a browsing context container, or whose browsing context container is being rendered.
-        auto& element = abstract_element.element();
-        if (!element.is_connected())
+        auto maybe_layout_node = prepare_computed_style_and_layout_for_property(abstract_element, property_id);
+        if (!maybe_layout_node.has_value())
             return {};
-        auto browsing_context = element.shadow_including_root().document().browsing_context();
-        if (!browsing_context)
-            return {};
-        // FIXME: Check if the element is part of the flat tree.
-        // FIXME: Check that the browsing context either doesn't have a browsing context container, or that its
-        //        browsing context container is being rendered.
-
-        // NB: We grab the layout node before deciding whether update_layout() is needed.
-        //     For properties that don't need layout or a layout node (the else branch below),
-        //     we skip update_layout() entirely and use whatever layout node already exists.
-        //     For the other paths, we call update_layout() and re-fetch below.
-        Layout::NodeWithStyle* layout_node = abstract_element.unsafe_layout_node();
-
-        // Determine what work is needed for this property:
-        // 1. Properties that need layout computation (used values) - always run update_layout()
-        // 2. Properties that need a layout node for special resolution - ensure layout node exists
-        // 3. Everything else - just update_style() and return computed value
-        bool const needs_layout = property_needs_layout_for_getcomputedstyle(property_id);
-        bool const needs_layout_node = property_needs_layout_node_for_resolved_value(property_id);
-
-        if (needs_layout || needs_layout_node) {
-            // Properties that need layout computation or layout node for special resolution
-            // always need update_layout() to ensure both style and layout tree are up to date.
-            abstract_element.document().update_layout(DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
-            layout_node = abstract_element.layout_node();
-        }
-        // Ensure styles are up to date. update_layout()/update_style() skip display:none subtrees,
-        // so the leaf and its inheritance ancestors may still be stale at this point.
-        auto current_style = abstract_element.computed_style();
-        bool const style_is_in_display_none_subtree = !layout_node
-            && current_style
-            && current_style->in_display_none_subtree();
-        if (!current_style || style_is_in_display_none_subtree)
-            abstract_element.document().update_style_for_element(abstract_element);
-        else
-            abstract_element.document().update_style_for_element(abstract_element, DOM::Document::StyleUpdateMode::OnlyIfNeeded);
-        ensure_pseudo_element_style_for_cssom(abstract_element);
-
-        // Container queries and container-relative units need layout to resolve. Avoid forcing layout for every
-        // getComputedStyle() call; only elements that actually depend on a query container need the post-layout style.
-        bool style_or_inheritance_ancestor_depends_on_size_container_query = abstract_element.element().style_depends_on_size_container_query();
-        for (auto ancestor = abstract_element.element_to_inherit_style_from();
-            ancestor.has_value() && !style_or_inheritance_ancestor_depends_on_size_container_query;
-            ancestor = ancestor->element_to_inherit_style_from()) {
-            style_or_inheritance_ancestor_depends_on_size_container_query = ancestor->element().style_depends_on_size_container_query();
-        }
-        bool const needs_layout_for_container_queries = style_or_inheritance_ancestor_depends_on_size_container_query
-            && !abstract_element.document().layout_is_up_to_date();
-        if (needs_layout_for_container_queries) {
-            abstract_element.document().update_layout(DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
-            layout_node = abstract_element.layout_node();
-            // A synthetic pseudo which is not rendered is not part of the layout-driven pseudo
-            // recomputation above. Refresh its CSSOM-only style against the settled container size.
-            ensure_pseudo_element_style_for_cssom(abstract_element);
-        }
-
-        if (auto pseudo_element = abstract_element.pseudo_element(); layout_node && pseudo_element.has_value()) {
-            auto pseudo_style = abstract_element.element().computed_style(*pseudo_element);
-            if (!pseudo_style || pseudo_style->display().is_contents())
-                layout_node = nullptr;
-        }
+        auto* layout_node = *maybe_layout_node;
 
         // FIXME: Somehow get custom properties if there's no layout node.
         if (property_name_and_id.is_custom_property()) {
@@ -718,7 +815,10 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
                         return style_value.release_nonnull();
                 }
                 auto computed_value = computed_values->computed_style_value(computed_property_id).release_nonnull();
-                if (computed_property_id == PropertyID::Color) {
+                // The same resolved-value special cases the layout-node path applies, read from
+                // the style's own resolved group data since there is no layout node to ask.
+                switch (computed_property_id) {
+                case PropertyID::Color: {
                     ColorResolutionContext color_resolution_context {
                         .color_scheme = computed_values->color_scheme(),
                         .current_color = computed_values->color(),
@@ -727,9 +827,36 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
                     };
                     return resolve_color_style_value(*computed_value, computed_values->color(), &color_resolution_context).release_nonnull();
                 }
-                if (computed_property_id == PropertyID::CaretColor)
+                case PropertyID::CaretColor:
                     return resolve_color_style_value(*computed_value, computed_values->caret_color()).release_nonnull();
-                return computed_value;
+                case PropertyID::BackgroundColor:
+                    return resolve_color_style_value(*computed_value, computed_values->background_color()).release_nonnull();
+                case PropertyID::BorderBottomColor:
+                    return resolve_color_style_value(*computed_value, computed_values->border_bottom().color).release_nonnull();
+                case PropertyID::BorderLeftColor:
+                    return resolve_color_style_value(*computed_value, computed_values->border_left().color).release_nonnull();
+                case PropertyID::BorderRightColor:
+                    return resolve_color_style_value(*computed_value, computed_values->border_right().color).release_nonnull();
+                case PropertyID::BorderTopColor:
+                    return resolve_color_style_value(*computed_value, computed_values->border_top().color).release_nonnull();
+                case PropertyID::OutlineColor:
+                    return resolve_color_style_value(*computed_value, computed_values->outline_color()).release_nonnull();
+                case PropertyID::TextDecorationColor:
+                    return resolve_color_style_value(*computed_value, computed_values->text_decoration_color()).release_nonnull();
+                case PropertyID::WebkitTextFillColor:
+                    return resolve_color_style_value(*computed_value, computed_values->webkit_text_fill_color()).release_nonnull();
+                case PropertyID::BoxShadow:
+                    return style_value_for_shadow(ShadowStyleValue::ShadowType::Normal, computed_values->box_shadow()).release_nonnull();
+                case PropertyID::TextShadow:
+                    return style_value_for_shadow(ShadowStyleValue::ShadowType::Text, computed_values->text_shadow()).release_nonnull();
+                case PropertyID::BackdropFilter:
+                case PropertyID::Filter:
+                    return resolve_filter_style_value(move(computed_value), computed_values->color());
+                case PropertyID::TouchAction:
+                    return style_value_for_touch_action(computed_values->touch_action());
+                default:
+                    return computed_value;
+                }
             };
 
             if (property_is_shorthand(property_id)) {
@@ -767,6 +894,103 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
             return property;
     }
     return {};
+}
+
+// The properties eligible for serializing straight from the stored Rust style value handle:
+// their computed value is kept as a handle (see ComputedValues::stored_style_value_handle()),
+// and their resolved value is the computed value, except for the guards applied in
+// serialized_computed_value_from_stored_handle() below.
+static bool property_computed_value_may_be_stored_as_style_value_handle(PropertyID property_id)
+{
+    switch (property_id) {
+    case PropertyID::Cx:
+    case PropertyID::Cy:
+    case PropertyID::D:
+    case PropertyID::GridAutoColumns:
+    case PropertyID::GridAutoRows:
+    case PropertyID::GridColumnEnd:
+    case PropertyID::GridColumnStart:
+    case PropertyID::GridRowEnd:
+    case PropertyID::GridRowStart:
+    case PropertyID::GridTemplateAreas:
+    case PropertyID::GridTemplateColumns:
+    case PropertyID::GridTemplateRows:
+    case PropertyID::LetterSpacing:
+    case PropertyID::R:
+    case PropertyID::Rx:
+    case PropertyID::Ry:
+    case PropertyID::WordSpacing:
+    case PropertyID::X:
+    case PropertyID::Y:
+        return true;
+    default:
+        return false;
+    }
+}
+
+// Serializes the stored value through the Rust serializer. An empty Optional means Rust declined
+// (Shorthand/Transformation/ValueList serialization is still property-aware C++) and the caller
+// must take the wrapper path.
+static Optional<Utf16String> serialize_style_value_handle(RustStyleValueHandle const& handle, SerializationMode mode)
+{
+    auto text = StyleValueFFI::rust_style_value_serialize(handle.data(), to_underlying(mode));
+    if (!text.storage)
+        return {};
+    Utf16StringBuilder builder;
+    if (text.ascii)
+        builder.append_ascii(StringView { reinterpret_cast<char const*>(text.ascii), text.length });
+    else
+        builder.append(Utf16View { reinterpret_cast<char16_t const*>(text.utf16), text.length });
+    StyleValueFFI::rust_serialized_text_release(text.storage);
+    return builder.to_string();
+}
+
+Optional<Utf16String> CSSStyleProperties::serialized_computed_value_from_stored_handle(PropertyID property_id) const
+{
+    // Fast path for getComputedStyle() serialization: when the computed value already lives in the
+    // style record as a Rust style value, serialize it straight from the stored handle instead of
+    // reconstructing a style value wrapper for it. Every property that needs used-value or color
+    // resolution stays on the value-building path; an empty Optional means "not handled here".
+    VERIFY(is_computed());
+    if (!property_computed_value_may_be_stored_as_style_value_handle(property_id))
+        return {};
+    if (!owner_node().has_value())
+        return {};
+    auto abstract_element = *owner_node();
+
+    auto maybe_layout_node = prepare_computed_style_and_layout_for_property(abstract_element, property_id);
+    if (!maybe_layout_node.has_value())
+        return {};
+    auto* layout_node = *maybe_layout_node;
+
+    auto style = abstract_element.computed_style();
+    if (!style)
+        return {};
+
+    // letter-spacing: a used value of zero resolves to `normal`; leave that to the value path.
+    // https://drafts.csswg.org/css-text-4/#letter-spacing-property
+    if (property_id == PropertyID::LetterSpacing && layout_node && layout_node->letter_spacing() == 0)
+        return {};
+
+    // grid-template-columns/rows: with a laid-out grid box, the resolved value reflects the used
+    // track sizes, so only serialize the computed value when no used track list exists.
+    // https://www.w3.org/TR/css-grid-2/#resolved-track-list-standalone
+    if (property_id == PropertyID::GridTemplateColumns || property_id == PropertyID::GridTemplateRows) {
+        if (layout_node) {
+            if (auto paintable = layout_node->paintable(); auto const* paintable_box = paintable.ptr()) {
+                auto const& used_values = property_id == PropertyID::GridTemplateColumns
+                    ? paintable_box->used_values_for_grid_template_columns()
+                    : paintable_box->used_values_for_grid_template_rows();
+                if (used_values.has_value())
+                    return {};
+            }
+        }
+    }
+
+    auto const* handle = style->stored_style_value_handle(property_id);
+    if (!handle)
+        return {};
+    return serialize_style_value_handle(*handle, SerializationMode::ResolvedValue);
 }
 
 static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const& style_value, Color computed_color, ColorResolutionContext const* color_resolution_context)
@@ -907,9 +1131,13 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         return resolve_color_style_value(*get_computed_value(property_id), layout_node.outline_color(), &color_resolution_context);
     case PropertyID::TextDecorationColor:
         return resolve_color_style_value(*get_computed_value(property_id), layout_node.text_decoration_color(), &color_resolution_context);
-        // NB: The computed style group already contains the resolved shadow value.
     case PropertyID::TextShadow:
-        return get_computed_value(property_id);
+        return style_value_for_shadow(ShadowStyleValue::ShadowType::Text, layout_node.text_shadow());
+    case PropertyID::BackdropFilter:
+    case PropertyID::Filter:
+        return resolve_filter_style_value(*get_computed_value(property_id), layout_node.color());
+    case PropertyID::TouchAction:
+        return style_value_for_touch_action(layout_node.style_group<ComputedValues::MiscResetValues>().touch_action);
 
         // -> line-height
         //    The resolved value is normal if the computed value is normal, or the used value otherwise.
@@ -1185,13 +1413,13 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         // https://www.w3.org/TR/css-grid-2/#resolved-track-list-standalone
         if (property_id == PropertyID::GridTemplateColumns) {
             if (auto paintable = layout_node.paintable(); auto const* paintable_box = paintable.ptr()) {
-                if (auto used_values_for_grid_template_columns = paintable_box->used_values_for_grid_template_columns())
-                    return used_values_for_grid_template_columns;
+                if (auto const& used_values = paintable_box->used_values_for_grid_template_columns(); used_values.has_value())
+                    return style_value_for_used_grid_track_list(*used_values);
             }
         } else if (property_id == PropertyID::GridTemplateRows) {
             if (auto paintable = layout_node.paintable(); auto const* paintable_box = paintable.ptr()) {
-                if (auto used_values_for_grid_template_rows = paintable_box->used_values_for_grid_template_rows())
-                    return used_values_for_grid_template_rows;
+                if (auto const& used_values = paintable_box->used_values_for_grid_template_rows(); used_values.has_value())
+                    return style_value_for_used_grid_track_list(*used_values);
             }
         }
 

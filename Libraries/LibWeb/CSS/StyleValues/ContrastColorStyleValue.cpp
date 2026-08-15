@@ -34,12 +34,4 @@ ValueComparingNonnullRefPtr<StyleValue const> ContrastColorStyleValue::absolutiz
     return create(move(absolutized_color));
 }
 
-bool ContrastColorStyleValue::equals(StyleValue const& other) const
-{
-    auto const* other_contrast_color = as_if<ContrastColorStyleValue>(other);
-    if (!other_contrast_color)
-        return false;
-    return color() == other_contrast_color->color();
-}
-
 }

@@ -136,10 +136,10 @@ CSSTransition::CSSTransition(
 
     auto key_frame_set = adopt_ref(*new Animations::KeyframeEffect::KeyFrameSet);
     Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame initial_keyframe;
-    initial_keyframe.properties.set(property_id, m_start_value);
+    initial_keyframe.properties.set(property_id, RustStyleValueHandle::retained(m_start_value->rust_style_value_data()));
 
     Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame final_keyframe;
-    final_keyframe.properties.set(property_id, m_end_value);
+    final_keyframe.properties.set(property_id, RustStyleValueHandle::retained(m_end_value->rust_style_value_data()));
 
     key_frame_set->keyframes_by_key.insert(0, initial_keyframe);
     key_frame_set->keyframes_by_key.insert(100 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor, final_keyframe);

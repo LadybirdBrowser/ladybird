@@ -78,7 +78,7 @@ public:
     // Publish the immutable input identities of an element or pseudo-element's base style and
     // return its previous and current StyleRecordID assignments. A zero node interns an unassigned
     // record for a style target which is not registered in the engine.
-    [[nodiscard]] StyleRecordDelta publish_computed_groups(StyleNodeID node, u8 pseudo_kind, ReadonlySpan<void const*> payloads, size_t inherited_group_count, u64 custom_property_environment, u64 pseudo_element_styles, u8 dependency_flags, u64 counter_style_environment_identity, u64 animation_overlay_identity, void const* animated_properties, ReadonlySpan<void const*> animation_overlay_payloads, ReadonlyBytes property_importance, ReadonlyBytes property_inheritance, ReadonlySpan<u16> inheritance_dependent_properties, ReadonlySpan<void const*> inheritance_dependent_values, void const* raw_cascaded_font_size);
+    [[nodiscard]] StyleRecordDelta publish_computed_groups(StyleNodeID node, u8 pseudo_kind, ReadonlySpan<void const*> payloads, size_t inherited_group_count, u64 custom_property_environment, u64 pseudo_element_styles, u8 dependency_flags, u64 counter_style_environment_identity, u64 animation_overlay_identity, void const* animated_properties, ReadonlySpan<void const*> animation_overlay_payloads, ReadonlyBytes property_importance, ReadonlyBytes property_inheritance, ReadonlySpan<u16> inheritance_dependent_properties, ReadonlySpan<void const*> inheritance_dependent_values, void const* raw_cascaded_font_size, void const* computed_longhand_table);
     // The borrowed payload array is stable while a base record exists or an animation-overlay
     // generation remains assigned or pinned.
     [[nodiscard]] void const* style_record_payloads(StyleRecordID style_record) const;

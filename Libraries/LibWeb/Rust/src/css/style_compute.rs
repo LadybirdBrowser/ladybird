@@ -1962,22 +1962,8 @@ pub struct FfiComputedStoreEntry {
     /// in `value` while `data` remains the specified value for the
     /// inheritance-dependence bookkeeping.
     pub computed_kind: u8,
-    /// Where `data` came from, when it came from somewhere C++ already holds a
-    /// wrapper for: the initial value table, or the parent's computed value for
-    /// `inherited_property_id`. Wrapping a value allocates a C++ StyleValue, and
-    /// the great majority of the longhands an element never declares take their
-    /// value from one of those two places, so naming the source lets C++ reuse
-    /// the wrapper instead of minting one per longhand per element.
-    pub wrapper_hint: u8,
     pub value: f64,
 }
-
-/// `data` is not known to be wrapped anywhere; C++ must wrap it.
-pub const WRAPPER_HINT_NONE: u8 = 0;
-/// `data` is the initial value of `property_id`.
-pub const WRAPPER_HINT_INITIAL: u8 = 1;
-/// `data` is the parent's computed value of `inherited_property_id`.
-pub const WRAPPER_HINT_PARENT_INHERITED: u8 = 2;
 
 pub const COMPUTED_KIND_UNCHANGED: u8 = 0;
 /// A pixel length of `value`.
@@ -2006,14 +1992,12 @@ pub const COMPUTED_KIND_STYLE_VALUE: u8 = 10;
 
 pub const LONGHAND_BATCH_REQUEST_NONE: u8 = 0;
 pub const LONGHAND_BATCH_REQUEST_LENGTH_CONTEXT: u8 = 1;
-pub const LONGHAND_BATCH_REQUEST_PARENT_VALUE: u8 = 2;
 pub const LONGHAND_BATCH_REQUEST_POST_COMPUTE_ADJUSTMENTS: u8 = 3;
 
 #[repr(C)]
 pub struct FfiLonghandBatchRequest {
     pub property_id: u16,
     pub out_context: *mut FfiLengthResolutionContext,
-    pub out_data: *mut *const c_void,
     pub display_before: FfiDisplay,
     pub float_before: u16,
     pub overflow_x_before: u16,
@@ -2028,7 +2012,6 @@ fn empty_longhand_batch_request() -> FfiLonghandBatchRequest {
     FfiLonghandBatchRequest {
         property_id: 0,
         out_context: std::ptr::null_mut(),
-        out_data: std::ptr::null_mut(),
         display_before: FfiDisplay::block(),
         float_before: 0,
         overflow_x_before: 0,
@@ -2053,8 +2036,8 @@ pub struct FfiLonghandCallbacks {
     /// requested length context. The ordering lets a returned context observe
     /// everything computed before its request. Every entry's value stays alive
     /// for the duration of the drive: cascaded data is retained by the store,
-    /// initial values are immortal, and parent shells are pinned by the
-    /// snapshot or the fetch below.
+    /// initial values are immortal, and parent values are owned by the parent
+    /// style behind the snapshot, which outlives the drive.
     pub execute_computation_batch: unsafe extern "C" fn(
         context: *mut c_void,
         entries: *const FfiComputedStoreEntry,
@@ -2191,14 +2174,22 @@ fn property_has_dedicated_compute_rule(property_id: u16) -> bool {
     )
 }
 
-/// The parent's inheritable computed values, prepared once per element: one
-/// shared Rust data identity per inherited-by-default longhand in property id
-/// order. Null entries mark values the parent could not provide. The C++ side
-/// pins every owning facade for the duration of the drive.
+/// The parent's computed values, handed to the drive as the parent style's own
+/// longhand table span: one shared Rust data identity per longhand in property
+/// id order, null where the parent stored none. Everything the span points at
+/// is owned by the parent style, which outlives the drive, so nothing is pinned.
+///
+/// The sparse override list carries the parent's recorded specified values that
+/// depend on currentColor, which take precedence over the stored computed value
+/// exactly as `computed_style_value_for_inheritance` prefers them on the C++
+/// side; the owning maps also outlive the drive.
 #[repr(C)]
 pub struct FfiParentSnapshot {
-    pub entries: *const *const c_void,
-    pub entry_count: usize,
+    pub table_values: *const *const c_void,
+    pub table_value_count: usize,
+    pub override_properties: *const u16,
+    pub override_values: *const *const c_void,
+    pub override_count: usize,
     pub font_metrics_depend_on_viewport_metrics: bool,
 }
 
@@ -2325,9 +2316,8 @@ pub unsafe extern "C" fn rust_drive_property_computation(
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandDriverEntry);
     abort_on_panic(|| {
         use crate::css::property_metadata::{
-            FIRST_INHERITED_PROPERTY_ID, NUMBER_OF_LONGHAND_PROPERTIES, REQUIRES_COMPUTATION_ALWAYS,
-            REQUIRES_COMPUTATION_CASCADED, REQUIRES_COMPUTATION_NON_INHERITED, property_id as prop,
-            property_is_inherited, property_requires_computation_level,
+            NUMBER_OF_LONGHAND_PROPERTIES, REQUIRES_COMPUTATION_ALWAYS, REQUIRES_COMPUTATION_CASCADED,
+            REQUIRES_COMPUTATION_NON_INHERITED, property_id as prop, property_requires_computation_level,
         };
 
         let callbacks = unsafe { &*callbacks };
@@ -2422,13 +2412,23 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             caches[kind].as_ref().unwrap()
         }
 
-        /// The Rust-owned data of a parent snapshot entry.
+        /// The parent's computed value for a longhand: a recorded specified value
+        /// that depends on currentColor wins over the stored computed value, in
+        /// exactly the order computed_style_value_for_inheritance applies.
         fn snapshot_entry_data(snapshot: &FfiParentSnapshot, property_id: u16) -> Option<&StyleValueData> {
-            use crate::css::property_metadata::FIRST_INHERITED_PROPERTY_ID;
-            let index = (property_id - FIRST_INHERITED_PROPERTY_ID) as usize;
-            assert!(index < snapshot.entry_count);
-            // SAFETY: Snapshot entries are valid for the drive.
-            unsafe { ((*snapshot.entries.add(index)) as *const StyleValueData).as_ref() }
+            use crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
+            for index in 0..snapshot.override_count {
+                // SAFETY: The override lists are valid for the drive.
+                if unsafe { *snapshot.override_properties.add(index) } != property_id {
+                    continue;
+                }
+                // SAFETY: Override values are owned by the parent style, which outlives the drive.
+                return unsafe { ((*snapshot.override_values.add(index)) as *const StyleValueData).as_ref() };
+            }
+            let index = (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize;
+            assert!(index < snapshot.table_value_count);
+            // SAFETY: The span borrows the parent style's longhand table, which outlives the drive.
+            unsafe { ((*snapshot.table_values.add(index)) as *const StyleValueData).as_ref() }
         }
 
         // The computed math-depth, remembered for the font-size rule; None when C++
@@ -2522,7 +2522,6 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             let mut value = std::ptr::null();
             let mut source_slot = -1;
             let mut has_style_sheet_context = false;
-            let mut wrapper_hint = WRAPPER_HINT_NONE;
             if let Some((value_data, important, cascaded_source_slot, cascaded_has_style_sheet_context)) =
                 store.winning_declaration(cascaded_property_id)
             {
@@ -2564,29 +2563,11 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 if decision.explicitly_inherits_non_inherited_property {
                     results.explicitly_inherited_non_inherited_property = true;
                 }
-                value = if property_is_inherited(inherited_property_id) {
-                    let index = (inherited_property_id - FIRST_INHERITED_PROPERTY_ID) as usize;
-                    assert!(index < snapshot.entry_count);
-                    wrapper_hint = WRAPPER_HINT_PARENT_INHERITED;
-                    unsafe { *snapshot.entries.add(index) }
-                } else {
-                    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandParentValueFetchCallback);
-                    let mut parent_data = std::ptr::null();
-                    let mut request = empty_longhand_batch_request();
-                    request.property_id = inherited_property_id;
-                    request.out_data = &raw mut parent_data;
-                    unsafe {
-                        (callbacks.execute_computation_batch)(
-                            context,
-                            std::ptr::null(),
-                            0,
-                            -1,
-                            LONGHAND_BATCH_REQUEST_PARENT_VALUE,
-                            &raw const request,
-                        );
-                    };
-                    parent_data
-                };
+                // Both the inherited-by-default read and an explicit `inherit` of a
+                // non-inherited property take the parent's stored computed value for
+                // `inherited_property_id` straight from the snapshot's table span.
+                value = snapshot_entry_data(snapshot, inherited_property_id)
+                    .map_or(std::ptr::null(), |data| (data as *const StyleValueData).cast());
                 if property_affects_font_metrics(inherited_property_id)
                     && snapshot.font_metrics_depend_on_viewport_metrics
                 {
@@ -2603,7 +2584,6 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             if use_initial {
                 source_slot = -1;
                 has_style_sheet_context = false;
-                wrapper_hint = WRAPPER_HINT_INITIAL;
                 value = initial_value_data(property_id).cast();
                 required_level = REQUIRES_COMPUTATION_NON_INHERITED;
             }
@@ -3017,7 +2997,6 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     inherited: inherit_fetch_attempted,
                     computed_data,
                     computed_kind,
-                    wrapper_hint,
                     value: computed_value,
                 });
             } else {
@@ -3031,7 +3010,6 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     inherited: inherit_fetch_attempted,
                     computed_data: std::ptr::null(),
                     computed_kind: COMPUTED_KIND_UNCHANGED,
-                    wrapper_hint,
                     value: 0.0,
                 });
             }
@@ -3215,7 +3193,6 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             inherited: false,
             computed_data: std::ptr::null(),
             computed_kind,
-            wrapper_hint: WRAPPER_HINT_INITIAL,
             value,
         };
         let mut adjustments = Vec::new();
@@ -3897,6 +3874,14 @@ mod ffi_test_stubs {
         _short_buffer: *mut u8,
     ) -> crate::css::serialize::FfiFlyStringView {
         crate::css::serialize::FfiFlyStringView::empty()
+    }
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_utf16_fly_string_concat_ascii(
+        _raw: usize,
+        _suffix: *const u8,
+        _suffix_length: usize,
+    ) -> usize {
+        0
     }
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_string_unref(_raw: usize) {}

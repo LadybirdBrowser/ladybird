@@ -1,0 +1,9 @@
+container before: rgba(0, 0, 0, 0.1) 5px 6px 7px
+child before: rgba(0, 0, 0, 0.1) 5px 6px 7px
+container started one transition: true
+child started one transition: true
+child transition property: text-shadow
+child transition survived resampling: true
+container and child midpoints match: true
+container after: rgba(10, 10, 10, 0.9) 5px 6px 7px
+child after: rgba(10, 10, 10, 0.9) 5px 6px 7px

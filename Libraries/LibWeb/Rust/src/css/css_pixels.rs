@@ -110,6 +110,10 @@ impl CssPixels {
         self.0 as f64 / FIXED_POINT_DENOMINATOR as f64
     }
 
+    pub fn to_float(self) -> f32 {
+        self.0 as f32 / FIXED_POINT_DENOMINATOR as f32
+    }
+
     fn fixed_point_multiply(self, other: CssPixels) -> Self {
         let value = self.0 as i64 * other.0 as i64;
         let mut int_value = clamp_i64_to_i32(value >> FRACTIONAL_BITS);

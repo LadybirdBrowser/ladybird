@@ -36,19 +36,6 @@ public:
 
     void serialize(StringBuilder&, SerializationMode) const;
 
-    bool properties_equal(ShorthandStyleValue const& other) const
-    {
-        if (shorthand_property() != other.shorthand_property() || size() != other.size())
-            return false;
-        for (size_t i = 0; i < size(); ++i) {
-            if (sub_property_at(i) != other.sub_property_at(i))
-                return false;
-            if (value_at(i) != other.value_at(i))
-                return false;
-        }
-        return true;
-    }
-
 private:
     explicit ShorthandStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValueWithDefaultOperators(Type::Shorthand, data)

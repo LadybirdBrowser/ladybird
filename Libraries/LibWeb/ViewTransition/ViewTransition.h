@@ -13,13 +13,18 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/Filter.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
-#include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/DOM/PseudoElement.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::ViewTransition {
+
+// A translate() <transform-function> style value built as a bare Rust handle: captured transforms
+// are only stored and (eventually) serialized into the dynamic view transition style sheet, so no
+// C++ wrapper facade is needed.
+CSS::RustStyleValueHandle make_translation_transform(CSSPixels x, CSSPixels y);
 
 // https://drafts.csswg.org/css-view-transitions-1/#named-view-transition-pseudo
 class NamedViewTransitionPseudoElement
@@ -56,8 +61,7 @@ struct CapturedElement : public JS::Cell {
     Optional<Gfx::DecodedImageFrame> old_image {};
     CSSPixels old_width = 0;
     CSSPixels old_height = 0;
-    // FIXME: Make this an identity transform function by default.
-    NonnullRefPtr<CSS::TransformationStyleValue const> old_transform = CSS::TransformationStyleValue::identity_transformation(CSS::TransformFunction::Translate);
+    CSS::RustStyleValueHandle old_transform = make_translation_transform(0, 0);
     Optional<CSS::WritingMode> old_writing_mode {};
     Optional<CSS::Direction> old_direction {};
     // FIXME: old_text_orientation

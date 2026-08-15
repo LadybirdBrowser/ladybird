@@ -220,47 +220,12 @@ ValueComparingNonnullRefPtr<ColorMixStyleValue const> ColorMixStyleValue::create
 
 ColorMixStyleValue::ColorMixStyleValue(RefPtr<StyleValue const> color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component)
     : ColorStyleValue(make_color_mix_data(color_interpolation_method, first_component, second_component))
-    , m_color_interpolation_method(move(color_interpolation_method))
-    , m_first_component(move(first_component))
-    , m_second_component(move(second_component))
 {
 }
 
 ColorMixStyleValue::ColorMixStyleValue(StyleValueFFI::StyleValueData const* data)
     : ColorStyleValue(data)
-    , m_color_interpolation_method([&]() -> ValueComparingRefPtr<StyleValue const> {
-        auto const* child_data = static_cast<StyleValueFFI::StyleValueData const*>(data->color_mix.color_interpolation_method.pointer);
-        if (!child_data)
-            return nullptr;
-        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data));
-    }())
-    , m_first_component([&] {
-        auto const& color_mix = data->color_mix;
-        auto color = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(color_mix.first_color.pointer)));
-        ValueComparingRefPtr<StyleValue const> percentage;
-        if (auto const* percentage_data = static_cast<StyleValueFFI::StyleValueData const*>(color_mix.first_percentage.pointer))
-            percentage = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(percentage_data));
-        return ColorMixComponent { move(color), move(percentage) };
-    }())
-    , m_second_component([&] {
-        auto const& color_mix = data->color_mix;
-        auto color = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(color_mix.second_color.pointer)));
-        ValueComparingRefPtr<StyleValue const> percentage;
-        if (auto const* percentage_data = static_cast<StyleValueFFI::StyleValueData const*>(color_mix.second_percentage.pointer))
-            percentage = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(percentage_data));
-        return ColorMixComponent { move(color), move(percentage) };
-    }())
 {
-}
-
-bool ColorMixStyleValue::equals(StyleValue const& other) const
-{
-    auto const* other_color_mix = as_if<ColorMixStyleValue>(other);
-    if (!other_color_mix)
-        return false;
-    return color_interpolation_method_value() == other_color_mix->color_interpolation_method_value()
-        && first_component() == other_color_mix->first_component()
-        && second_component() == other_color_mix->second_component();
 }
 
 // https://drafts.csswg.org/css-color-5/#color-mix-percent-norm
@@ -335,8 +300,9 @@ Optional<Color> ColorMixStyleValue::to_color(ColorResolutionContext color_resolu
     auto normalized = normalize_percentage_pair(p1, p2);
 
     auto default_color_interpolation_method = ColorInterpolationMethodStyleValue::create(RectangularColorSpace::Oklab);
-    auto const& color_interpolation_method = color_interpolation_method_value()
-        ? *color_interpolation_method_value()
+    auto color_interpolation_method_holder = color_interpolation_method_value();
+    auto const& color_interpolation_method = color_interpolation_method_holder
+        ? *color_interpolation_method_holder
         : static_cast<StyleValue const&>(*default_color_interpolation_method);
     auto style_value = interpolate_color_in_rust(
         *first_component().color,

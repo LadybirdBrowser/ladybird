@@ -15,9 +15,4 @@ UnicodeRangeStyleValue::UnicodeRangeStyleValue(Gfx::UnicodeRange unicode_range)
 
 UnicodeRangeStyleValue::~UnicodeRangeStyleValue() = default;
 
-bool UnicodeRangeStyleValue::properties_equal(UnicodeRangeStyleValue const& other) const
-{
-    return unicode_range() == other.unicode_range();
-}
-
 }

@@ -18,6 +18,7 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
+#include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -559,7 +560,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
                 // Handle 'initial' here so we don't have to get the default value of the property every frame in StyleComputer
                 if (style_value->is_initial())
                     style_value = CSS::property_initial_value(*property_id);
-                parsed_properties.set(*property_id, *style_value);
+                parsed_properties.set(*property_id, CSS::RustStyleValueHandle::retained(style_value->rust_style_value_data()));
             }
         }
         keyframe.properties.set(move(parsed_properties));
@@ -607,7 +608,7 @@ void KeyframeEffect::generate_initial_and_final_frames(RefPtr<KeyFrameSet> keyfr
         initial_keyframe = keyframe_set->keyframes_by_key.find(0);
     }
 
-    auto expanded_properties = [&](HashMap<CSS::PropertyID, Variant<KeyFrameSet::UseInitial, NonnullRefPtr<CSS::StyleValue const>>>& properties) {
+    auto expanded_properties = [&](HashMap<CSS::PropertyID, Variant<KeyFrameSet::UseInitial, CSS::RustStyleValueHandle>>& properties) {
         HashTable<CSS::PropertyID> result;
 
         for (auto property : properties) {
@@ -948,7 +949,10 @@ WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::Object>>> KeyframeEffect::get_key
 
             for (auto const& [id, value] : keyframe.parsed_properties()) {
                 auto key = CSS::camel_case_string_from_property_id(id);
-                auto value_string = JS::PrimitiveString::create(vm, value->to_utf16_string(CSS::SerializationMode::Normal));
+                // Serialization can still fall back to C++, which needs the typed facade; reflection is cold, so
+                // wrap on demand.
+                auto style_value = CSS::StyleValue::adopt_rust_style_value_data(CSS::StyleValueFFI::rust_style_value_retain(value.data()));
+                auto value_string = JS::PrimitiveString::create(vm, style_value->to_utf16_string(CSS::SerializationMode::Normal));
                 TRY(object->set(JS::PropertyKey { move(key), JS::PropertyKey::StringMayBeNumber::No }, value_string, JS::Object::ShouldThrowExceptions::Yes));
             }
 
@@ -991,11 +995,15 @@ void KeyframeEffect::set_keyframes(Vector<BaseKeyframe> keyframes)
 
         auto key = static_cast<u64>(keyframe.computed_offset.value() * 100 * AnimationKeyFrameKeyScaleFactor);
 
-        for (auto [property_id, property_value] : keyframe.parsed_properties()) {
+        for (auto const& [property_id, property_value] : keyframe.parsed_properties()) {
             resolved_keyframe.properties.set(property_id, property_value);
-            CSS::StyleComputer::for_each_property_expanding_shorthands(property_id, property_value, [&](CSS::PropertyID longhand_id, CSS::StyleValue const&) {
-                m_target_properties.set(longhand_id);
-            });
+            CSS::ComputedValuesFFI::FfiShorthandExpansionCallbacks const callbacks {
+                .context = &m_target_properties,
+                .set_longhand_property = [](void* context, u16 longhand_id, void const*) {
+                    static_cast<HashTable<CSS::PropertyID>*>(context)->set(static_cast<CSS::PropertyID>(longhand_id));
+                },
+            };
+            CSS::ComputedValuesFFI::rust_for_each_property_expanding_shorthands(&callbacks, to_underlying(property_id), property_value.data());
         }
 
         keyframe_set->keyframes_by_key.insert(key, resolved_keyframe);

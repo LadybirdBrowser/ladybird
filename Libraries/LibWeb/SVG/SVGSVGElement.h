@@ -8,7 +8,6 @@
 
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Sizing.h>
-#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/Geometry/DOMPoint.h>
 #include <LibWeb/SVG/AttributeParser.h>
@@ -42,16 +41,16 @@ public:
     //         https://github.com/w3c/svgwg/issues/1153
 
     // https://w3c.github.io/svgwg/svg2-draft/struct.html#__svg__SVGSVGElement__x
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, Horizontal, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, Horizontal, SVGLengthValue::number(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/struct.html#__svg__SVGSVGElement__y
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y, Vertical, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y, Vertical, SVGLengthValue::number(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/struct.html#__svg__SVGSVGElement__width
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(width, Horizontal, CSS::PercentageStyleValue::create(CSS::Percentage { 100 }));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(width, Horizontal, SVGLengthValue::percentage(100));
 
     // https://w3c.github.io/svgwg/svg2-draft/struct.html#__svg__SVGSVGElement__height
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, Vertical, CSS::PercentageStyleValue::create(CSS::Percentage { 100 }));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, Vertical, SVGLengthValue::percentage(100));
 
     float current_scale() const;
     void set_current_scale(float);
@@ -86,8 +85,10 @@ public:
     void unsuspend_redraw_all() const { }
     void force_redraw() const { }
 
-    [[nodiscard]] RefPtr<CSS::StyleValue const> width_style_value_from_attribute() const;
-    [[nodiscard]] RefPtr<CSS::StyleValue const> height_style_value_from_attribute() const;
+    // The width/height attributes parsed as the CSS width/height properties, when that yields a
+    // plain <length> - the only case the natural size negotiation can use.
+    [[nodiscard]] Optional<CSS::Length> width_attribute_length() const;
+    [[nodiscard]] Optional<CSS::Length> height_attribute_length() const;
 
     static CSS::SizeWithAspectRatio negotiate_natural_metrics(SVGSVGElement const&, CSS::Length::ResolutionContext const&);
 
@@ -108,8 +109,8 @@ private:
 
     Optional<ViewBox> m_fallback_view_box_for_svg_as_image;
 
-    mutable Optional<RefPtr<CSS::StyleValue const>> m_cached_width_style_value;
-    mutable Optional<RefPtr<CSS::StyleValue const>> m_cached_height_style_value;
+    mutable Optional<Optional<CSS::Length>> m_cached_width_attribute_length;
+    mutable Optional<Optional<CSS::Length>> m_cached_height_attribute_length;
 
     GC::Ptr<SVGViewElement> m_active_view_element;
 };

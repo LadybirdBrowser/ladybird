@@ -39,8 +39,6 @@ public:
         return static_cast<RectangularColorSpace>(m_value->color_interpolation_method.color_space);
     }
 
-    bool properties_equal(ColorInterpolationMethodStyleValue const& other) const { return color_interpolation_method() == other.color_interpolation_method(); }
-
 private:
     friend class StyleValue;
 

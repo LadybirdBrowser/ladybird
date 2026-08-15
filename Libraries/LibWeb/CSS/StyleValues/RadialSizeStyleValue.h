@@ -32,12 +32,12 @@ public:
         if (data.is_extent_0)
             components.unchecked_append(static_cast<RadialExtent>(data.extent_0));
         else
-            components.unchecked_append(NonnullRefPtr { *m_value_0 });
+            components.unchecked_append(NonnullRefPtr<StyleValue const> { wrap_rust_child(data.value_0) });
         if (data.component_count == 2) {
             if (data.is_extent_1)
                 components.unchecked_append(static_cast<RadialExtent>(data.extent_1));
             else
-                components.unchecked_append(NonnullRefPtr { *m_value_1 });
+                components.unchecked_append(NonnullRefPtr<StyleValue const> { wrap_rust_child(data.value_1) });
         }
         return components;
     }
@@ -45,31 +45,17 @@ public:
     CSSPixels resolve_circle_size(CSSPixelPoint const& center, CSSPixelRect const& reference_box) const;
     CSSPixelSize resolve_ellipse_size(CSSPixelPoint const& center, CSSPixelRect const& reference_box) const;
 
-    bool properties_equal(RadialSizeStyleValue const& other) const;
-
 private:
     friend class StyleValue;
 
     explicit RadialSizeStyleValue(Vector<Component> components)
         : StyleValueWithDefaultOperators(Type::RadialSize, make_radial_size_data(components))
     {
-        if (!components[0].has<RadialExtent>())
-            m_value_0 = components[0].get<NonnullRefPtr<StyleValue const>>();
-        if (components.size() == 2 && !components[1].has<RadialExtent>())
-            m_value_1 = components[1].get<NonnullRefPtr<StyleValue const>>();
     }
 
     explicit RadialSizeStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValueWithDefaultOperators(Type::RadialSize, data)
     {
-        if (!data->radial_size.is_extent_0) {
-            auto const* value_data = static_cast<StyleValueFFI::StyleValueData const*>(data->radial_size.value_0.pointer);
-            m_value_0 = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(value_data));
-        }
-        if (data->radial_size.component_count == 2 && !data->radial_size.is_extent_1) {
-            auto const* value_data = static_cast<StyleValueFFI::StyleValueData const*>(data->radial_size.value_1.pointer);
-            m_value_1 = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(value_data));
-        }
     }
 
     static StyleValueFFI::StyleValueData const* make_radial_size_data(Vector<Component> const& components)
@@ -91,9 +77,6 @@ private:
             is_extent(components[0]), extent_of(components[0]), value_of(components[0]),
             has_second && is_extent(components[1]), has_second ? extent_of(components[1]) : 0, has_second ? value_of(components[1]) : nullptr);
     }
-
-    ValueComparingRefPtr<StyleValue const> m_value_0;
-    ValueComparingRefPtr<StyleValue const> m_value_1;
 };
 
 }

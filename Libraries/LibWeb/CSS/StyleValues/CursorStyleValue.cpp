@@ -36,18 +36,6 @@ CursorStyleValue::CursorStyleValue(StyleValueFFI::StyleValueData const* data)
     , m_image(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
                                                           static_cast<StyleValueFFI::StyleValueData const*>(data->cursor.image.pointer)))
               ->as_abstract_image())
-    , m_x([&]() -> ValueComparingRefPtr<StyleValue const> {
-        auto const* x_data = static_cast<StyleValueFFI::StyleValueData const*>(data->cursor.x.pointer);
-        if (!x_data)
-            return nullptr;
-        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(x_data));
-    }())
-    , m_y([&]() -> ValueComparingRefPtr<StyleValue const> {
-        auto const* y_data = static_cast<StyleValueFFI::StyleValueData const*>(data->cursor.y.pointer);
-        if (!y_data)
-            return nullptr;
-        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(y_data));
-    }())
 {
 }
 
@@ -121,9 +109,9 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         Painting::DisplayListRecorder display_list_recorder(display_list, visual_context_tree, resource_storage);
         DisplayListRecordingContext paint_context { display_list_recorder, document.page().palette(), document.page().client().device_pixels_per_css_pixel(), document.page().chrome_metrics() };
 
-        image.resolve_for_size(layout_node, CSSPixelSize { bitmap.size() });
+        auto resolved_image = image.resolve_for_size(layout_node, CSSPixelSize { bitmap.size() });
         // A cursor image is not embedded by any element, so it follows the page's own preference.
-        image.paint(paint_context, document, DevicePixelRect { bitmap.rect() }, ImageRendering::Auto, current_color_scheme);
+        image.paint(paint_context, document, DevicePixelRect { bitmap.rect() }, ImageRendering::Auto, current_color_scheme, resolved_image);
 
         auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
         Painting::DisplayListPlayerSkia display_list_player;

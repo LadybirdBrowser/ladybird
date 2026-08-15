@@ -29,39 +29,23 @@ StyleValueFFI::StyleValueData const* ConicGradientStyleValue::make_conic_gradien
 
 ConicGradientStyleValue::ConicGradientStyleValue(StyleValueFFI::StyleValueData const* data)
     : AbstractImageStyleValue(Type::ConicGradient, data)
-    , m_from_angle([&]() -> ValueComparingRefPtr<StyleValue const> {
-        auto const* angle_data = static_cast<StyleValueFFI::StyleValueData const*>(data->conic_gradient.from_angle.pointer);
-        if (!angle_data)
-            return nullptr;
-        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(angle_data));
-    }())
-    , m_position(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-                                                             static_cast<StyleValueFFI::StyleValueData const*>(data->conic_gradient.position.pointer)))
-              ->as_position())
-    , m_color_interpolation_method([&]() -> ValueComparingRefPtr<StyleValue const> {
-        auto const* method_data = static_cast<StyleValueFFI::StyleValueData const*>(data->conic_gradient.color_interpolation_method.pointer);
-        if (!method_data)
-            return nullptr;
-        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(method_data));
-    }())
 {
 }
 
-void ConicGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node, CSSPixelSize size) const
+ResolvedImage ConicGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node, CSSPixelSize size) const
 {
-    if (m_resolved_size != size) {
-        m_resolved_size = size;
-        m_resolved = ResolvedData { Painting::resolve_conic_gradient_data(node, *this), {} };
-    }
-    m_resolved->position = position_value()->resolved(CSSPixelRect { { 0, 0 }, size });
+    return Painting::ResolvedConicGradient {
+        Painting::resolve_conic_gradient_data(node, *this),
+        position_value()->resolved(CSSPixelRect { { 0, 0 }, size }),
+    };
 }
 
-void ConicGradientStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering, PreferredColorScheme) const
+void ConicGradientStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering, PreferredColorScheme, ResolvedImage const& resolved_image) const
 {
-    VERIFY(m_resolved.has_value());
+    auto const& resolved = resolved_image.get<Painting::ResolvedConicGradient>();
     auto destination_rect = dest_rect.to_type<int>();
-    auto position = context.rounded_device_point(m_resolved->position).to_type<int>();
-    context.display_list_recorder().fill_rect_with_conic_gradient(destination_rect, m_resolved->data, position);
+    auto position = context.rounded_device_point(resolved.position).to_type<int>();
+    context.display_list_recorder().fill_rect_with_conic_gradient(destination_rect, resolved.data, position);
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> ConicGradientStyleValue::absolutized(ComputationContext const& context) const
@@ -79,19 +63,6 @@ ValueComparingNonnullRefPtr<StyleValue const> ConicGradientStyleValue::absolutiz
     auto absolutized_color_interpolation_method = color_interpolation_method_value() ? ValueComparingRefPtr<StyleValue const> { color_interpolation_method_value()->absolutized(context) } : nullptr;
 
     return create(move(absolutized_from_angle), move(absolutized_position), move(absolutized_color_stops), (is_repeating() ? GradientRepeating::Yes : GradientRepeating::No), move(absolutized_color_interpolation_method), gradient_color_syntax());
-}
-
-bool ConicGradientStyleValue::equals(StyleValue const& other) const
-{
-    if (type() != other.type())
-        return false;
-    auto& other_gradient = other.as_conic_gradient();
-    return from_angle_value() == other_gradient.from_angle_value()
-        && position_value() == other_gradient.position_value()
-        && color_stop_list() == other_gradient.color_stop_list()
-        && is_repeating() == other_gradient.is_repeating()
-        && color_interpolation_method_value() == other_gradient.color_interpolation_method_value()
-        && gradient_color_syntax() == other_gradient.gradient_color_syntax();
 }
 
 float ConicGradientStyleValue::angle_degrees() const

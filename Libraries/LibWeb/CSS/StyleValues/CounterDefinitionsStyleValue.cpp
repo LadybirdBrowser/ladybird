@@ -12,19 +12,22 @@ namespace Web::CSS {
 CounterDefinitionsStyleValue::CounterDefinitionsStyleValue(StyleValueFFI::StyleValueData const* data)
     : StyleValueWithDefaultOperators(Type::CounterDefinitions, data)
 {
-    auto const& list = data->counter_definitions.counter_definitions;
-    m_counter_definitions.ensure_capacity(list.length);
+}
+
+Vector<CounterDefinition> CounterDefinitionsStyleValue::counter_definitions() const
+{
+    auto const& list = m_value->counter_definitions.counter_definitions;
+    Vector<CounterDefinition> counter_definitions;
+    counter_definitions.ensure_capacity(list.length);
     for (size_t i = 0; i < list.length; ++i) {
         auto const& definition = list.pointer[i];
-        ValueComparingRefPtr<StyleValue const> value;
-        if (auto const* value_data = static_cast<StyleValueFFI::StyleValueData const*>(definition.value.pointer))
-            value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(value_data));
-        m_counter_definitions.unchecked_append(CounterDefinition {
+        counter_definitions.unchecked_append(CounterDefinition {
             .name = Utf16FlyString::from_raw(definition.name.raw),
             .is_reversed = definition.is_reversed,
-            .value = move(value),
+            .value = wrap_rust_child_or_null(definition.value),
         });
     }
+    return counter_definitions;
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> CounterDefinitionsStyleValue::absolutized(ComputationContext const& computation_context) const
@@ -45,22 +48,6 @@ ValueComparingNonnullRefPtr<StyleValue const> CounterDefinitionsStyleValue::abso
     }
 
     return CounterDefinitionsStyleValue::create(computed_definitions);
-}
-
-bool CounterDefinitionsStyleValue::properties_equal(CounterDefinitionsStyleValue const& other) const
-{
-    auto our_definitions = counter_definitions();
-    auto their_definitions = other.counter_definitions();
-    if (our_definitions.size() != their_definitions.size())
-        return false;
-
-    for (auto i = 0u; i < our_definitions.size(); i++) {
-        auto const& ours = our_definitions[i];
-        auto const& theirs = their_definitions[i];
-        if (ours.name != theirs.name || ours.is_reversed != theirs.is_reversed || ours.value != theirs.value)
-            return false;
-    }
-    return true;
 }
 
 }

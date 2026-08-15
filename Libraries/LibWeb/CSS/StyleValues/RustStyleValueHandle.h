@@ -51,6 +51,12 @@ public:
         return *this;
     }
 
+    // A handle that shares ownership of a borrowed value: takes its own strong reference.
+    static RustStyleValueHandle retained(StyleValueFFI::StyleValueData const* value)
+    {
+        return RustStyleValueHandle { StyleValueFFI::rust_style_value_retain(value) };
+    }
+
     ~RustStyleValueHandle()
     {
         if (m_value)

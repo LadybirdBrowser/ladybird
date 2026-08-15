@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/SVG/SVGGradientElement.h>
 
 namespace Web::SVG {
@@ -23,16 +22,16 @@ public:
     virtual Optional<Painting::PaintStyle> to_gfx_paint_style(SVGPaintContext const&) const override;
 
     // https://w3c.github.io/svgwg/svg2-draft/pservers.html#__svg__SVGLinearGradientElement__x1
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x1, Horizontal, CSS::PercentageStyleValue::create(CSS::Percentage { 0 }));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x1, Horizontal, SVGLengthValue::percentage(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/pservers.html#__svg__SVGLinearGradientElement__y1
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y1, Vertical, CSS::PercentageStyleValue::create(CSS::Percentage { 0 }));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y1, Vertical, SVGLengthValue::percentage(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/pservers.html#__svg__SVGLinearGradientElement__x2
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x2, Horizontal, CSS::PercentageStyleValue::create(CSS::Percentage { 100 }));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x2, Horizontal, SVGLengthValue::percentage(100));
 
     // https://w3c.github.io/svgwg/svg2-draft/pservers.html#__svg__SVGLinearGradientElement__y2
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y2, Vertical, CSS::PercentageStyleValue::create(CSS::Percentage { 0 }));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y2, Vertical, SVGLengthValue::percentage(0));
 
 protected:
     SVGLinearGradientElement(DOM::Document&, DOM::QualifiedName);

@@ -16,24 +16,31 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSStyleValue);
 
-GC::Ref<CSSStyleValue> CSSStyleValue::create(Utf16FlyString associated_property, NonnullRefPtr<StyleValue const> source_value)
+GC::Ref<CSSStyleValue> CSSStyleValue::create(Utf16FlyString associated_property, StyleValue const& source_value)
 {
-    return GC::Heap::the().allocate<CSSStyleValue>(move(associated_property), move(source_value));
+    return GC::Heap::the().allocate<CSSStyleValue>(move(associated_property), source_value);
 }
 
 CSSStyleValue::CSSStyleValue()
 {
 }
 
-CSSStyleValue::CSSStyleValue(NonnullRefPtr<StyleValue const> source_value)
-    : m_source_value(move(source_value))
+CSSStyleValue::CSSStyleValue(StyleValue const& source_value)
+    : m_source_value(RustStyleValueHandle::retained(source_value.rust_style_value_data()))
 {
 }
 
-CSSStyleValue::CSSStyleValue(Utf16FlyString associated_property, NonnullRefPtr<StyleValue const> source_value)
+CSSStyleValue::CSSStyleValue(Utf16FlyString associated_property, StyleValue const& source_value)
     : m_associated_property(move(associated_property))
-    , m_source_value(move(source_value))
+    , m_source_value(RustStyleValueHandle::retained(source_value.rust_style_value_data()))
 {
+}
+
+RefPtr<StyleValue const> CSSStyleValue::source_style_value() const
+{
+    if (!m_source_value)
+        return nullptr;
+    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(m_source_value.data()));
 }
 
 CSSStyleValue::~CSSStyleValue() = default;
@@ -109,8 +116,8 @@ WebIDL::ExceptionOr<Utf16String> CSSStyleValue::to_string() const
     }
     // FIXME: otherwise, if the value was extracted from the CSSOM
     // NB: For CSSStyleValue itself, we use the source value we were created from.
-    if (m_source_value)
-        return m_source_value->to_utf16_string(SerializationMode::Normal);
+    if (auto source_value = source_style_value())
+        return source_value->to_utf16_string(SerializationMode::Normal);
     {
         // the serialization is specified in §6.7 Serialization from CSSOM Values below.
     }
@@ -122,9 +129,10 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSStyleValue::create_an_in
 {
     // If value is a direct CSSStyleValue,
     //     Return value’s associated value.
-    if (!m_source_value)
+    auto source_value = source_style_value();
+    if (!source_value)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Missing {}::create_an_internal_representation() overload", class_name()) };
-    return NonnullRefPtr { *m_source_value };
+    return source_value.release_nonnull();
 }
 
 }

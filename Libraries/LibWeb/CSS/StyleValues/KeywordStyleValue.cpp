@@ -169,11 +169,6 @@ Optional<Color> KeywordStyleValue::to_color(ColorResolutionContext color_resolut
     return {};
 }
 
-Vector<Parser::ComponentValue> KeywordStyleValue::tokenize() const
-{
-    return { Parser::Token::create_ident(utf16_fly_string_from_keyword(keyword())) };
-}
-
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-ident
 GC::Ref<CSSStyleValue> KeywordStyleValue::reify(Utf16FlyString const&) const
 {

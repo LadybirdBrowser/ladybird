@@ -12,6 +12,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
 #include <LibGC/Ptr.h>
+#include <LibGC/Weak.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/Forward.h>
@@ -27,10 +28,12 @@
 #include <LibWeb/CSS/PseudoClassBitmap.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/StyleProperty.h>
+#include <LibWeb/ComputedValuesRustFFI.h>
 
 namespace Web::CSS {
 
 class AnimatedProperties;
+class CSSStyleSheet;
 class StyleComputer;
 
 }
@@ -104,7 +107,16 @@ public:
         void set_has_pseudo_element_style(PseudoElement);
 
         void set_property(PropertyID, NonnullRefPtr<StyleValue const> value, Inherited = Inherited::No, Important = Important::No);
-        void set_property_without_modifying_flags(PropertyID, NonnullRefPtr<StyleValue const> value);
+        // The wrapper-carrying store funnel: dual-writes the Rust table and the wrapper cache.
+        // `style_sheet_source_slot` is the winning declaration's cascade source slot when its
+        // value carries style sheet context, and -1 otherwise; only the longhand drive's batch
+        // executor passes one.
+        void set_property_without_modifying_flags(PropertyID, NonnullRefPtr<StyleValue const> value, i64 style_sheet_source_slot = -1);
+        // The wrapper-free store the longhand drive uses for values it already holds as Rust
+        // data: writes the table and invalidates the cached wrapper; property() mints one on
+        // demand. `style_sheet` is the sheet whose rule supplied the winning declaration, kept
+        // for stamping sheet context onto the wrapper the mint produces.
+        void set_property_data_from_drive(PropertyID, void const* value_data, i64 style_sheet_source_slot, GC::Ptr<CSSStyleSheet> style_sheet);
         void set_display_before_box_type_transformation(Display);
 
         bool has_effective_color_scheme() const { return m_data->effective_color_scheme.has_value(); }
@@ -159,60 +171,31 @@ public:
     void clear_animated_properties(Badge<StyleComputer>);
     StyleValue const& property(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
 
-    Size size_value(PropertyID) const;
-    Length length(PropertyID) const;
-    LengthBox length_box(PropertyID left_id, PropertyID top_id, PropertyID right_id, PropertyID bottom_id, LengthPercentageOrAuto const& default_value) const;
     Color color(PropertyID, ColorResolutionContext) const;
     HashMap<PropertyID, StyleValueVector> assemble_coordinated_value_list(PropertyID base_property_id, Vector<PropertyID> const& property_ids) const;
-    ColorInterpolation color_interpolation() const;
-    ColorInterpolation color_interpolation_filters() const;
     PreferredColorScheme color_scheme(PreferredColorScheme, Optional<Vector<Utf16FlyString> const&> document_supported_schemes) const;
-    TextAnchor text_anchor() const;
-    Optional<BaselineMetric> dominant_baseline() const;
-    TextAlign text_align() const;
-    TextJustify text_justify() const;
     TextOverflow text_overflow() const;
     TextRendering text_rendering() const;
     CSSPixels text_underline_offset() const;
-    TextUnderlinePosition text_underline_position() const;
-    Vector<BackgroundLayerData> background_layers() const;
-    Vector<BackgroundLayerData> mask_layers() const;
-    BorderImageData border_image() const;
-    BackgroundBox background_color_clip() const;
     CSSPixels border_spacing_horizontal() const;
     CSSPixels border_spacing_vertical() const;
     CaptionSide caption_side() const;
-    Clip clip() const;
     Display display() const;
     Float float_() const;
     Color caret_color(ColorResolutionContext const&) const;
     Clear clear() const;
-    ColumnSpan column_span() const;
     ContentVisibility content_visibility() const;
-    Vector<CursorData> cursor() const;
-    Variant<CSSPixels, double> tab_size() const;
-    WhiteSpaceCollapse white_space_collapse() const;
     WhiteSpaceTrimData white_space_trim() const;
-    WordBreak word_break() const;
     CSSPixels word_spacing() const;
     CSSPixels letter_spacing() const;
-    LineStyle line_style(PropertyID) const;
-    OutlineStyle outline_style() const;
     Vector<TextDecorationLine> text_decoration_line() const;
-    TextDecorationSkipInk text_decoration_skip_ink() const;
     TextDecorationStyle text_decoration_style() const;
     TextDecorationThickness text_decoration_thickness() const;
-    TextTransform text_transform() const;
-    Vector<ShadowData> text_shadow(ColorResolutionContext const&) const;
-    TextIndentData text_indent() const;
-    TextWrapMode text_wrap_mode() const;
     ListStyleType list_style_type(StyleScope const&) const;
-    ListStylePosition list_style_position() const;
     double flex_grow() const;
     double flex_shrink() const;
     i32 order() const;
     Color accent_color(ColorResolutionContext const&) const;
-    Appearance appearance() const;
     Filter backdrop_filter() const;
     Filter filter() const;
     float opacity() const;
@@ -220,9 +203,7 @@ public:
     ImageRendering image_rendering() const;
     Overflow overflow_x() const;
     Overflow overflow_y() const;
-    Vector<ShadowData> box_shadow(ColorResolutionContext const&) const;
     BoxSizing box_sizing() const;
-    PointerEvents pointer_events() const;
     Variant<VerticalAlign, LengthPercentage> vertical_align() const;
     FontFeatureData font_feature_data() const;
     Optional<FontVariantAlternates> font_variant_alternates() const;
@@ -236,39 +217,24 @@ public:
     Optional<Utf16FlyString> font_language_override() const;
     HashMap<Utf16FlyString, u8> font_feature_settings() const;
     HashMap<Utf16FlyString, double> font_variation_settings() const;
-    GridTrackSizeList grid_auto_columns() const;
-    GridTrackSizeList grid_auto_rows() const;
-    GridTrackSizeList grid_template_columns() const;
-    GridTrackSizeList grid_template_rows() const;
     [[nodiscard]] GridAutoFlow grid_auto_flow() const;
-    GridTrackPlacement grid_column_end() const;
-    GridTrackPlacement grid_column_start() const;
-    GridTrackPlacement grid_row_end() const;
-    GridTrackPlacement grid_row_start() const;
     BorderCollapse border_collapse() const;
     CSS::EmptyCells empty_cells() const;
-    GridTemplateAreas grid_template_areas() const;
-    ObjectFit object_fit() const;
-    Position object_position() const;
     TableLayout table_layout() const;
     Direction direction() const;
     UnicodeBidi unicode_bidi() const;
     WritingMode writing_mode() const;
-    UserSelect user_select() const;
     Isolation isolation() const;
-    TouchActionData touch_action() const;
     AspectRatio aspect_ratio() const;
     Containment contain() const;
     Vector<Utf16FlyString> container_name() const;
     ContainerType container_type() const;
     MixBlendMode mix_blend_mode() const;
-    Optional<Utf16FlyString> view_transition_name() const;
     Vector<AnimationProperties> animations(DOM::AbstractElement const&) const;
     Vector<TransitionProperties> transitions() const;
 
     Display display_before_box_type_transformation() const;
 
-    static Vector<NonnullRefPtr<TransformationStyleValue const>> transformations_for_style_value(StyleValue const& value);
     Vector<NonnullRefPtr<TransformationStyleValue const>> transformations() const;
     TransformBox transform_box() const;
     TransformOrigin transform_origin() const;
@@ -280,25 +246,8 @@ public:
     Optional<CSSPixels> perspective() const;
     Position perspective_origin() const;
 
-    MaskType mask_type() const;
     float stop_opacity() const;
-    Optional<SVGPaint> fill(ColorResolutionContext const&) const;
-    float fill_opacity() const;
-    Optional<SVGPaint> stroke(ColorResolutionContext const&) const;
-    Vector<Variant<LengthPercentage, float>> stroke_dasharray() const;
-    LengthPercentage stroke_dashoffset() const;
-    StrokeLinecap stroke_linecap() const;
-    StrokeLinejoin stroke_linejoin() const;
-    LengthPercentage stroke_width() const;
-    double stroke_miterlimit() const;
-    float stroke_opacity() const;
-    FillRule fill_rule() const;
-    ClipRule clip_rule() const;
     float flood_opacity() const;
-    CSS::ShapeRendering shape_rendering() const;
-    PaintOrderList paint_order() const;
-
-    WillChange will_change() const;
 
     ValueComparingNonnullRefPtr<Gfx::FontCascadeList const> computed_font_list(FontComputer const&) const;
     ValueComparingNonnullRefPtr<Gfx::Font const> first_available_computed_font(FontComputer const&) const;
@@ -316,11 +265,7 @@ public:
     Positioning position() const;
     Optional<int> z_index() const;
 
-    QuotesData quotes() const;
-    Vector<CounterData> counter_data(PropertyID) const;
-
     ScrollbarColorData scrollbar_color(ColorResolutionContext const&) const;
-    ScrollbarWidth scrollbar_width() const;
     Resize resize() const;
 
     static NonnullRefPtr<Gfx::Font const> font_fallback(bool monospace, bool bold, float point_size);
@@ -330,13 +275,22 @@ public:
     RefPtr<StyleValue const> raw_cascaded_font_size() const { return m_data->raw_cascaded_font_size; }
     [[nodiscard]] size_t retained_size_in_bytes() const;
 
-    struct LegacyPropertyArrayRetentionStatistics {
-        u64 holder_count { 0 };
-        u64 bytes { 0 };
-    };
-    static LegacyPropertyArrayRetentionStatistics const& legacy_property_array_retention_statistics();
-    void retain_legacy_property_array() const;
-    void release_legacy_property_array() const;
+    // The drive's frozen computed longhand table, for transfer onto the ComputedValues built
+    // from these properties.
+    ComputedValuesFFI::ComputedLonghandTable const* computed_longhand_table() const { return m_data->computed_longhand_table; }
+
+    // The sparse set of longhands whose effective value differs from the table's stored value:
+    // the animated overlay and the unevaluated longhands' currentcolor-dependent specified-value
+    // preference. Exactly what property() returns, without minting a wrapper per longhand to
+    // find out.
+    void collect_effective_longhand_overrides(Vector<u16>& properties, Vector<void const*>& values) const;
+
+    // How many C++ longhand wrappers have been minted process-wide, counting the on-demand
+    // mints property() performs and the specified-value wrappers the drive's side effects
+    // still need. Exposed through internals for the laziness measurements.
+    static u64 longhand_wrappers_minted();
+    static void reset_longhand_wrappers_minted();
+    static void count_longhand_wrapper_mint(Badge<StyleComputer>);
 
 private:
     friend class Layout::NodeWithStyle;
@@ -346,12 +300,28 @@ private:
 
     class Data final : public RefCounted<Data> {
     public:
-        Data() = default;
+        Data();
+        ~Data();
 
+        // The lazily populated wrapper cache over the longhand table: a slot holds the wrapper
+        // a store funnel carried or the one property() minted on demand, and is cleared when
+        // the drive stores new table data for the longhand.
         mutable Array<RefPtr<StyleValue const>, number_of_longhand_properties> property_values;
-        RefPtr<ComputedValues const> fallback_values;
+        // The source of truth for computed longhand values, written by both store funnels and
+        // frozen when the ComputedProperties is created.
+        ComputedValuesFFI::ComputedLonghandTable* computed_longhand_table { nullptr };
         AK::FixedBitmap<number_of_longhand_properties> property_important { false };
         AK::FixedBitmap<number_of_longhand_properties> property_inherited { false };
+        // Which longhands a drive over these properties (or the styles they were seeded from)
+        // has evaluated and stored; an evaluated longhand's value always comes from the table,
+        // while an unevaluated one keeps computed_style_value_for_inheritance's preference for
+        // a recorded currentcolor-dependent specified value.
+        AK::FixedBitmap<number_of_longhand_properties> property_evaluated { false };
+        // The style sheet whose rule supplied a longhand's winning declaration, for longhands
+        // whose stored value carries style sheet context and awaits an on-demand wrapper mint.
+        // Held weakly, like the cascade's own declaration sources; the wrappers themselves
+        // only extract state from the sheet, so a collected sheet degrades to no stamping.
+        HashMap<PropertyID, GC::Weak<CSSStyleSheet>> style_sheet_sources;
 
         Display display_before_box_type_transformation { InitialValues::display() };
         u64 pseudo_element_styles { 0 };
@@ -366,7 +336,6 @@ private:
     ComputedProperties(NonnullRefPtr<Data const>, bool depends_on_viewport_metrics, bool font_metrics_depend_on_viewport_metrics);
 
     Overflow overflow(PropertyID) const;
-    Vector<ShadowData> shadow(PropertyID, ColorResolutionContext const&) const;
     Position position_value(PropertyID) const;
 
     Data const& data() const { return *m_data; }

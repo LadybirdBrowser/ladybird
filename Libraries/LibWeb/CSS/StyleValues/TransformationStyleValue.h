@@ -23,8 +23,6 @@ public:
     }
     virtual ~TransformationStyleValue() override = default;
 
-    static ValueComparingNonnullRefPtr<TransformationStyleValue const> identity_transformation(TransformFunction);
-
     TransformFunction transform_function() const { return static_cast<TransformFunction>(m_value->transformation.transform_function); }
     StyleValueVector values() const
     {
@@ -38,17 +36,6 @@ public:
     GC::Ptr<CSSTransformComponent> reify_a_transform_function() const;
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-
-    bool properties_equal(TransformationStyleValue const& other) const
-    {
-        if (property() != other.property() || transform_function() != other.transform_function() || size() != other.size())
-            return false;
-        for (size_t i = 0; i < size(); ++i) {
-            if (value_at(i) != other.value_at(i))
-                return false;
-        }
-        return true;
-    }
 
 private:
     friend class StyleValue;
@@ -87,5 +74,9 @@ private:
 
     StyleValueVector m_values;
 };
+
+// The transform functions of a computed or freshly parsed transform value:
+// empty for the none keyword, the transformation elements otherwise.
+Vector<NonnullRefPtr<TransformationStyleValue const>> transformations_for_style_value(StyleValue const&);
 
 }

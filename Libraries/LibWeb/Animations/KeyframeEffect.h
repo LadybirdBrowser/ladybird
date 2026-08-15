@@ -45,7 +45,7 @@ StringView composite_operation_or_auto_to_string(CompositeOperationOrAuto);
 // https://www.w3.org/TR/web-animations-1/#dictdef-basekeyframe
 struct BaseKeyframe {
     using UnparsedProperties = HashMap<Utf16FlyString, Utf16String>;
-    using ParsedProperties = HashMap<CSS::PropertyID, NonnullRefPtr<CSS::StyleValue const>>;
+    using ParsedProperties = HashMap<CSS::PropertyID, CSS::RustStyleValueHandle>;
 
     Optional<double> offset {};
     EasingValue easing { "linear"_utf16 };
@@ -80,11 +80,11 @@ public:
     struct KeyFrameSet : public RefCounted<KeyFrameSet> {
         struct UseInitial { };
         struct ResolvedKeyFrame {
-            // These StyleValue properties can be unresolved, as they may be generated from a @keyframes rule, well
+            // These style values can be unresolved, as they may be generated from a @keyframes rule, well
             // before they are applied to an element
-            HashMap<CSS::PropertyID, Variant<UseInitial, NonnullRefPtr<CSS::StyleValue const>>> properties {};
+            HashMap<CSS::PropertyID, Variant<UseInitial, CSS::RustStyleValueHandle>> properties {};
             CompositeOperationOrAuto composite { CompositeOperationOrAuto::Auto };
-            Variant<Empty, CSS::EasingFunction, NonnullRefPtr<CSS::StyleValue const>> easing {};
+            Variant<Empty, CSS::EasingFunction, CSS::RustStyleValueHandle> easing {};
         };
         RedBlackTree<u64, ResolvedKeyFrame> keyframes_by_key;
     };

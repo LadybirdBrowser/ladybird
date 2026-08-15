@@ -59,14 +59,4 @@ ValueComparingNonnullRefPtr<StyleValue const> TreeCountingFunctionStyleValue::ab
     VERIFY_NOT_REACHED();
 }
 
-bool TreeCountingFunctionStyleValue::equals(StyleValue const& other) const
-{
-    if (type() != other.type())
-        return false;
-
-    auto const& other_tree_counting_function = other.as_tree_counting_function();
-
-    return function() == other_tree_counting_function.function() && computed_type() == other_tree_counting_function.computed_type();
-}
-
 }

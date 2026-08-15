@@ -41,8 +41,6 @@ public:
         return SymbolsFunction { static_cast<SymbolsType>(data.symbols_type), move(symbols) };
     }
 
-    bool properties_equal(CounterStyleStyleValue const& other) const { return value() == other.value(); }
-
 private:
     friend class StyleValue;
 

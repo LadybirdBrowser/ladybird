@@ -7,9 +7,6 @@
  */
 
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
-#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
-#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
@@ -64,24 +61,28 @@ TextPositioning SVGTextPositioningElement::text_positioning() const
     auto resolve_value = [&](Utf16FlyString const& attribute) -> Vector<TextPositioning::Position> {
         auto raw_value = get_attribute_value(attribute);
 
-        CSS::ComputationContext computation_context {
-            .length_resolution_context = CSS::Length::ResolutionContext::for_element(*this),
-            .abstract_element = *this,
-            // NB: color_scheme is irrelevant for resolving text positioning attribute values so isn't set.
-        };
+        auto resolution_context = CSS::Length::ResolutionContext::for_element(*this);
 
         // FIXME: Should we support tree-counting and/or calculated values here?
 
         auto style_value = parse_css_type(parsing_params, raw_value, CSS::ValueType::LengthPercentage);
-        if (auto const* length_style_value = as_if<CSS::LengthStyleValue>(style_value.ptr()))
-            return { CSS::LengthPercentage::from_style_value(*length_style_value->absolutized(computation_context)) };
+        if (style_value) {
+            if (auto value = SVGLengthValue::from_style_value(*style_value); value.has_value()) {
+                if (value->kind() == SVGLengthValue::Kind::Length) {
+                    auto length = value->to_length();
+                    return { CSS::LengthPercentage { length.absolutize(resolution_context).value_or(length) } };
+                }
 
-        if (auto const* percentage_style_value = as_if<CSS::PercentageStyleValue>(style_value.ptr()))
-            return { CSS::LengthPercentage::from_style_value(*percentage_style_value) };
+                if (value->kind() == SVGLengthValue::Kind::Percentage)
+                    return { CSS::LengthPercentage { value->to_percentage() } };
+            }
+        }
 
         style_value = parse_css_type(parsing_params, raw_value, CSS::ValueType::Number);
-        if (auto const* number_style_value = as_if<CSS::NumberStyleValue>(style_value.ptr()))
-            return { CSS::Number { CSS::Number::Type::Number, number_style_value->number() } };
+        if (style_value) {
+            if (auto value = SVGLengthValue::from_style_value(*style_value); value.has_value() && value->kind() == SVGLengthValue::Kind::Number)
+                return { CSS::Number { CSS::Number::Type::Number, value->value() } };
+        }
 
         return {};
     };
@@ -106,7 +107,7 @@ GC::Ref<SVGAnimatedLengthList> SVGTextPositioningElement::ensure_length_list(GC:
         if (maybe_number_percentage.has_value())
             value = maybe_number_percentage.release_value().value();
 
-        auto length = SVGLength::create_detached(document().relevant_settings_object().realm(), CSS::NumberStyleValue::create(value), SVGLength::ReadOnly::Yes);
+        auto length = SVGLength::create_detached(document().relevant_settings_object().realm(), SVGLengthValue::number(value), SVGLength::ReadOnly::Yes);
         auto length_list = SVGLengthList::create(Vector<GC::Ref<SVGLength>> { length }, ReadOnlyList::Yes);
         list = SVGAnimatedLengthList::create(length_list);
     }

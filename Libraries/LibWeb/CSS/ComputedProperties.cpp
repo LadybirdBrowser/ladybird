@@ -12,54 +12,36 @@
 #include <AK/TypeCasts.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibCore/DirIterator.h>
+#include <LibGC/WeakInlines.h>
 #include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Animations/ScrollTimeline.h>
-#include <LibWeb/CSS/Clip.h>
+#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/FontComputer.h>
-#include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
-#include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
-#include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
-#include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
-#include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
-#include <LibWeb/CSS/StyleValues/EmptyOptionalStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridAutoFlowStyleValue.h>
-#include <LibWeb/CSS/StyleValues/GridTemplateAreaStyleValue.h>
-#include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
-#include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
-#include <LibWeb/CSS/StyleValues/OverflowClipMarginStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RectStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RepeatStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarColorStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ScrollbarGutterStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
-#include <LibWeb/CSS/StyleValues/SuperellipseStyleValue.h>
-#include <LibWeb/CSS/StyleValues/TextIndentStyleValue.h>
-#include <LibWeb/CSS/StyleValues/TextUnderlinePositionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TupleStyleValue.h>
 #include <LibWeb/CSS/SystemColor.h>
@@ -75,7 +57,7 @@ extern "C" void ladybird_animated_properties_unref(void const*);
 extern "C" void style_engine_recording_pointer_will_die(void const*);
 
 static Atomic<u64> s_next_animated_properties_identity { 1 };
-static ComputedProperties::LegacyPropertyArrayRetentionStatistics s_legacy_property_array_retention_statistics;
+static u64 s_longhand_wrappers_minted { 0 };
 
 ComputedValues::Statistics ComputedValues::s_statistics;
 
@@ -93,8 +75,71 @@ ComputedValues::ComputedValues(BorrowedStyleRecord)
 
 ComputedValues::~ComputedValues()
 {
+    clear_computed_longhand_table();
     if (!m_is_style_record_view)
         --s_statistics.live_instance_count;
+}
+
+void ComputedValues::adopt_computed_longhand_table(void const* table)
+{
+    if (!table) {
+        clear_computed_longhand_table();
+        return;
+    }
+    // NB: Retain before releasing, so adopting the table this style already holds stays safe.
+    auto const* typed_table = ComputedValuesFFI::rust_computed_longhand_table_retain(static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(table));
+    clear_computed_longhand_table();
+    m_computed_longhand_table = typed_table;
+    m_longhand_values = { ComputedValuesFFI::rust_computed_longhand_table_values(typed_table), number_of_longhand_properties };
+}
+
+void ComputedValues::clear_computed_longhand_table()
+{
+    if (m_computed_longhand_table)
+        ComputedValuesFFI::rust_computed_longhand_table_release(const_cast<ComputedValuesFFI::ComputedLonghandTable*>(static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(m_computed_longhand_table)));
+    m_computed_longhand_table = nullptr;
+    m_longhand_values = {};
+}
+
+void ComputedValues::copy_computed_longhand_table_from(ComputedValues const& other)
+{
+    if (other.m_computed_longhand_table) {
+        adopt_computed_longhand_table(other.m_computed_longhand_table);
+        return;
+    }
+    clear_computed_longhand_table();
+    if (other.m_longhand_values.is_empty())
+        return;
+    auto* table = ComputedValuesFFI::rust_computed_longhand_table_create();
+    ComputedValuesFFI::rust_computed_longhand_table_copy_from_values(table, other.m_longhand_values.data(), other.m_longhand_values.size());
+    ComputedValuesFFI::rust_computed_longhand_table_freeze(table);
+    // The freshly created table already carries the one reference this style owns.
+    m_computed_longhand_table = table;
+    m_longhand_values = { ComputedValuesFFI::rust_computed_longhand_table_values(table), number_of_longhand_properties };
+}
+
+void ComputedValues::adopt_swapped_computed_longhand_table(ComputedValues const& old_values, ComputedValues const& inherited_source)
+{
+    auto old_longhand_values = old_values.computed_longhand_values();
+    auto parent_longhand_values = inherited_source.computed_longhand_values();
+    if (old_longhand_values.is_empty() || parent_longhand_values.is_empty()) {
+        clear_computed_longhand_table();
+        return;
+    }
+    auto* table = ComputedValuesFFI::rust_computed_longhand_table_create();
+    ComputedValuesFFI::rust_computed_longhand_table_copy_from_values(table, old_longhand_values.data(), old_longhand_values.size());
+    for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
+        auto property_id = static_cast<PropertyID>(i);
+        if (!is_inherited_property(property_id))
+            continue;
+        if (auto const* data = parent_longhand_values[i - to_underlying(first_longhand_property_id)])
+            ComputedValuesFFI::rust_computed_longhand_table_set(table, i, data, -1);
+    }
+    ComputedValuesFFI::rust_computed_longhand_table_freeze(table);
+    clear_computed_longhand_table();
+    // The freshly created table already carries the one reference this style owns.
+    m_computed_longhand_table = table;
+    m_longhand_values = { ComputedValuesFFI::rust_computed_longhand_table_values(table), number_of_longhand_properties };
 }
 
 AnimatedProperties::~AnimatedProperties()
@@ -135,21 +180,68 @@ RefPtr<StyleValue const> ComputedValues::style_value_from_handle(PropertyID prop
     return value;
 }
 
+RustStyleValueHandle const* ComputedValues::stored_style_value_handle(PropertyID property_id) const
+{
+    auto from_ffi_handle = [](ComputedValuesFFI::ComputedStyleValueHandle const& handle) -> RustStyleValueHandle const* {
+        static_assert(sizeof(RustStyleValueHandle) == sizeof(handle));
+        return reinterpret_cast<RustStyleValueHandle const*>(&handle);
+    };
+    auto non_empty = [](RustStyleValueHandle const* handle) -> RustStyleValueHandle const* {
+        return (handle && *handle) ? handle : nullptr;
+    };
+    switch (property_id) {
+    case PropertyID::Cx:
+        return non_empty(from_ffi_handle(m_noninherited.svg_reset->cx));
+    case PropertyID::Cy:
+        return non_empty(from_ffi_handle(m_noninherited.svg_reset->cy));
+    case PropertyID::D:
+        return non_empty(from_ffi_handle(m_noninherited.svg_reset->d));
+    case PropertyID::GridAutoColumns:
+        return non_empty(from_ffi_handle(m_noninherited.grid->grid_auto_columns_style_value));
+    case PropertyID::GridAutoRows:
+        return non_empty(from_ffi_handle(m_noninherited.grid->grid_auto_rows_style_value));
+    case PropertyID::GridColumnEnd:
+        return non_empty(from_ffi_handle(m_noninherited.grid->grid_column_end_style_value));
+    case PropertyID::GridColumnStart:
+        return non_empty(from_ffi_handle(m_noninherited.grid->grid_column_start_style_value));
+    case PropertyID::GridRowEnd:
+        return non_empty(from_ffi_handle(m_noninherited.grid->grid_row_end_style_value));
+    case PropertyID::GridRowStart:
+        return non_empty(from_ffi_handle(m_noninherited.grid->grid_row_start_style_value));
+    case PropertyID::GridTemplateAreas:
+        return non_empty(from_ffi_handle(m_noninherited.grid->grid_template_areas_style_value));
+    case PropertyID::GridTemplateColumns:
+        return non_empty(from_ffi_handle(m_noninherited.grid->grid_template_columns_style_value));
+    case PropertyID::GridTemplateRows:
+        return non_empty(from_ffi_handle(m_noninherited.grid->grid_template_rows_style_value));
+    case PropertyID::LetterSpacing:
+        return non_empty(&m_inherited.text->letter_spacing_style_value);
+    case PropertyID::R:
+        return non_empty(from_ffi_handle(m_noninherited.svg_reset->r));
+    case PropertyID::Rx:
+        if (m_noninherited.svg_reset->rx.is_auto)
+            return nullptr;
+        return non_empty(from_ffi_handle(m_noninherited.svg_reset->rx.value));
+    case PropertyID::Ry:
+        if (m_noninherited.svg_reset->ry.is_auto)
+            return nullptr;
+        return non_empty(from_ffi_handle(m_noninherited.svg_reset->ry.value));
+    case PropertyID::WordSpacing:
+        return non_empty(&m_inherited.text->word_spacing_style_value);
+    case PropertyID::X:
+        return non_empty(from_ffi_handle(m_noninherited.svg_reset->x));
+    case PropertyID::Y:
+        return non_empty(from_ffi_handle(m_noninherited.svg_reset->y));
+    default:
+        return nullptr;
+    }
+}
+
 RefPtr<StyleValue const> ComputedValues::color_style_value() const
 {
     if (m_inherited.text->color_style_value)
         return style_value_from_handle(PropertyID::Color, m_inherited.text->color_style_value);
     return computed_style_value(PropertyID::Color);
-}
-
-RefPtr<StyleValue const> ComputedValues::word_spacing_style_value() const
-{
-    return style_value_from_handle(PropertyID::WordSpacing, m_inherited.text->word_spacing_style_value);
-}
-
-RefPtr<StyleValue const> ComputedValues::letter_spacing_style_value() const
-{
-    return style_value_from_handle(PropertyID::LetterSpacing, m_inherited.text->letter_spacing_style_value);
 }
 
 RefPtr<StyleValue const> ComputedValues::raw_cascaded_font_size() const
@@ -208,1544 +300,28 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     if (property_is_logical_alias(property_id))
         property_id = map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { writing_mode(), direction() });
 
+    if (property_id < first_longhand_property_id || property_id > last_longhand_property_id)
+        return {};
+
     if (auto inset = anchor_inset(property_id))
         return inset;
 
-    auto color_style_value = [](Color color) {
-        return ColorStyleValue::create_from_color(color, ColorSyntax::Modern);
-    };
-    auto shadow_color_style_value = [](ShadowData const& shadow) -> NonnullRefPtr<StyleValue const> {
-        if (shadow.color_syntax == ColorSyntax::Legacy)
-            return ColorStyleValue::create_from_color(shadow.color, ColorSyntax::Legacy);
-        return ColorFunctionStyleValue::create(
-            ColorStyleValue::ColorType::sRGB,
-            NumberStyleValue::create(shadow.color.red() / 255.0),
-            NumberStyleValue::create(shadow.color.green() / 255.0),
-            NumberStyleValue::create(shadow.color.blue() / 255.0),
-            NumberStyleValue::create(shadow.color.alpha() / 255.0));
-    };
-    auto length_style_value = [](CSSPixels length) {
-        return LengthStyleValue::create(Length::make_px(length));
-    };
-    auto grid_style_value_or_initial = [&](ComputedValuesFFI::ComputedStyleValueHandle const& handle) -> NonnullRefPtr<StyleValue const> {
-        static_assert(sizeof(RustStyleValueHandle) == sizeof(handle));
-        if (auto value = style_value_from_handle(property_id, reinterpret_cast<RustStyleValueHandle const&>(handle)))
-            return value.release_nonnull();
-        return property_initial_value(property_id);
-    };
-    auto border_image_slice_style_value = [](BorderImageSliceValue const& value) -> NonnullRefPtr<StyleValue const> {
-        return value.visit(
-            [](double number) -> NonnullRefPtr<StyleValue const> { return NumberStyleValue::create(number); },
-            [](Percentage percentage) -> NonnullRefPtr<StyleValue const> { return PercentageStyleValue::create(percentage); },
-            [](NonnullRefPtr<CalculatedStyleValue const> const& calculated) -> NonnullRefPtr<StyleValue const> { return calculated; });
-    };
-    auto length_percentage_style_value = [](LengthPercentage const& length_percentage) -> NonnullRefPtr<StyleValue const> {
-        if (length_percentage.is_percentage())
-            return PercentageStyleValue::create(length_percentage.percentage());
-        if (length_percentage.is_length())
-            return LengthStyleValue::create(length_percentage.length());
-        return length_percentage.calculated();
-    };
-    auto length_percentage_or_auto_style_value = [](LengthPercentageOrAuto const& length_percentage) -> NonnullRefPtr<StyleValue const> {
-        if (length_percentage.is_auto())
-            return KeywordStyleValue::create(Keyword::Auto);
-        if (length_percentage.is_percentage())
-            return PercentageStyleValue::create(length_percentage.percentage());
-        if (length_percentage.is_length())
-            return LengthStyleValue::create(length_percentage.length());
-        return length_percentage.calculated();
-    };
-    auto border_image_width_style_value = [&](BorderImageWidthValue const& value) -> NonnullRefPtr<StyleValue const> {
-        return value.visit(
-            [](double number) -> NonnullRefPtr<StyleValue const> { return NumberStyleValue::create(number); },
-            [&](LengthPercentage const& length_percentage) -> NonnullRefPtr<StyleValue const> { return length_percentage_style_value(length_percentage); },
-            [](BorderImageWidthAuto) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::Auto); });
-    };
-    auto border_image_outset_style_value = [](BorderImageOutsetValue const& value) -> NonnullRefPtr<StyleValue const> {
-        return value.visit(
-            [](double number) -> NonnullRefPtr<StyleValue const> { return NumberStyleValue::create(number); },
-            [](Length const& length) -> NonnullRefPtr<StyleValue const> { return LengthStyleValue::create(length); });
-    };
-    auto border_image_side_values = [](auto const& sides, u8 value_count, auto const& to_style_value) {
-        auto top = to_style_value(sides.top);
-        auto right = to_style_value(sides.right);
-        auto bottom = to_style_value(sides.bottom);
-        auto left = to_style_value(sides.left);
-        StyleValueVector values { top };
-        if (value_count >= 2)
-            values.append(move(right));
-        if (value_count >= 3)
-            values.append(move(bottom));
-        if (value_count >= 4)
-            values.append(move(left));
-        return values;
-    };
-    auto computed_content_item_style_value = [](ComputedContentItem const& item) -> NonnullRefPtr<StyleValue const> {
-        return item.visit(
-            [](Utf16String const& string) -> NonnullRefPtr<StyleValue const> { return StringStyleValue::create(string); },
-            [](Keyword keyword) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(keyword); },
-            [](ComputedContentCounter const& counter) -> NonnullRefPtr<StyleValue const> {
-                auto counter_style = CounterStyleStyleValue::create(counter.style.visit(
-                    [](Utf16FlyString const& name) -> Variant<Utf16FlyString, CounterStyleStyleValue::SymbolsFunction> { return name; },
-                    [](ComputedContentCounter::SymbolsFunction const& symbols) -> Variant<Utf16FlyString, CounterStyleStyleValue::SymbolsFunction> {
-                        return CounterStyleStyleValue::SymbolsFunction { .type = symbols.type, .symbols = symbols.symbols };
-                    }));
-                if (counter.function == ComputedContentCounter::Function::Counters)
-                    return CounterStyleValue::create_counters(counter.name, counter.join_string, move(counter_style));
-                return CounterStyleValue::create_counter(counter.name, move(counter_style));
-            },
-            [](NonnullRefPtr<AbstractImageStyleValue const> const& image) -> NonnullRefPtr<StyleValue const> { return image; });
-    };
-    auto size_style_value = [&](Size const& size) -> NonnullRefPtr<StyleValue const> {
-        if (size.is_none())
-            return KeywordStyleValue::create(Keyword::None);
-        if (size.is_percentage())
-            return PercentageStyleValue::create(size.percentage());
-        if (size.is_length())
-            return LengthStyleValue::create(size.length());
-        if (size.is_auto())
-            return KeywordStyleValue::create(Keyword::Auto);
-        if (size.is_calculated())
-            return size.calculated();
-        if (size.is_min_content())
-            return KeywordStyleValue::create(Keyword::MinContent);
-        if (size.is_max_content())
-            return KeywordStyleValue::create(Keyword::MaxContent);
-        if (auto available_space = size.fit_content_available_space(); available_space.has_value())
-            return FunctionStyleValue::create("fit-content"_utf16_fly_string, length_percentage_style_value(available_space.release_value()));
-        return KeywordStyleValue::create(Keyword::FitContent);
-    };
-    auto border_radius_style_value = [&](BorderRadiusData const& border_radius) -> NonnullRefPtr<StyleValue const> {
-        return BorderRadiusStyleValue::create(
-            length_percentage_style_value(border_radius.horizontal_radius),
-            length_percentage_style_value(border_radius.vertical_radius));
-    };
-    auto position_style_value = [&](Position const& position) -> NonnullRefPtr<StyleValue const> {
-        auto horizontal_edge = position.edge_x == PositionEdge::Left ? Optional<PositionEdge> {} : position.edge_x;
-        auto vertical_edge = position.edge_y == PositionEdge::Top ? Optional<PositionEdge> {} : position.edge_y;
-        return PositionStyleValue::create(
-            EdgeStyleValue::create(horizontal_edge, length_percentage_style_value(position.offset_x)),
-            EdgeStyleValue::create(vertical_edge, length_percentage_style_value(position.offset_y)));
-    };
-    auto svg_paint_style_value = [&](Optional<SVGPaint> const& paint) -> NonnullRefPtr<StyleValue const> {
-        if (!paint.has_value())
-            return KeywordStyleValue::create(Keyword::None);
-        if (paint->is_color() && paint->color_is_currentcolor())
-            return KeywordStyleValue::create(Keyword::Currentcolor);
-        if (paint->is_color())
-            return color_style_value(paint->as_color());
-        StyleValueVector values { URLStyleValue::create(paint->as_url()) };
-        if (paint->color_is_currentcolor())
-            values.append(KeywordStyleValue::create(Keyword::Currentcolor));
-        else if (paint->fallback_color().has_value())
-            values.append(color_style_value(*paint->fallback_color()));
-        else
-            values.append(EmptyOptionalStyleValue::create());
-        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
-    };
-    auto filter_style_value = [&](Filter const& filter) -> NonnullRefPtr<StyleValue const> {
-        if (filter.is_none())
-            return KeywordStyleValue::create(Keyword::None);
-        auto filter_values = filter.filters();
-        StyleValueVector filters;
-        MUST(filters.try_ensure_capacity(filter_values.size()));
-        for (auto const& filter_value : filter_values) {
-            if (filter_value->is_filter() && filter_value->as_filter().kind() == FilterStyleValue::Kind::DropShadow) {
-                auto const& drop_shadow = static_cast<DropShadowFilterStyleValue const&>(filter_value->as_filter());
-                auto const& drop_shadow_color = drop_shadow.color();
-                if (drop_shadow_color && drop_shadow_color->to_keyword() == Keyword::Currentcolor) {
-                    filters.unchecked_append(DropShadowFilterStyleValue::create(
-                        drop_shadow.offset_x(),
-                        drop_shadow.offset_y(),
-                        drop_shadow.radius(),
-                        color_style_value(color())));
-                    continue;
-                }
-            }
-            filters.unchecked_append(filter_value);
-        }
-        return StyleValueList::create(move(filters), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
-    };
-    auto ratio_style_value = [](Ratio const& ratio) -> NonnullRefPtr<StyleValue const> {
-        return RatioStyleValue::create(
-            NumberStyleValue::create(ratio.numerator()),
-            NumberStyleValue::create(ratio.denominator()));
-    };
-    auto length_or_auto_style_value = [&](LengthOrAuto const& value) -> NonnullRefPtr<StyleValue const> {
-        if (value.is_auto())
-            return KeywordStyleValue::create(Keyword::Auto);
-        return LengthStyleValue::create(value.length());
-    };
-    auto custom_ident_list_style_value = [](Vector<Utf16FlyString> const& names) -> NonnullRefPtr<StyleValue const> {
-        StyleValueVector values;
-        values.ensure_capacity(names.size());
-        for (auto const& name : names)
-            values.append(CustomIdentStyleValue::create(name));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    };
-    auto position_area_style_value = [](PositionAreaData const& area) -> NonnullRefPtr<StyleValue const> {
-        VERIFY(!area.keywords.is_empty());
-        if (area.keywords.size() == 1)
-            return KeywordStyleValue::create(to_keyword(area.keywords[0]));
-        StyleValueVector values;
-        for (auto keyword : area.keywords)
-            values.append(KeywordStyleValue::create(to_keyword(keyword)));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
-    };
-    auto timeline_name_list_style_value = [](Vector<Optional<Utf16FlyString>> const& names) -> NonnullRefPtr<StyleValue const> {
-        StyleValueVector values;
-        for (auto const& name : names) {
-            if (name.has_value())
-                values.append(CustomIdentStyleValue::create(*name));
-            else
-                values.append(KeywordStyleValue::create(Keyword::None));
-        }
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    };
-    auto timeline_axis_list_style_value = [](Vector<Axis> const& axes) -> NonnullRefPtr<StyleValue const> {
-        StyleValueVector values;
-        for (auto axis : axes)
-            values.append(KeywordStyleValue::create(to_keyword(axis)));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    };
-    auto color_or_auto_style_value = [&](ColorOrAuto const& color_or_auto) -> NonnullRefPtr<StyleValue const> {
-        return color_or_auto.computed_value.visit(
-            [](ColorOrAuto::Auto) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::Auto); },
-            [&](Color color) -> NonnullRefPtr<StyleValue const> { return color_style_value(color); });
-    };
+    // The animated overlay first, under the same rule property() applies: important base values
+    // override animated but not transitioned properties.
+    if (with_animations_applied == WithAnimationsApplied::Yes && m_animated_properties && m_animated_properties->has_property(property_id)
+        && (!is_property_important(property_id) || m_animated_properties->is_property_result_of_transition(property_id)))
+        return m_animated_properties->property(property_id);
 
-    switch (property_id) {
-    case PropertyID::AccentColor:
-        return color_or_auto_style_value(accent_color_value());
-    case PropertyID::AlignContent:
-        return KeywordStyleValue::create(to_keyword(align_content()));
-    case PropertyID::AlignItems:
-        return KeywordStyleValue::create(to_keyword(align_items()));
-    case PropertyID::AlignSelf:
-        return KeywordStyleValue::create(to_keyword(align_self()));
-    case PropertyID::AnchorName:
-        if (anchor_names().is_empty())
-            return KeywordStyleValue::create(Keyword::None);
-        return custom_ident_list_style_value(anchor_names());
-    case PropertyID::AnchorScope:
-        if (anchor_scope().all)
-            return KeywordStyleValue::create(Keyword::All);
-        if (anchor_scope().names.is_empty())
-            return KeywordStyleValue::create(Keyword::None);
-        return custom_ident_list_style_value(anchor_scope().names);
-    case PropertyID::Appearance:
-        return KeywordStyleValue::create(to_keyword(computed_appearance()));
-    case PropertyID::AspectRatio: {
-        if (!aspect_ratio().computed_ratio.has_value())
-            return KeywordStyleValue::create(Keyword::Auto);
-        auto ratio = ratio_style_value(*aspect_ratio().computed_ratio);
-        if (!aspect_ratio().computed_use_natural_aspect_ratio_if_available)
-            return ratio;
-        return StyleValueList::create(
-            { KeywordStyleValue::create(Keyword::Auto), move(ratio) },
-            StyleValueList::Separator::Space);
-    }
-    case PropertyID::BackfaceVisibility:
-        return KeywordStyleValue::create(to_keyword(backface_visibility()));
-    case PropertyID::BackgroundColor:
-        return color_style_value(background_color());
-    case PropertyID::BackgroundAttachment: {
-        StyleValueVector values;
-        for (auto const& layer : background_layers())
-            values.append(KeywordStyleValue::create(to_keyword(layer.attachment)));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::BackgroundBlendMode: {
-        StyleValueVector values;
-        for (auto const& layer : background_layers())
-            values.append(KeywordStyleValue::create(to_keyword(layer.blend_mode)));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::BackgroundClip: {
-        StyleValueVector values;
-        for (auto const& layer : background_layers())
-            values.append(KeywordStyleValue::create(to_keyword(layer.clip)));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::BackgroundImage: {
-        StyleValueVector values;
-        for (auto const& layer : background_layers()) {
-            if (layer.background_image)
-                values.append(*layer.background_image);
-            else
-                values.append(KeywordStyleValue::create(Keyword::None));
-        }
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::BackgroundOrigin: {
-        StyleValueVector values;
-        for (auto const& layer : background_layers())
-            values.append(KeywordStyleValue::create(to_keyword(layer.origin)));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::BackgroundPositionX: {
-        StyleValueVector values;
-        for (auto const& layer : background_layers())
-            values.append(EdgeStyleValue::create({}, length_percentage_style_value(layer.position_x)));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::BackgroundPositionY: {
-        StyleValueVector values;
-        for (auto const& layer : background_layers())
-            values.append(EdgeStyleValue::create({}, length_percentage_style_value(layer.position_y)));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::BackgroundRepeat: {
-        StyleValueVector values;
-        for (auto const& layer : background_layers())
-            values.append(RepeatStyleStyleValue::create(layer.repeat_x, layer.repeat_y));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::BackgroundSize: {
-        StyleValueVector values;
-        for (auto const& layer : background_layers()) {
-            switch (layer.size_type) {
-            case CSS::BackgroundSize::Contain:
-                values.append(KeywordStyleValue::create(Keyword::Contain));
-                break;
-            case CSS::BackgroundSize::Cover:
-                values.append(KeywordStyleValue::create(Keyword::Cover));
-                break;
-            case CSS::BackgroundSize::LengthPercentage:
-                values.append(BackgroundSizeStyleValue::create(
-                    length_percentage_or_auto_style_value(layer.size_x),
-                    length_percentage_or_auto_style_value(layer.size_y)));
-                break;
-            }
-        }
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::BorderCollapse:
-        return KeywordStyleValue::create(to_keyword(border_collapse()));
-    case PropertyID::BorderImageOutset: {
-        auto values = border_image_side_values(border_image().outset, border_image().outset_value_count, border_image_outset_style_value);
-        if (values.size() == 1)
-            return values.take_first();
-        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
-    }
-    case PropertyID::BorderImageRepeat:
-        return StyleValueList::create(
-            { KeywordStyleValue::create(to_keyword(border_image().repeat_x)), KeywordStyleValue::create(to_keyword(border_image().repeat_y)) },
-            StyleValueList::Separator::Space);
-    case PropertyID::BorderImageSlice:
-        return BorderImageSliceStyleValue::create(
-            border_image_slice_style_value(border_image().slice.top),
-            border_image_slice_style_value(border_image().slice.right),
-            border_image_slice_style_value(border_image().slice.bottom),
-            border_image_slice_style_value(border_image().slice.left),
-            border_image().fill);
-    case PropertyID::BorderImageSource:
-        if (border_image().source)
-            return *border_image().source;
-        return KeywordStyleValue::create(Keyword::None);
-    case PropertyID::BorderImageWidth: {
-        auto values = border_image_side_values(border_image().width, border_image().width_value_count, border_image_width_style_value);
-        if (values.size() == 1)
-            return values.take_first();
-        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
-    }
-    case PropertyID::BorderSpacing:
-        if (border_spacing_horizontal() == border_spacing_vertical())
-            return length_style_value(border_spacing_horizontal());
-        return StyleValueList::create(
-            { length_style_value(border_spacing_horizontal()), length_style_value(border_spacing_vertical()) },
-            StyleValueList::Separator::Space);
-    case PropertyID::BorderBottomColor:
-        if (auto value = style_value_from_handle(PropertyID::BorderBottomColor, m_noninherited.border->border_bottom_color_style_value); value && !value->depends_on_current_color())
-            return value;
-        return color_style_value(border_bottom().color);
-    case PropertyID::BorderLeftColor:
-        if (auto value = style_value_from_handle(PropertyID::BorderLeftColor, m_noninherited.border->border_left_color_style_value); value && !value->depends_on_current_color())
-            return value;
-        return color_style_value(border_left().color);
-    case PropertyID::BorderRightColor:
-        if (auto value = style_value_from_handle(PropertyID::BorderRightColor, m_noninherited.border->border_right_color_style_value); value && !value->depends_on_current_color())
-            return value;
-        return color_style_value(border_right().color);
-    case PropertyID::BorderTopColor:
-        if (auto value = style_value_from_handle(PropertyID::BorderTopColor, m_noninherited.border->border_top_color_style_value); value && !value->depends_on_current_color())
-            return value;
-        return color_style_value(border_top().color);
-    case PropertyID::CaretColor:
-        return color_or_auto_style_value(caret_color_value());
-    case PropertyID::CaptionSide:
-        return KeywordStyleValue::create(to_keyword(caption_side()));
-    case PropertyID::ClipRule:
-        return KeywordStyleValue::create(to_keyword(clip_rule()));
-    case PropertyID::ColorInterpolation:
-        return KeywordStyleValue::create(to_keyword(color_interpolation()));
-    case PropertyID::ColorInterpolationFilters:
-        return KeywordStyleValue::create(to_keyword(color_interpolation_filters()));
-    case PropertyID::ColumnHeight:
-        return size_style_value(column_height());
-    case PropertyID::ColumnSpan:
-        return KeywordStyleValue::create(to_keyword(column_span()));
-    case PropertyID::ColumnWidth:
-        return size_style_value(column_width());
-    case PropertyID::Color:
-        if (auto value = style_value_from_handle(PropertyID::Color, m_inherited.text->color_style_value); value && !value->depends_on_current_color())
-            return value;
-        return color_style_value(color());
-    case PropertyID::FloodColor:
-        return color_style_value(flood_color());
-    case PropertyID::StopColor:
-        return color_style_value(stop_color());
-    case PropertyID::TextDecorationColor:
-        return color_style_value(text_decoration_color());
-    case PropertyID::WebkitTextFillColor:
-        if (webkit_text_fill_color_is_current_color())
-            return KeywordStyleValue::create(Keyword::Currentcolor);
-        return color_style_value(webkit_text_fill_color());
-    case PropertyID::BorderBottomStyle:
-        return KeywordStyleValue::create(to_keyword(border_bottom().line_style));
-    case PropertyID::BorderLeftStyle:
-        return KeywordStyleValue::create(to_keyword(border_left().line_style));
-    case PropertyID::BorderRightStyle:
-        return KeywordStyleValue::create(to_keyword(border_right().line_style));
-    case PropertyID::BorderTopStyle:
-        return KeywordStyleValue::create(to_keyword(border_top().line_style));
-    case PropertyID::BorderBottomWidth:
-        return length_style_value(border_bottom_computed_width());
-    case PropertyID::BorderLeftWidth:
-        return length_style_value(border_left_computed_width());
-    case PropertyID::BorderRightWidth:
-        return length_style_value(border_right_computed_width());
-    case PropertyID::BorderTopWidth:
-        return length_style_value(border_top_computed_width());
-    case PropertyID::BorderBottomLeftRadius:
-        return border_radius_style_value(border_bottom_left_radius());
-    case PropertyID::BorderBottomRightRadius:
-        return border_radius_style_value(border_bottom_right_radius());
-    case PropertyID::BorderTopLeftRadius:
-        return border_radius_style_value(border_top_left_radius());
-    case PropertyID::BorderTopRightRadius:
-        return border_radius_style_value(border_top_right_radius());
-    case PropertyID::Bottom:
-        return length_percentage_or_auto_style_value(inset().bottom());
-    case PropertyID::Height:
-        return size_style_value(height());
-    case PropertyID::Left:
-        return length_percentage_or_auto_style_value(inset().left());
-    case PropertyID::MarginBottom:
-        return length_percentage_or_auto_style_value(margin().bottom());
-    case PropertyID::MarginLeft:
-        return length_percentage_or_auto_style_value(margin().left());
-    case PropertyID::MarginRight:
-        return length_percentage_or_auto_style_value(margin().right());
-    case PropertyID::MarginTop:
-        return length_percentage_or_auto_style_value(margin().top());
-    case PropertyID::MaxHeight:
-        return size_style_value(max_height());
-    case PropertyID::MaxWidth:
-        return size_style_value(max_width());
-    case PropertyID::MinHeight:
-        return size_style_value(min_height());
-    case PropertyID::MinWidth:
-        return size_style_value(min_width());
-    case PropertyID::OutlineColor:
-        return color_style_value(outline_color());
-    case PropertyID::OutlineStyle:
-        return KeywordStyleValue::create(to_keyword(outline_style()));
-    case PropertyID::OutlineWidth:
-        return length_style_value(outline_width());
-    case PropertyID::PaddingBottom:
-        return length_percentage_or_auto_style_value(padding().bottom());
-    case PropertyID::PaddingLeft:
-        return length_percentage_or_auto_style_value(padding().left());
-    case PropertyID::PaddingRight:
-        return length_percentage_or_auto_style_value(padding().right());
-    case PropertyID::PaddingTop:
-        return length_percentage_or_auto_style_value(padding().top());
-    case PropertyID::ScrollMarginBottom:
-        return length_percentage_or_auto_style_value(scroll_margin().bottom());
-    case PropertyID::ScrollMarginLeft:
-        return length_percentage_or_auto_style_value(scroll_margin().left());
-    case PropertyID::ScrollMarginRight:
-        return length_percentage_or_auto_style_value(scroll_margin().right());
-    case PropertyID::ScrollMarginTop:
-        return length_percentage_or_auto_style_value(scroll_margin().top());
-    case PropertyID::ScrollPaddingBottom:
-        return length_percentage_or_auto_style_value(scroll_padding().bottom());
-    case PropertyID::ScrollPaddingLeft:
-        return length_percentage_or_auto_style_value(scroll_padding().left());
-    case PropertyID::ScrollPaddingRight:
-        return length_percentage_or_auto_style_value(scroll_padding().right());
-    case PropertyID::ScrollPaddingTop:
-        return length_percentage_or_auto_style_value(scroll_padding().top());
-    case PropertyID::Right:
-        return length_percentage_or_auto_style_value(inset().right());
-    case PropertyID::Top:
-        return length_percentage_or_auto_style_value(inset().top());
-    case PropertyID::Width:
-        return size_style_value(width());
-    case PropertyID::Display:
-        return DisplayStyleValue::create(display());
-    case PropertyID::DominantBaseline:
-        if (dominant_baseline().has_value())
-            return KeywordStyleValue::create(to_keyword(*dominant_baseline()));
-        return KeywordStyleValue::create(Keyword::Auto);
-    case PropertyID::ColorScheme:
-        if (color_schemes().is_empty())
-            return ColorSchemeStyleValue::normal();
-        return ColorSchemeStyleValue::create(color_schemes(), color_scheme_only());
-    case PropertyID::AnimationComposition: {
-        StyleValueVector values;
-        for (auto composition : animation_compositions())
-            values.append(KeywordStyleValue::create(to_keyword(composition)));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::AnimationDelay: {
-        StyleValueVector values;
-        for (auto const& delay : animation_delays())
-            values.append(TimeStyleValue::create(delay));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::AnimationDirection: {
-        StyleValueVector values;
-        for (auto direction : animation_directions())
-            values.append(KeywordStyleValue::create(to_keyword(direction)));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::AnimationDuration: {
-        StyleValueVector values;
-        for (auto const& duration : animation_durations()) {
-            if (duration.has_value())
-                values.append(TimeStyleValue::create(*duration));
-            else
-                values.append(KeywordStyleValue::create(Keyword::Auto));
-        }
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::AnimationFillMode: {
-        StyleValueVector values;
-        for (auto fill_mode : animation_fill_modes())
-            values.append(KeywordStyleValue::create(to_keyword(fill_mode)));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::AnimationIterationCount: {
-        StyleValueVector values;
-        for (auto iteration_count : animation_iteration_counts()) {
-            if (isinf(iteration_count))
-                values.append(KeywordStyleValue::create(Keyword::Infinite));
-            else
-                values.append(NumberStyleValue::create(iteration_count));
-        }
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::AnimationName: {
-        StyleValueVector values;
-        values.ensure_capacity(animation_names().size());
-        for (auto const& name : animation_names()) {
-            switch (name.syntax) {
-            case ComputedAnimationNameSyntax::None:
-                values.append(KeywordStyleValue::create(Keyword::None));
-                break;
-            case ComputedAnimationNameSyntax::CustomIdent:
-                values.append(CustomIdentStyleValue::create(name.name));
-                break;
-            case ComputedAnimationNameSyntax::String:
-                values.append(StringStyleValue::create(name.name));
-                break;
-            }
-        }
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::AnimationPlayState: {
-        StyleValueVector values;
-        for (auto play_state : animation_play_states())
-            values.append(KeywordStyleValue::create(to_keyword(play_state)));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::AnimationTimeline: {
-        StyleValueVector values;
-        for (auto const& timeline : animation_timelines()) {
-            switch (timeline.type) {
-            case AnimationTimelineData::Type::Auto:
-                values.append(KeywordStyleValue::create(Keyword::Auto));
-                break;
-            case AnimationTimelineData::Type::None:
-                values.append(KeywordStyleValue::create(Keyword::None));
-                break;
-            case AnimationTimelineData::Type::Name:
-                values.append(CustomIdentStyleValue::create(timeline.name));
-                break;
-            case AnimationTimelineData::Type::Scroll: {
-                StyleValueTuple arguments;
-                arguments.resize_with_default_value(2, nullptr);
-                if (timeline.scroller != Scroller::Nearest)
-                    arguments[TupleStyleValue::Indices::ScrollFunction::Scroller] = KeywordStyleValue::create(to_keyword(timeline.scroller));
-                if (timeline.axis != Axis::Block)
-                    arguments[TupleStyleValue::Indices::ScrollFunction::Axis] = KeywordStyleValue::create(to_keyword(timeline.axis));
-                values.append(FunctionStyleValue::create("scroll"_utf16_fly_string, TupleStyleValue::create(move(arguments))));
-                break;
-            }
-            case AnimationTimelineData::Type::View: {
-                StyleValueTuple arguments;
-                arguments.resize_with_default_value(2, nullptr);
-                if (timeline.axis != Axis::Block)
-                    arguments[TupleStyleValue::Indices::ViewFunction::Axis] = KeywordStyleValue::create(to_keyword(timeline.axis));
-                if (!timeline.inset.start.is_auto() || !timeline.inset.end.is_auto()) {
-                    arguments[TupleStyleValue::Indices::ViewFunction::Inset] = StyleValueList::create(
-                        { length_percentage_or_auto_style_value(timeline.inset.start), length_percentage_or_auto_style_value(timeline.inset.end) },
-                        StyleValueList::Separator::Space);
-                }
-                values.append(FunctionStyleValue::create("view"_utf16_fly_string, TupleStyleValue::create(move(arguments))));
-                break;
-            }
-            }
-        }
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::AnimationTimingFunction: {
-        if (!animation_timing_function_style_values().is_empty()) {
-            auto values = animation_timing_function_style_values();
-            return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-        }
-        StyleValueVector values;
-        for (auto const& timing_function : animation_timing_functions())
-            values.append(timing_function.to_style_value());
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::BackdropFilter:
-        return filter_style_value(backdrop_filter());
-    case PropertyID::FontFamily: {
-        StyleValueVector values;
-        values.ensure_capacity(font_families().size());
-        for (auto const& family : font_families()) {
-            family.visit(
-                [&](GenericFontFamily generic_family) {
-                    values.append(KeywordStyleValue::create(to_keyword(generic_family)));
-                },
-                [&](ComputedFontFamilyName const& name) {
-                    if (name.syntax == ComputedFontFamilySyntax::String)
-                        values.append(StringStyleValue::create(name.name));
-                    else
-                        values.append(CustomIdentStyleValue::create(name.name));
-                });
-        }
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::FontSize:
-        return length_style_value(font_size());
-    case PropertyID::FontStyle: {
-        ValueComparingRefPtr<StyleValue const> angle;
-        if (font_style().angle.has_value()) {
-            angle = font_style().angle->visit(
-                [](Angle const& angle) -> ValueComparingNonnullRefPtr<StyleValue const> { return AngleStyleValue::create(angle); },
-                [](NonnullRefPtr<CalculatedStyleValue const> const& angle) -> ValueComparingNonnullRefPtr<StyleValue const> { return angle; });
-        }
-        return FontStyleStyleValue::create(font_style().keyword, move(angle));
-    }
-    case PropertyID::FontWeight:
-        return NumberStyleValue::create(font_weight());
-    case PropertyID::FontWidth:
-        return PercentageStyleValue::create(font_width());
-    case PropertyID::FontKerning:
-        return KeywordStyleValue::create(to_keyword(font_feature_data().font_kerning));
-    case PropertyID::FontFeatureSettings: {
-        if (font_feature_data().font_feature_settings.is_empty())
-            return KeywordStyleValue::create(Keyword::Normal);
-        StyleValueVector settings;
-        for (auto const& [tag, value] : font_feature_data().font_feature_settings) {
-            settings.append(OpenTypeTaggedStyleValue::create(
-                OpenTypeTaggedStyleValue::Mode::FontFeatureSettings,
-                tag,
-                IntegerStyleValue::create(value)));
-        }
-        quick_sort(settings, [](auto const& a, auto const& b) {
-            return a->as_open_type_tagged().tag() < b->as_open_type_tagged().tag();
-        });
-        return StyleValueList::create(move(settings), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::FontLanguageOverride:
-        if (font_language_override().has_value())
-            return StringStyleValue::create(*font_language_override());
-        return KeywordStyleValue::create(Keyword::Normal);
-    case PropertyID::FontOpticalSizing:
-        return KeywordStyleValue::create(to_keyword(font_optical_sizing()));
-    case PropertyID::FontVariantCaps:
-        return KeywordStyleValue::create(to_keyword(font_feature_data().font_variant_caps));
-    case PropertyID::FontVariantAlternates: {
-        if (!font_feature_data().font_variant_alternates.has_value())
-            return KeywordStyleValue::create(Keyword::Normal);
-        auto const& alternates = *font_feature_data().font_variant_alternates;
-        StyleValueVector values;
-        if (alternates.historical_forms)
-            values.append(KeywordStyleValue::create(Keyword::HistoricalForms));
-        auto append_feature_value_function = [&](FontFeatureValueType type, Utf16FlyString name) {
-            StyleValueVector names;
-            for (auto const& entry : alternates.font_feature_value_entries) {
-                if (entry.type == type)
-                    names.append(CustomIdentStyleValue::create(entry.name));
-            }
-            if (!names.is_empty()) {
-                values.append(FunctionStyleValue::create(
-                    move(name),
-                    StyleValueList::create(move(names), StyleValueList::Separator::Space)));
-            }
-        };
-        append_feature_value_function(FontFeatureValueType::Stylistic, "stylistic"_utf16_fly_string);
-        append_feature_value_function(FontFeatureValueType::Styleset, "styleset"_utf16_fly_string);
-        append_feature_value_function(FontFeatureValueType::CharacterVariant, "character-variant"_utf16_fly_string);
-        append_feature_value_function(FontFeatureValueType::Swash, "swash"_utf16_fly_string);
-        append_feature_value_function(FontFeatureValueType::Ornaments, "ornaments"_utf16_fly_string);
-        append_feature_value_function(FontFeatureValueType::Annotation, "annotation"_utf16_fly_string);
-        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
-    }
-    case PropertyID::FontVariantEastAsian: {
-        if (!font_feature_data().font_variant_east_asian.has_value())
-            return KeywordStyleValue::create(Keyword::Normal);
-        auto const& east_asian = *font_feature_data().font_variant_east_asian;
-        StyleValueTuple tuple;
-        tuple.resize_with_default_value(3, nullptr);
-        if (east_asian.variant.has_value())
-            tuple[TupleStyleValue::Indices::FontVariantEastAsian::Variant] = KeywordStyleValue::create(to_keyword(*east_asian.variant));
-        if (east_asian.width.has_value())
-            tuple[TupleStyleValue::Indices::FontVariantEastAsian::Width] = KeywordStyleValue::create(to_keyword(*east_asian.width));
-        if (east_asian.ruby)
-            tuple[TupleStyleValue::Indices::FontVariantEastAsian::Ruby] = KeywordStyleValue::create(Keyword::Ruby);
-        return TupleStyleValue::create(move(tuple));
-    }
-    case PropertyID::FontVariantLigatures: {
-        if (!font_feature_data().font_variant_ligatures.has_value())
-            return KeywordStyleValue::create(Keyword::Normal);
-        auto const& ligatures = *font_feature_data().font_variant_ligatures;
-        if (ligatures.none)
-            return KeywordStyleValue::create(Keyword::None);
-        StyleValueTuple tuple;
-        tuple.resize_with_default_value(4, nullptr);
-        if (ligatures.common.has_value())
-            tuple[TupleStyleValue::Indices::FontVariantLigatures::Common] = KeywordStyleValue::create(to_keyword(*ligatures.common));
-        if (ligatures.discretionary.has_value())
-            tuple[TupleStyleValue::Indices::FontVariantLigatures::Discretionary] = KeywordStyleValue::create(to_keyword(*ligatures.discretionary));
-        if (ligatures.historical.has_value())
-            tuple[TupleStyleValue::Indices::FontVariantLigatures::Historical] = KeywordStyleValue::create(to_keyword(*ligatures.historical));
-        if (ligatures.contextual.has_value())
-            tuple[TupleStyleValue::Indices::FontVariantLigatures::Contextual] = KeywordStyleValue::create(to_keyword(*ligatures.contextual));
-        return TupleStyleValue::create(move(tuple));
-    }
-    case PropertyID::FontVariantNumeric: {
-        if (!font_feature_data().font_variant_numeric.has_value())
-            return KeywordStyleValue::create(Keyword::Normal);
-        auto const& numeric = *font_feature_data().font_variant_numeric;
-        StyleValueTuple tuple;
-        tuple.resize_with_default_value(5, nullptr);
-        if (numeric.figure.has_value())
-            tuple[TupleStyleValue::Indices::FontVariantNumeric::Figure] = KeywordStyleValue::create(to_keyword(*numeric.figure));
-        if (numeric.spacing.has_value())
-            tuple[TupleStyleValue::Indices::FontVariantNumeric::Spacing] = KeywordStyleValue::create(to_keyword(*numeric.spacing));
-        if (numeric.fraction.has_value())
-            tuple[TupleStyleValue::Indices::FontVariantNumeric::Fraction] = KeywordStyleValue::create(to_keyword(*numeric.fraction));
-        if (numeric.ordinal)
-            tuple[TupleStyleValue::Indices::FontVariantNumeric::Ordinal] = KeywordStyleValue::create(Keyword::Ordinal);
-        if (numeric.slashed_zero)
-            tuple[TupleStyleValue::Indices::FontVariantNumeric::SlashedZero] = KeywordStyleValue::create(Keyword::SlashedZero);
-        return TupleStyleValue::create(move(tuple));
-    }
-    case PropertyID::FontVariantPosition:
-        return KeywordStyleValue::create(to_keyword(font_feature_data().font_variant_position));
-    case PropertyID::FontVariationSettings: {
-        if (font_variation_settings().is_empty())
-            return KeywordStyleValue::create(Keyword::Normal);
-        StyleValueVector settings;
-        for (auto const& [tag, value] : font_variation_settings()) {
-            settings.append(OpenTypeTaggedStyleValue::create(
-                OpenTypeTaggedStyleValue::Mode::FontVariationSettings,
-                tag,
-                NumberStyleValue::create(value)));
-        }
-        quick_sort(settings, [](auto const& a, auto const& b) {
-            return a->as_open_type_tagged().tag() < b->as_open_type_tagged().tag();
-        });
-        return StyleValueList::create(move(settings), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::LineHeight:
-        return line_height_data().computed_value.visit(
-            [](LineHeightData::Normal) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::Normal); },
-            [](double value) -> NonnullRefPtr<StyleValue const> { return NumberStyleValue::create(value); },
-            [](Length const& value) -> NonnullRefPtr<StyleValue const> { return LengthStyleValue::create(value); });
-    case PropertyID::LetterSpacing:
-        if (letter_spacing_style_value())
-            return letter_spacing_style_value();
-        return length_style_value(letter_spacing());
-    case PropertyID::Opacity:
-        return OpacityValueStyleValue::create(NumberStyleValue::create(opacity()));
-    case PropertyID::PaintOrder: {
-        if (paint_order_is_normal())
-            return KeywordStyleValue::create(Keyword::Normal);
-        if (paint_order_serialization_length() == 1)
-            return KeywordStyleValue::create(to_keyword(paint_order()[0]));
-        StyleValueVector values;
-        for (u8 i = 0; i < paint_order_serialization_length(); ++i)
-            values.append(KeywordStyleValue::create(to_keyword(paint_order()[i])));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
-    }
-    case PropertyID::FillOpacity:
-        return OpacityValueStyleValue::create(NumberStyleValue::create(fill_opacity()));
-    case PropertyID::Fill:
-        return svg_paint_style_value(fill());
-    case PropertyID::FloodOpacity:
-        return OpacityValueStyleValue::create(NumberStyleValue::create(flood_opacity()));
-    case PropertyID::StopOpacity:
-        return OpacityValueStyleValue::create(NumberStyleValue::create(stop_opacity()));
-    case PropertyID::StrokeOpacity:
-        return OpacityValueStyleValue::create(NumberStyleValue::create(stroke_opacity()));
-    case PropertyID::Stroke:
-        return svg_paint_style_value(stroke());
-    case PropertyID::BoxSizing:
-        return KeywordStyleValue::create(to_keyword(box_sizing()));
-    case PropertyID::BoxShadow: {
-        if (box_shadow().is_empty())
-            return KeywordStyleValue::create(Keyword::None);
-        StyleValueVector shadows;
-        shadows.ensure_capacity(box_shadow().size());
-        for (auto const& shadow : box_shadow()) {
-            shadows.append(ShadowStyleValue::create(
-                ShadowStyleValue::ShadowType::Normal,
-                shadow_color_style_value(shadow),
-                length_style_value(shadow.offset_x),
-                length_style_value(shadow.offset_y),
-                length_style_value(shadow.blur_radius),
-                length_style_value(shadow.spread_distance),
-                shadow.placement));
-        }
-        return StyleValueList::create(move(shadows), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::Clear:
-        return KeywordStyleValue::create(to_keyword(clear()));
-    case PropertyID::ClipPath:
-        if (!clip_path().has_value())
-            return KeywordStyleValue::create(Keyword::None);
-        if (clip_path()->is_url())
-            return URLStyleValue::create(clip_path()->url());
-        return NonnullRefPtr { clip_path()->basic_shape() };
-    case PropertyID::Clip: {
-        if (clip().is_auto())
-            return KeywordStyleValue::create(Keyword::Auto);
-        auto rect = clip().to_rect();
-        return RectStyleValue::create(
-            length_or_auto_style_value(rect.top_edge),
-            length_or_auto_style_value(rect.right_edge),
-            length_or_auto_style_value(rect.bottom_edge),
-            length_or_auto_style_value(rect.left_edge));
-    }
-    case PropertyID::ColumnCount:
-        if (column_count().is_auto())
-            return KeywordStyleValue::create(Keyword::Auto);
-        return IntegerStyleValue::create(column_count().value());
-    case PropertyID::ColumnGap:
-        return column_gap().visit(
-            [&](LengthPercentage const& gap) -> NonnullRefPtr<StyleValue const> { return length_percentage_style_value(gap); },
-            [](NormalGap) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::Normal); });
-    case PropertyID::Contain: {
-        if (contain().is_empty())
-            return KeywordStyleValue::create(Keyword::None);
-        StyleValueVector containment_types;
-        if (contain().size_containment)
-            containment_types.append(KeywordStyleValue::create(Keyword::Size));
-        if (contain().inline_size_containment)
-            containment_types.append(KeywordStyleValue::create(Keyword::InlineSize));
-        if (contain().layout_containment)
-            containment_types.append(KeywordStyleValue::create(Keyword::Layout));
-        if (contain().style_containment)
-            containment_types.append(KeywordStyleValue::create(Keyword::Style));
-        if (contain().paint_containment)
-            containment_types.append(KeywordStyleValue::create(Keyword::Paint));
-        return StyleValueList::create(move(containment_types), StyleValueList::Separator::Space);
-    }
-    case PropertyID::ContainerName: {
-        if (container_name().is_empty())
-            return KeywordStyleValue::create(Keyword::None);
-        StyleValueVector names;
-        names.ensure_capacity(container_name().size());
-        for (auto const& name : container_name())
-            names.append(CustomIdentStyleValue::create(name));
-        return StyleValueList::create(move(names), StyleValueList::Separator::Space);
-    }
-    case PropertyID::ContainerType: {
-        if (container_type().is_empty())
-            return KeywordStyleValue::create(Keyword::Normal);
-        StyleValueVector types;
-        if (container_type().is_size_container)
-            types.append(KeywordStyleValue::create(Keyword::Size));
-        if (container_type().is_inline_size_container)
-            types.append(KeywordStyleValue::create(Keyword::InlineSize));
-        if (container_type().is_scroll_state_container)
-            types.append(KeywordStyleValue::create(Keyword::ScrollState));
-        return StyleValueList::create(move(types), StyleValueList::Separator::Space);
-    }
-    case PropertyID::Content:
-        switch (computed_content().type) {
-        case ComputedContentData::Type::Normal:
-            return KeywordStyleValue::create(Keyword::Normal);
-        case ComputedContentData::Type::None:
-            return KeywordStyleValue::create(Keyword::None);
-        case ComputedContentData::Type::List: {
-            StyleValueVector items;
-            for (auto const& item : computed_content().items)
-                items.append(computed_content_item_style_value(item));
-            StyleValueVector alt_text;
-            for (auto const& item : computed_content().alt_text)
-                alt_text.append(computed_content_item_style_value(item));
-            ValueComparingRefPtr<StyleValueList const> alt_text_style_value;
-            if (!alt_text.is_empty())
-                alt_text_style_value = StyleValueList::create(move(alt_text), StyleValueList::Separator::Space);
-            return ContentStyleValue::create(
-                StyleValueList::create(move(items), StyleValueList::Separator::Space),
-                move(alt_text_style_value));
-        }
-        }
-        VERIFY_NOT_REACHED();
-    case PropertyID::ContentVisibility:
-        return KeywordStyleValue::create(to_keyword(content_visibility()));
-    case PropertyID::Cursor: {
-        if (cursor().size() == 1 && cursor().first().has<CursorPredefined>())
-            return KeywordStyleValue::create(to_keyword(cursor().first().get<CursorPredefined>()));
-        StyleValueVector cursors;
-        cursors.ensure_capacity(cursor().size());
-        for (auto const& cursor : cursor()) {
-            cursor.visit(
-                [&](NonnullRefPtr<CursorStyleValue const> const& cursor) { cursors.append(cursor); },
-                [&](CursorPredefined cursor) { cursors.append(KeywordStyleValue::create(to_keyword(cursor))); });
-        }
-        return StyleValueList::create(move(cursors), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::CounterIncrement:
-    case PropertyID::CounterReset:
-    case PropertyID::CounterSet: {
-        auto const* counters = &counter_increment();
-        if (property_id == PropertyID::CounterReset)
-            counters = &counter_reset();
-        else if (property_id == PropertyID::CounterSet)
-            counters = &counter_set();
-        if (counters->is_empty())
-            return KeywordStyleValue::create(Keyword::None);
-        Vector<CounterDefinition> definitions;
-        definitions.ensure_capacity(counters->size());
-        for (auto const& counter : *counters) {
-            ValueComparingRefPtr<StyleValue const> value;
-            if (counter.value.has_value())
-                value = IntegerStyleValue::create(*counter.value);
-            definitions.append(CounterDefinition {
-                .name = counter.name,
-                .is_reversed = counter.is_reversed,
-                .value = move(value),
-            });
-        }
-        return CounterDefinitionsStyleValue::create(move(definitions));
-    }
-    case PropertyID::CornerBottomLeftShape:
-        return SuperellipseStyleValue::create(NumberStyleValue::create(corner_bottom_left_shape()));
-    case PropertyID::CornerBottomRightShape:
-        return SuperellipseStyleValue::create(NumberStyleValue::create(corner_bottom_right_shape()));
-    case PropertyID::CornerTopLeftShape:
-        return SuperellipseStyleValue::create(NumberStyleValue::create(corner_top_left_shape()));
-    case PropertyID::CornerTopRightShape:
-        return SuperellipseStyleValue::create(NumberStyleValue::create(corner_top_right_shape()));
-    case PropertyID::Cx:
-        return length_percentage_style_value(cx());
-    case PropertyID::Cy:
-        return length_percentage_style_value(cy());
-    case PropertyID::D:
-        return d();
-    case PropertyID::Direction:
-        return KeywordStyleValue::create(to_keyword(direction()));
-    case PropertyID::EmptyCells:
-        return KeywordStyleValue::create(to_keyword(empty_cells()));
-    case PropertyID::FillRule:
-        return KeywordStyleValue::create(to_keyword(fill_rule()));
-    case PropertyID::Float:
-        return KeywordStyleValue::create(to_keyword(float_()));
-    case PropertyID::FlexDirection:
-        return KeywordStyleValue::create(to_keyword(flex_direction()));
-    case PropertyID::FlexBasis:
-        return flex_basis().visit(
-            [](FlexBasisContent) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::Content); },
-            [&](Size const& size) -> NonnullRefPtr<StyleValue const> { return size_style_value(size); });
-    case PropertyID::FlexGrow:
-        return NumberStyleValue::create(flex_grow());
-    case PropertyID::FlexShrink:
-        return NumberStyleValue::create(flex_shrink());
-    case PropertyID::FlexWrap:
-        return KeywordStyleValue::create(to_keyword(flex_wrap()));
-    case PropertyID::Filter:
-        return filter_style_value(filter());
-    case PropertyID::GridAutoColumns:
-        return grid_style_value_or_initial(m_noninherited.grid->grid_auto_columns_style_value);
-    case PropertyID::GridAutoFlow:
-        return GridAutoFlowStyleValue::create(
-            grid_auto_flow().row ? GridAutoFlowStyleValue::Axis::Row : GridAutoFlowStyleValue::Axis::Column,
-            grid_auto_flow().dense ? GridAutoFlowStyleValue::Dense::Yes : GridAutoFlowStyleValue::Dense::No);
-    case PropertyID::GridAutoRows:
-        return grid_style_value_or_initial(m_noninherited.grid->grid_auto_rows_style_value);
-    case PropertyID::GridColumnEnd:
-        return grid_style_value_or_initial(m_noninherited.grid->grid_column_end_style_value);
-    case PropertyID::GridColumnStart:
-        return grid_style_value_or_initial(m_noninherited.grid->grid_column_start_style_value);
-    case PropertyID::GridRowEnd:
-        return grid_style_value_or_initial(m_noninherited.grid->grid_row_end_style_value);
-    case PropertyID::GridRowStart:
-        return grid_style_value_or_initial(m_noninherited.grid->grid_row_start_style_value);
-    case PropertyID::GridTemplateAreas:
-        return grid_style_value_or_initial(m_noninherited.grid->grid_template_areas_style_value);
-    case PropertyID::GridTemplateColumns:
-        return grid_style_value_or_initial(m_noninherited.grid->grid_template_columns_style_value);
-    case PropertyID::GridTemplateRows:
-        return grid_style_value_or_initial(m_noninherited.grid->grid_template_rows_style_value);
-    case PropertyID::FontVariantEmoji:
-        return KeywordStyleValue::create(to_keyword(font_variant_emoji()));
-    case PropertyID::ImageRendering:
-        return KeywordStyleValue::create(to_keyword(image_rendering()));
-    case PropertyID::Isolation:
-        return KeywordStyleValue::create(to_keyword(isolation()));
-    case PropertyID::JustifyContent:
-        return KeywordStyleValue::create(to_keyword(justify_content()));
-    case PropertyID::JustifyItems:
-        return KeywordStyleValue::create(to_keyword(justify_items()));
-    case PropertyID::JustifySelf:
-        return KeywordStyleValue::create(to_keyword(justify_self()));
-    case PropertyID::ListStylePosition:
-        return KeywordStyleValue::create(to_keyword(list_style_position()));
-    case PropertyID::ListStyleType:
-        return list_style_type().visit(
-            [](Empty) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::None); },
-            [](RefPtr<CounterStyle const> const& counter_style) -> NonnullRefPtr<StyleValue const> {
-                VERIFY(counter_style);
-                return CounterStyleStyleValue::create(counter_style->name());
-            },
-            [](Utf16String const& string) -> NonnullRefPtr<StyleValue const> { return StringStyleValue::create(string); },
-            [](Utf16FlyString const& name) -> NonnullRefPtr<StyleValue const> { return CounterStyleStyleValue::create(name); },
-            [](ListStyleSymbols const& symbols) -> NonnullRefPtr<StyleValue const> {
-                return CounterStyleStyleValue::create(CounterStyleStyleValue::SymbolsFunction {
-                    .type = symbols.type,
-                    .symbols = symbols.symbols,
-                });
-            });
-    case PropertyID::ListStyleImage:
-        if (list_style_image())
-            return *list_style_image();
-        return KeywordStyleValue::create(Keyword::None);
-    case PropertyID::MaskClip: {
-        StyleValueVector values;
-        for (auto const& layer : mask_layers()) {
-            if (layer.mask_clip_is_no_clip)
-                values.append(KeywordStyleValue::create(Keyword::NoClip));
-            else
-                values.append(KeywordStyleValue::create(to_keyword(layer.mask_clip)));
-        }
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::MaskComposite: {
-        StyleValueVector values;
-        for (auto const& layer : mask_layers())
-            values.append(KeywordStyleValue::create(to_keyword(layer.mask_composite)));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::MaskImage: {
-        StyleValueVector values;
-        for (auto const& layer : mask_layers()) {
-            if (layer.image_style_value)
-                values.append(*layer.image_style_value);
-            else if (layer.background_image)
-                values.append(*layer.background_image);
-            else
-                values.append(KeywordStyleValue::create(Keyword::None));
-        }
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::MaskMode: {
-        StyleValueVector values;
-        for (auto const& layer : mask_layers())
-            values.append(KeywordStyleValue::create(to_keyword(layer.mask_mode)));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::MaskOrigin: {
-        StyleValueVector values;
-        for (auto const& layer : mask_layers())
-            values.append(KeywordStyleValue::create(to_keyword(layer.mask_origin)));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::MaskPosition: {
-        StyleValueVector values;
-        for (auto const& position : mask_positions())
-            values.append(position_style_value(position));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::MaskRepeat: {
-        StyleValueVector values;
-        for (auto const& layer : mask_layers())
-            values.append(RepeatStyleStyleValue::create(layer.repeat_x, layer.repeat_y));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::MaskSize: {
-        StyleValueVector values;
-        for (auto const& layer : mask_layers()) {
-            switch (layer.size_type) {
-            case CSS::BackgroundSize::Contain:
-                values.append(KeywordStyleValue::create(Keyword::Contain));
-                break;
-            case CSS::BackgroundSize::Cover:
-                values.append(KeywordStyleValue::create(Keyword::Cover));
-                break;
-            case CSS::BackgroundSize::LengthPercentage:
-                values.append(BackgroundSizeStyleValue::create(
-                    length_percentage_or_auto_style_value(layer.size_x),
-                    length_percentage_or_auto_style_value(layer.size_y)));
-                break;
-            }
-        }
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::MaskType:
-        return KeywordStyleValue::create(to_keyword(mask_type()));
-    case PropertyID::MathDepth:
-        return IntegerStyleValue::create(math_depth());
-    case PropertyID::MathShift:
-        return KeywordStyleValue::create(to_keyword(math_shift()));
-    case PropertyID::MathStyle:
-        return KeywordStyleValue::create(to_keyword(math_style()));
-    case PropertyID::MixBlendMode:
-        return KeywordStyleValue::create(to_keyword(mix_blend_mode()));
-    case PropertyID::ObjectFit:
-        return KeywordStyleValue::create(to_keyword(object_fit()));
-    case PropertyID::ObjectPosition:
-        return position_style_value(object_position());
-    case PropertyID::Order:
-        return IntegerStyleValue::create(order());
-    case PropertyID::OutlineOffset:
-        if (outline_offset_style_value())
-            return outline_offset_style_value();
-        return length_style_value(outline_offset());
-    case PropertyID::Orphans:
-        return IntegerStyleValue::create(orphans());
-    case PropertyID::OverflowWrap:
-        switch (overflow_wrap()) {
-        case OverflowWrap::Normal:
-            return KeywordStyleValue::create(Keyword::Normal);
-        case OverflowWrap::BreakWord:
-            return KeywordStyleValue::create(Keyword::BreakWord);
-        case OverflowWrap::Anywhere:
-            return KeywordStyleValue::create(Keyword::Anywhere);
-        }
-        VERIFY_NOT_REACHED();
-    case PropertyID::OverflowX:
-        return KeywordStyleValue::create(to_keyword(overflow_x()));
-    case PropertyID::OverflowY:
-        return KeywordStyleValue::create(to_keyword(overflow_y()));
-    case PropertyID::OverflowClipMarginBottom:
-    case PropertyID::OverflowClipMarginLeft:
-    case PropertyID::OverflowClipMarginRight:
-    case PropertyID::OverflowClipMarginTop: {
-        auto const* side = &overflow_clip_margin().top;
-        if (property_id == PropertyID::OverflowClipMarginRight)
-            side = &overflow_clip_margin().right;
-        else if (property_id == PropertyID::OverflowClipMarginBottom)
-            side = &overflow_clip_margin().bottom;
-        else if (property_id == PropertyID::OverflowClipMarginLeft)
-            side = &overflow_clip_margin().left;
-        return OverflowClipMarginStyleValue::create(side->visual_box, length_style_value(side->offset));
-    }
-    case PropertyID::PointerEvents:
-        return KeywordStyleValue::create(to_keyword(pointer_events()));
-    case PropertyID::Position:
-        return KeywordStyleValue::create(to_keyword(position()));
-    case PropertyID::PositionAnchor:
-        switch (position_anchor_value().type) {
-        case PositionAnchor::Type::Normal:
-            return KeywordStyleValue::create(Keyword::Normal);
-        case PositionAnchor::Type::None:
-            return KeywordStyleValue::create(Keyword::None);
-        case PositionAnchor::Type::Auto:
-            return KeywordStyleValue::create(Keyword::Auto);
-        case PositionAnchor::Type::Name:
-            VERIFY(position_anchor_value().name.has_value());
-            return CustomIdentStyleValue::create(*position_anchor_value().name);
-        }
-        VERIFY_NOT_REACHED();
-    case PropertyID::PositionArea:
-        if (position_area().keywords.is_empty())
-            return KeywordStyleValue::create(Keyword::None);
-        return position_area_style_value(position_area());
-    case PropertyID::PositionTryFallbacks: {
-        if (position_try_fallbacks().is_empty())
-            return KeywordStyleValue::create(Keyword::None);
-        StyleValueVector fallbacks;
-        for (auto const& fallback : position_try_fallbacks()) {
-            if (fallback.position_area.has_value()) {
-                fallbacks.append(position_area_style_value(*fallback.position_area));
-                continue;
-            }
-            StyleValueVector values;
-            if (fallback.name.has_value())
-                values.append(CustomIdentStyleValue::create(*fallback.name));
-            for (auto tactic : fallback.tactics)
-                values.append(KeywordStyleValue::create(to_keyword(tactic)));
-            fallbacks.append(StyleValueList::create(move(values), StyleValueList::Separator::Space));
-        }
-        return StyleValueList::create(move(fallbacks), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::PositionTryOrder:
-        if (!position_try_order().has_value())
-            return KeywordStyleValue::create(Keyword::Normal);
-        return KeywordStyleValue::create(to_keyword(*position_try_order()));
-    case PropertyID::PositionVisibility: {
-        if (position_visibility().always)
-            return KeywordStyleValue::create(Keyword::Always);
-        StyleValueVector values;
-        if (position_visibility().anchors_valid)
-            values.append(KeywordStyleValue::create(Keyword::AnchorsValid));
-        if (position_visibility().anchors_visible)
-            values.append(KeywordStyleValue::create(Keyword::AnchorsVisible));
-        if (position_visibility().no_overflow)
-            values.append(KeywordStyleValue::create(Keyword::NoOverflow));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
-    }
-    case PropertyID::Perspective:
-        if (perspective().has_value())
-            return length_style_value(*perspective());
-        return KeywordStyleValue::create(Keyword::None);
-    case PropertyID::PerspectiveOrigin:
-        return position_style_value(perspective_origin());
-    case PropertyID::Resize:
-        return KeywordStyleValue::create(to_keyword(resize()));
-    case PropertyID::RowGap:
-        return row_gap().visit(
-            [&](LengthPercentage const& gap) -> NonnullRefPtr<StyleValue const> { return length_percentage_style_value(gap); },
-            [](NormalGap) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::Normal); });
-    case PropertyID::Quotes:
-        switch (quotes().type) {
-        case QuotesData::Type::None:
-            return KeywordStyleValue::create(Keyword::None);
-        case QuotesData::Type::Auto:
-            return KeywordStyleValue::create(Keyword::Auto);
-        case QuotesData::Type::Specified: {
-            StyleValueVector strings;
-            strings.ensure_capacity(quotes().strings.size() * 2);
-            for (auto const& pair : quotes().strings) {
-                strings.append(StringStyleValue::create(pair[0]));
-                strings.append(StringStyleValue::create(pair[1]));
-            }
-            return StyleValueList::create(move(strings), StyleValueList::Separator::Space);
-        }
-        }
-        VERIFY_NOT_REACHED();
-    case PropertyID::R:
-        return length_percentage_style_value(r());
-    case PropertyID::Rx:
-        return length_percentage_or_auto_style_value(rx());
-    case PropertyID::Ry:
-        return length_percentage_or_auto_style_value(ry());
-    case PropertyID::Rotate:
-        if (rotate())
-            return *rotate();
-        return KeywordStyleValue::create(Keyword::None);
-    case PropertyID::Scale:
-        if (scale())
-            return *scale();
-        return KeywordStyleValue::create(Keyword::None);
-    case PropertyID::ScrollTimelineAxis:
-        return timeline_axis_list_style_value(scroll_timeline_axes());
-    case PropertyID::ScrollTimelineName:
-        return timeline_name_list_style_value(scroll_timeline_names());
-    case PropertyID::ScrollBehavior:
-        return KeywordStyleValue::create(to_keyword(scroll_behavior()));
-    case PropertyID::ScrollbarColor:
-        if (scrollbar_color().is_auto)
-            return KeywordStyleValue::create(Keyword::Auto);
-        return ScrollbarColorStyleValue::create(
-            color_style_value(scrollbar_color().thumb_color),
-            color_style_value(scrollbar_color().track_color));
-    case PropertyID::ScrollbarGutter:
-        return ScrollbarGutterStyleValue::create(scrollbar_gutter());
-    case PropertyID::ScrollbarWidth:
-        return KeywordStyleValue::create(to_keyword(scrollbar_width()));
-    case PropertyID::ShapeImageThreshold:
-        return OpacityValueStyleValue::create(NumberStyleValue::create(shape_image_threshold()));
-    case PropertyID::ShapeMargin:
-        return length_percentage_style_value(shape_margin());
-    case PropertyID::ShapeOutside: {
-        if (shape_outside().image.has<URL>())
-            return URLStyleValue::create(shape_outside().image.get<URL>());
-        if (shape_outside().image.has<NonnullRefPtr<AbstractImageStyleValue const>>())
-            return shape_outside().image.get<NonnullRefPtr<AbstractImageStyleValue const>>();
-        if (!shape_outside().basic_shape && !shape_outside().shape_box.has_value())
-            return KeywordStyleValue::create(Keyword::None);
-        if (!shape_outside().shape_box.has_value())
-            return *shape_outside().basic_shape;
-        auto shape_box = KeywordStyleValue::create(to_keyword(*shape_outside().shape_box));
-        if (!shape_outside().basic_shape)
-            return shape_box;
-        return StyleValueList::create({ *shape_outside().basic_shape, move(shape_box) }, StyleValueList::Separator::Space);
-    }
-    case PropertyID::ShapeRendering:
-        return KeywordStyleValue::create(to_keyword(shape_rendering()));
-    case PropertyID::StrokeLinecap:
-        return KeywordStyleValue::create(to_keyword(stroke_linecap()));
-    case PropertyID::StrokeLinejoin:
-        return KeywordStyleValue::create(to_keyword(stroke_linejoin()));
-    case PropertyID::StrokeDasharray: {
-        if (stroke_dasharray().is_empty())
-            return KeywordStyleValue::create(Keyword::None);
-        StyleValueVector values;
-        values.ensure_capacity(stroke_dasharray().size());
-        for (auto const& value : stroke_dasharray()) {
-            values.append(value.visit(
-                [&](LengthPercentage const& length_percentage) -> NonnullRefPtr<StyleValue const> { return length_percentage_style_value(length_percentage); },
-                [](float number) -> NonnullRefPtr<StyleValue const> { return NumberStyleValue::create(number); }));
-        }
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::StrokeDashoffset:
-        return length_percentage_style_value(stroke_dashoffset());
-    case PropertyID::StrokeMiterlimit:
-        return NumberStyleValue::create(stroke_miterlimit());
-    case PropertyID::StrokeWidth:
-        return length_percentage_style_value(stroke_width());
-    case PropertyID::TableLayout:
-        return KeywordStyleValue::create(to_keyword(table_layout()));
-    case PropertyID::TabSize:
-        return tab_size().visit(
-            [&](CSSPixels value) -> NonnullRefPtr<StyleValue const> { return length_style_value(value); },
-            [](double value) -> NonnullRefPtr<StyleValue const> { return NumberStyleValue::create(value); });
-    case PropertyID::TextDecorationLine: {
-        if (text_decoration_line().is_empty())
-            return KeywordStyleValue::create(Keyword::None);
-        StyleValueVector values;
-        values.ensure_capacity(text_decoration_line().size());
-        for (auto line : text_decoration_line())
-            values.append(KeywordStyleValue::create(to_keyword(line)));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
-    }
-    case PropertyID::TextIndent:
-        return TextIndentStyleValue::create(
-            length_percentage_style_value(text_indent().length_percentage),
-            text_indent().hanging ? TextIndentStyleValue::Hanging::Yes : TextIndentStyleValue::Hanging::No,
-            text_indent().each_line ? TextIndentStyleValue::EachLine::Yes : TextIndentStyleValue::EachLine::No);
-    case PropertyID::TextAlign:
-        return KeywordStyleValue::create(to_keyword(text_align()));
-    case PropertyID::TextAnchor:
-        return KeywordStyleValue::create(to_keyword(text_anchor()));
-    case PropertyID::TextDecorationSkipInk:
-        return KeywordStyleValue::create(to_keyword(text_decoration_skip_ink()));
-    case PropertyID::TextDecorationStyle:
-        return KeywordStyleValue::create(to_keyword(text_decoration_style()));
-    case PropertyID::TextDecorationThickness:
-        return text_decoration_thickness().value.visit(
-            [](TextDecorationThickness::Auto) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::Auto); },
-            [](TextDecorationThickness::FromFont) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::FromFont); },
-            [&](LengthPercentage const& thickness) -> NonnullRefPtr<StyleValue const> { return length_percentage_style_value(thickness); });
-    case PropertyID::TextJustify:
-        return KeywordStyleValue::create(to_keyword(text_justify()));
-    case PropertyID::TextOverflow:
-        return KeywordStyleValue::create(to_keyword(text_overflow()));
-    case PropertyID::TextTransform:
-        return KeywordStyleValue::create(to_keyword(text_transform()));
-    case PropertyID::TextUnderlineOffset:
-        return text_underline_offset_value().computed_value.visit(
-            [](TextUnderlineOffset::Auto) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(Keyword::Auto); },
-            [&](LengthPercentage const& offset) -> NonnullRefPtr<StyleValue const> { return length_percentage_style_value(offset); });
-    case PropertyID::TextWrapStyle:
-        return KeywordStyleValue::create(to_keyword(text_wrap_style()));
-    case PropertyID::TimelineScope:
-        if (timeline_scope().all)
-            return KeywordStyleValue::create(Keyword::All);
-        if (timeline_scope().names.is_empty())
-            return KeywordStyleValue::create(Keyword::None);
-        return custom_ident_list_style_value(timeline_scope().names);
-    case PropertyID::TextShadow: {
-        if (text_shadow().is_empty())
-            return KeywordStyleValue::create(Keyword::None);
-        StyleValueVector shadows;
-        shadows.ensure_capacity(text_shadow().size());
-        for (auto const& shadow : text_shadow()) {
-            shadows.append(ShadowStyleValue::create(
-                ShadowStyleValue::ShadowType::Text,
-                shadow_color_style_value(shadow),
-                length_style_value(shadow.offset_x),
-                length_style_value(shadow.offset_y),
-                length_style_value(shadow.blur_radius),
-                {},
-                ShadowPlacement::Outer));
-        }
-        return StyleValueList::create(move(shadows), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::TextRendering:
-        return KeywordStyleValue::create(to_keyword(font_feature_data().text_rendering));
-    case PropertyID::TextUnderlinePosition:
-        return TextUnderlinePositionStyleValue::create(text_underline_position().horizontal, text_underline_position().vertical);
-    case PropertyID::TextWrapMode:
-        return KeywordStyleValue::create(to_keyword(text_wrap_mode()));
-    case PropertyID::TransformBox:
-        return KeywordStyleValue::create(to_keyword(transform_box()));
-    case PropertyID::Transform: {
-        if (transformations().is_empty())
-            return KeywordStyleValue::create(Keyword::None);
-        StyleValueVector values;
-        values.ensure_capacity(transformations().size());
-        for (auto const& transformation : transformations())
-            values.append(transformation);
-        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
-    }
-    case PropertyID::TransformOrigin:
-        return StyleValueList::create(
-            { length_percentage_style_value(transform_origin().x), length_percentage_style_value(transform_origin().y), length_percentage_style_value(transform_origin().z) },
-            StyleValueList::Separator::Space);
-    case PropertyID::TransformStyle:
-        return KeywordStyleValue::create(to_keyword(transform_style()));
-    case PropertyID::TransitionBehavior: {
-        StyleValueVector values;
-        for (auto behavior : transition_behaviors())
-            values.append(KeywordStyleValue::create(to_keyword(behavior)));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::TransitionDelay: {
-        StyleValueVector values;
-        for (auto const& delay : transition_delays())
-            values.append(TimeStyleValue::create(delay));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::TransitionDuration: {
-        StyleValueVector values;
-        for (auto const& duration : transition_durations())
-            values.append(TimeStyleValue::create(duration));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::TransitionProperty: {
-        StyleValueVector values;
-        for (auto const& property : transition_properties()) {
-            if (property.has_value())
-                values.append(CustomIdentStyleValue::create(*property));
-            else
-                values.append(KeywordStyleValue::create(Keyword::None));
-        }
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::TransitionTimingFunction: {
-        if (!transition_timing_function_style_values().is_empty()) {
-            auto values = transition_timing_function_style_values();
-            return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-        }
-        StyleValueVector values;
-        for (auto const& timing_function : transition_timing_functions())
-            values.append(timing_function.to_style_value());
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::TouchAction: {
-        auto const action = touch_action();
-        if (action.allow_left && action.allow_right && action.allow_up && action.allow_down && action.allow_pinch_zoom) {
-            if (action.allow_other)
-                return KeywordStyleValue::create(Keyword::Auto);
-            return KeywordStyleValue::create(Keyword::Manipulation);
-        }
-        if (!action.allow_left && !action.allow_right && !action.allow_up && !action.allow_down && !action.allow_pinch_zoom)
-            return KeywordStyleValue::create(Keyword::None);
-
-        StyleValueVector values;
-        if (action.allow_left && action.allow_right)
-            values.append(KeywordStyleValue::create(Keyword::PanX));
-        else if (action.allow_left)
-            values.append(KeywordStyleValue::create(Keyword::PanLeft));
-        else if (action.allow_right)
-            values.append(KeywordStyleValue::create(Keyword::PanRight));
-        if (action.allow_up && action.allow_down)
-            values.append(KeywordStyleValue::create(Keyword::PanY));
-        else if (action.allow_up)
-            values.append(KeywordStyleValue::create(Keyword::PanUp));
-        else if (action.allow_down)
-            values.append(KeywordStyleValue::create(Keyword::PanDown));
-        if (action.allow_pinch_zoom)
-            values.append(KeywordStyleValue::create(Keyword::PinchZoom));
-        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
-    }
-    case PropertyID::Translate:
-        if (translate())
-            return *translate();
-        return KeywordStyleValue::create(Keyword::None);
-    case PropertyID::UnicodeBidi:
-        return KeywordStyleValue::create(to_keyword(unicode_bidi()));
-    case PropertyID::UserSelect:
-        return KeywordStyleValue::create(to_keyword(user_select()));
-    case PropertyID::VectorEffect:
-        return KeywordStyleValue::create(to_keyword(vector_effect()));
-    case PropertyID::ViewTimelineAxis:
-        return timeline_axis_list_style_value(view_timeline_axes());
-    case PropertyID::ViewTimelineInset: {
-        StyleValueVector insets;
-        for (auto const& inset : view_timeline_insets()) {
-            insets.append(StyleValueList::create(
-                { length_percentage_or_auto_style_value(inset.start), length_percentage_or_auto_style_value(inset.end) },
-                StyleValueList::Separator::Space));
-        }
-        return StyleValueList::create(move(insets), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::ViewTimelineName:
-        return timeline_name_list_style_value(view_timeline_names());
-    case PropertyID::VerticalAlign:
-        return vertical_align().visit(
-            [](VerticalAlign alignment) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(to_keyword(alignment)); },
-            [&](LengthPercentage const& offset) -> NonnullRefPtr<StyleValue const> { return length_percentage_style_value(offset); });
-    case PropertyID::ViewTransitionName:
-        if (view_transition_name().has_value())
-            return CustomIdentStyleValue::create(*view_transition_name());
-        return KeywordStyleValue::create(Keyword::None);
-    case PropertyID::Visibility:
-        return KeywordStyleValue::create(to_keyword(visibility()));
-    case PropertyID::Widows:
-        return IntegerStyleValue::create(widows());
-    case PropertyID::WhiteSpaceCollapse:
-        return KeywordStyleValue::create(to_keyword(white_space_collapse()));
-    case PropertyID::WhiteSpaceTrim: {
-        StyleValueVector values;
-        if (white_space_trim().discard_before)
-            values.append(KeywordStyleValue::create(Keyword::DiscardBefore));
-        if (white_space_trim().discard_after)
-            values.append(KeywordStyleValue::create(Keyword::DiscardAfter));
-        if (white_space_trim().discard_inner)
-            values.append(KeywordStyleValue::create(Keyword::DiscardInner));
-        if (values.is_empty())
-            return KeywordStyleValue::create(Keyword::None);
-        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
-    }
-    case PropertyID::WillChange: {
-        if (will_change().is_auto())
-            return KeywordStyleValue::create(Keyword::Auto);
-        StyleValueVector values;
-        values.ensure_capacity(will_change().entries().size());
-        for (auto const& entry : will_change().entries()) {
-            entry.visit(
-                [&](WillChange::Type type) {
-                    values.append(KeywordStyleValue::create(type == WillChange::Type::Contents ? Keyword::Contents : Keyword::ScrollPosition));
-                },
-                [&](PropertyID property_id) {
-                    values.append(CustomIdentStyleValue::create(string_from_property_id(property_id)));
-                });
-        }
-        return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-    }
-    case PropertyID::WordBreak:
-        return KeywordStyleValue::create(to_keyword(word_break()));
-    case PropertyID::WritingMode:
-        return KeywordStyleValue::create(to_keyword(writing_mode()));
-    case PropertyID::WordSpacing:
-        if (word_spacing_style_value())
-            return word_spacing_style_value();
-        return length_style_value(word_spacing());
-    case PropertyID::X:
-        return length_percentage_style_value(x());
-    case PropertyID::Y:
-        return length_percentage_style_value(y());
-    case PropertyID::ZIndex:
-        if (z_index().has_value())
-            return IntegerStyleValue::create(*z_index());
-        return KeywordStyleValue::create(Keyword::Auto);
-    default:
+    if (m_longhand_values.is_empty())
         return {};
-    }
+    auto const* stored = m_longhand_values[to_underlying(property_id) - to_underlying(first_longhand_property_id)];
+    if (!stored)
+        return {};
+    if (auto it = m_style_value_cache.find(property_id); it != m_style_value_cache.end() && it->value->rust_style_value_data() == stored)
+        return it->value;
+    auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(stored)));
+    m_style_value_cache.set(property_id, value);
+    return value;
 }
 
 RefPtr<StyleValue const> ComputedValues::computed_style_value_for_inheritance(PropertyID property_id, WithAnimationsApplied with_animations_applied) const
@@ -1775,6 +351,16 @@ static size_t property_bitmap_index(PropertyID property_id)
     return to_underlying(property_id) - to_underlying(first_longhand_property_id);
 }
 
+ComputedProperties::Data::Data()
+    : computed_longhand_table(ComputedValuesFFI::rust_computed_longhand_table_create())
+{
+}
+
+ComputedProperties::Data::~Data()
+{
+    ComputedValuesFFI::rust_computed_longhand_table_release(computed_longhand_table);
+}
+
 ComputedProperties::Builder::Builder()
     : m_data(adopt_ref(*new Data))
     , m_style(adopt_ref(*new ComputedProperties(m_data, false, false)))
@@ -1785,9 +371,11 @@ ComputedProperties::Builder::Builder(ComputedProperties const& style)
     : Builder()
 {
     m_data->property_values = style.data().property_values;
-    m_data->fallback_values = style.data().fallback_values;
+    ComputedValuesFFI::rust_computed_longhand_table_copy_from(m_data->computed_longhand_table, style.data().computed_longhand_table);
     m_data->property_important = style.data().property_important;
     m_data->property_inherited = style.data().property_inherited;
+    m_data->property_evaluated = style.data().property_evaluated;
+    m_data->style_sheet_sources = style.data().style_sheet_sources;
     m_data->display_before_box_type_transformation = style.data().display_before_box_type_transformation;
     m_data->pseudo_element_styles = style.data().pseudo_element_styles;
     m_data->line_height = style.data().line_height;
@@ -1808,7 +396,17 @@ ComputedProperties::Builder::Builder(ComputedValues const& style)
     : Builder()
 {
     auto const& base = style.base_values();
-    m_data->fallback_values = ComputedValues::Builder { base }.build();
+    // Seed the table with the previous drive's computed values so unevaluated longhands read
+    // and publish without reverse-materialization; the funnel overwrites what this drive
+    // evaluates. A borrowed record view seeds from its interned value span. The base always
+    // carries a table: property() has no other source for an unevaluated longhand's value.
+    if (auto const* table = base.computed_longhand_table()) {
+        ComputedValuesFFI::rust_computed_longhand_table_copy_from(m_data->computed_longhand_table, static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(table));
+    } else {
+        auto longhand_values = base.computed_longhand_values();
+        VERIFY(!longhand_values.is_empty());
+        ComputedValuesFFI::rust_computed_longhand_table_copy_from_values(m_data->computed_longhand_table, longhand_values.data(), longhand_values.size());
+    }
     m_data->property_important.copy_from(base.property_importance_bitmap());
     m_data->property_inherited.copy_from(base.property_inheritance_bitmap());
     m_data->display_before_box_type_transformation = base.display_before_box_type_transformation();
@@ -1825,6 +423,7 @@ ComputedProperties::Builder::Builder(ComputedValues const& style)
 
 NonnullRefPtr<ComputedProperties> ComputedProperties::Builder::build() &&
 {
+    ComputedValuesFFI::rust_computed_longhand_table_freeze(m_data->computed_longhand_table);
     m_style->m_depends_on_viewport_metrics = m_depends_on_viewport_metrics;
     m_style->m_font_metrics_depend_on_viewport_metrics = m_font_metrics_depend_on_viewport_metrics;
     m_style->m_in_display_none_subtree = m_in_display_none_subtree;
@@ -1882,23 +481,19 @@ size_t ComputedProperties::retained_size_in_bytes() const
         * (sizeof(PropertyID) + sizeof(NonnullRefPtr<StyleValue const>) + 1);
 }
 
-ComputedProperties::LegacyPropertyArrayRetentionStatistics const& ComputedProperties::legacy_property_array_retention_statistics()
+u64 ComputedProperties::longhand_wrappers_minted()
 {
-    return s_legacy_property_array_retention_statistics;
+    return s_longhand_wrappers_minted;
 }
 
-void ComputedProperties::retain_legacy_property_array() const
+void ComputedProperties::reset_longhand_wrappers_minted()
 {
-    ++s_legacy_property_array_retention_statistics.holder_count;
-    s_legacy_property_array_retention_statistics.bytes += sizeof(m_data->property_values);
+    s_longhand_wrappers_minted = 0;
 }
 
-void ComputedProperties::release_legacy_property_array() const
+void ComputedProperties::count_longhand_wrapper_mint(Badge<StyleComputer>)
 {
-    VERIFY(s_legacy_property_array_retention_statistics.holder_count > 0);
-    VERIFY(s_legacy_property_array_retention_statistics.bytes >= sizeof(m_data->property_values));
-    --s_legacy_property_array_retention_statistics.holder_count;
-    s_legacy_property_array_retention_statistics.bytes -= sizeof(m_data->property_values);
+    ++s_longhand_wrappers_minted;
 }
 
 NonnullRefPtr<ComputedProperties> ComputedProperties::copy_without_animations() const
@@ -2104,11 +699,33 @@ static bool property_affects_computed_font_list(PropertyID id)
     return first_is_one_of(id, PropertyID::FontFamily, PropertyID::FontSize, PropertyID::FontStyle, PropertyID::FontWeight, PropertyID::FontWidth, PropertyID::FontVariationSettings);
 }
 
-void ComputedProperties::Builder::set_property_without_modifying_flags(PropertyID id, NonnullRefPtr<StyleValue const> value)
+void ComputedProperties::Builder::set_property_without_modifying_flags(PropertyID id, NonnullRefPtr<StyleValue const> value, i64 style_sheet_source_slot)
 {
     VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
 
+    ComputedValuesFFI::rust_computed_longhand_table_set(data().computed_longhand_table, to_underlying(id), value->rust_style_value_data(), style_sheet_source_slot);
     data().property_values[to_underlying(id) - to_underlying(first_longhand_property_id)] = move(value);
+    data().property_evaluated.set(to_underlying(id) - to_underlying(first_longhand_property_id), true);
+    // The cached wrapper carries whatever sheet context its maker gave it; a mint from the
+    // table must not stamp a stale source recorded by an earlier store.
+    data().style_sheet_sources.remove(id);
+
+    if (property_affects_computed_font_list(id))
+        style().clear_computed_font_list_cache();
+}
+
+void ComputedProperties::Builder::set_property_data_from_drive(PropertyID id, void const* value_data, i64 style_sheet_source_slot, GC::Ptr<CSSStyleSheet> style_sheet)
+{
+    VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
+    VERIFY(value_data);
+
+    ComputedValuesFFI::rust_computed_longhand_table_set(data().computed_longhand_table, to_underlying(id), value_data, style_sheet_source_slot);
+    data().property_values[to_underlying(id) - to_underlying(first_longhand_property_id)] = nullptr;
+    data().property_evaluated.set(to_underlying(id) - to_underlying(first_longhand_property_id), true);
+    if (style_sheet)
+        data().style_sheet_sources.set(id, GC::Weak<CSSStyleSheet> { *style_sheet });
+    else
+        data().style_sheet_sources.remove(id);
 
     if (property_affects_computed_font_list(id))
         style().clear_computed_font_list_cache();
@@ -2192,41 +809,67 @@ StyleValue const& ComputedProperties::property(PropertyID property_id, WithAnima
 
     auto& value = data().property_values[to_underlying(property_id) - to_underlying(first_longhand_property_id)];
     if (!value) {
-        VERIFY(data().fallback_values);
-        value = data().fallback_values->computed_style_value_for_inheritance(property_id, ComputedValues::WithAnimationsApplied::No);
-        VERIFY(value);
+        // Mints the wrapper for a table-stored value on demand, stamping it with the sheet the
+        // winning declaration came from when the drive recorded one; image fetches read that
+        // context, and the mint happens before any group fallback consumes the value.
+        auto mint_from_table = [&](void const* stored) {
+            auto wrapper = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(stored)));
+            ++s_longhand_wrappers_minted;
+            if (auto source = data().style_sheet_sources.get(property_id); source.has_value()) {
+                if (auto sheet = source->ptr())
+                    const_cast<StyleValue&>(*wrapper).set_style_sheet(sheet);
+            }
+            return wrapper;
+        };
+        bool const evaluated = data().property_evaluated.get(to_underlying(property_id) - to_underlying(first_longhand_property_id));
+        if (auto specified = data().inheritance_dependent_specified_values.get(property_id); !evaluated && specified.has_value() && (*specified)->depends_on_current_color()) {
+            // A partial drive seeds its table from the previous style; an unevaluated longhand
+            // keeps a recorded specified value that depends on currentColor, in exactly the
+            // order computed_style_value_for_inheritance applies.
+            value = *specified;
+        } else {
+            auto const* stored = ComputedValuesFFI::rust_computed_longhand_table_get(data().computed_longhand_table, to_underlying(property_id));
+            VERIFY(stored);
+            value = mint_from_table(stored);
+        }
     }
     return *value;
 }
 
-Size ComputedProperties::size_value(PropertyID id) const
+void ComputedProperties::collect_effective_longhand_overrides(Vector<u16>& properties, Vector<void const*>& values) const
 {
-    return Size::from_style_value(property(id));
-}
-
-Length ComputedProperties::length(PropertyID property_id) const
-{
-    return property(property_id).as_length().length();
-}
-
-LengthBox ComputedProperties::length_box(PropertyID left_id, PropertyID top_id, PropertyID right_id, PropertyID bottom_id, LengthPercentageOrAuto const& default_value) const
-{
-    auto length_box_side = [&](PropertyID id) -> LengthPercentageOrAuto {
-        auto const& value = property(id);
-
-        if (value.is_calculated() || value.is_percentage() || value.is_length() || value.has_auto())
-            return LengthPercentageOrAuto::from_style_value(value);
-
-        // FIXME: Handle anchor sizes
-        return default_value;
+    auto const* table = data().computed_longhand_table;
+    auto push_override = [&](PropertyID property_id, void const* effective) {
+        auto const* stored = ComputedValuesFFI::rust_computed_longhand_table_get(table, to_underlying(property_id));
+        if (effective == stored)
+            return;
+        properties.append(to_underlying(property_id));
+        values.append(effective);
     };
-
-    return LengthBox {
-        length_box_side(top_id),
-        length_box_side(right_id),
-        length_box_side(bottom_id),
-        length_box_side(left_id)
+    auto already_overridden = [&](PropertyID property_id) {
+        return properties.contains_slow(to_underlying(property_id));
     };
+    // The animated overlay, under property()'s rule: important base values override animated
+    // but not transitioned properties. First in the list, because the group builder's override
+    // scan takes the first match, like property() prefers the animated value.
+    if (m_animated_properties) {
+        for (auto const& [property_id, value] : m_animated_properties->values()) {
+            if (is_property_important(property_id) && !m_animated_properties->is_property_result_of_transition(property_id))
+                continue;
+            push_override(property_id, value->rust_style_value_data());
+        }
+    }
+    // An unevaluated longhand keeps the recorded currentcolor-dependent specified value, in
+    // the preference order the lazy property() fill applies.
+    for (auto const& [property_id, value] : data().inheritance_dependent_specified_values) {
+        if (data().property_evaluated.get(to_underlying(property_id) - to_underlying(first_longhand_property_id)))
+            continue;
+        if (!value->depends_on_current_color())
+            continue;
+        if (already_overridden(property_id))
+            continue;
+        push_override(property_id, value->rust_style_value_data());
+    }
 }
 
 Color ComputedProperties::color(PropertyID id, ColorResolutionContext color_resolution_context) const
@@ -2237,12 +880,12 @@ Color ComputedProperties::color(PropertyID id, ColorResolutionContext color_reso
 Position ComputedProperties::position_value(PropertyID id) const
 {
     auto const& position = property(id).as_position();
-    auto const& edge_x = position.edge_x()->as_edge();
-    auto const& edge_y = position.edge_y()->as_edge();
+    auto edge_x = position.edge_x();
+    auto edge_y = position.edge_y();
 
     return {
-        .offset_x = LengthPercentage::from_style_value(edge_x.offset()),
-        .offset_y = LengthPercentage::from_style_value(edge_y.offset()),
+        .offset_x = LengthPercentage::from_style_value(edge_x->offset()),
+        .offset_y = LengthPercentage::from_style_value(edge_y->offset()),
     };
 }
 
@@ -2273,18 +916,6 @@ HashMap<PropertyID, StyleValueVector> ComputedProperties::assemble_coordinated_v
     }
 
     return coordinated_value_list;
-}
-
-ColorInterpolation ComputedProperties::color_interpolation() const
-{
-    auto const& value = property(PropertyID::ColorInterpolation);
-    return keyword_to_color_interpolation(value.to_keyword()).value_or(CSS::ColorInterpolation::Auto);
-}
-
-ColorInterpolation ComputedProperties::color_interpolation_filters() const
-{
-    auto const& value = property(PropertyID::ColorInterpolationFilters);
-    return keyword_to_color_interpolation(value.to_keyword()).value_or(CSS::ColorInterpolation::Linearrgb);
 }
 
 // https://drafts.csswg.org/css-color-adjust-1/#determine-the-used-color-scheme
@@ -2403,130 +1034,9 @@ float ComputedProperties::opacity() const
     return property(PropertyID::Opacity).as_opacity_value().resolved();
 }
 
-Optional<SVGPaint> ComputedProperties::fill(ColorResolutionContext const& color_resolution_context) const
-{
-    auto const& value = property(PropertyID::Fill);
-
-    if (value.to_keyword() == Keyword::None)
-        return {};
-
-    return SVGPaint::from_style_value(value, color_resolution_context);
-}
-
-float ComputedProperties::fill_opacity() const
-{
-    return property(PropertyID::FillOpacity).as_opacity_value().resolved();
-}
-
-Optional<SVGPaint> ComputedProperties::stroke(ColorResolutionContext const& color_resolution_context) const
-{
-    auto const& value = property(PropertyID::Stroke);
-
-    if (value.to_keyword() == Keyword::None)
-        return {};
-
-    return SVGPaint::from_style_value(value, color_resolution_context);
-}
-
-LengthPercentage ComputedProperties::stroke_width() const
-{
-    auto const& value = property(PropertyID::StrokeWidth);
-
-    if (value.is_number() || (value.is_calculated() && value.as_calculated().resolves_to_number())) {
-        // FIXME: Converting to pixels isn't really correct - values should be in "user units"
-        //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits
-        return CSS::Length::make_px(CSSPixels::nearest_value_for(number_from_style_value(value, {})));
-    }
-
-    return CSS::LengthPercentage::from_style_value(value);
-}
-
-Vector<Variant<LengthPercentage, float>> ComputedProperties::stroke_dasharray() const
-{
-    auto const& value = property(PropertyID::StrokeDasharray);
-
-    // none
-    if (value.is_keyword() && value.to_keyword() == Keyword::None)
-        return {};
-
-    auto const& stroke_dasharray = value.as_value_list();
-    Vector<Variant<LengthPercentage, float>> dashes;
-
-    for (auto const& value : stroke_dasharray.values()) {
-        if (value->is_length()) {
-            dashes.append(LengthPercentage { value->as_length().length() });
-        } else if (value->is_percentage()) {
-            dashes.append(LengthPercentage { value->as_percentage().percentage() });
-        } else if (value->is_calculated()) {
-            auto const& calculated_value = value->as_calculated();
-
-            if (calculated_value.resolves_to_length())
-                dashes.append(LengthPercentage { value->as_calculated() });
-            else if (calculated_value.resolves_to_number())
-                dashes.append(calculated_value.resolve_number({}).value());
-            else
-                VERIFY_NOT_REACHED();
-
-        } else if (value->is_number()) {
-            dashes.append(value->as_number().number());
-        } else {
-            VERIFY_NOT_REACHED();
-        }
-    }
-
-    return dashes;
-}
-
-LengthPercentage ComputedProperties::stroke_dashoffset() const
-{
-    auto const& value = property(PropertyID::StrokeDashoffset);
-
-    if (value.is_number() || (value.is_calculated() && value.as_calculated().resolves_to_number())) {
-        // FIXME: Converting to pixels isn't really correct - values should be in "user units"
-        //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits
-        return CSS::Length::make_px(CSSPixels::nearest_value_for(number_from_style_value(value, {})));
-    }
-
-    return CSS::LengthPercentage::from_style_value(value);
-}
-
-StrokeLinecap ComputedProperties::stroke_linecap() const
-{
-    auto const& value = property(PropertyID::StrokeLinecap);
-    return keyword_to_stroke_linecap(value.to_keyword()).release_value();
-}
-
-StrokeLinejoin ComputedProperties::stroke_linejoin() const
-{
-    auto const& value = property(PropertyID::StrokeLinejoin);
-    return keyword_to_stroke_linejoin(value.to_keyword()).release_value();
-}
-
-double ComputedProperties::stroke_miterlimit() const
-{
-    return number_from_style_value(property(PropertyID::StrokeMiterlimit), {});
-}
-
-float ComputedProperties::stroke_opacity() const
-{
-    return property(PropertyID::StrokeOpacity).as_opacity_value().resolved();
-}
-
 float ComputedProperties::stop_opacity() const
 {
     return property(PropertyID::StopOpacity).as_opacity_value().resolved();
-}
-
-FillRule ComputedProperties::fill_rule() const
-{
-    auto const& value = property(PropertyID::FillRule);
-    return keyword_to_fill_rule(value.to_keyword()).release_value();
-}
-
-ClipRule ComputedProperties::clip_rule() const
-{
-    auto const& value = property(PropertyID::ClipRule);
-    return keyword_to_fill_rule(value.to_keyword()).release_value();
 }
 
 float ComputedProperties::flood_opacity() const
@@ -2556,237 +1066,6 @@ ImageRendering ComputedProperties::image_rendering() const
 {
     auto const& value = property(PropertyID::ImageRendering);
     return keyword_to_image_rendering(value.to_keyword()).release_value();
-}
-
-// https://drafts.csswg.org/css-backgrounds-4/#layering
-Vector<BackgroundLayerData> ComputedProperties::background_layers() const
-{
-    auto coordinated_value_list = assemble_coordinated_value_list(
-        PropertyID::BackgroundImage,
-        {
-            PropertyID::BackgroundAttachment,
-            PropertyID::BackgroundBlendMode,
-            PropertyID::BackgroundClip,
-            PropertyID::BackgroundImage,
-            PropertyID::BackgroundOrigin,
-            PropertyID::BackgroundPositionX,
-            PropertyID::BackgroundPositionY,
-            PropertyID::BackgroundRepeat,
-            PropertyID::BackgroundSize,
-        });
-
-    Vector<BackgroundLayerData> layers;
-    // The number of layers is determined by the number of comma-separated values in the background-image property
-    layers.ensure_capacity(coordinated_value_list.get(PropertyID::BackgroundImage)->size());
-
-    for (size_t i = 0; i < coordinated_value_list.get(PropertyID::BackgroundImage)->size(); i++) {
-        auto const& background_image_value = coordinated_value_list.get(PropertyID::BackgroundImage)->at(i);
-
-        auto const& background_attachment_value = coordinated_value_list.get(PropertyID::BackgroundAttachment)->at(i);
-        auto const& background_blend_mode_value = coordinated_value_list.get(PropertyID::BackgroundBlendMode)->at(i);
-        auto const& background_clip_value = coordinated_value_list.get(PropertyID::BackgroundClip)->at(i);
-        auto const& background_origin_value = coordinated_value_list.get(PropertyID::BackgroundOrigin)->at(i);
-        auto const& background_position_x_value = coordinated_value_list.get(PropertyID::BackgroundPositionX)->at(i);
-        auto const& background_position_y_value = coordinated_value_list.get(PropertyID::BackgroundPositionY)->at(i);
-        auto const& background_repeat_value = coordinated_value_list.get(PropertyID::BackgroundRepeat)->at(i);
-        auto const& background_size_value = coordinated_value_list.get(PropertyID::BackgroundSize)->at(i);
-
-        BackgroundLayerData layer;
-        layer.image_style_value = background_image_value;
-        if (background_image_value->is_abstract_image())
-            layer.background_image = background_image_value->as_abstract_image();
-
-        layer.attachment = keyword_to_background_attachment(background_attachment_value->to_keyword()).value();
-        layer.blend_mode = keyword_to_mix_blend_mode(background_blend_mode_value->to_keyword()).value();
-        layer.clip = keyword_to_background_box(background_clip_value->to_keyword()).value();
-
-        layer.origin = keyword_to_background_box(background_origin_value->to_keyword()).value();
-
-        layer.position_x = LengthPercentage::from_style_value(background_position_x_value->as_edge().offset());
-        layer.position_y = LengthPercentage::from_style_value(background_position_y_value->as_edge().offset());
-
-        layer.repeat_x = background_repeat_value->as_repeat_style().repeat_x();
-        layer.repeat_y = background_repeat_value->as_repeat_style().repeat_y();
-
-        if (background_size_value->is_background_size()) {
-            layer.size_type = CSS::BackgroundSize::LengthPercentage;
-            layer.size_x = CSS::LengthPercentageOrAuto::from_style_value(background_size_value->as_background_size().size_x());
-            layer.size_y = CSS::LengthPercentageOrAuto::from_style_value(background_size_value->as_background_size().size_y());
-        } else if (background_size_value->is_keyword()) {
-            switch (background_size_value->to_keyword()) {
-            case CSS::Keyword::Contain:
-                layer.size_type = CSS::BackgroundSize::Contain;
-                break;
-            case CSS::Keyword::Cover:
-                layer.size_type = CSS::BackgroundSize::Cover;
-                break;
-            default:
-                VERIFY_NOT_REACHED();
-                break;
-            }
-        } else {
-            VERIFY_NOT_REACHED();
-        }
-
-        layers.unchecked_append(layer);
-    }
-
-    return layers;
-}
-
-BorderImageData ComputedProperties::border_image() const
-{
-    auto const& source = property(PropertyID::BorderImageSource);
-    auto expand_sides = [](StyleValue const& value, auto convert) {
-        auto value_at = [&](size_t index) -> StyleValue const& {
-            if (value.is_value_list())
-                return value.as_value_list().value_at(index, true);
-            return value;
-        };
-        using Value = decltype(convert(value));
-        return BorderImageSideValues<Value> { convert(value_at(0)), convert(value_at(1)), convert(value_at(2)), convert(value_at(3)) };
-    };
-
-    auto const& repeat = property(PropertyID::BorderImageRepeat);
-    auto repeat_at = [&](size_t index) {
-        auto const& keyword_value = repeat.is_value_list() ? *repeat.as_value_list().value_at(index, true) : repeat;
-        return keyword_to_border_image_repeat(keyword_value.to_keyword()).value_or(BorderImageRepeat::Stretch);
-    };
-
-    auto const& slice = property(PropertyID::BorderImageSlice).as_border_image_slice();
-    auto component_count = [](StyleValue const& value) -> u8 {
-        return value.is_value_list() ? value.as_value_list().size() : 1;
-    };
-    auto convert_slice = [](StyleValue const& value) -> BorderImageSliceValue {
-        if (value.is_percentage())
-            return value.as_percentage().percentage();
-        if (value.is_calculated())
-            return NonnullRefPtr<CalculatedStyleValue const> { value.as_calculated() };
-        return value.as_number().number();
-    };
-    return BorderImageData {
-        .source = source.is_abstract_image() ? RefPtr { source.as_abstract_image() } : nullptr,
-        .slice = { convert_slice(slice.top()), convert_slice(slice.right()), convert_slice(slice.bottom()), convert_slice(slice.left()) },
-        .width = expand_sides(property(PropertyID::BorderImageWidth), [](StyleValue const& value) -> BorderImageWidthValue {
-            if (value.is_number() || (value.is_calculated() && value.as_calculated().resolves_to_number()))
-                return number_from_style_value(value, {});
-            if (value.to_keyword() == Keyword::Auto)
-                return BorderImageWidthAuto {};
-            return LengthPercentage::from_style_value(value);
-        }),
-        .outset = expand_sides(property(PropertyID::BorderImageOutset), [](StyleValue const& value) -> BorderImageOutsetValue {
-            if (value.is_number() || (value.is_calculated() && value.as_calculated().resolves_to_number()))
-                return number_from_style_value(value, {});
-            return Length::from_style_value(value, {});
-        }),
-        .width_value_count = component_count(property(PropertyID::BorderImageWidth)),
-        .outset_value_count = component_count(property(PropertyID::BorderImageOutset)),
-        .fill = slice.fill(),
-        .repeat_x = repeat_at(0),
-        .repeat_y = repeat_at(1),
-    };
-}
-
-Vector<BackgroundLayerData> ComputedProperties::mask_layers() const
-{
-    auto property_values = [&](PropertyID property_id) {
-        auto const& value = property(property_id);
-        if (value.is_value_list())
-            return StyleValueVector { value.as_value_list().values() };
-        return StyleValueVector { value };
-    };
-
-    auto const mask_image_values = property_values(PropertyID::MaskImage);
-
-    auto mask_clip_values = property_values(PropertyID::MaskClip);
-    auto mask_composite_values = property_values(PropertyID::MaskComposite);
-    auto mask_mode_values = property_values(PropertyID::MaskMode);
-    auto mask_origin_values = property_values(PropertyID::MaskOrigin);
-    auto mask_position_values = property_values(PropertyID::MaskPosition);
-    auto mask_repeat_values = property_values(PropertyID::MaskRepeat);
-    auto mask_size_values = property_values(PropertyID::MaskSize);
-
-    Vector<BackgroundLayerData> layers;
-    layers.ensure_capacity(mask_image_values.size());
-
-    for (size_t i = 0; i < mask_image_values.size(); i++) {
-        auto const& mask_image_value = mask_image_values[i];
-
-        auto const& mask_clip_value = mask_clip_values[i % mask_clip_values.size()];
-        auto const& mask_composite_value = mask_composite_values[i % mask_composite_values.size()];
-        auto const& mask_mode_value = mask_mode_values[i % mask_mode_values.size()];
-        auto const& mask_origin_value = mask_origin_values[i % mask_origin_values.size()];
-        auto const& mask_position_value = mask_position_values[i % mask_position_values.size()];
-        auto const& mask_repeat_value = mask_repeat_values[i % mask_repeat_values.size()];
-        auto const& mask_size_value = mask_size_values[i % mask_size_values.size()];
-
-        BackgroundLayerData layer;
-        layer.image_style_value = mask_image_value;
-        layer.origin = BackgroundBox::BorderBox;
-        layer.clip = BackgroundBox::BorderBox;
-        if (mask_image_value->is_abstract_image())
-            layer.background_image = mask_image_value->as_abstract_image();
-
-        if (mask_clip_value->to_keyword() != Keyword::NoClip) {
-            layer.mask_clip = keyword_to_coord_box(mask_clip_value->to_keyword()).release_value();
-            if (auto clip = keyword_to_background_box(mask_clip_value->to_keyword()); clip.has_value())
-                layer.clip = clip.release_value();
-        } else {
-            layer.mask_clip_is_no_clip = true;
-        }
-
-        layer.mask_composite = keyword_to_compositing_operator(mask_composite_value->to_keyword()).release_value();
-        layer.mask_mode = keyword_to_masking_mode(mask_mode_value->to_keyword()).release_value();
-
-        layer.mask_origin = keyword_to_coord_box(mask_origin_value->to_keyword()).release_value();
-        if (auto origin = keyword_to_background_box(mask_origin_value->to_keyword()); origin.has_value())
-            layer.origin = origin.release_value();
-
-        auto const& position = mask_position_value->as_position();
-        layer.position_x = LengthPercentage::from_style_value(position.edge_x()->as_edge().offset());
-        layer.position_y = LengthPercentage::from_style_value(position.edge_y()->as_edge().offset());
-
-        layer.repeat_x = mask_repeat_value->as_repeat_style().repeat_x();
-        layer.repeat_y = mask_repeat_value->as_repeat_style().repeat_y();
-
-        if (mask_size_value->is_background_size()) {
-            layer.size_type = CSS::BackgroundSize::LengthPercentage;
-            layer.size_x = CSS::LengthPercentageOrAuto::from_style_value(mask_size_value->as_background_size().size_x());
-            layer.size_y = CSS::LengthPercentageOrAuto::from_style_value(mask_size_value->as_background_size().size_y());
-        } else if (mask_size_value->is_keyword()) {
-            switch (mask_size_value->to_keyword()) {
-            case CSS::Keyword::Contain:
-                layer.size_type = CSS::BackgroundSize::Contain;
-                break;
-            case CSS::Keyword::Cover:
-                layer.size_type = CSS::BackgroundSize::Cover;
-                break;
-            default:
-                VERIFY_NOT_REACHED();
-            }
-        } else {
-            VERIFY_NOT_REACHED();
-        }
-
-        layers.unchecked_append(layer);
-    }
-
-    return layers;
-}
-
-BackgroundBox ComputedProperties::background_color_clip() const
-{
-    // The background color is clipped according to the final layer's background-clip value. We propagate this
-    // separately to allow us to avoid computing layer data in the case a layer's `background-image` is `none`
-
-    auto const& background_image_values = property(PropertyID::BackgroundImage).as_value_list().values();
-    auto const& background_clip_values = property(PropertyID::BackgroundClip).as_value_list().values();
-
-    // Background clip values are coordinated against background image values so the value used for the final layer is
-    // not necessarily the last specified one.
-    auto final_layer_index = (background_image_values.size() - 1) % background_clip_values.size();
-
-    return keyword_to_background_box(background_clip_values[final_layer_index]->to_keyword()).value();
 }
 
 CSSPixels ComputedProperties::border_spacing_horizontal() const
@@ -2819,31 +1098,6 @@ CaptionSide ComputedProperties::caption_side() const
 {
     auto const& value = property(PropertyID::CaptionSide);
     return keyword_to_caption_side(value.to_keyword()).release_value();
-}
-
-Clip ComputedProperties::clip() const
-{
-    auto const& value = property(PropertyID::Clip);
-    if (!value.is_rect())
-        return Clip::make_auto();
-    return Clip(value.as_rect().rect());
-}
-
-Vector<NonnullRefPtr<TransformationStyleValue const>> ComputedProperties::transformations_for_style_value(StyleValue const& value)
-{
-    if (value.is_keyword() && value.to_keyword() == Keyword::None)
-        return {};
-
-    if (!value.is_value_list())
-        return {};
-
-    auto& list = value.as_value_list();
-    Vector<NonnullRefPtr<TransformationStyleValue const>> transformations;
-    for (auto const& transform_value : list.values()) {
-        VERIFY(transform_value->is_transformation());
-        transformations.append(transform_value->as_transformation());
-    }
-    return transformations;
 }
 
 Vector<NonnullRefPtr<TransformationStyleValue const>> ComputedProperties::transformations() const
@@ -2945,36 +1199,6 @@ Color ComputedProperties::accent_color(ColorResolutionContext const& color_resol
     return value.to_color(color_resolution_context).value();
 }
 
-Appearance ComputedProperties::appearance() const
-{
-    auto const& value = property(PropertyID::Appearance);
-    auto appearance = keyword_to_appearance(value.to_keyword()).release_value();
-    switch (appearance) {
-    // Note: All these compatibility values can be treated as 'auto'
-    case Appearance::Searchfield:
-    case Appearance::Textarea:
-    case Appearance::PushButton:
-    case Appearance::SliderHorizontal:
-    case Appearance::Checkbox:
-    case Appearance::Radio:
-    case Appearance::SquareButton:
-    case Appearance::Menulist:
-    case Appearance::Listbox:
-    case Appearance::Meter:
-    case Appearance::ProgressBar:
-    case Appearance::Button:
-        appearance = Appearance::Auto;
-        break;
-    // NB: <compat-special> values behave like auto but can also have an effect. Preserve them.
-    case Appearance::Textfield:
-    case Appearance::MenulistButton:
-        break;
-    default:
-        break;
-    }
-    return appearance;
-}
-
 Filter ComputedProperties::backdrop_filter() const
 {
     auto const& value = property(PropertyID::BackdropFilter);
@@ -2995,30 +1219,6 @@ Positioning ComputedProperties::position() const
 {
     auto const& value = property(PropertyID::Position);
     return keyword_to_positioning(value.to_keyword()).release_value();
-}
-
-TextAnchor ComputedProperties::text_anchor() const
-{
-    auto const& value = property(PropertyID::TextAnchor);
-    return keyword_to_text_anchor(value.to_keyword()).release_value();
-}
-
-Optional<BaselineMetric> ComputedProperties::dominant_baseline() const
-{
-    auto const& value = property(PropertyID::DominantBaseline);
-    return keyword_to_baseline_metric(value.to_keyword());
-}
-
-TextAlign ComputedProperties::text_align() const
-{
-    auto const& value = property(PropertyID::TextAlign);
-    return keyword_to_text_align(value.to_keyword()).release_value();
-}
-
-TextJustify ComputedProperties::text_justify() const
-{
-    auto const& value = property(PropertyID::TextJustify);
-    return keyword_to_text_justify(value.to_keyword()).release_value();
 }
 
 TextOverflow ComputedProperties::text_overflow() const
@@ -3046,47 +1246,6 @@ CSSPixels ComputedProperties::text_underline_offset() const
     return Length::from_style_value(computed_text_underline_offset, Length::make_px(font_size())).absolute_length_to_px();
 }
 
-TextUnderlinePosition ComputedProperties::text_underline_position() const
-{
-    auto const& computed_text_underline_position = property(PropertyID::TextUnderlinePosition).as_text_underline_position();
-
-    return {
-        .horizontal = computed_text_underline_position.horizontal(),
-        .vertical = computed_text_underline_position.vertical()
-    };
-}
-
-PointerEvents ComputedProperties::pointer_events() const
-{
-    auto const& value = property(PropertyID::PointerEvents);
-    return keyword_to_pointer_events(value.to_keyword()).release_value();
-}
-
-Variant<CSSPixels, double> ComputedProperties::tab_size() const
-{
-    auto const& value = property(PropertyID::TabSize);
-    if (value.is_calculated()) {
-        auto const& math_value = value.as_calculated();
-        if (math_value.resolves_to_length()) {
-            return math_value.resolve_length({}).value().absolute_length_to_px();
-        }
-        if (math_value.resolves_to_number()) {
-            return math_value.resolve_number({}).value();
-        }
-    }
-
-    if (value.is_length())
-        return value.as_length().length().absolute_length_to_px();
-
-    return value.as_number().number();
-}
-
-WordBreak ComputedProperties::word_break() const
-{
-    auto const& value = property(PropertyID::WordBreak);
-    return keyword_to_word_break(value.to_keyword()).release_value();
-}
-
 CSSPixels ComputedProperties::word_spacing() const
 {
     auto const& value = property(PropertyID::WordSpacing);
@@ -3094,12 +1253,6 @@ CSSPixels ComputedProperties::word_spacing() const
         return 0;
 
     return Length::from_style_value(value, Length::make_px(font_size())).absolute_length_to_px();
-}
-
-WhiteSpaceCollapse ComputedProperties::white_space_collapse() const
-{
-    auto const& value = property(PropertyID::WhiteSpaceCollapse);
-    return keyword_to_white_space_collapse(value.to_keyword()).release_value();
 }
 
 WhiteSpaceTrimData ComputedProperties::white_space_trim() const
@@ -3143,18 +1296,6 @@ CSSPixels ComputedProperties::letter_spacing() const
     return Length::from_style_value(value, Length::make_px(font_size())).absolute_length_to_px();
 }
 
-LineStyle ComputedProperties::line_style(PropertyID property_id) const
-{
-    auto const& value = property(property_id);
-    return keyword_to_line_style(value.to_keyword()).release_value();
-}
-
-OutlineStyle ComputedProperties::outline_style() const
-{
-    auto const& value = property(PropertyID::OutlineStyle);
-    return keyword_to_outline_style(value.to_keyword()).release_value();
-}
-
 Float ComputedProperties::float_() const
 {
     auto const& value = property(PropertyID::Float);
@@ -3177,12 +1318,6 @@ Clear ComputedProperties::clear() const
 {
     auto const& value = property(PropertyID::Clear);
     return keyword_to_clear(value.to_keyword()).release_value();
-}
-
-ColumnSpan ComputedProperties::column_span() const
-{
-    auto const& value = property(PropertyID::ColumnSpan);
-    return keyword_to_column_span(value.to_keyword()).release_value();
 }
 
 static ContentDataAndQuoteNestingLevel resolve_content(StyleValue const& value, QuotesData const& quotes_data, DOM::AbstractElement& element_reference, u32 initial_quote_nesting_level)
@@ -3303,41 +1438,59 @@ static ContentDataAndQuoteNestingLevel resolve_content(StyleValue const& value, 
     return { {}, quote_nesting_level };
 }
 
+static NonnullRefPtr<StyleValue const> computed_content_item_style_value(ComputedContentItem const& item)
+{
+    return item.visit(
+        [](Utf16String const& string) -> NonnullRefPtr<StyleValue const> { return StringStyleValue::create(string); },
+        [](Keyword keyword) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(keyword); },
+        [](ComputedContentCounter const& counter) -> NonnullRefPtr<StyleValue const> {
+            auto counter_style = CounterStyleStyleValue::create(counter.style.visit(
+                [](Utf16FlyString const& name) -> Variant<Utf16FlyString, CounterStyleStyleValue::SymbolsFunction> { return name; },
+                [](ComputedContentCounter::SymbolsFunction const& symbols) -> Variant<Utf16FlyString, CounterStyleStyleValue::SymbolsFunction> {
+                    return CounterStyleStyleValue::SymbolsFunction { .type = symbols.type, .symbols = symbols.symbols };
+                }));
+            if (counter.function == ComputedContentCounter::Function::Counters)
+                return CounterStyleValue::create_counters(counter.name, counter.join_string, move(counter_style));
+            return CounterStyleValue::create_counter(counter.name, move(counter_style));
+        },
+        [](NonnullRefPtr<AbstractImageStyleValue const> const& image) -> NonnullRefPtr<StyleValue const> { return image; });
+}
+
 ContentDataAndQuoteNestingLevel ComputedValues::resolved_content(DOM::AbstractElement& element_reference, u32 initial_quote_nesting_level) const
 {
-    return resolve_content(*computed_style_value(PropertyID::Content), quotes(), element_reference, initial_quote_nesting_level);
+    // The content value resolve_content() consumes is rebuilt from the content group's data
+    // rather than minted from the longhand table: the group holds the live image style values
+    // whose loads this style already started, and layout must receive those exact objects.
+    auto content_style_value = [&]() -> NonnullRefPtr<StyleValue const> {
+        switch (computed_content().type) {
+        case ComputedContentData::Type::Normal:
+            return KeywordStyleValue::create(Keyword::Normal);
+        case ComputedContentData::Type::None:
+            return KeywordStyleValue::create(Keyword::None);
+        case ComputedContentData::Type::List: {
+            StyleValueVector items;
+            for (auto const& item : computed_content().items)
+                items.append(computed_content_item_style_value(item));
+            StyleValueVector alt_text;
+            for (auto const& item : computed_content().alt_text)
+                alt_text.append(computed_content_item_style_value(item));
+            ValueComparingRefPtr<StyleValueList const> alt_text_style_value;
+            if (!alt_text.is_empty())
+                alt_text_style_value = StyleValueList::create(move(alt_text), StyleValueList::Separator::Space);
+            return ContentStyleValue::create(
+                StyleValueList::create(move(items), StyleValueList::Separator::Space),
+                move(alt_text_style_value));
+        }
+        }
+        VERIFY_NOT_REACHED();
+    }();
+    return resolve_content(content_style_value, quotes(), element_reference, initial_quote_nesting_level);
 }
 
 ContentVisibility ComputedProperties::content_visibility() const
 {
     auto const& value = property(PropertyID::ContentVisibility);
     return keyword_to_content_visibility(value.to_keyword()).release_value();
-}
-
-Vector<CursorData> ComputedProperties::cursor() const
-{
-    // Return the first available cursor.
-    auto const& value = property(PropertyID::Cursor);
-    Vector<CursorData> cursors;
-    if (value.is_value_list()) {
-        for (auto const& item : value.as_value_list().values()) {
-            if (item->is_cursor()) {
-                cursors.append({ item->as_cursor() });
-                continue;
-            }
-
-            if (auto keyword = keyword_to_cursor_predefined(item->to_keyword()); keyword.has_value())
-                cursors.append(keyword.release_value());
-        }
-    } else if (value.is_keyword()) {
-        if (auto keyword = keyword_to_cursor_predefined(value.to_keyword()); keyword.has_value())
-            cursors.append(keyword.release_value());
-    }
-
-    if (cursors.is_empty())
-        cursors.append(CursorPredefined::Auto);
-
-    return cursors;
 }
 
 Visibility ComputedProperties::visibility() const
@@ -3372,12 +1525,6 @@ Vector<TextDecorationLine> ComputedProperties::text_decoration_line() const
     VERIFY_NOT_REACHED();
 }
 
-TextDecorationSkipInk ComputedProperties::text_decoration_skip_ink() const
-{
-    auto const& value = property(PropertyID::TextDecorationSkipInk);
-    return keyword_to_text_decoration_skip_ink(value.to_keyword()).release_value();
-}
-
 TextDecorationStyle ComputedProperties::text_decoration_style() const
 {
     auto const& value = property(PropertyID::TextDecorationStyle);
@@ -3401,12 +1548,6 @@ TextDecorationThickness ComputedProperties::text_decoration_thickness() const
     return TextDecorationThickness { LengthPercentage::from_style_value(value) };
 }
 
-TextTransform ComputedProperties::text_transform() const
-{
-    auto const& value = property(PropertyID::TextTransform);
-    return keyword_to_text_transform(value.to_keyword()).release_value();
-}
-
 ListStyleType ComputedProperties::list_style_type(StyleScope const& style_scope) const
 {
     auto const& value = property(PropertyID::ListStyleType);
@@ -3425,12 +1566,6 @@ ListStyleType ComputedProperties::list_style_type(StyleScope const& style_scope)
     return value.as_counter_style().value().get<Utf16FlyString>();
 }
 
-ListStylePosition ComputedProperties::list_style_position() const
-{
-    auto const& value = property(PropertyID::ListStylePosition);
-    return keyword_to_list_style_position(value.to_keyword()).release_value();
-}
-
 Overflow ComputedProperties::overflow_x() const
 {
     return overflow(PropertyID::OverflowX);
@@ -3445,85 +1580,6 @@ Overflow ComputedProperties::overflow(PropertyID property_id) const
 {
     auto const& value = property(property_id);
     return keyword_to_overflow(value.to_keyword()).release_value();
-}
-
-Vector<ShadowData> ComputedProperties::shadow(PropertyID property_id, ColorResolutionContext const& color_resolution_context) const
-{
-    auto const& value = property(property_id);
-
-    auto make_shadow_data = [&color_resolution_context](ShadowStyleValue const& value) -> Optional<ShadowData> {
-        auto offset_x = Length::from_style_value(value.offset_x(), {}).absolute_length_to_px();
-        auto offset_y = Length::from_style_value(value.offset_y(), {}).absolute_length_to_px();
-        auto blur_radius = Length::from_style_value(value.blur_radius(), {}).absolute_length_to_px();
-        auto spread_distance = Length::from_style_value(value.spread_distance(), {}).absolute_length_to_px();
-        auto color_syntax = [&] {
-            if (!value.color()->is_color())
-                return ColorSyntax::Legacy;
-            auto const& color = value.color()->as_color();
-            if (!color.color_type().has_value())
-                return color.color_syntax();
-            switch (*color.color_type()) {
-            case ColorStyleValue::ColorType::RGB:
-            case ColorStyleValue::ColorType::HSL:
-            case ColorStyleValue::ColorType::HWB:
-                return ColorSyntax::Legacy;
-            default:
-                return ColorSyntax::Modern;
-            }
-        }();
-        return ShadowData {
-            offset_x,
-            offset_y,
-            blur_radius,
-            spread_distance,
-            value.color()->to_color(color_resolution_context).value(),
-            color_syntax,
-            value.placement()
-        };
-    };
-
-    if (value.to_keyword() == Keyword::None)
-        return {};
-
-    auto const& value_list = value.as_value_list();
-
-    Vector<ShadowData> shadow_data;
-    shadow_data.ensure_capacity(value_list.size());
-    for (auto const& layer_value : value_list.values()) {
-        auto maybe_shadow_data = make_shadow_data(layer_value->as_shadow());
-        if (!maybe_shadow_data.has_value())
-            return {};
-        shadow_data.append(maybe_shadow_data.release_value());
-    }
-
-    return shadow_data;
-}
-
-Vector<ShadowData> ComputedProperties::box_shadow(ColorResolutionContext const& color_resolution_context) const
-{
-    return shadow(PropertyID::BoxShadow, color_resolution_context);
-}
-
-Vector<ShadowData> ComputedProperties::text_shadow(ColorResolutionContext const& color_resolution_context) const
-{
-    return shadow(PropertyID::TextShadow, color_resolution_context);
-}
-
-TextIndentData ComputedProperties::text_indent() const
-{
-    auto const& value = property(PropertyID::TextIndent).as_text_indent();
-
-    return TextIndentData {
-        .length_percentage = LengthPercentage::from_style_value(value.length_percentage()),
-        .each_line = value.each_line(),
-        .hanging = value.hanging(),
-    };
-}
-
-TextWrapMode ComputedProperties::text_wrap_mode() const
-{
-    auto const& value = property(PropertyID::TextWrapMode);
-    return keyword_to_text_wrap_mode(value.to_keyword()).release_value();
 }
 
 BoxSizing ComputedProperties::box_sizing() const
@@ -3750,30 +1806,6 @@ HashMap<Utf16FlyString, double> ComputedProperties::font_variation_settings() co
     return {};
 }
 
-GridTrackSizeList ComputedProperties::grid_auto_columns() const
-{
-    auto const& value = property(PropertyID::GridAutoColumns);
-    return value.as_grid_track_size_list().grid_track_size_list();
-}
-
-GridTrackSizeList ComputedProperties::grid_auto_rows() const
-{
-    auto const& value = property(PropertyID::GridAutoRows);
-    return value.as_grid_track_size_list().grid_track_size_list();
-}
-
-GridTrackSizeList ComputedProperties::grid_template_columns() const
-{
-    auto const& value = property(PropertyID::GridTemplateColumns);
-    return value.as_grid_track_size_list().grid_track_size_list();
-}
-
-GridTrackSizeList ComputedProperties::grid_template_rows() const
-{
-    auto const& value = property(PropertyID::GridTemplateRows);
-    return value.as_grid_track_size_list().grid_track_size_list();
-}
-
 GridAutoFlow ComputedProperties::grid_auto_flow() const
 {
     auto const& value = property(PropertyID::GridAutoFlow);
@@ -3781,30 +1813,6 @@ GridAutoFlow ComputedProperties::grid_auto_flow() const
         return GridAutoFlow {};
     auto& grid_auto_flow_value = value.as_grid_auto_flow();
     return GridAutoFlow { .row = grid_auto_flow_value.is_row(), .dense = grid_auto_flow_value.is_dense() };
-}
-
-GridTrackPlacement ComputedProperties::grid_column_end() const
-{
-    auto const& value = property(PropertyID::GridColumnEnd);
-    return value.as_grid_track_placement().grid_track_placement();
-}
-
-GridTrackPlacement ComputedProperties::grid_column_start() const
-{
-    auto const& value = property(PropertyID::GridColumnStart);
-    return value.as_grid_track_placement().grid_track_placement();
-}
-
-GridTrackPlacement ComputedProperties::grid_row_end() const
-{
-    auto const& value = property(PropertyID::GridRowEnd);
-    return value.as_grid_track_placement().grid_track_placement();
-}
-
-GridTrackPlacement ComputedProperties::grid_row_start() const
-{
-    auto const& value = property(PropertyID::GridRowStart);
-    return value.as_grid_track_placement().grid_track_placement();
 }
 
 BorderCollapse ComputedProperties::border_collapse() const
@@ -3817,24 +1825,6 @@ EmptyCells ComputedProperties::empty_cells() const
 {
     auto const& value = property(PropertyID::EmptyCells);
     return keyword_to_empty_cells(value.to_keyword()).release_value();
-}
-
-GridTemplateAreas ComputedProperties::grid_template_areas() const
-{
-    auto const& value = property(PropertyID::GridTemplateAreas);
-    auto const& style_value = value.as_grid_template_area();
-    return { style_value.grid_areas(), style_value.row_count(), style_value.column_count() };
-}
-
-ObjectFit ComputedProperties::object_fit() const
-{
-    auto const& value = property(PropertyID::ObjectFit);
-    return keyword_to_object_fit(value.to_keyword()).release_value();
-}
-
-Position ComputedProperties::object_position() const
-{
-    return position_value(PropertyID::ObjectPosition);
 }
 
 TableLayout ComputedProperties::table_layout() const
@@ -3861,67 +1851,10 @@ WritingMode ComputedProperties::writing_mode() const
     return keyword_to_writing_mode(value.to_keyword()).release_value();
 }
 
-UserSelect ComputedProperties::user_select() const
-{
-    auto const& value = property(PropertyID::UserSelect);
-    return keyword_to_user_select(value.to_keyword()).release_value();
-}
-
 Isolation ComputedProperties::isolation() const
 {
     auto const& value = property(PropertyID::Isolation);
     return keyword_to_isolation(value.to_keyword()).release_value();
-}
-
-TouchActionData ComputedProperties::touch_action() const
-{
-    auto const& touch_action = property(PropertyID::TouchAction);
-    if (touch_action.is_keyword()) {
-        switch (touch_action.to_keyword()) {
-        case Keyword::Auto:
-            return TouchActionData {};
-        case Keyword::None:
-            return TouchActionData::none();
-        case Keyword::Manipulation:
-            return TouchActionData { .allow_other = false };
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }
-    if (touch_action.is_value_list()) {
-        TouchActionData touch_action_data = TouchActionData::none();
-        for (auto const& value : touch_action.as_value_list().values()) {
-            switch (value->as_keyword().keyword()) {
-            case Keyword::PanX:
-                touch_action_data.allow_right = true;
-                touch_action_data.allow_left = true;
-                break;
-            case Keyword::PanLeft:
-                touch_action_data.allow_left = true;
-                break;
-            case Keyword::PanRight:
-                touch_action_data.allow_right = true;
-                break;
-            case Keyword::PanY:
-                touch_action_data.allow_up = true;
-                touch_action_data.allow_down = true;
-                break;
-            case Keyword::PanUp:
-                touch_action_data.allow_up = true;
-                break;
-            case Keyword::PanDown:
-                touch_action_data.allow_down = true;
-                break;
-            case Keyword::PinchZoom:
-                touch_action_data.allow_pinch_zoom = true;
-                break;
-            default:
-                VERIFY_NOT_REACHED();
-            }
-        }
-        return touch_action_data;
-    }
-    return TouchActionData {};
 }
 
 AspectRatio ComputedProperties::aspect_ratio() const
@@ -4076,14 +2009,6 @@ MixBlendMode ComputedProperties::mix_blend_mode() const
 {
     auto const& value = property(PropertyID::MixBlendMode);
     return keyword_to_mix_blend_mode(value.to_keyword()).release_value();
-}
-
-Optional<Utf16FlyString> ComputedProperties::view_transition_name() const
-{
-    auto const& value = property(PropertyID::ViewTransitionName);
-    if (value.is_custom_ident())
-        return value.as_custom_ident().custom_ident();
-    return {};
 }
 
 Vector<AnimationProperties> ComputedProperties::animations(DOM::AbstractElement const& abstract_element) const
@@ -4292,69 +2217,6 @@ Vector<TransitionProperties> ComputedProperties::transitions() const
     return transitions;
 }
 
-MaskType ComputedProperties::mask_type() const
-{
-    auto const& value = property(PropertyID::MaskType);
-    return keyword_to_mask_type(value.to_keyword()).release_value();
-}
-
-QuotesData ComputedProperties::quotes() const
-{
-    auto const& value = property(PropertyID::Quotes);
-    if (value.is_keyword()) {
-        switch (value.to_keyword()) {
-        case Keyword::Auto:
-            return QuotesData { .type = QuotesData::Type::Auto };
-        case Keyword::None:
-            return QuotesData { .type = QuotesData::Type::None };
-        default:
-            break;
-        }
-    }
-    if (value.is_value_list()) {
-        auto& value_list = value.as_value_list();
-        QuotesData quotes_data { .type = QuotesData::Type::Specified };
-        VERIFY(value_list.size() % 2 == 0);
-        for (auto i = 0u; i < value_list.size(); i += 2) {
-            quotes_data.strings.empend(
-                value_list.value_at(i, false)->as_string().string_value(),
-                value_list.value_at(i + 1, false)->as_string().string_value());
-        }
-        return quotes_data;
-    }
-
-    return InitialValues::quotes();
-}
-
-Vector<CounterData> ComputedProperties::counter_data(PropertyID property_id) const
-{
-    auto const& value = property(property_id);
-
-    if (value.is_counter_definitions()) {
-        auto counter_definitions = value.as_counter_definitions().counter_definitions();
-        Vector<CounterData> result;
-        for (auto& counter : counter_definitions) {
-            CounterData data {
-                .name = counter.name,
-                .is_reversed = counter.is_reversed,
-                .value = {},
-            };
-
-            if (counter.value)
-                data.value = AK::clamp_to<i32>(int_from_style_value(*counter.value));
-
-            result.append(move(data));
-        }
-        return result;
-    }
-
-    if (value.to_keyword() == Keyword::None)
-        return {};
-
-    dbgln("Unhandled type for {} value: '{}'", string_from_property_id(property_id), value.to_string(SerializationMode::Normal));
-    return {};
-}
-
 ScrollbarColorData ComputedProperties::scrollbar_color(ColorResolutionContext const& color_resolution_context) const
 {
     auto const& value = property(PropertyID::ScrollbarColor);
@@ -4375,99 +2237,10 @@ ScrollbarColorData ComputedProperties::scrollbar_color(ColorResolutionContext co
     return {};
 }
 
-ScrollbarWidth ComputedProperties::scrollbar_width() const
-{
-    auto const& value = property(PropertyID::ScrollbarWidth);
-    return keyword_to_scrollbar_width(value.to_keyword()).release_value();
-}
-
 Resize ComputedProperties::resize() const
 {
     auto const& value = property(PropertyID::Resize);
     return keyword_to_resize(value.to_keyword()).release_value();
-}
-
-ShapeRendering ComputedProperties::shape_rendering() const
-{
-    auto const& value = property(PropertyID::ShapeRendering);
-    return keyword_to_shape_rendering(value.to_keyword()).release_value();
-}
-
-PaintOrderList ComputedProperties::paint_order() const
-{
-    auto const& value = property(PropertyID::PaintOrder);
-    if (value.is_keyword()) {
-        auto keyword = value.as_keyword().keyword();
-        if (keyword == Keyword::Normal)
-            return InitialValues::paint_order();
-        auto paint_order_keyword = keyword_to_paint_order(keyword);
-        VERIFY(paint_order_keyword.has_value());
-        switch (*paint_order_keyword) {
-        case PaintOrder::Fill:
-            return InitialValues::paint_order();
-        case PaintOrder::Stroke:
-            return PaintOrderList { PaintOrder::Stroke, PaintOrder::Fill, PaintOrder::Markers };
-        case PaintOrder::Markers:
-            return PaintOrderList { PaintOrder::Markers, PaintOrder::Fill, PaintOrder::Stroke };
-        }
-    }
-
-    VERIFY(value.is_value_list());
-    auto const& value_list = value.as_value_list();
-    // The list must contain 2 values at this point, since the third value is omitted during parsing due to the
-    // shortest-serialization principle.
-    VERIFY(value_list.size() == 2);
-    PaintOrderList paint_order_list {};
-
-    // We use the sum of the keyword values to infer what the missing keyword is. Since each keyword can only appear in
-    // the list once, the sum of their values will always be 3.
-    auto sum = 0;
-    for (auto i = 0; i < 2; i++) {
-        auto keyword = value_list.value_at(i, false)->as_keyword().keyword();
-        auto paint_order_keyword = keyword_to_paint_order(keyword);
-        VERIFY(paint_order_keyword.has_value());
-        sum += to_underlying(*paint_order_keyword);
-        paint_order_list[i] = *paint_order_keyword;
-    }
-    VERIFY(sum <= 3);
-    paint_order_list[2] = static_cast<PaintOrder>(3 - sum);
-    return paint_order_list;
-}
-
-WillChange ComputedProperties::will_change() const
-{
-    auto const& value = property(PropertyID::WillChange);
-    if (value.to_keyword() == Keyword::Auto)
-        return WillChange::make_auto();
-
-    auto to_will_change_entry = [](StyleValue const& value) -> Optional<WillChange::WillChangeEntry> {
-        if (value.is_keyword()) {
-            switch (value.as_keyword().keyword()) {
-            case Keyword::Contents:
-                return WillChange::Type::Contents;
-            case Keyword::ScrollPosition:
-                return WillChange::Type::ScrollPosition;
-            default:
-                VERIFY_NOT_REACHED();
-            }
-        }
-        VERIFY(value.is_custom_ident());
-        auto custom_ident = value.as_custom_ident().custom_ident();
-        auto property_id = property_id_from_string(custom_ident);
-        if (!property_id.has_value())
-            return {};
-
-        return property_id.release_value();
-    };
-
-    auto const& value_list = value.as_value_list();
-    Vector<WillChange::WillChangeEntry> will_change_entries;
-    for (auto const& style_value : value_list.values()) {
-        if (auto entry = to_will_change_entry(*style_value); entry.has_value())
-            will_change_entries.append(*entry);
-    }
-
-    return WillChange(move(will_change_entries));
 }
 
 ValueComparingNonnullRefPtr<Gfx::FontCascadeList const> ComputedProperties::computed_font_list(FontComputer const& font_computer) const

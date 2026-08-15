@@ -143,13 +143,6 @@ void ImageStyleValue::load_any_resources(DOM::Document& document)
     fetch_image(document);
 }
 
-bool ImageStyleValue::equals(StyleValue const& other) const
-{
-    if (type() != other.type())
-        return false;
-    return url_value() == other.as_image().url_value();
-}
-
 Optional<CSSPixels> ImageStyleValue::natural_width(DOM::Document const& document) const
 {
     if (auto image_data = this->image_data(document))
@@ -176,7 +169,7 @@ bool ImageStyleValue::is_paintable(DOM::Document const& document) const
     return !!image_data(document);
 }
 
-void ImageStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const& document, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering, PreferredColorScheme color_scheme) const
+void ImageStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const& document, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering, PreferredColorScheme color_scheme, ResolvedImage const&) const
 {
     auto image_data = this->image_data(document);
     if (!image_data)

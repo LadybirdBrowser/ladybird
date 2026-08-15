@@ -3067,6 +3067,17 @@ pub(crate) fn resolve_calculated_integer_without_context(
     Some((value + 0.5).floor().clamp(i32::MIN as f64, i32::MAX as f64) as i32)
 }
 
+/// Resolves a calculated value that must produce a flex value, with no
+/// external context; the equivalent of the C++ resolve_flex with an empty
+/// context. Returns the value in fr.
+pub(crate) fn resolve_calculated_flex_without_context(
+    calculated: &crate::css::style_value::StyleValueData,
+) -> Option<f64> {
+    let (value, numeric_type, resolve_as) = resolve_calculated_without_context(calculated, None)?;
+    // Flex is base type index 5 in the base type order.
+    numeric_type.matches_dimension(5, resolve_as).then_some(value)
+}
+
 /// Resolves a calculated value that must produce a length, with a percentage
 /// basis length; the equivalent of the C++ resolve_length with a percentage
 /// basis and an otherwise empty context. Returns pixels.

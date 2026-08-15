@@ -8,12 +8,4 @@
 
 namespace Web::CSS {
 
-bool ResolutionStyleValue::equals(StyleValue const& other) const
-{
-    if (type() != other.type())
-        return false;
-    auto const& other_resolution = other.as_resolution();
-    return resolution() == other_resolution.resolution();
-}
-
 }

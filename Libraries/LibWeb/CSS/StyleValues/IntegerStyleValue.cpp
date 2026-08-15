@@ -6,16 +6,10 @@
 
 #include "IntegerStyleValue.h"
 #include <LibWeb/CSS/CSSUnitValue.h>
-#include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 
 namespace Web::CSS {
-
-Vector<Parser::ComponentValue> IntegerStyleValue::tokenize() const
-{
-    return { Parser::Token::create_number(Number { Number::Type::Integer, static_cast<double>(integer()) }) };
-}
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-numeric-value
 GC::Ref<CSSStyleValue> IntegerStyleValue::reify(Utf16FlyString const& associated_property) const

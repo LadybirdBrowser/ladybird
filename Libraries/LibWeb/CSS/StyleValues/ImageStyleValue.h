@@ -77,8 +77,6 @@ public:
     static ValueComparingNonnullRefPtr<ImageStyleValue const> create(::URL::URL const&);
     virtual ~ImageStyleValue() override;
 
-    bool equals(StyleValue const& other) const;
-
     virtual void load_any_resources(DOM::Document&) override;
 
     Optional<CSSPixels> natural_width(DOM::Document const&) const override;
@@ -86,7 +84,7 @@ public:
     Optional<CSSPixelFraction> natural_aspect_ratio(DOM::Document const&) const override;
 
     virtual bool is_paintable(DOM::Document const&) const override;
-    void paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering, PreferredColorScheme) const override;
+    void paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering, PreferredColorScheme, ResolvedImage const&) const override;
     Optional<Painting::DisplayListResource> record_display_list(DisplayListRecordingContext&, DOM::Document const&, DevicePixelRect const&, PreferredColorScheme) const;
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap(DOM::Document const&) const override;

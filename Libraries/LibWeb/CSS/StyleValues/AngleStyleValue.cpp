@@ -18,12 +18,4 @@ AngleStyleValue::AngleStyleValue(Angle angle)
 
 AngleStyleValue::~AngleStyleValue() = default;
 
-bool AngleStyleValue::equals(StyleValue const& other) const
-{
-    if (type() != other.type())
-        return false;
-    auto const& other_angle = other.as_angle();
-    return angle() == other_angle.angle();
-}
-
 }

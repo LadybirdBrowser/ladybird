@@ -26,8 +26,6 @@ public:
     virtual double raw_value() const override { return m_value->time.value; }
     virtual Utf16FlyString unit_name() const override { return time().unit_name(); }
 
-    bool equals(StyleValue const& other) const;
-
 private:
     friend class StyleValue;
 

@@ -8,7 +8,6 @@
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/SerializationMode.h>
-#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Text.h>
@@ -117,8 +116,8 @@ void materialize_single_run_legacy_font_style(DOM::Node& node)
             return;
         auto css_value = parse_css_value(CSS::Parser::ParsingParams { font->document() }, color_attribute->utf16_view(), CSS::PropertyID::Color);
         if (!css_value || css_value->to_color({}) != legacy_color) {
-            auto legacy_color_value = CSS::ColorStyleValue::create_from_color(*legacy_color, CSS::ColorSyntax::Legacy);
-            materialized_color = Utf16String::from_utf8(legacy_color_value->to_string(CSS::SerializationMode::Normal));
+            // A legacy color value with no name serializes as its sRGB form, so skip the style value detour.
+            materialized_color = Utf16String::from_utf8(legacy_color->serialize_a_srgb_value());
         }
     }
 

@@ -15,7 +15,6 @@
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibWeb/CSS/ComputedValues.h>
-#include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
@@ -151,10 +150,7 @@ static TransformData compute_svg_viewport_transform_data(Paintable const& viewpo
 
 static bool style_has_transform(Layout::NodeWithStyle const& style_source)
 {
-    return !style_source.transformations().is_empty()
-        || !style_source.rotate().is_null()
-        || !style_source.translate().is_null()
-        || !style_source.scale().is_null();
+    return !style_source.resolved_transform_list().is_empty();
 }
 
 static Gfx::AffineTransform svg_additional_element_transform(Layout::NodeWithStyle const& style_source)
@@ -184,12 +180,15 @@ Optional<TransformData> compute_transform(Paintable const& paintable_box, double
     // 2. Translate by the computed X, Y, and Z values of transform-origin.
     auto matrix = Gfx::translation_matrix(Vector3 { 0.f, 0.f, origin_z });
 
-    // 3.-5., 7. Translate/rotate/scale, then multiply by each transform function from left to
-    // right.
+    // 3. Translate by the computed X, Y, and Z values of translate.
+    // 4. Rotate by the computed <angle> about the specified axis of rotate.
+    // 5. Scale by the computed X, Y, and Z values of scale.
     // FIXME: 6. Translate and rotate by the transform specified by offset.
-    style_source.for_each_transform_component([&](auto const& component) {
-        matrix = matrix * component.to_matrix(paintable_box);
-    });
+    // 7. Multiply by each of the transform functions in transform from left to right.
+    // NB: The resolved transform list carries translate, rotate, scale, and the
+    //     transform functions pre-lowered in exactly that order.
+    for (auto const& transform : style_source.resolved_transform_list())
+        matrix = matrix * transform.to_matrix(reference_box.width(), reference_box.height());
 
     // The x and y properties of <use> define an additional translation applied after any
     // transformations specified with other properties.

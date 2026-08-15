@@ -9,7 +9,6 @@
 #include <AK/Optional.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Cursor.h>
-#include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/Forward.h>
 
@@ -31,8 +30,6 @@ public:
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
-    bool properties_equal(CursorStyleValue const& other) const { return image_as_style_value().equals(other.image_as_style_value()) && x() == other.x() && y() == other.y(); }
-
 private:
     friend class StyleValue;
 
@@ -41,8 +38,6 @@ private:
         RefPtr<StyleValue const> y)
         : StyleValueWithDefaultOperators(Type::Cursor, make_cursor_data(image, x, y))
         , m_image(move(image))
-        , m_x(move(x))
-        , m_y(move(y))
     {
     }
 
@@ -52,12 +47,12 @@ private:
 
     StyleValue const& image_as_style_value() const { return *m_image; }
 
-    ValueComparingRefPtr<StyleValue const> x() const { return m_x; }
-    ValueComparingRefPtr<StyleValue const> y() const { return m_y; }
+    ValueComparingRefPtr<StyleValue const> x() const { return wrap_rust_child_or_null(m_value->cursor.x); }
+    ValueComparingRefPtr<StyleValue const> y() const { return wrap_rust_child_or_null(m_value->cursor.y); }
 
+    // NB: The image wrapper stays a member: image style values carry C++-side loading state
+    // (clients, resource requests) keyed on wrapper identity.
     ValueComparingNonnullRefPtr<AbstractImageStyleValue const> m_image;
-    ValueComparingRefPtr<StyleValue const> m_x;
-    ValueComparingRefPtr<StyleValue const> m_y;
 
     mutable Optional<Color> m_cached_bitmap_color;
     mutable Optional<PreferredColorScheme> m_cached_bitmap_color_scheme;

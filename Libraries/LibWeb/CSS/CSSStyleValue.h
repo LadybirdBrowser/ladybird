@@ -10,6 +10,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 
 namespace Web::CSS {
 
@@ -19,12 +20,12 @@ class CSSStyleValue : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(CSSStyleValue);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSStyleValue> create(Utf16FlyString associated_property, NonnullRefPtr<StyleValue const>);
+    [[nodiscard]] static GC::Ref<CSSStyleValue> create(Utf16FlyString associated_property, StyleValue const&);
 
     virtual ~CSSStyleValue() override;
 
     Optional<Utf16FlyString> const& associated_property() const { return m_associated_property; }
-    RefPtr<StyleValue const> const& source_value() const { return m_source_value; }
+    RustStyleValueHandle const& source_value() const { return m_source_value; }
 
     static WebIDL::ExceptionOr<GC::Ref<CSSStyleValue>> parse(JS::VM&, Utf16FlyString const& property, Utf16View css_text);
     static WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> parse_all(JS::VM&, Utf16FlyString const& property, Utf16View css_text);
@@ -46,15 +47,19 @@ public:
 
 protected:
     explicit CSSStyleValue();
-    explicit CSSStyleValue(NonnullRefPtr<StyleValue const> source_value);
+    explicit CSSStyleValue(StyleValue const& source_value);
+
+    // Wraps the held Rust value in a C++ StyleValue facade on demand.
+    RefPtr<StyleValue const> source_style_value() const;
 
 private:
-    explicit CSSStyleValue(Utf16FlyString associated_property, NonnullRefPtr<StyleValue const> source_value);
+    explicit CSSStyleValue(Utf16FlyString associated_property, StyleValue const& source_value);
 
     // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-associatedproperty-slot
     Optional<Utf16FlyString> m_associated_property;
 
-    RefPtr<StyleValue const> m_source_value;
+    // Shared handle to the Rust-owned value data this object was reified from.
+    RustStyleValueHandle m_source_value;
 };
 
 }

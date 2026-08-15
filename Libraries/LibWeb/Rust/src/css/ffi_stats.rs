@@ -65,7 +65,6 @@ define_ffi_ops! {
     ShorthandSetLonghandCallback => "shorthandSetLonghandCallbacks",
     LonghandStoreBatchCallback => "longhandStoreBatchCallbacks",
     LonghandCppComputeFallback => "longhandCppComputeFallbacks",
-    LonghandParentValueFetchCallback => "longhandParentValueFetchCallbacks",
     StringRetainReleaseCallback => "stringRetainReleaseCallbacks",
     AnimationComputeBatchCallback => "animationComputeBatchCallbacks",
 }

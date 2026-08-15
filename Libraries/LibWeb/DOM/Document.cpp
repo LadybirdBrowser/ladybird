@@ -610,6 +610,7 @@ void Document::set_temporary_document_for_fragment_parsing(Badge<HTML::HTMLParse
 void Document::reset_style_invalidation_counters() const
 {
     m_style_invalidation_counters = {};
+    CSS::ComputedProperties::reset_longhand_wrappers_minted();
 }
 
 void Document::record_layout_tree_build(u64 rebuilt_subtree_root_count, bool escaped_rebuild_roots)

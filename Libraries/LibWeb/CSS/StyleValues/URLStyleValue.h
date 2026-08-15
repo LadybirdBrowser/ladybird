@@ -66,8 +66,6 @@ public:
         return url_from_rust_data(data.url, data.url_type, data.modifiers);
     }
 
-    bool properties_equal(URLStyleValue const& other) const { return url() == other.url(); }
-
 private:
     friend class StyleValue;
 

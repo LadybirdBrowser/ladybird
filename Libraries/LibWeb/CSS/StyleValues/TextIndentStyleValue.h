@@ -24,25 +24,21 @@ public:
     static ValueComparingNonnullRefPtr<TextIndentStyleValue const> create(NonnullRefPtr<StyleValue const> length_percentage, Hanging hanging, EachLine each_line);
     virtual ~TextIndentStyleValue() override;
 
-    StyleValue const& length_percentage() const { return m_length_percentage; }
+    ValueComparingNonnullRefPtr<StyleValue const> length_percentage() const { return wrap_rust_child(m_value->text_indent.length_percentage); }
     bool hanging() const { return m_value->text_indent.hanging; }
     bool each_line() const { return m_value->text_indent.each_line; }
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-    bool properties_equal(TextIndentStyleValue const&) const;
 
 private:
     friend class StyleValue;
 
     explicit TextIndentStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValueWithDefaultOperators(Type::TextIndent, data)
-        , m_length_percentage(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->text_indent.length_percentage.pointer))))
     {
     }
 
     TextIndentStyleValue(NonnullRefPtr<StyleValue const> length_percentage, Hanging hanging, EachLine each_line);
-
-    ValueComparingNonnullRefPtr<StyleValue const> m_length_percentage;
 };
 
 }

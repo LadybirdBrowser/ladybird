@@ -25,8 +25,6 @@ public:
     void serialize(StringBuilder&, SerializationMode) const { VERIFY_NOT_REACHED(); }
     Vector<Parser::ComponentValue> tokenize() const { VERIFY_NOT_REACHED(); }
 
-    bool properties_equal(EmptyOptionalStyleValue const&) const { return true; }
-
 private:
     friend class StyleValue;
 

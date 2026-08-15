@@ -8,12 +8,4 @@
 
 namespace Web::CSS {
 
-bool TimeStyleValue::equals(StyleValue const& other) const
-{
-    if (type() != other.type())
-        return false;
-    auto const& other_time = other.as_time();
-    return time() == other_time.time();
-}
-
 }

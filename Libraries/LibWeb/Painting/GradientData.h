@@ -11,6 +11,7 @@
 #include <LibGfx/Color.h>
 #include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/PixelUnits.h>
 
 namespace Web::Painting {
 
@@ -37,6 +38,19 @@ struct ConicGradientData {
 struct RadialGradientData {
     ColorStopData color_stops;
     CSS::ColorInterpolationMethodStyleValue::ColorInterpolationMethod interpolation_method;
+};
+
+// Size-dependent painting state resolved from a gradient style value for one
+// concrete gradient box size.
+struct ResolvedConicGradient {
+    ConicGradientData data;
+    CSSPixelPoint position;
+};
+
+struct ResolvedRadialGradient {
+    RadialGradientData data;
+    CSSPixelSize gradient_size;
+    CSSPixelPoint center;
 };
 
 }

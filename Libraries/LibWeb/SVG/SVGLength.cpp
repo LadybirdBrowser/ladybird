@@ -8,9 +8,8 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGLength.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
-#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
-#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ComputationContext.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/SVG/SVGElement.h>
@@ -21,14 +20,14 @@ namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGLength);
 
-GC::Ref<SVGLength> SVGLength::create_detached(JS::Realm& realm, NonnullRefPtr<CSS::StyleValue const> value, ReadOnly read_only)
+GC::Ref<SVGLength> SVGLength::create_detached(JS::Realm& realm, SVGLengthValue value, ReadOnly read_only)
 {
-    return realm.create<SVGLength>(realm, nullptr, Directionality::Unspecified, DetachedSource { .value = move(value) }, read_only);
+    return realm.create<SVGLength>(realm, nullptr, Directionality::Unspecified, DetachedSource { .value = value }, read_only);
 }
 
-GC::Ref<SVGLength> SVGLength::create_reflected_attribute(JS::Realm& realm, GC::Ref<SVGElement> element, Utf16FlyString name, Directionality directionality, ReflectedAttributeType type, NonnullRefPtr<CSS::StyleValue const> default_value, ReadOnly read_only)
+GC::Ref<SVGLength> SVGLength::create_reflected_attribute(JS::Realm& realm, GC::Ref<SVGElement> element, Utf16FlyString name, Directionality directionality, ReflectedAttributeType type, SVGLengthValue default_value, ReadOnly read_only)
 {
-    return realm.create<SVGLength>(realm, element, directionality, ReflectedAttributeSource { .name = move(name), .type = type, .default_value = move(default_value) }, read_only);
+    return realm.create<SVGLength>(realm, element, directionality, ReflectedAttributeSource { .name = move(name), .type = type, .default_value = default_value }, read_only);
 }
 
 SVGLength::SVGLength(JS::Realm& realm, GC::Ptr<SVGElement> associated_element, Directionality directionality, Source&& source, ReadOnly read_only)
@@ -121,8 +120,8 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
     // 2. If value is a <number>, return that number.
     // AD-HOC: We only return literal numbers here, non-literal values (e.g. math and tree counting functions) are
     //         returned once they have been absolutized in step 4.
-    if (value->is_number())
-        return value->as_number().number();
+    if (auto const* scalar = value.get_pointer<SVGLengthValue>(); scalar && scalar->kind() == SVGLengthValue::Kind::Number)
+        return scalar->value();
 
     // 3. Let viewport size be a basis to resolve percentages against, based on the SVGLength's associated element
     //    and directionality:
@@ -140,7 +139,23 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
     auto error_value = [&] { return WebIDL::NotSupportedError::create(*m_realm, ""_utf16); };
 
     if (!length_resolution_context.has_value()) {
-        if (!value->is_computationally_independent())
+        if (auto const* scalar = value.get_pointer<SVGLengthValue>()) {
+            if (scalar->kind() == SVGLengthValue::Kind::Percentage)
+                return CSS::Length::make_px(viewport_size).percentage_of(scalar->to_percentage()).absolute_length_to_px_without_rounding();
+
+            auto length = scalar->to_length();
+
+            // NB: Font-relative and container-relative lengths are not computationally independent; viewport relative
+            //     lengths are but we still can't resolve them without an element.
+            if (!length.is_absolute())
+                return error_value();
+
+            return length.absolute_length_to_px_without_rounding();
+        }
+
+        auto const& style_value = value.get<NonnullRefPtr<CSS::StyleValue const>>();
+
+        if (!style_value->is_computationally_independent())
             return error_value();
 
         // NB: Values which rely on viewport relative lengths are computationally independent but we still can't resolve
@@ -149,7 +164,7 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
             .length_resolution_context = { .viewport_rect = { 0, 0, 0, 0 }, .font_metrics = { 0, {}, {} }, .root_font_metrics = { 0, {}, {} } },
         };
 
-        auto absolutized_value = value->absolutized(computation_context);
+        auto absolutized_value = style_value->absolutized(computation_context);
 
         if (computation_context.depends_on_viewport_metrics())
             return error_value();
@@ -163,16 +178,25 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
         return CSS::Length::from_style_value(absolutized_value, CSS::Length::make_px(viewport_size)).absolute_length_to_px_without_rounding();
     }
 
+    // NB: Update layout so any container query units are resolved correctly.
+    // NB: We can be sure we have an element since we wouldn't have a length resolution context otherwise.
+    m_element->document().update_layout(DOM::UpdateLayoutReason::SVGLengthValue);
+
+    if (auto const* scalar = value.get_pointer<SVGLengthValue>()) {
+        if (scalar->kind() == SVGLengthValue::Kind::Percentage)
+            return CSS::Length::make_px(viewport_size).percentage_of(scalar->to_percentage()).absolute_length_to_px_without_rounding();
+
+        return scalar->to_length().to_px_without_rounding(*length_resolution_context);
+    }
+
+    auto const& style_value = value.get<NonnullRefPtr<CSS::StyleValue const>>();
+
     CSS::ComputationContext computation_context {
         .length_resolution_context = length_resolution_context.release_value(),
         .abstract_element = { *m_element },
     };
 
-    // NB: Update layout so any container query units are resolved correctly.
-    // NB: We can be sure we have an element since we wouldn't have a length resolution context otherwise.
-    m_element->document().update_layout(DOM::UpdateLayoutReason::SVGLengthValue);
-
-    auto absolutized_value = value->absolutized(computation_context);
+    auto absolutized_value = style_value->absolutized(computation_context);
 
     // AD-HOC: We handle literal numbers in step two but tree counting functions (which absolutize to NumberStyleValue)
     //         and calculated values that resolve to numbers haven't been handled yet.
@@ -189,31 +213,33 @@ u8 SVGLength::unit_type() const
     //    pt or pc unit, then return the corresponding constant value from the length unit type table above.
     auto value = internal_value();
 
-    if (value->is_number())
-        return SVG_LENGTHTYPE_NUMBER;
-
-    if (value->is_percentage())
-        return SVG_LENGTHTYPE_PERCENTAGE;
-
-    if (value->is_length()) {
-        switch (value->as_length().length().unit()) {
-        case CSS::LengthUnit::Em:
-            return SVG_LENGTHTYPE_EMS;
-        case CSS::LengthUnit::Ex:
-            return SVG_LENGTHTYPE_EXS;
-        case CSS::LengthUnit::Px:
-            return SVG_LENGTHTYPE_PX;
-        case CSS::LengthUnit::Cm:
-            return SVG_LENGTHTYPE_CM;
-        case CSS::LengthUnit::Mm:
-            return SVG_LENGTHTYPE_MM;
-        case CSS::LengthUnit::In:
-            return SVG_LENGTHTYPE_IN;
-        case CSS::LengthUnit::Pt:
-            return SVG_LENGTHTYPE_PT;
-        case CSS::LengthUnit::Pc:
-            return SVG_LENGTHTYPE_PC;
-        default:
+    if (auto const* scalar = value.get_pointer<SVGLengthValue>()) {
+        switch (scalar->kind()) {
+        case SVGLengthValue::Kind::Number:
+            return SVG_LENGTHTYPE_NUMBER;
+        case SVGLengthValue::Kind::Percentage:
+            return SVG_LENGTHTYPE_PERCENTAGE;
+        case SVGLengthValue::Kind::Length:
+            switch (scalar->unit()) {
+            case CSS::LengthUnit::Em:
+                return SVG_LENGTHTYPE_EMS;
+            case CSS::LengthUnit::Ex:
+                return SVG_LENGTHTYPE_EXS;
+            case CSS::LengthUnit::Px:
+                return SVG_LENGTHTYPE_PX;
+            case CSS::LengthUnit::Cm:
+                return SVG_LENGTHTYPE_CM;
+            case CSS::LengthUnit::Mm:
+                return SVG_LENGTHTYPE_MM;
+            case CSS::LengthUnit::In:
+                return SVG_LENGTHTYPE_IN;
+            case CSS::LengthUnit::Pt:
+                return SVG_LENGTHTYPE_PT;
+            case CSS::LengthUnit::Pc:
+                return SVG_LENGTHTYPE_PC;
+            default:
+                break;
+            }
             break;
         }
     }
@@ -245,10 +271,10 @@ static RefPtr<CSS::StyleValue const> parse_css_length_value(Utf16View const& val
     return nullptr;
 }
 
-NonnullRefPtr<CSS::StyleValue const> SVGLength::internal_value() const
+SVGLength::InternalValue SVGLength::internal_value() const
 {
     return m_source.visit(
-        [&](ReflectedAttributeSource const& source) -> NonnullRefPtr<CSS::StyleValue const> {
+        [&](ReflectedAttributeSource const& source) -> InternalValue {
             // NB: All attribute reflecting lengths should have an associated element
             VERIFY(m_element);
 
@@ -260,13 +286,26 @@ NonnullRefPtr<CSS::StyleValue const> SVGLength::internal_value() const
 
             auto attribute_value = maybe_attribute_value.release_value();
 
-            if (auto parsed_style_value = parse_css_length_value(attribute_value))
+            if (auto parsed_style_value = parse_css_length_value(attribute_value)) {
+                if (auto scalar = SVGLengthValue::from_style_value(*parsed_style_value); scalar.has_value())
+                    return scalar.release_value();
+
                 return parsed_style_value.release_nonnull();
+            }
 
             return source.default_value;
         },
-        [](DetachedSource const& source) -> NonnullRefPtr<CSS::StyleValue const> {
-            return source.value;
+        [](DetachedSource const& source) -> InternalValue {
+            return source.value.visit(
+                [](SVGLengthValue const& scalar) -> InternalValue { return scalar; },
+                [](Utf16String const& text) -> InternalValue {
+                    // NB: The text is the canonical serialization of a non-scalar value, so it always parses; keep it
+                    //     non-scalar even if serialization simplified it to something a plain value could hold.
+                    if (auto parsed_style_value = parse_css_length_value(text))
+                        return parsed_style_value.release_nonnull();
+
+                    return SVGLengthValue::number(0);
+                });
         });
 }
 
@@ -278,18 +317,18 @@ struct Length {
 
 using Unit = Variant<Number, Percentage, Length>;
 
-static WebIDL::ExceptionOr<NonnullRefPtr<CSS::StyleValue const>> convert_px_to_specified_units(JS::Realm& realm, float value, Unit unit, GC::Ptr<SVGElement> element, SVGLength::Directionality directionality)
+static WebIDL::ExceptionOr<SVGLengthValue> convert_px_to_specified_units(JS::Realm& realm, float value, Unit unit, GC::Ptr<SVGElement> element, SVGLength::Directionality directionality)
 {
     if (unit.has<Number>())
-        return CSS::NumberStyleValue::create(value);
+        return SVGLengthValue::number(value);
 
     if (unit.has<Percentage>()) {
         auto percentage_resolution_basis = percentage_resolution_basis_for_attribute_reflecting_length(element, directionality);
 
         if (percentage_resolution_basis == 0.0)
-            return CSS::PercentageStyleValue::create(CSS::Percentage { 0.0 });
+            return SVGLengthValue::percentage(0.0);
 
-        return CSS::PercentageStyleValue::create(CSS::Percentage { value / percentage_resolution_basis * 100.0 });
+        return SVGLengthValue::percentage(value / percentage_resolution_basis * 100.0);
     }
 
     auto length_unit = unit.get<Length>().unit;
@@ -318,7 +357,7 @@ static WebIDL::ExceptionOr<NonnullRefPtr<CSS::StyleValue const>> convert_px_to_s
     if (!isfinite(ratio))
         ratio = 0;
 
-    return CSS::LengthStyleValue::create(CSS::Length { value * ratio, length_unit });
+    return SVGLengthValue::length(value * ratio, length_unit);
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGLength__value
@@ -337,22 +376,26 @@ WebIDL::ExceptionOr<void> SVGLength::set_value(float value)
     auto target_unit = [&]() -> Unit {
         auto existing_value = internal_value();
 
-        if (existing_value->is_number())
+        auto const* scalar = existing_value.get_pointer<SVGLengthValue>();
+        if (!scalar)
             return Number {};
 
-        if (existing_value->is_percentage())
+        switch (scalar->kind()) {
+        case SVGLengthValue::Kind::Number:
+            return Number {};
+        case SVGLengthValue::Kind::Percentage:
             return Percentage {};
-
-        if (existing_value->is_length()) {
-            auto length_unit = existing_value->as_length().length().unit();
+        case SVGLengthValue::Kind::Length: {
+            auto length_unit = scalar->unit();
 
             if (CSS::is_container_relative(length_unit))
                 return Number {};
 
             return Length { length_unit };
         }
+        }
 
-        return Number {};
+        VERIFY_NOT_REACHED();
     }();
 
     auto new_value = TRY(convert_px_to_specified_units(*m_realm, value, target_unit, m_element, m_directionality));
@@ -360,7 +403,7 @@ WebIDL::ExceptionOr<void> SVGLength::set_value(float value)
     // 3. Set the SVGLength's value to a <number> whose value is value.
     // NB: Modes other than DetachedSource have their value set implicitly when reserializing the reflected attribute.
     if (m_source.has<DetachedSource>())
-        m_source.get<DetachedSource>().value = *new_value;
+        m_source.get<DetachedSource>().value = new_value;
 
     // 4. If the SVGLength reflects the base value of a reflected attribute, reflects a presentation attribute, or
     //    reflects an element of the base value of a reflected attribute, then reserialize the reflected attribute.
@@ -370,7 +413,7 @@ WebIDL::ExceptionOr<void> SVGLength::set_value(float value)
         // NB: All attribute reflecting lengths should have an associated element
         VERIFY(m_element);
 
-        m_element->set_attribute_value(m_source.get<ReflectedAttributeSource>().name, new_value->to_utf16_string(CSS::SerializationMode::Normal));
+        m_element->set_attribute_value(m_source.get<ReflectedAttributeSource>().name, new_value.to_utf16_string());
     }
 
     return {};
@@ -385,15 +428,9 @@ float SVGLength::value_in_specified_units() const
     auto value = internal_value();
 
     // 2. If value is a <number>, return that number.
-    if (value->is_number())
-        return value->as_number().number();
-
     // 3. Otherwise, if value is a <percentage> or any scalar <length> value, return the numeric factor before its unit.
-    if (value->is_percentage())
-        return value->as_percentage().percentage().value();
-
-    if (value->is_length())
-        return value->as_length().length().raw_value();
+    if (auto const* scalar = value.get_pointer<SVGLengthValue>())
+        return scalar->value();
 
     // 4. Otherwise, return 0.
     return 0;
@@ -409,33 +446,37 @@ WebIDL::ExceptionOr<void> SVGLength::set_value_in_specified_units(float value)
 
     auto existing_value = internal_value();
 
-    RefPtr<CSS::StyleValue const> new_value;
-
     // 1. If the SVGLength object is read only, then throw a NoModificationAllowedError.
     if (m_read_only == ReadOnly::Yes)
         return WebIDL::NoModificationAllowedError::create(*m_realm, "Cannot modify value of read-only SVGLength"_utf16);
 
     // 2. Let value be the value being assigned to valueInSpecifiedUnits.
 
-    // 3. If the SVGLength's value is a <number>, then update its value to value.
-    if (existing_value->is_number()) {
-        new_value = CSS::NumberStyleValue::create(value);
-    }
-    // 4. Otherwise, if the SVGLength's value is a <percentage> or a scalar-valued <length>, then update its numeric
-    //    factor to value.
-    else if (existing_value->is_percentage()) {
-        new_value = CSS::PercentageStyleValue::create(CSS::Percentage { value });
-    } else if (existing_value->is_length()) {
-        new_value = CSS::LengthStyleValue::create(CSS::Length { value, existing_value->as_length().length().unit() });
-    }
-    // 5. Otherwise, the SVGLength's value is of some other type. Set it to a <number> whose value is value.
-    else {
-        new_value = CSS::NumberStyleValue::create(value);
-    }
+    auto new_value = [&] {
+        auto const* existing_scalar = existing_value.get_pointer<SVGLengthValue>();
+
+        // 5. Otherwise, the SVGLength's value is of some other type. Set it to a <number> whose value is value.
+        if (!existing_scalar)
+            return SVGLengthValue::number(value);
+
+        switch (existing_scalar->kind()) {
+        // 3. If the SVGLength's value is a <number>, then update its value to value.
+        case SVGLengthValue::Kind::Number:
+            return SVGLengthValue::number(value);
+        // 4. Otherwise, if the SVGLength's value is a <percentage> or a scalar-valued <length>, then update its numeric
+        //    factor to value.
+        case SVGLengthValue::Kind::Percentage:
+            return SVGLengthValue::percentage(value);
+        case SVGLengthValue::Kind::Length:
+            return SVGLengthValue::length(value, existing_scalar->unit());
+        }
+
+        VERIFY_NOT_REACHED();
+    }();
 
     // NB: Modes other than DetachedSource have their value set implicitly when reserializing the reflected attribute.
     if (m_source.has<DetachedSource>())
-        m_source.get<DetachedSource>().value = *new_value;
+        m_source.get<DetachedSource>().value = new_value;
 
     // 6. If the SVGLength reflects the base value of a reflected attribute or reflects an element of the base value of
     //    a reflected attribute, then reserialize the reflected attribute.
@@ -446,7 +487,7 @@ WebIDL::ExceptionOr<void> SVGLength::set_value_in_specified_units(float value)
         // NB: All attribute reflecting lengths should have an associated element
         VERIFY(m_element);
 
-        m_element->set_attribute_value(m_source.get<ReflectedAttributeSource>().name, new_value->to_utf16_string(CSS::SerializationMode::Normal));
+        m_element->set_attribute_value(m_source.get<ReflectedAttributeSource>().name, new_value.to_utf16_string());
     }
 
     return {};
@@ -481,7 +522,9 @@ Utf16String SVGLength::value_as_string() const
     //    length value to value, given the implementation's supported real number precision.
 
     // AD-HOC: We can achieve the same functionality by just serializing the internal value to a string.
-    return internal_value()->to_utf16_string(CSS::SerializationMode::Normal);
+    return internal_value().visit(
+        [](SVGLengthValue const& scalar) { return scalar.to_utf16_string(); },
+        [](NonnullRefPtr<CSS::StyleValue const> const& style_value) { return style_value->to_utf16_string(CSS::SerializationMode::Normal); });
 }
 
 // https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGLength__valueAsString
@@ -502,10 +545,17 @@ WebIDL::ExceptionOr<void> SVGLength::set_value_as_string(Utf16String value)
     if (!parsed_value)
         return WebIDL::SyntaxError::create(*m_realm, "Failed to parse value as a <number>, <length> or <percentage>"_utf16);
 
+    auto scalar = SVGLengthValue::from_style_value(*parsed_value);
+    auto serialized = scalar.has_value() ? scalar->to_utf16_string() : parsed_value->to_utf16_string(CSS::SerializationMode::Normal);
+
     // 5. Otherwise, parsing succeeded. Set SVGLength's value to the parsed value.
     // NB: Modes other than DetachedSource have their value set implicitly when reserializing the reflected attribute.
-    if (m_source.has<DetachedSource>())
-        m_source.get<DetachedSource>().value = *parsed_value;
+    if (m_source.has<DetachedSource>()) {
+        if (scalar.has_value())
+            m_source.get<DetachedSource>().value = *scalar;
+        else
+            m_source.get<DetachedSource>().value = serialized;
+    }
 
     // 6. If the SVGLength reflects the base value of a reflected attribute or reflects an element of the base value of
     //    a reflected attribute, then reserialize the reflected attribute.
@@ -515,7 +565,7 @@ WebIDL::ExceptionOr<void> SVGLength::set_value_as_string(Utf16String value)
         // NB: All attribute reflecting lengths should have an associated element
         VERIFY(m_element);
 
-        m_element->set_attribute_value(m_source.get<ReflectedAttributeSource>().name, parsed_value->to_utf16_string(CSS::SerializationMode::Normal));
+        m_element->set_attribute_value(m_source.get<ReflectedAttributeSource>().name, serialized);
     }
 
     return {};
@@ -562,29 +612,27 @@ WebIDL::ExceptionOr<void> SVGLength::new_value_specified_units(u16 unit_type, fl
         return WebIDL::NotSupportedError::create(*m_realm, "Unsupported SVGLength unit type"_utf16);
 
     // 3. Set SVGLength's value depending on the value of unitType:
-    RefPtr<CSS::StyleValue const> new_value;
-    switch (unit_type) {
-    case SVG_LENGTHTYPE_NUMBER:
-        // - SVG_LENGTHTYPE_NUMBER
-        //     a <number> whose value is valueInSpecifiedUnits
-        new_value = CSS::NumberStyleValue::create(value_in_specified_units);
-        break;
-    case SVG_LENGTHTYPE_PERCENTAGE:
-        // - SVG_LENGTHTYPE_PERCENTAGE
-        //     a <percentage> whose numeric factor is valueInSpecifiedUnits
-        new_value = CSS::PercentageStyleValue::create(CSS::Percentage { value_in_specified_units });
-        break;
-    default:
-        // - anything else
-        //     a <length> whose numeric factor is valueInSpecifiedUnits and whose unit is as indicated by the length unit
-        //     type table above
-        new_value = CSS::LengthStyleValue::create(CSS::Length { value_in_specified_units, svg_length_type_to_css_length_unit(unit_type) });
-        break;
-    }
+    auto new_value = [&] {
+        switch (unit_type) {
+        case SVG_LENGTHTYPE_NUMBER:
+            // - SVG_LENGTHTYPE_NUMBER
+            //     a <number> whose value is valueInSpecifiedUnits
+            return SVGLengthValue::number(value_in_specified_units);
+        case SVG_LENGTHTYPE_PERCENTAGE:
+            // - SVG_LENGTHTYPE_PERCENTAGE
+            //     a <percentage> whose numeric factor is valueInSpecifiedUnits
+            return SVGLengthValue::percentage(value_in_specified_units);
+        default:
+            // - anything else
+            //     a <length> whose numeric factor is valueInSpecifiedUnits and whose unit is as indicated by the length unit
+            //     type table above
+            return SVGLengthValue::length(value_in_specified_units, svg_length_type_to_css_length_unit(unit_type));
+        }
+    }();
 
     // NB: Modes other than DetachedSource have their value set implicitly when reserializing the reflected attribute.
     if (m_source.has<DetachedSource>())
-        m_source.get<DetachedSource>().value = *new_value;
+        m_source.get<DetachedSource>().value = new_value;
 
     // 4. If the SVGLength reflects the base value of a reflected attribute or reflects an element of the base value of
     //    a reflected attribute, then reserialize the reflected attribute.
@@ -594,7 +642,7 @@ WebIDL::ExceptionOr<void> SVGLength::new_value_specified_units(u16 unit_type, fl
         // NB: All attribute reflecting lengths should have an associated element
         VERIFY(m_element);
 
-        m_element->set_attribute_value(m_source.get<ReflectedAttributeSource>().name, new_value->to_utf16_string(CSS::SerializationMode::Normal));
+        m_element->set_attribute_value(m_source.get<ReflectedAttributeSource>().name, new_value.to_utf16_string());
     }
 
     return {};
@@ -648,7 +696,7 @@ WebIDL::ExceptionOr<void> SVGLength::convert_to_specified_units(u16 unit_type)
 
     // NB: Modes other than DetachedSource have their value set implicitly when reserializing the reflected attribute.
     if (m_source.has<DetachedSource>())
-        m_source.get<DetachedSource>().value = *new_value;
+        m_source.get<DetachedSource>().value = new_value;
 
     // 8. If the SVGLength reflects the base value of a reflected attribute or reflects an element of the base value of
     //    a reflected attribute, then reserialize the reflected attribute.
@@ -658,7 +706,7 @@ WebIDL::ExceptionOr<void> SVGLength::convert_to_specified_units(u16 unit_type)
         // NB: All attribute reflecting lengths should have an associated element
         VERIFY(m_element);
 
-        m_element->set_attribute_value(m_source.get<ReflectedAttributeSource>().name, new_value->to_utf16_string(CSS::SerializationMode::Normal));
+        m_element->set_attribute_value(m_source.get<ReflectedAttributeSource>().name, new_value.to_utf16_string());
     }
 
     return {};

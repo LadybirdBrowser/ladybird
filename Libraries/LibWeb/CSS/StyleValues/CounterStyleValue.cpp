@@ -34,7 +34,6 @@ static StyleValueFFI::StyleValueData const* make_counter_data(CounterStyleValue:
 
 CounterStyleValue::CounterStyleValue(CounterFunction function, Utf16FlyString counter_name, ValueComparingNonnullRefPtr<StyleValue const> counter_style, Utf16FlyString join_string)
     : StyleValueWithDefaultOperators(Type::Counter, make_counter_data(function, counter_name, counter_style, join_string))
-    , m_counter_style(move(counter_style))
 {
 }
 
@@ -75,12 +74,6 @@ Utf16String CounterStyleValue::resolve(DOM::AbstractElement& element_reference) 
         stb.append(counter_string);
     }
     return stb.to_string();
-}
-
-bool CounterStyleValue::properties_equal(CounterStyleValue const& other) const
-{
-    return function_type() == other.function_type() && counter_name() == other.counter_name()
-        && counter_style() == other.counter_style() && join_string() == other.join_string();
 }
 
 }

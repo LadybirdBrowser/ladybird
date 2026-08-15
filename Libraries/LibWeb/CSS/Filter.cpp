@@ -6,7 +6,6 @@
  */
 
 #include "Filter.h"
-#include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 
 namespace Web::CSS {
 

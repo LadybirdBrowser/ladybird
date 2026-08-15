@@ -19,7 +19,8 @@
 #include <LibGfx/Forward.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Display.h>
-#include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
+#include <LibWeb/CSS/GridTrackSize.h>
+#include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/FlexLayoutData.h>
@@ -59,6 +60,16 @@ WEB_API Paintable const* nearest_svg_viewport_paintable_of(Layout::Node const&);
 WEB_API Gfx::FloatRect svg_viewport_user_rect(Paintable const& viewport_paintable);
 
 bool body_background_is_propagated_to_root(Layout::NodeWithStyle const&);
+
+// Used grid track data captured at layout time as plain values; getComputedStyle
+// reflection mints style values from it on demand.
+struct UsedGridTrackList {
+    bool is_subgrid { false };
+    // One entry per grid line (one more line than there are tracks, unless subgrid);
+    // a line's name list may be empty.
+    Vector<CSS::GridLineNames> lines;
+    Vector<CSSPixels> track_sizes;
+};
 
 struct MaskLayerPresence {
     MaskLayerOrigin origin;
@@ -395,6 +406,10 @@ public:
     void set_filter(ResolvedCSSFilter filter) { m_filter = move(filter); }
     ResolvedCSSFilter const& filter() const { return m_filter; }
 
+    // Box-size-keyed memo of size-dependent image painting state (resolved gradient
+    // data), so image style values stay immutable shared data.
+    CSS::ResolvedImage const& resolved_image_for_size(CSS::AbstractImageStyleValue const&, CSSPixelSize) const;
+
     Optional<CSSPixelRect> get_clip_rect() const;
 
     struct PhysicalResizeAxes {
@@ -422,11 +437,11 @@ public:
     [[nodiscard]] bool could_be_scrolled_by_wheel_event() const;
     [[nodiscard]] bool could_be_scrolled_by_wheel_event(ScrollDirection direction) const;
 
-    void set_used_values_for_grid_template_columns(RefPtr<CSS::GridTrackSizeListStyleValue const> style_value) { m_used_values_for_grid_template_columns = move(style_value); }
-    RefPtr<CSS::GridTrackSizeListStyleValue const> const& used_values_for_grid_template_columns() const { return m_used_values_for_grid_template_columns; }
+    void set_used_values_for_grid_template_columns(UsedGridTrackList used_values) { m_used_values_for_grid_template_columns = move(used_values); }
+    Optional<UsedGridTrackList> const& used_values_for_grid_template_columns() const { return m_used_values_for_grid_template_columns; }
 
-    void set_used_values_for_grid_template_rows(RefPtr<CSS::GridTrackSizeListStyleValue const> style_value) { m_used_values_for_grid_template_rows = move(style_value); }
-    RefPtr<CSS::GridTrackSizeListStyleValue const> const& used_values_for_grid_template_rows() const { return m_used_values_for_grid_template_rows; }
+    void set_used_values_for_grid_template_rows(UsedGridTrackList used_values) { m_used_values_for_grid_template_rows = move(used_values); }
+    Optional<UsedGridTrackList> const& used_values_for_grid_template_rows() const { return m_used_values_for_grid_template_rows; }
 
     void set_grid_layout_data(OwnPtr<Layout::GridLayoutData> grid_layout_data) { m_grid_layout_data = move(grid_layout_data); }
     Layout::GridLayoutData const* grid_layout_data() const { return m_grid_layout_data.ptr(); }
@@ -574,6 +589,13 @@ private:
 
     ResolvedCSSFilter m_filter;
 
+    struct ResolvedImageForSize {
+        RefPtr<CSS::AbstractImageStyleValue const> image;
+        CSSPixelSize size;
+        CSS::ResolvedImage resolved;
+    };
+    mutable Vector<ResolvedImageForSize> m_resolved_images_for_size;
+
     RefPtr<Scrollbar> m_horizontal_scrollbar;
     RefPtr<Scrollbar> m_vertical_scrollbar;
     RefPtr<ResizeHandle> m_resize_handle;
@@ -581,8 +603,8 @@ private:
 
     OwnPtr<StickyInsets> m_sticky_insets;
 
-    RefPtr<CSS::GridTrackSizeListStyleValue const> m_used_values_for_grid_template_columns;
-    RefPtr<CSS::GridTrackSizeListStyleValue const> m_used_values_for_grid_template_rows;
+    Optional<UsedGridTrackList> m_used_values_for_grid_template_columns;
+    Optional<UsedGridTrackList> m_used_values_for_grid_template_rows;
     OwnPtr<Layout::GridLayoutData> m_grid_layout_data;
     OwnPtr<Layout::FlexLayoutData> m_flex_layout_data;
 

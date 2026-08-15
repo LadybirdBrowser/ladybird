@@ -906,16 +906,11 @@ ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, Paintab
     auto const& layout_node = paintable_box.layout_node();
 
     ResolvedCSSFilter result;
-    for (auto const& filter_operation : computed_filter.filters()) {
-        if (filter_operation->is_url()) {
-            auto url = filter_operation->as_url().url();
-            auto const& url_string = url.url();
-            if (url_string.is_empty() || !url_string.starts_with('#'))
+    for (auto const& operation : computed_filter.operations()) {
+        if (auto const* url = operation.get_pointer<CSS::Filter::Url>()) {
+            if (url->fragment.is_empty())
                 return {};
-            auto fragment_or_error = url_string.substring_from_byte_offset(1);
-            if (fragment_or_error.is_error())
-                return {};
-            auto maybe_filter = paintable_box.document().get_element_by_id(Utf16String::from_utf8(fragment_or_error.value()));
+            auto maybe_filter = paintable_box.document().get_element_by_id(url->fragment);
             if (!maybe_filter)
                 return {};
             if (auto* filter_element = as_if<SVG::SVGFilterElement>(*maybe_filter)) {
@@ -943,52 +938,49 @@ ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, Paintab
             continue;
         }
 
-        auto const& filter_value = filter_operation->as_filter();
-        switch (filter_value.kind()) {
-        case CSS::FilterStyleValue::Kind::Blur: {
-            auto const& blur = static_cast<CSS::BlurFilterStyleValue const&>(filter_value);
-            auto resolved_radius = blur.resolved_radius();
-            result.operations.empend(ResolvedCSSFilter::Blur {
-                .radius = CSSPixels::nearest_value_for(resolved_radius),
-            });
-            break;
-        }
-        case CSS::FilterStyleValue::Kind::DropShadow: {
-            auto const& drop_shadow = static_cast<CSS::DropShadowFilterStyleValue const&>(filter_value);
-            auto to_css_px = [&](NonnullRefPtr<CSS::StyleValue const> const& length) {
-                return CSS::Length::from_style_value(length, {}).absolute_length_to_px();
-            };
-            auto color_context = CSS::ColorResolutionContext::for_layout_node_with_style(layout_node);
-            auto resolved_color = drop_shadow.color()
-                ? drop_shadow.color()->to_color(color_context).value_or(layout_node.color())
-                : layout_node.color();
-
-            result.operations.empend(ResolvedCSSFilter::DropShadow {
-                .offset_x = to_css_px(drop_shadow.offset_x()),
-                .offset_y = to_css_px(drop_shadow.offset_y()),
-                .radius = drop_shadow.radius() ? to_css_px(*drop_shadow.radius()) : CSSPixels(0),
-                .color = resolved_color,
-            });
-            break;
-        }
-        case CSS::FilterStyleValue::Kind::Color: {
-            auto const& color_operation = static_cast<CSS::ColorFilterStyleValue const&>(filter_value);
-            result.operations.empend(ResolvedCSSFilter::Color {
-                .operation = color_operation.operation(),
-                .amount = color_operation.resolved_amount(),
-            });
-            break;
-        }
-        case CSS::FilterStyleValue::Kind::HueRotate: {
-            auto const& hue_rotate = static_cast<CSS::HueRotateFilterStyleValue const&>(filter_value);
-            result.operations.empend(ResolvedCSSFilter::HueRotate {
-                .angle_degrees = hue_rotate.angle_degrees(),
-            });
-            break;
-        }
-        }
+        operation.visit(
+            [&](CSS::Filter::Blur const& blur) {
+                result.operations.empend(ResolvedCSSFilter::Blur {
+                    .radius = CSSPixels::nearest_value_for(blur.resolved_radius),
+                });
+            },
+            [&](CSS::Filter::DropShadow const& drop_shadow) {
+                result.operations.empend(ResolvedCSSFilter::DropShadow {
+                    .offset_x = drop_shadow.offset_x,
+                    .offset_y = drop_shadow.offset_y,
+                    .radius = drop_shadow.radius,
+                    .color = drop_shadow.color,
+                });
+            },
+            [&](CSS::Filter::ColorOperation const& color_operation) {
+                result.operations.empend(ResolvedCSSFilter::Color {
+                    .operation = color_operation.operation,
+                    .amount = color_operation.resolved_amount,
+                });
+            },
+            [&](CSS::Filter::HueRotate const& hue_rotate) {
+                result.operations.empend(ResolvedCSSFilter::HueRotate {
+                    .angle_degrees = hue_rotate.angle_degrees,
+                });
+            },
+            [&](CSS::Filter::Url const&) {});
     }
     return result;
+}
+
+CSS::ResolvedImage const& Paintable::resolved_image_for_size(CSS::AbstractImageStyleValue const& image, CSSPixelSize size) const
+{
+    for (auto& entry : m_resolved_images_for_size) {
+        if (entry.image.ptr() == &image) {
+            if (entry.size != size) {
+                entry.size = size;
+                entry.resolved = image.resolve_for_size(layout_node(), size);
+            }
+            return entry.resolved;
+        }
+    }
+    m_resolved_images_for_size.append({ &image, size, image.resolve_for_size(layout_node(), size) });
+    return m_resolved_images_for_size.last().resolved;
 }
 
 NonnullRefPtr<Paintable> Paintable::create(Layout::Box const& layout_box)
@@ -1157,8 +1149,8 @@ void Paintable::reset_for_relayout()
     m_accumulated_visual_context_for_descendants_index = VISUAL_VIEWPORT_NODE_INDEX;
     m_fixed_background_visual_context = {};
 
-    m_used_values_for_grid_template_columns = nullptr;
-    m_used_values_for_grid_template_rows = nullptr;
+    m_used_values_for_grid_template_columns = {};
+    m_used_values_for_grid_template_rows = {};
     m_grid_layout_data = nullptr;
     m_flex_layout_data = nullptr;
 

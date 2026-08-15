@@ -14,13 +14,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSImageValue);
 
-GC::Ref<CSSImageValue> CSSImageValue::create(NonnullRefPtr<StyleValue const> source_value)
+GC::Ref<CSSImageValue> CSSImageValue::create(StyleValue const& source_value)
 {
-    return GC::Heap::the().allocate<CSSImageValue>(move(source_value));
+    return GC::Heap::the().allocate<CSSImageValue>(source_value);
 }
 
-CSSImageValue::CSSImageValue(NonnullRefPtr<StyleValue const> source_value)
-    : CSSStyleValue(move(source_value))
+CSSImageValue::CSSImageValue(StyleValue const& source_value)
+    : CSSStyleValue(source_value)
 {
 }
 
@@ -55,7 +55,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSImageValue::create_an_in
     //            fresh CSSMathSum whose values internal slot contains only that part of value.
 
     //     Return the value.
-    return NonnullRefPtr { *source_value() };
+    return source_style_value().release_nonnull();
 }
 
 }

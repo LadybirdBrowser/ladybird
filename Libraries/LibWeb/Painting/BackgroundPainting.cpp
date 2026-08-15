@@ -321,7 +321,7 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
         CSSPixels initial_image_x = image_rect.x();
         CSSPixels image_y = image_rect.y();
 
-        image.resolve_for_size(paintable_box.layout_node(), image_rect.size());
+        auto const& resolved_image = paintable_box.resolved_image_for_size(image, image_rect.size());
 
         auto for_each_image_device_rect = [&](auto callback) {
             while (image_y < css_clip_rect.bottom()) {
@@ -421,7 +421,7 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
             auto tile_display_list = DisplayList::create(visual_context_tree);
             DisplayListRecorder tile_recorder(*tile_display_list, visual_context_tree, display_list_recorder.resource_storage());
             auto tile_context = context.clone(tile_recorder);
-            image.paint(tile_context, document, tile_device_rect, image_rendering, color_scheme);
+            image.paint(tile_context, document, tile_device_rect, image_rendering, color_scheme, resolved_image);
 
             // A pattern repeats along both axes. On any non-repeating axis, constrain the coverage to a single tile.
             auto coverage = clip_rect;
@@ -449,7 +449,7 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
         } else {
             apply_blend_layer();
             for_each_image_device_rect([&](auto const& image_device_rect) {
-                image.paint(context, document, image_device_rect, image_rendering, color_scheme);
+                image.paint(context, document, image_device_rect, image_rendering, color_scheme, resolved_image);
             });
         }
     }

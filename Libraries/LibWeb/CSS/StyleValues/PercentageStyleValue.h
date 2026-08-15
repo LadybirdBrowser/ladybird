@@ -39,14 +39,6 @@ public:
     virtual double raw_value() const override { return m_value->percentage.value; }
     virtual Utf16FlyString unit_name() const override { return "percent"_utf16_fly_string; }
 
-    bool equals(StyleValue const& other) const
-    {
-        if (type() != other.type())
-            return false;
-        auto const& other_percentage = other.as_percentage();
-        return percentage() == other_percentage.percentage();
-    }
-
 private:
     friend class StyleValue;
 

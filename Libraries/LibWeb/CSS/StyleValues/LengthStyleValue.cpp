@@ -54,12 +54,4 @@ ValueComparingNonnullRefPtr<StyleValue const> LengthStyleValue::absolutized(Comp
     return *this;
 }
 
-bool LengthStyleValue::equals(StyleValue const& other) const
-{
-    if (type() != other.type())
-        return false;
-    auto const& other_length = other.as_length();
-    return length() == other_length.length();
-}
-
 }

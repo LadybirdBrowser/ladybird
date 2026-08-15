@@ -34,16 +34,7 @@ public:
 
     i32 integer() const { return m_value->integer.value; }
 
-    Vector<Parser::ComponentValue> tokenize() const;
     GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
-
-    bool equals(StyleValue const& other) const
-    {
-        if (type() != other.type())
-            return false;
-        auto const& other_integer = other.as_integer();
-        return integer() == other_integer.integer();
-    }
 
 private:
     friend class StyleValue;

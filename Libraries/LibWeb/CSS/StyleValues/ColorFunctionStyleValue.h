@@ -31,17 +31,31 @@ public:
 
     virtual ~ColorFunctionStyleValue() override = default;
 
-    StyleValue const& channel(size_t index) const
+    ValueComparingNonnullRefPtr<StyleValue const> channel(size_t index) const
     {
-        return *m_channels.at(index);
+        auto const& color_function = m_value->color_function;
+        switch (index) {
+        case 0:
+            return wrap_rust_child(color_function.channel_0);
+        case 1:
+            return wrap_rust_child(color_function.channel_1);
+        case 2:
+            return wrap_rust_child(color_function.channel_2);
+        }
+        VERIFY_NOT_REACHED();
     }
     Array<ValueComparingNonnullRefPtr<StyleValue const>, 3> channels() const
     {
-        return m_channels;
+        return { channel(0), channel(1), channel(2) };
     }
-    ValueComparingRefPtr<StyleValue const> alpha() const { return m_alpha; }
-    Optional<Utf16FlyString> name() const { return m_name; }
-    ValueComparingRefPtr<StyleValue const> origin_color() const { return m_origin_color; }
+    ValueComparingRefPtr<StyleValue const> alpha() const { return wrap_rust_child_or_null(m_value->color_function.alpha); }
+    Optional<Utf16FlyString> name() const
+    {
+        if (!m_value->color_function.has_name)
+            return {};
+        return Utf16FlyString::from_raw(m_value->color_function.name.raw);
+    }
+    ValueComparingRefPtr<StyleValue const> origin_color() const { return wrap_rust_child_or_null(m_value->color_function.origin_color); }
 
     ColorFunctionDescriptor const& descriptor() const { return color_function_descriptor_for(*color_type()); }
 
@@ -71,10 +85,6 @@ private:
         Optional<Utf16FlyString> name,
         ValueComparingRefPtr<StyleValue const> origin_color)
         : ColorStyleValue(make_color_function_data(color_type, color_syntax, c1, c2, c3, alpha, name, origin_color))
-        , m_channels { move(c1), move(c2), move(c3) }
-        , m_alpha(move(alpha))
-        , m_name(move(name))
-        , m_origin_color(move(origin_color))
     {
     }
 
@@ -92,11 +102,6 @@ private:
             alpha_data, name.has_value(), name.has_value() ? name->to_raw_leaked() : 0,
             origin_color_data);
     }
-
-    Array<ValueComparingNonnullRefPtr<StyleValue const>, 3> m_channels;
-    ValueComparingRefPtr<StyleValue const> m_alpha;
-    Optional<Utf16FlyString> m_name;
-    ValueComparingRefPtr<StyleValue const> m_origin_color;
 };
 
 }
