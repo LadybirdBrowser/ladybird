@@ -125,7 +125,12 @@ public:
     void reload();
     void stop_loading();
     bool is_loading() const { return m_is_loading; }
-    bool has_uncommitted_top_level_navigation() const { return m_uncommitted_top_level_navigation.has_value(); }
+    bool has_uncommitted_top_level_navigation() const
+    {
+        return m_ongoing_top_level_navigation.has_value()
+            && m_ongoing_top_level_navigation->load.has_value()
+            && m_ongoing_top_level_navigation->load->is_uncommitted;
+    }
     bool cancel_uncommitted_top_level_navigation_for_browser_traversal();
 
     struct SessionHistoryTraversalMenuItem {
@@ -478,9 +483,14 @@ protected:
     u64 page_id() const;
 
     void set_url(URL::URL);
-    void did_start_navigation(URL::URL const&, bool is_redirect, bool has_navigation_id);
-    bool did_cancel_navigation();
+    void did_start_navigation(Optional<Utf16String> navigation_id, URL::URL const&, bool is_redirect);
+    bool did_cancel_navigation(Optional<Utf16String> const& navigation_id);
     void did_finish_navigation(URL::URL const&);
+    bool matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const;
+    struct OngoingTopLevelNavigation;
+    OngoingTopLevelNavigation& ensure_ongoing_top_level_navigation();
+    void clear_ongoing_top_level_navigation_load();
+    void clear_ongoing_navigation_webdriver_observation();
     void set_loading_state(bool);
     void complete_webdriver_navigation_completion(u64 request_id, Web::WebDriver::Response);
     enum class WebDriverNavigationCompletionSource : u8 {
@@ -667,15 +677,26 @@ protected:
     bool m_can_undo { false };
     bool m_can_redo { false };
     bool m_is_loading { false };
-    bool m_is_waiting_for_navigation_start { false };
-    Optional<Utf16String> m_loading_navigation_id;
-    Optional<URL::URL> m_loading_url;
-    Optional<URL::URL> m_last_stopped_load_url;
-    enum class UncommittedTopLevelNavigation {
-        CurrentProcess,
-        ReplacementProcess,
+    struct OngoingTopLevelNavigation {
+        struct Load {
+            Optional<Utf16String> navigation_id;
+            Optional<URL::URL> url;
+            bool has_started { false };
+            bool uses_replacement_process { false };
+            bool is_uncommitted { false };
+        };
+        Optional<Load> load;
+
+        Optional<WebDriverNavigationCompletionSource> webdriver_completion_source;
+        u64 webdriver_navigation_id { 0 };
+        Optional<u64> history_operation_id;
+        Optional<URL::URL> expected_url;
+        bool history_operation_completed { false };
+        bool load_completed { false };
     };
-    Optional<UncommittedTopLevelNavigation> m_uncommitted_top_level_navigation;
+    Optional<OngoingTopLevelNavigation> m_ongoing_top_level_navigation;
+    u64 m_next_webdriver_navigation_id { 1 };
+    Optional<URL::URL> m_last_stopped_load_url;
 
     size_t m_crash_count = 0;
     RefPtr<Core::Timer> m_repeated_crash_timer;
@@ -692,16 +713,6 @@ protected:
     CanonicalTraversable m_top_level_traversable;
     Optional<SessionTabId> m_session_tab_id;
     Optional<SessionHistorySnapshot> m_captured_session_history_snapshot_for_testing;
-    struct PendingWebDriverNavigation {
-        u64 id { 0 };
-        WebDriverNavigationCompletionSource completion_source { WebDriverNavigationCompletionSource::Load };
-        Optional<u64> history_operation_id;
-        Optional<URL::URL> expected_url;
-        bool history_operation_completed { false };
-        bool load_completed { false };
-    };
-    u64 m_next_webdriver_navigation_id { 1 };
-    Optional<PendingWebDriverNavigation> m_pending_webdriver_navigation;
     RefPtr<Core::Promise<Empty>> m_pending_session_history_reset_for_testing;
 
     struct WebDriverNavigationCompletionRequest {

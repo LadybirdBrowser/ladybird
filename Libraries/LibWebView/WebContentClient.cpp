@@ -601,12 +601,9 @@ void WebContentClient::did_start_loading(u64 page_id, Optional<Utf16String> navi
             view->m_history_visit_transition_for_current_load = view->m_history_visit_transition_for_next_load;
             view->m_history_visit_transition_for_next_load = HistoryVisitTransition::Link;
         }
-        view->m_is_waiting_for_navigation_start = false;
-        view->m_loading_navigation_id = navigation_id;
-        view->m_loading_url = url;
         view->m_should_suppress_history_for_current_load = view->m_should_suppress_history_for_next_load;
         view->m_should_suppress_history_for_next_load = false;
-        view->did_start_navigation(url, is_redirect, navigation_id.has_value());
+        view->did_start_navigation(move(navigation_id), url, is_redirect);
 
         view->set_url({}, url);
         view->set_title({}, Utf16String::from_utf8(url.serialize()));
@@ -628,12 +625,8 @@ void WebContentClient::did_cancel_loading(u64 page_id, Optional<Utf16String> nav
     m_history_recorded_urls_for_current_load.remove(page_id);
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (!view->m_is_waiting_for_navigation_start && navigation_id != view->m_loading_navigation_id)
+        if (!view->did_cancel_navigation(navigation_id))
             return;
-        view->m_is_waiting_for_navigation_start = false;
-        view->m_loading_navigation_id.clear();
-        view->m_loading_url.clear();
-        view->did_cancel_navigation();
 
         auto const& client_url = view->url();
         if (view->on_load_finish)
@@ -722,11 +715,9 @@ void WebContentClient::did_finish_loading(u64 page_id, Optional<Utf16String> nav
     }
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->m_is_waiting_for_navigation_start || navigation_id != view->m_loading_navigation_id)
+        if (!view->matches_ongoing_navigation(navigation_id))
             return;
 
-        view->m_loading_navigation_id.clear();
-        view->m_loading_url.clear();
         auto client_url = url;
         // Browser-generated pages can finish with an internal document URL. Keep exposing the URL accepted at load
         // start for suppressed loads. Documents created for inline error content finish with about:error; keep the URL
