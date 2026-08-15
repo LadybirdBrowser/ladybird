@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<div id="container">hello <span id="inlineBlock" style="display: inline-block">removed</span> world</div>
+<script>
+    container.offsetHeight;
+    inlineBlock.remove();
+    const textNode = container.firstChild;
+    getSelection().setBaseAndExtent(textNode, 0, textNode, 3);
+</script>

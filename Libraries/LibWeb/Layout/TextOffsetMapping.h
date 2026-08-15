@@ -59,7 +59,7 @@ public:
                 return;
 
             for (auto const& paintable_fragment : paintable_with_lines->fragments()) {
-                if (&paintable_fragment.layout_node() != &fragment)
+                if (!paintable_fragment.has_layout_node() || &paintable_fragment.layout_node() != &fragment)
                     continue;
                 if (callback(paintable_fragment) == TraversalDecision::Break) {
                     decision = TraversalDecision::Break;
@@ -86,7 +86,7 @@ public:
                 return;
 
             for (auto& paintable_fragment : paintable_with_lines->fragments()) {
-                if (&paintable_fragment.layout_node() != &fragment)
+                if (!paintable_fragment.has_layout_node() || &paintable_fragment.layout_node() != &fragment)
                     continue;
                 if (callback(paintable_fragment) == TraversalDecision::Break) {
                     decision = TraversalDecision::Break;
