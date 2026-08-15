@@ -213,7 +213,6 @@ void Session::close()
             it.value.web_content_connection->on_close = nullptr;
             it.value.web_content_connection->on_driver_execution_complete = nullptr;
             it.value.web_content_connection->on_did_set_window_handle = nullptr;
-            it.value.web_content_connection->on_did_start_window_replacement = nullptr;
             it.value.web_content_connection->close_session();
         }
     }
@@ -226,7 +225,6 @@ void Session::close()
         connection->on_close = nullptr;
         connection->on_driver_execution_complete = nullptr;
         connection->on_did_set_window_handle = nullptr;
-        connection->on_did_start_window_replacement = nullptr;
     }
     m_pending_connections.clear();
 
@@ -314,6 +312,40 @@ Web::WebDriver::Response Session::perform_browser_command(Function<void(u64 comm
     return response.release_value();
 }
 
+Web::WebDriver::Response Session::navigate_to(URL::URL url)
+{
+    auto response = perform_browser_command([&](u64 command_id) {
+        m_browser_connection->async_navigate_to(command_id, m_current_window_handle, url);
+    });
+
+    // 9. Set the current browsing context with the current top-level browsing context.
+    if (!response.is_error())
+        reset_current_browsing_context();
+    return response;
+}
+
+Web::WebDriver::Response Session::refresh()
+{
+    auto response = perform_browser_command([&](u64 command_id) {
+        m_browser_connection->async_refresh(command_id, m_current_window_handle);
+    });
+
+    // 5. Set the current browsing context with current top-level browsing context.
+    if (!response.is_error())
+        reset_current_browsing_context();
+    return response;
+}
+
+Web::WebDriver::Response Session::wait_for_navigation_completion()
+{
+    if (m_page_load_strategy == Web::WebDriver::PageLoadStrategy::None)
+        return JsonValue {};
+
+    return perform_browser_command([&](u64 command_id) {
+        m_browser_connection->async_wait_for_navigation_completion(command_id, m_current_window_handle, page_load_timeout());
+    });
+}
+
 Web::WebDriver::Response Session::traverse_history(i32 delta, HandleUserPrompts handle_user_prompts)
 {
     return perform_browser_command([&](u64 command_id) {
@@ -326,6 +358,22 @@ Web::WebDriver::Response Session::session_history()
     return perform_browser_command([&](u64 command_id) {
         m_browser_connection->async_get_session_history(command_id, m_current_window_handle);
     });
+}
+
+Web::WebDriver::Response Session::load_url(URL::URL url)
+{
+    return perform_browser_command([&](u64 command_id) {
+        m_browser_connection->async_load_url(command_id, m_current_window_handle, url);
+    });
+}
+
+// Reset the current browsing context after navigation. A replacement WebContent process already
+// starts at the top level.
+void Session::reset_current_browsing_context()
+{
+    auto current_window = m_windows.get(m_current_window_handle);
+    if (current_window.has_value() && current_window->web_content_connection)
+        current_window->web_content_connection->async_set_current_browsing_context_to_top_level();
 }
 
 ErrorOr<void> Session::accept_web_content_transport(NonnullOwnPtr<IPC::Transport> transport, NonnullRefPtr<ServerPromise> promise)
@@ -358,9 +406,6 @@ ErrorOr<void> Session::accept_web_content_transport(NonnullOwnPtr<IPC::Transport
         pending_connection->on_close = [this, connection]() {
             dbgln_if(WEBDRIVER_DEBUG, "WebContent connection closed remotely.");
             web_content_connection_closed(*connection);
-        };
-        pending_connection->on_did_start_window_replacement = [this, connection](String replaced_window_handle) {
-            did_start_window_replacement(replaced_window_handle, *connection);
         };
         pending_connection->async_set_page_load_strategy(m_page_load_strategy);
         pending_connection->async_set_strict_file_interactability(m_strict_file_interactiblity);
@@ -421,15 +466,6 @@ void Session::did_update_window_handle(String window_handle, WebContentConnectio
 
     if (m_current_window_handle == *previous_window_handle)
         m_current_window_handle = move(window_handle);
-}
-
-void Session::did_start_window_replacement(String const& window_handle, WebContentConnection const& connection)
-{
-    auto window = m_windows.find(window_handle);
-    if (window == m_windows.end() || window->value.web_content_connection.ptr() != &connection)
-        return;
-
-    window->value.web_content_connection = nullptr;
 }
 
 void Session::drop_current_window_web_content_connection(WebContentConnection const& connection)
@@ -588,6 +624,20 @@ Web::WebDriver::Response Session::set_timeouts(JsonValue payload)
     return JsonValue {};
 }
 
+Optional<u64> Session::page_load_timeout() const
+{
+    Optional<u64> page_load_timeout = Web::WebDriver::TimeoutsConfiguration {}.page_load_timeout;
+    if (m_timeouts_configuration.has_value() && m_timeouts_configuration->is_object()) {
+        if (auto value = m_timeouts_configuration->as_object().get("pageLoad"sv); value.has_value()) {
+            if (value->is_null())
+                page_load_timeout = {};
+            else
+                page_load_timeout = value->get_integer<u64>().value_or(*page_load_timeout);
+        }
+    }
+    return page_load_timeout;
+}
+
 // 11.2 Close Window, https://w3c.github.io/webdriver/#dfn-close-window
 Web::WebDriver::Response Session::close_window()
 {
@@ -666,15 +716,7 @@ ErrorOr<bool, Web::WebDriver::Error> Session::wait_for_current_window_to_have_we
     if (current_window->web_content_connection)
         return false;
 
-    Optional<u64> page_load_timeout = Web::WebDriver::TimeoutsConfiguration {}.page_load_timeout;
-    if (m_timeouts_configuration.has_value() && m_timeouts_configuration->is_object()) {
-        if (auto value = m_timeouts_configuration->as_object().get("pageLoad"sv); value.has_value()) {
-            if (value->is_null())
-                page_load_timeout = {};
-            else
-                page_load_timeout = value->get_integer<u64>().value_or(*page_load_timeout);
-        }
-    }
+    auto page_load_timeout = this->page_load_timeout();
 
     bool timed_out = false;
     RefPtr<Core::Timer> timer;

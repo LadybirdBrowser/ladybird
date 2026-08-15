@@ -78,8 +78,12 @@ public:
         No,
         Yes,
     };
+    Web::WebDriver::Response navigate_to(URL::URL);
+    Web::WebDriver::Response refresh();
+    Web::WebDriver::Response wait_for_navigation_completion();
     Web::WebDriver::Response traverse_history(i32 delta, HandleUserPrompts);
     Web::WebDriver::Response session_history();
+    Web::WebDriver::Response load_url(URL::URL);
     ErrorOr<void, Web::WebDriver::Error> ensure_current_window_handle_is_valid() const;
     ErrorOr<bool, Web::WebDriver::Error> wait_for_current_window_to_have_web_content_connection();
 
@@ -131,10 +135,11 @@ private:
     ErrorOr<void> accept_web_content_transport(NonnullOwnPtr<IPC::Transport>, NonnullRefPtr<ServerPromise> promise);
     ErrorOr<void> accept_browser_transport(NonnullOwnPtr<IPC::Transport>);
     Web::WebDriver::Response perform_browser_command(Function<void(u64 command_id)> send_command);
+    Optional<u64> page_load_timeout() const;
+    void reset_current_browsing_context();
     ErrorOr<void> create_server(NonnullRefPtr<ServerPromise> promise);
     void web_content_connection_closed(WebContentConnection const&);
     void did_update_window_handle(String window_handle, WebContentConnection const&);
-    void did_start_window_replacement(String const& window_handle, WebContentConnection const&);
     void remove_window(StringView window_handle);
 
     NonnullRefPtr<Client> m_client;

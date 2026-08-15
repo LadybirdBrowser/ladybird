@@ -32,10 +32,4 @@ void WebContentConnection::did_set_window_handle(String handle)
         on_did_set_window_handle(move(handle));
 }
 
-void WebContentConnection::did_start_window_replacement(String handle)
-{
-    if (on_did_start_window_replacement)
-        on_did_start_window_replacement(move(handle));
-}
-
 }

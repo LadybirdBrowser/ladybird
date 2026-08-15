@@ -205,18 +205,6 @@ void ConnectionFromClient::connect_to_webdriver(u64 page_id, ByteString webdrive
     }
 }
 
-void ConnectionFromClient::notify_webdriver_of_window_replacement(u64 page_id)
-{
-    if (auto page = this->page(page_id); page.has_value())
-        page->notify_webdriver_of_window_replacement();
-}
-
-void ConnectionFromClient::complete_webdriver_navigation_completion(u64 page_id, u64 request_id, Web::WebDriver::Response response)
-{
-    if (auto page = this->page(page_id); page.has_value())
-        page->did_complete_webdriver_navigation_completion(request_id, move(response));
-}
-
 void ConnectionFromClient::run_webdriver_user_prompt_handling(u64 page_id, u64 request_id)
 {
     if (auto page = this->page(page_id); page.has_value())

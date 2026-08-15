@@ -1,5 +1,11 @@
+#include <LibURL/URL.h>
+
 endpoint WebDriverBrowserClient {
     close_session() =|
+    navigate_to(u64 command_id, String window_handle, URL::URL url) =|
+    refresh(u64 command_id, String window_handle) =|
+    wait_for_navigation_completion(u64 command_id, String window_handle, Optional<u64> page_load_timeout) =|
     traverse_history(u64 command_id, String window_handle, i32 delta, bool handle_user_prompts) =|
     get_session_history(u64 command_id, String window_handle) =|
+    load_url(u64 command_id, String window_handle, URL::URL url) =|
 }

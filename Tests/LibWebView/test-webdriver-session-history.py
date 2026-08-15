@@ -4855,7 +4855,7 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
         page_server.reload_recovery_requested.clear()
         page_server.release_blocked_reload.clear()
         page_server.reload_blocked_document_ran.clear()
-        refresh(webdriver_port, session_id)
+        execute_script(webdriver_port, session_id, "location.reload(); return null;")
         expect_reload_pending_history_log = True
         wait_for_event(page_server.blocked_reload_requested, "blocked reload")
         # Applying the history step clears reload pending before attempting to populate the entry's document.
@@ -4872,7 +4872,7 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
         page_server.reload_recovery_requested.clear()
         page_server.release_blocked_reload.clear()
         page_server.reload_blocked_document_ran.clear()
-        refresh(webdriver_port, session_id)
+        execute_script(webdriver_port, session_id, "location.reload(); return null;")
         wait_for_event(page_server.blocked_reload_requested, "blocked reload before crash")
         expect_current_ui_entry_reload_pending(
             webdriver_port, session_id, "during blocked reload before crash", False, log
