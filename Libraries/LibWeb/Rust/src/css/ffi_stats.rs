@@ -16,6 +16,7 @@
 //! The counters are always compiled in: one relaxed atomic increment per
 //! crossing is negligible next to the crossing itself.
 
+use std::cell::Cell;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 macro_rules! define_ffi_ops {
@@ -67,13 +68,54 @@ define_ffi_ops! {
     LonghandCppComputeFallback => "longhandCppComputeFallbacks",
     StringRetainReleaseCallback => "stringRetainReleaseCallbacks",
     AnimationComputeBatchCallback => "animationComputeBatchCallbacks",
+    StyleGroupLifecycleCallback => "styleGroupLifecycleCallbacks",
+    StyleGroupPayloadAssemblerCallback => "styleGroupPayloadAssemblerCallbacks",
+    FlyStringOperationCallback => "flyStringOperationCallbacks",
+    AnimatedPropertiesRetainReleaseCallback => "animatedPropertiesRetainReleaseCallbacks",
+    ComputedStyleBuildCppCallback => "computedStyleBuildCppCallbacks",
 }
 
 static COUNTERS: [AtomicU64; FFI_OP_COUNT] = [const { AtomicU64::new(0) }; FFI_OP_COUNT];
 
+thread_local! {
+    static COMPUTED_STYLE_BUILD_DEPTH: Cell<u32> = const { Cell::new(0) };
+}
+
 #[inline]
 pub(crate) fn bump(op: FfiOp) {
     COUNTERS[op as usize].fetch_add(1, Ordering::Relaxed);
+}
+
+#[inline]
+pub(crate) fn bump_cpp_callback(op: FfiOp) {
+    bump(op);
+    COMPUTED_STYLE_BUILD_DEPTH.with(|depth| {
+        if depth.get() != 0 {
+            bump(FfiOp::ComputedStyleBuildCppCallback);
+        }
+    });
+}
+
+/// Marks the complete C++-orchestrated computed-value build. This temporary
+/// bracket makes every Rust-to-C++ callback inside the path measurable while
+/// the build itself migrates into the Rust style engine.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_ffi_computed_style_build_begin() {
+    COMPUTED_STYLE_BUILD_DEPTH.with(|depth| {
+        depth.set(depth.get().checked_add(1).expect("computed style build depth overflow"));
+    });
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_ffi_computed_style_build_end() {
+    COMPUTED_STYLE_BUILD_DEPTH.with(|depth| {
+        depth.set(
+            depth
+                .get()
+                .checked_sub(1)
+                .expect("unbalanced computed style build scope"),
+        );
+    });
 }
 
 /// Returns the number of FFI boundary counters.

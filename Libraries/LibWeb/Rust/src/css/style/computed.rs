@@ -198,6 +198,7 @@ struct RetainedAnimatedProperties(*const c_void);
 impl RetainedAnimatedProperties {
     fn new(pointer: *const c_void) -> Self {
         assert!(!pointer.is_null(), "style-record animated properties are null");
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::AnimatedPropertiesRetainReleaseCallback);
         unsafe { ladybird_animated_properties_ref(pointer) };
         Self(pointer)
     }
@@ -209,6 +210,7 @@ impl RetainedAnimatedProperties {
 
 impl Drop for RetainedAnimatedProperties {
     fn drop(&mut self) {
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::AnimatedPropertiesRetainReleaseCallback);
         unsafe { ladybird_animated_properties_unref(self.0) };
     }
 }

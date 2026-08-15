@@ -71,7 +71,6 @@ public:
     bool has_filters() const { return m_filter_value_list; }
     bool is_none() const { return !has_filters(); }
 
-    StyleValueVector filters() const;
     Vector<FilterOperation> const& operations() const { return m_operations; }
 
     bool operator==(Filter const&) const = default;

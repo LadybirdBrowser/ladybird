@@ -626,6 +626,7 @@ fn payload_align(table: &StyleGroupVTable) -> usize {
 
 unsafe fn default_construct(table: &StyleGroupVTable, payload: *mut c_void) {
     if table.lifecycle.payload_is_cpp_owned() {
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::StyleGroupLifecycleCallback);
         unsafe {
             table.default_construct.expect("missing C++ style group constructor")(payload);
         }
@@ -665,6 +666,7 @@ unsafe fn default_construct(table: &StyleGroupVTable, payload: *mut c_void) {
 
 unsafe fn copy_construct(table: &StyleGroupVTable, payload: *mut c_void, source: *const c_void) {
     if table.lifecycle.payload_is_cpp_owned() {
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::StyleGroupLifecycleCallback);
         unsafe {
             table.copy_construct.expect("missing C++ style group copy constructor")(payload, source);
         }
@@ -704,6 +706,7 @@ unsafe fn copy_construct(table: &StyleGroupVTable, payload: *mut c_void, source:
 
 unsafe fn destruct(table: &StyleGroupVTable, payload: *mut c_void) {
     if table.lifecycle.payload_is_cpp_owned() {
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::StyleGroupLifecycleCallback);
         unsafe {
             table.destruct.expect("missing C++ style group destructor")(payload);
         }
@@ -727,6 +730,7 @@ unsafe fn destruct(table: &StyleGroupVTable, payload: *mut c_void) {
 
 unsafe fn payloads_equal(table: &StyleGroupVTable, a: *const c_void, b: *const c_void) -> bool {
     if table.lifecycle.payload_is_cpp_owned() {
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::StyleGroupLifecycleCallback);
         return unsafe { table.equals.is_some_and(|equals| equals(a, b)) };
     }
     match table.lifecycle {
@@ -1566,6 +1570,7 @@ pub(crate) unsafe fn build_group_payload_with_assembler(
     unsafe {
         default_construct(table, scratch);
         apply_group_field_pokes(scratch, &pokes);
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::StyleGroupPayloadAssemblerCallback);
         assembler(scratch, assembler_data);
     }
 

@@ -21,7 +21,7 @@
 <script>
     promiseTest(async () => {
         // Force style resolution. getComputedStyle goes through the same
-        // ComputedProperties::first_available_computed_font(' ') path that used to
+        // first-available-font lookup path that used to
         // eagerly trigger the fetch.
         getComputedStyle(document.querySelector('.probed')).fontFamily;
         document.body.offsetHeight;

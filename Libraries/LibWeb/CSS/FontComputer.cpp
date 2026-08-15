@@ -18,7 +18,6 @@
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
 #include <LibWeb/CSS/CSSGroupingRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
-#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Fetch.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/FontFaceSet.h>
@@ -696,7 +695,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
 Gfx::Font const& FontComputer::initial_font() const
 {
     // FIXME: This is not correct.
-    static auto const& font = ComputedProperties::font_fallback(false, false, 12).leak_ref();
+    static auto const& font = Platform::FontPlugin::the().default_font(12).release_nonnull().leak_ref();
     return font;
 }
 

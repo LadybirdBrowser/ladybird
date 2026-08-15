@@ -207,11 +207,6 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
 
     // Then special cases
     switch (shorthand_property()) {
-    case PropertyID::All: {
-        // NOTE: 'all' can only be serialized in the case all sub-properties share the same CSS-wide keyword, this is
-        //       handled above, thus, if we get to here that mustn't be the case and we should return the empty string.
-        return;
-    }
     case PropertyID::Animation:
         coordinating_value_list_shorthand_serialize("none"sv, {}, { PropertyID::AnimationTimeline }, AllowResolvedZeroDurationAsInitial::Yes);
         return;
@@ -277,17 +272,6 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
                 maybe_color_value = color;
 
             serialize_layer(builder, maybe_color_value, get_layer_value(image, i), get_layer_value(position_x, i), get_layer_value(position_y, i), get_layer_value(size, i), get_layer_value(repeat, i), get_layer_value(attachment, i), get_layer_value(origin, i), get_layer_value(clip, i));
-        }
-        return;
-    }
-    case PropertyID::Container: {
-        auto name = longhand(PropertyID::ContainerName);
-        auto type = longhand(PropertyID::ContainerType);
-        name->serialize(builder, mode);
-
-        if (!type->equals(property_initial_value(PropertyID::ContainerType))) {
-            builder.append(" / "sv);
-            type->serialize(builder, mode);
         }
         return;
     }
@@ -361,100 +345,6 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
             border_width->serialize(builder, mode);
         return;
     }
-    case PropertyID::BorderImage: {
-        auto source = longhand(PropertyID::BorderImageSource);
-        auto slice = longhand(PropertyID::BorderImageSlice);
-        auto width = longhand(PropertyID::BorderImageWidth);
-        auto outset = longhand(PropertyID::BorderImageOutset);
-        auto repeat = longhand(PropertyID::BorderImageRepeat);
-        source->serialize(builder, mode);
-        builder.append(' ');
-        slice->serialize(builder, mode);
-        builder.append(" / "sv);
-        width->serialize(builder, mode);
-        builder.append(" / "sv);
-        outset->serialize(builder, mode);
-        builder.append(' ');
-        repeat->serialize(builder, mode);
-        return;
-    }
-    case PropertyID::BorderRadius: {
-        auto top_left = longhand(PropertyID::BorderTopLeftRadius);
-        auto top_right = longhand(PropertyID::BorderTopRightRadius);
-        auto bottom_right = longhand(PropertyID::BorderBottomRightRadius);
-        auto bottom_left = longhand(PropertyID::BorderBottomLeftRadius);
-
-        auto horizontal_radius = [&](auto& style_value) -> String {
-            if (style_value->is_border_radius())
-                return style_value->as_border_radius().horizontal_radius()->to_string(mode);
-            return style_value->to_string(mode);
-        };
-
-        auto top_left_horizontal_string = horizontal_radius(top_left);
-        auto top_right_horizontal_string = horizontal_radius(top_right);
-        auto bottom_right_horizontal_string = horizontal_radius(bottom_right);
-        auto bottom_left_horizontal_string = horizontal_radius(bottom_left);
-
-        auto vertical_radius = [&](auto& style_value) -> String {
-            if (style_value->is_border_radius())
-                return style_value->as_border_radius().vertical_radius()->to_string(mode);
-            return style_value->to_string(mode);
-        };
-
-        auto top_left_vertical_string = vertical_radius(top_left);
-        auto top_right_vertical_string = vertical_radius(top_right);
-        auto bottom_right_vertical_string = vertical_radius(bottom_right);
-        auto bottom_left_vertical_string = vertical_radius(bottom_left);
-
-        auto serialize_radius = [](auto top_left, auto const& top_right, auto const& bottom_right, auto const& bottom_left) -> String {
-            if (first_is_equal_to_all_of(top_left, top_right, bottom_right, bottom_left))
-                return top_left;
-            if (top_left == bottom_right && top_right == bottom_left)
-                return MUST(String::formatted("{} {}", top_left, top_right));
-            if (top_right == bottom_left)
-                return MUST(String::formatted("{} {} {}", top_left, top_right, bottom_right));
-
-            return MUST(String::formatted("{} {} {} {}", top_left, top_right, bottom_right, bottom_left));
-        };
-
-        auto first_radius_serialization = serialize_radius(move(top_left_horizontal_string), top_right_horizontal_string, bottom_right_horizontal_string, bottom_left_horizontal_string);
-        auto second_radius_serialization = serialize_radius(move(top_left_vertical_string), top_right_vertical_string, bottom_right_vertical_string, bottom_left_vertical_string);
-        if (first_radius_serialization == second_radius_serialization) {
-            builder.append(first_radius_serialization);
-            return;
-        }
-
-        builder.appendff("{} / {}", first_radius_serialization, second_radius_serialization);
-        return;
-    }
-    case PropertyID::Columns: {
-        auto column_width = longhand(PropertyID::ColumnWidth)->to_string(mode);
-        auto column_count = longhand(PropertyID::ColumnCount)->to_string(mode);
-        auto column_height = longhand(PropertyID::ColumnHeight)->to_string(mode);
-
-        if (column_width == column_count) {
-            builder.append(column_width);
-        } else if (column_width.equals_ignoring_ascii_case("auto"sv)) {
-            builder.append(column_count);
-        } else if (column_count.equals_ignoring_ascii_case("auto"sv)) {
-            builder.append(column_width);
-        } else {
-            builder.appendff("{} {}", column_width, column_count);
-        }
-
-        if (!column_height.equals_ignoring_ascii_case("auto"sv)) {
-            builder.append(" / "sv);
-            builder.append(column_height);
-        }
-        return;
-    }
-    case PropertyID::Flex:
-        longhand(PropertyID::FlexGrow)->serialize(builder, mode);
-        builder.append(' ');
-        longhand(PropertyID::FlexShrink)->serialize(builder, mode);
-        builder.append(' ');
-        longhand(PropertyID::FlexBasis)->serialize(builder, mode);
-        return;
     case PropertyID::Font: {
         auto font_style = longhand(PropertyID::FontStyle);
         auto font_variant = longhand(PropertyID::FontVariant);
@@ -820,32 +710,6 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
         columns_track_list.serialize(builder, mode);
         return;
     }
-    case PropertyID::GridColumn: {
-        auto start = longhand(PropertyID::GridColumnStart);
-        auto end = longhand(PropertyID::GridColumnEnd);
-        if ((end->is_grid_track_placement() && end->as_grid_track_placement().grid_track_placement().is_auto())
-            || start == end) {
-            start->serialize(builder, mode);
-            return;
-        }
-        start->serialize(builder, mode);
-        builder.append(" / "sv);
-        end->serialize(builder, mode);
-        return;
-    }
-    case PropertyID::GridRow: {
-        auto start = longhand(PropertyID::GridRowStart);
-        auto end = longhand(PropertyID::GridRowEnd);
-        if ((end->is_grid_track_placement() && end->as_grid_track_placement().grid_track_placement().is_auto())
-            || start == end) {
-            start->serialize(builder, mode);
-            return;
-        }
-        start->serialize(builder, mode);
-        builder.append(" / "sv);
-        end->serialize(builder, mode);
-        return;
-    }
     case PropertyID::Mask: {
         auto serialize_layer = [mode](StringBuilder& builder, ValueComparingRefPtr<StyleValue const> image_value, ValueComparingRefPtr<StyleValue const> position_value, ValueComparingRefPtr<StyleValue const> size_value, ValueComparingRefPtr<StyleValue const> repeat_value, ValueComparingRefPtr<StyleValue const> origin_value, ValueComparingRefPtr<StyleValue const> clip_value, ValueComparingRefPtr<StyleValue const> composite_value, ValueComparingRefPtr<StyleValue const> mode_value) {
             PropertyID canonical_property_order[] = {
@@ -942,38 +806,11 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
         }
         return;
     }
-    case PropertyID::PlaceContent:
-    case PropertyID::PlaceItems:
-    case PropertyID::PlaceSelf:
-        builder.append(serialize_a_positional_value_list(values(), mode));
-        return;
     case PropertyID::ScrollTimeline:
         // NB: We don't need to specify a value to use when the entry is empty as all values are initial since
         //     scroll-timeline-name is always included
         coordinating_value_list_shorthand_serialize(""sv, { PropertyID::ScrollTimelineName });
         return;
-    case PropertyID::TextDecoration: {
-        // The rule here seems to be, only print what's different from the default value,
-        // but if they're all default, print the line.
-        auto append_if_non_default = [&](PropertyID property_id) {
-            auto value = longhand(property_id);
-            if (!value->equals(property_initial_value(property_id))) {
-                if (!builder.is_empty())
-                    builder.append(' ');
-                value->serialize(builder, mode);
-            }
-        };
-
-        append_if_non_default(PropertyID::TextDecorationLine);
-        append_if_non_default(PropertyID::TextDecorationThickness);
-        append_if_non_default(PropertyID::TextDecorationStyle);
-        append_if_non_default(PropertyID::TextDecorationColor);
-
-        if (builder.is_empty())
-            longhand(PropertyID::TextDecorationLine)->serialize(builder, mode);
-
-        return;
-    }
     case PropertyID::Transition:
         coordinating_value_list_shorthand_serialize("all"sv);
         return;
@@ -982,39 +819,6 @@ void ShorthandStyleValue::serialize(StringBuilder& builder, SerializationMode mo
         //     view-timeline-name is always included
         coordinating_value_list_shorthand_serialize(""sv, { PropertyID::ViewTimelineName });
         return;
-    case PropertyID::WhiteSpace: {
-        auto white_space_collapse_property = longhand(PropertyID::WhiteSpaceCollapse);
-        auto text_wrap_mode_property = longhand(PropertyID::TextWrapMode);
-        auto white_space_trim_property = longhand(PropertyID::WhiteSpaceTrim);
-
-        if (white_space_trim_property->is_keyword() && white_space_trim_property->as_keyword().keyword() == Keyword::None) {
-            auto white_space_collapse_keyword = white_space_collapse_property->as_keyword().keyword();
-            auto text_wrap_mode_keyword = text_wrap_mode_property->as_keyword().keyword();
-
-            if (white_space_collapse_keyword == Keyword::Collapse && text_wrap_mode_keyword == Keyword::Wrap) {
-                builder.append("normal"sv);
-                return;
-            }
-
-            if (white_space_collapse_keyword == Keyword::Preserve && text_wrap_mode_keyword == Keyword::Nowrap) {
-                builder.append("pre"sv);
-                return;
-            }
-
-            if (white_space_collapse_keyword == Keyword::Preserve && text_wrap_mode_keyword == Keyword::Wrap) {
-                builder.append("pre-wrap"sv);
-                return;
-            }
-
-            if (white_space_collapse_keyword == Keyword::PreserveBreaks && text_wrap_mode_keyword == Keyword::Wrap) {
-                builder.append("pre-line"sv);
-                return;
-            }
-        }
-
-        default_serialize();
-        return;
-    }
     default:
         if (property_is_positional_value_list_shorthand(shorthand_property())) {
             builder.append(serialize_a_positional_value_list(values(), mode));

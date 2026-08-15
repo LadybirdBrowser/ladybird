@@ -38,21 +38,6 @@ String serialize_a_string(Utf16View string);
 String serialize_a_url(Utf16View url);
 String serialize_a_number(double value);
 
-// https://www.w3.org/TR/cssom/#serialize-a-comma-separated-list
-template<typename T, typename SerializeItem>
-void serialize_a_comma_separated_list(StringBuilder& builder, Vector<T> const& items, SerializeItem serialize_item)
-{
-    // To serialize a comma-separated list concatenate all items of the list in list order
-    // while separating them by ", ", i.e., COMMA (U+002C) followed by a single SPACE (U+0020).
-    for (size_t i = 0; i < items.size(); i++) {
-        auto& item = items.at(i);
-        serialize_item(builder, item);
-        if ((i + 1) < items.size()) {
-            builder.append(", "sv);
-        }
-    }
-}
-
 Utf16String serialize_a_css_declaration_to_utf16(StringView property, Utf16View value, Important = Important::No);
 Utf16String serialize_a_css_declaration_to_utf16(Utf16View property, Utf16View value, Important = Important::No);
 

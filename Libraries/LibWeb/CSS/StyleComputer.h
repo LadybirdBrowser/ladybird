@@ -18,6 +18,7 @@
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CascadeOrigin.h>
+#include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/Selector.h>
@@ -71,7 +72,7 @@ public:
     void record_style_custom_property_reference(DOM::Element&, Utf16FlyString const&) const;
     // Compute the cascade supplied by rules, presentational hints, and inheritance while excluding the element's
     // inline declaration. Editing uses this to identify transport-only style without mutating the live element.
-    [[nodiscard]] NonnullRefPtr<ComputedProperties> compute_properties_without_inline_style(DOM::AbstractElement) const;
+    [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> compute_properties_without_inline_style(DOM::AbstractElement) const;
     [[nodiscard]] RefPtr<ComputedValues const> compute_pseudo_element_style_if_needed(DOM::AbstractElement, Optional<bool&> did_change_custom_properties, StyleEngineMatchResult* = nullptr, Optional<StyleEngine::StyleRecordDelta&> = {}) const;
     [[nodiscard]] JsonArray collect_devtools_applied_style_rules(DOM::AbstractElement, bool include_inherited, bool include_user_agent_styles);
 
@@ -163,21 +164,25 @@ public:
     // value, which is what makes this sound.
     Vector<Parser::ComponentValue> tokenized_custom_property_value(NonnullRefPtr<StyleValue const> const&) const;
 
-    void collect_animation_into(DOM::AbstractElement, GC::Ref<Animations::KeyframeEffect> animation, ComputedProperties&) const;
-    void collect_animation_into(DOM::AbstractElement, GC::Ref<Animations::KeyframeEffect> animation, ComputedProperties::Builder&) const;
-    void collect_animations_into(DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedProperties&) const;
-    void collect_animations_into(DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedProperties::Builder&) const;
+    // Whether the collection refreshes a previously published style outside the drive; a refresh
+    // re-runs the animated element style adjustments and leaves the non-inherited-property
+    // inheritance invalidation mark itself.
+    enum class AnimationRefresh {
+        No,
+        Yes,
+    };
+    void collect_animations_into(DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&, AnimationRefresh) const;
 
     // `explicitly_inherited_non_inherited_property` reports whether the computation read the half of
     // the style it inherits from that a child normally cannot see, which decides whether its answer
     // can be offered to another element.
-    [[nodiscard]] NonnullRefPtr<ComputedProperties> compute_properties(DOM::AbstractElement, CascadedProperties&, u64 matching_pseudo_element_styles, bool* explicitly_inherited_non_inherited_property = nullptr, ComputedValues const* previous_values = nullptr, u32 computed_group_mask = ComputedValues::all_style_groups, u64 const* computed_properties_to_evaluate = nullptr, ComputedValues const* inheritance_parent_values = nullptr, bool stop_after_longhand_drive = false) const;
+    [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> compute_properties(DOM::AbstractElement, CascadedProperties&, u64 matching_pseudo_element_styles, bool* explicitly_inherited_non_inherited_property = nullptr, ComputedValues const* previous_values = nullptr, u32 computed_group_mask = ComputedValues::all_style_groups, u64 const* computed_properties_to_evaluate = nullptr, ComputedValues const* inheritance_parent_values = nullptr, bool stop_after_longhand_drive = false) const;
 
-    void compute_property_values(ComputedProperties::Builder&, Optional<DOM::AbstractElement>) const;
-    void apply_post_compute_adjustments(ComputedProperties::Builder&, DOM::AbstractElement) const;
-    void process_animation_definitions(ComputedProperties const& computed_properties, CascadedProperties const&, DOM::AbstractElement& abstract_element) const;
+    void compute_property_values(ComputedStyleWorkingSet&, Optional<DOM::AbstractElement>) const;
+    void apply_post_compute_adjustments(ComputedStyleWorkingSet&, DOM::AbstractElement) const;
+    void process_animation_definitions(ComputedStyleWorkingSet const& computed_properties, CascadedProperties const&, DOM::AbstractElement& abstract_element) const;
 
-    NonnullRefPtr<StyleValue const> compute_value_of_custom_property(ComputedProperties const*, AbstractOrHypotheticalElement const&, Utf16FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> = {}) const;
+    NonnullRefPtr<StyleValue const> compute_value_of_custom_property(ComputedStyleWorkingSet const*, AbstractOrHypotheticalElement const&, Utf16FlyString const& name, Optional<Parser::GuardedSubstitutionContexts&> = {}) const;
     ComputationContext fallback_computation_context_for_custom_property(AbstractOrHypotheticalElement const&) const;
 
     static NonnullRefPtr<StyleValue const> compute_value_of_property(PropertyID, NonnullRefPtr<StyleValue const> const& specified_value, Function<NonnullRefPtr<StyleValue const>(PropertyID)> const& get_property_specified_value, ComputationContext const&, double device_pixels_per_css_pixel);
@@ -192,12 +197,12 @@ public:
     static NonnullRefPtr<StyleValue const> compute_font_width(NonnullRefPtr<StyleValue const> const& absolutized_value);
     static NonnullRefPtr<StyleValue const> compute_line_height(NonnullRefPtr<StyleValue const> const& absolutized_value, CSSPixels computed_font_size);
 
-    [[nodiscard]] NonnullRefPtr<ComputedValues const> build_computed_values(ComputedProperties&, DOM::AbstractElement, StyleScope const&, ComputedValues const* previous_base = nullptr, u32 groups_to_apply = ComputedValues::all_style_groups) const;
+    [[nodiscard]] NonnullRefPtr<ComputedValues const> build_computed_values(ComputedStyleWorkingSet&, DOM::AbstractElement, StyleScope const&, ComputedValues const* previous_base = nullptr, u32 groups_to_apply = ComputedValues::all_style_groups) const;
     // The animation-frame variant: keep the previous style's base and rebuild only the groups the
     // animated properties write, falling back to the full build when a touched group is unknown.
-    [[nodiscard]] NonnullRefPtr<ComputedValues const> build_animated_computed_values(ComputedProperties&, DOM::AbstractElement, StyleScope const&, ComputedValues const& previous_values) const;
-    [[nodiscard]] NonnullRefPtr<ComputedProperties> reconstruct_computed_properties(ComputedValues const&) const;
-    void apply_animated_properties_to_reconstruction(ComputedProperties&, ComputedValues const&) const;
+    [[nodiscard]] NonnullRefPtr<ComputedValues const> build_animated_computed_values(ComputedStyleWorkingSet&, DOM::AbstractElement, StyleScope const&, ComputedValues const& previous_values) const;
+    [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> reconstruct_computed_properties(ComputedValues const&) const;
+    void apply_animated_properties_to_reconstruction(ComputedStyleWorkingSet&, ComputedValues const&) const;
 
     void begin_transition_stabilization_epoch();
     void record_transition_stabilization_baseline(DOM::AbstractElement) const;
@@ -292,21 +297,21 @@ public:
     };
 
 private:
-    [[nodiscard]] NonnullRefPtr<ComputedValues const> build_and_share_computed_values(NonnullRefPtr<ComputedProperties>, DOM::AbstractElement, StyleScope const&, StyleSharingCandidate&) const;
+    [[nodiscard]] NonnullRefPtr<ComputedValues const> build_and_share_computed_values(NonnullRefPtr<ComputedStyleWorkingSet>, DOM::AbstractElement, StyleScope const&, StyleSharingCandidate&) const;
     [[nodiscard]] static Vector<GC::Ptr<DOM::ShadowRoot const>, 4> author_context_shadow_roots(DOM::AbstractElement);
 
     // The same input, from StyleEngine's own matching. Empty when the engine could not answer for
     // this element, which is not the same as an element nothing decides for.
     [[nodiscard]] Optional<CascadeInput> style_engine_cascade_input(DOM::AbstractElement, StyleEngineMatchResult* = nullptr) const;
 
-    [[nodiscard]] RefPtr<ComputedProperties> compute_style_impl(DOM::AbstractElement, ComputeStyleMode, Optional<bool&> did_change_custom_properties, StyleScope const&, IncludeInlineStyle, StyleEngineMatchResult* = nullptr, StyleSharingCandidate* = nullptr) const;
+    [[nodiscard]] RefPtr<ComputedStyleWorkingSet> compute_style_impl(DOM::AbstractElement, ComputeStyleMode, Optional<bool&> did_change_custom_properties, StyleScope const&, IncludeInlineStyle, StyleEngineMatchResult* = nullptr, StyleSharingCandidate* = nullptr) const;
     [[nodiscard]] NonnullRefPtr<CascadedProperties> compute_cascaded_values(DOM::AbstractElement, CascadeInput const&, IncludeInlineStyle, StyleSharingCandidate* sharing = nullptr, Vector<StyleProperty> const* precomputed_presentational_hints = nullptr) const;
-    void collect_animation_effects_into(DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedProperties&, ComputedProperties::Builder*) const;
-    void compute_custom_properties(ComputedProperties&, DOM::AbstractElement) const;
-    Vector<GC::Ref<Animations::KeyframeEffect>> start_needed_transitions(ComputedValues const& old_style, ComputedProperties::Builder& new_style, DOM::AbstractElement) const;
-    void resolve_effective_overflow_values(ComputedProperties::Builder&) const;
-    void adjust_element_style_if_needed(ComputedProperties::Builder&, DOM::AbstractElement) const;
-    void adjust_animated_element_style_if_needed(ComputedProperties&, DOM::AbstractElement) const;
+    void collect_animation_effects_into(DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&) const;
+    void compute_custom_properties(ComputedStyleWorkingSet&, DOM::AbstractElement) const;
+    Vector<GC::Ref<Animations::KeyframeEffect>> start_needed_transitions(ComputedValues const& old_style, ComputedStyleWorkingSet& new_style, DOM::AbstractElement) const;
+    void resolve_effective_overflow_values(ComputedStyleWorkingSet&) const;
+    void adjust_element_style_if_needed(ComputedStyleWorkingSet&, DOM::AbstractElement) const;
+    void adjust_animated_element_style_if_needed(ComputedStyleWorkingSet&, DOM::AbstractElement) const;
 
     [[nodiscard]] CSSPixelRect viewport_rect() const { return m_viewport_rect; }
 
@@ -350,7 +355,7 @@ public:
     [[nodiscard]] TreeScopeID allocate_tree_scope() { return ++m_next_tree_scope; }
 
 private:
-    [[nodiscard]] Length::FontMetrics calculate_root_element_font_metrics(ComputedProperties const&) const;
+    [[nodiscard]] Length::FontMetrics calculate_root_element_font_metrics(ComputedStyleWorkingSet const&) const;
 
     GC::Ref<DOM::Document> m_document;
 
@@ -521,8 +526,8 @@ private:
     // pass. Pin the authoritative before-change record until the stabilization epoch commits.
     mutable HashMap<u64, StyleRecordID> m_transition_stabilization_baselines;
 
-    ComputationContext make_computation_context_for_property(PropertyID, ComputedProperties const&, Optional<DOM::AbstractElement>) const;
-    ComputationContext const& get_computation_context_for_property(PropertyID, ComputedProperties const&, Optional<DOM::AbstractElement>) const;
+    ComputationContext make_computation_context_for_property(PropertyID, ComputedStyleWorkingSet const&, Optional<DOM::AbstractElement>) const;
+    ComputationContext const& get_computation_context_for_property(PropertyID, ComputedStyleWorkingSet const&, Optional<DOM::AbstractElement>) const;
     void clear_computation_context_caches() const
     {
         const_cast<StyleComputer*>(this)->m_cached_font_computation_context = {};

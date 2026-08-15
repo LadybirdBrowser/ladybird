@@ -32,7 +32,7 @@
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
-#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/Invalidation/AttributeInvalidator.h>
@@ -4498,7 +4498,7 @@ void Element::set_custom_property_data(Optional<CSS::PseudoElement> pseudo_eleme
             //        custom property data so we just ignore it.
             //
             //        The issue with this is it means the relevant custom properties aren't included in
-            //        getComputedStyle, which would be fixed if we stored CustomPropertyData on ComputedProperties
+            //        getComputedStyle, which would be fixed if we stored CustomPropertyData on the computed style
             //        instead of on the Element/PseudoElement directly. Chrome displays this same (presumably broken)
             //        behavior whereas Firefox includes the properties in getComputedStyle.
         }

@@ -188,13 +188,6 @@ public:
     Percentage percentage() const { return m_length_percentage->percentage(); }
     ValueComparingNonnullRefPtr<CalculatedStyleValue const> calculated() const { return m_length_percentage->calculated(); }
 
-    LengthOrAuto resolved_or_auto(CSSPixels reference_value) const
-    {
-        if (is_auto())
-            return LengthOrAuto::make_auto();
-        return length_percentage().resolved(reference_value);
-    }
-
     CSSPixels to_px_or_zero(CSSPixels reference_value) const
     {
         if (is_auto())

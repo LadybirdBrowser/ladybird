@@ -64,7 +64,7 @@ private:
 };
 
 struct ArbitrarySubstitutionReplacementContext {
-    ComputedProperties const* computed_style_for_custom_property_resolution { nullptr };
+    ComputedStyleWorkingSet const* computed_style_for_custom_property_resolution { nullptr };
 };
 
 enum class ArbitrarySubstitutionFunction : u8 {

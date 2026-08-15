@@ -104,25 +104,6 @@ TEST_CASE(initial_value_table_matches)
     }
 }
 
-TEST_CASE(requires_computation_levels_match)
-{
-    for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
-        auto property_id = static_cast<PropertyID>(i);
-        auto level = invoke_rust_property_metadata_requires_computation_level(i);
-        EXPECT_EQ(level >= 1, property_requires_computation_with_cascaded_value(property_id));
-        EXPECT_EQ(level >= 2, property_requires_computation_with_initial_value(property_id));
-        EXPECT_EQ(level >= 3, property_requires_computation_with_inherited_value(property_id));
-    }
-}
-
-TEST_CASE(animation_types_match)
-{
-    for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
-        auto property_id = static_cast<PropertyID>(i);
-        EXPECT_EQ(invoke_rust_property_metadata_animation_type(i), to_underlying(animation_type_from_longhand_property(property_id)));
-    }
-}
-
 TEST_CASE(accepted_numeric_ranges_match)
 {
     for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
@@ -138,17 +119,6 @@ TEST_CASE(accepted_numeric_ranges_match)
                 continue;
             EXPECT_EQ(ranges[j].min, expected->min);
             EXPECT_EQ(ranges[j].max, expected->max);
-        }
-    }
-}
-
-TEST_CASE(animation_keyframe_conflict_preference_matches)
-{
-    for (auto a = to_underlying(first_property_id); a <= to_underlying(last_property_id); ++a) {
-        for (auto b = to_underlying(first_property_id); b <= to_underlying(last_property_id); ++b) {
-            EXPECT_EQ(
-                invoke_rust_animation_property_is_preferred(a, b),
-                invoke_cpp_animation_property_is_preferred(a, b));
         }
     }
 }

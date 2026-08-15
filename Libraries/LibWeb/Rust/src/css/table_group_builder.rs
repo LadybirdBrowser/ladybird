@@ -109,7 +109,7 @@ pub struct FfiTableGroupBuildInputs {
 }
 
 /// The longhand table joined with the effective-value overrides: exactly the
-/// values `ComputedProperties::property()` returns during a group build.
+/// values `ComputedStyleWorkingSet::property()` returns during a group build.
 struct EffectiveValues<'a> {
     table: &'a ComputedLonghandTable,
     override_properties: &'a [u16],
@@ -391,6 +391,7 @@ impl GridGroupArena {
         // SAFETY: The base names a live fly string and the suffix is ASCII;
         // the bridge returns one leaked reference the intern assumes.
         let name = unsafe {
+            crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::FlyStringOperationCallback);
             RetainedUtf16FlyString::from_leaked_raw(ladybird_utf16_fly_string_concat_ascii(
                 base.raw(),
                 suffix.as_ptr(),

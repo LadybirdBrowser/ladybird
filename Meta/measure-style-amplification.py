@@ -289,8 +289,7 @@ def stage_model(sample):
         "computed": {
             "element_evaluations": computed_work,
             "element_output_changes": computed_reactions,
-            "parent_inherited_snapshot_builds": counter(sample, "style", "parentInheritedSnapshotBuilds"),
-            "parent_inherited_snapshot_properties": counter(sample, "style", "parentInheritedSnapshotProperties"),
+            "longhand_wrappers_minted": counter(sample, "style", "longhandWrappersMinted"),
             "work_per_action_and_reaction": ratio(computed_work, normalized_actions, computed_reactions),
         },
         "observer": {
@@ -346,7 +345,6 @@ def stage_model(sample):
             "style_recompute": counter(sample, "style", "styleRecomputeMicroseconds"),
             "cascade": counter(sample, "style", "styleCascadeMicroseconds"),
             "computed_values": counter(sample, "style", "styleValuesMicroseconds"),
-            "parent_inherited_snapshot": counter(sample, "style", "parentInheritedSnapshotMicroseconds"),
             "accounted_operator_total": accounted_microseconds,
             "outside_accounted_operators": max(0, style_update_microseconds - accounted_microseconds),
         },

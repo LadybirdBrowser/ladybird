@@ -19,5 +19,6 @@
         const afterOneElement = internals.styleFfiCounters();
         println(`longhand driver ran: ${afterOneElement.longhandDriverEntries >= 1}`);
         println(`longhand loop called back into C++: ${afterOneElement.longhandStoreBatchCallbacks >= 1}`);
+        println(`computed build called back into C++: ${afterOneElement.computedStyleBuildCppCallbacks >= 1}`);
     });
 </script>

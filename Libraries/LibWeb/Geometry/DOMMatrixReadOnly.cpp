@@ -12,8 +12,8 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/DOMMatrixReadOnly.h>
 #include <LibWeb/Bindings/DOMPointReadOnly.h>
-#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>

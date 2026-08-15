@@ -55,7 +55,7 @@ public:
         Utf16View property_or_descriptor_name;
 
         // NB: This isn't in the spec but we include it here to avoid extra parameters
-        ComputedProperties const* computed_style_for_custom_property_resolution;
+        ComputedStyleWorkingSet const* computed_style_for_custom_property_resolution;
         StyleScope const& style_scope;
     };
     NonnullRefPtr<StyleValue const> evaluate_a_custom_function(Parser::GuardedSubstitutionContexts&, Vector<Vector<Parser::ComponentValue>> const& arguments, CallingContext const&) const;

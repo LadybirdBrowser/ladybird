@@ -325,7 +325,7 @@ impl PartialEq for RetainedString {
 
 impl Clone for RetainedString {
     fn clone(&self) -> Self {
-        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
         unsafe { ladybird_string_ref(self.raw) };
         unsafe { Self::from_raw(self.raw, self.bytes, self.length) }
     }
@@ -333,7 +333,7 @@ impl Clone for RetainedString {
 
 impl Drop for RetainedString {
     fn drop(&mut self) {
-        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
         unsafe { ladybird_string_unref(self.raw) };
         if !self.bytes.is_null() {
             drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.bytes, self.length)) });
@@ -386,7 +386,7 @@ impl PartialEq for RetainedReadableString {
 
 impl Clone for RetainedReadableString {
     fn clone(&self) -> Self {
-        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
         unsafe { ladybird_string_ref(self.raw) };
         unsafe { Self::from_raw(self.raw, self.bytes, self.length) }
     }
@@ -394,7 +394,7 @@ impl Clone for RetainedReadableString {
 
 impl Drop for RetainedReadableString {
     fn drop(&mut self) {
-        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
         unsafe { ladybird_string_unref(self.raw) };
         if !self.bytes.is_null() {
             drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.bytes, self.length)) });

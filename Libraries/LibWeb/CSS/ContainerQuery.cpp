@@ -8,7 +8,6 @@
 #include <AK/NonnullRefPtr.h>
 #include <LibWeb/CSS/BooleanExpression.h>
 #include <LibWeb/CSS/CalculationResolutionContext.h>
-#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
