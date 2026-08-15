@@ -1175,6 +1175,28 @@ CSSPixelPoint Paintable::minimum_scroll_offset() const
     };
 }
 
+bool Paintable::has_scrollable_overflow() const
+{
+    if (auto const* box = as_if<Layout::Box>(layout_node()))
+        document().ensure_scrollable_overflow_is_measured(*box);
+    if (m_overflow_data.has_value())
+        return m_overflow_data->has_scrollable_overflow;
+    return m_cached_overflow_data.has_value() && m_cached_overflow_data->has_scrollable_overflow;
+}
+
+Optional<CSSPixelRect> Paintable::scrollable_overflow_rect() const
+{
+    if (auto const* box = as_if<Layout::Box>(layout_node()))
+        document().ensure_scrollable_overflow_is_measured(*box);
+    if (m_overflow_data.has_value())
+        return m_overflow_data->scrollable_overflow_rect;
+    if (!m_cached_overflow_data.has_value())
+        return {};
+    auto scrollable_overflow_rect = m_cached_overflow_data->rect_relative_to_padding_box;
+    scrollable_overflow_rect.translate_by(absolute_padding_box_rect().location());
+    return scrollable_overflow_rect;
+}
+
 CSSPixelPoint Paintable::maximum_scroll_offset() const
 {
     auto scrollable_overflow_rect = this->scrollable_overflow_rect();

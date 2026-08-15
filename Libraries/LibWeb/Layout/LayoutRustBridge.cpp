@@ -805,6 +805,7 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
         },
         .set_box_metrics = [](void*, void* paintable_pointer, RustFFI::FfiCommittedBoxMetrics metrics) {
             auto& paintable = *static_cast<Painting::Paintable*>(paintable_pointer);
+            paintable.set_layout_fragment_identity(metrics.fragment_identity);
             auto& box_model = paintable.box_model();
             box_model.inset = {
                 CSSPixels::from_raw(metrics.inset_top),

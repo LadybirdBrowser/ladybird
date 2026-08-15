@@ -104,6 +104,18 @@
     </svg>
 </div>
 
+<div id="clipped-barrier" class="fixture" style="width: 100px; height: 100px; overflow: clip;">
+    <div id="inside-clipped-barrier" style="width: 40px; height: 40px; overflow: visible;">
+        <div style="width: 200px; height: 210px;"></div>
+    </div>
+</div>
+
+<div id="contained-barrier" class="fixture" style="width: 100px; height: 100px; contain: layout;">
+    <div id="inside-contained-barrier" style="width: 40px; height: 40px; overflow: visible;">
+        <div style="width: 220px; height: 230px;"></div>
+    </div>
+</div>
+
 <div id="resized-containing-block" class="fixture" style="width: 300px; height: 100px; overflow: hidden;">
     <div id="percentage-sized-child" style="width: 50%; height: 50px;"></div>
 </div>
@@ -139,6 +151,10 @@
             "nested-scroll-container",
             "inner-scroll-container",
             "replaced-svg",
+            "clipped-barrier",
+            "inside-clipped-barrier",
+            "contained-barrier",
+            "inside-contained-barrier",
         ]) {
             const box = document.getElementById(id);
             println(`${id}: ${box.scrollWidth}x${box.scrollHeight}`);

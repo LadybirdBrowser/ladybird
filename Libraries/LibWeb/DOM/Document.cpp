@@ -1807,7 +1807,7 @@ void Document::recompute_containing_block_and_derive_abspos_escape_flags(Layout:
 
 // Refreshes every structure derived from committed layout results, shared by the partial and
 // full layout paths so neither can forget one.
-void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed)
+void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed, LayoutCommitScope layout_commit_scope, ReadonlySpan<Layout::Box const*> boxes_needing_eager_overflow_measurement)
 {
     // NB: Called during layout update.
     m_layout_root->invalidate_text_blocks_cache();
@@ -1821,7 +1821,10 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed)
     // recalculation rebuilds the map inside its own measurement traversal instead.
     if (layout_tree_changed == LayoutTreeChanged::Yes && !m_needs_full_scrollable_overflow_recalculation)
         m_scrollable_overflow_contained_boxes_from_last_layout = Layout::collect_scrollable_overflow_contained_boxes(*m_layout_root);
-    update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates::HandledByAfterLayoutCommit);
+    if (layout_commit_scope == LayoutCommitScope::Full)
+        update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates::HandledByFullLayoutCommit, boxes_needing_eager_overflow_measurement);
+    else
+        update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates::HandledByAfterLayoutCommit);
 
     set_needs_accumulated_visual_contexts_update(true);
 
@@ -2108,7 +2111,7 @@ Document::PartialRelayoutResult Document::try_partial_relayout(HashTable<WeakPtr
 
     ++m_partial_layout_count;
 
-    after_layout_commit(layout_tree_was_built_in_partial_branch ? LayoutTreeChanged::Yes : LayoutTreeChanged::No);
+    after_layout_commit(layout_tree_was_built_in_partial_branch ? LayoutTreeChanged::Yes : LayoutTreeChanged::No, LayoutCommitScope::Subtree);
     if (needs_style_update_after_layout() || !layout_is_up_to_date())
         return PartialRelayoutResult::NeedsAnotherLayoutPass;
     return PartialRelayoutResult::Done;
@@ -2211,11 +2214,18 @@ void Document::update_layout(UpdateLayoutReason reason)
 
         layout_node_arena().sync_enrolled_content_for_layout();
         Layout::LayoutRustBridge bridge;
+        Vector<Layout::Box const*> boxes_needing_eager_overflow_measurement;
         bridge.run_root_layout(
             *m_layout_root,
             viewport_rect.width(),
             viewport_rect.height(),
             should_collect_devtools_layout_data);
+        m_scrollable_overflow_contained_boxes_from_last_layout = Layout::collect_scrollable_overflow_contained_boxes(
+            *m_layout_root, [&](Layout::Box const& box) {
+                auto paintable = box.paintable_box();
+                if (&box == m_layout_root.ptr() || box.is_scroll_container() || (paintable && !paintable->scroll_offset().is_zero()))
+                    boxes_needing_eager_overflow_measurement.append(&box);
+            });
 
         style_invalidation_counters().relayouts_performed++;
 
@@ -2223,7 +2233,7 @@ void Document::update_layout(UpdateLayoutReason reason)
 
         ++m_full_layout_count;
 
-        after_layout_commit(LayoutTreeChanged::Yes);
+        after_layout_commit(LayoutTreeChanged::Yes, LayoutCommitScope::Full, boxes_needing_eager_overflow_measurement);
 
         m_layout_root->for_each_in_inclusive_subtree([](auto& node) {
             node.reset_needs_layout_update();
@@ -2481,7 +2491,7 @@ static void rebuild_sticky_insets(Layout::Node const& root)
     });
 }
 
-void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates derived_structure_updates)
+void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates derived_structure_updates, ReadonlySpan<Layout::Box const*> boxes_needing_eager_measurement)
 {
     // For every box that will be re-measured, the overflow data it had before, so the diff below
     // can tell what actually changed; an empty value means the box's paintable was reset by a
@@ -2496,6 +2506,30 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
         return;
 
     style_invalidation_counters().scrollable_overflow_recalculations++;
+
+    // The scroll offset can become invalid if the scrollable overflow rectangle has changed. For
+    // example, if the scroll container has been scrolled to the very end and then its scrollable
+    // overflow rect becomes smaller, the scroll offset would be out of bounds. Re-applying the
+    // current offset clamps it against the new rect.
+    auto clamp_scroll_offset = [](Painting::Paintable& paintable) {
+        if (!paintable.scroll_offset().is_zero())
+            paintable.set_scroll_offset(paintable.scroll_offset());
+    };
+
+    if (derived_structure_updates == ScrollableOverflowDerivedStructureUpdates::HandledByFullLayoutCommit) {
+        VERIFY(needs_full_recalculation);
+
+        // A full-root commit reset every surviving paintable, including its overflow data and
+        // paint cache. There is therefore no old overflow to preserve or diff. Ordinary boxes are
+        // measured recursively when their overflow contributes to one of these roots, so they do
+        // not need separate eager measurement.
+        for (auto const* box : boxes_needing_eager_measurement) {
+            Layout::measure_scrollable_overflow(*box, m_scrollable_overflow_contained_boxes_from_last_layout);
+            if (auto box_paintable = box->paintable_box())
+                clamp_scroll_offset(const_cast<Painting::Paintable&>(*box_paintable));
+        }
+        return;
+    }
 
     auto record_and_clear_overflow_data = [&](Layout::Box const& box) {
         auto box_paintable = box.paintable_box();
@@ -2528,6 +2562,8 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
                 });
             }
             for (auto const* containing_block = box->containing_block(); containing_block; containing_block = containing_block->containing_block()) {
+                if (auto containing_block_paintable = containing_block->paintable_box())
+                    const_cast<Painting::Paintable&>(*containing_block_paintable).clear_cached_overflow_data();
                 if (!record_and_clear_overflow_data(*containing_block))
                     break;
             }
@@ -2537,19 +2573,19 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
     if (old_overflow_data_by_box.is_empty())
         return;
 
-    // The scroll offset can become invalid if the scrollable overflow rectangle has changed. For
-    // example, if the scroll container has been scrolled to the very end and then its scrollable
-    // overflow rect becomes smaller, the scroll offset would be out of bounds. Re-applying the
-    // current offset clamps it against the new rect.
-    auto clamp_scroll_offset = [](Painting::Paintable& paintable) {
-        if (!paintable.scroll_offset().is_zero())
-            paintable.set_scroll_offset(paintable.scroll_offset());
-    };
-
     for (auto const& it : old_overflow_data_by_box) {
+        auto box_paintable = it.key->paintable_box();
+        if (!box_paintable)
+            continue;
+
+        // Boxes reset by a subtree commit have no previous overflow data. They will be measured
+        // recursively if an ancestor reaches them. Measuring each one here would repeatedly walk
+        // the same containing-block chains after a small subtree update.
+        if (!it.value.has_value() && it.key != m_layout_root.ptr() && !it.key->is_scroll_container() && box_paintable->scroll_offset().is_zero())
+            continue;
+
         Layout::measure_scrollable_overflow(*it.key, m_scrollable_overflow_contained_boxes_from_last_layout);
-        if (auto box_paintable = it.key->paintable_box())
-            clamp_scroll_offset(const_cast<Painting::Paintable&>(*box_paintable));
+        clamp_scroll_offset(const_cast<Painting::Paintable&>(*box_paintable));
     }
 
     bool any_overflow_changed = false;
@@ -2597,6 +2633,14 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
     }
     set_needs_to_record_display_list();
     m_document->set_needs_repaint();
+}
+
+void Document::ensure_scrollable_overflow_is_measured(Layout::Box const& box) const
+{
+    auto paintable = box.paintable_box();
+    if (!paintable || paintable->overflow_data().has_value() || paintable->cached_overflow_data().has_value())
+        return;
+    Layout::measure_scrollable_overflow(box, m_scrollable_overflow_contained_boxes_from_last_layout);
 }
 
 void Document::update_paint_and_hit_testing_properties_if_needed()
@@ -8870,6 +8914,13 @@ void Document::schedule_scrollable_overflow_recalculation(Layout::Node const& la
     if (layout_node.is_svg_box()) {
         const_cast<Layout::Node&>(layout_node).set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
         return;
+    }
+
+    if (auto const* box = as_if<Layout::Box>(layout_node)) {
+        for (auto const* containing_box = box; containing_box; containing_box = containing_box->containing_block()) {
+            if (auto paintable = containing_box->paintable_box())
+                const_cast<Painting::Paintable&>(*paintable).clear_cached_overflow_data();
+        }
     }
 
     if (m_needs_full_scrollable_overflow_recalculation)

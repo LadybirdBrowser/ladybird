@@ -16,6 +16,7 @@ pub struct FfiTableCellCoordinates {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
 pub struct FfiCommittedBoxMetrics {
+    pub fragment_identity: u64,
     pub content_offset: crate::layout::FfiCssPixelPoint,
     pub content_inline_size: crate::layout::CssPixels,
     pub content_block_size: crate::layout::CssPixels,
@@ -169,6 +170,7 @@ fn commit_subtree(
                 sink.context,
                 paintable,
                 FfiCommittedBoxMetrics {
+                    fragment_identity: fragment.identity,
                     content_offset: link.committed_offset,
                     content_inline_size: fragment.content_inline_size,
                     content_block_size: fragment.content_block_size,

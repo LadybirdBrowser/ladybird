@@ -138,10 +138,12 @@ void Node::bump_fragment_cache_epoch()
 // into a fail-safe miss.
 void Node::bump_fragment_cache_epoch_of_self_and_ancestors()
 {
-    if (!fragment_cache_epochs_enabled())
-        return;
-    for (auto* node = this; node; node = node->parent_ptr())
-        ++node->node_data().fragment_cache_epoch;
+    for (auto* node = this; node; node = node->parent_ptr()) {
+        if (fragment_cache_epochs_enabled())
+            ++node->node_data().fragment_cache_epoch;
+        if (auto* box = as_if<Box>(*node); box && box->paintable_box())
+            const_cast<Painting::Paintable&>(*box->paintable_box()).clear_cached_overflow_data();
+    }
 }
 
 void* Node::arena_handle() const

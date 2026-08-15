@@ -19,5 +19,9 @@ padded-in-flow: 170x180
 nested-scroll-container: 100x100
 inner-scroll-container: 200x210
 replaced-svg: 100x100
+clipped-barrier: 200x210
+inside-clipped-barrier: 200x210
+contained-barrier: 220x230
+inside-contained-barrier: 220x230
 before containing block resize: 300x150
 after containing block resize: 100x50
