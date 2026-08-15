@@ -123,6 +123,17 @@ public:
     bool has_blocking_wheel_event_listeners() const { return m_has_blocking_wheel_event_listeners; }
     void set_has_blocking_wheel_event_listeners(bool value) { m_has_blocking_wheel_event_listeners = value; }
     bool has_blocking_wheel_event_region_covering_viewport() const { return m_has_blocking_wheel_event_region_covering_viewport; }
+    bool should_record_wheel_hit_test_targets() const { return m_should_record_wheel_hit_test_targets; }
+    void set_should_record_wheel_hit_test_targets(bool value) { m_should_record_wheel_hit_test_targets = value; }
+
+    Optional<Painting::VisualContextIndex> cached_wheel_hit_test_target_for(Painting::Paintable const& paintable) const
+    {
+        return m_wheel_hit_test_target_cache.get(&paintable);
+    }
+    void cache_wheel_hit_test_target_for(Painting::Paintable const& paintable, Painting::VisualContextIndex target)
+    {
+        m_wheel_hit_test_target_cache.set(&paintable, target);
+    }
 
 private:
     Painting::DisplayListRecorder& m_display_list_recorder;
@@ -144,6 +155,8 @@ private:
     Painting::ScrollState const* m_async_scrolling_scroll_state { nullptr };
     bool m_has_blocking_wheel_event_listeners { false };
     bool m_has_blocking_wheel_event_region_covering_viewport { false };
+    bool m_should_record_wheel_hit_test_targets { false };
+    HashMap<Painting::Paintable const*, Painting::VisualContextIndex> m_wheel_hit_test_target_cache;
 };
 
 }

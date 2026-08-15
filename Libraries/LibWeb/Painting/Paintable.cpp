@@ -677,19 +677,55 @@ static void record_main_thread_wheel_event_region(Paintable const& paintable_box
     });
 }
 
-static Optional<VisualContextIndex> wheel_hit_test_target_scroll_node_index_for(Paintable const& paintable_box)
+static VisualContextIndex wheel_hit_test_target_scroll_node_index_for(Paintable const& paintable_box, DisplayListRecordingContext& context)
 {
-    if (paintable_box.own_scroll_node_index().value() && paintable_box.could_be_scrolled_by_wheel_event())
-        return paintable_box.own_scroll_node_index();
-    if (auto scrollable_ancestor = paintable_box.nearest_scrollable_ancestor())
-        return scrollable_ancestor->own_scroll_node_index();
-    if (auto viewport_paintable = paintable_box.document().paintable(); viewport_paintable && viewport_paintable->could_be_scrolled_by_wheel_event())
-        return viewport_paintable->own_scroll_node_index();
-    return {};
+    Vector<Paintable const*, 16> paintables_to_cache;
+    auto target = VisualContextIndex {};
+    auto const* current = &paintable_box;
+    while (true) {
+        if (auto cached_target = context.cached_wheel_hit_test_target_for(*current); cached_target.has_value()) {
+            target = *cached_target;
+            break;
+        }
+
+        paintables_to_cache.append(current);
+        if (current->own_scroll_node_index().value() && current->could_be_scrolled_by_wheel_event()) {
+            target = current->own_scroll_node_index();
+            break;
+        }
+
+        auto containing_block = current->containing_block();
+        if (containing_block && containing_block->is_fixed_position()) {
+            if (containing_block->own_scroll_node_index().value() && containing_block->could_be_scrolled_by_wheel_event())
+                target = containing_block->own_scroll_node_index();
+            if (target.value())
+                break;
+            containing_block = nullptr;
+        }
+
+        if (containing_block) {
+            current = containing_block.ptr();
+            continue;
+        }
+
+        auto viewport_paintable = current->document().paintable();
+        if (!viewport_paintable || viewport_paintable.ptr() == current)
+            break;
+        current = viewport_paintable.ptr();
+    }
+
+    for (auto const* paintable : paintables_to_cache)
+        context.cache_wheel_hit_test_target_for(*paintable, target);
+    return target;
 }
 
 static void record_wheel_hit_test_target(Paintable const& paintable_box, DisplayListRecordingContext& context)
 {
+    // OPTIMIZATION: The compositor falls back to the viewport when there are no explicit targets.
+    // Avoid generating redundant per-box targets when no non-viewport scroller could need one.
+    if (!context.should_record_wheel_hit_test_targets())
+        return;
+
     if (!paintable_box.is_visible() || !paintable_box.visible_for_hit_testing())
         return;
 
@@ -697,7 +733,7 @@ static void record_wheel_hit_test_target(Paintable const& paintable_box, Display
     if (rect.is_empty())
         return;
 
-    auto target_scroll_node_index = wheel_hit_test_target_scroll_node_index_for(paintable_box).value_or({});
+    auto target_scroll_node_index = wheel_hit_test_target_scroll_node_index_for(paintable_box, context);
     auto corner_radii = paintable_box.border_radii_data().as_corners(context.device_pixel_converter());
     if (corner_radii.has_any_radius()) {
         context.display_list_recorder().compositor_wheel_hit_test_target_with_corner_radii({
@@ -1582,6 +1618,9 @@ bool Paintable::could_be_scrolled_by_wheel_event(ScrollDirection direction) cons
     if (is_viewport_paintable())
         overflow = overflow_value_applied_to_viewport_for_wheel_scrolling(document(), direction);
 
+    if (overflow != CSS::Overflow::Auto && overflow != CSS::Overflow::Scroll)
+        return false;
+
     auto scrollable_overflow_rect = this->scrollable_overflow_rect();
     if (!scrollable_overflow_rect.has_value())
         return false;
@@ -1589,10 +1628,7 @@ bool Paintable::could_be_scrolled_by_wheel_event(ScrollDirection direction) cons
     CSSPixels scrollable_overflow_size = scrollable_overflow_rect->primary_size_for_orientation(orientation);
     CSSPixels scrollport_size = absolute_padding_box_rect().primary_size_for_orientation(orientation);
 
-    if (overflow == CSS::Overflow::Auto || overflow == CSS::Overflow::Scroll)
-        return scrollable_overflow_size > scrollport_size;
-
-    return false;
+    return scrollable_overflow_size > scrollport_size;
 }
 
 bool Paintable::could_be_scrolled_by_wheel_event() const

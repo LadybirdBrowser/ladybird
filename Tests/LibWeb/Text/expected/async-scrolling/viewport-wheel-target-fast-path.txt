@@ -1,0 +1,2 @@
+viewport wheel target: viewport
+has explicit wheel hit test targets: false

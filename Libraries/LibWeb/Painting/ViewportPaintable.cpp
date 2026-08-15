@@ -94,6 +94,7 @@ void ViewportPaintable::initialize_async_scrolling_metadata_recording(DisplayLis
         scroll_state(),
         blocking_wheel_event_region_state.has_blocking_wheel_event_listeners,
         blocking_wheel_event_region_state.has_blocking_wheel_event_region_covering_viewport);
+    context.set_should_record_wheel_hit_test_targets(m_has_non_viewport_wheel_scroll_target_candidate);
 }
 
 void ViewportPaintable::finalize_async_scrolling_metadata_recording(DisplayListRecordingContext& context, HTML::LocalNavigable& navigable, Gfx::IntRect viewport_rect)
@@ -218,10 +219,19 @@ void ViewportPaintable::clear_scroll_state()
     m_scroll_state.clear();
     m_scroll_state_snapshot = {};
     m_needs_to_refresh_scroll_state = true;
+    m_has_non_viewport_wheel_scroll_target_candidate = false;
 }
 
 void ViewportPaintable::register_scroll_node(AccumulatedVisualContextTree& visual_context_tree_being_built, VisualContextIndex node_index, Paintable const& paintable_box, VisualContextIndex parent_index)
 {
+    if (!paintable_box.is_viewport_paintable()) {
+        auto overflow_x = paintable_box.layout_node().overflow_x();
+        auto overflow_y = paintable_box.layout_node().overflow_y();
+        if (overflow_x == CSS::Overflow::Auto || overflow_x == CSS::Overflow::Scroll
+            || overflow_y == CSS::Overflow::Auto || overflow_y == CSS::Overflow::Scroll)
+            m_has_non_viewport_wheel_scroll_target_candidate = true;
+    }
+
     auto slot = m_scroll_state.register_scroll_node(node_index, paintable_box, visual_context_tree_being_built.scroll_state_slot_for_node(parent_index));
     visual_context_tree_being_built.node_at(node_index).data.get<ScrollData>().state_slot = slot;
 }

@@ -91,6 +91,7 @@ private:
     ScrollState m_scroll_state;
     ScrollStateSnapshot m_scroll_state_snapshot;
     bool m_needs_to_refresh_scroll_state { true };
+    bool m_has_non_viewport_wheel_scroll_target_candidate { false };
 
     Vector<WeakPtr<Paintable>> m_paintable_boxes_with_auto_content_visibility;
 
