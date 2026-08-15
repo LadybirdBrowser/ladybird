@@ -484,6 +484,14 @@ JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webass
         return vm.throw_completion<CompileError>(Wasm::parse_error_to_byte_string(module_result.error()));
     }
 
+    auto cache = get_cache(realm);
+    auto validate_start = MonotonicTime::now();
+    auto validation_result = cache->abstract_machine().validate(module_result.value(), {}, Wasm::CompileToNative::No);
+    stats.validate_time = MonotonicTime::now() - validate_start;
+
+    if (validation_result.is_error())
+        return vm.throw_completion<CompileError>(validation_result.error().error_string);
+
     // Content-keyed disk cache: hash the wasm bytes, slot into the HTTP side-data shelf under a synthetic wasm-cache://<hex> URL
     Optional<Wasm::CompileCacheConfig> wasm_cache_config;
     if (ResourceLoader::is_initialized() && ResourceLoader::the().request_client()) {
@@ -529,17 +537,6 @@ JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webass
 
             wasm_cache_config = move(config);
         }
-    }
-
-    constexpr auto compile_to_native = Wasm::CompileToNative::No;
-
-    auto cache = get_cache(realm);
-    auto validate_start = MonotonicTime::now();
-    auto validation_result = cache->abstract_machine().validate(module_result.value(), {}, compile_to_native);
-    stats.validate_time = MonotonicTime::now() - validate_start;
-
-    if (validation_result.is_error()) {
-        return vm.throw_completion<CompileError>(validation_result.error().error_string);
     }
 
     auto compiled_module = make_ref_counted<CompiledWebAssemblyModule>(module_result.release_value());
