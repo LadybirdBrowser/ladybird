@@ -618,6 +618,16 @@ ErrorOr<void> Session::start(LaunchBrowserCallback const& launch_browser_callbac
     return {};
 }
 
+// 9.1 Get Timeouts, https://w3c.github.io/webdriver/#dfn-get-timeouts
+Web::WebDriver::Response Session::get_timeouts() const
+{
+    // 1. Let timeouts be the timeouts object for session’s timeouts configuration
+    // 2. Return success with data timeouts.
+    if (m_timeouts_configuration.has_value())
+        return JsonValue { *m_timeouts_configuration };
+    return JsonValue { Web::WebDriver::timeouts_object({}) };
+}
+
 Web::WebDriver::Response Session::set_timeouts(JsonValue payload)
 {
     m_timeouts_configuration = TRY(web_content_connection().set_timeouts(move(payload)));

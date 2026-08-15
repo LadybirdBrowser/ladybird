@@ -295,16 +295,6 @@ void WebDriverConnection::set_is_webdriver_active(bool is_webdriver_active)
     current_browsing_context().page().set_is_webdriver_active(is_webdriver_active);
 }
 
-// 9.1 Get Timeouts, https://w3c.github.io/webdriver/#dfn-get-timeouts
-Messages::WebDriverClient::GetTimeoutsResponse WebDriverConnection::get_timeouts()
-{
-    // 1. Let timeouts be the timeouts object for session’s timeouts configuration
-    auto timeouts = Web::WebDriver::timeouts_object(m_timeouts_configuration);
-
-    // 2. Return success with data timeouts.
-    return timeouts;
-}
-
 // 9.2 Set Timeouts, https://w3c.github.io/webdriver/#dfn-set-timeouts
 Messages::WebDriverClient::SetTimeoutsResponse WebDriverConnection::set_timeouts(JsonValue payload)
 {
