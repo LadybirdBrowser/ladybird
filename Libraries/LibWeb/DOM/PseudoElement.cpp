@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Animations/KeyframeEffect.h>
-#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/AbstractElement.h>

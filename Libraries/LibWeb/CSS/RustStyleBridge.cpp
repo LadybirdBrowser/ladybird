@@ -79,48 +79,9 @@ u16 const* invoke_rust_property_metadata_longhands_for_shorthand(u16 property_id
     return ComputedValuesFFI::rust_property_metadata_longhands_for_shorthand(property_id, length);
 }
 
-u8 invoke_rust_property_metadata_requires_computation_level(u16 property_id)
-{
-    return ComputedValuesFFI::rust_property_metadata_requires_computation_level(property_id);
-}
-
-u8 invoke_rust_property_metadata_animation_type(u16 property_id)
-{
-    return ComputedValuesFFI::rust_property_metadata_animation_type(property_id);
-}
-
 ComputedValuesFFI::FfiPropertyNumericRange const* invoke_rust_property_metadata_numeric_ranges(u16 property_id, size_t* length)
 {
     return ComputedValuesFFI::rust_property_metadata_numeric_ranges(property_id, length);
-}
-
-bool invoke_rust_animation_property_is_preferred(u16 a, u16 b)
-{
-    return ComputedValuesFFI::rust_animation_property_is_preferred(a, b);
-}
-
-bool invoke_cpp_animation_property_is_preferred(u16 a, u16 b)
-{
-    auto property_is_logical_alias_including_shorthands = [](PropertyID property_id) {
-        if (property_is_shorthand(property_id))
-            return property_is_logical_alias(expanded_longhands_for_shorthand(property_id)[0]);
-        return property_is_logical_alias(property_id);
-    };
-    auto property_a = static_cast<PropertyID>(a);
-    auto property_b = static_cast<PropertyID>(b);
-    if (property_is_shorthand(property_a) != property_is_shorthand(property_b))
-        return !property_is_shorthand(property_a);
-    if (property_is_shorthand(property_a)) {
-        auto a_length = expanded_longhands_for_shorthand(property_a).size();
-        auto b_length = expanded_longhands_for_shorthand(property_b).size();
-        if (a_length != b_length)
-            return a_length < b_length;
-    }
-    auto a_is_logical_alias = property_is_logical_alias_including_shorthands(property_a);
-    auto b_is_logical_alias = property_is_logical_alias_including_shorthands(property_b);
-    if (a_is_logical_alias != b_is_logical_alias)
-        return !a_is_logical_alias;
-    return camel_case_string_from_property_id(property_a) < camel_case_string_from_property_id(property_b);
 }
 
 StyleValueFFI::StyleValueData const* invoke_rust_style_metadata_initial_value(u16 property_id)

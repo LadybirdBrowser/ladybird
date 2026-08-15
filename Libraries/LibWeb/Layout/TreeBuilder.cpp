@@ -16,7 +16,6 @@
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
-#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CounterStyle.h>
 #include <LibWeb/CSS/CountersSet.h>

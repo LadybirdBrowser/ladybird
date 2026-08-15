@@ -6,6 +6,7 @@
 
 #include <AK/CharacterTypes.h>
 #include <AK/TypeCasts.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentFragment.h>

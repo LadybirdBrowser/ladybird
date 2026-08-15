@@ -13,7 +13,7 @@
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/Animations/PseudoElementParsing.h>
 #include <LibWeb/Bindings/KeyframeEffect.h>
-#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>

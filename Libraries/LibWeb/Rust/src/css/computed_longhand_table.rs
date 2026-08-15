@@ -11,14 +11,14 @@
 //! The computed longhand table: the source of truth for one style drive's
 //! computed values, one slot per longhand.
 //!
-//! Every store a C++ `ComputedProperties::Builder` funnel performs lands
+//! Every store a C++ `ComputedStyleWorkingSet` funnel performs lands
 //! here as a strong reference to the shared style value data; the C++ side
 //! keeps only a lazily filled wrapper cache over these slots, minting a
 //! wrapper when a caller asks for one. A sparse sidecar remembers which
 //! longhands took their value from a declaration that carries style sheet
 //! context, together with the declaration's cascade source slot. The C++
-//! `ComputedProperties::Data` creates the table and freezes it when the
-//! drive's `ComputedProperties` is created; the frozen table is then shared
+//! The C++ `ComputedStyleWorkingSet` creates the table and freezes it when
+//! the drive completes; the frozen table is then shared
 //! by reference count with every `ComputedValues` built from those
 //! properties and with the style record publication that interns it.
 
@@ -26,10 +26,49 @@ use std::ffi::c_void;
 use std::sync::Arc;
 
 use crate::abort_on_panic;
+use crate::css::animated_overlay::AnimatedOverlay;
+use crate::css::animated_overlay::overlay_wins;
 use crate::css::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID};
 use crate::css::style_value::RetainedStyleValueData;
+use crate::css::style_value::retained_value_depends_on_current_color;
 
 pub(crate) const LONGHAND_COUNT: usize = (LAST_LONGHAND_PROPERTY_ID - FIRST_LONGHAND_PROPERTY_ID + 1) as usize;
+
+pub(crate) const LONGHAND_BITMAP_BYTES: usize = LONGHAND_COUNT.div_ceil(8);
+
+/// One sparse inheritance-dependent specified value, exposed to C++ as the
+/// borrowed span behind a style's inheritance-dependent value view. Layout
+/// matches `FfiInheritanceDependentValue` in the style-engine bridge.
+#[repr(C)]
+pub struct FfiTableInheritanceDependentValue {
+    pub property: u16,
+    pub value: *const c_void,
+}
+
+/// The effective value of one longhand: the value data pointer together with
+/// which source produced it, so the C++ side can preserve wrapper identity
+/// for overlay values and stamp style sheet context only onto table mints.
+#[repr(C)]
+pub struct FfiEffectiveLonghandValue {
+    pub value: *const c_void,
+    pub source: u8,
+}
+
+pub const EFFECTIVE_LONGHAND_SOURCE_TABLE: u8 = 0;
+pub const EFFECTIVE_LONGHAND_SOURCE_OVERLAY: u8 = 1;
+pub const EFFECTIVE_LONGHAND_SOURCE_SPECIFIED: u8 = 2;
+
+fn bitmap_bit(bits: &[u8; LONGHAND_BITMAP_BYTES], index: usize) -> bool {
+    bits[index / 8] & (1 << (index % 8)) != 0
+}
+
+fn set_bitmap_bit(bits: &mut [u8; LONGHAND_BITMAP_BYTES], index: usize, value: bool) {
+    if value {
+        bits[index / 8] |= 1 << (index % 8);
+    } else {
+        bits[index / 8] &= !(1 << (index % 8));
+    }
+}
 
 pub struct ComputedLonghandTable {
     slots: Vec<Option<RetainedStyleValueData>>,
@@ -39,6 +78,21 @@ pub struct ComputedLonghandTable {
     /// `(longhand property id, cascade source slot)` for longhands whose
     /// stored value came from a declaration carrying style sheet context.
     source_slots: Vec<(u16, u32)>,
+    /// Whether the longhand's winning declaration was `!important`, in the
+    /// byte layout of the C++ `FixedBitmap` (bit `i` is byte `i / 8`, bit
+    /// `i % 8`), so whole bitmaps copy across the FFI without translation.
+    important_bits: [u8; LONGHAND_BITMAP_BYTES],
+    /// Whether the longhand's computed value was taken by inheritance.
+    inherited_bits: [u8; LONGHAND_BITMAP_BYTES],
+    /// Which longhands a drive over this table (not the styles it was seeded
+    /// from) has evaluated and stored; an evaluated longhand's value always
+    /// comes from the table, while an unevaluated one keeps the recorded
+    /// currentcolor-dependent specified value's preference.
+    evaluated_bits: [u8; LONGHAND_BITMAP_BYTES],
+    /// The recorded inheritance-dependent specified values, sparse.
+    inheritance_dependent: Vec<(u16, RetainedStyleValueData)>,
+    /// The borrowed view over `inheritance_dependent` handed to C++.
+    inheritance_dependent_view: Vec<FfiTableInheritanceDependentValue>,
     frozen: bool,
 }
 
@@ -50,6 +104,11 @@ impl ComputedLonghandTable {
             slots,
             value_view: vec![std::ptr::null(); LONGHAND_COUNT],
             source_slots: Vec::new(),
+            important_bits: [0; LONGHAND_BITMAP_BYTES],
+            inherited_bits: [0; LONGHAND_BITMAP_BYTES],
+            evaluated_bits: [0; LONGHAND_BITMAP_BYTES],
+            inheritance_dependent: Vec::new(),
+            inheritance_dependent_view: Vec::new(),
             frozen: false,
         }
     }
@@ -69,6 +128,7 @@ impl ComputedLonghandTable {
         );
         self.value_view[Self::slot_index(property_id)] = value.pointer().cast();
         self.slots[Self::slot_index(property_id)] = Some(value);
+        set_bitmap_bit(&mut self.evaluated_bits, Self::slot_index(property_id), true);
         let existing = self
             .source_slots
             .iter()
@@ -91,6 +151,11 @@ impl ComputedLonghandTable {
         self.slots.clone_from(&source.slots);
         self.value_view.clone_from(&source.value_view);
         self.source_slots.clone_from(&source.source_slots);
+        self.important_bits = source.important_bits;
+        self.inherited_bits = source.inherited_bits;
+        self.evaluated_bits = source.evaluated_bits;
+        self.inheritance_dependent.clone_from(&source.inheritance_dependent);
+        self.rebuild_inheritance_dependent_view();
     }
 
     fn copy_from_values(&mut self, values: &[*const c_void]) {
@@ -108,6 +173,158 @@ impl ComputedLonghandTable {
             self.value_view[index] = value;
         }
         self.source_slots.clear();
+        self.important_bits = [0; LONGHAND_BITMAP_BYTES];
+        self.inherited_bits = [0; LONGHAND_BITMAP_BYTES];
+        self.evaluated_bits = [0; LONGHAND_BITMAP_BYTES];
+        self.inheritance_dependent.clear();
+        self.inheritance_dependent_view.clear();
+    }
+
+    fn rebuild_inheritance_dependent_view(&mut self) {
+        self.inheritance_dependent_view = self
+            .inheritance_dependent
+            .iter()
+            .map(|(property, value)| FfiTableInheritanceDependentValue {
+                property: *property,
+                value: value.pointer().cast(),
+            })
+            .collect();
+    }
+
+    /// Reset the state a fresh drive must not inherit from the style its
+    /// table was seeded from: the evaluated bits and the recorded
+    /// inheritance-dependent specified values.
+    fn clear_seeded_state(&mut self) {
+        assert!(
+            !self.frozen,
+            "the computed longhand table is immutable once its style is created"
+        );
+        self.evaluated_bits = [0; LONGHAND_BITMAP_BYTES];
+        self.inheritance_dependent.clear();
+        self.inheritance_dependent_view.clear();
+    }
+
+    fn add_inheritance_dependent_value(&mut self, property_id: u16, value: RetainedStyleValueData) {
+        assert!(
+            !self.frozen,
+            "the computed longhand table is immutable once its style is created"
+        );
+        match self
+            .inheritance_dependent
+            .iter_mut()
+            .find(|(property, _)| *property == property_id)
+        {
+            Some((_, existing)) => *existing = value,
+            None => self.inheritance_dependent.push((property_id, value)),
+        }
+        self.rebuild_inheritance_dependent_view();
+    }
+
+    fn remove_inheritance_dependent_value(&mut self, property_id: u16) {
+        assert!(
+            !self.frozen,
+            "the computed longhand table is immutable once its style is created"
+        );
+        self.inheritance_dependent
+            .retain(|(property, _)| *property != property_id);
+        self.rebuild_inheritance_dependent_view();
+    }
+
+    fn inheritance_dependent_value(&self, property_id: u16) -> Option<&RetainedStyleValueData> {
+        self.inheritance_dependent
+            .iter()
+            .find(|(property, _)| *property == property_id)
+            .map(|(_, value)| value)
+    }
+
+    pub(crate) fn is_important(&self, property_id: u16) -> bool {
+        bitmap_bit(&self.important_bits, Self::slot_index(property_id))
+    }
+
+    fn is_inherited(&self, property_id: u16) -> bool {
+        bitmap_bit(&self.inherited_bits, Self::slot_index(property_id))
+    }
+
+    fn is_evaluated(&self, property_id: u16) -> bool {
+        bitmap_bit(&self.evaluated_bits, Self::slot_index(property_id))
+    }
+
+    /// The effective value property() returns for one longhand: the animated
+    /// overlay under the overlay read rule, then an unevaluated longhand's
+    /// recorded currentcolor-dependent specified value, then the table slot.
+    fn effective_value(
+        &self,
+        overlay: Option<&AnimatedOverlay>,
+        property_id: u16,
+        with_animations: bool,
+    ) -> FfiEffectiveLonghandValue {
+        if with_animations
+            && let Some(overlay) = overlay
+            && let Some(entry) = overlay.get(property_id)
+            && overlay_wins(entry, self.is_important(property_id))
+        {
+            return FfiEffectiveLonghandValue {
+                value: entry.value.pointer().cast(),
+                source: EFFECTIVE_LONGHAND_SOURCE_OVERLAY,
+            };
+        }
+        if !self.is_evaluated(property_id)
+            && let Some(value) = self.inheritance_dependent_value(property_id)
+            && retained_value_depends_on_current_color(value)
+        {
+            return FfiEffectiveLonghandValue {
+                value: value.pointer().cast(),
+                source: EFFECTIVE_LONGHAND_SOURCE_SPECIFIED,
+            };
+        }
+        FfiEffectiveLonghandValue {
+            value: self.value_view[Self::slot_index(property_id)],
+            source: EFFECTIVE_LONGHAND_SOURCE_TABLE,
+        }
+    }
+
+    /// The sparse set of longhands whose effective value differs from the
+    /// stored table value: the animated overlay under the overlay read rule
+    /// first (the consumer's override scan takes the first match, like the
+    /// effective-value query prefers the overlay), then the unevaluated
+    /// longhands' currentcolor-dependent specified values.
+    fn collect_effective_overrides(
+        &self,
+        overlay: Option<&AnimatedOverlay>,
+        out_properties: &mut [u16],
+        out_values: &mut [*const c_void],
+    ) -> usize {
+        let mut count = 0;
+        if let Some(overlay) = overlay {
+            for entry in overlay.entries() {
+                if !overlay_wins(entry, self.is_important(entry.property)) {
+                    continue;
+                }
+                let value = entry.value.pointer().cast();
+                if value == self.value_view[Self::slot_index(entry.property)] {
+                    continue;
+                }
+                out_properties[count] = entry.property;
+                out_values[count] = value;
+                count += 1;
+            }
+        }
+        for (property, value) in &self.inheritance_dependent {
+            if self.is_evaluated(*property) || !retained_value_depends_on_current_color(value) {
+                continue;
+            }
+            if out_properties[..count].contains(property) {
+                continue;
+            }
+            let value = value.pointer().cast();
+            if value == self.value_view[Self::slot_index(*property)] {
+                continue;
+            }
+            out_properties[count] = *property;
+            out_values[count] = value;
+            count += 1;
+        }
+        count
     }
 
     fn freeze(&mut self) {
@@ -288,6 +505,290 @@ pub unsafe extern "C" fn rust_computed_longhand_table_source_slot(
     abort_on_panic(|| match unsafe { &*table }.source_slot(property_id) {
         Some(slot) => i64::from(slot),
         None => -1,
+    })
+}
+
+/// Marks a longhand's stored value `!important` (or not).
+///
+/// # Safety
+/// `table` must be a valid, unfrozen, uniquely owned table.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_computed_longhand_table_set_important(
+    table: *mut ComputedLonghandTable,
+    property_id: u16,
+    important: bool,
+) {
+    abort_on_panic(|| {
+        let table = unsafe { &mut *table };
+        assert!(
+            !table.frozen,
+            "the computed longhand table is immutable once its style is created"
+        );
+        set_bitmap_bit(
+            &mut table.important_bits,
+            ComputedLonghandTable::slot_index(property_id),
+            important,
+        );
+    });
+}
+
+/// Marks a longhand's computed value as taken by inheritance (or not).
+///
+/// # Safety
+/// `table` must be a valid, unfrozen, uniquely owned table.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_computed_longhand_table_set_inherited(
+    table: *mut ComputedLonghandTable,
+    property_id: u16,
+    inherited: bool,
+) {
+    abort_on_panic(|| {
+        let table = unsafe { &mut *table };
+        assert!(
+            !table.frozen,
+            "the computed longhand table is immutable once its style is created"
+        );
+        set_bitmap_bit(
+            &mut table.inherited_bits,
+            ComputedLonghandTable::slot_index(property_id),
+            inherited,
+        );
+    });
+}
+
+/// # Safety
+/// `table` must be a valid table.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_computed_longhand_table_is_important(
+    table: *const ComputedLonghandTable,
+    property_id: u16,
+) -> bool {
+    abort_on_panic(|| unsafe { &*table }.is_important(property_id))
+}
+
+/// # Safety
+/// `table` must be a valid table.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_computed_longhand_table_is_inherited(
+    table: *const ComputedLonghandTable,
+    property_id: u16,
+) -> bool {
+    abort_on_panic(|| unsafe { &*table }.is_inherited(property_id))
+}
+
+/// The importance bitmap, in the C++ `FixedBitmap` byte layout. The pointer
+/// stays valid while the caller's table reference is live.
+///
+/// # Safety
+/// `table` must be a valid table.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_computed_longhand_table_importance_bits(
+    table: *const ComputedLonghandTable,
+) -> *const u8 {
+    abort_on_panic(|| unsafe { &*table }.important_bits.as_ptr())
+}
+
+/// The inheritance bitmap, in the C++ `FixedBitmap` byte layout.
+///
+/// # Safety
+/// `table` must be a valid table.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_computed_longhand_table_inheritance_bits(
+    table: *const ComputedLonghandTable,
+) -> *const u8 {
+    abort_on_panic(|| unsafe { &*table }.inherited_bits.as_ptr())
+}
+
+/// Replaces the whole importance and inheritance bitmaps, for the builder
+/// seeding a fresh table from an existing style's published bitmaps.
+///
+/// # Safety
+/// `table` must be a valid, unfrozen, uniquely owned table; each bitmap must
+/// have exactly `LONGHAND_BITMAP_BYTES` readable bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_computed_longhand_table_load_flag_bitmaps(
+    table: *mut ComputedLonghandTable,
+    importance: *const u8,
+    importance_count: usize,
+    inheritance: *const u8,
+    inheritance_count: usize,
+) {
+    abort_on_panic(|| {
+        assert_eq!(importance_count, LONGHAND_BITMAP_BYTES);
+        assert_eq!(inheritance_count, LONGHAND_BITMAP_BYTES);
+        let table = unsafe { &mut *table };
+        assert!(
+            !table.frozen,
+            "the computed longhand table is immutable once its style is created"
+        );
+        table
+            .important_bits
+            .copy_from_slice(unsafe { std::slice::from_raw_parts(importance, importance_count) });
+        table
+            .inherited_bits
+            .copy_from_slice(unsafe { std::slice::from_raw_parts(inheritance, inheritance_count) });
+    });
+}
+
+/// Applies the longhand driver's bulk flag results: for every longhand whose
+/// bit is set in `evaluated_words`, the importance and inheritance flags are
+/// taken from the matching words; other longhands keep their seeded flags.
+/// The table's own evaluated bits are not touched - they track stores, which
+/// the drive performs through `rust_computed_longhand_table_set`.
+///
+/// # Safety
+/// `table` must be a valid, unfrozen, uniquely owned table; each word span
+/// must cover every longhand bit.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_computed_longhand_table_merge_driver_flags(
+    table: *mut ComputedLonghandTable,
+    important_words: *const u64,
+    inherited_words: *const u64,
+    evaluated_words: *const u64,
+    word_count: usize,
+) {
+    abort_on_panic(|| {
+        assert!(word_count * 64 >= LONGHAND_COUNT);
+        let important_words = unsafe { std::slice::from_raw_parts(important_words, word_count) };
+        let inherited_words = unsafe { std::slice::from_raw_parts(inherited_words, word_count) };
+        let evaluated_words = unsafe { std::slice::from_raw_parts(evaluated_words, word_count) };
+        let table = unsafe { &mut *table };
+        assert!(
+            !table.frozen,
+            "the computed longhand table is immutable once its style is created"
+        );
+        for index in 0..LONGHAND_COUNT {
+            if evaluated_words[index / 64] & (1 << (index % 64)) == 0 {
+                continue;
+            }
+            set_bitmap_bit(
+                &mut table.important_bits,
+                index,
+                important_words[index / 64] & (1 << (index % 64)) != 0,
+            );
+            set_bitmap_bit(
+                &mut table.inherited_bits,
+                index,
+                inherited_words[index / 64] & (1 << (index % 64)) != 0,
+            );
+        }
+    });
+}
+
+/// Resets the state a fresh drive must not inherit from the style its table
+/// was seeded from: the evaluated bits and the recorded inheritance-dependent
+/// specified values.
+///
+/// # Safety
+/// `table` must be a valid, unfrozen, uniquely owned table.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_computed_longhand_table_clear_seeded_state(table: *mut ComputedLonghandTable) {
+    abort_on_panic(|| unsafe { &mut *table }.clear_seeded_state());
+}
+
+/// Records (or replaces) a longhand's inheritance-dependent specified value,
+/// retaining `value`.
+///
+/// # Safety
+/// `table` must be a valid, unfrozen, uniquely owned table and `value` must
+/// point at live style value data.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_computed_longhand_table_add_inheritance_dependent_value(
+    table: *mut ComputedLonghandTable,
+    property_id: u16,
+    value: *const c_void,
+) {
+    abort_on_panic(|| {
+        let value = unsafe {
+            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(
+                value.cast(),
+            ))
+        };
+        unsafe { &mut *table }.add_inheritance_dependent_value(property_id, value);
+    });
+}
+
+/// # Safety
+/// `table` must be a valid, unfrozen, uniquely owned table.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_computed_longhand_table_remove_inheritance_dependent_value(
+    table: *mut ComputedLonghandTable,
+    property_id: u16,
+) {
+    abort_on_panic(|| unsafe { &mut *table }.remove_inheritance_dependent_value(property_id));
+}
+
+/// The recorded inheritance-dependent specified values as a borrowed span.
+/// The span stays valid while the caller's table reference is live and no
+/// further add or remove mutates the table.
+///
+/// # Safety
+/// `table` must be a valid table and `out_count` writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_computed_longhand_table_inheritance_dependent_values(
+    table: *const ComputedLonghandTable,
+    out_count: *mut usize,
+) -> *const FfiTableInheritanceDependentValue {
+    abort_on_panic(|| {
+        let table = unsafe { &*table };
+        unsafe { *out_count = table.inheritance_dependent_view.len() };
+        table.inheritance_dependent_view.as_ptr()
+    })
+}
+
+/// The effective value for one longhand: the animated overlay under the
+/// overlay read rule (important base values override animated but not
+/// transitioned properties), then an unevaluated longhand's recorded
+/// currentcolor-dependent specified value, then the stored table slot.
+///
+/// # Safety
+/// `table` must be a valid table and `overlay` null or a valid overlay.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_computed_longhand_table_effective_value(
+    table: *const ComputedLonghandTable,
+    overlay: *const AnimatedOverlay,
+    property_id: u16,
+    with_animations: bool,
+) -> FfiEffectiveLonghandValue {
+    abort_on_panic(|| unsafe { &*table }.effective_value(unsafe { overlay.as_ref() }, property_id, with_animations))
+}
+
+/// An upper bound on how many overrides
+/// `rust_computed_longhand_table_collect_effective_overrides` can produce.
+///
+/// # Safety
+/// `table` must be a valid table and `overlay` null or a valid overlay.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_computed_longhand_table_effective_override_capacity(
+    table: *const ComputedLonghandTable,
+    overlay: *const AnimatedOverlay,
+) -> usize {
+    abort_on_panic(|| {
+        let overlay_entries = unsafe { overlay.as_ref() }.map_or(0, |overlay| overlay.entries().len());
+        overlay_entries + unsafe { &*table }.inheritance_dependent.len()
+    })
+}
+
+/// Collects the sparse set of longhands whose effective value differs from
+/// the stored table value, exactly what the effective-value query returns.
+/// Returns how many entries were written.
+///
+/// # Safety
+/// `table` must be a valid table, `overlay` null or a valid overlay, and the
+/// output spans must have at least `capacity` writable entries, `capacity`
+/// itself at least the reported override capacity.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_computed_longhand_table_collect_effective_overrides(
+    table: *const ComputedLonghandTable,
+    overlay: *const AnimatedOverlay,
+    out_properties: *mut u16,
+    out_values: *mut *const c_void,
+    capacity: usize,
+) -> usize {
+    abort_on_panic(|| {
+        let out_properties = unsafe { std::slice::from_raw_parts_mut(out_properties, capacity) };
+        let out_values = unsafe { std::slice::from_raw_parts_mut(out_values, capacity) };
+        unsafe { &*table }.collect_effective_overrides(unsafe { overlay.as_ref() }, out_properties, out_values)
     })
 }
 

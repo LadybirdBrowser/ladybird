@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/HTML/HTMLPreElement.h>
 #include <LibWeb/HTML/Numbers.h>

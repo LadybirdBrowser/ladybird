@@ -94,7 +94,7 @@ set(SOURCES
     CSS/BooleanExpression.cpp
     CSS/CascadedProperties.cpp
     CSS/Clip.cpp
-    CSS/ComputedProperties.cpp
+    CSS/ComputedStyleWorkingSet.cpp
     CSS/ComputedValues.cpp
     CSS/RustStyleBridge.cpp
     CSS/ContainerQuery.cpp
@@ -172,7 +172,6 @@ set(SOURCES
     CSS/EdgeRect.cpp
     CSS/FeatureQuery.cpp
     CSS/Fetch.cpp
-    CSS/Filter.cpp
     CSS/Flex.cpp
     CSS/FontComputer.cpp
     CSS/FontFace.cpp

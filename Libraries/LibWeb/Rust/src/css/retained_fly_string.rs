@@ -49,7 +49,7 @@ impl RetainedUtf16FlyString {
     /// # Safety
     /// `raw` must be the raw representation of a live fly string.
     pub(crate) unsafe fn from_borrowed_raw(raw: usize) -> Self {
-        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
         unsafe { ladybird_utf16_fly_string_ref(raw) };
         Self { raw }
     }
@@ -70,7 +70,7 @@ impl Drop for RetainedUtf16FlyString {
         if self.raw == 0 {
             return;
         }
-        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
         unsafe { ladybird_utf16_fly_string_unref(self.raw) };
     }
 }

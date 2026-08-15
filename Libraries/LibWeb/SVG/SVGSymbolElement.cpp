@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Layout/SVGGraphicsBox.h>

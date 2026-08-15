@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGStopElement.h>

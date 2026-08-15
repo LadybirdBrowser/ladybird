@@ -16,6 +16,14 @@
 
 namespace Web::CSS {
 
+struct TransitionProperties {
+    Vector<PropertyID> properties;
+    double duration;
+    EasingFunction timing_function;
+    double delay;
+    TransitionBehavior transition_behavior;
+};
+
 struct AnimationProperties {
     Variant<double, Utf16String> duration;
     EasingFunction timing_function;

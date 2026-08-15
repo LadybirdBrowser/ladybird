@@ -1605,7 +1605,7 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
     object->define_direct_property("baseStylePartialBuilds"_utf16_fly_string, JS::Value(counters.base_style_partial_builds), JS::default_attributes);
     object->define_direct_property("baseStyleFullBuilds"_utf16_fly_string, JS::Value(counters.base_style_full_builds), JS::default_attributes);
     object->define_direct_property("computedLonghandEvaluations"_utf16_fly_string, JS::Value(counters.computed_longhand_evaluations), JS::default_attributes);
-    object->define_direct_property("longhandWrappersMinted"_utf16_fly_string, JS::Value(CSS::ComputedProperties::longhand_wrappers_minted()), JS::default_attributes);
+    object->define_direct_property("longhandWrappersMinted"_utf16_fly_string, JS::Value(CSS::longhand_wrappers_minted()), JS::default_attributes);
     object->define_direct_property("styleStabilizationEpochs"_utf16_fly_string, JS::Value(counters.style_stabilization_epochs), JS::default_attributes);
     object->define_direct_property("styleStabilizationFeedbackEpochs"_utf16_fly_string, JS::Value(counters.style_stabilization_feedback_epochs), JS::default_attributes);
     object->define_direct_property("provisionalStylePasses"_utf16_fly_string, JS::Value(counters.provisional_style_passes), JS::default_attributes);

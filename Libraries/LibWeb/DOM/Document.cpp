@@ -50,7 +50,8 @@
 #include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/CSSTransition.h>
-#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/ComputedStyleWorkingSet.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFaceSet.h>
@@ -63,6 +64,7 @@
 #include <LibWeb/CSS/MediaQueryList.h>
 #include <LibWeb/CSS/MediaQueryListEvent.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/SelectorMatching.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
@@ -610,7 +612,7 @@ void Document::set_temporary_document_for_fragment_parsing(Badge<HTML::HTMLParse
 void Document::reset_style_invalidation_counters() const
 {
     m_style_invalidation_counters = {};
-    CSS::ComputedProperties::reset_longhand_wrappers_minted();
+    CSS::reset_longhand_wrappers_minted();
 }
 
 void Document::record_layout_tree_build(u64 rebuilt_subtree_root_count, bool escaped_rebuild_roots)

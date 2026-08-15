@@ -7,7 +7,7 @@
 #include <AK/QuickSort.h>
 #include <AK/ScopeGuard.h>
 #include <LibGC/RootVector.h>
-#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Invalidation/SlotInvalidator.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>

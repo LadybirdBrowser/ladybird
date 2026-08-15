@@ -62,7 +62,7 @@ namespace Web::CSS {
 
 class AnimatedProperties;
 
-class ComputedProperties;
+class ComputedStyleWorkingSet;
 class ComputedStyleRecordView;
 class StyleComputer;
 class StyleScope;
@@ -1046,13 +1046,13 @@ public:
         Yes,
     };
 
-    static NonnullRefPtr<ComputedValues const> create(ComputedProperties const&, DOM::Document const&, StyleScope const&, ColorResolutionContext, ComputedValues const* inherit_parent = nullptr);
+    static NonnullRefPtr<ComputedValues const> create(ComputedStyleWorkingSet const&, DOM::Document const&, StyleScope const&, ColorResolutionContext, ComputedValues const* inherit_parent = nullptr);
 
     // Build only the named groups; every other group keeps `base`'s payload untouched. The caller
     // warrants that every property outside `groups_to_apply` computes to the same value in the
     // given style as it did when `base` was built.
     static constexpr u32 all_style_groups = (1u << to_underlying(StyleGroupIndex::Count)) - 1;
-    static NonnullRefPtr<ComputedValues const> create_over_base(ComputedProperties const&, DOM::Document const&, StyleScope const&, ColorResolutionContext, ComputedValues const& base, u32 groups_to_apply);
+    static NonnullRefPtr<ComputedValues const> create_over_base(ComputedStyleWorkingSet const&, DOM::Document const&, StyleScope const&, ColorResolutionContext, ComputedValues const& base, u32 groups_to_apply);
 
     // The style group a longhand's computed value lives in, derived from the field descriptors the
     // group payloads build from, plus explicit bindings for the bespoke-built groups. A longhand
@@ -1160,7 +1160,7 @@ public:
     ~ComputedValues();
 
 private:
-    static NonnullRefPtr<ComputedValues const> create_internal(ComputedProperties const&, DOM::Document const&, StyleScope const&, ColorResolutionContext, ComputedValues const* inherit_parent, ComputedValues const* base, u32 groups_to_apply);
+    static NonnullRefPtr<ComputedValues const> create_internal(ComputedStyleWorkingSet const&, DOM::Document const&, StyleScope const&, ColorResolutionContext, ComputedValues const* inherit_parent, ComputedValues const* base, u32 groups_to_apply);
 
 public:
     AspectRatio aspect_ratio() const
@@ -1199,7 +1199,6 @@ public:
     CSSPixels border_spacing_horizontal() const { return CSSPixels::from_raw(m_inherited.table->border_spacing_horizontal); }
     CSSPixels border_spacing_vertical() const { return CSSPixels::from_raw(m_inherited.table->border_spacing_vertical); }
     CaptionSide caption_side() const { return static_cast<CaptionSide>(m_inherited.table->caption_side); }
-    ColorOrAuto const& caret_color_value() const { return m_inherited.ui->caret_color; }
     Color caret_color() const { return m_inherited.ui->caret_color.used_value; }
     Clear clear() const { return static_cast<Clear>(m_noninherited.box->clear); }
     Clip clip() const { return m_noninherited.effects->clip; }
@@ -1236,7 +1235,6 @@ public:
     TextIndentData const& text_indent() const { return m_inherited.text->text_indent; }
     TextWrapMode text_wrap_mode() const { return m_inherited.text->text_wrap_mode; }
     TextWrapStyle text_wrap_style() const { return m_inherited.text->text_wrap_style; }
-    TextUnderlineOffset const& text_underline_offset_value() const { return m_inherited.text->text_underline_offset; }
     CSSPixels text_underline_offset() const { return m_inherited.text->text_underline_offset.used_value; }
     TextUnderlinePosition text_underline_position() const { return m_inherited.text->text_underline_position; }
     Vector<TextDecorationLine> const& text_decoration_line() const { return m_noninherited.text_reset->text_decoration_line; }
@@ -1286,7 +1284,6 @@ public:
     double flex_grow() const { return m_noninherited.alignment->flex_grow; }
     double flex_shrink() const { return m_noninherited.alignment->flex_shrink; }
     i32 order() const { return m_noninherited.alignment->order; }
-    ColorOrAuto const& accent_color_value() const { return m_inherited.ui->accent_color; }
     Optional<Color> accent_color() const
     {
         if (m_inherited.ui->accent_color.computed_value.has<ColorOrAuto::Auto>())
@@ -2277,6 +2274,11 @@ public:
 
     void set_property_important(PropertyID property_id, bool value) { m_values.m_property_important.set(ComputedValues::property_bitmap_index(property_id), value); }
     void set_property_inherited(PropertyID property_id, bool value) { m_values.m_property_inherited.set(ComputedValues::property_bitmap_index(property_id), value); }
+    void set_property_flag_bitmaps(ReadonlyBytes importance, ReadonlyBytes inheritance)
+    {
+        m_values.m_property_important.copy_from(importance);
+        m_values.m_property_inherited.copy_from(inheritance);
+    }
     void set_depends_on_viewport_metrics(bool value) { m_values.m_depends_on_viewport_metrics = value; }
     void set_font_metrics_depend_on_viewport_metrics(bool value) { m_values.m_font_metrics_depend_on_viewport_metrics = value; }
     void set_in_display_none_subtree(bool value) { m_values.m_in_display_none_subtree = value; }
@@ -2316,18 +2318,6 @@ public:
     void adopt_border_group(void* payload) { m_values.m_noninherited.border.adopt(payload); }
     void adopt_background_group(void* payload) { m_values.m_noninherited.background.adopt(payload); }
 
-    void set_aspect_ratio(AspectRatio aspect_ratio)
-    {
-        if (m_values.aspect_ratio() == aspect_ratio)
-            return;
-        m_values.m_noninherited.box.access().aspect_ratio = to_ffi_aspect_ratio(aspect_ratio);
-    }
-    void set_caret_color(ColorOrAuto caret_color)
-    {
-        if (m_values.m_inherited.ui->caret_color == caret_color)
-            return;
-        m_values.m_inherited.ui.access().caret_color = move(caret_color);
-    }
     void set_font_list(NonnullRefPtr<Gfx::FontCascadeList const> font_list)
     {
         // NB: Compare by value, not pointer: the font cascade list is rebuilt per element,
@@ -2441,37 +2431,11 @@ public:
             return;
         m_values.m_inherited.text.access().color = color;
     }
-    void set_color_style_value(StyleValue const* value)
-    {
-        if (m_values.m_inherited.text->color_style_value.data() == (value ? value->rust_style_value_data() : nullptr))
-            return;
-        m_values.m_inherited.text.access().color_style_value = retain_style_value_data(value);
-    }
-    void set_color_interpolation(ColorInterpolation color_interpolation)
-    {
-        if (m_values.m_inherited.svg->color_interpolation == color_interpolation)
-            return;
-        m_values.m_inherited.svg.access().color_interpolation = color_interpolation;
-    }
-    void set_color_interpolation_filters(ColorInterpolation color_interpolation_filters)
-    {
-        if (m_values.m_inherited.svg->color_interpolation_filters == color_interpolation_filters)
-            return;
-        m_values.m_inherited.svg.access().color_interpolation_filters = color_interpolation_filters;
-    }
     void set_color_scheme(PreferredColorScheme color_scheme)
     {
         if (m_values.m_inherited.ui->color_scheme == color_scheme)
             return;
         m_values.m_inherited.ui.access().color_scheme = color_scheme;
-    }
-    void set_color_schemes(Vector<Utf16FlyString> color_schemes, bool only)
-    {
-        if (m_values.m_inherited.ui->color_schemes == color_schemes && m_values.m_inherited.ui->color_scheme_only == only)
-            return;
-        auto& ui = m_values.m_inherited.ui.access();
-        ui.color_schemes = move(color_schemes);
-        ui.color_scheme_only = only;
     }
     void set_clip(Clip const& clip)
     {
@@ -2485,23 +2449,11 @@ public:
             return;
         m_values.m_noninherited.content_data.access().content = content;
     }
-    void set_computed_content(ComputedContentData content)
-    {
-        if (m_values.m_noninherited.content_data->computed_content == content)
-            return;
-        m_values.m_noninherited.content_data.access().computed_content = move(content);
-    }
     void set_content_visibility(ContentVisibility content_visibility)
     {
         if (m_values.m_inherited.box->content_visibility == to_underlying(content_visibility))
             return;
         m_values.m_inherited.box.access().content_visibility = to_underlying(content_visibility);
-    }
-    void set_cursor(Vector<CursorData> cursor)
-    {
-        if (m_values.m_inherited.ui->cursor == cursor)
-            return;
-        m_values.m_inherited.ui.access().cursor = move(cursor);
     }
     void set_image_rendering(ImageRendering value)
     {
@@ -2509,53 +2461,11 @@ public:
             return;
         m_values.m_inherited.box.access().image_rendering = to_underlying(value);
     }
-    void set_pointer_events(PointerEvents value)
-    {
-        if (m_values.m_inherited.ui->pointer_events == value)
-            return;
-        m_values.m_inherited.ui.access().pointer_events = value;
-    }
     void set_background_color(Color color)
     {
         if (m_values.m_noninherited.background->background_color == color)
             return;
         m_values.m_noninherited.background.access().background_color = color;
-    }
-    void set_background_color_style_value(StyleValue const& value)
-    {
-        if (m_values.m_noninherited.background->background_color_style_value.data() == value.rust_style_value_data())
-            return;
-        m_values.m_noninherited.background.access().background_color_style_value = retain_style_value_data(&value);
-    }
-    void set_background_color_clip(BackgroundBox box)
-    {
-        if (m_values.m_noninherited.background->background_color_clip == box)
-            return;
-        m_values.m_noninherited.background.access().background_color_clip = box;
-    }
-    void set_background_layers(Vector<BackgroundLayerData>&& layers)
-    {
-        if (m_values.m_noninherited.background->background_layers == layers)
-            return;
-        m_values.m_noninherited.background.access().background_layers = move(layers);
-    }
-    void set_mask_layers(Vector<BackgroundLayerData>&& layers)
-    {
-        if (m_values.m_noninherited.mask_data->mask_layers == layers)
-            return;
-        m_values.m_noninherited.mask_data.access().mask_layers = move(layers);
-    }
-    void set_mask_positions(Vector<Position> positions)
-    {
-        if (m_values.m_noninherited.mask_data->mask_positions == positions)
-            return;
-        m_values.m_noninherited.mask_data.access().mask_positions = move(positions);
-    }
-    void set_border_image(BorderImageData border_image)
-    {
-        if (m_values.m_noninherited.border->border_image == border_image)
-            return;
-        m_values.m_noninherited.border.access().border_image = move(border_image);
     }
     void set_float(Float value)
     {
@@ -2577,30 +2487,11 @@ public:
         box.has_z_index = value.has_value();
         box.z_index = value.value_or(0);
     }
-    void set_tab_size(Variant<CSSPixels, double> value)
-    {
-        bool const is_number = value.has<double>();
-        CSSPixels const length = is_number ? CSSPixels(0) : value.get<CSSPixels>();
-        double const number = is_number ? value.get<double>() : 0;
-        auto const& text = *m_values.m_inherited.text;
-        if (text.tab_size_is_number == is_number && text.tab_size_length == length && text.tab_size_number == number)
-            return;
-        auto& mutable_text = m_values.m_inherited.text.access();
-        mutable_text.tab_size_is_number = is_number;
-        mutable_text.tab_size_length = length;
-        mutable_text.tab_size_number = number;
-    }
     void set_text_align(TextAlign text_align)
     {
         if (m_values.m_inherited.text->text_align == text_align)
             return;
         m_values.m_inherited.text.access().text_align = text_align;
-    }
-    void set_text_justify(TextJustify text_justify)
-    {
-        if (m_values.m_inherited.text->text_justify == text_justify)
-            return;
-        m_values.m_inherited.text.access().text_justify = text_justify;
     }
     void set_text_decoration_line(Vector<TextDecorationLine> value)
     {
@@ -2614,12 +2505,6 @@ public:
             return;
         m_values.m_noninherited.text_reset.access().text_decoration_thickness = move(value);
     }
-    void set_text_decoration_skip_ink(TextDecorationSkipInk value)
-    {
-        if (m_values.m_inherited.text->text_decoration_skip_ink == value)
-            return;
-        m_values.m_inherited.text.access().text_decoration_skip_ink = value;
-    }
     void set_text_decoration_style(TextDecorationStyle value)
     {
         if (m_values.m_noninherited.text_reset->text_decoration_style == value)
@@ -2631,56 +2516,6 @@ public:
         if (m_values.m_noninherited.text_reset->text_decoration_color == value)
             return;
         m_values.m_noninherited.text_reset.access().text_decoration_color = value;
-    }
-    void set_text_transform(TextTransform value)
-    {
-        if (m_values.m_inherited.text->text_transform == value)
-            return;
-        m_values.m_inherited.text.access().text_transform = value;
-    }
-    void set_text_shadow(Vector<ShadowData>&& value)
-    {
-        if (m_values.m_inherited.text->text_shadow == value)
-            return;
-        m_values.m_inherited.text.access().text_shadow = move(value);
-    }
-    void set_text_indent(TextIndentData value)
-    {
-        if (m_values.m_inherited.text->text_indent == value)
-            return;
-        m_values.m_inherited.text.access().text_indent = move(value);
-    }
-    void set_text_wrap_mode(TextWrapMode value)
-    {
-        if (m_values.m_inherited.text->text_wrap_mode == value)
-            return;
-        m_values.m_inherited.text.access().text_wrap_mode = value;
-    }
-    void set_text_wrap_style(TextWrapStyle value)
-    {
-        if (m_values.m_inherited.text->text_wrap_style == value)
-            return;
-        m_values.m_inherited.text.access().text_wrap_style = value;
-    }
-    void set_text_underline_offset(TextUnderlineOffset value)
-    {
-        if (m_values.m_inherited.text->text_underline_offset == value)
-            return;
-        m_values.m_inherited.text.access().text_underline_offset = move(value);
-    }
-    void set_text_underline_position(TextUnderlinePosition value)
-    {
-        if (m_values.m_inherited.text->text_underline_position == value)
-            return;
-        m_values.m_inherited.text.access().text_underline_position = value;
-    }
-    void set_webkit_text_fill_color(Color value, bool is_current_color)
-    {
-        if (m_values.m_inherited.text->webkit_text_fill_color == value && m_values.m_inherited.text->webkit_text_fill_color_is_current_color == is_current_color)
-            return;
-        auto& text = m_values.m_inherited.text.access();
-        text.webkit_text_fill_color = value;
-        text.webkit_text_fill_color_is_current_color = is_current_color;
     }
     void set_position(Positioning position)
     {
@@ -2707,54 +2542,6 @@ public:
         }
         m_values.m_noninherited.anchor.access().position_anchor = move(value);
     }
-    void set_white_space_collapse(WhiteSpaceCollapse value)
-    {
-        if (m_values.m_inherited.text->white_space_collapse == value)
-            return;
-        m_values.m_inherited.text.access().white_space_collapse = value;
-    }
-    void set_word_spacing(CSSPixels value)
-    {
-        if (m_values.m_inherited.text->word_spacing == value)
-            return;
-        m_values.m_inherited.text.access().word_spacing = value;
-    }
-    void set_word_spacing_style_value(StyleValue const& value)
-    {
-        if (m_values.m_inherited.text->word_spacing_style_value.data() == value.rust_style_value_data())
-            return;
-        m_values.m_inherited.text.access().word_spacing_style_value = retain_style_value_data(&value);
-    }
-    void set_letter_spacing_style_value(StyleValue const& value)
-    {
-        if (m_values.m_inherited.text->letter_spacing_style_value.data() == value.rust_style_value_data())
-            return;
-        m_values.m_inherited.text.access().letter_spacing_style_value = retain_style_value_data(&value);
-    }
-    void set_word_break(WordBreak value)
-    {
-        if (m_values.m_inherited.text->word_break == value)
-            return;
-        m_values.m_inherited.text.access().word_break = value;
-    }
-    void set_overflow_wrap(OverflowWrap value)
-    {
-        if (m_values.m_inherited.text->overflow_wrap == value)
-            return;
-        m_values.m_inherited.text.access().overflow_wrap = value;
-    }
-    void set_orphans(u64 value)
-    {
-        if (m_values.m_inherited.text->orphans == value)
-            return;
-        m_values.m_inherited.text.access().orphans = value;
-    }
-    void set_widows(u64 value)
-    {
-        if (m_values.m_inherited.text->widows == value)
-            return;
-        m_values.m_inherited.text.access().widows = value;
-    }
     void set_font_variant_emoji(FontVariantEmoji value)
     {
         if (m_values.m_inherited.font->font_variant_emoji == value)
@@ -2768,11 +2555,8 @@ public:
         m_values.m_inherited.text.access().letter_spacing = value;
     }
     void set_width(Size value) { set_size(&ComputedValuesFFI::SizingValues::width, move(value)); }
-    void set_min_width(Size value) { set_size(&ComputedValuesFFI::SizingValues::min_width, move(value)); }
-    void set_max_width(Size value) { set_size(&ComputedValuesFFI::SizingValues::max_width, move(value)); }
     void set_height(Size value) { set_size(&ComputedValuesFFI::SizingValues::height, move(value)); }
     void set_min_height(Size value) { set_size(&ComputedValuesFFI::SizingValues::min_height, move(value)); }
-    void set_max_height(Size value) { set_size(&ComputedValuesFFI::SizingValues::max_height, move(value)); }
     void set_inset(LengthBox const& inset)
     {
         if (m_values.inset() == inset)
@@ -2784,24 +2568,6 @@ public:
         if (m_values.margin() == margin)
             return;
         set_length_box(m_values.m_noninherited.surround.access().margin, margin);
-    }
-    void set_scroll_margin(LengthBox value)
-    {
-        if (m_values.m_noninherited.misc->scroll_margin == value)
-            return;
-        m_values.m_noninherited.misc.access().scroll_margin = value;
-    }
-    void set_scroll_padding(LengthBox value)
-    {
-        if (m_values.m_noninherited.misc->scroll_padding == value)
-            return;
-        m_values.m_noninherited.misc.access().scroll_padding = value;
-    }
-    void set_overflow_clip_margin(OverflowClipMarginData overflow_clip_margin)
-    {
-        if (m_values.m_noninherited.misc->overflow_clip_margin == overflow_clip_margin)
-            return;
-        m_values.m_noninherited.misc.access().overflow_clip_margin = overflow_clip_margin;
     }
     void set_overflow_x(Overflow value)
     {
@@ -2815,24 +2581,6 @@ public:
             return;
         m_values.m_noninherited.box.access().overflow_y = to_underlying(value);
     }
-    void set_list_style_type(ListStyleType value)
-    {
-        if (m_values.m_inherited.list->list_style_type == value)
-            return;
-        m_values.m_inherited.list.access().list_style_type = move(value);
-    }
-    void set_list_style_position(ListStylePosition value)
-    {
-        if (m_values.m_inherited.list->list_style_position == value)
-            return;
-        m_values.m_inherited.list.access().list_style_position = value;
-    }
-    void set_list_style_image(RefPtr<AbstractImageStyleValue const> value)
-    {
-        if (m_values.m_inherited.list->list_style_image == value)
-            return;
-        m_values.m_inherited.list.access().list_style_image = move(value);
-    }
     void set_display(Display value)
     {
         if (m_values.display() == value)
@@ -2845,129 +2593,11 @@ public:
             return;
         m_values.m_noninherited.box.access().display_before_box_type_transformation = to_ffi_display(value);
     }
-    void set_backdrop_filter(Filter const& backdrop_filter)
-    {
-        if (m_values.m_noninherited.effects->backdrop_filter == backdrop_filter)
-            return;
-        m_values.m_noninherited.effects.access().backdrop_filter = backdrop_filter;
-    }
     void set_filter(Filter const& filter)
     {
         if (m_values.m_noninherited.effects->filter == filter)
             return;
         m_values.m_noninherited.effects.access().filter = filter;
-    }
-    void set_border_bottom_left_radius(BorderRadiusData value)
-    {
-        if (value.is_initial() && !m_values.m_noninherited.border->has_noninitial_border_radii)
-            return;
-        if (m_values.m_noninherited.border->border_bottom_left_radius == value && m_values.m_noninherited.border->has_noninitial_border_radii)
-            return;
-        auto& border = m_values.m_noninherited.border.access();
-        border.has_noninitial_border_radii = true;
-        border.border_bottom_left_radius = move(value);
-    }
-    void set_border_bottom_right_radius(BorderRadiusData value)
-    {
-        if (value.is_initial() && !m_values.m_noninherited.border->has_noninitial_border_radii)
-            return;
-        if (m_values.m_noninherited.border->border_bottom_right_radius == value && m_values.m_noninherited.border->has_noninitial_border_radii)
-            return;
-        auto& border = m_values.m_noninherited.border.access();
-        border.has_noninitial_border_radii = true;
-        border.border_bottom_right_radius = move(value);
-    }
-    void set_border_top_left_radius(BorderRadiusData value)
-    {
-        if (value.is_initial() && !m_values.m_noninherited.border->has_noninitial_border_radii)
-            return;
-        if (m_values.m_noninherited.border->border_top_left_radius == value && m_values.m_noninherited.border->has_noninitial_border_radii)
-            return;
-        auto& border = m_values.m_noninherited.border.access();
-        border.has_noninitial_border_radii = true;
-        border.border_top_left_radius = move(value);
-    }
-    void set_border_top_right_radius(BorderRadiusData value)
-    {
-        if (value.is_initial() && !m_values.m_noninherited.border->has_noninitial_border_radii)
-            return;
-        if (m_values.m_noninherited.border->border_top_right_radius == value && m_values.m_noninherited.border->has_noninitial_border_radii)
-            return;
-        auto& border = m_values.m_noninherited.border.access();
-        border.has_noninitial_border_radii = true;
-        border.border_top_right_radius = move(value);
-    }
-    void set_corner_bottom_left_shape(double value)
-    {
-        if (m_values.m_noninherited.border->corner_bottom_left_shape == value)
-            return;
-        m_values.m_noninherited.border.access().corner_bottom_left_shape = value;
-    }
-    void set_corner_bottom_right_shape(double value)
-    {
-        if (m_values.m_noninherited.border->corner_bottom_right_shape == value)
-            return;
-        m_values.m_noninherited.border.access().corner_bottom_right_shape = value;
-    }
-    void set_corner_top_left_shape(double value)
-    {
-        if (m_values.m_noninherited.border->corner_top_left_shape == value)
-            return;
-        m_values.m_noninherited.border.access().corner_top_left_shape = value;
-    }
-    void set_corner_top_right_shape(double value)
-    {
-        if (m_values.m_noninherited.border->corner_top_right_shape == value)
-            return;
-        m_values.m_noninherited.border.access().corner_top_right_shape = value;
-    }
-    void set_border_left(BorderData value)
-    {
-        if (m_values.m_noninherited.border->border_left == value)
-            return;
-        m_values.m_noninherited.border.access().border_left = value;
-    }
-    void set_border_top(BorderData value)
-    {
-        if (m_values.m_noninherited.border->border_top == value)
-            return;
-        m_values.m_noninherited.border.access().border_top = value;
-    }
-    void set_border_right(BorderData value)
-    {
-        if (m_values.m_noninherited.border->border_right == value)
-            return;
-        m_values.m_noninherited.border.access().border_right = value;
-    }
-    void set_border_bottom(BorderData value)
-    {
-        if (m_values.m_noninherited.border->border_bottom == value)
-            return;
-        m_values.m_noninherited.border.access().border_bottom = value;
-    }
-    void set_border_left_color_style_value(StyleValue const& value)
-    {
-        if (m_values.m_noninherited.border->border_left_color_style_value.data() == value.rust_style_value_data())
-            return;
-        m_values.m_noninherited.border.access().border_left_color_style_value = retain_style_value_data(&value);
-    }
-    void set_border_top_color_style_value(StyleValue const& value)
-    {
-        if (m_values.m_noninherited.border->border_top_color_style_value.data() == value.rust_style_value_data())
-            return;
-        m_values.m_noninherited.border.access().border_top_color_style_value = retain_style_value_data(&value);
-    }
-    void set_border_right_color_style_value(StyleValue const& value)
-    {
-        if (m_values.m_noninherited.border->border_right_color_style_value.data() == value.rust_style_value_data())
-            return;
-        m_values.m_noninherited.border.access().border_right_color_style_value = retain_style_value_data(&value);
-    }
-    void set_border_bottom_color_style_value(StyleValue const& value)
-    {
-        if (m_values.m_noninherited.border->border_bottom_color_style_value.data() == value.rust_style_value_data())
-            return;
-        m_values.m_noninherited.border.access().border_bottom_color_style_value = retain_style_value_data(&value);
     }
     void set_border_top_color(Color value)
     {
@@ -2993,53 +2623,11 @@ public:
             return;
         m_values.m_noninherited.border.access().border_left.color = value;
     }
-    void set_border_left_computed_width(CSSPixels value)
-    {
-        if (m_values.m_noninherited.border->border_left_computed_width == value)
-            return;
-        m_values.m_noninherited.border.access().border_left_computed_width = value;
-    }
-    void set_border_top_computed_width(CSSPixels value)
-    {
-        if (m_values.m_noninherited.border->border_top_computed_width == value)
-            return;
-        m_values.m_noninherited.border.access().border_top_computed_width = value;
-    }
-    void set_border_right_computed_width(CSSPixels value)
-    {
-        if (m_values.m_noninherited.border->border_right_computed_width == value)
-            return;
-        m_values.m_noninherited.border.access().border_right_computed_width = value;
-    }
-    void set_border_bottom_computed_width(CSSPixels value)
-    {
-        if (m_values.m_noninherited.border->border_bottom_computed_width == value)
-            return;
-        m_values.m_noninherited.border.access().border_bottom_computed_width = value;
-    }
     void set_flex_direction(FlexDirection value)
     {
         if (m_values.flex_direction() == value)
             return;
         m_values.m_noninherited.alignment.access().flex_direction = to_underlying(value);
-    }
-    void set_flex_wrap(FlexWrap value)
-    {
-        if (m_values.flex_wrap() == value)
-            return;
-        m_values.m_noninherited.alignment.access().flex_wrap = to_underlying(value);
-    }
-    void set_flex_grow(double value)
-    {
-        if (m_values.m_noninherited.alignment->flex_grow == value)
-            return;
-        m_values.m_noninherited.alignment.access().flex_grow = value;
-    }
-    void set_flex_shrink(double value)
-    {
-        if (m_values.m_noninherited.alignment->flex_shrink == value)
-            return;
-        m_values.m_noninherited.alignment.access().flex_shrink = value;
     }
     void set_order(i32 value)
     {
@@ -3047,47 +2635,11 @@ public:
             return;
         m_values.m_noninherited.alignment.access().order = value;
     }
-    void set_accent_color(ColorOrAuto value)
-    {
-        if (m_values.m_inherited.ui->accent_color == value)
-            return;
-        m_values.m_inherited.ui.access().accent_color = move(value);
-    }
-    void set_align_content(AlignContent value)
-    {
-        if (m_values.align_content() == value)
-            return;
-        m_values.m_noninherited.alignment.access().align_content = to_underlying(value);
-    }
-    void set_align_items(AlignItems value)
-    {
-        if (m_values.align_items() == value)
-            return;
-        m_values.m_noninherited.alignment.access().align_items = to_underlying(value);
-    }
     void set_align_self(AlignSelf value)
     {
         if (m_values.align_self() == value)
             return;
         m_values.m_noninherited.alignment.access().align_self = to_underlying(value);
-    }
-    void set_appearance(Appearance value)
-    {
-        if (m_values.m_noninherited.misc->appearance == value)
-            return;
-        m_values.m_noninherited.misc.access().appearance = value;
-    }
-    void set_computed_appearance(Appearance value)
-    {
-        if (m_values.m_noninherited.misc->computed_appearance == value)
-            return;
-        m_values.m_noninherited.misc.access().computed_appearance = value;
-    }
-    void set_opacity(float value)
-    {
-        if (m_values.m_noninherited.effects->opacity == value)
-            return;
-        m_values.m_noninherited.effects.access().opacity = value;
     }
     void set_justify_content(JustifyContent value)
     {
@@ -3095,23 +2647,11 @@ public:
             return;
         m_values.m_noninherited.alignment.access().justify_content = to_underlying(value);
     }
-    void set_justify_items(JustifyItems value)
-    {
-        if (m_values.justify_items() == value)
-            return;
-        m_values.m_noninherited.alignment.access().justify_items = to_underlying(value);
-    }
     void set_justify_self(JustifySelf value)
     {
         if (m_values.justify_self() == value)
             return;
         m_values.m_noninherited.alignment.access().justify_self = to_underlying(value);
-    }
-    void set_box_shadow(Vector<ShadowData>&& value)
-    {
-        if (m_values.m_noninherited.effects->box_shadow == value)
-            return;
-        m_values.m_noninherited.effects.access().box_shadow = move(value);
     }
     void set_rotate(RefPtr<TransformationStyleValue const> value)
     {
@@ -3125,65 +2665,11 @@ public:
             return;
         m_values.m_noninherited.transform.access().scale = move(value);
     }
-    void set_perspective(Optional<CSSPixels> value)
-    {
-        if (m_values.m_noninherited.transform->perspective == value)
-            return;
-        m_values.m_noninherited.transform.access().perspective = move(value);
-    }
-    void set_perspective_origin(Position value)
-    {
-        if (m_values.m_noninherited.transform->perspective_origin == value)
-            return;
-        m_values.m_noninherited.transform.access().perspective_origin = move(value);
-    }
-    void set_transformations(Vector<NonnullRefPtr<TransformationStyleValue const>> value)
-    {
-        if (m_values.m_noninherited.transform->transformations == value)
-            return;
-        m_values.m_noninherited.transform.access().transformations = move(value);
-    }
-    void set_resolved_transform_list(Vector<ResolvedTransform> value)
-    {
-        if (m_values.m_noninherited.transform->resolved_transform_list == value)
-            return;
-        m_values.m_noninherited.transform.access().resolved_transform_list = move(value);
-    }
-    void set_transform_box(TransformBox value)
-    {
-        if (m_values.m_noninherited.transform->transform_box == value)
-            return;
-        m_values.m_noninherited.transform.access().transform_box = value;
-    }
-    void set_transform_origin(TransformOrigin value)
-    {
-        if (m_values.m_noninherited.transform->transform_origin == value)
-            return;
-        m_values.m_noninherited.transform.access().transform_origin = value;
-    }
-    void set_transform_style(TransformStyle value)
-    {
-        if (m_values.m_noninherited.transform->transform_style == value)
-            return;
-        m_values.m_noninherited.transform.access().transform_style = value;
-    }
-    void set_backface_visibility(BackfaceVisibility value)
-    {
-        if (m_values.m_noninherited.transform->backface_visibility == value)
-            return;
-        m_values.m_noninherited.transform.access().backface_visibility = value;
-    }
     void set_translate(RefPtr<TransformationStyleValue const> value)
     {
         if (m_values.m_noninherited.transform->translate == value)
             return;
         m_values.m_noninherited.transform.access().translate = move(value);
-    }
-    void set_box_sizing(BoxSizing value)
-    {
-        if (m_values.m_noninherited.box->box_sizing == to_underlying(value))
-            return;
-        m_values.m_noninherited.box.access().box_sizing = to_underlying(value);
     }
     void set_vertical_align(Variant<VerticalAlign, LengthPercentage> value)
     {
@@ -3226,18 +2712,6 @@ public:
             return;
         ComputedValuesFFI::rust_grid_values_reset_placements_to_auto(&m_values.m_noninherited.grid.access());
     }
-    void set_column_span(ColumnSpan column_span)
-    {
-        if (m_values.m_noninherited.misc->column_span == column_span)
-            return;
-        m_values.m_noninherited.misc.access().column_span = column_span;
-    }
-    void set_column_height(Size column_height)
-    {
-        if (m_values.m_noninherited.misc->column_height == column_height)
-            return;
-        m_values.m_noninherited.misc.access().column_height = column_height;
-    }
     void set_border_collapse(BorderCollapse const border_collapse)
     {
         if (m_values.m_inherited.table->border_collapse == to_underlying(border_collapse))
@@ -3250,35 +2724,11 @@ public:
             return;
         m_values.m_inherited.table.access().empty_cells = to_underlying(empty_cells);
     }
-    void set_quotes(QuotesData value)
-    {
-        if (m_values.m_inherited.list->quotes == value)
-            return;
-        m_values.m_inherited.list.access().quotes = move(value);
-    }
-    void set_object_fit(ObjectFit value)
-    {
-        if (m_values.m_noninherited.misc->object_fit == value)
-            return;
-        m_values.m_noninherited.misc.access().object_fit = value;
-    }
-    void set_object_position(Position value)
-    {
-        if (m_values.m_noninherited.misc->object_position == value)
-            return;
-        m_values.m_noninherited.misc.access().object_position = move(value);
-    }
     void set_direction(Direction value)
     {
         if (m_values.m_inherited.box->direction == to_underlying(value))
             return;
         m_values.m_inherited.box.access().direction = to_underlying(value);
-    }
-    void set_dominant_baseline(Optional<BaselineMetric> value)
-    {
-        if (m_values.m_inherited.svg->dominant_baseline == value)
-            return;
-        m_values.m_inherited.svg.access().dominant_baseline = value;
     }
     void set_writing_mode(WritingMode value)
     {
@@ -3286,222 +2736,12 @@ public:
             return;
         m_values.m_inherited.box.access().writing_mode = to_underlying(value);
     }
-    void set_user_select(UserSelect value)
-    {
-        if (m_values.m_noninherited.misc->user_select == value)
-            return;
-        m_values.m_noninherited.misc.access().user_select = value;
-    }
-    void set_isolation(Isolation value)
-    {
-        if (m_values.m_noninherited.effects->isolation == value)
-            return;
-        m_values.m_noninherited.effects.access().isolation = value;
-    }
-    void set_contain(Containment value)
-    {
-        if (m_values.contain() == value)
-            return;
-        auto& box = m_values.m_noninherited.box.access();
-        box.size_containment = value.size_containment;
-        box.inline_size_containment = value.inline_size_containment;
-        box.layout_containment = value.layout_containment;
-        box.style_containment = value.style_containment;
-        box.paint_containment = value.paint_containment;
-    }
-    void set_container_name(Vector<Utf16FlyString> value)
-    {
-        auto const& stored = m_values.m_noninherited.box->container_name;
-        auto stored_names_equal_value = [&] {
-            if (stored.length != value.size())
-                return false;
-            for (size_t i = 0; i < stored.length; ++i) {
-                if (Utf16FlyString::from_raw(stored.pointer[i].raw) != value[i])
-                    return false;
-            }
-            return true;
-        };
-        if (stored_names_equal_value())
-            return;
-        auto leaked_raws = to_leaked_fly_string_raws(value);
-        ComputedValuesFFI::rust_replace_computed_fly_string_list(
-            &m_values.m_noninherited.box.access().container_name, leaked_raws.data(), leaked_raws.size());
-    }
-    void set_container_type(ContainerType value)
-    {
-        if (m_values.container_type() == value)
-            return;
-        auto& box = m_values.m_noninherited.box.access();
-        box.is_size_container = value.is_size_container;
-        box.is_inline_size_container = value.is_inline_size_container;
-        box.is_scroll_state_container = value.is_scroll_state_container;
-    }
-    void set_mix_blend_mode(MixBlendMode value)
-    {
-        if (m_values.m_noninherited.effects->mix_blend_mode == value)
-            return;
-        m_values.m_noninherited.effects.access().mix_blend_mode = value;
-    }
-    void set_view_transition_name(Optional<Utf16FlyString> value)
-    {
-        if (m_values.m_noninherited.misc->view_transition_name == value)
-            return;
-        m_values.m_noninherited.misc.access().view_transition_name = move(value);
-    }
-    void set_touch_action(TouchActionData value)
-    {
-        if (m_values.m_noninherited.misc->touch_action == value)
-            return;
-        m_values.m_noninherited.misc.access().touch_action = value;
-    }
-
-    void set_fill(Optional<SVGPaint> value)
-    {
-        if (m_values.m_inherited.svg->fill == value)
-            return;
-        m_values.m_inherited.svg.access().fill = move(value);
-    }
-    void set_stroke(Optional<SVGPaint> value)
-    {
-        if (m_values.m_inherited.svg->stroke == value)
-            return;
-        m_values.m_inherited.svg.access().stroke = move(value);
-    }
-    void set_fill_rule(FillRule value)
-    {
-        if (m_values.m_inherited.svg->fill_rule == value)
-            return;
-        m_values.m_inherited.svg.access().fill_rule = value;
-    }
-    void set_fill_opacity(float value)
-    {
-        if (m_values.m_inherited.svg->fill_opacity == value)
-            return;
-        m_values.m_inherited.svg.access().fill_opacity = value;
-    }
-    void set_stroke_dasharray(Vector<Variant<LengthPercentage, float>> value)
-    {
-        if (m_values.m_inherited.svg->stroke_dasharray == value)
-            return;
-        m_values.m_inherited.svg.access().stroke_dasharray = move(value);
-    }
-    void set_stroke_dashoffset(LengthPercentage value)
-    {
-        if (m_values.m_inherited.svg->stroke_dashoffset == value)
-            return;
-        m_values.m_inherited.svg.access().stroke_dashoffset = move(value);
-    }
-    void set_stroke_linecap(StrokeLinecap value)
-    {
-        if (m_values.m_inherited.svg->stroke_linecap == value)
-            return;
-        m_values.m_inherited.svg.access().stroke_linecap = value;
-    }
-    void set_stroke_linejoin(StrokeLinejoin value)
-    {
-        if (m_values.m_inherited.svg->stroke_linejoin == value)
-            return;
-        m_values.m_inherited.svg.access().stroke_linejoin = value;
-    }
-    void set_stroke_miterlimit(double value)
-    {
-        if (m_values.m_inherited.svg->stroke_miterlimit == value)
-            return;
-        m_values.m_inherited.svg.access().stroke_miterlimit = value;
-    }
-    void set_stroke_opacity(float value)
-    {
-        if (m_values.m_inherited.svg->stroke_opacity == value)
-            return;
-        m_values.m_inherited.svg.access().stroke_opacity = value;
-    }
-    void set_stroke_width(LengthPercentage value)
-    {
-        if (m_values.m_inherited.svg->stroke_width == value)
-            return;
-        m_values.m_inherited.svg.access().stroke_width = move(value);
-    }
-    void set_text_anchor(TextAnchor value)
-    {
-        if (m_values.m_inherited.svg->text_anchor == value)
-            return;
-        m_values.m_inherited.svg.access().text_anchor = value;
-    }
     void set_outline_color(Color value)
     {
         if (m_values.m_noninherited.misc->outline_color == value)
             return;
         m_values.m_noninherited.misc.access().outline_color = value;
     }
-    void set_outline_offset(CSSPixels value)
-    {
-        if (m_values.m_noninherited.misc->outline_offset == value)
-            return;
-        m_values.m_noninherited.misc.access().outline_offset = move(value);
-    }
-    void set_outline_offset_style_value(StyleValue const& value)
-    {
-        if (m_values.m_noninherited.misc->outline_offset_style_value == &value)
-            return;
-        m_values.m_noninherited.misc.access().outline_offset_style_value = value;
-    }
-    void set_outline_style(OutlineStyle value)
-    {
-        if (m_values.m_noninherited.misc->outline_style == value)
-            return;
-        m_values.m_noninherited.misc.access().outline_style = value;
-    }
-    void set_outline_width(CSSPixels value)
-    {
-        if (m_values.m_noninherited.misc->outline_width == value)
-            return;
-        m_values.m_noninherited.misc.access().outline_width = value;
-    }
-    void set_mask(MaskReference value)
-    {
-        if (m_values.m_noninherited.mask_data->mask == value)
-            return;
-        m_values.m_noninherited.mask_data.access().mask = value;
-    }
-    void set_mask_type(MaskType value)
-    {
-        if (m_values.m_noninherited.mask_data->mask_type == value)
-            return;
-        m_values.m_noninherited.mask_data.access().mask_type = value;
-    }
-    void set_mask_image(AbstractImageStyleValue const& value)
-    {
-        if (m_values.m_noninherited.mask_data->mask_image == &value)
-            return;
-        m_values.m_noninherited.mask_data.access().mask_image = value;
-    }
-    void set_clip_path(Optional<ClipPathReference> value)
-    {
-        if (m_values.m_noninherited.mask_data->clip_path == value)
-            return;
-        m_values.m_noninherited.mask_data.access().clip_path = move(value);
-    }
-    void set_clip_rule(ClipRule value)
-    {
-        if (m_values.m_inherited.svg->clip_rule == value)
-            return;
-        m_values.m_inherited.svg.access().clip_rule = value;
-    }
-    void set_paint_order(PaintOrderList value)
-    {
-        if (m_values.m_inherited.svg->paint_order == value)
-            return;
-        m_values.m_inherited.svg.access().paint_order = value;
-    }
-    void set_paint_order_serialization(u8 length, bool is_normal)
-    {
-        if (m_values.m_inherited.svg->paint_order_serialization_length == length && m_values.m_inherited.svg->paint_order_is_normal == is_normal)
-            return;
-        auto& svg = m_values.m_inherited.svg.access();
-        svg.paint_order_serialization_length = length;
-        svg.paint_order_is_normal = is_normal;
-    }
-
     void set_math_shift(MathShift value)
     {
         if (m_values.m_inherited.font->math_shift == value)
@@ -3521,85 +2761,11 @@ public:
         m_values.m_inherited.font.access().math_depth = value;
     }
 
-    void set_scroll_behavior(ScrollBehavior value)
-    {
-        if (m_values.m_noninherited.misc->scroll_behavior == value)
-            return;
-        m_values.m_noninherited.misc.access().scroll_behavior = value;
-    }
-    void set_scrollbar_color(ScrollbarColorData value)
-    {
-        if (m_values.m_inherited.ui->scrollbar_color == value)
-            return;
-        m_values.m_inherited.ui.access().scrollbar_color = value;
-    }
-    void set_scrollbar_gutter(ScrollbarGutter value)
-    {
-        if (m_values.m_noninherited.misc->scrollbar_gutter == value)
-            return;
-        m_values.m_noninherited.misc.access().scrollbar_gutter = value;
-    }
     void set_scrollbar_width(ScrollbarWidth value)
     {
         if (m_values.m_noninherited.misc->scrollbar_width == value)
             return;
         m_values.m_noninherited.misc.access().scrollbar_width = value;
-    }
-    void set_resize(Resize value)
-    {
-        if (m_values.m_noninherited.box->resize == to_underlying(value))
-            return;
-        m_values.m_noninherited.box.access().resize = to_underlying(value);
-    }
-    void set_shape_image_threshold(double value)
-    {
-        if (m_values.m_noninherited.misc->shape_image_threshold == value)
-            return;
-        m_values.m_noninherited.misc.access().shape_image_threshold = value;
-    }
-    void set_shape_margin(LengthPercentage value)
-    {
-        if (m_values.m_noninherited.misc->shape_margin == value)
-            return;
-        m_values.m_noninherited.misc.access().shape_margin = move(value);
-    }
-    void set_shape_outside(ShapeOutsideData value)
-    {
-        if (m_values.m_noninherited.misc->shape_outside == value)
-            return;
-        m_values.m_noninherited.misc.access().shape_outside = move(value);
-    }
-    void set_shape_rendering(ShapeRendering value)
-    {
-        if (m_values.m_inherited.svg->shape_rendering == value)
-            return;
-        m_values.m_inherited.svg.access().shape_rendering = value;
-    }
-
-    void set_counter_increment(Vector<CounterData> value)
-    {
-        if (m_values.m_noninherited.content_data->counter_increment == value)
-            return;
-        m_values.m_noninherited.content_data.access().counter_increment = move(value);
-    }
-    void set_counter_reset(Vector<CounterData> value)
-    {
-        if (m_values.m_noninherited.content_data->counter_reset == value)
-            return;
-        m_values.m_noninherited.content_data.access().counter_reset = move(value);
-    }
-    void set_counter_set(Vector<CounterData> value)
-    {
-        if (m_values.m_noninherited.content_data->counter_set == value)
-            return;
-        m_values.m_noninherited.content_data.access().counter_set = move(value);
-    }
-
-    void set_will_change(WillChange value)
-    {
-        if (m_values.m_noninherited.misc->will_change == value)
-            return;
-        m_values.m_noninherited.misc.access().will_change = move(value);
     }
 
 private:

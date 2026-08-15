@@ -11,8 +11,8 @@
 #include <LibGC/Weak.h>
 #include <LibGfx/Bitmap.h>
 #include <LibWeb/ARIA/Roles.h>
-#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>

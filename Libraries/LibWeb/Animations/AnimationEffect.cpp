@@ -11,7 +11,8 @@
 #include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Bindings/AnimationEffect.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
-#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/ComputedStyleWorkingSet.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -29,7 +30,7 @@ GC_DEFINE_ALLOCATOR(AnimationEffect);
 
 AnimationUpdateContext::ElementData::ElementData() = default;
 
-AnimationUpdateContext::ElementData::ElementData(RefPtr<CSS::AnimatedProperties const> animated_properties_before_update, RefPtr<CSS::ComputedProperties> target_style)
+AnimationUpdateContext::ElementData::ElementData(RefPtr<CSS::AnimatedProperties const> animated_properties_before_update, RefPtr<CSS::ComputedStyleWorkingSet> target_style)
     : animated_properties_before_update(move(animated_properties_before_update))
     , target_style(move(target_style))
 {
@@ -893,7 +894,7 @@ AnimationUpdateContext::~AnimationUpdateContext()
         });
         effects_to_collect.extend(it.value.effects);
         if (!effects_to_collect.is_empty())
-            target->document().style_computer().collect_animations_into(element, effects_to_collect.span(), *style);
+            target->document().style_computer().collect_animations_into(element, effects_to_collect.span(), *style, CSS::StyleComputer::AnimationRefresh::Yes);
         auto animated_properties_after_update = style->animated_properties_snapshot();
         auto animated_property_invalidation = compute_required_invalidation_for_animated_properties(it.value.animated_properties_before_update.ptr(), animated_properties_after_update.ptr(), element);
         auto invalidation = animated_property_invalidation.invalidation;

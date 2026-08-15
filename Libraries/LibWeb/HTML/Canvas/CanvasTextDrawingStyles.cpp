@@ -6,9 +6,10 @@
  */
 
 #include "CanvasTextDrawingStyles.h"
-#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>

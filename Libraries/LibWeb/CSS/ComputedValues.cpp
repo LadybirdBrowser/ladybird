@@ -5,7 +5,8 @@
  */
 
 #include <AK/AnyOf.h>
-#include <LibWeb/CSS/ComputedProperties.h>
+#include <AK/Utf16StringBuilder.h>
+#include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/GridTrackPlacement.h>
 #include <LibWeb/CSS/GridTrackSize.h>
@@ -242,7 +243,7 @@ static void assemble_anchor_group_payload(void* payload_pointer, void const* dat
 // wrapper mints through property(), the color fallback arm for values the
 // core could not resolve, and style-scope lookups.
 struct TableGroupAssemblerContext {
-    ComputedProperties const& computed_style;
+    ComputedStyleWorkingSet const& computed_style;
     StyleScope const& style_scope;
     ColorResolutionContext const& color_resolution_context;
 };
@@ -2136,17 +2137,17 @@ static void assemble_anchor_group_payload(void* payload_pointer, void const* dat
     };
 }
 
-NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context, ComputedValues const* inherit_parent)
+NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedStyleWorkingSet const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context, ComputedValues const* inherit_parent)
 {
     return create_internal(computed_style, document, style_scope, move(color_resolution_context), inherit_parent, nullptr, all_style_groups);
 }
 
-NonnullRefPtr<ComputedValues const> ComputedValues::create_over_base(ComputedProperties const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context, ComputedValues const& base, u32 groups_to_apply)
+NonnullRefPtr<ComputedValues const> ComputedValues::create_over_base(ComputedStyleWorkingSet const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context, ComputedValues const& base, u32 groups_to_apply)
 {
     return create_internal(computed_style, document, style_scope, move(color_resolution_context), nullptr, &base, groups_to_apply);
 }
 
-NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedProperties const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context, ComputedValues const* inherit_parent, ComputedValues const* base, u32 groups_to_apply)
+NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedStyleWorkingSet const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context, ComputedValues const* inherit_parent, ComputedValues const* base, u32 groups_to_apply)
 {
     // A group outside `groups_to_apply` keeps the base's payload: its build is skipped and it counts
     // as adopted, so the guarded setters below leave it alone. The caller warrants that every
@@ -2412,11 +2413,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedProp
         computed_values.set_direction(computed_style.direction());
     if (!inherited_box_adopted)
         computed_values.set_writing_mode(computed_style.writing_mode());
-    for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
-        auto property_id = static_cast<PropertyID>(i);
-        computed_values.set_property_important(property_id, computed_style.is_property_important(property_id));
-        computed_values.set_property_inherited(property_id, computed_style.is_property_inherited(property_id));
-    }
+    computed_values.set_property_flag_bitmaps(computed_style.property_importance_bitmap(), computed_style.property_inheritance_bitmap());
     computed_values.set_depends_on_viewport_metrics(computed_style.depends_on_viewport_metrics());
     computed_values.set_font_metrics_depend_on_viewport_metrics(computed_style.font_metrics_depend_on_viewport_metrics());
     computed_values.set_in_display_none_subtree(computed_style.in_display_none_subtree());
@@ -2427,11 +2424,456 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedProp
             pseudo_element_styles |= 1ull << i;
     }
     computed_values.set_pseudo_element_styles(pseudo_element_styles);
-    computed_values.set_inheritance_dependent_specified_values(computed_style.inheritance_dependent_specified_values());
     computed_values.set_raw_cascaded_font_size(computed_style.raw_cascaded_font_size());
+    // The drive records its inheritance-dependent specified values on the table; the style
+    // takes owned wrappers, because its own table reference can later be canonicalized onto a
+    // value-equal donor table whose recorded values are not this style's.
+    HashMap<PropertyID, NonnullRefPtr<StyleValue const>> inheritance_dependent_specified_values;
+    for (auto const& entry : computed_style.inheritance_dependent_value_span()) {
+        inheritance_dependent_specified_values.set(
+            static_cast<PropertyID>(entry.property),
+            StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(entry.value))));
+    }
+    computed_values.set_inheritance_dependent_specified_values(move(inheritance_dependent_specified_values));
     computed_values.set_computed_longhand_table(computed_style.computed_longhand_table());
 
     return move(builder).build();
+}
+
+ComputedValues::Statistics ComputedValues::s_statistics;
+
+ComputedValues::ComputedValues()
+{
+    ++s_statistics.live_instance_count;
+    ++s_statistics.total_instances_created;
+}
+
+ComputedValues::ComputedValues(BorrowedStyleRecord)
+    : m_is_style_record_view(true)
+{
+    m_ref_count = 0;
+}
+
+ComputedValues::~ComputedValues()
+{
+    clear_computed_longhand_table();
+    if (!m_is_style_record_view)
+        --s_statistics.live_instance_count;
+}
+
+void ComputedValues::adopt_computed_longhand_table(void const* table)
+{
+    if (!table) {
+        clear_computed_longhand_table();
+        return;
+    }
+    // NB: Retain before releasing, so adopting the table this style already holds stays safe.
+    auto const* typed_table = ComputedValuesFFI::rust_computed_longhand_table_retain(static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(table));
+    clear_computed_longhand_table();
+    m_computed_longhand_table = typed_table;
+    m_longhand_values = { ComputedValuesFFI::rust_computed_longhand_table_values(typed_table), number_of_longhand_properties };
+}
+
+void ComputedValues::clear_computed_longhand_table()
+{
+    if (m_computed_longhand_table)
+        ComputedValuesFFI::rust_computed_longhand_table_release(const_cast<ComputedValuesFFI::ComputedLonghandTable*>(static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(m_computed_longhand_table)));
+    m_computed_longhand_table = nullptr;
+    m_longhand_values = {};
+}
+
+void ComputedValues::copy_computed_longhand_table_from(ComputedValues const& other)
+{
+    if (other.m_computed_longhand_table) {
+        adopt_computed_longhand_table(other.m_computed_longhand_table);
+        return;
+    }
+    clear_computed_longhand_table();
+    if (other.m_longhand_values.is_empty())
+        return;
+    auto* table = ComputedValuesFFI::rust_computed_longhand_table_create();
+    ComputedValuesFFI::rust_computed_longhand_table_copy_from_values(table, other.m_longhand_values.data(), other.m_longhand_values.size());
+    ComputedValuesFFI::rust_computed_longhand_table_freeze(table);
+    // The freshly created table already carries the one reference this style owns.
+    m_computed_longhand_table = table;
+    m_longhand_values = { ComputedValuesFFI::rust_computed_longhand_table_values(table), number_of_longhand_properties };
+}
+
+void ComputedValues::adopt_swapped_computed_longhand_table(ComputedValues const& old_values, ComputedValues const& inherited_source)
+{
+    auto old_longhand_values = old_values.computed_longhand_values();
+    auto parent_longhand_values = inherited_source.computed_longhand_values();
+    if (old_longhand_values.is_empty() || parent_longhand_values.is_empty()) {
+        clear_computed_longhand_table();
+        return;
+    }
+    auto* table = ComputedValuesFFI::rust_computed_longhand_table_create();
+    ComputedValuesFFI::rust_computed_longhand_table_copy_from_values(table, old_longhand_values.data(), old_longhand_values.size());
+    for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
+        auto property_id = static_cast<PropertyID>(i);
+        if (!is_inherited_property(property_id))
+            continue;
+        if (auto const* data = parent_longhand_values[i - to_underlying(first_longhand_property_id)])
+            ComputedValuesFFI::rust_computed_longhand_table_set(table, i, data, -1);
+    }
+    ComputedValuesFFI::rust_computed_longhand_table_freeze(table);
+    clear_computed_longhand_table();
+    // The freshly created table already carries the one reference this style owns.
+    m_computed_longhand_table = table;
+    m_longhand_values = { ComputedValuesFFI::rust_computed_longhand_table_values(table), number_of_longhand_properties };
+}
+
+void ComputedValues::Mutator::set_animated_properties(AnimatedProperties const* value)
+{
+    m_values.m_animated_properties = value;
+}
+
+RefPtr<AnimatedProperties const> ComputedValues::animated_properties_snapshot() const
+{
+    return m_animated_properties;
+}
+
+RefPtr<StyleValue const> ComputedValues::style_value_from_handle(PropertyID property_id, RustStyleValueHandle const& handle) const
+{
+    if (!handle) {
+        m_style_value_cache.remove(property_id);
+        return nullptr;
+    }
+    if (auto it = m_style_value_cache.find(property_id); it != m_style_value_cache.end() && it->value->rust_style_value_data() == handle.data())
+        return it->value;
+    auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(handle.data()));
+    m_style_value_cache.set(property_id, value);
+    return value;
+}
+
+RustStyleValueHandle const* ComputedValues::stored_style_value_handle(PropertyID property_id) const
+{
+    auto from_ffi_handle = [](ComputedValuesFFI::ComputedStyleValueHandle const& handle) -> RustStyleValueHandle const* {
+        static_assert(sizeof(RustStyleValueHandle) == sizeof(handle));
+        return reinterpret_cast<RustStyleValueHandle const*>(&handle);
+    };
+    auto non_empty = [](RustStyleValueHandle const* handle) -> RustStyleValueHandle const* {
+        return (handle && *handle) ? handle : nullptr;
+    };
+    switch (property_id) {
+    case PropertyID::Cx:
+        return non_empty(from_ffi_handle(m_noninherited.svg_reset->cx));
+    case PropertyID::Cy:
+        return non_empty(from_ffi_handle(m_noninherited.svg_reset->cy));
+    case PropertyID::D:
+        return non_empty(from_ffi_handle(m_noninherited.svg_reset->d));
+    case PropertyID::GridAutoColumns:
+        return non_empty(from_ffi_handle(m_noninherited.grid->grid_auto_columns_style_value));
+    case PropertyID::GridAutoRows:
+        return non_empty(from_ffi_handle(m_noninherited.grid->grid_auto_rows_style_value));
+    case PropertyID::GridColumnEnd:
+        return non_empty(from_ffi_handle(m_noninherited.grid->grid_column_end_style_value));
+    case PropertyID::GridColumnStart:
+        return non_empty(from_ffi_handle(m_noninherited.grid->grid_column_start_style_value));
+    case PropertyID::GridRowEnd:
+        return non_empty(from_ffi_handle(m_noninherited.grid->grid_row_end_style_value));
+    case PropertyID::GridRowStart:
+        return non_empty(from_ffi_handle(m_noninherited.grid->grid_row_start_style_value));
+    case PropertyID::GridTemplateAreas:
+        return non_empty(from_ffi_handle(m_noninherited.grid->grid_template_areas_style_value));
+    case PropertyID::GridTemplateColumns:
+        return non_empty(from_ffi_handle(m_noninherited.grid->grid_template_columns_style_value));
+    case PropertyID::GridTemplateRows:
+        return non_empty(from_ffi_handle(m_noninherited.grid->grid_template_rows_style_value));
+    case PropertyID::LetterSpacing:
+        return non_empty(&m_inherited.text->letter_spacing_style_value);
+    case PropertyID::R:
+        return non_empty(from_ffi_handle(m_noninherited.svg_reset->r));
+    case PropertyID::Rx:
+        if (m_noninherited.svg_reset->rx.is_auto)
+            return nullptr;
+        return non_empty(from_ffi_handle(m_noninherited.svg_reset->rx.value));
+    case PropertyID::Ry:
+        if (m_noninherited.svg_reset->ry.is_auto)
+            return nullptr;
+        return non_empty(from_ffi_handle(m_noninherited.svg_reset->ry.value));
+    case PropertyID::WordSpacing:
+        return non_empty(&m_inherited.text->word_spacing_style_value);
+    case PropertyID::X:
+        return non_empty(from_ffi_handle(m_noninherited.svg_reset->x));
+    case PropertyID::Y:
+        return non_empty(from_ffi_handle(m_noninherited.svg_reset->y));
+    default:
+        return nullptr;
+    }
+}
+
+RefPtr<StyleValue const> ComputedValues::color_style_value() const
+{
+    if (m_inherited.text->color_style_value)
+        return style_value_from_handle(PropertyID::Color, m_inherited.text->color_style_value);
+    return computed_style_value(PropertyID::Color);
+}
+
+RefPtr<StyleValue const> ComputedValues::raw_cascaded_font_size() const
+{
+    if (m_raw_cascaded_font_size)
+        return m_raw_cascaded_font_size;
+    if (!m_borrowed_raw_cascaded_font_size)
+        return {};
+    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(m_borrowed_raw_cascaded_font_size));
+}
+
+RefPtr<StyleValue const> ComputedValues::background_color_style_value() const
+{
+    return style_value_from_handle(PropertyID::BackgroundColor, m_noninherited.background->background_color_style_value);
+}
+
+static bool style_value_contains_anchor_function(StyleValue const& value)
+{
+    if (value.is_anchor())
+        return true;
+    if (value.is_calculated())
+        return value.as_calculated().contains_anchor_function();
+    return false;
+}
+
+bool ComputedValues::inset_properties_contain_anchor_functions() const
+{
+    // A bare anchor function is not stored in the inset length box at all: it lives in the
+    // per-side anchor inset handles kept next to it.
+    if (has_anchor_inset(PropertyID::Top) || has_anchor_inset(PropertyID::Right)
+        || has_anchor_inset(PropertyID::Bottom) || has_anchor_inset(PropertyID::Left))
+        return true;
+    // Anchor functions inside expressions survive to used-value time as calculated values, so
+    // when no inset is calculated (the common case), skip reconstructing the style values.
+    auto const& inset_box = inset();
+    if (!inset_box.top().is_calculated() && !inset_box.right().is_calculated() && !inset_box.bottom().is_calculated() && !inset_box.left().is_calculated())
+        return false;
+    auto top = computed_style_value(PropertyID::Top);
+    auto right = computed_style_value(PropertyID::Right);
+    auto bottom = computed_style_value(PropertyID::Bottom);
+    auto left = computed_style_value(PropertyID::Left);
+    VERIFY(top && right && bottom && left);
+    return style_value_contains_anchor_function(*top)
+        || style_value_contains_anchor_function(*right)
+        || style_value_contains_anchor_function(*bottom)
+        || style_value_contains_anchor_function(*left);
+}
+
+RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID property_id, WithAnimationsApplied with_animations_applied) const
+{
+    if (with_animations_applied == WithAnimationsApplied::No && has_animated_values())
+        return base_values().computed_style_value(property_id);
+
+    if (property_is_logical_alias(property_id))
+        property_id = map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { writing_mode(), direction() });
+
+    if (property_id < first_longhand_property_id || property_id > last_longhand_property_id)
+        return {};
+
+    if (auto inset = anchor_inset(property_id))
+        return inset;
+
+    // The animated overlay first, under the overlay read rule the Rust side implements once:
+    // important base values override animated but not transitioned properties.
+    if (with_animations_applied == WithAnimationsApplied::Yes && m_animated_properties
+        && ComputedValuesFFI::rust_animated_overlay_effective_value(m_animated_properties->overlay(), to_underlying(property_id), is_property_important(property_id)))
+        return m_animated_properties->property(property_id);
+
+    if (m_longhand_values.is_empty())
+        return {};
+    auto const* stored = m_longhand_values[to_underlying(property_id) - to_underlying(first_longhand_property_id)];
+    if (!stored)
+        return {};
+    if (auto it = m_style_value_cache.find(property_id); it != m_style_value_cache.end() && it->value->rust_style_value_data() == stored)
+        return it->value;
+    auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(stored)));
+    m_style_value_cache.set(property_id, value);
+    return value;
+}
+
+RefPtr<StyleValue const> ComputedValues::computed_style_value_for_inheritance(PropertyID property_id, WithAnimationsApplied with_animations_applied) const
+{
+    if (with_animations_applied == WithAnimationsApplied::No && has_animated_values())
+        return base_values().computed_style_value_for_inheritance(property_id);
+
+    if (auto value = m_inheritance_dependent_specified_values.get(property_id); value.has_value() && value.value()->depends_on_current_color())
+        return *value;
+
+    for (auto const& entry : m_borrowed_inheritance_dependent_values) {
+        if (entry.property != to_underlying(property_id))
+            continue;
+        auto const* data = static_cast<StyleValueFFI::StyleValueData const*>(entry.value);
+        auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(data));
+        if (value->depends_on_current_color())
+            return value;
+        break;
+    }
+
+    return computed_style_value(property_id, with_animations_applied);
+}
+
+static ContentDataAndQuoteNestingLevel resolve_content(StyleValue const& value, QuotesData const& quotes_data, DOM::AbstractElement& element_reference, u32 initial_quote_nesting_level)
+{
+    auto quote_nesting_level = initial_quote_nesting_level;
+
+    auto get_quote_string = [&](bool open, auto depth) {
+        switch (quotes_data.type) {
+        case QuotesData::Type::None:
+            return Utf16FlyString {};
+        case QuotesData::Type::Auto:
+            // FIXME: "A typographically appropriate used value for quotes is automatically chosen by the UA
+            //        based on the content language of the element and/or its parent."
+            if (open)
+                return depth == 0 ? u"“"_utf16_fly_string : u"‘"_utf16_fly_string;
+            return depth == 0 ? u"”"_utf16_fly_string : u"’"_utf16_fly_string;
+        case QuotesData::Type::Specified:
+            // If the depth is greater than the number of pairs, the last pair is repeated.
+            auto& level = quotes_data.strings[min(depth, quotes_data.strings.size() - 1)];
+            return open ? level[0] : level[1];
+        }
+        VERIFY_NOT_REACHED();
+    };
+
+    if (value.is_content()) {
+        auto& content_style_value = value.as_content();
+
+        ContentData content_data;
+
+        Utf16StringBuilder pending_text;
+        bool has_pending_text = false;
+        auto append_text = [&](Utf16View const& text) {
+            pending_text.append(text);
+            has_pending_text = true;
+        };
+        auto flush_pending_text = [&] {
+            if (!has_pending_text)
+                return;
+            content_data.data.append(pending_text.to_string());
+            pending_text.clear();
+            has_pending_text = false;
+        };
+
+        for (auto const& item : content_style_value.content().values()) {
+            if (item->is_string()) {
+                append_text(item->as_string().string_value().view());
+            } else if (item->is_keyword()) {
+                switch (item->to_keyword()) {
+                case Keyword::OpenQuote:
+                    append_text(get_quote_string(true, quote_nesting_level++).view());
+                    break;
+                case Keyword::CloseQuote:
+                    // A 'close-quote' or 'no-close-quote' that would make the depth negative is in error and is ignored
+                    // (at rendering time): the depth stays at 0 and no quote mark is rendered (although the rest of the
+                    // 'content' property's value is still inserted).
+                    // - https://www.w3.org/TR/CSS21/generate.html#quotes-insert
+                    // (This is missing from the CONTENT-3 spec.)
+                    if (quote_nesting_level > 0)
+                        append_text(get_quote_string(false, --quote_nesting_level).view());
+                    break;
+                case Keyword::NoOpenQuote:
+                    quote_nesting_level++;
+                    break;
+                case Keyword::NoCloseQuote:
+                    // NOTE: See CloseQuote
+                    if (quote_nesting_level > 0)
+                        quote_nesting_level--;
+                    break;
+                default:
+                    dbgln("`{}` is not supported in `content` (yet?)", item->to_string(SerializationMode::Normal));
+                    break;
+                }
+            } else if (item->is_counter()) {
+                flush_pending_text();
+                content_data.counter_style_dependencies.append(item->as_counter().counter_style()->as_counter_style().resolve_counter_style(element_reference.style_scope()));
+                content_data.data.append(item->as_counter().resolve(element_reference));
+            } else if (item->is_image() || item->is_image_set()) {
+                // https://drafts.csswg.org/css-content-3/#typedef-content-list
+                // https://drafts.csswg.org/css-images-4/#typedef-image
+                // <content-list> accepts <image>, and image-set() is an <image>.
+                flush_pending_text();
+                content_data.data.append(NonnullRefPtr { const_cast<AbstractImageStyleValue&>(item->as_abstract_image()) });
+            } else {
+                // TODO: Implement images, and other things.
+                dbgln("`{}` is not supported in `content` (yet?)", item->to_string(SerializationMode::Normal));
+            }
+        }
+        flush_pending_text();
+        content_data.type = ContentData::Type::List;
+
+        if (auto alt_text = content_style_value.alt_text()) {
+            Utf16StringBuilder alt_text_builder;
+            for (auto const& item : alt_text->values()) {
+                if (item->is_string()) {
+                    alt_text_builder.append(item->as_string().string_value().view());
+                } else if (item->is_counter()) {
+                    content_data.counter_style_dependencies.append(item->as_counter().counter_style()->as_counter_style().resolve_counter_style(element_reference.style_scope()));
+                    alt_text_builder.append(item->as_counter().resolve(element_reference));
+                } else {
+                    dbgln("`{}` is not supported in `content` alt-text (yet?)", item->to_string(SerializationMode::Normal));
+                }
+            }
+            content_data.alt_text = alt_text_builder.to_string();
+        }
+
+        return { content_data, quote_nesting_level };
+    }
+
+    switch (value.to_keyword()) {
+    case Keyword::None:
+        return { { ContentData::Type::None, {}, {} }, quote_nesting_level };
+    case Keyword::Normal:
+        return { { ContentData::Type::Normal, {}, {} }, quote_nesting_level };
+    default:
+        break;
+    }
+
+    return { {}, quote_nesting_level };
+}
+
+static NonnullRefPtr<StyleValue const> computed_content_item_style_value(ComputedContentItem const& item)
+{
+    return item.visit(
+        [](Utf16String const& string) -> NonnullRefPtr<StyleValue const> { return StringStyleValue::create(string); },
+        [](Keyword keyword) -> NonnullRefPtr<StyleValue const> { return KeywordStyleValue::create(keyword); },
+        [](ComputedContentCounter const& counter) -> NonnullRefPtr<StyleValue const> {
+            auto counter_style = CounterStyleStyleValue::create(counter.style.visit(
+                [](Utf16FlyString const& name) -> Variant<Utf16FlyString, CounterStyleStyleValue::SymbolsFunction> { return name; },
+                [](ComputedContentCounter::SymbolsFunction const& symbols) -> Variant<Utf16FlyString, CounterStyleStyleValue::SymbolsFunction> {
+                    return CounterStyleStyleValue::SymbolsFunction { .type = symbols.type, .symbols = symbols.symbols };
+                }));
+            if (counter.function == ComputedContentCounter::Function::Counters)
+                return CounterStyleValue::create_counters(counter.name, counter.join_string, move(counter_style));
+            return CounterStyleValue::create_counter(counter.name, move(counter_style));
+        },
+        [](NonnullRefPtr<AbstractImageStyleValue const> const& image) -> NonnullRefPtr<StyleValue const> { return image; });
+}
+
+ContentDataAndQuoteNestingLevel ComputedValues::resolved_content(DOM::AbstractElement& element_reference, u32 initial_quote_nesting_level) const
+{
+    // The content value resolve_content() consumes is rebuilt from the content group's data
+    // rather than minted from the longhand table: the group holds the live image style values
+    // whose loads this style already started, and layout must receive those exact objects.
+    auto content_style_value = [&]() -> NonnullRefPtr<StyleValue const> {
+        switch (computed_content().type) {
+        case ComputedContentData::Type::Normal:
+            return KeywordStyleValue::create(Keyword::Normal);
+        case ComputedContentData::Type::None:
+            return KeywordStyleValue::create(Keyword::None);
+        case ComputedContentData::Type::List: {
+            StyleValueVector items;
+            for (auto const& item : computed_content().items)
+                items.append(computed_content_item_style_value(item));
+            StyleValueVector alt_text;
+            for (auto const& item : computed_content().alt_text)
+                alt_text.append(computed_content_item_style_value(item));
+            ValueComparingRefPtr<StyleValueList const> alt_text_style_value;
+            if (!alt_text.is_empty())
+                alt_text_style_value = StyleValueList::create(move(alt_text), StyleValueList::Separator::Space);
+            return ContentStyleValue::create(
+                StyleValueList::create(move(items), StyleValueList::Separator::Space),
+                move(alt_text_style_value));
+        }
+        }
+        VERIFY_NOT_REACHED();
+    }();
+    return resolve_content(content_style_value, quotes(), element_reference, initial_quote_nesting_level);
 }
 
 }

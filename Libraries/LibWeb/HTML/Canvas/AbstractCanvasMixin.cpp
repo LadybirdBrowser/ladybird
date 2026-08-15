@@ -5,7 +5,6 @@
  */
 
 #include "AbstractCanvasMixin.h"
-#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/ValueType.h>
 #include <LibWeb/DOM/Document.h>

@@ -6,7 +6,7 @@
 
 #include <LibGC/RootVector.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
-#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/SerializationMode.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/AbstractElement.h>
@@ -21,7 +21,7 @@
 
 namespace Web::Editing {
 
-static bool computed_property_values_are_equivalent(CSS::PropertyID property_id, CSS::ComputedProperties const& with_inline_style, CSS::ComputedProperties const& without_inline_style)
+static bool computed_property_values_are_equivalent(CSS::PropertyID property_id, CSS::ComputedStyleWorkingSet const& with_inline_style, CSS::ComputedStyleWorkingSet const& without_inline_style)
 {
     auto const& value_with_inline_style = with_inline_style.property(property_id);
     auto const& value_without_inline_style = without_inline_style.property(property_id);

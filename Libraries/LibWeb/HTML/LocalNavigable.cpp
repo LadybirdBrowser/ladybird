@@ -12,7 +12,7 @@
 #include <AK/Variant.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/PaintingSurface.h>
-#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/SerializationMode.h>

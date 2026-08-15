@@ -7,7 +7,7 @@
 #include <AK/Math.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/SaturatingMath.h>
-#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Element.h>

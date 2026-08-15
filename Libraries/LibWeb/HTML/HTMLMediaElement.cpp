@@ -17,7 +17,6 @@
 #include <LibMedia/VideoFrame.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/HTMLMediaElement.h>
-#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/Compositor/CompositorHost.h>
