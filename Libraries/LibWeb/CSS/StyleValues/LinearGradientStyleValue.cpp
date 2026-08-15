@@ -51,19 +51,6 @@ StyleValueFFI::StyleValueData const* LinearGradientStyleValue::make_linear_gradi
 
 LinearGradientStyleValue::LinearGradientStyleValue(StyleValueFFI::StyleValueData const* data)
     : AbstractImageStyleValue(Type::LinearGradient, data)
-    , m_direction([&]() -> GradientDirection {
-        auto const& gradient = data->linear_gradient;
-        if (!gradient.has_direction_value)
-            return static_cast<SideOrCorner>(gradient.side_or_corner);
-        auto const* direction_data = static_cast<StyleValueFFI::StyleValueData const*>(gradient.direction_value.pointer);
-        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(direction_data));
-    }())
-    , m_color_interpolation_method([&]() -> ValueComparingRefPtr<StyleValue const> {
-        auto const* method_data = static_cast<StyleValueFFI::StyleValueData const*>(data->linear_gradient.color_interpolation_method.pointer);
-        if (!method_data)
-            return nullptr;
-        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(method_data));
-    }())
 {
 }
 
@@ -79,19 +66,6 @@ ValueComparingNonnullRefPtr<StyleValue const> LinearGradientStyleValue::absoluti
     auto absolutized_color_interpolation_method = color_interpolation_method_value ? ValueComparingRefPtr<StyleValue const> { color_interpolation_method_value->absolutized(context) } : nullptr;
 
     return create(direction(), move(absolutized_color_stops), gradient_type(), (is_repeating() ? GradientRepeating::Yes : GradientRepeating::No), move(absolutized_color_interpolation_method));
-}
-
-bool LinearGradientStyleValue::equals(StyleValue const& other_) const
-{
-    if (type() != other_.type())
-        return false;
-    auto const& other_gradient = other_.as_linear_gradient();
-    return direction() == other_gradient.direction()
-        && color_stop_list() == other_gradient.color_stop_list()
-        && gradient_type() == other_gradient.gradient_type()
-        && is_repeating() == other_gradient.is_repeating()
-        && color_interpolation_method_value() == other_gradient.color_interpolation_method_value()
-        && gradient_color_syntax() == other_gradient.gradient_color_syntax();
 }
 
 float LinearGradientStyleValue::angle_degrees(CSSPixelSize gradient_size) const
@@ -138,18 +112,14 @@ float LinearGradientStyleValue::angle_degrees(CSSPixelSize gradient_size) const
         });
 }
 
-void LinearGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node, CSSPixelSize size) const
+ResolvedImage LinearGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node, CSSPixelSize size) const
 {
-    if (m_resolved_size != size) {
-        m_resolved_size = move(size);
-        m_resolved = Painting::resolve_linear_gradient_data(node, size, *this);
-    }
+    return Painting::resolve_linear_gradient_data(node, size, *this);
 }
 
-void LinearGradientStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering, PreferredColorScheme) const
+void LinearGradientStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering, PreferredColorScheme, ResolvedImage const& resolved) const
 {
-    VERIFY(m_resolved.has_value());
-    context.display_list_recorder().fill_rect_with_linear_gradient(dest_rect.to_type<int>(), m_resolved.value());
+    context.display_list_recorder().fill_rect_with_linear_gradient(dest_rect.to_type<int>(), resolved.get<Painting::LinearGradientData>());
 }
 
 }

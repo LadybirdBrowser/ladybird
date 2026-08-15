@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
-#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -28,26 +26,20 @@ public:
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
-    bool properties_equal(SuperellipseStyleValue const& other) const { return parameter_style_value() == other.parameter_style_value(); }
-
 private:
     friend class StyleValue;
 
     explicit SuperellipseStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValueWithDefaultOperators(Type::Superellipse, data)
-        , m_parameter(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->superellipse.parameter.pointer))))
     {
     }
 
     explicit SuperellipseStyleValue(ValueComparingNonnullRefPtr<StyleValue const> const& parameter)
         : StyleValueWithDefaultOperators(Type::Superellipse, StyleValueFFI::rust_style_value_create_superellipse(StyleValueFFI::rust_style_value_retain(parameter->rust_style_value_data())))
-        , m_parameter(parameter)
     {
     }
 
-    ValueComparingNonnullRefPtr<StyleValue const> parameter_style_value() const { return m_parameter; }
-
-    ValueComparingNonnullRefPtr<StyleValue const> m_parameter;
+    ValueComparingNonnullRefPtr<StyleValue const> parameter_style_value() const { return wrap_rust_child(m_value->superellipse.parameter); }
 };
 
 }

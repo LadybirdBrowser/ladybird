@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
-#include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
@@ -22,12 +21,6 @@ public:
     virtual ~StringStyleValue() override = default;
 
     Utf16FlyString string_value() const { return Utf16FlyString::from_raw(m_value->string.string.raw); }
-    Vector<Parser::ComponentValue> tokenize() const
-    {
-        return { Parser::Token::create_string(string_value()) };
-    }
-
-    bool properties_equal(StringStyleValue const& other) const { return string_value() == other.string_value(); }
 
 private:
     friend class StyleValue;

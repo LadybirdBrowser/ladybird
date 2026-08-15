@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/SVG/SVGGeometryElement.h>
 
 namespace Web::SVG {
@@ -23,16 +22,16 @@ public:
     virtual Gfx::Path get_path(CSSPixelSize viewport_size) override;
 
     // https://w3c.github.io/svgwg/svg2-draft/shapes.html#__svg__SVGLineElement__x1
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x1, Horizontal, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x1, Horizontal, SVGLengthValue::number(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/shapes.html#__svg__SVGLineElement__y1
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y1, Vertical, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y1, Vertical, SVGLengthValue::number(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/shapes.html#__svg__SVGLineElement__x2
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x2, Horizontal, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x2, Horizontal, SVGLengthValue::number(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/shapes.html#__svg__SVGLineElement__y2
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y2, Vertical, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y2, Vertical, SVGLengthValue::number(0));
 
 private:
     SVGLineElement(DOM::Document&, DOM::QualifiedName);

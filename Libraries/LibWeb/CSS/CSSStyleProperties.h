@@ -73,6 +73,7 @@ private:
     virtual size_t external_memory_size() const override;
 
     RefPtr<StyleValue const> style_value_for_computed_property(Layout::NodeWithStyle const&, PropertyID) const;
+    Optional<Utf16String> serialized_computed_value_from_stored_handle(PropertyID) const;
     Optional<StyleProperty> get_property_internal(PropertyNameAndID const&) const;
     Optional<StyleProperty> get_direct_property(PropertyNameAndID const&) const;
     WebIDL::ExceptionOr<void> set_property_internal(PropertyNameAndID const&, Utf16View css_text, Utf16View priority);

@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 
 namespace Web::SVG {
@@ -26,16 +25,16 @@ public:
     //         https://github.com/w3c/svgwg/issues/1153
 
     // https://w3c.github.io/svgwg/svg2-draft/embedded.html#__svg__SVGForeignObjectElement__x
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, Horizontal, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, Horizontal, SVGLengthValue::number(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/embedded.html#__svg__SVGForeignObjectElement__y
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y, Vertical, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y, Vertical, SVGLengthValue::number(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/embedded.html#__svg__SVGForeignObjectElement__width
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(width, Horizontal, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(width, Horizontal, SVGLengthValue::number(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/embedded.html#__svg__SVGForeignObjectElement__height
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, Vertical, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, Vertical, SVGLengthValue::number(0));
 
 private:
     SVGForeignObjectElement(DOM::Document& document, DOM::QualifiedName qualified_name);

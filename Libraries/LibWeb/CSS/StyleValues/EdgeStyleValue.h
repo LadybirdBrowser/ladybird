@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -26,7 +25,6 @@ public:
 
     ValueComparingNonnullRefPtr<EdgeStyleValue const> with_resolved_keywords() const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& computation_context) const;
-    bool properties_equal(EdgeStyleValue const& other) const { return edge() == other.edge() && offset_style_value() == other.offset_style_value(); }
 
 private:
     friend class StyleValue;
@@ -34,14 +32,10 @@ private:
     explicit EdgeStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValueWithDefaultOperators(Type::Edge, data)
     {
-        auto const* offset_data = static_cast<StyleValueFFI::StyleValueData const*>(data->edge.offset.pointer);
-        if (offset_data)
-            m_offset = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(offset_data));
     }
 
     EdgeStyleValue(Optional<PositionEdge> edge, RefPtr<StyleValue const> const& offset)
         : StyleValueWithDefaultOperators(Type::Edge, StyleValueFFI::rust_style_value_create_edge(edge.has_value(), edge.has_value() ? to_underlying(*edge) : 0, offset ? StyleValueFFI::rust_style_value_retain(offset->rust_style_value_data()) : nullptr))
-        , m_offset(offset)
     {
     }
 
@@ -52,9 +46,7 @@ private:
         return static_cast<PositionEdge>(m_value->edge.edge);
     }
 
-    ValueComparingRefPtr<StyleValue const> offset_style_value() const { return m_offset; }
-
-    ValueComparingRefPtr<StyleValue const> m_offset;
+    ValueComparingRefPtr<StyleValue const> offset_style_value() const { return wrap_rust_child_or_null(m_value->edge.offset); }
 };
 
 }

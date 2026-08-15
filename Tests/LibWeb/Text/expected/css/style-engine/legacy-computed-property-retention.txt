@@ -1,3 +1,0 @@
-no-op flushes do not increase retained array count: true
-no-op flushes do not increase retained array bytes: true
-retained array byte ratio is stable: true

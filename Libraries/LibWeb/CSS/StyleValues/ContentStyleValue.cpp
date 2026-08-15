@@ -19,16 +19,6 @@ StyleValueFFI::StyleValueData const* ContentStyleValue::make_content_data(ValueC
     return StyleValueFFI::rust_style_value_create_content(StyleValueFFI::rust_style_value_retain(content->rust_style_value_data()), alt_text_data);
 }
 
-bool ContentStyleValue::properties_equal(ContentStyleValue const& other) const
-{
-    auto lists_equal = [](StyleValueList const* a, StyleValueList const* b) {
-        if (!a || !b)
-            return a == b;
-        return a->equals(*b);
-    };
-    return content().equals(other.content()) && lists_equal(alt_text(), other.alt_text());
-}
-
 void ContentStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
 {
     const_cast<StyleValueList&>(content()).set_style_sheet(style_sheet);

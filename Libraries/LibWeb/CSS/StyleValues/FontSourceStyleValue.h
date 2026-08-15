@@ -42,8 +42,6 @@ public:
         return tech;
     }
 
-    bool properties_equal(FontSourceStyleValue const&) const;
-
 private:
     friend class StyleValue;
 
@@ -51,8 +49,6 @@ private:
     explicit FontSourceStyleValue(StyleValueFFI::StyleValueData const*);
 
     static StyleValueFFI::StyleValueData const* make_font_source_data(Source const&, Optional<Utf16FlyString> const&, Vector<FontTech> const&);
-
-    ValueComparingRefPtr<StyleValue const> m_local_name;
 };
 
 }

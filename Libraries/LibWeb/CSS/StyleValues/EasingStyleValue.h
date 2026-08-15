@@ -107,8 +107,6 @@ public:
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
-    bool properties_equal(EasingStyleValue const& other) const { return function() == other.function(); }
-
 private:
     friend class StyleValue;
 

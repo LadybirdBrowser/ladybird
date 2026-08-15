@@ -9,6 +9,8 @@
 
 #include "PositionStyleValue.h"
 #include <LibWeb/CSS/Enums.h>
+#include <LibWeb/CSS/PercentageOr.h>
+#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 
 namespace Web::CSS {
 

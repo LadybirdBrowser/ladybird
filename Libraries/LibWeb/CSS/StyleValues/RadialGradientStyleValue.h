@@ -31,10 +31,9 @@ public:
         return adopt_ref(*new (nothrow) RadialGradientStyleValue(ending_shape, move(size), move(position), move(color_stop_list), repeating, move(color_interpolation_method), any_non_legacy ? ColorSyntax::Modern : ColorSyntax::Legacy));
     }
 
-    void paint(DisplayListRecordingContext&, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering, PreferredColorScheme) const override;
+    void paint(DisplayListRecordingContext&, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering, PreferredColorScheme, ResolvedImage const&) const override;
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-    bool equals(StyleValue const& other) const;
 
     Vector<ColorStopListElement> color_stop_list() const
     {
@@ -52,7 +51,7 @@ public:
 
     bool is_paintable(DOM::Document const&) const override { return true; }
 
-    void resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const override;
+    ResolvedImage resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const override;
 
     CSSPixelSize resolve_size(CSSPixelPoint, CSSPixelRect const&) const;
 
@@ -65,9 +64,6 @@ private:
 
     RadialGradientStyleValue(EndingShape ending_shape, NonnullRefPtr<StyleValue const> size, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<ColorStopListElement> color_stop_list, GradientRepeating repeating, ValueComparingRefPtr<StyleValue const> color_interpolation_method, ColorSyntax color_syntax)
         : AbstractImageStyleValue(Type::RadialGradient, make_radial_gradient_data(ending_shape, size, position, color_stop_list, repeating, color_interpolation_method, color_syntax))
-        , m_size(move(size))
-        , m_position(move(position))
-        , m_color_interpolation_method(move(color_interpolation_method))
     {
     }
 
@@ -75,25 +71,12 @@ private:
 
     static StyleValueFFI::StyleValueData const* make_radial_gradient_data(EndingShape, NonnullRefPtr<StyleValue const> const&, NonnullRefPtr<PositionStyleValue const> const&, Vector<ColorStopListElement> const&, GradientRepeating, RefPtr<StyleValue const> const&, ColorSyntax);
 
-    ValueComparingNonnullRefPtr<StyleValue const> size_value() const { return m_size; }
-    ValueComparingNonnullRefPtr<PositionStyleValue const> position_value() const { return m_position; }
+    ValueComparingNonnullRefPtr<StyleValue const> size_value() const { return wrap_rust_child(m_value->radial_gradient.size); }
+    ValueComparingNonnullRefPtr<PositionStyleValue const> position_value() const { return wrap_rust_child(m_value->radial_gradient.position)->as_position(); }
     EndingShape ending_shape() const { return static_cast<EndingShape>(m_value->radial_gradient.ending_shape); }
     ColorSyntax gradient_color_syntax() const { return static_cast<ColorSyntax>(m_value->radial_gradient.color_syntax); }
 
-    ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return m_color_interpolation_method; }
-
-    ValueComparingNonnullRefPtr<StyleValue const> m_size;
-    ValueComparingNonnullRefPtr<PositionStyleValue const> m_position;
-    ValueComparingRefPtr<StyleValue const> m_color_interpolation_method;
-
-    mutable Optional<CSSPixelSize> m_resolved_size;
-
-    struct ResolvedData {
-        Painting::RadialGradientData data;
-        CSSPixelSize gradient_size;
-        CSSPixelPoint center;
-    };
-    mutable Optional<ResolvedData> m_resolved;
+    ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return wrap_rust_child_or_null(m_value->radial_gradient.color_interpolation_method); }
 };
 
 }

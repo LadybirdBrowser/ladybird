@@ -27,8 +27,6 @@ public:
 
     // FIXME: Support tokenization and reification
 
-    bool properties_equal(TupleStyleValue const& other) const { return tuple() == other.tuple(); }
-
     struct Indices {
         struct FontVariantEastAsian {
             static constexpr size_t Variant = 0;

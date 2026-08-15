@@ -26,8 +26,6 @@ public:
     virtual double raw_value() const override { return m_value->frequency.value; }
     virtual Utf16FlyString unit_name() const override { return frequency().unit_name(); }
 
-    bool equals(StyleValue const& other) const;
-
 private:
     friend class StyleValue;
 

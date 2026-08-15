@@ -24,9 +24,4 @@ ValueComparingNonnullRefPtr<StyleValue const> OpenTypeTaggedStyleValue::absoluti
     return OpenTypeTaggedStyleValue::create(mode(), tag(), absolutized_value);
 }
 
-bool OpenTypeTaggedStyleValue::properties_equal(OpenTypeTaggedStyleValue const& other) const
-{
-    return other.tag() == tag() && other.value() == value();
-}
-
 }

@@ -1234,6 +1234,56 @@ fn generate_transform_functions(manifest_dir: &Path, out_dir: &Path) -> Result<(
     for name in functions.keys() {
         output.push_str(&format!("    \"{name}\",\n"));
     }
+    output.push_str("];\n\n");
+
+    // Function index constants mirroring the C++ TransformFunction enum, which
+    // the generator emits in the JSON object's order.
+    output.push_str("#[allow(dead_code)]\npub(crate) mod transform_function {\n");
+    for (index, name) in functions.keys().enumerate() {
+        let mut constant = String::new();
+        for character in name.chars() {
+            if character.is_ascii_uppercase() {
+                constant.push('_');
+            }
+            constant.push(character.to_ascii_uppercase());
+        }
+        output.push_str(&format!("    pub const {constant}: u8 = {index};\n"));
+    }
+    output.push_str("}\n\n");
+
+    // Parameter types per function, mirroring the C++
+    // TransformFunctionParameterType codes: angle 0, length 1, length-none 2,
+    // length-percentage 3, number 4, number-percentage 5.
+    let parameter_type_code = |name: &str| -> Result<u8, Box<dyn Error>> {
+        Ok(match name {
+            "angle" => 0,
+            "length" => 1,
+            "length-none" => 2,
+            "length-percentage" => 3,
+            "number" => 4,
+            "number-percentage" => 5,
+            _ => return Err(format!("unknown transform function parameter type {name}").into()),
+        })
+    };
+    output.push_str(&format!(
+        "#[allow(dead_code)]\npub(crate) static TRANSFORM_FUNCTION_PARAMETER_TYPES: [&[u8]; {}] = [\n",
+        functions.len()
+    ));
+    for (name, function) in functions {
+        let parameters = function
+            .get("parameters")
+            .and_then(serde_json::Value::as_array)
+            .ok_or_else(|| format!("transform function {name} has no parameters array"))?;
+        let mut codes = Vec::new();
+        for parameter in parameters {
+            let parameter_type = parameter
+                .get("type")
+                .and_then(serde_json::Value::as_str)
+                .ok_or_else(|| format!("transform function {name} parameter has no type"))?;
+            codes.push(parameter_type_code(parameter_type.trim_matches(['<', '>']))?.to_string());
+        }
+        output.push_str(&format!("    &[{}],\n", codes.join(", ")));
+    }
     output.push_str("];\n");
     std::fs::write(out_dir.join("transform_functions_generated.rs"), output)?;
     Ok(())
@@ -1556,6 +1606,44 @@ fn main() -> Result<(), Box<dyn Error>> {
         "ComputedGridTrackEntryKind".to_string(),
         "ComputedGridPlacementKind".to_string(),
         "CascadeOrigin".to_string(),
+        "FfiResolvedTransformEntry".to_string(),
+        "FfiTransformGroupAssembly".to_string(),
+        "FfiLoweredFilterOperation".to_string(),
+        "FfiLoweredFilter".to_string(),
+        "FfiLoweredShadow".to_string(),
+        "FfiLoweredClipEdge".to_string(),
+        "FfiEffectsGroupAssembly".to_string(),
+        "FfiCoordinatedLayerAssembly".to_string(),
+        "FfiBackgroundGroupAssembly".to_string(),
+        "FfiPositionAssembly".to_string(),
+        "FfiMaskGroupAssembly".to_string(),
+        "FfiBorderSideAssembly".to_string(),
+        "FfiBorderImageSlotAssembly".to_string(),
+        "FfiBorderGroupAssembly".to_string(),
+        "FfiSvgPaintAssembly".to_string(),
+        "FfiDashItemAssembly".to_string(),
+        "FfiLengthPercentageOrNumberAssembly".to_string(),
+        "FfiInheritedSvgGroupAssembly".to_string(),
+        "FfiInheritedListGroupAssembly".to_string(),
+        "FfiCounterDataAssembly".to_string(),
+        "FfiContentGroupAssembly".to_string(),
+        "FfiCursorItemAssembly".to_string(),
+        "FfiInheritedUiGroupAssembly".to_string(),
+        "FfiInheritedTextGroupAssembly".to_string(),
+        "FfiOverflowClipMarginSideAssembly".to_string(),
+        "FfiWillChangeEntryAssembly".to_string(),
+        "FfiMiscResetGroupAssembly".to_string(),
+        "FfiTimeItemAssembly".to_string(),
+        "FfiAnimationNameAssembly".to_string(),
+        "FfiDurationItemAssembly".to_string(),
+        "FfiNumberItemAssembly".to_string(),
+        "FfiAnimationTimelineAssembly".to_string(),
+        "FfiTimelineNameAssembly".to_string(),
+        "FfiViewTimelineInsetAssembly".to_string(),
+        "FfiAnimationGroupAssembly".to_string(),
+        "FfiTextResetGroupAssembly".to_string(),
+        "FfiPositionTryFallbackAssembly".to_string(),
+        "FfiAnchorGroupAssembly".to_string(),
     ];
 
     generate_ffi_header(
@@ -1569,7 +1657,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/css/retained_fly_string.rs"),
             manifest_dir.join("src/css/css_pixels.rs"),
             manifest_dir.join("src/css/cascaded_properties.rs"),
+            manifest_dir.join("src/css/computed_longhand_table.rs"),
             manifest_dir.join("src/css/custom_properties.rs"),
+            manifest_dir.join("src/css/table_group_builder.rs"),
         ],
         &out_dir,
         &ffi_out_dir,

@@ -8,12 +8,4 @@
 
 namespace Web::CSS {
 
-bool FrequencyStyleValue::equals(StyleValue const& other) const
-{
-    if (type() != other.type())
-        return false;
-    auto const& other_frequency = other.as_frequency();
-    return frequency() == other_frequency.frequency();
-}
-
 }

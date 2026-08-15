@@ -121,13 +121,13 @@ pub struct InheritedBoxValues {
 }
 
 impl ComputedStyleValueHandle {
-    fn empty() -> Self {
+    pub(crate) fn empty() -> Self {
         Self {
             pointer: std::ptr::null(),
         }
     }
 
-    fn retained(data: *const crate::css::style_value::StyleValueData) -> Self {
+    pub(crate) fn retained(data: *const crate::css::style_value::StyleValueData) -> Self {
         Self {
             pointer: unsafe { crate::css::style_value::rust_style_value_retain(data) }.cast(),
         }
@@ -1047,6 +1047,12 @@ unsafe impl Sync for FieldDescriptors {}
 
 static FIELD_DESCRIPTORS: OnceLock<FieldDescriptors> = OnceLock::new();
 
+/// Every registered pokeable-field descriptor, in registration order, for the
+/// table-driven group builder's gathering pass.
+pub(crate) fn registered_field_descriptors() -> Option<&'static [FfiGroupFieldDescriptor]> {
+    FIELD_DESCRIPTORS.get().map(|descriptors| &*descriptors.0)
+}
+
 struct PropertyDependencyMasks {
     first_property: u16,
     masks: Box<[u32]>,
@@ -1149,6 +1155,259 @@ pub unsafe extern "C" fn rust_style_group_register_property_dependency_masks(
     });
 }
 
+/// One decoded write into a scratch payload.
+enum GroupFieldPoke {
+    U8(u32, u8),
+    F32(u32, f32),
+    F64(u32, f64),
+    I32(u32, i32),
+    U64(u32, u64),
+    U32(u32, u32),
+    Data(u32, *const crate::css::style_value::StyleValueData),
+}
+
+/// Decodes one group's gathered values against its descriptors into scratch
+/// pokes. Constraint descriptors (the REQUIRE kinds) fail the decode when the
+/// value diverges and constraints are enforced; a group built through a
+/// registered payload assembler skips them, because the assembler owns those
+/// members.
+fn decode_group_field_pokes(
+    descriptors: &[&FfiGroupFieldDescriptor],
+    values: &[FfiGroupValueEntry],
+    enforce_constraints: bool,
+) -> Option<Vec<GroupFieldPoke>> {
+    use crate::css::style_value::StyleValueData;
+    use GroupFieldPoke as Poke;
+
+    let mut pokes = Vec::with_capacity(values.len());
+    for (descriptor, value) in descriptors.iter().zip(values) {
+        let data = unsafe { (value.data as *const StyleValueData).as_ref() }?;
+        match descriptor.kind {
+            GROUP_FIELD_ENUM_KEYWORD => {
+                let StyleValueData::Keyword { keyword } = data else {
+                    if enforce_constraints {
+                        return None;
+                    }
+                    continue;
+                };
+                let table =
+                    unsafe { std::slice::from_raw_parts(descriptor.keyword_table, descriptor.keyword_table_length) };
+                let code = table.get(*keyword as usize).copied();
+                match code {
+                    Some(code) if code != 255 => pokes.push(Poke::U8(descriptor.offset, code)),
+                    // A keyword the converter rejects (the appearance compat
+                    // keywords) stays at the payload default; the group's
+                    // registered assembler owns the field.
+                    _ => {
+                        if enforce_constraints {
+                            return None;
+                        }
+                    }
+                }
+            }
+            GROUP_FIELD_F32 => {
+                let StyleValueData::Number { value } = data else {
+                    return None;
+                };
+                pokes.push(Poke::F32(descriptor.offset, *value as f32));
+            }
+            GROUP_FIELD_F64 => {
+                let StyleValueData::Number { value } = data else {
+                    return None;
+                };
+                pokes.push(Poke::F64(descriptor.offset, *value));
+            }
+            GROUP_FIELD_CSS_PIXELS => {
+                let StyleValueData::Length { value, unit } = data else {
+                    if enforce_constraints {
+                        return None;
+                    }
+                    // A value that is not a plain pixel length (the normal
+                    // keyword, a percentage against font metrics) stays at
+                    // the payload default; the group's registered assembler
+                    // resolves it through the C++ arm.
+                    continue;
+                };
+                if *unit != crate::css::style_compute::px_length_unit() {
+                    if enforce_constraints {
+                        return None;
+                    }
+                    continue;
+                }
+                pokes.push(Poke::I32(
+                    descriptor.offset,
+                    crate::css::css_pixels::CssPixels::nearest_value_for(*value).raw_value(),
+                ));
+            }
+            GROUP_FIELD_U64 => {
+                // A plain integer, or a calculation that resolves to one
+                // without context, matching the C++ resolve_integer arm.
+                let value = match data {
+                    StyleValueData::Integer { value } => *value,
+                    StyleValueData::Calculated { .. } => {
+                        crate::css::calc::resolve_calculated_integer_without_context(data)?
+                    }
+                    _ => return None,
+                };
+                if value < 0 {
+                    return None;
+                }
+                pokes.push(Poke::U64(descriptor.offset, value as u64));
+            }
+            GROUP_FIELD_REQUIRE_KEYWORD => {
+                if !enforce_constraints {
+                    continue;
+                }
+                // NB: Repeatable-list properties keep even a single computed item in a value list.
+                let data = match data {
+                    StyleValueData::ValueList { values, .. } if values.as_slice().len() == 1 => {
+                        values.as_slice()[0].data()
+                    }
+                    data => data,
+                };
+                let StyleValueData::Keyword { keyword } = data else {
+                    return None;
+                };
+                if *keyword != descriptor.keyword {
+                    return None;
+                }
+            }
+            GROUP_FIELD_I32 => {
+                let StyleValueData::Integer { value } = data else {
+                    return None;
+                };
+                pokes.push(Poke::I32(descriptor.offset, *value));
+            }
+            GROUP_FIELD_COLOR => {
+                if !value.has_resolved_color {
+                    if enforce_constraints {
+                        return None;
+                    }
+                    // A color the core cannot resolve stays at the payload
+                    // default; the group's registered assembler resolves it
+                    // through the C++ arm.
+                    continue;
+                }
+                pokes.push(Poke::U32(descriptor.offset, value.resolved_color));
+            }
+            GROUP_FIELD_RESOLVED_F32 => {
+                if !value.has_resolved_number {
+                    return None;
+                }
+                pokes.push(Poke::F32(descriptor.offset, value.resolved_number as f32));
+            }
+            GROUP_FIELD_REQUIRE_PX => {
+                if !enforce_constraints {
+                    continue;
+                }
+                let StyleValueData::Length { value, unit } = data else {
+                    return None;
+                };
+                if *unit != crate::css::style_compute::px_length_unit() || *value != descriptor.required_px {
+                    return None;
+                }
+            }
+            GROUP_FIELD_COLOR_OR_KEYWORD => match data {
+                StyleValueData::Keyword { keyword } if *keyword == descriptor.keyword => {}
+                _ => {
+                    if !value.has_resolved_color {
+                        if enforce_constraints {
+                            return None;
+                        }
+                        // As for GROUP_FIELD_COLOR: the assembler's C++ arm
+                        // resolves what the core could not.
+                        continue;
+                    }
+                    pokes.push(Poke::U32(descriptor.offset, value.resolved_color));
+                }
+            },
+            GROUP_FIELD_REQUIRE_INITIAL_VALUE => {
+                if !enforce_constraints {
+                    continue;
+                }
+                if value.data != crate::css::style_compute::initial_value_data(descriptor.property_id).cast() {
+                    return None;
+                }
+            }
+            GROUP_FIELD_CSS_PIXELS_NON_NEGATIVE => {
+                let StyleValueData::Length { value, unit } = data else {
+                    return None;
+                };
+                if *unit != crate::css::style_compute::px_length_unit() {
+                    return None;
+                }
+                pokes.push(Poke::I32(
+                    descriptor.offset,
+                    crate::css::css_pixels::CssPixels::nearest_value_for(value.max(0.0)).raw_value(),
+                ));
+            }
+            GROUP_FIELD_RESOLVED_F64 => {
+                if !value.has_resolved_number {
+                    return None;
+                }
+                pokes.push(Poke::F64(descriptor.offset, value.resolved_number));
+            }
+            GROUP_FIELD_RETAINED_DATA => {
+                pokes.push(Poke::Data(descriptor.offset, value.data.cast()));
+            }
+            GROUP_FIELD_KEYWORD_EQUALS_BOOL => {
+                let is_keyword = matches!(data, StyleValueData::Keyword { keyword } if *keyword == descriptor.keyword);
+                pokes.push(Poke::U8(descriptor.offset, is_keyword as u8));
+            }
+            GROUP_FIELD_RESOLVED_U8 => {
+                if !value.has_resolved_number {
+                    return None;
+                }
+                pokes.push(Poke::U8(descriptor.offset, value.resolved_number as u8));
+            }
+            _ => return None,
+        }
+    }
+    Some(pokes)
+}
+
+/// Applies decoded field pokes to a default-constructed scratch payload.
+///
+/// # Safety
+/// `scratch` must be a payload of the group whose descriptors produced the
+/// pokes, so every offset names a field of the right type.
+unsafe fn apply_group_field_pokes(scratch: *mut c_void, pokes: &[GroupFieldPoke]) {
+    use crate::css::style_value::StyleValueData;
+    use GroupFieldPoke as Poke;
+
+    unsafe {
+        for poke in pokes {
+            let base = scratch as *mut u8;
+            match *poke {
+                Poke::U8(offset, value) => *base.add(offset as usize) = value,
+                Poke::F32(offset, value) => *(base.add(offset as usize) as *mut f32) = value,
+                Poke::F64(offset, value) => *(base.add(offset as usize) as *mut f64) = value,
+                Poke::I32(offset, value) => *(base.add(offset as usize) as *mut i32) = value,
+                Poke::U64(offset, value) => *(base.add(offset as usize) as *mut u64) = value,
+                Poke::U32(offset, value) => *(base.add(offset as usize) as *mut u32) = value,
+                Poke::Data(offset, data) => {
+                    // The slot's constructor default is null, so nothing is released.
+                    let retained = crate::css::style_value::rust_style_value_retain(data);
+                    *(base.add(offset as usize) as *mut *const StyleValueData) = retained;
+                }
+            }
+        }
+    }
+}
+
+/// Frees a scratch payload that was not published.
+///
+/// # Safety
+/// `scratch` must be a payload of the vtable's group, allocated by
+/// `allocate_payload` and not shared.
+unsafe fn free_scratch_payload(table: &StyleGroupVTable, scratch: *mut c_void) {
+    unsafe {
+        destruct(table, scratch);
+        let allocation = (scratch as *mut u8).sub(header_size(payload_align(table)));
+        dealloc(allocation, allocation_layout(table));
+    }
+}
+
 /// Builds a style group payload generically from its registered field
 /// descriptors: decodes every descriptor's value (returning null for the C++
 /// population path when any value cannot be decoded or a constraint fails),
@@ -1166,8 +1425,6 @@ pub unsafe extern "C" fn rust_build_style_group(
     count: usize,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    use crate::css::style_value::StyleValueData;
-
     abort_on_panic(|| {
         let all = &FIELD_DESCRIPTORS.get()?.0;
         let descriptors: Vec<&FfiGroupFieldDescriptor> = all
@@ -1178,156 +1435,7 @@ pub unsafe extern "C" fn rust_build_style_group(
             return None;
         }
         let values = unsafe { std::slice::from_raw_parts(values, count) };
-
-        enum Poke {
-            U8(u32, u8),
-            F32(u32, f32),
-            F64(u32, f64),
-            I32(u32, i32),
-            U64(u32, u64),
-            U32(u32, u32),
-            Data(u32, *const StyleValueData),
-        }
-        let mut pokes = Vec::with_capacity(count);
-        for (descriptor, value) in descriptors.iter().zip(values) {
-            let data = unsafe { (value.data as *const StyleValueData).as_ref() }?;
-            match descriptor.kind {
-                GROUP_FIELD_ENUM_KEYWORD => {
-                    let StyleValueData::Keyword { keyword } = data else {
-                        return None;
-                    };
-                    let table = unsafe {
-                        std::slice::from_raw_parts(descriptor.keyword_table, descriptor.keyword_table_length)
-                    };
-                    let code = *table.get(*keyword as usize)?;
-                    if code == 255 {
-                        return None;
-                    }
-                    pokes.push(Poke::U8(descriptor.offset, code));
-                }
-                GROUP_FIELD_F32 => {
-                    let StyleValueData::Number { value } = data else {
-                        return None;
-                    };
-                    pokes.push(Poke::F32(descriptor.offset, *value as f32));
-                }
-                GROUP_FIELD_F64 => {
-                    let StyleValueData::Number { value } = data else {
-                        return None;
-                    };
-                    pokes.push(Poke::F64(descriptor.offset, *value));
-                }
-                GROUP_FIELD_CSS_PIXELS => {
-                    let StyleValueData::Length { value, unit } = data else {
-                        return None;
-                    };
-                    if *unit != crate::css::style_compute::px_length_unit() {
-                        return None;
-                    }
-                    pokes.push(Poke::I32(
-                        descriptor.offset,
-                        crate::css::css_pixels::CssPixels::nearest_value_for(*value).raw_value(),
-                    ));
-                }
-                GROUP_FIELD_U64 => {
-                    let StyleValueData::Integer { value } = data else {
-                        return None;
-                    };
-                    if *value < 0 {
-                        return None;
-                    }
-                    pokes.push(Poke::U64(descriptor.offset, *value as u64));
-                }
-                GROUP_FIELD_REQUIRE_KEYWORD => {
-                    // NB: Repeatable-list properties keep even a single computed item in a value list.
-                    let data = match data {
-                        StyleValueData::ValueList { values, .. } if values.as_slice().len() == 1 => {
-                            values.as_slice()[0].data()
-                        }
-                        data => data,
-                    };
-                    let StyleValueData::Keyword { keyword } = data else {
-                        return None;
-                    };
-                    if *keyword != descriptor.keyword {
-                        return None;
-                    }
-                }
-                GROUP_FIELD_I32 => {
-                    let StyleValueData::Integer { value } = data else {
-                        return None;
-                    };
-                    pokes.push(Poke::I32(descriptor.offset, *value));
-                }
-                GROUP_FIELD_COLOR => {
-                    if !value.has_resolved_color {
-                        return None;
-                    }
-                    pokes.push(Poke::U32(descriptor.offset, value.resolved_color));
-                }
-                GROUP_FIELD_RESOLVED_F32 => {
-                    if !value.has_resolved_number {
-                        return None;
-                    }
-                    pokes.push(Poke::F32(descriptor.offset, value.resolved_number as f32));
-                }
-                GROUP_FIELD_REQUIRE_PX => {
-                    let StyleValueData::Length { value, unit } = data else {
-                        return None;
-                    };
-                    if *unit != crate::css::style_compute::px_length_unit() || *value != descriptor.required_px {
-                        return None;
-                    }
-                }
-                GROUP_FIELD_COLOR_OR_KEYWORD => match data {
-                    StyleValueData::Keyword { keyword } if *keyword == descriptor.keyword => {}
-                    _ => {
-                        if !value.has_resolved_color {
-                            return None;
-                        }
-                        pokes.push(Poke::U32(descriptor.offset, value.resolved_color));
-                    }
-                },
-                GROUP_FIELD_REQUIRE_INITIAL_VALUE => {
-                    if value.data != crate::css::style_compute::initial_value_data(descriptor.property_id).cast() {
-                        return None;
-                    }
-                }
-                GROUP_FIELD_CSS_PIXELS_NON_NEGATIVE => {
-                    let StyleValueData::Length { value, unit } = data else {
-                        return None;
-                    };
-                    if *unit != crate::css::style_compute::px_length_unit() {
-                        return None;
-                    }
-                    pokes.push(Poke::I32(
-                        descriptor.offset,
-                        crate::css::css_pixels::CssPixels::nearest_value_for(value.max(0.0)).raw_value(),
-                    ));
-                }
-                GROUP_FIELD_RESOLVED_F64 => {
-                    if !value.has_resolved_number {
-                        return None;
-                    }
-                    pokes.push(Poke::F64(descriptor.offset, value.resolved_number));
-                }
-                GROUP_FIELD_RETAINED_DATA => {
-                    pokes.push(Poke::Data(descriptor.offset, value.data.cast()));
-                }
-                GROUP_FIELD_KEYWORD_EQUALS_BOOL => {
-                    let is_keyword =
-                        matches!(data, StyleValueData::Keyword { keyword } if *keyword == descriptor.keyword);
-                    pokes.push(Poke::U8(descriptor.offset, is_keyword as u8));
-                }
-                GROUP_FIELD_RESOLVED_U8 => {
-                    if !value.has_resolved_number {
-                        return None;
-                    }
-                    pokes.push(Poke::U8(descriptor.offset, value.resolved_number as u8));
-                }
-                _ => return None,
-            }
-        }
+        let pokes = decode_group_field_pokes(&descriptors, values, true)?;
 
         let table = vtable(group_index);
 
@@ -1350,43 +1458,128 @@ pub unsafe extern "C" fn rust_build_style_group(
         // and every poke offset comes from offsetof on the C++ side.
         unsafe {
             default_construct(table, scratch);
-            for poke in &pokes {
-                let base = scratch as *mut u8;
-                match *poke {
-                    Poke::U8(offset, value) => *base.add(offset as usize) = value,
-                    Poke::F32(offset, value) => *(base.add(offset as usize) as *mut f32) = value,
-                    Poke::F64(offset, value) => *(base.add(offset as usize) as *mut f64) = value,
-                    Poke::I32(offset, value) => *(base.add(offset as usize) as *mut i32) = value,
-                    Poke::U64(offset, value) => *(base.add(offset as usize) as *mut u64) = value,
-                    Poke::U32(offset, value) => *(base.add(offset as usize) as *mut u32) = value,
-                    Poke::Data(offset, data) => {
-                        // The slot's constructor default is null, so nothing is released.
-                        let retained = crate::css::style_value::rust_style_value_retain(data);
-                        *(base.add(offset as usize) as *mut *const StyleValueData) = retained;
-                    }
-                }
-            }
+            apply_group_field_pokes(scratch, &pokes);
         }
 
-        let free_scratch = || unsafe {
-            destruct(table, scratch);
-            let allocation = (scratch as *mut u8).sub(header_size(payload_align(table)));
-            dealloc(allocation, allocation_layout(table));
-        };
-
         if !parent_payload.is_null() && unsafe { payloads_equal(table, scratch, parent_payload) } {
-            free_scratch();
+            unsafe { free_scratch_payload(table, scratch) };
             retain_group_payload(group_index, parent_payload);
             return Some(parent_payload);
         }
         let default_payload = default_group_payload(group_index);
         if unsafe { payloads_equal(table, scratch, default_payload) } {
-            free_scratch();
+            unsafe { free_scratch_payload(table, scratch) };
             return Some(default_payload);
         }
         Some(scratch as *const c_void)
     })
     .unwrap_or(std::ptr::null())
+}
+
+/// A C++ function that fills one group's complex members - the values the
+/// pokeable descriptors cannot carry - into a default-constructed payload
+/// from pre-lowered assembly data, consuming the data's retained handles.
+pub type StyleGroupPayloadAssembler = unsafe extern "C" fn(payload: *mut c_void, data: *const c_void);
+
+const MAX_STYLE_GROUP_COUNT: usize = 32;
+
+static PAYLOAD_ASSEMBLERS: [std::sync::atomic::AtomicUsize; MAX_STYLE_GROUP_COUNT] =
+    [const { std::sync::atomic::AtomicUsize::new(0) }; MAX_STYLE_GROUP_COUNT];
+
+/// Registers the C++ assembler for one group's complex payload members.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_group_register_payload_assembler(
+    group_index: usize,
+    assembler: StyleGroupPayloadAssembler,
+) {
+    abort_on_panic(|| {
+        let previous = PAYLOAD_ASSEMBLERS[group_index].swap(assembler as usize, std::sync::atomic::Ordering::Release);
+        assert!(
+            previous == 0 || previous == assembler as usize,
+            "payload assembler installed twice"
+        );
+    });
+}
+
+fn registered_payload_assembler(group_index: usize) -> Option<StyleGroupPayloadAssembler> {
+    let raw = PAYLOAD_ASSEMBLERS[group_index].load(std::sync::atomic::Ordering::Acquire);
+    if raw == 0 {
+        return None;
+    }
+    // SAFETY: Only rust_style_group_register_payload_assembler stores here,
+    // and it stores a valid assembler function.
+    Some(unsafe { std::mem::transmute::<usize, StyleGroupPayloadAssembler>(raw) })
+}
+
+/// Shares one group's immortal default payload - or the parent payload when
+/// it equals the default, keeping the identity - for a build whose inputs are
+/// all initial values.
+///
+/// # Safety
+/// `parent_payload` must be a valid payload of the group or null.
+pub(crate) unsafe fn share_default_group_payload(group_index: usize, parent_payload: *const c_void) -> *const c_void {
+    let table = vtable(group_index);
+    let default_payload = default_group_payload(group_index);
+    if !parent_payload.is_null() && unsafe { payloads_equal(table, parent_payload, default_payload) } {
+        retain_group_payload(group_index, parent_payload);
+        return parent_payload;
+    }
+    default_payload
+}
+
+/// Builds a C++-lifecycle group payload whose complex members come from a
+/// registered assembler: the simple fields poke from the descriptors with the
+/// constraint kinds skipped, the assembler fills the rest from `assembler_data`
+/// (consuming its retained handles), and the parent or default payload is
+/// shared when the result compares equal.
+///
+/// # Safety
+/// `values` must hold one valid data entry per registered descriptor of the
+/// group in registration order, `assembler_data` must be the registered
+/// assembler's expected data, and `parent_payload` a valid payload of the
+/// group or null.
+pub(crate) unsafe fn build_group_payload_with_assembler(
+    group_index: usize,
+    values: &[FfiGroupValueEntry],
+    assembler_data: *const c_void,
+    parent_payload: *const c_void,
+) -> *const c_void {
+    let assembler = registered_payload_assembler(group_index)
+        .expect("a group built through the assembler path must register its assembler");
+    let all = &FIELD_DESCRIPTORS
+        .get()
+        .expect("descriptors register before any build")
+        .0;
+    let descriptors: Vec<&FfiGroupFieldDescriptor> = all
+        .iter()
+        .filter(|descriptor| descriptor.group_index as usize == group_index)
+        .collect();
+    assert_eq!(descriptors.len(), values.len());
+    let pokes = decode_group_field_pokes(&descriptors, values, false)
+        .expect("computed values decode for every non-constraint descriptor");
+
+    let table = vtable(group_index);
+    let scratch = allocate_payload(table, 1);
+    // SAFETY: The scratch payload was allocated for this group's layout; the
+    // poke offsets come from offsetof on the C++ side, and the assembler is
+    // the registered filler for this group.
+    unsafe {
+        default_construct(table, scratch);
+        apply_group_field_pokes(scratch, &pokes);
+        assembler(scratch, assembler_data);
+    }
+
+    if !parent_payload.is_null() && unsafe { payloads_equal(table, scratch, parent_payload) } {
+        unsafe { free_scratch_payload(table, scratch) };
+        retain_group_payload(group_index, parent_payload);
+        return parent_payload;
+    }
+    let default_payload = default_group_payload(group_index);
+    if unsafe { payloads_equal(table, scratch, default_payload) } {
+        unsafe { free_scratch_payload(table, scratch) };
+        return default_payload;
+    }
+    scratch as *const c_void
 }
 
 /// Builds an inherited box group payload from the five computed keyword
@@ -1455,7 +1648,7 @@ pub unsafe extern "C" fn rust_build_inherited_box_group(
 }
 
 impl ComputedSize {
-    fn keyword(kind: ComputedSizeKind) -> Self {
+    pub(crate) fn keyword(kind: ComputedSizeKind) -> Self {
         Self {
             kind,
             value: ComputedStyleValueHandle::empty(),
@@ -1469,7 +1662,7 @@ impl ComputedSize {
         }
     }
 
-    fn from_data(data: *const c_void) -> Self {
+    pub(crate) fn from_data(data: *const c_void) -> Self {
         use crate::css::css_enums::keyword;
         use crate::css::style_value::StyleValueData;
 
@@ -2074,70 +2267,6 @@ pub unsafe extern "C" fn rust_replace_computed_fly_string_list(
 ) {
     abort_on_panic(|| unsafe {
         *target = RetainedUtf16FlyStringList::from_raw(raws, count);
-    });
-}
-
-/// # Safety
-/// `target` must be a valid list slot and `entries` must point at `count`
-/// initialized entries whose retained references the caller gives up.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_replace_grid_track_entry_list(
-    target: *mut RetainedGridTrackEntryList,
-    entries: *const ComputedGridTrackEntry,
-    count: usize,
-) {
-    abort_on_panic(|| {
-        let mut owned = Vec::with_capacity(count);
-        for index in 0..count {
-            // SAFETY: Each entry is initialized and its references transfer
-            // to this read exactly once.
-            owned.push(unsafe { entries.add(index).read() });
-        }
-        // SAFETY: The caller passes a valid (possibly zero-initialized
-        // empty) list slot.
-        unsafe { *target = RetainedGridTrackEntryList::from_vec(owned) };
-    });
-}
-
-/// # Safety
-/// `target` must be a valid list slot and `indices` must point at `count`
-/// values.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_replace_grid_name_index_list(
-    target: *mut RetainedGridNameIndexList,
-    indices: *const u32,
-    count: usize,
-) {
-    abort_on_panic(|| {
-        let copied = if count == 0 {
-            Vec::new()
-        } else {
-            // SAFETY: The caller passes `count` valid indices.
-            unsafe { std::slice::from_raw_parts(indices, count) }.to_vec()
-        };
-        // SAFETY: The caller passes a valid list slot.
-        unsafe { *target = RetainedGridNameIndexList::from_vec(copied) };
-    });
-}
-
-/// # Safety
-/// `target` must be a valid list slot and `areas` must point at `count`
-/// values.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_replace_grid_area_list(
-    target: *mut RetainedGridAreaList,
-    areas: *const ComputedGridArea,
-    count: usize,
-) {
-    abort_on_panic(|| {
-        let copied = if count == 0 {
-            Vec::new()
-        } else {
-            // SAFETY: The caller passes `count` valid areas.
-            unsafe { std::slice::from_raw_parts(areas, count) }.to_vec()
-        };
-        // SAFETY: The caller passes a valid list slot.
-        unsafe { *target = RetainedGridAreaList::from_vec(copied) };
     });
 }
 

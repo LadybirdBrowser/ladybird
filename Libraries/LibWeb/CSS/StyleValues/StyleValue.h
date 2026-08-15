@@ -242,6 +242,18 @@ public:
     // Wrap a transferred strong Rust reference in its corresponding typed C++ facade.
     static ValueComparingNonnullRefPtr<StyleValue const> adopt_rust_style_value_data(StyleValueFFI::StyleValueData const*);
 
+    // Mint a fresh typed facade for a Rust payload child, taking a new strong reference.
+    static ValueComparingNonnullRefPtr<StyleValue const> wrap_rust_child(StyleValueFFI::RetainedStyleValueData const& child)
+    {
+        return adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(child.pointer)));
+    }
+    static ValueComparingRefPtr<StyleValue const> wrap_rust_child_or_null(StyleValueFFI::RetainedStyleValueData const& child)
+    {
+        if (!child.pointer)
+            return nullptr;
+        return wrap_rust_child(child);
+    }
+
     String to_string(SerializationMode) const;
     Utf16String to_utf16_string(SerializationMode) const;
     void serialize(StringBuilder&, SerializationMode) const;
@@ -282,14 +294,6 @@ template<typename T>
 struct StyleValueWithDefaultOperators : public StyleValue {
     using StyleValue::StyleValue;
     using Base = StyleValue;
-
-    bool equals(StyleValue const& other) const
-    {
-        if (type() != other.type())
-            return false;
-        auto const& typed_other = static_cast<T const&>(other);
-        return static_cast<T const&>(*this).properties_equal(typed_other);
-    }
 };
 
 i32 int_from_style_value(NonnullRefPtr<StyleValue const> const& style_value);

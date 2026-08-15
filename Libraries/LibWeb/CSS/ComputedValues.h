@@ -33,6 +33,7 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/Ratio.h>
+#include <LibWeb/CSS/ResolvedTransform.h>
 #include <LibWeb/CSS/Size.h>
 #include <LibWeb/CSS/StyleRecordID.h>
 #include <LibWeb/CSS/StyleStructRef.h>
@@ -1021,13 +1022,6 @@ inline ComputedValuesFFI::ComputedVerticalAlign to_ffi_vertical_align(Variant<Ve
     return { .is_keyword = false, .keyword = 0, .value = { retained.leak_data() } };
 }
 
-// The returned raw struct carries the by-value Size's retained reference for
-// a Rust-owned payload to assume ownership of.
-inline ComputedValuesFFI::ComputedSize to_ffi_computed_size(Size size)
-{
-    return { .kind = size.kind, .value = { exchange(size.value.pointer, nullptr) } };
-}
-
 // Each returned raw carries one leaked reference for a Rust-owned fly string
 // list to assume ownership of.
 inline Vector<size_t> to_leaked_fly_string_raws(Vector<Utf16FlyString> const& names)
@@ -1067,6 +1061,12 @@ public:
 
     RefPtr<StyleValue const> computed_style_value(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
     RefPtr<StyleValue const> computed_style_value_for_inheritance(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
+
+    // The stored Rust style value that IS the property's computed value, for the properties that
+    // keep one; null for every other property, and for a stored value that is currently absent.
+    // Callers can serialize straight from the returned handle without minting a wrapper.
+    RustStyleValueHandle const* stored_style_value_handle(PropertyID) const;
+
     RefPtr<StyleValue const> color_style_value() const;
     ComputedValues const& base_values() const { return m_borrowed_base_values ? *m_borrowed_base_values : m_base_values ? *m_base_values
                                                                                                                         : *this; }
@@ -1145,8 +1145,17 @@ public:
     bool has_pseudo_element_style(PseudoElement pseudo_element) const { return m_pseudo_element_styles & (1ull << to_underlying(pseudo_element)); }
     u64 pseudo_element_style_mask() const { return m_pseudo_element_styles; }
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> const& inheritance_dependent_specified_values() const { return m_inheritance_dependent_specified_values; }
+    ReadonlySpan<StyleEngineFFI::FfiInheritanceDependentValue const> borrowed_inheritance_dependent_values() const { return m_borrowed_inheritance_dependent_values; }
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> inheritance_dependent_specified_values_snapshot() const;
     RefPtr<StyleValue const> raw_cascaded_font_size() const;
+
+    // The drive's frozen computed longhand table (a Rust ComputedLonghandTable), or null when
+    // this style holds only a borrowed span or no table at all.
+    void const* computed_longhand_table() const { return m_computed_longhand_table; }
+    // One stored data pointer per longhand (null slots where the drive stored no value); empty
+    // when this style carries no table. The pointers stay valid while this ComputedValues is
+    // live (or, for a borrowed record view, while the style engine retains the record's table).
+    ReadonlySpan<void const*> computed_longhand_values() const { return m_longhand_values; }
 
     ~ComputedValues();
 
@@ -1266,8 +1275,6 @@ public:
     FontVariantEmoji font_variant_emoji() const { return m_inherited.font->font_variant_emoji; }
     CSSPixels const& word_spacing() const { return m_inherited.text->word_spacing; }
     CSSPixels letter_spacing() const { return m_inherited.text->letter_spacing; }
-    RefPtr<StyleValue const> word_spacing_style_value() const;
-    RefPtr<StyleValue const> letter_spacing_style_value() const;
     FlexDirection flex_direction() const { return static_cast<FlexDirection>(m_noninherited.alignment->flex_direction); }
     FlexWrap flex_wrap() const { return static_cast<FlexWrap>(m_noninherited.alignment->flex_wrap); }
     FlexBasis flex_basis() const
@@ -1502,6 +1509,7 @@ public:
     LengthPercentage const& y() const { return LengthPercentage::view(m_noninherited.svg_reset->y); }
 
     Vector<NonnullRefPtr<TransformationStyleValue const>> const& transformations() const { return m_noninherited.transform->transformations; }
+    Vector<ResolvedTransform> const& resolved_transform_list() const { return m_noninherited.transform->resolved_transform_list; }
     TransformBox const& transform_box() const { return m_noninherited.transform->transform_box; }
     TransformOrigin const& transform_origin() const { return m_noninherited.transform->transform_origin; }
     TransformStyle const& transform_style() const { return m_noninherited.transform->transform_style; }
@@ -1917,6 +1925,9 @@ public:
     struct TransformValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::TransformValues);
         Vector<NonnullRefPtr<TransformationStyleValue const>> transformations {};
+        // The paint-ready lowering of translate, rotate, scale, and transformations,
+        // in that order; see ResolvedTransform.
+        Vector<ResolvedTransform> resolved_transform_list {};
         TransformBox transform_box { InitialValues::transform_box() };
         TransformOrigin transform_origin {};
         TransformStyle transform_style { InitialValues::transform_style() };
@@ -2148,6 +2159,20 @@ private:
         StyleStructRef<SVGResetValues> svg_reset;
     };
 
+    // Retains `table` (releasing any table held before) and points the value span at it.
+    void adopt_computed_longhand_table(void const* table);
+    // Takes `previous`'s table when every slot holds an equal value, so the next publication
+    // interns the same pointers and keeps the style-record identity.
+    void adopt_identical_computed_longhand_table(ComputedValues const& previous) const;
+    void clear_computed_longhand_table();
+    // Takes `other`'s table by reference count, or materializes an owned table from `other`'s
+    // borrowed record span, so the copy never outlives its source's storage.
+    void copy_computed_longhand_table_from(ComputedValues const& other);
+    // For the inherited-group swap: builds this style's table from `old_values`'s slots with
+    // every inherited-by-default longhand replaced by `inherited_source`'s value, mirroring
+    // the group replacement, so the swapped style stays a complete inheritance source.
+    void adopt_swapped_computed_longhand_table(ComputedValues const& old_values, ComputedValues const& inherited_source);
+
     NonInheritedValues m_noninherited;
     AK::FixedBitmap<number_of_longhand_properties> m_property_important { false };
     AK::FixedBitmap<number_of_longhand_properties> m_property_inherited { false };
@@ -2156,6 +2181,12 @@ private:
     RefPtr<StyleValue const> m_raw_cascaded_font_size;
     StyleValueFFI::StyleValueData const* m_borrowed_raw_cascaded_font_size { nullptr };
     ReadonlySpan<StyleEngineFFI::FfiInheritanceDependentValue const> m_borrowed_inheritance_dependent_values;
+    // The drive's frozen computed longhand table, retained when this style owns a reference;
+    // null for borrowed style-record views and for styles built without a drive.
+    void const* m_computed_longhand_table { nullptr };
+    // One stored data pointer per longhand (null where the drive stored none): the owned table's
+    // span, or the span borrowed from the style record's interned table. Empty without a table.
+    ReadonlySpan<void const*> m_longhand_values;
     RefPtr<ComputedValues const> m_base_values;
     ComputedValues const* m_borrowed_base_values { nullptr };
     RefPtr<AnimatedProperties const> m_animated_properties;
@@ -2252,6 +2283,7 @@ public:
     void set_pseudo_element_styles(u64 value) { m_values.m_pseudo_element_styles = value; }
     void set_inheritance_dependent_specified_values(HashMap<PropertyID, NonnullRefPtr<StyleValue const>> value) { m_values.m_inheritance_dependent_specified_values = move(value); }
     void set_raw_cascaded_font_size(RefPtr<StyleValue const> value) { m_values.m_raw_cascaded_font_size = move(value); }
+    void set_computed_longhand_table(void const* table) { m_values.adopt_computed_longhand_table(table); }
     void set_base_values(NonnullRefPtr<ComputedValues const> value)
     {
         m_values.m_base_values = move(value);
@@ -2289,84 +2321,6 @@ public:
         if (m_values.aspect_ratio() == aspect_ratio)
             return;
         m_values.m_noninherited.box.access().aspect_ratio = to_ffi_aspect_ratio(aspect_ratio);
-    }
-    void set_anchor_names(Vector<Utf16FlyString> value)
-    {
-        if (m_values.m_noninherited.anchor->anchor_names == value)
-            return;
-        m_values.m_noninherited.anchor.access().anchor_names = move(value);
-    }
-    void set_anchor_scope(AnchorScopeData value)
-    {
-        if (m_values.m_noninherited.anchor->anchor_scope == value)
-            return;
-        m_values.m_noninherited.anchor.access().anchor_scope = move(value);
-    }
-    void set_animation_names(Vector<ComputedAnimationName> value)
-    {
-        if (m_values.m_noninherited.animation->animation_names == value)
-            return;
-        m_values.m_noninherited.animation.access().animation_names = move(value);
-    }
-    void set_animation_compositions(Vector<AnimationComposition> value)
-    {
-        if (m_values.m_noninherited.animation->animation_compositions == value)
-            return;
-        m_values.m_noninherited.animation.access().animation_compositions = move(value);
-    }
-    void set_animation_delays(Vector<Time> value)
-    {
-        if (m_values.m_noninherited.animation->animation_delays == value)
-            return;
-        m_values.m_noninherited.animation.access().animation_delays = move(value);
-    }
-    void set_animation_directions(Vector<AnimationDirection> value)
-    {
-        if (m_values.m_noninherited.animation->animation_directions == value)
-            return;
-        m_values.m_noninherited.animation.access().animation_directions = move(value);
-    }
-    void set_animation_durations(Vector<Optional<Time>> value)
-    {
-        if (m_values.m_noninherited.animation->animation_durations == value)
-            return;
-        m_values.m_noninherited.animation.access().animation_durations = move(value);
-    }
-    void set_animation_fill_modes(Vector<AnimationFillMode> value)
-    {
-        if (m_values.m_noninherited.animation->animation_fill_modes == value)
-            return;
-        m_values.m_noninherited.animation.access().animation_fill_modes = move(value);
-    }
-    void set_animation_iteration_counts(Vector<double> value)
-    {
-        if (m_values.m_noninherited.animation->animation_iteration_counts == value)
-            return;
-        m_values.m_noninherited.animation.access().animation_iteration_counts = move(value);
-    }
-    void set_animation_play_states(Vector<AnimationPlayState> value)
-    {
-        if (m_values.m_noninherited.animation->animation_play_states == value)
-            return;
-        m_values.m_noninherited.animation.access().animation_play_states = move(value);
-    }
-    void set_animation_timelines(Vector<AnimationTimelineData> value)
-    {
-        if (m_values.m_noninherited.animation->animation_timelines == value)
-            return;
-        m_values.m_noninherited.animation.access().animation_timelines = move(value);
-    }
-    void set_animation_timing_functions(Vector<EasingFunction> value)
-    {
-        if (m_values.m_noninherited.animation->animation_timing_functions == value)
-            return;
-        m_values.m_noninherited.animation.access().animation_timing_functions = move(value);
-    }
-    void set_animation_timing_function_style_values(StyleValueVector value)
-    {
-        if (m_values.m_noninherited.animation->animation_timing_function_style_values == value)
-            return;
-        m_values.m_noninherited.animation.access().animation_timing_function_style_values = move(value);
     }
     void set_caret_color(ColorOrAuto caret_color)
     {
@@ -2753,113 +2707,11 @@ public:
         }
         m_values.m_noninherited.anchor.access().position_anchor = move(value);
     }
-    void set_position_area(PositionAreaData value)
-    {
-        if (m_values.m_noninherited.anchor->position_area == value)
-            return;
-        m_values.m_noninherited.anchor.access().position_area = move(value);
-    }
-    void set_position_try_fallbacks(Vector<PositionTryFallbackData> value)
-    {
-        if (m_values.m_noninherited.anchor->position_try_fallbacks == value)
-            return;
-        m_values.m_noninherited.anchor.access().position_try_fallbacks = move(value);
-    }
-    void set_position_try_order(Optional<TryOrder> value)
-    {
-        if (m_values.m_noninherited.anchor->position_try_order == value)
-            return;
-        m_values.m_noninherited.anchor.access().position_try_order = value;
-    }
-    void set_position_visibility(PositionVisibilityData value)
-    {
-        if (m_values.m_noninherited.anchor->position_visibility == value)
-            return;
-        m_values.m_noninherited.anchor.access().position_visibility = value;
-    }
-    void set_scroll_timeline_names(Vector<Optional<Utf16FlyString>> value)
-    {
-        if (m_values.m_noninherited.animation->scroll_timeline_names == value)
-            return;
-        m_values.m_noninherited.animation.access().scroll_timeline_names = move(value);
-    }
-    void set_scroll_timeline_axes(Vector<Axis> value)
-    {
-        if (m_values.m_noninherited.animation->scroll_timeline_axes == value)
-            return;
-        m_values.m_noninherited.animation.access().scroll_timeline_axes = move(value);
-    }
-    void set_timeline_scope(TimelineScopeData value)
-    {
-        if (m_values.m_noninherited.animation->timeline_scope == value)
-            return;
-        m_values.m_noninherited.animation.access().timeline_scope = move(value);
-    }
-    void set_view_timeline_names(Vector<Optional<Utf16FlyString>> value)
-    {
-        if (m_values.m_noninherited.animation->view_timeline_names == value)
-            return;
-        m_values.m_noninherited.animation.access().view_timeline_names = move(value);
-    }
-    void set_view_timeline_axes(Vector<Axis> value)
-    {
-        if (m_values.m_noninherited.animation->view_timeline_axes == value)
-            return;
-        m_values.m_noninherited.animation.access().view_timeline_axes = move(value);
-    }
-    void set_view_timeline_insets(Vector<ViewTimelineInsetData> value)
-    {
-        if (m_values.m_noninherited.animation->view_timeline_insets == value)
-            return;
-        m_values.m_noninherited.animation.access().view_timeline_insets = move(value);
-    }
-    void set_transition_properties(Vector<Optional<Utf16FlyString>> value)
-    {
-        if (m_values.m_noninherited.animation->transition_properties == value)
-            return;
-        m_values.m_noninherited.animation.access().transition_properties = move(value);
-    }
-    void set_transition_durations(Vector<Time> value)
-    {
-        if (m_values.m_noninherited.animation->transition_durations == value)
-            return;
-        m_values.m_noninherited.animation.access().transition_durations = move(value);
-    }
-    void set_transition_timing_functions(Vector<EasingFunction> value)
-    {
-        if (m_values.m_noninherited.animation->transition_timing_functions == value)
-            return;
-        m_values.m_noninherited.animation.access().transition_timing_functions = move(value);
-    }
-    void set_transition_timing_function_style_values(StyleValueVector value)
-    {
-        if (m_values.m_noninherited.animation->transition_timing_function_style_values == value)
-            return;
-        m_values.m_noninherited.animation.access().transition_timing_function_style_values = move(value);
-    }
-    void set_transition_delays(Vector<Time> value)
-    {
-        if (m_values.m_noninherited.animation->transition_delays == value)
-            return;
-        m_values.m_noninherited.animation.access().transition_delays = move(value);
-    }
-    void set_transition_behaviors(Vector<TransitionBehavior> value)
-    {
-        if (m_values.m_noninherited.animation->transition_behaviors == value)
-            return;
-        m_values.m_noninherited.animation.access().transition_behaviors = move(value);
-    }
     void set_white_space_collapse(WhiteSpaceCollapse value)
     {
         if (m_values.m_inherited.text->white_space_collapse == value)
             return;
         m_values.m_inherited.text.access().white_space_collapse = value;
-    }
-    void set_white_space_trim(WhiteSpaceTrimData value)
-    {
-        if (m_values.m_noninherited.text_reset->white_space_trim == value)
-            return;
-        m_values.m_noninherited.text_reset.access().white_space_trim = value;
     }
     void set_word_spacing(CSSPixels value)
     {
@@ -3290,6 +3142,12 @@ public:
         if (m_values.m_noninherited.transform->transformations == value)
             return;
         m_values.m_noninherited.transform.access().transformations = move(value);
+    }
+    void set_resolved_transform_list(Vector<ResolvedTransform> value)
+    {
+        if (m_values.m_noninherited.transform->resolved_transform_list == value)
+            return;
+        m_values.m_noninherited.transform.access().resolved_transform_list = move(value);
     }
     void set_transform_box(TransformBox value)
     {
@@ -3798,6 +3656,7 @@ public:
                 StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(data)));
         }
         m_values->m_raw_cascaded_font_size = values.raw_cascaded_font_size();
+        m_values->copy_computed_longhand_table_from(values);
         if (values.m_borrowed_base_values)
             m_values->m_base_values = Builder { *values.m_borrowed_base_values }.build();
         else
@@ -3823,6 +3682,9 @@ public:
     {
         Builder builder { values };
         builder.m_values->m_inherited = inherited_source.m_inherited;
+        // The copied longhand table still names the old parent's inherited values;
+        // replace those slots with the new parent's, like the groups above.
+        builder.m_values->adopt_swapped_computed_longhand_table(values, inherited_source);
         return builder;
     }
 

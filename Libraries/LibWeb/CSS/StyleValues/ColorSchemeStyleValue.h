@@ -34,8 +34,6 @@ public:
     }
     bool only() const { return m_value->color_scheme.only; }
 
-    bool properties_equal(ColorSchemeStyleValue const& other) const { return schemes() == other.schemes() && only() == other.only(); }
-
 private:
     friend class StyleValue;
 

@@ -23,7 +23,6 @@ public:
 
     static ValueComparingNonnullRefPtr<ColorMixStyleValue const> create(RefPtr<StyleValue const> color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component);
 
-    bool equals(StyleValue const&) const;
     Optional<Color> to_color(ColorResolutionContext) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
@@ -45,9 +44,15 @@ private:
             retain(second_component.color.ptr()), retain(second_component.percentage.ptr()));
     }
 
-    ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return m_color_interpolation_method; }
-    ColorMixComponent first_component() const { return m_first_component; }
-    ColorMixComponent second_component() const { return m_second_component; }
+    ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return wrap_rust_child_or_null(m_value->color_mix.color_interpolation_method); }
+    ColorMixComponent first_component() const
+    {
+        return ColorMixComponent { wrap_rust_child(m_value->color_mix.first_color), wrap_rust_child_or_null(m_value->color_mix.first_percentage) };
+    }
+    ColorMixComponent second_component() const
+    {
+        return ColorMixComponent { wrap_rust_child(m_value->color_mix.second_color), wrap_rust_child_or_null(m_value->color_mix.second_percentage) };
+    }
 
     struct NormalizedPercentages {
         Percentage first_percentage;
@@ -62,10 +67,6 @@ private:
         double alpha_multiplier;
     };
     PercentageNormalizationResult normalize_percentages(ComputationContext const&) const;
-
-    ValueComparingRefPtr<StyleValue const> m_color_interpolation_method;
-    ColorMixComponent m_first_component;
-    ColorMixComponent m_second_component;
 };
 
 }

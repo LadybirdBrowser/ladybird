@@ -37,13 +37,6 @@ public:
     //     rebuilds the whole map from the Rust data on every call.
     static Utf16FlyString cell_name_in(HashMap<Utf16FlyString, GridArea> const& grid_areas, size_t row, size_t column);
 
-    bool properties_equal(GridTemplateAreaStyleValue const& other) const
-    {
-        return row_count() == other.row_count()
-            && column_count() == other.column_count()
-            && grid_areas() == other.grid_areas();
-    }
-
 private:
     friend class StyleValue;
 

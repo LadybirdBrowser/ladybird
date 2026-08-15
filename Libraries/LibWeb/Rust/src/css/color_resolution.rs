@@ -491,7 +491,7 @@ const fn rgb(r: u8, g: u8, b: u8) -> Rgba {
     Rgba { r, g, b, a: 255 }
 }
 
-fn accent_color(_dark: bool) -> Rgba {
+pub(crate) fn accent_color(_dark: bool) -> Rgba {
     rgb(61, 174, 233)
 }
 
@@ -2202,6 +2202,59 @@ pub struct FfiResolvedColorValue {
     pub rgba: [u8; 4],
 }
 
+/// Decodes an FFI input's relative-color channel values into the borrowable
+/// storage `resolution_input_from_ffi` takes.
+pub(crate) fn relative_color_context_from_ffi(input: &FfiColorResolutionInput) -> RelativeColorContext {
+    let mut channels: RelativeColorContext = [None; 13];
+    if input.has_channels {
+        for (slot, (&present, &channel)) in channels
+            .iter_mut()
+            .zip(input.channels_present.iter().zip(input.channels.iter()))
+        {
+            if present {
+                *slot = Some(channel);
+            }
+        }
+    }
+    channels
+}
+
+/// Borrows a marshalled FFI resolution input as the resolver's input type;
+/// `channels` is the decoded storage from `relative_color_context_from_ffi`.
+///
+/// # Safety
+/// The input's current-color value and length-context pointers must stay live
+/// for the returned borrow's lifetime.
+pub(crate) unsafe fn resolution_input_from_ffi<'a>(
+    input: &'a FfiColorResolutionInput,
+    channels: &'a RelativeColorContext,
+) -> ColorResolutionInput<'a> {
+    let current_color_value = unsafe {
+        input
+            .current_color_value
+            .cast::<crate::css::style_value::StyleValueData>()
+            .as_ref()
+    };
+    let length = unsafe {
+        input
+            .length
+            .cast::<crate::css::style_compute::FfiLengthResolutionContext>()
+            .as_ref()
+    };
+    ColorResolutionInput {
+        scheme: input.has_scheme.then_some(input.scheme),
+        current_color: input.has_current_color.then_some(Rgba {
+            r: input.current_color_rgba[0],
+            g: input.current_color_rgba[1],
+            b: input.current_color_rgba[2],
+            a: input.current_color_rgba[3],
+        }),
+        current_color_value,
+        length,
+        channels: input.has_channels.then_some(channels),
+    }
+}
+
 /// Resolves a style value to an sRGB color, or declines.
 ///
 /// # Safety
@@ -2216,41 +2269,9 @@ pub unsafe extern "C" fn rust_style_value_to_color(
     crate::abort_on_panic(|| {
         let value = unsafe { &*value.cast::<crate::css::style_value::StyleValueData>() };
         let input = unsafe { &*input };
-        let mut channels: RelativeColorContext = [None; 13];
-        if input.has_channels {
-            for (slot, (&present, &channel)) in channels
-                .iter_mut()
-                .zip(input.channels_present.iter().zip(input.channels.iter()))
-            {
-                if present {
-                    *slot = Some(channel);
-                }
-            }
-        }
-        let current_color_value = unsafe {
-            input
-                .current_color_value
-                .cast::<crate::css::style_value::StyleValueData>()
-                .as_ref()
-        };
-        let length = unsafe {
-            input
-                .length
-                .cast::<crate::css::style_compute::FfiLengthResolutionContext>()
-                .as_ref()
-        };
-        let resolution_input = ColorResolutionInput {
-            scheme: input.has_scheme.then_some(input.scheme),
-            current_color: input.has_current_color.then_some(Rgba {
-                r: input.current_color_rgba[0],
-                g: input.current_color_rgba[1],
-                b: input.current_color_rgba[2],
-                a: input.current_color_rgba[3],
-            }),
-            current_color_value,
-            length,
-            channels: input.has_channels.then_some(&channels),
-        };
+        let channels = relative_color_context_from_ffi(input);
+        // SAFETY: The caller warrants the input's pointers outlive the call.
+        let resolution_input = unsafe { resolution_input_from_ffi(input, &channels) };
         match to_color(value, &resolution_input) {
             Some(color) => FfiResolvedColorValue {
                 resolved: true,

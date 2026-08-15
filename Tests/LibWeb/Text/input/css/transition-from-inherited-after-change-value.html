@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .container { text-shadow: rgba(0,0,0,0.1) 5px 6px 7px; }
+    .container.to { text-shadow: rgba(10,10,10,0.9) 5px 6px 7px; }
+    .container.how { transition: text-shadow 1000s linear 0s; }
+    .transition { text-shadow: inherit; }
+    .transition.to {}
+    .transition.how { transition: text-shadow 1000s linear 0s; }
+</style>
+<div class="container"><div class="transition">Text sample</div></div>
+<script>
+    // https://drafts.csswg.org/css-transitions-1/#after-change-style
+    // A child whose value is inherited sees the parent's after-change (target) value in its
+    // own after-change style, so it starts exactly one transition of its own toward that
+    // target - not none, and not a restart per frame of the parent's transition.
+    test(() => {
+        const container = document.querySelector(".container");
+        const child = document.querySelector(".transition");
+        println("container before: " + getComputedStyle(container).textShadow);
+        println("child before: " + getComputedStyle(child).textShadow);
+        container.classList.add("how");
+        child.classList.add("how");
+        internals.updateStyle();
+        container.classList.add("to");
+        child.classList.add("to");
+        internals.updateStyle();
+
+        const containerTransition = container.getAnimations().find(animation => animation instanceof CSSTransition);
+        const childTransition = child.getAnimations().find(animation => animation instanceof CSSTransition);
+        println("container started one transition: " + (container.getAnimations().length === 1));
+        println("child started one transition: " + (child.getAnimations().length === 1));
+        println("child transition property: " + childTransition.transitionProperty);
+
+        containerTransition.currentTime = 500000;
+        childTransition.currentTime = 500000;
+        internals.updateStyle();
+        println("child transition survived resampling: " + (child.getAnimations()[0] === childTransition));
+        println("container and child midpoints match: "
+            + (getComputedStyle(container).textShadow === getComputedStyle(child).textShadow));
+
+        containerTransition.currentTime = 1000000;
+        childTransition.currentTime = 1000000;
+        println("container after: " + getComputedStyle(container).textShadow);
+        println("child after: " + getComputedStyle(child).textShadow);
+    });
+</script>

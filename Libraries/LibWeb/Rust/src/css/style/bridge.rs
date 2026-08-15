@@ -206,12 +206,17 @@ pub struct FfiStyleRecordView {
     pub property_importance: *const u8,
     pub property_inheritance: *const u8,
     pub inheritance_dependent_values: *const FfiInheritanceDependentValue,
+    /// One borrowed style-value data pointer per longhand (null where the
+    /// drive stored no value), or null/0 when the record carries no table.
+    /// Always the base record's table, matching `WithAnimationsApplied::No`.
+    pub longhand_values: *const *const c_void,
     pub raw_cascaded_font_size: *const c_void,
     pub animated_properties: *const c_void,
     pub payload_count: usize,
     pub property_importance_count: usize,
     pub property_inheritance_count: usize,
     pub inheritance_dependent_value_count: usize,
+    pub longhand_value_count: usize,
     pub pseudo_element_styles: u64,
     pub counter_style_environment_identity: u64,
     pub animation_overlay_identity: u64,
@@ -232,12 +237,14 @@ impl FfiStyleRecordView {
             property_importance: std::ptr::null(),
             property_inheritance: std::ptr::null(),
             inheritance_dependent_values: std::ptr::null(),
+            longhand_values: std::ptr::null(),
             raw_cascaded_font_size: std::ptr::null(),
             animated_properties: std::ptr::null(),
             payload_count: 0,
             property_importance_count: 0,
             property_inheritance_count: 0,
             inheritance_dependent_value_count: 0,
+            longhand_value_count: 0,
             pseudo_element_styles: 0,
             counter_style_environment_identity: 0,
             animation_overlay_identity: 0,
@@ -1800,7 +1807,8 @@ pub unsafe fn replay_memory_pressure_snapshot(engine: *const c_void) -> FfiMemor
 ///
 /// # Safety
 /// `engine` must be live. Every non-empty array must have its reported number of readable entries.
-/// Group payloads and style values must remain live for this call.
+/// Group payloads and style values must remain live for this call. `longhand_table` must be null
+/// or a live, frozen `ComputedLonghandTable`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_publish_computed_groups(
     engine: *mut c_void,
@@ -1825,6 +1833,7 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
     inheritance_dependent_values: *const *const c_void,
     inheritance_dependent_count: usize,
     raw_cascaded_font_size: *const c_void,
+    longhand_table: *const c_void,
 ) -> FfiStyleRecordDelta {
     abort_on_panic(|| {
         if count != 0 && payloads.is_null() {
@@ -1875,6 +1884,7 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
             animation_overlay_identity,
             animated_properties,
             animation_overlay_payloads,
+            longhand_table: longhand_table.cast(),
             reconstruction: super::computed::ComputedReconstructionMetadataInput {
                 property_importance,
                 property_inheritance,
@@ -1953,6 +1963,32 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
                 true => 0,
                 false => crate::css::style_value::style_value_dependency_flags(raw_cascaded_font_size.cast()),
             });
+            let longhand_table = unsafe {
+                longhand_table
+                    .cast::<crate::css::computed_longhand_table::ComputedLonghandTable>()
+                    .as_ref()
+            };
+            payload.write_bool(longhand_table.is_some());
+            if let Some(table) = longhand_table {
+                let stored_values = table
+                    .value_pointers()
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, value)| !value.is_null())
+                    .collect::<Vec<_>>();
+                payload.write_length(stored_values.len());
+                for (index, &value) in stored_values {
+                    payload.write_u16(crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID + index as u16);
+                    payload.write_u64(pointer_token(value));
+                    payload.write_u8(crate::css::style_value::style_value_dependency_flags(value.cast()));
+                }
+                let source_slots = table.source_slot_entries();
+                payload.write_length(source_slots.len());
+                for &(property, slot) in source_slots {
+                    payload.write_u16(property);
+                    payload.write_u32(slot);
+                }
+            }
             payload.write_u64(result.old_style_record);
             payload.write_u64(result.new_style_record);
         });
@@ -2027,12 +2063,14 @@ pub unsafe extern "C" fn style_engine_style_record_view(
                 property_importance: view.property_importance.as_ptr(),
                 property_inheritance: view.property_inheritance.as_ptr(),
                 inheritance_dependent_values: view.inheritance_dependent_values.as_ptr(),
+                longhand_values: view.longhand_values.as_ptr(),
                 raw_cascaded_font_size: view.raw_cascaded_font_size,
                 animated_properties: view.animated_properties,
                 payload_count: view.payloads.len(),
                 property_importance_count: view.property_importance.len(),
                 property_inheritance_count: view.property_inheritance.len(),
                 inheritance_dependent_value_count: view.inheritance_dependent_values.len(),
+                longhand_value_count: view.longhand_values.len(),
                 pseudo_element_styles: view.pseudo_element_styles,
                 counter_style_environment_identity: view.counter_style_environment_identity,
                 animation_overlay_identity: view.animation_overlay_identity,
@@ -2104,6 +2142,15 @@ pub unsafe extern "C" fn style_engine_style_record_view(
             payload.write_u64(view.counter_style_environment_identity);
             payload.write_u64(view.animation_overlay_identity);
             payload.write_u8(view.dependency_flags);
+            payload.write_length(view.longhand_values.len());
+            for &value in view.longhand_values {
+                payload.write_u64(match value.is_null() {
+                    true => 0,
+                    false => engine
+                        .recording_pointer_token(value as usize)
+                        .expect("an enabled recorder must tokenize the pointer"),
+                });
+            }
         });
         result
     })

@@ -12,6 +12,7 @@
 
 #include <AK/StringBuilder.h>
 #include <LibGfx/Matrix4x4.h>
+#include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/CSSMatrixComponent.h>
 #include <LibWeb/CSS/CSSPerspective.h>
 #include <LibWeb/CSS/CSSRotate.h>
@@ -24,80 +25,17 @@
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/Serialize.h>
-#include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/Painting/Paintable.h>
 
 namespace Web::CSS {
-
-ValueComparingNonnullRefPtr<TransformationStyleValue const> TransformationStyleValue::identity_transformation(
-    TransformFunction transform_function)
-{
-    // https://drafts.csswg.org/css-transforms-1/#identity-transform-function
-    // A transform function that is equivalent to a identity 4x4 matrix (see Mathematical Description of Transform
-    // Functions). Examples for identity transform functions are translate(0), translateX(0), translateY(0), scale(1),
-    // scaleX(1), scaleY(1), rotate(0), skew(0, 0), skewX(0), skewY(0) and matrix(1, 0, 0, 1, 0, 0).
-
-    // https://drafts.csswg.org/css-transforms-2/#identity-transform-function
-    // In addition to the identity transform function in CSS Transforms, examples for identity transform functions
-    // include translate3d(0, 0, 0), translateZ(0), scaleZ(1), rotate3d(1, 1, 1, 0), rotateX(0), rotateY(0), rotateZ(0)
-    // and matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1). A special case is perspective: perspective(none).
-    // The value of m34 becomes infinitesimal small and the transform function is therefore assumed to be equal to the
-    // identity matrix.
-
-    auto identity_parameters = [&] -> StyleValueVector {
-        auto const number_zero = NumberStyleValue::create(0.);
-        auto const number_one = NumberStyleValue::create(1.);
-
-        switch (transform_function) {
-        case TransformFunction::Matrix:
-            return { number_one, number_zero, number_zero, number_one, number_zero, number_zero };
-        case TransformFunction::Matrix3d:
-            return { number_one, number_zero, number_zero, number_zero,
-                number_zero, number_one, number_zero, number_zero,
-                number_zero, number_zero, number_one, number_zero,
-                number_zero, number_zero, number_zero, number_one };
-        case TransformFunction::Perspective:
-            return { KeywordStyleValue::create(Keyword::None) };
-        case TransformFunction::Rotate:
-        case TransformFunction::RotateX:
-        case TransformFunction::RotateY:
-        case TransformFunction::RotateZ:
-        case TransformFunction::Skew:
-        case TransformFunction::SkewX:
-        case TransformFunction::SkewY:
-            return { AngleStyleValue::create(Angle::make_degrees(0.)) };
-        case TransformFunction::Rotate3d:
-            return { number_one, number_one, number_one, AngleStyleValue::create(Angle::make_degrees(0.)) };
-        case TransformFunction::Translate:
-        case TransformFunction::TranslateX:
-        case TransformFunction::TranslateY:
-        case TransformFunction::TranslateZ:
-            return { LengthStyleValue::create(Length::make_px(0.)) };
-        case TransformFunction::Translate3d:
-            return {
-                LengthStyleValue::create(Length::make_px(0.)),
-                LengthStyleValue::create(Length::make_px(0.)),
-                LengthStyleValue::create(Length::make_px(0.)),
-            };
-        case TransformFunction::Scale:
-        case TransformFunction::ScaleX:
-        case TransformFunction::ScaleY:
-        case TransformFunction::ScaleZ:
-            return { number_one };
-        case TransformFunction::Scale3d:
-            return { number_one, number_one, number_one };
-        }
-        VERIFY_NOT_REACHED();
-    };
-    return create(PropertyID::Transform, transform_function, identity_parameters());
-}
 
 bool TransformationStyleValue::can_be_converted_to_matrix_without_reference_box() const
 {
@@ -638,6 +576,23 @@ ValueComparingNonnullRefPtr<StyleValue const> TransformationStyleValue::absoluti
         return *this;
 
     return TransformationStyleValue::create(property(), transform_function(), move(absolutized_values));
+}
+
+Vector<NonnullRefPtr<TransformationStyleValue const>> transformations_for_style_value(StyleValue const& value)
+{
+    if (value.is_keyword() && value.to_keyword() == Keyword::None)
+        return {};
+
+    if (!value.is_value_list())
+        return {};
+
+    auto& list = value.as_value_list();
+    Vector<NonnullRefPtr<TransformationStyleValue const>> transformations;
+    for (auto const& transform_value : list.values()) {
+        VERIFY(transform_value->is_transformation());
+        transformations.append(transform_value->as_transformation());
+    }
+    return transformations;
 }
 
 }

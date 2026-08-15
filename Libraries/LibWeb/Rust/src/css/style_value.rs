@@ -676,6 +676,10 @@ impl RetainedGridArea {
         &self.name
     }
 
+    pub(crate) fn grid_lines(&self) -> [usize; 4] {
+        [self.row_start, self.row_end, self.column_start, self.column_end]
+    }
+
     pub(crate) fn covers_cell(&self, row: usize, column: usize) -> bool {
         row >= self.row_start && row < self.row_end && column >= self.column_start && column < self.column_end
     }

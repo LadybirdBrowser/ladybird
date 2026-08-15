@@ -23,23 +23,23 @@ static_assert(to_underlying(ShadowPlacement::Inner) == 1);
 
 ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::color() const
 {
-    if (!color_or_null())
-        return KeywordStyleValue::create(Keyword::Currentcolor);
-    return *color_or_null();
+    if (auto color = color_or_null())
+        return color.release_nonnull();
+    return KeywordStyleValue::create(Keyword::Currentcolor);
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::blur_radius() const
 {
-    if (!blur_radius_or_null())
-        return LengthStyleValue::create(Length::make_px(0));
-    return *blur_radius_or_null();
+    if (auto blur_radius = blur_radius_or_null())
+        return blur_radius.release_nonnull();
+    return LengthStyleValue::create(Length::make_px(0));
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::spread_distance() const
 {
-    if (!spread_distance_or_null())
-        return LengthStyleValue::create(Length::make_px(0));
-    return *spread_distance_or_null();
+    if (auto spread_distance = spread_distance_or_null())
+        return spread_distance.release_nonnull();
+    return LengthStyleValue::create(Length::make_px(0));
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::absolutized(ComputationContext const& computation_context) const

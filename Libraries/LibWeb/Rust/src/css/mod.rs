@@ -11,6 +11,7 @@ pub mod cascaded_properties;
 pub(crate) mod color_conversion;
 pub mod color_interpolation;
 pub(crate) mod color_resolution;
+pub mod computed_longhand_table;
 pub mod computed_value_types;
 pub(crate) mod computed_value_views;
 pub mod computed_values;
@@ -28,6 +29,7 @@ pub(crate) mod serialize;
 pub mod style;
 pub mod style_compute;
 pub(crate) mod style_value;
+pub mod table_group_builder;
 pub mod transition;
 
 pub use css_tokenizer::CssHashType;

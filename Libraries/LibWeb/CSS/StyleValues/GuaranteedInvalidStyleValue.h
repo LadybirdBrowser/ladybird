@@ -24,8 +24,6 @@ public:
         return { Parser::ComponentValue { Parser::GuaranteedInvalidValue {} } };
     }
 
-    bool properties_equal(GuaranteedInvalidStyleValue const&) const { return true; }
-
 private:
     friend class StyleValue;
 

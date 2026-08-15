@@ -1061,9 +1061,6 @@ public:
         u64 base_style_partial_builds { 0 };
         u64 base_style_full_builds { 0 };
         u64 computed_longhand_evaluations { 0 };
-        u64 parent_inherited_snapshot_builds { 0 };
-        u64 parent_inherited_snapshot_properties { 0 };
-        u64 parent_inherited_snapshot_microseconds { 0 };
         u64 style_stabilization_epochs { 0 };
         u64 style_stabilization_feedback_epochs { 0 };
         u64 provisional_style_passes { 0 };

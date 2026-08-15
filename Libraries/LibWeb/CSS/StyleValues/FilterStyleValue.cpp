@@ -49,21 +49,6 @@ ValueComparingNonnullRefPtr<StyleValue const> FilterStyleValue::absolutized(Comp
     VERIFY_NOT_REACHED();
 }
 
-bool FilterStyleValue::equals(StyleValue const& other) const
-{
-    switch (kind()) {
-    case Kind::Blur:
-        return static_cast<BlurFilterStyleValue const&>(*this).equals(other);
-    case Kind::DropShadow:
-        return static_cast<DropShadowFilterStyleValue const&>(*this).equals(other);
-    case Kind::HueRotate:
-        return static_cast<HueRotateFilterStyleValue const&>(*this).equals(other);
-    case Kind::Color:
-        return static_cast<ColorFilterStyleValue const&>(*this).equals(other);
-    }
-    VERIFY_NOT_REACHED();
-}
-
 float BlurFilterStyleValue::resolved_radius() const
 {
     return Length::from_style_value(radius(), {}).absolute_length_to_px_without_rounding();
@@ -78,26 +63,18 @@ ValueComparingNonnullRefPtr<StyleValue const> BlurFilterStyleValue::absolutized(
     return BlurFilterStyleValue::create(move(absolutized_radius));
 }
 
-bool BlurFilterStyleValue::equals(StyleValue const& other) const
-{
-    if (!other.is_filter() || other.as_filter().kind() != Kind::Blur)
-        return false;
-    auto const& other_blur = static_cast<BlurFilterStyleValue const&>(other);
-    return radius() == other_blur.radius();
-}
-
 ValueComparingNonnullRefPtr<StyleValue const> DropShadowFilterStyleValue::absolutized(ComputationContext const& computation_context) const
 {
-    auto const& shadow = this->shadow();
-    auto absolutized_offset_x = shadow.offset_x()->absolutized(computation_context);
-    auto absolutized_offset_y = shadow.offset_y()->absolutized(computation_context);
-    auto absolutized_radius = shadow.blur_radius()->absolutized(computation_context);
-    auto absolutized_color = shadow.color()->absolutized(computation_context);
+    auto shadow = this->shadow();
+    auto absolutized_offset_x = shadow->offset_x()->absolutized(computation_context);
+    auto absolutized_offset_y = shadow->offset_y()->absolutized(computation_context);
+    auto absolutized_radius = shadow->blur_radius()->absolutized(computation_context);
+    auto absolutized_color = shadow->color()->absolutized(computation_context);
 
-    if (absolutized_offset_x->equals(shadow.offset_x())
-        && absolutized_offset_y->equals(shadow.offset_y())
-        && absolutized_radius == shadow.blur_radius_or_null()
-        && absolutized_color == shadow.color_or_null())
+    if (absolutized_offset_x->equals(shadow->offset_x())
+        && absolutized_offset_y->equals(shadow->offset_y())
+        && absolutized_radius == shadow->blur_radius_or_null()
+        && absolutized_color == shadow->color_or_null())
         return *this;
 
     return DropShadowFilterStyleValue::create(
@@ -105,14 +82,6 @@ ValueComparingNonnullRefPtr<StyleValue const> DropShadowFilterStyleValue::absolu
         move(absolutized_offset_y),
         move(absolutized_radius),
         move(absolutized_color));
-}
-
-bool DropShadowFilterStyleValue::equals(StyleValue const& other) const
-{
-    if (!other.is_filter() || other.as_filter().kind() != Kind::DropShadow)
-        return false;
-    auto const& other_drop_shadow = static_cast<DropShadowFilterStyleValue const&>(other);
-    return shadow_style_value() == other_drop_shadow.shadow_style_value();
 }
 
 float HueRotateFilterStyleValue::angle_degrees() const
@@ -127,14 +96,6 @@ ValueComparingNonnullRefPtr<StyleValue const> HueRotateFilterStyleValue::absolut
     if (absolutized_angle->equals(angle))
         return *this;
     return HueRotateFilterStyleValue::create(move(absolutized_angle));
-}
-
-bool HueRotateFilterStyleValue::equals(StyleValue const& other) const
-{
-    if (!other.is_filter() || other.as_filter().kind() != Kind::HueRotate)
-        return false;
-    auto const& other_hue_rotate = static_cast<HueRotateFilterStyleValue const&>(other);
-    return angle() == other_hue_rotate.angle();
 }
 
 float ColorFilterStyleValue::resolved_amount() const
@@ -154,15 +115,6 @@ ValueComparingNonnullRefPtr<StyleValue const> ColorFilterStyleValue::absolutized
         return *this;
 
     return ColorFilterStyleValue::create(operation(), NumberStyleValue::create(absolutized_amount));
-}
-
-bool ColorFilterStyleValue::equals(StyleValue const& other) const
-{
-    if (!other.is_filter() || other.as_filter().kind() != Kind::Color)
-        return false;
-    auto const& other_color = static_cast<ColorFilterStyleValue const&>(other);
-    return operation() == other_color.operation()
-        && amount() == other_color.amount();
 }
 
 bool is_filter_style_value_list(StyleValue const& value)

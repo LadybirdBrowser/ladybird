@@ -23,14 +23,6 @@ public:
     virtual double raw_value() const override { return m_value->flex.value; }
     virtual Utf16FlyString unit_name() const override { return flex().unit_name(); }
 
-    bool equals(StyleValue const& other) const
-    {
-        if (type() != other.type())
-            return false;
-        auto const& other_flex = other.as_flex();
-        return flex() == other_flex.flex();
-    }
-
 private:
     friend class StyleValue;
 

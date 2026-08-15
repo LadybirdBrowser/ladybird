@@ -8,6 +8,7 @@
 
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
@@ -433,7 +434,7 @@ Gfx::Size<double> SVGElement::viewport_size_for_percentage_resolution()
     return viewport_size_from_layout(*viewport_element);
 }
 
-GC::Ref<SVGAnimatedLength> SVGElement::svg_animated_length_for_attribute(Utf16FlyString const& attribute_name, SVGLength::Directionality directionality, NonnullRefPtr<CSS::StyleValue const>&& default_value)
+GC::Ref<SVGAnimatedLength> SVGElement::svg_animated_length_for_attribute(Utf16FlyString const& attribute_name, SVGLength::Directionality directionality, SVGLengthValue default_value)
 {
     if (auto cached = m_reflected_attribute_cache.get(attribute_name); cached.has_value())
         return as<SVGAnimatedLength>(*cached.value());

@@ -33,8 +33,6 @@ public:
     virtual Optional<CalcNodeRef> resolve_to_calculation_node(CalculationContext const&, CalculationResolutionContext const&) const override;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
-    bool equals(StyleValue const& other) const;
-
 private:
     // NB: StyleValue dispatches operations by type tag, so it may call private constructors.
     friend class StyleValue;

@@ -28,24 +28,20 @@ public:
 
     Mode mode() const { return static_cast<Mode>(m_value->open_type_tagged.mode); }
     Utf16FlyString tag() const { return Utf16FlyString::from_raw(m_value->open_type_tagged.tag.raw); }
-    ValueComparingNonnullRefPtr<StyleValue const> value() const { return m_setting_value; }
+    ValueComparingNonnullRefPtr<StyleValue const> value() const { return wrap_rust_child(m_value->open_type_tagged.value); }
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-
-    bool properties_equal(OpenTypeTaggedStyleValue const&) const;
 
 private:
     friend class StyleValue;
 
     explicit OpenTypeTaggedStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValueWithDefaultOperators(Type::OpenTypeTagged, data)
-        , m_setting_value(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->open_type_tagged.value.pointer))))
     {
     }
 
     explicit OpenTypeTaggedStyleValue(Mode mode, Utf16FlyString tag, ValueComparingNonnullRefPtr<StyleValue const> value)
         : StyleValueWithDefaultOperators(Type::OpenTypeTagged, StyleValueFFI::rust_style_value_create_open_type_tagged(to_underlying(mode), tag.to_raw_leaked(), pack_tag(tag), StyleValueFFI::rust_style_value_retain(value->rust_style_value_data())))
-        , m_setting_value(move(value))
     {
     }
 
@@ -57,8 +53,6 @@ private:
             | static_cast<u32>(tag.code_unit_at(2)) << 8
             | static_cast<u32>(tag.code_unit_at(3));
     }
-
-    ValueComparingNonnullRefPtr<StyleValue const> m_setting_value;
 };
 
 }

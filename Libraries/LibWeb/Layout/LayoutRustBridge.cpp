@@ -25,12 +25,6 @@
 #include <LibWeb/CSS/Size.h>
 #include <LibWeb/CSS/StyleValues/AnchorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
-#include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
-#include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
-#include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
-#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
-#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/ValueType.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
@@ -84,25 +78,23 @@ static_assert(to_underlying(CSS::StyleGroupIndex::SizingValues) == RustFFI::STYL
 static_assert(to_underlying(CSS::StyleGroupIndex::SurroundValues) == RustFFI::STYLE_GROUP_INDEX_SURROUND);
 static_assert(to_underlying(CSS::StyleGroupIndex::BoxValues) == RustFFI::STYLE_GROUP_INDEX_BOX);
 
-static CSS::GridTrackSizeList build_used_grid_track_list(RustFFI::FfiUsedGridTrackList const& list)
+static Painting::UsedGridTrackList build_used_grid_track_list(RustFFI::FfiUsedGridTrackList const& list)
 {
-    auto result = list.is_subgrid ? CSS::GridTrackSizeList::make_subgrid() : CSS::GridTrackSizeList::make_none();
     VERIFY(list.is_subgrid ? list.track_count == 0 : list.track_count + 1 == list.line_count);
 
+    Painting::UsedGridTrackList result;
+    result.is_subgrid = list.is_subgrid;
+    result.lines.ensure_capacity(list.line_count);
+    result.track_sizes.ensure_capacity(list.track_count);
     for (size_t line_index = 0; line_index < list.line_count; ++line_index) {
         CSS::GridLineNames line_names;
         auto const& line = list.lines[line_index];
         for (size_t name_index = 0; name_index < line.name_count; ++name_index)
             line_names.append(Utf16FlyString::from_raw(line.names[name_index]));
-        if (list.is_subgrid || !line_names.is_empty())
-            result.append(move(line_names));
+        result.lines.unchecked_append(move(line_names));
 
-        if (line_index < list.track_count) {
-            auto size = CSSPixels::from_raw(list.track_sizes[line_index]);
-            result.append(CSS::ExplicitGridTrack {
-                CSS::GridSize { CSS::LengthStyleValue::create(CSS::Length::make_px(size)) },
-            });
-        }
+        if (line_index < list.track_count)
+            result.track_sizes.unchecked_append(CSSPixels::from_raw(list.track_sizes[line_index]));
     }
     return result;
 }
@@ -974,8 +966,8 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
             VERIFY(columns);
             VERIFY(rows);
             auto& paintable = *static_cast<Painting::Paintable*>(paintable_pointer);
-            paintable.set_used_values_for_grid_template_columns(CSS::GridTrackSizeListStyleValue::create(build_used_grid_track_list(*columns)));
-            paintable.set_used_values_for_grid_template_rows(CSS::GridTrackSizeListStyleValue::create(build_used_grid_track_list(*rows))); },
+            paintable.set_used_values_for_grid_template_columns(build_used_grid_track_list(*columns));
+            paintable.set_used_values_for_grid_template_rows(build_used_grid_track_list(*rows)); },
         .finish_node = [](void*, void* node_pointer, void* paintable_pointer, void* parent_paintable_pointer, void* insert_before_paintable_pointer) {
             auto& node = *static_cast<Node*>(node_pointer);
             auto* paintable = static_cast<Painting::Paintable*>(paintable_pointer);

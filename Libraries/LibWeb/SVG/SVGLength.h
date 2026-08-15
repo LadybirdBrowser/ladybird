@@ -6,8 +6,10 @@
 
 #pragma once
 
+#include <AK/Variant.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/SVG/SVGLengthValue.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::SVG {
@@ -47,8 +49,8 @@ public:
         Unspecified,
     };
 
-    [[nodiscard]] static GC::Ref<SVGLength> create_detached(JS::Realm&, NonnullRefPtr<CSS::StyleValue const> value, ReadOnly);
-    [[nodiscard]] static GC::Ref<SVGLength> create_reflected_attribute(JS::Realm&, GC::Ref<SVGElement> element, Utf16FlyString name, Directionality, ReflectedAttributeType, NonnullRefPtr<CSS::StyleValue const> default_value, ReadOnly);
+    [[nodiscard]] static GC::Ref<SVGLength> create_detached(JS::Realm&, SVGLengthValue value, ReadOnly);
+    [[nodiscard]] static GC::Ref<SVGLength> create_reflected_attribute(JS::Realm&, GC::Ref<SVGElement> element, Utf16FlyString name, Directionality, ReflectedAttributeType, SVGLengthValue default_value, ReadOnly);
 
     virtual ~SVGLength() override;
 
@@ -82,7 +84,7 @@ private:
         Utf16FlyString name;
         ReflectedAttributeType type;
 
-        NonnullRefPtr<CSS::StyleValue const> default_value;
+        SVGLengthValue default_value;
     };
 
     // 2. reflect a presentation attribute value (such as by SVGRectElement.width.baseVal),
@@ -94,7 +96,9 @@ private:
 
     // 4. be detached, which is the case for SVGLength objects created with createSVGLength.
     struct DetachedSource {
-        NonnullRefPtr<CSS::StyleValue const> value;
+        // Scalar values live here as plain data; non-scalar values (math functions, tree counting
+        // functions) as their canonical serialization, reparsed on demand.
+        Variant<SVGLengthValue, Utf16String> value;
     };
 
     using Source = Variant<ReflectedAttributeSource, DetachedSource>;
@@ -104,7 +108,9 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     // An SVGLength object maintains an internal <length> or <percentage> or <number> value, which is called its value.
-    NonnullRefPtr<CSS::StyleValue const> internal_value() const;
+    // NB: Non-scalar values surface as the style value they parse to.
+    using InternalValue = Variant<SVGLengthValue, NonnullRefPtr<CSS::StyleValue const>>;
+    InternalValue internal_value() const;
 
     Source m_source;
 

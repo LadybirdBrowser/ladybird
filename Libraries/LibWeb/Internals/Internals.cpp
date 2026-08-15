@@ -1349,12 +1349,9 @@ GC::Ref<JS::Object> Internals::computed_values_stats()
 {
     auto& realm = HTML::relevant_realm(window());
     auto const& statistics = CSS::ComputedValues::statistics();
-    auto const& legacy_retention = CSS::ComputedProperties::legacy_property_array_retention_statistics();
     auto object = JS::Object::create(realm, nullptr);
     object->define_direct_property("liveComputedValues"_utf16_fly_string, JS::Value(statistics.live_instance_count), JS::default_attributes);
     object->define_direct_property("totalComputedValuesCreated"_utf16_fly_string, JS::Value(statistics.total_instances_created), JS::default_attributes);
-    object->define_direct_property("retainedLegacyComputedPropertyArrayHolders"_utf16_fly_string, JS::Value(legacy_retention.holder_count), JS::default_attributes);
-    object->define_direct_property("retainedLegacyComputedPropertyArrayBytes"_utf16_fly_string, JS::Value(legacy_retention.bytes), JS::default_attributes);
     return object;
 }
 
@@ -1608,9 +1605,7 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
     object->define_direct_property("baseStylePartialBuilds"_utf16_fly_string, JS::Value(counters.base_style_partial_builds), JS::default_attributes);
     object->define_direct_property("baseStyleFullBuilds"_utf16_fly_string, JS::Value(counters.base_style_full_builds), JS::default_attributes);
     object->define_direct_property("computedLonghandEvaluations"_utf16_fly_string, JS::Value(counters.computed_longhand_evaluations), JS::default_attributes);
-    object->define_direct_property("parentInheritedSnapshotBuilds"_utf16_fly_string, JS::Value(counters.parent_inherited_snapshot_builds), JS::default_attributes);
-    object->define_direct_property("parentInheritedSnapshotProperties"_utf16_fly_string, JS::Value(counters.parent_inherited_snapshot_properties), JS::default_attributes);
-    object->define_direct_property("parentInheritedSnapshotMicroseconds"_utf16_fly_string, JS::Value(counters.parent_inherited_snapshot_microseconds), JS::default_attributes);
+    object->define_direct_property("longhandWrappersMinted"_utf16_fly_string, JS::Value(CSS::ComputedProperties::longhand_wrappers_minted()), JS::default_attributes);
     object->define_direct_property("styleStabilizationEpochs"_utf16_fly_string, JS::Value(counters.style_stabilization_epochs), JS::default_attributes);
     object->define_direct_property("styleStabilizationFeedbackEpochs"_utf16_fly_string, JS::Value(counters.style_stabilization_feedback_epochs), JS::default_attributes);
     object->define_direct_property("provisionalStylePasses"_utf16_fly_string, JS::Value(counters.provisional_style_passes), JS::default_attributes);

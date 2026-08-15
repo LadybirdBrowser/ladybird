@@ -582,6 +582,7 @@ public:
     CSS::LengthBox padding() const { return length_box(style_group<CSS::ComputedValues::SurroundValues>().padding); }
     CSS::PositionAnchor const& position_anchor_value() const { return style_group<CSS::ComputedValues::AnchorValues>().position_anchor; }
     Vector<NonnullRefPtr<CSS::TransformationStyleValue const>> const& transformations() const { return style_group<CSS::ComputedValues::TransformValues>().transformations; }
+    Vector<CSS::ResolvedTransform> const& resolved_transform_list() const { return style_group<CSS::ComputedValues::TransformValues>().resolved_transform_list; }
     CSS::TransformBox const& transform_box() const { return style_group<CSS::ComputedValues::TransformValues>().transform_box; }
     CSS::TransformOrigin const& transform_origin() const { return style_group<CSS::ComputedValues::TransformValues>().transform_origin; }
     CSS::TransformStyle const& transform_style() const { return style_group<CSS::ComputedValues::TransformValues>().transform_style; }

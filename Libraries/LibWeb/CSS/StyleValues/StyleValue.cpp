@@ -8,6 +8,7 @@
  */
 
 #include <AK/StringBuilder.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontStyleMapping.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
@@ -100,6 +101,7 @@
 extern "C" void ladybird_utf16_fly_string_unref(size_t);
 extern "C" void ladybird_utf16_fly_string_ref(size_t);
 extern "C" Web::CSS::StyleValueFFI::FfiFlyStringView ladybird_utf16_fly_string_view(size_t, u8*);
+extern "C" size_t ladybird_utf16_fly_string_concat_ascii(size_t, u8 const*, size_t);
 extern "C" void ladybird_string_unref(size_t);
 extern "C" void ladybird_string_ref(size_t);
 
@@ -369,14 +371,27 @@ void StyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 
 bool StyleValue::equals(StyleValue const& other) const
 {
+    // Structural equality runs over the shared Rust value data. The exceptions are the types
+    // whose C++ comparison semantics deliberately differ from the data representation:
     switch (type()) {
-#define __ENUMERATE_CSS_STYLE_VALUE_TYPE(title_case, snake_case, style_value_class_name) \
-    case Type::title_case:                                                               \
-        return static_cast<style_value_class_name const&>(*this).equals(other);
-        ENUMERATE_CSS_STYLE_VALUE_TYPES
-#undef __ENUMERATE_CSS_STYLE_VALUE_TYPE
+    case Type::PendingSubstitution:
+        // The value of a pending-substitution value is unknown, so they never compare equal
+        // (not even to themselves).
+        return false;
+    case Type::Unresolved:
+        // Unresolved values compare by their normalized comparison text (and attr taint), not
+        // by the raw source text and cached parse state the data also carries.
+        return as_unresolved().equals(other);
+    case Type::Calculated:
+        // Calculations compare by tree structure alone; the data also carries parse-context
+        // fields (resolved type, accepted ranges) that must not affect equality.
+        return as_calculated().equals(other);
+    case Type::Color:
+        // Color functions deliberately ignore the legacy/modern syntax flag the data carries.
+        return as_color().equals(other);
+    default:
+        return StyleValueFFI::rust_style_value_equals(m_value.data(), other.m_value.data());
     }
-    VERIFY_NOT_REACHED();
 }
 
 bool StyleValue::is_color_function() const
@@ -498,6 +513,12 @@ bool StyleValue::has_auto() const
 
 Vector<Parser::ComponentValue> StyleValue::tokenize() const
 {
+    // Only types whose tokens observably differ from re-parsing their serialization keep a bespoke
+    // implementation: dimensions and numbers (ResolvedValue serialization canonicalizes units and
+    // rounds numbers to 6 decimals per CSSOM), value lists (collapsible lists serialize collapsed,
+    // and their items may be dimensions), and the identity/marker types (Unresolved's stored
+    // tokens, GuaranteedInvalidValue markers, EmptyOptional's deliberate crash). Everything else
+    // round-trips through its serialization exactly.
     switch (type()) {
     case Type::Angle:
     case Type::Flex:
@@ -507,24 +528,16 @@ Vector<Parser::ComponentValue> StyleValue::tokenize() const
     case Type::Resolution:
     case Type::Time:
         return as_dimension().tokenize();
-    case Type::CustomIdent:
-        return as_custom_ident().tokenize();
     case Type::EmptyOptional:
         return as_empty_optional().tokenize();
     case Type::GuaranteedInvalid:
         return as_guaranteed_invalid().tokenize();
-    case Type::Integer:
-        return as_integer().tokenize();
-    case Type::Keyword:
-        return as_keyword().tokenize();
     case Type::Number:
         return as_number().tokenize();
     case Type::PendingSubstitution:
         return as_pending_substitution().tokenize();
     case Type::Ratio:
         return as_ratio().tokenize();
-    case Type::String:
-        return as_string().tokenize();
     case Type::Unresolved:
         return as_unresolved().tokenize();
     case Type::ValueList:
@@ -532,8 +545,6 @@ Vector<Parser::ComponentValue> StyleValue::tokenize() const
     default:
         break;
     }
-    // This is an inefficient way of producing ComponentValues, but it's guaranteed to work for types that round-trip.
-    // FIXME: Implement better versions in the subclasses.
     return Parser::Parser::create(Parser::ParsingParams {}, to_string(SerializationMode::ResolvedValue)).parse_as_list_of_component_values();
 }
 
@@ -687,6 +698,18 @@ extern "C" Web::CSS::StyleValueFFI::FfiFlyStringView ladybird_utf16_fly_string_v
 extern "C" void ladybird_utf16_fly_string_ref(size_t raw)
 {
     (void)Utf16FlyString::from_raw(raw).to_raw_leaked();
+}
+
+// Called when the Rust grid group builder interns an implicit grid line name: the concatenation
+// of a live fly string and an ASCII suffix, returned as one leaked reference.
+extern "C" size_t ladybird_utf16_fly_string_concat_ascii(size_t raw, u8 const* suffix, size_t suffix_length)
+{
+    auto base = Utf16FlyString::from_raw(raw);
+    Utf16StringBuilder builder;
+    builder.append(base.view());
+    builder.append_ascii(StringView { suffix, suffix_length });
+    auto concatenated = builder.to_string();
+    return Utf16FlyString::from_utf16(concatenated.utf16_view()).to_raw_leaked();
 }
 
 // Called when Rust-owned style value data drops a retained String.

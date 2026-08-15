@@ -38,10 +38,7 @@ public:
     static bool is_color(Keyword);
     bool has_color() const;
     Optional<Color> to_color(ColorResolutionContext) const;
-    Vector<Parser::ComponentValue> tokenize() const;
     GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
-
-    bool properties_equal(KeywordStyleValue const& other) const { return keyword() == other.keyword(); }
 
 private:
     friend class StyleValue;

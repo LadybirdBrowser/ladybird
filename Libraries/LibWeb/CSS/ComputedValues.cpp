@@ -15,11 +15,14 @@
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
@@ -40,6 +43,7 @@
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/SuperellipseStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TupleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -128,28 +132,6 @@ static Array<u8, number_of_keywords> const& keyword_code_table()
     return table;
 }
 
-// The properties feeding the text reset group's descriptors, in registration
-// order.
-static constexpr Array text_reset_group_properties {
-    PropertyID::TextDecorationLine,
-    PropertyID::TextDecorationThickness,
-    PropertyID::TextDecorationStyle,
-    PropertyID::TextDecorationColor,
-    PropertyID::WhiteSpaceTrim,
-};
-
-// The properties feeding the effects group's descriptors, in registration
-// order.
-static constexpr Array effects_group_properties {
-    PropertyID::Opacity,
-    PropertyID::Filter,
-    PropertyID::BackdropFilter,
-    PropertyID::MixBlendMode,
-    PropertyID::Isolation,
-    PropertyID::BoxShadow,
-    PropertyID::Clip,
-};
-
 // The appearance keyword mapping with the compatibility keywords excluded:
 // they normalize to auto for the appearance field but stay raw for
 // computed_appearance, so their pages take the C++ population path.
@@ -177,43 +159,6 @@ static Optional<Appearance> appearance_without_compat_from_keyword(Keyword keywo
     }
 }
 
-// The properties feeding the misc reset group's descriptors, in registration
-// order; Appearance appears twice, once per derived field.
-static constexpr Array misc_reset_group_properties {
-    PropertyID::ScrollMarginTop,
-    PropertyID::ScrollMarginRight,
-    PropertyID::ScrollMarginBottom,
-    PropertyID::ScrollMarginLeft,
-    PropertyID::ScrollPaddingTop,
-    PropertyID::ScrollPaddingRight,
-    PropertyID::ScrollPaddingBottom,
-    PropertyID::ScrollPaddingLeft,
-    PropertyID::OverflowClipMarginTop,
-    PropertyID::OverflowClipMarginRight,
-    PropertyID::OverflowClipMarginBottom,
-    PropertyID::OverflowClipMarginLeft,
-    PropertyID::ColumnSpan,
-    PropertyID::Appearance,
-    PropertyID::Appearance,
-    PropertyID::OutlineStyle,
-    PropertyID::ObjectFit,
-    PropertyID::ColumnHeight,
-    PropertyID::OutlineColor,
-    PropertyID::OutlineOffset,
-    PropertyID::OutlineWidth,
-    PropertyID::UserSelect,
-    PropertyID::ObjectPosition,
-    PropertyID::ViewTransitionName,
-    PropertyID::TouchAction,
-    PropertyID::ScrollBehavior,
-    PropertyID::ScrollbarGutter,
-    PropertyID::ScrollbarWidth,
-    PropertyID::ShapeImageThreshold,
-    PropertyID::ShapeMargin,
-    PropertyID::ShapeOutside,
-    PropertyID::WillChange,
-};
-
 // overflow-wrap has no generated keyword converter; the mapping matches the
 // switch in create().
 static Optional<OverflowWrap> overflow_wrap_from_keyword(Keyword keyword)
@@ -230,82 +175,8 @@ static Optional<OverflowWrap> overflow_wrap_from_keyword(Keyword keyword)
     }
 }
 
-// The properties feeding the inherited text group's descriptors, in
-// registration order; the doubled properties feed two fields each.
-static constexpr Array inherited_text_group_properties {
-    PropertyID::Color,
-    PropertyID::Color,
-    PropertyID::WebkitTextFillColor,
-    PropertyID::WebkitTextFillColor,
-    PropertyID::TextShadow,
-    PropertyID::TextAlign,
-    PropertyID::TextJustify,
-    PropertyID::TextTransform,
-    PropertyID::TextWrapMode,
-    PropertyID::TextWrapStyle,
-    PropertyID::TextDecorationSkipInk,
-    PropertyID::TextUnderlinePosition,
-    PropertyID::TextUnderlineOffset,
-    PropertyID::TextIndent,
-    PropertyID::TabSize,
-    PropertyID::WhiteSpaceCollapse,
-    PropertyID::WordBreak,
-    PropertyID::OverflowWrap,
-    PropertyID::WordSpacing,
-    PropertyID::WordSpacing,
-    PropertyID::LetterSpacing,
-    PropertyID::LetterSpacing,
-    PropertyID::Orphans,
-    PropertyID::Widows,
-};
-
-// The properties feeding the inherited UI group's descriptors, in
-// registration order; the doubled properties feed two fields each.
-static constexpr Array inherited_ui_group_properties {
-    PropertyID::CaretColor,
-    PropertyID::CaretColor,
-    PropertyID::AccentColor,
-    PropertyID::AccentColor,
-    PropertyID::Cursor,
-    PropertyID::PointerEvents,
-    PropertyID::ScrollbarColor,
-    PropertyID::ColorScheme,
-    PropertyID::ColorScheme,
-};
-
-// The properties feeding the transform group's descriptors, in registration
-// order.
-static constexpr Array transform_group_properties {
-    PropertyID::Transform,
-    PropertyID::TransformBox,
-    PropertyID::TransformOrigin,
-    PropertyID::TransformStyle,
-    PropertyID::BackfaceVisibility,
-    PropertyID::Rotate,
-    PropertyID::Translate,
-    PropertyID::Scale,
-    PropertyID::Perspective,
-    PropertyID::PerspectiveOrigin,
-};
-
-// The properties feeding the mask group's descriptors, in registration
-// order.
-static constexpr Array mask_group_properties {
-    PropertyID::MaskImage,
-    PropertyID::MaskType,
-    PropertyID::ClipPath,
-    PropertyID::MaskMode,
-    PropertyID::MaskRepeat,
-    PropertyID::MaskPosition,
-    PropertyID::MaskClip,
-    PropertyID::MaskOrigin,
-    PropertyID::MaskSize,
-    PropertyID::MaskComposite,
-};
-
-// The properties feeding the grid group's descriptors, in registration
-// order. Every field registers as an initial-value constraint until the
-// core learns the grid representations.
+// The properties the core's bespoke grid group build consumes from the
+// longhand table.
 static constexpr Array grid_group_properties {
     PropertyID::GridAutoColumns,
     PropertyID::GridAutoRows,
@@ -345,115 +216,37 @@ static constexpr Array animation_group_properties {
     PropertyID::TransitionBehavior,
 };
 
-// The properties feeding the inherited SVG group's descriptors, in
-// registration order.
-static constexpr Array inherited_svg_group_properties {
-    PropertyID::Fill,
-    PropertyID::Stroke,
-    PropertyID::FillRule,
-    PropertyID::ClipRule,
-    PropertyID::FillOpacity,
-    PropertyID::StrokeOpacity,
-    PropertyID::StrokeLinecap,
-    PropertyID::StrokeLinejoin,
-    PropertyID::StrokeDasharray,
-    PropertyID::StrokeDashoffset,
-    PropertyID::StrokeMiterlimit,
-    PropertyID::StrokeWidth,
-    PropertyID::ColorInterpolation,
-    PropertyID::ColorInterpolationFilters,
-    PropertyID::PaintOrder,
-    PropertyID::TextAnchor,
-    PropertyID::DominantBaseline,
-    PropertyID::ShapeRendering,
-};
-
-// The properties feeding the inherited list group's descriptors, in
-// registration order.
-static constexpr Array inherited_list_group_properties {
-    PropertyID::ListStyleType,
-    PropertyID::ListStylePosition,
-    PropertyID::ListStyleImage,
-    PropertyID::Quotes,
-};
-
-// The properties feeding the content and anchor groups' descriptors, in
-// registration order. Everything registers as constraints: both groups adopt
-// shared payloads unless their properties are actually used.
-static constexpr Array content_group_properties {
-    PropertyID::Content,
-    PropertyID::CounterIncrement,
-    PropertyID::CounterReset,
-    PropertyID::CounterSet,
-};
-
-static constexpr Array anchor_group_properties {
-    PropertyID::AnchorName,
-    PropertyID::AnchorScope,
-    PropertyID::PositionAnchor,
-    PropertyID::PositionArea,
-    PropertyID::PositionTryFallbacks,
-    PropertyID::PositionTryOrder,
-    PropertyID::PositionVisibility,
-};
-
-// The properties feeding the border group's descriptors, in registration
-// order; each side's color feeds both the resolved color and the retained
-// shell.
-static constexpr Array border_group_properties {
-    PropertyID::BorderLeftColor,
-    PropertyID::BorderLeftColor,
-    PropertyID::BorderLeftStyle,
-    PropertyID::BorderLeftWidth,
-    PropertyID::BorderTopColor,
-    PropertyID::BorderTopColor,
-    PropertyID::BorderTopStyle,
-    PropertyID::BorderTopWidth,
-    PropertyID::BorderRightColor,
-    PropertyID::BorderRightColor,
-    PropertyID::BorderRightStyle,
-    PropertyID::BorderRightWidth,
-    PropertyID::BorderBottomColor,
-    PropertyID::BorderBottomColor,
-    PropertyID::BorderBottomStyle,
-    PropertyID::BorderBottomWidth,
-    PropertyID::BorderBottomLeftRadius,
-    PropertyID::BorderBottomRightRadius,
-    PropertyID::BorderTopLeftRadius,
-    PropertyID::BorderTopRightRadius,
-    PropertyID::CornerBottomLeftShape,
-    PropertyID::CornerBottomRightShape,
-    PropertyID::CornerTopLeftShape,
-    PropertyID::CornerTopRightShape,
-    PropertyID::BorderImageSource,
-    PropertyID::BorderImageOutset,
-    PropertyID::BorderImageRepeat,
-    PropertyID::BorderImageSlice,
-    PropertyID::BorderImageWidth,
-};
-
-// The properties feeding the background group's descriptors, in registration
-// order; the color feeds both the resolved color and the retained shell.
-static constexpr Array background_group_properties {
-    PropertyID::BackgroundColor,
-    PropertyID::BackgroundColor,
-    PropertyID::BackgroundImage,
-    PropertyID::BackgroundClip,
-    PropertyID::BackgroundAttachment,
-    PropertyID::BackgroundOrigin,
-    PropertyID::BackgroundPositionX,
-    PropertyID::BackgroundPositionY,
-    PropertyID::BackgroundRepeat,
-    PropertyID::BackgroundSize,
-    PropertyID::BackgroundBlendMode,
-};
-
 // The style group each longhand's computed value lives in, filled as the field descriptors are
 // registered: the descriptors are what Rust builds the group payloads from, so a binding derived
 // from them cannot drift from where the value actually lives. Groups whose payloads build through
 // bespoke calls or in C++ bind their properties explicitly beside the descriptors, transcribed from
 // the builder or setters that consume them. A longhand without a binding has no single known group,
 // and callers treat it conservatively.
+static void assemble_transform_group_payload(void* payload_pointer, void const* data_pointer);
+static void assemble_effects_group_payload(void* payload_pointer, void const* data_pointer);
+static void assemble_background_group_payload(void* payload_pointer, void const* data_pointer);
+static void assemble_mask_group_payload(void* payload_pointer, void const* data_pointer);
+static void assemble_border_group_payload(void* payload_pointer, void const* data_pointer);
+static void assemble_inherited_svg_group_payload(void* payload_pointer, void const* data_pointer);
+static void assemble_inherited_list_group_payload(void* payload_pointer, void const* data_pointer);
+static void assemble_content_group_payload(void* payload_pointer, void const* data_pointer);
+static void assemble_inherited_ui_group_payload(void* payload_pointer, void const* data_pointer);
+static void assemble_inherited_text_group_payload(void* payload_pointer, void const* data_pointer);
+static void assemble_misc_reset_group_payload(void* payload_pointer, void const* data_pointer);
+static void assemble_animation_group_payload(void* payload_pointer, void const* data_pointer);
+static void assemble_text_reset_group_payload(void* payload_pointer, void const* data_pointer);
+static void assemble_anchor_group_payload(void* payload_pointer, void const* data_pointer);
+
+// The C++ context the registered table-group assemblers reach through their
+// assembly structs, for the members only C++ can produce: stamped image
+// wrapper mints through property(), the color fallback arm for values the
+// core could not resolve, and style-scope lookups.
+struct TableGroupAssemblerContext {
+    ComputedProperties const& computed_style;
+    StyleScope const& style_scope;
+    ColorResolutionContext const& color_resolution_context;
+};
+
 static Array<Optional<StyleGroupIndex>, number_of_longhand_properties>& style_group_by_property()
 {
     static Array<Optional<StyleGroupIndex>, number_of_longhand_properties> map;
@@ -516,6 +309,10 @@ static void register_style_group_field_descriptors()
     for (auto property : { PropertyID::OverflowClipMarginTop, PropertyID::OverflowClipMarginRight, PropertyID::OverflowClipMarginBottom, PropertyID::OverflowClipMarginLeft })
         add(misc_reset, property, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
     add(misc_reset, PropertyID::ColumnSpan, offsetof(MiscReset, column_span), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_column_span>());
+    // NB: The compatibility keywords normalize to auto for the appearance field but stay raw for
+    //     computed_appearance, which the plain enum-keyword decode cannot express: the core's
+    //     misc-reset build lowers both fields, and the descriptor only constrains the generic
+    //     path to the non-compat pages.
     add(misc_reset, PropertyID::Appearance, offsetof(MiscReset, appearance), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<appearance_without_compat_from_keyword>());
     add(misc_reset, PropertyID::Appearance, offsetof(MiscReset, computed_appearance), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_appearance>());
     add(misc_reset, PropertyID::OutlineStyle, offsetof(MiscReset, outline_style), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_outline_style>());
@@ -601,9 +398,10 @@ static void register_style_group_field_descriptors()
     add(mask, PropertyID::MaskSize, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
     add(mask, PropertyID::MaskComposite, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
 
-    constexpr auto grid = to_underlying(StyleGroupIndex::GridValues);
+    // The grid group builds through the core's bespoke track-list walk, so its
+    // properties bind without descriptors.
     for (auto property : grid_group_properties)
-        add(grid, property, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+        bind_property_to_group(property, to_underlying(StyleGroupIndex::GridValues));
 
     constexpr auto animation = to_underlying(StyleGroupIndex::AnimationValues);
     for (auto property : animation_group_properties)
@@ -733,6 +531,20 @@ static void register_style_group_field_descriptors()
         bind_property_to_group(property, to_underlying(StyleGroupIndex::FontValues));
 
     rust_style_group_register_field_descriptors(descriptors.data(), descriptors.size());
+    rust_style_group_register_payload_assembler(to_underlying(StyleGroupIndex::TransformValues), assemble_transform_group_payload);
+    rust_style_group_register_payload_assembler(to_underlying(StyleGroupIndex::EffectsValues), assemble_effects_group_payload);
+    rust_style_group_register_payload_assembler(to_underlying(StyleGroupIndex::BackgroundValues), assemble_background_group_payload);
+    rust_style_group_register_payload_assembler(to_underlying(StyleGroupIndex::MaskValues), assemble_mask_group_payload);
+    rust_style_group_register_payload_assembler(to_underlying(StyleGroupIndex::BorderValues), assemble_border_group_payload);
+    rust_style_group_register_payload_assembler(to_underlying(StyleGroupIndex::InheritedSVGValues), assemble_inherited_svg_group_payload);
+    rust_style_group_register_payload_assembler(to_underlying(StyleGroupIndex::InheritedListValues), assemble_inherited_list_group_payload);
+    rust_style_group_register_payload_assembler(to_underlying(StyleGroupIndex::ContentValues), assemble_content_group_payload);
+    rust_style_group_register_payload_assembler(to_underlying(StyleGroupIndex::InheritedUIValues), assemble_inherited_ui_group_payload);
+    rust_style_group_register_payload_assembler(to_underlying(StyleGroupIndex::InheritedTextValues), assemble_inherited_text_group_payload);
+    rust_style_group_register_payload_assembler(to_underlying(StyleGroupIndex::MiscResetValues), assemble_misc_reset_group_payload);
+    rust_style_group_register_payload_assembler(to_underlying(StyleGroupIndex::AnimationValues), assemble_animation_group_payload);
+    rust_style_group_register_payload_assembler(to_underlying(StyleGroupIndex::TextResetValues), assemble_text_reset_group_payload);
+    rust_style_group_register_payload_assembler(to_underlying(StyleGroupIndex::AnchorValues), assemble_anchor_group_payload);
 
     // Double-entry bookkeeping: Properties.json declares each longhand's style group, and the
     // bindings above derive it from what actually builds the groups. The two must agree exactly,
@@ -1020,7 +832,29 @@ bool ComputedValues::adopt_identical_group_payloads(ComputedValues const& previo
 #define LIBWEB_ADOPT_STYLE_GROUP(name, path, sharing_name, affects_layout) adopt(path, previous.path);
     LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS(LIBWEB_ADOPT_STYLE_GROUP)
 #undef LIBWEB_ADOPT_STYLE_GROUP
+    if (all_shared)
+        adopt_identical_computed_longhand_table(previous);
     return all_shared;
+}
+
+// The same canonicalization for the computed longhand table: when this style's table names
+// value-equal data throughout, take the previous style's table so the next publication interns
+// the same pointers and keeps the style-record identity, exactly like adopted group payloads do.
+void ComputedValues::adopt_identical_computed_longhand_table(ComputedValues const& previous) const
+{
+    if (m_is_style_record_view)
+        return;
+    if (m_longhand_values.is_empty() || previous.m_longhand_values.is_empty())
+        return;
+    if (m_longhand_values.data() == previous.m_longhand_values.data())
+        return;
+    for (size_t index = 0; index < number_of_longhand_properties; ++index) {
+        if (!StyleValueFFI::rust_style_value_equals(
+                static_cast<StyleValueFFI::StyleValueData const*>(m_longhand_values[index]),
+                static_cast<StyleValueFFI::StyleValueData const*>(previous.m_longhand_values[index])))
+            return;
+    }
+    const_cast<ComputedValues&>(*this).copy_computed_longhand_table_from(previous);
 }
 
 bool ComputedValues::differs_in_any_layout_affecting_group_payload_from(ComputedValues const& other) const
@@ -1163,6 +997,8 @@ ComputedStyleRecordView::ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordV
     m_values.m_in_display_none_subtree = view.dependency_flags & 4;
     m_values.m_borrowed_raw_cascaded_font_size = static_cast<StyleValueFFI::StyleValueData const*>(view.raw_cascaded_font_size);
     m_values.m_borrowed_inheritance_dependent_values = { view.inheritance_dependent_values, view.inheritance_dependent_value_count };
+    VERIFY(view.longhand_value_count == 0 || view.longhand_value_count == number_of_longhand_properties);
+    m_values.m_longhand_values = { view.longhand_values, view.longhand_value_count };
     m_values.m_animated_properties = static_cast<AnimatedProperties const*>(view.animated_properties);
     if (view.animation_overlay_identity != 0) {
         m_base_values.m_property_important = m_values.m_property_important;
@@ -1173,6 +1009,7 @@ ComputedStyleRecordView::ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordV
         m_base_values.m_in_display_none_subtree = m_values.m_in_display_none_subtree;
         m_base_values.m_borrowed_raw_cascaded_font_size = m_values.m_borrowed_raw_cascaded_font_size;
         m_base_values.m_borrowed_inheritance_dependent_values = m_values.m_borrowed_inheritance_dependent_values;
+        m_base_values.m_longhand_values = m_values.m_longhand_values;
     }
     m_present = true;
 }
@@ -1193,216 +1030,1110 @@ void ComputedStyleRecordView::retain_across_style_record_publication()
     m_style_computer = nullptr;
 }
 
-static Utf16FlyString make_grid_implicit_line_name(Utf16View name, StringView suffix)
+// The table-driven build and the marshalled build must stay on one numbering with the Rust
+// mirror in table_group_builder.rs.
+static_assert(to_underlying(StyleGroupIndex::InheritedTableValues) == 0);
+static_assert(to_underlying(StyleGroupIndex::InheritedListValues) == 1);
+static_assert(to_underlying(StyleGroupIndex::InheritedUIValues) == 2);
+static_assert(to_underlying(StyleGroupIndex::InheritedSVGValues) == 3);
+static_assert(to_underlying(StyleGroupIndex::InheritedTextValues) == 4);
+static_assert(to_underlying(StyleGroupIndex::InheritedBoxValues) == 5);
+static_assert(to_underlying(StyleGroupIndex::FontValues) == 6);
+static_assert(to_underlying(StyleGroupIndex::SVGResetValues) == 8);
+static_assert(to_underlying(StyleGroupIndex::GridValues) == 9);
+static_assert(to_underlying(StyleGroupIndex::EffectsValues) == 11);
+static_assert(to_underlying(StyleGroupIndex::MaskValues) == 12);
+static_assert(to_underlying(StyleGroupIndex::ContentValues) == 14);
+static_assert(to_underlying(StyleGroupIndex::TransformValues) == 15);
+static_assert(to_underlying(StyleGroupIndex::MiscResetValues) == 19);
+static_assert(to_underlying(StyleGroupIndex::BackgroundValues) == 16);
+static_assert(to_underlying(StyleGroupIndex::BorderValues) == 17);
+static_assert(to_underlying(StyleGroupIndex::AlignmentValues) == 18);
+static_assert(to_underlying(StyleGroupIndex::SizingValues) == 20);
+static_assert(to_underlying(StyleGroupIndex::SurroundValues) == 21);
+static_assert(to_underlying(StyleGroupIndex::BoxValues) == 22);
+static_assert(to_underlying(StyleGroupIndex::Count) == 23);
+
+// The enum codes the core's transform and effects lowering mirrors.
+static_assert(to_underlying(TransformFunctionParameterType::Angle) == 0);
+static_assert(to_underlying(TransformFunctionParameterType::Length) == 1);
+static_assert(to_underlying(TransformFunctionParameterType::LengthNone) == 2);
+static_assert(to_underlying(TransformFunctionParameterType::LengthPercentage) == 3);
+static_assert(to_underlying(TransformFunctionParameterType::Number) == 4);
+static_assert(to_underlying(TransformFunctionParameterType::NumberPercentage) == 5);
+static_assert(to_underlying(FilterStyleValue::Kind::Blur) == 0);
+static_assert(to_underlying(FilterStyleValue::Kind::DropShadow) == 1);
+static_assert(to_underlying(FilterStyleValue::Kind::HueRotate) == 2);
+static_assert(to_underlying(FilterStyleValue::Kind::Color) == 3);
+static_assert(to_underlying(ColorStyleValue::ColorType::RGB) == 0);
+static_assert(to_underlying(ColorStyleValue::ColorType::HSL) == 4);
+static_assert(to_underlying(ColorStyleValue::ColorType::HWB) == 5);
+static_assert(to_underlying(ColorSyntax::Legacy) == 0);
+static_assert(to_underlying(ColorSyntax::Modern) == 1);
+static_assert(to_underlying(StyleValueList::Separator::Space) == 0);
+static_assert(to_underlying(StyleValueList::Separator::Comma) == 1);
+static_assert(to_underlying(TimeUnit::Ms) == 0);
+static_assert(to_underlying(TimeUnit::S) == 1);
+static_assert(to_underlying(AnimationTimelineData::Type::Auto) == 0);
+static_assert(to_underlying(AnimationTimelineData::Type::None) == 1);
+static_assert(to_underlying(AnimationTimelineData::Type::Name) == 2);
+static_assert(to_underlying(AnimationTimelineData::Type::Scroll) == 3);
+static_assert(to_underlying(AnimationTimelineData::Type::View) == 4);
+static_assert(to_underlying(PositionAnchor::Type::Normal) == 0);
+static_assert(to_underlying(PositionAnchor::Type::None) == 1);
+static_assert(to_underlying(PositionAnchor::Type::Auto) == 2);
+static_assert(to_underlying(PositionAnchor::Type::Name) == 3);
+static_assert(to_underlying(BackgroundSize::Contain) == 0);
+static_assert(to_underlying(BackgroundSize::Cover) == 1);
+static_assert(to_underlying(BackgroundSize::LengthPercentage) == 2);
+static_assert(to_underlying(PaintOrder::Fill) == 0);
+static_assert(to_underlying(PaintOrder::Stroke) == 1);
+static_assert(to_underlying(PaintOrder::Markers) == 2);
+
+static RefPtr<StyleValue const> adopt_assembly_handle(void const* pointer)
 {
-    Utf16StringBuilder builder;
-    builder.append(name);
-    builder.append_ascii(suffix);
-    auto line_name = builder.to_string();
-    return Utf16FlyString::from_utf16(line_name.utf16_view());
+    if (!pointer)
+        return nullptr;
+    return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(pointer));
 }
 
-struct GridGroupBuilderArena {
-    Vector<size_t> name_raws;
-    Vector<u32> name_indices;
-    Vector<ComputedValuesFFI::ComputedGridTrackEntry> entries;
-    Vector<ComputedValuesFFI::ComputedGridArea> areas;
-    HashMap<Utf16FlyString, u32> indices_by_name;
-
-    u32 intern_name(Utf16FlyString const& name)
-    {
-        if (auto existing = indices_by_name.get(name); existing.has_value())
-            return existing.value();
-
-        VERIFY(name_raws.size() < ComputedValuesFFI::GRID_NO_INDEX);
-        auto index = static_cast<u32>(name_raws.size());
-        name_raws.append(name.to_raw_leaked());
-        indices_by_name.set(name, index);
-        return index;
-    }
-};
-
-static ComputedValuesFFI::ComputedGridTrackBreadth grid_group_track_breadth(GridSize const& grid_size)
+// Fills the transform group's wrapper-backed members from the core's
+// pre-lowered assembly: the matrices arrive baked, and only the values that
+// genuinely need C++ - the style value wrappers and the per-axis
+// length-percentage slots - are wrapped here from the retained handles the
+// assembly carries.
+static void assemble_transform_group_payload(void* payload_pointer, void const* data_pointer)
 {
-    if (grid_size.is_flexible_length()) {
-        return {
-            .is_flex = true,
-            .flex_factor = grid_size.flex_factor(),
-            .size = to_ffi_computed_size(Size::make_auto()),
-        };
-    }
-    auto size = grid_size.css_size();
-    VERIFY(size.type() != Size::Type::None);
-    return {
-        .is_flex = false,
-        .flex_factor = 0,
-        .size = to_ffi_computed_size(move(size)),
+    auto& payload = *static_cast<ComputedValues::TransformValues*>(payload_pointer);
+    auto const& data = *static_cast<ComputedValuesFFI::FfiTransformGroupAssembly const*>(data_pointer);
+
+    if (auto transform_list = adopt_assembly_handle(data.transform_list))
+        payload.transformations = transformations_for_style_value(*transform_list);
+    auto adopt_transformation = [](void const* pointer) -> RefPtr<TransformationStyleValue const> {
+        auto value = adopt_assembly_handle(pointer);
+        if (!value)
+            return nullptr;
+        return value->as_transformation();
     };
-}
+    payload.rotate = adopt_transformation(data.rotate);
+    payload.translate = adopt_transformation(data.translate);
+    payload.scale = adopt_transformation(data.scale);
 
-static ComputedValuesFFI::ComputedGridTrackList build_grid_group_track_list(GridTrackSizeList const& list, GridGroupBuilderArena& arena)
-{
-    ComputedValuesFFI::ComputedGridTrackList result {
-        .is_subgrid = list.is_subgrid(),
-        .preserves_line_name_sets = list.preserves_line_name_sets(),
-        .first_entry = ComputedValuesFFI::GRID_NO_INDEX,
-    };
-    u32 previous_entry = ComputedValuesFFI::GRID_NO_INDEX;
-
-    for (auto const& item : list.list()) {
-        VERIFY(arena.entries.size() < ComputedValuesFFI::GRID_NO_INDEX);
-        auto entry_index = static_cast<u32>(arena.entries.size());
-        arena.entries.append({
-            .kind = to_underlying(ComputedValuesFFI::ComputedGridTrackEntryKind::LineNames),
-            .next_sibling = ComputedValuesFFI::GRID_NO_INDEX,
-            .name_index_start = 0,
-            .name_index_count = 0,
-            .size = grid_group_track_breadth(GridSize::make_auto()),
-            .min_size = grid_group_track_breadth(GridSize::make_auto()),
-            .max_size = grid_group_track_breadth(GridSize::make_auto()),
-            .repeat_type = 0,
-            .repeat_count = 0,
-            .repeat_list = {
-                .is_subgrid = false,
-                .preserves_line_name_sets = false,
-                .first_entry = ComputedValuesFFI::GRID_NO_INDEX,
-            },
-        });
-
-        if (result.first_entry == ComputedValuesFFI::GRID_NO_INDEX)
-            result.first_entry = entry_index;
-        if (previous_entry != ComputedValuesFFI::GRID_NO_INDEX)
-            arena.entries[previous_entry].next_sibling = entry_index;
-        previous_entry = entry_index;
-
-        item.visit(
-            [&](GridLineNames const& line_names) {
-                auto name_index_start = arena.name_indices.size();
-                for (auto const& line_name : line_names.names())
-                    arena.name_indices.append(arena.intern_name(line_name.name));
-                auto& entry = arena.entries[entry_index];
-                entry.kind = to_underlying(ComputedValuesFFI::ComputedGridTrackEntryKind::LineNames);
-                entry.name_index_start = name_index_start;
-                entry.name_index_count = arena.name_indices.size() - name_index_start;
-            },
-            [&](ExplicitGridTrack const& track) {
-                if (track.is_default()) {
-                    auto& entry = arena.entries[entry_index];
-                    entry.kind = to_underlying(ComputedValuesFFI::ComputedGridTrackEntryKind::TrackSize);
-                    entry.size = grid_group_track_breadth(track.grid_size());
-                    return;
-                }
-                if (track.is_minmax()) {
-                    auto& entry = arena.entries[entry_index];
-                    entry.kind = to_underlying(ComputedValuesFFI::ComputedGridTrackEntryKind::MinMax);
-                    entry.min_size = grid_group_track_breadth(track.minmax().min_grid_size());
-                    entry.max_size = grid_group_track_breadth(track.minmax().max_grid_size());
-                    return;
-                }
-
-                auto const& repeat = track.repeat();
-                auto repeat_list = build_grid_group_track_list(repeat.grid_track_size_list(), arena);
-                auto& entry = arena.entries[entry_index];
-                entry.kind = to_underlying(ComputedValuesFFI::ComputedGridTrackEntryKind::Repeat);
-                entry.repeat_type = to_underlying(repeat.type());
-                entry.repeat_count = repeat.is_fixed() ? repeat.repeat_count() : 0;
-                entry.repeat_list = repeat_list;
-            });
-    }
-    return result;
-}
-
-static ComputedValuesFFI::ComputedGridPlacement build_grid_group_placement(GridTrackPlacement const& placement, GridGroupBuilderArena& arena)
-{
-    ComputedValuesFFI::ComputedGridPlacement result {
-        .kind = to_underlying(ComputedValuesFFI::ComputedGridPlacementKind::Auto),
-        .has_line_number = false,
-        .line_number = 0,
-        .has_name = false,
-        .name_index = ComputedValuesFFI::GRID_NO_INDEX,
-        .implicit_start_name_index = ComputedValuesFFI::GRID_NO_INDEX,
-        .implicit_end_name_index = ComputedValuesFFI::GRID_NO_INDEX,
-    };
-    if (placement.is_auto())
-        return result;
-
-    if (placement.is_span()) {
-        result.kind = to_underlying(ComputedValuesFFI::ComputedGridPlacementKind::Span);
-        result.has_line_number = true;
-        result.line_number = int_from_style_value(placement.span());
-        if (placement.span_name().has_value()) {
-            result.has_name = true;
-            result.name_index = arena.intern_name(*placement.span_name());
+    payload.resolved_transform_list.ensure_capacity(data.resolved_transform_count);
+    for (size_t i = 0; i < data.resolved_transform_count; ++i) {
+        auto const& entry = data.resolved_transforms[i];
+        if (entry.is_translate) {
+            payload.resolved_transform_list.unchecked_append(ResolvedTransform { ResolvedTransform::Translate {
+                .x = { .px = entry.x_px, .percentage_value = adopt_assembly_handle(entry.x_percentage) },
+                .y = { .px = entry.y_px, .percentage_value = adopt_assembly_handle(entry.y_percentage) },
+                .z = entry.z_px,
+            } });
+        } else {
+            auto const& m = entry.matrix;
+            payload.resolved_transform_list.unchecked_append(ResolvedTransform { FloatMatrix4x4(
+                m[0], m[1], m[2], m[3],
+                m[4], m[5], m[6], m[7],
+                m[8], m[9], m[10], m[11],
+                m[12], m[13], m[14], m[15]) });
         }
-        return result;
     }
 
-    result.kind = to_underlying(ComputedValuesFFI::ComputedGridPlacementKind::Line);
-    if (placement.has_line_number()) {
-        result.has_line_number = true;
-        result.line_number = int_from_style_value(placement.line_number());
+    if (auto origin_x = adopt_assembly_handle(data.transform_origin_x)) {
+        auto origin_y = adopt_assembly_handle(data.transform_origin_y);
+        auto origin_z = adopt_assembly_handle(data.transform_origin_z);
+        auto length_percentage_with_keywords_resolved = [](StyleValue const& value) -> LengthPercentage {
+            if (value.is_keyword()) {
+                auto keyword = value.to_keyword();
+                if (keyword == Keyword::Left || keyword == Keyword::Top)
+                    return Percentage(0);
+                if (keyword == Keyword::Center)
+                    return Percentage(50);
+                if (keyword == Keyword::Right || keyword == Keyword::Bottom)
+                    return Percentage(100);
+
+                VERIFY_NOT_REACHED();
+            }
+            return LengthPercentage::from_style_value(value);
+        };
+        payload.transform_origin = {
+            length_percentage_with_keywords_resolved(*origin_x),
+            length_percentage_with_keywords_resolved(*origin_y),
+            LengthPercentage::from_style_value(*origin_z),
+        };
     }
-    if (placement.has_identifier()) {
-        result.has_name = true;
-        result.name_index = arena.intern_name(placement.identifier());
-        result.implicit_start_name_index = arena.intern_name(
-            make_grid_implicit_line_name(placement.identifier().view(), "-start"sv));
-        result.implicit_end_name_index = arena.intern_name(
-            make_grid_implicit_line_name(placement.identifier().view(), "-end"sv));
+
+    if (data.has_perspective)
+        payload.perspective = CSSPixels::from_raw(data.perspective_px);
+
+    if (auto perspective_origin = adopt_assembly_handle(data.perspective_origin)) {
+        auto const& position = perspective_origin->as_position();
+        auto edge_x = position.edge_x();
+        auto edge_y = position.edge_y();
+        payload.perspective_origin = {
+            .offset_x = LengthPercentage::from_style_value(edge_x->offset()),
+            .offset_y = LengthPercentage::from_style_value(edge_y->offset()),
+        };
     }
-    return result;
 }
 
-static void* build_grid_group_payload(ComputedProperties const& computed_style)
+static Filter filter_from_assembly(ComputedValuesFFI::FfiLoweredFilter const& lowered)
 {
-    GridGroupBuilderArena arena;
-    ComputedValuesFFI::GridValues values {};
+    auto filter_list = adopt_assembly_handle(lowered.filter_list);
+    if (!filter_list)
+        return Filter::make_none();
 
-    values.template_columns = build_grid_group_track_list(computed_style.grid_template_columns(), arena);
-    values.template_rows = build_grid_group_track_list(computed_style.grid_template_rows(), arena);
-    values.auto_columns = build_grid_group_track_list(computed_style.grid_auto_columns(), arena);
-    values.auto_rows = build_grid_group_track_list(computed_style.grid_auto_rows(), arena);
+    Vector<Filter::FilterOperation> operations;
+    operations.ensure_capacity(lowered.operation_count);
+    for (size_t i = 0; i < lowered.operation_count; ++i) {
+        auto const& operation = lowered.operations[i];
+        switch (operation.kind) {
+        case to_underlying(FilterStyleValue::Kind::Blur):
+            operations.unchecked_append(Filter::Blur { .resolved_radius = operation.amount });
+            break;
+        case to_underlying(FilterStyleValue::Kind::DropShadow):
+            operations.unchecked_append(Filter::DropShadow {
+                .offset_x = CSSPixels::from_raw(operation.shadow_offset_x),
+                .offset_y = CSSPixels::from_raw(operation.shadow_offset_y),
+                .radius = CSSPixels::from_raw(operation.shadow_radius),
+                .color = Color::from_bgra(operation.shadow_color),
+            });
+            break;
+        case to_underlying(FilterStyleValue::Kind::HueRotate):
+            operations.unchecked_append(Filter::HueRotate { .angle_degrees = operation.amount });
+            break;
+        case to_underlying(FilterStyleValue::Kind::Color):
+            operations.unchecked_append(Filter::ColorOperation {
+                .operation = static_cast<Gfx::ColorFilterType>(operation.color_operation),
+                .resolved_amount = operation.amount,
+            });
+            break;
+        default: {
+            // A url(#fragment) filter reference; the fragment extraction stays
+            // here with the URL type.
+            auto url_value = adopt_assembly_handle(operation.url_value);
+            auto url = url_value->as_url().url();
+            auto const& url_string = url.url();
+            Utf16String fragment;
+            if (!url_string.is_empty() && url_string.starts_with('#')) {
+                if (auto fragment_or_error = url_string.substring_from_byte_offset(1); !fragment_or_error.is_error())
+                    fragment = Utf16String::from_utf8(fragment_or_error.value());
+            }
+            operations.unchecked_append(Filter::Url { move(fragment) });
+            break;
+        }
+        }
+    }
+    return Filter::create_lowered(filter_list->as_value_list(), move(operations));
+}
 
-    auto const template_areas = computed_style.grid_template_areas();
-    arena.areas.ensure_capacity(template_areas.areas.size());
-    for (auto const& [name, area] : template_areas.areas) {
-        arena.areas.unchecked_append({
-            .name_index = arena.intern_name(name),
-            .implicit_start_name_index = arena.intern_name(make_grid_implicit_line_name(name.view(), "-start"sv)),
-            .implicit_end_name_index = arena.intern_name(make_grid_implicit_line_name(name.view(), "-end"sv)),
-            .row_start = area.row_start,
-            .row_end = area.row_end,
-            .column_start = area.column_start,
-            .column_end = area.column_end,
+// Fills the effects group's complex members from the core's pre-lowered
+// assembly: filter operations, shadow data and the clip rect arrive as plain
+// data.
+static void assemble_effects_group_payload(void* payload_pointer, void const* data_pointer)
+{
+    auto& payload = *static_cast<ComputedValues::EffectsValues*>(payload_pointer);
+    auto const& data = *static_cast<ComputedValuesFFI::FfiEffectsGroupAssembly const*>(data_pointer);
+
+    payload.filter = filter_from_assembly(data.filter);
+    payload.backdrop_filter = filter_from_assembly(data.backdrop_filter);
+
+    payload.box_shadow.ensure_capacity(data.box_shadow_count);
+    for (size_t i = 0; i < data.box_shadow_count; ++i) {
+        auto const& shadow = data.box_shadows[i];
+        payload.box_shadow.unchecked_append(ShadowData {
+            CSSPixels::from_raw(shadow.offset_x),
+            CSSPixels::from_raw(shadow.offset_y),
+            CSSPixels::from_raw(shadow.blur_radius),
+            CSSPixels::from_raw(shadow.spread_distance),
+            Color::from_bgra(shadow.color),
+            static_cast<ColorSyntax>(shadow.color_syntax),
+            static_cast<ShadowPlacement>(shadow.placement),
         });
     }
 
-    values.column_start = build_grid_group_placement(computed_style.grid_column_start(), arena);
-    values.column_end = build_grid_group_placement(computed_style.grid_column_end(), arena);
-    values.row_start = build_grid_group_placement(computed_style.grid_row_start(), arena);
-    values.row_end = build_grid_group_placement(computed_style.grid_row_end(), arena);
+    if (data.clip_is_rect) {
+        auto edge = [](ComputedValuesFFI::FfiLoweredClipEdge const& lowered) {
+            if (lowered.is_auto)
+                return LengthOrAuto::make_auto();
+            return LengthOrAuto { Length { lowered.value, static_cast<LengthUnit>(lowered.unit) } };
+        };
+        payload.clip = Clip(EdgeRect {
+            edge(data.clip_edges[0]),
+            edge(data.clip_edges[1]),
+            edge(data.clip_edges[2]),
+            edge(data.clip_edges[3]),
+        });
+    }
+}
 
-    auto retained_style_value = [&](PropertyID property_id) {
-        return ComputedValuesFFI::ComputedStyleValueHandle {
-            .pointer = StyleValueFFI::rust_style_value_retain(computed_style.property(property_id).rust_style_value_data()),
+// Fills one background or mask layer's wrapper-backed members from the
+// core's lowering: the image wrapper (minted through the stamped property()
+// path when the slot holds an actual image resource), the position offsets,
+// the repeat codes and the size.
+static void assemble_coordinated_layer(BackgroundLayerData& layer, ComputedValuesFFI::FfiCoordinatedLayerAssembly const& lowered, TableGroupAssemblerContext const& context, PropertyID image_property, size_t layer_index)
+{
+    RefPtr<StyleValue const> image_wrapper;
+    if (lowered.image_needs_stamped_wrapper) {
+        auto const& image_value = context.computed_style.property(image_property);
+        if (image_value.is_value_list())
+            image_wrapper = image_value.as_value_list().values()[layer_index];
+        else
+            image_wrapper = image_value;
+    } else {
+        image_wrapper = adopt_assembly_handle(lowered.image);
+    }
+    layer.image_style_value = image_wrapper;
+    if (lowered.image_is_abstract_image)
+        layer.background_image = image_wrapper->as_abstract_image();
+
+    layer.position_x = LengthPercentage::from_style_value(adopt_assembly_handle(lowered.position_x).release_nonnull());
+    layer.position_y = LengthPercentage::from_style_value(adopt_assembly_handle(lowered.position_y).release_nonnull());
+
+    layer.repeat_x = static_cast<Repetition>(lowered.repeat_x);
+    layer.repeat_y = static_cast<Repetition>(lowered.repeat_y);
+
+    layer.size_type = static_cast<BackgroundSize>(lowered.size_type);
+    if (layer.size_type == BackgroundSize::LengthPercentage) {
+        layer.size_x = LengthPercentageOrAuto::from_style_value(adopt_assembly_handle(lowered.size_x).release_nonnull());
+        layer.size_y = LengthPercentageOrAuto::from_style_value(adopt_assembly_handle(lowered.size_y).release_nonnull());
+    }
+}
+
+// Fills the background group's complex members from the core's pre-lowered
+// assembly: the layer list's wrapper and length-percentage members are
+// transcribed here, and a background-color the core could not resolve takes
+// the C++ resolution arm.
+static void assemble_background_group_payload(void* payload_pointer, void const* data_pointer)
+{
+    auto& payload = *static_cast<ComputedValues::BackgroundValues*>(payload_pointer);
+    auto const& data = *static_cast<ComputedValuesFFI::FfiBackgroundGroupAssembly const*>(data_pointer);
+    auto const& context = *static_cast<TableGroupAssemblerContext const*>(data.cpp_context);
+
+    if (!data.color_resolved)
+        payload.background_color = context.computed_style.color(PropertyID::BackgroundColor, context.color_resolution_context);
+    payload.background_color_clip = static_cast<BackgroundBox>(data.color_clip);
+
+    Vector<BackgroundLayerData> layers;
+    layers.ensure_capacity(data.layer_count);
+    for (size_t i = 0; i < data.layer_count; ++i) {
+        auto const& lowered = data.layers[i];
+        BackgroundLayerData layer;
+        assemble_coordinated_layer(layer, lowered, context, PropertyID::BackgroundImage, i);
+        layer.attachment = static_cast<BackgroundAttachment>(lowered.attachment);
+        layer.blend_mode = static_cast<MixBlendMode>(lowered.blend_mode);
+        layer.clip = static_cast<BackgroundBox>(lowered.clip);
+        layer.origin = static_cast<BackgroundBox>(lowered.origin);
+        layers.unchecked_append(move(layer));
+    }
+    payload.background_layers = move(layers);
+}
+
+// Fills the mask group's complex members from the core's pre-lowered
+// assembly: the mask layers, the group's mask positions, the first slot's
+// mask reference or image, and the clip path.
+static void assemble_mask_group_payload(void* payload_pointer, void const* data_pointer)
+{
+    auto& payload = *static_cast<ComputedValues::MaskValues*>(payload_pointer);
+    auto const& data = *static_cast<ComputedValuesFFI::FfiMaskGroupAssembly const*>(data_pointer);
+    auto const& context = *static_cast<TableGroupAssemblerContext const*>(data.cpp_context);
+
+    Vector<BackgroundLayerData> layers;
+    layers.ensure_capacity(data.layer_count);
+    for (size_t i = 0; i < data.layer_count; ++i) {
+        auto const& lowered = data.layers[i];
+        BackgroundLayerData layer;
+        assemble_coordinated_layer(layer, lowered, context, PropertyID::MaskImage, i);
+        layer.origin = static_cast<BackgroundBox>(lowered.origin);
+        layer.clip = static_cast<BackgroundBox>(lowered.clip);
+        layer.mask_clip_is_no_clip = lowered.mask_clip_is_no_clip;
+        if (!lowered.mask_clip_is_no_clip)
+            layer.mask_clip = static_cast<CoordBox>(lowered.mask_clip);
+        layer.mask_composite = static_cast<CompositingOperator>(lowered.mask_composite);
+        layer.mask_mode = static_cast<MaskingMode>(lowered.mask_mode);
+        layer.mask_origin = static_cast<CoordBox>(lowered.mask_origin);
+        layers.unchecked_append(move(layer));
+    }
+    payload.mask_layers = move(layers);
+
+    Vector<Position> positions;
+    positions.ensure_capacity(data.position_count);
+    for (size_t i = 0; i < data.position_count; ++i) {
+        auto const& lowered = data.positions[i];
+        positions.unchecked_append(Position {
+            .offset_x = LengthPercentage::from_style_value(adopt_assembly_handle(lowered.x_offset).release_nonnull()),
+            .offset_y = LengthPercentage::from_style_value(adopt_assembly_handle(lowered.y_offset).release_nonnull()),
+        });
+    }
+    payload.mask_positions = move(positions);
+
+    if (data.mask_reference_url) {
+        auto url_value = adopt_assembly_handle(data.mask_reference_url).release_nonnull();
+        payload.mask = MaskReference { url_value->as_url().url() };
+    }
+    if (data.first_image_is_abstract_image && !payload.mask_layers.is_empty())
+        payload.mask_image = payload.mask_layers[0].background_image;
+
+    if (data.clip_path_kind == 1) {
+        auto url_value = adopt_assembly_handle(data.clip_path).release_nonnull();
+        payload.clip_path = ClipPathReference { url_value->as_url().url() };
+    } else if (data.clip_path_kind == 2) {
+        auto shape_value = adopt_assembly_handle(data.clip_path).release_nonnull();
+        payload.clip_path = ClipPathReference { shape_value->as_basic_shape() };
+    }
+}
+
+// Fills the border group's complex members from the core's pre-lowered
+// assembly: the sides' line styles and used widths (the computed widths and
+// resolved colors arrive through the field descriptors), the corner radii,
+// and the border-image. A side color the core could not resolve takes the
+// C++ resolution arm.
+static void assemble_border_group_payload(void* payload_pointer, void const* data_pointer)
+{
+    auto& payload = *static_cast<ComputedValues::BorderValues*>(payload_pointer);
+    auto const& data = *static_cast<ComputedValuesFFI::FfiBorderGroupAssembly const*>(data_pointer);
+    auto const& context = *static_cast<TableGroupAssemblerContext const*>(data.cpp_context);
+
+    auto side = [&](BorderData& border, CSSPixels computed_width, ComputedValuesFFI::FfiBorderSideAssembly const& lowered, PropertyID color_property) {
+        border.line_style = static_cast<LineStyle>(lowered.line_style);
+        if (!lowered.color_resolved)
+            border.color = context.computed_style.color(color_property, context.color_resolution_context);
+        // If the border-style corresponding to a given border-width is none or hidden, then the used width is 0.
+        // https://drafts.csswg.org/css-backgrounds/#border-width
+        if (border.line_style != LineStyle::None && border.line_style != LineStyle::Hidden)
+            border.width = computed_width;
+    };
+    side(payload.border_left, payload.border_left_computed_width, data.left, PropertyID::BorderLeftColor);
+    side(payload.border_top, payload.border_top_computed_width, data.top, PropertyID::BorderTopColor);
+    side(payload.border_right, payload.border_right_computed_width, data.right, PropertyID::BorderRightColor);
+    side(payload.border_bottom, payload.border_bottom_computed_width, data.bottom, PropertyID::BorderBottomColor);
+
+    auto radius = [&](void const* handle) {
+        auto value = adopt_assembly_handle(handle).release_nonnull();
+        return BorderRadiusData {
+            LengthPercentage::from_style_value(value->as_border_radius().horizontal_radius()),
+            LengthPercentage::from_style_value(value->as_border_radius().vertical_radius()),
         };
     };
-    values.grid_template_columns_style_value = retained_style_value(PropertyID::GridTemplateColumns);
-    values.grid_template_rows_style_value = retained_style_value(PropertyID::GridTemplateRows);
-    values.grid_auto_columns_style_value = retained_style_value(PropertyID::GridAutoColumns);
-    values.grid_auto_rows_style_value = retained_style_value(PropertyID::GridAutoRows);
-    values.grid_template_areas_style_value = retained_style_value(PropertyID::GridTemplateAreas);
-    values.grid_column_start_style_value = retained_style_value(PropertyID::GridColumnStart);
-    values.grid_column_end_style_value = retained_style_value(PropertyID::GridColumnEnd);
-    values.grid_row_start_style_value = retained_style_value(PropertyID::GridRowStart);
-    values.grid_row_end_style_value = retained_style_value(PropertyID::GridRowEnd);
+    payload.border_bottom_left_radius = radius(data.radii[0]);
+    payload.border_bottom_right_radius = radius(data.radii[1]);
+    payload.border_top_left_radius = radius(data.radii[2]);
+    payload.border_top_right_radius = radius(data.radii[3]);
+    payload.has_noninitial_border_radii = !payload.border_bottom_left_radius.is_initial()
+        || !payload.border_bottom_right_radius.is_initial()
+        || !payload.border_top_left_radius.is_initial()
+        || !payload.border_top_right_radius.is_initial();
 
-    ComputedValuesFFI::rust_replace_computed_fly_string_list(&values.names, arena.name_raws.data(), arena.name_raws.size());
-    ComputedValuesFFI::rust_replace_grid_name_index_list(&values.name_indices, arena.name_indices.data(), arena.name_indices.size());
-    ComputedValuesFFI::rust_replace_grid_track_entry_list(&values.entries, arena.entries.data(), arena.entries.size());
-    ComputedValuesFFI::rust_replace_grid_area_list(&values.areas, arena.areas.data(), arena.areas.size());
+    BorderImageData border_image;
+    if (data.border_image_source_is_abstract_image) {
+        RefPtr<StyleValue const> source_wrapper;
+        if (data.border_image_source_needs_stamped_wrapper)
+            source_wrapper = context.computed_style.property(PropertyID::BorderImageSource);
+        else
+            source_wrapper = adopt_assembly_handle(data.border_image_source);
+        border_image.source = source_wrapper->as_abstract_image();
+    }
+    auto slice_value = [&](ComputedValuesFFI::FfiBorderImageSlotAssembly const& slot) -> BorderImageSliceValue {
+        if (slot.kind == 0)
+            return slot.number;
+        auto value = adopt_assembly_handle(slot.value).release_nonnull();
+        if (value->is_percentage())
+            return value->as_percentage().percentage();
+        return NonnullRefPtr<CalculatedStyleValue const> { value->as_calculated() };
+    };
+    auto width_value = [&](ComputedValuesFFI::FfiBorderImageSlotAssembly const& slot) -> BorderImageWidthValue {
+        if (slot.kind == 0)
+            return slot.number;
+        if (slot.kind == 2)
+            return BorderImageWidthAuto {};
+        return LengthPercentage::from_style_value(adopt_assembly_handle(slot.value).release_nonnull());
+    };
+    auto outset_value = [&](ComputedValuesFFI::FfiBorderImageSlotAssembly const& slot) -> BorderImageOutsetValue {
+        if (slot.kind == 0)
+            return slot.number;
+        return Length::from_style_value(adopt_assembly_handle(slot.value).release_nonnull(), {});
+    };
+    border_image.slice = { slice_value(data.slice[0]), slice_value(data.slice[1]), slice_value(data.slice[2]), slice_value(data.slice[3]) };
+    border_image.width = { width_value(data.width[0]), width_value(data.width[1]), width_value(data.width[2]), width_value(data.width[3]) };
+    border_image.outset = { outset_value(data.outset[0]), outset_value(data.outset[1]), outset_value(data.outset[2]), outset_value(data.outset[3]) };
+    border_image.width_value_count = data.width_value_count;
+    border_image.outset_value_count = data.outset_value_count;
+    border_image.fill = data.slice_fill;
+    border_image.repeat_x = static_cast<BorderImageRepeat>(data.border_image_repeat_x);
+    border_image.repeat_y = static_cast<BorderImageRepeat>(data.border_image_repeat_y);
+    payload.border_image = move(border_image);
+}
 
-    return const_cast<void*>(ComputedValuesFFI::rust_build_grid_group(ComputedValues::GridValues::style_group_index, &values, nullptr));
+// Fills the inherited SVG group's complex members from the core's
+// pre-lowered assembly: the fill and stroke paints, the dash array, the
+// stroke width and offset, the paint order and the dominant baseline. A
+// paint the core could not resolve takes the C++ resolution arm.
+static void assemble_inherited_svg_group_payload(void* payload_pointer, void const* data_pointer)
+{
+    auto& payload = *static_cast<ComputedValues::InheritedSVGValues*>(payload_pointer);
+    auto const& data = *static_cast<ComputedValuesFFI::FfiInheritedSvgGroupAssembly const*>(data_pointer);
+    auto const& context = *static_cast<TableGroupAssemblerContext const*>(data.cpp_context);
+
+    auto paint = [&](ComputedValuesFFI::FfiSvgPaintAssembly const& lowered) -> Optional<SVGPaint> {
+        switch (lowered.kind) {
+        case 0:
+            return {};
+        case 1:
+            if (lowered.is_url) {
+                auto url_value = adopt_assembly_handle(lowered.url).release_nonnull();
+                Optional<Color> fallback_color;
+                if (lowered.has_color)
+                    fallback_color = Color::from_bgra(lowered.color);
+                return SVGPaint { url_value->as_url().url(), fallback_color, lowered.color_is_currentcolor };
+            }
+            return SVGPaint { Color::from_bgra(lowered.color), lowered.color_is_currentcolor };
+        default:
+            return SVGPaint::from_style_value(adopt_assembly_handle(lowered.value).release_nonnull(), context.color_resolution_context);
+        }
+    };
+    payload.fill = paint(data.fill);
+    payload.stroke = paint(data.stroke);
+
+    Vector<Variant<LengthPercentage, float>> dashes;
+    dashes.ensure_capacity(data.dash_count);
+    for (size_t i = 0; i < data.dash_count; ++i) {
+        auto const& item = data.dashes[i];
+        if (item.is_number)
+            dashes.unchecked_append(static_cast<float>(item.number));
+        else
+            dashes.unchecked_append(LengthPercentage::from_style_value(adopt_assembly_handle(item.value).release_nonnull()));
+    }
+    payload.stroke_dasharray = move(dashes);
+
+    auto length_percentage_or_number = [](ComputedValuesFFI::FfiLengthPercentageOrNumberAssembly const& lowered) -> LengthPercentage {
+        // FIXME: Converting to pixels isn't really correct - values should be in "user units"
+        //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits
+        if (lowered.is_number)
+            return Length::make_px(CSSPixels::nearest_value_for(lowered.number));
+        return LengthPercentage::from_style_value(adopt_assembly_handle(lowered.value).release_nonnull());
+    };
+    payload.stroke_dashoffset = length_percentage_or_number(data.stroke_dashoffset);
+    payload.stroke_width = length_percentage_or_number(data.stroke_width);
+
+    payload.paint_order = PaintOrderList {
+        static_cast<PaintOrder>(data.paint_order[0]),
+        static_cast<PaintOrder>(data.paint_order[1]),
+        static_cast<PaintOrder>(data.paint_order[2]),
+    };
+    payload.paint_order_serialization_length = data.paint_order_serialization_length;
+    payload.paint_order_is_normal = data.paint_order_is_normal;
+
+    if (data.has_dominant_baseline)
+        payload.dominant_baseline = static_cast<BaselineMetric>(data.dominant_baseline);
+    else
+        payload.dominant_baseline = {};
+}
+
+// Fills the inherited list group's complex members from the core's
+// pre-lowered assembly. The list-style-type stays with the C++ arm because
+// its counter styles resolve against the style scope, and a url() list image
+// mints its wrapper through the stamped property() path.
+static void assemble_inherited_list_group_payload(void* payload_pointer, void const* data_pointer)
+{
+    auto& payload = *static_cast<ComputedValues::InheritedListValues*>(payload_pointer);
+    auto const& data = *static_cast<ComputedValuesFFI::FfiInheritedListGroupAssembly const*>(data_pointer);
+    auto const& context = *static_cast<TableGroupAssemblerContext const*>(data.cpp_context);
+
+    auto list_style_type = context.computed_style.list_style_type(context.style_scope);
+    auto const& list_style_type_value = context.computed_style.property(PropertyID::ListStyleType);
+    if (list_style_type_value.is_counter_style() && list_style_type_value.as_counter_style().value().has<CounterStyleStyleValue::SymbolsFunction>()) {
+        auto counter_style_value = list_style_type_value.as_counter_style().value();
+        auto const& symbols = counter_style_value.get<CounterStyleStyleValue::SymbolsFunction>();
+        auto counter_style = list_style_type.get<RefPtr<CounterStyle const>>();
+        VERIFY(counter_style);
+        list_style_type = ListStyleSymbols {
+            .counter_style = counter_style.release_nonnull(),
+            .type = symbols.type,
+            .symbols = symbols.symbols,
+        };
+    }
+    payload.list_style_type = move(list_style_type);
+
+    if (data.image_kind == 1)
+        payload.list_style_image = context.computed_style.property(PropertyID::ListStyleImage).as_abstract_image();
+    else if (data.image_kind == 2)
+        payload.list_style_image = adopt_assembly_handle(data.image).release_nonnull()->as_abstract_image();
+    else
+        payload.list_style_image = nullptr;
+
+    QuotesData quotes { .type = QuotesData::Type::Auto };
+    if (data.quotes_kind == 1) {
+        quotes.type = QuotesData::Type::None;
+    } else if (data.quotes_kind == 2) {
+        quotes.type = QuotesData::Type::Specified;
+        VERIFY(data.quote_string_count % 2 == 0);
+        for (size_t i = 0; i < data.quote_string_count; i += 2) {
+            quotes.strings.empend(
+                Utf16FlyString::from_raw(data.quote_strings[i]),
+                Utf16FlyString::from_raw(data.quote_strings[i + 1]));
+        }
+    }
+    payload.quotes = move(quotes);
+}
+
+// Fills the content group's complex members from the core's pre-lowered
+// assembly: the counter definitions arrive as plain data, and a content list
+// transcribes through the C++ arm, whose items are wrapper-typed and whose
+// images mint through the stamped property() path.
+static void assemble_content_group_payload(void* payload_pointer, void const* data_pointer)
+{
+    auto& payload = *static_cast<ComputedValues::ContentValues*>(payload_pointer);
+    auto const& data = *static_cast<ComputedValuesFFI::FfiContentGroupAssembly const*>(data_pointer);
+    auto const& context = *static_cast<TableGroupAssemblerContext const*>(data.cpp_context);
+
+    if (data.content_kind == 1) {
+        payload.computed_content.type = ComputedContentData::Type::None;
+    } else if (data.content_kind == 2) {
+        ComputedContentData computed_content;
+        computed_content.type = ComputedContentData::Type::List;
+        auto append_item = [](StyleValue const& item, Vector<ComputedContentItem>& items) {
+            if (item.is_string()) {
+                items.append(item.as_string().string_value().to_utf16_string());
+            } else if (item.is_keyword()) {
+                items.append(item.to_keyword());
+            } else if (item.is_counter()) {
+                auto const& counter = item.as_counter();
+                ComputedContentCounter computed_counter {
+                    .function = counter.function_type() == CounterStyleValue::CounterFunction::Counters ? ComputedContentCounter::Function::Counters : ComputedContentCounter::Function::Counter,
+                    .name = counter.counter_name(),
+                    .join_string = counter.join_string(),
+                    .style = counter.counter_style()->as_counter_style().value().visit(
+                        [](Utf16FlyString const& name) -> Variant<Utf16FlyString, ComputedContentCounter::SymbolsFunction> { return name; },
+                        [](CounterStyleStyleValue::SymbolsFunction const& symbols) -> Variant<Utf16FlyString, ComputedContentCounter::SymbolsFunction> {
+                            return ComputedContentCounter::SymbolsFunction { .type = symbols.type, .symbols = symbols.symbols };
+                        }),
+                };
+                items.append(move(computed_counter));
+            } else {
+                VERIFY(item.is_abstract_image());
+                items.append(NonnullRefPtr<AbstractImageStyleValue const> { item.as_abstract_image() });
+            }
+        };
+        auto const& content_style_value = context.computed_style.property(PropertyID::Content).as_content();
+        for (auto const& item : content_style_value.content().values())
+            append_item(item, computed_content.items);
+        if (auto const* alt_text = content_style_value.alt_text()) {
+            for (auto const& item : alt_text->values())
+                append_item(item, computed_content.alt_text);
+        }
+        payload.computed_content = move(computed_content);
+    }
+
+    auto counter_vector = [](ComputedValuesFFI::FfiCounterDataAssembly const* lowered, size_t count) {
+        Vector<CounterData, 0> counters;
+        counters.ensure_capacity(count);
+        for (size_t i = 0; i < count; ++i) {
+            CounterData counter {
+                .name = Utf16FlyString::from_raw(lowered[i].name_raw),
+                .is_reversed = lowered[i].is_reversed,
+                .value = {},
+            };
+            if (lowered[i].has_value)
+                counter.value = lowered[i].value;
+            counters.unchecked_append(move(counter));
+        }
+        return counters;
+    };
+    payload.counter_increment = counter_vector(data.counter_increment, data.counter_increment_count);
+    payload.counter_reset = counter_vector(data.counter_reset, data.counter_reset_count);
+    payload.counter_set = counter_vector(data.counter_set, data.counter_set_count);
+}
+
+// Fills the inherited UI group's complex members from the core's pre-lowered
+// assembly: the cursor list, the caret and accent computed halves (the used
+// values arrive through the field descriptors), the scrollbar colors and the
+// color-scheme names. Colors the core could not resolve take the C++
+// resolution arm.
+static void assemble_inherited_ui_group_payload(void* payload_pointer, void const* data_pointer)
+{
+    auto& payload = *static_cast<ComputedValues::InheritedUIValues*>(payload_pointer);
+    auto const& data = *static_cast<ComputedValuesFFI::FfiInheritedUiGroupAssembly const*>(data_pointer);
+    auto const& context = *static_cast<TableGroupAssemblerContext const*>(data.cpp_context);
+
+    auto color_or_auto = [](ColorOrAuto& slot, bool is_auto, bool resolved, auto resolve) {
+        if (!resolved)
+            slot.used_value = resolve();
+        if (!is_auto)
+            slot.computed_value = slot.used_value;
+    };
+    color_or_auto(payload.caret_color, data.caret_is_auto, data.caret_resolved,
+        [&] { return context.computed_style.caret_color(context.color_resolution_context); });
+    color_or_auto(payload.accent_color, data.accent_is_auto, data.accent_resolved,
+        [&] { return context.computed_style.accent_color(context.color_resolution_context); });
+
+    Vector<CursorData> cursors;
+    cursors.ensure_capacity(data.cursor_count);
+    for (size_t i = 0; i < data.cursor_count; ++i) {
+        auto const& item = data.cursors[i];
+        if (item.is_cursor_value)
+            cursors.unchecked_append(CursorData { NonnullRefPtr<CursorStyleValue const> { adopt_assembly_handle(item.cursor).release_nonnull()->as_cursor() } });
+        else
+            cursors.unchecked_append(static_cast<CursorPredefined>(item.predefined));
+    }
+    payload.cursor = move(cursors);
+
+    if (data.scrollbar_color_kind == 1) {
+        payload.scrollbar_color = ScrollbarColorData {
+            .thumb_color = Color::from_bgra(data.scrollbar_thumb_color),
+            .track_color = Color::from_bgra(data.scrollbar_track_color),
+            .is_auto = false,
+        };
+    } else if (data.scrollbar_color_kind == 2) {
+        payload.scrollbar_color = context.computed_style.scrollbar_color(context.color_resolution_context);
+    }
+
+    Vector<Utf16FlyString> schemes;
+    schemes.ensure_capacity(data.color_scheme_count);
+    for (size_t i = 0; i < data.color_scheme_count; ++i)
+        schemes.unchecked_append(Utf16FlyString::from_raw(data.color_schemes[i]));
+    payload.color_schemes = move(schemes);
+    payload.color_scheme_only = data.color_scheme_only;
+}
+
+// Fills the inherited text group's complex members from the core's
+// pre-lowered assembly: the text shadows arrive as plain data, the indent
+// and underline offset keep their length-percentage slots, and a fill color
+// the core could not resolve takes the C++ resolution arm.
+static void assemble_inherited_text_group_payload(void* payload_pointer, void const* data_pointer)
+{
+    auto& payload = *static_cast<ComputedValues::InheritedTextValues*>(payload_pointer);
+    auto const& data = *static_cast<ComputedValuesFFI::FfiInheritedTextGroupAssembly const*>(data_pointer);
+    auto const& context = *static_cast<TableGroupAssemblerContext const*>(data.cpp_context);
+
+    if (!data.webkit_text_fill_color_resolved)
+        payload.webkit_text_fill_color = context.computed_style.property(PropertyID::WebkitTextFillColor).to_color(context.color_resolution_context).value();
+    if (!data.word_spacing_resolved)
+        payload.word_spacing = context.computed_style.word_spacing();
+    if (!data.letter_spacing_resolved)
+        payload.letter_spacing = context.computed_style.letter_spacing();
+
+    Vector<ShadowData> shadows;
+    shadows.ensure_capacity(data.text_shadow_count);
+    for (size_t i = 0; i < data.text_shadow_count; ++i) {
+        auto const& shadow = data.text_shadows[i];
+        shadows.unchecked_append(ShadowData {
+            CSSPixels::from_raw(shadow.offset_x),
+            CSSPixels::from_raw(shadow.offset_y),
+            CSSPixels::from_raw(shadow.blur_radius),
+            CSSPixels::from_raw(shadow.spread_distance),
+            Color::from_bgra(shadow.color),
+            static_cast<ColorSyntax>(shadow.color_syntax),
+            static_cast<ShadowPlacement>(shadow.placement),
+        });
+    }
+    payload.text_shadow = move(shadows);
+
+    payload.text_underline_position = TextUnderlinePosition {
+        .horizontal = static_cast<TextUnderlinePositionHorizontal>(data.underline_position_horizontal),
+        .vertical = static_cast<TextUnderlinePositionVertical>(data.underline_position_vertical),
+    };
+
+    TextUnderlineOffset underline_offset;
+    underline_offset.used_value = context.computed_style.text_underline_offset();
+    if (!data.underline_offset_is_auto)
+        underline_offset.computed_value = LengthPercentage::from_style_value(adopt_assembly_handle(data.underline_offset).release_nonnull());
+    payload.text_underline_offset = move(underline_offset);
+
+    payload.text_indent = TextIndentData {
+        .length_percentage = LengthPercentage::from_style_value(adopt_assembly_handle(data.text_indent).release_nonnull()),
+        .each_line = data.text_indent_each_line,
+        .hanging = data.text_indent_hanging,
+    };
+
+    payload.tab_size_is_number = data.tab_size_is_number;
+    payload.tab_size_length = data.tab_size_is_number ? CSSPixels(0) : CSSPixels::from_raw(data.tab_size_px);
+    payload.tab_size_number = data.tab_size_is_number ? data.tab_size_number : 0;
+}
+
+// Fills the misc reset group's complex members from the core's pre-lowered
+// assembly. The scroll margins and paddings, the outline offset, the shape
+// members and the object position keep their wrapper-backed slots; an
+// outline color the core could not resolve takes the C++ resolution arm, and
+// a non-initial shape-outside transcribes through the stamped wrapper, whose
+// images read style sheet context.
+static void assemble_misc_reset_group_payload(void* payload_pointer, void const* data_pointer)
+{
+    auto& payload = *static_cast<ComputedValues::MiscResetValues*>(payload_pointer);
+    auto const& data = *static_cast<ComputedValuesFFI::FfiMiscResetGroupAssembly const*>(data_pointer);
+    auto const& context = *static_cast<TableGroupAssemblerContext const*>(data.cpp_context);
+
+    if (!data.outline_color_is_auto && !data.outline_color_resolved) {
+        if (auto const& outline_color = context.computed_style.property(PropertyID::OutlineColor); outline_color.has_color())
+            payload.outline_color = outline_color.to_color(context.color_resolution_context).value();
+    }
+
+    auto outline_offset_value = adopt_assembly_handle(data.outline_offset).release_nonnull();
+    auto resolved_outline_offset = outline_offset_value->is_calculated()
+        ? outline_offset_value->as_calculated().resolve_length(context.color_resolution_context.calculation_resolution_context).value()
+        : outline_offset_value->as_length().length();
+    payload.outline_offset = resolved_outline_offset.absolute_length_to_px();
+    payload.outline_offset_style_value = move(outline_offset_value);
+
+    auto length_box = [](void const* const(&handles)[4], LengthPercentageOrAuto const& default_value) {
+        auto side = [&](void const* handle) -> LengthPercentageOrAuto {
+            auto value = adopt_assembly_handle(handle).release_nonnull();
+            if (value->is_calculated() || value->is_percentage() || value->is_length() || value->has_auto())
+                return LengthPercentageOrAuto::from_style_value(value);
+            // FIXME: Handle anchor sizes
+            return default_value;
+        };
+        // Top, right, bottom, left.
+        return LengthBox { side(handles[0]), side(handles[1]), side(handles[2]), side(handles[3]) };
+    };
+    payload.scroll_margin = length_box(data.scroll_margin, Length::make_px(0));
+    payload.scroll_padding = length_box(data.scroll_padding, LengthPercentageOrAuto::make_auto());
+
+    auto overflow_clip_margin_side = [&](ComputedValuesFFI::FfiOverflowClipMarginSideAssembly const& lowered) -> OverflowClipMarginSide {
+        if (!lowered.offset)
+            return {};
+        OverflowClipMarginSide side;
+        if (lowered.has_visual_box)
+            side.visual_box = static_cast<BackgroundBox>(lowered.visual_box);
+        auto offset_value = adopt_assembly_handle(lowered.offset).release_nonnull();
+        if (offset_value->is_calculated())
+            side.offset = offset_value->as_calculated().resolve_length(context.color_resolution_context.calculation_resolution_context).value().absolute_length_to_px();
+        else if (offset_value->is_length())
+            side.offset = offset_value->as_length().length().absolute_length_to_px();
+        return side;
+    };
+    payload.overflow_clip_margin = OverflowClipMarginData {
+        .left = overflow_clip_margin_side(data.overflow_clip_margin[0]),
+        .top = overflow_clip_margin_side(data.overflow_clip_margin[1]),
+        .right = overflow_clip_margin_side(data.overflow_clip_margin[2]),
+        .bottom = overflow_clip_margin_side(data.overflow_clip_margin[3]),
+    };
+
+    payload.appearance = static_cast<Appearance>(data.appearance);
+    payload.computed_appearance = static_cast<Appearance>(data.computed_appearance);
+
+    payload.object_position = Position {
+        .offset_x = LengthPercentage::from_style_value(adopt_assembly_handle(data.object_position_x).release_nonnull()),
+        .offset_y = LengthPercentage::from_style_value(adopt_assembly_handle(data.object_position_y).release_nonnull()),
+    };
+
+    if (data.has_view_transition_name)
+        payload.view_transition_name = Utf16FlyString::from_raw(data.view_transition_name_raw);
+
+    payload.touch_action = TouchActionData {
+        .allow_left = data.touch_action_allow_left,
+        .allow_right = data.touch_action_allow_right,
+        .allow_up = data.touch_action_allow_up,
+        .allow_down = data.touch_action_allow_down,
+        .allow_pinch_zoom = data.touch_action_allow_pinch_zoom,
+        .allow_other = data.touch_action_allow_other,
+    };
+
+    payload.column_height = Size::from_style_value(*adopt_assembly_handle(data.column_height));
+    payload.shape_margin = LengthPercentage::from_style_value(adopt_assembly_handle(data.shape_margin).release_nonnull());
+
+    if (data.shape_outside_noninitial) {
+        ShapeOutsideData shape_outside;
+        auto apply_shape_outside_item = [&](StyleValue const& item) {
+            if (item.is_url())
+                shape_outside.image = item.as_url().url();
+            else if (item.is_abstract_image())
+                shape_outside.image = NonnullRefPtr<AbstractImageStyleValue const> { item.as_abstract_image() };
+            else if (item.is_basic_shape())
+                shape_outside.basic_shape = item.as_basic_shape();
+            else if (auto shape_box = keyword_to_shape_box(item.to_keyword()); shape_box.has_value())
+                shape_outside.shape_box = *shape_box;
+        };
+        auto const& shape_outside_value = context.computed_style.property(PropertyID::ShapeOutside);
+        if (shape_outside_value.is_value_list()) {
+            for (auto const& item : shape_outside_value.as_value_list().values())
+                apply_shape_outside_item(item);
+        } else {
+            apply_shape_outside_item(shape_outside_value);
+        }
+        payload.shape_outside = move(shape_outside);
+    }
+
+    payload.scrollbar_gutter = static_cast<ScrollbarGutter>(data.scrollbar_gutter);
+
+    if (!data.will_change_is_auto) {
+        Vector<WillChange::WillChangeEntry> entries;
+        for (size_t i = 0; i < data.will_change_entry_count; ++i) {
+            auto const& entry = data.will_change_entries[i];
+            if (entry.is_keyword) {
+                switch (static_cast<Keyword>(entry.keyword)) {
+                case Keyword::Contents:
+                    entries.append(WillChange::Type::Contents);
+                    break;
+                case Keyword::ScrollPosition:
+                    entries.append(WillChange::Type::ScrollPosition);
+                    break;
+                default:
+                    VERIFY_NOT_REACHED();
+                }
+            } else if (auto property_id = property_id_from_string(Utf16FlyString::from_raw(entry.ident_raw)); property_id.has_value()) {
+                entries.append(property_id.release_value());
+            }
+        }
+        payload.will_change = WillChange(move(entries));
+    }
+}
+
+// Fills the animation group's coordinated vectors from the core's pre-lowered
+// assembly. Only the values that genuinely need C++ decode here: calc times
+// and counts resolve through their style value wrappers, easing entries
+// through EasingFunction, and inset edges through LengthPercentageOrAuto.
+static void assemble_animation_group_payload(void* payload_pointer, void const* data_pointer)
+{
+    auto& payload = *static_cast<ComputedValues::AnimationValues*>(payload_pointer);
+    auto const& data = *static_cast<ComputedValuesFFI::FfiAnimationGroupAssembly const*>(data_pointer);
+
+    auto time_from_item = [](ComputedValuesFFI::FfiTimeItemAssembly const& item) {
+        if (item.is_plain)
+            return Time { item.value, static_cast<TimeUnit>(item.unit) };
+        return Time::from_style_value(adopt_assembly_handle(item.calculated).release_nonnull(), {});
+    };
+    auto times = [&](ComputedValuesFFI::FfiTimeItemAssembly const* items, size_t count) {
+        Vector<Time> result;
+        result.ensure_capacity(count);
+        for (size_t i = 0; i < count; ++i)
+            result.append(time_from_item(items[i]));
+        return result;
+    };
+    auto codes = [](u8 const* items, size_t count, auto convert) {
+        Vector<decltype(convert(0))> result;
+        result.ensure_capacity(count);
+        for (size_t i = 0; i < count; ++i)
+            result.append(convert(items[i]));
+        return result;
+    };
+    auto optional_names = [](ComputedValuesFFI::FfiTimelineNameAssembly const* items, size_t count) {
+        Vector<Optional<Utf16FlyString>> result;
+        result.ensure_capacity(count);
+        for (size_t i = 0; i < count; ++i)
+            result.append(items[i].has_name ? Optional<Utf16FlyString> { Utf16FlyString::from_raw(items[i].name_raw) } : Optional<Utf16FlyString> {});
+        return result;
+    };
+    auto easing_functions = [](void const* const* items, size_t count, Vector<EasingFunction>& functions, StyleValueVector& style_values) {
+        functions.ensure_capacity(count);
+        style_values.ensure_capacity(count);
+        for (size_t i = 0; i < count; ++i) {
+            auto value = adopt_assembly_handle(items[i]).release_nonnull();
+            functions.append(EasingFunction::from_style_value(value));
+            style_values.append(move(value));
+        }
+    };
+
+    Vector<ComputedAnimationName> animation_names;
+    animation_names.ensure_capacity(data.name_count);
+    for (size_t i = 0; i < data.name_count; ++i) {
+        auto const& name = data.names[i];
+        if (!name.has_name) {
+            animation_names.empend();
+        } else {
+            animation_names.append(ComputedAnimationName {
+                .name = Utf16FlyString::from_raw(name.name_raw),
+                .syntax = name.is_string ? ComputedAnimationNameSyntax::String : ComputedAnimationNameSyntax::CustomIdent,
+            });
+        }
+    }
+    payload.animation_names = move(animation_names);
+
+    payload.animation_compositions = codes(data.compositions, data.composition_count, [](u8 code) { return static_cast<AnimationComposition>(code); });
+    payload.animation_delays = times(data.delays, data.delay_count);
+    payload.animation_directions = codes(data.directions, data.direction_count, [](u8 code) { return static_cast<AnimationDirection>(code); });
+
+    Vector<Optional<Time>> animation_durations;
+    animation_durations.ensure_capacity(data.duration_count);
+    for (size_t i = 0; i < data.duration_count; ++i) {
+        auto const& duration = data.durations[i];
+        animation_durations.append(duration.is_auto ? Optional<Time> {} : Optional<Time> { time_from_item(duration.time) });
+    }
+    payload.animation_durations = move(animation_durations);
+
+    payload.animation_fill_modes = codes(data.fill_modes, data.fill_mode_count, [](u8 code) { return static_cast<AnimationFillMode>(code); });
+
+    Vector<double> animation_iteration_counts;
+    animation_iteration_counts.ensure_capacity(data.iteration_count_count);
+    for (size_t i = 0; i < data.iteration_count_count; ++i) {
+        auto const& count = data.iteration_counts[i];
+        if (count.is_plain)
+            animation_iteration_counts.append(count.number);
+        else
+            animation_iteration_counts.append(number_from_style_value(adopt_assembly_handle(count.value).release_nonnull(), {}));
+    }
+    payload.animation_iteration_counts = move(animation_iteration_counts);
+
+    payload.animation_play_states = codes(data.play_states, data.play_state_count, [](u8 code) { return static_cast<AnimationPlayState>(code); });
+
+    Vector<AnimationTimelineData> animation_timelines;
+    animation_timelines.ensure_capacity(data.timeline_count);
+    for (size_t i = 0; i < data.timeline_count; ++i) {
+        auto const& lowered = data.timelines[i];
+        AnimationTimelineData timeline;
+        timeline.type = static_cast<AnimationTimelineData::Type>(lowered.kind);
+        if (timeline.type == AnimationTimelineData::Type::Name)
+            timeline.name = Utf16FlyString::from_raw(lowered.name_raw);
+        if (lowered.has_scroller)
+            timeline.scroller = static_cast<Scroller>(lowered.scroller);
+        if (lowered.has_axis)
+            timeline.axis = static_cast<Axis>(lowered.axis);
+        if (lowered.has_inset) {
+            timeline.inset = {
+                .start = LengthPercentageOrAuto::from_style_value(adopt_assembly_handle(lowered.inset_start).release_nonnull()),
+                .end = LengthPercentageOrAuto::from_style_value(adopt_assembly_handle(lowered.inset_end).release_nonnull()),
+            };
+        }
+        animation_timelines.append(move(timeline));
+    }
+    payload.animation_timelines = move(animation_timelines);
+
+    Vector<EasingFunction> animation_timing_functions;
+    StyleValueVector animation_timing_function_style_values;
+    easing_functions(data.timing_functions, data.timing_function_count, animation_timing_functions, animation_timing_function_style_values);
+    payload.animation_timing_functions = move(animation_timing_functions);
+    payload.animation_timing_function_style_values = move(animation_timing_function_style_values);
+
+    payload.scroll_timeline_names = optional_names(data.scroll_timeline_names, data.scroll_timeline_name_count);
+    payload.scroll_timeline_axes = codes(data.scroll_timeline_axes, data.scroll_timeline_axis_count, [](u8 code) { return static_cast<Axis>(code); });
+
+    Vector<Utf16FlyString> timeline_scope_names;
+    timeline_scope_names.ensure_capacity(data.timeline_scope_name_count);
+    for (size_t i = 0; i < data.timeline_scope_name_count; ++i)
+        timeline_scope_names.append(Utf16FlyString::from_raw(data.timeline_scope_names[i]));
+    payload.timeline_scope = TimelineScopeData {
+        .all = data.timeline_scope_all,
+        .names = move(timeline_scope_names),
+    };
+
+    payload.view_timeline_names = optional_names(data.view_timeline_names, data.view_timeline_name_count);
+    payload.view_timeline_axes = codes(data.view_timeline_axes, data.view_timeline_axis_count, [](u8 code) { return static_cast<Axis>(code); });
+
+    Vector<ViewTimelineInsetData> view_timeline_insets;
+    view_timeline_insets.ensure_capacity(data.view_timeline_inset_count);
+    for (size_t i = 0; i < data.view_timeline_inset_count; ++i) {
+        auto const& inset = data.view_timeline_insets[i];
+        view_timeline_insets.append({
+            .start = LengthPercentageOrAuto::from_style_value(adopt_assembly_handle(inset.start).release_nonnull()),
+            .end = LengthPercentageOrAuto::from_style_value(adopt_assembly_handle(inset.end).release_nonnull()),
+        });
+    }
+    payload.view_timeline_insets = move(view_timeline_insets);
+
+    payload.transition_properties = optional_names(data.transition_properties, data.transition_property_count);
+    payload.transition_durations = times(data.transition_durations, data.transition_duration_count);
+
+    Vector<EasingFunction> transition_timing_functions;
+    StyleValueVector transition_timing_function_style_values;
+    easing_functions(data.transition_timing_functions, data.transition_timing_function_count, transition_timing_functions, transition_timing_function_style_values);
+    payload.transition_timing_functions = move(transition_timing_functions);
+    payload.transition_timing_function_style_values = move(transition_timing_function_style_values);
+
+    payload.transition_delays = times(data.transition_delays, data.transition_delay_count);
+    payload.transition_behaviors = codes(data.transition_behaviors, data.transition_behavior_count, [](u8 code) { return static_cast<TransitionBehavior>(code); });
+}
+
+// Fills the text reset group's members the pokes cannot carry from the core's
+// pre-lowered assembly; a color the core could not resolve decodes here
+// through the wrapper path.
+static void assemble_text_reset_group_payload(void* payload_pointer, void const* data_pointer)
+{
+    auto& payload = *static_cast<ComputedValues::TextResetValues*>(payload_pointer);
+    auto const& data = *static_cast<ComputedValuesFFI::FfiTextResetGroupAssembly const*>(data_pointer);
+    auto const& context = *static_cast<TableGroupAssemblerContext const*>(data.cpp_context);
+
+    Vector<TextDecorationLine> lines;
+    lines.ensure_capacity(data.text_decoration_line_count);
+    for (size_t i = 0; i < data.text_decoration_line_count; ++i)
+        lines.append(static_cast<TextDecorationLine>(data.text_decoration_lines[i]));
+    payload.text_decoration_line = move(lines);
+
+    switch (data.text_decoration_thickness_kind) {
+    case 0:
+        payload.text_decoration_thickness = TextDecorationThickness { TextDecorationThickness::Auto {} };
+        break;
+    case 1:
+        payload.text_decoration_thickness = TextDecorationThickness { TextDecorationThickness::FromFont {} };
+        break;
+    default:
+        payload.text_decoration_thickness = TextDecorationThickness { LengthPercentage::from_style_value(adopt_assembly_handle(data.text_decoration_thickness).release_nonnull()) };
+        break;
+    }
+
+    if (!data.text_decoration_color_resolved)
+        payload.text_decoration_color = context.computed_style.color(PropertyID::TextDecorationColor, context.color_resolution_context);
+
+    payload.white_space_trim = WhiteSpaceTrimData {
+        .discard_before = data.white_space_trim_discard_before,
+        .discard_after = data.white_space_trim_discard_after,
+        .discard_inner = data.white_space_trim_discard_inner,
+    };
+}
+
+// Fills the anchor group's members from the core's pre-lowered assembly; the
+// name raws are borrowed and intern fresh references here.
+static void assemble_anchor_group_payload(void* payload_pointer, void const* data_pointer)
+{
+    auto& payload = *static_cast<ComputedValues::AnchorValues*>(payload_pointer);
+    auto const& data = *static_cast<ComputedValuesFFI::FfiAnchorGroupAssembly const*>(data_pointer);
+
+    auto fly_strings = [](size_t const* raws, size_t count) {
+        Vector<Utf16FlyString> names;
+        names.ensure_capacity(count);
+        for (size_t i = 0; i < count; ++i)
+            names.append(Utf16FlyString::from_raw(raws[i]));
+        return names;
+    };
+    auto position_area_keywords = [](u8 const* codes, size_t count) {
+        Vector<PositionArea> keywords;
+        keywords.ensure_capacity(count);
+        for (size_t i = 0; i < count; ++i)
+            keywords.append(static_cast<PositionArea>(codes[i]));
+        return keywords;
+    };
+
+    payload.anchor_names = fly_strings(data.anchor_names, data.anchor_name_count);
+    payload.anchor_scope = AnchorScopeData {
+        .all = data.anchor_scope_all,
+        .names = fly_strings(data.anchor_scope_names, data.anchor_scope_name_count),
+    };
+
+    PositionAnchor position_anchor;
+    position_anchor.type = static_cast<PositionAnchor::Type>(data.position_anchor_type);
+    if (position_anchor.type == PositionAnchor::Type::Name)
+        position_anchor.name = Utf16FlyString::from_raw(data.position_anchor_name_raw);
+    payload.position_anchor = move(position_anchor);
+
+    payload.position_area = PositionAreaData {
+        .keywords = position_area_keywords(data.position_area_keywords, data.position_area_keyword_count),
+    };
+
+    Vector<PositionTryFallbackData> fallbacks;
+    fallbacks.ensure_capacity(data.position_try_fallback_count);
+    for (size_t i = 0; i < data.position_try_fallback_count; ++i) {
+        auto const& lowered = data.position_try_fallbacks[i];
+        PositionTryFallbackData fallback;
+        if (lowered.has_name)
+            fallback.name = Utf16FlyString::from_raw(lowered.name_raw);
+        for (size_t tactic = 0; tactic < lowered.tactic_count; ++tactic)
+            fallback.tactics.append(static_cast<TryTactic>(lowered.tactics[tactic]));
+        if (lowered.has_position_area) {
+            fallback.position_area = PositionAreaData {
+                .keywords = position_area_keywords(lowered.position_area_keywords, lowered.position_area_keyword_count),
+            };
+        }
+        fallbacks.append(move(fallback));
+    }
+    payload.position_try_fallbacks = move(fallbacks);
+
+    payload.position_try_order = data.has_position_try_order
+        ? Optional<TryOrder> { static_cast<TryOrder>(data.position_try_order) }
+        : Optional<TryOrder> {};
+
+    payload.position_visibility = PositionVisibilityData {
+        .always = data.position_visibility_always,
+        .anchors_valid = data.position_visibility_anchors_valid,
+        .anchors_visible = data.position_visibility_anchors_visible,
+        .no_overflow = data.position_visibility_no_overflow,
+    };
 }
 
 NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context, ComputedValues const* inherit_parent)
@@ -1430,312 +2161,108 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedProp
     auto builder = base ? Builder { *base } : Builder {};
     auto& computed_values = *builder.operator->();
 
-    // The inherited box group builds on the Rust side from the computed keyword
-    // values, sharing the parent's payload or the default payload when it can. A
-    // null result means a value the core cannot map, and the setters below apply.
-    void const* inherited_box_payload = nullptr;
-    if (applies(StyleGroupIndex::InheritedBoxValues)) {
-        inherited_box_payload = ComputedValuesFFI::rust_build_inherited_box_group(
-            InheritedBoxValues::style_group_index,
-            computed_style.property(PropertyID::Visibility).rust_style_value_data(),
-            computed_style.property(PropertyID::Direction).rust_style_value_data(),
-            computed_style.property(PropertyID::WritingMode).rust_style_value_data(),
-            computed_style.property(PropertyID::ContentVisibility).rust_style_value_data(),
-            computed_style.property(PropertyID::ImageRendering).rust_style_value_data(),
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.box.operator->()) : nullptr);
+    // NOTE: color-scheme must resolve first to ensure system colors can be resolved correctly,
+    //       and the element's own color right after it, so currentColor can resolve in every
+    //       other property (e.g. background-color). Both resolve against the caller's context,
+    //       so resolving them up front is order-equivalent to the setters below.
+    auto color_scheme = computed_style.color_scheme(document.page().preferred_color_scheme(), document.supported_color_schemes());
+    color_resolution_context.color_scheme = color_scheme;
+    // FIXME: We should resolve colors to their absolute forms at compute time (i.e. by implementing the relevant absolutized methods)
+    auto color = computed_style.color(CSS::PropertyID::Color, color_resolution_context);
+    color_resolution_context.current_color = color;
+
+    // Build every group payload the core can map straight from the drive's longhand table.
+    // Effective values living outside the table - the animated overlay and the partial-drive
+    // specified-value preferences - travel as a sparse override span, so the build sees exactly
+    // the values property() returns.
+    auto const* longhand_table = computed_style.computed_longhand_table();
+    Vector<u16> override_properties;
+    Vector<void const*> override_values;
+    computed_style.collect_effective_longhand_overrides(override_properties, override_values);
+    Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_context_storage;
+    auto ffi_color_input = make_rust_color_resolution_input(color_resolution_context, length_context_storage);
+    TableGroupAssemblerContext assembler_context {
+        .computed_style = computed_style,
+        .style_scope = style_scope,
+        .color_resolution_context = color_resolution_context,
+    };
+    ComputedValuesFFI::FfiTableGroupBuildInputs table_build_inputs {
+        .color_input = &ffi_color_input,
+        .used_color_scheme = static_cast<u8>(to_underlying(color_scheme)),
+        .override_properties = override_properties.data(),
+        .override_values = override_values.data(),
+        .override_count = override_properties.size(),
+        .box_display_before_transformation_raw = bit_cast<u32>(computed_style.display_before_box_type_transformation()),
+        .cpp_assembler_context = &assembler_context,
+    };
+    Array<void const*, to_underlying(StyleGroupIndex::Count)> parent_group_payloads {};
+    if (inherit_parent) {
+        for (size_t group = 0; group < parent_group_payloads.size(); ++group)
+            parent_group_payloads[group] = inherit_parent->style_group_payload(static_cast<StyleGroupIndex>(group));
     }
+    Array<void const*, to_underlying(StyleGroupIndex::Count)> table_group_payloads {};
+    ComputedValuesFFI::rust_build_group_payloads_from_table(longhand_table, groups_to_apply, parent_group_payloads.data(), &table_build_inputs, table_group_payloads.data(), table_group_payloads.size());
+    auto table_group_payload = [&](StyleGroupIndex group) { return table_group_payloads[to_underlying(group)]; };
+
+    // A null payload means a value the core cannot map, and the population setters below apply.
+    void const* inherited_box_payload = applies(StyleGroupIndex::InheritedBoxValues) ? table_group_payload(StyleGroupIndex::InheritedBoxValues) : nullptr;
     bool const inherited_box_adopted = inherited_box_payload != nullptr || !applies(StyleGroupIndex::InheritedBoxValues);
     if (inherited_box_payload)
         computed_values.adopt_inherited_box_group(const_cast<void*>(inherited_box_payload));
 
-    void const* inherited_table_payload = nullptr;
-    if (applies(StyleGroupIndex::InheritedTableValues)) {
-        inherited_table_payload = ComputedValuesFFI::rust_build_inherited_table_group(
-            InheritedTableValues::style_group_index,
-            computed_style.property(PropertyID::BorderCollapse).rust_style_value_data(),
-            computed_style.property(PropertyID::CaptionSide).rust_style_value_data(),
-            computed_style.property(PropertyID::EmptyCells).rust_style_value_data(),
-            computed_style.property(PropertyID::BorderSpacing).rust_style_value_data(),
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.table.operator->()) : nullptr);
-    }
+    void const* inherited_table_payload = applies(StyleGroupIndex::InheritedTableValues) ? table_group_payload(StyleGroupIndex::InheritedTableValues) : nullptr;
     bool const inherited_table_adopted = inherited_table_payload != nullptr || !applies(StyleGroupIndex::InheritedTableValues);
     if (inherited_table_payload)
         computed_values.adopt_inherited_table_group(const_cast<void*>(inherited_table_payload));
 
-    auto gather_group_values = [&]<size_t N>(Array<PropertyID, N> const& properties, Array<ComputedValuesFFI::FfiGroupValueEntry, N>& entries) {
-        for (size_t i = 0; i < N; ++i) {
-            auto const& value = computed_style.property(properties[i]);
-            entries[i] = { value.rust_style_value_data(), 0, false, 0, false };
-        }
-    };
-
-    Array<ComputedValuesFFI::FfiGroupValueEntry, content_group_properties.size()> content_group_values;
-    gather_group_values(content_group_properties, content_group_values);
-    void const* content_payload = nullptr;
-    if (applies(StyleGroupIndex::ContentValues)) {
-        content_payload = ComputedValuesFFI::rust_build_style_group(
-            ContentValues::style_group_index,
-            content_group_values.data(),
-            content_group_values.size(),
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.content_data.operator->()) : nullptr);
-    }
-    bool const content_adopted = content_payload != nullptr || !applies(StyleGroupIndex::ContentValues);
+    void const* content_payload = applies(StyleGroupIndex::ContentValues) ? table_group_payload(StyleGroupIndex::ContentValues) : nullptr;
+    VERIFY(content_payload || !applies(StyleGroupIndex::ContentValues));
     if (content_payload)
         computed_values.adopt_content_group(const_cast<void*>(content_payload));
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, anchor_group_properties.size()> anchor_group_values;
-    gather_group_values(anchor_group_properties, anchor_group_values);
-    void const* anchor_payload = nullptr;
-    if (applies(StyleGroupIndex::AnchorValues)) {
-        anchor_payload = ComputedValuesFFI::rust_build_style_group(
-            AnchorValues::style_group_index,
-            anchor_group_values.data(),
-            anchor_group_values.size(),
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.anchor.operator->()) : nullptr);
-    }
-    bool const anchor_adopted = anchor_payload != nullptr || !applies(StyleGroupIndex::AnchorValues);
+    void const* anchor_payload = applies(StyleGroupIndex::AnchorValues) ? table_group_payload(StyleGroupIndex::AnchorValues) : nullptr;
+    VERIFY(anchor_payload || !applies(StyleGroupIndex::AnchorValues));
     if (anchor_payload)
         computed_values.adopt_anchor_group(const_cast<void*>(anchor_payload));
 
-    // https://drafts.csswg.org/css-anchor-position-1/#position-anchor
-    auto const& position_anchor_value = computed_style.property(PropertyID::PositionAnchor);
-    PositionAnchor position_anchor;
-    if (position_anchor_value.is_custom_ident()) {
-        position_anchor.type = PositionAnchor::Type::Name;
-        position_anchor.name = position_anchor_value.as_custom_ident().custom_ident();
-    } else {
-        switch (position_anchor_value.to_keyword()) {
-        case Keyword::Normal:
-            position_anchor.type = PositionAnchor::Type::Normal;
-            break;
-        case Keyword::None:
-            position_anchor.type = PositionAnchor::Type::None;
-            break;
-        case Keyword::Auto:
-            position_anchor.type = PositionAnchor::Type::Auto;
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }
-
-    void const* surround_payload = nullptr;
-    if (applies(StyleGroupIndex::SurroundValues)) {
-        surround_payload = ComputedValuesFFI::rust_build_surround_group(
-            SurroundValues::style_group_index,
-            computed_style.property(PropertyID::Top).rust_style_value_data(),
-            computed_style.property(PropertyID::Right).rust_style_value_data(),
-            computed_style.property(PropertyID::Bottom).rust_style_value_data(),
-            computed_style.property(PropertyID::Left).rust_style_value_data(),
-            computed_style.property(PropertyID::MarginTop).rust_style_value_data(),
-            computed_style.property(PropertyID::MarginRight).rust_style_value_data(),
-            computed_style.property(PropertyID::MarginBottom).rust_style_value_data(),
-            computed_style.property(PropertyID::MarginLeft).rust_style_value_data(),
-            computed_style.property(PropertyID::PaddingTop).rust_style_value_data(),
-            computed_style.property(PropertyID::PaddingRight).rust_style_value_data(),
-            computed_style.property(PropertyID::PaddingBottom).rust_style_value_data(),
-            computed_style.property(PropertyID::PaddingLeft).rust_style_value_data(),
-            position_anchor.name.has_value() ? position_anchor.name->to_raw_leaked() : 0,
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.surround.operator->()) : nullptr);
-    }
+    void const* surround_payload = applies(StyleGroupIndex::SurroundValues) ? table_group_payload(StyleGroupIndex::SurroundValues) : nullptr;
     VERIFY(surround_payload || !applies(StyleGroupIndex::SurroundValues));
     if (surround_payload)
         computed_values.adopt_surround_group(const_cast<void*>(surround_payload));
 
-    void const* box_payload = nullptr;
-    if (applies(StyleGroupIndex::BoxValues)) {
-        auto containment = computed_style.contain();
-        auto container_type = computed_style.container_type();
-        auto z_index = computed_style.z_index();
-        Optional<int> column_count;
-        if (auto const& column_count_value = computed_style.property(PropertyID::ColumnCount); column_count_value.to_keyword() != Keyword::Auto)
-            column_count = int_from_style_value(NonnullRefPtr<StyleValue const> { column_count_value });
-        auto const grid_auto_flow = computed_style.grid_auto_flow();
-        ComputedValuesFFI::BoxValues box_group_values {
-            .display = to_ffi_display(computed_style.display()),
-            .display_before_box_type_transformation = to_ffi_display(computed_style.display_before_box_type_transformation()),
-            .float_ = static_cast<u8>(to_underlying(computed_style.float_())),
-            .clear = static_cast<u8>(to_underlying(computed_style.clear())),
-            .position = static_cast<u8>(to_underlying(computed_style.position())),
-            .overflow_x = static_cast<u8>(to_underlying(computed_style.overflow_x())),
-            .overflow_y = static_cast<u8>(to_underlying(computed_style.overflow_y())),
-            .box_sizing = static_cast<u8>(to_underlying(computed_style.box_sizing())),
-            .resize = static_cast<u8>(to_underlying(computed_style.resize())),
-            .text_overflow = static_cast<u8>(to_underlying(computed_style.text_overflow())),
-            .unicode_bidi = static_cast<u8>(to_underlying(computed_style.unicode_bidi())),
-            .table_layout = static_cast<u8>(to_underlying(computed_style.table_layout())),
-            .grid_auto_flow_row = grid_auto_flow.row,
-            .grid_auto_flow_dense = grid_auto_flow.dense,
-            .column_width = to_ffi_computed_size(computed_style.size_value(PropertyID::ColumnWidth)),
-            .column_count_has_value = column_count.has_value(),
-            .column_count = column_count.value_or(0),
-            .has_z_index = z_index.has_value(),
-            .z_index = z_index.value_or(0),
-            .vertical_align = to_ffi_vertical_align(computed_style.vertical_align()),
-            .aspect_ratio = to_ffi_aspect_ratio(computed_style.aspect_ratio()),
-            .size_containment = containment.size_containment,
-            .inline_size_containment = containment.inline_size_containment,
-            .layout_containment = containment.layout_containment,
-            .style_containment = containment.style_containment,
-            .paint_containment = containment.paint_containment,
-            .is_size_container = container_type.is_size_container,
-            .is_inline_size_container = container_type.is_inline_size_container,
-            .is_scroll_state_container = container_type.is_scroll_state_container,
-            .container_name = { .pointer = nullptr, .length = 0 },
-        };
-        auto leaked_container_name_raws = to_leaked_fly_string_raws(computed_style.container_name());
-        ComputedValuesFFI::rust_replace_computed_fly_string_list(
-            &box_group_values.container_name, leaked_container_name_raws.data(), leaked_container_name_raws.size());
-        box_payload = ComputedValuesFFI::rust_build_box_group(
-            BoxValues::style_group_index,
-            &box_group_values,
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.box.operator->()) : nullptr);
-        VERIFY(box_payload);
-    }
+    void const* box_payload = applies(StyleGroupIndex::BoxValues) ? table_group_payload(StyleGroupIndex::BoxValues) : nullptr;
     VERIFY(box_payload || !applies(StyleGroupIndex::BoxValues));
     if (box_payload)
         computed_values.adopt_box_group(const_cast<void*>(box_payload));
 
-    void const* alignment_payload = nullptr;
-    if (applies(StyleGroupIndex::AlignmentValues)) {
-        alignment_payload = ComputedValuesFFI::rust_build_alignment_group(
-            AlignmentValues::style_group_index,
-            computed_style.property(PropertyID::FlexDirection).rust_style_value_data(),
-            computed_style.property(PropertyID::FlexWrap).rust_style_value_data(),
-            computed_style.property(PropertyID::FlexBasis).rust_style_value_data(),
-            computed_style.flex_grow(),
-            computed_style.flex_shrink(),
-            computed_style.order(),
-            computed_style.property(PropertyID::AlignContent).rust_style_value_data(),
-            computed_style.property(PropertyID::AlignItems).rust_style_value_data(),
-            computed_style.property(PropertyID::AlignSelf).rust_style_value_data(),
-            computed_style.property(PropertyID::JustifyContent).rust_style_value_data(),
-            computed_style.property(PropertyID::JustifyItems).rust_style_value_data(),
-            computed_style.property(PropertyID::JustifySelf).rust_style_value_data(),
-            computed_style.property(PropertyID::ColumnGap).rust_style_value_data(),
-            computed_style.property(PropertyID::RowGap).rust_style_value_data(),
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.alignment.operator->()) : nullptr);
-    }
+    void const* alignment_payload = applies(StyleGroupIndex::AlignmentValues) ? table_group_payload(StyleGroupIndex::AlignmentValues) : nullptr;
     VERIFY(alignment_payload || !applies(StyleGroupIndex::AlignmentValues));
     if (alignment_payload)
         computed_values.adopt_alignment_group(const_cast<void*>(alignment_payload));
 
-    void const* sizing_payload = nullptr;
-    if (applies(StyleGroupIndex::SizingValues)) {
-        sizing_payload = ComputedValuesFFI::rust_build_sizing_group(
-            SizingValues::style_group_index,
-            computed_style.property(PropertyID::Width).rust_style_value_data(),
-            computed_style.property(PropertyID::MinWidth).rust_style_value_data(),
-            computed_style.property(PropertyID::MaxWidth).rust_style_value_data(),
-            computed_style.property(PropertyID::Height).rust_style_value_data(),
-            computed_style.property(PropertyID::MinHeight).rust_style_value_data(),
-            computed_style.property(PropertyID::MaxHeight).rust_style_value_data(),
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.sizing.operator->()) : nullptr);
-    }
+    void const* sizing_payload = applies(StyleGroupIndex::SizingValues) ? table_group_payload(StyleGroupIndex::SizingValues) : nullptr;
     if (sizing_payload)
         computed_values.adopt_sizing_group(const_cast<void*>(sizing_payload));
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, grid_group_properties.size()> grid_group_values;
-    gather_group_values(grid_group_properties, grid_group_values);
-    void const* grid_payload = nullptr;
-    if (applies(StyleGroupIndex::GridValues)) {
-        grid_payload = ComputedValuesFFI::rust_build_style_group(
-            GridValues::style_group_index,
-            grid_group_values.data(),
-            grid_group_values.size(),
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.grid.operator->()) : nullptr);
-    }
-    bool const grid_adopted = grid_payload != nullptr || !applies(StyleGroupIndex::GridValues);
+    void const* grid_payload = applies(StyleGroupIndex::GridValues) ? table_group_payload(StyleGroupIndex::GridValues) : nullptr;
+    VERIFY(grid_payload || !applies(StyleGroupIndex::GridValues));
     if (grid_payload)
         computed_values.adopt_grid_group(const_cast<void*>(grid_payload));
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, mask_group_properties.size()> mask_group_values;
-    gather_group_values(mask_group_properties, mask_group_values);
-    void const* mask_payload = nullptr;
-    if (applies(StyleGroupIndex::MaskValues)) {
-        mask_payload = ComputedValuesFFI::rust_build_style_group(
-            MaskValues::style_group_index,
-            mask_group_values.data(),
-            mask_group_values.size(),
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.mask_data.operator->()) : nullptr);
-    }
-    bool const mask_adopted = mask_payload != nullptr || !applies(StyleGroupIndex::MaskValues);
+    void const* mask_payload = applies(StyleGroupIndex::MaskValues) ? table_group_payload(StyleGroupIndex::MaskValues) : nullptr;
+    VERIFY(mask_payload || !applies(StyleGroupIndex::MaskValues));
     if (mask_payload)
         computed_values.adopt_mask_group(const_cast<void*>(mask_payload));
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, transform_group_properties.size()> transform_group_values;
-    gather_group_values(transform_group_properties, transform_group_values);
-    void const* transform_payload = nullptr;
-    if (applies(StyleGroupIndex::TransformValues)) {
-        transform_payload = ComputedValuesFFI::rust_build_style_group(
-            TransformValues::style_group_index,
-            transform_group_values.data(),
-            transform_group_values.size(),
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.transform.operator->()) : nullptr);
-    }
-    bool const transform_adopted = transform_payload != nullptr || !applies(StyleGroupIndex::TransformValues);
+    void const* transform_payload = applies(StyleGroupIndex::TransformValues) ? table_group_payload(StyleGroupIndex::TransformValues) : nullptr;
+    VERIFY(transform_payload || !applies(StyleGroupIndex::TransformValues));
     if (transform_payload)
         computed_values.adopt_transform_group(const_cast<void*>(transform_payload));
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, effects_group_properties.size()> effects_group_values;
-    gather_group_values(effects_group_properties, effects_group_values);
-    for (size_t i = 0; i < effects_group_properties.size(); ++i) {
-        if (effects_group_properties[i] == PropertyID::Opacity) {
-            effects_group_values[i].resolved_number = computed_style.opacity();
-            effects_group_values[i].has_resolved_number = true;
-        }
-    }
-    void const* effects_payload = nullptr;
-    if (applies(StyleGroupIndex::EffectsValues)) {
-        effects_payload = ComputedValuesFFI::rust_build_style_group(
-            EffectsValues::style_group_index,
-            effects_group_values.data(),
-            effects_group_values.size(),
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.effects.operator->()) : nullptr);
-    }
-    bool const effects_adopted = effects_payload != nullptr || !applies(StyleGroupIndex::EffectsValues);
+    void const* effects_payload = applies(StyleGroupIndex::EffectsValues) ? table_group_payload(StyleGroupIndex::EffectsValues) : nullptr;
+    VERIFY(effects_payload || !applies(StyleGroupIndex::EffectsValues));
     if (effects_payload)
         computed_values.adopt_effects_group(const_cast<void*>(effects_payload));
-
-    auto custom_ident_list = [&](PropertyID property_id) {
-        Vector<Utf16FlyString> names;
-        auto append_name = [&](StyleValue const& value) {
-            if (value.is_custom_ident())
-                names.append(value.as_custom_ident().custom_ident());
-        };
-        auto const& value = computed_style.property(property_id);
-        if (value.is_value_list()) {
-            for (auto const& item : value.as_value_list().values())
-                append_name(item);
-        } else {
-            append_name(value);
-        }
-        return names;
-    };
-    auto for_each_comma_separated_value = [&](CSS::PropertyID property_id, auto callback) {
-        auto const& value = computed_style.property(property_id);
-        if (value.is_value_list() && value.as_value_list().separator() == CSS::StyleValueList::Separator::Comma) {
-            for (auto const& item : value.as_value_list().values())
-                callback(item);
-        } else {
-            callback(value);
-        }
-    };
-
-    // NOTE: color-scheme must be set first to ensure system colors can be resolved correctly.
-    auto const& color_scheme_style_value = computed_style.property(PropertyID::ColorScheme).as_color_scheme();
-    auto color_scheme = computed_style.color_scheme(document.page().preferred_color_scheme(), document.supported_color_schemes());
-    color_resolution_context.color_scheme = color_scheme;
-
-    if (!anchor_adopted)
-        computed_values.set_anchor_names(custom_ident_list(PropertyID::AnchorName));
-    auto const& anchor_scope = computed_style.property(PropertyID::AnchorScope);
-    if (!anchor_adopted) {
-        computed_values.set_anchor_scope(AnchorScopeData {
-            .all = anchor_scope.to_keyword() == Keyword::All,
-            .names = custom_ident_list(PropertyID::AnchorScope),
-        });
-    }
 
     // NOTE: We have to be careful that font-related properties get set in the right order.
     //       m_font is used by Length::to_px() when resolving sizes against this layout node.
@@ -1772,738 +2299,84 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedProp
         computed_values.set_font_variant_emoji(computed_style.font_variant_emoji());
     }
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, animation_group_properties.size()> animation_group_values;
-    gather_group_values(animation_group_properties, animation_group_values);
-    void const* animation_payload = nullptr;
-    if (applies(StyleGroupIndex::AnimationValues)) {
-        animation_payload = ComputedValuesFFI::rust_build_style_group(
-            AnimationValues::style_group_index,
-            animation_group_values.data(),
-            animation_group_values.size(),
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.animation.operator->()) : nullptr);
-    }
-    bool const animation_adopted = animation_payload != nullptr || !applies(StyleGroupIndex::AnimationValues);
+    void const* animation_payload = applies(StyleGroupIndex::AnimationValues) ? table_group_payload(StyleGroupIndex::AnimationValues) : nullptr;
+    VERIFY(animation_payload || !applies(StyleGroupIndex::AnimationValues));
     if (animation_payload)
         computed_values.adopt_animation_group(const_cast<void*>(animation_payload));
 
-    Vector<ComputedAnimationName> animation_names;
-    for (auto const& name : computed_style.property(PropertyID::AnimationName).as_value_list().values()) {
-        if (name->to_keyword() == Keyword::None) {
-            animation_names.empend();
-        } else {
-            animation_names.append(ComputedAnimationName {
-                .name = string_from_style_value(name),
-                .syntax = name->is_string() ? ComputedAnimationNameSyntax::String : ComputedAnimationNameSyntax::CustomIdent,
-            });
-        }
-    }
-    if (!animation_adopted)
-        computed_values.set_animation_names(move(animation_names));
-    Vector<AnimationComposition> animation_compositions;
-    for_each_comma_separated_value(PropertyID::AnimationComposition, [&](StyleValue const& value) { animation_compositions.append(keyword_to_animation_composition(value.to_keyword()).release_value()); });
-    if (!animation_adopted)
-        computed_values.set_animation_compositions(move(animation_compositions));
-    Vector<Time> animation_delays;
-    for_each_comma_separated_value(PropertyID::AnimationDelay, [&](StyleValue const& value) { animation_delays.append(Time::from_style_value(NonnullRefPtr<StyleValue const> { value }, {})); });
-    if (!animation_adopted)
-        computed_values.set_animation_delays(move(animation_delays));
-    Vector<AnimationDirection> animation_directions;
-    for_each_comma_separated_value(PropertyID::AnimationDirection, [&](StyleValue const& value) { animation_directions.append(keyword_to_animation_direction(value.to_keyword()).release_value()); });
-    if (!animation_adopted)
-        computed_values.set_animation_directions(move(animation_directions));
-    Vector<Optional<Time>> animation_durations;
-    for_each_comma_separated_value(PropertyID::AnimationDuration, [&](StyleValue const& value) {
-        animation_durations.append(value.to_keyword() == Keyword::Auto ? Optional<Time> {} : Time::from_style_value(NonnullRefPtr<StyleValue const> { value }, {}));
-    });
-    if (!animation_adopted)
-        computed_values.set_animation_durations(move(animation_durations));
-    Vector<AnimationFillMode> animation_fill_modes;
-    for_each_comma_separated_value(PropertyID::AnimationFillMode, [&](StyleValue const& value) { animation_fill_modes.append(keyword_to_animation_fill_mode(value.to_keyword()).release_value()); });
-    if (!animation_adopted)
-        computed_values.set_animation_fill_modes(move(animation_fill_modes));
-    Vector<double> animation_iteration_counts;
-    for_each_comma_separated_value(PropertyID::AnimationIterationCount, [&](StyleValue const& value) {
-        animation_iteration_counts.append(value.to_keyword() == Keyword::Infinite ? AK::Infinity<double> : number_from_style_value(value, {}));
-    });
-    if (!animation_adopted)
-        computed_values.set_animation_iteration_counts(move(animation_iteration_counts));
-    Vector<AnimationPlayState> animation_play_states;
-    for_each_comma_separated_value(PropertyID::AnimationPlayState, [&](StyleValue const& value) { animation_play_states.append(keyword_to_animation_play_state(value.to_keyword()).release_value()); });
-    if (!animation_adopted)
-        computed_values.set_animation_play_states(move(animation_play_states));
-    Vector<AnimationTimelineData> animation_timelines;
-    for_each_comma_separated_value(PropertyID::AnimationTimeline, [&](StyleValue const& value) {
-        AnimationTimelineData timeline;
-        if (value.to_keyword() == Keyword::Auto) {
-            timeline.type = AnimationTimelineData::Type::Auto;
-        } else if (value.to_keyword() == Keyword::None) {
-            timeline.type = AnimationTimelineData::Type::None;
-        } else if (value.is_custom_ident()) {
-            timeline.type = AnimationTimelineData::Type::Name;
-            timeline.name = value.as_custom_ident().custom_ident();
-        } else {
-            VERIFY(value.is_function());
-            auto const& function = value.as_function();
-            auto const& arguments = function.value()->as_tuple().tuple();
-            if (function.name() == "scroll"_utf16_fly_string) {
-                timeline.type = AnimationTimelineData::Type::Scroll;
-                if (arguments[TupleStyleValue::Indices::ScrollFunction::Scroller])
-                    timeline.scroller = keyword_to_scroller(arguments[TupleStyleValue::Indices::ScrollFunction::Scroller]->to_keyword()).release_value();
-                if (arguments[TupleStyleValue::Indices::ScrollFunction::Axis])
-                    timeline.axis = keyword_to_axis(arguments[TupleStyleValue::Indices::ScrollFunction::Axis]->to_keyword()).release_value();
-            } else {
-                VERIFY(function.name() == "view"_utf16_fly_string);
-                timeline.type = AnimationTimelineData::Type::View;
-                if (arguments[TupleStyleValue::Indices::ViewFunction::Axis])
-                    timeline.axis = keyword_to_axis(arguments[TupleStyleValue::Indices::ViewFunction::Axis]->to_keyword()).release_value();
-                if (auto const& inset = arguments[TupleStyleValue::Indices::ViewFunction::Inset]) {
-                    VERIFY(inset->is_value_list());
-                    auto const& values = inset->as_value_list().values();
-                    VERIFY(values.size() == 2);
-                    timeline.inset = {
-                        .start = LengthPercentageOrAuto::from_style_value(values[0]),
-                        .end = LengthPercentageOrAuto::from_style_value(values[1]),
-                    };
-                }
-            }
-        }
-        animation_timelines.append(move(timeline));
-    });
-    if (!animation_adopted)
-        computed_values.set_animation_timelines(move(animation_timelines));
-    Vector<EasingFunction> animation_timing_functions;
-    StyleValueVector animation_timing_function_style_values;
-    for_each_comma_separated_value(PropertyID::AnimationTimingFunction, [&](StyleValue const& value) {
-        animation_timing_functions.append(EasingFunction::from_style_value(value));
-        animation_timing_function_style_values.append(value);
-    });
-    if (!animation_adopted)
-        computed_values.set_animation_timing_functions(move(animation_timing_functions));
-    if (!animation_adopted)
-        computed_values.set_animation_timing_function_style_values(move(animation_timing_function_style_values));
-
-    // NOTE: color must be set after color-scheme to ensure currentColor can be resolved in other properties (e.g. background-color).
-    // NOTE: color must be set after font_size as `CalculatedStyleValue`s can rely on it being set for resolving lengths.
-    auto color = computed_style.color(CSS::PropertyID::Color, color_resolution_context);
-    // NB: The inherited text group resolves its color fields against the element's
-    //     own color, which reaches the shared resolution context only further down.
-    auto own_color_resolution_context = color_resolution_context;
-    own_color_resolution_context.current_color = color;
-    Array<ComputedValuesFFI::FfiGroupValueEntry, inherited_text_group_properties.size()> inherited_text_group_values;
-    gather_group_values(inherited_text_group_properties, inherited_text_group_values);
-    for (size_t i = 0; i < inherited_text_group_properties.size(); ++i) {
-        auto gather_property_id = inherited_text_group_properties[i];
-        if (gather_property_id == PropertyID::Color) {
-            inherited_text_group_values[i].resolved_color = color.value();
-            inherited_text_group_values[i].has_resolved_color = true;
-        } else if (gather_property_id == PropertyID::WebkitTextFillColor) {
-            if (auto resolved = computed_style.property(PropertyID::WebkitTextFillColor).to_color(own_color_resolution_context); resolved.has_value()) {
-                inherited_text_group_values[i].resolved_color = resolved->value();
-                inherited_text_group_values[i].has_resolved_color = true;
-            }
-        }
-    }
-    Array<ComputedValuesFFI::FfiGroupValueEntry, inherited_ui_group_properties.size()> inherited_ui_group_values;
-    gather_group_values(inherited_ui_group_properties, inherited_ui_group_values);
-    for (size_t i = 0; i < inherited_ui_group_properties.size(); ++i) {
-        auto ui_property_id = inherited_ui_group_properties[i];
-        if (ui_property_id == PropertyID::CaretColor) {
-            inherited_ui_group_values[i].resolved_color = computed_style.caret_color(own_color_resolution_context).value();
-            inherited_ui_group_values[i].has_resolved_color = true;
-        } else if (ui_property_id == PropertyID::AccentColor) {
-            inherited_ui_group_values[i].resolved_color = computed_style.accent_color(own_color_resolution_context).value();
-            inherited_ui_group_values[i].has_resolved_color = true;
-        } else if (ui_property_id == PropertyID::ColorScheme) {
-            inherited_ui_group_values[i].resolved_number = static_cast<double>(to_underlying(color_scheme));
-            inherited_ui_group_values[i].has_resolved_number = true;
-        }
-    }
-
-    Array<ComputedValuesFFI::FfiGroupValueEntry, inherited_list_group_properties.size()> inherited_list_group_values;
-    gather_group_values(inherited_list_group_properties, inherited_list_group_values);
-    void const* inherited_list_payload = nullptr;
-    if (applies(StyleGroupIndex::InheritedListValues)) {
-        inherited_list_payload = ComputedValuesFFI::rust_build_style_group(
-            InheritedListValues::style_group_index,
-            inherited_list_group_values.data(),
-            inherited_list_group_values.size(),
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.list.operator->()) : nullptr);
-    }
-    bool const inherited_list_adopted = inherited_list_payload != nullptr || !applies(StyleGroupIndex::InheritedListValues);
+    void const* inherited_list_payload = applies(StyleGroupIndex::InheritedListValues) ? table_group_payload(StyleGroupIndex::InheritedListValues) : nullptr;
+    VERIFY(inherited_list_payload || !applies(StyleGroupIndex::InheritedListValues));
     if (inherited_list_payload)
         computed_values.adopt_inherited_list_group(const_cast<void*>(inherited_list_payload));
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, inherited_svg_group_properties.size()> inherited_svg_group_values;
-    gather_group_values(inherited_svg_group_properties, inherited_svg_group_values);
-    for (size_t i = 0; i < inherited_svg_group_properties.size(); ++i) {
-        auto svg_property_id = inherited_svg_group_properties[i];
-        if (svg_property_id == PropertyID::FillOpacity) {
-            inherited_svg_group_values[i].resolved_number = computed_style.fill_opacity();
-            inherited_svg_group_values[i].has_resolved_number = true;
-        } else if (svg_property_id == PropertyID::StrokeOpacity) {
-            inherited_svg_group_values[i].resolved_number = computed_style.stroke_opacity();
-            inherited_svg_group_values[i].has_resolved_number = true;
-        }
-    }
-    void const* inherited_svg_payload = nullptr;
-    if (applies(StyleGroupIndex::InheritedSVGValues)) {
-        inherited_svg_payload = ComputedValuesFFI::rust_build_style_group(
-            InheritedSVGValues::style_group_index,
-            inherited_svg_group_values.data(),
-            inherited_svg_group_values.size(),
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.svg.operator->()) : nullptr);
-    }
-    bool const inherited_svg_adopted = inherited_svg_payload != nullptr || !applies(StyleGroupIndex::InheritedSVGValues);
+    void const* inherited_svg_payload = applies(StyleGroupIndex::InheritedSVGValues) ? table_group_payload(StyleGroupIndex::InheritedSVGValues) : nullptr;
+    VERIFY(inherited_svg_payload || !applies(StyleGroupIndex::InheritedSVGValues));
     if (inherited_svg_payload)
         computed_values.adopt_inherited_svg_group(const_cast<void*>(inherited_svg_payload));
 
     void const* svg_reset_payload = nullptr;
     if (applies(StyleGroupIndex::SVGResetValues)) {
-        svg_reset_payload = ComputedValuesFFI::rust_build_svg_reset_group(
-            SVGResetValues::style_group_index,
-            computed_style.property(PropertyID::Cx).rust_style_value_data(),
-            computed_style.property(PropertyID::Cy).rust_style_value_data(),
-            computed_style.property(PropertyID::D).rust_style_value_data(),
-            computed_style.property(PropertyID::R).rust_style_value_data(),
-            computed_style.property(PropertyID::Rx).rust_style_value_data(),
-            computed_style.property(PropertyID::Ry).rust_style_value_data(),
-            computed_style.property(PropertyID::X).rust_style_value_data(),
-            computed_style.property(PropertyID::Y).rust_style_value_data(),
-            computed_style.color(PropertyID::StopColor, own_color_resolution_context).value(),
-            computed_style.stop_opacity(),
-            computed_style.color(PropertyID::FloodColor, own_color_resolution_context).value(),
-            computed_style.flood_opacity(),
-            computed_style.property(PropertyID::VectorEffect).rust_style_value_data(),
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.svg_reset.operator->()) : nullptr);
+        auto build_marshalled_svg_reset_payload = [&] {
+            return ComputedValuesFFI::rust_build_svg_reset_group(
+                SVGResetValues::style_group_index,
+                computed_style.property(PropertyID::Cx).rust_style_value_data(),
+                computed_style.property(PropertyID::Cy).rust_style_value_data(),
+                computed_style.property(PropertyID::D).rust_style_value_data(),
+                computed_style.property(PropertyID::R).rust_style_value_data(),
+                computed_style.property(PropertyID::Rx).rust_style_value_data(),
+                computed_style.property(PropertyID::Ry).rust_style_value_data(),
+                computed_style.property(PropertyID::X).rust_style_value_data(),
+                computed_style.property(PropertyID::Y).rust_style_value_data(),
+                computed_style.color(PropertyID::StopColor, color_resolution_context).value(),
+                computed_style.stop_opacity(),
+                computed_style.color(PropertyID::FloodColor, color_resolution_context).value(),
+                computed_style.flood_opacity(),
+                computed_style.property(PropertyID::VectorEffect).rust_style_value_data(),
+                inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.svg_reset.operator->()) : nullptr);
+        };
+        // The table build declines stop and flood colors the core cannot resolve; the marshalled
+        // build resolves them through the C++ fallback arms and remains the fallback.
+        svg_reset_payload = table_group_payload(StyleGroupIndex::SVGResetValues);
+        if (!svg_reset_payload)
+            svg_reset_payload = build_marshalled_svg_reset_payload();
     }
     VERIFY(svg_reset_payload || !applies(StyleGroupIndex::SVGResetValues));
     if (svg_reset_payload)
         computed_values.adopt_svg_reset_group(const_cast<void*>(svg_reset_payload));
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, border_group_properties.size()> border_group_values;
-    gather_group_values(border_group_properties, border_group_values);
-    for (size_t i = 0; i < border_group_properties.size(); ++i) {
-        auto border_property_id = border_group_properties[i];
-        switch (border_property_id) {
-        case PropertyID::BorderLeftColor:
-        case PropertyID::BorderTopColor:
-        case PropertyID::BorderRightColor:
-        case PropertyID::BorderBottomColor:
-            border_group_values[i].resolved_color = computed_style.color(border_property_id, own_color_resolution_context).value();
-            border_group_values[i].has_resolved_color = true;
-            break;
-        case PropertyID::CornerBottomLeftShape:
-        case PropertyID::CornerBottomRightShape:
-        case PropertyID::CornerTopLeftShape:
-        case PropertyID::CornerTopRightShape:
-            border_group_values[i].resolved_number = computed_style.property(border_property_id).as_superellipse().parameter();
-            border_group_values[i].has_resolved_number = true;
-            break;
-        default:
-            break;
-        }
-    }
-    Array<ComputedValuesFFI::FfiGroupValueEntry, background_group_properties.size()> background_group_values;
-    gather_group_values(background_group_properties, background_group_values);
-    for (size_t i = 0; i < background_group_properties.size(); ++i) {
-        if (background_group_properties[i] == PropertyID::BackgroundColor) {
-            background_group_values[i].resolved_color = computed_style.color(PropertyID::BackgroundColor, own_color_resolution_context).value();
-            background_group_values[i].has_resolved_color = true;
-        }
-    }
-    void const* background_payload = nullptr;
-    if (applies(StyleGroupIndex::BackgroundValues)) {
-        background_payload = ComputedValuesFFI::rust_build_style_group(
-            BackgroundValues::style_group_index,
-            background_group_values.data(),
-            background_group_values.size(),
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.background.operator->()) : nullptr);
-    }
-    bool const background_adopted = background_payload != nullptr || !applies(StyleGroupIndex::BackgroundValues);
+    void const* background_payload = applies(StyleGroupIndex::BackgroundValues) ? table_group_payload(StyleGroupIndex::BackgroundValues) : nullptr;
+    VERIFY(background_payload || !applies(StyleGroupIndex::BackgroundValues));
     if (background_payload)
         computed_values.adopt_background_group(const_cast<void*>(background_payload));
 
-    void const* border_payload = nullptr;
-    if (applies(StyleGroupIndex::BorderValues)) {
-        border_payload = ComputedValuesFFI::rust_build_style_group(
-            BorderValues::style_group_index,
-            border_group_values.data(),
-            border_group_values.size(),
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.border.operator->()) : nullptr);
-    }
-    bool const border_adopted = border_payload != nullptr || !applies(StyleGroupIndex::BorderValues);
+    void const* border_payload = applies(StyleGroupIndex::BorderValues) ? table_group_payload(StyleGroupIndex::BorderValues) : nullptr;
+    VERIFY(border_payload || !applies(StyleGroupIndex::BorderValues));
     if (border_payload)
         computed_values.adopt_border_group(const_cast<void*>(border_payload));
 
-    void const* inherited_ui_payload = nullptr;
-    if (applies(StyleGroupIndex::InheritedUIValues)) {
-        inherited_ui_payload = ComputedValuesFFI::rust_build_style_group(
-            InheritedUIValues::style_group_index,
-            inherited_ui_group_values.data(),
-            inherited_ui_group_values.size(),
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.ui.operator->()) : nullptr);
-    }
-    bool const inherited_ui_adopted = inherited_ui_payload != nullptr || !applies(StyleGroupIndex::InheritedUIValues);
-    if (inherited_ui_payload) {
+    void const* inherited_ui_payload = applies(StyleGroupIndex::InheritedUIValues) ? table_group_payload(StyleGroupIndex::InheritedUIValues) : nullptr;
+    VERIFY(inherited_ui_payload || !applies(StyleGroupIndex::InheritedUIValues));
+    if (inherited_ui_payload)
         computed_values.adopt_inherited_ui_group(const_cast<void*>(inherited_ui_payload));
-    } else if (applies(StyleGroupIndex::InheritedUIValues)) {
-        // NB: Nothing in this function reads the group's color-scheme fields; the
-        //     resolution context carries its own copy, so setting them here rather
-        //     than first is equivalent.
-        computed_values.set_color_schemes(color_scheme_style_value.schemes(), color_scheme_style_value.only());
-        computed_values.set_color_scheme(color_scheme);
-    }
 
-    void const* inherited_text_payload = nullptr;
-    if (applies(StyleGroupIndex::InheritedTextValues)) {
-        inherited_text_payload = ComputedValuesFFI::rust_build_style_group(
-            InheritedTextValues::style_group_index,
-            inherited_text_group_values.data(),
-            inherited_text_group_values.size(),
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.text.operator->()) : nullptr);
-    }
-    bool const inherited_text_adopted = inherited_text_payload != nullptr || !applies(StyleGroupIndex::InheritedTextValues);
+    void const* inherited_text_payload = applies(StyleGroupIndex::InheritedTextValues) ? table_group_payload(StyleGroupIndex::InheritedTextValues) : nullptr;
+    VERIFY(inherited_text_payload || !applies(StyleGroupIndex::InheritedTextValues));
     if (inherited_text_payload)
         computed_values.adopt_inherited_text_group(const_cast<void*>(inherited_text_payload));
 
-    if (!inherited_text_adopted)
-        computed_values.set_color(color);
-    if (!inherited_text_adopted)
-        computed_values.set_color_style_value(&computed_style.property(CSS::PropertyID::Color));
-
-    // NOTE: This color resolution context must be created after we set color above so that currentColor resolves correctly
-    // FIXME: We should resolve colors to their absolute forms at compute time (i.e. by implementing the relevant absolutized methods)
-    color_resolution_context.current_color = color;
-
-    // NB: The text reset group builds only after the element's color lands in the
-    //     resolution context above, since text-decoration-color may be currentcolor.
-    Array<ComputedValuesFFI::FfiGroupValueEntry, text_reset_group_properties.size()> text_reset_group_values;
-    gather_group_values(text_reset_group_properties, text_reset_group_values);
-    for (size_t i = 0; i < text_reset_group_properties.size(); ++i) {
-        if (text_reset_group_properties[i] == PropertyID::TextDecorationColor) {
-            text_reset_group_values[i].resolved_color = computed_style.color(PropertyID::TextDecorationColor, color_resolution_context).value();
-            text_reset_group_values[i].has_resolved_color = true;
-        }
-    }
-    void const* text_reset_payload = nullptr;
-    if (applies(StyleGroupIndex::TextResetValues)) {
-        text_reset_payload = ComputedValuesFFI::rust_build_style_group(
-            TextResetValues::style_group_index,
-            text_reset_group_values.data(),
-            text_reset_group_values.size(),
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.text_reset.operator->()) : nullptr);
-    }
-    bool const text_reset_adopted = text_reset_payload != nullptr || !applies(StyleGroupIndex::TextResetValues);
+    void const* text_reset_payload = applies(StyleGroupIndex::TextResetValues) ? table_group_payload(StyleGroupIndex::TextResetValues) : nullptr;
+    VERIFY(text_reset_payload || !applies(StyleGroupIndex::TextResetValues));
     if (text_reset_payload)
         computed_values.adopt_text_reset_group(const_cast<void*>(text_reset_payload));
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, misc_reset_group_properties.size()> misc_reset_group_values;
-    gather_group_values(misc_reset_group_properties, misc_reset_group_values);
-    for (size_t i = 0; i < misc_reset_group_properties.size(); ++i) {
-        if (misc_reset_group_properties[i] == PropertyID::OutlineColor) {
-            if (auto const& outline_color = computed_style.property(PropertyID::OutlineColor); outline_color.has_color()) {
-                if (auto resolved = outline_color.to_color(color_resolution_context); resolved.has_value()) {
-                    misc_reset_group_values[i].resolved_color = resolved->value();
-                    misc_reset_group_values[i].has_resolved_color = true;
-                }
-            }
-        } else if (misc_reset_group_properties[i] == PropertyID::ShapeImageThreshold) {
-            misc_reset_group_values[i].resolved_number = computed_style.property(PropertyID::ShapeImageThreshold).as_opacity_value().resolved();
-            misc_reset_group_values[i].has_resolved_number = true;
-        }
-    }
-    void const* misc_reset_payload = nullptr;
-    if (applies(StyleGroupIndex::MiscResetValues)) {
-        misc_reset_payload = ComputedValuesFFI::rust_build_style_group(
-            MiscResetValues::style_group_index,
-            misc_reset_group_values.data(),
-            misc_reset_group_values.size(),
-            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.misc.operator->()) : nullptr);
-    }
-    bool const misc_reset_adopted = misc_reset_payload != nullptr || !applies(StyleGroupIndex::MiscResetValues);
+    void const* misc_reset_payload = applies(StyleGroupIndex::MiscResetValues) ? table_group_payload(StyleGroupIndex::MiscResetValues) : nullptr;
+    VERIFY(misc_reset_payload || !applies(StyleGroupIndex::MiscResetValues));
     if (misc_reset_payload)
         computed_values.adopt_misc_reset_group(const_cast<void*>(misc_reset_payload));
-
-    if (!inherited_ui_adopted) {
-        auto const& accent_color_value = computed_style.property(CSS::PropertyID::AccentColor);
-        CSS::ColorOrAuto accent_color;
-        accent_color.used_value = computed_style.accent_color(color_resolution_context);
-        if (accent_color_value.to_keyword() != CSS::Keyword::Auto)
-            accent_color.computed_value = accent_color.used_value;
-        computed_values.set_accent_color(move(accent_color));
-    }
-
-    if (!background_adopted) {
-        auto background_layers = computed_style.background_layers();
-        computed_values.set_background_layers(move(background_layers));
-    }
-
-    auto mask_layers = computed_style.mask_layers();
-    if (!mask_adopted)
-        computed_values.set_mask_layers(move(mask_layers));
-    Vector<CSS::Position> mask_positions;
-    for_each_comma_separated_value(CSS::PropertyID::MaskPosition, [&](CSS::StyleValue const& value) {
-        auto const& position = value.as_position();
-        mask_positions.append({
-            .offset_x = CSS::LengthPercentage::from_style_value(position.edge_x()->as_edge().offset()),
-            .offset_y = CSS::LengthPercentage::from_style_value(position.edge_y()->as_edge().offset()),
-        });
-    });
-    if (!mask_adopted)
-        computed_values.set_mask_positions(move(mask_positions));
-
-    auto border_image = computed_style.border_image();
-    if (!border_adopted)
-        computed_values.set_border_image(move(border_image));
-
-    if (!content_adopted) {
-        auto const& content = computed_style.property(CSS::PropertyID::Content);
-        ComputedContentData computed_content;
-        if (content.to_keyword() == Keyword::None) {
-            computed_content.type = ComputedContentData::Type::None;
-        } else if (content.is_content()) {
-            computed_content.type = ComputedContentData::Type::List;
-            auto append_item = [](StyleValue const& item, Vector<ComputedContentItem>& items) {
-                if (item.is_string()) {
-                    items.append(item.as_string().string_value().to_utf16_string());
-                } else if (item.is_keyword()) {
-                    items.append(item.to_keyword());
-                } else if (item.is_counter()) {
-                    auto const& counter = item.as_counter();
-                    ComputedContentCounter computed_counter {
-                        .function = counter.function_type() == CounterStyleValue::CounterFunction::Counters ? ComputedContentCounter::Function::Counters : ComputedContentCounter::Function::Counter,
-                        .name = counter.counter_name(),
-                        .join_string = counter.join_string(),
-                        .style = counter.counter_style()->as_counter_style().value().visit(
-                            [](Utf16FlyString const& name) -> Variant<Utf16FlyString, ComputedContentCounter::SymbolsFunction> { return name; },
-                            [](CounterStyleStyleValue::SymbolsFunction const& symbols) -> Variant<Utf16FlyString, ComputedContentCounter::SymbolsFunction> {
-                                return ComputedContentCounter::SymbolsFunction { .type = symbols.type, .symbols = symbols.symbols };
-                            }),
-                    };
-                    items.append(move(computed_counter));
-                } else {
-                    VERIFY(item.is_abstract_image());
-                    items.append(NonnullRefPtr<AbstractImageStyleValue const> { item.as_abstract_image() });
-                }
-            };
-            auto const& content_style_value = content.as_content();
-            for (auto const& item : content_style_value.content().values())
-                append_item(item, computed_content.items);
-            if (auto const* alt_text = content_style_value.alt_text()) {
-                for (auto const& item : alt_text->values())
-                    append_item(item, computed_content.alt_text);
-            }
-        }
-        computed_values.set_computed_content(move(computed_content));
-    }
-
-    if (!background_adopted)
-        computed_values.set_background_color(computed_style.color(CSS::PropertyID::BackgroundColor, color_resolution_context));
-    if (!background_adopted)
-        computed_values.set_background_color_style_value(computed_style.property(CSS::PropertyID::BackgroundColor));
-    if (!background_adopted)
-        computed_values.set_background_color_clip(computed_style.background_color_clip());
 
     if (auto maybe_font_language_override = computed_style.font_language_override(); maybe_font_language_override.has_value())
         computed_values.set_font_language_override(maybe_font_language_override.release_value());
     computed_values.set_font_variation_settings(computed_style.font_variation_settings());
-
-    auto border_radius_data_from_style_value = [](CSS::StyleValue const& value) -> CSS::BorderRadiusData {
-        return CSS::BorderRadiusData {
-            CSS::LengthPercentage::from_style_value(value.as_border_radius().horizontal_radius()),
-            CSS::LengthPercentage::from_style_value(value.as_border_radius().vertical_radius())
-        };
-    };
-
-    if (!border_adopted)
-        computed_values.set_border_bottom_left_radius(border_radius_data_from_style_value(computed_style.property(CSS::PropertyID::BorderBottomLeftRadius)));
-    if (!border_adopted)
-        computed_values.set_border_bottom_right_radius(border_radius_data_from_style_value(computed_style.property(CSS::PropertyID::BorderBottomRightRadius)));
-    if (!border_adopted)
-        computed_values.set_border_top_left_radius(border_radius_data_from_style_value(computed_style.property(CSS::PropertyID::BorderTopLeftRadius)));
-    if (!border_adopted)
-        computed_values.set_border_top_right_radius(border_radius_data_from_style_value(computed_style.property(CSS::PropertyID::BorderTopRightRadius)));
-    if (!border_adopted)
-        computed_values.set_corner_bottom_left_shape(computed_style.property(CSS::PropertyID::CornerBottomLeftShape).as_superellipse().parameter());
-    if (!border_adopted)
-        computed_values.set_corner_bottom_right_shape(computed_style.property(CSS::PropertyID::CornerBottomRightShape).as_superellipse().parameter());
-    if (!border_adopted)
-        computed_values.set_corner_top_left_shape(computed_style.property(CSS::PropertyID::CornerTopLeftShape).as_superellipse().parameter());
-    if (!border_adopted)
-        computed_values.set_corner_top_right_shape(computed_style.property(CSS::PropertyID::CornerTopRightShape).as_superellipse().parameter());
-
-    if (!effects_adopted)
-        computed_values.set_clip(computed_style.clip());
-
-    if (!effects_adopted)
-        computed_values.set_backdrop_filter(computed_style.backdrop_filter());
-    if (!effects_adopted)
-        computed_values.set_filter(computed_style.filter());
-
-    if (!misc_reset_adopted)
-        computed_values.set_appearance(computed_style.appearance());
-    if (!misc_reset_adopted)
-        computed_values.set_computed_appearance(keyword_to_appearance(computed_style.property(PropertyID::Appearance).to_keyword()).release_value());
-
-    if (!anchor_adopted)
-        computed_values.set_position_anchor(move(position_anchor));
-
-    auto position_area_from_style_value = [](CSS::StyleValue const& value) {
-        CSS::PositionAreaData area;
-        auto append_keyword = [&](CSS::StyleValue const& item) {
-            if (auto keyword = CSS::keyword_to_position_area(item.to_keyword()); keyword.has_value())
-                area.keywords.append(*keyword);
-        };
-        if (value.is_value_list()) {
-            for (auto const& item : value.as_value_list().values())
-                append_keyword(item);
-        } else {
-            append_keyword(value);
-        }
-        return area;
-    };
-    if (!anchor_adopted)
-        computed_values.set_position_area(position_area_from_style_value(computed_style.property(CSS::PropertyID::PositionArea)));
-
-    Vector<CSS::PositionTryFallbackData> position_try_fallbacks;
-    auto append_position_try_fallback = [&](CSS::StyleValue const& value) {
-        CSS::PositionTryFallbackData fallback;
-        auto apply_item = [&](CSS::StyleValue const& item) {
-            if (item.is_custom_ident()) {
-                fallback.name = item.as_custom_ident().custom_ident();
-            } else if (auto tactic = CSS::keyword_to_try_tactic(item.to_keyword()); tactic.has_value()) {
-                fallback.tactics.append(*tactic);
-            }
-        };
-        auto area = position_area_from_style_value(value);
-        if (!area.keywords.is_empty()) {
-            fallback.position_area = move(area);
-        } else if (value.is_value_list()) {
-            for (auto const& item : value.as_value_list().values()) {
-                if (item->is_value_list()) {
-                    for (auto const& child : item->as_value_list().values())
-                        apply_item(child);
-                } else {
-                    apply_item(item);
-                }
-            }
-        } else {
-            apply_item(value);
-        }
-        position_try_fallbacks.append(move(fallback));
-    };
-    auto const& position_try_fallbacks_value = computed_style.property(CSS::PropertyID::PositionTryFallbacks);
-    if (position_try_fallbacks_value.to_keyword() != CSS::Keyword::None) {
-        if (position_try_fallbacks_value.is_value_list() && position_try_fallbacks_value.as_value_list().separator() == CSS::StyleValueList::Separator::Comma) {
-            for (auto const& item : position_try_fallbacks_value.as_value_list().values())
-                append_position_try_fallback(item);
-        } else {
-            append_position_try_fallback(position_try_fallbacks_value);
-        }
-    }
-    if (!anchor_adopted)
-        computed_values.set_position_try_fallbacks(move(position_try_fallbacks));
-
-    if (!anchor_adopted) {
-        auto const& position_try_order = computed_style.property(CSS::PropertyID::PositionTryOrder);
-        computed_values.set_position_try_order(position_try_order.to_keyword() == CSS::Keyword::Normal
-                ? Optional<CSS::TryOrder> {}
-                : CSS::keyword_to_try_order(position_try_order.to_keyword()));
-    }
-
-    auto const& position_visibility = computed_style.property(CSS::PropertyID::PositionVisibility);
-    CSS::PositionVisibilityData position_visibility_data {
-        .always = position_visibility.to_keyword() == CSS::Keyword::Always,
-        .anchors_visible = false,
-    };
-    auto apply_position_visibility_keyword = [&](CSS::Keyword keyword) {
-        switch (keyword) {
-        case CSS::Keyword::AnchorsValid:
-            position_visibility_data.anchors_valid = true;
-            break;
-        case CSS::Keyword::AnchorsVisible:
-            position_visibility_data.anchors_visible = true;
-            break;
-        case CSS::Keyword::NoOverflow:
-            position_visibility_data.no_overflow = true;
-            break;
-        default:
-            break;
-        }
-    };
-    if (position_visibility.is_value_list()) {
-        for (auto const& item : position_visibility.as_value_list().values())
-            apply_position_visibility_keyword(item->to_keyword());
-    } else {
-        apply_position_visibility_keyword(position_visibility.to_keyword());
-    }
-    if (!anchor_adopted)
-        computed_values.set_position_visibility(position_visibility_data);
-
-    auto timeline_names = [&](CSS::PropertyID property_id) {
-        Vector<Optional<Utf16FlyString>> names;
-        auto append = [&](CSS::StyleValue const& item) {
-            names.append(item.is_custom_ident() ? Optional<Utf16FlyString> { item.as_custom_ident().custom_ident() } : Optional<Utf16FlyString> {});
-        };
-        auto const& value = computed_style.property(property_id);
-        if (value.is_value_list()) {
-            for (auto const& item : value.as_value_list().values())
-                append(item);
-        } else {
-            append(value);
-        }
-        return names;
-    };
-    auto timeline_axes = [&](CSS::PropertyID property_id) {
-        Vector<CSS::Axis> axes;
-        auto append = [&](CSS::StyleValue const& item) { axes.append(CSS::keyword_to_axis(item.to_keyword()).release_value()); };
-        auto const& value = computed_style.property(property_id);
-        if (value.is_value_list()) {
-            for (auto const& item : value.as_value_list().values())
-                append(item);
-        } else {
-            append(value);
-        }
-        return axes;
-    };
-    if (!animation_adopted)
-        computed_values.set_scroll_timeline_names(timeline_names(CSS::PropertyID::ScrollTimelineName));
-    if (!animation_adopted)
-        computed_values.set_scroll_timeline_axes(timeline_axes(CSS::PropertyID::ScrollTimelineAxis));
-    if (!animation_adopted)
-        computed_values.set_view_timeline_names(timeline_names(CSS::PropertyID::ViewTimelineName));
-    if (!animation_adopted)
-        computed_values.set_view_timeline_axes(timeline_axes(CSS::PropertyID::ViewTimelineAxis));
-
-    if (!animation_adopted) {
-        auto const& timeline_scope = computed_style.property(CSS::PropertyID::TimelineScope);
-        computed_values.set_timeline_scope(CSS::TimelineScopeData {
-            .all = timeline_scope.to_keyword() == CSS::Keyword::All,
-            .names = custom_ident_list(CSS::PropertyID::TimelineScope),
-        });
-    }
-
-    Vector<CSS::ViewTimelineInsetData> view_timeline_insets;
-    auto append_view_timeline_inset = [&](CSS::StyleValue const& value) {
-        VERIFY(value.is_value_list());
-        auto const& values = value.as_value_list().values();
-        VERIFY(values.size() == 2);
-        view_timeline_insets.append({
-            .start = CSS::LengthPercentageOrAuto::from_style_value(values[0]),
-            .end = CSS::LengthPercentageOrAuto::from_style_value(values[1]),
-        });
-    };
-    auto const& view_timeline_inset = computed_style.property(CSS::PropertyID::ViewTimelineInset);
-    if (view_timeline_inset.as_value_list().separator() == CSS::StyleValueList::Separator::Comma) {
-        for (auto const& item : view_timeline_inset.as_value_list().values())
-            append_view_timeline_inset(item);
-    } else {
-        append_view_timeline_inset(view_timeline_inset);
-    }
-    if (!animation_adopted)
-        computed_values.set_view_timeline_insets(move(view_timeline_insets));
-
-    Vector<Optional<Utf16FlyString>> transition_properties;
-    for_each_comma_separated_value(CSS::PropertyID::TransitionProperty, [&](CSS::StyleValue const& value) {
-        transition_properties.append(value.is_custom_ident() ? Optional<Utf16FlyString> { value.as_custom_ident().custom_ident() } : Optional<Utf16FlyString> {});
-    });
-    if (!animation_adopted)
-        computed_values.set_transition_properties(move(transition_properties));
-    Vector<CSS::Time> transition_durations;
-    for_each_comma_separated_value(CSS::PropertyID::TransitionDuration, [&](CSS::StyleValue const& value) {
-        transition_durations.append(CSS::Time::from_style_value(NonnullRefPtr<CSS::StyleValue const> { value }, {}));
-    });
-    if (!animation_adopted)
-        computed_values.set_transition_durations(move(transition_durations));
-    Vector<CSS::EasingFunction> transition_timing_functions;
-    CSS::StyleValueVector transition_timing_function_style_values;
-    for_each_comma_separated_value(CSS::PropertyID::TransitionTimingFunction, [&](CSS::StyleValue const& value) {
-        transition_timing_functions.append(CSS::EasingFunction::from_style_value(value));
-        transition_timing_function_style_values.append(value);
-    });
-    if (!animation_adopted)
-        computed_values.set_transition_timing_functions(move(transition_timing_functions));
-    if (!animation_adopted)
-        computed_values.set_transition_timing_function_style_values(move(transition_timing_function_style_values));
-    Vector<CSS::Time> transition_delays;
-    for_each_comma_separated_value(CSS::PropertyID::TransitionDelay, [&](CSS::StyleValue const& value) {
-        transition_delays.append(CSS::Time::from_style_value(NonnullRefPtr<CSS::StyleValue const> { value }, {}));
-    });
-    if (!animation_adopted)
-        computed_values.set_transition_delays(move(transition_delays));
-    Vector<CSS::TransitionBehavior> transition_behaviors;
-    for_each_comma_separated_value(CSS::PropertyID::TransitionBehavior, [&](CSS::StyleValue const& value) {
-        transition_behaviors.append(CSS::keyword_to_transition_behavior(value.to_keyword()).release_value());
-    });
-    if (!animation_adopted)
-        computed_values.set_transition_behaviors(move(transition_behaviors));
-
-    if (!inherited_text_adopted)
-        computed_values.set_text_align(computed_style.text_align());
-    if (!inherited_text_adopted)
-        computed_values.set_text_justify(computed_style.text_justify());
-    auto const& text_underline_offset_value = computed_style.property(CSS::PropertyID::TextUnderlineOffset);
-    CSS::TextUnderlineOffset text_underline_offset;
-    text_underline_offset.used_value = computed_style.text_underline_offset();
-    if (text_underline_offset_value.to_keyword() != CSS::Keyword::Auto)
-        text_underline_offset.computed_value = CSS::LengthPercentage::from_style_value(text_underline_offset_value);
-    if (!inherited_text_adopted)
-        computed_values.set_text_underline_offset(move(text_underline_offset));
-    if (!inherited_text_adopted)
-        computed_values.set_text_underline_position(computed_style.text_underline_position());
-
-    if (!inherited_text_adopted)
-        computed_values.set_text_indent(computed_style.text_indent());
-    if (!inherited_text_adopted)
-        computed_values.set_text_wrap_mode(computed_style.text_wrap_mode());
-    if (!inherited_text_adopted)
-        computed_values.set_text_wrap_style(CSS::keyword_to_text_wrap_style(computed_style.property(CSS::PropertyID::TextWrapStyle).to_keyword()).release_value());
-    if (!inherited_text_adopted)
-        computed_values.set_tab_size(computed_style.tab_size());
-
-    if (!inherited_text_adopted)
-        computed_values.set_white_space_collapse(computed_style.white_space_collapse());
-    if (!text_reset_adopted)
-        computed_values.set_white_space_trim(computed_style.white_space_trim());
-    if (!inherited_text_adopted)
-        computed_values.set_word_break(computed_style.word_break());
-    if (!inherited_text_adopted) {
-        switch (computed_style.property(CSS::PropertyID::OverflowWrap).to_keyword()) {
-        case CSS::Keyword::Normal:
-            computed_values.set_overflow_wrap(CSS::OverflowWrap::Normal);
-            break;
-        case CSS::Keyword::BreakWord:
-            computed_values.set_overflow_wrap(CSS::OverflowWrap::BreakWord);
-            break;
-        case CSS::Keyword::Anywhere:
-            computed_values.set_overflow_wrap(CSS::OverflowWrap::Anywhere);
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }
-    auto integer_from_style_value = [](CSS::StyleValue const& value) -> u64 {
-        i32 integer;
-        if (value.is_integer())
-            integer = value.as_integer().integer();
-        else
-            integer = value.as_calculated().resolve_integer({}).value();
-        VERIFY(integer >= 0);
-        return integer;
-    };
-    if (!inherited_text_adopted)
-        computed_values.set_orphans(integer_from_style_value(computed_style.property(CSS::PropertyID::Orphans)));
-    if (!inherited_text_adopted)
-        computed_values.set_widows(integer_from_style_value(computed_style.property(CSS::PropertyID::Widows)));
-
-    if (!inherited_text_adopted)
-        computed_values.set_word_spacing(computed_style.word_spacing());
-    if (!inherited_text_adopted)
-        computed_values.set_letter_spacing(computed_style.letter_spacing());
-    if (!inherited_text_adopted)
-        computed_values.set_word_spacing_style_value(computed_style.property(PropertyID::WordSpacing));
-    if (!inherited_text_adopted)
-        computed_values.set_letter_spacing_style_value(computed_style.property(PropertyID::LetterSpacing));
 
     if (!inherited_table_adopted) {
         computed_values.set_border_spacing_horizontal(computed_style.border_spacing_horizontal());
@@ -2514,280 +2387,16 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedProp
         computed_values.set_caption_side(computed_style.caption_side());
     if (!inherited_box_adopted)
         computed_values.set_content_visibility(computed_style.content_visibility());
-    auto cursor = computed_style.cursor();
-    if (!inherited_ui_adopted)
-        computed_values.set_cursor(move(cursor));
     if (!inherited_box_adopted)
         computed_values.set_image_rendering(computed_style.image_rendering());
-    if (!inherited_ui_adopted)
-        computed_values.set_pointer_events(computed_style.pointer_events());
-    if (!text_reset_adopted)
-        computed_values.set_text_decoration_line(computed_style.text_decoration_line());
-    if (!inherited_text_adopted)
-        computed_values.set_text_decoration_skip_ink(computed_style.text_decoration_skip_ink());
-    if (!text_reset_adopted)
-        computed_values.set_text_decoration_style(computed_style.text_decoration_style());
-    if (!inherited_text_adopted)
-        computed_values.set_text_transform(computed_style.text_transform());
-
-    auto list_style_type = computed_style.list_style_type(style_scope);
-    auto const& list_style_type_value = computed_style.property(PropertyID::ListStyleType);
-    if (list_style_type_value.is_counter_style() && list_style_type_value.as_counter_style().value().has<CounterStyleStyleValue::SymbolsFunction>()) {
-        auto counter_style_value = list_style_type_value.as_counter_style().value();
-        auto const& symbols = counter_style_value.get<CounterStyleStyleValue::SymbolsFunction>();
-        auto counter_style = list_style_type.get<RefPtr<CounterStyle const>>();
-        VERIFY(counter_style);
-        list_style_type = ListStyleSymbols {
-            .counter_style = counter_style.release_nonnull(),
-            .type = symbols.type,
-            .symbols = symbols.symbols,
-        };
-    }
-    if (!inherited_list_adopted)
-        computed_values.set_list_style_type(move(list_style_type));
-    if (!inherited_list_adopted)
-        computed_values.set_list_style_position(computed_style.list_style_position());
-    auto const& list_style_image = computed_style.property(PropertyID::ListStyleImage);
-    if (!inherited_list_adopted) {
-        if (list_style_image.is_abstract_image())
-            computed_values.set_list_style_image(list_style_image.as_abstract_image());
-        else
-            computed_values.set_list_style_image(nullptr);
-    }
-
-    if (!text_reset_adopted)
-        computed_values.set_text_decoration_color(computed_style.color(CSS::PropertyID::TextDecorationColor, color_resolution_context));
-    if (!text_reset_adopted)
-        computed_values.set_text_decoration_thickness(computed_style.text_decoration_thickness());
-
-    if (!inherited_text_adopted) {
-        auto const& webkit_text_fill_color = computed_style.property(CSS::PropertyID::WebkitTextFillColor);
-        computed_values.set_webkit_text_fill_color(
-            webkit_text_fill_color.to_color(color_resolution_context).value(),
-            webkit_text_fill_color.to_keyword() == Keyword::Currentcolor);
-    }
-
-    if (!inherited_text_adopted)
-        computed_values.set_text_shadow(computed_style.text_shadow(color_resolution_context));
-
-    if (!effects_adopted)
-        computed_values.set_opacity(computed_style.opacity());
-
     if (!inherited_box_adopted)
         computed_values.set_visibility(computed_style.visibility());
-
-    if (!misc_reset_adopted)
-        computed_values.set_scroll_margin(computed_style.length_box(CSS::PropertyID::ScrollMarginLeft, CSS::PropertyID::ScrollMarginTop, CSS::PropertyID::ScrollMarginRight, CSS::PropertyID::ScrollMarginBottom, CSS::Length::make_px(0)));
-    if (!misc_reset_adopted)
-        computed_values.set_scroll_padding(computed_style.length_box(CSS::PropertyID::ScrollPaddingLeft, CSS::PropertyID::ScrollPaddingTop, CSS::PropertyID::ScrollPaddingRight, CSS::PropertyID::ScrollPaddingBottom, CSS::LengthPercentageOrAuto::make_auto()));
-    if (!misc_reset_adopted) {
-        auto extract_side = [&](CSS::PropertyID property_id) -> CSS::OverflowClipMarginSide {
-            auto const& value = computed_style.property(property_id);
-            if (value.is_overflow_clip_margin()) {
-                auto const& overflow_clip_margin = value.as_overflow_clip_margin();
-                CSSPixels offset = 0;
-                if (overflow_clip_margin.offset().is_calculated())
-                    offset = overflow_clip_margin.offset().as_calculated().resolve_length(color_resolution_context.calculation_resolution_context).value().absolute_length_to_px();
-                else if (overflow_clip_margin.offset().is_length())
-                    offset = overflow_clip_margin.offset().as_length().length().absolute_length_to_px();
-                return { overflow_clip_margin.visual_box(), offset };
-            }
-            return {};
-        };
-        CSS::OverflowClipMarginData data;
-        data.left = extract_side(CSS::PropertyID::OverflowClipMarginLeft);
-        data.top = extract_side(CSS::PropertyID::OverflowClipMarginTop);
-        data.right = extract_side(CSS::PropertyID::OverflowClipMarginRight);
-        data.bottom = extract_side(CSS::PropertyID::OverflowClipMarginBottom);
-        computed_values.set_overflow_clip_margin(data);
-    }
-
-    if (!effects_adopted)
-        computed_values.set_box_shadow(computed_style.box_shadow(color_resolution_context));
-
-    if (!transform_adopted)
-        computed_values.set_rotate(computed_style.rotate());
-    if (!transform_adopted)
-        computed_values.set_translate(computed_style.translate());
-    if (!transform_adopted)
-        computed_values.set_scale(computed_style.scale());
-    if (!transform_adopted)
-        computed_values.set_transformations(computed_style.transformations());
-    if (!transform_adopted)
-        computed_values.set_transform_box(computed_style.transform_box());
-    if (!transform_adopted)
-        computed_values.set_transform_origin(computed_style.transform_origin());
-    if (!transform_adopted)
-        computed_values.set_transform_style(computed_style.transform_style());
-    if (!transform_adopted)
-        computed_values.set_backface_visibility(computed_style.backface_visibility());
-    if (!transform_adopted)
-        computed_values.set_perspective(computed_style.perspective());
-    if (!transform_adopted)
-        computed_values.set_perspective_origin(computed_style.perspective_origin());
-
-    struct NamedBorderAndWidth {
-        CSS::BorderData border;
-        CSSPixels computed_width;
-    };
-    auto do_border_style = [&](CSS::BorderData border, CSS::PropertyID width_property, CSS::PropertyID color_property, CSS::PropertyID style_property) {
-        // FIXME: Support <image-1d>
-        border.color = computed_style.color(color_property, color_resolution_context);
-        border.line_style = computed_style.line_style(style_property);
-        // FIXME: Interpolation can cause negative values - we clamp here but should instead clamp as part of interpolation
-        auto computed_width = max(CSSPixels { 0 }, computed_style.length(width_property).absolute_length_to_px());
-
-        // If the border-style corresponding to a given border-width is none or hidden, then the used width is 0.
-        // https://drafts.csswg.org/css-backgrounds/#border-width
-        if (border.line_style == CSS::LineStyle::None || border.line_style == CSS::LineStyle::Hidden) {
-            border.width = 0;
-        } else {
-            border.width = computed_width;
-        }
-        return NamedBorderAndWidth { border, computed_width };
-    };
-
-    auto left_border = do_border_style({}, CSS::PropertyID::BorderLeftWidth, CSS::PropertyID::BorderLeftColor, CSS::PropertyID::BorderLeftStyle);
-    if (!border_adopted)
-        computed_values.set_border_left(left_border.border);
-    if (!border_adopted)
-        computed_values.set_border_left_computed_width(left_border.computed_width);
-    auto top_border = do_border_style({}, CSS::PropertyID::BorderTopWidth, CSS::PropertyID::BorderTopColor, CSS::PropertyID::BorderTopStyle);
-    if (!border_adopted)
-        computed_values.set_border_top(top_border.border);
-    if (!border_adopted)
-        computed_values.set_border_top_computed_width(top_border.computed_width);
-    auto right_border = do_border_style({}, CSS::PropertyID::BorderRightWidth, CSS::PropertyID::BorderRightColor, CSS::PropertyID::BorderRightStyle);
-    if (!border_adopted)
-        computed_values.set_border_right(right_border.border);
-    if (!border_adopted)
-        computed_values.set_border_right_computed_width(right_border.computed_width);
-    auto bottom_border = do_border_style({}, CSS::PropertyID::BorderBottomWidth, CSS::PropertyID::BorderBottomColor, CSS::PropertyID::BorderBottomStyle);
-    if (!border_adopted)
-        computed_values.set_border_bottom(bottom_border.border);
-    if (!border_adopted)
-        computed_values.set_border_bottom_computed_width(bottom_border.computed_width);
-    if (!border_adopted)
-        computed_values.set_border_left_color_style_value(computed_style.property(CSS::PropertyID::BorderLeftColor));
-    if (!border_adopted)
-        computed_values.set_border_top_color_style_value(computed_style.property(CSS::PropertyID::BorderTopColor));
-    if (!border_adopted)
-        computed_values.set_border_right_color_style_value(computed_style.property(CSS::PropertyID::BorderRightColor));
-    if (!border_adopted)
-        computed_values.set_border_bottom_color_style_value(computed_style.property(CSS::PropertyID::BorderBottomColor));
-
-    if (auto const& outline_color = computed_style.property(CSS::PropertyID::OutlineColor); !misc_reset_adopted && outline_color.has_color())
-        computed_values.set_outline_color(outline_color.to_color(color_resolution_context).value());
-    auto const& outline_offset = computed_style.property(CSS::PropertyID::OutlineOffset);
-    auto resolved_outline_offset = outline_offset.is_calculated()
-        ? outline_offset.as_calculated().resolve_length(color_resolution_context.calculation_resolution_context).value()
-        : outline_offset.as_length().length();
-    if (!misc_reset_adopted)
-        computed_values.set_outline_offset(resolved_outline_offset.absolute_length_to_px());
-    if (!misc_reset_adopted)
-        computed_values.set_outline_offset_style_value(outline_offset);
-    if (!misc_reset_adopted)
-        computed_values.set_outline_style(computed_style.outline_style());
-
-    // FIXME: Interpolation can cause negative values - we clamp here but should instead clamp as part of interpolation.
-    if (!misc_reset_adopted)
-        computed_values.set_outline_width(max(CSSPixels { 0 }, computed_style.length(CSS::PropertyID::OutlineWidth).absolute_length_to_px()));
-
-    if (!grid_adopted)
-        computed_values.adopt_grid_group(build_grid_group_payload(computed_style));
-
-    if (!inherited_svg_adopted)
-        computed_values.set_fill(computed_style.fill(color_resolution_context));
-    if (!inherited_svg_adopted)
-        computed_values.set_stroke(computed_style.stroke(color_resolution_context));
-
-    if (!inherited_svg_adopted)
-        computed_values.set_stroke_width(computed_style.stroke_width());
-
-    if (!inherited_svg_adopted) {
-        computed_values.set_paint_order(computed_style.paint_order());
-        auto const& paint_order = computed_style.property(PropertyID::PaintOrder);
-        computed_values.set_paint_order_serialization(
-            paint_order.is_value_list() ? paint_order.as_value_list().size() : paint_order.to_keyword() == Keyword::Normal ? 0
-                                                                                                                           : 1,
-            paint_order.to_keyword() == Keyword::Normal);
-    }
-
-    // FIXME: Remove this once we support URL values in mask_layers and can therefore use it in
-    //        `establishes_stacking_context()`
-    auto const& mask_image = [&] -> CSS::StyleValue const& {
-        auto const& value = computed_style.property(CSS::PropertyID::MaskImage);
-
-        if (value.is_value_list())
-            return value.as_value_list().values()[0];
-
-        return value;
-    }();
-    if (!mask_adopted) {
-        if (mask_image.is_url()) {
-            computed_values.set_mask(mask_image.as_url().url());
-        } else if (mask_image.is_abstract_image()) {
-            auto const& abstract_image = mask_image.as_abstract_image();
-            computed_values.set_mask_image(abstract_image);
-        }
-    }
-
-    if (!mask_adopted)
-        computed_values.set_mask_type(computed_style.mask_type());
-
-    auto const& clip_path = computed_style.property(CSS::PropertyID::ClipPath);
-    if (!mask_adopted) {
-        if (clip_path.is_url())
-            computed_values.set_clip_path(clip_path.as_url().url());
-        else if (clip_path.is_basic_shape())
-            computed_values.set_clip_path(clip_path.as_basic_shape());
-        else
-            computed_values.set_clip_path({});
-    }
-    if (!inherited_svg_adopted)
-        computed_values.set_clip_rule(computed_style.clip_rule());
-    if (!inherited_svg_adopted)
-        computed_values.set_fill_rule(computed_style.fill_rule());
-
-    if (!inherited_svg_adopted)
-        computed_values.set_fill_opacity(computed_style.fill_opacity());
-    if (!inherited_svg_adopted)
-        computed_values.set_stroke_dasharray(computed_style.stroke_dasharray());
-
-    if (!inherited_svg_adopted)
-        computed_values.set_stroke_dashoffset(computed_style.stroke_dashoffset());
-
-    if (!inherited_svg_adopted)
-        computed_values.set_stroke_linecap(computed_style.stroke_linecap());
-    if (!inherited_svg_adopted)
-        computed_values.set_stroke_linejoin(computed_style.stroke_linejoin());
-    if (!inherited_svg_adopted)
-        computed_values.set_stroke_miterlimit(computed_style.stroke_miterlimit());
-
-    if (!inherited_svg_adopted)
-        computed_values.set_stroke_opacity(computed_style.stroke_opacity());
-
-    if (!inherited_svg_adopted)
-        computed_values.set_text_anchor(computed_style.text_anchor());
-    if (!inherited_svg_adopted)
-        computed_values.set_dominant_baseline(computed_style.dominant_baseline());
-    if (!inherited_svg_adopted)
-        computed_values.set_shape_rendering(computed_style.shape_rendering());
-
-    if (!misc_reset_adopted)
-        computed_values.set_column_span(computed_style.column_span());
-
-    if (!misc_reset_adopted)
-        computed_values.set_column_height(computed_style.size_value(CSS::PropertyID::ColumnHeight));
 
     if (!inherited_table_adopted)
         computed_values.set_border_collapse(computed_style.border_collapse());
 
     if (!inherited_table_adopted)
         computed_values.set_empty_cells(computed_style.empty_cells());
-
-    if (!misc_reset_adopted)
-        computed_values.set_touch_action(computed_style.touch_action());
 
     auto const& math_shift_value = computed_style.property(CSS::PropertyID::MathShift);
     if (auto math_shift = keyword_to_math_shift(math_shift_value.to_keyword()); math_shift.has_value())
@@ -2798,77 +2407,11 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedProp
         computed_values.set_math_style(math_style.value());
 
     computed_values.set_math_depth(computed_style.math_depth());
-    if (!inherited_list_adopted)
-        computed_values.set_quotes(computed_style.quotes());
-    if (!content_adopted)
-        computed_values.set_counter_increment(computed_style.counter_data(CSS::PropertyID::CounterIncrement));
-    if (!content_adopted)
-        computed_values.set_counter_reset(computed_style.counter_data(CSS::PropertyID::CounterReset));
-    if (!content_adopted)
-        computed_values.set_counter_set(computed_style.counter_data(CSS::PropertyID::CounterSet));
 
-    if (!misc_reset_adopted)
-        computed_values.set_object_fit(computed_style.object_fit());
-    if (!misc_reset_adopted)
-        computed_values.set_object_position(computed_style.object_position());
     if (!inherited_box_adopted)
         computed_values.set_direction(computed_style.direction());
-    if (!misc_reset_adopted)
-        computed_values.set_scroll_behavior(CSS::keyword_to_scroll_behavior(computed_style.property(CSS::PropertyID::ScrollBehavior).to_keyword()).release_value());
-    if (!inherited_ui_adopted)
-        computed_values.set_scrollbar_color(computed_style.scrollbar_color(color_resolution_context));
-    if (!misc_reset_adopted)
-        computed_values.set_scrollbar_gutter(computed_style.property(CSS::PropertyID::ScrollbarGutter).as_scrollbar_gutter().value());
-    if (!misc_reset_adopted)
-        computed_values.set_scrollbar_width(computed_style.scrollbar_width());
-    if (!misc_reset_adopted)
-        computed_values.set_shape_image_threshold(computed_style.property(CSS::PropertyID::ShapeImageThreshold).as_opacity_value().resolved());
-    if (!misc_reset_adopted)
-        computed_values.set_shape_margin(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::ShapeMargin)));
-    CSS::ShapeOutsideData shape_outside;
-    auto apply_shape_outside_item = [&](CSS::StyleValue const& item) {
-        if (item.is_url())
-            shape_outside.image = item.as_url().url();
-        else if (item.is_abstract_image())
-            shape_outside.image = NonnullRefPtr<CSS::AbstractImageStyleValue const> { item.as_abstract_image() };
-        else if (item.is_basic_shape())
-            shape_outside.basic_shape = item.as_basic_shape();
-        else if (auto shape_box = CSS::keyword_to_shape_box(item.to_keyword()); shape_box.has_value())
-            shape_outside.shape_box = *shape_box;
-    };
-    auto const& shape_outside_value = computed_style.property(CSS::PropertyID::ShapeOutside);
-    if (shape_outside_value.is_value_list()) {
-        for (auto const& item : shape_outside_value.as_value_list().values())
-            apply_shape_outside_item(item);
-    } else {
-        apply_shape_outside_item(shape_outside_value);
-    }
-    if (!misc_reset_adopted)
-        computed_values.set_shape_outside(move(shape_outside));
     if (!inherited_box_adopted)
         computed_values.set_writing_mode(computed_style.writing_mode());
-    if (!misc_reset_adopted)
-        computed_values.set_user_select(computed_style.user_select());
-    if (!effects_adopted)
-        computed_values.set_isolation(computed_style.isolation());
-    if (!effects_adopted)
-        computed_values.set_mix_blend_mode(computed_style.mix_blend_mode());
-    if (!misc_reset_adopted)
-        computed_values.set_view_transition_name(computed_style.view_transition_name());
-    if (!misc_reset_adopted)
-        computed_values.set_will_change(computed_style.will_change());
-    if (!inherited_ui_adopted) {
-        auto const& caret_color_value = computed_style.property(CSS::PropertyID::CaretColor);
-        CSS::ColorOrAuto caret_color;
-        caret_color.used_value = computed_style.caret_color(color_resolution_context);
-        if (caret_color_value.to_keyword() != CSS::Keyword::Auto)
-            caret_color.computed_value = caret_color.used_value;
-        computed_values.set_caret_color(move(caret_color));
-    }
-    if (!inherited_svg_adopted)
-        computed_values.set_color_interpolation(computed_style.color_interpolation());
-    if (!inherited_svg_adopted)
-        computed_values.set_color_interpolation_filters(computed_style.color_interpolation_filters());
     for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
         auto property_id = static_cast<PropertyID>(i);
         computed_values.set_property_important(property_id, computed_style.is_property_important(property_id));
@@ -2886,6 +2429,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedProp
     computed_values.set_pseudo_element_styles(pseudo_element_styles);
     computed_values.set_inheritance_dependent_specified_values(computed_style.inheritance_dependent_specified_values());
     computed_values.set_raw_cascaded_font_size(computed_style.raw_cascaded_font_size());
+    computed_values.set_computed_longhand_table(computed_style.computed_longhand_table());
 
     return move(builder).build();
 }

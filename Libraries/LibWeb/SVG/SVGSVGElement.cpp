@@ -10,7 +10,6 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
-#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/StaticNodeList.h>
@@ -51,47 +50,43 @@ RefPtr<Layout::Node> SVGSVGElement::create_layout_node(CSS::LayoutStyle style)
     return make_ref_counted<Layout::SVGSVGBox>(document(), *this, style);
 }
 
-RefPtr<CSS::StyleValue const> SVGSVGElement::width_style_value_from_attribute() const
+Optional<CSS::Length> SVGSVGElement::width_attribute_length() const
 {
-    if (m_cached_width_style_value.has_value())
-        return *m_cached_width_style_value;
+    if (m_cached_width_attribute_length.has_value())
+        return *m_cached_width_attribute_length;
 
     auto parsing_context = CSS::Parser::ParsingParams { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
     auto width_attribute = attribute(SVG::AttributeNames::width);
 
-    RefPtr<CSS::StyleValue const> result;
+    // NB: If the `width` attribute is an empty string, WebKit and Blink treat it as 100% while Firefox does not (the
+    //     spec is unclear); a percentage never contributes here either way, so nothing distinguishes it from any other
+    //     non-<length> value.
+    Optional<CSS::Length> result;
     if (auto width_value = parse_css_value(parsing_context, width_attribute.value_or({}), CSS::PropertyID::Width)) {
-        result = width_value.release_nonnull();
-    } else if (width_attribute == ""sv) {
-        // If the `width` attribute is an empty string, it defaults to 100%.
-        // This matches WebKit and Blink, but not Firefox. The spec is unclear.
-        // FIXME: Figure out what to do here.
-        result = CSS::PercentageStyleValue::create(CSS::Percentage { 100 });
+        if (width_value->is_length())
+            result = width_value->as_length().length();
     }
 
-    m_cached_width_style_value = result;
+    m_cached_width_attribute_length = result;
     return result;
 }
 
-RefPtr<CSS::StyleValue const> SVGSVGElement::height_style_value_from_attribute() const
+Optional<CSS::Length> SVGSVGElement::height_attribute_length() const
 {
-    if (m_cached_height_style_value.has_value())
-        return *m_cached_height_style_value;
+    if (m_cached_height_attribute_length.has_value())
+        return *m_cached_height_attribute_length;
 
     auto parsing_context = CSS::Parser::ParsingParams { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
     auto height_attribute = attribute(SVG::AttributeNames::height);
 
-    RefPtr<CSS::StyleValue const> result;
+    // NB: See the `width` note above; an empty string `height` likewise never contributes a <length>.
+    Optional<CSS::Length> result;
     if (auto height_value = parse_css_value(parsing_context, height_attribute.value_or({}), CSS::PropertyID::Height)) {
-        result = height_value.release_nonnull();
-    } else if (height_attribute == ""sv) {
-        // If the `height` attribute is an empty string, it defaults to 100%.
-        // This matches WebKit and Blink, but not Firefox. The spec is unclear.
-        // FIXME: Figure out what to do here.
-        result = CSS::PercentageStyleValue::create(CSS::Percentage { 100 });
+        if (height_value->is_length())
+            result = height_value->as_length().length();
     }
 
-    m_cached_height_style_value = result;
+    m_cached_height_attribute_length = result;
     return result;
 }
 
@@ -101,11 +96,11 @@ void SVGSVGElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16
     SVGFitToViewBox::attribute_changed(*this, name, value);
 
     if (name.equals_ignoring_ascii_case(SVG::AttributeNames::width)) {
-        m_cached_width_style_value = {};
+        m_cached_width_attribute_length = {};
         update_fallback_view_box_for_svg_as_image();
     }
     if (name.equals_ignoring_ascii_case(SVG::AttributeNames::height)) {
-        m_cached_height_style_value = {};
+        m_cached_height_attribute_length = {};
         update_fallback_view_box_for_svg_as_image();
     }
 }
@@ -136,18 +131,11 @@ void SVGSVGElement::update_fallback_view_box_for_svg_as_image()
 
     auto resolution_context = CSS::Length::ResolutionContext::for_document(document());
 
-    auto width_attribute = get_attribute_value(SVG::AttributeNames::width);
-    auto parsing_context = CSS::Parser::ParsingParams { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
-    if (auto width_value = parse_css_value(parsing_context, width_attribute, CSS::PropertyID::Width)) {
-        if (width_value->is_length())
-            width = width_value->as_length().length().to_px(resolution_context).to_double();
-    }
+    if (auto width_length = width_attribute_length(); width_length.has_value())
+        width = width_length->to_px(resolution_context).to_double();
 
-    auto height_attribute = get_attribute_value(SVG::AttributeNames::height);
-    if (auto height_value = parse_css_value(parsing_context, height_attribute, CSS::PropertyID::Height)) {
-        if (height_value->is_length())
-            height = height_value->as_length().length().to_px(resolution_context).to_double();
-    }
+    if (auto height_length = height_attribute_length(); height_length.has_value())
+        height = height_length->to_px(resolution_context).to_double();
 
     if (width.has_value() && width.value() > 0 && height.has_value() && height.value() > 0) {
         m_fallback_view_box_for_svg_as_image = ViewBox { 0, 0, width.value(), height.value() };
@@ -233,7 +221,7 @@ GC::Ref<SVGNumber> SVGSVGElement::create_svg_number() const
 GC::Ref<SVGLength> SVGSVGElement::create_svg_length() const
 {
     // A new, detached SVGLength object whose value is the unitless <number> 0.
-    return SVGLength::create_detached(document().relevant_settings_object().realm(), CSS::NumberStyleValue::create(0), SVGLength::ReadOnly::No);
+    return SVGLength::create_detached(document().relevant_settings_object().realm(), SVGLengthValue::number(0), SVGLength::ReadOnly::No);
 }
 
 GC::Ref<Geometry::DOMPoint> SVGSVGElement::create_svg_point() const
@@ -269,11 +257,11 @@ CSS::SizeWithAspectRatio SVGSVGElement::negotiate_natural_metrics(SVG::SVGSVGEle
     // If either width or height are not specified, the used value is the initial value 'auto'.
     // 'auto' and percentage lengths must not be used to determine an intrinsic width or intrinsic height.
 
-    if (auto width = svg_root.width_style_value_from_attribute(); width && width->is_length())
-        natural_metrics.width = width->as_length().length().to_px(resolution_context);
+    if (auto width = svg_root.width_attribute_length(); width.has_value())
+        natural_metrics.width = width->to_px(resolution_context);
 
-    if (auto height = svg_root.height_style_value_from_attribute(); height && height->is_length())
-        natural_metrics.height = height->as_length().length().to_px(resolution_context);
+    if (auto height = svg_root.height_attribute_length(); height.has_value())
+        natural_metrics.height = height->to_px(resolution_context);
 
     // The intrinsic aspect ratio must be calculated using the following algorithm. If the algorithm returns null, then there is no intrinsic aspect ratio.
     natural_metrics.aspect_ratio = [&]() -> Optional<CSSPixelFraction> {

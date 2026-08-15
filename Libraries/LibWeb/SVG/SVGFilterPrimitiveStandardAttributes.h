@@ -17,16 +17,16 @@ public:
     virtual ~SVGFilterPrimitiveStandardAttributes() = default;
 
     // https://drafts.csswg.org/filter-effects-1#dom-svgfilterprimitivestandardattributes-x
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, Horizontal, CSS::PercentageStyleValue::create(CSS::Percentage { 0 }));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, Horizontal, SVGLengthValue::percentage(0));
 
     // https://drafts.csswg.org/filter-effects-1#dom-svgfilterprimitivestandardattributes-y
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y, Vertical, CSS::PercentageStyleValue::create(CSS::Percentage { 0 }));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y, Vertical, SVGLengthValue::percentage(0));
 
     // https://drafts.csswg.org/filter-effects-1#dom-svgfilterprimitivestandardattributes-width
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(width, Horizontal, CSS::PercentageStyleValue::create(CSS::Percentage { 100 }));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(width, Horizontal, SVGLengthValue::percentage(100));
 
     // https://drafts.csswg.org/filter-effects-1#dom-svgfilterprimitivestandardattributes-height
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, Vertical, CSS::PercentageStyleValue::create(CSS::Percentage { 100 }));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, Vertical, SVGLengthValue::percentage(100));
 
     GC::Ref<SVGAnimatedString> result();
 
@@ -39,9 +39,9 @@ protected:
 private:
     SVGElement* this_svg_element() { return static_cast<IncludingClass*>(this); }
 
-    GC::Ref<SVGAnimatedLength> svg_animated_length_for_attribute(Utf16FlyString const& attribute_name, SVGLength::Directionality directionality, NonnullRefPtr<CSS::StyleValue const>&& default_value)
+    GC::Ref<SVGAnimatedLength> svg_animated_length_for_attribute(Utf16FlyString const& attribute_name, SVGLength::Directionality directionality, SVGLengthValue default_value)
     {
-        return this_svg_element()->svg_animated_length_for_attribute(attribute_name, directionality, move(default_value));
+        return this_svg_element()->svg_animated_length_for_attribute(attribute_name, directionality, default_value);
     }
 
     GC::Ptr<SVGAnimatedString> m_result_animated_string;

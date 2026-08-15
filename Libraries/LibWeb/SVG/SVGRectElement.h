@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/SVG/SVGGeometryElement.h>
 
 namespace Web::SVG {
@@ -26,22 +25,22 @@ public:
     //         https://github.com/w3c/svgwg/issues/1153
 
     // https://w3c.github.io/svgwg/svg2-draft/shapes.html#__svg__SVGRectElement__x
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, Horizontal, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, Horizontal, SVGLengthValue::number(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/shapes.html#__svg__SVGRectElement__y
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y, Vertical, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y, Vertical, SVGLengthValue::number(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/shapes.html#__svg__SVGRectElement__width
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(width, Horizontal, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(width, Horizontal, SVGLengthValue::number(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/shapes.html#__svg__SVGRectElement__height
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, Vertical, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, Vertical, SVGLengthValue::number(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/shapes.html#__svg__SVGRectElement__rx
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(rx, Horizontal, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(rx, Horizontal, SVGLengthValue::number(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/shapes.html#__svg__SVGRectElement__ry
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(ry, Vertical, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(ry, Vertical, SVGLengthValue::number(0));
 
 private:
     SVGRectElement(DOM::Document&, DOM::QualifiedName);

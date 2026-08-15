@@ -15,7 +15,6 @@ ValueComparingNonnullRefPtr<TextIndentStyleValue const> TextIndentStyleValue::cr
 
 TextIndentStyleValue::TextIndentStyleValue(NonnullRefPtr<StyleValue const> length_percentage, Hanging hanging, EachLine each_line)
     : StyleValueWithDefaultOperators(Type::TextIndent, StyleValueFFI::rust_style_value_create_text_indent(StyleValueFFI::rust_style_value_retain(length_percentage->rust_style_value_data()), hanging == Hanging::Yes, each_line == EachLine::Yes))
-    , m_length_percentage(move(length_percentage))
 {
 }
 
@@ -23,19 +22,12 @@ TextIndentStyleValue::~TextIndentStyleValue() = default;
 
 ValueComparingNonnullRefPtr<StyleValue const> TextIndentStyleValue::absolutized(ComputationContext const& context) const
 {
-    auto new_length_percentage = length_percentage().absolutized(context);
+    auto new_length_percentage = length_percentage()->absolutized(context);
     if (new_length_percentage->equals(length_percentage()))
         return *this;
     return create(move(new_length_percentage),
         hanging() ? Hanging::Yes : Hanging::No,
         each_line() ? EachLine::Yes : EachLine::No);
-}
-
-bool TextIndentStyleValue::properties_equal(TextIndentStyleValue const& other) const
-{
-    return length_percentage() == other.length_percentage()
-        && each_line() == other.each_line()
-        && hanging() == other.hanging();
 }
 
 }

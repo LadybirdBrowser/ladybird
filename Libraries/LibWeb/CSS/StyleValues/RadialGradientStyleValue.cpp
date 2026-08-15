@@ -30,17 +30,6 @@ StyleValueFFI::StyleValueData const* RadialGradientStyleValue::make_radial_gradi
 
 RadialGradientStyleValue::RadialGradientStyleValue(StyleValueFFI::StyleValueData const* data)
     : AbstractImageStyleValue(Type::RadialGradient, data)
-    , m_size(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-          static_cast<StyleValueFFI::StyleValueData const*>(data->radial_gradient.size.pointer))))
-    , m_position(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-                                                             static_cast<StyleValueFFI::StyleValueData const*>(data->radial_gradient.position.pointer)))
-              ->as_position())
-    , m_color_interpolation_method([&]() -> ValueComparingRefPtr<StyleValue const> {
-        auto const* method_data = static_cast<StyleValueFFI::StyleValueData const*>(data->radial_gradient.color_interpolation_method.pointer);
-        if (!method_data)
-            return nullptr;
-        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(method_data));
-    }())
 {
 }
 
@@ -54,20 +43,17 @@ CSSPixelSize RadialGradientStyleValue::resolve_size(CSSPixelPoint center, CSSPix
     return size_value()->as_radial_size().resolve_ellipse_size(center, reference_box);
 }
 
-void RadialGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node, CSSPixelSize paint_size) const
+ResolvedImage RadialGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node, CSSPixelSize paint_size) const
 {
     CSSPixelRect gradient_box { { 0, 0 }, paint_size };
     auto center = position_value()->resolved(gradient_box);
     auto gradient_size = resolve_size(center, gradient_box);
 
-    if (m_resolved_size != paint_size) {
-        m_resolved_size = move(paint_size);
-        m_resolved = ResolvedData {
-            Painting::resolve_radial_gradient_data(node, gradient_size, *this),
-            gradient_size,
-            center,
-        };
-    }
+    return Painting::ResolvedRadialGradient {
+        Painting::resolve_radial_gradient_data(node, gradient_size, *this),
+        gradient_size,
+        center,
+    };
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> RadialGradientStyleValue::absolutized(ComputationContext const& context) const
@@ -86,26 +72,12 @@ ValueComparingNonnullRefPtr<StyleValue const> RadialGradientStyleValue::absoluti
     return create(ending_shape(), move(absolutized_size), move(absolutized_position), move(absolutized_color_stops), (is_repeating() ? GradientRepeating::Yes : GradientRepeating::No), move(absolutized_color_interpolation_method));
 }
 
-bool RadialGradientStyleValue::equals(StyleValue const& other) const
+void RadialGradientStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering, PreferredColorScheme, ResolvedImage const& resolved_image) const
 {
-    if (type() != other.type())
-        return false;
-    auto& other_gradient = other.as_radial_gradient();
-    return ending_shape() == other_gradient.ending_shape()
-        && size_value() == other_gradient.size_value()
-        && position_value() == other_gradient.position_value()
-        && color_stop_list() == other_gradient.color_stop_list()
-        && is_repeating() == other_gradient.is_repeating()
-        && color_interpolation_method_value() == other_gradient.color_interpolation_method_value()
-        && gradient_color_syntax() == other_gradient.gradient_color_syntax();
-}
-
-void RadialGradientStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering, PreferredColorScheme) const
-{
-    VERIFY(m_resolved.has_value());
-    auto center = context.rounded_device_point(m_resolved->center).to_type<int>();
-    auto size = context.rounded_device_size(m_resolved->gradient_size).to_type<int>();
-    context.display_list_recorder().fill_rect_with_radial_gradient(dest_rect.to_type<int>(), m_resolved->data, center, size);
+    auto const& resolved = resolved_image.get<Painting::ResolvedRadialGradient>();
+    auto center = context.rounded_device_point(resolved.center).to_type<int>();
+    auto size = context.rounded_device_size(resolved.gradient_size).to_type<int>();
+    context.display_list_recorder().fill_rect_with_radial_gradient(dest_rect.to_type<int>(), resolved.data, center, size);
 }
 
 }

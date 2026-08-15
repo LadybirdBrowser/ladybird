@@ -26,26 +26,20 @@ public:
 
     GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
 
-    bool properties_equal(OpacityValueStyleValue const& other) const { return value() == other.value(); }
-
 private:
     friend class StyleValue;
 
     explicit OpacityValueStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValueWithDefaultOperators(Type::OpacityValue, data)
-        , m_wrapped_value(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->opacity_value.value.pointer))))
     {
     }
 
     OpacityValueStyleValue(NonnullRefPtr<StyleValue const>&& value)
         : StyleValueWithDefaultOperators(Type::OpacityValue, StyleValueFFI::rust_style_value_create_opacity_value(StyleValueFFI::rust_style_value_retain(value->rust_style_value_data())))
-        , m_wrapped_value(move(value))
     {
     }
 
-    ValueComparingNonnullRefPtr<StyleValue const> value() const { return m_wrapped_value; }
-
-    ValueComparingNonnullRefPtr<StyleValue const> m_wrapped_value;
+    ValueComparingNonnullRefPtr<StyleValue const> value() const { return wrap_rust_child(m_value->opacity_value.value); }
 };
 
 }

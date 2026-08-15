@@ -43,7 +43,7 @@ public:
     bool includes_if_function() const { return m_value->unresolved.presence_if; }
     bool includes_var_function() const { return m_value->unresolved.presence_var; }
     bool includes_dashed_function() const { return m_value->unresolved.presence_dashed_function; }
-    RefPtr<StyleValue const> parsed_value() const { return m_parsed_value; }
+    RefPtr<StyleValue const> parsed_value() const { return wrap_rust_child_or_null(m_value->unresolved.parsed_value); }
 
     bool equals(StyleValue const& other) const;
 
@@ -54,9 +54,6 @@ private:
 
     explicit UnresolvedStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValue(Type::Unresolved, data)
-        , m_parsed_value(data->unresolved.parsed_value.pointer
-                  ? RefPtr<StyleValue const> { StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->unresolved.parsed_value.pointer))) }
-                  : nullptr)
     {
     }
 
@@ -68,8 +65,6 @@ private:
 
     String source_text() const { return String::from_raw(m_value->unresolved.source_text.raw); }
     String value_comparison_text() const { return String::from_raw(m_value->unresolved.value_comparison_text.raw); }
-
-    RefPtr<StyleValue const> m_parsed_value;
 };
 
 }

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 560 tests
 
-559 Pass
-1 Fail
+558 Pass
+2 Fail
 Pass	background-color color(rgba) / values
 Pass	background-color color(rgba) / events
 Pass	background-position-x length(pt) / values
@@ -503,7 +503,7 @@ Pass	text-indent length(in) / events
 Pass	text-indent percentage(%) / values
 Pass	text-indent percentage(%) / events
 Pass	text-shadow shadow(shadow) / values
-Pass	text-shadow shadow(shadow) / events
+Fail	text-shadow shadow(shadow) / events
 Pass	outline-color color(rgba) / values
 Pass	outline-color color(rgba) / events
 Pass	outline-offset length(pt) / values

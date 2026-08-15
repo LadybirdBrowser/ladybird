@@ -47,17 +47,6 @@ public:
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
-    bool properties_equal(StyleValueList const& other) const
-    {
-        if (separator() != other.separator() || collapsible() != other.collapsible() || size() != other.size())
-            return false;
-        for (size_t i = 0; i < size(); ++i) {
-            if (value_at(i) != other.value_at(i))
-                return false;
-        }
-        return true;
-    }
-
     Separator separator() const { return static_cast<Separator>(m_value->value_list.separator); }
 
     void set_style_sheet(GC::Ptr<CSSStyleSheet>);

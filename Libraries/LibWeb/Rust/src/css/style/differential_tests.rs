@@ -408,6 +408,7 @@ fn style_record_for_winners(engine: &mut StyleEngine, winners: &[PropertyWinner]
                 animation_overlay_identity: 0,
                 animated_properties: std::ptr::null(),
                 animation_overlay_payloads: &[],
+                longhand_table: std::ptr::null(),
                 reconstruction: ComputedReconstructionMetadataInput {
                     property_importance: &[],
                     property_inheritance: &[],

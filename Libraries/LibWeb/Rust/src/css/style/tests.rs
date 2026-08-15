@@ -348,6 +348,7 @@ fn publish_current_cascade_as_computed(engine: &mut StyleEngine, node: StyleNode
             animation_overlay_identity: 0,
             animated_properties: std::ptr::null(),
             animation_overlay_payloads: &[],
+            longhand_table: std::ptr::null(),
             reconstruction: computed::ComputedReconstructionMetadataInput {
                 property_importance: &[],
                 property_inheritance: &[],

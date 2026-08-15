@@ -24,8 +24,6 @@ public:
     StyleValueList const& content() const { return m_content; }
     StyleValueList const* alt_text() const { return m_alt_text.ptr(); }
 
-    bool properties_equal(ContentStyleValue const& other) const;
-
     void set_style_sheet(GC::Ptr<CSSStyleSheet>);
 
 private:

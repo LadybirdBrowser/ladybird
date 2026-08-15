@@ -36,14 +36,6 @@ public:
     Vector<Parser::ComponentValue> tokenize() const;
     GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
 
-    bool equals(StyleValue const& other) const
-    {
-        if (type() != other.type())
-            return false;
-        auto const& other_number = other.as_number();
-        return number() == other_number.number();
-    }
-
 private:
     friend class StyleValue;
 

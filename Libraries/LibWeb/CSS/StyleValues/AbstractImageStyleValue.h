@@ -9,12 +9,20 @@
 
 #pragma once
 
+#include <AK/Variant.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Painting/GradientData.h>
 
 namespace Web::CSS {
+
+// Size-dependent painting state resolved from an abstract image before painting it.
+// Gradients resolve their stop and geometry data here; other images have none. The
+// caller owns the resolved state (paintables memoize it per box size), so the style
+// values themselves stay immutable.
+using ResolvedImage = Variant<Empty, Painting::LinearGradientData, Painting::ResolvedConicGradient, Painting::ResolvedRadialGradient>;
 
 class WEB_API AbstractImageStyleValue : public StyleValue {
 public:
@@ -34,10 +42,10 @@ public:
 
     virtual void load_any_resources(DOM::Document&) { }
     virtual void load_any_resources(Layout::NodeWithStyle const&);
-    virtual void resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const { }
+    virtual ResolvedImage resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const { return Empty {}; }
 
     virtual bool is_paintable(DOM::Document const&) const = 0;
-    virtual void paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, ImageRendering, PreferredColorScheme) const = 0;
+    virtual void paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, ImageRendering, PreferredColorScheme, ResolvedImage const&) const = 0;
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap(DOM::Document const&) const { return {}; }
 

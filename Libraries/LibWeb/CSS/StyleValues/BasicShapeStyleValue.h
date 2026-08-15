@@ -110,8 +110,6 @@ public:
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
-    bool properties_equal(BasicShapeStyleValue const& other) const { return basic_shape() == other.basic_shape(); }
-
     Gfx::Path to_path(CSSPixelRect reference_box) const;
 
 private:

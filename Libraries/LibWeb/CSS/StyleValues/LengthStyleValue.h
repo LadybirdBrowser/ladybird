@@ -25,8 +25,6 @@ public:
     virtual Utf16FlyString unit_name() const override { return length().unit_name(); }
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
-    bool equals(StyleValue const& other) const;
-
 private:
     friend class StyleValue;
 

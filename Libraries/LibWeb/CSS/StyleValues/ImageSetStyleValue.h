@@ -26,16 +26,15 @@ public:
     static ValueComparingNonnullRefPtr<ImageSetStyleValue const> create(Vector<Option>);
     virtual ~ImageSetStyleValue() override = default;
 
-    bool equals(StyleValue const& other) const;
     virtual void load_any_resources(DOM::Document&) override;
 
     virtual Optional<CSSPixels> natural_width(DOM::Document const&) const override;
     virtual Optional<CSSPixels> natural_height(DOM::Document const&) const override;
     virtual Optional<CSSPixelFraction> natural_aspect_ratio(DOM::Document const&) const override;
 
-    virtual void resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const override;
+    virtual ResolvedImage resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const override;
     virtual bool is_paintable(DOM::Document const&) const override;
-    virtual void paint(DisplayListRecordingContext&, DOM::Document const&, DevicePixelRect const&, ImageRendering, PreferredColorScheme) const override;
+    virtual void paint(DisplayListRecordingContext&, DOM::Document const&, DevicePixelRect const&, ImageRendering, PreferredColorScheme, ResolvedImage const&) const override;
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap(DOM::Document const&) const override;
 
     AbstractImageStyleValue const* selected_image() const { return m_selected_image; }
