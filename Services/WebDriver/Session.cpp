@@ -234,6 +234,7 @@ void Session::close()
         m_browser_connection->on_close = nullptr;
         m_browser_connection->on_did_create_window = nullptr;
         m_browser_connection->on_did_close_window = nullptr;
+        m_browser_connection->on_command_complete = nullptr;
         m_browser_connection->async_close_session();
         m_browser_connection = nullptr;
     }
@@ -283,9 +284,48 @@ ErrorOr<void> Session::accept_browser_transport(NonnullOwnPtr<IPC::Transport> tr
     browser_connection->on_did_close_window = [this](String window_handle) {
         remove_window(window_handle);
     };
+    browser_connection->on_command_complete = [this](u64 command_id, Web::WebDriver::Response response) {
+        if (auto on_complete = m_pending_browser_commands.take(command_id); on_complete.has_value())
+            on_complete.value()(move(response));
+    };
 
     m_browser_connection = move(browser_connection);
     return {};
+}
+
+Web::WebDriver::Response Session::perform_browser_command(Function<void(u64 command_id)> send_command)
+{
+    if (!m_browser_connection)
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, "Browser connection lost"sv);
+
+    auto command_id = m_next_browser_command_id++;
+    Optional<Web::WebDriver::Response> response;
+    m_pending_browser_commands.set(command_id, [&response](Web::WebDriver::Response result) { response = move(result); });
+
+    send_command(command_id);
+
+    Core::EventLoop::current().spin_until([&]() {
+        return response.has_value() || !m_browser_connection;
+    });
+
+    m_pending_browser_commands.remove(command_id);
+    if (!response.has_value())
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, "Browser connection lost"sv);
+    return response.release_value();
+}
+
+Web::WebDriver::Response Session::traverse_history(i32 delta, HandleUserPrompts handle_user_prompts)
+{
+    return perform_browser_command([&](u64 command_id) {
+        m_browser_connection->async_traverse_history(command_id, m_current_window_handle, delta, handle_user_prompts == HandleUserPrompts::Yes);
+    });
+}
+
+Web::WebDriver::Response Session::session_history()
+{
+    return perform_browser_command([&](u64 command_id) {
+        m_browser_connection->async_get_session_history(command_id, m_current_window_handle);
+    });
 }
 
 ErrorOr<void> Session::accept_web_content_transport(NonnullOwnPtr<IPC::Transport> transport, NonnullRefPtr<ServerPromise> promise)
@@ -322,7 +362,6 @@ ErrorOr<void> Session::accept_web_content_transport(NonnullOwnPtr<IPC::Transport
         pending_connection->on_did_start_window_replacement = [this, connection](String replaced_window_handle) {
             did_start_window_replacement(replaced_window_handle, *connection);
         };
-
         pending_connection->async_set_page_load_strategy(m_page_load_strategy);
         pending_connection->async_set_strict_file_interactability(m_strict_file_interactiblity);
         pending_connection->async_set_user_prompt_handler(Web::WebDriver::user_prompt_handler());

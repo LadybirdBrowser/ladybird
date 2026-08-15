@@ -220,10 +220,8 @@ private:
     virtual void did_request_activate_tab(u64 page_id) override;
     virtual void did_close_browsing_context(u64 page_id) override;
     virtual void did_change_needs_beforeunload_check(u64 page_id, bool needs_beforeunload_check) override;
-    virtual void did_request_webdriver_history_traversal(u64 page_id, u64 request_id, i32 delta) override;
+    virtual void webdriver_user_prompt_handling_complete(u64 page_id, u64 request_id, Web::WebDriver::Response response) override;
     virtual Messages::WebContentClient::DidRequestWebdriverLoadUrlFromUiResponse did_request_webdriver_load_url_from_ui(u64 page_id, URL::URL url) override;
-    virtual Messages::WebContentClient::DidRequestWebdriverTraverseHistoryFromUiResponse did_request_webdriver_traverse_history_from_ui(u64 page_id, i32 delta) override;
-    virtual Messages::WebContentClient::DidRequestWebdriverSessionHistoryResponse did_request_webdriver_session_history(u64 page_id) override;
     virtual void did_request_webdriver_navigation_completion(u64 page_id, u64 request_id, Optional<u64> page_load_timeout) override;
     virtual void did_update_resource_count(u64 page_id, i32 count_waiting) override;
     virtual void did_request_restore_window(u64 page_id) override;

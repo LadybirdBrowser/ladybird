@@ -867,18 +867,14 @@ bool CanonicalTraversable::select_changing_navigable_history_step_job_endpoint(H
     if (!navigable.has_value())
         return false;
 
-    auto replaces_web_content_process = false;
     if (navigable->is_top_level_traversable() && job.navigation_type == Web::Bindings::NavigationType::Traverse) {
         auto view = ViewImplementation::find_view_for_traversable(*this);
         if (!view.has_value())
             return false;
 
         auto source_url = view->top_level_process_site_url().value_or(URL::about_blank());
-        if (SiteIsolationManager::the().navigation_requires_process_swap(source_url, job.target_entry.url)) {
-            operation.on_browser_traversal_ready = nullptr;
+        if (SiteIsolationManager::the().navigation_requires_process_swap(source_url, job.target_entry.url))
             view->replace_web_content_process_for_history_traversal(job.target_entry.document_state.id, job.target_entry.url);
-            replaces_web_content_process = true;
-        }
     }
 
     auto endpoint = history_job_endpoint_for(*navigable);
@@ -889,7 +885,7 @@ bool CanonicalTraversable::select_changing_navigable_history_step_job_endpoint(H
             return false;
     }
 
-    if (navigable->is_top_level_traversable() && !replaces_web_content_process) {
+    if (navigable->is_top_level_traversable()) {
         auto callback = move(operation.on_browser_traversal_ready);
         if (callback)
             callback();

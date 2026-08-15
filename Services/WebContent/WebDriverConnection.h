@@ -59,8 +59,6 @@ private:
     virtual Messages::WebDriverClient::SetTimeoutsResponse set_timeouts(JsonValue payload) override;
     virtual Messages::WebDriverClient::NavigateToResponse navigate_to(JsonValue payload) override;
     virtual Messages::WebDriverClient::GetCurrentUrlResponse get_current_url() override;
-    virtual Messages::WebDriverClient::BackResponse back() override;
-    virtual Messages::WebDriverClient::ForwardResponse forward() override;
     virtual Messages::WebDriverClient::RefreshResponse refresh() override;
     virtual Messages::WebDriverClient::WaitForNavigationCompletionResponse wait_for_navigation_completion() override;
     virtual Messages::WebDriverClient::GetTitleResponse get_title() override;
@@ -77,8 +75,6 @@ private:
     virtual Messages::WebDriverClient::ConsumeUserActivationResponse consume_user_activation() override;
     virtual void crash_current_page() override;
     virtual Messages::WebDriverClient::LoadUrlFromUiResponse load_url_from_ui(JsonValue payload) override;
-    virtual Messages::WebDriverClient::TraverseHistoryFromUiResponse traverse_history_from_ui(JsonValue payload) override;
-    virtual Messages::WebDriverClient::GetSessionHistoryResponse get_session_history() override;
     virtual Messages::WebDriverClient::FindElementResponse find_element(JsonValue payload) override;
     virtual Messages::WebDriverClient::FindElementsResponse find_elements(JsonValue payload) override;
     virtual Messages::WebDriverClient::FindElementFromElementResponse find_element_from_element(JsonValue payload, String element_id) override;
@@ -134,7 +130,6 @@ private:
     Web::WebDriver::Response element_send_keys_impl(StringView element_id, String const& text);
     Web::WebDriver::Response add_cookie_impl(JsonObject const&);
 
-    Web::WebDriver::PromptHandlerConfiguration get_the_prompt_handler(Web::WebDriver::PromptType type) const;
     void handle_any_user_prompts(Function<void()> on_dialog_closed);
 
     void maximize_the_window();

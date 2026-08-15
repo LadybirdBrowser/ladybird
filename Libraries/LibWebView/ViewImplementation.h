@@ -322,6 +322,9 @@ public:
     String ui_process_session_history_for_testing(Badge<WebContentClient>) const;
     JsonValue webdriver_session_history() const;
     void wait_for_webdriver_navigation_completion(Badge<WebContentClient>, Optional<u64> page_load_timeout, Function<void(Web::WebDriver::Response)>);
+    void run_webdriver_user_prompt_handling(Function<void(Web::WebDriver::Response)> on_complete);
+    void did_complete_webdriver_user_prompt_handling(Badge<WebContentClient>, u64 request_id, Web::WebDriver::Response);
+    static Optional<ViewImplementation&> find_view_by_handle(StringView);
     void did_change_needs_beforeunload_check(Badge<WebContentClient>, bool needs_beforeunload_check);
     void did_change_background_color(Badge<WebContentClient>, Gfx::Color);
     Gfx::Color page_background_color() const { return m_page_background_color; }
@@ -703,6 +706,9 @@ protected:
 
     RefPtr<Core::Promise<LexicalPath>> m_pending_screenshot;
     RefPtr<Core::Promise<String>> m_pending_info_request;
+
+    u64 m_next_webdriver_user_prompt_request_id { 0 };
+    HashMap<u64, Function<void(Web::WebDriver::Response)>> m_pending_webdriver_user_prompt_requests;
 
     Web::HTML::AudioPlayState m_audio_play_state { Web::HTML::AudioPlayState::Paused };
     size_t m_number_of_elements_playing_audio { 0 };

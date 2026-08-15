@@ -259,13 +259,8 @@ void PageClient::request_new_process_for_navigation(URL::URL const& url, Web::HT
 
 void PageClient::notify_webdriver_of_window_replacement()
 {
-    if (m_webdriver) {
+    if (m_webdriver)
         m_webdriver->page_did_start_window_replacement({}, page().top_level_traversable()->window_handle().to_utf8());
-
-        auto pending_history_traversals = move(m_pending_webdriver_history_traversal_requests);
-        for (auto& request : pending_history_traversals)
-            request.value({ .accepted = true });
-    }
 }
 
 void PageClient::close_webdriver_connection_after_sending_pending_messages()
@@ -1242,37 +1237,20 @@ String PageClient::page_did_request_session_store_tab_state_for_testing()
     return client().did_request_session_store_tab_state_for_testing(m_id);
 }
 
-void PageClient::request_webdriver_history_traversal(int delta, Function<void(WebDriverHistoryTraversalResult)> on_complete)
-{
-    auto request_id = m_next_webdriver_history_traversal_request_id++;
-    m_pending_webdriver_history_traversal_requests.set(request_id, move(on_complete));
-    client().async_did_request_webdriver_history_traversal(m_id, request_id, delta);
-}
-
-void PageClient::did_complete_webdriver_history_traversal(u64 request_id, bool accepted)
-{
-    auto maybe_callback = m_pending_webdriver_history_traversal_requests.take(request_id);
-    if (!maybe_callback.has_value())
-        return;
-
-    maybe_callback.value()(WebDriverHistoryTraversalResult {
-        .accepted = accepted,
-    });
-}
-
 Web::WebDriver::Response PageClient::request_webdriver_load_url_from_ui(URL::URL const& url)
 {
     return client().did_request_webdriver_load_url_from_ui(m_id, url);
 }
 
-Web::WebDriver::Response PageClient::request_webdriver_traverse_history_from_ui(int delta)
+void PageClient::run_webdriver_user_prompt_handling(u64 request_id)
 {
-    return client().did_request_webdriver_traverse_history_from_ui(m_id, delta);
-}
-
-Web::WebDriver::Response PageClient::request_webdriver_session_history()
-{
-    return client().did_request_webdriver_session_history(m_id);
+    Web::WebDriver::handle_any_user_prompts(page(),
+        GC::create_function(heap(), [this, request_id](Optional<Web::WebDriver::Error> error) {
+            auto response = error.has_value()
+                ? Web::WebDriver::Response { error.release_value() }
+                : Web::WebDriver::Response { JsonValue {} };
+            client().async_webdriver_user_prompt_handling_complete(m_id, request_id, move(response));
+        }));
 }
 
 void PageClient::request_file(Web::FileRequest file_request)

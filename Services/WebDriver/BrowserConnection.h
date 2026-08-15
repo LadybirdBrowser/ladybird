@@ -9,6 +9,7 @@
 #include <AK/Function.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/Transport.h>
+#include <LibWeb/WebDriver/Response.h>
 #include <WebDriver/WebDriverBrowserClientEndpoint.h>
 #include <WebDriver/WebDriverBrowserServerEndpoint.h>
 
@@ -23,12 +24,14 @@ public:
     Function<void()> on_close;
     Function<void(String)> on_did_create_window;
     Function<void(String)> on_did_close_window;
+    Function<void(u64, Web::WebDriver::Response)> on_command_complete;
 
 private:
     virtual void die() override;
 
     virtual void did_create_window(String) override;
     virtual void did_close_window(String) override;
+    virtual void command_complete(u64 command_id, Web::WebDriver::Response) override;
 };
 
 }

@@ -33,4 +33,10 @@ void BrowserConnection::did_close_window(String handle)
         on_did_close_window(move(handle));
 }
 
+void BrowserConnection::command_complete(u64 command_id, Web::WebDriver::Response response)
+{
+    if (on_command_complete)
+        on_command_complete(command_id, move(response));
+}
+
 }

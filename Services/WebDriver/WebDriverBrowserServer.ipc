@@ -1,4 +1,7 @@
+#include <LibWeb/WebDriver/Response.h>
+
 endpoint WebDriverBrowserServer {
     did_create_window(String handle) =|
     did_close_window(String handle) =|
+    command_complete(u64 command_id, Web::WebDriver::Response response) =|
 }

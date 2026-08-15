@@ -1,3 +1,5 @@
 endpoint WebDriverBrowserClient {
     close_session() =|
+    traverse_history(u64 command_id, String window_handle, i32 delta, bool handle_user_prompts) =|
+    get_session_history(u64 command_id, String window_handle) =|
 }

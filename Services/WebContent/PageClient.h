@@ -82,14 +82,8 @@ public:
     virtual void set_has_focus(bool) override;
     void set_window_handle(Utf16String);
     void did_start_webdriver_navigation();
-    struct WebDriverHistoryTraversalResult {
-        bool accepted { false };
-    };
-    void request_webdriver_history_traversal(int delta, Function<void(WebDriverHistoryTraversalResult)>);
-    void did_complete_webdriver_history_traversal(u64 request_id, bool accepted);
     Web::WebDriver::Response request_webdriver_load_url_from_ui(URL::URL const&);
-    Web::WebDriver::Response request_webdriver_traverse_history_from_ui(int delta);
-    Web::WebDriver::Response request_webdriver_session_history();
+    void run_webdriver_user_prompt_handling(u64 request_id);
     void set_is_scripting_enabled(bool);
     void set_window_position(Web::DevicePixelPoint);
     void set_window_size(Web::DevicePixelSize);
@@ -328,8 +322,6 @@ private:
 
     u64 m_next_webdriver_navigation_completion_request_id { 0 };
     HashMap<u64, Function<void(Web::WebDriver::Response)>> m_pending_webdriver_navigation_completion_requests;
-    u64 m_next_webdriver_history_traversal_request_id { 0 };
-    HashMap<u64, Function<void(WebDriverHistoryTraversalResult)>> m_pending_webdriver_history_traversal_requests;
     RefPtr<WebDriverConnection> m_webdriver;
     RefPtr<WebUIConnection> m_web_ui;
 
