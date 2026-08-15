@@ -59,6 +59,7 @@ pub(crate) enum IntrinsicSizeCacheKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct IntrinsicInlineSizeMeasurement {
     pub(crate) automatic_content_inline_size: CssPixels,
+    pub(crate) min_content_inline_size_from_max_content_layout: Option<CssPixels>,
     pub(crate) available_block_size: AvailableSize,
     pub(crate) content_inline_size: CssPixels,
     pub(crate) content_block_size: CssPixels,

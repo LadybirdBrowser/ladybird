@@ -755,6 +755,7 @@ pub(crate) struct InlineFormattingContext<'context> {
     pub(crate) containing_used_values: std::rc::Rc<UsedValues>,
     pub(crate) fragmented_inlines_in_pre_order: Vec<Node>,
     pub(crate) automatic_content_inline_size: CssPixels,
+    pub(crate) min_content_inline_size_from_max_content_layout: Option<CssPixels>,
     pub(crate) automatic_content_block_size: CssPixels,
     block_axis_float_clearance: Cell<CssPixels>,
 }
@@ -780,6 +781,7 @@ impl<'context> InlineFormattingContext<'context> {
             containing_used_values,
             fragmented_inlines_in_pre_order: Vec::new(),
             automatic_content_inline_size: CssPixels::default(),
+            min_content_inline_size_from_max_content_layout: None,
             automatic_content_block_size: CssPixels::default(),
             block_axis_float_clearance: Cell::new(CssPixels::default()),
         }
@@ -992,6 +994,14 @@ impl<'context> InlineFormattingContext<'context> {
         content_baselines
     }
 
+    pub(crate) fn paired_min_content_inline_size_for_atomic_root(&self, node: Node) -> Option<CssPixels> {
+        self.parent.sizing().paired_min_content_inline_size_for_atomic_root(
+            node,
+            self.input.available_space,
+            self.input.containing_block_constraints,
+        )
+    }
+
     fn clear_floating_boxes(&self, node: Node) -> bool {
         self.parent.clear_floating_boxes(
             node,
@@ -1092,8 +1102,92 @@ impl<'context> InlineFormattingContext<'context> {
         (reused_lines, item_index)
     }
 
+    fn min_content_inline_size_from_max_content_items(&self, items: &[Item]) -> Option<CssPixels> {
+        if self.input.available_space.inline_size != AvailableSize::MaxContent {
+            return None;
+        }
+        if self.facts(self.containing_block).is_scroll_container() {
+            return None;
+        }
+        if self.style(self.containing_block).writing_mode() != writing_mode::HORIZONTAL_TB {
+            return None;
+        }
+
+        let containing_style = self.style(self.containing_block);
+        let containing_inline_size = self.input.containing_block_constraints.inline_basis();
+        if containing_style.text_indent().to_px(containing_inline_size) != CssPixels::default() {
+            return None;
+        }
+
+        let wraps = containing_style.text_wrap_mode() == text_wrap_mode::WRAP;
+        let mut maximum = CssPixels::default();
+        let mut current = CssPixels::default();
+        let mut line_has_content = false;
+        let finish_line =
+            |maximum: &mut CssPixels, current: &mut CssPixels, line_has_content: &mut bool| {
+                *maximum = (*maximum).max(*current);
+                *current = CssPixels::default();
+                *line_has_content = false;
+            };
+        for item in items {
+            match item.type_ {
+                ItemType::Element => {
+                    if item.has_box_model_metrics() {
+                        return None;
+                    }
+                    if wraps && line_has_content {
+                        finish_line(&mut maximum, &mut current, &mut line_has_content);
+                    }
+                    current += item.min_content_inline_size?;
+                    line_has_content = true;
+                }
+                ItemType::Text => {
+                    if item.has_box_model_metrics() || item.contains_tab(self) {
+                        return None;
+                    }
+                    if item.length_in_node == 0 && item.inline_size == CssPixels::default() {
+                        continue;
+                    }
+                    let wraps = self.style(self.parent_node(item.node)).text_wrap_mode() == text_wrap_mode::WRAP;
+                    if !wraps {
+                        current += item.inline_size;
+                        line_has_content = true;
+                        continue;
+                    }
+                    if item.is_ascii_whitespace(self) {
+                        if !item.is_collapsible_whitespace {
+                            return None;
+                        }
+                        if line_has_content {
+                            finish_line(&mut maximum, &mut current, &mut line_has_content);
+                        }
+                        continue;
+                    }
+                    if item.trailing_whitespace.inline_size != CssPixels::default() {
+                        return None;
+                    }
+                    if item.can_break_before && line_has_content {
+                        finish_line(&mut maximum, &mut current, &mut line_has_content);
+                    }
+                    current += item.inline_size;
+                    line_has_content = true;
+                }
+                ItemType::ForcedBreak => {
+                    finish_line(&mut maximum, &mut current, &mut line_has_content);
+                }
+                ItemType::BlockLevelBox | ItemType::AbsolutelyPositionedElement | ItemType::FloatingElement => {
+                    return None;
+                }
+            }
+        }
+        finish_line(&mut maximum, &mut current, &mut line_has_content);
+        Some(maximum)
+    }
+
     pub(crate) fn generate_line_boxes(&mut self) {
         let mut iterator = InlineLevelIterator::new(self);
+        self.min_content_inline_size_from_max_content_layout =
+            self.min_content_inline_size_from_max_content_items(iterator.items());
         self.fragmented_inlines_in_pre_order = iterator.take_visited_fragmented_inlines();
         let (reused_lines, reused_item_count) = self
             .run
@@ -1218,8 +1312,7 @@ impl<'context> InlineFormattingContext<'context> {
                 ItemType::Text => {
                     line_builder.prepare_to_append_inline_content();
                     if self.style(self.parent_node(item.node)).text_wrap_mode() == text_wrap_mode::WRAP {
-                        let is_whitespace =
-                            item.is_collapsible_whitespace || iterator.item_is_ascii_whitespace(self, &item);
+                        let is_whitespace = item.is_collapsible_whitespace || item.is_ascii_whitespace(self);
                         let next_inline_size = if is_whitespace {
                             iterator.next_non_whitespace_sequence_inline_size(self)
                         } else {
