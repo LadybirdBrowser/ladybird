@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="layout-optimization-test-matrix.js"></script>
+<iframe id="frame" width="300" height="240" srcdoc="<style>html, body { margin: 0 }</style>"></iframe>
+<script>
+    const viewportFormattingContexts = {
+        block: "display: block",
+        inlineBlock: "display: inline-block",
+        flex: "display: flex",
+        grid: "display: grid",
+    };
+
+    asyncTest(done => {
+        frame.onload = async () => {
+            const contentDocument = frame.contentDocument;
+            const contentInternals = frame.contentWindow.internals;
+            const matrix = new LayoutTestMatrix("viewport resize scenarios");
+
+            function makeElement(style = "") {
+                const element = contentDocument.createElement("div");
+                element.style.cssText = style;
+                return element;
+            }
+
+            function makeCacheChain(format, depth, leaf) {
+                let inner = leaf;
+                for (let level = depth - 1; level >= 0; --level) {
+                    const root = makeElement(
+                        `${viewportFormattingContexts[format]}; width: ${100 - level * 10}px; `
+                        + `height: ${50 - level * 5}px; overflow: hidden`);
+                    root.appendChild(inner);
+                    inner = root;
+                }
+                const shell = makeElement("width: 110px; height: 60px; overflow: hidden");
+                shell.appendChild(inner);
+                return shell;
+            }
+
+            async function resizeFrame(width, height) {
+                frame.width = width;
+                frame.height = height;
+                document.body.offsetWidth;
+                await animationFrame();
+                contentDocument.body.offsetWidth;
+            }
+
+            const cases = matrixCases({
+                format: Object.keys(viewportFormattingContexts),
+                depth: [1, 2],
+                dependency: ["vw", "vh", "absolute", "fixed"],
+            });
+            for (const testCase of cases) {
+                const label = `viewport ${JSON.stringify(testCase)}`;
+                await matrix.runAsync(label, async () => {
+                    await resizeFrame(300, 240);
+                    contentDocument.body.textContent = "";
+                    let target;
+                    if (testCase.dependency === "absolute" || testCase.dependency === "fixed") {
+                        target = makeElement("position: fixed; right: 0; top: 0; width: 10px; height: 10px");
+                        target.style.position = testCase.dependency;
+                        contentDocument.body.appendChild(makeCacheChain(testCase.format, testCase.depth, target));
+                    } else {
+                        const stable = makeElement("width: 10px; height: 10px");
+                        contentDocument.body.appendChild(makeCacheChain(testCase.format, testCase.depth, stable));
+                        target = testCase.dependency === "vw"
+                            ? makeElement("width: 50vw; height: 10px")
+                            : makeElement("width: 10px; height: 50vh");
+                        contentDocument.body.appendChild(target);
+                    }
+                    contentDocument.body.offsetWidth;
+                    const before = target.getBoundingClientRect();
+                    const hitsBefore = contentInternals.layoutRunCacheHitCount();
+                    await resizeFrame(200, 160);
+                    const after = target.getBoundingClientRect();
+                    const hitDelta = contentInternals.layoutRunCacheHitCount() - hitsBefore;
+                    println(`${label} cached: ${hitDelta >= 1 ? "yes" : "no"}`);
+                    if (testCase.dependency === "vw") {
+                        matrix.expect("width before", rounded(before.width), 150);
+                        matrix.expect("width after", rounded(after.width), 100);
+                    } else if (testCase.dependency === "vh") {
+                        matrix.expect("height before", rounded(before.height), 120);
+                        matrix.expect("height after", rounded(after.height), 80);
+                    } else {
+                        matrix.expect("left before", rounded(before.left), 290);
+                        matrix.expect("left after", rounded(after.left), 190);
+                    }
+                });
+            }
+            matrix.print();
+            done();
+        };
+    });
+</script>
