@@ -141,6 +141,7 @@ public:
     [[nodiscard]] virtual bool is_svg_svg_paintable() const { return false; }
     [[nodiscard]] virtual bool is_svg_path_paintable() const { return false; }
     [[nodiscard]] virtual bool is_svg_graphics_paintable() const { return false; }
+    [[nodiscard]] virtual bool is_svg_foreign_object_paintable() const { return false; }
 
     DOM::Document const& document() const;
     DOM::Document& document();
