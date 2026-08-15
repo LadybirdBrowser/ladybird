@@ -69,6 +69,7 @@ public:
 
     bool has_window_handle(StringView handle) const { return m_windows.contains(handle); }
 
+    Web::WebDriver::Response get_timeouts() const;
     Web::WebDriver::Response set_timeouts(JsonValue);
     Web::WebDriver::Response close_window();
     Web::WebDriver::Response switch_to_window(StringView);

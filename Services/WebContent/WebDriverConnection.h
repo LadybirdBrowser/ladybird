@@ -52,7 +52,6 @@ private:
     virtual void set_user_prompt_handler(Web::WebDriver::UserPromptHandler user_prompt_handler) override;
     virtual void set_strict_file_interactability(bool strict_file_interactability) override;
     virtual void set_is_webdriver_active(bool) override;
-    virtual Messages::WebDriverClient::GetTimeoutsResponse get_timeouts() override;
     virtual Messages::WebDriverClient::SetTimeoutsResponse set_timeouts(JsonValue payload) override;
     virtual void set_current_browsing_context_to_top_level() override;
     virtual Messages::WebDriverClient::GetCurrentUrlResponse get_current_url() override;

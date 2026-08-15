@@ -154,7 +154,7 @@ Web::WebDriver::Response Client::get_timeouts(Web::WebDriver::Parameters paramet
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session id>/timeouts");
     auto session = TRY(Session::find_session(parameters[0]));
-    return session->web_content_connection().get_timeouts();
+    return session->get_timeouts();
 }
 
 // 9.2 Set Timeouts, https://w3c.github.io/webdriver/#dfn-set-timeouts

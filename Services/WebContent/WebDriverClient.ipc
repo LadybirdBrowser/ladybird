@@ -9,7 +9,6 @@ endpoint WebDriverClient {
     set_strict_file_interactability(bool strict_file_interactability) =|
     set_is_webdriver_active(bool active) =|
     set_current_browsing_context_to_top_level() =|
-    get_timeouts() => (Web::WebDriver::Response response)
     get_current_url() => (Web::WebDriver::Response response)
     set_timeouts(JsonValue payload) => (Web::WebDriver::Response response)
     get_title() => (Web::WebDriver::Response response)
