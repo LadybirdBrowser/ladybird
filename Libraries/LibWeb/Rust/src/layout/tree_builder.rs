@@ -565,6 +565,8 @@ pub(crate) fn principal_node_entry_decision(
             SvgEntryDecision::Skip
         } else if facts.is_svg_foreign_object {
             SvgEntryDecision::EnterForeignContent
+        } else if facts.is_element && !facts.requires_svg_container && context.has_svg_root {
+            SvgEntryDecision::Skip
         } else {
             SvgEntryDecision::Continue
         };
@@ -3566,6 +3568,15 @@ mod tests {
         context.has_svg_root = false;
         let decision = principal_node_entry_decision(facts, &context);
         assert_eq!(decision.svg, SvgEntryDecision::Skip);
+
+        facts.is_svg_foreign_object = false;
+        facts.requires_svg_container = false;
+        context.has_svg_root = true;
+        let decision = principal_node_entry_decision(facts, &context);
+        assert_eq!(decision.svg, SvgEntryDecision::Skip);
+        context.has_svg_root = false;
+        let decision = principal_node_entry_decision(facts, &context);
+        assert_eq!(decision.svg, SvgEntryDecision::Continue);
     }
 
     #[test]
