@@ -90,7 +90,6 @@ enum class RootNodeComposed {
     X(LayoutTreeUpdate)                               \
     X(NavigableSetViewportSize)                       \
     X(SVGImageElementFetchTheDocument)                \
-    X(SVGImageFilterFetch)                            \
     X(SVGViewBoxChange)                               \
     X(StyleChange)                                    \
     X(TableSpanAttributeChange)
