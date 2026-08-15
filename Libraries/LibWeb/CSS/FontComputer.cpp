@@ -135,6 +135,13 @@ RefPtr<Gfx::Font const> FontLoader::font_with_point_size(float point_size, Gfx::
 
 void FontLoader::start_loading_next_url()
 {
+    // A loader that has settled must not consume another URL: its typeface is final, and fetching a
+    // further src would replace it after subscribers already saw the settled one. load_font_face()
+    // hands back an existing loader for a shared first URL, so a second FontFace can reach here after
+    // the first one finished.
+    if (m_has_completed)
+        return;
+
     // FIXME: Load local() fonts somehow.
     if (m_fetch_controller && m_fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Ongoing)
         return;
