@@ -38,10 +38,4 @@ void WebContentConnection::did_start_window_replacement(String handle)
         on_did_start_window_replacement(move(handle));
 }
 
-void WebContentConnection::did_close_window(String handle)
-{
-    if (on_did_close_window)
-        on_did_close_window(move(handle));
-}
-
 }

@@ -276,11 +276,6 @@ void WebDriverConnection::page_did_cancel_loading(Badge<PageClient>, URL::URL co
     }
 }
 
-void WebDriverConnection::page_did_close_window(Badge<PageClient>, String const& window_handle)
-{
-    async_did_close_window(window_handle);
-}
-
 void WebDriverConnection::visit_edges(JS::Cell::Visitor& visitor)
 {
     visitor.visit(m_current_browsing_context);

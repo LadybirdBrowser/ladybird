@@ -44,7 +44,6 @@ public:
     void page_did_start_window_replacement(Badge<PageClient>, String const& window_handle);
     void page_did_start_loading(Badge<PageClient>, URL::URL const& url);
     void page_did_cancel_loading(Badge<PageClient>, URL::URL const& url);
-    void page_did_close_window(Badge<PageClient>, String const& window_handle);
 
 private:
     WebDriverConnection(NonnullOwnPtr<IPC::Transport> transport, Web::PageClient& page_client);

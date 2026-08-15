@@ -1164,9 +1164,6 @@ void PageClient::page_did_close_top_level_traversable()
 {
     page().top_level_traversable()->compositor_context().stop_presenting_to_client();
 
-    if (m_webdriver)
-        m_webdriver->page_did_close_window({}, page().top_level_traversable()->window_handle().to_utf8());
-
     // FIXME: Rename this IPC call
     client().async_did_close_browsing_context(m_id);
 
