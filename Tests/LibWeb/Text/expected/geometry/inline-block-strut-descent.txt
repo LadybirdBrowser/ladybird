@@ -1,0 +1,7 @@
+empty height: 12
+text height: 10
+visible height: 24
+visible last top: 12
+hidden height: 12
+hidden last top: 12
+hidden sibling top: 0

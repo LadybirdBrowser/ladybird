@@ -7,9 +7,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TableWrapper <(anonymous)> at [8,8] flex-item [0+0+0 20 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
           Box <div.table> at [8,8] table-box [0+0+0 20 0+0+0] [0+0+0 100 0+0+0] [TFC] children: not-inline
             Box <(anonymous)> at [8,8] table-row [0+0+0 20 0+0+0] [0+0+0 100 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [8,48] table-cell [0+0+0 20 0+0+0] [0+0+40 20 40+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [8,48 20x20] baseline: 20
-                BlockContainer <span.content> at [8,48] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+              BlockContainer <div.cell> at [8,46.390625] table-cell [0+0+0 20 0+0+0] [0+0+38.390625 23.203125 38.390625+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [8,46.390625 20x20] baseline: 20
+                BlockContainer <span.content> at [8,46.390625] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.sizer> at [28,8] flex-item [0+0+0 20 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
@@ -26,9 +26,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             Box <(anonymous)> at [8,128] table-row [0+0+0 20 0+0+0] [0+0+0 80 0+0+0] children: not-inline
               BlockContainer <(anonymous)> (not painted) children: inline
                 TextNode <#text> (not painted)
-              BlockContainer <div.cell> at [8,158] table-cell [0+0+0 20 0+0+0] [0+0+30 20 30+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [8,158 20x20] baseline: 20
-                BlockContainer <span.content> at [8,158] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+              BlockContainer <div.cell> at [8,156.390625] table-cell [0+0+0 20 0+0+0] [0+0+28.390625 23.203125 28.390625+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [8,156.390625 20x20] baseline: 20
+                BlockContainer <span.content> at [8,156.390625] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.sizer> at [28,108] flex-item [0+0+0 20 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
@@ -44,8 +44,8 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         PaintableWithLines (TableWrapper(anonymous)) [8,8 20x100]
           Paintable (Box<DIV>.table) [8,8 20x100]
             Paintable (Box(anonymous)) [8,8 20x100]
-              PaintableWithLines (BlockContainer<DIV>.cell) [8,8 20x100]
-                PaintableWithLines (BlockContainer<SPAN>.content) [8,48 20x20]
+              PaintableWithLines (BlockContainer<DIV>.cell) [8,8 20x99.984375]
+                PaintableWithLines (BlockContainer<SPAN>.content) [8,46.390625 20x20]
         PaintableWithLines (BlockContainer<DIV>.sizer) [28,8 20x100]
       PaintableWithLines (BlockContainer(anonymous)) [8,108 784x0]
       Paintable (Box<DIV>.flex) [8,108 784x100]
@@ -53,8 +53,8 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           Paintable (Box<DIV>.table) [8,128 20x80]
             PaintableWithLines (BlockContainer<DIV>.caption) [8,108 20x20]
             Paintable (Box(anonymous)) [8,128 20x80]
-              PaintableWithLines (BlockContainer<DIV>.cell) [8,128 20x80]
-                PaintableWithLines (BlockContainer<SPAN>.content) [8,158 20x20]
+              PaintableWithLines (BlockContainer<DIV>.cell) [8,128 20x79.984375]
+                PaintableWithLines (BlockContainer<SPAN>.content) [8,156.390625 20x20]
         PaintableWithLines (BlockContainer<DIV>.sizer) [28,108 20x100]
       PaintableWithLines (BlockContainer(anonymous)) [8,208 784x0]
 

@@ -4,8 +4,8 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
-  FillPath@1 path_bounding_rect=[8,28 40x40]
-  FillPath@1 path_bounding_rect=[8,68 40x40]
+  FillPath@1 path_bounding_rect=[8,31 40x40]
+  FillPath@1 path_bounding_rect=[8,71 40x40]
   FillPath@1 path_bounding_rect=[8,8 40x20]
   FillPath@1 path_bounding_rect=[48,8 40x20]
 Restore@0

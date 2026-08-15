@@ -1,6 +1,6 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 38 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 22 0+0+8] children: inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 38.203125 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 22.203125 0+0+8] children: inline
       frag 0 from TextInputBox start: 0, length: 0, rect: [11,10 200x16] baseline: 19
       frag 1 from TextNode start: 0, length: 1, rect: [214,14 8x16] baseline: 12.796875
           " "
@@ -58,8 +58,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x38]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x22]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x38.203125]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x22.203125]
       PaintableWithLines (TextInputBox<INPUT>) [8,8 206x20]
         Paintable (Box<DIV>) [11,10 200x18]
           Paintable (Box<DIV>) [11,11 164x16]
@@ -94,4 +94,4 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
             PaintableWithLines (BlockContainer<DIV>) [439,11 200x16]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x38] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x38.203125] (z-index: auto)
