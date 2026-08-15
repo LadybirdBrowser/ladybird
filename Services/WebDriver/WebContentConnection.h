@@ -33,7 +33,6 @@ public:
     Function<void(Web::WebDriver::Response)> on_driver_execution_complete;
     Function<void(String)> on_did_set_window_handle;
     Function<void(String)> on_did_start_window_replacement;
-    Function<void(String)> on_did_close_window;
 
 private:
     virtual void die() override;
@@ -41,7 +40,6 @@ private:
     virtual void driver_execution_complete(Web::WebDriver::Response) override;
     virtual void did_set_window_handle(String) override;
     virtual void did_start_window_replacement(String) override;
-    virtual void did_close_window(String) override;
 };
 
 }

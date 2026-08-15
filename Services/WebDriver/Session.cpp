@@ -214,7 +214,6 @@ void Session::close()
             it.value.web_content_connection->on_driver_execution_complete = nullptr;
             it.value.web_content_connection->on_did_set_window_handle = nullptr;
             it.value.web_content_connection->on_did_start_window_replacement = nullptr;
-            it.value.web_content_connection->on_did_close_window = nullptr;
             it.value.web_content_connection->close_session();
         }
     }
