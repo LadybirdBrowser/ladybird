@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<iframe id="frame" width="300" height="200" srcdoc="
+    <style>html, body { margin: 0 }</style>
+    <div id='cached' style='width: 100px; height: 40px; overflow: hidden'>
+        <div style='width: 80px; height: 20px; overflow: hidden'></div>
+    </div>
+    <div id='dependent' style='width: 50vw; height: 10px; overflow: hidden'></div>
+"></iframe>
+<script>
+    asyncTest(done => {
+        frame.onload = async () => {
+            const contentDocument = frame.contentDocument;
+            const contentInternals = frame.contentWindow.internals;
+            contentDocument.body.offsetWidth;
+
+            const hitsBefore = contentInternals.layoutRunCacheHitCount();
+            frame.width = 200;
+            document.body.offsetWidth;
+            await new Promise(resolve => requestAnimationFrame(resolve));
+            contentDocument.body.offsetWidth;
+
+            const cached = contentDocument.getElementById("cached");
+            const dependent = contentDocument.getElementById("dependent");
+            println(`hit delta: ${contentInternals.layoutRunCacheHitCount() - hitsBefore}`);
+            println(`cached width: ${cached.offsetWidth}`);
+            println(`dependent width: ${dependent.offsetWidth}`);
+            done();
+        };
+    });
+</script>
