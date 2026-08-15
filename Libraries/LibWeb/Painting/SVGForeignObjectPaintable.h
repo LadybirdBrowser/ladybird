@@ -31,6 +31,12 @@ public:
 
 protected:
     SVGForeignObjectPaintable(Layout::SVGForeignObjectBox const&);
+
+private:
+    virtual bool is_svg_foreign_object_paintable() const override { return true; }
 };
+
+template<>
+inline bool Paintable::fast_is<SVGForeignObjectPaintable>() const { return is_svg_foreign_object_paintable(); }
 
 }
