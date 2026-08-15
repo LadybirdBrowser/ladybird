@@ -121,6 +121,7 @@ private:
 
     struct QueryContext;
     static Optional<TopmostItem> topmost_item_from(Layout::RustFFI::FfiTopmostItem const&);
+    SortingContexts const& ensure_sorting_contexts(ViewportPaintable const&) const;
     void ensure_caret_lines() const;
     [[nodiscard]] Item const& caret_item(size_t caret_item_index) const { return m_items[m_caret_item_indices[caret_item_index]]; }
 
@@ -155,6 +156,7 @@ private:
     mutable bool m_caret_lines_materialized { false };
     mutable Vector<size_t> m_caret_item_indices;
     mutable Vector<CaretLine> m_caret_lines;
+    mutable Optional<SortingContexts> m_sorting_contexts;
 };
 
 }

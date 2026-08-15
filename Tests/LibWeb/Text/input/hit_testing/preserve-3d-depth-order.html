@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<style>
+    #scene {
+        position: relative;
+        width: 200px;
+        height: 200px;
+        transform-style: preserve-3d;
+        background-color: blue;
+    }
+
+    #behind,
+    #front {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 200px;
+    }
+
+    #behind {
+        height: 200px;
+        transform: translateZ(-10px);
+        background-color: red;
+    }
+
+    #front {
+        height: 60px;
+        transform: translateZ(10px);
+        background-color: green;
+    }
+</style>
+<script src="../include.js"></script>
+<div id="scene">
+    <div id="behind"></div>
+    <div id="front"></div>
+</div>
+<script>
+    test(() => {
+        println(`Element at (100, 30): ${document.elementFromPoint(100, 30).id}`);
+        println(`Element at (100, 150): ${document.elementFromPoint(100, 150).id}`);
+        println("== Elements at (100, 30) ==");
+        for (let element of document.elementsFromPoint(100, 30)) {
+            printElement(element);
+        }
+        println("== Elements at (100, 150) ==");
+        for (let element of document.elementsFromPoint(100, 150)) {
+            printElement(element);
+        }
+    });
+</script>

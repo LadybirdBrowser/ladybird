@@ -181,12 +181,21 @@ CSSPixelRect HitTestDisplayList::viewport_rect_for_context(VisualContextIndex vi
     return result.scaled(1.0f / pixel_ratio).to_type<CSSPixels>();
 }
 
+SortingContexts const& HitTestDisplayList::ensure_sorting_contexts(ViewportPaintable const& viewport_paintable) const
+{
+    // The version check at every entry point guarantees the tree still matches this list.
+    if (!m_sorting_contexts.has_value())
+        m_sorting_contexts = viewport_paintable.visual_context_tree().resolve_sorting_contexts();
+    return *m_sorting_contexts;
+}
+
 struct HitTestDisplayList::QueryContext {
     HitTestDisplayList const& list;
     ViewportPaintable const* viewport_paintable { nullptr };
     double device_pixels_per_css_pixel { 1 };
     ChromeMetrics const* chrome_metrics { nullptr };
     GC::Ptr<DOM::Node const> scope { nullptr };
+    HashMap<size_t, Optional<i64>> depth_key_by_plane {};
 
     Layout::RustFFI::FfiHitTestQueryCallbacks callbacks()
     {
@@ -225,6 +234,39 @@ struct HitTestDisplayList::QueryContext {
                 auto& context = *static_cast<QueryContext*>(context_pointer);
                 VERIFY(context.scope);
                 return context.list.line_contains_descendant_of(context.list.m_caret_lines[line_index], *context.scope);
+            },
+            .sorting_context_group = [](void* context_pointer, size_t index, size_t* out) -> bool {
+                auto& context = *static_cast<QueryContext*>(context_pointer);
+                VERIFY(context.viewport_paintable);
+                auto const& sorting_contexts = context.list.ensure_sorting_contexts(*context.viewport_paintable);
+                if (sorting_contexts.is_empty() || sorting_contexts.leaf_by_node[index] == NO_SORTING_CONTEXT)
+                    return false;
+                *out = sorting_contexts.outermost_context_of(sorting_contexts.context_by_node[index]).value();
+                return true;
+            },
+            .plane_depth_key = [](void* context_pointer, size_t index, i32 x_raw, i32 y_raw, i64* out) -> bool {
+                auto& context = *static_cast<QueryContext*>(context_pointer);
+                VERIFY(context.viewport_paintable);
+                auto const& sorting_contexts = context.list.ensure_sorting_contexts(*context.viewport_paintable);
+                if (sorting_contexts.is_empty())
+                    return false;
+                auto leaf = sorting_contexts.leaf_by_node[index];
+                if (leaf == NO_SORTING_CONTEXT)
+                    return false;
+                // The plane's depth is the same for every query against one point, so it is resolved once.
+                auto depth_key = context.depth_key_by_plane.ensure(leaf.value(), [&]() -> Optional<i64> {
+                    CSSPixelPoint point { CSSPixels::from_raw(x_raw), CSSPixels::from_raw(y_raw) };
+                    auto device_point = point.to_type<float>() * static_cast<float>(context.device_pixels_per_css_pixel);
+                    auto depth = context.viewport_paintable->visual_context_tree().plane_depth_at_point_for_hit_test(leaf, device_point, context.viewport_paintable->scroll_state_snapshot());
+                    if (!depth.has_value())
+                        return {};
+                    static constexpr float depth_limit = 16777216.0f;
+                    return llround(clamp(*depth, -depth_limit, depth_limit) * 8.0f);
+                });
+                if (!depth_key.has_value())
+                    return false;
+                *out = *depth_key;
+                return true;
             },
         };
     }
@@ -661,6 +703,8 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
 
     // First find both the topmost hit-test item and the topmost item that can directly produce a caret.
     // Non-caret items are still needed to keep later line fallback scoped to the hit content.
+    // FIXME: Caret placement compares items by record order alone, ignoring the depth-sorted paint order of
+    //        planes inside 3D rendering contexts.
     Optional<TopmostItem> topmost_item;
     Optional<TopmostItem> topmost_hit_item;
     find_topmost_items_for_caret(point, viewport_paintable, device_pixels_per_css_pixel, chrome_metrics, topmost_item, topmost_hit_item);

@@ -150,6 +150,9 @@ struct SortingContexts {
     HashMap<size_t, SortingContextLink> links;
     Vector<VisualContextIndex> leaf_by_node;
     Vector<VisualContextIndex> context_by_node;
+
+    bool is_empty() const { return leaf_by_node.is_empty(); }
+    VisualContextIndex outermost_context_of(VisualContextIndex) const;
 };
 
 class AccumulatedVisualContextTree {
@@ -193,6 +196,7 @@ public:
     bool root_is_visual_viewport() const { return m_root_is_visual_viewport; }
 
     SortingContexts resolve_sorting_contexts() const;
+    Optional<float> plane_depth_at_point_for_hit_test(VisualContextIndex plane_node_index, Gfx::FloatPoint, ScrollStateSnapshot const&) const;
     Optional<Gfx::FloatPoint> transform_point_for_hit_test(VisualContextIndex, Gfx::FloatPoint, ScrollStateSnapshot const&, ClipBehavior = ClipBehavior::Respect) const;
     Gfx::FloatPoint inverse_transform_point(VisualContextIndex, Gfx::FloatPoint) const;
     Gfx::FloatRect transform_rect_to_viewport(VisualContextIndex, Gfx::FloatRect const&, ScrollStateSnapshot const&, IncludeVisualViewportTransform = IncludeVisualViewportTransform::Yes) const;

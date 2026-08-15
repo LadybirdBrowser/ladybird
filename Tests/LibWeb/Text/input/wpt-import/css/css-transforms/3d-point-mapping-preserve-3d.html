@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<title>Point mapping through 3D transform hierarchies</title>
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-document-elementfrompoint">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style type="text/css" media="screen">
+  body {
+    margin: 0;
+    border: 1px solid black;
+  }
+
+  .test {
+    position: absolute;
+    height: 200px;
+    width: 200px;
+    border: 1px solid black;
+    margin: 20px;
+  }
+
+  .top-left {
+    top: 1px;
+	  left: 1px;
+  }
+
+  .top-middle {
+    top: 1px;
+    left: 247px;
+  }
+
+  .top-right {
+    top: 1px;
+	  left: 493px;
+  }
+
+  .bottom-left {
+    top: 247px;
+	  left: 1px;
+  }
+
+  .bottom-middle {
+    top: 247px;
+	  left: 247px;
+  }
+
+  .bottom-right {
+    top: 247px;
+	  left: 493px;
+  }
+
+  .light-gray-box {
+    height: 140px;
+    width: 140px;
+    margin: 20px;
+    box-sizing: border-box;
+    background-color: #DDD;
+    border: 1px solid black;
+    perspective: 400px;
+  }
+
+  .light-green-box {
+    position: relative;
+    height: 100px;
+    width: 100px;
+    padding: 20px;
+    margin: 20px;
+    border: 1px solid black;
+    background-color: #81AA8A;
+    transform-style: preserve-3d;
+    box-sizing: border-box;
+    transform: rotateY(-30deg);
+  }
+
+  .light-yellow-box {
+    position: relative;
+    height: 100px;
+    width: 100px;
+    padding: 20px;
+    margin: 20px;
+    border: 1px solid black;
+    background-color: rgb(242, 242, 122);
+    transform-style: preserve-3d;
+    box-sizing: border-box;
+    transform: rotateY(-30deg);
+  }
+
+  .medium-blue-box {
+    background-color: blue;
+    height: 90px;
+    width: 90px;
+    box-sizing: border-box;
+    border: 1px solid black;
+  }
+
+  .light-rose-box {
+    position: relative;
+    height: 100px;
+    width: 100px;
+    padding: 20px;
+    margin: 20px;
+    border: 1px solid black;
+    background-color: #AA7994;
+    box-sizing: border-box;
+    transform-style: flat;
+    transform: rotateX(-20deg);
+  }
+</style>
+
+<body>
+<div class="test top-left">
+  <!-- Simple transformed div in perspective; preserve-3d on leaf -->
+  <div class="light-gray-box" id="top-left-light-gray">
+    <div class="light-green-box" id="top-left-light-green">
+    </div>
+  </div>
+</div>
+
+<div class="test top-middle">
+  <!-- Transformed, preserve-3d div in perspective with non-layer child -->
+  <div class="light-gray-box" id="top-middle-light-gray">
+    <div class="light-green-box" id="top-middle-light-green">
+      <div class="medium-blue-box" id="top-middle-medium-blue">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="test top-right">
+  <!-- Transformed, preserve-3d div in perspective with layer child -->
+  <div class="light-gray-box" id="top-right-light-gray">
+    <div class="light-green-box" id="top-right-light-green">
+      <div class="medium-blue-box" style="position: relative" id="top-right-medium-blue">
+      </div>
+    </div>
+  </div>
+</div>
+<div class="test bottom-left">
+  <!-- Nested transformed, preserve-3d divs in perspective -->
+  <div class="light-gray-box" id="bottom-left-light-gray">
+    <div class="light-green-box" id="bottom-left-light-green">
+      <div class="light-yellow-box" style="transform: translateZ(20px) rotateY(50deg)" id="bottom-left-light-yellow">
+      </div>
+    </div>
+  </div>
+</div>
+<div class="test bottom-middle">
+  <!-- Transformed, preserve-3d div in perspective with non-layer child -->
+  <div class="light-gray-box" id="bottom-middle-light-gray">
+    <div class="light-green-box" id="bottom-middle-light-green">
+      <div class="light-yellow-box" style="transform: translateZ(10px) rotateY(50deg)" id="bottom-middle-light-yellow">
+        <div class="medium-blue-box" id="bottom-middle-medium-blue">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="test bottom-right">
+  <!-- Flatten in the middle of 3d -->
+  <div class="light-gray-box" id="bottom-right-light-gray">
+    <div class="light-green-box" id="bottom-right-light-green">
+      <div class="light-yellow-box" style="transform: translateZ(10px) rotateY(20deg)" id="bottom-right-light-yellow">
+        <div class="light-rose-box" id="bottom-right-light-rose">
+          <div class="medium-blue-box" id="bottom-right-medium-blue">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+
+<script>
+  class Point {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+    }
+  }
+  // Each test case defines four test points near the corners of an element.
+  // - Point 1: Top-left
+  // - Point 2: Top-right
+  // - Point 3: Bottom-left
+  // - Point 4: Bottom-right
+  const tests = [
+    {
+      expectedElemId: "top-left-light-gray",
+      points: [
+        new Point(64, 64),  // Inside top-left-light-green without rotateY transform.
+        new Point(176, 44),
+        new Point(64, 160), // Inside top-left-light-green without rotateY transform.
+        new Point(176, 174),
+      ]
+    },
+    {
+      expectedElemId: "top-left-light-green",
+      points: [
+        new Point(76, 67),
+        new Point(154, 61),
+        new Point(76, 154),
+        new Point(154, 160),
+      ],
+    },
+    {
+      expectedElemId: "top-middle-light-gray",
+      points: [
+        new Point(313, 64),  // Inside top-middle-light-green without rotateY transform.
+        new Point(420, 45),
+        new Point(313, 156), // Inside top-middle-light-green without rotateY transform.
+        new Point(420, 174),
+      ],
+    },
+    {
+      expectedElemId: "top-middle-light-green",
+      points: [
+        new Point(323, 67),
+        new Point(399, 62),
+        new Point(324, 153),
+        // Overlapping with top-middle-medium-blue.
+      ],
+    },
+    {
+      expectedElemId: "top-middle-medium-blue",
+      points: [
+        new Point(337, 86),
+        new Point(411, 84),
+        new Point(337, 166),
+        new Point(411, 173),
+      ],
+    },
+    {
+      expectedElemId: "top-right-light-gray",
+      points: [
+        new Point(558, 64),  // Inside top-right-light-green without rotateY transform.
+        new Point(667, 46),
+        new Point(558, 156), // Inside top-right-light-green without rotateY transform.
+        new Point(667, 174),
+      ],
+    },
+    {
+      expectedElemId: "top-right-light-green",
+      points: [
+        new Point(570, 68),
+        new Point(645, 63),
+        new Point(570, 154),
+        // Overlapping with top-right-medium-blue.
+      ],
+    },
+    {
+      expectedElemId: "top-right-medium-blue",
+      points: [
+        new Point(586, 86),
+        new Point(656, 84),
+        new Point(584, 164),
+        new Point(656, 151),
+      ],
+    },
+    {
+      expectedElemId: "bottom-left-light-gray",
+      points: [
+        new Point(68, 312), // Inside bottom-left-light-green without rotateY transform.
+        new Point(175, 291),
+        new Point(68, 407), // Inside bottom-left-light-green without rotateY transform.
+        // Overlapping with bottom-left-light-yellow.
+      ],
+    },
+    {
+      expectedElemId: "bottom-left-light-green",
+      points: [
+        new Point(76, 314),
+        new Point(152, 309),
+        new Point(77, 399),
+        // Overlapping with bottom-left-light-yellow.
+      ],
+    },
+    {
+      expectedElemId: "bottom-left-light-yellow",
+      points: [
+        new Point(94, 351), // Inside bottom-left-light-green without translateZ and rotateY transform.
+        new Point(181, 352),
+        new Point(92, 456), // Inside main document without translateZ and rotateY transform.
+        new Point(182, 446),
+      ],
+    },
+    {
+      expectedElemId: "bottom-middle-light-gray",
+      points: [
+        new Point(315, 312), // Inside bottom-middle-light-green without rotateY transform.
+        new Point(422, 292),
+        new Point(315, 404), // Inside bottom-middle-light-green without rotateY transform.
+        // Overlapping with bottom-middle-light-yellow and bottom-middle-medium-blue.
+      ],
+    },
+    {
+      expectedElemId: "bottom-middle-light-green",
+      points: [
+        new Point(323, 314),
+        new Point(400, 308),
+        new Point(323, 400),
+        // Overlapping with bottom-middle-light-yellow and bottom-middle-medium-blue.
+      ],
+    },
+    {
+      expectedElemId: "bottom-middle-light-yellow",
+      points: [
+        new Point(346, 352), // Inside bottom-middle-light-green without translateZ and rotateY transform.
+        new Point(431, 354),
+        new Point(344, 453), // Inside main document without translateZ and rotateY transform.
+        // Overlapping with bottom-middle-medium-blue.
+
+      ],
+    },
+    {
+      expectedElemId: "bottom-middle-medium-blue",
+      points: [
+        new Point(365, 373),
+        new Point(444, 373),
+        new Point(365, 465),
+        new Point(444, 456),
+      ],
+    },
+    {
+      expectedElemId: "bottom-right-light-gray",
+      points: [
+        new Point(559, 310), // Inside bottom-right-light-green without rotateY transform.
+        new Point(670, 291),
+        new Point(561, 404), // Inside bottom-right-light-green without rotateY transform.
+        // Overlapping with bottom-right-light-yellow and bottom-right-light-rose.
+      ],
+    },
+    {
+      expectedElemId: "bottom-right-light-green",
+      points: [
+        new Point(570, 315),
+        new Point(644, 309),
+        new Point(570, 400),
+      ],
+    },
+    {
+      expectedElemId: "bottom-right-light-yellow",
+      points: [
+        new Point(588, 354), // Inside bottom-right-light-green without translateZ and rotateY transform.
+        new Point(687, 352), // Inside main document without translateZ and rotateY transform.
+        new Point(588, 445), // Inside main document without translateZ and rotateY transform.
+        new Point(685, 452), // Inside bottom-right-medium-blue without child light-rose-box applies rotateX transformation.
+      ],
+    },
+    {
+      expectedElemId: "bottom-right-light-rose",
+      points: [
+        new Point(632, 400),
+        new Point(734, 404),
+        new Point(636, 484),
+        // Overlapping with bottom-right-medium-blue.
+      ],
+    },
+    {
+      expectedElemId: "bottom-right-medium-blue",
+      points: [
+        new Point(656, 422),
+        new Point(748, 424),
+        new Point(656, 494),
+        new Point(744, 500),
+      ],
+    },
+
+  ];
+
+  tests.forEach((testcase) => {
+    test(() => {
+      const expectedElem = document.getElementById(testcase.expectedElemId);
+      for (const point of testcase.points) {
+        const hitElem = document.elementFromPoint(point.x, point.y);
+        assert_equals(
+          hitElem,
+          expectedElem,
+          `point (${point.x}, ${point.y}) is inside element ${testcase.expectedElemId}`
+        );
+      }
+    }, `${document.title}, hittesting ${testcase.expectedElemId}`);
+  });
+</script>

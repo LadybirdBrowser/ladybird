@@ -151,13 +151,75 @@ impl HitTestList {
         (topmost_hit, topmost_caret)
     }
 
+    // Planes of a 3D rendering context paint depth sorted, so the front-most plane at the point wins over a
+    // plane recorded later. Coplanar planes compare equal and fall back to record order.
+    fn depth_sort_key(
+        &self,
+        callbacks: &FfiHitTestQueryCallbacks,
+        point: CssPixelPoint,
+        item_index: usize,
+    ) -> (Option<i64>, usize) {
+        (
+            callbacks.plane_depth_key(self.items[item_index].visual_context_index, point),
+            item_index,
+        )
+    }
+
+    fn topmost_item_by_plane_depth(
+        &self,
+        paintables: &PaintableArena,
+        callbacks: &FfiHitTestQueryCallbacks,
+        point: CssPixelPoint,
+        topmost: TopmostItem,
+    ) -> TopmostItem {
+        let Some(group) = callbacks.sorting_context_group(self.items[topmost.index].visual_context_index) else {
+            return topmost;
+        };
+        let mut winner = topmost;
+        for &visual_context_index in &self.used_visual_context_indices {
+            if callbacks.sorting_context_group(visual_context_index) != Some(group) {
+                continue;
+            }
+            let Some(local) = local_float_point(callbacks, visual_context_index, point, true) else {
+                continue;
+            };
+            let local_point = to_css_point(local);
+            for candidate_list in self
+                .candidate_item_lists(visual_context_index, local_point)
+                .into_iter()
+                .flatten()
+            {
+                for item_index in candidate_list {
+                    if *item_index == winner.index
+                        || !self.item_contains(paintables, callbacks, &self.items[*item_index], local)
+                    {
+                        continue;
+                    }
+                    if self.depth_sort_key(callbacks, point, *item_index)
+                        > self.depth_sort_key(callbacks, point, winner.index)
+                    {
+                        winner = TopmostItem {
+                            index: *item_index,
+                            local_point,
+                        };
+                    }
+                }
+            }
+        }
+        winner
+    }
+
     pub fn find_topmost_item(
         &mut self,
         paintables: &PaintableArena,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
     ) -> Option<TopmostItem> {
-        self.find_topmost(paintables, callbacks, point, false).0
+        let topmost = self.find_topmost(paintables, callbacks, point, false).0?;
+        // Record order misranks content inside a 3D rendering context, whose planes paint depth sorted. A winner
+        // on such a plane is re-resolved against every hit plane of its outermost context. Content outside the
+        // context keeps record order, which stays correct because a context's items are recorded contiguously.
+        Some(self.topmost_item_by_plane_depth(paintables, callbacks, point, topmost))
     }
 
     pub fn find_topmost_items_for_caret(
@@ -198,6 +260,31 @@ impl HitTestList {
         }
         hit_item_indices.sort_by(|a, b| b.cmp(a));
         hit_item_indices.dedup();
+        self.sort_hits_within_sorting_contexts(callbacks, point, &mut hit_item_indices);
         hit_item_indices
+    }
+
+    // Runs of hits on the planes of one 3D rendering context are reordered front to back. A context's items
+    // are recorded contiguously, so after the record-order sort its hits sit adjacent.
+    fn sort_hits_within_sorting_contexts(
+        &self,
+        callbacks: &FfiHitTestQueryCallbacks,
+        point: CssPixelPoint,
+        hit_item_indices: &mut [usize],
+    ) {
+        let group_of = |item_index: usize| callbacks.sorting_context_group(self.items[item_index].visual_context_index);
+        let mut run_begin = 0;
+        while run_begin < hit_item_indices.len() {
+            let group = group_of(hit_item_indices[run_begin]);
+            let mut run_end = run_begin + 1;
+            if group.is_some() {
+                while run_end < hit_item_indices.len() && group_of(hit_item_indices[run_end]) == group {
+                    run_end += 1;
+                }
+                hit_item_indices[run_begin..run_end]
+                    .sort_by_key(|item_index| std::cmp::Reverse(self.depth_sort_key(callbacks, point, *item_index)));
+            }
+            run_begin = run_end;
+        }
     }
 }
