@@ -200,6 +200,7 @@ pub(crate) struct BlockFormattingContext {
     fragments: Option<std::rc::Rc<RunFragmentBuilder>>,
     should_collect_devtools_layout_data: bool,
     treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
+    previous_line_data: Option<std::rc::Rc<LineData>>,
 }
 
 impl BlockFormattingContext {
@@ -224,6 +225,7 @@ impl BlockFormattingContext {
             table_box_in_wrapper_border_box_block_size: Cell::new(None),
             should_collect_devtools_layout_data: run.should_collect_devtools_layout_data,
             treat_block_axis_percentage_insets_as_auto_beyond_root: run.treat_block_axis_percentage_insets_as_auto_beyond_root,
+            previous_line_data: run.previous_line_data.clone(),
         }
     }
 
@@ -237,6 +239,7 @@ impl BlockFormattingContext {
             should_collect_devtools_layout_data: self.should_collect_devtools_layout_data,
             treat_block_axis_percentage_insets_as_auto_beyond_root: self.treat_block_axis_percentage_insets_as_auto_beyond_root,
             fragments: self.fragments.clone(),
+            previous_line_data: self.previous_line_data.clone(),
         }
     }
 

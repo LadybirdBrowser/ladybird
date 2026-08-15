@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #container {
+        display: inline-block;
+        width: 40px;
+        font-size: 0;
+    }
+    .item {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+    }
+</style>
+<div id="container"></div>
+<script>
+    function appendItem(id) {
+        const item = document.createElement("span");
+        item.className = "item";
+        item.id = id;
+        container.appendChild(item);
+        return item;
+    }
+
+    asyncTest(async (done) => {
+        for (let i = 0; i < 12; ++i)
+            appendItem(`item-${i}`);
+        document.body.offsetHeight;
+
+        const inserted = document.createElement("span");
+        inserted.className = "item";
+        inserted.id = "inserted";
+        container.insertBefore(inserted, document.getElementById("item-10"));
+        document.body.offsetHeight;
+
+        println(`after insert: ${container.offsetWidth}x${container.offsetHeight}`);
+        println(`inserted: ${inserted.offsetLeft},${inserted.offsetTop}`);
+        println(`last: ${document.getElementById("item-11").offsetLeft},${document.getElementById("item-11").offsetTop}`);
+
+        inserted.remove();
+        document.body.offsetHeight;
+
+        println(`after remove: ${container.offsetWidth}x${container.offsetHeight}`);
+        println(`last: ${document.getElementById("item-11").offsetLeft},${document.getElementById("item-11").offsetTop}`);
+        done();
+    });
+</script>

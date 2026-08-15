@@ -1183,6 +1183,7 @@ impl GridFormattingContext {
             should_collect_devtools_layout_data: self.should_collect_devtools_layout_data,
             treat_block_axis_percentage_insets_as_auto_beyond_root: self.treat_block_axis_percentage_insets_as_auto_beyond_root,
             fragments: self.fragments.clone(),
+            previous_line_data: None,
         }
     }
 
@@ -2509,6 +2510,7 @@ impl GridFormattingContext {
             should_collect_devtools_layout_data: false,
             treat_block_axis_percentage_insets_as_auto_beyond_root: false,
             fragments: None,
+            previous_line_data: None,
         };
         let mut context = GridFormattingContext::new(&scratch_run, Some(self));
         let mut available = self.available_space.unwrap();

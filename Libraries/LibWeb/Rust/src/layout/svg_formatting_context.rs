@@ -402,6 +402,7 @@ impl SvgFormattingContext {
             should_collect_devtools_layout_data: self.should_collect_devtools_layout_data,
             treat_block_axis_percentage_insets_as_auto_beyond_root: self.treat_block_axis_percentage_insets_as_auto_beyond_root,
             fragments: self.fragments.clone(),
+            previous_line_data: None,
         }
     }
 

@@ -1,0 +1,5 @@
+after insert: 40x40
+inserted: 20,20
+last: 0,30
+after remove: 40x30
+last: 30,20

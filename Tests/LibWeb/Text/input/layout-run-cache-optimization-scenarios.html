@@ -171,7 +171,7 @@
 
     function runInlineDamageMatrix(matrix) {
         const cases = matrixCases({
-            mutation: ["insert", "remove"],
+            mutation: ["insert", "remove", "moveEarlier", "moveLater"],
             width: [30, 40, 50],
             position: [1, 6, 10],
             ancestorDepth: [0, 1, 2],
@@ -193,9 +193,19 @@
                         item.className = "inline-item";
                         item.dataset.key = "inserted";
                         subject.itemParent.insertBefore(item, subject.itemParent.children[testCase.position]);
-                    } else {
+                    } else if (testCase.mutation === "remove") {
                         finalKeys.splice(testCase.position, 1);
                         subject.itemParent.children[testCase.position].remove();
+                    } else {
+                        const [movedKey] = finalKeys.splice(testCase.position, 1);
+                        const movedItem = subject.itemParent.children[testCase.position];
+                        if (testCase.mutation === "moveEarlier") {
+                            finalKeys.unshift(movedKey);
+                            subject.itemParent.prepend(movedItem);
+                        } else {
+                            finalKeys.push(movedKey);
+                            subject.itemParent.append(movedItem);
+                        }
                     }
 
                     control = makeInlineContainer(finalKeys, testCase.width, testCase.ancestorDepth);

@@ -66,9 +66,15 @@ pub(crate) struct LineBuilder<'builder, 'context> {
 
 impl<'builder, 'context> LineBuilder<'builder, 'context> {
     pub(crate) fn new(context: &'builder InlineFormattingContext<'context>) -> Self {
+        let mut builder = Self::initialized(context);
+        builder.begin_new_line(false, true, ForcedBreak::No);
+        builder
+    }
+
+    fn initialized(context: &'builder InlineFormattingContext<'context>) -> Self {
         let style = context.style(context.containing_block);
         let containing_inline_size = context.input.containing_block_constraints.inline_basis();
-        let mut builder = Self {
+        Self {
             context,
             available_inline_size_for_current_line: AvailableSize::Indefinite,
             current_block_offset: CssPixels::default(),
@@ -83,8 +89,20 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             should_advance_to_last_line_box_block_end: false,
             current_line_committed_pending_margin: false,
             pending_margin_follows_block_level_box: false,
-        };
+        }
+    }
+
+    pub(crate) fn new_after_reused_lines(context: &'builder InlineFormattingContext<'context>) -> Self {
+        assert!(!context.line_data().line_boxes.is_empty());
+        let current_block_offset = context.line_data().line_boxes.last().unwrap().physical_vertical_end();
+        let mut builder = Self::initialized(context);
+        builder.current_block_offset = current_block_offset;
+        context
+            .line_data_mut()
+            .line_boxes
+            .push(LineBoxData::new(builder.direction, builder.writing_mode));
         builder.begin_new_line(false, true, ForcedBreak::No);
+        builder.current_line_committed_pending_margin = true;
         builder
     }
 

@@ -153,7 +153,15 @@ void* Node::arena_handle() const
 
 void Node::synchronize_topology()
 {
-    m_data->parent = slot_id(Base::parent_ptr());
+    auto old_parent = m_data->parent;
+    auto new_parent = slot_id(Base::parent_ptr());
+    if (old_parent.index != new_parent.index) {
+        if (old_parent.index != RustFFI::NodeSlotId_INVALID.index)
+            node_arena().note_inline_layout_damage(old_parent);
+        if (new_parent.index != RustFFI::NodeSlotId_INVALID.index)
+            node_arena().note_inline_layout_damage(new_parent);
+    }
+    m_data->parent = new_parent;
     m_data->first_child = slot_id(Base::first_child_ptr());
     m_data->last_child = slot_id(Base::last_child_ptr());
     m_data->previous_sibling = slot_id(Base::previous_sibling_ptr());
