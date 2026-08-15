@@ -220,6 +220,7 @@ private:
     virtual void did_close_browsing_context(u64 page_id) override;
     virtual void did_change_needs_beforeunload_check(u64 page_id, bool needs_beforeunload_check) override;
     virtual void webdriver_user_prompt_handling_complete(u64 page_id, u64 request_id, Web::WebDriver::Response response) override;
+    virtual void webdriver_command_complete(u64 page_id, u64 command_id, Web::WebDriver::Response response) override;
     virtual void did_update_resource_count(u64 page_id, i32 count_waiting) override;
     virtual void did_request_restore_window(u64 page_id) override;
     virtual void did_request_reposition_window(u64 page_id, Gfx::IntPoint) override;

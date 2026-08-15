@@ -80,7 +80,8 @@ private:
     virtual void close_server() override;
     virtual Messages::WebContentServer::GetWindowHandleResponse get_window_handle(u64 page_id) override;
     virtual void set_window_handle(u64 page_id, String handle) override;
-    virtual void connect_to_webdriver(u64 page_id, ByteString webdriver_endpoint) override;
+    virtual void run_webdriver_command(u64 page_id, u64 command_id, String name, JsonValue payload, Vector<String> arguments) override;
+    virtual void set_webdriver_session_config(u64 page_id, Web::WebDriver::UserPromptHandler user_prompt_handler, Web::WebDriver::PageLoadStrategy page_load_strategy, bool strict_file_interactability, JsonValue timeouts) override;
     virtual void run_webdriver_user_prompt_handling(u64 page_id, u64 request_id) override;
     virtual void connect_to_web_ui(u64 page_id, IPC::TransportHandle handle) override;
     virtual void connect_to_request_server(IPC::TransportHandle handle) override;

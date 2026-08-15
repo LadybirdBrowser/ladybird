@@ -42,15 +42,11 @@ static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint,
 {
     Vector<ByteString> arguments;
 #if defined(AK_OS_MACOS)
-    arguments.append("--webdriver-mach-server-name"sv);
-    arguments.append(webdriver_endpoint);
     arguments.append("--webdriver-browser-mach-server-name"sv);
 #else
-    arguments.append("--webdriver-content-path"sv);
-    arguments.append(webdriver_endpoint);
     arguments.append("--webdriver-browser-path"sv);
 #endif
-    arguments.append(ByteString::formatted("{}.browser", webdriver_endpoint));
+    arguments.append(webdriver_endpoint);
 
     Vector<ByteString> certificate_args;
     for (auto const& certificate : certificates) {

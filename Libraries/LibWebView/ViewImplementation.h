@@ -10,6 +10,7 @@
 #include <AK/Forward.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
@@ -65,6 +66,7 @@
 #include <LibWebView/Settings.h>
 #include <LibWebView/StorageSetResult.h>
 #include <LibWebView/WebContentClient.h>
+#include <LibWebView/WebDriverSessionConfig.h>
 
 namespace WebView {
 
@@ -323,6 +325,10 @@ public:
     String ui_process_session_history_for_testing(Badge<WebContentClient>) const;
     JsonValue webdriver_session_history() const;
     void wait_for_webdriver_navigation_completion(Optional<u64> page_load_timeout, Function<void(Web::WebDriver::Response)>);
+    void apply_webdriver_session_config(WebDriverSessionConfig const&);
+    void run_webdriver_content_command(u64 command_id, String const& name, JsonValue payload, Vector<String> arguments);
+    void did_complete_webdriver_content_command(Badge<WebContentClient>, u64 command_id, Web::WebDriver::Response);
+    void did_close_browsing_context(Badge<WebContentClient>);
     void run_webdriver_user_prompt_handling(Function<void(Web::WebDriver::Response)> on_complete);
     void did_complete_webdriver_user_prompt_handling(Badge<WebContentClient>, u64 request_id, Web::WebDriver::Response);
     static Optional<ViewImplementation&> find_view_by_handle(StringView);
@@ -710,6 +716,8 @@ protected:
 
     u64 m_next_webdriver_user_prompt_request_id { 0 };
     HashMap<u64, Function<void(Web::WebDriver::Response)>> m_pending_webdriver_user_prompt_requests;
+    HashTable<u64> m_pending_webdriver_command_ids;
+    HashTable<u64> m_pending_webdriver_crash_command_ids;
 
     Web::HTML::AudioPlayState m_audio_play_state { Web::HTML::AudioPlayState::Paused };
     size_t m_number_of_elements_playing_audio { 0 };

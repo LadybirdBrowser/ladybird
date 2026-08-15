@@ -27,9 +27,9 @@
 #include <LibWeb/WebDriver/Capabilities.h>
 #include <LibWeb/WebDriver/Error.h>
 #include <LibWeb/WebDriver/Response.h>
+#include <LibWeb/WebDriver/TimeoutsConfiguration.h>
 #include <WebDriver/BrowserConnection.h>
 #include <WebDriver/Client.h>
-#include <WebDriver/WebContentConnection.h>
 
 namespace WebDriver {
 
@@ -48,17 +48,7 @@ public:
 
     struct Window {
         String handle;
-        RefPtr<WebContentConnection> web_content_connection;
     };
-
-    WebContentConnection& web_content_connection() const
-    {
-        auto current_window = m_windows.get(m_current_window_handle);
-        VERIFY(current_window.has_value());
-        VERIFY(current_window->web_content_connection);
-
-        return *current_window->web_content_connection;
-    }
 
     void close();
 
@@ -85,47 +75,8 @@ public:
     Web::WebDriver::Response traverse_history(i32 delta, HandleUserPrompts);
     Web::WebDriver::Response session_history();
     Web::WebDriver::Response load_url(URL::URL);
+    Web::WebDriver::Response run_content_command(StringView name, JsonValue payload = {}, Vector<String> arguments = {});
     ErrorOr<void, Web::WebDriver::Error> ensure_current_window_handle_is_valid() const;
-    ErrorOr<bool, Web::WebDriver::Error> wait_for_current_window_to_have_web_content_connection();
-
-    void drop_current_window_web_content_connection(WebContentConnection const&);
-
-    enum class WebContentReplacement {
-        Disallow,
-        Allow,
-    };
-
-    template<typename Action>
-    Web::WebDriver::Response perform_async_action(Action&& action, WebContentReplacement web_content_replacement = WebContentReplacement::Disallow)
-    {
-        Optional<Web::WebDriver::Response> response;
-        RefPtr connection { &web_content_connection() };
-
-        ScopeGuard guard { [&]() { connection->on_driver_execution_complete = nullptr; } };
-        connection->on_driver_execution_complete = [&](auto result) { response = move(result); };
-
-        TRY(action(*connection));
-
-        Core::EventLoop::current().spin_until([&]() {
-            if (response.has_value())
-                return true;
-
-            if (web_content_replacement == WebContentReplacement::Disallow)
-                return false;
-
-            auto current_window = m_windows.get(m_current_window_handle);
-            return !current_window.has_value() || !current_window->web_content_connection;
-        });
-
-        if (response.has_value())
-            return response.release_value();
-
-        TRY(wait_for_current_window_to_have_web_content_connection());
-        if (response.has_value())
-            return response.release_value();
-
-        return JsonValue {};
-    }
 
 private:
     Session(NonnullRefPtr<Client> client, JsonObject const& capabilities, String session_id, Web::WebDriver::SessionFlags flags);
@@ -133,14 +84,11 @@ private:
     using ServerPromise = Core::Promise<ErrorOr<void>>;
 
     ErrorOr<void> start(LaunchBrowserCallback const&);
-    ErrorOr<void> accept_web_content_transport(NonnullOwnPtr<IPC::Transport>, NonnullRefPtr<ServerPromise> promise);
-    ErrorOr<void> accept_browser_transport(NonnullOwnPtr<IPC::Transport>);
+    ErrorOr<void> accept_browser_transport(NonnullOwnPtr<IPC::Transport>, NonnullRefPtr<ServerPromise> promise);
     Web::WebDriver::Response perform_browser_command(Function<void(u64 command_id)> send_command);
     Optional<u64> page_load_timeout() const;
     void reset_current_browsing_context();
     ErrorOr<void> create_server(NonnullRefPtr<ServerPromise> promise);
-    void web_content_connection_closed(WebContentConnection const&);
-    void did_update_window_handle(String window_handle, WebContentConnection const&);
     void remove_window(StringView window_handle);
 
     NonnullRefPtr<Client> m_client;
@@ -152,30 +100,25 @@ private:
     HashMap<String, Window> m_windows;
     String m_current_window_handle;
 
-    HashMap<u64, NonnullRefPtr<WebContentConnection>> m_pending_connections;
-    u64 m_next_pending_connection_id { 0 };
-
     RefPtr<BrowserConnection> m_browser_connection;
     bool m_closing { false };
 
     u64 m_next_browser_command_id { 1 };
     HashMap<u64, Function<void(Web::WebDriver::Response)>> m_pending_browser_commands;
 
-    ByteString m_web_content_endpoint;
     ByteString m_browser_endpoint;
     Optional<Core::Process> m_browser_process;
     Core::EventLoop& m_event_loop;
 
 #if defined(AK_OS_MACOS)
-    OwnPtr<IPC::MachBootstrapListener> m_web_content_mach_port_server;
     OwnPtr<IPC::MachBootstrapListener> m_browser_mach_port_server;
     IPC::TransportBootstrapMachServer m_transport_bootstrap_server;
 #else
-    RefPtr<Core::LocalServer> m_web_content_server;
     RefPtr<Core::LocalServer> m_browser_server;
 #endif
 
     Web::WebDriver::PageLoadStrategy m_page_load_strategy { Web::WebDriver::PageLoadStrategy::Normal };
+    Web::WebDriver::TimeoutsConfiguration m_timeouts;
     Optional<JsonValue> m_timeouts_configuration;
     bool m_strict_file_interactiblity { false };
 };

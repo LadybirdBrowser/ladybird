@@ -89,7 +89,6 @@ struct BrowserOptions {
     DisableSQLDatabase disable_sql_database { DisableSQLDatabase::No };
     Vector<ProcessType> debug_helper_processes {};
     Optional<ProcessType> profile_helper_process {};
-    Optional<ByteString> webdriver_endpoint {};
     Optional<ByteString> webdriver_browser_endpoint {};
     Optional<DNSSettings> dns_settings {};
     Optional<u16> devtools_port;

@@ -151,6 +151,7 @@ endpoint WebContentClient
     did_close_browsing_context(u64 page_id) =|
     did_change_needs_beforeunload_check(u64 page_id, bool needs_beforeunload_check) =|
     webdriver_user_prompt_handling_complete(u64 page_id, u64 request_id, Web::WebDriver::Response response) =|
+    webdriver_command_complete(u64 page_id, u64 command_id, Web::WebDriver::Response response) =|
     did_request_restore_window(u64 page_id) =|
     did_request_reposition_window(u64 page_id, Gfx::IntPoint position) =|
     did_request_resize_window(u64 page_id, Gfx::IntSize size) =|

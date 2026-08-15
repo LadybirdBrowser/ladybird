@@ -40,7 +40,6 @@ public:
     Optional<PageClient&> page(u64 page_id);
     PageClient& create_page(u64 page_id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id = {});
     void remove_page(Badge<PageClient>, u64 page_id);
-    void close_webdriver_connections_after_sending_pending_messages();
     Web::HTML::CrossProcessId allocate_cross_process_id();
     Web::HTML::CrossProcessId allocate_navigable_id();
 
