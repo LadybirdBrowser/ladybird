@@ -1,0 +1,3 @@
+hit delta: >=1
+left before: 290
+left after: 190

@@ -10,6 +10,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Variant.h>
+#include <AK/Vector.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/Export.h>
@@ -41,11 +42,16 @@ private:
     [[nodiscard]] RustFFI::FfiCommitSink commit_sink();
 
     struct LineCommitContext;
+    struct ReusedPaintable {
+        NonnullRefPtr<Painting::Paintable> paintable;
+        CSSPixelPoint old_absolute_position;
+    };
     Box const* m_commit_root { nullptr };
     OwnPtr<LineCommitContext> m_line_commit_context;
     RefPtr<Painting::Paintable> m_replaced_paintable;
     RefPtr<Painting::Paintable> m_commit_parent_paintable;
     RefPtr<Painting::Paintable> m_commit_insert_before_paintable;
+    Vector<ReusedPaintable> m_reused_paintables;
 };
 
 [[nodiscard]] Optional<RustFFI::FfiFormattingContextType> formatting_context_type_created_by_box(Box const&);

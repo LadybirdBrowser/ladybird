@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #containing-block { position: relative; width: 300px; height: 200px; }
+    #shell { width: 100px; height: 40px; overflow: hidden; }
+    #cached { width: 80px; height: 20px; overflow: hidden; }
+</style>
+<div id="containing-block">
+    <div id="shell">
+        <div id="cached">
+            <div id="absolute" style="position: absolute; right: 0; top: 10px; width: 10px; height: 10px"></div>
+        </div>
+    </div>
+</div>
+<script>
+    asyncTest(done => {
+        document.body.offsetWidth;
+
+        const absolute = document.getElementById("absolute");
+        const leftBefore = absolute.getBoundingClientRect().left;
+        const hitsBefore = internals.layoutRunCacheHitCount();
+
+        document.getElementById("containing-block").style.width = "200px";
+        document.body.offsetWidth;
+
+        const hitDelta = internals.layoutRunCacheHitCount() - hitsBefore;
+        println(`hit delta: ${hitDelta >= 1 ? ">=1" : hitDelta}`);
+        println(`left before: ${leftBefore}`);
+        println(`left after: ${absolute.getBoundingClientRect().left}`);
+        done();
+    });
+</script>

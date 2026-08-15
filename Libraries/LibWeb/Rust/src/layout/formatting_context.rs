@@ -1637,8 +1637,20 @@ fn run_formatting_context(
         &root_cells,
     ) {
         Ok(attempt) => attempt,
-        Err(entry) => return absorb_run_outputs(parent_fragments, parent_used, box_, entry.outputs.clone()),
+        Err(entry) => {
+            let reuses_committed_subtree = entry.can_reuse_committed_subtree();
+            let outputs = if reuses_committed_subtree {
+                entry.outputs_for_reused_subtree()
+            } else {
+                entry.outputs.clone()
+            };
+            return absorb_run_outputs(parent_fragments, parent_used, box_, outputs, reuses_committed_subtree);
+        }
     };
+    if let Some(parent_fragments) = parent_fragments {
+        // A later fresh run for this root supersedes a hit recorded earlier in the same pass.
+        parent_fragments.clear_reused_subtree_root(box_);
+    }
     let outputs = execute_formatting_context_run(
         purpose,
         root_cells,
@@ -1652,7 +1664,7 @@ fn run_formatting_context(
         parent_block,
     );
     cache_attempt.conclude(&callbacks, box_, &outputs);
-    absorb_run_outputs(parent_fragments, parent_used, box_, outputs)
+    absorb_run_outputs(parent_fragments, parent_used, box_, outputs, false)
 }
 
 #[expect(clippy::too_many_arguments)]
@@ -1970,6 +1982,7 @@ fn absorb_run_outputs(
     parent_used: &UsedValues,
     child: Node,
     outputs: RunOutputs,
+    reuses_committed_subtree: bool,
 ) -> ChildLayoutResult {
     let RunOutputs {
         result,
@@ -1979,6 +1992,9 @@ fn absorb_run_outputs(
     root_outcome.apply_to_record(parent_used);
     if let (Some(fragments), Some(root)) = (parent_fragments, root) {
         debug_assert!(root.node == child, "a child run returned a root for a different box");
+        if reuses_committed_subtree {
+            fragments.note_reused_subtree_root(child);
+        }
         fragments.hold_unplaced_root(root);
     }
     result

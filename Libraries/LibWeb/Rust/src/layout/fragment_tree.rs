@@ -260,6 +260,7 @@ fn link_fragment(fragment: std::rc::Rc<Fragment>, placement: PlacementData) -> F
 pub(crate) struct UnplacedRootFragment {
     pub(crate) node: crate::layout::node_data::NodeSlotId,
     pub(crate) scoped_descendants: Vec<FragmentLink>,
+    pub(crate) reused_subtree_roots: std::collections::HashSet<u32>,
     pub(crate) propagated_pending_abspos: Vec<PendingAbsposChild>,
     pub(crate) propagated_anchor_candidates: Vec<AnchorCandidate>,
     pub(crate) propagated_inline_containing_block_rects: Vec<InlineContainingBlockRect>,
@@ -268,11 +269,13 @@ pub(crate) struct UnplacedRootFragment {
 
 pub(crate) struct CompletedPassFragments {
     pub(crate) roots: Vec<FragmentLink>,
+    pub(crate) reused_subtree_roots: std::collections::HashSet<u32>,
 }
 
 pub(crate) struct CommitScopes<'tree> {
     links_by_slot: std::collections::HashMap<u32, &'tree FragmentLink>,
     open_scopes: Vec<&'tree [FragmentLink]>,
+    reused_subtree_roots: &'tree std::collections::HashSet<u32>,
 }
 
 impl<'tree> CommitScopes<'tree> {
@@ -282,6 +285,7 @@ impl<'tree> CommitScopes<'tree> {
         let mut scopes = Self {
             links_by_slot: std::collections::HashMap::new(),
             open_scopes: Vec::new(),
+            reused_subtree_roots: &fragments.reused_subtree_roots,
         };
         scopes.open_scope(&fragments.roots);
         scopes
@@ -289,6 +293,10 @@ impl<'tree> CommitScopes<'tree> {
 
     pub(crate) fn link_for_slot(&self, slot: u32) -> Option<&'tree FragmentLink> {
         self.links_by_slot.get(&slot).copied()
+    }
+
+    pub(crate) fn subtree_was_reused(&self, slot: u32) -> bool {
+        self.reused_subtree_roots.contains(&slot)
     }
 
     pub(crate) fn open_scope(&mut self, links: &'tree [FragmentLink]) {
@@ -364,6 +372,7 @@ struct RunFragmentBuilderInner {
     inline_containing_block_rects_at_root: Vec<InlineContainingBlockRect>,
     abspos_containing_block_info_contributions: Vec<AbsposContainingBlockInfoContribution>,
     top_scope_links: Vec<FragmentLink>,
+    reused_subtree_roots: std::collections::HashSet<u32>,
 }
 
 impl RunFragmentBuilderInner {
@@ -630,11 +639,21 @@ impl RunFragmentBuilder {
 
     pub(crate) fn hold_unplaced_root(&self, root: UnplacedRootFragment) {
         let slot = root.node.slot_index();
-        let previous = self.inner.borrow_mut().child_roots_awaiting_placement.insert(slot, root);
+        let mut inner = self.inner.borrow_mut();
+        inner.reused_subtree_roots.extend(root.reused_subtree_roots.iter().copied());
+        let previous = inner.child_roots_awaiting_placement.insert(slot, root);
         debug_assert!(
             previous.is_none(),
             "a child run's root was handed over twice before placement"
         );
+    }
+
+    pub(crate) fn note_reused_subtree_root(&self, node: crate::layout::node_data::NodeSlotId) {
+        self.inner.borrow_mut().reused_subtree_roots.insert(node.slot_index());
+    }
+
+    pub(crate) fn clear_reused_subtree_root(&self, node: crate::layout::node_data::NodeSlotId) {
+        self.inner.borrow_mut().reused_subtree_roots.remove(&node.slot_index());
     }
 
     pub(crate) fn normalize_arrivals_for_placement(&self, node: crate::layout::node_data::NodeSlotId) {
@@ -770,8 +789,10 @@ impl RunFragmentBuilder {
         callbacks: &FfiLayoutFcCallbacks,
     ) -> CompletedPassFragments {
         debug_assert!(self.is_entry_accumulator, "an ordinary run closes as a singular unplaced root");
+        let root = self.close(records, callbacks);
         CompletedPassFragments {
-            roots: self.close(records, callbacks).scoped_descendants,
+            roots: root.scoped_descendants,
+            reused_subtree_roots: root.reused_subtree_roots,
         }
     }
 
@@ -828,6 +849,7 @@ impl RunFragmentBuilder {
         UnplacedRootFragment {
             node: self.root_node,
             scoped_descendants: inner.top_scope_links,
+            reused_subtree_roots: inner.reused_subtree_roots,
             propagated_pending_abspos,
             propagated_anchor_candidates,
             propagated_inline_containing_block_rects,

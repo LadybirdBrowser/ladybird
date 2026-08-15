@@ -531,6 +531,7 @@ private:
 
     void paint_middle_button_scroll_indicator(DisplayListRecordingContext&) const;
     void invalidate_absolute_geometry_cache(InvalidateDescendantGeometry);
+    void translate_reused_subtree_absolute_geometry(CSSPixelPoint);
 
     GC::Weak<DOM::Node> m_dom_node;
     WeakPtr<Layout::NodeWithStyle const> m_layout_node;
