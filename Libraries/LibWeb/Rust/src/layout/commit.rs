@@ -17,6 +17,7 @@ pub struct FfiTableCellCoordinates {
 #[repr(C)]
 pub struct FfiCommittedBoxMetrics {
     pub fragment_identity: u64,
+    pub reuses_committed_subtree: bool,
     pub content_offset: crate::layout::FfiCssPixelPoint,
     pub content_inline_size: crate::layout::CssPixels,
     pub content_block_size: crate::layout::CssPixels,
@@ -85,7 +86,7 @@ pub struct FfiCommitSink {
     pub context: *mut c_void,
     pub begin_commit: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiCommitPosition,
     pub finish_commit: unsafe extern "C" fn(*mut c_void),
-    pub prepare_node: unsafe extern "C" fn(*mut c_void, *mut c_void, bool) -> *mut c_void,
+    pub prepare_node: unsafe extern "C" fn(*mut c_void, *mut c_void, bool, bool) -> *mut c_void,
     pub set_box_metrics: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiCommittedBoxMetrics),
     pub set_override_borders: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiBordersData),
     pub set_table_cell_coordinates: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiTableCellCoordinates),
@@ -116,6 +117,8 @@ fn commit_subtree(
 ) {
     let slot_index = callbacks.slot_index(node);
     let entry = scopes.link_for_slot(slot_index);
+    let reuses_committed_subtree = scopes.subtree_was_reused(slot_index);
+    debug_assert!(!reuses_committed_subtree || entry.is_some());
     if let Some(link) = entry {
         callbacks.set_saved_abspos_layout_inputs(node, link.abspos_layout_inputs);
         // SVG roots are the only non-abspos partial relayout boundaries; save their committed
@@ -156,7 +159,14 @@ fn commit_subtree(
     // SAFETY: The C++ sink owns paintables and copies every plain-data
     // input synchronously.
     let node_shell = callbacks.shell(node);
-    let paintable = unsafe { (sink.prepare_node)(sink.context, node_shell, entry.is_some()) };
+    let paintable = unsafe {
+        (sink.prepare_node)(
+            sink.context,
+            node_shell,
+            entry.is_some(),
+            reuses_committed_subtree,
+        )
+    };
 
     let mut has_pending_inline_box_geometry = false;
     if let Some(link) = entry
@@ -171,6 +181,7 @@ fn commit_subtree(
                 paintable,
                 FfiCommittedBoxMetrics {
                     fragment_identity: fragment.identity,
+                    reuses_committed_subtree,
                     content_offset: link.committed_offset,
                     content_inline_size: fragment.content_inline_size,
                     content_block_size: fragment.content_block_size,
@@ -196,16 +207,18 @@ fn commit_subtree(
             );
         }
 
-        unsafe {
+        if !reuses_committed_subtree {
+            unsafe {
             if let Some(borders) = fragment.override_borders_data {
                 (sink.set_override_borders)(sink.context, paintable, borders);
             }
             if let Some(coordinates) = fragment.table_cell_coordinates {
                 (sink.set_table_cell_coordinates)(sink.context, paintable, coordinates);
             }
+            }
         }
 
-        if let Some(line_data) = &fragment.line_data {
+        if !reuses_committed_subtree && let Some(line_data) = &fragment.line_data {
             // SAFETY: The sink keeps one line accumulator live between
             // begin_line_data() and finish_line_data().
             let accepts_lines = unsafe { (sink.begin_line_data)(sink.context, paintable) };
@@ -224,7 +237,8 @@ fn commit_subtree(
             }
         }
 
-        unsafe {
+        if !reuses_committed_subtree {
+            unsafe {
             if let Some(transform) = fragment.svg_viewport_transform {
                 (sink.set_svg_viewport_transform)(sink.context, paintable, transform);
             }
@@ -245,18 +259,19 @@ fn commit_subtree(
             if let Some(path) = &fragment.computed_svg_path {
                 (sink.set_computed_svg_path)(sink.context, paintable, path.as_raw(), path.identity());
             }
+            }
         }
-        if let Some(data) = &fragment.grid_layout_data {
+        if !reuses_committed_subtree && let Some(data) = &fragment.grid_layout_data {
             data.with_ffi_view(|view| {
                 unsafe { (sink.set_grid_layout_data)(sink.context, paintable, view) };
             });
         }
-        if let Some(data) = &fragment.flex_layout_data {
+        if !reuses_committed_subtree && let Some(data) = &fragment.flex_layout_data {
             data.with_ffi_view(|view| {
                 unsafe { (sink.set_flex_layout_data)(sink.context, paintable, view) };
             });
         }
-        if let Some(tracks) = &fragment.used_grid_tracks {
+        if !reuses_committed_subtree && let Some(tracks) = &fragment.used_grid_tracks {
             tracks.with_ffi_views(|columns, rows| {
                 unsafe { (sink.set_used_grid_tracks)(sink.context, paintable, columns, rows) };
             });
@@ -275,6 +290,10 @@ fn commit_subtree(
         )
     };
     assert_eq!(result.paintable, paintable);
+
+    if reuses_committed_subtree {
+        return;
+    }
 
     if let Some(link) = entry {
         scopes.open_scope(&link.fragment.children);

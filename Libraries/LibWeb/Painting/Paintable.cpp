@@ -1424,6 +1424,18 @@ void Paintable::invalidate_absolute_geometry_cache(InvalidateDescendantGeometry 
     });
 }
 
+void Paintable::translate_reused_subtree_absolute_geometry(CSSPixelPoint delta)
+{
+    for_each_in_inclusive_subtree([&](Paintable& paintable) {
+        paintable.invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::No);
+        if (paintable.m_overflow_data.has_value())
+            paintable.m_overflow_data->scrollable_overflow_rect.translate_by(delta);
+        // Recorded paint commands bake absolute coordinates.
+        paintable.invalidate_paint_cache();
+        return TraversalDecision::Continue;
+    });
+}
+
 CSSPixelPoint Paintable::offset() const
 {
     return m_offset;

@@ -66,6 +66,35 @@ struct FcRunCacheEntry {
     retained_fonts: Vec<libgfx_rust::font::RetainedFont>,
 }
 
+impl FcRunCacheEntry {
+    fn can_reuse_committed_subtree(&self) -> bool {
+        self.outputs
+            .root
+            .as_ref()
+            .is_none_or(|root| root.propagated_pending_abspos.is_empty())
+    }
+
+    fn outputs_for_reused_subtree(&self) -> RunOutputs {
+        debug_assert!(self.can_reuse_committed_subtree());
+        let root = self.outputs.root.as_ref().map(|root| UnplacedRootFragment {
+            node: root.node,
+            // Commit stops at the reused root, so descendant fragments and nested reuse markers never
+            // enter its scopes. Only payloads that escape the run still have to reach the parent.
+            scoped_descendants: Vec::new(),
+            reused_subtree_roots: std::collections::HashSet::new(),
+            propagated_pending_abspos: root.propagated_pending_abspos.clone(),
+            propagated_anchor_candidates: root.propagated_anchor_candidates.clone(),
+            propagated_inline_containing_block_rects: root.propagated_inline_containing_block_rects.clone(),
+            propagated_abspos_containing_block_info: root.propagated_abspos_containing_block_info.clone(),
+        });
+        RunOutputs {
+            result: self.outputs.result,
+            root,
+            root_outcome: self.outputs.root_outcome.clone(),
+        }
+    }
+}
+
 /// Per-document store of completed run results, one entry per slot,
 /// surviving across layout passes on the node arena.
 #[derive(Default)]
@@ -278,6 +307,12 @@ impl FcRunCacheAttempt {
         let Some(root) = &outputs.root else {
             return;
         };
+        // A committed-subtree hit omits that subtree's descendant fragments. Do not embed such a
+        // skeletal result in an entry that exports an out-of-flow descendant: replaying the parent
+        // has to rebuild its paintable subtree so the freshly laid-out descendant can commit.
+        if !root.propagated_pending_abspos.is_empty() && !root.reused_subtree_roots.is_empty() {
+            return;
+        }
         let mut fonts = Vec::new();
         if let Some(line_data) = &outputs.root_outcome.line_data {
             collect_line_data_fonts(line_data, &mut fonts);

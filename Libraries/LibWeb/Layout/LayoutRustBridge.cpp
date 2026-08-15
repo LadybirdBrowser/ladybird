@@ -755,6 +755,7 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
             VERIFY(!bridge.m_replaced_paintable);
             VERIFY(!bridge.m_commit_parent_paintable);
             VERIFY(!bridge.m_commit_insert_before_paintable);
+            VERIFY(bridge.m_reused_paintables.is_empty());
 
             if (!root.is_viewport()) {
                 bridge.m_replaced_paintable = root.paintable();
@@ -780,10 +781,17 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
             }; },
         .finish_commit = [](void* context) {
             auto& bridge = *static_cast<LayoutRustBridge*>(context);
+            for (auto& reused : bridge.m_reused_paintables) {
+                auto new_absolute_position = reused.paintable->absolute_position();
+                if (new_absolute_position != reused.old_absolute_position)
+                    reused.paintable->translate_reused_subtree_absolute_geometry(new_absolute_position - reused.old_absolute_position);
+            }
+            bridge.m_reused_paintables.clear();
             bridge.m_commit_insert_before_paintable = nullptr;
             bridge.m_commit_parent_paintable = nullptr;
             bridge.m_replaced_paintable = nullptr; },
-        .prepare_node = [](void*, void* node_pointer, bool has_used_values) -> void* {
+        .prepare_node = [](void* context, void* node_pointer, bool has_used_values, bool reuses_committed_subtree) -> void* {
+            auto& bridge = *static_cast<LayoutRustBridge*>(context);
             auto& node = *static_cast<Node*>(node_pointer);
 
             RefPtr<Painting::Paintable> paintable;
@@ -791,10 +799,17 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                 // Inline boxes that never went through inline layout (so they have no used values) still
                 // need a paintable so DOM geometry queries have something to answer from.
                 paintable = node.paintable();
-                if (paintable)
+                if (reuses_committed_subtree) {
+                    VERIFY(paintable);
+                    bridge.m_reused_paintables.append({ *paintable, paintable->absolute_position() });
+                    if (paintable->parent())
+                        paintable->remove();
+                    paintable->set_containing_block(nullptr);
+                } else if (paintable) {
                     paintable->reset_for_relayout();
-                else
+                } else {
                     paintable = node.create_paintable();
+                }
                 node.set_paintable(paintable);
             } else if (node.paintable_ptr()) {
                 // A paintable surviving from a previous layout on a node this pass did not lay out is
@@ -831,9 +846,14 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                 CSSPixels::from_raw(metrics.margin_bottom),
                 CSSPixels::from_raw(metrics.margin_left),
             };
-            paintable.set_content_size(
+            CSSPixelSize content_size {
                 CSSPixels::from_raw(metrics.content_inline_size),
-                CSSPixels::from_raw(metrics.content_block_size));
+                CSSPixels::from_raw(metrics.content_block_size)
+            };
+            if (metrics.reuses_committed_subtree)
+                VERIFY(paintable.content_size() == content_size);
+            else
+                paintable.set_content_size(content_size);
             paintable.set_offset({
                 CSSPixels::from_raw(metrics.content_offset.x),
                 CSSPixels::from_raw(metrics.content_offset.y),
