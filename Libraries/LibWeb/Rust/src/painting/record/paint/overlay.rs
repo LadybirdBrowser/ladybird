@@ -26,6 +26,7 @@ pub(crate) fn paint_overlay(recorder: &mut PaintRecorder<'_>, paintable: Paintab
                 own_scroll_node_index,
                 converter.rounded_device_rect(CssPixelRect::from(scrollbar.gutter_rect)),
                 converter.rounded_device_rect(CssPixelRect::from(scrollbar.thumb_rect)),
+                converter.rounded_device_rect(CssPixelRect::from(scrollbar.track_rect)),
                 scrollbar.thumb_travel_to_scroll_ratio,
                 Color(facts.thumb_color),
                 Color(facts.track_color),

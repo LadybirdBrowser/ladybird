@@ -852,6 +852,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                     out.present = true;
                     write_css_rect(scrollbar_data->gutter_rect, out.gutter_rect);
                     write_css_rect(scrollbar_data->thumb_rect, out.thumb_rect);
+                    write_css_rect(scrollbar_data->track_rect, out.track_rect);
                     out.thumb_travel_to_scroll_ratio = scrollbar_data->thumb_travel_to_scroll_ratio.to_double();
                 }
             }

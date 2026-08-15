@@ -226,6 +226,7 @@ bool ViewportScrollbarController::paint(Gfx::PaintingSurface& surface, Web::Pain
             .scroll_node_index = scrollbar.scroll_node_index,
             .gutter_rect = scrollbar_gutter_rect(scrollbar, expanded),
             .thumb_rect = translated_thumb_rect(scrollbar, scroll_state_snapshot, expanded),
+            .track_rect = scrollbar_gutter_rect(scrollbar, true),
             .scroll_size = scrollbar_scroll_size(scrollbar, expanded),
             .thumb_color = scrollbar.thumb_color,
             .track_color = scrollbar.track_color,

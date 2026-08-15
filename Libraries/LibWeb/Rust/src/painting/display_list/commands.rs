@@ -1416,6 +1416,7 @@ pub struct PaintScrollBar {
     pub scroll_node_index: VisualContextIndex,
     pub gutter_rect: IntRect,
     pub thumb_rect: IntRect,
+    pub track_rect: IntRect,
     pub scroll_size: f64,
     pub thumb_color: Color,
     pub track_color: Color,
@@ -1425,6 +1426,7 @@ ffi_bytes_fields!(PaintScrollBar {
     scroll_node_index,
     gutter_rect,
     thumb_rect,
+    track_rect,
     scroll_size,
     thumb_color,
     track_color,
@@ -1433,6 +1435,9 @@ ffi_bytes_fields!(PaintScrollBar {
 
 impl DisplayListCommand for PaintScrollBar {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::PaintScrollBar;
+    fn bounding_rect(&self) -> Option<IntRect> {
+        Some(self.track_rect.united(self.thumb_rect))
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

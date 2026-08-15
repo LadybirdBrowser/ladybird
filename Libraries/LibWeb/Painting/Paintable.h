@@ -288,6 +288,7 @@ public:
     struct ScrollbarData {
         CSSPixelRect gutter_rect;
         CSSPixelRect thumb_rect;
+        CSSPixelRect track_rect;
         CSSPixelFraction thumb_travel_to_scroll_ratio { 0 };
     };
     enum class ScrollDirection {

@@ -253,6 +253,7 @@ pub struct FfiScrollbarPaintFacts {
     pub present: bool,
     pub gutter_rect: crate::layout::FfiCssPixelRect,
     pub thumb_rect: crate::layout::FfiCssPixelRect,
+    pub track_rect: crate::layout::FfiCssPixelRect,
     pub thumb_travel_to_scroll_ratio: f64,
 }
 
