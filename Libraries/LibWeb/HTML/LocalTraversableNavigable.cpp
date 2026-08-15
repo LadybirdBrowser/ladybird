@@ -802,18 +802,15 @@ bool LocalTraversableNavigable::run_changing_navigable_history_step_job_impl(Cha
                 potentially_target_specific_source_snapshot_params = navigable->active_document()->snapshot_source_snapshot_params();
 
             // 5. Set targetEntry's document state's reload pending to false.
-            // AD-HOC: Snapshot "reload pending" before clearing it. Population in step 7 must still observe it: "create
-            //         navigation params by fetching" reads it to set the request's reload-navigation flag and cache
-            //         mode. The specified order clears the flag before population can read it — which would leave a
-            //         reload indistinguishable from a plain history navigation.
-            //         See https://github.com/whatwg/html/issues/12760.
+            // AD-HOC: Preserve reload pending for steps 6 and 7 before step 5 clears it.
+            // See https://github.com/whatwg/html/issues/12760.
             auto input_reload_pending = target_entry->document_state()->reload_pending();
             target_entry->document_state()->set_reload_pending(false);
             page().client().page_did_set_session_history_entry_document_state_reload_pending(
                 navigable->id(), target_entry->navigation_api_key(), false);
 
             // 6. Let allowPOST be targetEntry's document state's reload pending.
-            auto allow_POST = target_entry->document_state()->reload_pending() || traverses_from_initial_about_blank;
+            auto allow_POST = input_reload_pending || traverses_from_initial_about_blank;
 
             // https://github.com/whatwg/html/issues/9869
             // Population runs in a deferred task, during which sync navigations can mutate
