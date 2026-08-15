@@ -229,7 +229,7 @@ pub(crate) fn absolutize_length_for_calc(
     absolutize_length(value, unit, context)
 }
 
-fn absolutize_length(value: f64, unit: usize, context: &FfiLengthResolutionContext) -> FfiAbsolutizedLength {
+pub(crate) fn absolutize_length(value: f64, unit: usize, context: &FfiLengthResolutionContext) -> FfiAbsolutizedLength {
     let kinds = length_unit_kinds();
     let unhandled = FfiAbsolutizedLength {
         handled: false,
@@ -2137,7 +2137,7 @@ fn computation_context_kind(property_id: u16) -> ComputationContextKind {
 /// to the default arm of StyleValue::absolutized, plus keywords that resolve
 /// to themselves: the currentcolor keyword computes to itself, and only
 /// color keywords resolve to something else at computed-value time.
-fn absolutization_is_identity(value: &StyleValueData) -> bool {
+pub(crate) fn value_absolutization_is_identity(value: &StyleValueData) -> bool {
     match value {
         StyleValueData::Keyword { keyword } => *keyword == keyword::CURRENTCOLOR || !keyword_is_color(*keyword),
         StyleValueData::Number { .. }
@@ -2353,6 +2353,10 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         let mut pending_stores: Vec<FfiComputedStoreEntry> =
             Vec::with_capacity(crate::css::property_metadata::property_computation_order().len());
         let mut pending_effective_color_scheme: i16 = -1;
+        // The element's used color scheme, kept from the color-scheme computation for the
+        // generic-kind absolutizations below; the C++ generic computation context carries the
+        // same scheme, read back from the effective scheme this drive stores.
+        let mut effective_color_scheme: Option<u8> = None;
         // Length resolution contexts fetched from C++ on first use, one per kind, like
         // the C++ side's per-element computation context caches.
         let mut cached_length_resolution_contexts: [Option<FfiLengthResolutionContext>; 3] = [None; 3];
@@ -2633,7 +2637,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 // The specified value absolutized natively when the core can:
                 // Some(None) leaves the value unchanged, Some(Some(px)) resolves it to
                 // a pixel length, and None means C++ must handle it.
-                let absolutized: Option<Option<f64>> = if absolutization_is_identity(value_data) {
+                let absolutized: Option<Option<f64>> = if value_absolutization_is_identity(value_data) {
                     Some(None)
                 } else if let StyleValueData::Length {
                     value: length_value,
@@ -2944,6 +2948,46 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                             None => NativeValue::Unchanged,
                         }
                     }
+                    (None, _) if !property_has_dedicated_compute_rule(inherited_property_id) => {
+                        // The recursive native absolutization: structural values and their
+                        // length leaves resolve here; anything it declines computes in C++.
+                        let kind = computation_context_kind(inherited_property_id) as usize;
+                        let resolution_context = fetch_length_resolution_context(
+                            &mut cached_length_resolution_contexts,
+                            callbacks,
+                            context,
+                            &mut pending_stores,
+                            &mut pending_effective_color_scheme,
+                            kind,
+                            inherited_property_id,
+                        );
+                        // Only the generic computation context carries a color scheme in C++;
+                        // the font and line-height contexts absolutize without one.
+                        let scheme = if kind == ComputationContextKind::Generic as usize {
+                            effective_color_scheme
+                        } else {
+                            None
+                        };
+                        let absolutization_context = crate::css::absolutize::AbsolutizationContext {
+                            length: resolution_context,
+                            scheme,
+                            resolved_viewport_relative_length: std::cell::Cell::new(false),
+                        };
+                        let outcome = crate::css::absolutize::absolutize(value_data, &absolutization_context);
+                        if absolutization_context.resolved_viewport_relative_length.get() {
+                            results.depends_on_viewport_metrics = true;
+                            if property_affects_font_metrics(inherited_property_id) {
+                                results.font_metrics_depend_on_viewport_metrics = true;
+                            }
+                        }
+                        match outcome {
+                            Some(crate::css::absolutize::Absolutized::Unchanged) => NativeValue::Unchanged,
+                            Some(crate::css::absolutize::Absolutized::Changed(new_value)) => {
+                                NativeValue::StyleValue(new_value.into_arc())
+                            }
+                            None => NativeValue::Unsupported,
+                        }
+                    }
                     _ => NativeValue::Unsupported,
                 };
 
@@ -3073,6 +3117,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     unsafe { color_scheme_input.document_supported_schemes() },
                 );
                 pending_effective_color_scheme = i16::from(color_scheme);
+                effective_color_scheme = Some(color_scheme);
             }
 
             match (property_id, value_data) {
@@ -3846,6 +3891,13 @@ mod ffi_test_stubs {
     extern "C" fn ladybird_utf16_fly_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_utf16_fly_string_ref(_raw: usize) {}
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_utf16_fly_string_view(
+        _raw: usize,
+        _short_buffer: *mut u8,
+    ) -> crate::css::serialize::FfiFlyStringView {
+        crate::css::serialize::FfiFlyStringView::empty()
+    }
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]

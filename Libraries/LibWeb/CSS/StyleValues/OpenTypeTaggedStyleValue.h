@@ -32,8 +32,6 @@ public:
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
-    void serialize(StringBuilder&, SerializationMode) const;
-
     bool properties_equal(OpenTypeTaggedStyleValue const&) const;
 
 private:

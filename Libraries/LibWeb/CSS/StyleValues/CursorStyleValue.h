@@ -29,8 +29,6 @@ public:
 
     Optional<Gfx::ImageCursor> make_image_cursor(Layout::NodeWithStyle const&) const;
 
-    void serialize(StringBuilder&, SerializationMode) const;
-
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     bool properties_equal(CursorStyleValue const& other) const { return image_as_style_value().equals(other.image_as_style_value()) && x() == other.x() && y() == other.y(); }

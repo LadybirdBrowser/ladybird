@@ -42,11 +42,4 @@ bool ContrastColorStyleValue::equals(StyleValue const& other) const
     return color() == other_contrast_color->color();
 }
 
-void ContrastColorStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    builder.append("contrast-color("sv);
-    color()->serialize(builder, mode);
-    builder.append(')');
-}
-
 }

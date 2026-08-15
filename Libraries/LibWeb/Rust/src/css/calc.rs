@@ -2871,6 +2871,15 @@ fn resolve_calculated_with_length_resolution(
     percentage_basis: Option<CalcNumericValue>,
     length_resolution: LengthResolution,
 ) -> Option<(f64, CalcNumericType, Option<ResolveAs>)> {
+    resolve_calculated_with_channels(calculated, percentage_basis, length_resolution, None)
+}
+
+fn resolve_calculated_with_channels(
+    calculated: &crate::css::style_value::StyleValueData,
+    percentage_basis: Option<CalcNumericValue>,
+    length_resolution: LengthResolution,
+    channels: Option<&crate::css::color_resolution::RelativeColorContext>,
+) -> Option<(f64, CalcNumericType, Option<ResolveAs>)> {
     use crate::css::style_value::StyleValueData;
     let StyleValueData::Calculated {
         rust_calculation,
@@ -2897,7 +2906,7 @@ fn resolve_calculated_with_length_resolution(
     let callbacks = CalcSimplifyCallbacks {
         absolutize_random_sharing: &|_| None,
         resolve_non_math_function: &|_| None,
-        resolve_channel_keyword: &|_| None,
+        resolve_channel_keyword: &|channel| channels.and_then(|map| map.get(channel as usize).copied().flatten()),
     };
     let simplified = root.simplify(&evaluation_context, &callbacks);
     let (value, numeric_type) = resolve_simplified_calculation(
@@ -2976,6 +2985,63 @@ pub(crate) fn resolve_calculated_angle_with_context(
             context: Some(context),
             fallback: None,
         },
+    )?;
+    numeric_type.matches_dimension(1, resolve_as).then_some(value)
+}
+
+/// Resolves a calculated value that must produce a number, with relative-color channel
+/// values available and an optional length context.
+pub(crate) fn resolve_calculated_number_with_channels(
+    calculated: &crate::css::style_value::StyleValueData,
+    channels: Option<&crate::css::color_resolution::RelativeColorContext>,
+    length: Option<&crate::css::style_compute::FfiLengthResolutionContext>,
+) -> Option<f64> {
+    let (value, numeric_type, resolve_as) = resolve_calculated_with_channels(
+        calculated,
+        None,
+        LengthResolution {
+            context: length,
+            fallback: None,
+        },
+        channels,
+    )?;
+    numeric_type.matches_number(resolve_as).then_some(value)
+}
+
+/// Resolves a calculated value that must produce a percentage, with relative-color channel
+/// values available and an optional length context.
+pub(crate) fn resolve_calculated_percentage_with_channels(
+    calculated: &crate::css::style_value::StyleValueData,
+    channels: Option<&crate::css::color_resolution::RelativeColorContext>,
+    length: Option<&crate::css::style_compute::FfiLengthResolutionContext>,
+) -> Option<f64> {
+    let (value, numeric_type, ..) = resolve_calculated_with_channels(
+        calculated,
+        None,
+        LengthResolution {
+            context: length,
+            fallback: None,
+        },
+        channels,
+    )?;
+    numeric_type.matches_percentage().then_some(value)
+}
+
+/// Resolves a calculated value that must produce an angle, with relative-color channel
+/// values available and an optional length context.
+pub(crate) fn resolve_calculated_angle_with_channels(
+    calculated: &crate::css::style_value::StyleValueData,
+    channels: Option<&crate::css::color_resolution::RelativeColorContext>,
+    length: Option<&crate::css::style_compute::FfiLengthResolutionContext>,
+) -> Option<f64> {
+    let (value, numeric_type, resolve_as) = resolve_calculated_with_channels(
+        calculated,
+        None,
+        LengthResolution {
+            context: length,
+            fallback: None,
+        },
+        channels,
     )?;
     numeric_type.matches_dimension(1, resolve_as).then_some(value)
 }
@@ -3603,6 +3669,195 @@ impl CalcSerializer<'_> {
     }
 }
 
+// NOTE: A percentage dimension mix is a Sum with two numeric children of matching base
+// types, only the first of which has a percent hint.
+// https://drafts.csswg.org/css-values-4/#combine-mixed
+// The computed value of a percentage-dimension mix is a computed percentage if the
+// dimension component is zero.
+fn percentage_dimension_mix(simplified: &Arc<CalcNode>, evaluation_context: &CalcEvaluationContext) -> Option<f64> {
+    if let CalcNode::Sum(children) = &**simplified
+        && children.len() == 2
+        && let (CalcNode::Numeric(first), CalcNode::Numeric(second)) = (&*children[0], &*children[1])
+        && let Some(first_type) = children[0].numeric_type(evaluation_context.percentage_leaf_type)
+        && let Some(second_type) = children[1].numeric_type(evaluation_context.percentage_leaf_type)
+    {
+        let first_base = first_type.entry_with_value_1_while_all_others_are_0();
+        let second_base = second_type.entry_with_value_1_while_all_others_are_0();
+        if first_base.is_some()
+            && first_base == second_base
+            && first_type.percent_hint.is_some()
+            && second_type.percent_hint.is_none()
+            && is_canonical_unit(*second)
+            && second.to_canonical_number(evaluation_context.length_resolution) == 0.0
+            && let CalcNumericValue::Percentage(percentage) = first
+        {
+            return Some(*percentage);
+        }
+    }
+    None
+}
+
+/// The outcome of a native calc absolutization.
+pub(crate) enum AbsolutizedCalculation {
+    Unchanged,
+    Percentage(f64),
+    Value(crate::css::style_value::StyleValueData),
+}
+
+/// Absolutizes a Calculated style value against a length resolution context, with no
+/// percentage basis. Returns None when the tree needs external state (non-math functions,
+/// channel keywords, random sharing, container-relative lengths).
+pub(crate) fn absolutize_calculation_value(
+    value: &crate::css::style_value::StyleValueData,
+    length_resolution_context: *const std::ffi::c_void,
+) -> Option<AbsolutizedCalculation> {
+    use crate::css::style_value::StyleValueData;
+    let StyleValueData::Calculated {
+        rust_calculation,
+        resolve_as_is_number,
+        resolve_as_base,
+        resolved_type,
+        has_percentages_resolve_as,
+        percentages_resolve_as,
+        resolve_numbers_as_integers,
+        accepted_ranges,
+    } = value
+    else {
+        return None;
+    };
+    let root = rust_calculation.node_arc();
+    let mut externals = Vec::new();
+    collect_external_resolutions(&root, &mut externals);
+    if !externals.is_empty() {
+        return None;
+    }
+    let context = FfiCalcResolutionContext {
+        basis_kind: 0,
+        basis_value: 0.0,
+        basis_unit: 0,
+        length_resolution_context,
+        external_resolutions: std::ptr::null(),
+        external_resolution_count: 0,
+    };
+    let resolve_as = resolve_as_from_fields(*has_percentages_resolve_as, *resolve_as_is_number, *resolve_as_base);
+    Some(with_ffi_evaluation(
+        resolve_as,
+        &context,
+        |evaluation_context, callbacks| {
+            let simplified = root.simplify(evaluation_context, callbacks);
+            if let Some(percentage) = percentage_dimension_mix(&simplified, evaluation_context) {
+                return AbsolutizedCalculation::Percentage(percentage);
+            }
+            if Arc::ptr_eq(&simplified, &root) {
+                return AbsolutizedCalculation::Unchanged;
+            }
+            AbsolutizedCalculation::Value(StyleValueData::Calculated {
+                rust_calculation: CalcNodeHandle::from_arc(simplified),
+                resolve_as_is_number: *resolve_as_is_number,
+                resolve_as_base: *resolve_as_base,
+                resolved_type: *resolved_type,
+                has_percentages_resolve_as: *has_percentages_resolve_as,
+                percentages_resolve_as: *percentages_resolve_as,
+                resolve_numbers_as_integers: *resolve_numbers_as_integers,
+                accepted_ranges: accepted_ranges.clone(),
+            })
+        },
+    ))
+}
+
+/// A calculation leaf for a length-percentage style value, or None for other kinds.
+#[allow(clippy::arc_with_non_send_sync)]
+fn length_percentage_calc_node(value: &crate::css::style_value::StyleValueData) -> Option<Arc<CalcNode>> {
+    use crate::css::style_value::StyleValueData;
+    match value {
+        StyleValueData::Length { value, unit } => Some(Arc::new(CalcNode::Numeric(CalcNumericValue::Length {
+            value: *value,
+            unit: *unit,
+        }))),
+        StyleValueData::Percentage { value } => Some(Arc::new(CalcNode::Numeric(CalcNumericValue::Percentage(*value)))),
+        StyleValueData::Calculated { rust_calculation, .. } => Some(rust_calculation.node_arc()),
+        _ => None,
+    }
+}
+
+/// Builds the unsimplified 100%-minus-values calculation the basic-shape lowering uses,
+/// wrapped as a length-percentage calculated value; the caller absolutizes (and thereby
+/// simplifies) it. None when a value kind cannot become a calculation leaf.
+#[allow(clippy::arc_with_non_send_sync)]
+pub(crate) fn one_hundred_percent_minus_value(
+    values: &[&crate::css::style_value::StyleValueData],
+) -> Option<crate::css::style_value::StyleValueData> {
+    let mut sum_components = Vec::with_capacity(values.len() + 1);
+    sum_components.push(Arc::new(CalcNode::Numeric(CalcNumericValue::Percentage(100.0))));
+    for value in values {
+        sum_components.push(Arc::new(CalcNode::Negate(length_percentage_calc_node(value)?)));
+    }
+    let mut length_type = CalcNumericType::default();
+    length_type.exponents[BASE_TYPE_LENGTH] = Some(1);
+    Some(length_percentage_calculated_style_value(
+        Arc::new(CalcNode::Sum(sum_components)),
+        FfiNumericType::from_calc(Some(length_type)),
+    ))
+}
+
+/// Builds the flipped right/bottom position edge offset: 100% minus the offset, simplified
+/// with percentages resolving as lengths, always wrapped as a calculation like the C++
+/// keyword resolution. None when the offset kind cannot become a calculation leaf.
+#[allow(clippy::arc_with_non_send_sync)]
+pub(crate) fn flipped_edge_offset(
+    offset: &crate::css::style_value::StyleValueData,
+) -> Option<crate::css::style_value::StyleValueData> {
+    let offset_node = length_percentage_calc_node(offset)?;
+    let sum = Arc::new(CalcNode::Sum(vec![
+        Arc::new(CalcNode::Numeric(CalcNumericValue::Percentage(100.0))),
+        Arc::new(CalcNode::Negate(offset_node)),
+    ]));
+    let context = FfiCalcResolutionContext {
+        basis_kind: 0,
+        basis_value: 0.0,
+        basis_unit: 0,
+        length_resolution_context: std::ptr::null(),
+        external_resolutions: std::ptr::null(),
+        external_resolution_count: 0,
+    };
+    let resolve_as = resolve_as_from_fields(true, false, BASE_TYPE_LENGTH as u8);
+    let simplified = with_ffi_evaluation(resolve_as, &context, |evaluation_context, callbacks| {
+        sum.simplify(evaluation_context, callbacks)
+    });
+    let mut length_type = CalcNumericType::default();
+    length_type.exponents[BASE_TYPE_LENGTH] = Some(1);
+    Some(length_percentage_calculated_style_value(
+        simplified,
+        FfiNumericType::from_calc(Some(length_type)),
+    ))
+}
+
+/// Serializes a Calculated style value's math function into the ordered piece batch shared by
+/// the FFI consumer in CalculatedStyleValue.cpp and the native Rust serializer in serialize.rs.
+pub(crate) fn serialize_math_function_pieces(
+    calculated: &crate::css::style_value::StyleValueData,
+    resolved_mode: bool,
+) -> Vec<FfiCalcSerializationPiece> {
+    let crate::css::style_value::StyleValueData::Calculated {
+        rust_calculation,
+        resolve_numbers_as_integers,
+        accepted_ranges,
+        ..
+    } = calculated
+    else {
+        unreachable!("calc serialization requires calculated value data");
+    };
+    let root = rust_calculation.node_arc();
+    let mut serializer = CalcSerializer {
+        pieces: Vec::new(),
+        resolved_mode,
+        resolve_numbers_as_integers: *resolve_numbers_as_integers,
+        accepted_ranges: accepted_ranges.as_slice(),
+    };
+    serializer.serialize_math_function(&root);
+    serializer.pieces
+}
+
 /// Serializes a calculated style value's math function into an ordered piece batch. Literal
 /// structure comes from Rust, while C++ formats numeric and embedded style values after return.
 ///
@@ -3616,25 +3871,9 @@ pub unsafe extern "C" fn rust_calc_serialize(
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
     use crate::css::style_value::StyleValueData;
     crate::abort_on_panic(|| {
-        let StyleValueData::Calculated {
-            rust_calculation,
-            resolve_numbers_as_integers,
-            accepted_ranges,
-            ..
-        } = (unsafe { &*(calculated as *const StyleValueData) })
-        else {
-            unreachable!("rust_calc_serialize requires calculated value data");
-        };
-        let root = rust_calculation.node_arc();
-        let mut serializer = CalcSerializer {
-            pieces: Vec::new(),
-            resolved_mode,
-            resolve_numbers_as_integers: *resolve_numbers_as_integers,
-            accepted_ranges: accepted_ranges.as_slice(),
-        };
-        serializer.serialize_math_function(&root);
+        let value = unsafe { &*(calculated as *const StyleValueData) };
         let storage = Box::new(CalcSerializationStorage {
-            pieces: serializer.pieces.into_boxed_slice(),
+            pieces: serialize_math_function_pieces(value, resolved_mode).into_boxed_slice(),
         });
         let result = FfiCalcSerialization {
             pieces: storage.pieces.as_ptr(),
@@ -4130,33 +4369,12 @@ pub unsafe extern "C" fn rust_calc_absolutize(
         with_ffi_evaluation(resolve_as, context, |evaluation_context, callbacks| {
             let simplified = root.simplify(evaluation_context, callbacks);
 
-            // NOTE: A percentage dimension mix is a Sum with two numeric children of matching base
-            //       types, only the first of which has a percent hint.
-            // https://drafts.csswg.org/css-values-4/#combine-mixed
-            // The computed value of a percentage-dimension mix is a computed percentage if the
-            // dimension component is zero.
-            if let CalcNode::Sum(children) = &*simplified
-                && children.len() == 2
-                && let (CalcNode::Numeric(first), CalcNode::Numeric(second)) = (&*children[0], &*children[1])
-                && let Some(first_type) = children[0].numeric_type(evaluation_context.percentage_leaf_type)
-                && let Some(second_type) = children[1].numeric_type(evaluation_context.percentage_leaf_type)
-            {
-                let first_base = first_type.entry_with_value_1_while_all_others_are_0();
-                let second_base = second_type.entry_with_value_1_while_all_others_are_0();
-                if first_base.is_some()
-                    && first_base == second_base
-                    && first_type.percent_hint.is_some()
-                    && second_type.percent_hint.is_none()
-                    && is_canonical_unit(*second)
-                    && second.to_canonical_number(evaluation_context.length_resolution) == 0.0
-                    && let CalcNumericValue::Percentage(percentage) = first
-                {
-                    return FfiAbsolutizedCalc {
-                        is_percentage: true,
-                        percentage_value: *percentage,
-                        simplified: std::ptr::null(),
-                    };
-                }
+            if let Some(percentage) = percentage_dimension_mix(&simplified, evaluation_context) {
+                return FfiAbsolutizedCalc {
+                    is_percentage: true,
+                    percentage_value: percentage,
+                    simplified: std::ptr::null(),
+                };
             }
 
             FfiAbsolutizedCalc {

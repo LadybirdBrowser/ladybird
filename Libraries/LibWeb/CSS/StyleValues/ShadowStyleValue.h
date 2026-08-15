@@ -53,8 +53,6 @@ public:
     ValueComparingRefPtr<StyleValue const> spread_distance_or_null() const { return m_spread_distance; }
     ShadowPlacement placement() const { return static_cast<ShadowPlacement>(m_value->shadow.placement); }
 
-    void serialize(StringBuilder&, SerializationMode) const;
-
     bool properties_equal(ShadowStyleValue const& other) const { return shadow_type() == other.shadow_type() && color_or_null() == other.color_or_null() && offset_x() == other.offset_x() && offset_y() == other.offset_y() && blur_radius_or_null() == other.blur_radius_or_null() && spread_distance_or_null() == other.spread_distance_or_null() && placement() == other.placement(); }
 
 private:

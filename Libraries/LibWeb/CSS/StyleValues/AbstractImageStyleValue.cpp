@@ -85,29 +85,4 @@ ColorStopListElement ColorStopListElement::absolutized(ComputationContext const&
     };
 }
 
-void serialize_color_stop_list(StringBuilder& builder, ReadonlySpan<ColorStopListElement> color_stop_list, SerializationMode mode)
-{
-    bool first = true;
-    for (auto const& element : color_stop_list) {
-        if (!first)
-            builder.append(", "sv);
-
-        if (element.transition_hint) {
-            element.transition_hint->serialize(builder, mode);
-            builder.append(", "sv);
-        }
-
-        element.color_stop.color->serialize(builder, mode);
-        if (element.color_stop.position) {
-            builder.append(' ');
-            element.color_stop.position->serialize(builder, mode);
-        }
-        if (element.color_stop.second_position) {
-            builder.append(' ');
-            element.color_stop.second_position->serialize(builder, mode);
-        }
-        first = false;
-    }
-}
-
 }

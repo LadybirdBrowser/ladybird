@@ -51,19 +51,6 @@ CursorStyleValue::CursorStyleValue(StyleValueFFI::StyleValueData const* data)
 {
 }
 
-void CursorStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    image().serialize(builder, mode);
-
-    if (x()) {
-        VERIFY(y());
-        builder.append(' ');
-        x()->serialize(builder, mode);
-        builder.append(' ');
-        y()->serialize(builder, mode);
-    }
-}
-
 ValueComparingNonnullRefPtr<StyleValue const> CursorStyleValue::absolutized(ComputationContext const& computation_context) const
 {
     RefPtr<StyleValue const> absolutized_x;

@@ -24,8 +24,6 @@ public:
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
-    void serialize(StringBuilder&, SerializationMode) const;
-
     Vector<Component> components() const
     {
         auto const& data = m_value->radial_size;

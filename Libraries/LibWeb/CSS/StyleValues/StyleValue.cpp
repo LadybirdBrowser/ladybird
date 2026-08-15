@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AnchorSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AnchorStyleValue.h>
@@ -98,6 +99,7 @@
 
 extern "C" void ladybird_utf16_fly_string_unref(size_t);
 extern "C" void ladybird_utf16_fly_string_ref(size_t);
+extern "C" Web::CSS::StyleValueFFI::FfiFlyStringView ladybird_utf16_fly_string_view(size_t, u8*);
 extern "C" void ladybird_string_unref(size_t);
 extern "C" void ladybird_string_ref(size_t);
 
@@ -342,14 +344,27 @@ bool StyleValue::is_computationally_independent() const
 
 void StyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
+    // The Rust serializer covers the ported types; everything else falls back to the
+    // per-class C++ serializers until the port is complete.
+    if (auto text = StyleValueFFI::rust_style_value_serialize(m_value.operator->(), to_underlying(mode)); text.storage) {
+        if (text.ascii)
+            builder.append(StringView { reinterpret_cast<char const*>(text.ascii), text.length });
+        else
+            builder.append(Utf16View { reinterpret_cast<char16_t const*>(text.utf16), text.length });
+        StyleValueFFI::rust_serialized_text_release(text.storage);
+        return;
+    }
+
     switch (type()) {
 #define __ENUMERATE_CSS_STYLE_VALUE_TYPE(title_case, snake_case, style_value_class_name) \
     case Type::title_case:                                                               \
         return static_cast<style_value_class_name const&>(*this).serialize(builder, mode);
-        ENUMERATE_CSS_STYLE_VALUE_TYPES
+        ENUMERATE_CSS_STYLE_VALUE_TYPES_WITH_CPP_SERIALIZATION
 #undef __ENUMERATE_CSS_STYLE_VALUE_TYPE
+    default:
+        // A type whose C++ serializer has been deleted was declined by the Rust serializer.
+        VERIFY_NOT_REACHED();
     }
-    VERIFY_NOT_REACHED();
 }
 
 bool StyleValue::equals(StyleValue const& other) const
@@ -409,22 +424,17 @@ Utf16String StyleValue::to_utf16_string(SerializationMode mode) const
 
 void StyleValue::serialize(Utf16StringBuilder& builder, SerializationMode mode) const
 {
-    switch (type()) {
-    case Type::Easing:
-        return as_easing().serialize(builder, mode);
-    case Type::Integer:
-        return as_integer().serialize(builder, mode);
-    case Type::Keyword:
-        return as_keyword().serialize(builder, mode);
-    case Type::Length:
-        return as_length().serialize(builder, mode);
-    case Type::Ratio:
-        return as_ratio().serialize(builder, mode);
-    case Type::Resolution:
-        return as_resolution().serialize(builder, mode);
-    default:
-        break;
+    // Rust serializes natively into ASCII-or-UTF-16, so ported types never round-trip
+    // through UTF-8 here.
+    if (auto text = StyleValueFFI::rust_style_value_serialize(m_value.operator->(), to_underlying(mode)); text.storage) {
+        if (text.ascii)
+            builder.append_ascii(StringView { reinterpret_cast<char const*>(text.ascii), text.length });
+        else
+            builder.append(Utf16View { reinterpret_cast<char16_t const*>(text.utf16), text.length });
+        StyleValueFFI::rust_serialized_text_release(text.storage);
+        return;
     }
+
     auto serialized = to_string(mode);
     auto serialized_utf16 = Utf16String::from_utf8_without_validation(serialized);
     builder.append(serialized_utf16.utf16_view());
@@ -453,94 +463,30 @@ ENUMERATE_CSS_STYLE_VALUE_TYPES
 
 ValueComparingNonnullRefPtr<StyleValue const> StyleValue::absolutized(ComputationContext const& context) const
 {
+    // The native Rust recursion covers everything except the element-bound values; those
+    // decline and take the per-type C++ path below.
+    {
+        auto ffi_length_context = to_ffi_length_resolution_context(context.length_resolution_context);
+        auto absolutized = StyleValueFFI::rust_style_value_absolutize(
+            m_value.operator->(),
+            &ffi_length_context,
+            context.color_scheme.has_value(),
+            context.color_scheme.has_value() ? to_underlying(*context.color_scheme) : 0);
+        if (absolutized.kind == StyleValueFFI::ABSOLUTIZED_UNCHANGED)
+            return *this;
+        if (absolutized.kind == StyleValueFFI::ABSOLUTIZED_CHANGED)
+            return adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(absolutized.data));
+    }
+
     switch (type()) {
-    case Type::Angle:
-        return as_angle().absolutized(context);
-    case Type::BackgroundSize:
-        return as_background_size().absolutized(context);
-    case Type::BasicShape:
-        return as_basic_shape().absolutized(context);
-    case Type::BorderRadiusRect:
-        return as_border_radius_rect().absolutized(context);
-    case Type::BorderRadius:
-        return as_border_radius().absolutized(context);
-    case Type::Calculated:
-        return as_calculated().absolutized(context);
-    case Type::Color:
-        return as_color().absolutized(context);
-    case Type::ConicGradient:
-        return as_conic_gradient().absolutized(context);
-    case Type::CounterDefinitions:
-        return as_counter_definitions().absolutized(context);
-    case Type::CounterStyleSystem:
-        return as_counter_style_system().absolutized(context);
-    case Type::Edge:
-        return as_edge().absolutized(context);
-    case Type::FontStyle:
-        return as_font_style().absolutized(context);
-    case Type::Position:
-        return as_position().absolutized(context);
-    case Type::Cursor:
-        return as_cursor().absolutized(context);
-    case Type::Easing:
-        return as_easing().absolutized(context);
-    case Type::Filter:
-        return as_filter().absolutized(context);
-    case Type::Frequency:
-        return as_frequency().absolutized(context);
-    case Type::Function:
-        return as_function().absolutized(context);
-    case Type::GridTrackPlacement:
-        return as_grid_track_placement().absolutized(context);
-    case Type::GridTrackSizeList:
-        return as_grid_track_size_list().absolutized(context);
-    case Type::ImageSet:
-        return as_image_set().absolutized(context);
-    case Type::Image:
-        return as_image().absolutized(context);
-    case Type::Keyword:
-        return as_keyword().absolutized(context);
-    case Type::Length:
-        return as_length().absolutized(context);
-    case Type::LinearGradient:
-        return as_linear_gradient().absolutized(context);
-    case Type::OpacityValue:
-        return as_opacity_value().absolutized(context);
-    case Type::OpenTypeTagged:
-        return as_open_type_tagged().absolutized(context);
-    case Type::OverflowClipMargin:
-        return as_overflow_clip_margin().absolutized(context);
-    case Type::RadialGradient:
-        return as_radial_gradient().absolutized(context);
-    case Type::RadialSize:
-        return as_radial_size().absolutized(context);
-    case Type::RandomValueSharing:
-        return as_random_value_sharing().absolutized(context);
-    case Type::Ratio:
-        return as_ratio().absolutized(context);
-    case Type::Rect:
-        return as_rect().absolutized(context);
-    case Type::Resolution:
-        return as_resolution().absolutized(context);
-    case Type::ScrollbarColor:
-        return as_scrollbar_color().absolutized(context);
-    case Type::Shadow:
-        return as_shadow().absolutized(context);
-    case Type::Superellipse:
-        return as_superellipse().absolutized(context);
-    case Type::TextIndent:
-        return as_text_indent().absolutized(context);
-    case Type::Time:
-        return as_time().absolutized(context);
-    case Type::Transformation:
-        return as_transformation().absolutized(context);
-    case Type::TreeCountingFunction:
-        return as_tree_counting_function().absolutized(context);
-    case Type::Tuple:
-        return as_tuple().absolutized(context);
-    case Type::ValueList:
-        return as_value_list().absolutized(context);
+#define __ENUMERATE_CSS_STYLE_VALUE_TYPE(title_case, snake_case, style_value_class_name) \
+    case Type::title_case:                                                               \
+        return static_cast<style_value_class_name const&>(*this).absolutized(context);
+        ENUMERATE_CSS_STYLE_VALUE_TYPES_WITH_CPP_ABSOLUTIZATION
+#undef __ENUMERATE_CSS_STYLE_VALUE_TYPE
     default:
+        // Types with no C++ absolutized() compute to themselves, matching the old
+        // per-type dispatcher's default case.
         return *this;
     }
 }
@@ -716,6 +662,25 @@ Keyword StyleValue::to_keyword() const
 extern "C" void ladybird_utf16_fly_string_unref(size_t raw)
 {
     Utf16FlyString::unref_raw(raw);
+}
+
+// Called when the Rust serializer reads a retained Utf16FlyString's contents. Short strings are
+// decoded into the caller-provided buffer (which must hold at least 16 bytes); long strings
+// return their heap storage, which the retained reference keeps alive across the call.
+extern "C" Web::CSS::StyleValueFFI::FfiFlyStringView ladybird_utf16_fly_string_view(size_t raw, u8* short_buffer)
+{
+    auto string = Utf16FlyString::from_raw(raw);
+    auto view = string.view();
+    if (view.has_ascii_storage()) {
+        auto span = view.ascii_span();
+        if (span.size() <= AK::Detail::MAX_SHORT_STRING_BYTE_COUNT) {
+            __builtin_memcpy(short_buffer, span.data(), span.size());
+            return { short_buffer, span.size(), true };
+        }
+        return { span.data(), span.size(), true };
+    }
+    auto span = view.utf16_span();
+    return { span.data(), span.size(), false };
 }
 
 // Called when Rust-owned cascade data retains an additional reference to a Utf16FlyString.

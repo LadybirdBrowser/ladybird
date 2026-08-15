@@ -8,21 +8,6 @@
 
 namespace Web::CSS {
 
-void TupleStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    auto first = true;
-    auto tuple = this->tuple();
-
-    for (auto const& value : tuple) {
-        if (value) {
-            if (!first)
-                builder.append(' ');
-            value->serialize(builder, mode);
-            first = false;
-        }
-    }
-}
-
 ValueComparingNonnullRefPtr<StyleValue const> TupleStyleValue::absolutized(ComputationContext const& context) const
 {
     auto tuple = this->tuple();

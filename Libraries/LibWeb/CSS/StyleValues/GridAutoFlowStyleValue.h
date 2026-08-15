@@ -27,7 +27,6 @@ public:
     [[nodiscard]] bool is_column() const { return !is_row(); }
     [[nodiscard]] bool is_dense() const { return m_value->grid_auto_flow.dense; }
 
-    void serialize(StringBuilder&, SerializationMode) const;
     bool properties_equal(GridAutoFlowStyleValue const& other) const { return is_row() == other.is_row() && is_dense() == other.is_dense(); }
 
 private:

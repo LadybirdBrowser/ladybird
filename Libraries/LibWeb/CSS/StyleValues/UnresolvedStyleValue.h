@@ -29,7 +29,6 @@ public:
     static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create_attr_tainted_with_parsed_value(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence, Optional<String> original_source_text, SourceTextMode, NonnullRefPtr<StyleValue const> parsed_value);
     virtual ~UnresolvedStyleValue() override = default;
 
-    void serialize(StringBuilder&, SerializationMode) const;
     Vector<Parser::ComponentValue> tokenize() const;
 
     Vector<Parser::ComponentValue> values() const;

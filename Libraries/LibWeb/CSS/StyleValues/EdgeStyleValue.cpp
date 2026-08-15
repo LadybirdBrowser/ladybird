@@ -24,18 +24,6 @@ bool EdgeStyleValue::is_center(SerializationMode mode) const
     return false;
 }
 
-void EdgeStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    if (edge().has_value())
-        builder.append(CSS::to_string(edge().value()));
-
-    if (edge().has_value() && offset_style_value())
-        builder.append(' ');
-
-    if (offset_style_value())
-        offset_style_value()->serialize(builder, mode);
-}
-
 ValueComparingNonnullRefPtr<EdgeStyleValue const> EdgeStyleValue::with_resolved_keywords() const
 {
     if (edge() == PositionEdge::Center)

@@ -25,7 +25,6 @@ public:
     ValueComparingNonnullRefPtr<StyleValue const> left() const { return m_left; }
 
     EdgeRect rect() const { return { LengthOrAuto::from_style_value(top(), {}), LengthOrAuto::from_style_value(right(), {}), LengthOrAuto::from_style_value(bottom(), {}), LengthOrAuto::from_style_value(left(), {}) }; }
-    void serialize(StringBuilder&, SerializationMode) const;
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 

@@ -11,6 +11,12 @@
 
 namespace Web::CSS {
 
+// The repeat-type discriminant crosses the style value FFI as a raw code; the Rust serializer
+// depends on it.
+static_assert(to_underlying(GridRepeatType::AutoFit) == 0);
+static_assert(to_underlying(GridRepeatType::AutoFill) == 1);
+static_assert(to_underlying(GridRepeatType::Fixed) == 2);
+
 // Arena keeping the borrowed input arrays alive for the duration of the create call.
 struct GridTrackEntryInputArena {
     Vector<Vector<StyleValueFFI::GridTrackEntryInput>> entry_arrays;
@@ -110,11 +116,6 @@ CSS::GridTrackSizeList GridTrackSizeListStyleValue::grid_track_size_list() const
 {
     auto const& data = m_value->grid_track_size_list;
     return materialize_grid_track_size_list(data.is_subgrid, data.preserve_line_name_sets, data.entries.pointer, data.entries.length);
-}
-
-void GridTrackSizeListStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    grid_track_size_list().serialize(builder, mode);
 }
 
 ValueComparingNonnullRefPtr<GridTrackSizeListStyleValue const> GridTrackSizeListStyleValue::create(CSS::GridTrackSizeList grid_track_size_list)

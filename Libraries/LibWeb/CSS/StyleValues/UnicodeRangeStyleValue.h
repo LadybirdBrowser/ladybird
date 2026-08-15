@@ -21,8 +21,6 @@ public:
 
     Gfx::UnicodeRange unicode_range() const { return Gfx::UnicodeRange(m_value->unicode_range.min_code_point, m_value->unicode_range.max_code_point); }
 
-    void serialize(StringBuilder&, SerializationMode) const;
-
     bool properties_equal(UnicodeRangeStyleValue const&) const;
 
 private:

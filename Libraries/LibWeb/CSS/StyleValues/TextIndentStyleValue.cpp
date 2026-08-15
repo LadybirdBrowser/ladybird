@@ -21,15 +21,6 @@ TextIndentStyleValue::TextIndentStyleValue(NonnullRefPtr<StyleValue const> lengt
 
 TextIndentStyleValue::~TextIndentStyleValue() = default;
 
-void TextIndentStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    length_percentage().serialize(builder, mode);
-    if (each_line())
-        builder.append(" each-line"sv);
-    if (hanging())
-        builder.append(" hanging"sv);
-}
-
 ValueComparingNonnullRefPtr<StyleValue const> TextIndentStyleValue::absolutized(ComputationContext const& context) const
 {
     auto new_length_percentage = length_percentage().absolutized(context);

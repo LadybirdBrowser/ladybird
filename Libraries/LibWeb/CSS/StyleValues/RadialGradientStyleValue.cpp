@@ -44,44 +44,6 @@ RadialGradientStyleValue::RadialGradientStyleValue(StyleValueFFI::StyleValueData
 {
 }
 
-void RadialGradientStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    if (is_repeating())
-        builder.append("repeating-"sv);
-    builder.append("radial-gradient("sv);
-
-    // AD-HOC: We need to check the serialized size to determine if it should be included.
-    auto const& serialized_size = size_value()->to_string(mode);
-
-    bool has_size = serialized_size != "farthest-corner"sv;
-    bool has_position = !position_value()->is_center(mode);
-    bool has_color_space = color_interpolation_method_value() && color_interpolation_method_value()->as_color_interpolation_method().color_interpolation_method() != ColorInterpolationMethodStyleValue::default_color_interpolation_method(gradient_color_syntax());
-
-    if (has_size)
-        size_value()->serialize(builder, mode);
-
-    if (has_position) {
-        if (has_size)
-            builder.append(' ');
-
-        builder.append("at "sv);
-        position_value()->serialize(builder, mode);
-    }
-
-    if (has_color_space) {
-        if (has_size || has_position)
-            builder.append(' ');
-
-        color_interpolation_method_value()->serialize(builder, mode);
-    }
-
-    if (has_size || has_position || has_color_space)
-        builder.append(", "sv);
-
-    serialize_color_stop_list(builder, color_stop_list(), mode);
-    builder.append(')');
-}
-
 CSSPixelSize RadialGradientStyleValue::resolve_size(CSSPixelPoint center, CSSPixelRect const& reference_box) const
 {
     if (ending_shape() == EndingShape::Circle) {

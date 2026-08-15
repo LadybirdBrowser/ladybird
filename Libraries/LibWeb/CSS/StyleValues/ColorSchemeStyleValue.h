@@ -33,7 +33,6 @@ public:
         return schemes;
     }
     bool only() const { return m_value->color_scheme.only; }
-    void serialize(StringBuilder&, SerializationMode) const;
 
     bool properties_equal(ColorSchemeStyleValue const& other) const { return schemes() == other.schemes() && only() == other.only(); }
 

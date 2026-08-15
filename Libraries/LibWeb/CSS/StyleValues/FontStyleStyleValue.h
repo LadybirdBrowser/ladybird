@@ -24,7 +24,6 @@ public:
 
     int to_font_slope() const;
 
-    void serialize(StringBuilder&, SerializationMode) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& computation_context) const;
 
     bool equals(StyleValue const& other) const

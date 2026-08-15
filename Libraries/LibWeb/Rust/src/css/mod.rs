@@ -4,11 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+pub(crate) mod absolutize;
 pub mod animation;
 pub mod calc;
 pub mod cascaded_properties;
 pub(crate) mod color_conversion;
 pub mod color_interpolation;
+pub(crate) mod color_resolution;
 pub mod computed_value_types;
 pub(crate) mod computed_value_views;
 pub mod computed_values;
@@ -22,6 +24,7 @@ pub mod ffi_support;
 pub mod property_metadata;
 pub(crate) mod retained_fly_string;
 pub(crate) mod selector;
+pub(crate) mod serialize;
 pub mod style;
 pub mod style_compute;
 pub(crate) mod style_value;

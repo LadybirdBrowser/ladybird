@@ -17,7 +17,6 @@ namespace Web::CSS {
 
 struct Inset {
     Gfx::Path to_path(CSSPixelRect reference_box) const;
-    void serialize(StringBuilder&, SerializationMode) const;
 
     bool operator==(Inset const&) const = default;
 
@@ -30,7 +29,6 @@ struct Inset {
 };
 
 struct Xywh {
-    void serialize(StringBuilder&, SerializationMode) const;
 
     bool operator==(Xywh const&) const = default;
 
@@ -43,7 +41,6 @@ struct Xywh {
 };
 
 struct Rect {
-    void serialize(StringBuilder&, SerializationMode) const;
 
     bool operator==(Rect const&) const = default;
 
@@ -57,7 +54,6 @@ struct Rect {
 
 struct Circle {
     Gfx::Path to_path(CSSPixelRect reference_box) const;
-    void serialize(StringBuilder&, SerializationMode) const;
 
     bool operator==(Circle const&) const = default;
 
@@ -67,7 +63,6 @@ struct Circle {
 
 struct Ellipse {
     Gfx::Path to_path(CSSPixelRect reference_box) const;
-    void serialize(StringBuilder&, SerializationMode) const;
 
     bool operator==(Ellipse const&) const = default;
 
@@ -83,7 +78,6 @@ struct Polygon {
     };
 
     Gfx::Path to_path(CSSPixelRect reference_box) const;
-    void serialize(StringBuilder&, SerializationMode) const;
 
     bool operator==(Polygon const&) const = default;
 
@@ -94,7 +88,6 @@ struct Polygon {
 // https://drafts.csswg.org/css-shapes/#funcdef-basic-shape-path
 struct Path {
     Gfx::Path to_path(CSSPixelRect reference_box) const;
-    void serialize(StringBuilder&, SerializationMode) const;
 
     bool operator==(Path const&) const = default;
 
@@ -115,7 +108,6 @@ public:
 
     BasicShape const& basic_shape() const;
 
-    void serialize(StringBuilder&, SerializationMode) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     bool properties_equal(BasicShapeStyleValue const& other) const { return basic_shape() == other.basic_shape(); }

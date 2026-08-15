@@ -32,8 +32,6 @@ public:
     ValueComparingNonnullRefPtr<StyleValue const> vertical_radius() const { return m_vertical_radius; }
     bool is_elliptical() const { return m_value->border_radius.is_elliptical; }
 
-    void serialize(StringBuilder&, SerializationMode) const;
-
     bool properties_equal(BorderRadiusStyleValue const& other) const
     {
         return is_elliptical() == other.is_elliptical()

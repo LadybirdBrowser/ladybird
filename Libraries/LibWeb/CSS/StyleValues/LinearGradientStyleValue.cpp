@@ -15,6 +15,21 @@
 
 namespace Web::CSS {
 
+// These discriminants cross the style value FFI as raw codes; the Rust serializer's tables
+// depend on them.
+static_assert(to_underlying(SideOrCorner::Top) == 0);
+static_assert(to_underlying(SideOrCorner::Bottom) == 1);
+static_assert(to_underlying(SideOrCorner::Left) == 2);
+static_assert(to_underlying(SideOrCorner::Right) == 3);
+static_assert(to_underlying(SideOrCorner::TopLeft) == 4);
+static_assert(to_underlying(SideOrCorner::TopRight) == 5);
+static_assert(to_underlying(SideOrCorner::BottomLeft) == 6);
+static_assert(to_underlying(SideOrCorner::BottomRight) == 7);
+static_assert(to_underlying(LinearGradientStyleValue::GradientType::Standard) == 0);
+static_assert(to_underlying(LinearGradientStyleValue::GradientType::WebKit) == 1);
+static_assert(to_underlying(ColorSyntax::Legacy) == 0);
+static_assert(to_underlying(ColorSyntax::Modern) == 1);
+
 StyleValueFFI::StyleValueData const* LinearGradientStyleValue::make_linear_gradient_data(GradientDirection const& direction, Vector<ColorStopListElement> const& color_stop_list, GradientType type, GradientRepeating repeating, RefPtr<StyleValue const> const& color_interpolation_method, ColorSyntax color_syntax)
 {
     // The Rust allocation takes ownership of one strong reference to each non-null value.
@@ -50,67 +65,6 @@ LinearGradientStyleValue::LinearGradientStyleValue(StyleValueFFI::StyleValueData
         return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(method_data));
     }())
 {
-}
-
-void LinearGradientStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    auto side_or_corner_to_string = [](SideOrCorner value) {
-        switch (value) {
-        case SideOrCorner::Top:
-            return "top"sv;
-        case SideOrCorner::Bottom:
-            return "bottom"sv;
-        case SideOrCorner::Left:
-            return "left"sv;
-        case SideOrCorner::Right:
-            return "right"sv;
-        case SideOrCorner::TopLeft:
-            return "left top"sv;
-        case SideOrCorner::TopRight:
-            return "right top"sv;
-        case SideOrCorner::BottomLeft:
-            return "left bottom"sv;
-        case SideOrCorner::BottomRight:
-            return "right bottom"sv;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    };
-
-    // NB: Materialize the direction and interpolation method once instead of per use.
-    auto direction = this->direction();
-    auto color_interpolation_method_value = this->color_interpolation_method_value();
-
-    auto default_direction = gradient_type() == GradientType::WebKit ? SideOrCorner::Top : SideOrCorner::Bottom;
-    bool has_direction = direction != default_direction;
-    bool has_color_space = color_interpolation_method_value && color_interpolation_method_value->as_color_interpolation_method().color_interpolation_method() != ColorInterpolationMethodStyleValue::default_color_interpolation_method(gradient_color_syntax());
-
-    if (gradient_type() == GradientType::WebKit)
-        builder.append("-webkit-"sv);
-    if (is_repeating())
-        builder.append("repeating-"sv);
-    builder.append("linear-gradient("sv);
-    if (has_direction) {
-        direction.visit(
-            [&](SideOrCorner side_or_corner) {
-                builder.appendff("{}{}", gradient_type() == GradientType::Standard ? "to "sv : ""sv, side_or_corner_to_string(side_or_corner));
-            },
-            [&](NonnullRefPtr<StyleValue const> const& angle) {
-                angle->serialize(builder, mode);
-            });
-
-        if (has_color_space)
-            builder.append(' ');
-    }
-
-    if (has_color_space)
-        color_interpolation_method_value->serialize(builder, mode);
-
-    if (has_direction || has_color_space)
-        builder.append(", "sv);
-
-    serialize_color_stop_list(builder, color_stop_list(), mode);
-    builder.append(")"sv);
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> LinearGradientStyleValue::absolutized(ComputationContext const& context) const

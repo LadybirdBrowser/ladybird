@@ -23,7 +23,6 @@ public:
         return m_values;
     }
 
-    void serialize(StringBuilder&, SerializationMode) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     // FIXME: Support tokenization and reification

@@ -21,6 +21,11 @@
 
 namespace Web::CSS {
 
+// The function discriminant crosses the style value FFI as a raw code; the Rust serializer
+// depends on it.
+static_assert(to_underlying(CounterStyleValue::CounterFunction::Counter) == 0);
+static_assert(to_underlying(CounterStyleValue::CounterFunction::Counters) == 1);
+
 static StyleValueFFI::StyleValueData const* make_counter_data(CounterStyleValue::CounterFunction function, Utf16FlyString const& counter_name, ValueComparingNonnullRefPtr<StyleValue const> const& counter_style, Utf16FlyString const& join_string)
 {
     // The Rust allocation takes ownership of one strong reference to the counter style data.
@@ -70,40 +75,6 @@ Utf16String CounterStyleValue::resolve(DOM::AbstractElement& element_reference) 
         stb.append(counter_string);
     }
     return stb.to_string();
-}
-
-// https://drafts.csswg.org/cssom-1/#ref-for-typedef-counter
-void CounterStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    // The return value of the following algorithm:
-    // 1. Let s be the empty string.
-    // (We use builder instead)
-
-    // 2. If <counter> has three CSS component values append the string "counters(" to s.
-    if (function_type() == CounterFunction::Counters)
-        builder.append("counters("sv);
-
-    // 3. If <counter> has two CSS component values append the string "counter(" to s.
-    else if (function_type() == CounterFunction::Counter)
-        builder.append("counter("sv);
-
-    // 4. Let list be a list of CSS component values belonging to <counter>,
-    //    omitting the last CSS component value if it is "decimal".
-    Vector<RefPtr<StyleValue const>> list;
-    list.append(CustomIdentStyleValue::create(counter_name()));
-    if (function_type() == CounterFunction::Counters)
-        list.append(StringStyleValue::create(join_string()));
-    if (counter_style()->to_string(mode) != "decimal"sv)
-        list.append(counter_style());
-
-    // 5. Let each item in list be the result of invoking serialize a CSS component value on that item.
-    // 6. Append the result of invoking serialize a comma-separated list on list to s.
-    serialize_a_comma_separated_list(builder, list, [mode](auto& b, auto& item) {
-        item->serialize(b, mode);
-    });
-
-    // 7. Append ")" (U+0029) to s.
-    builder.append(")"sv);
 }
 
 bool CounterStyleValue::properties_equal(CounterStyleValue const& other) const

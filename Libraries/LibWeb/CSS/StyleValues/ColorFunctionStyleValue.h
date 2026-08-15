@@ -47,7 +47,6 @@ public:
 
     Optional<Color> to_color(ColorResolutionContext) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-    void serialize(StringBuilder&, SerializationMode) const;
     bool equals(StyleValue const&) const;
 
     ValueComparingRefPtr<StyleValue const> resolve_relative_form(ColorResolutionContext const&) const;

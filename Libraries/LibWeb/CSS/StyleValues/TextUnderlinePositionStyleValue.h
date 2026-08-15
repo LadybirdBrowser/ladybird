@@ -21,8 +21,6 @@ public:
     TextUnderlinePositionHorizontal horizontal() const { return static_cast<TextUnderlinePositionHorizontal>(m_value->text_underline_position.horizontal); }
     TextUnderlinePositionVertical vertical() const { return static_cast<TextUnderlinePositionVertical>(m_value->text_underline_position.vertical); }
 
-    void serialize(StringBuilder&, SerializationMode) const;
-
     bool properties_equal(TextUnderlinePositionStyleValue const& other) const { return horizontal() == other.horizontal() && vertical() == other.vertical(); }
 
 private:

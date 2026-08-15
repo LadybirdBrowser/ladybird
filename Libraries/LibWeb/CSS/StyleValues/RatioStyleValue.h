@@ -22,8 +22,6 @@ public:
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
-    void serialize(StringBuilder&, SerializationMode) const;
-    void serialize(Utf16StringBuilder&, SerializationMode) const;
     Vector<Parser::ComponentValue> tokenize() const;
 
     bool properties_equal(RatioStyleValue const& other) const

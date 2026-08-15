@@ -14,30 +14,12 @@
 
 namespace Web::CSS {
 
-void ShadowStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    if (color_or_null()) {
-        color_or_null()->serialize(builder, mode);
-        builder.append(' ');
-    }
-
-    offset_x()->serialize(builder, mode);
-    builder.append(' ');
-    offset_y()->serialize(builder, mode);
-
-    if (blur_radius_or_null()) {
-        builder.append(' ');
-        blur_radius_or_null()->serialize(builder, mode);
-    }
-
-    if (spread_distance_or_null() && shadow_type() == ShadowType::Normal) {
-        builder.append(' ');
-        spread_distance_or_null()->serialize(builder, mode);
-    }
-
-    if (placement() == ShadowPlacement::Inner)
-        builder.append(" inset"sv);
-}
+// The type and placement discriminants cross the style value FFI as raw codes; the Rust
+// serializer's tables depend on them.
+static_assert(to_underlying(ShadowStyleValue::ShadowType::Normal) == 0);
+static_assert(to_underlying(ShadowStyleValue::ShadowType::Text) == 1);
+static_assert(to_underlying(ShadowPlacement::Outer) == 0);
+static_assert(to_underlying(ShadowPlacement::Inner) == 1);
 
 ValueComparingNonnullRefPtr<StyleValue const> ShadowStyleValue::color() const
 {

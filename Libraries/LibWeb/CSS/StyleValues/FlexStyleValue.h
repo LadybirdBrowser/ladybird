@@ -23,8 +23,6 @@ public:
     virtual double raw_value() const override { return m_value->flex.value; }
     virtual Utf16FlyString unit_name() const override { return flex().unit_name(); }
 
-    void serialize(StringBuilder& builder, SerializationMode mode) const { flex().serialize(builder, mode); }
-
     bool equals(StyleValue const& other) const
     {
         if (type() != other.type())

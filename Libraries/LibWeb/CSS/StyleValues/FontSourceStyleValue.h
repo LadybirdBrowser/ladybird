@@ -42,8 +42,6 @@ public:
         return tech;
     }
 
-    void serialize(StringBuilder&, SerializationMode) const;
-
     bool properties_equal(FontSourceStyleValue const&) const;
 
 private:

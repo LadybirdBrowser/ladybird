@@ -9,22 +9,6 @@
 
 namespace Web::CSS {
 
-// https://drafts.csswg.org/css-color-4/#serializing-opacity-values
-void OpacityValueStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    // If the specified value for an opacity value matches a literal <percentage-token> (i.e. does not use calc()) it
-    // should be serialized as the equivalent <number> (0% maps to 0, 100% maps to 1) value. value.
-
-    // NB: We resolve percentages to numbers at computed value time so this will only ever the the specified value.
-    if (value()->is_percentage()) {
-        serialize_a_number(builder, value()->as_percentage().percentage().as_fraction());
-        return;
-    }
-
-    // Otherwise, the specified value for an opacity value should serialize using the standard serialization for the grammar.
-    value()->serialize(builder, mode);
-}
-
 ValueComparingNonnullRefPtr<StyleValue const> OpacityValueStyleValue::absolutized(ComputationContext const& computation_context) const
 {
     if (value()->is_number() && value()->as_number().number() > 0 && value()->as_number().number() < 1)

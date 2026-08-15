@@ -26,7 +26,6 @@ public:
     static ValueComparingNonnullRefPtr<ImageSetStyleValue const> create(Vector<Option>);
     virtual ~ImageSetStyleValue() override = default;
 
-    void serialize(StringBuilder&, SerializationMode) const;
     bool equals(StyleValue const& other) const;
     virtual void load_any_resources(DOM::Document&) override;
 

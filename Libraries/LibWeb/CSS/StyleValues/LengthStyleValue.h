@@ -23,9 +23,6 @@ public:
     Length length() const { return Length(m_value->length.value, static_cast<LengthUnit>(m_value->length.unit)); }
     virtual double raw_value() const override { return m_value->length.value; }
     virtual Utf16FlyString unit_name() const override { return length().unit_name(); }
-
-    void serialize(StringBuilder& builder, SerializationMode mode) const { length().serialize(builder, mode); }
-    void serialize(Utf16StringBuilder& builder, SerializationMode mode) const { length().serialize(builder, mode); }
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     bool equals(StyleValue const& other) const;

@@ -38,23 +38,6 @@ int FontStyleStyleValue::to_font_slope() const
     }
 }
 
-void FontStyleStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    Optional<String> angle_string;
-    if (angle()) {
-        angle_string = angle()->to_string(mode);
-        if (font_style() == FontStyleKeyword::Oblique && angle_string == "0deg"sv) {
-            builder.append("normal"sv);
-            return;
-        }
-    }
-    builder.append(CSS::to_string(font_style()));
-    // https://drafts.csswg.org/css-fonts/#valdef-font-style-oblique-angle--90deg-90deg
-    // The lack of an <angle> represents 14deg. (Note that a font might internally provide its own mapping for "oblique", but the mapping within the font is disregarded.)
-    if (angle_string.has_value() && angle_string != "14deg"sv)
-        builder.appendff(" {}", angle_string);
-}
-
 ValueComparingNonnullRefPtr<StyleValue const> FontStyleStyleValue::absolutized(ComputationContext const& computation_context) const
 {
     ValueComparingRefPtr<StyleValue const> absolutized_angle;

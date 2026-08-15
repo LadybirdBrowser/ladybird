@@ -13,6 +13,7 @@
 #include <LibGfx/Color.h>
 #include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
+#include <LibWeb/ComputedValuesRustFFI.h>
 
 namespace Web::CSS {
 
@@ -20,6 +21,9 @@ enum class ColorSyntax : u8 {
     Legacy,
     Modern,
 };
+
+// Marshals the plain-data parts of a ColorResolutionContext for the Rust resolver.
+StyleValueFFI::FfiColorResolutionInput make_rust_color_resolution_input(ColorResolutionContext const&, Optional<ComputedValuesFFI::FfiLengthResolutionContext>&);
 
 class ColorStyleValue : public StyleValue {
 public:
@@ -56,7 +60,6 @@ public:
     }
     ColorSyntax color_syntax() const { return static_cast<ColorSyntax>(m_value->color_function.color_base.color_syntax); }
 
-    void serialize(StringBuilder&, SerializationMode) const;
     bool equals(StyleValue const& other) const;
     Optional<Color> to_color(ColorResolutionContext) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
@@ -75,10 +78,6 @@ protected:
 
     // Packs the optional color type for a color creator's ColorBase arguments.
     static u8 color_type_byte(Optional<ColorType> color_type) { return color_type.has_value() ? static_cast<u8>(to_underlying(*color_type)) : 0; }
-
-    void serialize_color_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component, float one_hundred_percent_value, Optional<double> clamp_min = {}, Optional<double> clamp_max = {}) const;
-    void serialize_alpha_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component) const;
-    void serialize_hue_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component) const;
 };
 
 }

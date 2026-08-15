@@ -56,25 +56,4 @@ double RandomValueSharingStyleValue::random_base_value() const
     return number_from_style_value(*fixed_value(), {});
 }
 
-void RandomValueSharingStyleValue::serialize(StringBuilder& builder, SerializationMode serialization_mode) const
-{
-    if (fixed_value()) {
-        builder.append("fixed "sv);
-        fixed_value()->serialize(builder, serialization_mode);
-        return;
-    }
-
-    bool first = true;
-    if (!is_auto()) {
-        builder.append(serialize_an_identifier(name().value()));
-        first = false;
-    }
-
-    if (element_shared()) {
-        if (!first)
-            builder.append(' ');
-        builder.append("element-shared"sv);
-    }
-}
-
 }

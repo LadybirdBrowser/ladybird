@@ -28,8 +28,6 @@ public:
 
     virtual ~CounterStyleStyleValue() override = default;
 
-    void serialize(StringBuilder&, SerializationMode) const;
-
     RefPtr<CounterStyle const> resolve_counter_style(StyleScope const&) const;
     Variant<Utf16FlyString, SymbolsFunction> value() const
     {

@@ -26,8 +26,6 @@ public:
         return number_from_style_value(parameter_style_value(), {});
     }
 
-    void serialize(StringBuilder&, SerializationMode) const;
-
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     bool properties_equal(SuperellipseStyleValue const& other) const { return parameter_style_value() == other.parameter_style_value(); }

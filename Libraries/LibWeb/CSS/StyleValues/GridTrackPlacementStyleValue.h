@@ -23,7 +23,6 @@ public:
     {
         return m_grid_track_placement;
     }
-    void serialize(StringBuilder&, SerializationMode) const;
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
