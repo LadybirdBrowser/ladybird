@@ -226,10 +226,18 @@
         one: { widths: [35], min: 35, max: 35 },
     };
 
-    function appendIntrinsicContent(target, widths, nested) {
+    function appendIntrinsicContent(target, widths, content) {
         let parent = target;
-        if (nested) {
+        if (content === "atomicPair") {
+            const fixed = document.createElement("span");
+            fixed.style.cssText = "display: inline-block; width: 10px; height: 10px";
+            target.appendChild(fixed);
+        }
+        if (content !== "direct") {
             const wrapper = document.createElement("span");
+            wrapper.style.whiteSpace = "normal";
+            if (content === "atomic" || content === "atomicPair")
+                wrapper.style.display = "inline-block";
             target.appendChild(wrapper);
             parent = wrapper;
         }
@@ -240,9 +248,10 @@
         }
     }
 
-    function makeIntrinsicProbe(width, sequence, nested) {
-        const probe = makeElement(`display: inline-block; width: ${width}; overflow: hidden; font-size: 0`);
-        appendIntrinsicContent(probe, sequence.widths, nested);
+    function makeIntrinsicProbe(width, sequence, content, wrapping) {
+        const probe = makeElement(
+            `display: inline-block; width: ${width}; overflow: hidden; font-size: 0; white-space: ${wrapping}`);
+        appendIntrinsicContent(probe, sequence.widths, content);
         return probe;
     }
 
@@ -251,14 +260,15 @@
             atomic: ["inlineBlock", "float", "absolute"],
             available: [25, 40, 70],
             sequence: Object.keys(intrinsicSequences),
-            nested: [false, true],
+            content: ["direct", "inline", "atomic", "atomicPair"],
+            wrapping: ["normal", "nowrap"],
         });
         for (const testCase of cases) {
             const label = `intrinsic ${JSON.stringify(testCase)}`;
             matrix.run(label, () => {
                 const sequence = intrinsicSequences[testCase.sequence];
                 const host = makeElement(`position: relative; width: ${testCase.available}px; height: 30px; font-size: 0`);
-                const target = makeElement("overflow: hidden; font-size: 0");
+                const target = makeElement(`overflow: hidden; font-size: 0; white-space: ${testCase.wrapping}`);
                 if (testCase.atomic === "inlineBlock")
                     target.style.display = "inline-block";
                 else if (testCase.atomic === "float")
@@ -267,19 +277,27 @@
                     target.style.position = "absolute";
                     target.style.left = "0";
                 }
-                appendIntrinsicContent(target, sequence.widths, testCase.nested);
+                appendIntrinsicContent(target, sequence.widths, testCase.content);
                 host.appendChild(target);
 
-                const minProbe = makeIntrinsicProbe("min-content", sequence, testCase.nested);
-                const maxProbe = makeIntrinsicProbe("max-content", sequence, testCase.nested);
+                const minProbe = makeIntrinsicProbe("min-content", sequence, testCase.content, testCase.wrapping);
+                const maxProbe = makeIntrinsicProbe("max-content", sequence, testCase.content, testCase.wrapping);
                 document.body.append(host, minProbe, maxProbe);
                 try {
                     flushLayout();
 
-                    const expected = Math.min(sequence.max, Math.max(sequence.min, testCase.available));
+                    const maximum = sequence.max + (testCase.content === "atomicPair" ? 10 : 0);
+                    let minimum = sequence.min;
+                    if (testCase.wrapping === "nowrap") {
+                        if (testCase.content === "direct" || testCase.content === "inline")
+                            minimum = sequence.max;
+                        else if (testCase.content === "atomicPair")
+                            minimum += 10;
+                    }
+                    const expected = Math.min(maximum, Math.max(minimum, testCase.available));
                     matrix.expect("shrink-to-fit width", rounded(target.getBoundingClientRect().width), expected);
-                    matrix.expect("min-content width", rounded(minProbe.getBoundingClientRect().width), sequence.min);
-                    matrix.expect("max-content width", rounded(maxProbe.getBoundingClientRect().width), sequence.max);
+                    matrix.expect("min-content width", rounded(minProbe.getBoundingClientRect().width), minimum);
+                    matrix.expect("max-content width", rounded(maxProbe.getBoundingClientRect().width), maximum);
                 } finally {
                     host.remove();
                     minProbe.remove();

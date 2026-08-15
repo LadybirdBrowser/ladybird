@@ -780,6 +780,7 @@ pub struct FfiBordersData {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ChildLayoutResult {
     pub automatic_content_inline_size: CssPixels,
+    pub min_content_inline_size_from_max_content_layout: Option<CssPixels>,
     pub automatic_content_block_size: CssPixels,
     pub baselines: DerivedBaselines,
     pub table_box_in_wrapper_border_box_block_size: Option<CssPixels>,
@@ -1741,6 +1742,8 @@ fn execute_formatting_context_run(
                 store_derived_baselines(&run.records.used_values(run.box_), baselines);
                 ChildLayoutResult {
                     automatic_content_inline_size: context.automatic_content_inline_size(),
+                    min_content_inline_size_from_max_content_layout: context
+                        .min_content_inline_size_from_max_content_layout(),
                     automatic_content_block_size: context.automatic_content_block_size(),
                     baselines,
                     table_box_in_wrapper_border_box_block_size: context.table_box_in_wrapper_border_box_block_size(),

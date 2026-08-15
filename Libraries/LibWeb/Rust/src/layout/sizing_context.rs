@@ -1084,6 +1084,25 @@ impl SizingContext {
             return;
         }
 
+        let inline_size = self.calculate_atomic_root_content_inline_size(node, available_space, constraints, None);
+        self.used(node).set_content_inline_size(inline_size);
+
+        let inline_definite_space = AvailableSpace {
+            inline_size: AvailableSize::definite(inline_size),
+            block_size: AvailableSize::Indefinite,
+        };
+        self.resolve_used_block_size_if_not_treated_as_auto(node, inline_definite_space, constraints);
+        self.make_button_content_box_definite(node, layout_mode, available_space, constraints, None);
+    }
+
+    fn calculate_atomic_root_content_inline_size(
+        &self,
+        node: Node,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+        intrinsic_content_inline_size: Option<CssPixels>,
+    ) -> CssPixels {
+        let style = self.style(node);
         let unconstrained_inline_size = if self.should_treat_inline_size_as_auto(node, available_space) {
             if matches!(available_space.inline_size, AvailableSize::Definite(_)) {
                 let used = self.used(node);
@@ -1103,9 +1122,11 @@ impl SizingContext {
                         .min(preferred)
                 }
             } else if available_space.inline_size == AvailableSize::MinContent {
-                self.calculate_min_content_inline_size(node, constraints)
+                intrinsic_content_inline_size
+                    .unwrap_or_else(|| self.calculate_min_content_inline_size(node, constraints))
             } else {
-                self.calculate_max_content_inline_size(node, constraints)
+                intrinsic_content_inline_size
+                    .unwrap_or_else(|| self.calculate_max_content_inline_size(node, constraints))
             }
         } else if style.width().contains_percentage() && !matches!(available_space.inline_size, AvailableSize::Definite(_)) {
             CssPixels::default()
@@ -1130,14 +1151,39 @@ impl SizingContext {
                 constraints,
             ));
         }
-        self.used(node).set_content_inline_size(inline_size);
+        inline_size
+    }
 
-        let inline_definite_space = AvailableSpace {
-            inline_size: AvailableSize::definite(inline_size),
-            block_size: AvailableSize::Indefinite,
+    pub(crate) fn paired_min_content_inline_size_for_atomic_root(
+        &self,
+        node: Node,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+    ) -> Option<CssPixels> {
+        if available_space.inline_size != AvailableSize::MaxContent
+            || self.box_is_sized_as_replaced_element(node, available_space, constraints)
+        {
+            return None;
+        }
+        let min_content_inline_size = if self.has_children(node) {
+            self.intrinsic_inline_measurement_cache_get(
+                node,
+                IntrinsicSizeCacheKind::MaxContentInline,
+                cache_key(None, constraints),
+            )?
+            .min_content_inline_size_from_max_content_layout?
+        } else {
+            CssPixels::default()
         };
-        self.resolve_used_block_size_if_not_treated_as_auto(node, inline_definite_space, constraints);
-        self.make_button_content_box_definite(node, layout_mode, available_space, constraints, None);
+        Some(self.calculate_atomic_root_content_inline_size(
+            node,
+            AvailableSpace {
+                inline_size: AvailableSize::MinContent,
+                ..available_space
+            },
+            constraints,
+            Some(min_content_inline_size),
+        ))
     }
 
     fn calculate_stretch_fit_inline_size(&self, node: Node, available: AvailableSize) -> CssPixels {
@@ -1242,6 +1288,8 @@ impl SizingContext {
             key,
             IntrinsicInlineSizeMeasurement {
                 automatic_content_inline_size: result.automatic_content_inline_size,
+                min_content_inline_size_from_max_content_layout: result
+                    .min_content_inline_size_from_max_content_layout,
                 available_block_size,
                 content_inline_size: used.content_inline_size.get(),
                 content_block_size: used.content_block_size.get(),
@@ -1381,7 +1429,30 @@ impl SizingContext {
         if !self.has_children(node) {
             return CssPixels::default();
         }
+        if let Some(cached) = self.intrinsic_inline_measurement_cache_get(
+            node,
+            IntrinsicSizeCacheKind::MinContentInline,
+            cache_key(None, constraints),
+        ) {
+            return cached.automatic_content_inline_size;
+        }
+        if let Some(min_content_inline_size) = self.paired_min_content_inline_size(node, constraints) {
+            return min_content_inline_size;
+        }
         self.measure_intrinsic_inline_size(node, constraints, IntrinsicSizeCacheKind::MinContentInline)
+    }
+
+    fn paired_min_content_inline_size(
+        &self,
+        node: Node,
+        constraints: ContainingBlockConstraints,
+    ) -> Option<CssPixels> {
+        self.intrinsic_inline_measurement_cache_get(
+            node,
+            IntrinsicSizeCacheKind::MaxContentInline,
+            cache_key(None, constraints),
+        )?
+        .min_content_inline_size_from_max_content_layout
     }
 
     pub(crate) fn calculate_max_content_inline_size(
@@ -1585,6 +1656,9 @@ impl SizingContext {
             ),
         );
         result.automatic_content_inline_size = clamp_to_max_dimension_value(result.automatic_content_inline_size);
+        result.min_content_inline_size_from_max_content_layout = result
+            .min_content_inline_size_from_max_content_layout
+            .map(clamp_to_max_dimension_value);
         let value = result.automatic_content_inline_size;
         self.cache_intrinsic_inline_measurement(node, kind, key, &root, result, block_size);
         value

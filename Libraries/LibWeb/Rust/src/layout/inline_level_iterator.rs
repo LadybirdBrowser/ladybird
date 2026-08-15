@@ -22,6 +22,7 @@ pub(crate) struct Item {
     pub(crate) offset_in_node: usize,
     pub(crate) length_in_node: usize,
     pub(crate) inline_size: CssPixels,
+    pub(crate) min_content_inline_size: Option<CssPixels>,
     pub(crate) padding_start: CssPixels,
     pub(crate) padding_end: CssPixels,
     pub(crate) border_start: CssPixels,
@@ -44,6 +45,7 @@ impl Item {
             offset_in_node: 0,
             length_in_node: 0,
             inline_size: CssPixels::default(),
+            min_content_inline_size: None,
             padding_start: CssPixels::default(),
             padding_end: CssPixels::default(),
             border_start: CssPixels::default(),
@@ -60,6 +62,29 @@ impl Item {
 
     pub(crate) fn border_box_inline_size(&self) -> CssPixels {
         self.border_start + self.padding_start + self.inline_size + self.padding_end + self.border_end
+    }
+
+    pub(crate) fn has_box_model_metrics(&self) -> bool {
+        self.margin_start != CssPixels::default()
+            || self.border_start != CssPixels::default()
+            || self.padding_start != CssPixels::default()
+            || self.padding_end != CssPixels::default()
+            || self.border_end != CssPixels::default()
+            || self.margin_end != CssPixels::default()
+    }
+
+    pub(crate) fn is_ascii_whitespace(&self, context: &InlineFormattingContext<'_>) -> bool {
+        assert_eq!(self.type_, ItemType::Text);
+        let text = &context.callbacks.text_content(self.node).text;
+        text[self.offset_in_node..self.offset_in_node + self.length_in_node]
+            .iter()
+            .all(|unit| *unit <= 0x7f && (*unit as u8).is_ascii_whitespace())
+    }
+
+    pub(crate) fn contains_tab(&self, context: &InlineFormattingContext<'_>) -> bool {
+        assert_eq!(self.type_, ItemType::Text);
+        let text = &context.callbacks.text_content(self.node).text;
+        text[self.offset_in_node..self.offset_in_node + self.length_in_node].contains(&(b'\t' as u16))
     }
 }
 
@@ -575,9 +600,11 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
                 .create_used_values(node, self.context().input.containing_block_constraints)
         };
         let content_baselines = self.context_mut().dimension_box_on_line(node);
+        let min_content_inline_size = self.context().paired_min_content_inline_size_for_atomic_root(node);
         let mut item = Item::new(ItemType::Element, node);
         item.content_baselines = content_baselines;
         item.inline_size = used.content_inline_size.get();
+        item.min_content_inline_size = min_content_inline_size;
         item.padding_start = used.padding_left.get();
         item.padding_end = used.padding_right.get();
         item.border_start = used.border_left.get();
@@ -636,25 +663,13 @@ impl InlineLevelIterator {
                 if item.type_ != ItemType::Text || item.is_collapsible_whitespace {
                     break;
                 }
-                let text = &context.callbacks.text_content(item.node).text;
-                if text[item.offset_in_node..item.offset_in_node + item.length_in_node]
-                    .iter()
-                    .all(|unit| *unit <= 0x7f && (*unit as u8).is_ascii_whitespace())
-                {
+                if item.is_ascii_whitespace(context) {
                     break;
                 }
             }
             size += item.border_box_inline_size();
         }
         size
-    }
-
-    pub(crate) fn item_is_ascii_whitespace(&self, context: &InlineFormattingContext<'_>, item: &Item) -> bool {
-        assert_eq!(item.type_, ItemType::Text);
-        let text = &context.callbacks.text_content(item.node).text;
-        text[item.offset_in_node..item.offset_in_node + item.length_in_node]
-            .iter()
-            .all(|unit| *unit <= 0x7f && (*unit as u8).is_ascii_whitespace())
     }
 
     pub(crate) fn take_visited_fragmented_inlines(&mut self) -> Vec<Node> {

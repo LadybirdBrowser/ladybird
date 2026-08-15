@@ -197,6 +197,7 @@ pub(crate) struct BlockFormattingContext {
     derived_baselines_of_root_box: Cell<DerivedBaselines>,
     trailing_collapsed_margin: Cell<Option<(Node, CssPixels)>>,
     table_box_in_wrapper_border_box_block_size: Cell<Option<CssPixels>>,
+    min_content_inline_size_from_max_content_layout: Cell<Option<CssPixels>>,
     fragments: Option<std::rc::Rc<RunFragmentBuilder>>,
     should_collect_devtools_layout_data: bool,
     treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
@@ -223,6 +224,7 @@ impl BlockFormattingContext {
             derived_baselines_of_root_box: Cell::new(DerivedBaselines::default()),
             trailing_collapsed_margin: Cell::new(None),
             table_box_in_wrapper_border_box_block_size: Cell::new(None),
+            min_content_inline_size_from_max_content_layout: Cell::new(None),
             should_collect_devtools_layout_data: run.should_collect_devtools_layout_data,
             treat_block_axis_percentage_insets_as_auto_beyond_root: run.treat_block_axis_percentage_insets_as_auto_beyond_root,
             previous_line_data: run.previous_line_data.clone(),
@@ -296,7 +298,7 @@ impl BlockFormattingContext {
         ancestor == node || self.is_ancestor_of(ancestor, node)
     }
 
-    fn sizing(&self) -> SizingContext {
+    pub(crate) fn sizing(&self) -> SizingContext {
         SizingContext::new(self.purpose, self.records.clone(), self.callbacks)
     }
 
@@ -2553,6 +2555,10 @@ impl BlockFormattingContext {
         context.run();
         let automatic_inline_size = context.automatic_content_inline_size;
         let automatic_block_size = context.automatic_content_block_size;
+        if block_container == self.root {
+            self.min_content_inline_size_from_max_content_layout
+                .set(context.min_content_inline_size_from_max_content_layout);
+        }
         if !self.used(block_container).has_definite_inline_size() {
             // NOTE: min-width or max-width for boxes with inline children can only be applied after inside layout
             //       is done and the inline size of the box content is known
@@ -2844,6 +2850,10 @@ impl BlockFormattingContext {
             unreachable!("a table wrapper contains its table box");
         }
         self.greatest_child_inline_size_including_floats(self.root)
+    }
+
+    pub(crate) fn min_content_inline_size_from_max_content_layout(&self) -> Option<CssPixels> {
+        self.min_content_inline_size_from_max_content_layout.get()
     }
 
     pub(crate) fn automatic_content_block_size(&self) -> CssPixels {
