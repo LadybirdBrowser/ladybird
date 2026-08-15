@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="layout-optimization-test-matrix.js"></script>
+<style>
+    body { margin: 0; }
+    .cache-root { box-sizing: border-box; overflow: hidden; }
+    .inline-matrix { display: inline-block; font-size: 0; vertical-align: top; }
+    .inline-item { display: inline-block; width: 10px; height: 10px; }
+</style>
+<script>
+    const formattingContexts = {
+        block: "display: block",
+        inlineBlock: "display: inline-block",
+        flex: "display: flex",
+        grid: "display: grid",
+    };
+
+    function makeElement(style = "", className = "") {
+        const element = document.createElement("div");
+        element.className = className;
+        element.style.cssText = style;
+        return element;
+    }
+
+    function makeCacheChain(format, depth, leaf) {
+        let inner = leaf;
+        for (let level = depth - 1; level >= 0; --level) {
+            const width = 100 - level * 10;
+            const height = 50 - level * 5;
+            const root = makeElement(
+                `${formattingContexts[format]}; width: ${width}px; height: ${height}px`,
+                "cache-root");
+            root.appendChild(inner);
+            inner = root;
+        }
+        return inner;
+    }
+
+    function flushLayout() {
+        return document.body.offsetWidth;
+    }
+
+    function runEscapedOutOfFlowMatrix(matrix) {
+        const cases = matrixCases({
+            position: ["absolute", "fixed"],
+            format: Object.keys(formattingContexts),
+            depth: [1, 2, 3],
+            axis: ["inline", "block"],
+        });
+        for (const testCase of cases) {
+            const label = `escaped ${JSON.stringify(testCase)}`;
+            matrix.run(label, () => {
+                const containingBlock = makeElement("width: 300px; height: 200px");
+                if (testCase.position === "absolute")
+                    containingBlock.style.position = "relative";
+                else
+                    containingBlock.style.transform = "translateX(0px)";
+
+                const outOfFlow = makeElement("width: 10px; height: 10px");
+                outOfFlow.style.position = testCase.position;
+                if (testCase.axis === "inline") {
+                    outOfFlow.style.right = "10px";
+                    outOfFlow.style.top = "5px";
+                } else {
+                    outOfFlow.style.left = "5px";
+                    outOfFlow.style.bottom = "10px";
+                }
+                const stableShell = makeElement("width: 110px; height: 60px; overflow: hidden");
+                stableShell.appendChild(makeCacheChain(testCase.format, testCase.depth, outOfFlow));
+                containingBlock.appendChild(stableShell);
+                document.body.appendChild(containingBlock);
+                try {
+                    flushLayout();
+
+                    const before = relativeRect(outOfFlow, containingBlock);
+                    const hitsBefore = internals.layoutRunCacheHitCount();
+                    if (testCase.axis === "inline")
+                        containingBlock.style.width = "200px";
+                    else
+                        containingBlock.style.height = "120px";
+                    flushLayout();
+                    const hitDelta = internals.layoutRunCacheHitCount() - hitsBefore;
+                    const after = relativeRect(outOfFlow, containingBlock);
+
+                    const expectedBefore = testCase.axis === "inline" ? [280, 5, 10, 10] : [5, 180, 10, 10];
+                    const expectedAfter = testCase.axis === "inline" ? [180, 5, 10, 10] : [5, 100, 10, 10];
+                    matrix.expect("geometry before", before, expectedBefore);
+                    matrix.expect("geometry after", after, expectedAfter);
+                    matrix.expectTrue("cache hit", hitDelta >= 1);
+                } finally {
+                    containingBlock.remove();
+                }
+            });
+        }
+    }
+
+    function runCommittedMovementMatrix(matrix) {
+        const cases = matrixCases({
+            format: Object.keys(formattingContexts),
+            depth: [1, 2, 3],
+            descendant: ["inFlow", "absolute", "fixed"],
+        });
+        for (const testCase of cases) {
+            const label = `movement ${JSON.stringify(testCase)}`;
+            matrix.run(label, () => {
+                const host = makeElement("width: 300px");
+                const spacer = makeElement("height: 10px");
+                const descendant = makeElement("width: 10px; height: 10px");
+                const chain = makeCacheChain(testCase.format, testCase.depth, descendant);
+                let containingRoot = chain;
+                while (containingRoot.firstElementChild !== descendant)
+                    containingRoot = containingRoot.firstElementChild;
+                if (testCase.descendant !== "inFlow") {
+                    descendant.style.position = testCase.descendant;
+                    descendant.style.left = "7px";
+                    descendant.style.top = "9px";
+                    if (testCase.descendant === "absolute")
+                        containingRoot.style.position = "relative";
+                    else
+                        containingRoot.style.transform = "translateX(0px)";
+                }
+                host.append(spacer, chain);
+                document.body.appendChild(host);
+                try {
+                    flushLayout();
+
+                    const before = descendant.getBoundingClientRect();
+                    const beforeTuple = [rounded(before.left), rounded(before.top), rounded(before.width), rounded(before.height)];
+                    const hitsBefore = internals.layoutRunCacheHitCount();
+                    spacer.style.height = "40px";
+                    flushLayout();
+                    const hitDelta = internals.layoutRunCacheHitCount() - hitsBefore;
+                    const after = descendant.getBoundingClientRect();
+                    const afterTuple = [rounded(after.left), rounded(after.top), rounded(after.width), rounded(after.height)];
+
+                    matrix.expect("movement", afterTuple, [beforeTuple[0], beforeTuple[1] + 30, 10, 10]);
+                    matrix.expectTrue("cache hit", hitDelta >= 1);
+                } finally {
+                    host.remove();
+                }
+            });
+        }
+    }
+
+    function makeInlineContainer(keys, width, ancestorDepth) {
+        const container = document.createElement("div");
+        container.className = "inline-matrix";
+        container.style.width = `${width}px`;
+        let parent = container;
+        for (let level = 0; level < ancestorDepth; ++level) {
+            const wrapper = document.createElement("span");
+            parent.appendChild(wrapper);
+            parent = wrapper;
+        }
+        for (const key of keys) {
+            const item = document.createElement("span");
+            item.className = "inline-item";
+            item.dataset.key = key;
+            parent.appendChild(item);
+        }
+        container.itemParent = parent;
+        return container;
+    }
+
+    function inlineGeometry(container) {
+        const result = { container: [rounded(container.offsetWidth), rounded(container.offsetHeight)], items: {} };
+        for (const item of container.querySelectorAll(".inline-item"))
+            result.items[item.dataset.key] = relativeRect(item, container);
+        return result;
+    }
+
+    function runInlineDamageMatrix(matrix) {
+        const cases = matrixCases({
+            mutation: ["insert", "remove"],
+            width: [30, 40, 50],
+            position: [1, 6, 10],
+            ancestorDepth: [0, 1, 2],
+        });
+        for (const testCase of cases) {
+            const label = `inline damage ${JSON.stringify(testCase)}`;
+            matrix.run(label, () => {
+                const initialKeys = Array.from({ length: 12 }, (_, index) => String(index));
+                const subject = makeInlineContainer(initialKeys, testCase.width, testCase.ancestorDepth);
+                let control = null;
+                document.body.appendChild(subject);
+                try {
+                    flushLayout();
+
+                    const finalKeys = [...initialKeys];
+                    if (testCase.mutation === "insert") {
+                        finalKeys.splice(testCase.position, 0, "inserted");
+                        const item = document.createElement("span");
+                        item.className = "inline-item";
+                        item.dataset.key = "inserted";
+                        subject.itemParent.insertBefore(item, subject.itemParent.children[testCase.position]);
+                    } else {
+                        finalKeys.splice(testCase.position, 1);
+                        subject.itemParent.children[testCase.position].remove();
+                    }
+
+                    control = makeInlineContainer(finalKeys, testCase.width, testCase.ancestorDepth);
+                    document.body.appendChild(control);
+                    flushLayout();
+                    matrix.expect("fresh-control geometry", inlineGeometry(subject), inlineGeometry(control));
+                } finally {
+                    subject.remove();
+                    control?.remove();
+                }
+            });
+        }
+    }
+
+    const intrinsicSequences = {
+        two: { widths: [20, 30], min: 30, max: 50 },
+        three: { widths: [10, 20, 30], min: 30, max: 60 },
+        one: { widths: [35], min: 35, max: 35 },
+    };
+
+    function appendIntrinsicContent(target, widths, nested) {
+        let parent = target;
+        if (nested) {
+            const wrapper = document.createElement("span");
+            target.appendChild(wrapper);
+            parent = wrapper;
+        }
+        for (const width of widths) {
+            const item = document.createElement("span");
+            item.style.cssText = `display: inline-block; width: ${width}px; height: 10px`;
+            parent.appendChild(item);
+        }
+    }
+
+    function makeIntrinsicProbe(width, sequence, nested) {
+        const probe = makeElement(`display: inline-block; width: ${width}; overflow: hidden; font-size: 0`);
+        appendIntrinsicContent(probe, sequence.widths, nested);
+        return probe;
+    }
+
+    function runIntrinsicSizingMatrix(matrix) {
+        const cases = matrixCases({
+            atomic: ["inlineBlock", "float", "absolute"],
+            available: [25, 40, 70],
+            sequence: Object.keys(intrinsicSequences),
+            nested: [false, true],
+        });
+        for (const testCase of cases) {
+            const label = `intrinsic ${JSON.stringify(testCase)}`;
+            matrix.run(label, () => {
+                const sequence = intrinsicSequences[testCase.sequence];
+                const host = makeElement(`position: relative; width: ${testCase.available}px; height: 30px; font-size: 0`);
+                const target = makeElement("overflow: hidden; font-size: 0");
+                if (testCase.atomic === "inlineBlock")
+                    target.style.display = "inline-block";
+                else if (testCase.atomic === "float")
+                    target.style.float = "left";
+                else {
+                    target.style.position = "absolute";
+                    target.style.left = "0";
+                }
+                appendIntrinsicContent(target, sequence.widths, testCase.nested);
+                host.appendChild(target);
+
+                const minProbe = makeIntrinsicProbe("min-content", sequence, testCase.nested);
+                const maxProbe = makeIntrinsicProbe("max-content", sequence, testCase.nested);
+                document.body.append(host, minProbe, maxProbe);
+                try {
+                    flushLayout();
+
+                    const expected = Math.min(sequence.max, Math.max(sequence.min, testCase.available));
+                    matrix.expect("shrink-to-fit width", rounded(target.getBoundingClientRect().width), expected);
+                    matrix.expect("min-content width", rounded(minProbe.getBoundingClientRect().width), sequence.min);
+                    matrix.expect("max-content width", rounded(maxProbe.getBoundingClientRect().width), sequence.max);
+                } finally {
+                    host.remove();
+                    minProbe.remove();
+                    maxProbe.remove();
+                }
+            });
+        }
+    }
+
+    const emptyVariants = {
+        auto: "",
+        fixed: "width: 25px; height: 15px",
+        minimum: "min-width: 12px; min-height: 8px",
+        boxModel: "box-sizing: content-box; width: 0; height: 0; padding: 3px; border: 2px solid",
+    };
+
+    function makeEmptyAtomic(kind, variant, withZeroChild) {
+        const target = makeElement(`${emptyVariants[variant]}; overflow: hidden`);
+        if (kind === "inlineBlock")
+            target.style.display = "inline-block";
+        else if (kind === "float")
+            target.style.float = "left";
+        else {
+            target.style.position = "absolute";
+            target.style.left = "0";
+            target.style.top = "0";
+        }
+        if (withZeroChild)
+            target.appendChild(makeElement("width: 0; height: 0"));
+        return target;
+    }
+
+    function runEmptyAtomicMatrix(matrix) {
+        const cases = matrixCases({
+            parent: ["block", "flex", "grid"],
+            atomic: ["inlineBlock", "float", "absolute"],
+            variant: Object.keys(emptyVariants),
+        });
+        for (const testCase of cases) {
+            const label = `empty atomic ${JSON.stringify(testCase)}`;
+            matrix.run(label, () => {
+                const emptyParent = makeElement(`${formattingContexts[testCase.parent]}; position: relative; width: 100px; height: 50px; font-size: 0`);
+                const controlParent = makeElement(`${formattingContexts[testCase.parent]}; position: relative; width: 100px; height: 50px; font-size: 0`);
+                const empty = makeEmptyAtomic(testCase.atomic, testCase.variant, false);
+                const control = makeEmptyAtomic(testCase.atomic, testCase.variant, true);
+                emptyParent.appendChild(empty);
+                controlParent.appendChild(control);
+                document.body.append(emptyParent, controlParent);
+                try {
+                    flushLayout();
+                    matrix.expect("zero-child control", relativeRect(empty, emptyParent), relativeRect(control, controlParent));
+                } finally {
+                    emptyParent.remove();
+                    controlParent.remove();
+                }
+            });
+        }
+    }
+
+    test(() => {
+        const matrix = new LayoutTestMatrix("layout optimization scenarios");
+        runEscapedOutOfFlowMatrix(matrix);
+        runCommittedMovementMatrix(matrix);
+        runInlineDamageMatrix(matrix);
+        runIntrinsicSizingMatrix(matrix);
+        runEmptyAtomicMatrix(matrix);
+        matrix.print();
+    });
+</script>
