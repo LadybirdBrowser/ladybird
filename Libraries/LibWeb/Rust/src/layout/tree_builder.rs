@@ -817,7 +817,7 @@ unsafe fn update_layout_tree_for_display_contents(
             }
         }
 
-        if !facts.content_visibility_hidden {
+        if !facts.content_visibility_hidden && !context.has_svg_root {
             create_pseudo_element(
                 host,
                 state,
@@ -884,7 +884,7 @@ unsafe fn update_layout_tree_for_display_contents(
             }
         }
 
-        if !facts.content_visibility_hidden {
+        if !facts.content_visibility_hidden && !context.has_svg_root {
             create_pseudo_element(
                 host,
                 state,
@@ -1023,7 +1023,11 @@ unsafe fn update_principal_node_descendants(
             }
 
             // Add the ::before pseudo-element before walking normal children.
-            if facts.is_element && layout_node_can_have_children && !facts.content_visibility_hidden {
+            if facts.is_element
+                && layout_node_can_have_children
+                && !facts.content_visibility_hidden
+                && !context.has_svg_root
+            {
                 state.ancestor_stack.push(layout_node);
                 create_pseudo_element(
                     host,
@@ -1225,7 +1229,11 @@ unsafe fn update_principal_node_descendants(
             }
 
             // Add ::marker and ::after once normal and SVG resource children are complete.
-            if facts.is_element && layout_node_can_have_children && !facts.content_visibility_hidden {
+            if facts.is_element
+                && layout_node_can_have_children
+                && !facts.content_visibility_hidden
+                && !context.has_svg_root
+            {
                 state.ancestor_stack.push(layout_node);
                 if layout_host.data(layout_node).kind == NodeKind::ListItemBox {
                     create_pseudo_element(
