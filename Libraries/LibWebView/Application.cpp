@@ -47,6 +47,7 @@
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
+#include <LibWebView/WebDriverBrowserConnection.h>
 #include <LibWebView/WebWorkerClient.h>
 #include <LibWebView/WorkerProcessManager.h>
 
@@ -266,6 +267,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     Vector<StringView> debug_processes;
     Optional<StringView> profile_process;
     Optional<StringView> webdriver_endpoint;
+    Optional<StringView> webdriver_browser_endpoint;
     Optional<StringView> user_agent_preset;
     Optional<StringView> dns_server_address;
     Optional<StringView> default_time_zone;
@@ -349,8 +351,10 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(profile_process, "Enable callgrind profiling of the given process name (WebContent, RequestServer, etc.)", "profile-process", 0, "process-name");
 #if defined(AK_OS_MACOS)
     args_parser.add_option(webdriver_endpoint, "Mach server name for WebDriver IPC", "webdriver-mach-server-name", 0, "name", Core::ArgsParser::OptionHideMode::CommandLineAndMarkdown);
+    args_parser.add_option(webdriver_browser_endpoint, "Mach server name for the browser's WebDriver IPC", "webdriver-browser-mach-server-name", 0, "name", Core::ArgsParser::OptionHideMode::CommandLineAndMarkdown);
 #else
     args_parser.add_option(webdriver_endpoint, "Path to WebDriver IPC for WebContent", "webdriver-content-path", 0, "path", Core::ArgsParser::OptionHideMode::CommandLineAndMarkdown);
+    args_parser.add_option(webdriver_browser_endpoint, "Path to WebDriver IPC for the browser", "webdriver-browser-path", 0, "path", Core::ArgsParser::OptionHideMode::CommandLineAndMarkdown);
 #endif
     args_parser.add_option(enable_test_mode, "Enable test mode", "test-mode");
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
@@ -572,6 +576,8 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     if (webdriver_endpoint.has_value())
         m_browser_options.webdriver_endpoint = *webdriver_endpoint;
+    if (webdriver_browser_endpoint.has_value())
+        m_browser_options.webdriver_browser_endpoint = *webdriver_browser_endpoint;
 
     auto http_disk_cache_mode = HTTPDiskCacheMode::Enabled;
     if (disable_http_disk_cache)
@@ -794,6 +800,42 @@ PrivateBrowsingSession& Application::ensure_private_browsing_session()
     }
 
     return *m_private_browsing_session;
+}
+
+WebDriverBrowserConnection* Application::webdriver_browser_connection()
+{
+    if (!m_browser_options.webdriver_browser_endpoint.has_value() || m_webdriver_browser_connection_failed)
+        return nullptr;
+
+    if (!m_webdriver_browser_connection) {
+        auto connection = WebDriverBrowserConnection::connect(*m_browser_options.webdriver_browser_endpoint);
+        if (connection.is_error()) {
+            warnln("Unable to connect the browser to WebDriver: {}", connection.error());
+            m_webdriver_browser_connection_failed = true;
+            return nullptr;
+        }
+        m_webdriver_browser_connection = connection.release_value();
+    }
+
+    return m_webdriver_browser_connection.ptr();
+}
+
+void Application::notify_webdriver_window_created(String const& handle)
+{
+    if (auto* connection = webdriver_browser_connection())
+        connection->async_did_create_window(handle);
+}
+
+void Application::notify_webdriver_window_closed(String const& handle)
+{
+    if (auto* connection = webdriver_browser_connection())
+        connection->async_did_close_window(handle);
+}
+
+void Application::webdriver_browser_connection_died(Badge<WebDriverBrowserConnection>)
+{
+    m_webdriver_browser_connection = nullptr;
+    m_webdriver_browser_connection_failed = true;
 }
 
 void Application::maybe_close_private_browsing_session()

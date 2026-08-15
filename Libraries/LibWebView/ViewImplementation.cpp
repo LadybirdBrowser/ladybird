@@ -104,6 +104,9 @@ ViewImplementation::~ViewImplementation()
 {
     cancel_all_native_geolocation_requests();
 
+    if (!m_client_state.client_handle.is_empty())
+        Application::the().notify_webdriver_window_closed(m_client_state.client_handle);
+
     all_views().remove(m_view_id);
 
     if (m_client_state.client)
@@ -1769,8 +1772,10 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
         m_client_state.client->register_view(m_client_state.page_index, *this);
     }
 
-    if (m_client_state.client_handle.is_empty())
+    if (m_client_state.client_handle.is_empty()) {
         m_client_state.client_handle = Web::Crypto::generate_random_uuid();
+        Application::the().notify_webdriver_window_created(m_client_state.client_handle);
+    }
     client().async_set_window_handle(m_client_state.page_index, m_client_state.client_handle);
     client().async_set_zoom_level(m_client_state.page_index, m_zoom_level);
     client().async_set_viewport(m_client_state.page_index, viewport_size(), m_device_pixel_ratio, m_is_fullscreen);

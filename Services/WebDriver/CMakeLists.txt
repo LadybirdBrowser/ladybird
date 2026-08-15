@@ -1,4 +1,5 @@
 set(SOURCES
+    BrowserConnection.cpp
     Client.cpp
     Session.cpp
     WebContentConnection.cpp

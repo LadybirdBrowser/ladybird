@@ -155,6 +155,10 @@ public:
     void maybe_close_private_browsing_session();
     void reset_private_browsing_session();
 
+    void notify_webdriver_window_created(String const& handle);
+    void notify_webdriver_window_closed(String const& handle);
+    void webdriver_browser_connection_died(Badge<WebDriverBrowserConnection>);
+
     Web::Compositor::CompositorContextId allocate_compositor_context_id();
     ErrorOr<void> connect_web_content_to_compositor(WebContentClient&);
     ErrorOr<IPC::TransportHandle> connect_new_compositor_canvas_client();
@@ -341,6 +345,8 @@ private:
     void initialize_actions();
     void update_vertical_tabs_action();
 
+    WebDriverBrowserConnection* webdriver_browser_connection();
+
     struct MenuData {
         Menu& menu;
         ReadonlySpan<BookmarkItem> items;
@@ -442,6 +448,9 @@ private:
     RequestServerOptions m_request_server_options;
     WebContentOptions m_web_content_options;
     Optional<Core::AnonymousBuffer> m_content_blocker_list_buffer;
+
+    RefPtr<WebDriverBrowserConnection> m_webdriver_browser_connection;
+    bool m_webdriver_browser_connection_failed { false };
 
     RefPtr<Requests::RequestClient> m_request_server_client;
     RefPtr<Requests::RequestClient> m_private_request_server_client;

@@ -37,6 +37,7 @@ class StorageJar;
 class TraversableSessionHistory;
 class ViewImplementation;
 class WebContentClient;
+class WebDriverBrowserConnection;
 class WebWorkerClient;
 class WebUI;
 

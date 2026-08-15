@@ -1,0 +1,3 @@
+endpoint WebDriverBrowserClient {
+    close_session() =|
+}

@@ -175,6 +175,10 @@ void Session::close_all()
 // https://w3c.github.io/webdriver/#dfn-close-the-session
 void Session::close()
 {
+    if (m_closing)
+        return;
+    m_closing = true;
+
     // NB: Step 2 removes this session from the active-sessions map — usually dropping the last reference to it. So hold
     //     a strong reference across close() — so removal can't destroy the session while the steps below still use it.
     auto protector = NonnullRefPtr { *this };
@@ -224,22 +228,65 @@ void Session::close()
         connection->on_driver_execution_complete = nullptr;
         connection->on_did_set_window_handle = nullptr;
         connection->on_did_start_window_replacement = nullptr;
-        connection->on_did_close_window = nullptr;
     }
     m_pending_connections.clear();
 
-    if (m_browser_process.has_value())
-        MUST(Core::Process::terminate_process(m_browser_process->pid(), Core::Process::TerminationMode::Graceful));
+    if (m_browser_connection) {
+        m_browser_connection->on_close = nullptr;
+        m_browser_connection->on_did_create_window = nullptr;
+        m_browser_connection->on_did_close_window = nullptr;
+        m_browser_connection->async_close_session();
+        m_browser_connection = nullptr;
+    }
+
+    // The browser may have exited on its own already; its death is one of the triggers for
+    // closing the session, so the process being gone is not an error here.
+    if (m_browser_process.has_value()) {
+        if (auto result = Core::Process::terminate_process(m_browser_process->pid(), Core::Process::TerminationMode::Graceful);
+            result.is_error() && result.error().code() != ESRCH) {
+            dbgln("Unable to terminate the browser process: {}", result.error());
+        }
+    }
 
 #if defined(AK_OS_MACOS)
     m_web_content_mach_port_server = nullptr;
+    m_browser_mach_port_server = nullptr;
 #else
     if (!m_web_content_endpoint.is_empty())
         MUST(FileSystem::remove(m_web_content_endpoint, FileSystem::RecursionMode::Disallowed));
+    if (!m_browser_endpoint.is_empty())
+        MUST(FileSystem::remove(m_browser_endpoint, FileSystem::RecursionMode::Disallowed));
 #endif
     m_web_content_endpoint = {};
+    m_browser_endpoint = {};
 
     // 5. If an error has occurred in any of the steps above, return the error, otherwise return success with data null.
+}
+
+ErrorOr<void> Session::accept_browser_transport(NonnullOwnPtr<IPC::Transport> transport)
+{
+    if (m_browser_connection)
+        return Error::from_string_literal("Session already has a browser connection");
+
+    auto browser_connection = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) BrowserConnection(move(transport))));
+    dbgln("WebDriver is connected to the browser process");
+
+    browser_connection->on_close = [this]() {
+        auto browser_connection = move(m_browser_connection);
+        close();
+    };
+    browser_connection->on_did_create_window = [this](String window_handle) {
+        if (!m_windows.contains(window_handle))
+            m_windows.set(window_handle, Session::Window { window_handle, nullptr });
+        if (m_current_window_handle.is_empty())
+            m_current_window_handle = move(window_handle);
+    };
+    browser_connection->on_did_close_window = [this](String window_handle) {
+        remove_window(window_handle);
+    };
+
+    m_browser_connection = move(browser_connection);
+    return {};
 }
 
 ErrorOr<void> Session::accept_web_content_transport(NonnullOwnPtr<IPC::Transport> transport, NonnullRefPtr<ServerPromise> promise)
@@ -276,9 +323,6 @@ ErrorOr<void> Session::accept_web_content_transport(NonnullOwnPtr<IPC::Transport
         pending_connection->on_did_start_window_replacement = [this, connection](String replaced_window_handle) {
             did_start_window_replacement(replaced_window_handle, *connection);
         };
-        pending_connection->on_did_close_window = [this, connection](String closed_window_handle) {
-            did_close_window(closed_window_handle, *connection);
-        };
 
         pending_connection->async_set_page_load_strategy(m_page_load_strategy);
         pending_connection->async_set_strict_file_interactability(m_strict_file_interactiblity);
@@ -288,7 +332,6 @@ ErrorOr<void> Session::accept_web_content_transport(NonnullOwnPtr<IPC::Transport
 
         if (auto window = m_windows.find(window_handle); window != m_windows.end()) {
             window->value.web_content_connection = move(pending_connection);
-            window->value.is_awaiting_replacement = false;
         } else {
             m_windows.set(window_handle, Session::Window { window_handle, move(pending_connection) });
         }
@@ -303,22 +346,13 @@ ErrorOr<void> Session::accept_web_content_transport(NonnullOwnPtr<IPC::Transport
 
 void Session::web_content_connection_closed(WebContentConnection const& connection)
 {
-    Optional<String> closed_window_handle;
     for (auto& window : m_windows) {
         if (window.value.web_content_connection.ptr() != &connection)
             continue;
 
-        if (window.value.is_awaiting_replacement) {
-            window.value.web_content_connection = nullptr;
-            return;
-        }
-
-        closed_window_handle = window.key;
-        break;
+        window.value.web_content_connection = nullptr;
+        return;
     }
-
-    if (closed_window_handle.has_value())
-        remove_window(*closed_window_handle);
 }
 
 void Session::did_update_window_handle(String window_handle, WebContentConnection const& connection)
@@ -340,11 +374,9 @@ void Session::did_update_window_handle(String window_handle, WebContentConnectio
 
     auto window = maybe_window.release_value();
     window.handle = window_handle;
-    window.is_awaiting_replacement = false;
 
     if (auto existing_window = m_windows.find(window_handle); existing_window != m_windows.end()) {
         existing_window->value.web_content_connection = move(window.web_content_connection);
-        existing_window->value.is_awaiting_replacement = false;
     } else {
         m_windows.set(window_handle, move(window));
     }
@@ -359,32 +391,22 @@ void Session::did_start_window_replacement(String const& window_handle, WebConte
     if (window == m_windows.end() || window->value.web_content_connection.ptr() != &connection)
         return;
 
-    window->value.is_awaiting_replacement = true;
     window->value.web_content_connection = nullptr;
 }
 
-void Session::mark_current_window_as_awaiting_replacement(WebContentConnection const& connection)
+void Session::drop_current_window_web_content_connection(WebContentConnection const& connection)
 {
     auto window = m_windows.find(m_current_window_handle);
     if (window == m_windows.end() || window->value.web_content_connection.ptr() != &connection)
         return;
 
-    window->value.is_awaiting_replacement = true;
     window->value.web_content_connection = nullptr;
-}
-
-void Session::did_close_window(String const& window_handle, WebContentConnection const& connection)
-{
-    auto window = m_windows.find(window_handle);
-    if (window == m_windows.end() || window->value.web_content_connection.ptr() != &connection)
-        return;
-
-    remove_window(window_handle);
 }
 
 void Session::remove_window(StringView window_handle)
 {
-    m_windows.remove(window_handle);
+    if (!m_windows.remove(window_handle))
+        return;
 
     if (m_current_window_handle == window_handle)
         m_current_window_handle = "NoSuchWindowPleaseSelectANewOne"_string;
@@ -431,6 +453,29 @@ ErrorOr<void> Session::create_server(NonnullRefPtr<ServerPromise> promise)
             });
     };
 
+    m_browser_mach_port_server = make<IPC::MachBootstrapListener>(m_browser_endpoint);
+    if (!m_browser_mach_port_server->is_initialized())
+        return Error::from_string_literal("Failed to initialize browser Mach port server for WebDriver");
+
+    m_browser_mach_port_server->on_bootstrap_request = [this](auto request) {
+        auto result = m_transport_bootstrap_server.handle_bootstrap_request(request.pid, move(request.reply_port));
+        if (result.is_error()) {
+            dbgln("Failed to bootstrap the browser's WebDriver transport: {}", result.error());
+            return;
+        }
+
+        result.release_value().visit(
+            [](IPC::TransportBootstrapMachServer::ChildTransportHandled) {
+                VERIFY_NOT_REACHED();
+            },
+            [this](IPC::TransportBootstrapMachServer::OnDemandTransport& transport) {
+                m_event_loop.deferred_invoke([this, transport = move(transport.ports)]() mutable {
+                    if (auto result = accept_browser_transport(make<IPC::Transport>(move(transport.receive_right), move(transport.send_right))); result.is_error())
+                        dbgln("Failed to accept the browser's WebDriver connection: {}", result.error());
+                });
+            });
+    };
+
     return {};
 #else
     (void)FileSystem::remove(m_web_content_endpoint, FileSystem::RecursionMode::Disallowed);
@@ -453,6 +498,27 @@ ErrorOr<void> Session::create_server(NonnullRefPtr<ServerPromise> promise)
     };
 
     m_web_content_server = server;
+
+    (void)FileSystem::remove(m_browser_endpoint, FileSystem::RecursionMode::Disallowed);
+
+    auto browser_server = Core::LocalServer::construct();
+    browser_server->listen(m_browser_endpoint);
+
+    browser_server->on_accept = [this](auto client_socket) {
+        auto maybe_transport = IPC::Transport::from_socket(move(client_socket));
+        if (maybe_transport.is_error()) {
+            dbgln("Failed to create the browser's WebDriver transport: {}", maybe_transport.error());
+            return;
+        }
+        if (auto result = accept_browser_transport(maybe_transport.release_value()); result.is_error())
+            dbgln("Failed to accept the browser's WebDriver connection: {}", result.error());
+    };
+
+    browser_server->on_accept_error = [](auto error) {
+        dbgln("Failed to accept the browser's WebDriver connection: {}", error);
+    };
+
+    m_browser_server = browser_server;
     return {};
 #endif
 }
@@ -466,6 +532,7 @@ ErrorOr<void> Session::start(LaunchBrowserCallback const& launch_browser_callbac
 #else
     m_web_content_endpoint = ByteString::formatted("{}/webdriver/session_{}_{}", TRY(Core::StandardPaths::runtime_directory()), Core::System::getpid(), m_session_id);
 #endif
+    m_browser_endpoint = ByteString::formatted("{}.browser", m_web_content_endpoint);
     TRY(create_server(promise));
 
     m_browser_process = TRY(launch_browser_callback(m_web_content_endpoint, m_options.headless));
@@ -506,13 +573,14 @@ Web::WebDriver::Response Session::switch_to_window(StringView handle)
     //    browsing context, and set the current top-level browsing context with session and context.
     //    Otherwise, return error with error code no such window.
     if (auto it = m_windows.find(handle); it != m_windows.end()) {
-        if (!it->value.web_content_connection)
-            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, "Window is waiting for a replacement WebContent process"sv);
-
         m_current_window_handle = it->key;
     } else {
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv);
     }
+
+    // The browser reports a window as soon as it exists, which can be before the WebContent process
+    // hosting it has connected. Wait for that connection before addressing the window.
+    TRY(wait_for_current_window_to_have_web_content_connection());
 
     // 5. Update any implementation-specific state that would result from the user selecting the current
     //    browsing context for interaction, without altering OS-level focus.

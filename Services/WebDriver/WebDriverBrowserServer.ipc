@@ -1,0 +1,4 @@
+endpoint WebDriverBrowserServer {
+    did_create_window(String handle) =|
+    did_close_window(String handle) =|
+}
