@@ -8,6 +8,10 @@
     asyncTest(done => {
         const events = [];
         let finished = false;
+        let resolvePushHandlerStarted;
+        const pushHandlerStarted = new Promise(resolve => {
+            resolvePushHandlerStarted = resolve;
+        });
 
         function queryFromURL(url) {
             return new URL(url).search || "(none)";
@@ -39,6 +43,7 @@
                 event.intercept({
                     handler() {
                         events.push("push handler started");
+                        resolvePushHandlerStarted();
                         return new Promise(() => {});
                     },
                 });
@@ -72,7 +77,9 @@
 
             // The intercepted push commits immediately, but its handler never settles.
             location.href = "?pushed";
-            await nextTask();
+            // A timer task does not establish ordering with navigation and traversal tasks, so
+            // observe the handler directly instead of guessing with a task hop.
+            await pushHandlerStarted;
 
             // Traversing back aborts the pending intercepted push, then commits normally.
             history.back();
