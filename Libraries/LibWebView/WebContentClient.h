@@ -134,7 +134,6 @@ private:
     virtual void did_create_child_frame(u64 page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state) override;
     virtual void did_update_child_frame_viewport(u64 page_id, Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio) override;
     virtual void did_destroy_child_frame(u64 page_id, Web::HTML::CrossProcessId frame_id) override;
-    virtual void did_start_webdriver_navigation(u64 page_id) override;
     virtual void did_finish_loading(u64 page_id, Optional<Utf16String>, URL::URL) override;
     virtual void did_request_refresh(u64 page_id) override;
     virtual void did_request_cursor_change(u64 page_id, Gfx::Cursor) override;
@@ -221,8 +220,6 @@ private:
     virtual void did_close_browsing_context(u64 page_id) override;
     virtual void did_change_needs_beforeunload_check(u64 page_id, bool needs_beforeunload_check) override;
     virtual void webdriver_user_prompt_handling_complete(u64 page_id, u64 request_id, Web::WebDriver::Response response) override;
-    virtual Messages::WebContentClient::DidRequestWebdriverLoadUrlFromUiResponse did_request_webdriver_load_url_from_ui(u64 page_id, URL::URL url) override;
-    virtual void did_request_webdriver_navigation_completion(u64 page_id, u64 request_id, Optional<u64> page_load_timeout) override;
     virtual void did_update_resource_count(u64 page_id, i32 count_waiting) override;
     virtual void did_request_restore_window(u64 page_id) override;
     virtual void did_request_reposition_window(u64 page_id, Gfx::IntPoint) override;

@@ -559,12 +559,6 @@ void WebContentClient::did_destroy_child_frame(u64 page_id, Web::HTML::CrossProc
         SiteIsolationManager::the().remove_child_frame_subtree(*child_frame);
 }
 
-void WebContentClient::did_start_webdriver_navigation(u64 page_id)
-{
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_start_webdriver_navigation({});
-}
-
 void WebContentClient::maybe_record_history_visit_for_current_load(u64 page_id, URL::URL const& url, Optional<String> title, StringView reason)
 {
     auto normalized_url = HistoryStore::normalize_url(url);
@@ -1497,36 +1491,6 @@ void WebContentClient::webdriver_user_prompt_handling_complete(u64 page_id, u64 
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
         view->did_complete_webdriver_user_prompt_handling({}, request_id, move(response));
-}
-
-Messages::WebContentClient::DidRequestWebdriverLoadUrlFromUiResponse WebContentClient::did_request_webdriver_load_url_from_ui(u64 page_id, URL::URL url)
-{
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        auto view_id = view->view_id();
-        if (url.scheme() != "javascript"sv)
-            view->did_start_webdriver_navigation({});
-        Core::deferred_invoke([view_id, url = move(url)] {
-            auto view = ViewImplementation::find_view_by_id(view_id);
-            if (!view.has_value())
-                return;
-            view->load(url);
-        });
-        return { JsonValue {} };
-    }
-
-    return { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv) };
-}
-
-void WebContentClient::did_request_webdriver_navigation_completion(u64 page_id, u64 request_id, Optional<u64> page_load_timeout)
-{
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        view->wait_for_webdriver_navigation_completion({}, page_load_timeout, [this, page_id, request_id](Web::WebDriver::Response response) {
-            async_complete_webdriver_navigation_completion(page_id, request_id, move(response));
-        });
-        return;
-    }
-
-    async_complete_webdriver_navigation_completion(page_id, request_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
 }
 
 void WebContentClient::did_update_resource_count(u64 page_id, i32 count_waiting)

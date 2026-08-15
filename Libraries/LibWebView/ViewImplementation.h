@@ -318,10 +318,11 @@ public:
     bool restore_captured_session_history_snapshot_for_testing(Badge<WebContentClient>);
     bool register_session_store_tab_for_testing(Badge<WebContentClient>);
     String session_store_tab_state_for_testing(Badge<WebContentClient>) const;
-    void did_start_webdriver_navigation(Badge<WebContentClient>);
+    void did_start_webdriver_navigation();
+    void load_for_webdriver_navigation(URL::URL const&);
     String ui_process_session_history_for_testing(Badge<WebContentClient>) const;
     JsonValue webdriver_session_history() const;
-    void wait_for_webdriver_navigation_completion(Badge<WebContentClient>, Optional<u64> page_load_timeout, Function<void(Web::WebDriver::Response)>);
+    void wait_for_webdriver_navigation_completion(Optional<u64> page_load_timeout, Function<void(Web::WebDriver::Response)>);
     void run_webdriver_user_prompt_handling(Function<void(Web::WebDriver::Response)> on_complete);
     void did_complete_webdriver_user_prompt_handling(Badge<WebContentClient>, u64 request_id, Web::WebDriver::Response);
     static Optional<ViewImplementation&> find_view_by_handle(StringView);

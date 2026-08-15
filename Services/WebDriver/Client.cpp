@@ -13,6 +13,7 @@
 #include <AK/JsonValue.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
+#include <LibURL/Parser.h>
 #include <LibWeb/WebDriver/Capabilities.h>
 #include <LibWeb/WebDriver/Error.h>
 #include <LibWeb/WebDriver/UserPrompt.h>
@@ -172,17 +173,18 @@ Web::WebDriver::Response Client::navigate_to(Web::WebDriver::Parameters paramete
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/url");
     auto session = TRY(Session::find_session(parameters[0]));
 
-    auto response = TRY(session->perform_async_action([&](auto& connection) -> Web::WebDriver::Response {
-        auto navigate_response = connection.template send_sync_but_allow_failure<Messages::WebDriverClient::NavigateTo>(move(payload));
-        if (!navigate_response)
-            return JsonValue {};
-        return navigate_response->response();
-    },
-        Session::WebContentReplacement::Allow));
+    // 2. Let url be the result of getting the property url from the parameters argument.
+    if (!payload.is_object() || !payload.as_object().has_string("url"sv))
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload doesn't have a string `url`"sv);
+    auto url = URL::Parser::basic_parse(payload.as_object().get_string("url"sv).value());
+    if (!url.has_value())
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload has an invalid `url`"sv);
+
+    // FIXME: 3. If url is not an absolute URL or is not an absolute URL with fragment or not a local scheme, return error with error code invalid argument.
+
+    auto response = TRY(session->navigate_to(url.release_value()));
     TRY(session->wait_for_current_window_to_have_web_content_connection());
-    response = TRY(session->perform_async_action([&](auto& connection) {
-        return connection.wait_for_navigation_completion();
-    }));
+    response = TRY(session->wait_for_navigation_completion());
     TRY(session->wait_for_current_window_to_have_web_content_connection());
     return response;
 }
@@ -208,9 +210,7 @@ Web::WebDriver::Response Client::back(Web::WebDriver::Parameters parameters, Jso
 
     auto response = TRY(session->traverse_history(-1, Session::HandleUserPrompts::Yes));
     TRY(session->wait_for_current_window_to_have_web_content_connection());
-    response = TRY(session->perform_async_action(
-        [&](auto& connection) { return connection.wait_for_navigation_completion(); },
-        Session::WebContentReplacement::Allow));
+    response = TRY(session->wait_for_navigation_completion());
     TRY(session->wait_for_current_window_to_have_web_content_connection());
     return response;
 }
@@ -224,9 +224,7 @@ Web::WebDriver::Response Client::forward(Web::WebDriver::Parameters parameters, 
 
     auto response = TRY(session->traverse_history(1, Session::HandleUserPrompts::Yes));
     TRY(session->wait_for_current_window_to_have_web_content_connection());
-    response = TRY(session->perform_async_action(
-        [&](auto& connection) { return connection.wait_for_navigation_completion(); },
-        Session::WebContentReplacement::Allow));
+    response = TRY(session->wait_for_navigation_completion());
     TRY(session->wait_for_current_window_to_have_web_content_connection());
     return response;
 }
@@ -238,16 +236,8 @@ Web::WebDriver::Response Client::refresh(Web::WebDriver::Parameters parameters, 
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/refresh");
     auto session = TRY(Session::find_session(parameters[0]));
 
-    auto response = TRY(session->perform_async_action([&](auto& connection) -> Web::WebDriver::Response {
-        auto refresh_response = connection.template send_sync_but_allow_failure<Messages::WebDriverClient::Refresh>();
-        if (!refresh_response)
-            return JsonValue {};
-        return refresh_response->response();
-    }));
-    if (TRY(session->wait_for_current_window_to_have_web_content_connection()))
-        response = TRY(session->perform_async_action([&](auto& connection) {
-            return connection.wait_for_navigation_completion();
-        }));
+    auto response = TRY(session->refresh());
+    response = TRY(session->wait_for_navigation_completion());
     return response;
 }
 
@@ -273,9 +263,7 @@ Web::WebDriver::Response Client::crash_current_page(Web::WebDriver::Parameters p
     session->drop_current_window_web_content_connection(*connection);
     connection->async_crash_current_page();
     TRY(session->wait_for_current_window_to_have_web_content_connection());
-    return session->perform_async_action([&](auto& connection) {
-        return connection.wait_for_navigation_completion();
-    });
+    return session->wait_for_navigation_completion();
 }
 
 // Extension: POST /session/{session id}/ladybird/load-url-from-ui
@@ -284,20 +272,15 @@ Web::WebDriver::Response Client::load_url_from_ui(Web::WebDriver::Parameters par
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/ladybird/load-url-from-ui");
     auto session = TRY(find_session_with_ladybird_test_hooks(parameters));
 
-    RefPtr previous_connection { &session->web_content_connection() };
-    auto response = TRY(session->perform_async_action([&](auto& connection) -> Web::WebDriver::Response {
-        auto reply = connection.template send_sync_but_allow_failure<Messages::WebDriverClient::LoadUrlFromUi>(move(payload));
-        if (!reply)
-            return JsonValue {};
-        return reply->take_response();
-    }));
-    if (response.is_object() && response.as_object().get_bool("willReplaceWebContentProcess"sv).value_or(false))
-        session->drop_current_window_web_content_connection(*previous_connection);
+    if (!payload.is_object() || !payload.as_object().has_string("url"sv))
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload doesn't have a string `url`"sv);
+    auto url = URL::Parser::basic_parse(payload.as_object().get_string("url"sv).value());
+    if (!url.has_value())
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload has an invalid `url`"sv);
 
+    auto response = TRY(session->load_url(url.release_value()));
     TRY(session->wait_for_current_window_to_have_web_content_connection());
-    response = TRY(session->perform_async_action([&](auto& connection) {
-        return connection.wait_for_navigation_completion();
-    }));
+    response = TRY(session->wait_for_navigation_completion());
     TRY(session->wait_for_current_window_to_have_web_content_connection());
     return response;
 }
@@ -321,9 +304,7 @@ Web::WebDriver::Response Client::traverse_history_from_ui(Web::WebDriver::Parame
     if (!wait_for_navigation_completion)
         return JsonValue {};
 
-    response = TRY(session->perform_async_action([&](auto& connection) {
-        return connection.wait_for_navigation_completion();
-    }));
+    response = TRY(session->wait_for_navigation_completion());
     TRY(session->wait_for_current_window_to_have_web_content_connection());
     return response;
 }

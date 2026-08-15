@@ -251,31 +251,6 @@ void WebDriverConnection::page_did_set_window_handle(Badge<PageClient>, String c
     async_did_set_window_handle(window_handle);
 }
 
-void WebDriverConnection::page_did_start_window_replacement(Badge<PageClient>, String const& window_handle)
-{
-    async_did_start_window_replacement(window_handle);
-    if (m_should_complete_driver_execution_when_navigation_starts_or_is_canceled) {
-        m_should_complete_driver_execution_when_navigation_starts_or_is_canceled = false;
-        async_driver_execution_complete(JsonValue {});
-    }
-}
-
-void WebDriverConnection::page_did_start_loading(Badge<PageClient>, URL::URL const&)
-{
-    if (m_should_complete_driver_execution_when_navigation_starts_or_is_canceled) {
-        m_should_complete_driver_execution_when_navigation_starts_or_is_canceled = false;
-        async_driver_execution_complete(JsonValue {});
-    }
-}
-
-void WebDriverConnection::page_did_cancel_loading(Badge<PageClient>, URL::URL const&)
-{
-    if (m_should_complete_driver_execution_when_navigation_starts_or_is_canceled) {
-        m_should_complete_driver_execution_when_navigation_starts_or_is_canceled = false;
-        async_driver_execution_complete(JsonValue {});
-    }
-}
-
 void WebDriverConnection::visit_edges(JS::Cell::Visitor& visitor)
 {
     visitor.visit(m_current_browsing_context);
@@ -348,58 +323,9 @@ Messages::WebDriverClient::SetTimeoutsResponse WebDriverConnection::set_timeouts
     return Web::WebDriver::timeouts_object(m_timeouts_configuration);
 }
 
-// 10.1 Navigate To, https://w3c.github.io/webdriver/#navigate-to
-Messages::WebDriverClient::NavigateToResponse WebDriverConnection::navigate_to(JsonValue payload)
+void WebDriverConnection::set_current_browsing_context_to_top_level()
 {
-    // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
-    if (auto result = ensure_current_top_level_browsing_context_is_open(); result.is_error())
-        return { Web::WebDriver::Response { result.release_error() }, false };
-
-    // 2. Let url be the result of getting the property url from the parameters argument.
-    if (!payload.is_object() || !payload.as_object().has_string("url"sv))
-        return { Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload doesn't have a string `url`"sv), false };
-    auto url = URL::Parser::basic_parse(payload.as_object().get_string("url"sv).value());
-
-    // FIXME: 3. If url is not an absolute URL or is not an absolute URL with fragment or not a local scheme, return error with error code invalid argument.
-
-    auto const& current_url = current_top_level_browsing_context()->active_document()->url();
-    auto will_replace_web_content_process = current_top_level_browsing_context()->page().client().decide_navigation_process(current_url, url.value(), Web::NavigationTarget::TopLevel) == Web::NavigationProcessDecision::Remote;
-
-    // 4. Handle any user prompts and return its value if it is an error.
-    handle_any_user_prompts([this, url = move(url), will_replace_web_content_process]() {
-        // 5. Let current URL be the current top-level browsing context’s active document’s URL.
-        auto const& current_url = current_top_level_browsing_context()->active_document()->url();
-
-        // FIXME: 6. If current URL and url do not have the same absolute URL:
-        // FIXME:     a. If timer has not been started, start a timer. If this algorithm has not completed before timer reaches the session’s session page load timeout in milliseconds, return an error with error code timeout.
-
-        // 7. Navigate the current top-level browsing context to url.
-        // NB: "Navigate to a javascript: URL" can evaluate without producing a new Document,
-        //     in which case "we will not perform a navigation".
-        // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-to-a-javascript:-url
-        auto is_same_document_fragment_navigation = url->fragment().has_value()
-            && url->equals(current_url, URL::ExcludeFragment::Yes);
-        if (url->scheme() != "javascript"sv && !is_same_document_fragment_navigation)
-            static_cast<WebContent::PageClient&>(current_top_level_browsing_context()->page().client()).did_start_webdriver_navigation();
-        current_top_level_browsing_context()->page().load(url.value());
-
-        auto navigation_complete = GC::create_function(current_top_level_browsing_context()->heap(), [this, will_replace_web_content_process](Web::WebDriver::Response result) {
-            // 9. Set the current browsing context with the current top-level browsing context.
-            set_current_browsing_context(*current_top_level_browsing_context());
-
-            // FIXME: 10. If the current top-level browsing context contains a refresh state pragma directive of time 1 second or less, wait until the refresh timeout has elapsed, a new navigate has begun, and return to the first step of this algorithm.
-
-            if (will_replace_web_content_process)
-                m_should_complete_driver_execution_when_navigation_starts_or_is_canceled = true;
-            else
-                async_driver_execution_complete(move(result));
-        });
-
-        navigation_complete->function()(JsonValue {});
-    });
-
-    // 11. Return success with data null.
-    return { JsonValue {}, will_replace_web_content_process };
+    set_current_browsing_context(*current_top_level_browsing_context());
 }
 
 // 10.2 Get Current URL, https://w3c.github.io/webdriver/#get-current-url
@@ -420,74 +346,11 @@ Messages::WebDriverClient::GetCurrentUrlResponse WebDriverConnection::get_curren
     return JsonValue {};
 }
 
-// 10.5 Refresh, https://w3c.github.io/webdriver/#dfn-refresh
-Messages::WebDriverClient::RefreshResponse WebDriverConnection::refresh()
-{
-    // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
-
-    // 2. Handle any user prompts and return its value if it is an error.
-    handle_any_user_prompts([this]() {
-        // 3. Initiate an overridden reload of the current top-level browsing context’s active document.
-        current_top_level_browsing_context()->page().client().page_did_request_refresh();
-
-        // FIXME: 4. If url is special except for file:
-        // FIXME:     1. Try to wait for navigation to complete.
-        // FIXME:     2. Try to run the post-navigation checks.
-
-        // 5. Set the current browsing context with current top-level browsing context.
-        set_current_browsing_context(*current_top_level_browsing_context());
-
-        // 6. Return success with data null.
-        async_driver_execution_complete(JsonValue {});
-    });
-
-    return JsonValue {};
-}
-
-Messages::WebDriverClient::WaitForNavigationCompletionResponse WebDriverConnection::wait_for_navigation_completion()
-{
-    if (m_page_load_strategy == Web::WebDriver::PageLoadStrategy::None) {
-        async_driver_execution_complete(JsonValue {});
-        return JsonValue {};
-    }
-
-    auto& page_client = static_cast<WebContent::PageClient&>(current_top_level_browsing_context()->page().client());
-    page_client.wait_for_webdriver_navigation_completion(m_timeouts_configuration.page_load_timeout, [this](Web::WebDriver::Response response) {
-        async_driver_execution_complete(move(response));
-    });
-    return JsonValue {};
-}
-
 void WebDriverConnection::crash_current_page()
 {
     Core::deferred_invoke([] {
         Core::Process::terminate_immediately(1);
     });
-}
-
-Messages::WebDriverClient::LoadUrlFromUiResponse WebDriverConnection::load_url_from_ui(JsonValue payload)
-{
-    TRY(ensure_current_top_level_browsing_context_is_open());
-
-    if (!payload.is_object() || !payload.as_object().has_string("url"sv))
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload doesn't have a string `url`"sv);
-    auto url = URL::Parser::basic_parse(payload.as_object().get_string("url"sv).value());
-    if (!url.has_value())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload has an invalid `url`"sv);
-
-    auto const& current_url = current_top_level_browsing_context()->active_document()->url();
-    auto will_replace_web_content_process = current_top_level_browsing_context()->page().client().decide_navigation_process(current_url, *url, Web::NavigationTarget::TopLevel) == Web::NavigationProcessDecision::Remote;
-
-    auto& page_client = static_cast<WebContent::PageClient&>(current_top_level_browsing_context()->page().client());
-    auto response = page_client.request_webdriver_load_url_from_ui(*url);
-    if (response.is_error())
-        return response.release_error();
-
-    JsonObject result;
-    result.set("willReplaceWebContentProcess"sv, will_replace_web_content_process);
-    async_driver_execution_complete(JsonValue { move(result) });
-    return JsonValue {};
 }
 
 // 10.6 Get Title, https://w3c.github.io/webdriver/#dfn-get-title

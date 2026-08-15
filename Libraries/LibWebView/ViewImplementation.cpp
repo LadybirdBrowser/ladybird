@@ -193,10 +193,8 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
         m_backup_bitmap_size = m_client_state.front_bitmap.last_painted_size;
     }
 
-    if (m_client_state.client) {
-        m_client_state.client->async_notify_webdriver_of_window_replacement(m_client_state.page_index);
+    if (m_client_state.client)
         m_client_state.client->unregister_view(m_client_state.page_index);
-    }
 
     reset_page_media_state();
 
@@ -239,10 +237,8 @@ void ViewImplementation::replace_web_content_process_for_history_traversal(Web::
         m_backup_bitmap_size = m_client_state.front_bitmap.last_painted_size;
     }
 
-    if (m_client_state.client) {
-        m_client_state.client->async_notify_webdriver_of_window_replacement(m_client_state.page_index);
+    if (m_client_state.client)
         m_client_state.client->unregister_view(m_client_state.page_index);
-    }
 
     reset_page_media_state();
     m_history_operation_handling_for_next_client = HistoryOperationHandling::Preserve;
@@ -2123,7 +2119,12 @@ Optional<ViewImplementation&> ViewImplementation::find_view_by_handle(StringView
     return {};
 }
 
-void ViewImplementation::did_start_webdriver_navigation(Badge<WebContentClient>)
+void ViewImplementation::load_for_webdriver_navigation(URL::URL const& url)
+{
+    client().async_load_url(page_id(), url, Web::Bindings::NavigationHistoryBehavior::Auto);
+}
+
+void ViewImplementation::did_start_webdriver_navigation()
 {
     set_loading_state(true);
     auto& ongoing = ensure_ongoing_top_level_navigation();
@@ -2134,7 +2135,7 @@ void ViewImplementation::did_start_webdriver_navigation(Badge<WebContentClient>)
     begin_webdriver_navigation(WebDriverNavigationCompletionSource::Load);
 }
 
-void ViewImplementation::wait_for_webdriver_navigation_completion(Badge<WebContentClient>, Optional<u64> page_load_timeout, Function<void(Web::WebDriver::Response)> on_complete)
+void ViewImplementation::wait_for_webdriver_navigation_completion(Optional<u64> page_load_timeout, Function<void(Web::WebDriver::Response)> on_complete)
 {
     if (!m_ongoing_top_level_navigation.has_value() || !m_ongoing_top_level_navigation->webdriver_completion_source.has_value()) {
         on_complete(JsonValue {});
@@ -2415,6 +2416,11 @@ NonnullRefPtr<Core::Promise<Empty>> ViewImplementation::reset_session_history_fo
 
 void ViewImplementation::request_history_operation(Badge<WebContentClient>, u64 initiation_id, Web::HistoryOperationParameters parameters)
 {
+    auto reloads_top_level = parameters.visit(
+        [this](Web::ReloadHistoryOperationParameters const& parameters) {
+            return parameters.navigable_id == m_top_level_traversable.id();
+        },
+        [](auto const&) { return false; });
     auto finalizes_top_level_cross_document_navigation = parameters.visit(
         [this](Web::PushHistoryOperationParameters const& parameters) {
             return parameters.navigable_id == m_top_level_traversable.id();
@@ -2423,7 +2429,9 @@ void ViewImplementation::request_history_operation(Badge<WebContentClient>, u64 
             return parameters.navigable_id == m_top_level_traversable.id();
         },
         [](auto const&) { return false; });
-    auto requested_operation_completion = [this, finalizes_top_level_cross_document_navigation](Web::HTML::HistoryStepResult result, Optional<i32> committed_step) {
+    auto requested_operation_completion = [this, reloads_top_level, finalizes_top_level_cross_document_navigation](Web::HTML::HistoryStepResult result, Optional<i32> committed_step) {
+        if (reloads_top_level && result != Web::HTML::HistoryStepResult::Applied)
+            did_cancel_navigation({});
         if (finalizes_top_level_cross_document_navigation && result == Web::HTML::HistoryStepResult::Applied) {
             if (m_ongoing_top_level_navigation.has_value() && m_ongoing_top_level_navigation->load.has_value()) {
                 m_ongoing_top_level_navigation->load->is_uncommitted = false;

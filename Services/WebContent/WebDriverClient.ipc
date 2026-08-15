@@ -8,12 +8,10 @@ endpoint WebDriverClient {
     set_user_prompt_handler(Web::WebDriver::UserPromptHandler user_prompt_handler) =|
     set_strict_file_interactability(bool strict_file_interactability) =|
     set_is_webdriver_active(bool active) =|
+    set_current_browsing_context_to_top_level() =|
     get_timeouts() => (Web::WebDriver::Response response)
-    set_timeouts(JsonValue payload) => (Web::WebDriver::Response response)
-    navigate_to(JsonValue payload) => (Web::WebDriver::Response response, bool will_replace_web_content_process)
     get_current_url() => (Web::WebDriver::Response response)
-    refresh() => (Web::WebDriver::Response response)
-    wait_for_navigation_completion() => (Web::WebDriver::Response response)
+    set_timeouts(JsonValue payload) => (Web::WebDriver::Response response)
     get_title() => (Web::WebDriver::Response response)
     close_window() => (Web::WebDriver::Response response)
     switch_to_window(String handle) => (Web::WebDriver::Response response)
@@ -27,7 +25,6 @@ endpoint WebDriverClient {
     fullscreen_window() => (Web::WebDriver::Response response)
     consume_user_activation() => (Web::WebDriver::Response response)
     crash_current_page() =|
-    load_url_from_ui(JsonValue payload) => (Web::WebDriver::Response response)
     find_element(JsonValue payload) => (Web::WebDriver::Response response)
     find_elements(JsonValue payload) => (Web::WebDriver::Response response)
     find_element_from_element(JsonValue payload, String element_id) => (Web::WebDriver::Response response)

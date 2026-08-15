@@ -207,11 +207,6 @@ void PageClient::set_window_handle(Utf16String window_handle)
         m_webdriver->page_did_set_window_handle({}, page().top_level_traversable()->window_handle().to_utf8());
 }
 
-void PageClient::did_start_webdriver_navigation()
-{
-    client().async_did_start_webdriver_navigation(m_id);
-}
-
 void PageClient::setup_palette()
 {
     // FIXME: Get the proper palette from our peer somehow
@@ -252,15 +247,7 @@ Web::NavigationProcessDecision PageClient::decide_navigation_process(URL::URL co
 
 void PageClient::request_new_process_for_navigation(URL::URL const& url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling, Optional<Web::HTML::NavigationSourceSnapshot> const& source_snapshot)
 {
-    notify_webdriver_of_window_replacement();
-
     client().async_did_request_new_process_for_navigation(m_id, url, move(document_resource), history_handling, source_snapshot);
-}
-
-void PageClient::notify_webdriver_of_window_replacement()
-{
-    if (m_webdriver)
-        m_webdriver->page_did_start_window_replacement({}, page().top_level_traversable()->window_handle().to_utf8());
 }
 
 void PageClient::close_webdriver_connection_after_sending_pending_messages()
@@ -579,17 +566,11 @@ void PageClient::page_did_request_external_url(URL::URL const& url, URL::Origin 
 
 void PageClient::page_did_start_loading(Optional<Utf16String> const& navigation_id, URL::URL const& url, bool is_redirect)
 {
-    if (m_webdriver)
-        m_webdriver->page_did_start_loading({}, url);
-
     client().async_did_start_loading(m_id, navigation_id, url, is_redirect);
 }
 
-void PageClient::page_did_cancel_loading(Optional<Utf16String> const& navigation_id, URL::URL const& url)
+void PageClient::page_did_cancel_loading(Optional<Utf16String> const& navigation_id, URL::URL const&)
 {
-    if (m_webdriver)
-        m_webdriver->page_did_cancel_loading({}, url);
-
     client().async_did_cancel_loading(m_id, navigation_id);
 }
 
@@ -694,22 +675,6 @@ void PageClient::cancel_download(u64 download_id)
 
     if (reader.has_value())
         Web::Fetch::Infrastructure::cancel_incremental_read(*reader.value());
-}
-
-void PageClient::wait_for_webdriver_navigation_completion(Optional<u64> page_load_timeout, Function<void(Web::WebDriver::Response)> on_complete)
-{
-    auto request_id = m_next_webdriver_navigation_completion_request_id++;
-    m_pending_webdriver_navigation_completion_requests.set(request_id, move(on_complete));
-    client().async_did_request_webdriver_navigation_completion(m_id, request_id, page_load_timeout);
-}
-
-void PageClient::did_complete_webdriver_navigation_completion(u64 request_id, Web::WebDriver::Response response)
-{
-    auto maybe_callback = m_pending_webdriver_navigation_completion_requests.take(request_id);
-    if (!maybe_callback.has_value())
-        return;
-
-    maybe_callback.value()(move(response));
 }
 
 void PageClient::page_did_finish_test(Utf16String const& text)
@@ -1235,11 +1200,6 @@ bool PageClient::page_did_request_register_session_store_tab_for_testing()
 String PageClient::page_did_request_session_store_tab_state_for_testing()
 {
     return client().did_request_session_store_tab_state_for_testing(m_id);
-}
-
-Web::WebDriver::Response PageClient::request_webdriver_load_url_from_ui(URL::URL const& url)
-{
-    return client().did_request_webdriver_load_url_from_ui(m_id, url);
 }
 
 void PageClient::run_webdriver_user_prompt_handling(u64 request_id)
