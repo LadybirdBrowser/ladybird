@@ -27,6 +27,7 @@
 #include <LibWeb/WebDriver/Capabilities.h>
 #include <LibWeb/WebDriver/Error.h>
 #include <LibWeb/WebDriver/Response.h>
+#include <WebDriver/BrowserConnection.h>
 #include <WebDriver/Client.h>
 #include <WebDriver/WebContentConnection.h>
 
@@ -48,7 +49,6 @@ public:
     struct Window {
         String handle;
         RefPtr<WebContentConnection> web_content_connection;
-        bool is_awaiting_replacement { false };
     };
 
     WebContentConnection& web_content_connection() const
@@ -75,7 +75,8 @@ public:
     Web::WebDriver::Response get_window_handles() const;
     ErrorOr<void, Web::WebDriver::Error> ensure_current_window_handle_is_valid() const;
     ErrorOr<bool, Web::WebDriver::Error> wait_for_current_window_to_have_web_content_connection();
-    void mark_current_window_as_awaiting_replacement(WebContentConnection const&);
+
+    void drop_current_window_web_content_connection(WebContentConnection const&);
 
     enum class WebContentReplacement {
         Disallow,
@@ -101,7 +102,7 @@ public:
                 return false;
 
             auto current_window = m_windows.get(m_current_window_handle);
-            return !current_window.has_value() || (current_window->is_awaiting_replacement && !current_window->web_content_connection);
+            return !current_window.has_value() || !current_window->web_content_connection;
         });
 
         if (response.has_value())
@@ -121,11 +122,11 @@ private:
 
     ErrorOr<void> start(LaunchBrowserCallback const&);
     ErrorOr<void> accept_web_content_transport(NonnullOwnPtr<IPC::Transport>, NonnullRefPtr<ServerPromise> promise);
+    ErrorOr<void> accept_browser_transport(NonnullOwnPtr<IPC::Transport>);
     ErrorOr<void> create_server(NonnullRefPtr<ServerPromise> promise);
     void web_content_connection_closed(WebContentConnection const&);
     void did_update_window_handle(String window_handle, WebContentConnection const&);
     void did_start_window_replacement(String const& window_handle, WebContentConnection const&);
-    void did_close_window(String const& window_handle, WebContentConnection const&);
     void remove_window(StringView window_handle);
 
     NonnullRefPtr<Client> m_client;
@@ -140,15 +141,21 @@ private:
     HashMap<u64, NonnullRefPtr<WebContentConnection>> m_pending_connections;
     u64 m_next_pending_connection_id { 0 };
 
+    RefPtr<BrowserConnection> m_browser_connection;
+    bool m_closing { false };
+
     ByteString m_web_content_endpoint;
+    ByteString m_browser_endpoint;
     Optional<Core::Process> m_browser_process;
     Core::EventLoop& m_event_loop;
 
 #if defined(AK_OS_MACOS)
     OwnPtr<IPC::MachBootstrapListener> m_web_content_mach_port_server;
+    OwnPtr<IPC::MachBootstrapListener> m_browser_mach_port_server;
     IPC::TransportBootstrapMachServer m_transport_bootstrap_server;
 #else
     RefPtr<Core::LocalServer> m_web_content_server;
+    RefPtr<Core::LocalServer> m_browser_server;
 #endif
 
     Web::WebDriver::PageLoadStrategy m_page_load_strategy { Web::WebDriver::PageLoadStrategy::Normal };

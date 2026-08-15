@@ -290,7 +290,7 @@ Web::WebDriver::Response Client::crash_current_page(Web::WebDriver::Parameters p
     auto session = TRY(find_session_with_ladybird_test_hooks(parameters));
 
     RefPtr connection { &session->web_content_connection() };
-    session->mark_current_window_as_awaiting_replacement(*connection);
+    session->drop_current_window_web_content_connection(*connection);
     connection->async_crash_current_page();
     TRY(session->wait_for_current_window_to_have_web_content_connection());
     return session->perform_async_action([&](auto& connection) {
@@ -312,7 +312,7 @@ Web::WebDriver::Response Client::load_url_from_ui(Web::WebDriver::Parameters par
         return reply->take_response();
     }));
     if (response.is_object() && response.as_object().get_bool("willReplaceWebContentProcess"sv).value_or(false))
-        session->mark_current_window_as_awaiting_replacement(*previous_connection);
+        session->drop_current_window_web_content_connection(*previous_connection);
 
     TRY(session->wait_for_current_window_to_have_web_content_connection());
     response = TRY(session->perform_async_action([&](auto& connection) {

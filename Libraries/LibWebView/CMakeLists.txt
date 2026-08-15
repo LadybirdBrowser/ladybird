@@ -54,6 +54,7 @@ set(SOURCES
     Utilities.cpp
     ViewImplementation.cpp
     WebContentClient.cpp
+    WebDriverBrowserConnection.cpp
     WebUI.cpp
     WebUI/BookmarksUI.cpp
     WebUI/DownloadsUI.cpp
@@ -94,6 +95,8 @@ set(GENERATED_SOURCES
     ../../Services/WebContent/WebContentServerEndpoint.h
     ../../Services/WebContent/WebDriverClientEndpoint.h
     ../../Services/WebContent/WebDriverServerEndpoint.h
+    ../../Services/WebDriver/WebDriverBrowserClientEndpoint.h
+    ../../Services/WebDriver/WebDriverBrowserServerEndpoint.h
     ../../Services/WebContent/WebUIClientEndpoint.h
     ../../Services/WebContent/WebUIServerEndpoint.h
     UIProcessClientEndpoint.h
@@ -108,6 +111,8 @@ compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebContentClient.ipc ${CM
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebContentServer.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebContentServerEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebDriverClient.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebDriverClientEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebDriverServer.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebDriverServerEndpoint.h)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebDriver/WebDriverBrowserClient.ipc ${CMAKE_BINARY_DIR}/Services/WebDriver/WebDriverBrowserClientEndpoint.h)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebDriver/WebDriverBrowserServer.ipc ${CMAKE_BINARY_DIR}/Services/WebDriver/WebDriverBrowserServerEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebUIClient.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebUIClientEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebUIServer.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebUIServerEndpoint.h)
 

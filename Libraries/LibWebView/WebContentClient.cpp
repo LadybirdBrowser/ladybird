@@ -1479,6 +1479,7 @@ void WebContentClient::did_close_browsing_context(u64 page_id)
     m_detached_pages_pending_close.remove(page_id);
 
     if (auto view = m_views.get(page_id); view.has_value()) {
+        Application::the().notify_webdriver_window_closed((*view)->handle());
         if ((*view)->on_close)
             (*view)->on_close();
     }
