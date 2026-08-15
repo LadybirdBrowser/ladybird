@@ -24,8 +24,8 @@ SaveLayer@0
   DrawLine@1 from=[77,19] to=[83,13] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
   DrawLine@1 from=[75,19] to=[83,11] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
   DrawLine@1 from=[74,19] to=[83,10] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  FillRect@1 rect=[0,22 23x16] color=rgba(101, 2, 0, 0.8)
-  DrawGlyphRun@1 rect=[0,22 24x16] translation=[0,34.796875] color=rgb(0, 0, 0)
+  FillRect@1 rect=[0,25 23x16] color=rgba(101, 2, 0, 0.8)
+  DrawGlyphRun@1 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
 Restore@0
 
 -- unfocused --
@@ -53,8 +53,8 @@ SaveLayer@0
   DrawLine@1 from=[77,19] to=[83,13] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
   DrawLine@1 from=[75,19] to=[83,11] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
   DrawLine@1 from=[74,19] to=[83,10] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  FillRect@1 rect=[0,22 23x16] color=rgba(16, 16, 16, 0.667)
-  DrawGlyphRun@1 rect=[0,22 24x16] translation=[0,34.796875] color=rgb(0, 0, 0)
+  FillRect@1 rect=[0,25 23x16] color=rgba(16, 16, 16, 0.667)
+  DrawGlyphRun@1 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
 Restore@0
 
 -- focused again --
@@ -83,8 +83,8 @@ SaveLayer@0
   DrawLine@1 from=[77,19] to=[83,13] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
   DrawLine@1 from=[75,19] to=[83,11] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
   DrawLine@1 from=[74,19] to=[83,10] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  FillRect@1 rect=[0,22 23x16] color=rgba(101, 2, 0, 0.8)
-  DrawGlyphRun@1 rect=[0,22 24x16] translation=[0,34.796875] color=rgb(0, 0, 0)
+  FillRect@1 rect=[0,25 23x16] color=rgba(101, 2, 0, 0.8)
+  DrawGlyphRun@1 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
 Restore@0
 
 -- caret, focused --
@@ -106,7 +106,7 @@ SaveLayer@0
   DrawLine@1 from=[77,19] to=[83,13] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
   DrawLine@1 from=[75,19] to=[83,11] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
   DrawLine@1 from=[74,19] to=[83,10] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  DrawGlyphRun@1 rect=[0,22 24x16] translation=[0,34.796875] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
 Restore@0
 
 -- caret, unfocused --
@@ -126,7 +126,7 @@ SaveLayer@0
   DrawLine@1 from=[77,19] to=[83,13] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
   DrawLine@1 from=[75,19] to=[83,11] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
   DrawLine@1 from=[74,19] to=[83,10] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  DrawGlyphRun@1 rect=[0,22 24x16] translation=[0,34.796875] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
 Restore@0
 
 -- caret, focused again --
@@ -148,6 +148,6 @@ SaveLayer@0
   DrawLine@1 from=[77,19] to=[83,13] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
   DrawLine@1 from=[75,19] to=[83,11] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
   DrawLine@1 from=[74,19] to=[83,10] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-  DrawGlyphRun@1 rect=[0,22 24x16] translation=[0,34.796875] color=rgb(0, 0, 0)
+  DrawGlyphRun@1 rect=[0,25 24x16] translation=[0,38] color=rgb(0, 0, 0)
 Restore@0
 

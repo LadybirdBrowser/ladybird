@@ -1,0 +1,45 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    .line {
+        font: 10px/10px Ahem;
+        width: 100px;
+    }
+
+    .line * {
+        display: inline-block;
+        height: 10px;
+        min-width: 10px;
+    }
+
+    .wrapped {
+        width: 20px;
+    }
+
+    #hidden {
+        overflow: hidden;
+    }
+</style>
+<div class="line" id="empty"><span></span></div>
+<div class="line" id="text"><span>X</span></div>
+<div class="line" id="visible"><span class="wrapped"><i></i><i></i><i id="visible-last"></i></span><b></b></div>
+<div class="line" id="hidden-line"><span class="wrapped" id="hidden"><i></i><i></i><i id="hidden-last"></i></span><b id="hidden-sibling"></b></div>
+<script>
+    test(() => {
+        const blockOffset = (element, containingBlock) =>
+            element.getBoundingClientRect().top - containingBlock.getBoundingClientRect().top;
+
+        println(`empty height: ${empty.getBoundingClientRect().height}`);
+        println(`text height: ${text.getBoundingClientRect().height}`);
+        println(`visible height: ${visible.getBoundingClientRect().height}`);
+        println(`visible last top: ${blockOffset(document.getElementById("visible-last"), visible)}`);
+        println(`hidden height: ${document.getElementById("hidden-line").getBoundingClientRect().height}`);
+        println(`hidden last top: ${blockOffset(document.getElementById("hidden-last"), document.getElementById("hidden-line"))}`);
+        println(`hidden sibling top: ${blockOffset(document.getElementById("hidden-sibling"), document.getElementById("hidden-line"))}`);
+    });
+</script>

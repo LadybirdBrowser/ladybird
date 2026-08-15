@@ -1,6 +1,6 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 59 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 43 0+0+8] children: inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 62.203125 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 46.203125 0+0+8] children: inline
       frag 0 from AudioBox start: 0, length: 0, rect: [8,8 300x43] baseline: 43
       AudioBox <audio> at [8,8] inline-block [0+0+0 300 0+0+0] [0+0+0 43 0+0+0] children: not-inline
         BlockContainer <(anonymous)> at [8,8] inline-block [0+0+0 300 0+0+0] [0+0+0 43 0+0+0] [BFC] children: not-inline
@@ -32,8 +32,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x59]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x43]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x62.203125]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x46.203125]
       Paintable (AudioBox<AUDIO>) [8,8 300x43]
         PaintableWithLines (BlockContainer(anonymous)) [8,8 300x43]
           PaintableWithLines (BlockContainer<DIV>.container.audio) [8,8 300x43]
@@ -54,5 +54,5 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
                     SVGPathPaintable (SVGGeometryBox<path>.speaker) [4,4 8x16]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x59] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x62.203125] (z-index: auto)
   SC for BlockContainer<DIV>.timeline [8,8 300x5] (z-index: 1)

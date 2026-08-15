@@ -1,6 +1,6 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 120 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 104 0+0+8] children: inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 120.40625 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 104.40625 0+0+8] children: inline
       frag 0 from BlockContainer start: 0, length: 0, rect: [13,10 0x16] baseline: 14.796875
       frag 1 from TextNode start: 0, length: 13, rect: [18,10 116.171875x16] baseline: 12.796875
           "Normal button"
@@ -10,13 +10,13 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       frag 4 from CheckBox start: 0, length: 0, rect: [8,48 13x13] baseline: 13
       frag 5 from TextNode start: 0, length: 15, rect: [21,48 136.296875x16] baseline: 12.796875
           "Normal checkbox"
-      frag 6 from BlockContainer start: 0, length: 0, rect: [8,76 0x0] baseline: 0
+      frag 6 from BlockContainer start: 0, length: 0, rect: [8,77 0x0] baseline: 0
       frag 7 from TextNode start: 0, length: 22, rect: [8,64 201.328125x16] baseline: 12.796875
           "No appearance checkbox"
-      frag 8 from RadioButton start: 0, length: 0, rect: [8,80 12x12] baseline: 12
+      frag 8 from RadioButton start: 0, length: 0, rect: [8,81 12x12] baseline: 12
       frag 9 from TextNode start: 0, length: 12, rect: [20,80 104.203125x16] baseline: 12.796875
           "Normal radio"
-      frag 10 from BlockContainer start: 0, length: 0, rect: [8,108 0x0] baseline: 0
+      frag 10 from BlockContainer start: 0, length: 0, rect: [8,109 0x0] baseline: 0
       frag 11 from TextNode start: 0, length: 19, rect: [8,96 169.234375x16] baseline: 12.796875
           "No appearance radio"
       BlockContainer <input> at [13,10] inline-block [0+1+4 0 4+1+0] [0+1+1 16 1+1+0] [BFC] children: not-inline
@@ -43,22 +43,22 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       TextNode <#text> (not painted)
       BreakNode <br> (not painted)
       TextNode <#text> (not painted)
-      BlockContainer <input> at [8,76] inline-block [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+      BlockContainer <input> at [8,77] inline-block [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
       TextNode <#text> (not painted)
       BreakNode <br> (not painted)
       TextNode <#text> (not painted)
-      RadioButton <input> at [8,80] inline-block [0+0+0 12 0+0+0] [0+0+0 12 0+0+0] children: not-inline
+      RadioButton <input> at [8,81] inline-block [0+0+0 12 0+0+0] [0+0+0 12 0+0+0] children: not-inline
       TextNode <#text> (not painted)
       BreakNode <br> (not painted)
       TextNode <#text> (not painted)
-      BlockContainer <input> at [8,108] inline-block [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+      BlockContainer <input> at [8,109] inline-block [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
       TextNode <#text> (not painted)
       BreakNode <br> (not painted)
       TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x120]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x104]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x120.40625]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x104.40625]
       PaintableWithLines (BlockContainer<INPUT>) [8,8 10x20]
         PaintableWithLines (BlockContainer(anonymous)) [13,10 0x16]
           PaintableWithLines (BlockContainer(anonymous)) [13,10 0x16]
@@ -68,9 +68,9 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           PaintableWithLines (BlockContainer(anonymous)) [13,30 0x16]
             PaintableWithLines (BlockContainer<SPAN>) [13,30 0x16]
       CheckBoxPaintable (CheckBox<INPUT>) [8,48 13x13]
-      PaintableWithLines (BlockContainer<INPUT>) [8,76 0x0]
-      RadioButtonPaintable (RadioButton<INPUT>) [8,80 12x12]
-      PaintableWithLines (BlockContainer<INPUT>) [8,108 0x0]
+      PaintableWithLines (BlockContainer<INPUT>) [8,77 0x0]
+      RadioButtonPaintable (RadioButton<INPUT>) [8,81 12x12]
+      PaintableWithLines (BlockContainer<INPUT>) [8,109 0x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x120] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x120.40625] (z-index: auto)

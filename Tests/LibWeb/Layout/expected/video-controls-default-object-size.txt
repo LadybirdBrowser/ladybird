@@ -1,6 +1,6 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 166 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 150 0+0+8] children: inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 169.203125 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 153.203125 0+0+8] children: inline
       frag 0 from VideoBox start: 0, length: 0, rect: [8,8 300x150] baseline: 150
       VideoBox <video> at [8,8] inline-block [0+0+0 300 0+0+0] [0+0+0 150 0+0+0] children: not-inline
         BlockContainer <(anonymous)> at [8,8] inline-block [0+0+0 300 0+0+0] [0+0+0 150 0+0+0] [BFC] children: not-inline
@@ -39,8 +39,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x166]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x150]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x169.203125]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x153.203125]
       VideoPaintable (VideoBox<VIDEO>) [8,8 300x150]
         PaintableWithLines (BlockContainer(anonymous)) [8,8 300x150]
           PaintableWithLines (BlockContainer<DIV>.container.video) [8,8 300x150]
@@ -68,6 +68,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
                     SVGPathPaintable (SVGGeometryBox<path>.fullscreen-maximize-path) [3,3 18x18]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x166] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x169.203125] (z-index: auto)
   SC for Box<DIV>.placeholder-circle [118,43 80x80] (z-index: auto)
   SC for BlockContainer<DIV>.timeline [8,115 300x5] (z-index: 1)

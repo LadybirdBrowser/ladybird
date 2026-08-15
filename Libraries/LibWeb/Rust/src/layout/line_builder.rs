@@ -704,14 +704,14 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 fragment_baseline + style.vertical_align_value().to_px(style.line_height())
             };
             if adjusted_baseline > line_box_baseline {
-                // A line box holding an aligned subtree can extend past the strut on both sides, so the strut has to
-                // be placed relative to the line box baseline instead of the line box block start.
-                // FIXME: That is true of every line box, but the line box block start is currently derived both here
-                //        and from max_block_size_on_current_line, and those two disagree once the strut moves.
                 if !self.context().facts(node).is_text_node() && style.vertical_align_is_keyword() {
+                    // https://drafts.csswg.org/css2/#line-height
+                    // The minimum height consists of a minimum height above the baseline and a minimum depth below
+                    // it, exactly as if each line box starts with a zero-width inline box with the element's font and
+                    // line height properties.
                     should_align_strut_to_line_box_baseline |= has_line_relative_aligned_subtree
-                        || (style.display().is_inline_outside()
-                            && style.display().is_flex_inside()
+                        || ((style.display().is_inline_block()
+                            || (style.display().is_inline_outside() && style.display().is_flex_inside()))
                             && style.vertical_align_keyword() == vertical_align::BASELINE);
                 }
                 line_box_baseline = adjusted_baseline;
