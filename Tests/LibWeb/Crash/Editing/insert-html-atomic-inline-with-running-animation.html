@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+    @keyframes move { from { top: 0 } to { top: 100px } }
+    .animated { position: fixed; animation: move 1000s linear }
+</style>
+<svg><metadata id="fragment">
+<feFuncB id="animated-atomic" class="animated">x</feFuncB>
+</metadata></svg>
+<del id="host" contenteditable="true">a</del>
+<script>
+    const animation = document.getElementById("animated-atomic").getAnimations()[0];
+    function editWhenAnimationHasAdvanced() {
+        if (!animation.currentTime) {
+            requestAnimationFrame(editWhenAnimationHasAdvanced);
+            return;
+        }
+        getSelection().setPosition(host);
+        document.execCommand("selectAll", false);
+        document.execCommand("insertHTML", false, fragment.outerHTML);
+        document.documentElement.classList.remove("test-wait");
+    }
+    requestAnimationFrame(editWhenAnimationHasAdvanced);
+</script>
+</html>
