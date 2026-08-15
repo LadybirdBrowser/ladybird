@@ -1018,12 +1018,101 @@ impl<'context> InlineFormattingContext<'context> {
         style.text_overflow() == text_overflow::ELLIPSIS && style.overflow_x() != overflow::VISIBLE
     }
 
+    fn reusable_atomic_line_prefix(
+        &self,
+        previous: &LineData,
+        iterator: &InlineLevelIterator,
+    ) -> (Vec<LineBoxData>, usize) {
+        if self.containing_block != self.run.box_
+            || !previous.inline_box_pieces.is_empty()
+            || previous
+                .line_boxes
+                .iter()
+                .any(|line| line.writing_mode != writing_mode::HORIZONTAL_TB)
+            || iterator.items().iter().any(|item| item.type_ != ItemType::Element)
+        {
+            return (Vec::new(), 0);
+        }
+
+        let mut item_index = 0usize;
+        let mut reused_lines = Vec::new();
+        let mut item_count_before_last_line = 0usize;
+        for line in &previous.line_boxes {
+            if line.fragments.is_empty()
+                || line.has_block_level_box
+                || !line.static_position_markers.is_empty()
+                || !line.inline_box_baselines.is_empty()
+            {
+                break;
+            }
+            let line_item_start = item_index;
+            let mut running_inline_length = CssPixels::default();
+            let mut matched = true;
+            for fragment in &line.fragments {
+                let Some(item) = iterator.items().get(item_index) else {
+                    matched = false;
+                    break;
+                };
+                let used = self.used(item.node);
+                let expected_inline_offset =
+                    running_inline_length + item.margin_start + item.border_start + item.padding_start;
+                if !fragment.is_atomic_inline
+                    || fragment.layout_node != item.node
+                    || fragment.inline_offset != expected_inline_offset
+                    || fragment.inline_length != item.inline_size
+                    || fragment.block_length != used.content_block_size.get()
+                    || fragment.border_box_block_start != used.border_box_top(false)
+                {
+                    matched = false;
+                    break;
+                }
+                running_inline_length += item.margin_start
+                    + item.border_start
+                    + item.padding_start
+                    + item.inline_size
+                    + item.padding_end
+                    + item.border_end
+                    + item.margin_end;
+                item_index += 1;
+            }
+            if !matched || running_inline_length != line.inline_length {
+                item_index = line_item_start;
+                break;
+            }
+            item_count_before_last_line = line_item_start;
+            reused_lines.push(line.clone());
+        }
+
+        // Additional content can fit on the old final line, so that line is
+        // damaged even when every old fragment before the insertion matches.
+        if item_index < iterator.items().len() && reused_lines.len() == previous.line_boxes.len() {
+            reused_lines.pop();
+            item_index = item_count_before_last_line;
+        }
+        (reused_lines, item_index)
+    }
+
     pub(crate) fn generate_line_boxes(&mut self) {
-        self.line_data_mut().line_boxes.clear();
-        self.line_data_mut().inline_box_pieces.clear();
         let mut iterator = InlineLevelIterator::new(self);
         self.fragmented_inlines_in_pre_order = iterator.take_visited_fragmented_inlines();
-        let mut line_builder = LineBuilder::new(self);
+        let (reused_lines, reused_item_count) = self
+            .run
+            .previous_line_data
+            .as_deref()
+            .map(|previous| self.reusable_atomic_line_prefix(previous, &iterator))
+            .unwrap_or_default();
+        {
+            let mut data = self.line_data_mut();
+            data.line_boxes = reused_lines;
+            data.inline_box_pieces.clear();
+        }
+        iterator.skip_items(reused_item_count);
+        let reused_line_count = self.line_data().line_boxes.len();
+        let mut line_builder = if reused_line_count == 0 {
+            LineBuilder::new(self)
+        } else {
+            LineBuilder::new_after_reused_lines(self)
+        };
 
         let mut leading_margin = CssPixels::default();
         let mut leading_border = CssPixels::default();
@@ -1167,7 +1256,7 @@ impl<'context> InlineFormattingContext<'context> {
         }
 
         let line_count = self.line_data().line_boxes.len();
-        for line_index in 0..line_count {
+        for line_index in reused_line_count..line_count {
             self.line_data_mut().line_boxes[line_index].trim_trailing_whitespace();
         }
         if self.text_overflow_applies() {

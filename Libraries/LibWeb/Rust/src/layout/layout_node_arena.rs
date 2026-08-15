@@ -1070,6 +1070,25 @@ pub unsafe extern "C" fn layout_arena_fc_run_cache_hit_count(arena: *mut c_void)
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_note_inline_layout_damage(arena: *mut c_void, mut box_: NodeSlotId) {
+    abort_on_panic(|| {
+        assert!(!arena.is_null(), "layout node arena handle is null");
+        // SAFETY: The C++ caller keeps the arena and layout tree alive for this synchronous call.
+        let arena = unsafe { &*arena.cast::<LayoutNodeArena>() };
+        // OPTIMIZATION: The edit invalidates line data at its direct parent and every formatting
+        // ancestor. Preserve the structural proof along the same unbounded path as the fragment
+        // epoch bumps so each affected inline context can reuse its unchanged line prefix.
+        while !box_.is_invalid() {
+            let data = arena.data(box_);
+            arena.fc_run_cache_store().note_inline_layout_damage(box_);
+            // SAFETY: data() validated that box_ names a live slot, and the layout tree is stable
+            // for the duration of this synchronous topology update.
+            box_ = unsafe { (&raw const (*data).parent).read() };
+        }
+    });
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_text_content(
     arena: *mut c_void,
     id: NodeSlotId,

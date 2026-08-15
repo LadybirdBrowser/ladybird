@@ -613,6 +613,15 @@ impl InlineLevelIterator {
         ))
     }
 
+    pub(crate) fn items(&self) -> &[Item] {
+        &self.items
+    }
+
+    pub(crate) fn skip_items(&mut self, count: usize) {
+        assert!(self.next_item_index + count <= self.items.len());
+        self.next_item_index += count;
+    }
+
     pub(crate) fn next_non_whitespace_sequence_inline_size(
         &self,
         context: &InlineFormattingContext<'_>,

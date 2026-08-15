@@ -1128,6 +1128,7 @@ pub(crate) struct FormattingContextRun {
     pub(crate) should_collect_devtools_layout_data: bool,
     pub(crate) treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
     pub(crate) fragments: Option<std::rc::Rc<RunFragmentBuilder>>,
+    pub(crate) previous_line_data: Option<std::rc::Rc<LineData>>,
 }
 
 impl FormattingContextRun {
@@ -1651,6 +1652,7 @@ fn run_formatting_context(
         // A later fresh run for this root supersedes a hit recorded earlier in the same pass.
         parent_fragments.clear_reused_subtree_root(box_);
     }
+    let previous_line_data = cache_attempt.previous_line_data();
     let outputs = execute_formatting_context_run(
         purpose,
         root_cells,
@@ -1662,6 +1664,7 @@ fn run_formatting_context(
         callbacks,
         input,
         parent_block,
+        previous_line_data,
     );
     cache_attempt.conclude(&callbacks, box_, &outputs);
     absorb_run_outputs(parent_fragments, parent_used, box_, outputs, false)
@@ -1679,6 +1682,7 @@ fn execute_formatting_context_run(
     callbacks: FfiLayoutFcCallbacks,
     input: LayoutInput,
     parent_block: Option<&BlockFormattingContext>,
+    previous_line_data: Option<std::rc::Rc<LineData>>,
 ) -> RunOutputs {
     assert!(!box_.is_invalid());
     let root_used = std::rc::Rc::new(root_cells.materialize_record());
@@ -1697,6 +1701,7 @@ fn execute_formatting_context_run(
                 (!root_containing_block.is_invalid()).then_some(root_containing_block),
             ))
         }),
+        previous_line_data,
     };
     let run = &run;
     let body_input = apply_root_sizing_directives(run, &input);
@@ -2100,6 +2105,7 @@ pub unsafe extern "C" fn rust_layout_run_root_layout(
             should_collect_devtools_layout_data,
             treat_block_axis_percentage_insets_as_auto_beyond_root: false,
             fragments: Some(entry_fragments.clone()),
+            previous_line_data: None,
         };
 
         let mut root_for_layout = root;
@@ -2202,6 +2208,7 @@ pub unsafe extern "C" fn rust_layout_compute_subtree_layout(
             should_collect_devtools_layout_data: false,
             treat_block_axis_percentage_insets_as_auto_beyond_root: false,
             fragments: Some(entry_fragments.clone()),
+            previous_line_data: None,
         };
         if !viewport.is_invalid() && viewport != root {
             let viewport_inline_size = CssPixels::from_raw(viewport_inline_size_raw);
@@ -2296,6 +2303,7 @@ pub unsafe extern "C" fn rust_layout_replay_saved_abspos_layout(
             should_collect_devtools_layout_data: false,
             treat_block_axis_percentage_insets_as_auto_beyond_root: false,
             fragments: Some(entry_fragments.clone()),
+            previous_line_data: None,
         };
         AbsposEngine::for_run(&run).replay(&run, box_);
         drain_and_commit_entry_pass(
