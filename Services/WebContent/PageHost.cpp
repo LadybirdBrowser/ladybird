@@ -54,12 +54,6 @@ void PageHost::remove_page(Badge<PageClient>, u64 page_id)
     m_pages.remove(page_id);
 }
 
-void PageHost::close_webdriver_connections_after_sending_pending_messages()
-{
-    for (auto& page : m_pages)
-        page.value->close_webdriver_connection_after_sending_pending_messages();
-}
-
 Optional<PageClient&> PageHost::page(u64 page_id)
 {
     return m_pages.get(page_id).map([](auto& value) -> PageClient& {

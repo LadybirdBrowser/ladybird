@@ -32,6 +32,11 @@ private:
     virtual void traverse_history(u64 command_id, String window_handle, i32 delta, bool handle_user_prompts) override;
     virtual void get_session_history(u64 command_id, String window_handle) override;
     virtual void load_url(u64 command_id, String window_handle, URL::URL url) override;
+    virtual void run_content_command(u64 command_id, String window_handle, String name, JsonValue payload, Vector<String> arguments) override;
+    virtual void set_user_prompt_handler(Web::WebDriver::UserPromptHandler user_prompt_handler) override;
+    virtual void set_page_load_strategy(Web::WebDriver::PageLoadStrategy page_load_strategy) override;
+    virtual void set_strict_file_interactability(bool strict_file_interactability) override;
+    virtual void set_timeouts_configuration(JsonValue timeouts) override;
 };
 
 }

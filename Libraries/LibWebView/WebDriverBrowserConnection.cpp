@@ -168,6 +168,45 @@ void WebDriverBrowserConnection::load_url(u64 command_id, String window_handle, 
     });
 }
 
+void WebDriverBrowserConnection::run_content_command(u64 command_id, String window_handle, String name, JsonValue payload, Vector<String> arguments)
+{
+    auto view = ViewImplementation::find_view_by_handle(window_handle);
+    if (!view.has_value()) {
+        async_command_complete(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
+        return;
+    }
+
+    view->run_webdriver_content_command(command_id, name, move(payload), move(arguments));
+}
+
+void WebDriverBrowserConnection::set_user_prompt_handler(Web::WebDriver::UserPromptHandler user_prompt_handler)
+{
+    Application::the().update_webdriver_session_config({}, [user_prompt_handler = move(user_prompt_handler)](auto& config) {
+        config.user_prompt_handler = user_prompt_handler;
+    });
+}
+
+void WebDriverBrowserConnection::set_page_load_strategy(Web::WebDriver::PageLoadStrategy page_load_strategy)
+{
+    Application::the().update_webdriver_session_config({}, [page_load_strategy](auto& config) {
+        config.page_load_strategy = page_load_strategy;
+    });
+}
+
+void WebDriverBrowserConnection::set_strict_file_interactability(bool strict_file_interactability)
+{
+    Application::the().update_webdriver_session_config({}, [strict_file_interactability](auto& config) {
+        config.strict_file_interactability = strict_file_interactability;
+    });
+}
+
+void WebDriverBrowserConnection::set_timeouts_configuration(JsonValue timeouts)
+{
+    Application::the().update_webdriver_session_config({}, [timeouts = move(timeouts)](auto& config) {
+        config.timeouts = timeouts;
+    });
+}
+
 // 10.3 Back, https://w3c.github.io/webdriver/#dfn-back
 // 10.4 Forward, https://w3c.github.io/webdriver/#dfn-forward
 void WebDriverBrowserConnection::traverse_history(u64 command_id, String window_handle, i32 delta, bool handle_user_prompts)

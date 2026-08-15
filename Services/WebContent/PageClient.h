@@ -25,7 +25,9 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
+#include <LibWeb/WebDriver/Capabilities.h>
 #include <LibWeb/WebDriver/Response.h>
+#include <LibWeb/WebDriver/UserPrompt.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Geolocation.h>
 #include <LibWebView/Mutation.h>
@@ -54,8 +56,10 @@ public:
     virtual Web::Page const& page() const override { return *m_page; }
     virtual bool has_focus() const override { return m_has_focus; }
 
-    ErrorOr<void> connect_to_webdriver(ByteString const& webdriver_endpoint);
-    void close_webdriver_connection_after_sending_pending_messages();
+    WebDriverConnection& ensure_webdriver_session();
+    void run_webdriver_command(u64 command_id, String const& name, JsonValue payload, Vector<String> arguments);
+    void webdriver_command_complete(u64 command_id, Web::WebDriver::Response);
+    void set_webdriver_session_config(Web::WebDriver::UserPromptHandler, Web::WebDriver::PageLoadStrategy, bool strict_file_interactability, JsonValue const& timeouts);
     ErrorOr<void> connect_to_web_ui(IPC::TransportHandle);
 
     virtual Queue<Web::QueuedInputEvent>& input_event_queue() override;

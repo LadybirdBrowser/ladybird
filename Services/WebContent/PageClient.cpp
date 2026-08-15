@@ -202,9 +202,6 @@ void PageClient::set_has_focus(bool has_focus)
 void PageClient::set_window_handle(Utf16String window_handle)
 {
     page().top_level_traversable()->set_window_handle(move(window_handle));
-
-    if (m_webdriver)
-        m_webdriver->page_did_set_window_handle({}, page().top_level_traversable()->window_handle().to_utf8());
 }
 
 void PageClient::setup_palette()
@@ -248,12 +245,6 @@ Web::NavigationProcessDecision PageClient::decide_navigation_process(URL::URL co
 void PageClient::request_new_process_for_navigation(URL::URL const& url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling, Optional<Web::HTML::NavigationSourceSnapshot> const& source_snapshot)
 {
     client().async_did_request_new_process_for_navigation(m_id, url, move(document_resource), history_handling, source_snapshot);
-}
-
-void PageClient::close_webdriver_connection_after_sending_pending_messages()
-{
-    if (m_webdriver)
-        m_webdriver->transport().close_after_sending_all_pending_messages();
 }
 
 void PageClient::request_new_process_for_child_frame_navigation(Web::HTML::CrossProcessId frame_id, URL::URL const& url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling, Optional<Web::HTML::NavigationSourceSnapshot> const& source_snapshot)
@@ -1367,12 +1358,27 @@ void PageClient::page_did_take_screenshot(Gfx::ShareableBitmap const& screenshot
     client().async_did_take_screenshot(m_id, screenshot);
 }
 
-ErrorOr<void> PageClient::connect_to_webdriver(ByteString const& webdriver_endpoint)
+WebDriverConnection& PageClient::ensure_webdriver_session()
 {
-    VERIFY(!m_webdriver);
-    m_webdriver = TRY(WebDriverConnection::connect(*this, webdriver_endpoint));
+    if (!m_webdriver)
+        m_webdriver = WebDriverConnection::create(*this);
+    return *m_webdriver;
+}
 
-    return {};
+void PageClient::run_webdriver_command(u64 command_id, String const& name, JsonValue payload, Vector<String> arguments)
+{
+    ensure_webdriver_session().run_command(command_id, name, move(payload), move(arguments));
+}
+
+void PageClient::webdriver_command_complete(u64 command_id, Web::WebDriver::Response response)
+{
+    client().async_webdriver_command_complete(m_id, command_id, move(response));
+}
+
+void PageClient::set_webdriver_session_config(Web::WebDriver::UserPromptHandler user_prompt_handler, Web::WebDriver::PageLoadStrategy page_load_strategy, bool strict_file_interactability, JsonValue const& timeouts)
+{
+    Web::WebDriver::set_user_prompt_handler(move(user_prompt_handler));
+    ensure_webdriver_session().set_session_config(page_load_strategy, strict_file_interactability, timeouts);
 }
 
 ErrorOr<void> PageClient::connect_to_web_ui(IPC::TransportHandle handle)

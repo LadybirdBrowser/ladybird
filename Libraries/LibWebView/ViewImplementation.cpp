@@ -42,6 +42,13 @@ static HashMap<u64, ViewImplementation*>& all_views()
     static NeverDestroyed<HashMap<u64, ViewImplementation*>> views;
     return *views;
 }
+
+static void fail_webdriver_content_commands_after_process_replacement(HashTable<u64> const& command_ids)
+{
+    for (auto command_id : command_ids)
+        Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, "WebContent was replaced while executing the command"sv));
+}
+
 static u64 s_view_count = 1; // This has to start at 1 for Firefox DevTools.
 
 void ViewImplementation::for_each_view(Function<IterationDecision(ViewImplementation&)> callback)
@@ -185,6 +192,9 @@ void ViewImplementation::set_favicon(Badge<WebContentClient>, Optional<Gfx::Bitm
 
 void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL const& url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling, Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot)
 {
+    auto pending_webdriver_command_ids = move(m_pending_webdriver_command_ids);
+    auto pending_webdriver_crash_command_ids = move(m_pending_webdriver_crash_command_ids);
+
     dump_session_history("before-process-swap"sv);
 
     if (m_client_state.has_usable_bitmap) {
@@ -226,10 +236,16 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
     client().async_load_url_with_document_resource(page_id(), url, document_resource,
         history_handling, move(source_snapshot));
     dump_session_history("after-process-swap-load"sv);
+
+    fail_webdriver_content_commands_after_process_replacement(pending_webdriver_command_ids);
+    fail_webdriver_content_commands_after_process_replacement(pending_webdriver_crash_command_ids);
 }
 
 void ViewImplementation::replace_web_content_process_for_history_traversal(Web::HTML::CrossProcessId target_document_state_id, URL::URL const& target_url)
 {
+    auto pending_webdriver_command_ids = move(m_pending_webdriver_command_ids);
+    auto pending_webdriver_crash_command_ids = move(m_pending_webdriver_crash_command_ids);
+
     dump_session_history("before-history-traversal-process-swap"sv);
 
     if (m_client_state.has_usable_bitmap) {
@@ -252,6 +268,9 @@ void ViewImplementation::replace_web_content_process_for_history_traversal(Web::
 
     handle_resize();
     dump_session_history("after-history-traversal-process-swap"sv);
+
+    fail_webdriver_content_commands_after_process_replacement(pending_webdriver_command_ids);
+    fail_webdriver_content_commands_after_process_replacement(pending_webdriver_crash_command_ids);
 }
 
 void ViewImplementation::server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size, Gfx::IntRect damage_rect)
@@ -1783,8 +1802,8 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
 
     client().async_set_page_mute_state(m_client_state.page_index, m_mute_state);
 
-    if (auto webdriver_endpoint = Application::browser_options().webdriver_endpoint; webdriver_endpoint.has_value())
-        client().async_connect_to_webdriver(m_client_state.page_index, *webdriver_endpoint);
+    if (Application::browser_options().webdriver_browser_endpoint.has_value())
+        Application::the().push_webdriver_session_config(*this);
 
     Application::the().apply_view_options({}, *this);
 
@@ -2095,6 +2114,68 @@ bool ViewImplementation::cancel_uncommitted_top_level_navigation(StringView reas
         complete_webdriver_navigation(m_ongoing_top_level_navigation->webdriver_navigation_id);
     dump_session_history(reason);
     return true;
+}
+
+void ViewImplementation::apply_webdriver_session_config(WebDriverSessionConfig const& config)
+{
+    client().async_set_webdriver_session_config(page_id(), config.user_prompt_handler, config.page_load_strategy, config.strict_file_interactability, config.timeouts);
+}
+
+void ViewImplementation::run_webdriver_content_command(u64 command_id, String const& name, JsonValue payload, Vector<String> arguments)
+{
+    if (name == "crash_current_page"sv)
+        m_pending_webdriver_crash_command_ids.set(command_id);
+    else
+        m_pending_webdriver_command_ids.set(command_id);
+    client().async_run_webdriver_command(page_id(), command_id, name, move(payload), move(arguments));
+}
+
+void ViewImplementation::did_complete_webdriver_content_command(Badge<WebContentClient>, u64 command_id, Web::WebDriver::Response response)
+{
+    if (m_pending_webdriver_crash_command_ids.contains(command_id)) {
+        // WebContent acknowledges the command before its deferred process exit. Keep the command pending until the
+        // crash handler has created the replacement process and started session-history recovery.
+        if (response.is_error()) {
+            m_pending_webdriver_crash_command_ids.remove(command_id);
+            Application::the().complete_webdriver_content_command(command_id, move(response));
+        }
+        return;
+    }
+
+    if (m_pending_webdriver_command_ids.remove(command_id))
+        Application::the().complete_webdriver_content_command(command_id, move(response));
+}
+
+void ViewImplementation::did_close_browsing_context(Badge<WebContentClient>)
+{
+    auto window_handle = move(m_client_state.client_handle);
+
+    // Headless views retain their closed children. Remove the view from routing immediately so a command racing
+    // with the close cannot be sent to a page that no longer exists.
+    all_views().remove(m_view_id);
+    if (m_client_state.client)
+        m_client_state.client->unregister_view(m_client_state.page_index);
+
+    if (!window_handle.is_empty())
+        Application::the().notify_webdriver_window_closed(window_handle);
+
+    auto pending_user_prompt_requests = move(m_pending_webdriver_user_prompt_requests);
+    for (auto& request : pending_user_prompt_requests)
+        request.value(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window closed while handling user prompts"sv));
+
+    auto pending_command_ids = move(m_pending_webdriver_command_ids);
+    for (auto command_id : pending_command_ids)
+        Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window closed while executing the command"sv));
+    auto pending_crash_command_ids = move(m_pending_webdriver_crash_command_ids);
+    for (auto command_id : pending_crash_command_ids)
+        Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window closed while executing the command"sv));
+
+    auto pending_navigation_completion_requests = move(m_pending_webdriver_navigation_completion_requests);
+    for (auto& request : pending_navigation_completion_requests) {
+        if (request.value->timer)
+            request.value->timer->stop();
+        request.value->on_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window closed while waiting for navigation"sv));
+    }
 }
 
 void ViewImplementation::run_webdriver_user_prompt_handling(Function<void(Web::WebDriver::Response)> on_complete)
@@ -2585,6 +2666,11 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
     for (auto& request : pending_user_prompt_requests)
         request.value(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, "WebContent crashed while handling user prompts"sv));
 
+    auto pending_command_ids = move(m_pending_webdriver_command_ids);
+    auto pending_crash_command_ids = move(m_pending_webdriver_crash_command_ids);
+    for (auto command_id : pending_command_ids)
+        Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, "WebContent crashed while executing the command"sv));
+
     auto const headless_mode = Application::browser_options().headless_mode.has_value();
 
     if (!headless_mode) {
@@ -2600,6 +2686,8 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
         if (!headless_mode) {
             dbgln("WebContent has crashed {} times in quick succession! Not restarting...", m_crash_count);
             m_repeated_crash_timer->stop();
+            for (auto command_id : pending_crash_command_ids)
+                Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, "WebContent crashed repeatedly and was not restarted"sv));
             return;
         }
         // In headless mode, always respawn - tests need a working WebContent for each test.
@@ -2654,6 +2742,9 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
         m_should_suppress_history_for_next_load = false;
         recover_current_session_history_entry_with_history_operation(move(crashed_endpoint));
     }
+
+    for (auto command_id : pending_crash_command_ids)
+        Application::the().complete_webdriver_content_command(command_id, JsonValue {});
 }
 
 void ViewImplementation::default_zoom_level_factor_changed()

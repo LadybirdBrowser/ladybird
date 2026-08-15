@@ -29,7 +29,9 @@
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWeb/WebDriver/ExecuteScript.h>
+#include <LibWeb/WebDriver/Capabilities.h>
 #include <LibWeb/WebDriver/Response.h>
+#include <LibWeb/WebDriver/UserPrompt.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/DictionaryLookup.h>
 #include <LibWebView/DOMNodeProperties.h>
@@ -47,8 +49,9 @@ endpoint WebContentServer
     get_window_handle(u64 page_id) => (String handle)
     set_window_handle(u64 page_id, String handle) =|
 
-    connect_to_webdriver(u64 page_id, ByteString webdriver_endpoint) =|
+    run_webdriver_command(u64 page_id, u64 command_id, String name, JsonValue payload, Vector<String> arguments) =|
     run_webdriver_user_prompt_handling(u64 page_id, u64 request_id) =|
+    set_webdriver_session_config(u64 page_id, Web::WebDriver::UserPromptHandler user_prompt_handler, Web::WebDriver::PageLoadStrategy page_load_strategy, bool strict_file_interactability, JsonValue timeouts) =|
     connect_to_web_ui(u64 page_id, IPC::TransportHandle handle) =|
     connect_to_request_server(IPC::TransportHandle handle) =|
     connect_to_image_decoder(IPC::TransportHandle handle) =|

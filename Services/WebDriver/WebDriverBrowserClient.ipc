@@ -1,4 +1,7 @@
 #include <LibURL/URL.h>
+#include <LibWeb/WebDriver/Capabilities.h>
+#include <LibWeb/WebDriver/Response.h>
+#include <LibWeb/WebDriver/UserPrompt.h>
 
 endpoint WebDriverBrowserClient {
     close_session() =|
@@ -8,4 +11,9 @@ endpoint WebDriverBrowserClient {
     traverse_history(u64 command_id, String window_handle, i32 delta, bool handle_user_prompts) =|
     get_session_history(u64 command_id, String window_handle) =|
     load_url(u64 command_id, String window_handle, URL::URL url) =|
+    run_content_command(u64 command_id, String window_handle, String name, JsonValue payload, Vector<String> arguments) =|
+    set_user_prompt_handler(Web::WebDriver::UserPromptHandler user_prompt_handler) =|
+    set_page_load_strategy(Web::WebDriver::PageLoadStrategy page_load_strategy) =|
+    set_strict_file_interactability(bool strict_file_interactability) =|
+    set_timeouts_configuration(JsonValue timeouts) =|
 }

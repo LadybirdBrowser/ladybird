@@ -177,7 +177,6 @@ Optional<PageClient const&> ConnectionFromClient::page(u64 index, SourceLocation
 
 void ConnectionFromClient::close_server()
 {
-    m_page_host->close_webdriver_connections_after_sending_pending_messages();
     shutdown();
 }
 
@@ -196,13 +195,16 @@ void ConnectionFromClient::set_window_handle(u64 page_id, String handle)
     }
 }
 
-void ConnectionFromClient::connect_to_webdriver(u64 page_id, ByteString webdriver_endpoint)
+void ConnectionFromClient::run_webdriver_command(u64 page_id, u64 command_id, String name, JsonValue payload, Vector<String> arguments)
 {
-    if (auto page = this->page(page_id); page.has_value()) {
-        // FIXME: Propagate this error back to the browser.
-        if (auto result = page->connect_to_webdriver(webdriver_endpoint); result.is_error())
-            dbgln("Unable to connect to the WebDriver process: {}", result.error());
-    }
+    if (auto page = this->page(page_id); page.has_value())
+        page->run_webdriver_command(command_id, name, move(payload), move(arguments));
+}
+
+void ConnectionFromClient::set_webdriver_session_config(u64 page_id, Web::WebDriver::UserPromptHandler user_prompt_handler, Web::WebDriver::PageLoadStrategy page_load_strategy, bool strict_file_interactability, JsonValue timeouts)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->set_webdriver_session_config(move(user_prompt_handler), page_load_strategy, strict_file_interactability, timeouts);
 }
 
 void ConnectionFromClient::run_webdriver_user_prompt_handling(u64 page_id, u64 request_id)

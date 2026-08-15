@@ -1473,7 +1473,7 @@ void WebContentClient::did_close_browsing_context(u64 page_id)
     m_detached_pages_pending_close.remove(page_id);
 
     if (auto view = m_views.get(page_id); view.has_value()) {
-        Application::the().notify_webdriver_window_closed((*view)->handle());
+        (*view)->did_close_browsing_context({});
         if ((*view)->on_close)
             (*view)->on_close();
     }
@@ -1491,6 +1491,12 @@ void WebContentClient::webdriver_user_prompt_handling_complete(u64 page_id, u64 
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
         view->did_complete_webdriver_user_prompt_handling({}, request_id, move(response));
+}
+
+void WebContentClient::webdriver_command_complete(u64 page_id, u64 command_id, Web::WebDriver::Response response)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_complete_webdriver_content_command({}, command_id, move(response));
 }
 
 void WebContentClient::did_update_resource_count(u64 page_id, i32 count_waiting)
