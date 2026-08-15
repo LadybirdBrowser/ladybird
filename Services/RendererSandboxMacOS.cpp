@@ -6,32 +6,16 @@
 
 #include <AK/LexicalPath.h>
 #include <LibCore/Directory.h>
-#include <LibCore/Environment.h>
 #include <LibCore/System.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibSandbox/Sandbox.h>
 #include <LibWebView/Utilities.h>
 #include <Services/RendererSandbox.h>
-#include <errno.h>
 #include <limits.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 namespace RendererSandbox {
-
-static ErrorOr<Optional<ByteString>> canonicalized_path_if_exists(StringView path)
-{
-    auto path_bytes = path.to_byte_string();
-
-    char resolved_path[PATH_MAX];
-    if (realpath(path_bytes.characters(), resolved_path) == nullptr) {
-        if (errno == ENOENT || errno == ENOTDIR)
-            return OptionalNone {};
-        return Error::from_syscall("realpath"sv, errno);
-    }
-    return ByteString { resolved_path };
-}
 
 ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringView> cache_path)
 {
@@ -52,18 +36,6 @@ ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringVie
     for (auto const& path : TRY(Gfx::FontDatabase::font_directories()))
         TRY(Sandbox::add_seatbelt_path_if_exists(paths, path, Sandbox::SeatbeltPath::Access::ReadOnly));
 
-    Vector<ByteString> executable_paths;
-    if (auto cranelift_compiler_path = Core::Environment::get("LADYBIRD_CRANELIFT_COMPILER"sv); cranelift_compiler_path.has_value()) {
-        TRY(Sandbox::add_seatbelt_path_if_exists(paths, *cranelift_compiler_path, Sandbox::SeatbeltPath::Access::ReadAndExecute));
-        if (auto canonicalized_cranelift_compiler_path = TRY(canonicalized_path_if_exists(*cranelift_compiler_path)); canonicalized_cranelift_compiler_path.has_value())
-            TRY(executable_paths.try_append(canonicalized_cranelift_compiler_path.release_value()));
-    } else {
-        auto default_cranelift_compiler_path = LexicalPath::join(build_root, "bin/cranelift-compiler"sv).string();
-        TRY(Sandbox::add_seatbelt_path_if_exists(paths, default_cranelift_compiler_path, Sandbox::SeatbeltPath::Access::ReadAndExecute));
-        if (auto canonicalized_cranelift_compiler_path = TRY(canonicalized_path_if_exists(default_cranelift_compiler_path)); canonicalized_cranelift_compiler_path.has_value())
-            TRY(executable_paths.try_append(canonicalized_cranelift_compiler_path.release_value()));
-    }
-
     if (cache_path.has_value()) {
         TRY(Core::Directory::create(*cache_path, Core::Directory::CreateDirectories::Yes));
         TRY(Sandbox::add_seatbelt_path_if_exists(paths, *cache_path, Sandbox::SeatbeltPath::Access::ReadWrite));
@@ -79,7 +51,7 @@ ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringVie
         }
     }
 
-    return Sandbox::apply_macos_sandbox(paths.span(), Sandbox::NetworkAccess::Denied, executable_paths.span());
+    return Sandbox::apply_macos_sandbox(paths.span(), Sandbox::NetworkAccess::Denied);
 }
 
 }
