@@ -5,6 +5,7 @@
  */
 
 pub(crate) struct Fragment {
+    pub(crate) identity: u64,
     pub(crate) node: crate::layout::node_data::NodeSlotId,
     pub(crate) content_inline_size: CssPixels,
     pub(crate) content_block_size: CssPixels,
@@ -156,6 +157,7 @@ fn snapshot_fragment(
     children: Vec<FragmentLink>,
     used: &UsedValues,
 ) -> std::rc::Rc<Fragment> {
+    static NEXT_IDENTITY: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
     let line_data = used.line_data.get().map(std::cell::RefCell::take);
     let rare_payloads = used.rare_data.get().map(|cell| {
         let mut rare = cell.borrow_mut();
@@ -181,6 +183,7 @@ fn snapshot_fragment(
         computed_svg_path,
     ) = rare_payloads.unwrap_or_default();
     std::rc::Rc::new(Fragment {
+        identity: NEXT_IDENTITY.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
         node,
         content_inline_size: used.content_inline_size.get(),
         content_block_size: used.content_block_size.get(),

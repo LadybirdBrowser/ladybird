@@ -475,8 +475,10 @@ public:
     enum class ScrollableOverflowDerivedStructureUpdates : u8 {
         UpdateAfterMeasure,
         HandledByAfterLayoutCommit,
+        HandledByFullLayoutCommit,
     };
-    void update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates);
+    void ensure_scrollable_overflow_is_measured(Layout::Box const&) const;
+    void update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates, ReadonlySpan<Layout::Box const*> boxes_needing_eager_measurement = {});
     void update_paint_and_hit_testing_properties_if_needed();
     void update_animated_style_if_needed();
     void update_style_computer_viewport_rect();
@@ -1425,7 +1427,11 @@ private:
         No,
         Yes,
     };
-    void after_layout_commit(LayoutTreeChanged);
+    enum class LayoutCommitScope : u8 {
+        Subtree,
+        Full,
+    };
+    void after_layout_commit(LayoutTreeChanged, LayoutCommitScope, ReadonlySpan<Layout::Box const*> boxes_needing_eager_overflow_measurement = {});
 
     void run_unloading_cleanup_steps();
 
@@ -1799,8 +1805,7 @@ private:
     Vector<WeakPtr<Painting::Paintable>> m_paintable_boxes_needing_scrollable_overflow_recalculation;
     // NB: Holds raw layout node pointers that are only safe to read while m_layout_root still owns
     //     the tree they came from: every full layout rebuilds the map, layout tree teardown clears
-    //     it, and its only reader, the scheduled scrollable overflow recalculation, runs only when
-    //     layout is up to date.
+    //     it, and overflow measurement only reads it while that root remains current.
     Layout::ContainedBoxesMap m_scrollable_overflow_contained_boxes_from_last_layout;
     CSS::SheetSetStyleCacheRegistry m_sheet_set_style_cache_registry;
     RefPtr<Painting::HitTestDisplayList> m_hit_test_display_list;

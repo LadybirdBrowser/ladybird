@@ -223,6 +223,11 @@ public:
         bool has_scrollable_overflow { false };
     };
 
+    struct CachedOverflowData {
+        CSSPixelRect rect_relative_to_padding_box;
+        bool has_scrollable_overflow { false };
+    };
+
     // Offset from the top left of the containing block's content edge.
     [[nodiscard]] CSSPixelPoint offset() const;
 
@@ -281,12 +286,7 @@ public:
 
     CSSPixelPoint transform_to_local_coordinates(CSSPixelPoint position) const;
 
-    [[nodiscard]] bool has_scrollable_overflow() const
-    {
-        if (!m_overflow_data.has_value())
-            return false;
-        return m_overflow_data->has_scrollable_overflow;
-    }
+    [[nodiscard]] bool has_scrollable_overflow() const;
 
     [[nodiscard]] bool has_css_transform() const;
 
@@ -295,16 +295,23 @@ public:
 
     [[nodiscard]] bool overflow_property_applies() const;
 
-    [[nodiscard]] Optional<CSSPixelRect> scrollable_overflow_rect() const
-    {
-        if (!m_overflow_data.has_value())
-            return {};
-        return m_overflow_data->scrollable_overflow_rect;
-    }
+    [[nodiscard]] Optional<CSSPixelRect> scrollable_overflow_rect() const;
 
     [[nodiscard]] Optional<OverflowData> const& overflow_data() const { return m_overflow_data; }
     void set_overflow_data(OverflowData data) { m_overflow_data = move(data); }
     void clear_overflow_data() { m_overflow_data.clear(); }
+
+    Optional<CachedOverflowData> const& cached_overflow_data() const { return m_cached_overflow_data; }
+    void set_cached_overflow_data(CachedOverflowData data) { m_cached_overflow_data = move(data); }
+    void clear_cached_overflow_data() { m_cached_overflow_data.clear(); }
+    void set_layout_fragment_identity(u64 identity)
+    {
+        VERIFY(identity);
+        if (m_layout_fragment_identity == identity)
+            return;
+        m_layout_fragment_identity = identity;
+        clear_cached_overflow_data();
+    }
 
     virtual void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);
 
@@ -541,6 +548,8 @@ private:
     RefPtr<StackingContext> m_stacking_context;
 
     Optional<OverflowData> m_overflow_data;
+    Optional<CachedOverflowData> m_cached_overflow_data;
+    u64 m_layout_fragment_identity { 0 };
 
     CSSPixelPoint m_offset;
     CSSPixelSize m_content_size;

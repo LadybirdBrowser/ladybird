@@ -89,9 +89,11 @@ PhysicalOverflowDirections physical_overflow_directions(Box const& box)
     };
 }
 
-static CSSPixelRect apply_css_transform_to_overflow_rect(Box const& box, CSSPixelRect const& rect)
+static CSSPixelRect apply_css_transform_to_overflow_rect(Box const& box, CSSPixelRect const& rect, bool has_css_transform)
 {
     auto const& paintable_box = *box.paintable_box();
+    if (!has_css_transform)
+        return rect;
     auto transform_data = Painting::compute_transform(paintable_box, 1.0);
     if (!transform_data.has_value())
         return rect;
@@ -143,21 +145,43 @@ CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMap const
 
     auto const& paintable_box = *box.paintable_box();
 
-    if (paintable_box.scrollable_overflow_rect().has_value())
-        return paintable_box.scrollable_overflow_rect().value();
+    if (paintable_box.overflow_data().has_value())
+        return paintable_box.overflow_data()->scrollable_overflow_rect;
+
+    auto const paintable_absolute_padding_box = paintable_box.absolute_padding_box_rect();
+    auto const paintable_absolute_content_box = paintable_box.absolute_rect();
+
+    auto store_overflow_data = [&](Painting::Paintable::OverflowData overflow_data) {
+        const_cast<Painting::Paintable&>(paintable_box).set_overflow_data(overflow_data);
+
+        auto rect_relative_to_padding_box = overflow_data.scrollable_overflow_rect;
+        rect_relative_to_padding_box.translate_by({ -paintable_absolute_padding_box.x(), -paintable_absolute_padding_box.y() });
+        const_cast<Painting::Paintable&>(paintable_box).set_cached_overflow_data({
+            .rect_relative_to_padding_box = rect_relative_to_padding_box,
+            .has_scrollable_overflow = overflow_data.has_scrollable_overflow,
+        });
+    };
+
+    if (auto const& cached_overflow = paintable_box.cached_overflow_data(); cached_overflow.has_value()) {
+        auto scrollable_overflow_rect = cached_overflow->rect_relative_to_padding_box;
+        scrollable_overflow_rect.translate_by(paintable_absolute_padding_box.location());
+        const_cast<Painting::Paintable&>(paintable_box).set_overflow_data({
+            .scrollable_overflow_rect = scrollable_overflow_rect,
+            .has_scrollable_overflow = cached_overflow->has_scrollable_overflow,
+        });
+        return scrollable_overflow_rect;
+    }
 
     // https://drafts.csswg.org/css-overflow-3/#scrollable-overflow-calculation
     // The scrollable overflow area of a box is the union of:
 
     // - Its own padding box.
-    auto const paintable_absolute_padding_box = paintable_box.absolute_padding_box_rect();
-    auto const paintable_absolute_content_box = paintable_box.absolute_rect();
     auto scrollable_overflow_rect = paintable_absolute_padding_box;
     auto in_flow_and_floated_content_bounds = paintable_absolute_content_box;
 
     // Replaced SVG viewports clip their content
     if (is<SVGSVGBox>(box)) {
-        const_cast<Painting::Paintable&>(paintable_box).set_overflow_data({
+        store_overflow_data({
             .scrollable_overflow_rect = scrollable_overflow_rect,
             .has_scrollable_overflow = false,
         });
@@ -206,8 +230,31 @@ CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMap const
             if (child.is_fixed_position())
                 continue;
 
-            auto untransformed_child_border_box = child.paintable_box()->absolute_border_box_rect();
-            auto child_border_box = apply_css_transform_to_overflow_rect(child, untransformed_child_border_box);
+            auto const& child_paintable = *child.paintable_box();
+            auto const child_has_css_transform = child_paintable.has_css_transform();
+            if (child.position() == CSS::Positioning::Static && child.display().is_inline_outside() && !child.is_floating() && !child_has_css_transform) {
+                if (auto const& cached_overflow = child_paintable.cached_overflow_data(); cached_overflow.has_value()) {
+                    auto const& border = child_paintable.box_model().border;
+                    auto const has_border = border.top != 0 || border.right != 0 || border.bottom != 0 || border.left != 0;
+                    if (!has_border) {
+                        auto const& padding = child_paintable.box_model().padding;
+                        CSSPixelRect content_box_relative_to_padding_box {
+                            { padding.left, padding.top },
+                            {
+                                child_paintable.content_width(),
+                                child_paintable.content_height(),
+                            },
+                        };
+                        // The committed line fragment already contributes this content box. A box with no border whose
+                        // cached overflow fits inside the content box cannot expand its containing block's overflow.
+                        if (content_box_relative_to_padding_box.contains(cached_overflow->rect_relative_to_padding_box))
+                            continue;
+                    }
+                }
+            }
+
+            auto untransformed_child_border_box = child_paintable.absolute_border_box_rect();
+            auto child_border_box = apply_css_transform_to_overflow_rect(child, untransformed_child_border_box, child_has_css_transform);
 
             // NOTE: Only boxes that are not wholly in the unreachable scrollable overflow region contribute.
             auto wholly_in_unreachable_horizontal_axis = overflow_directions.horizontal_axis_is_positive
@@ -234,13 +281,15 @@ CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMap const
             if (child.has_layout_containment() || child.has_paint_containment())
                 continue;
 
-            if (child.overflow_x() == CSS::Overflow::Visible || child.overflow_y() == CSS::Overflow::Visible) {
-                auto child_scrollable_overflow = apply_css_transform_to_overflow_rect(child, measure_scrollable_overflow(child, contained_boxes_map));
+            auto const child_overflow_x = child.overflow_x();
+            auto const child_overflow_y = child.overflow_y();
+            if (child_overflow_x == CSS::Overflow::Visible || child_overflow_y == CSS::Overflow::Visible) {
+                auto child_scrollable_overflow = apply_css_transform_to_overflow_rect(child, measure_scrollable_overflow(child, contained_boxes_map), child_has_css_transform);
                 if (!child_scrollable_overflow.is_empty()) {
-                    if (child.overflow_x() == CSS::Overflow::Visible) {
+                    if (child_overflow_x == CSS::Overflow::Visible) {
                         scrollable_overflow_rect.unite_horizontally(child_scrollable_overflow);
                     }
-                    if (child.overflow_y() == CSS::Overflow::Visible) {
+                    if (child_overflow_y == CSS::Overflow::Visible) {
                         scrollable_overflow_rect.unite_vertically(child_scrollable_overflow);
                     }
                 }
@@ -287,7 +336,7 @@ CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMap const
         has_scrollable_overflow = !paintable_absolute_padding_box.contains(scrollable_overflow_rect) && box.is_scroll_container();
     }
 
-    const_cast<Painting::Paintable&>(paintable_box).set_overflow_data({
+    store_overflow_data({
         .scrollable_overflow_rect = scrollable_overflow_rect,
         .has_scrollable_overflow = has_scrollable_overflow,
     });
