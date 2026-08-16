@@ -40,11 +40,6 @@ u64 NodeArena::formatting_context_run_cache_hit_count() const
     return RustFFI::layout_arena_fc_run_cache_hit_count(m_handle);
 }
 
-void NodeArena::note_inline_layout_damage(RustFFI::NodeSlotId box)
-{
-    RustFFI::layout_arena_note_inline_layout_damage(m_handle, box);
-}
-
 void NodeArena::enroll_text_node_for_content_sync(TextNode const& text_node)
 {
     m_text_nodes_enrolled_for_content_sync.append(text_node.make_weak_ptr<TextNode>());

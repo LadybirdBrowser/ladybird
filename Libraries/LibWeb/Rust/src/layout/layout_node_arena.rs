@@ -396,7 +396,16 @@ impl LayoutNodeArena {
         }
         self.fc_run_cache_store.remove_entry(index);
         self.raw_table_column_spans.remove(&id);
-        *self.data_mut(index) = NodeData::default();
+        let data = self.data_mut(index);
+        debug_assert!(
+            data.parent.is_invalid()
+                && data.first_child.is_invalid()
+                && data.last_child.is_invalid()
+                && data.previous_sibling.is_invalid()
+                && data.next_sibling.is_invalid(),
+            "layout node arena freed a slot that is still linked into a tree"
+        );
+        *data = NodeData::default();
 
         self.live_count = self
             .live_count
@@ -1216,15 +1225,6 @@ pub unsafe extern "C" fn layout_arena_fc_run_cache_hit_count(arena: *mut c_void)
             .fc_run_cache_store()
             .hit_count()
     })
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_note_inline_layout_damage(arena: *mut c_void, box_: NodeSlotId) {
-    abort_on_panic(|| {
-        assert!(!arena.is_null(), "layout node arena handle is null");
-        // SAFETY: The C++ caller keeps the arena and layout tree alive for this synchronous call.
-        unsafe { &*arena.cast::<LayoutNodeArena>() }.note_inline_layout_damage_at_and_above(box_);
-    });
 }
 
 /// # Safety
