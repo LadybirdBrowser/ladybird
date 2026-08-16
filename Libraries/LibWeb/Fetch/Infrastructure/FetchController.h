@@ -87,6 +87,11 @@ private:
     //    Null or a fetch timing info.
     GC::Ptr<FetchTimingInfo> m_full_timing_info;
 
+    // Releases the network request behind this controller. Every way a fetch stops early has to reach this: The
+    // response pipe is a socket pair, and RequestServer holds the request alive until it either finishes or is stopped.
+    // So, a request that's abandoned without being stopped would keep its descriptor for the lifetime of the process.
+    void stop_pending_request();
+
     // https://fetch.spec.whatwg.org/#fetch-controller-report-timing-steps
     // report timing steps (default null)
     //    Null or an algorithm accepting a global object.

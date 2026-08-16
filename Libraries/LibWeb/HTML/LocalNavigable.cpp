@@ -561,8 +561,13 @@ static bool handle_navigation_response_as_download(GC::Ref<NavigationParams> nav
             return true;
         }
 
-        if (navigation_params->fetch_controller)
+        if (navigation_params->fetch_controller) {
+            // AD-HOC: The request now belongs to the UI process (it adopted it above). So, before terminating, drop our
+            //         handle to it. Otherwise, fetch termination would stop a download already under way. RequestServer
+            //         reports the transfer back to us; that's what tears down this process's end of the pipe.
+            navigation_params->fetch_controller->set_pending_request(nullptr);
             navigation_params->fetch_controller->terminate();
+        }
 
         return true;
     }
