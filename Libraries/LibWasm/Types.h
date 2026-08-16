@@ -1800,6 +1800,7 @@ void discard_cranelift_batch();
 
 void compile_module_to_native(Module&);
 
+WASM_API ByteString const& cranelift_compiler_path();
 WASM_API ErrorOr<Core::AnonymousBuffer> compile_cranelift_buffer(Core::AnonymousBuffer const&);
 
 WASM_API void record_module_stats(ModuleStats);

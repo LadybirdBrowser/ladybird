@@ -14,8 +14,6 @@ if (NOT WIN32)
     list(APPEND SOURCES WASI/Wasi.cpp)
 endif()
 
-option(ENABLE_CRANELIFT_JIT "Enable Cranelift-based AOT compilation for WebAssembly" ON)
-
 set(WASM_COMPILED_FAULT_RECOVERY_SUPPORTED 0)
 
 if(WIN32 AND (CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64|aarch64|ARM64|arm64)$"))

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibWasm/Types.h>
 
 namespace Wasm {
@@ -22,6 +23,12 @@ bool try_install_cranelift_cache_blob(ReadonlyBytes, ReadonlyBytes) { return fal
 ErrorOr<Core::AnonymousBuffer> compile_cranelift_buffer(Core::AnonymousBuffer const&)
 {
     return Error::from_string_literal("Cranelift is disabled");
+}
+
+ByteString const& cranelift_compiler_path()
+{
+    static NeverDestroyed<ByteString> path;
+    return *path;
 }
 
 }

@@ -906,7 +906,7 @@ static CraneliftInsn serialize_insn(Dispatch const& dispatch, SourcesAndDestinat
     return out;
 }
 
-static StringView resolve_cranelift_compiler_path()
+ByteString const& cranelift_compiler_path()
 {
     // Lookup order: LADYBIRD_CRANELIFT_COMPILER, compile-time path, sibling-of-self.
     static NeverDestroyed<ByteString> s_path = []() -> ByteString {
@@ -930,7 +930,8 @@ static StringView resolve_cranelift_compiler_path()
 
         return WASM_CRANELIFT_COMPILER_PATH;
     }();
-    return s_path->view();
+
+    return *s_path;
 }
 
 template<typename T>
@@ -1063,7 +1064,7 @@ ErrorOr<Core::AnonymousBuffer> compile_cranelift_buffer(Core::AnonymousBuffer co
 
         return Core::Process::spawn({
             .name = "cranelift-compiler"sv,
-            .executable = resolve_cranelift_compiler_path(),
+            .executable = cranelift_compiler_path(),
             .die_with_parent = true,
             .arguments = arguments,
         });
@@ -1085,7 +1086,7 @@ ErrorOr<Core::AnonymousBuffer> compile_cranelift_buffer(Core::AnonymousBuffer co
 
     auto process = TRY(Core::Process::spawn({
         .name = "cranelift-compiler"sv,
-        .executable = resolve_cranelift_compiler_path(),
+        .executable = cranelift_compiler_path(),
         .die_with_parent = true,
         .arguments = arguments,
         .file_actions = {

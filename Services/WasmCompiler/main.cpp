@@ -1,0 +1,43 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#include <LibCore/ArgsParser.h>
+#include <LibCore/EventLoop.h>
+#include <LibCore/Process.h>
+#include <LibIPC/SingleServer.h>
+#include <LibMain/Main.h>
+#include <WasmCompiler/Compiler.h>
+#include <WasmCompiler/ConnectionFromClient.h>
+#include <WasmCompiler/Sandbox.h>
+
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
+{
+    AK::set_rich_debug_enabled(true);
+
+    Core::ArgsParser args_parser;
+    StringView mach_server_name;
+    bool wait_for_debugger = false;
+    bool disable_sandbox = false;
+
+    args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
+    args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
+    args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
+    args_parser.parse(arguments);
+
+    if (wait_for_debugger)
+        Core::Process::wait_for_debugger_and_break();
+
+    auto& event_loop = Core::EventLoop::initialize_for_current_thread();
+
+    if (!disable_sandbox)
+        TRY(WasmCompiler::apply_sandbox());
+
+    WasmCompiler::Compiler compiler;
+    auto client = TRY(IPC::take_over_accepted_client_from_system_server<WasmCompiler::ConnectionFromClient>(
+        mach_server_name, compiler, WasmCompiler::ConnectionFromClient::Role::Controller));
+
+    return event_loop.exec();
+}
