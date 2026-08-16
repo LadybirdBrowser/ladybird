@@ -80,6 +80,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         let mut match_answer_identity_mappings = Vec::<MatchAnswerIdentityMapping>::new();
         let mut engine_count = 0_u64;
         let mut event_count = 0_u64;
+        let mut intern_atom_boundary_calls = 0_u64;
         let mut flush_count = 0_u64;
         let mut presence_degraded_publication_comparisons = 0_u64;
         let mut boundary_time = Duration::ZERO;
@@ -260,6 +261,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
                 EventKind::InternAtom => {
+                    intern_atom_boundary_calls += 1;
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let token = usize::try_from(event.payload.read_u64()?)?;
                     let expected = event.payload.read_u32()?;
@@ -984,6 +986,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             println!("  {phase}: {:.3} ms", elapsed.as_secs_f64() * 1000.0);
         }
         amplification.print();
+        if options.detailed_counters {
+            println!("boundary counters:");
+            println!("  internAtomCalls: {intern_atom_boundary_calls}");
+        }
         detailed_counters.print(detailed_counter_reader.as_ref());
         reports.push(serde_json::json!({
             "path": path,
@@ -992,6 +998,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             "document_engines": engine_count,
             "live_at_capture_exit": live_at_process_exit,
             "presence_degraded_exact_cascade_publication_comparisons": presence_degraded_publication_comparisons,
+            "boundary_counters": {
+                "intern_atom_calls": intern_atom_boundary_calls,
+            },
             "timing": {
                 "boundary_ms": duration_ms(boundary_time),
                 "selected_flushes": selected_flush_count,

@@ -39,8 +39,8 @@ StyleEngine::~StyleEngine()
 {
     if (m_impl)
         StyleEngineFFI::style_engine_destroy(m_impl);
-    for (auto raw : m_atoms)
-        Utf16FlyString::unref_raw(raw);
+    for (auto const& atom : m_atoms)
+        Utf16FlyString::unref_raw(atom.key);
 }
 
 void StyleEngine::visit_edges(GC::Cell::Visitor& visitor)
@@ -215,11 +215,15 @@ StyleAtomID StyleEngine::intern_atom(Utf16FlyString const& name)
     // by the same word but each assigning its own sequence would compare unequal for the same name,
     // which fails to match silently rather than loudly.
     // First time seen, the leaked reference is kept so the identity cannot be reused while the
-    // atom is live; a duplicate releases it again.
+    // atom is live. Duplicates release their new reference and return without crossing the FFI.
     auto raw = name.to_raw_leaked();
-    if (m_atoms.set(raw) != HashSetResult::InsertedNewEntry)
+    if (auto atom = m_atoms.get(raw); atom.has_value()) {
         Utf16FlyString::unref_raw(raw);
-    return StyleAtomID { StyleEngineFFI::style_engine_intern_atom(m_impl, raw) };
+        return atom.release_value();
+    }
+    auto atom = StyleAtomID { StyleEngineFFI::style_engine_intern_atom(m_impl, raw) };
+    m_atoms.set(raw, atom);
+    return atom;
 }
 
 StyleAtomID StyleEngine::intern_text_atom(Utf16View text)

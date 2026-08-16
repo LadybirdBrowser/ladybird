@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/Noncopyable.h>
 #include <AK/Optional.h>
@@ -230,7 +231,7 @@ private:
     void* m_impl { nullptr };
     GC::Ptr<StyleComputer> m_style_computer;
 
-    HashTable<FlatPtr> m_atoms;
+    HashMap<FlatPtr, StyleAtomID> m_atoms;
     HashTable<StyleNodeID> m_nodes_with_pending_initial_features;
     HashTable<StyleNodeID> m_nodes_awaiting_first_style_computation;
     size_t m_element_match_capacity { 64 };
