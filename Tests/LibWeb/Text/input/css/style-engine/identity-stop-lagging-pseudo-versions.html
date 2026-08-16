@@ -1,0 +1,24 @@
+<!doctype html>
+<style>
+    time:empty {
+    }
+    input:focus {
+        --cssvarb: "a";
+        border-left-style: hidden;
+    }
+</style>
+<option id="optionElement">x</option>
+<li id="listItemElement">x</li>
+<details id="detailsElement"></details>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        document.body.offsetHeight;
+        document.querySelector("style").appendChild(optionElement);
+        document.querySelector("script").appendChild(listItemElement);
+        document.body.offsetHeight;
+        document.head.appendChild(detailsElement);
+        listItemElement.style.setProperty("border-radius", "93px");
+        println(getComputedStyle(listItemElement).borderRadius);
+    });
+</script>

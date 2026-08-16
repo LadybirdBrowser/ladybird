@@ -837,18 +837,15 @@ impl WinnerGroups {
         let mut right: Vec<_> = other.pseudo_states(node).collect();
         left.sort_unstable_by_key(|row| row.0);
         right.sort_unstable_by_key(|row| row.0);
-        left.iter()
-            .all(|&(left_pseudo, left_version, left_state, left_current)| {
-                right
-                    .binary_search_by_key(&left_pseudo, |row| row.0)
-                    .ok()
-                    .is_some_and(|index| {
-                        let (_, right_version, right_state, right_current) = right[index];
-                        left_version == right_version
-                            && left_current == right_current
-                            && other.semantic_delta(Some(left_state), right_state).is_empty()
-                    })
-            })
+        left.iter().all(|&(left_pseudo, _, left_state, left_current)| {
+            right
+                .binary_search_by_key(&left_pseudo, |row| row.0)
+                .ok()
+                .is_some_and(|index| {
+                    let (_, _, right_state, right_current) = right[index];
+                    left_current == right_current && other.semantic_delta(Some(left_state), right_state).is_empty()
+                })
+        })
     }
 
     /// Resolve one property's ordered contenders and intern only the continuation payloads needed
