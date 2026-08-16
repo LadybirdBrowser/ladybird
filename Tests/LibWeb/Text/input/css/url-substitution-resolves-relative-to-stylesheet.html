@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<link rel="stylesheet" href="support/url-substitution-base.css">
+<div id="nested-outer"><div id="nested"></div></div>
+<div id="shorthand-outer"><div id="shorthand"></div></div>
+<div id="bare"><div id="bare-nested"></div></div>
+<div id="keyframe"></div>
+<div id="cssom"></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            const link = document.querySelector("link");
+            const expected = `url("${new URL("img.png", link.href).href}")`;
+            const check = (label, id) => {
+                const actual = getComputedStyle(document.getElementById(id)).backgroundImage;
+                println(`${label}: ${actual === expected ? "PASS" : `FAIL - ${actual}`}`);
+            };
+            check("nested rule", "nested");
+            check("shorthand", "shorthand");
+            check("nested declarations", "bare");
+            check("keyframe", "keyframe");
+
+            const cssom_rule = [...link.sheet.cssRules].find(rule => rule.selectorText === "#cssom");
+            cssom_rule.style.setProperty("background-image", "var(--url)");
+            check("setProperty", "cssom");
+            done();
+        });
+    });
+</script>

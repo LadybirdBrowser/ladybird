@@ -414,6 +414,15 @@ static RefPtr<CustomPropertyData const> inheritable_custom_property_data(DOM::Ab
     return data->inheritable(abstract_element.document());
 }
 
+static void attach_style_sheet_context(StyleValue const& value, GC::Ptr<CSSStyleSheet> style_sheet)
+{
+    // Keyword and guaranteed-invalid values are interned, so attaching a style sheet to them
+    // would leak per-declaration state into unrelated declarations.
+    if (!style_sheet || value.is_keyword() || value.is_guaranteed_invalid())
+        return;
+    const_cast<StyleValue&>(value).set_style_sheet(style_sheet);
+}
+
 static Optional<CSS::EasingFunction> resolve_keyframe_easing(CSS::StyleValue const& style_value, DOM::AbstractElement abstract_element)
 {
     RefPtr<CSS::StyleValue const> resolved = style_value;
@@ -493,6 +502,7 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
     };
     Vector<KeyframeDeclaration> keyframe_declarations;
     Vector<Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame const*> keyframes_by_index;
+    Vector<GC::Weak<CSSStyleSheet>> keyframe_source_style_sheets_by_index;
     for (auto effect : effects) {
         auto animation = effect->associated_animation();
         if (!animation || !effect->transformed_progress().has_value() || !effect->key_frame_set())
@@ -503,6 +513,7 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         for (auto it = keyframes.begin(); it != keyframes.end(); ++it) {
             auto keyframe_index = keyframes_by_index.size();
             keyframes_by_index.append(&*it);
+            keyframe_source_style_sheets_by_index.append(effect->key_frame_set()->source_style_sheet);
             for (auto const& [property_id, value] : it->properties) {
                 bool is_use_initial = false;
                 auto style_value = value.visit(
@@ -570,9 +581,11 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
             VERIFY(property.keyframe_index < keyframes_by_index.size());
             auto* keyframe = keyframes_by_index[property.keyframe_index];
             auto& keyframe_values = selected_keyframe_values.ensure(keyframe);
+            auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(property.value));
+            attach_style_sheet_context(*value, keyframe_source_style_sheets_by_index[property.keyframe_index].ptr());
             keyframe_values.set(static_cast<PropertyID>(property.physical_property_id), {
                                                                                             .source_longhand_id = static_cast<PropertyID>(property.source_longhand_id),
-                                                                                            .value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(property.value)),
+                                                                                            .value = move(value),
                                                                                             .value_source = property.value_source,
                                                                                         });
         }
@@ -2671,6 +2684,14 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         Vector<BlockSource> const& block_sources;
         Vector<NonnullRefPtr<StyleValue const>> pinned_values;
         u64 custom_property_environment_identity { 0 };
+
+        GC::Ptr<CSSStyleSheet> style_sheet_for_source(u32 source_id) const
+        {
+            auto source = block_sources[source_id].source;
+            if (!source || !source->parent_rule())
+                return nullptr;
+            return source->parent_rule()->parent_style_sheet();
+        }
     } bulk_context {
         .cascaded_properties = *cascaded_properties,
         .abstract_element = abstract_element,
@@ -2682,7 +2703,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
 
     ComputedValuesFFI::FfiBulkCascadeCallbacks const callbacks {
         .context = &bulk_context,
-        .resolve_unresolved = [](void* context, u16 property_id, void const* data) -> ComputedValuesFFI::FfiResolvedStyleValue {
+        .resolve_unresolved = [](void* context, u16 property_id, u32 source_id, void const* data) -> ComputedValuesFFI::FfiResolvedStyleValue {
             auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
             auto unresolved = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
                 static_cast<StyleValueFFI::StyleValueData const*>(data)));
@@ -2692,6 +2713,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
                 {},
                 PropertyNameAndID::from_id(static_cast<PropertyID>(property_id)),
                 unresolved->as_unresolved());
+            attach_style_sheet_context(*resolved, bulk_context.style_sheet_for_source(source_id));
             ComputedValuesFFI::FfiResolvedStyleValue result {
                 .data = resolved->rust_style_value_data(),
                 .has_style_sheet_context = resolved->has_style_sheet_context(),
@@ -2699,7 +2721,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
             bulk_context.pinned_values.append(move(resolved));
             return result;
         },
-        .parse_substituted = [](void* context, u32 style_engine_rule_id, u16 property_id, void const* unresolved_data, u8 const* source, size_t source_length) -> ComputedValuesFFI::FfiResolvedStyleValue {
+        .parse_substituted = [](void* context, u32 style_engine_rule_id, u16 property_id, void const* unresolved_data, u32 source_id, u8 const* source, size_t source_length) -> ComputedValuesFFI::FfiResolvedStyleValue {
             auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
             bulk_context.abstract_element.element().set_style_uses_var_css_function();
             auto unresolved = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
@@ -2726,6 +2748,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
                     NonnullRefPtr<StyleValue const> resolved = entry.parsed->is_shorthand()
                         ? StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_clone_for_substitution(entry.parsed->rust_style_value_data()))
                         : entry.parsed;
+                    attach_style_sheet_context(*resolved, bulk_context.style_sheet_for_source(source_id));
                     ComputedValuesFFI::FfiResolvedStyleValue result {
                         .data = resolved->rust_style_value_data(),
                         .has_style_sheet_context = resolved->has_style_sheet_context(),
@@ -2742,6 +2765,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
             NonnullRefPtr<StyleValue const> parsed_value = parsed
                 ? parsed.release_nonnull()
                 : GuaranteedInvalidStyleValue::create();
+            attach_style_sheet_context(*parsed_value, bulk_context.style_sheet_for_source(source_id));
             if (style_engine_rule_id != 0) {
                 style_computer.m_parsed_substitutions.ensure(StyleEngineRuleID { style_engine_rule_id }).append({
                     .custom_property_environment_identity = bulk_context.custom_property_environment_identity,
@@ -5584,6 +5608,9 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
         Parser::ArbitrarySubstitutionReplacementContext arbitrary_substitution_context {
             .computed_style_for_custom_property_resolution = computed_style_for_custom_property_resolution,
         };
+        // FIXME: Attach the style sheet containing the custom property declaration to the resolved value, so that
+        //        relative URLs in registered custom properties resolve against that style sheet. This requires
+        //        tracking a block source for each cascaded custom property.
         resolved_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document }, element, arbitrary_substitution_context, PropertyNameAndID { {}, PropertyID::Custom, name }, unresolved, guarded_contexts);
 
         // A CSS-wide keyword produced by substitution takes on that keyword's meaning for the custom property,

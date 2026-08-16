@@ -445,6 +445,9 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_style_value(PropertyN
         return {};
     }
 
+    if (auto rule = parent_rule())
+        const_cast<StyleValue&>(*style_value).set_style_sheet(rule->parent_style_sheet());
+
     // FIXME: This should have been rejected earlier, but property_accepts_type() is too basic for what we need.
     if (property_is_positional_value_list_shorthand(property.id())
         && !style_value->is_shorthand()
@@ -1595,6 +1598,9 @@ bool CSSStyleProperties::set_a_css_declaration(PropertyID property_id, NonnullRe
 {
     VERIFY(!is_computed());
 
+    if (auto rule = parent_rule())
+        const_cast<StyleValue&>(*value).set_style_sheet(rule->parent_style_sheet());
+
     // NOTE: The below algorithm is only suggested rather than required by the spec
     // https://drafts.csswg.org/cssom/#example-a40690cb
     // 1. If property is a case-sensitive match for a property name of a CSS declaration in declarations, follow these substeps:
@@ -1685,6 +1691,11 @@ void CSSStyleProperties::set_the_declarations(Vector<StyleProperty> properties, 
 {
     m_properties = convert_declarations_to_specified_order(properties);
     m_custom_properties = move(custom_properties);
+
+    if (auto rule = parent_rule()) {
+        for (auto const& property : m_properties)
+            const_cast<StyleValue&>(*property.value).set_style_sheet(rule->parent_style_sheet());
+    }
 }
 
 void CSSStyleProperties::set_declarations_from_text(Utf16View css_text)

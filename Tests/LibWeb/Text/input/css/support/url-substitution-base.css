@@ -1,0 +1,43 @@
+:root {
+    --url: url("img.png");
+}
+
+#nested-outer {
+    --nested-url: url("img.png");
+
+    & #nested {
+        background-image: var(--nested-url);
+    }
+}
+
+#shorthand-outer {
+    --shorthand-url: url("img.png");
+
+    & #shorthand {
+        background: rgba(0, 0, 0, 0) var(--shorthand-url) no-repeat scroll 0 0 !important;
+    }
+}
+
+#bare {
+    & #bare-nested {
+        color: blue;
+    }
+    background-image: var(--url);
+}
+
+@keyframes background-frames {
+    from {
+        background-image: var(--url);
+    }
+    to {
+        background-image: var(--url);
+    }
+}
+
+#keyframe {
+    animation: background-frames 1s paused;
+}
+
+#cssom {
+    color: green;
+}

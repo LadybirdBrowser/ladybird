@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 19 tests
 
-7 Pass
-12 Fail
-Fail	Return untyped url() from function
-Fail	Return untyped url() from function, quoted
-Fail	Return typed url() from function
-Fail	Return typed url() from function, quoted
+11 Pass
+8 Fail
+Pass	Return untyped url() from function
+Pass	Return untyped url() from function, quoted
+Pass	Return typed url() from function
+Pass	Return typed url() from function, quoted
 Pass	Return attr(type(<length>)) from untyped function
 Pass	Return attr(type(<length>)) from typed function
 Pass	Return attr(type(*)) from typed function

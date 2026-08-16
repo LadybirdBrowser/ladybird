@@ -3293,7 +3293,7 @@ pub(crate) fn expand_shorthands_with<Sink>(
     {
         for (&sub_property, sub_value) in sub_properties.as_slice().iter().zip(values.as_slice()) {
             let sub_data = sub_value.pointer().cast();
-            expand_shorthands_with(sub_property, sub_data, false, sink);
+            expand_shorthands_with(sub_property, sub_data, has_style_sheet_context, sink);
         }
         return;
     }

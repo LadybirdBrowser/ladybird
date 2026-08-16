@@ -30,6 +30,8 @@ public:
 
     CSSStyleRule const& parent_style_rule() const;
 
+    virtual void set_parent_style_sheet(CSSStyleSheet*) override;
+
 private:
     CSSNestedDeclarations(CSSStyleProperties&);
 

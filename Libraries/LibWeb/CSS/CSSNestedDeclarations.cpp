@@ -8,8 +8,10 @@
 #include <AK/NeverDestroyed.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSScopeRule.h>
+#include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Dump.h>
 
 namespace Web::CSS {
@@ -27,6 +29,14 @@ GC::Ref<CSSNestedDeclarations> CSSNestedDeclarations::create(Parser::Parser& par
 GC::Ref<CSSNestedDeclarations> CSSNestedDeclarations::create(CSSStyleProperties& declaration)
 {
     return GC::Heap::the().allocate<CSSNestedDeclarations>(declaration);
+}
+
+void CSSNestedDeclarations::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet)
+{
+    Base::set_parent_style_sheet(parent_style_sheet);
+
+    for (auto const& property : m_declaration->properties())
+        const_cast<StyleValue&>(*property.value).set_style_sheet(parent_style_sheet);
 }
 
 CSSNestedDeclarations::CSSNestedDeclarations(CSSStyleProperties& declaration)

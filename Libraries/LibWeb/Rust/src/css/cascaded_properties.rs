@@ -709,14 +709,21 @@ pub struct FfiCascadedCustomProperty {
 pub struct FfiBulkCascadeCallbacks {
     pub context: *mut c_void,
     /// Resolves borrowed Rust value data and returns pinned Rust-owned data.
-    pub resolve_unresolved:
-        unsafe extern "C" fn(context: *mut c_void, property_id: u16, data: *const c_void) -> FfiResolvedStyleValue,
+    /// `source_id` identifies the block source of the declaration being resolved.
+    pub resolve_unresolved: unsafe extern "C" fn(
+        context: *mut c_void,
+        property_id: u16,
+        source_id: u32,
+        data: *const c_void,
+    ) -> FfiResolvedStyleValue,
     /// Parses a substituted token stream and returns pinned Rust-owned data.
+    /// `source_id` identifies the block source of the declaration being resolved.
     pub parse_substituted: unsafe extern "C" fn(
         context: *mut c_void,
         style_engine_rule_id: u32,
         property_id: u16,
         unresolved_data: *const c_void,
+        source_id: u32,
         source: *const u8,
         source_length: usize,
     ) -> FfiResolvedStyleValue,
@@ -931,7 +938,7 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                 &is_property_disallowed,
                 &|property_id, data| {
                     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadeResolveUnresolvedCallback);
-                    unsafe { (callbacks.resolve_unresolved)(context, property_id, data) }
+                    unsafe { (callbacks.resolve_unresolved)(context, property_id, block.source_id, data) }
                 },
                 &|property_id, unresolved_data, source| {
                     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadeParseSubstitutedCallback);
@@ -941,6 +948,7 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                             block.style_engine_rule_id,
                             property_id,
                             unresolved_data,
+                            block.source_id,
                             source.as_ptr(),
                             source.len(),
                         )

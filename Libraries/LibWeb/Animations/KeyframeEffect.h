@@ -11,6 +11,7 @@
 #include <AK/Types.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/RootVector.h>
+#include <LibGC/Weak.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Animations/AnimationEffect.h>
@@ -87,6 +88,7 @@ public:
             Variant<Empty, CSS::EasingFunction, NonnullRefPtr<CSS::StyleValue const>> easing {};
         };
         RedBlackTree<u64, ResolvedKeyFrame> keyframes_by_key;
+        GC::Weak<CSS::CSSStyleSheet> source_style_sheet;
     };
     static void generate_initial_and_final_frames(RefPtr<KeyFrameSet>, HashTable<CSS::PropertyID> const& animated_properties);
 

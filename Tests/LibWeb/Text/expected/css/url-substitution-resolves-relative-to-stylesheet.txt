@@ -1,0 +1,5 @@
+nested rule: PASS
+shorthand: PASS
+nested declarations: PASS
+keyframe: PASS
+setProperty: PASS
