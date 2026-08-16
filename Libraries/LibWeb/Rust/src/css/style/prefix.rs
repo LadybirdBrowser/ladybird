@@ -3814,8 +3814,7 @@ fn selected_matches_equal(left: &[EntryID], right: &[EntryID], selection: &Prefi
 /// Prefix states shared by every element ask in one synchronous matching traversal.
 ///
 /// The delta representation keeps the working form small enough to retain outright, so there is
-/// no compact retained encoding: retention is a residency grant for the working bytes, and a
-/// refused grant drops nothing but the grant itself.
+/// no compact retained encoding. Retention moves the same working bytes from scratch into Tier 3.
 pub(super) struct PrefixStateCache {
     by_program: Column<Option<Box<PrefixStates>>>,
     scratch_memory: MemoryLease,

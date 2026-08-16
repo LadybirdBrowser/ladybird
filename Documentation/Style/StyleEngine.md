@@ -220,7 +220,7 @@ A removed style-node identity and any required relation tombstone stay valid unt
 
 Resident derived state supplies old selector truth when available. If it was evicted, discard the affected derived fragment, evaluate the final state from the live DOM, and compare with the last committed style output.
 
-**Journal overflow.** The journal is byte-accounted against its own memory category. When growing it is refused, the most numerous input kind's fine-grained entries are replaced with a typed **complete-scope marker** covering the whole document for that kind, and later records of that kind are dropped outright. At flush a marker widens the impact region to the document, and the plan evaluates that region exactly (§3). A pathological script can force broad discovery work but cannot force unbounded journal memory. (Environment markers are exempted from disabling the retained-selector fast paths, since environment changes cannot alter selector incidence.)
+**Journal overflow.** The journal is byte-accounted against its own memory category. Its capacity allows four fine-grained entries per connected element and is clamped between 4 MiB and 32 MiB. When growth would cross that capacity, the most numerous input kind's fine-grained entries are replaced with a typed **complete-scope marker** covering the whole document for that kind, and later records of that kind are dropped outright. At flush a marker widens the impact region to the document, and the plan evaluates that region exactly (§3). A pathological script can force broad discovery work but cannot force unbounded journal memory. (Environment markers are exempted from disabling the retained-selector fast paths, since environment changes cannot alter selector incidence.)
 
 ### 4.5 Mutations during evaluation
 
@@ -444,7 +444,7 @@ Transaction-local preorder arrays make repeated relation checks constant time on
 
 The plan choice is made once, before enumeration, from candidate cardinality and region size: **the exact batch plan is chosen when the smallest safe candidate source covers more than one quarter of the region** (`SELECTIVE_SHARE_DIVISOR = 4`). A candidate source of 64 or fewer skips the cost model entirely and goes straight to direct membership checks.
 
-The cutoff uses **exact cardinality** of normalized impact ranges. If exact cardinality is unavailable, the batch plan is chosen rather than a smaller scope guessed. Scratch or Tier-3 refusal can independently force the batch plan (or, when no batch is executable, the conservative region) before enumeration begins.
+The cutoff uses **exact cardinality** of normalized impact ranges. If exact cardinality is unavailable, the batch plan is chosen rather than a smaller scope guessed. Missing Tier-3 acceleration can make the exact batch plan cheaper, but memory accounting does not change the plan after enumeration begins.
 
 ### 6.8 Query outputs
 
@@ -528,7 +528,7 @@ A retained witness is a proof cache, never semantic state; evicting it is always
 
 *Database counterpart:* `:has()` truth is an EXISTS aggregate, so only zero-to-nonzero transitions are deltas. The retained witness is a one-row partial materialization of the subquery; losing it is a view miss repaired by an upquery, never a semantic event.
 
-**Bounds.** A retained witness is re-verified on read (liveness, axis membership, and a match re-check), with a fixed step cap on the following-sibling back-walk; any verification failure clears the entry and routes conservatively. The witness table itself is capped (currently 16,384 entries) and is dropped whole on a refused memory grant. Replacement after a lost witness is the ordinary forward walk of the query's axis; the routing-side cutoff (§6.7) bounds how witness-side discovery drives anchors. A Boolean result is never approximated.
+**Bounds.** A retained witness is re-verified on read (liveness, axis membership, and a match re-check), with a fixed step cap on the following-sibling back-walk; any verification failure clears the entry and routes conservatively. The witness table itself is capped (currently 16,384 entries). Limit-crossing growth remains available for its current quota period, and the table is dropped whole at the following boundary. Replacement after a lost witness is the ordinary forward walk of the query's axis; the routing-side cutoff (§6.7) bounds how witness-side discovery drives anchors. A Boolean result is never approximated.
 
 ### 7.4 Negative results
 
@@ -894,7 +894,9 @@ An interned object is not automatically Tier 2. Contexts, summaries, match answe
 
 Each document has a derived-style memory controller tracking exact bytes by logical operator, physical representation, scope, and tier.
 
-**Tier-3 allocations reserve their full capacity charge before allocation or growth.** The controller evicts enough existing capacity first; if it cannot, the requesting view is not built and evaluation continues cold. Temporary over-budget allocation followed by eviction is forbidden.
+At each flush boundary the controller opens a new admission period for every Tier-3 category and records its starting residency. Admission remains work-conserving while the complete Tier-3 pool has space; there are no per-category partitions.
+
+Owners account exact capacity at arena, slab, vector, bitmap, and table growth boundaries. The growth that crosses the global Tier-3 limit remains usable for the current quota period and closes that category to new retained entries for the rest of the period. Existing entries may continue changing so they never become stale or partial. At the following flush boundary, an over-limit category is dropped whole; there is no mid-traversal eviction, retry, or rebuild.
 
 ```text
 Tier3Limit = min(
@@ -922,7 +924,7 @@ Tier4Limit = min(
     max(4 MiB, Tier3Limit, TransactionNodeAllowance * ConnectedElementCount))
 ```
 
-The scratch cap is 32 MiB and the transaction node allowance is 768 bytes. The multiplier on `Tier3Limit` is 1, not 2, so transaction scratch cannot dominate the document's total style footprint; the 4 MiB floor matters most on small documents. Tier 4 is a **reported ceiling**, not a refusable cap: required scratch charges cannot be refused (the flush must complete), so the limit exists to make an over-limit transaction visible in the pressure report rather than to stop it. The one refusable Tier-4 allocation is the optional preorder topology, whose fallback is simply planning without it.
+The scratch cap is 32 MiB and the transaction node allowance is 768 bytes. The multiplier on `Tier3Limit` is 1, not 2, so transaction scratch cannot dominate the document's total style footprint; the 4 MiB floor matters most on small documents. Tier 4 is a **reported ceiling**, not a refusable cap: scratch charges cannot be refused because the flush must complete. The limit makes an over-limit transaction visible in the pressure report but changes no allocation or planning decision.
 
 During an active capture (and its replay), the memory policy pins the Tier-3 limit to the device cap so recorded eviction decisions are reproducible; ordinary builds never run that policy.
 
@@ -932,9 +934,7 @@ Byte accounting happens at arena, slab, vector-capacity, bitmap, and hash-table 
 
 Eviction removes physical acceleration state and bumps no semantic versions. A later observer reconstructs from authoritative inputs and remaining logical state.
 
-The policy is benefit-driven with scan resistance built in. Each Tier-3 category accumulates hit/miss observations (with exponential decay); an eviction happens only when a refused requester has itself demonstrated nonzero benefit, and the victim is chosen among categories with **zero** observed benefit, in a fixed preference order (retained witnesses, feature postings, specified values, winner groups, selector incidences, retained answers, prefix caches). If evicting every zero-benefit category still cannot make room, nothing is evicted and the requester stays refused: an all-or-nothing rule that keeps one broad cold pass from flushing a working set that pays.
-
-One deliberate exception outranks benefit: the prefix-state cache may evict retained answers and winner groups to stay resident, because the maintenance structure outranks its derivatives.
+The policy is benefit-driven with scan resistance built in. Each Tier-3 category accumulates hit/miss observations with exponential decay. At a pressured boundary, categories with no recorded hits are considered first, then the remaining categories by increasing hit ratio, with memory-category order breaking ties. It selects nothing unless the complete selection can cover the actual overage: an all-or-nothing rule that keeps one broad cold pass from flushing a working set that pays.
 
 The budget responds to document and program size. Tier-3 state remains fully evictable while compact live styles are retained.
 
@@ -973,18 +973,18 @@ Optional context, winner, dependency, and witness handles live in sparse Tier-3 
 
 ### 10.6 Failure behavior
 
-Memory pressure never degrades correctness; it degrades retention. The actual chain on a refused Tier-3 reservation:
+Memory pressure never degrades correctness; it degrades retention. The Tier-3 chain is:
 
 ```text
-refuse the reservation (never charge first)
-    -> evict a zero-benefit Tier-3 category and retry the reservation
-    -> stop requesting retainable answers for the rest of the batch
-       (the traversal continues with exact evaluation, uncached)
+account exact coarse growth and keep it usable for this quota period
+    -> close that category to new retained entries
+    -> continue exact evaluation for entries that remain uncached
+    -> drop the complete over-limit category at the next flush boundary
 ```
 
 Independently, a transaction the journal had to coarsen widens its impact region to the document and is evaluated exactly there. Whole-document exact evaluation runs as one pass; its scratch is charged to Tier 4, which is a reported ceiling rather than a refusable cap (§10.2).
 
-A memory refusal can therefore make a flush slower and colder, but never rejects a synchronous style read as a Web-visible outcome.
+Memory pressure can therefore make a later flush slower and colder, but never rejects a synchronous style read as a Web-visible outcome.
 
 ## 11. Scheduling
 
@@ -1212,8 +1212,8 @@ The engine maintains a large counter ledger (instrumentation.rs; ~160 counters),
 * Routing: routed entry points, impact relation steps, region cardinality.
 * Candidate enumeration: posting entries enumerated, region-membership checks, exact checks, rejections.
 * Matching and stopping: retained-answer patch stops, cascade compaction counts, cold-batch rows evaluated and missing.
-* Tier-3 memory decisions: refusals per category, admission retries, benefit evictions.
-* Bytes by tier and category, plus the pressure snapshot (limits, refusals, evictions) exposed over FFI and printed by the replay accounting report.
+* Tier-3 memory decisions: admission closures per category and benefit-guided boundary evictions.
+* Bytes by tier and category, plus the pressure snapshot (limits, admission closures, evictions) exposed over FFI and printed by the replay accounting report.
 * Style records and interned states created, reused, reclaimed; reaction and recomputation counts on the C++ ledger (the amplification triage numbers).
 
 The doctrine over any future counter: ratios with a zero denominator report the raw numerator and `not applicable`, never an invented zero, and every plan decision made against an estimate should leave behind the observation that would have corrected it.
@@ -1248,4 +1248,3 @@ The engine's correctness claim (every path produces results identical to full re
 * **Record/replay** captures the complete engine input stream of a real browsing session and replays it deterministically; digests over published outputs make any divergence, down to one changed identity, a hard failure.
 
 Commands, workflows, and debugging guidance for all of these are in [StyleEngineTesting.md](StyleEngineTesting.md).
-

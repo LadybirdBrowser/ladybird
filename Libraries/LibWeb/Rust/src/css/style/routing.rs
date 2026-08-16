@@ -1236,7 +1236,8 @@ impl StyleEngine {
             .release(MemoryCategory::BatchScratch, pending_outer_bytes + pending_inner_bytes);
         self.memory.release(MemoryCategory::BatchScratch, entry_index_bytes);
         self.memory.release(MemoryCategory::BatchScratch, entry_scratch_bytes);
-        deferred.nested_memory.settle_committed(&mut self.memory);
+        let nested = deferred.nested_memory.bytes();
+        deferred.nested_memory.reconcile_committed(&mut self.memory, nested);
         let deferred_header_bytes = deferred.capacity_bytes() - deferred.nested_memory.bytes();
         deferred
             .memory

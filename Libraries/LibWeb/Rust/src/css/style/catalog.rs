@@ -810,7 +810,7 @@ pub(super) struct RetainedMatchAnswers {
 /// Active match answers normally discard a rule when its condition becomes false. This inverse
 /// relation preserves the selector side of that join, so a later condition flip can route through
 /// exact selector truth without evaluating the selector again. It is Tier-3 state: incomplete
-/// retained coverage or a refused reservation simply leaves program routing on its cold path.
+/// retained coverage or closed admission simply leaves program routing on its cold path.
 pub(super) struct RetainedSelectorIncidences {
     pub(super) by_program: Vec<Option<Rc<[RetainedSelectorIncidence]>>>,
     pub(super) residency: MemoryLease,
@@ -1127,8 +1127,7 @@ impl RetainedMatchAnswers {
     }
 
     /// Repoint one node's retained answer to an identity the catalog already holds. The column may
-    /// grow within its reserved capacity, but neither the identity nor the column may require a new
-    /// reservation.
+    /// grow within its existing capacity, but neither the identity nor the column may allocate.
     pub(super) fn set_interned_identity(
         &mut self,
         node: StyleNodeID,

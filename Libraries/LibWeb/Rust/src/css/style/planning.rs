@@ -587,7 +587,8 @@ impl ImpactPlanningWorkspace {
     }
 
     pub(super) fn settle_memory(&mut self, memory: &mut MemoryController) {
-        self.nested_memory.settle_committed(memory);
+        let nested = self.nested_memory.bytes();
+        self.nested_memory.reconcile_committed(memory, nested);
         let header = self.capacity_bytes() - self.nested_memory.bytes();
         self.memory.resize_required_to(memory, header);
     }

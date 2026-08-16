@@ -1636,7 +1636,8 @@ impl WinnerGroups {
     }
 
     pub fn settle_memory(&mut self, memory: &mut MemoryController) {
-        self.nested_residency.settle_committed(memory);
+        let nested = self.nested_residency.bytes();
+        self.nested_residency.reconcile_committed(memory, nested);
         let current = self.capacity_bytes() - self.nested_residency.bytes();
         self.residency.reconcile_committed(memory, current);
         memory.finish_committed_acceleration_growth(MemoryCategory::CascadeWinnerGroup);

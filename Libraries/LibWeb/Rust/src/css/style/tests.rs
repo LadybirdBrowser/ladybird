@@ -844,11 +844,7 @@ fn retained_match_answer_pressure_preserves_existing_rows() {
     };
     assert!(matches!(answers.lookup(preserved_node), Lookup::Known(identity) if *identity == shared_identity));
     let charged = memory.bytes_in_category(MemoryCategory::RetainedMatchAnswer);
-    assert!(
-        memory
-            .reserve(MemoryCategory::CascadeWinnerGroup, memory.tier3_limit() - charged)
-            .is_granted()
-    );
+    assert!(memory.reserve(MemoryCategory::CascadeWinnerGroup, memory.tier3_limit() - charged));
     memory.record_benefit_lookups(MemoryCategory::CascadeWinnerGroup, 1, 0);
     memory.begin_tier3_quota_period();
 
@@ -1007,7 +1003,7 @@ fn shared_retained_match_answer_lives_until_its_last_column_owner_forgets() {
 }
 
 #[test]
-fn retained_match_answer_admission_does_not_evict_mid_period() {
+fn retained_match_answer_replacement_does_not_create_pressure() {
     let (mut engine, nodes) = nested_document();
     let retained = RuleMatch {
         node: nodes[1],
@@ -1042,6 +1038,7 @@ fn retained_match_answer_admission_does_not_evict_mid_period() {
     assert!(matches!(engine.retained_match_answer(nodes[1]), Lookup::Known(_)));
     assert_eq!(engine.counters.get(Counter::Tier3BenefitEvictions), 0);
     assert_eq!(engine.counters.get(Counter::RetainedMatchAnswerRefusals), 0);
+    assert_eq!(engine.memory.refusals(MemoryCategory::RetainedMatchAnswer), 0);
 }
 
 #[test]

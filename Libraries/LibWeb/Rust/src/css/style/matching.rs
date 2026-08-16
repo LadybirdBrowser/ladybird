@@ -246,8 +246,8 @@ impl StyleEngine {
         prefer_complete_batch: bool,
     ) {
         debug_assert!(self.batch_matching_traversal.is_none());
-        // Each completion batch retries exact answers: an earlier refusal may have been resolved
-        // by benefit-driven eviction or by answers this batch no longer needs to retain.
+        // Each completion batch may ask for exact answers again after a quota boundary reopened
+        // retained-answer admission.
         self.completion_exactness_exhausted = false;
         let batch = prefer_complete_batch
             .then(|| {
@@ -297,9 +297,7 @@ impl StyleEngine {
         // owner instead of discarding them: the next flush's walk completes over
         // warm spines. The sparse origin flag keeps that walk from letting the cache speak for
         // nodes the batch never visited. Unlike the walk's bootstrap retention, this is an
-        // opportunistic give-back: it must never displace retained answers or winner groups,
-        // whose absence costs both re-derivation and, for winner rows, the pseudo currency
-        // witnesses the reaction skip depends on.
+        // opportunistic give-back. If admission already closed, both scratch caches are released.
         {
             let mut caches = self.prefix_caches.borrow_mut();
             caches.states.mark_sparse();
@@ -504,15 +502,12 @@ impl StyleEngine {
                     // the rightward walk cannot seed missing left context the way the downward
                     // walk seeds through ancestors, so only sibling automata earn the uncapped
                     // walk, and only when the pool can plausibly retain what the walk builds.
-                    // Completing a cache the budget is about to refuse is work paid and thrown
-                    // away. The answer caches count as headroom because retention may displace
-                    // them for exactly this cache.
+                    // Completing a cache with no available Tier-3 headroom is work paid and thrown
+                    // away after admission has already closed.
                     let headroom = self
                         .memory
                         .tier3_limit()
-                        .saturating_sub(self.memory.bytes_in_tier(memory::Tier::Acceleration))
-                        .saturating_add(self.memory.bytes_in_category(MemoryCategory::RetainedMatchAnswer))
-                        .saturating_add(self.memory.bytes_in_category(MemoryCategory::PrefixAnswerCache));
+                        .saturating_sub(self.memory.bytes_in_tier(memory::Tier::Acceleration));
                     #[cfg(test)]
                     let force_bounded = self.force_bounded_prefix_completion;
                     #[cfg(not(test))]
@@ -1032,7 +1027,7 @@ impl StyleEngine {
         result
     }
 
-    /// Keep the retained-witness reservation in step with the table. Capacity is already committed
+    /// Keep the retained-witness charge in step with the table. Capacity is already committed
     /// at this boundary, so pressure keeps the table usable for this period and schedules the whole
     /// category for eviction at the next boundary.
     pub(super) fn settle_relational_witness_memory(&mut self) {
@@ -1629,9 +1624,8 @@ impl StyleEngine {
     }
 
     /// Reclaim one controller-selected acceleration category without changing semantic state.
-    /// The controller has already proved that the category is colder than the requester; this
-    /// owner-side step keeps allocation accounting exact by releasing the victim before retrying
-    /// the refused reservation.
+    /// The controller selected this complete category at the quota boundary. This owner-side step
+    /// keeps allocation accounting exact while releasing it.
     pub(super) fn evict_tier3_category(&mut self, category: MemoryCategory) -> bool {
         let before = self.memory.bytes_in_category(category);
         match category {
@@ -2849,9 +2843,9 @@ impl StyleEngine {
             } else {
                 // Ask for an exact, retainable answer rather than a winner-pruned one: pruning is
                 // cheaper once, but the pruned answer cannot enter the retained relation, and this
-                // node will then cold-match again on every flush that plans it. Once the budget
-                // refuses a retained answer, later nodes in the batch go back to the cheap pruned
-                // form, so exactness is only ever paid for answers that can actually stay warm.
+                // node will then cold-match again on every flush that plans it. Once retained-answer
+                // admission closes, later new nodes go back to the cheap pruned form, so exactness
+                // is only paid while answers can still enter the retained relation.
                 self.complete_answers_exactly = !self.completion_exactness_exhausted;
                 let mut compact_answer = None;
                 let mut cascade_winners_are_complete = false;
