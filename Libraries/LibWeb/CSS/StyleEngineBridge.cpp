@@ -158,9 +158,15 @@ StyleEngine::ExactCascadePublication StyleEngine::publish_exact_cascade_state(St
     return StyleEngineFFI::style_engine_publish_exact_cascade_state(m_impl, node.value(), pseudo_kind, store, inherited_style_groups);
 }
 
-void StyleEngine::materialize_retained_cascade_state(StyleNodeID node, u8 pseudo_kind, ComputedValuesFFI::CascadedPropertyStore* store, ReadonlySpan<ComputedValuesFFI::FfiCascadeBlock> blocks, ComputedValuesFFI::FfiBulkCascadeCallbacks const* callbacks)
+ReadonlySpan<ComputedValuesFFI::FfiSourceSlotAssignment> StyleEngine::materialize_retained_cascade_state(StyleNodeID node, u8 pseudo_kind, ComputedValuesFFI::CascadedPropertyStore* store, ReadonlySpan<ComputedValuesFFI::FfiCascadeBlock> blocks)
 {
-    StyleEngineFFI::style_engine_materialize_retained_cascade_state(m_impl, node.value(), pseudo_kind, store, blocks.data(), blocks.size(), callbacks);
+    auto view = StyleEngineFFI::style_engine_materialize_retained_cascade_state(m_impl, node.value(), pseudo_kind, store, blocks.data(), blocks.size());
+    return { static_cast<ComputedValuesFFI::FfiSourceSlotAssignment const*>(view.assignments), view.count };
+}
+
+void StyleEngine::discard_retained_cascade_assignments()
+{
+    StyleEngineFFI::style_engine_discard_retained_cascade_assignments(m_impl);
 }
 
 StyleEngine::StyleRecordDelta StyleEngine::publish_computed_groups(StyleNodeID node, u8 pseudo_kind, ReadonlySpan<void const*> payloads, size_t inherited_group_count, u64 custom_property_environment, u64 pseudo_element_styles, u8 dependency_flags, u64 counter_style_environment_identity, u64 animation_overlay_identity, void const* animated_properties, ReadonlySpan<void const*> animation_overlay_payloads, ReadonlyBytes property_importance, ReadonlyBytes property_inheritance, ReadonlySpan<u16> inheritance_dependent_properties, ReadonlySpan<void const*> inheritance_dependent_values, void const* raw_cascaded_font_size, void const* computed_longhand_table)
@@ -292,19 +298,10 @@ void StyleEngine::record_flat_tree_descendant_style_input_changes(StyleNodeID st
     // every other feedback action from this stabilization pass.
     submit_recorded_input();
     request_frame_for_first_recorded_input(*this, m_style_computer);
-    struct Context {
-        Vector<StyleEngineFFI::FfiElementStyleInput>& inputs;
-        u8 reaction;
-        u8 inherited_style_groups;
-    } context { m_element_style_inputs, reaction, inherited_style_groups };
-    StyleEngineFFI::style_engine_for_each_flat_tree_descendant(
-        m_impl,
-        style_node.value(),
-        &context,
-        [](void* context, u32 descendant) {
-            auto& data = *static_cast<Context*>(context);
-            data.inputs.append({ descendant, data.reaction, data.inherited_style_groups });
-        });
+    auto descendants = StyleEngineFFI::style_engine_flat_tree_descendants(m_impl, style_node.value());
+    for (auto descendant : ReadonlySpan<u32> { descendants.nodes, descendants.count })
+        m_element_style_inputs.append({ descendant, reaction, inherited_style_groups });
+    StyleEngineFFI::style_engine_discard_flat_tree_descendants(m_impl);
 }
 
 void StyleEngine::consume_recorded_element_style_input_change(StyleNodeID style_node)
@@ -381,37 +378,25 @@ void StyleEngine::flush()
 bool StyleEngine::take_diagnostic_style_transaction(StyleNodeID root, Function<void(ReadonlySpan<StyleNodeID>)>&& consume)
 {
     Vector<StyleNodeID> reaction_nodes;
-    auto transaction_is_scoped = take_style_transaction(
-        root,
-        [&](PublishedTransactionVersion, ReadonlySpan<PublishedStyleDelta> reactions) {
-            for (auto const& reaction : reactions)
-                reaction_nodes.append(StyleNodeID { reaction.style_node });
-        });
+    auto transaction = take_style_transaction(root);
+    for (auto const& reaction : transaction.reactions)
+        reaction_nodes.append(StyleNodeID { reaction.style_node });
     StyleEngineFFI::style_engine_discard_style_transaction_outputs(m_impl);
-    if (!transaction_is_scoped)
+    if (!transaction.is_scoped)
         return false;
     consume(reaction_nodes.span());
     return true;
 }
 
-bool StyleEngine::take_style_transaction(
-    StyleNodeID root,
-    Function<void(PublishedTransactionVersion, ReadonlySpan<PublishedStyleDelta>)>&& consume)
+StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(StyleNodeID root)
 {
-    struct Callbacks {
-        Function<void(PublishedTransactionVersion, ReadonlySpan<PublishedStyleDelta>)>& consume;
-    } callbacks { consume };
-
     submit_recorded_input();
-    return StyleEngineFFI::style_engine_take_style_transaction(
-        m_impl,
-        root.value(),
-        &callbacks,
-        [](void* context, u64 transaction_version, u64 program_version, PublishedStyleDelta const* answers, size_t count) {
-            static_cast<Callbacks*>(context)->consume(
-                PublishedTransactionVersion { transaction_version, program_version },
-                ReadonlySpan<PublishedStyleDelta> { answers, count });
-        });
+    auto view = StyleEngineFFI::style_engine_take_style_transaction(m_impl, root.value());
+    return {
+        .version = { view.transaction_version, view.program_version },
+        .reactions = { view.answers, view.count },
+        .is_scoped = view.scoped,
+    };
 }
 
 bool StyleEngine::has_pending_transaction() const

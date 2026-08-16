@@ -1,10 +1,26 @@
 <!DOCTYPE html>
+<style>
+    #pseudo-target::before {
+        content: "pseudo";
+        color: rgb(12, 34, 56);
+    }
+
+    .retained-winner {
+        border-left-style: solid;
+        border-left-width: 3px;
+    }
+
+    .retained-winner.changed {
+        border-left-width: 7px;
+    }
+
+    @keyframes measured-animation {
+        from { color: rgb(0, 0, 0); opacity: 0.2; }
+        to { color: rgb(255, 255, 255); opacity: 0.8; }
+    }
+</style>
 <script src="../include.js"></script>
 <script>
-    // The style FFI counters measure boundary crossings between C++ and the
-    // Rust style core. Exact values vary as boundaries move, so this test only
-    // checks that the surface works: counters exist, reset to zero, and the
-    // longhand driver counter advances once per recomputed element.
     test(() => {
         internals.updateStyle();
         internals.resetStyleFfiCounters();
@@ -13,63 +29,119 @@
         println(`has counters: ${keys.length > 0}`);
         println(`all zero after reset: ${keys.every(key => afterReset[key] === 0)}`);
 
-        const element = document.createElement("div");
-        document.body.appendChild(element);
-        internals.updateStyle();
-        const afterOneElement = internals.styleFfiCounters();
-        println(`longhand driver ran: ${afterOneElement.longhandDriverEntries >= 1}`);
-        println(`longhand loop called back into C++: ${afterOneElement.longhandStoreBatchCallbacks >= 1}`);
-        println(`computed build stayed in Rust: ${afterOneElement.computedStyleBuildCppCallbacks === 0}`);
-        println(`C++ lifecycle counter exists: ${"styleGroupLifecycleCallbacks" in afterOneElement}`);
+        const phaseCounters = [
+            "completeStyleUpdateTransactionCallbacks",
+            "completeStyleUpdateFlatTreeCallbacks",
+            "completeStyleUpdateCascadeCallbacks",
+            "completeStyleUpdateLonghandCallbacks",
+            "completeStyleUpdateAnimationCallbacks",
+            "completeStyleUpdateShorthandCallbacks",
+        ];
+        println(`has complete-update aggregates: ${
+            "completeStyleUpdateCppCallbacks" in afterReset
+            && "completeStyleUpdateSemanticCppCallbacks" in afterReset
+            && "completeStyleUpdateOwnershipCppCallbacks" in afterReset
+        }`);
+        println(`has complete-update phase counters: ${phaseCounters.every(name => name in afterReset)}`);
 
-        element.style.positionAnchor = "--target";
-        internals.resetStyleFfiCounters();
-        internals.updateStyle();
-        const afterPositionAnchor = internals.styleFfiCounters();
-        println(`position-anchor build retained a C++ string: ${afterPositionAnchor.stringRetainReleaseCallbacks > 0}`);
+        function measureUpdate(label, mutation) {
+            internals.updateStyle();
+            internals.resetStyleFfiCounters();
+            mutation();
+            internals.updateStyle();
+            const counters = internals.styleFfiCounters();
+            println(`${label} measured semantic callbacks: ${counters.completeStyleUpdateSemanticCppCallbacks > 0}`);
+            println(`${label} kept ownership separate: ${
+                counters.completeStyleUpdateCppCallbacks
+                    === counters.completeStyleUpdateSemanticCppCallbacks
+                        + counters.completeStyleUpdateOwnershipCppCallbacks
+            }`);
+            return counters;
+        }
 
-        element.style.containerName = "--container";
-        internals.resetStyleFfiCounters();
-        internals.updateStyle();
-        const afterContainerName = internals.styleFfiCounters();
-        println(`container-name build retained a C++ string: ${afterContainerName.stringRetainReleaseCallbacks > 0}`);
+        const simple = document.createElement("div");
+        const simpleCounters = measureUpdate("simple element", () => {
+            simple.style.color = "green";
+            document.body.appendChild(simple);
+        });
+        println(`transaction returned without callbacks: ${simpleCounters.completeStyleUpdateTransactionCallbacks === 0}`);
+        println(`longhand computation measured: ${simpleCounters.completeStyleUpdateLonghandCallbacks > 0}`);
+        println(`computed build stayed in Rust: ${simpleCounters.computedStyleBuildCppCallbacks === 0}`);
 
-        element.style.font = 'italic 700 20px/1.5 "Test Family"';
-        element.style.fontFeatureSettings = '"kern" 0';
-        element.style.fontVariationSettings = '"wght" 650';
-        internals.resetStyleFfiCounters();
+        const inheritanceParent = document.createElement("div");
+        const inheritanceChild = document.createElement("span");
+        inheritanceParent.appendChild(inheritanceChild);
+        document.body.appendChild(inheritanceParent);
         internals.updateStyle();
-        const afterFont = internals.styleFfiCounters();
-        println(`font build stayed in Rust: ${afterFont.computedStyleBuildCppCallbacks === 0}`);
+        measureUpdate("inherited partial restyle", () => {
+            inheritanceParent.style.color = "blue";
+        });
 
-        element.style.gridTemplateAreas = '"main"';
-        element.style.gridColumnStart = "main";
-        internals.resetStyleFfiCounters();
-        internals.updateStyle();
-        const afterGrid = internals.styleFfiCounters();
-        println(`grid build stayed in Rust: ${afterGrid.computedStyleBuildCppCallbacks === 0}`);
-        println(`C++ fly-string operation counter exists: ${"flyStringOperationCallbacks" in afterGrid}`);
+        const pseudoTarget = document.createElement("div");
+        pseudoTarget.id = "pseudo-target";
+        measureUpdate("pseudo-element", () => {
+            document.body.appendChild(pseudoTarget);
+        });
 
-        element.style.outline = "5px dotted rgb(10, 20, 30)";
-        element.style.outlineOffset = "calc(2px + 3px)";
-        element.style.scrollMargin = "1px 2px 3px 4px";
-        element.style.scrollPadding = "5% 6px auto 8px";
-        element.style.overflowClipMargin = "content-box 9px";
-        element.style.appearance = "checkbox";
-        element.style.objectFit = "cover";
-        element.style.objectPosition = "10% 20%";
-        element.style.viewTransitionName = "--transition";
-        element.style.touchAction = "pan-left pinch-zoom";
-        element.style.scrollBehavior = "smooth";
-        element.style.scrollbarGutter = "stable both-edges";
-        element.style.scrollbarWidth = "thin";
-        element.style.shapeImageThreshold = "0.5";
-        element.style.shapeMargin = "12px";
-        element.style.shapeOutside = "circle(25%) border-box";
-        element.style.willChange = "contents, scroll-position, opacity";
-        internals.resetStyleFfiCounters();
+        CSS.registerProperty({
+            name: "--measured-length",
+            syntax: "<length>",
+            inherits: false,
+            initialValue: "1px",
+        });
+        const variables = document.createElement("div");
+        const customPropertyCounters = measureUpdate("custom properties", () => {
+            variables.style.cssText = `
+                --unregistered-length: 5px;
+                --measured-length: 7px;
+                width: var(--unregistered-length);
+                height: var(--measured-length);
+            `;
+            document.body.appendChild(variables);
+        });
+        println(`cascade callbacks measured: ${customPropertyCounters.completeStyleUpdateCascadeCallbacks > 0}`);
+
+        const relativeLengths = document.createElement("div");
+        measureUpdate("font and viewport lengths", () => {
+            relativeLengths.style.cssText = "font-size: 2em; width: 10vw; min-height: 1rem";
+            document.body.appendChild(relativeLengths);
+        });
+
+        const animated = document.createElement("div");
+        animated.style.cssText = `
+            animation: measured-animation 10s linear -5s paused;
+            color: rgb(10, 20, 30);
+            transition: color 10s linear, width 10s linear;
+            width: 10px;
+        `;
+        animated.appendChild(document.createElement("span"));
+        document.body.appendChild(animated);
         internals.updateStyle();
-        const afterMiscReset = internals.styleFfiCounters();
-        println(`payload assembler counter exists: ${"styleGroupPayloadAssemblerCallbacks" in afterMiscReset}`);
+        const cssAnimation = animated.getAnimations()[0];
+        const animationCounters = measureUpdate("animations and transitions", () => {
+            cssAnimation.currentTime = 7500;
+            animated.style.color = "rgb(30, 20, 10)";
+            animated.style.width = "20px";
+        });
+        println(`animation computation measured: ${animationCounters.completeStyleUpdateAnimationCallbacks > 0}`);
+        println(`flat-tree descendants returned without callbacks: ${animationCounters.completeStyleUpdateFlatTreeCallbacks === 0}`);
+
+        const resourceBacked = document.createElement("div");
+        measureUpdate("resource-backed value", () => {
+            resourceBacked.style.backgroundImage = `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'/>")`;
+            document.body.appendChild(resourceBacked);
+        });
+
+        const retainedWinner = document.createElement("div");
+        retainedWinner.className = "retained-winner";
+        document.body.appendChild(retainedWinner);
+        internals.updateStyle();
+        const retainedCounters = measureUpdate("retained cascade winner", () => {
+            retainedWinner.classList.add("changed");
+        });
+        println(`retained source-slot assignments returned without callbacks: ${
+            !("retainedCascadeSourceSlotCallbacks" in retainedCounters)
+            && getComputedStyle(retainedWinner).borderLeftWidth === "7px"
+        }`);
     });
 </script>

@@ -2827,12 +2827,15 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
     };
 
     if (auto node = abstract_element.element().style_node_id(); node != 0) {
-        const_cast<StyleComputer&>(*this).style_engine().materialize_retained_cascade_state(
+        auto& style_engine = const_cast<StyleComputer&>(*this).style_engine();
+        auto retained_assignments = style_engine.materialize_retained_cascade_state(
             node,
             pseudo_element_to_ffi(abstract_element.pseudo_element()),
             cascaded_properties->rust_store(),
-            blocks,
-            &callbacks);
+            blocks);
+        if (!retained_assignments.is_empty())
+            callbacks.assign_source_slots(callbacks.context, retained_assignments.data(), retained_assignments.size());
+        style_engine.discard_retained_cascade_assignments();
     }
 
     ComputedValuesFFI::rust_cascade_matched_blocks(

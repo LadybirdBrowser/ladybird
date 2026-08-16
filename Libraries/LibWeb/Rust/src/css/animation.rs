@@ -6508,7 +6508,7 @@ pub unsafe extern "C" fn rust_evaluate_animations(
         if resolved.properties.is_empty() {
             return 0;
         }
-        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::AnimationComputeBatchCallback);
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::AnimationComputeBatchCallback);
         let computed = unsafe {
             (callbacks.compute_values)(
                 callbacks.context,
