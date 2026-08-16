@@ -109,16 +109,14 @@ void HTMLTableElement::apply_presentational_hints(Vector<CSS::StyleProperty>& pr
             auto border = parse_border(value);
             if (!border)
                 return;
-            auto apply_border_style = [&](CSS::PropertyID style_property, CSS::PropertyID width_property, CSS::PropertyID color_property) {
-                auto legacy_line_style = CSS::KeywordStyleValue::create(CSS::Keyword::Outset);
-                properties.append({ .property_id = style_property, .value = legacy_line_style });
+            auto apply_border_style = [&](CSS::PropertyID style_property, CSS::PropertyID width_property) {
+                properties.append({ .property_id = style_property, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Outset) });
                 properties.append({ .property_id = width_property, .value = CSS::LengthStyleValue::create(CSS::Length::make_px(border)) });
-                properties.append({ .property_id = color_property, .value = CSS::ColorStyleValue::create_from_color(Color(128, 128, 128), CSS::ColorSyntax::Legacy) });
             };
-            apply_border_style(CSS::PropertyID::BorderLeftStyle, CSS::PropertyID::BorderLeftWidth, CSS::PropertyID::BorderLeftColor);
-            apply_border_style(CSS::PropertyID::BorderTopStyle, CSS::PropertyID::BorderTopWidth, CSS::PropertyID::BorderTopColor);
-            apply_border_style(CSS::PropertyID::BorderRightStyle, CSS::PropertyID::BorderRightWidth, CSS::PropertyID::BorderRightColor);
-            apply_border_style(CSS::PropertyID::BorderBottomStyle, CSS::PropertyID::BorderBottomWidth, CSS::PropertyID::BorderBottomColor);
+            apply_border_style(CSS::PropertyID::BorderLeftStyle, CSS::PropertyID::BorderLeftWidth);
+            apply_border_style(CSS::PropertyID::BorderTopStyle, CSS::PropertyID::BorderTopWidth);
+            apply_border_style(CSS::PropertyID::BorderRightStyle, CSS::PropertyID::BorderRightWidth);
+            apply_border_style(CSS::PropertyID::BorderBottomStyle, CSS::PropertyID::BorderBottomWidth);
         }
         if (name == HTML::AttributeNames::bordercolor) {
             // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:attr-table-bordercolor

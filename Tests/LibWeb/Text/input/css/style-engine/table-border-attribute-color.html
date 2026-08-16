@@ -1,0 +1,13 @@
+<!doctype html>
+<table id="plainTable"><td>x</td></table>
+<table id="borderedTable" border="1"><td>x</td></table>
+<table id="coloredTable" border="1" bordercolor="red"><td>x</td></table>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const bordered = getComputedStyle(borderedTable);
+        println(`no attributes: ${getComputedStyle(plainTable).borderTopColor}`);
+        println(`border: ${bordered.borderTopStyle} ${bordered.borderTopWidth} ${bordered.borderTopColor}`);
+        println(`border and bordercolor: ${getComputedStyle(coloredTable).borderTopColor}`);
+    });
+</script>
