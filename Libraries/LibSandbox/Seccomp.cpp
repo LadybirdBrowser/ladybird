@@ -44,7 +44,7 @@ static constexpr u32 thread_clone_allowed_flags = thread_clone_required_flags
     | CLONE_CHILD_CLEARTID
     | CLONE_DETACHED
     | CLONE_CHILD_SETTID;
-static constexpr u32 vfork_clone_flags = CLONE_VM | CLONE_VFORK | SIGCHLD;
+static constexpr u32 fork_clone_flags = CLONE_CHILD_CLEARTID | CLONE_CHILD_SETTID | SIGCHLD;
 
 #ifdef O_LARGEFILE
 static constexpr unsigned read_only_open_flags = O_CLOEXEC | O_LARGEFILE;
@@ -914,6 +914,9 @@ void SeccompPolicy::allow_file_descriptor_operations()
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, close);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, fstat);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, dup);
+#ifdef __NR_dup2
+    SECCOMP_APPEND_ALLOW_SYSCALL(*this, dup2);
+#endif
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, dup3);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, pipe2);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, ftruncate);
@@ -1018,13 +1021,31 @@ void SeccompPolicy::allow_file_descriptor_operations()
 
 void SeccompPolicy::allow_process_creation()
 {
+#ifdef __NR_arch_prctl
+    SECCOMP_APPEND_ALLOW_SYSCALL(*this, arch_prctl);
+#endif
+#ifdef __NR_getppid
+    SECCOMP_APPEND_ALLOW_SYSCALL(*this, getppid);
+#endif
+#ifdef __NR_fork
+    SECCOMP_APPEND_ALLOW_SYSCALL(*this, fork);
+#endif
+
 #ifdef __NR_clone
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_clone, 0, 5));
     append(SECCOMP_LOAD_ARGUMENT(0));
-    append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, ~vfork_clone_flags));
-    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 1));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, fork_clone_flags, 0, 1));
     append(SECCOMP_ALLOW);
     append(SECCOMP_LOAD_SYSCALL_NR);
+    append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
+
+    // musl implements fork() as clone(SIGCHLD, ...).
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_clone, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(0));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, SIGCHLD, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+    append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
 #endif
 
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, execve);
