@@ -405,21 +405,16 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
                         continue;
 
                     // Unresolved properties will be resolved in collect_animation_into()
-                    struct ExpansionContext {
-                        HashTable<PropertyID>& animated_properties;
-                        Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame& resolved_keyframe;
-                    } expansion_context { animated_properties, resolved_keyframe };
-                    ComputedValuesFFI::FfiShorthandExpansionCallbacks const callbacks {
-                        .context = &expansion_context,
-                        .set_longhand_property = [](void* context, u16 longhand_id, void const* data) {
-                            auto& expansion_context = *static_cast<ExpansionContext*>(context);
-                            auto longhand_property_id = static_cast<PropertyID>(longhand_id);
-                            expansion_context.animated_properties.set(longhand_property_id);
-                            expansion_context.resolved_keyframe.properties.set(longhand_property_id,
-                                RustStyleValueHandle::retained(static_cast<StyleValueFFI::StyleValueData const*>(data)));
-                        },
-                    };
-                    ComputedValuesFFI::rust_for_each_property_expanding_shorthands(&callbacks, to_underlying(it.property_id), it.value->rust_style_value_data());
+                    auto expansion = ComputedValuesFFI::rust_expand_property_shorthands(
+                        to_underlying(it.property_id), it.value->rust_style_value_data());
+                    for (size_t i = 0; i < expansion.count; ++i) {
+                        auto const& property = expansion.properties[i];
+                        auto longhand_property_id = static_cast<PropertyID>(property.property_id);
+                        animated_properties.set(longhand_property_id);
+                        resolved_keyframe.properties.set(longhand_property_id,
+                            RustStyleValueHandle::retained(static_cast<StyleValueFFI::StyleValueData const*>(property.data)));
+                    }
+                    ComputedValuesFFI::rust_shorthand_expansion_destroy(expansion.storage);
                 }
 
                 for (auto const& key : keyframe.keys()) {

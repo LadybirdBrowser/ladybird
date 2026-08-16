@@ -31,8 +31,8 @@
         println(`fallback outside cycle used: ${computed.backgroundColor}`);
 
         const nativeCounters = internals.styleFfiCounters();
-        println(`native parse callback used: ${nativeCounters.cascadeParseSubstitutedCallbacks >= 3}`);
-        println(`C++ resolver unused: ${nativeCounters.cascadeResolveUnresolvedCallbacks === 0}`);
+        println(`native parse requests used: ${nativeCounters.cascadeNativeSubstitutionRequests >= 3}`);
+        println(`C++ resolver unused: ${nativeCounters.cascadeCppResolutionRequests === 0}`);
 
         CSS.registerProperty({
             name: "--registered-native-fallback",
@@ -62,7 +62,7 @@
         println(`registered universal initial: ${getComputedStyle(registered).marginLeft}`);
 
         const registeredCounters = internals.styleFfiCounters();
-        println(`registered value used C++ resolver: ${registeredCounters.cascadeResolveUnresolvedCallbacks >= 1}`);
-        println(`unregistered value used native parser: ${registeredCounters.cascadeParseSubstitutedCallbacks >= 1}`);
+        println(`registered value used C++ resolver: ${registeredCounters.cascadeCppResolutionRequests >= 1}`);
+        println(`unregistered value used native parser: ${registeredCounters.cascadeNativeSubstitutionRequests >= 1}`);
     });
 </script>

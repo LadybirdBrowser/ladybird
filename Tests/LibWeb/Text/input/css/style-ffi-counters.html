@@ -63,11 +63,16 @@
         const simple = document.createElement("div");
         const simpleCounters = measureUpdate("simple element", () => {
             simple.style.color = "green";
+            simple.style.margin = "1px 2px";
             simple.style.listStyleImage = `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'/>")`;
             document.body.appendChild(simple);
         });
         println(`transaction returned without callbacks: ${simpleCounters.completeStyleUpdateTransactionCallbacks === 0}`);
         println(`longhand computation measured: ${simpleCounters.completeStyleUpdateLonghandCallbacks > 0}`);
+        println(`shorthand expansion returned without callbacks: ${
+            simpleCounters.shorthandExpansionEntries > 0
+            && !("shorthandSetLonghandCallbacks" in simpleCounters)
+        }`);
         println(`computed build stayed in Rust: ${simpleCounters.computedStyleBuildCppCallbacks === 0}`);
         const inheritanceParent = document.createElement("div");
         const inheritanceChild = document.createElement("span");
@@ -100,7 +105,14 @@
             `;
             document.body.appendChild(variables);
         });
-        println(`cascade callbacks measured: ${customPropertyCounters.completeStyleUpdateCascadeCallbacks > 0}`);
+        println(`cascade returned without callbacks: ${[
+            "cascadeResolveUnresolvedCallbacks",
+            "cascadeParseSubstitutedCallbacks",
+            "cascadeSourceSlotCallbacks",
+        ].every(name => !(name in customPropertyCounters))}`);
+        println(`custom-property cascade entered Rust: ${customPropertyCounters.cascadeCustomPropertyEntries > 0}`);
+        println(`cascade resolution entered Rust: ${customPropertyCounters.cascadeResolutionEntries > 0}`);
+        println(`custom-property cascade avoided C++ callback: ${!("cascadeCustomPropertyBatchCallbacks" in customPropertyCounters)}`);
 
         const relativeLengths = document.createElement("div");
         measureUpdate("font and viewport lengths", () => {
@@ -124,7 +136,10 @@
             animated.style.color = "rgb(30, 20, 10)";
             animated.style.width = "20px";
         });
-        println(`animation computation measured: ${animationCounters.completeStyleUpdateAnimationCallbacks > 0}`);
+        println(`animation evaluation returned without callbacks: ${
+            animationCounters.animationEvaluationEntries > 0
+            && !("animationComputeBatchCallbacks" in animationCounters)
+        }`);
         println(`flat-tree descendants returned without callbacks: ${animationCounters.completeStyleUpdateFlatTreeCallbacks === 0}`);
 
         const resourceBacked = document.createElement("div");

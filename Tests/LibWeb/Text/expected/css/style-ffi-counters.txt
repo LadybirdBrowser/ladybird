@@ -7,6 +7,7 @@ simple element measured semantic callbacks: true
 simple element kept ownership separate: true
 transaction returned without callbacks: true
 longhand computation measured: true
+shorthand expansion returned without callbacks: true
 computed build stayed in Rust: true
 inherited partial restyle measured semantic callbacks: true
 inherited partial restyle kept ownership separate: true
@@ -14,12 +15,15 @@ pseudo-element measured semantic callbacks: true
 pseudo-element kept ownership separate: true
 custom properties measured semantic callbacks: true
 custom properties kept ownership separate: true
-cascade callbacks measured: true
+cascade returned without callbacks: true
+custom-property cascade entered Rust: true
+cascade resolution entered Rust: true
+custom-property cascade avoided C++ callback: true
 font and viewport lengths measured semantic callbacks: true
 font and viewport lengths kept ownership separate: true
 animations and transitions measured semantic callbacks: true
 animations and transitions kept ownership separate: true
-animation computation measured: true
+animation evaluation returned without callbacks: true
 flat-tree descendants returned without callbacks: true
 resource-backed value measured semantic callbacks: true
 resource-backed value kept ownership separate: true

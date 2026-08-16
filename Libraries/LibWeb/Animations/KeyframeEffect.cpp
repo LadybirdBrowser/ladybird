@@ -997,13 +997,11 @@ void KeyframeEffect::set_keyframes(Vector<BaseKeyframe> keyframes)
 
         for (auto const& [property_id, property_value] : keyframe.parsed_properties()) {
             resolved_keyframe.properties.set(property_id, property_value);
-            CSS::ComputedValuesFFI::FfiShorthandExpansionCallbacks const callbacks {
-                .context = &m_target_properties,
-                .set_longhand_property = [](void* context, u16 longhand_id, void const*) {
-                    static_cast<HashTable<CSS::PropertyID>*>(context)->set(static_cast<CSS::PropertyID>(longhand_id));
-                },
-            };
-            CSS::ComputedValuesFFI::rust_for_each_property_expanding_shorthands(&callbacks, to_underlying(property_id), property_value.data());
+            auto expansion = CSS::ComputedValuesFFI::rust_expand_property_shorthands(
+                to_underlying(property_id), property_value.data());
+            for (size_t i = 0; i < expansion.count; ++i)
+                m_target_properties.set(static_cast<CSS::PropertyID>(expansion.properties[i].property_id));
+            CSS::ComputedValuesFFI::rust_shorthand_expansion_destroy(expansion.storage);
         }
 
         keyframe_set->keyframes_by_key.insert(key, resolved_keyframe);

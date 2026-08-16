@@ -466,16 +466,6 @@ pub struct FfiAnimatedProperty {
 }
 
 #[repr(C)]
-pub struct FfiAnimationCallbacks {
-    pub context: *mut std::ffi::c_void,
-    pub compute_values: unsafe extern "C" fn(
-        context: *mut std::ffi::c_void,
-        properties: *const FfiResolvedAnimationProperty,
-        property_count: usize,
-    ) -> FfiComputedAnimationBatch,
-}
-
-#[repr(C)]
 pub struct FfiAnimationDeclaration {
     pub keyframe_index: usize,
     pub property_id: u16,
@@ -599,6 +589,13 @@ pub struct FfiResolvedAnimationProperty {
     pub source_longhand_id: u16,
     pub value: *const StyleValueData,
     pub value_source: FfiAnimationSpecifiedValueSource,
+}
+
+#[repr(C)]
+pub struct FfiResolvedAnimationProperties {
+    pub properties: *const FfiResolvedAnimationProperty,
+    pub count: usize,
+    pub storage: *mut std::ffi::c_void,
 }
 
 fn resolve_animation_declarations(
@@ -6483,25 +6480,16 @@ fn evaluate_animation_value(
     }
 }
 
-/// Resolve an element's keyframe declarations, request their computed values in one C++ batch,
-/// then evaluate and compose every animation interval without consulting C++ or the DOM again.
-///
-/// Computed values are requested in at most one callback. Results are written into caller-owned
-/// storage returned with the computed values, transferring every non-null result value.
+/// Resolve an element's keyframe declarations into one owned batch for C++ computation.
 ///
 /// # Safety
-/// `batch` and `callbacks` must point to live values. Their declaration and bitmap ranges and every
-/// input style value returned by `compute_values` must remain live for the call. Its result storage
-/// must have room for every input value, and C++ must adopt every non-null result after return.
+/// `batch` must point to a live value whose declaration and bitmap ranges remain live for the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_evaluate_animations(
+pub unsafe extern "C" fn rust_resolve_animation_declarations(
     batch: *const FfiAnimationBatch,
-    callbacks: *const FfiAnimationCallbacks,
-) -> usize {
+) -> FfiResolvedAnimationProperties {
     crate::abort_on_panic(|| {
-        crate::css::ffi_stats::rust_style_ffi_note_animation_evaluation();
         let batch = unsafe { &*batch };
-        let callbacks = unsafe { &*callbacks };
         let declarations = unsafe { std::slice::from_raw_parts(batch.declarations, batch.declaration_count) };
         let important_property_bitmap = unsafe {
             std::slice::from_raw_parts(batch.important_property_bitmap, batch.important_property_bitmap_length)
@@ -6513,16 +6501,43 @@ pub unsafe extern "C" fn rust_evaluate_animations(
             important_property_bitmap,
         );
         if resolved.properties.is_empty() {
-            return 0;
+            return FfiResolvedAnimationProperties {
+                properties: std::ptr::null(),
+                count: 0,
+                storage: std::ptr::null_mut(),
+            };
         }
-        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::AnimationComputeBatchCallback);
-        let computed = unsafe {
-            (callbacks.compute_values)(
-                callbacks.context,
-                resolved.properties.as_ptr(),
-                resolved.properties.len(),
-            )
-        };
+        let resolved = Box::new(resolved);
+        let properties = resolved.properties.as_ptr();
+        let count = resolved.properties.len();
+        FfiResolvedAnimationProperties {
+            properties,
+            count,
+            storage: Box::into_raw(resolved).cast(),
+        }
+    })
+}
+
+/// # Safety
+/// `storage` must be null or a live pointer returned by `rust_resolve_animation_declarations`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_resolved_animation_properties_destroy(storage: *mut std::ffi::c_void) {
+    if !storage.is_null() {
+        drop(unsafe { Box::from_raw(storage.cast::<ResolvedAnimationDeclarations>()) });
+    }
+}
+
+/// Evaluate and compose every prepared animation interval without consulting C++ or the DOM.
+/// Results are written into caller-owned storage, transferring every non-null result value.
+///
+/// # Safety
+/// `computed` must point to a live batch whose input style values remain live for the call. Its
+/// result storage must have room for every input value, and C++ must adopt every non-null result.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_evaluate_animations(computed: *const FfiComputedAnimationBatch) -> usize {
+    crate::abort_on_panic(|| {
+        crate::css::ffi_stats::rust_style_ffi_note_animation_evaluation();
+        let computed = unsafe { &*computed };
         if computed.value_count == 0 {
             return 0;
         }
