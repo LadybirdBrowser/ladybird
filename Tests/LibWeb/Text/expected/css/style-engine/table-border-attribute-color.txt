@@ -1,0 +1,3 @@
+no attributes: rgb(0, 0, 0)
+border: outset 1px rgb(0, 0, 0)
+border and bordercolor: rgb(255, 0, 0)
