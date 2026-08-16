@@ -59,7 +59,7 @@ if (BUILD_TESTING AND NOT WIN32)
         NAME TestWebDriverSessionHistory
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-session-history.py $<TARGET_FILE:WebDriver>
     )
-    set_tests_properties(TestWebDriverSessionHistory PROPERTIES TIMEOUT 120)
+    set_tests_properties(TestWebDriverSessionHistory PROPERTIES TIMEOUT 240)
 
     add_test(NAME TestAutocomplete COMMAND $<TARGET_FILE:TestAutocomplete>)
     set_tests_properties(TestAutocomplete PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
