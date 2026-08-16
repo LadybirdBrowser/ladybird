@@ -50,8 +50,9 @@ public:
 
     // The engine's identities for the names this environment declares, sorted and deduplicated,
     // worked out once for the environment rather than once for each element handed it: a page whose
-    // theme declares a thousand names hands the same thousand to every element under it. Atoms are
-    // document-local, so the document that asked is part of what the answer is good for.
+    // theme declares a thousand names hands the same thousand to every element under it. Atom ids
+    // are process-global, but each document must acquire its own references, so the document that
+    // asked is part of what the answer is good for.
     template<typename InternName>
     [[nodiscard]] ReadonlySpan<StyleAtomID> declared_name_atoms(FlatPtr document_identity, InternName&& intern) const
     {

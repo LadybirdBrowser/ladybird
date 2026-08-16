@@ -265,6 +265,10 @@ impl<T: Clone + Default> PagedOwnedColumn<T> {
         self.values.iter()
     }
 
+    fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
+        self.values.iter_mut()
+    }
+
     fn indexed_iter_mut(&mut self) -> impl Iterator<Item = (usize, &mut T)> {
         self.indices.iter().copied().zip(self.values.iter_mut())
     }
@@ -2785,7 +2789,7 @@ pub struct ElementFactStore {
     /// proportional to the stylesheet rather than to the document times the stylesheet.
     custom_property_name_sets: super::intern_table::InternTable<CustomPropertyNameSetID, Vec<StyleAtomID>>,
     custom_property_name_set_vacancies: Vec<u32>,
-    custom_property_set_ids_by_name: Column<Vec<u32>>,
+    custom_property_set_ids_by_name: PagedOwnedColumn<Vec<u32>>,
     language_live_counts: Column<u64>,
     attribute_name_live_counts: Column<u64>,
     attribute_value_live_counts: Column<u64>,
@@ -3165,7 +3169,7 @@ impl Default for ElementFactStore {
             settled_non_apply_capacity_bytes: 0,
             custom_property_name_sets: super::intern_table::InternTable::default(),
             custom_property_name_set_vacancies: Vec::new(),
-            custom_property_set_ids_by_name: Column::default(),
+            custom_property_set_ids_by_name: PagedOwnedColumn::default(),
             language_live_counts: Column::default(),
             attribute_name_live_counts: Column::default(),
             attribute_value_live_counts: Column::default(),

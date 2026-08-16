@@ -50,6 +50,7 @@ macro_rules! define_id {
     };
 }
 
+mod atoms;
 pub mod batch_matcher;
 pub mod bridge;
 mod capacity;
@@ -138,6 +139,7 @@ pub mod transaction;
 mod transaction_view;
 pub mod tree;
 
+use atoms::DocumentAtoms;
 use catalog::*;
 use column::Column;
 use fast_hash::FastMap as HashMap;
@@ -905,16 +907,13 @@ pub struct StyleEngine {
     /// The last scope lookup. A style traversal nearly always asks consecutive elements in one
     /// scope, so the common path compares two integers and never hashes its ordered sheet set.
     held_scope_program: Option<(TreeScopeID, u32, ScopeProgramID)>,
-    /// Maps a name's one-word interned identity to its document-local atom. Selector names and DOM
-    /// facts key the same table, so a class in a stylesheet and a class on an element compare as
-    /// one integer.
-    atoms: HashMap<usize, StyleAtomID>,
-    /// A qualified name's atom, keyed by the namespace and the local name it is built from.
+    /// Maps names and qualified names to process-global atoms. Selector names and DOM facts use
+    /// the same owner, so a class in a stylesheet and a class on an element compare as one integer.
     ///
     /// An attribute in a namespace is published under this as well as under its local name, and a
-    /// selector that names the namespace tests it. Both sides mint from the same sequence as every
-    /// other atom, so a qualified name can never collide with a word.
-    qualified_atoms: HashMap<(u32, u32), StyleAtomID>,
+    /// selector that names the namespace tests it. The owner retains one document reference to each
+    /// global identity and releases it when this engine is destroyed.
+    atoms: DocumentAtoms,
     /// The HTML namespace when this is an HTML document, and none otherwise. Some attribute names
     /// compare their values ASCII case-insensitively on an HTML element in an HTML document.
     html_element_namespace: StyleAtomID,

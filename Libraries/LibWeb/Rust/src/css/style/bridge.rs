@@ -824,6 +824,20 @@ pub extern "C" fn style_engine_create(device_class: FfiDeviceClass) -> *mut c_vo
     })
 }
 
+/// Installs the C++ ownership callbacks used by live process-global raw atoms.
+#[unsafe(no_mangle)]
+pub extern "C" fn style_engine_install_raw_atom_callbacks(
+    retain: unsafe extern "C" fn(usize),
+    release: unsafe extern "C" fn(usize),
+) {
+    super::atoms::install_raw_atom_callbacks(retain, release);
+}
+
+/// Creates a replay engine whose atom keys are opaque capture tokens rather than live fly strings.
+pub fn style_engine_create_for_replay(device_class: FfiDeviceClass) -> *mut c_void {
+    abort_on_panic(|| Box::into_raw(Box::new(StyleEngine::new_for_replay(device_class.decode()))).cast())
+}
+
 /// Applies the memory policy used while producing a replay recording.
 ///
 /// # Safety
@@ -2395,7 +2409,7 @@ pub unsafe extern "C" fn style_engine_intern_atom(engine: *mut c_void, raw: usiz
     abort_on_panic(|| {
         let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
         let result = engine.intern_atom(raw).0;
-        let token = engine.recording_pointer_token(raw);
+        let token = engine.recording_atom_pointer_token(raw);
         engine.record_boundary_call(EventKind::InternAtom, |payload| {
             payload.write_u64(token.expect("an enabled recorder must tokenize the pointer"));
             payload.write_u32(result);

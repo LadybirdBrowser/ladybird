@@ -15,6 +15,17 @@ namespace Web::CSS {
 
 extern "C" void ladybird_animated_properties_ref(void const*);
 
+static void ladybird_utf16_fly_string_ref_raw(size_t raw)
+{
+    auto string = Utf16FlyString::from_raw(static_cast<FlatPtr>(raw));
+    (void)string.to_raw_leaked();
+}
+
+static void ladybird_utf16_fly_string_unref_raw(size_t raw)
+{
+    Utf16FlyString::unref_raw(static_cast<FlatPtr>(raw));
+}
+
 static_assert(!IsMoveConstructible<StyleEngine>);
 static_assert(!IsMoveAssignable<StyleEngine>);
 
@@ -33,6 +44,7 @@ StyleEngine::StyleEngine(DeviceClass device_class, StyleComputer* style_computer
     : m_impl(StyleEngineFFI::style_engine_create(device_class))
     , m_style_computer(style_computer)
 {
+    StyleEngineFFI::style_engine_install_raw_atom_callbacks(ladybird_utf16_fly_string_ref_raw, ladybird_utf16_fly_string_unref_raw);
 }
 
 StyleEngine::~StyleEngine()

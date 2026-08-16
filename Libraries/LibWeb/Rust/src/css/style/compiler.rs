@@ -37,6 +37,7 @@ use crate::css::selector::PseudoElementType;
 use crate::css::selector::PseudoElementValue;
 use crate::css::selector::SimpleSelector;
 
+use super::atoms::synthetic_text_atom_key;
 use super::fnv::fnv1a64;
 use super::index::StyleAtomID;
 use super::relative_selector::RelativeAxis;
@@ -1177,7 +1178,7 @@ impl<'a> SelectorCompiler<'a> {
             0x41..=0x5a => *unit + 0x20,
             other => other,
         }));
-        usize::MAX - (hash as usize & 0x0000_ffff_ffff_ffff)
+        synthetic_text_atom_key(hash)
     }
 
     fn intern_ascii_lowercase_text(&mut self, text: &[u16]) -> StyleAtomID {
@@ -1187,7 +1188,7 @@ impl<'a> SelectorCompiler<'a> {
     fn intern_text(&mut self, text: &[u16]) -> StyleAtomID {
         let hash = fnv1a64(text.iter().copied());
         // Text keys live above the pointer range so they cannot alias an interned identity.
-        (self.intern)(usize::MAX - (hash as usize & 0x0000_ffff_ffff_ffff), None)
+        (self.intern)(synthetic_text_atom_key(hash), None)
     }
 
     fn compile_argument_list(

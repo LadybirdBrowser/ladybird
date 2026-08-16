@@ -19,6 +19,14 @@ impl StyleEngine {
 
     #[must_use]
     pub fn new(device_class: DeviceClass) -> Self {
+        Self::new_with_atoms(device_class, DocumentAtoms::for_live_engine())
+    }
+
+    pub(crate) fn new_for_replay(device_class: DeviceClass) -> Self {
+        Self::new_with_atoms(device_class, DocumentAtoms::for_replay())
+    }
+
+    fn new_with_atoms(device_class: DeviceClass, atoms: DocumentAtoms) -> Self {
         let mut memory = MemoryController::new(device_class);
         let tree = StyleNodeTree::new(&mut memory);
         Self {
@@ -93,8 +101,7 @@ impl StyleEngine {
             ancestor_dispatch_templates: HashMap::default(),
             scope_program_by_scope: Column::default(),
             held_scope_program: None,
-            atoms: HashMap::default(),
-            qualified_atoms: HashMap::default(),
+            atoms,
             fold_id_and_class_name_case: false,
             #[cfg(test)]
             diagnostic_plan_capture: None,
@@ -151,6 +158,16 @@ impl StyleEngine {
         }
     }
 
+    pub(crate) fn recording_atom_pointer_token(&self, pointer: usize) -> Option<u64> {
+        #[cfg(feature = "style-recording")]
+        return self.recording_id.map(|_| record_replay::atom_pointer_token(pointer));
+        #[cfg(not(feature = "style-recording"))]
+        {
+            let _ = pointer;
+            None
+        }
+    }
+
     pub(crate) fn recording_first_response(&self, category: u8, identity: u64) -> bool {
         #[cfg(feature = "style-recording")]
         return self
@@ -181,14 +198,14 @@ impl StyleEngine {
             let engine_id = self
                 .recording_id
                 .expect("only a recording engine serializes atom mappings");
-            let previous_bound = record_replay::take_unrecorded_atom_bound(engine_id, self.next_atom() - 1);
             let mut atoms = self
                 .atoms
+                .raw()
                 .iter()
-                .filter(|(_, atom)| atom.0 > previous_bound)
+                .filter(|(_, atom)| record_replay::first_atom_mapping(engine_id, atom.0))
                 .map(|(pointer, atom)| {
                     (
-                        self.recording_pointer_token(*pointer)
+                        self.recording_atom_pointer_token(*pointer)
                             .expect("only a recording engine serializes atom mappings"),
                         atom.0,
                     )
@@ -196,9 +213,10 @@ impl StyleEngine {
                 .collect::<Vec<_>>();
             atoms.sort_unstable_by_key(|(_, atom)| *atom);
             let mut qualified_atoms = self
-                .qualified_atoms
+                .atoms
+                .qualified()
                 .iter()
-                .filter(|(_, atom)| atom.0 > previous_bound)
+                .filter(|(_, atom)| record_replay::first_atom_mapping(engine_id, atom.0))
                 .map(|((namespace, name), atom)| (*namespace, *name, atom.0))
                 .collect::<Vec<_>>();
             qualified_atoms.sort_unstable_by_key(|(_, _, atom)| *atom);
@@ -254,14 +272,13 @@ impl StyleEngine {
         routing.settle_memory(&mut self.memory);
     }
 
-    /// The document-local atom for one interned name identity.
+    /// The process-global atom for one interned name identity.
     ///
     /// Selector names and DOM facts intern through here and nowhere else. Two tables keyed by the
     /// same word but assigning their own sequences would compare unequal for the same name, which
     /// is a silent failure to match rather than a loud one.
     pub fn intern_atom(&mut self, raw: usize) -> StyleAtomID {
-        let next = self.next_atom();
-        *self.atoms.entry(raw).or_insert(StyleAtomID(next))
+        self.atoms.intern_raw(raw)
     }
 
     /// The document-local atom for a name qualified by a namespace.
@@ -270,17 +287,7 @@ impl StyleEngine {
     /// qualified form is a name of its own: the attribute is published under it as well as under
     /// its local name, and the selector that names a namespace tests only this one.
     pub fn intern_qualified_atom(&mut self, namespace: StyleAtomID, name: StyleAtomID) -> StyleAtomID {
-        let next = self.next_atom();
-        *self
-            .qualified_atoms
-            .entry((namespace.0, name.0))
-            .or_insert(StyleAtomID(next))
-    }
-
-    /// The next unused atom identity. Every table that mints one draws from here, because two
-    /// tables assigning their own sequences would give one name two identities.
-    pub(super) fn next_atom(&self) -> u32 {
-        u32::try_from(self.atoms.len() + self.qualified_atoms.len()).expect("atom space exhausted") + 1
+        self.atoms.intern_qualified(namespace, name)
     }
 
     /// Add a style rule that only applies inside a scope, naming the scope's root selectors.
@@ -477,17 +484,12 @@ impl StyleEngine {
         let fold_id_and_class_name_case = self.fold_id_and_class_name_case;
         let html_element_namespace = self.html_element_namespace;
         let atoms = &mut self.atoms;
-        let qualified_atoms = &mut self.qualified_atoms;
         let mut intern = |raw: usize, namespace: Option<StyleAtomID>| -> StyleAtomID {
-            let next = u32::try_from(atoms.len() + qualified_atoms.len()).expect("atom space exhausted") + 1;
-            let local = *atoms.entry(raw).or_insert(StyleAtomID(next));
+            let local = atoms.intern_raw(raw);
             let Some(namespace) = namespace else {
                 return local;
             };
-            let next = u32::try_from(atoms.len() + qualified_atoms.len()).expect("atom space exhausted") + 1;
-            *qualified_atoms
-                .entry((namespace.0, local.0))
-                .or_insert(StyleAtomID(next))
+            atoms.intern_qualified(namespace, local)
         };
 
         let mut compiler = SelectorCompiler::new(
@@ -524,17 +526,12 @@ impl StyleEngine {
         let fold_id_and_class_name_case = self.fold_id_and_class_name_case;
         let html_element_namespace = self.html_element_namespace;
         let atoms = &mut self.atoms;
-        let qualified_atoms = &mut self.qualified_atoms;
         let mut intern = |raw: usize, namespace: Option<StyleAtomID>| -> StyleAtomID {
-            let next = u32::try_from(atoms.len() + qualified_atoms.len()).expect("atom space exhausted") + 1;
-            let local = *atoms.entry(raw).or_insert(StyleAtomID(next));
+            let local = atoms.intern_raw(raw);
             let Some(namespace) = namespace else {
                 return local;
             };
-            let next = u32::try_from(atoms.len() + qualified_atoms.len()).expect("atom space exhausted") + 1;
-            *qualified_atoms
-                .entry((namespace.0, local.0))
-                .or_insert(StyleAtomID(next))
+            atoms.intern_qualified(namespace, local)
         };
 
         let mut compiler = SelectorCompiler::new(
