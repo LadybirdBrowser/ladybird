@@ -317,7 +317,7 @@ impl StyleEngine {
             && exact_tree_routing_is_selective(arriving_nodes.len() + departing_nodes, connected_element_count);
         let mut transaction_fact_view = self.transaction_fact_view_for(&mut transaction, root, &regions);
         if use_exact_tree_routing {
-            let _ = self.populate_before_sibling_relations(&mut transaction_fact_view, &transaction, &arriving_nodes);
+            let _ = self.install_before_sibling_geometry(&mut transaction_fact_view);
         }
         let has_before_sibling_relations = transaction_fact_view.before_sibling_relations_available;
         self.prefix_caches.borrow_mut().states.mark_previous();
@@ -1536,192 +1536,73 @@ impl StyleEngine {
     }
 
     #[must_use]
-    /// Reconstruct the old child sequences touched by this transaction's tree deltas.
-    ///
-    /// The normalized transaction holds each touched node's start-of-transaction relations, so
-    /// the old sequences are recoverable without replay: current children that did not move
-    /// keep their relative order, nodes that arrived were not there, and every node that
-    /// started under a parent names the neighbours it had then. Every reconstructed sequence
-    /// must admit exactly one topological order of those facts; ambiguity or contradiction
-    /// leaves the whole before side unavailable rather than guessing.
-    pub(super) fn populate_before_sibling_relations(
-        &self,
-        view: &mut TransactionFactView,
-        transaction: &StyleTransaction,
-        arriving_nodes: &[StyleNodeID],
-    ) -> bool {
-        // Nodes whose position genuinely moved, with their start and current relations. A delta
-        // that only renamed a neighbour leaves the node in place, so it stays with the current
-        // sequence order below.
-        let mut moved: Vec<(StyleNodeID, Option<TreeRelations>, Option<TreeRelations>)> = Vec::new();
-        let mut absent: Vec<StyleNodeID> = Vec::new();
-        for input in &transaction.inputs {
-            let (InputKey::TreeRelations(node), InputValue::TreeRelations(old), InputValue::TreeRelations(new)) =
-                (input.key, input.old, input.new)
-            else {
-                continue;
-            };
-            match (old, new) {
-                (Some(mut normalized), Some(new_relations)) => {
-                    normalized.previous_element_sibling = new_relations.previous_element_sibling;
-                    if normalized != new_relations {
-                        moved.push((node, old, new));
-                    }
-                }
-                (Some(_), None) => moved.push((node, old, new)),
-                (None, Some(_)) => {
-                    moved.push((node, old, new));
-                    absent.push(node);
-                }
-                // A node that arrived and departed within one transaction was absent on both
-                // sides; nothing places it, and the before side must not think it was there.
-                (None, None) => absent.push(node),
-            }
-        }
-        if moved.is_empty() && arriving_nodes.is_empty() {
+    /// Materialize old child sequences directly from the tree family's frozen before rows.
+    pub(super) fn install_before_sibling_geometry(&self, view: &mut TransactionFactView) -> bool {
+        let staged_rows = self.tree_staging.rows();
+        if staged_rows.is_empty() {
             view.clear_before_sibling_relations();
             return false;
         }
-        moved.sort_unstable_by_key(|&(node, ..)| node);
-        // The arriving set is authoritative for who was absent at the start even if
-        // normalization cancels that node's tree-relations entry.
-        absent.extend_from_slice(arriving_nodes);
-        absent.sort_unstable();
-        absent.dedup();
 
-        let mut parents: Vec<StyleNodeID> = Vec::new();
-        for &(_, old, new) in &moved {
-            if let Some(old_relations) = old {
-                parents.extend(old_relations.parent);
+        let mut parents = Vec::new();
+        for &(_, before, after) in &staged_rows {
+            if let Some(relations) = before {
+                parents.extend(relations.parent);
             }
-            if let Some(new_relations) = new {
-                parents.extend(new_relations.parent);
+            if let Some(relations) = after {
+                parents.extend(relations.parent);
             }
         }
-        // A cancelled arrival entry loses its parent with it, but the node is live now, so the
-        // live tree still names the sequence its arrival disturbed.
-        for &node in arriving_nodes {
-            parents.extend(self.tree.parent(node));
-        }
+        parents.extend(
+            self.tree_staging
+                .first_children()
+                .into_iter()
+                .map(|(parent, _, _)| parent),
+        );
         parents.sort_unstable();
         parents.dedup();
 
-        for &node in &absent {
-            view.mark_before_absent(node);
-        }
-        for &parent in &parents {
-            if self
-                .reconstruct_before_sibling_sequence(view, parent, &moved, &absent)
-                .is_none()
-            {
-                view.clear_before_sibling_relations();
-                return false;
+        for &(node, before, _) in &staged_rows {
+            if before.is_none() {
+                view.mark_before_absent(node);
             }
+        }
+
+        let maximum_sequence_length = self.tree.connected_element_count() as usize + staged_rows.len() + 1;
+        for parent in parents {
+            let resident_first = self
+                .tree
+                .is_live(parent)
+                .then(|| self.tree.first_element_child(parent))
+                .flatten();
+            let mut child = self
+                .tree_staging
+                .before_first_child(parent, resident_first)
+                .or_else(|| {
+                    staged_rows.iter().find_map(|&(node, before, _)| {
+                        before
+                            .is_some_and(|relations| {
+                                relations.parent == Some(parent) && relations.previous_element_sibling.is_none()
+                            })
+                            .then_some(node)
+                    })
+                });
+            let mut sequence = Vec::new();
+            while let Some(node) = child {
+                assert!(
+                    sequence.len() < maximum_sequence_length,
+                    "frozen before-side child sequence must be acyclic"
+                );
+                sequence.push(node);
+                let resident = self.tree.is_live(node).then(|| self.settled_tree_relations(node));
+                child = self
+                    .tree_staging
+                    .before_relations(node, resident)
+                    .and_then(|relations| relations.next_element_sibling);
+            }
+            view.insert_before_sibling_sequence(parent, sequence);
         }
         view.finish_before_sibling_relations();
         true
-    }
-
-    /// Rebuild one parent's start-of-transaction child sequence from ordering facts, requiring
-    /// a unique topological order.
-    pub(super) fn reconstruct_before_sibling_sequence(
-        &self,
-        view: &mut TransactionFactView,
-        parent: StyleNodeID,
-        moved: &[(StyleNodeID, Option<TreeRelations>, Option<TreeRelations>)],
-        absent: &[StyleNodeID],
-    ) -> Option<()> {
-        // Current children that did not move preserve their relative order from the start of
-        // the transaction, so consecutive keepers yield ordering facts even across the places
-        // arrivals now occupy or departures used to.
-        let mut nodes: Vec<StyleNodeID> = Vec::new();
-        let mut edges: Vec<(StyleNodeID, StyleNodeID)> = Vec::new();
-        let mut previous_kept: Option<StyleNodeID> = None;
-        for child in self.tree.children(parent) {
-            if moved.binary_search_by_key(&child, |&(node, ..)| node).is_ok() || absent.binary_search(&child).is_ok() {
-                continue;
-            }
-            if let Some(previous) = previous_kept {
-                edges.push((previous, child));
-            }
-            previous_kept = Some(child);
-            nodes.push(child);
-        }
-        // Every node that started under this parent joins with the neighbours it had then,
-        // whether it departed, relocated within the sequence, or moved to another parent.
-        // A recorded relation is the state at the node's first touch, not at the start of the
-        // transaction, so a neighbour that was not there at the start carries no ordering fact
-        // and is dropped; orderings between start-present nodes hold because insertions do not
-        // reorder them, and a reordering contradicts the reordered node's own start edges,
-        // which the unique-order requirement below turns into a bail.
-        let started_under_parent = |node| {
-            if absent.binary_search(&node).is_ok() {
-                return false;
-            }
-            match moved.binary_search_by_key(&node, |&(candidate, ..)| candidate) {
-                Ok(index) => moved[index].1.is_some_and(|relations| relations.parent == Some(parent)),
-                Err(_) => self.tree.parent(node) == Some(parent),
-            }
-        };
-        for &(node, old, _) in moved {
-            let Some(relations) = old else {
-                continue;
-            };
-            if relations.parent != Some(parent) || absent.binary_search(&node).is_ok() {
-                continue;
-            }
-            nodes.push(node);
-            if let Some(previous) = relations.previous_element_sibling
-                && started_under_parent(previous)
-            {
-                nodes.push(previous);
-                edges.push((previous, node));
-            }
-            if let Some(next) = relations.next_element_sibling
-                && started_under_parent(next)
-            {
-                nodes.push(next);
-                edges.push((node, next));
-            }
-        }
-        nodes.sort_unstable_by_key(|node| node.raw());
-        nodes.dedup();
-        edges.sort_unstable();
-        edges.dedup();
-
-        let mut indegrees = vec![0_u32; nodes.len()];
-        for &(before, after) in &edges {
-            if before == after {
-                return None;
-            }
-            let after_index = nodes.binary_search(&after).ok()?;
-            indegrees[after_index] = indegrees[after_index].checked_add(1)?;
-        }
-
-        let mut sequence = Vec::with_capacity(nodes.len());
-        let mut available = None;
-        for (index, &indegree) in indegrees.iter().enumerate() {
-            if indegree == 0 && available.replace(index).is_some() {
-                return None;
-            }
-        }
-        while sequence.len() < nodes.len() {
-            let next_index = available.take()?;
-            let next = nodes[next_index];
-            sequence.push(next);
-            let successor_start = edges.partition_point(|&(before, _)| before < next);
-            let successor_end =
-                successor_start + edges[successor_start..].partition_point(|&(before, _)| before == next);
-            for &(_, after) in &edges[successor_start..successor_end] {
-                let after_index = nodes.binary_search(&after).ok()?;
-                let indegree = indegrees.get_mut(after_index)?;
-                *indegree = indegree.checked_sub(1)?;
-                if *indegree == 0 && available.replace(after_index).is_some() {
-                    return None;
-                }
-            }
-        }
-        view.insert_before_sibling_sequence(parent, sequence);
-        Some(())
     }
 }

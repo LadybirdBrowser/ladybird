@@ -5497,49 +5497,6 @@ fn converging_departure_routes_are_folded_before_exact_tree_evaluation() {
 }
 
 #[test]
-fn cyclic_departure_snapshots_do_not_form_before_sibling_relations() {
-    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
-    let mut raw = [0_u32; 3];
-    engine.allocate_style_nodes(&mut raw);
-    let nodes: Vec<StyleNodeID> = raw.iter().map(|&raw| StyleNodeID::from_raw(raw).unwrap()).collect();
-    let mut transaction = StyleTransaction::default();
-    transaction.inputs.extend([
-        NormalizedInput {
-            key: InputKey::TreeRelations(nodes[1]),
-            old: InputValue::TreeRelations(Some(relations(Some(nodes[0].raw()), None, Some(nodes[2].raw())))),
-            new: InputValue::TreeRelations(None),
-        },
-        NormalizedInput {
-            key: InputKey::TreeRelations(nodes[2]),
-            old: InputValue::TreeRelations(Some(relations(Some(nodes[0].raw()), None, Some(nodes[1].raw())))),
-            new: InputValue::TreeRelations(None),
-        },
-    ]);
-
-    let mut view = engine.transaction_fact_view_for(&mut transaction, nodes[0], &ImpactRegions::new());
-    assert!(!engine.populate_before_sibling_relations(&mut view, &transaction, &[]));
-}
-
-#[test]
-fn ambiguous_departure_snapshots_do_not_guess_an_old_sibling_order() {
-    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
-    let mut raw = [0_u32; 3];
-    engine.allocate_style_nodes(&mut raw);
-    let nodes: Vec<StyleNodeID> = raw.iter().map(|&raw| StyleNodeID::from_raw(raw).unwrap()).collect();
-    let mut transaction = StyleTransaction::default();
-    transaction
-        .inputs
-        .extend(nodes[1..].iter().map(|&node| NormalizedInput {
-            key: InputKey::TreeRelations(node),
-            old: InputValue::TreeRelations(Some(relations(Some(nodes[0].raw()), None, None))),
-            new: InputValue::TreeRelations(None),
-        }));
-
-    let mut view = engine.transaction_fact_view_for(&mut transaction, nodes[0], &ImpactRegions::new());
-    assert!(!engine.populate_before_sibling_relations(&mut view, &transaction, &[]));
-}
-
-#[test]
 fn a_departed_sibling_reaches_only_the_following_sibling_forest() {
     let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
     let mut raw = [0_u32; 8];
@@ -5972,6 +5929,30 @@ fn departing_scope_roots_are_removed_from_the_reverse_scope_index() {
     engine.record_tree_delta(second_root, Some(TreeRelations::detached(scope)), None);
     discard_transaction(&mut engine);
     assert!(!engine.scope_by_root.contains_key(&second_root));
+    assert_eq!(engine.scope_roots[scope.0 as usize], None);
+}
+
+#[test]
+fn an_element_arriving_and_departing_in_one_transaction_is_forgotten() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let mut raw = [0_u32; 1];
+    engine.allocate_style_nodes(&mut raw);
+    let node = StyleNodeID::from_raw(raw[0]).unwrap();
+    let scope = TreeScopeID(1);
+    let class = StyleAtomID(100);
+
+    engine.record_tree_delta(node, None, Some(TreeRelations::detached(scope)));
+    engine.set_tree_scope_root(scope, node);
+    add_feature(&mut engine, node, LocalFeatureKey::Class(class));
+    engine.record_tree_delta(node, Some(TreeRelations::detached(scope)), None);
+    discard_transaction(&mut engine);
+
+    assert!(engine.facts.is_empty());
+    assert!(matches!(
+        engine.facts.postings().lookup(SelectorPostingKey::Class(class)),
+        Lookup::KnownAbsent
+    ));
+    assert_eq!(engine.scope_by_root.get(&node), None);
     assert_eq!(engine.scope_roots[scope.0 as usize], None);
 }
 

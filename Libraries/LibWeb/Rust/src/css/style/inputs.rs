@@ -33,9 +33,8 @@ impl StyleEngine {
             journal: NormalizationJournal::new(),
             initial_tree_batch_applied: false,
             initial_tree_bulk_load_is_pending: false,
-            pending_tree_rows: StableIterationMap::default(),
-            pending_first_children: HashMap::default(),
-            pending_tree_memory: MemoryLease::new(MemoryCategory::NormalizationJournal),
+            tree_staging: TreeRelationStaging::default(),
+            tree_staging_memory: MemoryLease::new(MemoryCategory::NormalizationJournal),
             pending_rule_conditions: PendingField::default(),
             pending_sheet_conditions: PendingField::default(),
             pending_sheet_enabled: PendingField::default(),
@@ -660,7 +659,7 @@ impl StyleEngine {
     #[must_use]
     pub fn has_pending_transaction(&self) -> bool {
         !self.journal.is_empty()
-            || !self.pending_tree_rows.is_empty()
+            || !self.tree_staging.is_empty()
             || !self.pending_rule_conditions.is_empty()
             || !self.pending_sheet_conditions.is_empty()
             || !self.pending_sheet_enabled.is_empty()
@@ -927,7 +926,7 @@ impl StyleEngine {
         old_if_unstaged: Option<TreeRelations>,
         new: Option<TreeRelations>,
     ) {
-        let old = self.pending_tree_rows.get(&node).copied().unwrap_or(old_if_unstaged);
+        let old = self.tree_staging.current_row(node, old_if_unstaged);
         if old == new {
             return;
         }
@@ -936,30 +935,26 @@ impl StyleEngine {
             InputValue::TreeRelations(old),
             InputValue::TreeRelations(new),
         );
-        self.pending_tree_rows.insert(node, new);
+        self.tree_staging.stage_row(node, old_if_unstaged, new);
     }
 
     pub(super) fn stage_connected_tree_row(&mut self, node: StyleNodeID, update: impl FnOnce(&mut TreeRelations)) {
         let old = self
-            .pending_tree_rows
-            .get(&node)
-            .copied()
-            .unwrap_or_else(|| Some(self.settled_tree_relations(node)));
+            .tree_staging
+            .current_row(node, Some(self.settled_tree_relations(node)));
         let mut new = old.expect("a pending neighbour must remain connected");
         update(&mut new);
         self.stage_tree_row(node, old, Some(new));
     }
 
     pub(super) fn set_pending_first_child(&mut self, parent: StyleNodeID, child: Option<StyleNodeID>) {
-        self.pending_first_children.insert(parent, child);
+        self.tree_staging
+            .stage_first_child(parent, self.tree.first_element_child(parent), child);
     }
 
-    pub(super) fn settle_pending_tree_memory(&mut self) {
-        let bytes = (self.pending_tree_rows.capacity()
-            * (size_of::<StyleNodeID>() + size_of::<Option<TreeRelations>>() + 1)
-            + self.pending_first_children.capacity()
-                * (size_of::<StyleNodeID>() + size_of::<Option<StyleNodeID>>() + 1)) as u64;
-        self.pending_tree_memory.resize_required_to(&mut self.memory, bytes);
+    pub(super) fn settle_tree_staging_memory(&mut self) {
+        let bytes = self.tree_staging.capacity_bytes();
+        self.tree_staging_memory.resize_required_to(&mut self.memory, bytes);
     }
 
     /// Stage one structural delta and the neighbour rows it derives.
@@ -998,19 +993,18 @@ impl StyleEngine {
             }
         }
         self.stage_tree_row(node, old, new);
-        self.settle_pending_tree_memory();
+        self.settle_tree_staging_memory();
     }
 
     /// Install final staged relation rows at the transaction barrier.
     pub(super) fn apply_staged_tree_deltas(&mut self) {
-        let pending_rows = std::mem::take(&mut self.pending_tree_rows);
-        let pending_first_children = std::mem::take(&mut self.pending_first_children);
-        self.pending_tree_memory.resize_required_to(&mut self.memory, 0);
-        if pending_rows.is_empty() {
+        if self.tree_staging.is_empty() || self.tree_staging.is_applied() {
             return;
         }
+        let pending_rows = self.tree_staging.dirty_rows();
+        let pending_first_children = self.tree_staging.dirty_first_children();
 
-        for (&node, &relations) in &pending_rows {
+        for &(node, _, relations) in &pending_rows {
             let Some(relations) = relations else {
                 self.tree.set_parent(node, None);
                 self.tree.set_next_element_sibling(node, None);
@@ -1031,11 +1025,11 @@ impl StyleEngine {
             self.tree
                 .set_assigned_slot(node, relations.assigned_slot, &mut self.memory);
         }
-        for (parent, child) in pending_first_children {
-            self.tree.set_first_element_child(parent, child);
+        for (parent, _, child) in &pending_first_children {
+            self.tree.set_first_element_child(*parent, *child);
         }
-        for (node, relations) in pending_rows {
-            if relations.is_some() {
+        for &(node, _, relations) in &pending_rows {
+            if relations.is_some() || !self.tree.is_live(node) {
                 continue;
             }
             self.winner_groups.remove(node);
@@ -1052,10 +1046,11 @@ impl StyleEngine {
                 live_animation_overlays_after as u64,
             );
             self.tree.retire_element(node, &mut self.memory);
-            // The facts stay until the transaction has been routed. What a departure reaches is
-            // decided by the features the element had, and routing runs after the barrier.
+            // The facts stay until routing finishes because they determine which selectors the
+            // departure can reach.
             self.departed.push(node);
         }
+        self.tree_staging.mark_applied();
         self.publish_budget_inputs();
     }
 
