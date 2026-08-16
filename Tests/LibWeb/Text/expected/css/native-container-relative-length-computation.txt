@@ -1,0 +1,14 @@
+initial width: 100px
+initial height: 50px
+initial margin-left: 40px
+initial margin-top: 20px
+initial border-top-left-radius: 20px 40px
+initial font-size: 20px
+viewport fallback width: 80px
+used no C++ longhand fallback: true
+resized width: 140px
+resized height: 75px
+resized margin-left: 60px
+resized margin-top: 30px
+resized border-top-left-radius: 30px 60px
+resized font-size: 30px

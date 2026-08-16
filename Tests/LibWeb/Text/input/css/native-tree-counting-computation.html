@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target {
+        z-index: sibling-index();
+        widows: calc(sibling-count() * 2);
+        left: calc(10% + 100px * sibling-index());
+        filter: brightness(sibling-count());
+        counter-increment: foo calc(sibling-count());
+        grid-row-start: sibling-index();
+    }
+</style>
+<div id="parent">
+    <div></div>
+    <div id="target"></div>
+    <div></div>
+    <div></div>
+    <div></div>
+</div>
+<script>
+    test(() => {
+        internals.resetStyleFfiCounters();
+        internals.updateStyle();
+
+        const computedStyle = getComputedStyle(target);
+        for (const property of [
+            "z-index",
+            "widows",
+            "left",
+            "filter",
+            "counter-increment",
+            "grid-row-start",
+        ]) {
+            println(`${property}: ${computedStyle.getPropertyValue(property)}`);
+        }
+        println(`used no C++ longhand fallback: ${internals.styleFfiCounters().longhandCppComputeFallbacks === 0}`);
+    });
+</script>

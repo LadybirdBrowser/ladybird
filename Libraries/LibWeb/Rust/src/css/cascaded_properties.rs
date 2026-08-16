@@ -480,6 +480,40 @@ pub unsafe extern "C" fn rust_cascaded_properties_has_style_sheet_context(
     })
 }
 
+/// Returns whether any winning declaration needs the element's sibling count or index.
+///
+/// # Safety
+/// `store` must be a valid store.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_cascaded_properties_uses_tree_counting_function(
+    store: *const CascadedPropertyStore,
+) -> bool {
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadedStoreQueryEntry);
+    abort_on_panic(|| {
+        unsafe { &*store }
+            .winning_declarations()
+            .any(|(_, value, _)| crate::css::style_compute::value_contains_tree_counting_function(unsafe { &*value }))
+    })
+}
+
+/// Returns the container-relative units used by any winning declaration.
+///
+/// # Safety
+/// `store` must be a valid store.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_cascaded_properties_container_relative_length_unit_mask(
+    store: *const CascadedPropertyStore,
+) -> u8 {
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadedStoreQueryEntry);
+    abort_on_panic(|| {
+        unsafe { &*store }
+            .winning_declarations()
+            .fold(0, |mask, (_, value, _)| {
+                mask | crate::css::style_compute::container_relative_length_unit_mask(unsafe { &*value })
+            })
+    })
+}
+
 /// A declared property in an `FfiCascadeBlock` crossing into `rust_cascade_matched_blocks`:
 /// the property identifier, its importance, and borrowed shared Rust value data.
 #[repr(C)]

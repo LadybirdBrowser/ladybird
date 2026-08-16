@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #container {
+        container-type: size;
+        width: 400px;
+        height: 200px;
+    }
+
+    #target {
+        width: calc(20cqw + 20px);
+        height: 25cqh;
+        margin-left: 10cqi;
+        margin-top: 10cqb;
+        border-radius: 10cqmin / 10cqmax;
+    }
+</style>
+<div id="container">
+    <div id="target"></div>
+</div>
+<div id="viewport-fallback"></div>
+<script>
+    test(() => {
+        const viewportFallback = document.getElementById("viewport-fallback");
+        getComputedStyle(container).width;
+        internals.resetStyleFfiCounters();
+
+        target.style.fontSize = "5cqw";
+        viewportFallback.style.width = "10cqw";
+        internals.updateStyle();
+
+        function dumpTargetStyle(label) {
+            const style = getComputedStyle(target);
+            println(`${label} width: ${style.width}`);
+            println(`${label} height: ${style.height}`);
+            println(`${label} margin-left: ${style.marginLeft}`);
+            println(`${label} margin-top: ${style.marginTop}`);
+            println(`${label} border-top-left-radius: ${style.borderTopLeftRadius}`);
+            println(`${label} font-size: ${style.fontSize}`);
+        }
+
+        dumpTargetStyle("initial");
+        println(`viewport fallback width: ${getComputedStyle(viewportFallback).width}`);
+        println(`used no C++ longhand fallback: ${internals.styleFfiCounters().longhandCppComputeFallbacks === 0}`);
+
+        container.style.width = "600px";
+        container.style.height = "300px";
+        dumpTargetStyle("resized");
+    });
+</script>

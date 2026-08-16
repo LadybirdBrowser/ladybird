@@ -9,8 +9,8 @@
 //! Mirrors the C++ `StyleValue::absolutized(ComputationContext const&)` dispatch: structural
 //! values recurse into their children and rebuild only when a child changed, dimensions convert
 //! to their canonical units, and lengths resolve through the shared length-resolution context.
-//! Types whose absolutization has not been ported (or that need C++-only state such as the DOM
-//! element) decline, and the caller routes the whole value through the C++ fallback. Preserving
+//! Types whose absolutization has not been ported (or that need C++-only state not captured in the
+//! computation environment) decline, and the caller routes the whole value through the C++ fallback. Preserving
 //! identity for unchanged values is a real contract: the store batch reuses wrappers and shared
 //! allocations based on pointer equality.
 
@@ -38,6 +38,9 @@ pub(crate) struct AbsolutizationContext<'a> {
     pub(crate) scheme: Option<u8>,
     /// Set when a viewport-relative length resolved, mirroring the C++ tracking flag.
     pub(crate) resolved_viewport_relative_length: Cell<bool>,
+    /// Immutable sibling facts supplied only when a winning cascaded value uses a
+    /// tree-counting function.
+    pub(crate) tree_counting: Option<(u64, u64)>,
 }
 
 /// The outcome for one value: unchanged (preserve identity) or a new allocation.
@@ -1247,8 +1250,11 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
             let mut tracked = false;
             let mut calc_length_context = *context.length;
             calc_length_context.resolved_viewport_relative_length = &raw mut tracked;
-            let outcome =
-                crate::css::calc::absolutize_calculation_value(value, (&raw const calc_length_context).cast());
+            let outcome = crate::css::calc::absolutize_calculation_value(
+                value,
+                (&raw const calc_length_context).cast(),
+                context.tree_counting,
+            );
             if tracked {
                 context.resolved_viewport_relative_length.set(true);
             }
@@ -1411,11 +1417,23 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
             )
         }
 
-        // The element-bound values (tree counting, random sharing, image base URLs) need DOM
-        // or document state. Decline so the C++ dispatch handles the whole value.
-        StyleValueData::TreeCountingFunction { .. }
-        | StyleValueData::RandomValueSharing { .. }
-        | StyleValueData::Image { .. } => None,
+        // Tree-counting functions resolve from immutable sibling facts captured before the
+        // longhand drive. Random sharing and image base URLs still need live external state.
+        StyleValueData::TreeCountingFunction {
+            function,
+            computed_type,
+        } => {
+            let (sibling_count, sibling_index) = context.tree_counting?;
+            let value = if *function == 0 { sibling_count } else { sibling_index };
+            Some(Absolutized::Changed(retain_new(if *computed_type == 0 {
+                StyleValueData::Number { value: value as f64 }
+            } else {
+                StyleValueData::Integer {
+                    value: i32::try_from(value).expect("sibling count exceeds CSS integer range"),
+                }
+            })))
+        }
+        StyleValueData::RandomValueSharing { .. } | StyleValueData::Image { .. } => None,
 
         StyleValueData::ColorFunction { .. } => absolutize_color_function(value, context),
         StyleValueData::ColorMix { .. } => absolutize_color_mix(value, context),
@@ -1536,6 +1554,7 @@ pub unsafe extern "C" fn rust_style_value_absolutize(
             length,
             scheme: has_scheme.then_some(scheme),
             resolved_viewport_relative_length: Cell::new(false),
+            tree_counting: None,
         };
         match absolutize(value, &context) {
             Some(Absolutized::Unchanged) => FfiAbsolutizedValue {
