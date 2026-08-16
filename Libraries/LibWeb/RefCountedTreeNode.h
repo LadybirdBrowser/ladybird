@@ -193,29 +193,10 @@ public:
         node->m_parent = static_cast<T&>(*this);
         m_last_child = node;
 
-        T* appended_child = node.ptr();
         if (previous_last_child)
             previous_last_child->m_next_sibling = move(node);
         else
             m_first_child = move(node);
-        synchronize_topology_around(*appended_child);
-    }
-
-    void prepend_child(NonnullRefPtr<T> node)
-    {
-        VERIFY(!node->parent());
-        VERIFY(!node->next_sibling());
-        VERIFY(!node->previous_sibling());
-
-        if (m_first_child)
-            m_first_child->m_previous_sibling = node;
-        node->m_next_sibling = m_first_child;
-        node->m_parent = static_cast<T&>(*this);
-        T* prepended_child = node.ptr();
-        m_first_child = move(node);
-        if (!m_last_child)
-            m_last_child = m_first_child;
-        synchronize_topology_around(*prepended_child);
     }
 
     void insert_before(NonnullRefPtr<T> node, T* child)
@@ -238,14 +219,7 @@ public:
         else
             m_first_child = node;
 
-        T* inserted_child = node.ptr();
         child->m_previous_sibling = move(node);
-        synchronize_topology_around(*inserted_child);
-    }
-
-    void insert_before(NonnullRefPtr<T> node, T& child)
-    {
-        insert_before(move(node), &child);
     }
 
     void remove_child(T& node)
@@ -275,51 +249,6 @@ public:
         node.m_next_sibling.clear();
         node.m_previous_sibling.clear();
         node.m_parent.clear();
-
-        if constexpr (requires { node.synchronize_topology(); }) {
-            static_cast<T&>(*this).synchronize_topology();
-            node.synchronize_topology();
-            if (previous_sibling)
-                previous_sibling->synchronize_topology();
-            if (next_sibling)
-                next_sibling->synchronize_topology();
-        }
-        note_structural_change_to_layout_caches();
-    }
-
-    void replace_child(NonnullRefPtr<T> new_child, T& old_child)
-    {
-        VERIFY(&old_child != new_child.ptr());
-        VERIFY(static_cast<RefCountedTreeNode<T>&>(old_child).parent().ptr() == static_cast<T*>(this));
-        VERIFY(!new_child->parent());
-        VERIFY(!new_child->next_sibling());
-        VERIFY(!new_child->previous_sibling());
-
-        auto previous_sibling = old_child.previous_sibling();
-        auto next_sibling = old_child.next_sibling();
-        RefPtr<T> old_child_ref = old_child;
-
-        new_child->m_parent = static_cast<T&>(*this);
-        new_child->m_previous_sibling = previous_sibling;
-        new_child->m_next_sibling = next_sibling;
-
-        if (previous_sibling)
-            previous_sibling->m_next_sibling = new_child;
-        else
-            m_first_child = new_child;
-
-        if (next_sibling)
-            next_sibling->m_previous_sibling = new_child;
-        else
-            m_last_child = new_child;
-
-        old_child_ref->m_next_sibling.clear();
-        old_child_ref->m_previous_sibling.clear();
-        old_child_ref->m_parent.clear();
-
-        synchronize_topology_around(*new_child);
-        if constexpr (requires { old_child.synchronize_topology(); })
-            old_child.synchronize_topology();
     }
 
     void remove()
@@ -604,8 +533,6 @@ public:
             child->m_next_sibling.clear();
             child->m_previous_sibling.clear();
             child->m_parent.clear();
-            if constexpr (requires { child->synchronize_topology(); })
-                child->synchronize_topology();
         }
         m_last_child.clear();
     }
@@ -614,25 +541,6 @@ protected:
     RefCountedTreeNode() = default;
 
 private:
-    void synchronize_topology_around(T& node)
-    {
-        if constexpr (requires { node.synchronize_topology(); }) {
-            static_cast<T&>(*this).synchronize_topology();
-            node.synchronize_topology();
-            if (auto* previous_sibling = node.previous_sibling_ptr())
-                previous_sibling->synchronize_topology();
-            if (auto* next_sibling = node.next_sibling_ptr())
-                next_sibling->synchronize_topology();
-        }
-        note_structural_change_to_layout_caches();
-    }
-
-    void note_structural_change_to_layout_caches()
-    {
-        if constexpr (requires { static_cast<T&>(*this).bump_fragment_cache_epoch_of_self_and_ancestors(); })
-            static_cast<T&>(*this).bump_fragment_cache_epoch_of_self_and_ancestors();
-    }
-
     WeakPtr<T> m_parent;
     RefPtr<T> m_first_child;
     WeakPtr<T> m_last_child;
