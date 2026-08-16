@@ -31,7 +31,7 @@
             println(getComputedStyle(baz).mathDepth);
             const randomMathDepth = parseInt(getComputedStyle(qux).mathDepth);
             println(`element-cached value is in range: ${randomMathDepth >= 0 && randomMathDepth <= 10}`);
-            println(`used no C++ longhand fallback: ${internals.styleFfiCounters().longhandCppComputeFallbacks === 0}`);
+            println(`used no C++ longhand fallback: ${!("longhandCppComputeFallbacks" in internals.styleFfiCounters())}`);
         });
     </script>
 </html>

@@ -490,7 +490,7 @@ fn compute_font_weight(value: &StyleValueData, inherited_font_weight: f64) -> Ff
             _ => NUMBER_UNHANDLED,
         },
         // Calc values resolve in the calc core with no external context; anything the
-        // core cannot resolve keeps the C++ caller's behavior.
+        // core cannot resolve is reported as unhandled.
         StyleValueData::Calculated { .. } => match crate::css::calc::resolve_calculated_number_without_context(value) {
             Some(resolved) => computed(resolved),
             None => NUMBER_UNHANDLED,
@@ -536,7 +536,7 @@ fn compute_font_width(value: &StyleValueData) -> FfiComputedNumber {
             _ => NUMBER_UNHANDLED,
         },
         // Calc percentages resolve in the calc core with no external context; anything
-        // the core cannot resolve keeps the C++ caller's behavior.
+        // the core cannot resolve is reported as unhandled.
         StyleValueData::Calculated { .. } => {
             match crate::css::calc::resolve_calculated_percentage_without_context(value) {
                 Some(resolved) => computed(resolved),
@@ -681,7 +681,7 @@ fn compute_font_size(
             }
         }
         // Calc lengths and percentages resolve in the calc core against the inherited
-        // font size; anything the core cannot resolve keeps the C++ caller's behavior.
+        // font size; anything the core cannot resolve is reported as unhandled.
         StyleValueData::Calculated { .. } => {
             match crate::css::calc::resolve_calculated_length_without_context(value, inherited_font_size.to_double()) {
                 Some(px) => computed(px),
@@ -1762,7 +1762,7 @@ fn compute_math_depth(
         //   of math-depth of the element is the specified integer.
         StyleValueData::Integer { value } => computed(*value),
         // Calc values resolve to an integer in the calc core with no external context;
-        // anything the core cannot resolve keeps the C++ caller's behavior.
+        // anything the core cannot resolve is reported as unhandled.
         StyleValueData::Calculated { .. } => {
             match crate::css::calc::resolve_calculated_integer_without_context(value) {
                 Some(int) => computed(int),
@@ -2511,7 +2511,7 @@ pub extern "C" fn rust_map_physical_to_logical_alias(property_id: u16, writing_m
 /// One deferred side-effect operation for a longhand result. Rust stores
 /// native results before the callback; the entry also carries the selected
 /// value and flags needed for animated inheritance, inheritance-dependence
-/// bookkeeping, and remaining C++ computation.
+/// bookkeeping, and C++ side effects.
 #[repr(C)]
 pub struct FfiComputedStoreEntry {
     pub property_id: u16,
@@ -2550,11 +2550,6 @@ pub const COMPUTED_KIND_NUMBER: u8 = 4;
 pub const COMPUTED_KIND_PERCENTAGE: u8 = 5;
 /// A font-style value of the font-style keyword code in `value`.
 pub const COMPUTED_KIND_FONT_STYLE: u8 = 6;
-/// The value still needs computation, which the C++ flush handler performs in
-/// entry order; deferring it into the batch preserves the store sequence and
-/// the reads later computations make, since those reads only happen inside
-/// callbacks the driver invokes after flushing.
-pub const COMPUTED_KIND_COMPUTE_IN_CPP: u8 = 7;
 /// A keyword whose numeric code is carried in `value`.
 pub const COMPUTED_KIND_KEYWORD: u8 = 8;
 /// A display value encoded as tag | first << 8 | second << 16 | third << 24.
@@ -2564,15 +2559,15 @@ pub const COMPUTED_KIND_STYLE_VALUE: u8 = 10;
 
 /// The leaf callbacks the C++ side provides to the property computation
 /// driver. The driver selects each longhand's cascaded, inherited or initial
-/// value natively and calls back only to apply C++ side effects or fallback
-/// computation.
+/// value natively and calls back only to apply C++ side effects for completed
+/// native results.
 #[repr(C)]
 pub struct FfiLonghandCallbacks {
     pub context: *mut c_void,
     /// Applies one ordered action batch. Rust has already stored native
-    /// results; C++ applies their side effects and performs any remaining C++
-    /// computation, then stores a nonnegative effective color scheme. Every
-    /// entry's value stays alive for the duration of the drive: cascaded data
+    /// results; C++ applies their side effects, then stores a nonnegative
+    /// effective color scheme. Every entry's value stays alive for the duration
+    /// of the drive: cascaded data
     /// is retained by the store,
     /// initial values are immortal, and parent values are owned by the parent
     /// style behind the snapshot, which outlives the drive.
@@ -2669,10 +2664,8 @@ pub(crate) fn value_absolutization_is_identity(value: &StyleValueData) -> bool {
     }
 }
 
-/// Properties with a dedicated computed-value rule in the C++ dispatcher
-/// (StyleComputer::compute_value_of_property); everything else computes as
-/// plain absolutization. Mirrors the C++ switch until the dispatch moves
-/// into the core.
+/// Properties with a dedicated computed-value rule in the native driver;
+/// everything else computes as plain absolutization.
 fn property_has_dedicated_compute_rule(property_id: u16) -> bool {
     use crate::css::property_metadata::property_id as prop;
     matches!(
@@ -2921,7 +2914,6 @@ fn store_pending_values(longhand_table: *mut ComputedLonghandTable, pending_stor
             longhand_table.add_inheritance_dependent_value(entry.property_id, specified_value);
         }
         let retained = match entry.computed_kind {
-            COMPUTED_KIND_COMPUTE_IN_CPP => continue,
             COMPUTED_KIND_UNCHANGED => unsafe {
                 RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(
                     entry.data.cast(),
@@ -3328,11 +3320,11 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             };
 
             if requires_computation {
-                // Plain length values of properties without a dedicated computed-value rule
-                // absolutize natively; everything else still computes through C++.
+                // First classify values handled by simple absolutization. Recursive and
+                // dedicated property rules below handle the remaining shapes.
                 // The specified value absolutized natively when the core can:
                 // Some(None) leaves the value unchanged, Some(Some(px)) resolves it to
-                // a pixel length, and None means C++ must handle it.
+                // a pixel length, and None means no simple result is available.
                 let mut absolutized: Option<Option<f64>> = if value_absolutization_is_identity(value_data) {
                     Some(None)
                 } else if let StyleValueData::Length {
@@ -3364,6 +3356,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 let externally_absolutized = if value_contains_tree_counting_function(value_data)
                     || container_relative_length_unit_mask(value_data) != 0
                     || value_contains_unfixed_random_sharing(value_data)
+                    || matches!(value_data, StyleValueData::Calculated { .. })
                     || inherited_property_id == crate::css::property_metadata::property_id::MATH_DEPTH
                         && matches!(
                             value_data,
@@ -3749,7 +3742,25 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                             None => NativeValue::Unsupported,
                         }
                     }
-                    (Some(absolutized), prop::LINE_HEIGHT) => {
+                    (_, prop::LINE_HEIGHT) if matches!(value_data, StyleValueData::Calculated { .. }) => {
+                        let resolution_context = length_resolution_context
+                            .expect("calculated line-height requires a length resolution context");
+                        let result = compute_line_height(
+                            value_data,
+                            CssPixels::nearest_value_for(resolution_context.font_metrics.font_size),
+                        );
+                        if result.handled && result.is_number {
+                            NativeValue::Number(result.value)
+                        } else if result.handled && !result.unchanged {
+                            NativeValue::Px(result.value)
+                        } else if result.handled {
+                            NativeValue::Unchanged
+                        } else {
+                            NativeValue::Unsupported
+                        }
+                    }
+                    (_, prop::LINE_HEIGHT) => {
+                        let absolutized = absolutized.flatten();
                         let result = if matches!(value_data, StyleValueData::Percentage { .. }) {
                             let resolution_context =
                                 length_resolution_context.expect("line-height must run with a resolution context");
@@ -3774,57 +3785,6 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                             }
                         } else {
                             NativeValue::Unsupported
-                        }
-                    }
-                    (None, prop::LINE_HEIGHT) if matches!(value_data, StyleValueData::Calculated { .. }) => {
-                        let resolution_context = length_resolution_context
-                            .expect("calculated line-height requires a length resolution context");
-                        let absolutization_context = crate::css::absolutize::AbsolutizationContext {
-                            length: resolution_context,
-                            scheme: None,
-                            resolved_viewport_relative_length: std::cell::Cell::new(false),
-                            tree_counting: tree_counting_context,
-                            random_base_values,
-                            document_base_url,
-                            style_sheet_resource_context,
-                        };
-                        let absolutized = crate::css::absolutize::absolutize(value_data, &absolutization_context);
-                        if absolutization_context.resolved_viewport_relative_length.get() {
-                            results.depends_on_viewport_metrics = true;
-                            results.font_metrics_depend_on_viewport_metrics = true;
-                        }
-                        match absolutized {
-                            Some(crate::css::absolutize::Absolutized::Unchanged) => {
-                                let result = compute_line_height(
-                                    value_data,
-                                    CssPixels::nearest_value_for(resolution_context.font_metrics.font_size),
-                                );
-                                if result.handled && result.is_number {
-                                    NativeValue::Number(result.value)
-                                } else if result.handled && !result.unchanged {
-                                    NativeValue::Px(result.value)
-                                } else if result.handled {
-                                    NativeValue::Unchanged
-                                } else {
-                                    NativeValue::Unsupported
-                                }
-                            }
-                            Some(crate::css::absolutize::Absolutized::Changed(value)) => {
-                                let result = compute_line_height(
-                                    value.data(),
-                                    CssPixels::nearest_value_for(resolution_context.font_metrics.font_size),
-                                );
-                                if result.handled && result.is_number {
-                                    NativeValue::Number(result.value)
-                                } else if result.handled && !result.unchanged {
-                                    NativeValue::Px(result.value)
-                                } else if result.handled {
-                                    NativeValue::StyleValue(value.into_arc())
-                                } else {
-                                    NativeValue::Unsupported
-                                }
-                            }
-                            None => NativeValue::Unsupported,
                         }
                     }
                     (None, prop::FONT_FAMILY) if matches!(value_data, StyleValueData::ValueList { .. }) => {
@@ -3899,7 +3859,13 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                         Some(value) => NativeValue::StyleValue(value),
                         None => NativeValue::Unsupported,
                     },
-                    (Some(absolutized), prop::LETTER_SPACING | prop::WORD_SPACING) => {
+                    (_, prop::LETTER_SPACING | prop::WORD_SPACING)
+                        if matches!(value_data, StyleValueData::Calculated { .. }) =>
+                    {
+                        NativeValue::Unchanged
+                    }
+                    (_, prop::LETTER_SPACING | prop::WORD_SPACING) => {
+                        let absolutized = absolutized.flatten();
                         let synthesized = synthesized_px_length(absolutized);
                         let result = compute_letter_or_word_spacing_value(synthesized.as_ref().unwrap_or(value_data));
                         if result.handled {
@@ -3913,33 +3879,6 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                             }
                         } else {
                             NativeValue::Unsupported
-                        }
-                    }
-                    (None, prop::LETTER_SPACING | prop::WORD_SPACING)
-                        if matches!(value_data, StyleValueData::Calculated { .. }) =>
-                    {
-                        let resolution_context =
-                            length_resolution_context.expect("calculated spacing requires a length resolution context");
-                        let absolutization_context = crate::css::absolutize::AbsolutizationContext {
-                            length: resolution_context,
-                            scheme: None,
-                            resolved_viewport_relative_length: std::cell::Cell::new(false),
-                            tree_counting: tree_counting_context,
-                            random_base_values,
-                            document_base_url,
-                            style_sheet_resource_context,
-                        };
-                        let absolutized = crate::css::absolutize::absolutize(value_data, &absolutization_context);
-                        if absolutization_context.resolved_viewport_relative_length.get() {
-                            results.depends_on_viewport_metrics = true;
-                            results.font_metrics_depend_on_viewport_metrics = true;
-                        }
-                        match absolutized {
-                            Some(crate::css::absolutize::Absolutized::Unchanged) => NativeValue::Unchanged,
-                            Some(crate::css::absolutize::Absolutized::Changed(value)) => {
-                                NativeValue::StyleValue(value.into_arc())
-                            }
-                            None => NativeValue::Unsupported,
                         }
                     }
                     (_, prop::POSITION_AREA) => match compute_position_area(value_data) {
@@ -4009,8 +3948,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     NativeValue::StyleValue(value) => (COMPUTED_KIND_STYLE_VALUE, 0.0, Arc::into_raw(value).cast()),
                     NativeValue::Unchanged => (COMPUTED_KIND_UNCHANGED, 0.0, std::ptr::null()),
                     NativeValue::Unsupported => {
-                        crate::css::ffi_stats::note_longhand_cpp_compute_fallback(inherited_property_id);
-                        (COMPUTED_KIND_COMPUTE_IN_CPP, 0.0, std::ptr::null())
+                        unreachable!("unsupported native computation for longhand property {inherited_property_id}")
                     }
                 };
                 pending_stores.push(FfiComputedStoreEntry {

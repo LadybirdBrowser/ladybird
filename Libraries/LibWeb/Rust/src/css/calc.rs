@@ -3870,9 +3870,13 @@ pub(crate) fn absolutize_calculation_value(
         if !matches!(external.kind, FfiCalcExternalResolutionKind::NonMathFunction) {
             return None;
         }
-        let StyleValueData::TreeCountingFunction { function, .. } =
-            (unsafe { &*external.source.cast::<StyleValueData>() })
-        else {
+        let source = unsafe { &*external.source.cast::<StyleValueData>() };
+        let StyleValueData::TreeCountingFunction { function, .. } = source else {
+            if matches!(source, StyleValueData::Anchor { .. }) {
+                // anchor() stays unresolved until style and layout interleaving supplies
+                // an anchor resolver, matching the context-free computed-value pass.
+                continue;
+            }
             return None;
         };
         let (sibling_count, sibling_index) = tree_counting?;

@@ -170,7 +170,6 @@ public:
     GC::Ref<JS::Object> compare_layout_tree_with_full_rebuild();
     GC::Ref<JS::Object> computed_values_stats();
     GC::Ref<JS::Object> style_ffi_counters();
-    Vector<u32> style_cpp_longhand_fallbacks();
     GC::Ref<JS::Object> style_engine_counters();
     u64 style_record_identity(DOM::Element&);
     u64 layout_style_record_identity(DOM::Element&);
