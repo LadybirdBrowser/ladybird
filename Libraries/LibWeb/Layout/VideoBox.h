@@ -19,9 +19,6 @@ public:
 
     HTML::HTMLVideoElement& dom_node();
     HTML::HTMLVideoElement const& dom_node() const;
-
-private:
-    virtual CSS::SizeWithAspectRatio natural_size() const override;
 };
 
 }

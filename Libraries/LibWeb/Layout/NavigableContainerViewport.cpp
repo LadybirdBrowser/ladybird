@@ -24,26 +24,6 @@ NavigableContainerViewport::NavigableContainerViewport(DOM::Document& document, 
 
 NavigableContainerViewport::~NavigableContainerViewport() = default;
 
-CSS::SizeWithAspectRatio NavigableContainerViewport::natural_size() const
-{
-    if (!is<HTML::HTMLObjectElement>(dom_node()))
-        return {};
-
-    if (auto const* content_document = dom_node().content_document_without_origin_check()) {
-        if (auto const* root = content_document->document_element();
-            root && root->is_svg_svg_element()) {
-
-            auto const& svg_root = as<SVG::SVGSVGElement>(*root);
-            auto resolution_context = svg_root.layout_node()
-                ? CSS::Length::ResolutionContext::for_layout_node(*svg_root.layout_node())
-                : CSS::Length::ResolutionContext::for_document(*content_document);
-            auto metrics = SVG::SVGSVGElement::negotiate_natural_metrics(svg_root, resolution_context);
-            return { metrics.width, metrics.height, metrics.aspect_ratio };
-        }
-    }
-    return {};
-}
-
 void NavigableContainerViewport::did_set_content_size()
 {
     ReplacedBox::did_set_content_size();

@@ -17,9 +17,6 @@ class RadioButton final : public ReplacedBox {
 public:
     RadioButton(DOM::Document&, HTML::HTMLInputElement&, CSS::LayoutStyle);
     virtual ~RadioButton() override;
-
-private:
-    CSS::SizeWithAspectRatio compute_auto_content_box_size() const override { return { 12, 12, {} }; }
 };
 
 }

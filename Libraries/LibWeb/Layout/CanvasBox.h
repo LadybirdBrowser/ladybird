@@ -19,9 +19,6 @@ public:
     virtual ~CanvasBox() override;
 
     HTML::HTMLCanvasElement const& dom_node() const { return static_cast<HTML::HTMLCanvasElement const&>(*ReplacedBox::dom_node()); }
-
-private:
-    virtual CSS::SizeWithAspectRatio compute_auto_content_box_size() const override;
 };
 
 }

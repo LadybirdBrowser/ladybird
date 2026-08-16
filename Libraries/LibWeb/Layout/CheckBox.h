@@ -17,9 +17,6 @@ class CheckBox final : public ReplacedBox {
 public:
     CheckBox(DOM::Document&, HTML::HTMLInputElement&, CSS::LayoutStyle);
     virtual ~CheckBox() override;
-
-private:
-    virtual CSS::SizeWithAspectRatio compute_auto_content_box_size() const override { return { 13, 13, {} }; }
 };
 
 }

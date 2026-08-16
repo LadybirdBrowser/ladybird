@@ -19,12 +19,6 @@ SVGSVGBox::SVGSVGBox(DOM::Document& document, SVG::SVGSVGElement& element, CSS::
 {
 }
 
-CSS::SizeWithAspectRatio SVGSVGBox::natural_size() const
-{
-    auto metrics = SVG::SVGSVGElement::negotiate_natural_metrics(dom_node(), CSS::Length::ResolutionContext::for_layout_node(*this));
-    return { metrics.width, metrics.height, metrics.aspect_ratio };
-}
-
 Gfx::FloatRect SVGSVGBox::view_box_or_viewport_rect() const
 {
     // active_view_box covers <view> redirection and the svg-as-image fallback viewBox, which

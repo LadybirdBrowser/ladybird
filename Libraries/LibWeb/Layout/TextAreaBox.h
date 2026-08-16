@@ -20,9 +20,6 @@ public:
     HTML::HTMLTextAreaElement const& dom_node() const { return static_cast<HTML::HTMLTextAreaElement const&>(*Box::dom_node()); }
 
     virtual ~TextAreaBox() override = default;
-
-private:
-    virtual CSS::SizeWithAspectRatio compute_auto_content_box_size() const override;
 };
 
 }
