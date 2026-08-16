@@ -4184,7 +4184,7 @@ asm_handler_GetById:
     ldr w3, [x21, #20]
     ldr x0, [x0, x3, lsl #3]
     cbz x0, .Lasm_GetById.ssa_block_1
-    and x0, x0, #0xfffffffffffffffe
+    and x0, x0, #0xfffffffffffffffc
     ldp x4, x3, [x0, #24]
     cmp x4, x1
     b.ne .Lasm_GetById.ssa_block_1
@@ -4228,7 +4228,7 @@ asm_handler_PutById:
     ldr w3, [x21, #20]
     ldr x0, [x0, x3, lsl #3]
     cbz x0, .Lasm_PutById.ssa_block_2
-    and x0, x0, #0xfffffffffffffffe
+    and x0, x0, #0xfffffffffffffffc
     ldp x4, x3, [x0, #24]
     cmp x4, x1
     b.ne .Lasm_PutById.ssa_block_2
@@ -4458,7 +4458,7 @@ asm_handler_GetLength:
     ldr w3, [x21, #16]
     ldr x0, [x0, x3, lsl #3]
     cbz x0, .Lasm_GetLength.ssa_block_1
-    and x0, x0, #0xfffffffffffffffe
+    and x0, x0, #0xfffffffffffffffc
     ldp x4, x3, [x0, #24]
     cmp x4, x2
     b.ne .Lasm_GetLength.ssa_block_1

@@ -2211,7 +2211,7 @@ i64 asm_try_put_by_id_cache(VM* vm, u32, Op::PutById const* instruction)
     auto value = vm->get(instruction->src());
     auto& cache = vm->current_executable().property_lookup_caches[instruction->cache()];
 
-    for (auto& entry : cache.entries()) {
+    for (auto& entry : cache.entries_for_shape(object.shape())) {
         switch (entry.type) {
         case PropertyLookupCache::Entry::Type::ChangeOwnProperty: {
             auto cached_shape = entry.shape.ptr();
@@ -2265,7 +2265,7 @@ i64 asm_try_get_by_id_cache(VM* vm, u32, Op::GetById const* instruction)
     auto& shape = object.shape();
     auto& cache = vm->current_executable().property_lookup_caches[instruction->cache()];
 
-    for (auto& entry : cache.entries()) {
+    for (auto& entry : cache.entries_for_shape(shape)) {
         if (entry.type != PropertyLookupCache::Entry::Type::GetOwnProperty
             && entry.type != PropertyLookupCache::Entry::Type::GetPropertyInPrototypeChain) {
             continue;

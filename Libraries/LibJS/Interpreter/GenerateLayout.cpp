@@ -110,7 +110,7 @@ int main()
     // PropertyLookupCache layout
     outln("\n# PropertyLookupCache layout");
     EMIT_OFFSET(PROPERTY_LOOKUP_CACHE_DATA, PropertyLookupCache, m_data);
-    outln("const PROPERTY_LOOKUP_CACHE_DATA_POINTER_MASK = 0x{:X}", ~PropertyLookupCache::polymorphic_data_tag);
+    outln("const PROPERTY_LOOKUP_CACHE_DATA_POINTER_MASK = 0x{:X}", ~PropertyLookupCache::cache_data_tag_mask);
     EMIT_SIZEOF(PROPERTY_LOOKUP_CACHE_SIZE, PropertyLookupCache);
 
     // PropertyLookupCache::Entry layout
