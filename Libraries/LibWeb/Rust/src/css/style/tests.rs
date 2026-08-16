@@ -7595,9 +7595,10 @@ fn repeated_selector_replacement_reuses_program_and_route_storage() {
     let mut retained_bytes = None;
 
     for index in 0..128_u32 {
-        let (program, inserted) = engine
-            .programs
-            .add_with_status(test_selector_program(".target", &[("target", StyleAtomID(index + 1))]));
+        let (program, inserted) = engine.programs.add_with_status(
+            test_selector_program(".target", &[("target", StyleAtomID(index + 1))]),
+            &mut engine.memory,
+        );
         engine.selector_programs_need_sweep |= inserted;
         engine.programs.settle_memory(&mut engine.memory);
         engine.add_routing_rule(rule, program);
@@ -7624,9 +7625,10 @@ fn adding_a_live_selector_program_keeps_existing_routing() {
 
     for index in 0..2_u32 {
         let rule = engine.append_rule(sheet, None, RuleKind::Style);
-        let (program, inserted) = engine
-            .programs
-            .add_with_status(test_selector_program(".target", &[("target", StyleAtomID(index + 1))]));
+        let (program, inserted) = engine.programs.add_with_status(
+            test_selector_program(".target", &[("target", StyleAtomID(index + 1))]),
+            &mut engine.memory,
+        );
         engine.selector_programs_need_sweep |= inserted;
         engine.programs.settle_memory(&mut engine.memory);
         engine.add_routing_rule(rule, program);

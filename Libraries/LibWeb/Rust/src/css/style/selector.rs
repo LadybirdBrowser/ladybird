@@ -43,9 +43,11 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::num::NonZeroU32;
 use std::rc::Rc;
+use std::rc::Weak;
 
 use super::TransactionFactSide;
 use super::TransactionFactView;
+use super::memory::DeviceClass;
 use super::memory::MemoryCategory;
 use super::memory::MemoryController;
 use super::memory::MemoryLease;
@@ -2186,12 +2188,113 @@ fn dispatch_selectivity(key: DispatchKey) -> u8 {
     }
 }
 
-/// The document's compiled selector programs.
+struct SharedSelectorProgram {
+    program: SelectorProgram,
+    hash: u64,
+    _memory: MemoryLease,
+}
+
+impl Drop for SharedSelectorProgram {
+    fn drop(&mut self) {
+        let _ = SHARED_SELECTOR_PROGRAMS.try_with(|shared| {
+            let Ok(mut shared) = shared.try_borrow_mut() else {
+                return;
+            };
+            let remove_bucket = if let Some(bucket) = shared.by_hash.get_mut(&self.hash) {
+                bucket.retain(|candidate| candidate.strong_count() != 0);
+                bucket.is_empty()
+            } else {
+                false
+            };
+            if remove_bucket {
+                shared.by_hash.remove(&self.hash);
+            }
+        });
+    }
+}
+
+struct SharedSelectorPrograms {
+    by_hash: HashMap<u64, Vec<Weak<SharedSelectorProgram>>>,
+    memory: MemoryController,
+}
+
+impl Default for SharedSelectorPrograms {
+    fn default() -> Self {
+        Self {
+            by_hash: HashMap::default(),
+            memory: MemoryController::new(DeviceClass::ForegroundDesktop),
+        }
+    }
+}
+
+thread_local! {
+    static SHARED_SELECTOR_PROGRAMS: RefCell<SharedSelectorPrograms> = RefCell::new(SharedSelectorPrograms::default());
+}
+
+fn share_selector_program(program: SelectorProgram) -> Rc<SharedSelectorProgram> {
+    let hash = SelectorPrograms::program_hash(&program);
+    SHARED_SELECTOR_PROGRAMS.with_borrow_mut(|shared| {
+        let bucket = shared.by_hash.entry(hash).or_default();
+        let mut found = None;
+        bucket.retain(|candidate| {
+            let Some(candidate) = candidate.upgrade() else {
+                return false;
+            };
+            if found.is_none() && candidate.program == program {
+                found = Some(candidate);
+            }
+            true
+        });
+        if let Some(found) = found {
+            return found;
+        }
+
+        let mut program_memory = MemoryLease::new(MemoryCategory::RuleProgram);
+        program_memory.reconcile_committed(&mut shared.memory, program.capacity_bytes());
+        let program = Rc::new(SharedSelectorProgram {
+            program,
+            hash,
+            _memory: program_memory,
+        });
+        bucket.push(Rc::downgrade(&program));
+        program
+    })
+}
+
+enum SelectorProgramStorage {
+    Document(SelectorProgram),
+    Process(Rc<SharedSelectorProgram>),
+}
+
+impl SelectorProgramStorage {
+    fn program(&self) -> &SelectorProgram {
+        match self {
+            Self::Document(program) => program,
+            Self::Process(program) => &program.program,
+        }
+    }
+
+    fn document_capacity_bytes(&self) -> u64 {
+        match self {
+            Self::Document(program) => program.capacity_bytes(),
+            Self::Process(_) => 0,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+enum SelectorProgramScope {
+    #[default]
+    Document,
+    Process,
+}
+
+/// One document's attachments to compiled selector programs.
 ///
-/// Programs are Tier-2 shared semantic IR: bounded relative to the compact parsed stylesheet
-/// program, and never a place for selector-result state to accumulate.
+/// The immutable program payloads are process-shared on the StyleEngine thread. Entry identities,
+/// attached rules, and every selector-result materialization remain document-local.
 pub struct SelectorPrograms {
-    programs: Vec<Option<SelectorProgram>>,
+    programs: Vec<Option<SelectorProgramStorage>>,
     vacant_programs: Vec<SelectorProgramID>,
     entry_ids_by_program: Vec<Option<Box<[EntryID]>>>,
     entry_locations: Vec<Option<(SelectorProgramID, u32)>>,
@@ -2205,6 +2308,7 @@ pub struct SelectorPrograms {
     /// cost a pass over every rule already in the document for each rule it adds.
     program_memory: MemoryLease,
     memory: MemoryLease,
+    scope: SelectorProgramScope,
 }
 
 impl Default for SelectorPrograms {
@@ -2218,6 +2322,7 @@ impl Default for SelectorPrograms {
             program_index: Vec::new(),
             program_memory: MemoryLease::new(MemoryCategory::RuleProgram),
             memory: MemoryLease::new(MemoryCategory::RuleProgram),
+            scope: SelectorProgramScope::Document,
         }
     }
 }
@@ -2228,11 +2333,38 @@ impl SelectorPrograms {
         Self::default()
     }
 
-    pub fn add(&mut self, program: SelectorProgram) -> SelectorProgramID {
-        self.add_with_status(program).0
+    pub(super) fn for_live_engine() -> Self {
+        Self {
+            #[cfg(not(test))]
+            scope: SelectorProgramScope::Process,
+            ..Self::default()
+        }
     }
 
-    pub(super) fn add_with_status(&mut self, program: SelectorProgram) -> (SelectorProgramID, bool) {
+    pub(super) fn for_replay() -> Self {
+        Self {
+            scope: SelectorProgramScope::Process,
+            ..Self::default()
+        }
+    }
+
+    pub fn add(&mut self, program: SelectorProgram) -> SelectorProgramID {
+        self.add_with_scope(program, None).0
+    }
+
+    pub(super) fn add_with_status(
+        &mut self,
+        program: SelectorProgram,
+        memory: &mut MemoryController,
+    ) -> (SelectorProgramID, bool) {
+        self.add_with_scope(program, Some(memory))
+    }
+
+    fn add_with_scope(
+        &mut self,
+        program: SelectorProgram,
+        _memory: Option<&mut MemoryController>,
+    ) -> (SelectorProgramID, bool) {
         let live_program_count = self.programs.len() - self.vacant_programs.len();
         if self.program_index.is_empty() || (live_program_count + 1) * 2 > self.program_index.len() {
             self.rebuild_program_index();
@@ -2250,7 +2382,13 @@ impl SelectorPrograms {
         let id = self.vacant_programs.pop().unwrap_or_else(|| {
             SelectorProgramID(u32::try_from(self.programs.len()).expect("selector program space exhausted"))
         });
-        self.program_memory.grow_committed(program.capacity_bytes());
+        let program = match self.scope {
+            SelectorProgramScope::Document => {
+                self.program_memory.grow_committed(program.capacity_bytes());
+                SelectorProgramStorage::Document(program)
+            }
+            SelectorProgramScope::Process => SelectorProgramStorage::Process(share_selector_program(program)),
+        };
         if id.0 as usize == self.programs.len() {
             self.programs.push(Some(program));
         } else {
@@ -2295,7 +2433,7 @@ impl SelectorPrograms {
             .programs
             .iter()
             .enumerate()
-            .filter_map(|(index, program)| program.as_ref().map(|program| (index, program)))
+            .filter_map(|(index, program)| program.as_ref().map(|program| (index, program.program())))
         {
             let id = SelectorProgramID(u32::try_from(index).expect("selector program space exhausted"));
             let mut bucket = Self::program_hash(program) as usize & (capacity - 1);
@@ -2317,6 +2455,7 @@ impl SelectorPrograms {
         self.programs[id.0 as usize]
             .as_ref()
             .expect("a selector program identity must remain live while referenced")
+            .program()
     }
 
     #[must_use]
@@ -2351,7 +2490,7 @@ impl SelectorPrograms {
                 continue;
             }
             if let Some(program) = slot.take() {
-                self.program_memory.shrink_committed(program.capacity_bytes());
+                self.program_memory.shrink_committed(program.document_capacity_bytes());
             }
             if let Some(entries) = self.entry_ids_by_program[index].take() {
                 for entry in entries {
@@ -2389,7 +2528,11 @@ impl SelectorPrograms {
     /// acceleration overhead can never inflate its own allowance.
     #[must_use]
     pub fn compact_bytes(&self) -> u64 {
-        self.programs.iter().flatten().map(SelectorProgram::compact_bytes).sum()
+        self.programs
+            .iter()
+            .flatten()
+            .map(|program| program.program().compact_bytes())
+            .sum()
     }
 
     #[must_use]
@@ -6779,6 +6922,48 @@ mod tests {
         }));
         assert_ne!(first, different);
         assert_eq!(programs.len(), 2);
+    }
+
+    #[test]
+    fn process_programs_share_payload_and_its_memory_lifetime() {
+        let make_program = || single_entry(|builder| builder.push_feature(FeatureTest::Class(StyleAtomID(91))));
+        let expected_bytes = make_program().capacity_bytes();
+        let program_hash = SelectorPrograms::program_hash(&make_program());
+        let mut first_memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut second_memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut first = SelectorPrograms::for_replay();
+        let mut second = SelectorPrograms::for_replay();
+        let (first_id, _) = first.add_with_status(make_program(), &mut first_memory);
+        let (second_id, _) = second.add_with_status(make_program(), &mut second_memory);
+
+        let (SelectorProgramStorage::Process(first_program), SelectorProgramStorage::Process(second_program)) = (
+            first.programs[first_id.0 as usize].as_ref().unwrap(),
+            second.programs[second_id.0 as usize].as_ref().unwrap(),
+        ) else {
+            panic!("replay selector programs must have process storage");
+        };
+        assert!(Rc::ptr_eq(first_program, second_program));
+        assert_eq!(first_memory.bytes_in_category(MemoryCategory::RuleProgram), 0);
+        assert_eq!(second_memory.bytes_in_category(MemoryCategory::RuleProgram), 0);
+        SHARED_SELECTOR_PROGRAMS.with_borrow(|shared| {
+            assert_eq!(
+                shared.memory.bytes_in_category(MemoryCategory::RuleProgram),
+                expected_bytes
+            )
+        });
+
+        drop(first);
+        SHARED_SELECTOR_PROGRAMS.with_borrow(|shared| {
+            assert_eq!(
+                shared.memory.bytes_in_category(MemoryCategory::RuleProgram),
+                expected_bytes
+            )
+        });
+        drop(second);
+        SHARED_SELECTOR_PROGRAMS.with_borrow(|shared| {
+            assert_eq!(shared.memory.bytes_in_category(MemoryCategory::RuleProgram), 0);
+            assert!(!shared.by_hash.contains_key(&program_hash));
+        });
     }
 
     #[test]
