@@ -44,11 +44,11 @@ use crate::css::computed_values::retained_group_payload_bytes;
 use crate::css::computed_values::style_group_payloads_equal;
 use crate::css::style_value::RetainedStyleValueData;
 use crate::css::style_value::StyleValueData;
+use crate::css::style_value::retain_style_value as retain_style_value_reference;
 use crate::css::style_value::retained_value_depends_on_color_scheme;
 use crate::css::style_value::retained_value_depends_on_current_color;
 use crate::css::style_value::retained_value_may_depend_on_font_metrics;
 use crate::css::style_value::rust_style_value_equals;
-use crate::css::style_value::rust_style_value_retain;
 
 // The high bit is a node-local production capability carried with publication and stripped before
 // the semantic fixed metadata is interned or exposed through a style-record view.
@@ -186,7 +186,7 @@ impl Drop for RetainedLonghandTable {
             RetainedLonghandTableStorage::Values(values) => {
                 for &value in values {
                     if !value.is_null() {
-                        unsafe { crate::css::style_value::rust_style_value_release(value.cast()) };
+                        unsafe { crate::css::style_value::release_style_value(value.cast()) };
                     }
                 }
             }
@@ -601,7 +601,7 @@ impl ComputedGroupSets {
             .iter()
             .map(|&value| match value.is_null() {
                 true => value,
-                false => unsafe { rust_style_value_retain(value.cast()) }.cast(),
+                false => unsafe { retain_style_value_reference(value.cast()) }.cast(),
             })
             .collect();
         self.reconstruction_nested_memory
@@ -2157,7 +2157,7 @@ fn retain_style_value(value: *const c_void) -> RetainedStyleValueData {
         !value.is_null(),
         "computed reconstruction metadata contains a null style value"
     );
-    let retained = unsafe { rust_style_value_retain(value.cast::<StyleValueData>()) };
+    let retained = unsafe { retain_style_value_reference(value.cast::<StyleValueData>()) };
     unsafe { RetainedStyleValueData::from_retained_pointer(retained) }
 }
 

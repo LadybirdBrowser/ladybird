@@ -135,7 +135,7 @@ impl ComputedStyleValueHandle {
 
     pub(crate) fn retained(data: *const crate::css::style_value::StyleValueData) -> Self {
         Self {
-            pointer: unsafe { crate::css::style_value::rust_style_value_retain(data) }.cast(),
+            pointer: unsafe { crate::css::style_value::retain_style_value(data) }.cast(),
         }
     }
 
@@ -169,14 +169,14 @@ impl ComputedStyleValueHandle {
 impl Clone for ComputedStyleValueHandle {
     fn clone(&self) -> Self {
         Self {
-            pointer: unsafe { crate::css::style_value::rust_style_value_retain(self.pointer.cast()) }.cast(),
+            pointer: unsafe { crate::css::style_value::retain_style_value(self.pointer.cast()) }.cast(),
         }
     }
 }
 
 impl Drop for ComputedStyleValueHandle {
     fn drop(&mut self) {
-        unsafe { crate::css::style_value::rust_style_value_release(self.pointer.cast()) };
+        unsafe { crate::css::style_value::release_style_value(self.pointer.cast()) };
     }
 }
 
@@ -1982,7 +1982,7 @@ unsafe fn apply_group_field_pokes(scratch: *mut c_void, pokes: &[GroupFieldPoke]
                 Poke::U32(offset, value) => *(base.add(offset as usize) as *mut u32) = value,
                 Poke::Data(offset, data) => {
                     // The slot's constructor default is null, so nothing is released.
-                    let retained = crate::css::style_value::rust_style_value_retain(data);
+                    let retained = crate::css::style_value::retain_style_value(data);
                     *(base.add(offset as usize) as *mut *const StyleValueData) = retained;
                 }
             }

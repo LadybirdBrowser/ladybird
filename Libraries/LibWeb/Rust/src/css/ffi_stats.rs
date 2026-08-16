@@ -70,8 +70,7 @@ define_ffi_ops! {
 static COUNTERS: [AtomicU64; FFI_OP_COUNT] = [const { AtomicU64::new(0) }; FFI_OP_COUNT];
 thread_local! {
     static COUNTERS_ENABLED: Cell<bool> = const { Cell::new(false) };
-    static COMPLETE_STYLE_UPDATE_DEPTH: Cell<u32> = const { Cell::new(0) };
-    static DEFERRED_CPP_RELEASES: RefCell<DeferredCppReleases> = const { RefCell::new(DeferredCppReleases::new()) };
+    static COMPLETE_STYLE_UPDATE_STATE: RefCell<CompleteStyleUpdateState> = const { RefCell::new(CompleteStyleUpdateState::new()) };
 }
 
 #[derive(Default)]
@@ -91,6 +90,22 @@ impl DeferredCppReleases {
     }
 }
 
+struct CompleteStyleUpdateState {
+    depth: u32,
+    releases: DeferredCppReleases,
+    has_outstanding_view: bool,
+}
+
+impl CompleteStyleUpdateState {
+    const fn new() -> Self {
+        Self {
+            depth: 0,
+            releases: DeferredCppReleases::new(),
+            has_outstanding_view: false,
+        }
+    }
+}
+
 #[repr(C)]
 pub struct FfiDeferredCppReleases {
     pub fly_strings: *const usize,
@@ -99,7 +114,6 @@ pub struct FfiDeferredCppReleases {
     pub string_count: usize,
     pub animated_properties: *const *const c_void,
     pub animated_property_count: usize,
-    pub storage: *mut c_void,
 }
 
 unsafe extern "C" {
@@ -121,9 +135,15 @@ pub(crate) fn bump_cpp_callback(op: FfiOp) {
 }
 
 pub(crate) fn release_utf16_fly_string(raw: usize) {
-    let deferred = COMPLETE_STYLE_UPDATE_DEPTH.with(|depth| depth.get() != 0);
+    let deferred = COMPLETE_STYLE_UPDATE_STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        if state.depth == 0 {
+            return false;
+        }
+        state.releases.fly_strings.push(raw);
+        true
+    });
     if deferred {
-        DEFERRED_CPP_RELEASES.with(|releases| releases.borrow_mut().fly_strings.push(raw));
         return;
     }
     bump_cpp_callback(FfiOp::StringRetainReleaseCallback);
@@ -131,9 +151,15 @@ pub(crate) fn release_utf16_fly_string(raw: usize) {
 }
 
 pub(crate) fn release_string(raw: usize) {
-    let deferred = COMPLETE_STYLE_UPDATE_DEPTH.with(|depth| depth.get() != 0);
+    let deferred = COMPLETE_STYLE_UPDATE_STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        if state.depth == 0 {
+            return false;
+        }
+        state.releases.strings.push(raw);
+        true
+    });
     if deferred {
-        DEFERRED_CPP_RELEASES.with(|releases| releases.borrow_mut().strings.push(raw));
         return;
     }
     bump_cpp_callback(FfiOp::StringRetainReleaseCallback);
@@ -141,9 +167,15 @@ pub(crate) fn release_string(raw: usize) {
 }
 
 pub(crate) fn release_animated_properties(values: *const c_void) {
-    let deferred = COMPLETE_STYLE_UPDATE_DEPTH.with(|depth| depth.get() != 0);
+    let deferred = COMPLETE_STYLE_UPDATE_STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        if state.depth == 0 {
+            return false;
+        }
+        state.releases.animated_properties.push(values);
+        true
+    });
     if deferred {
-        DEFERRED_CPP_RELEASES.with(|releases| releases.borrow_mut().animated_properties.push(values));
         return;
     }
     bump_cpp_callback(FfiOp::AnimatedPropertiesRetainReleaseCallback);
@@ -154,59 +186,63 @@ pub(crate) fn release_animated_properties(values: *const c_void) {
 /// through consumption of every published style reaction.
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_ffi_complete_style_update_begin() {
-    COMPLETE_STYLE_UPDATE_DEPTH.with(|depth| {
-        depth.set(
-            depth
-                .get()
-                .checked_add(1)
-                .expect("complete style update depth overflow"),
+    COMPLETE_STYLE_UPDATE_STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        assert!(
+            !state.has_outstanding_view,
+            "complete style update entered while deferred releases are being drained"
         );
+        state.depth = state
+            .depth
+            .checked_add(1)
+            .expect("complete style update depth overflow");
     });
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_ffi_complete_style_update_end() -> FfiDeferredCppReleases {
-    let depth = COMPLETE_STYLE_UPDATE_DEPTH.with(|depth| {
-        let new_depth = depth
-            .get()
+    COMPLETE_STYLE_UPDATE_STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        state.depth = state
+            .depth
             .checked_sub(1)
             .expect("unbalanced complete style update scope");
-        depth.set(new_depth);
-        new_depth
-    });
-    if depth != 0 {
-        return FfiDeferredCppReleases {
-            fly_strings: std::ptr::null(),
-            fly_string_count: 0,
-            strings: std::ptr::null(),
-            string_count: 0,
-            animated_properties: std::ptr::null(),
-            animated_property_count: 0,
-            storage: std::ptr::null_mut(),
-        };
-    }
-    DEFERRED_CPP_RELEASES.with(|releases| {
-        let releases = Box::new(std::mem::take(&mut *releases.borrow_mut()));
+        if state.depth != 0 {
+            return FfiDeferredCppReleases {
+                fly_strings: std::ptr::null(),
+                fly_string_count: 0,
+                strings: std::ptr::null(),
+                string_count: 0,
+                animated_properties: std::ptr::null(),
+                animated_property_count: 0,
+            };
+        }
+        assert!(!state.has_outstanding_view, "deferred release view was not cleared");
+        state.has_outstanding_view = true;
         FfiDeferredCppReleases {
-            fly_strings: releases.fly_strings.as_ptr(),
-            fly_string_count: releases.fly_strings.len(),
-            strings: releases.strings.as_ptr(),
-            string_count: releases.strings.len(),
-            animated_properties: releases.animated_properties.as_ptr(),
-            animated_property_count: releases.animated_properties.len(),
-            storage: Box::into_raw(releases).cast(),
+            fly_strings: state.releases.fly_strings.as_ptr(),
+            fly_string_count: state.releases.fly_strings.len(),
+            strings: state.releases.strings.as_ptr(),
+            string_count: state.releases.strings.len(),
+            animated_properties: state.releases.animated_properties.as_ptr(),
+            animated_property_count: state.releases.animated_properties.len(),
         }
     })
 }
 
-/// # Safety
-/// `storage` must be null or a live pointer returned by
-/// `rust_style_ffi_complete_style_update_end`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_deferred_cpp_releases_destroy(storage: *mut c_void) {
-    if !storage.is_null() {
-        drop(unsafe { Box::from_raw(storage.cast::<DeferredCppReleases>()) });
-    }
+pub extern "C" fn rust_deferred_cpp_releases_clear() {
+    COMPLETE_STYLE_UPDATE_STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        if !state.has_outstanding_view {
+            return;
+        }
+        assert_eq!(state.depth, 0, "deferred releases cleared during a style update");
+        state.releases.fly_strings.clear();
+        state.releases.strings.clear();
+        state.releases.animated_properties.clear();
+        state.has_outstanding_view = false;
+    });
 }
 
 /// Returns the number of FFI boundary counters.

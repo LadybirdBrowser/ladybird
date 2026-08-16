@@ -83,7 +83,7 @@ fn property_values_are_transitionable(
     );
     assert!(result.handled);
     if !result.value.is_null() {
-        unsafe { crate::css::style_value::rust_style_value_release(result.value) };
+        unsafe { crate::css::style_value::release_style_value(result.value) };
         return true;
     }
     false

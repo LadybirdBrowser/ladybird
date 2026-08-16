@@ -2978,7 +2978,7 @@ fn retained_new(value: StyleValueData) -> RetainedStyleValueData {
 fn store_computed_value(longhand_table: &mut ComputedLonghandTable, entry: &FfiComputedStoreEntry) {
     if entry.inheritance_dependent {
         let specified_value = unsafe {
-            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(
+            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
                 entry.data.cast(),
             ))
         };
@@ -2986,7 +2986,7 @@ fn store_computed_value(longhand_table: &mut ComputedLonghandTable, entry: &FfiC
     }
     let retained = match entry.computed_kind {
         COMPUTED_KIND_UNCHANGED => unsafe {
-            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(
+            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
                 entry.data.cast(),
             ))
         },
@@ -4378,7 +4378,7 @@ pub(crate) fn expand_shorthands_with<Sink>(
         // https://drafts.csswg.org/css-values-5/#pending-substitution-value
         // Ensure we keep the longhand around until it can be resolved.
         sink(property_id, data, has_style_sheet_context);
-        let retained_data = unsafe { crate::css::style_value::rust_style_value_retain(data.cast::<StyleValueData>()) };
+        let retained_data = unsafe { crate::css::style_value::retain_style_value(data.cast::<StyleValueData>()) };
         let pending_data =
             unsafe { crate::css::style_value::rust_style_value_create_pending_substitution(retained_data) };
         let pending = unsafe { RetainedStyleValueData::from_retained_pointer(pending_data) };
@@ -4424,7 +4424,7 @@ fn expand_shorthands(property_id: u16, data: *const c_void) -> ShorthandExpansio
     let mut values = Vec::new();
     expand_shorthands_with(property_id, data, false, &mut |longhand_id, longhand_data, _| {
         let value = unsafe {
-            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(
+            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
                 longhand_data.cast(),
             ))
         };
