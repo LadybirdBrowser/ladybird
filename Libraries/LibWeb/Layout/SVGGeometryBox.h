@@ -23,9 +23,6 @@ public:
     SVG::SVGGeometryElement const& dom_node() const { return static_cast<SVG::SVGGeometryElement const&>(SVGGraphicsBox::dom_node()); }
 
     virtual RefPtr<Painting::Paintable> create_paintable() const override;
-
-private:
-    virtual bool is_svg_geometry_box() const final { return true; }
 };
 
 template<>

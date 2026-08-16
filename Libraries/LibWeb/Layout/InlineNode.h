@@ -18,9 +18,6 @@ public:
     virtual ~InlineNode() override;
 
     virtual RefPtr<Painting::Paintable> create_paintable() const override;
-
-private:
-    virtual bool is_inline_node() const override { return true; }
 };
 
 template<>

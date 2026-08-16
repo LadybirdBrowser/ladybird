@@ -100,6 +100,7 @@ public:
     virtual StringView class_name() const { return "Node"sv; }
 
     static RustFFI::NodeSlotId slot_id(Node const*);
+    RustFFI::NodeKind kind() const { return m_data->kind; }
     u32 arena_slot_index() const { return m_slot.index; }
     void* arena_handle() const;
     NodeArena& node_arena() const { return *m_arena; }
@@ -185,7 +186,7 @@ public:
     bool has_style() const { return has_flag(RustFFI::NodeFlag::HasStyle); }
     bool has_style_or_parent_with_style() const;
 
-    virtual bool can_have_children() const { return true; }
+    bool can_have_children() const;
 
     bool is_inline() const;
 
@@ -202,29 +203,30 @@ public:
     // https://www.w3.org/TR/CSS22/visuren.html#positioning-scheme
     bool is_in_flow() const { return !is_out_of_flow(); }
 
-    // These are used to optimize hot is<T> variants for some classes where dynamic_cast is too slow.
+    // These optimize hot is<T> variants for the surviving layout classes where dynamic_cast is too slow.
     virtual bool is_box() const { return false; }
     virtual bool is_block_container() const { return false; }
-    virtual bool is_inline_node() const { return false; }
-    virtual bool is_break_node() const { return false; }
     virtual bool is_text_node() const { return false; }
     virtual bool is_text_slice_node() const { return false; }
     virtual bool is_viewport() const { return false; }
-    virtual bool is_svg_box() const { return false; }
-    virtual bool is_svg_geometry_box() const { return false; }
-    virtual bool is_svg_clip_box() const { return false; }
-    virtual bool is_svg_mask_box() const { return false; }
-    virtual bool is_svg_pattern_box() const { return false; }
-    virtual bool is_svg_svg_box() const { return false; }
-    virtual bool is_svg_graphics_box() const { return false; }
-    virtual bool is_svg_foreign_object_box() const { return false; }
-    virtual bool is_replaced_box() const { return false; }
-    virtual bool is_list_item_box() const { return false; }
-    virtual bool is_list_item_marker_box() const { return false; }
-    virtual bool is_fieldset_box() const { return false; }
-    virtual bool is_legend_box() const { return false; }
-    virtual bool is_table_wrapper() const { return false; }
     virtual bool is_node_with_style() const { return false; }
+
+    bool is_inline_node() const { return kind() == RustFFI::NodeKind::InlineNode; }
+    bool is_break_node() const { return kind() == RustFFI::NodeKind::BreakNode; }
+    bool is_svg_box() const { return RustFFI::layout_node_kind_is_svg_box(kind()); }
+    bool is_svg_geometry_box() const { return kind() == RustFFI::NodeKind::SVGGeometryBox; }
+    bool is_svg_clip_box() const { return kind() == RustFFI::NodeKind::SVGClipBox; }
+    bool is_svg_mask_box() const { return kind() == RustFFI::NodeKind::SVGMaskBox; }
+    bool is_svg_pattern_box() const { return kind() == RustFFI::NodeKind::SVGPatternBox; }
+    bool is_svg_svg_box() const { return kind() == RustFFI::NodeKind::SVGSVGBox; }
+    bool is_svg_graphics_box() const { return RustFFI::layout_node_kind_is_svg_graphics_box(kind()); }
+    bool is_svg_foreign_object_box() const { return kind() == RustFFI::NodeKind::SVGForeignObjectBox; }
+    bool is_replaced_box() const { return RustFFI::layout_node_kind_is_replaced_box(kind()); }
+    bool is_list_item_box() const { return kind() == RustFFI::NodeKind::ListItemBox; }
+    bool is_list_item_marker_box() const { return kind() == RustFFI::NodeKind::ListItemMarkerBox; }
+    bool is_fieldset_box() const { return kind() == RustFFI::NodeKind::FieldSetBox; }
+    bool is_legend_box() const { return kind() == RustFFI::NodeKind::LegendBox; }
+    bool is_table_wrapper() const { return kind() == RustFFI::NodeKind::TableWrapper; }
 
     bool is_replaced_box_with_children() const { return is_replaced_box() && can_have_children(); }
 

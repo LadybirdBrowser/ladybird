@@ -19,8 +19,6 @@ public:
     SVGMaskBox(DOM::Document&, SVG::SVGMaskElement&, CSS::LayoutStyle);
     virtual ~SVGMaskBox() override = default;
 
-    virtual bool is_svg_mask_box() const override { return true; }
-
     SVG::SVGMaskElement& dom_node() { return as<SVG::SVGMaskElement>(SVGGraphicsBox::dom_node()); }
     SVG::SVGMaskElement const& dom_node() const { return as<SVG::SVGMaskElement>(SVGGraphicsBox::dom_node()); }
 

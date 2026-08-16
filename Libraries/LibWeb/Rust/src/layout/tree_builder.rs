@@ -7,7 +7,10 @@
 use crate::abort_on_panic;
 use crate::layout::layout_node_arena::LayoutNodeArena;
 use crate::layout::node_data::{GENERATED_FOR_MARKER, NodeData, NodeFlag, NodeKind, NodeSlotId};
-use crate::layout::{ComputedValuesView, FfiDisplay, kind_is_replaced_box, node_can_have_children};
+use crate::layout::{
+    ComputedValuesView, FfiDisplay, kind_is_replaced_box, kind_is_svg_box, kind_is_svg_graphics_box,
+    node_can_have_children,
+};
 use std::ffi::c_void;
 
 type LayoutNode = NodeSlotId;
@@ -2175,8 +2178,24 @@ fn node_kind_is_svg_box(kind: NodeKind) -> bool {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn layout_node_kind_facts_match(kind: NodeKind, facts: FfiNodeKindFacts) -> bool {
-    facts == kind_facts(kind)
+pub extern "C" fn layout_node_kind_is_replaced_box(kind: NodeKind) -> bool {
+    kind_is_replaced_box(kind)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn layout_node_kind_is_svg_box(kind: NodeKind) -> bool {
+    kind_is_svg_box(kind)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn layout_node_kind_is_svg_graphics_box(kind: NodeKind) -> bool {
+    kind_is_svg_graphics_box(kind)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_node_data_can_have_children(data: *const NodeData) -> bool {
+    // SAFETY: The C++ caller passes the node's live arena slot.
+    node_can_have_children(unsafe { &*data })
 }
 
 #[unsafe(no_mangle)]

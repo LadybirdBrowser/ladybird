@@ -21,8 +21,6 @@ public:
     HTML::HTMLAudioElement& dom_node();
     HTML::HTMLAudioElement const& dom_node() const;
 
-    virtual bool can_have_children() const override;
-
     virtual RefPtr<Painting::Paintable> create_paintable() const override;
 };
 

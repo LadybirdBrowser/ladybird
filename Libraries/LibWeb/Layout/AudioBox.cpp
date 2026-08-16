@@ -26,12 +26,6 @@ HTML::HTMLAudioElement const& AudioBox::dom_node() const
     return static_cast<HTML::HTMLAudioElement const&>(*ReplacedBox::dom_node());
 }
 
-bool AudioBox::can_have_children() const
-{
-    // If we allow children when controls are disabled, innerText may be non-empty.
-    return dom_node().shadow_root() != nullptr;
-}
-
 RefPtr<Painting::Paintable> AudioBox::create_paintable() const
 {
     return Painting::Paintable::create(*this);

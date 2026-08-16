@@ -151,7 +151,7 @@ pub(crate) fn kind_is_replaced_box(kind: NodeKind) -> bool {
     )
 }
 
-fn kind_is_svg_box(kind: NodeKind) -> bool {
+pub(crate) fn kind_is_svg_box(kind: NodeKind) -> bool {
     matches!(
         kind,
         NodeKind::SVGBox

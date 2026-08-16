@@ -25,12 +25,6 @@ public:
 
     GC::Ptr<LegendBox const> rendered_legend() const;
     virtual RefPtr<Painting::Paintable> create_paintable() const override;
-
-private:
-    virtual bool is_fieldset_box() const final
-    {
-        return true;
-    }
 };
 
 template<>

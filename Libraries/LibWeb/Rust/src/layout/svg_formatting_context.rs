@@ -109,7 +109,7 @@ pub(crate) const MEET_OR_SLICE_SLICE: u8 = 1;
 const SVG_UNITS_OBJECT_BOUNDING_BOX: u8 = 0;
 const SVG_UNITS_USER_SPACE_ON_USE: u8 = 1;
 
-fn kind_is_svg_graphics_box(kind: NodeKind) -> bool {
+pub(crate) fn kind_is_svg_graphics_box(kind: NodeKind) -> bool {
     matches!(
         kind,
         NodeKind::SVGGraphicsBox
