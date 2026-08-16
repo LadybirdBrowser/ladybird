@@ -1233,6 +1233,7 @@ mod tests {
         let value = CssPixels::from_raw(128);
         let inline_measurement = IntrinsicInlineSizeMeasurement {
             automatic_content_inline_size: CssPixels::from_raw(192),
+            min_content_inline_size_from_max_content_layout: Some(CssPixels::from_raw(96)),
             available_block_size: AvailableSize::MaxContent,
             content_inline_size: CssPixels::from_raw(192),
             content_block_size: CssPixels::from_raw(256),
