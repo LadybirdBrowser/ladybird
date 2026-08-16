@@ -897,7 +897,7 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                     }
                 }
             }
-            crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadeCustomPropertyBatchCallback);
+            crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::CascadeCustomPropertyBatchCallback);
             unsafe {
                 custom_property_store =
                     (callbacks.set_custom_properties)(context, custom_properties.as_ptr(), custom_properties.len());
@@ -930,11 +930,15 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                 unset_data,
                 &is_property_disallowed,
                 &|property_id, data| {
-                    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadeResolveUnresolvedCallback);
+                    crate::css::ffi_stats::bump_cpp_callback(
+                        crate::css::ffi_stats::FfiOp::CascadeResolveUnresolvedCallback,
+                    );
                     unsafe { (callbacks.resolve_unresolved)(context, property_id, data) }
                 },
                 &|property_id, unresolved_data, source| {
-                    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadeParseSubstitutedCallback);
+                    crate::css::ffi_stats::bump_cpp_callback(
+                        crate::css::ffi_stats::FfiOp::CascadeParseSubstitutedCallback,
+                    );
                     unsafe {
                         (callbacks.parse_substituted)(
                             context,
@@ -962,7 +966,7 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
         }
 
         if !source_slot_assignments.is_empty() {
-            crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadeSourceSlotCallback);
+            crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::CascadeSourceSlotCallback);
             unsafe {
                 (callbacks.assign_source_slots)(
                     context,

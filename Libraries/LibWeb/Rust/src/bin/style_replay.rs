@@ -324,14 +324,16 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                             .read(engine)
                     });
                     let start = Instant::now();
-                    let actual_result = unsafe {
-                        bridge::style_engine_take_style_transaction(
-                            engine,
-                            root,
-                            (&raw mut context).cast(),
-                            replay_style_transaction_emit,
-                        )
-                    };
+                    let actual_view = unsafe { bridge::style_engine_take_style_transaction(engine, root) };
+                    if actual_view.count != 0 {
+                        let answers = unsafe { std::slice::from_raw_parts(actual_view.answers, actual_view.count) };
+                        replay_style_transaction_output(
+                            &mut context,
+                            actual_view.transaction_version,
+                            actual_view.program_version,
+                            answers,
+                        );
+                    }
                     let elapsed = start.elapsed();
                     let after = counter_reader.read(engine);
                     let detailed_after = detailed_before
@@ -358,11 +360,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         return Err(error.into());
                     }
                     if !context.expected_emissions.is_empty() {
-                        return Err("style transaction omitted recorded callbacks".into());
+                        return Err("style transaction omitted recorded output".into());
                     }
                     if options.assert_digests {
                         let actual = StyleTransactionOutputs {
-                            result: actual_result,
+                            result: actual_view.scoped,
                             filter_calls: Vec::new(),
                             emissions: context.actual_emissions,
                         };
@@ -544,15 +546,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let root = event.payload.read_u32()?;
                     let expected = event.payload.read_u32_vec()?;
-                    let mut actual = Vec::new();
-                    unsafe {
-                        bridge::style_engine_for_each_flat_tree_descendant(
-                            engine,
-                            root,
-                            (&mut actual as *mut Vec<u32>).cast(),
-                            collect_style_node,
-                        )
+                    let view = unsafe { bridge::style_engine_flat_tree_descendants(engine, root) };
+                    let actual = if view.count == 0 {
+                        Vec::new()
+                    } else {
+                        unsafe { std::slice::from_raw_parts(view.nodes, view.count) }.to_vec()
                     };
+                    unsafe { bridge::style_engine_discard_flat_tree_descendants(engine) };
                     if actual != expected {
                         return Err(format!(
                             "flat-tree descendants diverged for node {root}: expected {expected:?}, got {actual:?}"
@@ -1701,29 +1701,21 @@ impl MatchAnswerIdentityMapping {
     }
 }
 
-extern "C" fn collect_style_node(context: *mut c_void, node: u32) {
-    let nodes = unsafe { &mut *context.cast::<Vec<u32>>() };
-    nodes.push(node);
-}
-
-unsafe extern "C" fn replay_style_transaction_emit(
-    context: *mut c_void,
+fn replay_style_transaction_output(
+    context: &mut ReplayStyleTransactionContext,
     transaction_version: u64,
     program_version: u64,
-    answers: *const FfiStyleDelta,
-    count: usize,
+    answers: &[FfiStyleDelta],
 ) {
-    let context = unsafe { &mut *context.cast::<ReplayStyleTransactionContext>() };
-    let answers = unsafe { std::slice::from_raw_parts(answers, count) }.to_vec();
     let actual = StyleTransactionEmission {
         transaction_version,
         program_version,
-        answers,
+        answers: answers.to_vec(),
     };
     let Some(expected) = context.expected_emissions.pop_front() else {
         context
             .error
-            .get_or_insert_with(|| "style transaction made an extra emit callback".into());
+            .get_or_insert_with(|| "style transaction returned extra output".into());
         return;
     };
     if actual.answers.len() == expected.answers.len() {
@@ -1751,7 +1743,7 @@ unsafe extern "C" fn replay_style_transaction_emit(
     {
         context.error.get_or_insert_with(|| {
             format!(
-                "style transaction emission diverged: expected versions {}/{} and {:?}, got versions {}/{} and {:?}",
+                "style transaction output diverged: expected versions {}/{} and {:?}, got versions {}/{} and {:?}",
                 expected.transaction_version,
                 expected.program_version,
                 expected.answers,

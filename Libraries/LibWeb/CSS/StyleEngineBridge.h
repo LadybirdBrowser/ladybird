@@ -73,7 +73,10 @@ public:
     };
     using StyleRecordView = StyleEngineFFI::FfiStyleRecordView;
     using ExactCascadePublication = StyleEngineFFI::FfiExactCascadePublication;
-    void materialize_retained_cascade_state(StyleNodeID node, u8 pseudo_kind, ComputedValuesFFI::CascadedPropertyStore*, ReadonlySpan<ComputedValuesFFI::FfiCascadeBlock>, ComputedValuesFFI::FfiBulkCascadeCallbacks const*);
+    // The returned assignments borrow Rust storage until the next mutable engine call or an
+    // explicit discard. Consume them synchronously before asking the engine anything else.
+    [[nodiscard]] ReadonlySpan<ComputedValuesFFI::FfiSourceSlotAssignment> materialize_retained_cascade_state(StyleNodeID node, u8 pseudo_kind, ComputedValuesFFI::CascadedPropertyStore*, ReadonlySpan<ComputedValuesFFI::FfiCascadeBlock>);
+    void discard_retained_cascade_assignments();
     [[nodiscard]] ExactCascadePublication publish_exact_cascade_state(StyleNodeID node, u8 pseudo_kind, ComputedValuesFFI::CascadedPropertyStore const*, u8 inherited_style_groups = 0);
     // Publish the immutable input identities of an element or pseudo-element's base style and
     // return its previous and current StyleRecordID assignments. A zero node interns an unassigned
@@ -170,17 +173,19 @@ public:
         u64 transaction;
         u64 program;
     };
+    struct PublishedStyleTransaction {
+        PublishedTransactionVersion version;
+        ReadonlySpan<PublishedStyleDelta> reactions;
+        bool is_scoped;
+    };
 
     // Takes pending inputs. The diagnostic transaction reports reaction nodes and then discards
     // its matching outputs. The style transaction publishes versioned match-answer records. False
     // means the result is broad enough to prefer complete matching scratch.
-    // NB: The callback runs while the engine is borrowed, so it must not record an input or ask
-    //     the engine anything. It receives versioned semantic records only after their answers are
-    //     complete and ready for the following style consumer.
+    // NB: The returned reactions borrow Rust storage until the next mutable engine call or an
+    //     explicit discard. Consume them synchronously before asking the engine anything else.
     bool take_diagnostic_style_transaction(StyleNodeID root, Function<void(ReadonlySpan<StyleNodeID>)>&&);
-    bool take_style_transaction(
-        StyleNodeID root,
-        Function<void(PublishedTransactionVersion, ReadonlySpan<PublishedStyleDelta>)>&& consume);
+    PublishedStyleTransaction take_style_transaction(StyleNodeID root);
 
     using RuleMatch = StyleEngineFFI::FfiRuleMatch;
 

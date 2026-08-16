@@ -150,28 +150,21 @@ static StyleEngineTransaction take_style_engine_transaction(DOM::Document& docum
     }
 
     auto planning_started_at = MonotonicTime::now();
-    auto transaction_is_scoped = style_computer.style_engine().take_style_transaction(
-        root->style_node_id(),
-        [&](StyleEngine::PublishedTransactionVersion version, ReadonlySpan<StyleEngine::PublishedStyleDelta> answers) {
-            if (!transaction.published_version.has_value()) {
-                transaction.published_version = version;
-            } else {
-                VERIFY(transaction.published_version->transaction == version.transaction);
-                VERIFY(transaction.published_version->program == version.program);
-            }
-            for (auto const& answer : answers) {
-                // The complete answer remains in Rust transaction scratch under this node. The
-                // identity names both the semantic reaction and the payload that consumes it.
-                VERIFY(style_computer.element_for_style_node(answer.style_node));
-                transaction.reactions.append(answer);
-            }
-        });
+    auto published_transaction = style_computer.style_engine().take_style_transaction(root->style_node_id());
+    if (!published_transaction.reactions.is_empty())
+        transaction.published_version = published_transaction.version;
+    for (auto const& answer : published_transaction.reactions) {
+        // The complete answer remains in Rust transaction scratch under this node. The identity
+        // names both the semantic reaction and the payload that consumes it.
+        VERIFY(style_computer.element_for_style_node(answer.style_node));
+        transaction.reactions.append(answer);
+    }
     document.style_invalidation_counters().style_engine_planning_microseconds += (MonotonicTime::now() - planning_started_at).to_microseconds();
 
     // A reaction batch covering more than one sixteenth of the connected elements is dense enough that
     // packing the scope once is cheaper than repeatedly reconstructing cold facts while matching
     // the planned elements.
-    transaction.prefers_broad_matching_batch = !transaction_is_scoped
+    transaction.prefers_broad_matching_batch = !published_transaction.is_scoped
         || transaction.reactions.size() * 16 > style_computer.style_engine().connected_element_count();
 
     return transaction;
@@ -418,6 +411,10 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
 
 static void update_style(DOM::Document& document)
 {
+    StyleValueFFI::rust_style_ffi_complete_style_update_begin();
+    ScopeGuard leave_complete_style_update = [] {
+        StyleValueFFI::rust_style_ffi_complete_style_update_end();
+    };
     auto style_update_started_at = MonotonicTime::now();
     ScopeGuard record_style_update_time = [&] {
         document.style_invalidation_counters().style_update_microseconds += (MonotonicTime::now() - style_update_started_at).to_microseconds();
@@ -682,6 +679,10 @@ static RequiredInvalidationAfterStyleChange materialize_style_for_targeted_updat
 
 static bool update_style_for_element(DOM::Document& document, DOM::AbstractElement const& abstract_element, StyleUpdateMode mode)
 {
+    StyleValueFFI::rust_style_ffi_complete_style_update_begin();
+    ScopeGuard leave_complete_style_update = [] {
+        StyleValueFFI::rust_style_ffi_complete_style_update_end();
+    };
     // Refresh computed properties for an abstract element. An ordinary read first consumes the complete exact
     // reaction batch. A reentrant layout read leaves that transaction untouched and walks the flat-tree inheritance
     // chain, re-cascading from the rootmost stale element on the path back down to the target. Normal mode also

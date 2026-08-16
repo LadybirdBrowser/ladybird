@@ -1153,6 +1153,7 @@ impl StyleEngine {
     }
 
     pub(super) fn discard_style_transaction_outputs(&mut self) {
+        self.clear_ffi_style_transaction_output();
         self.retain_prefix_states();
         self.discard_prepared_batch_matching_traversal();
         self.discard_published_match_answers();

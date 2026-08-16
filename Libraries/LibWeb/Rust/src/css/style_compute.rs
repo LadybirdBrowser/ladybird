@@ -2359,7 +2359,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             if pending_stores.is_empty() && *pending_effective_color_scheme < 0 {
                 return;
             }
-            crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandStoreBatchCallback);
+            crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::LonghandStoreBatchCallback);
             // SAFETY: The entries and their values stay alive for the call; the callback
             // table outlives the drive.
             unsafe {
@@ -2388,7 +2388,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             if caches[kind].is_none() {
                 // Building a context on the C++ side reads stored values, so request it
                 // as part of the same ordered action batch that applies those values.
-                crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandStoreBatchCallback);
+                crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::LonghandStoreBatchCallback);
                 let mut fetched = std::mem::MaybeUninit::<FfiLengthResolutionContext>::uninit();
                 // SAFETY: The callback applies the entries in order and then fills the
                 // requested context before returning.
@@ -3153,7 +3153,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             clear_longhand_bit(important_words, prop::TEXT_ALIGN);
             clear_longhand_bit(inherited_words, prop::TEXT_ALIGN);
         }
-        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandStoreBatchCallback);
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::LonghandStoreBatchCallback);
         let mut input_line_height_metrics = std::mem::MaybeUninit::<FfiInputLineHeightMetrics>::uninit();
         let mut request = empty_longhand_batch_request();
         request.display_before = display_before;
@@ -3229,7 +3229,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             ));
         }
         if !adjustments.is_empty() {
-            crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandStoreBatchCallback);
+            crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::LonghandStoreBatchCallback);
             unsafe {
                 (callbacks.execute_computation_batch)(
                     context,
@@ -3338,7 +3338,7 @@ pub(crate) fn expand_shorthands_with<Sink>(
 fn expand_shorthands(callbacks: &FfiShorthandExpansionCallbacks, property_id: u16, data: *const c_void) {
     let context = callbacks.context;
     expand_shorthands_with(property_id, data, false, &mut |longhand_id, longhand_data, _| {
-        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::ShorthandSetLonghandCallback);
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::ShorthandSetLonghandCallback);
         unsafe { (callbacks.set_longhand_property)(context, longhand_id, longhand_data) };
     });
 }

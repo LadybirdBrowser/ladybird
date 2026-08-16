@@ -1,12 +1,27 @@
 has counters: true
 all zero after reset: true
-longhand driver ran: true
-longhand loop called back into C++: true
+has complete-update aggregates: true
+has complete-update phase counters: true
+simple element measured semantic callbacks: true
+simple element kept ownership separate: true
+transaction returned without callbacks: true
+longhand computation measured: true
 computed build stayed in Rust: true
-C++ lifecycle counter exists: false
-position-anchor build retained a C++ string: false
-container-name build retained a C++ string: false
-font build stayed in Rust: true
-grid build stayed in Rust: true
-C++ fly-string operation counter exists: false
-payload assembler counter exists: false
+inherited partial restyle measured semantic callbacks: true
+inherited partial restyle kept ownership separate: true
+pseudo-element measured semantic callbacks: true
+pseudo-element kept ownership separate: true
+custom properties measured semantic callbacks: true
+custom properties kept ownership separate: true
+cascade callbacks measured: true
+font and viewport lengths measured semantic callbacks: true
+font and viewport lengths kept ownership separate: true
+animations and transitions measured semantic callbacks: true
+animations and transitions kept ownership separate: true
+animation computation measured: true
+flat-tree descendants returned without callbacks: true
+resource-backed value measured semantic callbacks: true
+resource-backed value kept ownership separate: true
+retained cascade winner measured semantic callbacks: true
+retained cascade winner kept ownership separate: true
+retained source-slot assignments returned without callbacks: true

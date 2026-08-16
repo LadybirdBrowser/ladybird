@@ -70,12 +70,22 @@ define_ffi_ops! {
     AnimationComputeBatchCallback => "animationComputeBatchCallbacks",
     AnimatedPropertiesRetainReleaseCallback => "animatedPropertiesRetainReleaseCallbacks",
     ComputedStyleBuildCppCallback => "computedStyleBuildCppCallbacks",
+    CompleteStyleUpdateCppCallback => "completeStyleUpdateCppCallbacks",
+    CompleteStyleUpdateSemanticCppCallback => "completeStyleUpdateSemanticCppCallbacks",
+    CompleteStyleUpdateOwnershipCppCallback => "completeStyleUpdateOwnershipCppCallbacks",
+    CompleteStyleUpdateTransactionCallback => "completeStyleUpdateTransactionCallbacks",
+    CompleteStyleUpdateFlatTreeCallback => "completeStyleUpdateFlatTreeCallbacks",
+    CompleteStyleUpdateCascadeCallback => "completeStyleUpdateCascadeCallbacks",
+    CompleteStyleUpdateLonghandCallback => "completeStyleUpdateLonghandCallbacks",
+    CompleteStyleUpdateAnimationCallback => "completeStyleUpdateAnimationCallbacks",
+    CompleteStyleUpdateShorthandCallback => "completeStyleUpdateShorthandCallbacks",
 }
 
 static COUNTERS: [AtomicU64; FFI_OP_COUNT] = [const { AtomicU64::new(0) }; FFI_OP_COUNT];
 
 thread_local! {
     static COMPUTED_STYLE_BUILD_DEPTH: Cell<u32> = const { Cell::new(0) };
+    static COMPLETE_STYLE_UPDATE_DEPTH: Cell<u32> = const { Cell::new(0) };
 }
 
 #[inline]
@@ -90,6 +100,60 @@ pub(crate) fn bump_cpp_callback(op: FfiOp) {
         if depth.get() != 0 {
             bump(FfiOp::ComputedStyleBuildCppCallback);
         }
+    });
+    COMPLETE_STYLE_UPDATE_DEPTH.with(|depth| {
+        if depth.get() == 0 {
+            return;
+        }
+
+        bump(FfiOp::CompleteStyleUpdateCppCallback);
+        let phase = match op {
+            FfiOp::StringRetainReleaseCallback | FfiOp::AnimatedPropertiesRetainReleaseCallback => {
+                bump(FfiOp::CompleteStyleUpdateOwnershipCppCallback);
+                None
+            }
+            FfiOp::SelectorMetadataCallback
+            | FfiOp::CascadeResolveUnresolvedCallback
+            | FfiOp::CascadeParseSubstitutedCallback
+            | FfiOp::CascadeSourceSlotCallback
+            | FfiOp::CascadeCustomPropertyBatchCallback => Some(FfiOp::CompleteStyleUpdateCascadeCallback),
+            FfiOp::LonghandStoreBatchCallback | FfiOp::LonghandCppComputeFallback => {
+                Some(FfiOp::CompleteStyleUpdateLonghandCallback)
+            }
+            FfiOp::AnimationComputeBatchCallback => Some(FfiOp::CompleteStyleUpdateAnimationCallback),
+            FfiOp::ShorthandSetLonghandCallback => Some(FfiOp::CompleteStyleUpdateShorthandCallback),
+            _ => None,
+        };
+        if let Some(phase) = phase {
+            bump(FfiOp::CompleteStyleUpdateSemanticCppCallback);
+            bump(phase);
+        }
+    });
+}
+
+/// Marks a complete C++-orchestrated style update, from transaction planning
+/// through consumption of every published style reaction.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_ffi_complete_style_update_begin() {
+    COMPLETE_STYLE_UPDATE_DEPTH.with(|depth| {
+        depth.set(
+            depth
+                .get()
+                .checked_add(1)
+                .expect("complete style update depth overflow"),
+        );
+    });
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_ffi_complete_style_update_end() {
+    COMPLETE_STYLE_UPDATE_DEPTH.with(|depth| {
+        depth.set(
+            depth
+                .get()
+                .checked_sub(1)
+                .expect("unbalanced complete style update scope"),
+        );
     });
 }
 

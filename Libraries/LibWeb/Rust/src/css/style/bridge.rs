@@ -24,7 +24,6 @@
 //! and asks for a run of `StyleNodeID` values, Rust owns the arena and the relation columns keyed by
 //! them.
 
-use std::cell::Cell;
 use std::ffi::c_void;
 
 use crate::abort_on_panic as abort_on_boundary_panic;
@@ -67,40 +66,8 @@ use super::transaction::TreeRelations;
 use super::tree::StyleNodeID;
 use super::tree::TreeScopeID;
 
-thread_local! {
-    static FFI_CALLBACK_IS_ACTIVE: Cell<bool> = const { Cell::new(false) };
-}
-
-fn assert_not_reentrant_from_callback() {
-    FFI_CALLBACK_IS_ACTIVE.with(|active| {
-        assert!(!active.get(), "a style engine callback reentered the FFI");
-    });
-}
-
 fn abort_on_panic<F: FnOnce() -> R, R>(operation: F) -> R {
-    abort_on_boundary_panic(|| {
-        assert_not_reentrant_from_callback();
-        operation()
-    })
-}
-
-struct FfiCallbackGuard;
-
-impl FfiCallbackGuard {
-    fn new() -> Self {
-        FFI_CALLBACK_IS_ACTIVE.with(|active| {
-            assert!(!active.replace(true), "style engine callbacks must not nest");
-        });
-        Self
-    }
-}
-
-impl Drop for FfiCallbackGuard {
-    fn drop(&mut self) {
-        FFI_CALLBACK_IS_ACTIVE.with(|active| {
-            assert!(active.replace(false), "style engine callback guard was not active");
-        });
-    }
+    abort_on_boundary_panic(operation)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -135,25 +102,80 @@ pub struct FfiStyleDelta {
     pub gap: FfiStyleDeltaGap,
 }
 
-struct RecordedStyleTransactionEmission {
+#[derive(Default)]
+pub(super) struct FfiStyleTransactionOutput {
+    scoped: bool,
     transaction_version: u64,
     program_version: u64,
     answers: Vec<FfiStyleDelta>,
 }
 
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiStyleTransactionView {
+    pub transaction_version: u64,
+    pub program_version: u64,
+    pub answers: *const FfiStyleDelta,
+    pub count: usize,
+    pub scoped: bool,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiStyleNodeSlice {
+    pub nodes: *const u32,
+    pub count: usize,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiSourceSlotAssignmentView {
+    pub assignments: *const c_void,
+    pub count: usize,
+}
+
+impl Default for FfiSourceSlotAssignmentView {
+    fn default() -> Self {
+        Self {
+            assignments: std::ptr::null(),
+            count: 0,
+        }
+    }
+}
+
+impl Default for FfiStyleNodeSlice {
+    fn default() -> Self {
+        Self {
+            nodes: std::ptr::null(),
+            count: 0,
+        }
+    }
+}
+
+impl Default for FfiStyleTransactionView {
+    fn default() -> Self {
+        Self {
+            transaction_version: 0,
+            program_version: 0,
+            answers: std::ptr::null(),
+            count: 0,
+            scoped: false,
+        }
+    }
+}
+
 fn write_style_transaction_outputs(
-    result: bool,
-    emissions: &[RecordedStyleTransactionEmission],
+    output: &FfiStyleTransactionOutput,
     payload: &mut super::record_replay::PayloadWriter,
 ) {
-    payload.write_bool(result);
+    payload.write_bool(output.scoped);
     payload.write_length(0);
-    payload.write_length(emissions.len());
-    for emission in emissions {
-        payload.write_u64(emission.transaction_version);
-        payload.write_u64(emission.program_version);
-        payload.write_length(emission.answers.len());
-        for answer in &emission.answers {
+    payload.write_length(usize::from(!output.answers.is_empty()));
+    if !output.answers.is_empty() {
+        payload.write_u64(output.transaction_version);
+        payload.write_u64(output.program_version);
+        payload.write_length(output.answers.len());
+        for answer in &output.answers {
             payload.write_u32(answer.style_node);
             payload.write_u32(answer.match_answer);
             payload.write_u64(answer.old_style_record);
@@ -604,6 +626,54 @@ fn write_exact_cascade_publication(
 }
 
 impl StyleEngine {
+    fn install_ffi_retained_cascade_assignments(
+        &mut self,
+        assignments: Vec<crate::css::cascaded_properties::FfiSourceSlotAssignment>,
+    ) -> FfiSourceSlotAssignmentView {
+        let bytes =
+            (assignments.capacity() * size_of::<crate::css::cascaded_properties::FfiSourceSlotAssignment>()) as u64;
+        self.ffi_retained_cascade_assignments = assignments;
+        self.ffi_retained_cascade_assignments_memory
+            .resize_required_to(&mut self.memory, bytes);
+        FfiSourceSlotAssignmentView {
+            assignments: self.ffi_retained_cascade_assignments.as_ptr().cast(),
+            count: self.ffi_retained_cascade_assignments.len(),
+        }
+    }
+
+    fn clear_ffi_retained_cascade_assignments(&mut self) {
+        self.ffi_retained_cascade_assignments = Vec::new();
+        self.ffi_retained_cascade_assignments_memory.shrink_to(0);
+    }
+
+    fn install_ffi_flat_tree_descendants(&mut self, descendants: Vec<u32>) -> FfiStyleNodeSlice {
+        let bytes = (descendants.capacity() * size_of::<u32>()) as u64;
+        self.ffi_flat_tree_descendants = descendants;
+        self.ffi_flat_tree_descendants_memory
+            .resize_required_to(&mut self.memory, bytes);
+        FfiStyleNodeSlice {
+            nodes: self.ffi_flat_tree_descendants.as_ptr(),
+            count: self.ffi_flat_tree_descendants.len(),
+        }
+    }
+
+    fn clear_ffi_flat_tree_descendants(&mut self) {
+        self.ffi_flat_tree_descendants = Vec::new();
+        self.ffi_flat_tree_descendants_memory.shrink_to(0);
+    }
+
+    fn install_ffi_style_transaction_output(&mut self, output: FfiStyleTransactionOutput) {
+        let bytes = (output.answers.capacity() * size_of::<FfiStyleDelta>()) as u64;
+        self.ffi_style_transaction_output = output;
+        self.ffi_style_transaction_output_memory
+            .resize_required_to(&mut self.memory, bytes);
+    }
+
+    pub(super) fn clear_ffi_style_transaction_output(&mut self) {
+        self.ffi_style_transaction_output = FfiStyleTransactionOutput::default();
+        self.ffi_style_transaction_output_memory.shrink_to(0);
+    }
+
     /// Apply one flat transaction. Tree deltas are staged in arrival order so derived neighbour
     /// rows follow the live tree step by step, while the journal normalizes for discovery.
     pub fn apply_transaction_batch(
@@ -813,34 +883,40 @@ pub unsafe extern "C" fn style_engine_allocate_style_nodes(engine: *mut c_void, 
     });
 }
 
-/// Visits the live element descendants whose inheritance path begins at `root` in the flat tree.
+/// Returns the live element descendants whose inheritance path begins at `root` in the flat tree.
 ///
 /// # Safety
-/// `engine` must be live and `callback` must keep `context` valid for the duration of the call. The
-/// callback must not call any `style_engine_*` entry point because this function keeps `engine`
-/// mutably borrowed while invoking it.
+/// `engine` must be live. The returned node slice remains valid until the next mutable
+/// `style_engine_*` entry point or an explicit discard of the flat-tree descendants.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_for_each_flat_tree_descendant(
-    engine: *mut c_void,
-    root: u32,
-    context: *mut c_void,
-    callback: extern "C" fn(*mut c_void, u32),
-) {
+pub unsafe extern "C" fn style_engine_flat_tree_descendants(engine: *mut c_void, root: u32) -> FfiStyleNodeSlice {
     abort_on_panic(|| {
-        let Some(root) = StyleNodeID::from_raw(root) else {
-            return;
-        };
         let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+        engine.clear_ffi_flat_tree_descendants();
+        let Some(root) = StyleNodeID::from_raw(root) else {
+            return FfiStyleNodeSlice::default();
+        };
         let mut descendants = Vec::new();
         engine.for_each_flat_tree_descendant(root, |node| {
             descendants.push(node.raw());
-            let _callback_guard = FfiCallbackGuard::new();
-            callback(context, node.raw());
         });
         engine.record_boundary_call(EventKind::ForEachFlatTreeDescendant, |payload| {
             payload.write_u32(root.raw());
             payload.write_u32_slice(&descendants);
         });
+        engine.install_ffi_flat_tree_descendants(descendants)
+    })
+}
+
+/// Discards the borrowed flat-tree descendant slice.
+///
+/// # Safety
+/// `engine` must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_discard_flat_tree_descendants(engine: *mut c_void) {
+    abort_on_panic(|| {
+        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+        engine.clear_ffi_flat_tree_descendants();
     });
 }
 /// Applies one flat style input transaction.
@@ -1686,7 +1762,9 @@ pub unsafe extern "C" fn style_engine_publish_exact_cascade_state(
 /// Seed the ordinary cascade store from a complete retained winner relation.
 ///
 /// # Safety
-/// All pointers must be live and `blocks` must describe `block_count` entries.
+/// All pointers must be live and `blocks` must describe `block_count` entries. The returned
+/// assignment slice remains valid until the next mutable `style_engine_*` entry point or an
+/// explicit discard of the retained cascade assignments.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_materialize_retained_cascade_state(
     engine: *mut c_void,
@@ -1695,14 +1773,18 @@ pub unsafe extern "C" fn style_engine_materialize_retained_cascade_state(
     store: *mut c_void,
     blocks: *const c_void,
     block_count: usize,
-    callbacks: *const c_void,
-) {
+) -> FfiSourceSlotAssignmentView {
     abort_on_panic(|| {
+        if engine.is_null() {
+            return FfiSourceSlotAssignmentView::default();
+        }
+        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+        engine.clear_ffi_retained_cascade_assignments();
         let Some(node) = StyleNodeID::from_raw(node) else {
-            return;
+            return FfiSourceSlotAssignmentView::default();
         };
-        if engine.is_null() || store.is_null() || callbacks.is_null() {
-            return;
+        if store.is_null() {
+            return FfiSourceSlotAssignmentView::default();
         }
         let blocks = if block_count == 0 {
             &[]
@@ -1714,17 +1796,24 @@ pub unsafe extern "C" fn style_engine_materialize_retained_cascade_state(
                 )
             }
         };
-        let assignments = unsafe { &mut *engine.cast::<StyleEngine>() }.materialize_retained_cascade_state(
+        let assignments = engine.materialize_retained_cascade_state(
             super::computed::ComputedStyleTarget::new(node, pseudo_kind),
             unsafe { &mut *store.cast::<crate::css::cascaded_properties::CascadedPropertyStore>() },
             blocks,
         );
-        if !assignments.is_empty() {
-            let callbacks = unsafe { &*callbacks.cast::<crate::css::cascaded_properties::FfiBulkCascadeCallbacks>() };
-            unsafe {
-                (callbacks.assign_source_slots)(callbacks.context, assignments.as_ptr(), assignments.len());
-            }
-        }
+        engine.install_ffi_retained_cascade_assignments(assignments)
+    })
+}
+
+/// Discards the borrowed retained cascade source-slot assignments.
+///
+/// # Safety
+/// `engine` must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_discard_retained_cascade_assignments(engine: *mut c_void) {
+    abort_on_panic(|| {
+        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+        engine.clear_ffi_retained_cascade_assignments();
     });
 }
 
@@ -2271,66 +2360,50 @@ pub unsafe extern "C" fn style_engine_intern_atom(engine: *mut c_void, raw: usiz
     })
 }
 
-/// Takes the pending style transaction and publishes versioned semantic match answers.
+/// Takes the pending style transaction and returns its versioned semantic match answers.
 ///
 /// # Safety
-/// `engine` and `context` must be live for the duration of the call. `emit` must consume its borrowed
-/// slice synchronously and must not call any `style_engine_*` entry point because this function
-/// keeps `engine` mutably borrowed while invoking it.
+/// `engine` must be live. The returned answer slice remains valid until the next mutable
+/// `style_engine_*` entry point or an explicit discard of the transaction outputs.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_take_style_transaction(
     engine: *mut c_void,
     root: u32,
-    context: *mut c_void,
-    emit: unsafe extern "C" fn(
-        context: *mut c_void,
-        transaction_version: u64,
-        program_version: u64,
-        answers: *const FfiStyleDelta,
-        count: usize,
-    ),
-) -> bool {
+) -> FfiStyleTransactionView {
     abort_on_panic(|| {
         let Some(root) = StyleNodeID::from_raw(root) else {
-            return false;
+            return FfiStyleTransactionView::default();
         };
         let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        if engine.recording_id().is_none() {
-            return engine.take_style_transaction(root, |transaction_version, program_version, answers| unsafe {
-                let _callback_guard = FfiCallbackGuard::new();
-                emit(
-                    context,
-                    transaction_version.0,
-                    program_version.0,
-                    answers.as_ptr(),
-                    answers.len(),
-                );
+        engine.clear_ffi_style_transaction_output();
+        let mut output = FfiStyleTransactionOutput::default();
+        output.scoped = engine.take_style_transaction(root, |transaction_version, program_version, answers| {
+            assert!(
+                output.answers.is_empty(),
+                "a style transaction emitted more than one batch"
+            );
+            output.transaction_version = transaction_version.0;
+            output.program_version = program_version.0;
+            output.answers.extend_from_slice(answers);
+        });
+        if engine.recording_id().is_some() {
+            engine.record_boundary_call(EventKind::StyleDeltaBatch, |payload| {
+                payload.write_u32(root.raw());
+                let mut outputs = super::record_replay::PayloadWriter::default();
+                write_style_transaction_outputs(&output, &mut outputs);
+                payload.write_bytes(outputs.as_bytes());
+                payload.write_u64(outputs.stable_digest());
             });
         }
-        let mut emissions = Vec::new();
-        let result = engine.take_style_transaction(root, |transaction_version, program_version, answers| unsafe {
-            emissions.push(RecordedStyleTransactionEmission {
-                transaction_version: transaction_version.0,
-                program_version: program_version.0,
-                answers: answers.to_vec(),
-            });
-            let _callback_guard = FfiCallbackGuard::new();
-            emit(
-                context,
-                transaction_version.0,
-                program_version.0,
-                answers.as_ptr(),
-                answers.len(),
-            );
-        });
-        engine.record_boundary_call(EventKind::StyleDeltaBatch, |payload| {
-            payload.write_u32(root.raw());
-            let mut outputs = super::record_replay::PayloadWriter::default();
-            write_style_transaction_outputs(result, &emissions, &mut outputs);
-            payload.write_bytes(outputs.as_bytes());
-            payload.write_u64(outputs.stable_digest());
-        });
-        result
+        engine.install_ffi_style_transaction_output(output);
+        let output = &engine.ffi_style_transaction_output;
+        FfiStyleTransactionView {
+            transaction_version: output.transaction_version,
+            program_version: output.program_version,
+            answers: output.answers.as_ptr(),
+            count: output.answers.len(),
+            scoped: output.scoped,
+        }
     })
 }
 /// Reads one counter by index, returning its stable name and writing its value and name length, or
@@ -2414,14 +2487,6 @@ mod tests {
     use crate::css::style::memory::MemoryCategory;
     use crate::css::style::memory::Tier;
     use crate::css::style::transaction::InputKind;
-
-    #[test]
-    fn ffi_callback_guard_rejects_reentry_until_the_callback_returns() {
-        let callback_guard = FfiCallbackGuard::new();
-        assert!(std::panic::catch_unwind(assert_not_reentrant_from_callback).is_err());
-        drop(callback_guard);
-        assert_not_reentrant_from_callback();
-    }
 
     fn no_relations() -> FfiTreeRelations {
         FfiTreeRelations {
