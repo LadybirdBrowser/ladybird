@@ -213,6 +213,12 @@ static CacheState& cranelift_cache_state()
     return *state;
 }
 
+static CraneliftCompileCallback& cranelift_compile_callback()
+{
+    static NeverDestroyed<CraneliftCompileCallback> callback;
+    return *callback;
+}
+
 static u64 compute_layout_hash(RuntimeLayout const& layout)
 {
     auto fnv1a = [](u64 hash, u64 value) {
@@ -1166,7 +1172,13 @@ static ErrorOr<void> try_cranelift_compile_batch(ReadonlySpan<BatchInput> batch)
 
     __builtin_memcpy(base + layout_offset, &layout, sizeof(layout));
 
-    auto output_buffer = TRY(compile_cranelift_buffer(buffer));
+    auto output_buffer = TRY([&]() -> ErrorOr<Core::AnonymousBuffer> {
+        if (auto& callback = cranelift_compile_callback()) {
+            auto output = callback(buffer);
+            return output.snapshot();
+        }
+        return compile_cranelift_buffer(buffer);
+    }());
     if (!output_buffer.is_valid() || output_buffer.size() < sizeof(OutputHeader))
         return Error::from_string_literal("Failed to compile a WebAssembly module");
 
@@ -1602,6 +1614,14 @@ bool try_install_cranelift_cache_blob(ReadonlyBytes expected_wasm_hash, Readonly
 
     cranelift_cache_state().pending_install.active = true;
     return true;
+}
+
+void set_cranelift_compile_callback(CraneliftCompileCallback callback)
+{
+    auto& installed_callback = cranelift_compile_callback();
+    VERIFY(!installed_callback);
+
+    installed_callback = move(callback);
 }
 
 }

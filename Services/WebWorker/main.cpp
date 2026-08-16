@@ -28,6 +28,10 @@
 #include <Services/RendererSandbox.h>
 #include <WebWorker/ConnectionFromClient.h>
 
+#if defined(HAVE_WASM_COMPILER_SERVICE)
+#    include <LibWasmCompilerClient/State.h>
+#endif
+
 #include <openssl/thread.h>
 
 static ErrorOr<void> connect_to_resource_loader(GC::Heap& heap, IPC::TransportHandle const& handle);
@@ -113,6 +117,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         if (auto result = connect_to_image_decoder(handle); result.is_error())
             dbgln("Failed to connect to image decoder: {}", result.error());
     };
+
+#if defined(HAVE_WASM_COMPILER_SERVICE)
+    WasmCompilerClient::compiler_state().install_compiler_callback();
+
+    client->on_wasm_compiler_connection = [](auto const& handle) {
+        WasmCompilerClient::compiler_state().replace_connection(handle);
+    };
+#endif
 
     return event_loop.exec();
 }
