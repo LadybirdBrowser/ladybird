@@ -132,7 +132,8 @@ public:
     // identity on both sides would cancel in the journal and invalidate nothing.
     [[nodiscard]] u32 next_declaration_block_version() { return ++m_declaration_block_version; }
 
-    // Interns one selector-mentioned name and returns its document-local atom.
+    // Interns one selector-mentioned name and returns its process-global atom, retained by this
+    // document.
     //
     // Utf16FlyString is already interned, so its one-word raw form is the identity: this is a hash
     // lookup on that word plus one reference to keep the name alive. No string is copied, and

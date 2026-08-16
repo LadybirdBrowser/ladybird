@@ -30,7 +30,7 @@ use std::sync::Mutex;
 use std::sync::OnceLock;
 
 const MAGIC: [u8; 8] = *b"SGREPLAY";
-const FORMAT_VERSION: u64 = 5;
+const FORMAT_VERSION: u64 = 6;
 const EVENT_HEADER_SIZE: usize = 3 * size_of::<u64>();
 const PAYLOAD_ALIGNMENT: usize = 8;
 
@@ -404,7 +404,7 @@ struct Capture {
     writer: LogWriter<File>,
     next_engine_id: u64,
     pointer_tokens: PointerTokenRegistry,
-    recorded_atom_bounds: HashMap<u64, u32>,
+    recorded_atoms: HashSet<(u64, u32)>,
     recorded_responses: HashSet<(u64, u8, u64)>,
 }
 
@@ -412,6 +412,7 @@ struct Capture {
 struct PointerTokenRegistry {
     next_token: u64,
     tokens: HashMap<(u64, usize), u64>,
+    atom_tokens: HashMap<usize, u64>,
     engine_ids_by_pointer: HashMap<usize, Vec<u64>>,
 }
 
@@ -429,7 +430,20 @@ impl PointerTokenRegistry {
         token
     }
 
+    fn atom_token(&mut self, pointer: usize) -> u64 {
+        if let Some(&token) = self.atom_tokens.get(&pointer) {
+            return token;
+        }
+        let token = self.next_token.max(1);
+        self.next_token = token
+            .checked_add(1)
+            .expect("StyleEngine replay pointer token space exhausted");
+        self.atom_tokens.insert(pointer, token);
+        token
+    }
+
     fn invalidate(&mut self, pointer: usize) {
+        self.atom_tokens.remove(&pointer);
         let Some(engine_ids) = self.engine_ids_by_pointer.remove(&pointer) else {
             return;
         };
@@ -462,7 +476,7 @@ pub(super) fn begin_recording_stream(device_class: u8) -> Option<u64> {
             writer,
             next_engine_id: 1,
             pointer_tokens: PointerTokenRegistry::default(),
-            recorded_atom_bounds: HashMap::new(),
+            recorded_atoms: HashSet::new(),
             recorded_responses: HashSet::new(),
         }))
     });
@@ -499,6 +513,21 @@ pub(super) fn pointer_token(engine_id: u64, pointer: usize) -> u64 {
         .token(engine_id, pointer)
 }
 
+pub(super) fn atom_pointer_token(pointer: usize) -> u64 {
+    if pointer == 0 {
+        return 0;
+    }
+    let capture = CAPTURE
+        .get()
+        .and_then(Option::as_ref)
+        .expect("a recording engine must have a capture session");
+    capture
+        .lock()
+        .expect("StyleEngine replay recorder lock is poisoned")
+        .pointer_tokens
+        .atom_token(pointer)
+}
+
 pub(crate) fn invalidate_pointer(pointer: usize) {
     let Some(capture) = CAPTURE.get().and_then(Option::as_ref) else {
         return;
@@ -522,15 +551,16 @@ pub(super) fn first_response(engine_id: u64, category: u8, identity: u64) -> boo
         .insert((engine_id, category, identity))
 }
 
-pub(super) fn take_unrecorded_atom_bound(engine_id: u64, new_bound: u32) -> u32 {
+pub(super) fn first_atom_mapping(engine_id: u64, atom: u32) -> bool {
     let capture = CAPTURE
         .get()
         .and_then(Option::as_ref)
         .expect("a recording engine must have a capture session");
-    let mut capture = capture.lock().expect("StyleEngine replay recorder lock is poisoned");
-    let previous = capture.recorded_atom_bounds.insert(engine_id, new_bound).unwrap_or(0);
-    assert!(new_bound >= previous, "StyleEngine atom identities must be monotone");
-    previous
+    capture
+        .lock()
+        .expect("StyleEngine replay recorder lock is poisoned")
+        .recorded_atoms
+        .insert((engine_id, atom))
 }
 
 /// Records the end of one document engine and makes every preceding event durable.

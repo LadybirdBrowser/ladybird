@@ -133,7 +133,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     if engine_id == 0 || live_engines.get(index).is_some_and(Option::is_some) {
                         return Err(format!("engine {engine_id} was created more than once").into());
                     }
-                    let engine = bridge::style_engine_create(bridge::FfiDeviceClass::ForegroundDesktop);
+                    let engine = bridge::style_engine_create_for_replay(bridge::FfiDeviceClass::ForegroundDesktop);
                     unsafe { bridge::style_engine_use_recording_memory_policy(engine) };
                     if live_engines.len() <= index {
                         live_engines.resize(index + 1, None);
