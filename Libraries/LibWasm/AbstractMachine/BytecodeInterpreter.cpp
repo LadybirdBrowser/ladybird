@@ -415,7 +415,9 @@ void BytecodeInterpreter::interpret(Configuration& configuration)
     bool const may_run_native = native_entry != 0 || expression.compiled_instructions.has_tier_up_checkpoints;
     CompiledFaultRecoveryContext compiled_fault_recovery;
     bool did_install_compiled_fault_recovery = false;
-    if (may_run_native && !s_compiled_fault_recovery) {
+    if (may_run_native) {
+        // A host function can reenter Wasm with a different configuration (and therefore a different memory).
+        // Keep the innermost configuration active so its compiled faults are classified and recovered correctly.
         install_compiled_fault_handlers();
         compiled_fault_recovery.interpreter = this;
         compiled_fault_recovery.configuration = &configuration;
