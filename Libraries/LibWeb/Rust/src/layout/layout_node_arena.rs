@@ -24,6 +24,7 @@ pub(crate) const SLOTS_PER_CHUNK: usize = 256;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct IntrinsicSizeCacheKey {
     pub(crate) measured_at_inline_size: Option<CssPixels>,
+    pub(crate) measured_at_block_size: Option<CssPixels>,
     pub(crate) percentage_basis_inline_size: Option<CssPixels>,
     pub(crate) percentage_basis_block_size: Option<CssPixels>,
     pub(crate) quirks_mode_percentage_basis_block_size: Option<CssPixels>,
@@ -42,6 +43,7 @@ impl Hash for IntrinsicSizeCacheKey {
         }
 
         hash_optional(self.measured_at_inline_size, state);
+        hash_optional(self.measured_at_block_size, state);
         hash_optional(self.percentage_basis_inline_size, state);
         hash_optional(self.percentage_basis_block_size, state);
         hash_optional(self.quirks_mode_percentage_basis_block_size, state);

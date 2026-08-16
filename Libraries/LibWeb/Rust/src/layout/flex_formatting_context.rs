@@ -865,13 +865,35 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn calculate_min_content_inline_size(&self, index: usize) -> CssPixels {
-        self.sizing()
-            .calculate_min_content_inline_size(self.flex_items[index].box_, self.item_containing_block_constraints())
+        let sizing = self.sizing();
+        let node = self.flex_items[index].box_;
+        let constraints = self.item_containing_block_constraints();
+        let used = self.item_used(index);
+        if used.has_definite_block_size() {
+            sizing.calculate_min_content_inline_size_at_definite_block_size(
+                node,
+                constraints,
+                used.content_block_size.get(),
+            )
+        } else {
+            sizing.calculate_min_content_inline_size(node, constraints)
+        }
     }
 
     fn calculate_max_content_inline_size(&self, index: usize) -> CssPixels {
-        self.sizing()
-            .calculate_max_content_inline_size(self.flex_items[index].box_, self.item_containing_block_constraints())
+        let sizing = self.sizing();
+        let node = self.flex_items[index].box_;
+        let constraints = self.item_containing_block_constraints();
+        let used = self.item_used(index);
+        if used.has_definite_block_size() {
+            sizing.calculate_max_content_inline_size_at_definite_block_size(
+                node,
+                constraints,
+                used.content_block_size.get(),
+            )
+        } else {
+            sizing.calculate_max_content_inline_size(node, constraints)
+        }
     }
 
     fn calculate_min_content_block_size(&self, index: usize, inline_size: CssPixels) -> CssPixels {

@@ -1169,7 +1169,7 @@ impl SizingContext {
             self.intrinsic_inline_measurement_cache_get(
                 node,
                 IntrinsicSizeCacheKind::MaxContentInline,
-                cache_key(None, constraints),
+                cache_key(None, None, constraints),
             )?
             .min_content_inline_size_from_max_content_layout?
         } else {
@@ -1322,7 +1322,11 @@ impl SizingContext {
             AvailableSize::MaxContent => IntrinsicSizeCacheKind::MaxContentInline,
             AvailableSize::Definite(_) | AvailableSize::Indefinite => return None,
         };
-        let measurement = self.intrinsic_inline_measurement_cache_get(node, kind, cache_key(None, constraints))?;
+        let measurement = self.intrinsic_inline_measurement_cache_get(
+            node,
+            kind,
+            cache_key(None, None, constraints),
+        )?;
         if measurement.available_block_size != available_block_size {
             return None;
         }
@@ -1384,6 +1388,24 @@ impl SizingContext {
         node: Node,
         constraints: ContainingBlockConstraints,
     ) -> CssPixels {
+        self.calculate_min_content_inline_size_with_block_size(node, constraints, None)
+    }
+
+    pub(crate) fn calculate_min_content_inline_size_at_definite_block_size(
+        &self,
+        node: Node,
+        constraints: ContainingBlockConstraints,
+        block_size: CssPixels,
+    ) -> CssPixels {
+        self.calculate_min_content_inline_size_with_block_size(node, constraints, Some(block_size))
+    }
+
+    fn calculate_min_content_inline_size_with_block_size(
+        &self,
+        node: Node,
+        constraints: ContainingBlockConstraints,
+        block_size: Option<CssPixels>,
+    ) -> CssPixels {
         let facts = self.facts(node);
         let style = self.style(node);
         if facts.is_replaced_box() && (style.width().contains_percentage() || style.max_width().contains_percentage()) {
@@ -1432,25 +1454,26 @@ impl SizingContext {
         if let Some(cached) = self.intrinsic_inline_measurement_cache_get(
             node,
             IntrinsicSizeCacheKind::MinContentInline,
-            cache_key(None, constraints),
+            cache_key(None, block_size, constraints),
         ) {
             return cached.automatic_content_inline_size;
         }
-        if let Some(min_content_inline_size) = self.paired_min_content_inline_size(node, constraints) {
+        if let Some(min_content_inline_size) = self.paired_min_content_inline_size(node, constraints, block_size) {
             return min_content_inline_size;
         }
-        self.measure_intrinsic_inline_size(node, constraints, IntrinsicSizeCacheKind::MinContentInline)
+        self.measure_intrinsic_inline_size(node, constraints, block_size, IntrinsicSizeCacheKind::MinContentInline)
     }
 
     fn paired_min_content_inline_size(
         &self,
         node: Node,
         constraints: ContainingBlockConstraints,
+        block_size: Option<CssPixels>,
     ) -> Option<CssPixels> {
         self.intrinsic_inline_measurement_cache_get(
             node,
             IntrinsicSizeCacheKind::MaxContentInline,
-            cache_key(None, constraints),
+            cache_key(None, block_size, constraints),
         )?
         .min_content_inline_size_from_max_content_layout
     }
@@ -1459,6 +1482,24 @@ impl SizingContext {
         &self,
         node: Node,
         constraints: ContainingBlockConstraints,
+    ) -> CssPixels {
+        self.calculate_max_content_inline_size_with_block_size(node, constraints, None)
+    }
+
+    pub(crate) fn calculate_max_content_inline_size_at_definite_block_size(
+        &self,
+        node: Node,
+        constraints: ContainingBlockConstraints,
+        block_size: CssPixels,
+    ) -> CssPixels {
+        self.calculate_max_content_inline_size_with_block_size(node, constraints, Some(block_size))
+    }
+
+    fn calculate_max_content_inline_size_with_block_size(
+        &self,
+        node: Node,
+        constraints: ContainingBlockConstraints,
+        block_size: Option<CssPixels>,
     ) -> CssPixels {
         let facts = self.facts(node);
         let style = self.style(node);
@@ -1614,7 +1655,7 @@ impl SizingContext {
         if !self.has_children(node) {
             return CssPixels::default();
         }
-        self.measure_intrinsic_inline_size(node, constraints, IntrinsicSizeCacheKind::MaxContentInline)
+        self.measure_intrinsic_inline_size(node, constraints, block_size, IntrinsicSizeCacheKind::MaxContentInline)
     }
 
     // Lays `node` out under an intrinsic inline-size constraint, reusing and populating the measurement cache.
@@ -1622,6 +1663,7 @@ impl SizingContext {
         &self,
         node: Node,
         constraints: ContainingBlockConstraints,
+        block_size: Option<CssPixels>,
         kind: IntrinsicSizeCacheKind,
     ) -> CssPixels {
         let (size_constraint, available_inline_size) = match kind {
@@ -1629,13 +1671,20 @@ impl SizingContext {
             IntrinsicSizeCacheKind::MaxContentInline => (SizeConstraint::MaxContent, AvailableSize::MaxContent),
             _ => unreachable!("inline measurement cache kind must use the inline axis"),
         };
-        let key = cache_key(None, constraints);
+        let key = cache_key(None, block_size, constraints);
         if let Some(cached) = self.intrinsic_inline_measurement_cache_get(node, kind, key) {
             return cached.automatic_content_inline_size;
         }
 
         let measurement = MeasurementState::create(self.callbacks);
         let root = measurement.create_used_values(node, constraints);
+        // NB: A parent layout can assign a definite block size that is not present in computed style,
+        //     such as the stretched cross size of a flex item. Preserve it so descendant percentages
+        //     resolve against the same size during intrinsic measurement.
+        if let Some(block_size) = block_size {
+            root.set_content_block_size(block_size);
+            root.has_definite_block_size.set(true);
+        }
         root.inline_size_constraint.set(size_constraint);
         root.has_definite_inline_size.set(false);
         let block_size = if root.has_definite_block_size() {
@@ -1677,7 +1726,7 @@ impl SizingContext {
             IntrinsicSizeCacheKind::MaxContentBlock => (SizeConstraint::MaxContent, AvailableSize::MaxContent),
             _ => unreachable!("block size cache kind must use the block axis"),
         };
-        let key = cache_key(Some(inline_size), constraints);
+        let key = cache_key(Some(inline_size), None, constraints);
         if let Some(cached) = self.intrinsic_block_cache_get(node, kind, key) {
             return cached;
         }
