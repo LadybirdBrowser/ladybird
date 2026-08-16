@@ -204,12 +204,15 @@ ErrorOr<void> release_address_space(void* address, size_t size)
     return {};
 }
 
-ErrorOr<int> anon_create([[maybe_unused]] size_t size, [[maybe_unused]] int options)
+ErrorOr<int> anon_create([[maybe_unused]] size_t size, [[maybe_unused]] int options, [[maybe_unused]] AllowSealing allow_sealing)
 {
     int fd = -1;
 #if defined(AK_OS_LINUX) || defined(AK_OS_FREEBSD)
-    // FIXME: Support more options on Linux.
     auto linux_options = ((options & O_CLOEXEC) > 0) ? MFD_CLOEXEC : 0;
+#    ifdef MFD_ALLOW_SEALING
+    if (allow_sealing == AllowSealing::Yes)
+        linux_options |= MFD_ALLOW_SEALING;
+#    endif
     fd = memfd_create("", linux_options);
 #elif defined(SHM_ANON)
     fd = shm_open(SHM_ANON, O_RDWR | O_CREAT | options, 0600);

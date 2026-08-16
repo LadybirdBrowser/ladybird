@@ -12,9 +12,12 @@
 
 namespace Core {
 
-ErrorOr<AnonymousBuffer> AnonymousBuffer::create_with_size(size_t size)
+ErrorOr<AnonymousBuffer> AnonymousBuffer::create_with_size(size_t size, Sealability sealability)
 {
-    auto fd = TRY(Core::System::anon_create(size, O_CLOEXEC));
+    auto allow_sealing = sealability == Sealability::Sealable
+        ? Core::System::AllowSealing::Yes
+        : Core::System::AllowSealing::No;
+    auto fd = TRY(Core::System::anon_create(size, O_CLOEXEC, allow_sealing));
     return create_from_anon_fd(fd, size);
 }
 

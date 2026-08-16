@@ -94,6 +94,16 @@ TEST_CASE(reconstruct_from_anon_fd_shares_memory)
     EXPECT_EQ(mirrored, payload);
 }
 
+#if (defined(AK_OS_LINUX) || defined(AK_OS_FREEBSD)) && defined(F_ADD_SEALS) && defined(F_GET_SEALS) && defined(F_SEAL_GROW) && defined(F_SEAL_SHRINK)
+TEST_CASE(create_sealable_buffer)
+{
+    auto buffer = MUST(Core::AnonymousBuffer::create_with_size(128, Core::AnonymousBuffer::Sealability::Sealable));
+    MUST(Core::System::fcntl(buffer.fd(), F_ADD_SEALS, F_SEAL_GROW | F_SEAL_SHRINK));
+    auto seals = MUST(Core::System::fcntl(buffer.fd(), F_GET_SEALS, static_cast<uintptr_t>(0)));
+    EXPECT_EQ(seals & (F_SEAL_GROW | F_SEAL_SHRINK), F_SEAL_GROW | F_SEAL_SHRINK);
+}
+#endif
+
 #ifndef AK_OS_WINDOWS
 TEST_CASE(failed_creation_from_an_fd_closes_the_fd)
 {
