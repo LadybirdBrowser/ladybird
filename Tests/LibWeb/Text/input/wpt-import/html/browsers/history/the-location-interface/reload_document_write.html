@@ -1,0 +1,20 @@
+<!doctype html>
+<title>Reload document with document.written content</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+var win = window.open("reload_document_write-1.html");
+var t = async_test();
+
+window.onmessage = t.step_func(function(e) {
+  var initial_value = e.data;
+  win.location.reload();
+  window.onmessage = t.step_func(function(e) {
+    assert_not_equals(e.data, initial_value);
+    t.done();
+  });
+});
+
+add_completion_callback(function() {win.close()});
+</script>

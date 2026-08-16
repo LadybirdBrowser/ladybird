@@ -1962,7 +1962,6 @@ bool ViewImplementation::did_cancel_navigation()
 
     if (m_pending_webdriver_navigation.has_value()) {
         auto navigation_id = m_pending_webdriver_navigation->id;
-        m_top_level_traversable.did_cancel_navigation();
         complete_webdriver_navigation(navigation_id);
         return true;
     }
@@ -1975,8 +1974,6 @@ void ViewImplementation::did_finish_navigation(URL::URL const& url)
 {
     set_loading_state(false);
     m_uncommitted_top_level_navigation.clear();
-
-    m_top_level_traversable.did_finish_navigation(url);
 
     if (!m_pending_webdriver_navigation.has_value())
         return;
