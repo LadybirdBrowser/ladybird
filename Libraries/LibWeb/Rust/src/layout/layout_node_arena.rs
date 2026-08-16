@@ -980,6 +980,153 @@ impl LayoutNodeArena {
         };
     }
 
+    // OPTIMIZATION: The edit invalidates line data at its direct parent and every formatting
+    // ancestor. Preserve the structural proof along the same unbounded path as the fragment
+    // epoch bumps so each affected inline context can reuse its unchanged line prefix.
+    pub(crate) fn note_inline_layout_damage_at_and_above(&self, mut box_: NodeSlotId) {
+        while !box_.is_invalid() {
+            let data = self.data(box_);
+            self.fc_run_cache_store.note_inline_layout_damage(box_);
+            // SAFETY: data() validated that box_ names a live slot, and the layout tree is stable
+            // for the duration of this synchronous topology update.
+            box_ = unsafe { (&raw const (*data).parent).read() };
+        }
+    }
+
+    pub(crate) fn insert_child(&self, parent: NodeSlotId, child: NodeSlotId, before: NodeSlotId) {
+        self.assert_owner_thread();
+        assert_ne!(parent, child, "a layout node cannot become its own child");
+        let parent_data = self.data(parent);
+        let child_data = self.data(child);
+
+        // SAFETY (for every raw access below): data() validated that the slot IDs name live
+        // nodes, and layout tree mutation is serialized on the arena's owner thread.
+        unsafe {
+            let child_parent = (&raw const (*child_data).parent).read();
+            let child_previous_sibling = (&raw const (*child_data).previous_sibling).read();
+            let child_next_sibling = (&raw const (*child_data).next_sibling).read();
+            assert!(
+                child_parent.is_invalid(),
+                "inserted layout node is still linked to a parent"
+            );
+            assert!(
+                child_previous_sibling.is_invalid(),
+                "inserted layout node is still linked to a previous sibling"
+            );
+            assert!(
+                child_next_sibling.is_invalid(),
+                "inserted layout node is still linked to a next sibling"
+            );
+            debug_assert_eq!(
+                (&raw const (*parent_data).first_child).read().is_invalid(),
+                (&raw const (*parent_data).last_child).read().is_invalid(),
+                "layout node child list endpoints disagree"
+            );
+        }
+
+        #[cfg(debug_assertions)]
+        {
+            let mut ancestor = parent;
+            while !ancestor.is_invalid() {
+                assert_ne!(ancestor, child, "layout node insertion would create a cycle");
+                // SAFETY: data() validated that ancestor names a live slot, and parent links
+                // only name live slots.
+                ancestor = unsafe { (&raw const (*self.data(ancestor)).parent).read() };
+            }
+        }
+
+        let before_data = if before.is_invalid() {
+            std::ptr::null_mut()
+        } else {
+            assert_ne!(before, child, "a layout node cannot be inserted before itself");
+            self.data(before)
+        };
+        let previous = if before_data.is_null() {
+            // SAFETY: parent_data addresses a live node validated above.
+            unsafe { (&raw const (*parent_data).last_child).read() }
+        } else {
+            // SAFETY: data() validated that before names a live node.
+            unsafe {
+                let before_parent = (&raw const (*before_data).parent).read();
+                assert_eq!(
+                    before_parent, parent,
+                    "insertion reference is not a child of the parent"
+                );
+                (&raw const (*before_data).previous_sibling).read()
+            }
+        };
+
+        // SAFETY: Every written slot was validated live above (previous comes from a validated
+        // sibling or child-list link), and mutation is serialized on the owner thread.
+        unsafe {
+            (&raw mut (*child_data).parent).write(parent);
+            (&raw mut (*child_data).previous_sibling).write(previous);
+            (&raw mut (*child_data).next_sibling).write(before);
+            if previous.is_invalid() {
+                (&raw mut (*parent_data).first_child).write(child);
+            } else {
+                (&raw mut (*self.data(previous)).next_sibling).write(child);
+            }
+            if before_data.is_null() {
+                (&raw mut (*parent_data).last_child).write(child);
+            } else {
+                (&raw mut (*before_data).previous_sibling).write(child);
+            }
+        }
+
+        self.note_inline_layout_damage_at_and_above(parent);
+    }
+
+    pub(crate) fn remove_child(&self, parent: NodeSlotId, child: NodeSlotId) {
+        self.assert_owner_thread();
+        let parent_data = self.data(parent);
+        let child_data = self.data(child);
+
+        // SAFETY (for every raw access below): data() validated that the slot IDs name live
+        // nodes, sibling and child-list links only name live slots, and layout tree mutation
+        // is serialized on the arena's owner thread.
+        unsafe {
+            let child_parent = (&raw const (*child_data).parent).read();
+            assert_eq!(child_parent, parent, "removed layout node is not a child of the parent");
+            let previous = (&raw const (*child_data).previous_sibling).read();
+            let next = (&raw const (*child_data).next_sibling).read();
+
+            if previous.is_invalid() {
+                let first_child = (&raw const (*parent_data).first_child).read();
+                assert_eq!(first_child, child, "layout node child list lost its first child");
+                (&raw mut (*parent_data).first_child).write(next);
+            } else {
+                let previous_data = self.data(previous);
+                let previous_next_sibling = (&raw const (*previous_data).next_sibling).read();
+                assert_eq!(
+                    previous_next_sibling, child,
+                    "layout node sibling chain is inconsistent"
+                );
+                (&raw mut (*previous_data).next_sibling).write(next);
+            }
+
+            if next.is_invalid() {
+                let last_child = (&raw const (*parent_data).last_child).read();
+                assert_eq!(last_child, child, "layout node child list lost its last child");
+                (&raw mut (*parent_data).last_child).write(previous);
+            } else {
+                let next_data = self.data(next);
+                let next_previous_sibling = (&raw const (*next_data).previous_sibling).read();
+                assert_eq!(
+                    next_previous_sibling, child,
+                    "layout node sibling chain is inconsistent"
+                );
+                (&raw mut (*next_data).previous_sibling).write(previous);
+            }
+
+            (&raw mut (*child_data).parent).write(NodeSlotId::INVALID);
+            (&raw mut (*child_data).previous_sibling).write(NodeSlotId::INVALID);
+            (&raw mut (*child_data).next_sibling).write(NodeSlotId::INVALID);
+        }
+
+        self.note_inline_layout_damage_at_and_above(parent);
+    }
+
     pub(crate) unsafe fn from_handle<'a>(arena: *mut c_void) -> &'a Self {
         assert!(!arena.is_null(), "layout node arena handle is null");
         // SAFETY: Layout passes borrow the document's arena synchronously,
@@ -1072,21 +1219,54 @@ pub unsafe extern "C" fn layout_arena_fc_run_cache_hit_count(arena: *mut c_void)
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_note_inline_layout_damage(arena: *mut c_void, mut box_: NodeSlotId) {
+pub unsafe extern "C" fn layout_arena_note_inline_layout_damage(arena: *mut c_void, box_: NodeSlotId) {
     abort_on_panic(|| {
         assert!(!arena.is_null(), "layout node arena handle is null");
         // SAFETY: The C++ caller keeps the arena and layout tree alive for this synchronous call.
-        let arena = unsafe { &*arena.cast::<LayoutNodeArena>() };
-        // OPTIMIZATION: The edit invalidates line data at its direct parent and every formatting
-        // ancestor. Preserve the structural proof along the same unbounded path as the fragment
-        // epoch bumps so each affected inline context can reuse its unchanged line prefix.
-        while !box_.is_invalid() {
-            let data = arena.data(box_);
-            arena.fc_run_cache_store().note_inline_layout_damage(box_);
-            // SAFETY: data() validated that box_ names a live slot, and the layout tree is stable
-            // for the duration of this synchronous topology update.
-            box_ = unsafe { (&raw const (*data).parent).read() };
-        }
+        unsafe { &*arena.cast::<LayoutNodeArena>() }.note_inline_layout_damage_at_and_above(box_);
+    });
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call, and `id` must
+/// name a live node in this arena.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_node_data(arena: *mut c_void, id: NodeSlotId) -> *mut NodeData {
+    abort_on_panic(|| {
+        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+        unsafe { LayoutNodeArena::from_handle(arena) }.data(id)
+    })
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call, and `parent`,
+/// `child`, and a valid `before` must name live nodes in this arena.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_insert_child(
+    arena: *mut c_void,
+    parent: NodeSlotId,
+    child: NodeSlotId,
+    before: NodeSlotId,
+) {
+    abort_on_panic(|| {
+        // SAFETY: The C++ wrapper keeps the arena alive for this call and
+        // serializes all access on the document thread.
+        unsafe { LayoutNodeArena::from_handle(arena) }.insert_child(parent, child, before);
+    });
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call, and `parent` and
+/// `child` must name live nodes in this arena.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_remove_child(arena: *mut c_void, parent: NodeSlotId, child: NodeSlotId) {
+    abort_on_panic(|| {
+        // SAFETY: The C++ wrapper keeps the arena alive for this call and
+        // serializes all access on the document thread.
+        unsafe { LayoutNodeArena::from_handle(arena) }.remove_child(parent, child);
     });
 }
 
