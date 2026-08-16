@@ -55,6 +55,7 @@ impl StyleEngine {
             computed_pseudo_assignment_memory: MemoryLease::new(MemoryCategory::ComputedPseudoAssignment),
             html_element_namespace: StyleAtomID::NONE,
             match_answers: MatchAnswerCatalog::default(),
+            selector_truth_sets: SelectorTruthSetCatalog::default(),
             retained_match_answers: RetainedMatchAnswers::default(),
             retained_selector_incidences: RetainedSelectorIncidences::default(),
             selector_incidence_is_current: false,
@@ -1560,7 +1561,7 @@ impl StyleEngine {
             kind,
             ElementDeclarationKind::PresentationalHint | ElementDeclarationKind::SvgPresentationAttribute
         ) {
-            verify_cascade_winners(|| {
+            verify_cascade_winners(self, |_| {
                 let mut properties: Vec<u16> = declared.iter().map(|declared| declared.property).collect();
                 properties.sort_unstable();
                 assert!(

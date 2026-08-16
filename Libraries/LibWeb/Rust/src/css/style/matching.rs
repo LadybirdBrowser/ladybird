@@ -4,20 +4,30 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::batch_matcher::insert_scope_rule;
+use super::batch_matcher::{append_selector_truth_matches, insert_scope_rule};
 use super::*;
 
 const MIN_SHARED_CASCADE_COMPLETION_SAVINGS: usize = 8;
 
-fn verify_against_cold<T: std::fmt::Debug + PartialEq>(
-    answer: &T,
-    cold: impl FnOnce() -> Option<T>,
+fn verify_match_answer_against_cold(
+    engine: &mut StyleEngine,
+    answer: &[RuleMatch],
     node: StyleNodeID,
     description: &str,
 ) {
-    verify_style_answer_patch(|| {
-        let cold = cold().expect("cold matching must answer wherever a retained answer did");
-        assert_eq!(answer, &cold, "{description} differs from cold matching for {node:?}");
+    verify_style_answer_patch(engine, |verifier| {
+        verifier.verify_match_answer(answer, node, description);
+    });
+}
+
+fn verify_cascade_answer_against_cold(
+    engine: &mut StyleEngine,
+    answer: &[RuleMatch],
+    node: StyleNodeID,
+    description: &str,
+) {
+    verify_style_answer_patch(engine, |verifier| {
+        verifier.verify_cascade_answer(answer, node, description);
     });
 }
 
@@ -157,10 +167,10 @@ impl StyleEngine {
 
     pub(super) fn discard_published_match_answers(&mut self) {
         let published = std::mem::take(&mut self.published_match_answers);
-        verify_published_style_transaction(|| {
+        verify_published_style_transaction(self, |verifier| {
             assert!(
                 published.entries.is_empty()
-                    || self
+                    || verifier
                         .counters
                         .get(Counter::MatchElementCallsDuringPublishedStyleTransaction)
                         == published.match_element_calls_at_publication,
@@ -1340,7 +1350,16 @@ impl StyleEngine {
     pub(super) fn remember_prepared_retained_match_answer(
         &mut self,
         node: StyleNodeID,
+        answer: Vec<RetainedRuleMatch>,
+    ) {
+        self.remember_prepared_retained_match_answer_with_truth(node, answer, None);
+    }
+
+    pub(super) fn remember_prepared_retained_match_answer_with_truth(
+        &mut self,
+        node: StyleNodeID,
         mut answer: Vec<RetainedRuleMatch>,
+        selector_truth: Option<Vec<SelectorTruth>>,
     ) {
         if !self.match_answer_is_retainable(node) {
             return;
@@ -1348,6 +1367,49 @@ impl StyleEngine {
         let tree_scope = self.tree.tree_scope(node);
         if answer.iter().any(|entry| entry.tree_scope != tree_scope) {
             return;
+        }
+        let reused_derived_answer = verify_selector_truth_derivation_is_enabled().then(|| {
+            let truth = selector_truth.unwrap_or_else(|| prepare_selector_truth_set(&answer, &self.programs));
+            let truth_rows = truth.len();
+            let (identity, reused_truth) = self.selector_truth_sets.intern_prepared(truth);
+            self.counters.bump(if reused_truth {
+                Counter::SelectorTruthSetHits
+            } else {
+                Counter::SelectorTruthSetMisses
+            });
+            if !reused_truth {
+                self.counters.add(
+                    Counter::SelectorTruthSetRows,
+                    u64::try_from(truth_rows).expect("selector truth row count exceeds u64"),
+                );
+            }
+            let truth = Rc::clone(self.selector_truth_sets.get(identity));
+            let dispatch = self.build_ranked_scope_dispatch(tree_scope);
+            let mut derived = RuleMatches::new();
+            append_selector_truth_matches(
+                &mut derived,
+                node,
+                &self.program,
+                &self.programs,
+                &dispatch,
+                &truth,
+                &mut self.counters,
+            );
+            let derived = prepare_retained_match_answer(derived.as_slice().iter().copied());
+            let mut retained = RuleMatches::new();
+            append_retained_matches(&mut retained, node, tree_scope, &self.programs, &dispatch, &answer)
+                .expect("a retained answer must still exist in its ranked dispatch");
+            let retained = prepare_retained_match_answer(retained.as_slice().iter().copied());
+            assert_eq!(retained, derived, "selector truth derivation differs for {node:?}");
+            self.selector_truth_sets
+                .verify_derived_answer(identity, tree_scope, self.program.version(), &retained)
+        });
+        if let Some(reused) = reused_derived_answer {
+            self.counters.bump(if reused {
+                Counter::SelectorTruthDerivedAnswerHits
+            } else {
+                Counter::SelectorTruthDerivedAnswerMisses
+            });
         }
         loop {
             match self
@@ -2416,12 +2478,7 @@ impl StyleEngine {
         let materialized = self.in_cascade_order(materialized, false);
         let cascade_winners_are_complete = self.cascade_winner_inventory_is_complete(&materialized, Some(node));
 
-        verify_against_cold(
-            &materialized,
-            || self.exact_match_answer_for_verification(node).ok(),
-            node,
-            "a retained match answer delta",
-        );
+        verify_match_answer_against_cold(self, &materialized, node, "a retained match answer delta");
 
         self.remember_prepared_retained_match_answer(node, answer);
         let cascade_winners_updated =
@@ -2733,12 +2790,7 @@ impl StyleEngine {
 
         let patched_answer = self.in_cascade_order(patched_answer, false);
 
-        verify_against_cold(
-            &patched_answer,
-            || self.exact_match_answer_for_verification(node).ok(),
-            node,
-            "a retained match answer patch",
-        );
+        verify_match_answer_against_cold(self, &patched_answer, node, "a retained match answer patch");
 
         // Most patches end where they began: the filtered match returns exactly the entries it
         // displaced. An identical answer keeps its stored cascade input, so skip re-deriving and
@@ -3166,8 +3218,8 @@ impl StyleEngine {
                     // NB: Verify mode proves the identity stop against the full completion on the
                     // side instead of disabling it; the check's own work must not disturb engine
                     // counters, so they are restored around it.
-                    verify_style_answer_patch(|| {
-                        self.verify_retained_cascade_input(node, cascade_input);
+                    verify_style_answer_patch(self, |verifier| {
+                        verifier.verify_retained_cascade_input(node, cascade_input);
                     });
                     PublishedMatchAnswer {
                         node,
@@ -3288,16 +3340,7 @@ impl StyleEngine {
             return None;
         };
         let answer = self.matches_for_cascade(exact_answer, false, Some(node));
-        verify_against_cold(
-            &answer,
-            || {
-                self.exact_cascade_answer_for_verification(node)
-                    .ok()
-                    .map(|(answer, _)| answer)
-            },
-            node,
-            "a retained match answer",
-        );
+        verify_cascade_answer_against_cold(self, &answer, node, "a retained match answer");
         self.remember_cascade_input(node, &answer);
         self.counters.bump(Counter::RetainedMatchAnswerReuses);
         self.counters.bump(Counter::PublishedMatchAnswerConsumptions);
@@ -3538,14 +3581,17 @@ impl StyleEngine {
         Ok(self.in_cascade_order(matches, can_have_scope_duplicates))
     }
 
-    fn exact_match_answer_for_verification(&mut self, node: StyleNodeID) -> Result<Vec<RuleMatch>, Incomplete> {
+    pub(super) fn exact_match_answer_for_verification(
+        &mut self,
+        node: StyleNodeID,
+    ) -> Result<Vec<RuleMatch>, Incomplete> {
         let counters_before_verification = self.counters.clone();
         let answer = self.exact_match_answer(node);
         self.counters = counters_before_verification;
         answer
     }
 
-    fn exact_cascade_answer_for_verification(
+    pub(super) fn exact_cascade_answer_for_verification(
         &mut self,
         node: StyleNodeID,
     ) -> Result<(Vec<RuleMatch>, WinnerGroups), Incomplete> {
@@ -3637,6 +3683,9 @@ impl StyleEngine {
             let prefix_caches = Rc::clone(&traversal.prefix_caches);
             let facts = traversal.batch.as_ref().unwrap();
             let mut matches = RuleMatches::new();
+            if compact_for_cascade && verify_selector_truth_derivation_is_enabled() {
+                matches.enable_selector_truth();
+            }
             // OPTIMIZATION: Identical sheet sets share a scope program, so the prefix automaton's
             // answer can be reused across otherwise independent shadow trees.
             let can_defer_prefix_matches =
@@ -3674,11 +3723,15 @@ impl StyleEngine {
                 inner_scope.is_some() || !slotted_scopes.is_empty() || !part_scopes.is_empty();
             let mut cascade_input = None;
             let mut retained_match_answer = None;
+            let mut retained_selector_truth = None;
             let mut retained_match_answer_reused = false;
             let mut retained_match_answer_key_to_remember = None;
             let mut cached_cascade_winner_inventory_is_complete = None;
             let all = match (result, deferred_prefix_matches) {
                 (Ok(()), Some(prefix_matches)) => {
+                    if retained_match_answer_is_exact {
+                        retained_selector_truth = matches.prepared_selector_truth();
+                    }
                     let (scope_program, dispatch) = self.ranked_scope_program(scope);
                     let non_prefix_matches =
                         PrefixAnswerCache::non_prefix_identity(&mut self.match_answers, matches.as_slice());
@@ -3988,6 +4041,7 @@ impl StyleEngine {
                 (Ok(()), None) => {
                     if retained_match_answer_is_exact {
                         retained_match_answer = Some(prepare_retained_match_answer(matches.as_slice().iter().copied()));
+                        retained_selector_truth = matches.prepared_selector_truth();
                     }
                     if compact_for_cascade {
                         self.compact_matches_for_cascade_with_scratch(
@@ -4026,7 +4080,11 @@ impl StyleEngine {
             self.batch_matching_traversal = Some(held_traversal);
             if let Ok(matches) = &all {
                 if let Some(retained_match_answer) = retained_match_answer {
-                    self.remember_prepared_retained_match_answer(node, retained_match_answer);
+                    self.remember_prepared_retained_match_answer_with_truth(
+                        node,
+                        retained_match_answer,
+                        retained_selector_truth,
+                    );
                     if let Some(key) = retained_match_answer_key_to_remember
                         && let Lookup::Known(&identity) = self.retained_match_answers.lookup(node)
                     {
@@ -4090,6 +4148,9 @@ impl StyleEngine {
         }
         let mut sibling_window = INITIAL_SIBLING_FACT_WINDOW;
         let mut matches = RuleMatches::new();
+        if compact_for_cascade && verify_selector_truth_derivation_is_enabled() {
+            matches.enable_selector_truth();
+        }
         let mut completed_by_scope: Column<Vec<bool>> = Column::default();
         let mut dispatch_workspace = DispatchCandidateWorkspace::default();
         let prefix_caches_return_to_completion_batch = self.batch_matching_traversal.is_some();
@@ -4164,7 +4225,12 @@ impl StyleEngine {
                 Ok(()) => {
                     if retained_match_answer_is_exact {
                         self.order_matches_in_cascade(matches.as_mut_vec(), can_have_scope_duplicates);
-                        self.remember_retained_match_answer(node, matches.as_slice());
+                        let retained = prepare_retained_match_answer(matches.as_slice().iter().copied());
+                        self.remember_prepared_retained_match_answer_with_truth(
+                            node,
+                            retained,
+                            matches.prepared_selector_truth(),
+                        );
                     } else if compact_for_cascade {
                         // A cascade-only shortcut can answer the current style without proving the
                         // complete selector answer. Do not leave an older exact answer resident.

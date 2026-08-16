@@ -323,10 +323,11 @@ fn repaired_selector_truth_deltas_do_not_depend_on_retained_order() {
 
 #[test]
 fn verification_gates_only_execute_checks() {
-    let _: () = verify_style_answer_patch(|| {});
-    let _: () = verify_cascade_winners(|| {});
-    let _: () = verify_style_plan_provenance(|| {});
-    let _: () = verify_published_style_transaction(|| {});
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let _: () = verify_style_answer_patch(&mut engine, |_| {});
+    let _: () = verify_cascade_winners(&engine, |_| {});
+    let _: () = verify_style_plan_provenance(&engine, |_| {});
+    let _: () = verify_published_style_transaction(&engine, |_| {});
 }
 
 #[test]
@@ -688,6 +689,78 @@ fn retained_match_answer_payloads_are_evictable_without_losing_identity() {
         memory.bytes_in_category(MemoryCategory::MatchAnswerIdentity),
         (answers.cascade_input_column.capacity() * size_of::<MatchAnswerID>() + cascade_payload_bytes) as u64
     );
+}
+
+#[test]
+fn selector_truth_sets_intern_canonical_twelve_byte_rows() {
+    assert_eq!(size_of::<SelectorTruth>(), 12);
+
+    let truth = SelectorTruth {
+        entry: EntryID(7),
+        tree_scope: TreeScopeID::DOCUMENT,
+        scope_proximity: 3,
+    };
+    let mut catalog = SelectorTruthSetCatalog::default();
+    let (first, first_reused) = catalog.intern_prepared(vec![truth]);
+    let (repeated, repeated_reused) = catalog.intern_prepared(vec![truth]);
+    let (distinct, distinct_reused) = catalog.intern_prepared(vec![SelectorTruth {
+        scope_proximity: 4,
+        ..truth
+    }]);
+
+    assert!(!first_reused);
+    assert!(repeated_reused);
+    assert!(!distinct_reused);
+    assert_eq!(first, repeated);
+    assert_ne!(first, distinct);
+    assert_eq!(catalog.get(first).as_ref(), &[truth]);
+
+    let answer = RetainedRuleMatch {
+        rule: RuleID(1),
+        program: SelectorProgramID(1),
+        entry: 0,
+        tree_scope: TreeScopeID::DOCUMENT,
+        scope_proximity: u32::MAX,
+    };
+    assert!(!catalog.verify_derived_answer(first, TreeScopeID::DOCUMENT, ProgramVersion(1), &[answer]));
+    assert!(catalog.verify_derived_answer(first, TreeScopeID::DOCUMENT, ProgramVersion(1), &[answer]));
+    assert!(!catalog.verify_derived_answer(first, TreeScopeID(1), ProgramVersion(1), &[]));
+}
+
+fn retained_answer_verifier_fixture() -> (StyleEngine, StyleNodeID, Vec<RetainedRuleMatch>, Vec<SelectorTruth>) {
+    let (mut engine, nodes) = linear_document();
+    let target = StyleAtomID(200);
+    let rule = add_target_rule(&mut engine, StyleSheetObjectID(1), target);
+    engine.set_rule_declared_properties(rule, &[(1, false)], true);
+    add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(target));
+    discard_transaction(&mut engine);
+
+    let exact = engine.match_element(nodes[1]).unwrap();
+    let retained = prepare_retained_match_answer(exact.iter().copied());
+    let truth = prepare_selector_truth_set(&retained, &engine.programs);
+    (engine, nodes[1], retained, truth)
+}
+
+#[test]
+fn retained_answer_verifier_accepts_exact_selector_truth() {
+    let (mut engine, node, retained, truth) = retained_answer_verifier_fixture();
+    verification::with_selector_truth_derivation_enabled(|| {
+        engine.remember_prepared_retained_match_answer_with_truth(node, retained, Some(truth));
+    });
+}
+
+#[test]
+fn retained_answer_verifier_rejects_a_dropped_selector_truth_row() {
+    let (mut engine, node, retained, mut truth) = retained_answer_verifier_fixture();
+    assert_eq!(truth.len(), 1);
+    truth.clear();
+
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        verification::with_selector_truth_derivation_enabled(|| {
+            engine.remember_prepared_retained_match_answer_with_truth(node, retained, Some(truth));
+        });
+    }));
+    assert!(result.is_err());
 }
 
 #[test]

@@ -1150,8 +1150,8 @@ impl StyleEngine {
                                     })
                             });
                     if confirmed_exact_cascade && let Some(current_cascade_input) = published_answer.cascade_input {
-                        verify_style_answer_patch(|| {
-                            self.verify_retained_cascade_input(node, current_cascade_input);
+                        verify_style_answer_patch(self, |verifier| {
+                            verifier.verify_retained_cascade_input(node, current_cascade_input);
                         });
                     }
                     match published_answer {
@@ -1209,7 +1209,7 @@ impl StyleEngine {
             MemoryCategory::BatchScratch,
             sequence_touched_parent_bytes + stale_refresh_node_bytes + patch_node_scratch_bytes,
         );
-        verify_style_plan_provenance(|| {
+        verify_style_plan_provenance(self, |_| {
             assert!(
                 plan_is_broad || unattributed_node_count == 0,
                 "a scoped style transaction published {unattributed_node_count} nodes without semantic provenance"

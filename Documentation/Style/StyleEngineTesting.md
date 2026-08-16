@@ -34,11 +34,11 @@ A focused loop for style work:
 ./bin/test-web --verify-style -f Text/input/css/style-engine/ -f Text/input/css/style-invalidation/
 ```
 
-The gates are per-mechanism checks that run at their mechanism's site. Some re-derive incremental results through the exact cold evaluator and compare (`LIBWEB_VERIFY_STYLE_ANSWER_PATCH`, `LIBWEB_VERIFY_CASCADE_WINNERS`); others assert structural properties (`LIBWEB_VERIFY_STYLE_PLAN_PROVENANCE`, `LIBWEB_VERIFY_PUBLISHED_STYLE_TRANSACTION`), and three C++-side gates cover input reuse, the computed closure, and the style-diff fast path (`LIBWEB_VERIFY_STYLE_INPUT_REUSE`, `LIBWEB_VERIFY_COMPUTED_CLOSURE`, `LIBWEB_VERIFY_STYLE_DIFF_FAST_PATH`).
+The gates are per-mechanism checks that run at their mechanism's site. Some re-derive incremental results through the exact cold evaluator and compare (`LIBWEB_VERIFY_STYLE_ANSWER_PATCH`, `LIBWEB_VERIFY_SELECTOR_TRUTH_DERIVATION`, `LIBWEB_VERIFY_CASCADE_WINNERS`); others assert structural properties (`LIBWEB_VERIFY_STYLE_PLAN_PROVENANCE`, `LIBWEB_VERIFY_PUBLISHED_STYLE_TRANSACTION`), and three C++-side gates cover input reuse, the computed closure, and the style-diff fast path (`LIBWEB_VERIFY_STYLE_INPUT_REUSE`, `LIBWEB_VERIFY_COMPUTED_CLOSURE`, `LIBWEB_VERIFY_STYLE_DIFF_FAST_PATH`).
 
 Verification is **observer-only**: checks compare against private state, cannot publish into engine caches, and are exposed as unit-returning closures, so using a gate to steer engine behavior is a compile error. A verifier must never disable or bypass the fast path it is checking, and an incomplete comparison is a failure, not a skip.
 
-The four engine-side gates are engine inputs: recordings store their bit set, and replay refuses a capture under a different configuration. The three C++-side gates are outside the recorded surface.
+The five engine-side gates are engine inputs: recordings store their bit set, including bit 4 for `LIBWEB_VERIFY_SELECTOR_TRUTH_DERIVATION`, and replay refuses a capture under a different configuration. The three C++-side gates are outside the recorded surface.
 
 ## 2. Record and replay
 
