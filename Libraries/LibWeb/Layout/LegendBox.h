@@ -20,12 +20,6 @@ public:
 
     DOM::Element& dom_node() { return static_cast<DOM::Element&>(*Box::dom_node()); }
     DOM::Element const& dom_node() const { return static_cast<DOM::Element const&>(*Box::dom_node()); }
-
-private:
-    virtual bool is_legend_box() const final
-    {
-        return true;
-    }
 };
 
 template<>

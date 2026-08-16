@@ -24,9 +24,6 @@ public:
     SVG::SVGGraphicsElement const& dom_node() const { return as<SVG::SVGGraphicsElement>(SVGBox::dom_node()); }
 
     virtual RefPtr<Painting::Paintable> create_paintable() const override;
-
-private:
-    virtual bool is_svg_graphics_box() const override { return true; }
 };
 
 template<>

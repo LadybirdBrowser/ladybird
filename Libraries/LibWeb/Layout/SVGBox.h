@@ -21,9 +21,6 @@ public:
 
     SVG::SVGElement& dom_node() { return as<SVG::SVGElement>(*Box::dom_node()); }
     SVG::SVGElement const& dom_node() const { return as<SVG::SVGElement>(*Box::dom_node()); }
-
-private:
-    virtual bool is_svg_box() const final { return true; }
 };
 
 template<>

@@ -22,15 +22,12 @@ public:
     SVG::SVGSVGElement& dom_node() { return as<SVG::SVGSVGElement>(*ReplacedBox::dom_node()); }
     SVG::SVGSVGElement const& dom_node() const { return as<SVG::SVGSVGElement>(*ReplacedBox::dom_node()); }
 
-    virtual bool can_have_children() const override { return true; }
-
     Gfx::FloatRect view_box_or_viewport_rect() const;
 
     virtual RefPtr<Painting::Paintable> create_paintable() const override;
 
 private:
     virtual CSS::SizeWithAspectRatio natural_size() const override;
-    virtual bool is_svg_svg_box() const final { return true; }
 };
 
 template<>

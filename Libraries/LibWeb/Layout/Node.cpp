@@ -94,16 +94,12 @@ RustFFI::NodeSlotId Node::slot_id(Node const* node)
 void Node::set_node_kind(RustFFI::NodeKind kind)
 {
     m_data->kind = kind;
-#ifndef NDEBUG
-    VERIFY(RustFFI::layout_node_kind_facts_match(kind, {
-                                                           .is_box = is_box(),
-                                                           .is_block_container = is_block_container(),
-                                                           .is_text = is_text_node(),
-                                                           .is_svg_box = is_svg_box(),
-                                                           .is_replaced_box = is_replaced_box(),
-                                                       }));
-#endif
     enroll_for_arena_replaced_content_facts_sync_if_eligible();
+}
+
+bool Node::can_have_children() const
+{
+    return RustFFI::layout_node_data_can_have_children(m_data);
 }
 
 void Node::enroll_for_arena_replaced_content_facts_sync_if_eligible()

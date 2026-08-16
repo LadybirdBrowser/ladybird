@@ -16,9 +16,6 @@ class TableWrapper : public BlockContainer {
 public:
     TableWrapper(DOM::Document&, DOM::Node*, CSS::LayoutStyle);
     virtual ~TableWrapper() override;
-
-private:
-    virtual bool is_table_wrapper() const final { return true; }
 };
 
 template<>

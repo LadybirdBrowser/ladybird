@@ -27,12 +27,6 @@ HTML::HTMLVideoElement const& VideoBox::dom_node() const
     return static_cast<HTML::HTMLVideoElement const&>(*ReplacedBox::dom_node());
 }
 
-bool VideoBox::can_have_children() const
-{
-    // If we allow children when controls are disabled, innerText may be non-empty.
-    return dom_node().shadow_root() != nullptr;
-}
-
 CSS::SizeWithAspectRatio VideoBox::natural_size() const
 {
     auto natural_size = dom_node().natural_element_size();

@@ -22,9 +22,6 @@ public:
     SVG::SVGPatternElement const& dom_node() const { return as<SVG::SVGPatternElement>(SVGBox::dom_node()); }
 
     virtual RefPtr<Painting::Paintable> create_paintable() const override;
-
-private:
-    virtual bool is_svg_pattern_box() const final { return true; }
 };
 
 template<>
