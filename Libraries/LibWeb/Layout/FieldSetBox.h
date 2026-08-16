@@ -9,8 +9,6 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/BlockContainer.h>
-#include <LibWeb/Layout/LegendBox.h>
-#include <LibWeb/Painting/FieldSetPaintable.h>
 namespace Web::Layout {
 
 class FieldSetBox final : public BlockContainer {
@@ -22,8 +20,6 @@ public:
 
     DOM::Element& dom_node() { return static_cast<DOM::Element&>(*BlockContainer::dom_node()); }
     DOM::Element const& dom_node() const { return static_cast<DOM::Element const&>(*BlockContainer::dom_node()); }
-
-    GC::Ptr<LegendBox const> rendered_legend() const;
 };
 
 template<>

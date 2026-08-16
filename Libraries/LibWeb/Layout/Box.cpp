@@ -13,12 +13,14 @@
 #include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/TableWrapper.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 
@@ -252,6 +254,18 @@ RustFFI::FfiReplacedContentFacts Box::build_replaced_content_facts_for_arena() c
         }
     }
     return facts;
+}
+
+void Box::did_set_content_size()
+{
+    if (kind() != RustFFI::NodeKind::NavigableContainerViewport)
+        return;
+
+    if (auto content_navigable = as<HTML::NavigableContainer>(*dom_node()).content_navigable()) {
+        auto content_size = paintable_box()->content_size();
+        as<HTML::LocalNavigable>(*content_navigable).set_viewport_size(content_size);
+        document().page().client().page_did_update_child_frame_viewport(content_navigable->id(), paintable_box()->absolute_rect());
+    }
 }
 
 RefPtr<Painting::Paintable> Box::paintable_box()

@@ -21,8 +21,6 @@ public:
 
     SVG::SVGSVGElement& dom_node() { return as<SVG::SVGSVGElement>(*ReplacedBox::dom_node()); }
     SVG::SVGSVGElement const& dom_node() const { return as<SVG::SVGSVGElement>(*ReplacedBox::dom_node()); }
-
-    Gfx::FloatRect view_box_or_viewport_rect() const;
 };
 
 template<>

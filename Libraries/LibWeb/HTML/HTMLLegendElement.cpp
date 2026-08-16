@@ -38,14 +38,4 @@ RefPtr<Layout::Node> HTMLLegendElement::create_layout_node(CSS::LayoutStyle styl
     return make_ref_counted<Layout::LegendBox>(document(), *this, style);
 }
 
-Layout::LegendBox* HTMLLegendElement::layout_node()
-{
-    return static_cast<Layout::LegendBox*>(Node::layout_node());
-}
-
-Layout::LegendBox const* HTMLLegendElement::layout_node() const
-{
-    return static_cast<Layout::LegendBox const*>(Node::layout_node());
-}
-
 }

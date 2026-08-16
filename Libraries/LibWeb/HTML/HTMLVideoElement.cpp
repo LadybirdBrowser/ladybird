@@ -76,16 +76,6 @@ RefPtr<Layout::Node> HTMLVideoElement::create_layout_node(CSS::LayoutStyle style
     return make_ref_counted<Layout::VideoBox>(document(), *this, style);
 }
 
-Layout::VideoBox* HTMLVideoElement::layout_node()
-{
-    return static_cast<Layout::VideoBox*>(Node::layout_node());
-}
-
-Layout::VideoBox const* HTMLVideoElement::layout_node() const
-{
-    return static_cast<Layout::VideoBox const*>(Node::layout_node());
-}
-
 void HTMLVideoElement::set_intrinsic_video_dimensions(Optional<Gfx::Size<u32>> dimensions)
 {
     if (m_intrinsic_video_dimensions == dimensions)
