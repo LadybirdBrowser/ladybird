@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 13 tests
 
-12 Pass
-1 Fail
+13 Pass
 Pass	initialize throws when the registry scoped is false and the root is the document.
 Pass	initialize throws when the registry scoped is false and the root document already has another registry
 Pass	initialize is a function on both global and scoped CustomElementRegistry
@@ -16,4 +15,4 @@ Pass	initialize sets element.customElementRegistry permantently
 Pass	initialize is no-op on a subtree with a non-null registry
 Pass	initialize works on Document
 Pass	initialize works on DocumentFragment
-Fail	initialize sets registry on shadow root descendants with no registry
+Pass	initialize sets registry on shadow root descendants with no registry

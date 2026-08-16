@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    asyncTest(async done => {
+        const httpServer = httpTestServer();
+
+        async function checkFragmentParsingWithPendingScript(scriptMarkup, fragmentMarkup, description) {
+            const testID = crypto.randomUUID();
+            const scriptToken = `fragment-parser-pending-script-${testID}`;
+            const scriptURL = await httpServer.createEcho("GET", `/fragment-parser-pending-script-${testID}.js`, {
+                status: 200,
+                headers: { "Content-Type": "text/javascript", "Cache-Control": "no-store" },
+                body: "",
+                wait_for_unblock: scriptToken,
+            });
+
+            await new Promise(resolve => {
+                const frame = document.createElement("iframe");
+                const message = `parser blocked ${testID}`;
+                const onMessage = async event => {
+                    if (event.data !== message)
+                        return;
+                    window.removeEventListener("message", onMessage);
+
+                    const target = frame.contentDocument.querySelector("div");
+                    target.innerHTML = fragmentMarkup;
+                    println(`${description}: ${target.lastElementChild.localName === "p"}`);
+
+                    await fetch(new URL(`/unblock/${scriptToken}`, scriptURL));
+                    frame.remove();
+                    resolve();
+                };
+                window.addEventListener("message", onMessage);
+
+                frame.srcdoc = `
+                    <div></div>
+                    <script>parent.postMessage("${message}", "*");<\/script>
+                    ${scriptMarkup(scriptURL)}
+                `;
+                document.body.appendChild(frame);
+            });
+        }
+
+        await checkFragmentParsingWithPendingScript(
+            url => `<script src="${url}"><\/script>`,
+            "<script><\/script><p></p>",
+            "fragment parser ignored pending HTML script");
+        await checkFragmentParsingWithPendingScript(
+            url => `<svg><script href="${url}"><\/script></svg>`,
+            "<svg><script><\/script></svg><p></p>",
+            "fragment parser ignored pending SVG script");
+        done();
+    });
+</script>

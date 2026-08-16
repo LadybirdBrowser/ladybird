@@ -602,12 +602,6 @@ Layout::NodeArena& Document::layout_node_arena()
     return *m_layout_node_arena;
 }
 
-void Document::set_temporary_document_for_fragment_parsing(Badge<HTML::HTMLParser>)
-{
-    // https://html.spec.whatwg.org/multipage/parsing.html#html-fragment-parsing-algorithm
-    m_temporary_document_for_fragment_parsing = true;
-}
-
 void Document::reset_style_invalidation_counters() const
 {
     m_style_invalidation_counters = {};

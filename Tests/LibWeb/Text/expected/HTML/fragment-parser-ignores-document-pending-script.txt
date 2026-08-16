@@ -1,0 +1,2 @@
+fragment parser ignored pending HTML script: true
+fragment parser ignored pending SVG script: true

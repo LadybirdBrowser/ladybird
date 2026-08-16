@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 11 tests
 
-8 Pass
-3 Fail
+9 Pass
+2 Fail
 Pass	innerHTML on a disconnected element should use the scoped registry it was created with
 Pass	nested descendants in innerHTML on a disconnected element should use the scoped registry the element was created with
 Pass	innerHTML on a disconnected element should use the scoped registry it was created with when parsing a simple HTML
 Pass	innerHTML on an inserted element should continue to use the scoped registry it was created with
-Fail	nested descendants in innerHTML should use the null registry when the container element has null registry
+Pass	nested descendants in innerHTML should use the null registry when the container element has null registry
 Fail	insertAdjacentHTML should use the element's registry even when the registry is null
 Fail	createContextualFragment on a range inside a template should use null registry even when the template has a scoped registry
 Pass	createContextualFragment on a range inside an element with scoped registry should use the scoped registry of the element

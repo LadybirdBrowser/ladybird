@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    asyncTest(async done => {
+        window.fragmentScriptRan = false;
+
+        const sandboxedFrame = document.createElement("iframe");
+        sandboxedFrame.sandbox = "allow-same-origin";
+        sandboxedFrame.srcdoc = "";
+        await new Promise(resolve => {
+            sandboxedFrame.onload = resolve;
+            document.body.appendChild(sandboxedFrame);
+        });
+
+        const template = sandboxedFrame.contentDocument.createElement("template");
+        template.innerHTML = "<script>top.fragmentScriptRan = true;<\/script>";
+        const script = document.adoptNode(template.content.firstChild);
+        document.body.appendChild(script);
+        println(`disabled-mode fragment script remained inert after adoption: ${!window.fragmentScriptRan}`);
+        script.remove();
+        sandboxedFrame.remove();
+
+        const httpServer = httpTestServer();
+        const testID = crypto.randomUUID();
+        const styleSheetToken = `fragment-link-style-sheet-${testID}`;
+        const styleSheetURL = await httpServer.createEcho("GET", `/fragment-link-style-sheet-${testID}.css`, {
+            status: 200,
+            headers: { "Content-Type": "text/css", "Cache-Control": "no-store" },
+            body: "",
+            wait_for_unblock: styleSheetToken,
+        });
+
+        const parserFrame = document.createElement("iframe");
+        const message = `fragment link inserted ${testID}`;
+        window.fragmentStyleSheetURL = styleSheetURL;
+        window.addEventListener("message", async function onMessage(event) {
+            if (event.data !== message)
+                return;
+            window.removeEventListener("message", onMessage);
+
+            println(`fragment link did not block document parser: ${parserFrame.contentDocument.querySelector("p") !== null}`);
+            await fetch(new URL(`/unblock/${styleSheetToken}`, styleSheetURL));
+            parserFrame.remove();
+            delete window.fragmentStyleSheetURL;
+            done();
+        });
+
+        parserFrame.srcdoc = `
+            <div></div>
+            <script>
+                document.querySelector("div").innerHTML = '<li' + 'nk rel="stylesheet" href="' + parent.fragmentStyleSheetURL + '">';
+                parent.postMessage("${message}", "*");
+            <\/script>
+            <script>void 0;<\/script>
+            <p></p>
+        `;
+        document.body.appendChild(parserFrame);
+    });
+</script>
