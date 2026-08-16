@@ -17,6 +17,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from Utils.utils import title_casify
 from Utils.utils import underlying_type_for_enum
+from Utils.utils import write_case_insensitive_ascii_string_to_enum_lookup
 
 
 def keyword_name(dashy_name: str) -> str:
@@ -102,49 +103,29 @@ inline bool is_css_wide_keyword(Keyword keyword)
 def write_implementation_file(out: TextIO, keyword_data: list) -> None:
     out.write("""
 #include <AK/Assertions.h>
-#include <AK/HashMap.h>
-#include <AK/NeverDestroyed.h>
+#include <AK/CharacterTypes.h>
 #include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/Keyword.h>
 
 namespace Web::CSS {
-
-static HashMap<StringView, Keyword, AK::CaseInsensitiveASCIIStringViewTraits> const& stringview_to_keyword_map()
-{
-    static auto const& map = *new HashMap<StringView, Keyword, AK::CaseInsensitiveASCIIStringViewTraits> {
 """)
 
-    for name in keyword_data:
-        out.write(f"""
-    {{"{name}"sv, Keyword::{keyword_name(name)}}},
-""")
+    write_case_insensitive_ascii_string_to_enum_lookup(
+        out,
+        "keyword_from_string_impl",
+        "Keyword",
+        {name: f"Keyword::{keyword_name(name)}" for name in keyword_data},
+    )
 
     out.write("""
-    };
-    return map;
-}
-
 Optional<Keyword> keyword_from_string(StringView string)
 {
-    return stringview_to_keyword_map().get(string);
+    return keyword_from_string_impl(string);
 }
 
 Optional<Keyword> keyword_from_string(Utf16View string)
 {
-    if (string.has_ascii_storage()) {
-        auto span = string.ascii_span();
-        return keyword_from_string(StringView { span.data(), span.size() });
-    }
-""")
-
-    for name in keyword_data:
-        out.write(f"""
-    if (string.equals_ignoring_ascii_case("{name}"_utf16_fly_string.view()))
-        return Keyword::{keyword_name(name)};
-""")
-
-    out.write("""
-    return {};
+    return keyword_from_string_impl(string);
 }
 
 StringView string_from_keyword(Keyword keyword) {
