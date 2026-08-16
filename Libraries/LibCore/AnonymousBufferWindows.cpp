@@ -55,8 +55,9 @@ ErrorOr<NonnullRefPtr<AnonymousBufferImpl>> AnonymousBufferImpl::create(int fd, 
     return adopt_ref(*new AnonymousBufferImpl(fd, size, ptr));
 }
 
-ErrorOr<AnonymousBuffer> AnonymousBuffer::create_with_size(size_t size)
+ErrorOr<AnonymousBuffer> AnonymousBuffer::create_with_size(size_t size, Sealability)
 {
+    // FIXME: Support sealability on Windows.
     auto impl = TRY(AnonymousBufferImpl::create(size));
     return AnonymousBuffer(move(impl));
 }
