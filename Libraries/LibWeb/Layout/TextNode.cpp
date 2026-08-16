@@ -26,20 +26,23 @@ namespace Web::Layout {
 TextNode::TextNode(DOM::Document& document, DOM::Text& text)
     : Node(document, &text)
 {
+    set_node_kind(RustFFI::NodeKind::TextNode);
     enroll_for_arena_text_content_sync();
     update_produces_line_box_fragment_when_empty_flag();
 }
 
-TextNode::TextNode(DOM::Document& document, DOM::Text& text, AttachToDOMNode attach_to_dom_node)
+TextNode::TextNode(DOM::Document& document, DOM::Text& text, AttachToDOMNode attach_to_dom_node, RustFFI::NodeKind kind)
     : Node(document, &text, attach_to_dom_node)
 {
+    set_node_kind(kind);
     enroll_for_arena_text_content_sync();
     update_produces_line_box_fragment_when_empty_flag();
 }
 
-TextNode::TextNode(DOM::Document& document)
+TextNode::TextNode(DOM::Document& document, RustFFI::NodeKind kind)
     : Node(document, nullptr)
 {
+    set_node_kind(kind);
     enroll_for_arena_text_content_sync();
 }
 
@@ -78,7 +81,7 @@ bool TextNode::is_password_input() const
 }
 
 GeneratedTextNode::GeneratedTextNode(DOM::Document& document, Utf16String text)
-    : TextNode(document)
+    : TextNode(document, RustFFI::NodeKind::GeneratedTextNode)
     , m_text(move(text))
 {
 }
@@ -95,7 +98,7 @@ GC::Ptr<DOM::Element const> GeneratedTextNode::parent_element_for_text_transform
 }
 
 TextSliceNode::TextSliceNode(DOM::Document& document, DOM::Text& text, AttachToDOMNode attach_to_dom_node, size_t dom_start_offset, size_t dom_length)
-    : TextNode(document, text, attach_to_dom_node)
+    : TextNode(document, text, attach_to_dom_node, RustFFI::NodeKind::TextSliceNode)
     , m_dom_start_offset(dom_start_offset)
     , m_dom_length_in_code_units(dom_length)
 {

@@ -12,7 +12,6 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/Layout/Box.h>
-#include <LibWeb/Layout/BreakNode.h>
 #include <LibWeb/VisualLines.h>
 
 namespace Web::HTML {
@@ -28,7 +27,7 @@ HTMLBRElement::~HTMLBRElement() = default;
 
 RefPtr<Layout::Node> HTMLBRElement::create_layout_node(CSS::LayoutStyle style)
 {
-    return make_ref_counted<Layout::BreakNode>(document(), *this, style);
+    return make_ref_counted<Layout::NodeWithStyle>(document(), *this, style, Layout::RustFFI::NodeKind::BreakNode);
 }
 
 bool HTMLBRElement::is_presentational_hint(Utf16FlyString const& name) const
