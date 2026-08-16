@@ -3625,22 +3625,6 @@ pub(crate) enum SpaceDistributionPhase {
     MaxContent,
 }
 
-/// Distributes one spanning item's contribution into planned base-size
-/// increases. The caller supplies the affected tracks in span order.
-#[cfg(test)]
-pub(crate) fn distribute_spanning_base_size(
-    tracks: &mut [Track],
-    affected: &[bool],
-    item_size_contribution: CssPixels,
-    phase: SpaceDistributionPhase,
-) -> Vec<CssPixels> {
-    assert_eq!(tracks.len(), affected.len());
-    let spanned = (0..tracks.len()).collect::<Vec<_>>();
-    distribute_spanning_base_size_for_indices(tracks, &spanned, item_size_contribution, phase, |position, _| {
-        affected[position]
-    })
-}
-
 fn distribute_spanning_base_size_for_indices(
     tracks: &mut [Track],
     spanned: &[usize],
