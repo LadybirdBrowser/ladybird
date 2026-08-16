@@ -95,6 +95,8 @@ public:
     // demand. `style_sheet` is the sheet whose rule supplied the winning declaration, kept
     // for stamping sheet context onto the wrapper the mint produces.
     void set_property_data_from_drive(PropertyID, void const* value_data, i64 style_sheet_source_slot, GC::Ptr<CSSStyleSheet> style_sheet);
+    // Invalidates C++ sidecars after the Rust driver stores a value directly in the table.
+    void did_store_property_data_from_drive(PropertyID, GC::Ptr<CSSStyleSheet> style_sheet);
     void set_display_before_box_type_transformation(Display);
 
     bool has_effective_color_scheme() const { return m_effective_color_scheme.has_value(); }
@@ -103,10 +105,6 @@ public:
 
     void add_inheritance_dependent_specified_value(PropertyID, NonnullRefPtr<StyleValue const> value);
     void remove_inheritance_dependent_specified_value(PropertyID);
-
-    // Applies the longhand driver's bulk flag words: importance and inheritance for every
-    // longhand whose evaluated bit is set; other longhands keep their seeded flags.
-    void apply_driver_flags(u64 const* important_words, u64 const* inherited_words, u64 const* evaluated_words, size_t word_count);
 
     RefPtr<StyleValue const> raw_cascaded_font_size() const { return m_raw_cascaded_font_size; }
     void set_raw_cascaded_font_size(NonnullRefPtr<StyleValue const> value) { m_raw_cascaded_font_size = move(value); }
@@ -193,6 +191,7 @@ public:
 
     // The drive's computed longhand table, for transfer onto the ComputedValues built from
     // this working set.
+    ComputedValuesFFI::ComputedLonghandTable* mutable_computed_longhand_table() { return m_computed_longhand_table; }
     ComputedValuesFFI::ComputedLonghandTable const* computed_longhand_table() const { return m_computed_longhand_table; }
 
     // The sparse set of longhands whose effective value differs from the table's stored value:

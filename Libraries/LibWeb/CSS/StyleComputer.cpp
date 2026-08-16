@@ -3013,7 +3013,7 @@ ComputationContext StyleComputer::make_computation_context_for_property(Property
     case PropertyID::MathDepth:
     case PropertyID::TextRendering: {
         auto inheritance_parent = abstract_element.map([](auto& element) { return element.element_to_inherit_style_from(); }).value_or(OptionalNone {});
-        auto length_resolution_context = inheritance_parent.has_value()
+        auto length_resolution_context = inheritance_parent.has_value() && inheritance_parent->element().navigable()
             ? Length::ResolutionContext::for_element(inheritance_parent.value())
             : Length::ResolutionContext::for_document(m_document);
         length_resolution_context.subject_inline_axis_is_horizontal = subject_inline_axis_is_horizontal;
@@ -3156,29 +3156,6 @@ static void compute_text_align(ComputedStyleWorkingSet& style, DOM::AbstractElem
         style.set_property(PropertyID::TextAlign, KeywordStyleValue::create(static_cast<Keyword>(adjustment.keyword)),
             adjustment.inherited ? ComputedStyleWorkingSet::Inherited::Yes : ComputedStyleWorkingSet::Inherited::No);
     }
-}
-
-static ComputedValuesFFI::FfiDisplay decode_ffi_display(u32 encoded)
-{
-    ComputedValuesFFI::FfiDisplay display {};
-    display.tag = encoded & 0xff;
-    auto first = static_cast<u8>((encoded >> 8) & 0xff);
-    auto second = static_cast<u8>((encoded >> 16) & 0xff);
-    auto third = static_cast<u8>((encoded >> 24) & 0xff);
-    switch (static_cast<Display::Type>(display.tag)) {
-    case Display::Type::OutsideAndInside:
-        display.outside = first;
-        display.inside = second;
-        display.list_item = third != 0;
-        break;
-    case Display::Type::Internal:
-        display.internal = first;
-        break;
-    case Display::Type::Box:
-        display.box_value = first;
-        break;
-    }
-    return display;
 }
 
 static ComputedValuesFFI::FfiBoxTypeTransformationInput make_box_type_transformation_input(
@@ -5190,14 +5167,11 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
     Optional<Keyword> position_before_adjustments;
     RefPtr<StyleValue const> line_height_before_adjustments;
 
-    // Applies the Rust driver's ordered action batch. Stores precede the optional
-    // external request so a returned context observes every earlier computed value.
-    auto execute_computation_batch = [&](ComputedValuesFFI::FfiComputedStoreEntry const* entries, size_t count, i16 effective_color_scheme, u8 request_kind, ComputedValuesFFI::FfiLonghandBatchRequest const* request) {
+    auto execute_computation_batch = [&](ComputedValuesFFI::FfiComputedStoreEntry const* entries, size_t count, i16 effective_color_scheme) {
         for (size_t i = 0; i < count; ++i) {
             auto const& entry = entries[i];
             auto property_id = static_cast<PropertyID>(entry.property_id);
             auto inherited_property_id = static_cast<PropertyID>(entry.inherited_property_id);
-            computed_style.remove_inheritance_dependent_specified_value(property_id);
             i64 const style_sheet_source_slot = entry.source_slot >= 0 && entry.has_style_sheet_context ? entry.source_slot : -1;
             GC::Ptr<CSSStyleSheet> style_sheet;
             if (style_sheet_source_slot >= 0) {
@@ -5206,9 +5180,8 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
             }
             if (entry.inherited)
                 copy_animated_inherited_value(property_id, inherited_property_id);
-            // The selected specified value, wrapped only when a side effect needs a wrapper:
-            // the inheritance-dependent bookkeeping and the C++ computation fallback. Stored
-            // values themselves cross as raw data and are wrapped on demand by property().
+            // The selected specified value is wrapped only for the C++ computation fallback.
+            // Stored values and inheritance-dependent metadata stay as Rust data.
             RefPtr<StyleValue const> specified_wrapper;
             auto specified_value = [&]() -> StyleValue const& {
                 if (!specified_wrapper) {
@@ -5220,11 +5193,6 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                 }
                 return *specified_wrapper;
             };
-            // Store the resolved specified value for properties whose computation depends on
-            // inherited info, so they can be re-resolved when an ancestor changes without
-            // keeping CascadedProperties alive on the element.
-            if (entry.inheritance_dependent)
-                computed_style.add_inheritance_dependent_specified_value(property_id, specified_value());
             switch (entry.computed_kind) {
             case ComputedValuesFFI::COMPUTED_KIND_COMPUTE_IN_CPP: {
                 // NB: We compute using the inherited (physical) property to avoid having to add cases for all the
@@ -5239,49 +5207,19 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                 computed_style.set_property_without_modifying_flags(property_id, move(computed_value), style_sheet_source_slot);
                 break;
             }
+            case ComputedValuesFFI::COMPUTED_KIND_UNCHANGED:
+                computed_style.did_store_property_data_from_drive(property_id, style_sheet);
+                break;
             case ComputedValuesFFI::COMPUTED_KIND_PX_LENGTH:
-                computed_style.set_property_without_modifying_flags(property_id, LengthStyleValue::create(Length::make_px(entry.value)), style_sheet_source_slot);
-                break;
             case ComputedValuesFFI::COMPUTED_KIND_INTEGER:
-                computed_style.set_property_without_modifying_flags(property_id, IntegerStyleValue::create(static_cast<i64>(entry.value)), style_sheet_source_slot);
-                break;
             case ComputedValuesFFI::COMPUTED_KIND_NUMBER:
-                computed_style.set_property_without_modifying_flags(property_id, NumberStyleValue::create(entry.value), style_sheet_source_slot);
-                break;
             case ComputedValuesFFI::COMPUTED_KIND_PERCENTAGE:
-                computed_style.set_property_without_modifying_flags(property_id, PercentageStyleValue::create(Percentage(entry.value)), style_sheet_source_slot);
-                break;
             case ComputedValuesFFI::COMPUTED_KIND_FONT_STYLE:
-                computed_style.set_property_without_modifying_flags(property_id, FontStyleStyleValue::create(static_cast<FontStyleKeyword>(entry.value)), style_sheet_source_slot);
-                break;
             case ComputedValuesFFI::COMPUTED_KIND_KEYWORD:
-                computed_style.set_property_without_modifying_flags(property_id, KeywordStyleValue::create(static_cast<Keyword>(static_cast<u16>(entry.value))), style_sheet_source_slot);
-                break;
             case ComputedValuesFFI::COMPUTED_KIND_DISPLAY:
-                computed_style.set_property_without_modifying_flags(property_id, DisplayStyleValue::create(display_from_ffi_display(decode_ffi_display(static_cast<u32>(entry.value)))), style_sheet_source_slot);
-                break;
-            case ComputedValuesFFI::COMPUTED_KIND_SUPERELLIPSE: {
-                // NB: The round value is cached since it is the initial value of the corner-*-shape properties.
-                if (entry.value == 1) {
-                    static auto const& cached_round_value = SuperellipseStyleValue::create(NumberStyleValue::create(1)).leak_ref();
-                    computed_style.set_property_without_modifying_flags(property_id, cached_round_value, style_sheet_source_slot);
-                } else {
-                    computed_style.set_property_without_modifying_flags(property_id, SuperellipseStyleValue::create(NumberStyleValue::create(entry.value)), style_sheet_source_slot);
-                }
-                break;
-            }
-            case ComputedValuesFFI::COMPUTED_KIND_STYLE_VALUE: {
-                // The driver's owned replacement value: the table retains it, and the reference
-                // the entry transferred is dropped here. A replacement value is a fresh Rust
-                // computation result, not the sourced declaration value, so no sheet source is
-                // recorded for the on-demand mint.
-                auto const* computed_data = static_cast<StyleValueFFI::StyleValueData const*>(entry.computed_data);
-                computed_style.set_property_data_from_drive(property_id, computed_data, style_sheet_source_slot, nullptr);
-                StyleValueFFI::rust_style_value_release(computed_data);
-                break;
-            }
-            default:
-                computed_style.set_property_data_from_drive(property_id, entry.data, style_sheet_source_slot, style_sheet);
+            case ComputedValuesFFI::COMPUTED_KIND_SUPERELLIPSE:
+            case ComputedValuesFFI::COMPUTED_KIND_STYLE_VALUE:
+                computed_style.did_store_property_data_from_drive(property_id, nullptr);
                 break;
             }
             if (property_id == PropertyID::ColorScheme && !computed_style.has_effective_color_scheme()) {
@@ -5291,30 +5229,6 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         }
         if (effective_color_scheme >= 0)
             computed_style.set_effective_color_scheme(static_cast<PreferredColorScheme>(effective_color_scheme));
-
-        switch (request_kind) {
-        case ComputedValuesFFI::LONGHAND_BATCH_REQUEST_NONE:
-            break;
-        case ComputedValuesFFI::LONGHAND_BATCH_REQUEST_LENGTH_CONTEXT: {
-            auto const& computation_context = get_computation_context_for_property(static_cast<PropertyID>(request->property_id), computed_style, abstract_element);
-            *request->out_context = to_ffi_length_resolution_context(computation_context.length_resolution_context);
-            break;
-        }
-        case ComputedValuesFFI::LONGHAND_BATCH_REQUEST_POST_COMPUTE_ADJUSTMENTS: {
-            display_before_adjustments = request->display_before;
-            float_before_adjustments = static_cast<Keyword>(request->float_before);
-            overflow_x_before_adjustments = static_cast<Keyword>(request->overflow_x_before);
-            overflow_y_before_adjustments = static_cast<Keyword>(request->overflow_y_before);
-            text_align_before_adjustments = static_cast<Keyword>(request->text_align_before);
-            position_before_adjustments = static_cast<Keyword>(request->position_before);
-            line_height_before_adjustments = computed_style.property(PropertyID::LineHeight);
-            computed_style.set_display_before_box_type_transformation(display_from_ffi_display(request->display_before));
-            *request->out_input_line_height_metrics = input_line_height_metrics(computed_style, abstract_element, request->check_input_line_height);
-            break;
-        }
-        default:
-            VERIFY_NOT_REACHED();
-        }
     };
 
     // The property computation flow is driven from the Rust style computation core: it
@@ -5322,38 +5236,72 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
     // mapping tables, and selects the cascaded, inherited or initial value natively.
     ComputedValuesFFI::FfiLonghandCallbacks const callbacks {
         .context = &execute_computation_batch,
-        .execute_computation_batch = [](void* context, ComputedValuesFFI::FfiComputedStoreEntry const* entries, size_t count, i16 effective_color_scheme, u8 request_kind, ComputedValuesFFI::FfiLonghandBatchRequest const* request) { (*static_cast<decltype(execute_computation_batch)*>(context))(entries, count, effective_color_scheme, request_kind, request); },
+        .execute_computation_batch = [](void* context, ComputedValuesFFI::FfiComputedStoreEntry const* entries, size_t count, i16 effective_color_scheme) { (*static_cast<decltype(execute_computation_batch)*>(context))(entries, count, effective_color_scheme); },
     };
 
-    constexpr size_t longhand_bitmap_words = (number_of_longhand_properties + 63) / 64;
-    Array<u64, longhand_bitmap_words> important_words {};
-    Array<u64, longhand_bitmap_words> inherited_words {};
-    Array<u64, longhand_bitmap_words> evaluated_words {};
     ComputedValuesFFI::FfiLonghandDriverResults driver_results {
-        .important_words = important_words.data(),
-        .inherited_words = inherited_words.data(),
-        .evaluated_words = evaluated_words.data(),
-        .word_count = longhand_bitmap_words,
         .longhand_evaluations = 0,
         .raw_cascaded_font_size_data = nullptr,
         .depends_on_viewport_metrics = false,
         .font_metrics_depend_on_viewport_metrics = false,
         .explicitly_inherited_non_inherited_property = false,
+        .effective_color_scheme = -1,
+        .post_compute_adjustment = {},
     };
     auto box_type_input = make_box_type_transformation_input(
         abstract_element, InitialValues::display(), Keyword::Static, Keyword::None);
-    ComputedValuesFFI::rust_drive_property_computation(&callbacks, cascaded_properties.rust_store(), parent_snapshot.has_value() ? &*parent_snapshot : nullptr, &box_type_input, &effective_color_scheme_input, abstract_element.element().local_name() == HTML::TagNames::th, new_font_size != nullptr, device_pixels_per_css_pixel, InitialValues::font_size().raw_value(), default_user_font_size().raw_value(), computed_group_mask, computed_properties_to_evaluate, &driver_results);
+    ComputedValuesFFI::FfiStyleComputationEnvironment const computation_environment {
+        .box_type_input = box_type_input,
+        .color_scheme_input = effective_color_scheme_input,
+        .is_th_element = abstract_element.element().local_name() == HTML::TagNames::th,
+        .has_new_font_size = new_font_size != nullptr,
+        .device_pixels_per_css_pixel = device_pixels_per_css_pixel,
+        .initial_font_size_raw = InitialValues::font_size().raw_value(),
+        .default_font_size_raw = default_user_font_size().raw_value(),
+    };
+    auto drive_longhand_phase = [&](u8 phase, Optional<PropertyID> context_property) {
+        Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_resolution_context;
+        if (context_property.has_value()) {
+            auto const& computation_context = get_computation_context_for_property(*context_property, computed_style, abstract_element);
+            length_resolution_context = to_ffi_length_resolution_context(computation_context.length_resolution_context);
+        }
+        ComputedValuesFFI::rust_drive_property_computation(&callbacks, computed_style.mutable_computed_longhand_table(), cascaded_properties.rust_store(), parent_snapshot.has_value() ? &*parent_snapshot : nullptr, &computation_environment, computed_group_mask, computed_properties_to_evaluate, phase, length_resolution_context.has_value() ? &*length_resolution_context : nullptr, &driver_results);
+    };
+    auto apply_font_metric_dependencies = [&] {
+        if (driver_results.depends_on_viewport_metrics)
+            computed_style.set_depends_on_viewport_metrics();
+        if (driver_results.font_metrics_depend_on_viewport_metrics)
+            computed_style.set_font_metrics_depend_on_viewport_metrics();
+    };
+    drive_longhand_phase(ComputedValuesFFI::LONGHAND_DRIVE_PHASE_FONT, PropertyID::FontFamily);
+    apply_font_metric_dependencies();
+    drive_longhand_phase(ComputedValuesFFI::LONGHAND_DRIVE_PHASE_LINE_HEIGHT, PropertyID::LineHeight);
+    apply_font_metric_dependencies();
+    drive_longhand_phase(ComputedValuesFFI::LONGHAND_DRIVE_PHASE_COLOR_SCHEME, {});
+    drive_longhand_phase(ComputedValuesFFI::LONGHAND_DRIVE_PHASE_REMAINING, PropertyID::Color);
+    auto const& post_compute_adjustment = driver_results.post_compute_adjustment;
+    display_before_adjustments = post_compute_adjustment.display_before;
+    float_before_adjustments = static_cast<Keyword>(post_compute_adjustment.float_before);
+    overflow_x_before_adjustments = static_cast<Keyword>(post_compute_adjustment.overflow_x_before);
+    overflow_y_before_adjustments = static_cast<Keyword>(post_compute_adjustment.overflow_y_before);
+    text_align_before_adjustments = static_cast<Keyword>(post_compute_adjustment.text_align_before);
+    position_before_adjustments = static_cast<Keyword>(post_compute_adjustment.position_before);
+    line_height_before_adjustments = computed_style.property(PropertyID::LineHeight);
+    computed_style.set_display_before_box_type_transformation(display_from_ffi_display(post_compute_adjustment.display_before));
+    auto line_height_metrics = input_line_height_metrics(computed_style, abstract_element, post_compute_adjustment.element_style_adjustment.check_input_line_height);
+    auto post_adjusted_longhands = ComputedValuesFFI::rust_apply_post_compute_adjustments(computed_style.mutable_computed_longhand_table(), &post_compute_adjustment, &line_height_metrics);
     document().style_invalidation_counters().computed_longhand_evaluations += driver_results.longhand_evaluations;
 
-    if (text_align_before_adjustments.has_value()
-        && first_is_one_of(*text_align_before_adjustments, Keyword::MatchParent, Keyword::LibwebInheritOrCenter)) {
-        computed_style.add_inheritance_dependent_specified_value(
-            PropertyID::TextAlign,
-            KeywordStyleValue::create(*text_align_before_adjustments));
-    }
+    auto invalidate_post_adjusted_longhand = [&](u8 flag, PropertyID property_id) {
+        if (post_adjusted_longhands & flag)
+            computed_style.did_store_property_data_from_drive(property_id, nullptr);
+    };
+    invalidate_post_adjusted_longhand(ComputedValuesFFI::POST_ADJUSTED_FLOAT, PropertyID::Float);
+    invalidate_post_adjusted_longhand(ComputedValuesFFI::POST_ADJUSTED_DISPLAY, PropertyID::Display);
+    invalidate_post_adjusted_longhand(ComputedValuesFFI::POST_ADJUSTED_LINE_HEIGHT, PropertyID::LineHeight);
+    invalidate_post_adjusted_longhand(ComputedValuesFFI::POST_ADJUSTED_POSITION, PropertyID::Position);
+    invalidate_post_adjusted_longhand(ComputedValuesFFI::POST_ADJUSTED_TEXT_ALIGN, PropertyID::TextAlign);
 
-    // Apply the driver's bulk results.
-    computed_style.apply_driver_flags(important_words.data(), inherited_words.data(), evaluated_words.data(), longhand_bitmap_words);
     // Store the raw winning cascaded font-size. This is needed to implement the time-traveling inheritance for
     // font-size when font-family is monospace.
     // See the recascade_font_size_if_needed() function for further details.

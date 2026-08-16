@@ -39,6 +39,7 @@
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
+#include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleSheetList.h>
@@ -1128,6 +1129,21 @@ GC::Ref<JS::Object> Internals::style_ffi_counters()
             JS::default_attributes);
     }
     return object;
+}
+
+Vector<u32> Internals::style_cpp_longhand_fallbacks()
+{
+    Vector<u32> property_ids;
+    auto const word_count = CSS::StyleValueFFI::rust_style_ffi_longhand_fallback_word_count();
+    for (size_t word_index = 0; word_index < word_count; ++word_index) {
+        auto const word = CSS::StyleValueFFI::rust_style_ffi_longhand_fallback_word(word_index);
+        for (size_t bit_index = 0; bit_index < 64; ++bit_index) {
+            if (!(word & (1ull << bit_index)))
+                continue;
+            property_ids.append(static_cast<u32>(to_underlying(CSS::first_longhand_property_id) + word_index * 64 + bit_index));
+        }
+    }
+    return property_ids;
 }
 
 GC::Ref<JS::Object> Internals::style_engine_counters()
