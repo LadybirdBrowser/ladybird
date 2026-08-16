@@ -28,6 +28,7 @@
         const keys = Object.keys(afterReset);
         println(`has counters: ${keys.length > 0}`);
         println(`all zero after reset: ${keys.every(key => afterReset[key] === 0)}`);
+        println(`fallback properties empty after reset: ${internals.styleCppLonghandFallbacks().length === 0}`);
 
         const phaseCounters = [
             "completeStyleUpdateTransactionCallbacks",
@@ -67,6 +68,9 @@
         println(`transaction returned without callbacks: ${simpleCounters.completeStyleUpdateTransactionCallbacks === 0}`);
         println(`longhand computation measured: ${simpleCounters.completeStyleUpdateLonghandCallbacks > 0}`);
         println(`computed build stayed in Rust: ${simpleCounters.computedStyleBuildCppCallbacks === 0}`);
+        const fallbackProperties = internals.styleCppLonghandFallbacks();
+        println(`fallback property IDs recorded: ${fallbackProperties.length > 0}`);
+        println(`fallback property IDs sorted: ${fallbackProperties.every((property, index) => index === 0 || fallbackProperties[index - 1] < property)}`);
 
         const inheritanceParent = document.createElement("div");
         const inheritanceChild = document.createElement("span");

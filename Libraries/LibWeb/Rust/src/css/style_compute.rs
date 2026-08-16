@@ -20,6 +20,7 @@ use std::sync::{Arc, OnceLock};
 
 use crate::abort_on_panic;
 use crate::css::cascaded_properties::CascadedPropertyStore;
+use crate::css::computed_longhand_table::ComputedLonghandTable;
 use crate::css::css_pixels::CssPixels;
 use crate::css::display::FfiDisplay;
 use crate::css::property_metadata::longhands_for_shorthand;
@@ -1938,15 +1939,16 @@ pub extern "C" fn rust_map_physical_to_logical_alias(property_id: u16, writing_m
     map_physical_to_logical_alias(property_id, writing_mode, direction)
 }
 
-/// One deferred store operation for a longhand whose selected value needs no
-/// computation: the value identity and the flags driving the C++ side effects
-/// (animated-inheritance copy and inheritance-dependent bookkeeping).
+/// One deferred side-effect operation for a longhand result. Rust stores
+/// native results before the callback; the entry also carries the selected
+/// value and flags needed for animated inheritance, inheritance-dependence
+/// bookkeeping, and remaining C++ computation.
 #[repr(C)]
 pub struct FfiComputedStoreEntry {
     pub property_id: u16,
     pub inherited_property_id: u16,
-    /// The selected specified value; also the stored value unless a computed
-    /// pixel length or keyword replaces it.
+    /// The selected specified value; also the stored value when
+    /// `computed_kind` is `COMPUTED_KIND_UNCHANGED`.
     pub data: *const c_void,
     /// The C++ declaration-source slot for a cascaded value, or -1.
     pub source_slot: i64,
@@ -1955,11 +1957,12 @@ pub struct FfiComputedStoreEntry {
     pub inheritance_dependent: bool,
     pub inherited: bool,
     /// An owned replacement style value when `computed_kind` is
-    /// `COMPUTED_KIND_STYLE_VALUE`. The C++ callback adopts this reference.
+    /// `COMPUTED_KIND_STYLE_VALUE`. The Rust table adopts this reference before
+    /// the C++ callback runs.
     pub computed_data: *const c_void,
-    /// How the natively computed value crosses: with COMPUTED_KIND_UNCHANGED
-    /// the stored value is `data` itself; the other kinds carry a replacement
-    /// in `value` while `data` remains the specified value for the
+    /// How Rust constructs the table value: with COMPUTED_KIND_UNCHANGED the
+    /// stored value is `data` itself; the other kinds carry a replacement in
+    /// `value` while `data` remains the specified value for the
     /// inheritance-dependence bookkeeping.
     pub computed_kind: u8,
     pub value: f64,
@@ -1990,52 +1993,18 @@ pub const COMPUTED_KIND_DISPLAY: u8 = 9;
 /// A complete Rust-owned style value transferred through `computed_data`.
 pub const COMPUTED_KIND_STYLE_VALUE: u8 = 10;
 
-pub const LONGHAND_BATCH_REQUEST_NONE: u8 = 0;
-pub const LONGHAND_BATCH_REQUEST_LENGTH_CONTEXT: u8 = 1;
-pub const LONGHAND_BATCH_REQUEST_POST_COMPUTE_ADJUSTMENTS: u8 = 3;
-
-#[repr(C)]
-pub struct FfiLonghandBatchRequest {
-    pub property_id: u16,
-    pub out_context: *mut FfiLengthResolutionContext,
-    pub display_before: FfiDisplay,
-    pub float_before: u16,
-    pub overflow_x_before: u16,
-    pub overflow_y_before: u16,
-    pub text_align_before: u16,
-    pub position_before: u16,
-    pub check_input_line_height: bool,
-    pub out_input_line_height_metrics: *mut FfiInputLineHeightMetrics,
-}
-
-fn empty_longhand_batch_request() -> FfiLonghandBatchRequest {
-    FfiLonghandBatchRequest {
-        property_id: 0,
-        out_context: std::ptr::null_mut(),
-        display_before: FfiDisplay::block(),
-        float_before: 0,
-        overflow_x_before: 0,
-        overflow_y_before: 0,
-        text_align_before: 0,
-        position_before: 0,
-        check_input_line_height: false,
-        out_input_line_height_metrics: std::ptr::null_mut(),
-    }
-}
-
 /// The leaf callbacks the C++ side provides to the property computation
 /// driver. The driver selects each longhand's cascaded, inherited or initial
-/// value natively and calls back only to flush store batches and to fetch
-/// the rare context a batch entry needs.
+/// value natively and calls back only to apply C++ side effects or fallback
+/// computation.
 #[repr(C)]
 pub struct FfiLonghandCallbacks {
     pub context: *mut c_void,
-    /// Applies one ordered action batch. It first stores the selected values,
-    /// including each entry's side effects and any remaining C++ computation,
-    /// then stores a nonnegative effective color scheme and constructs a
-    /// requested length context. The ordering lets a returned context observe
-    /// everything computed before its request. Every entry's value stays alive
-    /// for the duration of the drive: cascaded data is retained by the store,
+    /// Applies one ordered action batch. Rust has already stored native
+    /// results; C++ applies their side effects and performs any remaining C++
+    /// computation, then stores a nonnegative effective color scheme. Every
+    /// entry's value stays alive for the duration of the drive: cascaded data
+    /// is retained by the store,
     /// initial values are immortal, and parent values are owned by the parent
     /// style behind the snapshot, which outlives the drive.
     pub execute_computation_batch: unsafe extern "C" fn(
@@ -2043,8 +2012,6 @@ pub struct FfiLonghandCallbacks {
         entries: *const FfiComputedStoreEntry,
         count: usize,
         effective_color_scheme: i16,
-        request_kind: u8,
-        request: *const FfiLonghandBatchRequest,
     ),
 }
 
@@ -2078,41 +2045,16 @@ impl FfiEffectiveColorSchemeInput {
     }
 }
 
-/// The computation-context kind a property's lengths resolve against,
-/// mirroring StyleComputer::get_computation_context_for_property until the
-/// context construction moves into the core.
-#[derive(Clone, Copy, PartialEq)]
-enum ComputationContextKind {
-    Font,
-    LineHeight,
-    Generic,
-}
-
-fn computation_context_kind(property_id: u16) -> ComputationContextKind {
-    use crate::css::property_metadata::property_id as prop;
-    match property_id {
-        prop::COLOR_SCHEME
-        | prop::FONT_FAMILY
-        | prop::FONT_FEATURE_SETTINGS
-        | prop::FONT_KERNING
-        | prop::FONT_OPTICAL_SIZING
-        | prop::FONT_SIZE
-        | prop::FONT_STYLE
-        | prop::FONT_VARIANT_ALTERNATES
-        | prop::FONT_VARIANT_CAPS
-        | prop::FONT_VARIANT_EAST_ASIAN
-        | prop::FONT_VARIANT_EMOJI
-        | prop::FONT_VARIANT_LIGATURES
-        | prop::FONT_VARIANT_NUMERIC
-        | prop::FONT_VARIANT_POSITION
-        | prop::FONT_VARIATION_SETTINGS
-        | prop::FONT_WEIGHT
-        | prop::FONT_WIDTH
-        | prop::MATH_DEPTH
-        | prop::TEXT_RENDERING => ComputationContextKind::Font,
-        prop::LINE_HEIGHT => ComputationContextKind::LineHeight,
-        _ => ComputationContextKind::Generic,
-    }
+/// Stable element and document facts supplied once for a longhand drive.
+#[repr(C)]
+pub struct FfiStyleComputationEnvironment {
+    pub box_type_input: FfiBoxTypeTransformationInput,
+    pub color_scheme_input: FfiEffectiveColorSchemeInput,
+    pub is_th_element: bool,
+    pub has_new_font_size: bool,
+    pub device_pixels_per_css_pixel: f64,
+    pub initial_font_size_raw: i32,
+    pub default_font_size_raw: i32,
 }
 
 /// Whether a value's absolutization is the identity, so the specified value
@@ -2193,15 +2135,9 @@ pub struct FfiParentSnapshot {
     pub font_metrics_depend_on_viewport_metrics: bool,
 }
 
-/// Bulk results of one longhand drive, applied by C++ after the loop instead
-/// of once per longhand. The bitmap storage is provided by the caller, one
-/// bit per longhand in property id order.
+/// Results of one longhand drive that remain outside the Rust longhand table.
 #[repr(C)]
 pub struct FfiLonghandDriverResults {
-    pub important_words: *mut u64,
-    pub inherited_words: *mut u64,
-    pub evaluated_words: *mut u64,
-    pub word_count: usize,
     /// Longhands whose specified-to-computed evaluation ran in this drive.
     pub longhand_evaluations: u32,
     /// The raw winning cascaded font-size value data, or null; borrowed from the
@@ -2210,7 +2146,38 @@ pub struct FfiLonghandDriverResults {
     pub depends_on_viewport_metrics: bool,
     pub font_metrics_depend_on_viewport_metrics: bool,
     pub explicitly_inherited_non_inherited_property: bool,
+    /// The used color scheme produced by the color-scheme stage, or -1 until
+    /// that stage has run.
+    pub effective_color_scheme: i16,
+    /// Inputs for the post-compute continuation. C++ captures the facade state
+    /// that can only be observed between the longhand drive and adjustments,
+    /// then resumes Rust with the requested line-height metrics.
+    pub post_compute_adjustment: FfiPostComputeAdjustment,
 }
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct FfiPostComputeAdjustment {
+    pub display_before: FfiDisplay,
+    pub float_before: u16,
+    pub overflow_x_before: u16,
+    pub overflow_y_before: u16,
+    pub text_align_before: u16,
+    pub position_before: u16,
+    pub box_type_transformation: FfiBoxTypeTransformation,
+    pub element_style_adjustment: FfiElementStyleAdjustment,
+}
+
+pub const POST_ADJUSTED_FLOAT: u8 = 1 << 0;
+pub const POST_ADJUSTED_DISPLAY: u8 = 1 << 1;
+pub const POST_ADJUSTED_LINE_HEIGHT: u8 = 1 << 2;
+pub const POST_ADJUSTED_POSITION: u8 = 1 << 3;
+pub const POST_ADJUSTED_TEXT_ALIGN: u8 = 1 << 4;
+
+pub const LONGHAND_DRIVE_PHASE_FONT: u8 = 0;
+pub const LONGHAND_DRIVE_PHASE_LINE_HEIGHT: u8 = 1;
+pub const LONGHAND_DRIVE_PHASE_COLOR_SCHEME: u8 = 2;
+pub const LONGHAND_DRIVE_PHASE_REMAINING: u8 = 3;
 
 /// Which longhands either table maps at all, as one bit each.
 ///
@@ -2282,35 +2249,93 @@ fn clear_longhand_bit(words: &mut [u64], property_id: u16) {
     words[index / 64] &= !(1 << (index % 64));
 }
 
+#[allow(clippy::arc_with_non_send_sync)]
+fn retained_new(value: StyleValueData) -> RetainedStyleValueData {
+    unsafe { RetainedStyleValueData::from_retained_pointer(Arc::into_raw(Arc::new(value))) }
+}
+
+fn store_pending_values(longhand_table: *mut ComputedLonghandTable, pending_stores: &[FfiComputedStoreEntry]) {
+    let longhand_table = unsafe { &mut *longhand_table };
+    for entry in pending_stores {
+        longhand_table.remove_inheritance_dependent_value(entry.property_id);
+        if entry.inheritance_dependent {
+            let specified_value = unsafe {
+                RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(
+                    entry.data.cast(),
+                ))
+            };
+            longhand_table.add_inheritance_dependent_value(entry.property_id, specified_value);
+        }
+        let retained = match entry.computed_kind {
+            COMPUTED_KIND_COMPUTE_IN_CPP => continue,
+            COMPUTED_KIND_UNCHANGED => unsafe {
+                RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(
+                    entry.data.cast(),
+                ))
+            },
+            COMPUTED_KIND_PX_LENGTH => retained_new(StyleValueData::Length {
+                value: entry.value,
+                unit: px_length_unit(),
+            }),
+            COMPUTED_KIND_INTEGER => retained_new(StyleValueData::Integer {
+                value: entry.value as i32,
+            }),
+            COMPUTED_KIND_SUPERELLIPSE => retained_new(StyleValueData::Superellipse {
+                parameter: retained_new(StyleValueData::Number { value: entry.value }),
+            }),
+            COMPUTED_KIND_NUMBER => retained_new(StyleValueData::Number { value: entry.value }),
+            COMPUTED_KIND_PERCENTAGE => retained_new(StyleValueData::Percentage { value: entry.value }),
+            COMPUTED_KIND_FONT_STYLE => retained_new(StyleValueData::FontStyle {
+                font_style: entry.value as u8,
+                angle_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(std::ptr::null()) },
+            }),
+            COMPUTED_KIND_KEYWORD => retained_new(StyleValueData::Keyword {
+                keyword: entry.value as u16,
+            }),
+            COMPUTED_KIND_DISPLAY => retained_new(StyleValueData::Display {
+                raw: entry.value as u32,
+            }),
+            COMPUTED_KIND_STYLE_VALUE => unsafe {
+                RetainedStyleValueData::from_retained_pointer(entry.computed_data.cast())
+            },
+            _ => unreachable!("unknown computed longhand store kind"),
+        };
+        let source_slot = if entry.has_style_sheet_context {
+            entry.source_slot
+        } else {
+            -1
+        };
+        longhand_table.set(entry.property_id, retained, source_slot);
+    }
+}
+
 /// Drives the property computation loop: iterates every longhand in
 /// computation order, resolves logical pairing, reads the winning cascaded
 /// declarations straight from the store, selects between the cascaded,
-/// inherited and initial values, decides inheritance dependence, and calls
-/// back into C++ once per longhand to compute and store the result. The
-/// importance and inheritance flags and the other per-element side effects
-/// accumulate in `results` for bulk application after the loop.
+/// inherited and initial values, decides inheritance dependence, and stores
+/// native results and their metadata directly in the computed longhand table.
+/// Other per-element side effects accumulate in `results` for bulk application
+/// after the loop.
 ///
 /// # Safety
-/// `callbacks` must point at a valid callback table, `store` at a valid
-/// cascaded property store, `parent_snapshot` at a valid snapshot or null,
-/// `box_type_input` and `color_scheme_input` at valid element and document
-/// facts, and `results` at a results block whose bitmap storage covers every
-/// longhand; the callbacks must not mutate the store for the duration of the
-/// call.
+/// `callbacks` must point at a valid callback table, `longhand_table` at the
+/// drive's live mutable computed longhand table, `store` at a valid cascaded
+/// property store, `parent_snapshot` at a valid snapshot or null,
+/// `environment` at valid element and document facts,
+/// `length_resolution_context` at the context for this stage or null for the
+/// color-scheme stage, and `results` at a valid results block; the callbacks
+/// must not mutate the store for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_drive_property_computation(
     callbacks: *const FfiLonghandCallbacks,
+    longhand_table: *mut ComputedLonghandTable,
     store: *const CascadedPropertyStore,
     parent_snapshot: *const FfiParentSnapshot,
-    box_type_input: *const FfiBoxTypeTransformationInput,
-    color_scheme_input: *const FfiEffectiveColorSchemeInput,
-    is_th_element: bool,
-    has_new_font_size: bool,
-    device_pixels_per_css_pixel: f64,
-    initial_font_size_raw: i32,
-    default_font_size_raw: i32,
+    environment: *const FfiStyleComputationEnvironment,
     computed_group_mask: u32,
     computed_property_words: *const u64,
+    phase: u8,
+    length_resolution_context: *const FfiLengthResolutionContext,
     results: *mut FfiLonghandDriverResults,
 ) {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandDriverEntry);
@@ -2329,12 +2354,20 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             Some(unsafe { &*parent_snapshot })
         };
         let has_inheritance_parent = snapshot.is_some();
-        let color_scheme_input = unsafe { &*color_scheme_input };
+        let environment = unsafe { &*environment };
+        let box_type_input = &environment.box_type_input;
+        let color_scheme_input = &environment.color_scheme_input;
+        let is_th_element = environment.is_th_element;
+        let has_new_font_size = environment.has_new_font_size;
+        let device_pixels_per_css_pixel = environment.device_pixels_per_css_pixel;
+        let initial_font_size_raw = environment.initial_font_size_raw;
+        let default_font_size_raw = environment.default_font_size_raw;
+        let length_resolution_context = unsafe { length_resolution_context.as_ref() };
         let results = unsafe { &mut *results };
-        assert!(results.word_count * 64 >= NUMBER_OF_LONGHAND_PROPERTIES);
-        let important_words = unsafe { std::slice::from_raw_parts_mut(results.important_words, results.word_count) };
-        let inherited_words = unsafe { std::slice::from_raw_parts_mut(results.inherited_words, results.word_count) };
-        let evaluated_words = unsafe { std::slice::from_raw_parts_mut(results.evaluated_words, results.word_count) };
+        let word_count = NUMBER_OF_LONGHAND_PROPERTIES.div_ceil(64);
+        let mut important_words = vec![0; word_count];
+        let mut inherited_words = vec![0; word_count];
+        let mut evaluated_words = vec![0; word_count];
         let mut cached_writing_mode_and_direction: Option<(u8, u8)> = None;
 
         // Store operations queued for properties that need no computation, flushed in one
@@ -2343,22 +2376,20 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         let mut pending_stores: Vec<FfiComputedStoreEntry> =
             Vec::with_capacity(crate::css::property_metadata::property_computation_order().len());
         let mut pending_effective_color_scheme: i16 = -1;
-        // The element's used color scheme, kept from the color-scheme computation for the
-        // generic-kind absolutizations below; the C++ generic computation context carries the
-        // same scheme, read back from the effective scheme this drive stores.
-        let mut effective_color_scheme: Option<u8> = None;
-        // Length resolution contexts fetched from C++ on first use, one per kind, like
-        // the C++ side's per-element computation context caches.
-        let mut cached_length_resolution_contexts: [Option<FfiLengthResolutionContext>; 3] = [None; 3];
+        // The element's used color scheme, produced by the preceding color-scheme
+        // stage for generic absolutizations.
+        let effective_color_scheme = u8::try_from(results.effective_color_scheme).ok();
         fn flush_pending_stores(
             callbacks: &FfiLonghandCallbacks,
             context: *mut c_void,
+            longhand_table: *mut ComputedLonghandTable,
             pending_stores: &mut Vec<FfiComputedStoreEntry>,
             pending_effective_color_scheme: &mut i16,
         ) {
             if pending_stores.is_empty() && *pending_effective_color_scheme < 0 {
                 return;
             }
+            store_pending_values(longhand_table, pending_stores);
             crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::LonghandStoreBatchCallback);
             // SAFETY: The entries and their values stay alive for the call; the callback
             // table outlives the drive.
@@ -2368,48 +2399,10 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     pending_stores.as_ptr(),
                     pending_stores.len(),
                     *pending_effective_color_scheme,
-                    LONGHAND_BATCH_REQUEST_NONE,
-                    std::ptr::null(),
                 );
             };
             pending_stores.clear();
             *pending_effective_color_scheme = -1;
-        }
-
-        fn fetch_length_resolution_context<'a>(
-            caches: &'a mut [Option<FfiLengthResolutionContext>; 3],
-            callbacks: &FfiLonghandCallbacks,
-            context: *mut c_void,
-            pending_stores: &mut Vec<FfiComputedStoreEntry>,
-            pending_effective_color_scheme: &mut i16,
-            kind: usize,
-            property_id: u16,
-        ) -> &'a FfiLengthResolutionContext {
-            if caches[kind].is_none() {
-                // Building a context on the C++ side reads stored values, so request it
-                // as part of the same ordered action batch that applies those values.
-                crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::LonghandStoreBatchCallback);
-                let mut fetched = std::mem::MaybeUninit::<FfiLengthResolutionContext>::uninit();
-                // SAFETY: The callback applies the entries in order and then fills the
-                // requested context before returning.
-                caches[kind] = Some(unsafe {
-                    let mut request = empty_longhand_batch_request();
-                    request.property_id = property_id;
-                    request.out_context = fetched.as_mut_ptr();
-                    (callbacks.execute_computation_batch)(
-                        context,
-                        pending_stores.as_ptr(),
-                        pending_stores.len(),
-                        *pending_effective_color_scheme,
-                        LONGHAND_BATCH_REQUEST_LENGTH_CONTEXT,
-                        &raw const request,
-                    );
-                    pending_stores.clear();
-                    *pending_effective_color_scheme = -1;
-                    fetched.assume_init()
-                });
-            }
-            caches[kind].as_ref().unwrap()
         }
 
         /// The parent's computed value for a longhand: a recorded specified value
@@ -2450,10 +2443,26 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         let computed_property_words = if computed_property_words.is_null() {
             None
         } else {
-            Some(unsafe { std::slice::from_raw_parts(computed_property_words, results.word_count) })
+            Some(unsafe { std::slice::from_raw_parts(computed_property_words, word_count) })
         };
 
+        let mut reached_line_height = false;
         for &property_id in crate::css::property_metadata::property_computation_order() {
+            let property_phase = if property_id == prop::LINE_HEIGHT {
+                LONGHAND_DRIVE_PHASE_LINE_HEIGHT
+            } else if property_id == prop::COLOR_SCHEME {
+                LONGHAND_DRIVE_PHASE_COLOR_SCHEME
+            } else if reached_line_height {
+                LONGHAND_DRIVE_PHASE_REMAINING
+            } else {
+                LONGHAND_DRIVE_PHASE_FONT
+            };
+            if property_id == prop::LINE_HEIGHT {
+                reached_line_height = true;
+            }
+            if property_phase != phase {
+                continue;
+            }
             use crate::css::computed_values::computed_group_output_mask;
             let required_driver_input = matches!(
                 property_id,
@@ -2479,7 +2488,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             {
                 continue;
             }
-            set_longhand_bit(evaluated_words, property_id);
+            set_longhand_bit(&mut evaluated_words, property_id);
             results.longhand_evaluations = results
                 .longhand_evaluations
                 .checked_add(1)
@@ -2529,7 +2538,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 source_slot = i64::from(cascaded_source_slot);
                 has_style_sheet_context = cascaded_has_style_sheet_context;
                 if important {
-                    set_longhand_bit(important_words, property_id);
+                    set_longhand_bit(&mut important_words, property_id);
                 }
                 // Keep the raw winning cascaded font-size for the monospace font-size
                 // recascade (see recascade_font_size_if_needed on the C++ side).
@@ -2559,7 +2568,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 source_slot = -1;
                 has_style_sheet_context = false;
                 let snapshot = snapshot.unwrap();
-                set_longhand_bit(inherited_words, property_id);
+                set_longhand_bit(&mut inherited_words, property_id);
                 if decision.explicitly_inherits_non_inherited_property {
                     results.explicitly_inherited_non_inherited_property = true;
                 }
@@ -2624,16 +2633,8 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     unit,
                 } = value_data
                 {
-                    let kind = computation_context_kind(inherited_property_id) as usize;
-                    let resolution_context = fetch_length_resolution_context(
-                        &mut cached_length_resolution_contexts,
-                        callbacks,
-                        context,
-                        &mut pending_stores,
-                        &mut pending_effective_color_scheme,
-                        kind,
-                        inherited_property_id,
-                    );
+                    let resolution_context =
+                        length_resolution_context.expect("a length-valued property must run with a resolution context");
                     let result = absolutize_length(*length_value, *unit as usize, resolution_context);
                     if result.handled {
                         if result.resolved_viewport_relative_length {
@@ -2838,15 +2839,8 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     }
                     (Some(absolutized), prop::LINE_HEIGHT) => {
                         let result = if matches!(value_data, StyleValueData::Percentage { .. }) {
-                            let resolution_context = fetch_length_resolution_context(
-                                &mut cached_length_resolution_contexts,
-                                callbacks,
-                                context,
-                                &mut pending_stores,
-                                &mut pending_effective_color_scheme,
-                                ComputationContextKind::LineHeight as usize,
-                                prop::LINE_HEIGHT,
-                            );
+                            let resolution_context =
+                                length_resolution_context.expect("line-height must run with a resolution context");
                             compute_line_height(
                                 value_data,
                                 CssPixels::nearest_value_for(resolution_context.font_metrics.font_size),
@@ -2931,19 +2925,11 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     (None, _) if !property_has_dedicated_compute_rule(inherited_property_id) => {
                         // The recursive native absolutization: structural values and their
                         // length leaves resolve here; anything it declines computes in C++.
-                        let kind = computation_context_kind(inherited_property_id) as usize;
-                        let resolution_context = fetch_length_resolution_context(
-                            &mut cached_length_resolution_contexts,
-                            callbacks,
-                            context,
-                            &mut pending_stores,
-                            &mut pending_effective_color_scheme,
-                            kind,
-                            inherited_property_id,
-                        );
+                        let resolution_context = length_resolution_context
+                            .expect("recursive absolutization must run with a resolution context");
                         // Only the generic computation context carries a color scheme in C++;
                         // the font and line-height contexts absolutize without one.
-                        let scheme = if kind == ComputationContextKind::Generic as usize {
+                        let scheme = if phase == LONGHAND_DRIVE_PHASE_REMAINING {
                             effective_color_scheme
                         } else {
                             None
@@ -2983,7 +2969,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     NativeValue::StyleValue(value) => (COMPUTED_KIND_STYLE_VALUE, 0.0, Arc::into_raw(value).cast()),
                     NativeValue::Unchanged => (COMPUTED_KIND_UNCHANGED, 0.0, std::ptr::null()),
                     NativeValue::Unsupported => {
-                        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandCppComputeFallback);
+                        crate::css::ffi_stats::note_longhand_cpp_compute_fallback(inherited_property_id);
                         (COMPUTED_KIND_COMPUTE_IN_CPP, 0.0, std::ptr::null())
                     }
                 };
@@ -3029,14 +3015,14 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                         debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_UNCHANGED);
                         entry.computed_kind = COMPUTED_KIND_KEYWORD;
                         entry.value = effective_overflow.x_keyword as f64;
-                        clear_longhand_bit(important_words, prop::OVERFLOW_X);
-                        clear_longhand_bit(inherited_words, prop::OVERFLOW_X);
+                        clear_longhand_bit(&mut important_words, prop::OVERFLOW_X);
+                        clear_longhand_bit(&mut inherited_words, prop::OVERFLOW_X);
                     } else if entry.property_id == prop::OVERFLOW_Y && effective_overflow.changed_y {
                         debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_UNCHANGED);
                         entry.computed_kind = COMPUTED_KIND_KEYWORD;
                         entry.value = effective_overflow.y_keyword as f64;
-                        clear_longhand_bit(important_words, prop::OVERFLOW_Y);
-                        clear_longhand_bit(inherited_words, prop::OVERFLOW_Y);
+                        clear_longhand_bit(&mut important_words, prop::OVERFLOW_Y);
+                        clear_longhand_bit(&mut inherited_words, prop::OVERFLOW_Y);
                     }
                     if entry.property_id == prop::OVERFLOW_X {
                         break;
@@ -3075,10 +3061,10 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_UNCHANGED);
                     entry.computed_kind = COMPUTED_KIND_KEYWORD;
                     entry.value = adjustment.keyword as f64;
-                    clear_longhand_bit(important_words, property_id);
-                    clear_longhand_bit(inherited_words, property_id);
+                    clear_longhand_bit(&mut important_words, property_id);
+                    clear_longhand_bit(&mut inherited_words, property_id);
                     if adjustment.inherited {
-                        set_longhand_bit(inherited_words, property_id);
+                        set_longhand_bit(&mut inherited_words, property_id);
                     }
                 }
                 computed_text_align = Some(if adjustment.changed {
@@ -3095,7 +3081,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     unsafe { color_scheme_input.document_supported_schemes() },
                 );
                 pending_effective_color_scheme = i16::from(color_scheme);
-                effective_color_scheme = Some(color_scheme);
+                results.effective_color_scheme = i16::from(color_scheme);
             }
 
             match (property_id, value_data) {
@@ -3115,11 +3101,16 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         flush_pending_stores(
             callbacks,
             context,
+            longhand_table,
             &mut pending_stores,
             &mut pending_effective_color_scheme,
         );
+        unsafe { &mut *longhand_table }.merge_driver_flags(&important_words, &inherited_words, &evaluated_words);
+        if phase != LONGHAND_DRIVE_PHASE_REMAINING {
+            return;
+        }
         let display_before = computed_display.expect("display must be computed by the longhand driver");
-        let mut box_type_input = unsafe { *box_type_input };
+        let mut box_type_input = *box_type_input;
         box_type_input.display = display_before;
         let float_before = computed_float.expect("float must be computed by the longhand driver");
         box_type_input.float_value = float_before;
@@ -3128,56 +3119,45 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         let adjustments = compute_element_style_adjustments(&box_type_input, text_align);
         let transformation = adjustments.box_type;
         let element_adjustment = adjustments.element_style;
+        results.post_compute_adjustment = FfiPostComputeAdjustment {
+            display_before,
+            float_before,
+            overflow_x_before: computed_overflow_x.expect("overflow-x must be computed by the longhand driver"),
+            overflow_y_before: computed_overflow_y.expect("overflow-y must be computed by the longhand driver"),
+            text_align_before: computed_text_align_before_adjustment
+                .expect("text-align must be computed by the longhand driver"),
+            position_before: box_type_input.position,
+            box_type_transformation: transformation,
+            element_style_adjustment: element_adjustment,
+        };
+    });
+}
+
+/// Applies the post-compute box and element adjustments after C++ has captured
+/// the facade state that precedes them.
+///
+/// # Safety
+/// `longhand_table`, `adjustment`, and `input_line_height_metrics` must point at
+/// the live objects for the longhand drive that immediately preceded this call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_apply_post_compute_adjustments(
+    longhand_table: *mut ComputedLonghandTable,
+    adjustment: *const FfiPostComputeAdjustment,
+    input_line_height_metrics: *const FfiInputLineHeightMetrics,
+) -> u8 {
+    abort_on_panic(|| {
+        use crate::css::property_metadata::property_id as prop;
+
+        let adjustment = unsafe { &*adjustment };
+        let transformation = adjustment.box_type_transformation;
+        let element_adjustment = adjustment.element_style_adjustment;
+        let input_line_height_metrics = unsafe { &*input_line_height_metrics };
+        let clamp_input_line_height = should_clamp_input_line_height(&element_adjustment, input_line_height_metrics);
         let display_after_box_type_transformation = if transformation.changed_display {
             transformation.display
         } else {
-            display_before
+            adjustment.display_before
         };
-        if transformation.set_float_none {
-            clear_longhand_bit(important_words, prop::FLOAT);
-            clear_longhand_bit(inherited_words, prop::FLOAT);
-        }
-        if transformation.changed_display {
-            clear_longhand_bit(important_words, prop::DISPLAY);
-            clear_longhand_bit(inherited_words, prop::DISPLAY);
-        }
-        if element_adjustment.changed_display {
-            clear_longhand_bit(important_words, prop::DISPLAY);
-            clear_longhand_bit(inherited_words, prop::DISPLAY);
-        }
-        if element_adjustment.set_position_static {
-            clear_longhand_bit(important_words, prop::POSITION);
-            clear_longhand_bit(inherited_words, prop::POSITION);
-        }
-        if element_adjustment.changed_text_align {
-            clear_longhand_bit(important_words, prop::TEXT_ALIGN);
-            clear_longhand_bit(inherited_words, prop::TEXT_ALIGN);
-        }
-        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::LonghandStoreBatchCallback);
-        let mut input_line_height_metrics = std::mem::MaybeUninit::<FfiInputLineHeightMetrics>::uninit();
-        let mut request = empty_longhand_batch_request();
-        request.display_before = display_before;
-        request.float_before = float_before;
-        request.overflow_x_before = computed_overflow_x.expect("overflow-x must be computed by the longhand driver");
-        request.overflow_y_before = computed_overflow_y.expect("overflow-y must be computed by the longhand driver");
-        request.text_align_before =
-            computed_text_align_before_adjustment.expect("text-align must be computed by the longhand driver");
-        request.position_before = box_type_input.position;
-        request.check_input_line_height = element_adjustment.check_input_line_height;
-        request.out_input_line_height_metrics = input_line_height_metrics.as_mut_ptr();
-        unsafe {
-            (callbacks.execute_computation_batch)(
-                context,
-                std::ptr::null(),
-                0,
-                -1,
-                LONGHAND_BATCH_REQUEST_POST_COMPUTE_ADJUSTMENTS,
-                &raw const request,
-            );
-        }
-        let input_line_height_metrics = unsafe { input_line_height_metrics.assume_init() };
-        let clamp_input_line_height = should_clamp_input_line_height(&element_adjustment, &input_line_height_metrics);
-
         let adjusted_display = if element_adjustment.changed_display {
             element_adjustment.display
         } else {
@@ -3195,11 +3175,14 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             computed_kind,
             value,
         };
+        let mut post_adjusted_longhands = 0;
         let mut adjustments = Vec::new();
         if transformation.set_float_none {
+            post_adjusted_longhands |= POST_ADJUSTED_FLOAT;
             adjustments.push(adjusted_entry(prop::FLOAT, COMPUTED_KIND_KEYWORD, keyword::NONE as f64));
         }
-        if adjusted_display != display_before {
+        if adjusted_display != adjustment.display_before {
+            post_adjusted_longhands |= POST_ADJUSTED_DISPLAY;
             adjustments.push(adjusted_entry(
                 prop::DISPLAY,
                 COMPUTED_KIND_DISPLAY,
@@ -3208,6 +3191,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         }
         let line_height_changed = element_adjustment.set_line_height_normal || clamp_input_line_height;
         if line_height_changed {
+            post_adjusted_longhands |= POST_ADJUSTED_LINE_HEIGHT;
             adjustments.push(adjusted_entry(
                 prop::LINE_HEIGHT,
                 COMPUTED_KIND_KEYWORD,
@@ -3215,6 +3199,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             ));
         }
         if element_adjustment.set_position_static {
+            post_adjusted_longhands |= POST_ADJUSTED_POSITION;
             adjustments.push(adjusted_entry(
                 prop::POSITION,
                 COMPUTED_KIND_KEYWORD,
@@ -3222,6 +3207,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             ));
         }
         if element_adjustment.changed_text_align {
+            post_adjusted_longhands |= POST_ADJUSTED_TEXT_ALIGN;
             adjustments.push(adjusted_entry(
                 prop::TEXT_ALIGN,
                 COMPUTED_KIND_KEYWORD,
@@ -3229,23 +3215,37 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             ));
         }
         if !adjustments.is_empty() {
-            crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::LonghandStoreBatchCallback);
-            unsafe {
-                (callbacks.execute_computation_batch)(
-                    context,
-                    adjustments.as_ptr(),
-                    adjustments.len(),
-                    -1,
-                    LONGHAND_BATCH_REQUEST_NONE,
-                    std::ptr::null(),
-                );
-            };
+            store_pending_values(longhand_table, &adjustments);
         }
-        if line_height_changed {
-            clear_longhand_bit(important_words, prop::LINE_HEIGHT);
-            clear_longhand_bit(inherited_words, prop::LINE_HEIGHT);
+        if matches!(
+            adjustment.text_align_before,
+            keyword::MATCH_PARENT | keyword::_LIBWEB_INHERIT_OR_CENTER
+        ) {
+            unsafe { &mut *longhand_table }.add_inheritance_dependent_value(
+                prop::TEXT_ALIGN,
+                retained_new(StyleValueData::Keyword {
+                    keyword: adjustment.text_align_before,
+                }),
+            );
         }
-    });
+
+        let longhand_table = unsafe { &mut *longhand_table };
+        let mut clear_adjusted_flags = |changed, property_id| {
+            if changed {
+                longhand_table.set_important(property_id, false);
+                longhand_table.set_inherited(property_id, false);
+            }
+        };
+        clear_adjusted_flags(transformation.set_float_none, prop::FLOAT);
+        clear_adjusted_flags(
+            transformation.changed_display || element_adjustment.changed_display,
+            prop::DISPLAY,
+        );
+        clear_adjusted_flags(line_height_changed, prop::LINE_HEIGHT);
+        clear_adjusted_flags(element_adjustment.set_position_static, prop::POSITION);
+        clear_adjusted_flags(element_adjustment.changed_text_align, prop::TEXT_ALIGN);
+        post_adjusted_longhands
+    })
 }
 
 fn property_affects_font_metrics(property_id: u16) -> bool {

@@ -19,6 +19,8 @@
 use std::cell::Cell;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::css::property_metadata::NUMBER_OF_LONGHAND_PROPERTIES;
+
 macro_rules! define_ffi_ops {
     ($($variant:ident => $name:literal,)+) => {
         /// One countable boundary operation. Entries are C++ calls into the
@@ -82,6 +84,9 @@ define_ffi_ops! {
 }
 
 static COUNTERS: [AtomicU64; FFI_OP_COUNT] = [const { AtomicU64::new(0) }; FFI_OP_COUNT];
+const LONGHAND_FALLBACK_WORD_COUNT: usize = NUMBER_OF_LONGHAND_PROPERTIES.div_ceil(64);
+static LONGHAND_FALLBACK_WORDS: [AtomicU64; LONGHAND_FALLBACK_WORD_COUNT] =
+    [const { AtomicU64::new(0) }; LONGHAND_FALLBACK_WORD_COUNT];
 
 thread_local! {
     static COMPUTED_STYLE_BUILD_DEPTH: Cell<u32> = const { Cell::new(0) };
@@ -129,6 +134,14 @@ pub(crate) fn bump_cpp_callback(op: FfiOp) {
             bump(phase);
         }
     });
+}
+
+pub(crate) fn note_longhand_cpp_compute_fallback(property_id: u16) {
+    use crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
+
+    bump(FfiOp::LonghandCppComputeFallback);
+    let index = usize::from(property_id - FIRST_LONGHAND_PROPERTY_ID);
+    LONGHAND_FALLBACK_WORDS[index / 64].fetch_or(1 << (index % 64), Ordering::Relaxed);
 }
 
 /// Marks a complete C++-orchestrated style update, from transaction planning
@@ -203,6 +216,19 @@ pub extern "C" fn rust_style_ffi_counters_reset() {
     for counter in &COUNTERS {
         counter.store(0, Ordering::Relaxed);
     }
+    for word in &LONGHAND_FALLBACK_WORDS {
+        word.store(0, Ordering::Relaxed);
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_ffi_longhand_fallback_word_count() -> usize {
+    LONGHAND_FALLBACK_WORD_COUNT
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_ffi_longhand_fallback_word(index: usize) -> u64 {
+    LONGHAND_FALLBACK_WORDS[index].load(Ordering::Relaxed)
 }
 
 /// Notes the adoption of a Rust style value allocation by a C++ shell; called

@@ -164,6 +164,9 @@ interface Internals {
     // Returns a snapshot of the process-wide style FFI boundary counters: one key per boundary
     // operation, counting calls into the Rust style core and callbacks it makes into C++.
     object styleFfiCounters();
+    // Returns the sorted PropertyIDs whose longhand computation fell back to C++ since the
+    // style FFI counters were last reset.
+    sequence<unsigned long> styleCppLonghandFallbacks();
     object styleEngineCounters();
     unsigned long long styleRecordIdentity(Element element);
     unsigned long long layoutStyleRecordIdentity(Element element);

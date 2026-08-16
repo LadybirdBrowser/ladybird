@@ -300,11 +300,6 @@ void ComputedStyleWorkingSet::remove_inheritance_dependent_specified_value(Prope
     m_mint_cache->wrappers.remove(property_id);
 }
 
-void ComputedStyleWorkingSet::apply_driver_flags(u64 const* important_words, u64 const* inherited_words, u64 const* evaluated_words, size_t word_count)
-{
-    ComputedValuesFFI::rust_computed_longhand_table_merge_driver_flags(m_computed_longhand_table, important_words, inherited_words, evaluated_words, word_count);
-}
-
 RefPtr<AnimatedProperties const> ComputedStyleWorkingSet::animated_properties_snapshot() const
 {
     return m_animated_properties;
@@ -398,6 +393,20 @@ void ComputedStyleWorkingSet::set_property_data_from_drive(PropertyID id, void c
     VERIFY(value_data);
 
     ComputedValuesFFI::rust_computed_longhand_table_set(m_computed_longhand_table, to_underlying(id), value_data, style_sheet_source_slot);
+    m_mint_cache->wrappers.remove(id);
+    if (style_sheet)
+        m_mint_cache->style_sheet_sources.set(id, GC::Weak<CSSStyleSheet> { *style_sheet });
+    else
+        m_mint_cache->style_sheet_sources.remove(id);
+
+    if (property_affects_computed_font_list(id))
+        clear_computed_font_list_cache();
+}
+
+void ComputedStyleWorkingSet::did_store_property_data_from_drive(PropertyID id, GC::Ptr<CSSStyleSheet> style_sheet)
+{
+    VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
+
     m_mint_cache->wrappers.remove(id);
     if (style_sheet)
         m_mint_cache->style_sheet_sources.set(id, GC::Weak<CSSStyleSheet> { *style_sheet });

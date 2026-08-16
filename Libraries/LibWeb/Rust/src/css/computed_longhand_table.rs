@@ -121,7 +121,7 @@ impl ComputedLonghandTable {
         (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize
     }
 
-    fn set(&mut self, property_id: u16, value: RetainedStyleValueData, source_slot: i64) {
+    pub(crate) fn set(&mut self, property_id: u16, value: RetainedStyleValueData, source_slot: i64) {
         assert!(
             !self.frozen,
             "the computed longhand table is immutable once its style is created"
@@ -140,6 +140,52 @@ impl ComputedLonghandTable {
             }
             (None, Ok(slot)) => self.source_slots.push((property_id, slot)),
             (None, Err(_)) => {}
+        }
+    }
+
+    pub(crate) fn set_important(&mut self, property_id: u16, important: bool) {
+        assert!(
+            !self.frozen,
+            "the computed longhand table is immutable once its style is created"
+        );
+        set_bitmap_bit(&mut self.important_bits, Self::slot_index(property_id), important);
+    }
+
+    pub(crate) fn set_inherited(&mut self, property_id: u16, inherited: bool) {
+        assert!(
+            !self.frozen,
+            "the computed longhand table is immutable once its style is created"
+        );
+        set_bitmap_bit(&mut self.inherited_bits, Self::slot_index(property_id), inherited);
+    }
+
+    pub(crate) fn merge_driver_flags(
+        &mut self,
+        important_words: &[u64],
+        inherited_words: &[u64],
+        evaluated_words: &[u64],
+    ) {
+        assert!(
+            !self.frozen,
+            "the computed longhand table is immutable once its style is created"
+        );
+        assert!(important_words.len() * 64 >= LONGHAND_COUNT);
+        assert_eq!(inherited_words.len(), important_words.len());
+        assert_eq!(evaluated_words.len(), important_words.len());
+        for index in 0..LONGHAND_COUNT {
+            if evaluated_words[index / 64] & (1 << (index % 64)) == 0 {
+                continue;
+            }
+            set_bitmap_bit(
+                &mut self.important_bits,
+                index,
+                important_words[index / 64] & (1 << (index % 64)) != 0,
+            );
+            set_bitmap_bit(
+                &mut self.inherited_bits,
+                index,
+                inherited_words[index / 64] & (1 << (index % 64)) != 0,
+            );
         }
     }
 
@@ -204,7 +250,7 @@ impl ComputedLonghandTable {
         self.inheritance_dependent_view.clear();
     }
 
-    fn add_inheritance_dependent_value(&mut self, property_id: u16, value: RetainedStyleValueData) {
+    pub(crate) fn add_inheritance_dependent_value(&mut self, property_id: u16, value: RetainedStyleValueData) {
         assert!(
             !self.frozen,
             "the computed longhand table is immutable once its style is created"
@@ -220,7 +266,7 @@ impl ComputedLonghandTable {
         self.rebuild_inheritance_dependent_view();
     }
 
-    fn remove_inheritance_dependent_value(&mut self, property_id: u16) {
+    pub(crate) fn remove_inheritance_dependent_value(&mut self, property_id: u16) {
         assert!(
             !self.frozen,
             "the computed longhand table is immutable once its style is created"
@@ -518,18 +564,7 @@ pub unsafe extern "C" fn rust_computed_longhand_table_set_important(
     property_id: u16,
     important: bool,
 ) {
-    abort_on_panic(|| {
-        let table = unsafe { &mut *table };
-        assert!(
-            !table.frozen,
-            "the computed longhand table is immutable once its style is created"
-        );
-        set_bitmap_bit(
-            &mut table.important_bits,
-            ComputedLonghandTable::slot_index(property_id),
-            important,
-        );
-    });
+    abort_on_panic(|| unsafe { &mut *table }.set_important(property_id, important));
 }
 
 /// Marks a longhand's computed value as taken by inheritance (or not).
@@ -542,18 +577,7 @@ pub unsafe extern "C" fn rust_computed_longhand_table_set_inherited(
     property_id: u16,
     inherited: bool,
 ) {
-    abort_on_panic(|| {
-        let table = unsafe { &mut *table };
-        assert!(
-            !table.frozen,
-            "the computed longhand table is immutable once its style is created"
-        );
-        set_bitmap_bit(
-            &mut table.inherited_bits,
-            ComputedLonghandTable::slot_index(property_id),
-            inherited,
-        );
-    });
+    abort_on_panic(|| unsafe { &mut *table }.set_inherited(property_id, inherited));
 }
 
 /// # Safety
@@ -627,51 +651,6 @@ pub unsafe extern "C" fn rust_computed_longhand_table_load_flag_bitmaps(
         table
             .inherited_bits
             .copy_from_slice(unsafe { std::slice::from_raw_parts(inheritance, inheritance_count) });
-    });
-}
-
-/// Applies the longhand driver's bulk flag results: for every longhand whose
-/// bit is set in `evaluated_words`, the importance and inheritance flags are
-/// taken from the matching words; other longhands keep their seeded flags.
-/// The table's own evaluated bits are not touched - they track stores, which
-/// the drive performs through `rust_computed_longhand_table_set`.
-///
-/// # Safety
-/// `table` must be a valid, unfrozen, uniquely owned table; each word span
-/// must cover every longhand bit.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_merge_driver_flags(
-    table: *mut ComputedLonghandTable,
-    important_words: *const u64,
-    inherited_words: *const u64,
-    evaluated_words: *const u64,
-    word_count: usize,
-) {
-    abort_on_panic(|| {
-        assert!(word_count * 64 >= LONGHAND_COUNT);
-        let important_words = unsafe { std::slice::from_raw_parts(important_words, word_count) };
-        let inherited_words = unsafe { std::slice::from_raw_parts(inherited_words, word_count) };
-        let evaluated_words = unsafe { std::slice::from_raw_parts(evaluated_words, word_count) };
-        let table = unsafe { &mut *table };
-        assert!(
-            !table.frozen,
-            "the computed longhand table is immutable once its style is created"
-        );
-        for index in 0..LONGHAND_COUNT {
-            if evaluated_words[index / 64] & (1 << (index % 64)) == 0 {
-                continue;
-            }
-            set_bitmap_bit(
-                &mut table.important_bits,
-                index,
-                important_words[index / 64] & (1 << (index % 64)) != 0,
-            );
-            set_bitmap_bit(
-                &mut table.inherited_bits,
-                index,
-                inherited_words[index / 64] & (1 << (index % 64)) != 0,
-            );
-        }
     });
 }
 
