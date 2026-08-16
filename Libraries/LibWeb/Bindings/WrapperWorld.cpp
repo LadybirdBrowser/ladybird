@@ -60,11 +60,6 @@ GC::Ptr<PlatformObject> WrapperWorld::wrapper_for(Wrappable const& wrappable, JS
     if (is_main_world()) {
         if (auto wrapper = wrappable.cached_main_world_wrapper(*this))
             return wrapper;
-
-        if (auto* wrapper = m_wrappers.get(wrappable)) {
-            VERIFY(&host_defined_wrapper_world(wrapper->realm()) == this);
-            return const_cast<PlatformObject*>(wrapper);
-        }
         return nullptr;
     }
 
@@ -81,12 +76,6 @@ void WrapperWorld::set_wrapper(Wrappable& wrappable, PlatformObject& wrapper)
     verify_cache_entry(*this, wrappable, wrapper);
 
     if (is_main_world()) {
-        if (auto* existing = m_wrappers.get(wrappable)) {
-            VERIFY(existing == &wrapper);
-            return;
-        }
-
-        m_wrappers.set(wrappable, wrapper);
         wrappable.set_cached_main_world_wrapper(wrapper);
         return;
     }
@@ -104,10 +93,6 @@ void WrapperWorld::clear_wrapper(Wrappable& wrappable, PlatformObject const& wra
     verify_cache_entry(*this, wrappable, wrapper);
 
     if (is_main_world()) {
-        if (auto* existing = m_wrappers.get(wrappable)) {
-            if (existing == &wrapper)
-                m_wrappers.remove(wrappable);
-        }
         wrappable.clear_cached_main_world_wrapper(wrapper);
         return;
     }
