@@ -18,6 +18,7 @@
 #include <LibWeb/CSS/CSSAnimationProperties.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/EasingFunction.h>
+#include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFeatureData.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoElement.h>
@@ -126,6 +127,7 @@ public:
     void set_animated_property(Badge<StyleComputer>, PropertyID, NonnullRefPtr<StyleValue const> value, AnimatedPropertyResultOfTransition, Inherited = Inherited::No);
     void clear_animated_properties(Badge<StyleComputer>);
     StyleValue const& property(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
+    void const* effective_property_data(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
 
     Color color(PropertyID, ColorResolutionContext) const;
     PreferredColorScheme color_scheme(PreferredColorScheme, Optional<Vector<Utf16FlyString> const&> document_supported_schemes) const;
@@ -174,6 +176,7 @@ public:
     [[nodiscard]] CSSPixels line_height(FontComputer const&) const;
     [[nodiscard]] LineHeightData line_height_data() const;
     [[nodiscard]] CSSPixels font_size() const;
+    Vector<ComputedFontFamily> computed_font_families() const;
     double font_weight() const;
     Percentage font_width() const;
     int font_slope() const;
@@ -295,6 +298,6 @@ NonnullRefPtr<StyleValue const> wrap_computed_longhand_slot(void const* value_da
 // Exposed through internals for the laziness measurements.
 u64 longhand_wrappers_minted();
 void reset_longhand_wrappers_minted();
-void count_longhand_wrapper_mint(Badge<StyleComputer>);
+void count_longhand_wrapper_mint();
 
 }

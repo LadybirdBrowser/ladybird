@@ -54,11 +54,13 @@ struct Traits<Web::CSS::ComputedFontCacheKey> : public DefaultTraits<Web::CSS::C
     static unsigned hash(Web::CSS::ComputedFontCacheKey const& key)
     {
         unsigned hash = 0;
-        for (auto const& family_value : key.font_family->as_value_list().values()) {
-            if (family_value->is_keyword())
-                hash = pair_int_hash(hash, to_underlying(family_value->as_keyword().keyword()));
-            else
-                hash = string_from_style_value(family_value).hash();
+        for (auto const& family : key.font_families) {
+            if (family.has<Web::CSS::GenericFontFamily>()) {
+                hash = pair_int_hash(hash, to_underlying(family.get<Web::CSS::GenericFontFamily>()));
+            } else {
+                auto const& name = family.get<Web::CSS::ComputedFontFamilyName>();
+                hash = pair_int_hash(hash, pair_int_hash(name.name.hash(), to_underlying(name.syntax)));
+            }
         }
 
         hash = pair_int_hash(hash, to_underlying(key.font_optical_sizing));
@@ -499,10 +501,10 @@ HashMap<FontFeatureValueKey, Vector<u32>> const& FontComputer::font_feature_valu
     return m_font_feature_values_cache.get(family_name).value();
 }
 
-NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data) const
+NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_values(Vector<ComputedFontFamily> font_families, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data) const
 {
     ComputedFontCacheKey cache_key {
-        .font_family = font_family,
+        .font_families = move(font_families),
         .font_optical_sizing = font_optical_sizing,
         .font_size = font_size,
         .font_slope = font_slope,
@@ -513,8 +515,28 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
     };
 
     return m_computed_font_cache.ensure(cache_key, [&]() {
-        return compute_font_for_style_values_impl(font_family, font_size, font_slope, font_weight, font_width, font_optical_sizing, font_variation_settings, font_feature_data);
+        return compute_font_for_style_values_impl(cache_key.font_families.span(), font_size, font_slope, font_weight, font_width, font_optical_sizing, font_variation_settings, font_feature_data);
     });
+}
+
+NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data) const
+{
+    Vector<ComputedFontFamily> font_families;
+    auto const& values = font_family.as_value_list().values();
+    font_families.ensure_capacity(values.size());
+    for (auto const& value : values) {
+        if (value->is_keyword()) {
+            auto generic_family = keyword_to_generic_font_family(value->to_keyword());
+            VERIFY(generic_family.has_value());
+            font_families.unchecked_append(generic_family.release_value());
+        } else {
+            font_families.unchecked_append(ComputedFontFamilyName {
+                .name = string_from_style_value(value),
+                .syntax = value->is_string() ? ComputedFontFamilySyntax::String : ComputedFontFamilySyntax::CustomIdent,
+            });
+        }
+    }
+    return compute_font_for_style_values(move(font_families), font_size, font_slope, font_weight, font_width, font_optical_sizing, font_variation_settings, font_feature_data);
 }
 
 void FontComputer::pin_font_list_for_style_record(NonnullRefPtr<Gfx::FontCascadeList const> font_list) const
@@ -523,7 +545,7 @@ void FontComputer::pin_font_list_for_style_record(NonnullRefPtr<Gfx::FontCascade
         m_style_record_font_list_pins.append(move(font_list));
 }
 
-NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_values_impl(StyleValue const& font_family, CSSPixels const& font_size, int slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data) const
+NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_values_impl(ReadonlySpan<ComputedFontFamily const> font_families, CSSPixels const& font_size, int slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data) const
 {
     // FIXME: We round to int here as that is what is expected by our font infrastructure below
     auto weight = round_to<int>(font_weight);
@@ -603,7 +625,8 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
         return {};
     };
 
-    auto find_generic_font = [&](Keyword font_id) -> RefPtr<Gfx::FontCascadeList const> {
+    auto find_generic_font = [&](GenericFontFamily family) -> RefPtr<Gfx::FontCascadeList const> {
+        auto font_id = to_keyword(family);
 #ifdef AK_OS_MACOS
         if (auto system_ui_font_kind = macos_system_ui_font_kind_from_family_name(string_from_keyword(font_id)); system_ui_font_kind.has_value()) {
             auto family = utf16_fly_string_from_keyword(font_id);
@@ -650,12 +673,12 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
 
     auto font_list = Gfx::FontCascadeList::create();
 
-    for (auto const& family : font_family.as_value_list().values()) {
+    for (auto const& family : font_families) {
         RefPtr<Gfx::FontCascadeList const> other_font_list;
-        if (family->is_keyword()) {
-            other_font_list = find_generic_font(family->to_keyword());
+        if (family.has<GenericFontFamily>()) {
+            other_font_list = find_generic_font(family.get<GenericFontFamily>());
         } else {
-            other_font_list = find_font(string_from_style_value(family));
+            other_font_list = find_font(family.get<ComputedFontFamilyName>().name);
         }
 
         if (other_font_list)
@@ -722,6 +745,14 @@ static bool style_value_references_font_family(StyleValue const& font_family_val
     return false;
 }
 
+static bool computed_font_families_reference_family(ReadonlySpan<ComputedFontFamily const> font_families, Utf16FlyString const& family_name)
+{
+    return any_of(font_families, [&](ComputedFontFamily const& family) {
+        return family.has<ComputedFontFamilyName>()
+            && family.get<ComputedFontFamilyName>().name.equals_ignoring_ascii_case(family_name);
+    });
+}
+
 static bool font_values_reference_font_family(ComputedValues::FontValues const& font_values, Utf16FlyString const& family_name)
 {
     auto font_family = font_values.font_family_style_value();
@@ -732,7 +763,7 @@ void FontComputer::clear_computed_font_cache(Utf16FlyString const& family_name)
 {
     // Only clear cache entries that reference the loaded font family.
     m_computed_font_cache.remove_all_matching([&](auto const& key, auto const&) {
-        return style_value_references_font_family(key.font_family, family_name);
+        return computed_font_families_reference_family(key.font_families, family_name);
     });
 
     auto element_uses_font_family = [&](DOM::Element const& element) {

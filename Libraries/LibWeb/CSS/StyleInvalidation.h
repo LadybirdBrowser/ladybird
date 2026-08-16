@@ -137,6 +137,7 @@ private:
     u8 m_inherited_style_groups_changed { 0 };
 };
 
-RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value, ComputedValues const* old_computed_values = nullptr, ComputedValues const* new_computed_values = nullptr);
+RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID, ComputedValues const& old_computed_values, ComputedValues const& new_computed_values);
+RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID, StyleValue const* old_value, StyleValue const* new_value);
 
 }

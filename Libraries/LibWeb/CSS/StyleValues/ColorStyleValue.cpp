@@ -40,7 +40,9 @@ StyleValueFFI::FfiColorResolutionInput make_rust_color_resolution_input(ColorRes
         input.current_color_rgba[2] = context.current_color->blue();
         input.current_color_rgba[3] = context.current_color->alpha();
     }
-    if (context.current_color_style_value)
+    if (context.current_color_style_value_data)
+        input.current_color_value = context.current_color_style_value_data;
+    else if (context.current_color_style_value)
         input.current_color_value = context.current_color_style_value->rust_style_value_data();
     if (context.calculation_resolution_context.length_resolution_context.has_value()) {
         length_storage = to_ffi_length_resolution_context(*context.calculation_resolution_context.length_resolution_context);

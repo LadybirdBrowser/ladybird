@@ -10,15 +10,13 @@
 #include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
-#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
-#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 
 namespace Web::CSS {
 
-static Optional<bool> typed_value_creates_stacking_context(PropertyID property_id, ComputedValues const& values)
+static bool value_creates_stacking_context(PropertyID property_id, ComputedValues const& values)
 {
     switch (property_id) {
     case PropertyID::Opacity:
@@ -56,54 +54,6 @@ static Optional<bool> typed_value_creates_stacking_context(PropertyID property_i
     case PropertyID::BackfaceVisibility:
         return values.backface_visibility() == BackfaceVisibility::Hidden;
     default:
-        return {};
-    }
-}
-
-static bool is_stacking_context_creating_value(CSS::PropertyID property_id, StyleValue const* value, ComputedValues const* computed_values = nullptr)
-{
-    if (computed_values) {
-        if (auto result = typed_value_creates_stacking_context(property_id, *computed_values); result.has_value())
-            return result.value();
-    }
-    if (!value)
-        return false;
-
-    switch (property_id) {
-    case CSS::PropertyID::Opacity:
-        return value->as_opacity_value().resolved() < 1;
-    case CSS::PropertyID::Transform:
-        if (value->to_keyword() == CSS::Keyword::None)
-            return false;
-        if (value->is_value_list())
-            return value->as_value_list().size() > 0;
-        return value->is_transformation();
-    case CSS::PropertyID::Translate:
-    case CSS::PropertyID::Rotate:
-    case CSS::PropertyID::Scale:
-        return value->to_keyword() != CSS::Keyword::None;
-    case CSS::PropertyID::Filter:
-    case CSS::PropertyID::BackdropFilter:
-        if (value->is_keyword())
-            return value->to_keyword() != CSS::Keyword::None;
-        return is_filter_style_value_list(*value) && value->as_value_list().size() > 0;
-    case CSS::PropertyID::ClipPath:
-    case CSS::PropertyID::Mask:
-    case CSS::PropertyID::MaskImage:
-    case CSS::PropertyID::ViewTransitionName:
-        return value->to_keyword() != CSS::Keyword::None;
-    case CSS::PropertyID::Isolation:
-        return value->to_keyword() == CSS::Keyword::Isolate;
-    case CSS::PropertyID::MixBlendMode:
-        return value->to_keyword() != CSS::Keyword::Normal;
-    case CSS::PropertyID::ZIndex:
-        return value->to_keyword() != CSS::Keyword::Auto;
-    case CSS::PropertyID::Perspective:
-    case CSS::PropertyID::TransformStyle:
-        return value->to_keyword() != CSS::Keyword::None && value->to_keyword() != CSS::Keyword::Flat;
-    case CSS::PropertyID::BackfaceVisibility:
-        return value->to_keyword() == CSS::Keyword::Hidden;
-    default:
         // For properties we haven't optimized (contain, container-type, will-change, all),
         // assume any value creates stacking context to be safe
         return true;
@@ -111,170 +61,219 @@ static bool is_stacking_context_creating_value(CSS::PropertyID property_id, Styl
 }
 
 // Mirrors the checks in Layout::Node::establishes_a_fixed_positioning_containing_block().
-static bool is_containing_block_establishing_value(CSS::PropertyID property_id, StyleValue const* value)
+static bool value_establishes_containing_block(CSS::PropertyID property_id, ComputedValues const& values)
 {
-    if (!value)
-        return false;
-
     switch (property_id) {
     case CSS::PropertyID::Transform:
-        if (value->to_keyword() == CSS::Keyword::None)
-            return false;
-        if (value->is_value_list())
-            return value->as_value_list().size() > 0;
-        return value->is_transformation();
+        return values.has_transformations();
     case CSS::PropertyID::Translate:
+        return values.has_translate();
     case CSS::PropertyID::Rotate:
+        return values.has_rotate();
     case CSS::PropertyID::Scale:
+        return values.has_scale();
     case CSS::PropertyID::Perspective:
-        return value->to_keyword() != CSS::Keyword::None;
+        return values.perspective().has_value();
     case CSS::PropertyID::TransformStyle:
-        return value->to_keyword() == CSS::Keyword::Preserve3d;
+        return values.transform_style() == CSS::TransformStyle::Preserve3d;
     case CSS::PropertyID::BackfaceVisibility:
-        return value->to_keyword() == CSS::Keyword::Hidden;
+        return values.backface_visibility() == CSS::BackfaceVisibility::Hidden;
     case CSS::PropertyID::Filter:
+        return values.filter().has_filters();
     case CSS::PropertyID::BackdropFilter:
-        if (value->is_keyword())
-            return value->to_keyword() != CSS::Keyword::None;
-        return is_filter_style_value_list(*value);
-    case CSS::PropertyID::Contain: {
-        // contain: none | strict | content | [ size || inline-size || layout || style || paint ]
-        // Only layout and paint containment (which strict and content include) establish a
-        // containing block; size, inline-size and style containment do not.
-        auto keyword_establishes_containing_block = [](CSS::Keyword keyword) {
-            return AK::first_is_one_of(keyword, CSS::Keyword::Strict, CSS::Keyword::Content, CSS::Keyword::Layout, CSS::Keyword::Paint);
-        };
-        if (value->is_keyword())
-            return keyword_establishes_containing_block(value->to_keyword());
-        if (value->is_value_list()) {
-            for (auto const& entry : value->as_value_list().values()) {
-                if (entry->is_keyword() && keyword_establishes_containing_block(entry->to_keyword()))
-                    return true;
-            }
-            return false;
-        }
-        return true;
-    }
+        return values.backdrop_filter().has_filters();
+    case CSS::PropertyID::Contain:
+        return values.contain().layout_containment || values.contain().paint_containment;
     case CSS::PropertyID::WillChange: {
         // will-change establishes a containing block only when it mentions a property whose
         // non-initial value would, or `position`, which additionally lets a non-atomic inline
         // establish an absolute positioning containing block.
-        auto entry_establishes_containing_block = [](StyleValue const& entry) {
-            if (!entry.is_custom_ident())
-                return false;
-            auto property = property_id_from_string(entry.as_custom_ident().custom_ident());
-            if (!property.has_value())
-                return false;
-            return AK::first_is_one_of(*property,
-                CSS::PropertyID::Transform, CSS::PropertyID::Translate, CSS::PropertyID::Rotate,
-                CSS::PropertyID::Scale, CSS::PropertyID::Perspective, CSS::PropertyID::TransformStyle,
-                CSS::PropertyID::BackfaceVisibility, CSS::PropertyID::Filter, CSS::PropertyID::BackdropFilter,
-                CSS::PropertyID::Contain, CSS::PropertyID::Position);
-        };
-        if (value->to_keyword() == CSS::Keyword::Auto)
-            return false;
-        if (value->is_value_list()) {
-            for (auto const& entry : value->as_value_list().values()) {
-                if (entry_establishes_containing_block(entry))
-                    return true;
-            }
-            return false;
+        auto will_change = values.will_change();
+        for (auto const& entry : will_change.entries()) {
+            if (!entry.has<PropertyID>())
+                continue;
+            auto property = entry.get<PropertyID>();
+            if (AK::first_is_one_of(property,
+                    CSS::PropertyID::Transform, CSS::PropertyID::Translate, CSS::PropertyID::Rotate,
+                    CSS::PropertyID::Scale, CSS::PropertyID::Perspective, CSS::PropertyID::TransformStyle,
+                    CSS::PropertyID::BackfaceVisibility, CSS::PropertyID::Filter, CSS::PropertyID::BackdropFilter,
+                    CSS::PropertyID::Contain, CSS::PropertyID::Position))
+                return true;
         }
-        return entry_establishes_containing_block(*value);
+        return false;
     }
     case CSS::PropertyID::ContainerType:
         // container-type: size and inline-size apply layout containment; normal does not.
-        return value->to_keyword() == CSS::Keyword::Size || value->to_keyword() == CSS::Keyword::InlineSize;
+        return values.container_type().is_size_container || values.container_type().is_inline_size_container;
     default:
         return false;
     }
 }
 
-static bool opacity_change_affects_paintable_visibility(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value, ComputedValues const* old_computed_values, ComputedValues const* new_computed_values)
+static bool animated_value_creates_stacking_context(PropertyID property_id, StyleValue const* value)
 {
-    if (property_id != CSS::PropertyID::Opacity)
+    if (!value)
         return false;
-
-    auto old_opacity = old_computed_values ? old_computed_values->opacity() : old_value ? old_value->as_opacity_value().resolved()
-                                                                                        : 1.0f;
-    auto new_opacity = new_computed_values ? new_computed_values->opacity() : new_value ? new_value->as_opacity_value().resolved()
-                                                                                        : 1.0f;
-    return (old_opacity == 0.0f) != (new_opacity == 0.0f);
+    switch (property_id) {
+    case PropertyID::Opacity:
+        return value->as_opacity_value().resolved() < 1;
+    case PropertyID::Transform:
+        return value->to_keyword() != Keyword::None
+            && (!value->is_value_list() || !value->as_value_list().values().is_empty());
+    case PropertyID::Translate:
+    case PropertyID::Rotate:
+    case PropertyID::Scale:
+    case PropertyID::ClipPath:
+    case PropertyID::Mask:
+    case PropertyID::MaskImage:
+    case PropertyID::ViewTransitionName:
+        return value->to_keyword() != Keyword::None;
+    case PropertyID::Filter:
+    case PropertyID::BackdropFilter:
+        return value->to_keyword() != Keyword::None
+            && (!value->is_value_list() || !value->as_value_list().values().is_empty());
+    case PropertyID::Isolation:
+        return value->to_keyword() == Keyword::Isolate;
+    case PropertyID::MixBlendMode:
+        return value->to_keyword() != Keyword::Normal;
+    case PropertyID::ZIndex:
+        return value->to_keyword() != Keyword::Auto;
+    case PropertyID::Perspective:
+    case PropertyID::TransformStyle:
+        return value->to_keyword() != Keyword::None && value->to_keyword() != Keyword::Flat;
+    case PropertyID::BackfaceVisibility:
+        return value->to_keyword() == Keyword::Hidden;
+    default:
+        return true;
+    }
 }
 
-static Optional<bool> transform_value_is_invertible(PropertyID property_id, StyleValue const* value, ComputedValues const* computed_values)
+static bool animated_value_establishes_containing_block(PropertyID property_id, StyleValue const* value)
 {
-    if (computed_values) {
-        if (property_id == PropertyID::Scale) {
-            if (!computed_values->has_scale())
-                return true;
-            if (!computed_values->scale()->can_be_converted_to_matrix_without_reference_box())
-                return {};
-            return computed_values->scale()->to_matrix({}).is_invertible();
-        }
-        if (property_id == PropertyID::Transform) {
-            auto matrix = Gfx::FloatMatrix4x4::identity();
-            bool can_be_converted_without_reference_box = true;
-            computed_values->for_each_transformation([&](auto const& transformation) {
-                if (!transformation.can_be_converted_to_matrix_without_reference_box()) {
-                    can_be_converted_without_reference_box = false;
-                    return;
-                }
-                matrix = matrix * transformation.to_matrix({});
-            });
-            if (!can_be_converted_without_reference_box)
-                return {};
-            return matrix.is_invertible();
-        }
+    if (!value)
+        return false;
+    switch (property_id) {
+    case PropertyID::Transform:
+        return value->to_keyword() != Keyword::None
+            && (!value->is_value_list() || !value->as_value_list().values().is_empty());
+    case PropertyID::Translate:
+    case PropertyID::Rotate:
+    case PropertyID::Scale:
+    case PropertyID::Perspective:
+        return value->to_keyword() != Keyword::None;
+    case PropertyID::TransformStyle:
+        return value->to_keyword() == Keyword::Preserve3d;
+    case PropertyID::BackfaceVisibility:
+        return value->to_keyword() == Keyword::Hidden;
+    case PropertyID::Filter:
+    case PropertyID::BackdropFilter:
+        return value->to_keyword() != Keyword::None;
+    case PropertyID::Contain: {
+        auto establishes = [](Keyword keyword) {
+            return AK::first_is_one_of(keyword, Keyword::Strict, Keyword::Content, Keyword::Layout, Keyword::Paint);
+        };
+        if (value->is_keyword())
+            return establishes(value->to_keyword());
+        if (!value->is_value_list())
+            return true;
+        return any_of(value->as_value_list().values(), [&](auto const& entry) {
+            return entry->is_keyword() && establishes(entry->to_keyword());
+        });
     }
+    case PropertyID::WillChange:
+        if (value->to_keyword() == Keyword::Auto)
+            return false;
+        if (!value->is_value_list())
+            return false;
+        return any_of(value->as_value_list().values(), [](auto const& entry) {
+            if (!entry->is_custom_ident())
+                return false;
+            auto property = property_id_from_string(entry->as_custom_ident().custom_ident());
+            return property.has_value() && AK::first_is_one_of(*property, PropertyID::Transform, PropertyID::Translate, PropertyID::Rotate, PropertyID::Scale, PropertyID::Perspective, PropertyID::TransformStyle, PropertyID::BackfaceVisibility, PropertyID::Filter, PropertyID::BackdropFilter, PropertyID::Contain, PropertyID::Position);
+        });
+    case PropertyID::ContainerType:
+        return value->to_keyword() == Keyword::Size || value->to_keyword() == Keyword::InlineSize;
+    default:
+        return false;
+    }
+}
 
-    if (!value || value->to_keyword() == CSS::Keyword::None)
+static Optional<bool> animated_transform_value_is_invertible(StyleValue const* value)
+{
+    if (!value || value->to_keyword() == Keyword::None)
         return true;
-
-    auto transformation_is_invertible = [](TransformationStyleValue const& transformation) -> Optional<bool> {
+    auto is_invertible = [](TransformationStyleValue const& transformation) -> Optional<bool> {
         if (!transformation.can_be_converted_to_matrix_without_reference_box())
             return {};
         return transformation.to_matrix({}).is_invertible();
     };
-
     if (value->is_transformation())
-        return transformation_is_invertible(value->as_transformation());
-
+        return is_invertible(value->as_transformation());
     if (value->is_value_list()) {
         auto matrix = Gfx::FloatMatrix4x4::identity();
         for (auto const& transformation : value->as_value_list().values()) {
-            if (!transformation->is_transformation())
-                return {};
-            if (!transformation->as_transformation().can_be_converted_to_matrix_without_reference_box())
+            if (!transformation->is_transformation() || !transformation->as_transformation().can_be_converted_to_matrix_without_reference_box())
                 return {};
             matrix = matrix * transformation->as_transformation().to_matrix({});
         }
         return matrix.is_invertible();
     }
-
     return {};
 }
 
-static bool transform_change_requires_repaint(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value, ComputedValues const* old_computed_values, ComputedValues const* new_computed_values)
+static bool opacity_change_affects_paintable_visibility(CSS::PropertyID property_id, ComputedValues const& old_values, ComputedValues const& new_values)
+{
+    if (property_id != CSS::PropertyID::Opacity)
+        return false;
+    return (old_values.opacity() == 0.0f) != (new_values.opacity() == 0.0f);
+}
+
+static Optional<bool> transform_value_is_invertible(PropertyID property_id, ComputedValues const& values)
+{
+    if (property_id == PropertyID::Scale) {
+        if (!values.has_scale())
+            return true;
+        if (!values.scale()->can_be_converted_to_matrix_without_reference_box())
+            return {};
+        return values.scale()->to_matrix({}).is_invertible();
+    }
+    if (property_id == PropertyID::Transform) {
+        auto matrix = Gfx::FloatMatrix4x4::identity();
+        bool can_be_converted_without_reference_box = true;
+        values.for_each_transformation([&](auto const& transformation) {
+            if (!transformation.can_be_converted_to_matrix_without_reference_box()) {
+                can_be_converted_without_reference_box = false;
+                return;
+            }
+            matrix = matrix * transformation.to_matrix({});
+        });
+        if (!can_be_converted_without_reference_box)
+            return {};
+        return matrix.is_invertible();
+    }
+    return {};
+}
+
+static bool transform_change_requires_repaint(CSS::PropertyID property_id, ComputedValues const& old_values, ComputedValues const& new_values)
 {
     if (!AK::first_is_one_of(property_id, CSS::PropertyID::Transform, CSS::PropertyID::Scale))
         return false;
 
     // StackingContext::paint() omits non-invertibly transformed subtrees, so crossing
     // this boundary changes display-list contents, not just the visual context matrix.
-    auto old_invertible = transform_value_is_invertible(property_id, old_value, old_computed_values);
-    auto new_invertible = transform_value_is_invertible(property_id, new_value, new_computed_values);
+    auto old_invertible = transform_value_is_invertible(property_id, old_values);
+    auto new_invertible = transform_value_is_invertible(property_id, new_values);
     if (!old_invertible.has_value() || !new_invertible.has_value())
         return true;
     return old_invertible.value() != new_invertible.value();
 }
 
-static bool accumulated_visual_context_change_requires_repaint(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value, ComputedValues const* old_computed_values, ComputedValues const* new_computed_values)
+static bool accumulated_visual_context_change_requires_repaint(CSS::PropertyID property_id, ComputedValues const& old_values, ComputedValues const& new_values)
 {
-    if (opacity_change_affects_paintable_visibility(property_id, old_value, new_value, old_computed_values, new_computed_values))
+    if (opacity_change_affects_paintable_visibility(property_id, old_values, new_values))
         return true;
 
-    if (transform_change_requires_repaint(property_id, old_value, new_value, old_computed_values, new_computed_values))
+    if (transform_change_requires_repaint(property_id, old_values, new_values))
         return true;
 
     switch (property_id) {
@@ -298,7 +297,7 @@ static bool accumulated_visual_context_change_requires_repaint(CSS::PropertyID p
 // patched in place. Presence flips (e.g. transform none <-> non-none) change the tree structure and which boxes
 // establish abs/fixed positioning containing blocks, and must rebuild instead.
 // NB: Must only include properties whose data update_accumulated_visual_context_values() recomputes.
-static bool accumulated_visual_context_change_is_value_only(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value, ComputedValues const* old_computed_values, ComputedValues const* new_computed_values)
+static bool accumulated_visual_context_change_is_value_only(CSS::PropertyID property_id, ComputedValues const& old_values, ComputedValues const& new_values)
 {
     switch (property_id) {
     case CSS::PropertyID::TransformOrigin:
@@ -315,43 +314,37 @@ static bool accumulated_visual_context_change_is_value_only(CSS::PropertyID prop
     case CSS::PropertyID::MixBlendMode:
     case CSS::PropertyID::Perspective:
         // Value-only when the property contributes a node both before and after the change.
-        return is_stacking_context_creating_value(property_id, old_value, old_computed_values)
-            && is_stacking_context_creating_value(property_id, new_value, new_computed_values);
+        return value_creates_stacking_context(property_id, old_values)
+            && value_creates_stacking_context(property_id, new_values);
     default:
         return false;
     }
 }
 
-RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value, ComputedValues const* old_computed_values, ComputedValues const* new_computed_values)
+RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID property_id, ComputedValues const& old_computed_values, ComputedValues const& new_computed_values)
 {
     RequiredInvalidationAfterStyleChange invalidation;
 
-    if (old_value == new_value)
-        return invalidation;
-    if (old_value && new_value && old_value->equals(*new_value))
-        return invalidation;
-
     // Entering or leaving out-of-flow or floated layout can restructure runs of inline content around the element,
     // even when its adjusted outer display type remains block.
-    if (property_id == CSS::PropertyID::Position && old_computed_values && new_computed_values) {
+    if (property_id == CSS::PropertyID::Position) {
         auto is_out_of_flow = [](CSS::Positioning position) {
             return position == CSS::Positioning::Absolute || position == CSS::Positioning::Fixed;
         };
-        if (is_out_of_flow(old_computed_values->position()) != is_out_of_flow(new_computed_values->position()))
+        if (is_out_of_flow(old_computed_values.position()) != is_out_of_flow(new_computed_values.position()))
             return RequiredInvalidationAfterStyleChange::full();
     }
-    if (property_id == CSS::PropertyID::Float && old_computed_values && new_computed_values) {
-        if ((old_computed_values->float_() == CSS::Float::None) != (new_computed_values->float_() == CSS::Float::None))
+    if (property_id == CSS::PropertyID::Float) {
+        if ((old_computed_values.float_() == CSS::Float::None) != (new_computed_values.float_() == CSS::Float::None))
             return RequiredInvalidationAfterStyleChange::full();
     }
 
     // Other display, float, and position changes which preserve the outer display type cannot change whether the
     // element participates in inline or block layout among its siblings. Its principal box can be replaced in place
     // while rebuilding its descendants for the new inner type.
-    if (AK::first_is_one_of(property_id, CSS::PropertyID::Display, CSS::PropertyID::Float, CSS::PropertyID::Position)
-        && old_computed_values && new_computed_values) {
-        auto old_display = old_computed_values->display();
-        auto new_display = new_computed_values->display();
+    if (AK::first_is_one_of(property_id, CSS::PropertyID::Display, CSS::PropertyID::Float, CSS::PropertyID::Position)) {
+        auto old_display = old_computed_values.display();
+        auto new_display = new_computed_values.display();
         if (old_display.is_outside_and_inside()
             && new_display.is_outside_and_inside()
             && old_display.outside() == new_display.outside())
@@ -391,14 +384,12 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
                    CSS::PropertyID::TextDecorationStyle, CSS::PropertyID::TextDecorationThickness,
                    CSS::PropertyID::TextUnderlineOffset, CSS::PropertyID::TextUnderlinePosition,
                    CSS::PropertyID::Color)) {
-        if (!old_computed_values || !new_computed_values
-            || !old_computed_values->text_decoration_line().is_empty()
-            || !new_computed_values->text_decoration_line().is_empty()) {
+        if (!old_computed_values.text_decoration_line().is_empty()
+            || !new_computed_values.text_decoration_line().is_empty()) {
             if (property_id == CSS::PropertyID::Color) {
                 // A text-decoration-color of currentcolor is stored resolved, so a color change can move
                 // the painted decoration color without any text-decoration property changing.
-                invalidation.repaint_propagated_text_decorations = !old_computed_values || !new_computed_values
-                    || old_computed_values->text_decoration_color() != new_computed_values->text_decoration_color();
+                invalidation.repaint_propagated_text_decorations = old_computed_values.text_decoration_color() != new_computed_values.text_decoration_color();
             } else {
                 invalidation.repaint_propagated_text_decorations = true;
             }
@@ -408,8 +399,8 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     // OPTIMIZATION: Special handling for CSS `visibility`:
     if (property_id == CSS::PropertyID::Visibility) {
         // We don't need to relayout if the visibility changes from visible to hidden or vice versa. Only collapse requires relayout.
-        auto old_is_collapsed = old_computed_values ? old_computed_values->visibility() == Visibility::Collapse : old_value && old_value->to_keyword() == CSS::Keyword::Collapse;
-        auto new_is_collapsed = new_computed_values ? new_computed_values->visibility() == Visibility::Collapse : new_value && new_value->to_keyword() == CSS::Keyword::Collapse;
+        auto old_is_collapsed = old_computed_values.visibility() == Visibility::Collapse;
+        auto new_is_collapsed = new_computed_values.visibility() == Visibility::Collapse;
         if (old_is_collapsed != new_is_collapsed)
             invalidation.ensure_at_least(InvalidationLevel::Relayout);
         // Of course, we still have to repaint on any visibility change.
@@ -440,34 +431,33 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
         } else {
             // OPTIMIZATION: Only rebuild stacking context tree when property crosses from a neutral value (doesn't create
             //               stacking context) to a creating value or vice versa.
-            bool old_creates = is_stacking_context_creating_value(property_id, old_value, old_computed_values);
-            bool new_creates = is_stacking_context_creating_value(property_id, new_value, new_computed_values);
+            bool old_creates = value_creates_stacking_context(property_id, old_computed_values);
+            bool new_creates = value_creates_stacking_context(property_id, new_computed_values);
             if (old_creates != new_creates) {
                 invalidation.set_needs_stacking_context_tree_rebuild();
             }
         }
     }
 
-    if (is_containing_block_establishing_value(property_id, old_value) != is_containing_block_establishing_value(property_id, new_value))
+    if (value_establishes_containing_block(property_id, old_computed_values) != value_establishes_containing_block(property_id, new_computed_values))
         invalidation.changes_containing_block_establishment = true;
 
     // A grouping property value forces a used transform-style of flat, which changes whether descendants with
     // backface-visibility: hidden participate in a 3D rendering context and establish containing blocks.
     // Containing block pointers are only recomputed by a layout pass.
-    if (old_computed_values && new_computed_values
-        && new_computed_values->transform_style() == CSS::TransformStyle::Preserve3d
-        && old_computed_values->has_transform_style_grouping_property() != new_computed_values->has_transform_style_grouping_property()) {
+    if (new_computed_values.transform_style() == CSS::TransformStyle::Preserve3d
+        && old_computed_values.has_transform_style_grouping_property() != new_computed_values.has_transform_style_grouping_property()) {
         invalidation.changes_containing_block_establishment = true;
         invalidation.ensure_at_least(InvalidationLevel::Relayout);
     }
 
     bool needs_repaint = true;
     if (CSS::property_affects_accumulated_visual_contexts(property_id)) {
-        if (accumulated_visual_context_change_is_value_only(property_id, old_value, new_value, old_computed_values, new_computed_values))
+        if (accumulated_visual_context_change_is_value_only(property_id, old_computed_values, new_computed_values))
             invalidation.ensure_at_least(AccumulatedVisualContextInvalidation::UpdateValues);
         else
             invalidation.ensure_at_least(AccumulatedVisualContextInvalidation::Rebuild);
-        if (!accumulated_visual_context_change_requires_repaint(property_id, old_value, new_value, old_computed_values, new_computed_values)
+        if (!accumulated_visual_context_change_requires_repaint(property_id, old_computed_values, new_computed_values)
             && !invalidation.needs_repaint()
             && !invalidation.recompute_descendant_styles)
             needs_repaint = false;
@@ -475,6 +465,87 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     if (needs_repaint)
         invalidation.ensure_at_least(InvalidationLevel::Repaint);
 
+    return invalidation;
+}
+
+RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value)
+{
+    RequiredInvalidationAfterStyleChange invalidation;
+    if (old_value == new_value || (old_value && new_value && old_value->equals(*new_value)))
+        return invalidation;
+
+    // Animated display, float and position changes are recomputed against a complete base style
+    // by the caller. Conservatively rebuild until that typed style is available.
+    if (AK::first_is_one_of(property_id, PropertyID::Display, PropertyID::Float, PropertyID::Position))
+        return RequiredInvalidationAfterStyleChange::full();
+    if (AK::first_is_one_of(property_id, PropertyID::Content, PropertyID::ContentVisibility, PropertyID::TextTransform))
+        return RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(LayoutTreeRebuildRoot::Self);
+    if (property_id == PropertyID::OverflowX || property_id == PropertyID::OverflowY)
+        return RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(LayoutTreeRebuildRoot::SelfUnlessDocumentElementOrBody);
+    if (AK::first_is_one_of(property_id, PropertyID::CounterReset, PropertyID::CounterSet, PropertyID::CounterIncrement)) {
+        invalidation.ensure_at_least(InvalidationLevel::RebuildLayoutTree);
+        return invalidation;
+    }
+    if (AK::first_is_one_of(property_id, PropertyID::ContainerName, PropertyID::ContainerType))
+        invalidation.recompute_descendant_styles = true;
+
+    if (property_id == PropertyID::TextDecorationLine) {
+        invalidation.repaint_propagated_text_decorations = true;
+    } else if (AK::first_is_one_of(property_id, PropertyID::TextDecorationColor,
+                   PropertyID::TextDecorationStyle, PropertyID::TextDecorationThickness,
+                   PropertyID::TextUnderlineOffset, PropertyID::TextUnderlinePosition,
+                   PropertyID::Color)) {
+        invalidation.repaint_propagated_text_decorations = true;
+    }
+
+    if (property_id == PropertyID::Visibility) {
+        auto old_is_collapsed = old_value && old_value->to_keyword() == Keyword::Collapse;
+        auto new_is_collapsed = new_value && new_value->to_keyword() == Keyword::Collapse;
+        if (old_is_collapsed != new_is_collapsed)
+            invalidation.ensure_at_least(InvalidationLevel::Relayout);
+        invalidation.ensure_at_least(InvalidationLevel::Repaint);
+    } else if (property_affects_layout(property_id)) {
+        invalidation.ensure_at_least(InvalidationLevel::Relayout);
+    }
+
+    if (property_affects_scrollable_overflow(property_id))
+        invalidation.set_needs_scrollable_overflow_recalculation();
+    if (property_affects_stacking_context(property_id)) {
+        if (property_id == PropertyID::ZIndex
+            || animated_value_creates_stacking_context(property_id, old_value) != animated_value_creates_stacking_context(property_id, new_value))
+            invalidation.set_needs_stacking_context_tree_rebuild();
+    }
+    if (animated_value_establishes_containing_block(property_id, old_value) != animated_value_establishes_containing_block(property_id, new_value))
+        invalidation.changes_containing_block_establishment = true;
+
+    bool needs_repaint = true;
+    if (property_affects_accumulated_visual_contexts(property_id)) {
+        bool value_only = AK::first_is_one_of(property_id, PropertyID::TransformOrigin, PropertyID::TransformBox, PropertyID::PerspectiveOrigin)
+            || (AK::first_is_one_of(property_id, PropertyID::Transform, PropertyID::Translate, PropertyID::Rotate,
+                    PropertyID::Scale, PropertyID::Opacity, PropertyID::Filter, PropertyID::MixBlendMode, PropertyID::Perspective)
+                && animated_value_creates_stacking_context(property_id, old_value)
+                && animated_value_creates_stacking_context(property_id, new_value));
+        invalidation.ensure_at_least(value_only ? AccumulatedVisualContextInvalidation::UpdateValues : AccumulatedVisualContextInvalidation::Rebuild);
+
+        bool requires_repaint = false;
+        if (property_id == PropertyID::Opacity) {
+            auto old_opacity = old_value ? old_value->as_opacity_value().resolved() : 1.0f;
+            auto new_opacity = new_value ? new_value->as_opacity_value().resolved() : 1.0f;
+            requires_repaint = (old_opacity == 0.0f) != (new_opacity == 0.0f);
+        } else if (AK::first_is_one_of(property_id, PropertyID::Transform, PropertyID::Scale)) {
+            auto old_invertible = animated_transform_value_is_invertible(old_value);
+            auto new_invertible = animated_transform_value_is_invertible(new_value);
+            requires_repaint = !old_invertible.has_value() || !new_invertible.has_value() || old_invertible.value() != new_invertible.value();
+        } else if (AK::first_is_one_of(property_id, PropertyID::BackdropFilter, PropertyID::BackgroundAttachment,
+                       PropertyID::Clip, PropertyID::ClipPath, PropertyID::MaskImage, PropertyID::MaskType,
+                       PropertyID::MixBlendMode, PropertyID::Perspective)) {
+            requires_repaint = true;
+        }
+        if (!requires_repaint && !invalidation.needs_repaint() && !invalidation.recompute_descendant_styles)
+            needs_repaint = false;
+    }
+    if (needs_repaint)
+        invalidation.ensure_at_least(InvalidationLevel::Repaint);
     return invalidation;
 }
 

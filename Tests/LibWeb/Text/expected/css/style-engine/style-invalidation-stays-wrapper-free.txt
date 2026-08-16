@@ -1,0 +1,2 @@
+computed width: 20px
+style invalidation minted wrappers: 0
