@@ -37,6 +37,14 @@ void ConnectionFromClient::connect_to_image_decoder(IPC::TransportHandle handle)
         on_image_decoder_connection(handle);
 }
 
+void ConnectionFromClient::connect_to_wasm_compiler([[maybe_unused]] IPC::TransportHandle handle)
+{
+#if defined(HAVE_WASM_COMPILER_SERVICE)
+    if (on_wasm_compiler_connection)
+        on_wasm_compiler_connection(handle);
+#endif
+}
+
 void ConnectionFromClient::connect_to_compositor(IPC::TransportHandle handle)
 {
     auto transport = MUST(handle.create_transport());

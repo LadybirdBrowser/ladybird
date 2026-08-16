@@ -62,6 +62,9 @@ public:
 
     Function<void(IPC::TransportHandle const&)> on_request_server_connection;
     Function<void(IPC::TransportHandle const&)> on_image_decoder_connection;
+#if defined(HAVE_WASM_COMPILER_SERVICE)
+    Function<void(IPC::TransportHandle const&)> on_wasm_compiler_connection;
+#endif
 
     Queue<Web::QueuedInputEvent>& input_event_queue() { return m_input_event_queue; }
     void update_input_method_state(u64 page_id);
@@ -84,6 +87,7 @@ private:
     virtual void connect_to_web_ui(u64 page_id, IPC::TransportHandle handle) override;
     virtual void connect_to_request_server(IPC::TransportHandle handle) override;
     virtual void connect_to_image_decoder(IPC::TransportHandle handle) override;
+    virtual void connect_to_wasm_compiler(IPC::TransportHandle handle) override;
     virtual void connect_to_compositor_process(IPC::TransportHandle handle) override;
     virtual void compositor_process_reconnected() override;
     virtual void update_system_theme(u64 page_id, Core::AnonymousBuffer) override;
