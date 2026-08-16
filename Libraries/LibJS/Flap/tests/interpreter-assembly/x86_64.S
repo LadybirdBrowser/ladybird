@@ -4209,7 +4209,7 @@ asm_handler_GetById:
     mov rcx, QWORD PTR [rax + rcx * 8]
     test rcx, rcx
     jz .Lasm_GetById.ssa_block_1
-    and rcx, -2
+    and rcx, -4
     mov rdi, QWORD PTR [rcx + 24]
     mov rax, QWORD PTR [rcx + 32]
     cmp rdi, rdx
@@ -4257,7 +4257,7 @@ asm_handler_PutById:
     mov rcx, QWORD PTR [rax + rcx * 8]
     test rcx, rcx
     jz .Lasm_PutById.ssa_block_2
-    and rcx, -2
+    and rcx, -4
     mov rdi, QWORD PTR [rcx + 24]
     mov rax, QWORD PTR [rcx + 32]
     cmp rdi, rdx
@@ -4504,7 +4504,7 @@ asm_handler_GetLength:
     mov rcx, QWORD PTR [rax + rcx * 8]
     test rcx, rcx
     jz .Lasm_GetLength.ssa_block_1
-    and rcx, -2
+    and rcx, -4
     mov rdi, QWORD PTR [rcx + 24]
     mov rax, QWORD PTR [rcx + 32]
     cmp rdi, rsi

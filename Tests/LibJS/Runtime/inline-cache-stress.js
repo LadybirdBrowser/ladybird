@@ -1259,6 +1259,51 @@ describe("polymorphic IC boundary tests", () => {
         expect(sum).toBe(4950);
     });
 
+    test("megamorphic prototype property IC", () => {
+        function getValue(object) {
+            return object.value;
+        }
+
+        const prototypes = [];
+        const objects = [];
+        for (let i = 0; i < 20; ++i) {
+            const prototype = { value: i };
+            prototypes.push(prototype);
+            objects.push(Object.create(prototype));
+        }
+
+        for (let iteration = 0; iteration < 10; ++iteration) {
+            let sum = 0;
+            for (const object of objects) sum += getValue(object);
+            expect(sum).toBe(190);
+        }
+
+        prototypes[5].value = 100;
+        expect(getValue(objects[5])).toBe(100);
+
+        delete prototypes[6].value;
+        expect(getValue(objects[6])).toBeUndefined();
+    });
+
+    test("megamorphic setter IC", () => {
+        function setValue(object, value) {
+            object.value = value;
+        }
+
+        const objects = [];
+        for (let i = 0; i < 20; ++i) {
+            const object = {};
+            for (let j = 0; j < i; ++j) object[`property${j}`] = j;
+            objects.push(object);
+        }
+
+        for (let iteration = 0; iteration < 10; ++iteration) {
+            for (let i = 0; i < objects.length; ++i) setValue(objects[i], iteration + i);
+        }
+
+        for (let i = 0; i < objects.length; ++i) expect(objects[i].value).toBe(9 + i);
+    });
+
     test("polymorphic IC with prototype differences", () => {
         function getValue(obj) {
             return obj.x;

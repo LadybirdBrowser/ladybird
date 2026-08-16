@@ -112,7 +112,7 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
 
     auto& shape = base_obj->shape();
 
-    for (auto& cache_entry : cache.entries()) {
+    for (auto& cache_entry : cache.entries_for_shape(shape)) {
         if (cache_entry.type != PropertyLookupCache::Entry::Type::GetOwnProperty
             && cache_entry.type != PropertyLookupCache::Entry::Type::GetPropertyInPrototypeChain) {
             continue;
@@ -251,7 +251,7 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
         auto this_value_object = MUST(this_value.to_object(vm));
         auto& from_shape = this_value_object->shape();
         if (caches) [[likely]] {
-            for (auto& cache : caches->entries()) {
+            for (auto& cache : caches->entries_for_shape(object->shape())) {
                 switch (cache.type) {
                 case PropertyLookupCache::Entry::Type::Empty:
                     break;
@@ -409,7 +409,7 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
     }
     case PutKind::Own: {
         if (caches) [[likely]] {
-            for (auto& cache : caches->entries()) {
+            for (auto& cache : caches->entries_for_shape(object->shape())) {
                 if (cache.type == PropertyLookupCache::Entry::Type::AddOwnProperty) {
                     // PutKind::Own is not currently emitted for platform
                     // objects, but keep this aligned with the normal PutById
