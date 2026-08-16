@@ -28,7 +28,7 @@ impl StyleEngine {
         let publish_document_root_arrival = document_root_arrival_is_pending;
 
         let mut transaction = self.drain_transaction();
-        self.apply_staged(&mut transaction);
+        self.apply_staged_transaction(&mut transaction);
         if transaction.is_empty() {
             self.release_transaction(transaction);
             return true;
@@ -317,14 +317,11 @@ impl StyleEngine {
             // Routing reads the program as it stands now, but the inputs happened before it did.
             // A sheet that went away in this same transaction was still deciding when the mutations
             // ahead of it in the journal were recorded, so its rules cannot be skipped as inactive.
-            let sheets_in_flux = Self::sheets_in_flux(&transaction);
-            let programs_in_flux = Self::programs_in_flux(&transaction);
+            let program_delta = self.program_staging.delta();
             let retained_winners_are_current = transaction
                 .inputs
                 .iter()
                 .all(|input| matches!(input.key, InputKey::LocalFeature(..) | InputKey::State(..)));
-            let rules_arriving = Self::rules_arriving(&transaction);
-            let scopes_departed = Self::scopes_departed(&transaction);
             if self.selector_incidence_is_current {
                 let programs: Vec<_> = transaction
                     .inputs
@@ -417,8 +414,8 @@ impl StyleEngine {
                 self.route_program_input(
                     input,
                     transaction.program_joins_for(input.key),
-                    &rules_arriving,
-                    &scopes_departed,
+                    &program_delta.arriving_rules,
+                    &program_delta.departed_scopes,
                     ProgramRoutingContext {
                         resident_nodes: (!outer_arrivals.is_empty()).then_some(resident_nodes.as_slice()),
                         winner_program_version: transaction.program_base_version,
@@ -437,8 +434,8 @@ impl StyleEngine {
                     self.route_program_input(
                         input,
                         transaction.program_joins_for(input.key),
-                        &rules_arriving,
-                        &scopes_departed,
+                        &program_delta.arriving_rules,
+                        &program_delta.departed_scopes,
                         ProgramRoutingContext {
                             resident_nodes: (!outer_arrivals.is_empty()).then_some(resident_nodes.as_slice()),
                             winner_program_version: transaction.program_base_version,
@@ -485,8 +482,8 @@ impl StyleEngine {
                     }
                     self.route_input(
                         input,
-                        &sheets_in_flux,
-                        &programs_in_flux,
+                        &program_delta.sheets,
+                        &program_delta.selector_programs,
                         tree_routing,
                         &sibling_entries,
                         &mut sibling_candidates,
@@ -523,7 +520,7 @@ impl StyleEngine {
             if !regions.covers_document() {
                 deferred_sequence_routes = self.route_sequence_changes(
                     &sequences,
-                    &sheets_in_flux,
+                    &program_delta.sheets,
                     tree_routing,
                     &mut regions,
                     &mut planning_workspace,
@@ -1416,66 +1413,6 @@ impl StyleEngine {
         Some((node, key))
     }
 
-    /// The selector programs a rule had earlier in this transaction and no longer has.
-    ///
-    /// A route is registered under the program that compiled it, and one belonging to a
-    /// program the rule has given up describes a selector nobody wrote - except while the change that
-    /// replaced it is still in the transaction, because the inputs recorded ahead of it happened while
-    /// that selector was the one in effect. A class removed in the same transaction as a
-    /// `selectorText` edit has to route through the selector it was removed from.
-    pub(super) fn programs_in_flux(transaction: &StyleTransaction) -> Vec<SelectorProgramID> {
-        let mut programs: Vec<SelectorProgramID> = transaction
-            .inputs
-            .iter()
-            .filter_map(|input| match (input.key, input.old) {
-                (InputKey::RuleField(_, RuleField::Selector), InputValue::SelectorProgram(program)) => program,
-                _ => None,
-            })
-            .collect();
-        programs.sort_unstable_by_key(|program| program.0);
-        programs.dedup();
-        programs
-    }
-
-    /// The rules that came into existence in this transaction.
-    ///
-    /// A rule that arrived and does not decide now decided nothing at all: both its existence and
-    /// its activation describe something that was never in the cascade. Knowing that needs the
-    /// transaction rather than the program, because the program only says where things stand.
-    pub(super) fn rules_arriving(transaction: &StyleTransaction) -> Vec<RuleID> {
-        let mut rules: Vec<RuleID> = transaction
-            .inputs
-            .iter()
-            .filter_map(|input| match (input.key, input.new) {
-                (InputKey::RuleField(rule, RuleField::Existence), InputValue::Flag(true)) => Some(rule),
-                _ => None,
-            })
-            .collect();
-        rules.sort_unstable_by_key(|rule| rule.0);
-        rules.dedup();
-        rules
-    }
-
-    /// The scopes each sheet was attached to when this transaction began.
-    ///
-    /// A sheet's rules reach the elements its scopes hold, and that has to be the scopes as of the
-    /// input rather than as of routing: re-inserting a `<style>` element builds a whole new sheet, so
-    /// the old one is detached with all its rules still to be answered for, and asking where it is
-    /// attached now answers nowhere.
-    pub(super) fn scopes_departed(transaction: &StyleTransaction) -> Vec<(SheetID, TreeScopeID)> {
-        let mut scopes: Vec<(SheetID, TreeScopeID)> = transaction
-            .inputs
-            .iter()
-            .filter_map(|input| match (input.key, input.old) {
-                (InputKey::SheetAttachment(sheet, scope), InputValue::Flag(true)) => Some((sheet, scope)),
-                _ => None,
-            })
-            .collect();
-        scopes.sort_unstable();
-        scopes.dedup();
-        scopes
-    }
-
     /// Every local feature the transaction moves, as every dispatch key a compound can name it by.
     pub(super) fn feature_delta_for(&self, transaction: &StyleTransaction) -> FeatureFluxColumn {
         let mut entries = Vec::new();
@@ -1499,21 +1436,6 @@ impl StyleEngine {
         self.transaction_fact_view
             .as_ref()
             .map_or(&[], |view| view.moved_features.keys_of_node(node))
-    }
-
-    /// The sheets whose program or attachment moved in this transaction.
-    pub(super) fn sheets_in_flux(transaction: &StyleTransaction) -> Vec<SheetID> {
-        let mut sheets: Vec<SheetID> = transaction
-            .inputs
-            .iter()
-            .filter_map(|input| match input.key {
-                InputKey::SheetAttachment(sheet, _) | InputKey::SheetActivation(sheet) => Some(sheet),
-                _ => None,
-            })
-            .collect();
-        sheets.sort_unstable();
-        sheets.dedup();
-        sheets
     }
 
     #[must_use]

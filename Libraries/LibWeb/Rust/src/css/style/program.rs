@@ -497,6 +497,11 @@ impl StyleSheetProgram {
         self.bump_rule_sheet_dispatch_version(rule);
     }
 
+    #[must_use]
+    pub fn rule_is_in_a_layer(&self, rule: RuleID) -> bool {
+        self.rules[rule.0 as usize].in_a_layer
+    }
+
     /// Every live rule in this scope that sits in a cascade layer.
     #[must_use]
     pub fn rules_in_a_layer_in_scope(&self, scope: TreeScopeID) -> Vec<RuleID> {
@@ -963,6 +968,15 @@ impl StyleSheetProgram {
                 u32::try_from(ranks.len()).expect("cascade layer count exhausted")
             })
         })
+    }
+
+    #[must_use]
+    pub fn layer_ranks(&self, scope: TreeScopeID) -> HashMap<CascadeLayerID, u32> {
+        self.layer_ranks
+            .get(scope.0 as usize)
+            .and_then(Option::as_ref)
+            .cloned()
+            .unwrap_or_default()
     }
 
     /// Record that a rule sits behind a container query.

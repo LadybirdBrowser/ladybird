@@ -10,7 +10,7 @@ impl StyleEngine {
     /// Put the qualified layer names in the order one tree scope declares them in.
     pub fn set_layer_order(&mut self, scope: TreeScopeID, layers: &[CascadeLayerID]) {
         let ranks = StyleSheetProgram::layer_ranks_in_order(layers);
-        let pending_order = self.pending_layer_orders.get(&scope);
+        let pending_order = self.program_staging.layer_orders.after(scope);
         if pending_order.map_or_else(
             || self.program.layer_order_matches(scope, layers),
             |pending| pending == &ranks,
@@ -18,9 +18,11 @@ impl StyleEngine {
             return;
         }
         let initialized = pending_order.is_some() || self.program.layer_order_is_initialized(scope);
-        self.pending_program_base_version.get_or_insert(self.program.version());
+        self.program_staging.base_version.get_or_insert(self.program.version());
         self.invalidate_scope_program(scope);
-        self.pending_layer_orders.insert(scope, ranks);
+        self.program_staging
+            .layer_orders
+            .stage(scope, self.program.layer_ranks(scope), ranks);
         if initialized {
             self.record_layer_topology_change(scope);
         }
@@ -29,7 +31,7 @@ impl StyleEngine {
     /// The dense layer rank consumed by the C++ property cascade and non-style rule lookup.
     #[must_use]
     pub fn layer_index(&self, scope: TreeScopeID, layer: CascadeLayerID) -> u32 {
-        self.pending_layer_orders.get(&scope).map_or_else(
+        self.program_staging.layer_orders.after(scope).map_or_else(
             || self.program.layer_index(scope, layer),
             |ranks| {
                 ranks
@@ -108,35 +110,32 @@ impl StyleEngine {
         declared: Vec<DeclaredProperty>,
         complete: bool,
     ) {
-        // A rule that did not exist in the committed program has no old declaration inventory to
-        // preserve. Parser-time sheet construction is almost entirely this case, so install its
-        // declarations directly instead of buffering every arriving rule twice.
-        if rule.0 >= self.committed_rule_count {
-            self.program.set_rule_declared_properties(rule, declared, complete);
-            return;
+        if !self.staged_rule_is_arriving(rule) {
+            self.program_staging.base_version.get_or_insert(self.program.version());
+            self.invalidate_scope_programs_for_sheet(self.program.rule_sheet(rule));
         }
-        self.pending_program_base_version.get_or_insert(self.program.version());
-        self.invalidate_scope_programs_for_sheet(self.program.rule_sheet(rule));
-        self.pending_rule_declarations
-            .insert(rule, PendingRuleDeclarations { declared, complete });
+        self.program_staging.rule_declarations.stage(
+            rule,
+            PendingRuleDeclarations {
+                declared: self.program.declared_properties_of(rule).to_vec(),
+                complete: self.program.declarations_are_complete_for(rule),
+            },
+            PendingRuleDeclarations { declared, complete },
+        );
     }
 
     pub(super) fn current_declared_properties_of(&self, rule: RuleID) -> &[DeclaredProperty] {
-        if rule.0 >= self.committed_rule_count {
-            return self.program.declared_properties_of(rule);
-        }
-        self.pending_rule_declarations
-            .get(&rule)
+        self.program_staging
+            .rule_declarations
+            .after(rule)
             .map(|pending| pending.declared.as_slice())
             .unwrap_or_else(|| self.program.declared_properties_of(rule))
     }
 
     pub(super) fn current_declarations_are_complete_for(&self, rule: RuleID) -> bool {
-        if rule.0 >= self.committed_rule_count {
-            return self.program.declarations_are_complete_for(rule);
-        }
-        self.pending_rule_declarations
-            .get(&rule)
+        self.program_staging
+            .rule_declarations
+            .after(rule)
             .map(|pending| pending.complete)
             .unwrap_or_else(|| self.program.declarations_are_complete_for(rule))
     }
@@ -157,7 +156,8 @@ impl StyleEngine {
         new_properties.sort_unstable();
         new_properties.dedup();
         if let Some(change) = self
-            .pending_rule_declaration_changes
+            .program_staging
+            .rule_declaration_changes
             .iter_mut()
             .find(|change| change.rule == rule)
         {
@@ -168,9 +168,10 @@ impl StyleEngine {
         // columns, so nothing downstream can prove such an edit inert. Capture that on the old
         // side only: the first edit in a transaction reads the state every proof compares against.
         if !self.current_declarations_are_complete_for(rule) {
-            self.rules_with_incomplete_old_declarations.push(rule);
+            self.program_staging.rules_with_incomplete_old_declarations.push(rule);
         }
-        self.pending_rule_declaration_changes
+        self.program_staging
+            .rule_declaration_changes
             .push(PendingRuleDeclarationChange {
                 rule,
                 old_properties,
@@ -224,13 +225,16 @@ impl StyleEngine {
 
     pub fn set_rule_conditions_hold(&mut self, rule: RuleID, conditions_hold: bool) {
         let previous = self
-            .pending_rule_conditions
+            .program_staging
+            .rule_conditions
             .current(rule, || self.program.rule_conditions_hold(rule));
         if previous == conditions_hold {
             return;
         }
         self.stage_program_activation();
-        self.pending_rule_conditions.stage(rule, conditions_hold);
+        self.program_staging
+            .rule_conditions
+            .stage(rule, self.program.rule_conditions_hold(rule), conditions_hold);
         // While the rule's sheet is still arriving, whether its condition holds is part of what
         // arrives rather than something that moved: routing the attachment reads the activation the
         // rule ends the transaction with, and skips it if it decides nothing.
@@ -247,13 +251,16 @@ impl StyleEngine {
     /// Record whether a sheet's conditions hold, as evaluating its media queries decides.
     pub fn set_sheet_conditions_hold(&mut self, sheet: SheetID, conditions_hold: bool) {
         let previous = self
-            .pending_sheet_conditions
+            .program_staging
+            .sheet_conditions
             .current(sheet, || self.program.sheet_conditions_hold(sheet));
         if previous == conditions_hold {
             return;
         }
         self.stage_program_activation();
-        self.pending_sheet_conditions.stage(sheet, conditions_hold);
+        self.program_staging
+            .sheet_conditions
+            .stage(sheet, self.program.sheet_conditions_hold(sheet), conditions_hold);
         self.record_input(
             InputKey::SheetActivation(sheet),
             InputValue::Flag(previous),
@@ -264,13 +271,16 @@ impl StyleEngine {
     #[cfg(test)]
     pub(super) fn set_sheet_enabled(&mut self, sheet: SheetID, enabled: bool) {
         let previous = self
-            .pending_sheet_enabled
+            .program_staging
+            .sheet_enabled
             .current(sheet, || self.program.sheet_is_enabled(sheet));
         if previous == enabled {
             return;
         }
         self.stage_program_activation();
-        self.pending_sheet_enabled.stage(sheet, enabled);
+        self.program_staging
+            .sheet_enabled
+            .stage(sheet, self.program.sheet_is_enabled(sheet), enabled);
         self.record_input(
             InputKey::SheetActivation(sheet),
             InputValue::Flag(previous),
@@ -335,7 +345,7 @@ impl StyleEngine {
             self.sheet_rule_replacement.is_none(),
             "stylesheet replacements do not nest"
         );
-        if let Some(slot) = self.pending_sheet_rule_replacements.get_mut(sheet.0 as usize)
+        if let Some(slot) = self.program_staging.sheet_rule_replacements.get_mut(sheet.0 as usize)
             && let Some(mut replacement) = slot.take()
         {
             replacement.reused = 0;
@@ -389,16 +399,18 @@ impl StyleEngine {
         }
         if replacement.reused < replacement.rules.len() {
             let index = sheet.0 as usize;
-            self.pending_sheet_rule_replacements.insert(index, Some(replacement));
+            self.program_staging
+                .sheet_rule_replacements
+                .insert(index, Some(replacement));
             self.settle_program();
             return;
         }
         self.settle_program();
     }
 
-    pub(super) fn finalize_pending_sheet_rule_replacements(&mut self) {
-        for index in 0..self.pending_sheet_rule_replacements.len() {
-            let Some(replacement) = self.pending_sheet_rule_replacements[index].take() else {
+    pub(super) fn finalize_staged_sheet_rule_replacements(&mut self) {
+        for index in 0..self.program_staging.sheet_rule_replacements.len() {
+            let Some(replacement) = self.program_staging.sheet_rule_replacements[index].take() else {
                 continue;
             };
             for old in &replacement.rules[replacement.reused..] {
@@ -492,49 +504,47 @@ impl StyleEngine {
     }
 
     pub(super) fn current_rule_version(&self, rule: RuleID) -> RuleVersion {
-        if rule.0 >= self.committed_rule_count {
-            return self.program.rule_version(rule);
-        }
-        self.pending_rule_versions
+        self.program_staging
+            .rule_versions
             .current(rule, || self.program.rule_version(rule))
     }
 
     pub(super) fn stage_rule_version(&mut self, rule: RuleID, contents: RuleVersion) {
-        if rule.0 >= self.committed_rule_count {
-            self.program.replace_reserved_rule_version(rule, contents);
-            return;
+        if !self.staged_rule_is_arriving(rule) {
+            self.program_staging.base_version.get_or_insert(self.program.version());
+            self.invalidate_scope_programs_for_sheet(self.program.rule_sheet(rule));
         }
-        self.pending_program_base_version.get_or_insert(self.program.version());
-        self.invalidate_scope_programs_for_sheet(self.program.rule_sheet(rule));
-        self.pending_rule_versions.stage(rule, contents);
+        self.program_staging
+            .rule_versions
+            .stage(rule, self.program.rule_version(rule), contents);
     }
 
     pub(super) fn current_rule_is_gated_by_container_query(&self, rule: RuleID) -> bool {
-        if rule.0 >= self.committed_rule_count {
-            return self.program.rule_is_gated_by_container_query(rule);
-        }
-        self.pending_rule_gated_by_container_query
+        self.program_staging
+            .rule_gated_by_container_query
             .current(rule, || self.program.rule_is_gated_by_container_query(rule))
     }
 
     pub(super) fn stage_rule_gated_by_container_query(&mut self, rule: RuleID, gated: bool) {
-        if rule.0 >= self.committed_rule_count {
-            self.program.set_rule_gated_by_container_query(rule, gated);
-            return;
+        if !self.staged_rule_is_arriving(rule) {
+            self.program_staging.base_version.get_or_insert(self.program.version());
+            self.invalidate_scope_programs_for_sheet(self.program.rule_sheet(rule));
         }
-        self.pending_program_base_version.get_or_insert(self.program.version());
-        self.invalidate_scope_programs_for_sheet(self.program.rule_sheet(rule));
-        self.pending_rule_gated_by_container_query.stage(rule, gated);
+        self.program_staging.rule_gated_by_container_query.stage(
+            rule,
+            self.program.rule_is_gated_by_container_query(rule),
+            gated,
+        );
     }
 
     pub(super) fn stage_rule_in_a_layer(&mut self, rule: RuleID, in_a_layer: bool) {
-        if rule.0 >= self.committed_rule_count {
-            self.program.set_rule_in_a_layer(rule, in_a_layer);
-            return;
+        if !self.staged_rule_is_arriving(rule) {
+            self.program_staging.base_version.get_or_insert(self.program.version());
+            self.invalidate_scope_programs_for_sheet(self.program.rule_sheet(rule));
         }
-        self.pending_program_base_version.get_or_insert(self.program.version());
-        self.invalidate_scope_programs_for_sheet(self.program.rule_sheet(rule));
-        self.pending_rule_in_a_layer.stage(rule, in_a_layer);
+        self.program_staging
+            .rule_in_a_layer
+            .stage(rule, self.program.rule_is_in_a_layer(rule), in_a_layer);
     }
 
     /// A structural program edit cannot be applied while an epoch is reading the program, and it
@@ -555,63 +565,98 @@ impl StyleEngine {
     /// valid across the flip. Memoized prefix answers were filtered through the old activation,
     /// so those are dropped here.
     pub(super) fn stage_program_activation(&mut self) {
-        self.pending_program_base_version.get_or_insert(self.program.version());
+        self.program_staging.base_version.get_or_insert(self.program.version());
         self.prefix_caches.borrow_mut().answers.release(&mut self.match_answers);
     }
 
-    pub(super) fn apply_pending_program_activation(&mut self) {
-        let rule_conditions = self.pending_rule_conditions.take();
-        let sheet_conditions = self.pending_sheet_conditions.take();
-        let sheet_enabled = self.pending_sheet_enabled.take();
-        if rule_conditions.is_empty() && sheet_conditions.is_empty() && sheet_enabled.is_empty() {
-            return;
+    pub(super) fn commit_staged_program(&mut self) {
+        let rule_conditions = self.program_staging.rule_conditions.take_dirty();
+        let sheet_conditions = self.program_staging.sheet_conditions.take_dirty();
+        let sheet_enabled = self.program_staging.sheet_enabled.take_dirty();
+        if !rule_conditions.is_empty() || !sheet_conditions.is_empty() || !sheet_enabled.is_empty() {
+            for (rule, conditions_hold) in rule_conditions {
+                self.program.set_rule_conditions_hold(rule, conditions_hold);
+            }
+            for (sheet, conditions_hold) in sheet_conditions {
+                self.program.set_sheet_conditions_hold(sheet, conditions_hold);
+            }
+            for (sheet, enabled) in sheet_enabled {
+                self.program.set_sheet_enabled(sheet, enabled);
+            }
+            self.settle_program();
         }
-        for (rule, conditions_hold) in rule_conditions {
-            self.program.set_rule_conditions_hold(rule, conditions_hold);
-        }
-        for (sheet, conditions_hold) in sheet_conditions {
-            self.program.set_sheet_conditions_hold(sheet, conditions_hold);
-        }
-        for (sheet, enabled) in sheet_enabled {
-            self.program.set_sheet_enabled(sheet, enabled);
-        }
-        self.settle_program();
-    }
 
-    pub(super) fn apply_pending_rule_declarations(&mut self) {
-        let declarations = std::mem::take(&mut self.pending_rule_declarations);
+        let declarations = self.program_staging.rule_declarations.take_dirty();
         for (rule, pending) in declarations {
             self.program
                 .set_rule_declared_properties(rule, pending.declared, pending.complete);
         }
-    }
 
-    pub(super) fn apply_pending_rule_versions(&mut self) {
-        let mut versions: Vec<(RuleID, RuleVersion)> = self.pending_rule_versions.take().into_iter().collect();
-        if versions.is_empty() {
-            return;
+        let mut versions = self.program_staging.rule_versions.take_dirty();
+        if !versions.is_empty() {
+            versions.sort_unstable_by_key(|(rule, _)| *rule);
+            for (rule, version) in versions {
+                if self.staged_rule_is_arriving(rule) {
+                    self.program.replace_reserved_rule_version(rule, version);
+                } else {
+                    self.program.replace_rule_version(rule, version);
+                }
+            }
+            self.settle_program();
         }
-        versions.sort_unstable_by_key(|(rule, _)| *rule);
-        for (rule, version) in versions {
-            self.program.replace_rule_version(rule, version);
-        }
-        self.settle_program();
-    }
 
-    pub(super) fn apply_pending_rule_metadata(&mut self) {
-        let in_a_layer = self.pending_rule_in_a_layer.take();
-        let gated_by_container_query = self.pending_rule_gated_by_container_query.take();
+        let in_a_layer = self.program_staging.rule_in_a_layer.take_dirty();
+        let gated_by_container_query = self.program_staging.rule_gated_by_container_query.take_dirty();
         for (rule, value) in in_a_layer {
             self.program.set_rule_in_a_layer(rule, value);
         }
         for (rule, value) in gated_by_container_query {
             self.program.set_rule_gated_by_container_query(rule, value);
         }
+
+        let mut liveness_changes = self.program_staging.rule_liveness.take_dirty();
+        if !liveness_changes.is_empty() {
+            liveness_changes.sort_unstable_by_key(|(rule, _)| *rule);
+            self.program.set_rule_liveness(&liveness_changes);
+            self.settle_program();
+        }
+
+        let layer_orders = self.program_staging.layer_orders.take_dirty();
+        let scopes = self.program_staging.scopes_using_document_sheets.take_dirty();
+        if !layer_orders.is_empty() || !scopes.is_empty() {
+            for (scope, ranks) in layer_orders {
+                self.program.set_layer_ranks(scope, ranks);
+            }
+            for (scope, uses_document_sheets) in scopes {
+                if uses_document_sheets {
+                    self.program.set_scope_uses_document_sheets(scope);
+                }
+            }
+            self.settle_program();
+        }
+
+        let mut sheet_orders = self.program_staging.sheets_in_scope.take_dirty();
+        if !sheet_orders.is_empty() {
+            sheet_orders.sort_unstable_by_key(|(scope, _)| *scope);
+            for (scope, sheets) in sheet_orders {
+                self.program.set_sheets_in_scope(scope, &sheets);
+            }
+            self.settle_program();
+        }
     }
 
     pub(super) fn current_rule_is_live(&self, rule: RuleID) -> bool {
-        self.pending_rule_liveness
+        self.program_staging
+            .rule_liveness
             .current(rule, || self.program.rule_is_live(rule))
+    }
+
+    fn staged_rule_is_arriving(&self, rule: RuleID) -> bool {
+        !self
+            .program_staging
+            .rule_liveness
+            .side(rule, TransactionFactSide::Before, || self.program.rule_is_live(rule))
+            && self.current_rule_is_live(rule)
     }
 
     pub(super) fn current_top_level_rules_in_sheet(&self, sheet: SheetID) -> Vec<RuleID> {
@@ -632,51 +677,24 @@ impl StyleEngine {
     }
 
     pub(super) fn stage_rule_liveness(&mut self, rule: RuleID, live: bool) {
-        self.pending_program_base_version.get_or_insert(self.program.version());
+        self.program_staging.base_version.get_or_insert(self.program.version());
         if !self.rule_change_is_carried_by_its_sheet(rule) {
             self.invalidate_scope_programs_for_sheet(self.program.rule_sheet(rule));
         }
-        self.pending_rule_liveness.stage(rule, live);
-    }
-
-    pub(super) fn apply_pending_rule_liveness(&mut self) {
-        let mut changes: Vec<(RuleID, bool)> = self.pending_rule_liveness.take().into_iter().collect();
-        if changes.is_empty() {
-            return;
-        }
-        changes.sort_unstable_by_key(|(rule, _)| *rule);
-        self.program.set_rule_liveness(&changes);
-        self.settle_program();
-    }
-
-    pub(super) fn apply_pending_scope_program_metadata(&mut self) {
-        let mut layer_orders: Vec<(TreeScopeID, HashMap<CascadeLayerID, u32>)> =
-            std::mem::take(&mut self.pending_layer_orders).into_iter().collect();
-        let mut scopes: Vec<TreeScopeID> = std::mem::take(&mut self.pending_scopes_using_document_sheets)
-            .into_iter()
-            .collect();
-        if layer_orders.is_empty() && scopes.is_empty() {
-            return;
-        }
-        layer_orders.sort_unstable_by_key(|(scope, _)| *scope);
-        for (scope, ranks) in layer_orders {
-            self.program.set_layer_ranks(scope, ranks);
-        }
-        scopes.sort_unstable();
-        for scope in scopes {
-            self.program.set_scope_uses_document_sheets(scope);
-        }
-        self.settle_program();
+        self.program_staging
+            .rule_liveness
+            .stage(rule, self.program.rule_is_live(rule), live);
     }
 
     pub(super) fn current_sheets_in_scope(&self, tree_scope: TreeScopeID) -> Vec<SheetID> {
-        self.pending_sheets_in_scope
+        self.program_staging
+            .sheets_in_scope
             .current(tree_scope, || self.program.sheets_in_scope(tree_scope))
     }
 
     pub(super) fn stage_sheets_in_scope(&mut self, tree_scope: TreeScopeID, sheets: Vec<SheetID>) {
-        self.rule_change_is_carried_by_sheet.clear();
-        self.pending_program_base_version.get_or_insert(self.program.version());
+        self.program_staging.rule_change_is_carried_by_sheet.clear();
+        self.program_staging.base_version.get_or_insert(self.program.version());
         if tree_scope == TreeScopeID::DOCUMENT {
             // Ordinary shadow roots add only the document's non-author sheets to their local sheet
             // set. Keep their ranked programs when a document author sheet changes, while scopes
@@ -710,19 +728,9 @@ impl StyleEngine {
         } else {
             self.invalidate_concrete_scope_program(tree_scope);
         }
-        self.pending_sheets_in_scope.stage(tree_scope, sheets);
-    }
-
-    pub(super) fn apply_pending_sheet_orders(&mut self) {
-        let mut orders: Vec<(TreeScopeID, Vec<SheetID>)> = self.pending_sheets_in_scope.take().into_iter().collect();
-        if orders.is_empty() {
-            return;
-        }
-        orders.sort_unstable_by_key(|(scope, _)| *scope);
-        for (scope, sheets) in orders {
-            self.program.set_sheets_in_scope(scope, &sheets);
-        }
-        self.settle_program();
+        self.program_staging
+            .sheets_in_scope
+            .stage(tree_scope, self.program.sheets_in_scope(tree_scope), sheets);
     }
 
     pub(super) fn record_attachment(&mut self, sheet: SheetID, tree_scope: TreeScopeID, previous: bool, current: bool) {
@@ -851,12 +859,13 @@ impl StyleEngine {
     #[must_use]
     pub(super) fn rule_change_is_carried_by_its_sheet(&mut self, rule: RuleID) -> bool {
         let sheet = self.program.rule_sheet(rule);
-        if let Some(&carried) = self.rule_change_is_carried_by_sheet.get(&sheet) {
+        if let Some(&carried) = self.program_staging.rule_change_is_carried_by_sheet.get(&sheet) {
             return carried;
         }
         let mut scopes = self.program.sheet_scopes(sheet);
         scopes.extend(
-            self.pending_sheets_in_scope
+            self.program_staging
+                .sheets_in_scope
                 .iter()
                 .filter_map(|(&scope, sheets)| sheets.contains(&sheet).then_some(scope)),
         );
@@ -864,7 +873,7 @@ impl StyleEngine {
         scopes.dedup();
         scopes.retain(|&scope| self.current_sheets_in_scope(scope).contains(&sheet));
         if scopes.is_empty() {
-            self.rule_change_is_carried_by_sheet.insert(sheet, true);
+            self.program_staging.rule_change_is_carried_by_sheet.insert(sheet, true);
             return true;
         }
         // Every scope it decides in has to be arriving. A sheet adopted somewhere long ago and
@@ -872,7 +881,9 @@ impl StyleEngine {
         let carried = scopes.iter().all(|&tree_scope| {
             self.journal.pending_old(InputKey::SheetAttachment(sheet, tree_scope)) == Some(InputValue::Flag(false))
         });
-        self.rule_change_is_carried_by_sheet.insert(sheet, carried);
+        self.program_staging
+            .rule_change_is_carried_by_sheet
+            .insert(sheet, carried);
         carried
     }
 
@@ -892,7 +903,7 @@ impl StyleEngine {
     /// A layer topology change updates priority comparisons for declarations that already matched.
     /// It never invalidates selector truth.
     pub(super) fn record_layer_topology_change(&mut self, scope: TreeScopeID) {
-        self.pending_program_base_version.get_or_insert(self.program.version());
+        self.program_staging.base_version.get_or_insert(self.program.version());
         self.invalidate_scope_program(scope);
         self.winner_groups.invalidate_priorities();
         let previous = self.layer_topology_version;

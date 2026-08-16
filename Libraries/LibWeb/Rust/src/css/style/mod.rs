@@ -145,8 +145,7 @@ use fast_hash::FastSet as HashSet;
 use planning::*;
 use std::cell::RefCell;
 use std::collections::VecDeque;
-use std::hash::Hash;
-use std::hash::Hasher;
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 use crate::css::cascaded_properties::CascadeOrigin;
@@ -433,33 +432,244 @@ fn for_each_matching_scope(
     Ok(())
 }
 
-struct PendingField<K, V>(HashMap<K, V>);
+trait DenseStagingID: Copy + Ord {
+    fn index(self) -> usize;
+}
 
-impl<K, V> Default for PendingField<K, V> {
-    fn default() -> Self {
-        Self(HashMap::default())
+impl DenseStagingID for RuleID {
+    fn index(self) -> usize {
+        self.0 as usize
     }
 }
 
-impl<K: Copy + Eq + Hash, V: Clone> PendingField<K, V> {
+impl DenseStagingID for SheetID {
+    fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+impl DenseStagingID for TreeScopeID {
+    fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+struct StagedFieldRow<V> {
+    before: V,
+    after: V,
+    dirty: bool,
+}
+
+/// Dense staging for one program field. The first write freezes `before`, later writes replace
+/// `after`, and `take_dirty()` applies only the last write while retaining both sides for
+/// `ProgramStaging::delta()`. `clear()` releases the dense columns after the transaction.
+struct StagedField<K, V> {
+    rows: Column<Option<StagedFieldRow<V>>>,
+    touched: Vec<K>,
+    dirty_count: usize,
+}
+
+impl<K, V> Default for StagedField<K, V> {
+    fn default() -> Self {
+        Self {
+            rows: Column::default(),
+            touched: Vec::new(),
+            dirty_count: 0,
+        }
+    }
+}
+
+impl<K: DenseStagingID, V: Clone> StagedField<K, V> {
     fn current(&self, key: K, committed: impl FnOnce() -> V) -> V {
-        self.0.get(&key).cloned().unwrap_or_else(committed)
+        self.side(key, TransactionFactSide::After, committed)
     }
 
-    fn stage(&mut self, key: K, value: V) {
-        self.0.insert(key, value);
+    fn after(&self, key: K) -> Option<&V> {
+        self.rows
+            .get(key.index())
+            .and_then(Option::as_ref)
+            .map(|row| &row.after)
     }
 
-    fn take(&mut self) -> HashMap<K, V> {
-        std::mem::take(&mut self.0)
+    fn side(&self, key: K, side: TransactionFactSide, resident: impl FnOnce() -> V) -> V {
+        let row = self.rows.get(key.index()).and_then(Option::as_ref);
+        match (side, row) {
+            (TransactionFactSide::Before, Some(row)) => row.before.clone(),
+            (TransactionFactSide::After, Some(row)) => row.after.clone(),
+            _ => resident(),
+        }
+    }
+
+    fn stage(&mut self, key: K, before: V, after: V) {
+        let slot = self.rows.entry(key.index());
+        if let Some(row) = slot {
+            row.after = after;
+            if !row.dirty {
+                row.dirty = true;
+                self.dirty_count += 1;
+            }
+            return;
+        }
+        *slot = Some(StagedFieldRow {
+            before,
+            after,
+            dirty: true,
+        });
+        self.touched.push(key);
+        self.dirty_count += 1;
+    }
+
+    fn take_dirty(&mut self) -> Vec<(K, V)> {
+        let mut dirty = Vec::with_capacity(self.dirty_count);
+        for &key in &self.touched {
+            let row = self.rows[key.index()].as_mut().unwrap();
+            if row.dirty {
+                dirty.push((key, row.after.clone()));
+                row.dirty = false;
+            }
+        }
+        self.dirty_count = 0;
+        dirty.sort_unstable_by_key(|(key, _)| *key);
+        dirty
     }
 
     fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.dirty_count == 0
+    }
+
+    fn clear(&mut self) {
+        self.rows = Column::default();
+        self.touched = Vec::new();
+        self.dirty_count = 0;
     }
 
     fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
-        self.0.iter()
+        self.touched
+            .iter()
+            .map(|key| (key, &self.rows[key.index()].as_ref().unwrap().after))
+    }
+
+    fn pairs(&self) -> impl Iterator<Item = (K, &V, &V)> {
+        self.touched.iter().map(|&key| {
+            let row = self.rows[key.index()].as_ref().unwrap();
+            (key, &row.before, &row.after)
+        })
+    }
+}
+
+#[derive(Default)]
+struct ProgramStagingDelta {
+    sheets: Vec<SheetID>,
+    selector_programs: Vec<SelectorProgramID>,
+    arriving_rules: Vec<RuleID>,
+    departed_scopes: Vec<(SheetID, TreeScopeID)>,
+}
+
+/// Program transaction staging. Every field preserves its first before value and last-writer
+/// after value until release; `delta()` may read those pairs after the final values are applied.
+#[derive(Default)]
+struct ProgramStaging {
+    rule_conditions: StagedField<RuleID, bool>,
+    sheet_conditions: StagedField<SheetID, bool>,
+    sheet_enabled: StagedField<SheetID, bool>,
+    rule_declarations: StagedField<RuleID, PendingRuleDeclarations>,
+    rule_versions: StagedField<RuleID, RuleVersion>,
+    rule_in_a_layer: StagedField<RuleID, bool>,
+    rule_gated_by_container_query: StagedField<RuleID, bool>,
+    rule_liveness: StagedField<RuleID, bool>,
+    layer_orders: StagedField<TreeScopeID, HashMap<CascadeLayerID, u32>>,
+    scopes_using_document_sheets: StagedField<TreeScopeID, bool>,
+    sheets_in_scope: StagedField<TreeScopeID, Vec<SheetID>>,
+    rule_change_is_carried_by_sheet: HashMap<SheetID, bool>,
+    base_version: Option<ProgramVersion>,
+    rule_declaration_changes: Vec<PendingRuleDeclarationChange>,
+    rules_with_incomplete_old_declarations: Vec<RuleID>,
+    sheet_rule_replacements: Column<Option<SheetRuleReplacement>>,
+}
+
+impl ProgramStaging {
+    fn is_dirty(&self) -> bool {
+        !self.rule_conditions.is_empty()
+            || !self.sheet_conditions.is_empty()
+            || !self.sheet_enabled.is_empty()
+            || !self.rule_declarations.is_empty()
+            || !self.rule_versions.is_empty()
+            || !self.rule_in_a_layer.is_empty()
+            || !self.rule_gated_by_container_query.is_empty()
+            || !self.rule_liveness.is_empty()
+            || !self.layer_orders.is_empty()
+            || !self.scopes_using_document_sheets.is_empty()
+            || !self.sheets_in_scope.is_empty()
+            || self.sheet_rule_replacements.iter().any(Option::is_some)
+    }
+
+    fn clear(&mut self) {
+        self.rule_conditions.clear();
+        self.sheet_conditions.clear();
+        self.sheet_enabled.clear();
+        self.rule_declarations.clear();
+        self.rule_versions.clear();
+        self.rule_in_a_layer.clear();
+        self.rule_gated_by_container_query.clear();
+        self.rule_liveness.clear();
+        self.layer_orders.clear();
+        self.scopes_using_document_sheets.clear();
+        self.sheets_in_scope.clear();
+        self.rule_change_is_carried_by_sheet.clear();
+        self.base_version = None;
+        self.rule_declaration_changes.clear();
+        self.rules_with_incomplete_old_declarations.clear();
+        for index in 0..self.sheet_rule_replacements.len() {
+            self.sheet_rule_replacements[index] = None;
+        }
+    }
+
+    fn delta(&self) -> ProgramStagingDelta {
+        let mut delta = ProgramStagingDelta::default();
+        delta
+            .sheets
+            .extend(self.sheet_conditions.pairs().map(|(sheet, _, _)| sheet));
+        delta
+            .sheets
+            .extend(self.sheet_enabled.pairs().map(|(sheet, _, _)| sheet));
+        for (scope, before, after) in self.sheets_in_scope.pairs() {
+            delta.sheets.extend(
+                before
+                    .iter()
+                    .chain(after)
+                    .copied()
+                    .filter(|sheet| before.contains(sheet) != after.contains(sheet)),
+            );
+            delta.departed_scopes.extend(
+                before
+                    .iter()
+                    .copied()
+                    .filter(|sheet| !after.contains(sheet))
+                    .map(|sheet| (sheet, scope)),
+            );
+        }
+        delta.sheets.sort_unstable();
+        delta.sheets.dedup();
+        delta.departed_scopes.sort_unstable();
+        delta.departed_scopes.dedup();
+
+        delta.selector_programs.extend(
+            self.rule_versions
+                .pairs()
+                .filter(|(_, before, after)| before.selector_program != after.selector_program)
+                .filter_map(|(_, before, _)| before.selector_program),
+        );
+        delta.selector_programs.sort_unstable_by_key(|program| program.0);
+        delta.selector_programs.dedup();
+
+        delta.arriving_rules.extend(
+            self.rule_liveness
+                .pairs()
+                .filter_map(|(rule, before, after)| (!before && *after).then_some(rule)),
+        );
+        delta.arriving_rules.sort_unstable();
+        delta.arriving_rules.dedup();
+        delta
     }
 }
 
@@ -473,8 +683,6 @@ pub struct StyleEngine {
     counters: Counters,
     tree: StyleNodeTree,
     program: StyleSheetProgram,
-    /// Rule identities below this bound existed at the preceding commit barrier.
-    committed_rule_count: u32,
     journal: NormalizationJournal,
     /// Whether any tree input batch has crossed into the engine. A first batch consisting entirely
     /// of unique arrivals can install its final relation rows as one bulk load.
@@ -485,35 +693,8 @@ pub struct StyleEngine {
     /// affected neighbours here, so those derived changes need no separate journal ingress.
     tree_staging: TreeRelationStaging,
     tree_staging_memory: MemoryLease,
-    /// Final activation flags staged until the program commit barrier.
-    pending_rule_conditions: PendingField<RuleID, bool>,
-    pending_sheet_conditions: PendingField<SheetID, bool>,
-    pending_sheet_enabled: PendingField<SheetID, bool>,
-    /// Final declaration inventories staged until the program commit barrier.
-    pending_rule_declarations: HashMap<RuleID, PendingRuleDeclarations>,
-    /// Final immutable rule versions staged until the program commit barrier.
-    pending_rule_versions: PendingField<RuleID, RuleVersion>,
-    /// Final structural rule flags staged until the program commit barrier.
-    pending_rule_in_a_layer: PendingField<RuleID, bool>,
-    pending_rule_gated_by_container_query: PendingField<RuleID, bool>,
-    /// Final liveness for arriving and departing rules, staged until the program commit barrier.
-    pending_rule_liveness: PendingField<RuleID, bool>,
-    /// Final layer orders staged until the program commit barrier.
-    pending_layer_orders: HashMap<TreeScopeID, HashMap<CascadeLayerID, u32>>,
-    /// Scopes staged to begin including document sheets at the commit barrier.
-    pending_scopes_using_document_sheets: HashSet<TreeScopeID>,
-    /// Final sheet order per changed scope, staged until the program commit barrier.
-    pending_sheets_in_scope: PendingField<TreeScopeID, Vec<SheetID>>,
-    /// Whether each sheet's pending attachment change carries changes to its rules.
-    rule_change_is_carried_by_sheet: HashMap<SheetID, bool>,
-    /// The program version before the first program mutation in the pending transaction.
-    pending_program_base_version: Option<ProgramVersion>,
-    /// Original and final property inventories for declaration edits in the pending transaction.
-    pending_rule_declaration_changes: Vec<PendingRuleDeclarationChange>,
-    /// Rules whose declaration edit started from an incomplete inventory. An incomplete block can
-    /// declare custom properties, which never enter the winner columns, so no winner-based proof
-    /// can see what such a rule used to contribute. Lives until the transaction is released.
-    rules_with_incomplete_old_declarations: Vec<RuleID>,
+    /// Program-family before/after rows retained until the transaction is released.
+    program_staging: ProgramStaging,
     /// Sheets whose rules currently have no entry points in the routing registry. A detached
     /// sheet's rules decide nothing, so routing every input past their entry points is pure cost
     /// that grows with every sheet that ever came and went.
@@ -523,8 +704,6 @@ pub struct StyleEngine {
     routing_needs_detachment_sweep: bool,
     /// The old dense rule sequence while one sheet is synchronously reparsed.
     sheet_rule_replacement: Option<SheetRuleReplacement>,
-    /// Unmatched old rule sequences retained until the transaction boundary, indexed by sheet.
-    pending_sheet_rule_replacements: Column<Option<SheetRuleReplacement>>,
     match_workspace: MatchEvaluationWorkspace,
     /// Scratch for the fact rows one exact candidate evaluation covers, reused across candidates.
     exact_covered_scratch: Vec<StyleNodeID>,

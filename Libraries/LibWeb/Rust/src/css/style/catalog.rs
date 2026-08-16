@@ -1517,6 +1517,7 @@ pub(super) struct PendingRuleDeclarationChange {
     pub(super) new_properties: Vec<u16>,
 }
 
+#[derive(Clone)]
 pub(super) struct PendingRuleDeclarations {
     pub(super) declared: Vec<DeclaredProperty>,
     pub(super) complete: bool,

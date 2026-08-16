@@ -1130,21 +1130,14 @@ impl StyleEngine {
     /// Normalize the pending inputs without advancing the committed snapshot.
     pub(super) fn drain_transaction(&mut self) -> StyleTransaction {
         self.initial_tree_bulk_load_is_pending = false;
-        self.finalize_pending_sheet_rule_replacements();
+        self.finalize_staged_sheet_rule_replacements();
         self.journal.take_transaction(&mut self.memory, &mut self.counters)
     }
 
     /// Advance staged program and tree state to the transaction's final snapshot.
     pub(super) fn apply_staged_structural_state(&mut self) {
-        self.apply_pending_program_activation();
-        self.apply_pending_rule_declarations();
-        self.apply_pending_rule_versions();
-        self.apply_pending_rule_metadata();
-        self.apply_pending_rule_liveness();
-        self.apply_pending_scope_program_metadata();
-        self.apply_pending_sheet_orders();
-        self.committed_rule_count = self.program.rule_count();
-        self.rule_change_is_carried_by_sheet.clear();
+        self.commit_staged_program();
+        self.program_staging.rule_change_is_carried_by_sheet.clear();
         self.apply_staged_tree_deltas();
     }
 
@@ -1157,14 +1150,14 @@ impl StyleEngine {
     }
 
     /// Finish the transaction metadata which depends on committed program state.
-    pub(super) fn finish_pending_commit(&mut self, transaction: &mut StyleTransaction) {
-        transaction.program_base_version = self.pending_program_base_version.take();
+    pub(super) fn finish_staged_application(&mut self, transaction: &mut StyleTransaction) {
+        transaction.program_base_version = self.program_staging.base_version.take();
         let mut program_joins = Vec::new();
         for input in &transaction.inputs {
             self.append_program_join_deltas(input, &mut program_joins);
         }
         transaction.install_program_joins(program_joins, &mut self.memory);
-        let mut declaration_changes = std::mem::take(&mut self.pending_rule_declaration_changes);
+        let mut declaration_changes = std::mem::take(&mut self.program_staging.rule_declaration_changes);
         declaration_changes.retain(|change| {
             transaction
                 .inputs
@@ -1185,17 +1178,17 @@ impl StyleEngine {
     }
 
     /// Advance every staged input family to the transaction's final snapshot.
-    pub(super) fn apply_staged(&mut self, transaction: &mut StyleTransaction) {
+    pub(super) fn apply_staged_transaction(&mut self, transaction: &mut StyleTransaction) {
         self.apply_staged_structural_state();
         self.apply_staged_facts(transaction);
-        self.finish_pending_commit(transaction);
+        self.finish_staged_application(transaction);
     }
 
-    /// Normalize and commit the pending inputs into one transaction. A required style observation
+    /// Normalize and apply the staged inputs into one transaction. A required style observation
     /// drains here first, so normalization never combines changes across an observation boundary.
     pub fn take_transaction(&mut self) -> StyleTransaction {
         let mut transaction = self.drain_transaction();
-        self.apply_staged(&mut transaction);
+        self.apply_staged_transaction(&mut transaction);
         transaction
     }
 
@@ -1206,7 +1199,7 @@ impl StyleEngine {
         self.tree_staging.clear();
         self.tree_staging_memory.resize_required_to(&mut self.memory, 0);
         self.facts.release_staging(&mut self.memory);
-        self.rules_with_incomplete_old_declarations.clear();
+        self.program_staging.clear();
         self.sweep_selector_programs();
         self.shed_routing_for_detached_sheets();
     }

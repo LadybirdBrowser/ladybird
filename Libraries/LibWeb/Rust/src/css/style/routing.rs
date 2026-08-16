@@ -22,8 +22,8 @@ impl StyleEngine {
     pub(super) fn route_input(
         &mut self,
         input: &NormalizedInput,
-        sheets_in_flux: &[SheetID],
-        programs_in_flux: &[SelectorProgramID],
+        changed_sheets: &[SheetID],
+        changed_programs: &[SelectorProgramID],
         tree_routing: TreeRoutingMode<'_>,
         sibling_entries: &[SiblingEntry],
         sibling_candidates: &mut SiblingCandidateWorkspace,
@@ -115,7 +115,7 @@ impl StyleEngine {
                 // points stay registered, because the rule still holds its position and its sheet
                 // can come back.
                 let rule = routing.rule_of(route);
-                if !self.program.rule_can_decide(rule) && !sheets_in_flux.contains(&self.program.rule_sheet(rule)) {
+                if !self.program.rule_can_decide(rule) && !changed_sheets.contains(&self.program.rule_sheet(rule)) {
                     continue;
                 }
                 let point = routing.route(route);
@@ -125,7 +125,7 @@ impl StyleEngine {
                 // selector the rule no longer has, and following them would route a mutation
                 // through a selector nobody wrote.
                 if self.program.rule_version(routing.rule_of(route)).selector_program != Some(selector_program)
-                    && !programs_in_flux.contains(&selector_program)
+                    && !changed_programs.contains(&selector_program)
                 {
                     continue;
                 }
@@ -1130,7 +1130,7 @@ impl StyleEngine {
     pub(super) fn route_sequence_changes(
         &mut self,
         sequences: &SequenceChanges,
-        sheets_in_flux: &[SheetID],
+        changed_sheets: &[SheetID],
         tree_routing: TreeRoutingMode<'_>,
         regions: &mut ImpactRegions,
         workspace: &mut ImpactPlanningWorkspace,
@@ -1146,7 +1146,7 @@ impl StyleEngine {
         let mut entries = Vec::new();
         for &route in routing.routes_for(RoutingKey::Structural) {
             let rule = routing.rule_of(route);
-            if !self.program.rule_can_decide(rule) && !sheets_in_flux.contains(&self.program.rule_sheet(rule)) {
+            if !self.program.rule_can_decide(rule) && !changed_sheets.contains(&self.program.rule_sheet(rule)) {
                 continue;
             }
             let point = routing.route(route);
@@ -3682,8 +3682,8 @@ impl StyleEngine {
         &mut self,
         input: &NormalizedInput,
         program_joins: &[ProgramJoinDelta],
-        rules_arriving: &[RuleID],
-        scopes_departed: &[(SheetID, TreeScopeID)],
+        arriving_rules: &[RuleID],
+        departed_sheet_scopes: &[(SheetID, TreeScopeID)],
         context: ProgramRoutingContext<'_>,
         regions: &mut ImpactRegions,
     ) {
@@ -3711,8 +3711,8 @@ impl StyleEngine {
             InputKey::SheetAttachment(_, tree_scope) => {
                 attachment_scopes.map_or_else(|| vec![tree_scope], |scopes| scopes.to_vec())
             }
-            InputKey::SheetActivation(sheet) => self.scopes_of_sheet(sheet, scopes_departed),
-            InputKey::RuleField(rule, _) => self.scopes_of_sheet(self.program.rule_sheet(rule), scopes_departed),
+            InputKey::SheetActivation(sheet) => self.scopes_of_sheet(sheet, departed_sheet_scopes),
+            InputKey::RuleField(rule, _) => self.scopes_of_sheet(self.program.rule_sheet(rule), departed_sheet_scopes),
             InputKey::CascadeTopology(TopologyAxis::SheetOrder(tree_scope) | TopologyAxis::LayerOrder(tree_scope)) => {
                 vec![tree_scope]
             }
@@ -3922,7 +3922,7 @@ impl StyleEngine {
         // nothing to take back.
         if let InputKey::RuleField(rule, field) = key
             && !self.program.rule_conditions_hold(rule)
-            && (field != RuleField::Activation || rules_arriving.contains(&rule))
+            && (field != RuleField::Activation || arriving_rules.contains(&rule))
         {
             return;
         }
@@ -4229,7 +4229,10 @@ impl StyleEngine {
         // declared custom properties, which the winner columns never hold - so the proof cannot
         // see what the rule used to contribute, and pruning would strand its old declarations.
         if matches!(input.key, InputKey::RuleField(changed, RuleField::Declarations) if changed == rule)
-            && self.rules_with_incomplete_old_declarations.contains(&rule)
+            && self
+                .program_staging
+                .rules_with_incomplete_old_declarations
+                .contains(&rule)
         {
             return false;
         }
