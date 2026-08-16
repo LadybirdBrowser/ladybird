@@ -58,13 +58,7 @@ class NodeKindSetter;
 private:                         \
     NO_UNIQUE_ADDRESS NodeKindSetter m_node_kind_setter { *this, RustFFI::NodeKind::class_ }
 
-#define LAYOUT_NODE(class_, base_class)            \
-public:                                            \
-    using Base = base_class;                       \
-    virtual StringView class_name() const override \
-    {                                              \
-        return #class_##sv;                        \
-    }                                              \
+#define LAYOUT_NODE(class_, base_class) \
     LAYOUT_NODE_KIND(class_)
 
 class InlineNode;
@@ -97,7 +91,7 @@ public:
     using Base = RefCountedTreeNode<Node>;
 
     virtual ~Node();
-    virtual StringView class_name() const { return "Node"sv; }
+    StringView class_name() const;
 
     static RustFFI::NodeSlotId slot_id(Node const*);
     RustFFI::NodeKind kind() const { return m_data->kind; }
