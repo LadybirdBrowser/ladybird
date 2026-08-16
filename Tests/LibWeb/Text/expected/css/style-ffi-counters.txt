@@ -1,32 +1,22 @@
 has counters: true
 all zero after reset: true
 has no C++ longhand fallback counter: true
-has complete-update aggregates: true
-has complete-update phase counters: true
-simple element measured semantic callbacks: true
-simple element kept ownership separate: true
-transaction returned without callbacks: true
-longhand computation measured: true
+callback aggregate counters removed: true
+simple element stayed callback-free: true
+transaction stayed callback-free: true
+longhand computation returned without callbacks: true
 shorthand expansion returned without callbacks: true
-computed build stayed in Rust: true
-inherited partial restyle measured semantic callbacks: true
-inherited partial restyle kept ownership separate: true
-pseudo-element measured semantic callbacks: true
-pseudo-element kept ownership separate: true
-custom properties measured semantic callbacks: true
-custom properties kept ownership separate: true
+inherited partial restyle stayed callback-free: true
+pseudo-element stayed callback-free: true
+custom properties stayed callback-free: true
 cascade returned without callbacks: true
 custom-property cascade entered Rust: true
 cascade resolution entered Rust: true
 custom-property cascade avoided C++ callback: true
-font and viewport lengths measured semantic callbacks: true
-font and viewport lengths kept ownership separate: true
-animations and transitions measured semantic callbacks: true
-animations and transitions kept ownership separate: true
+font and viewport lengths stayed callback-free: true
+animations and transitions stayed callback-free: true
 animation evaluation returned without callbacks: true
-flat-tree descendants returned without callbacks: true
-resource-backed value measured semantic callbacks: true
-resource-backed value kept ownership separate: true
-retained cascade winner measured semantic callbacks: true
-retained cascade winner kept ownership separate: true
+flat-tree descendants stayed callback-free: true
+resource-backed value stayed callback-free: true
+retained cascade winner stayed callback-free: true
 retained source-slot assignments returned without callbacks: true

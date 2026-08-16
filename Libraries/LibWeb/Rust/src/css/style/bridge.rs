@@ -1896,8 +1896,9 @@ pub unsafe fn replay_memory_pressure_snapshot(engine: *const c_void) -> FfiMemor
 ///
 /// # Safety
 /// `engine` must be live. Every non-empty array must have its reported number of readable entries.
-/// Group payloads and style values must remain live for this call. `longhand_table` must be null
-/// or a live, frozen `ComputedLonghandTable`.
+/// Group payloads and style values must remain live for this call. `animated_properties` must be
+/// null or transfer one leaked C++ reference. `longhand_table` must be null or a live, frozen
+/// `ComputedLonghandTable`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_publish_computed_groups(
     engine: *mut c_void,

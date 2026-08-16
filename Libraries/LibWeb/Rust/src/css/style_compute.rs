@@ -2509,7 +2509,7 @@ pub extern "C" fn rust_map_physical_to_logical_alias(property_id: u16, writing_m
 }
 
 /// One deferred side-effect operation for a longhand result. Rust stores
-/// native results before the callback; the entry also carries the selected
+/// native results before returning the batch; the entry also carries the selected
 /// value and flags needed for animated inheritance, inheritance-dependence
 /// bookkeeping, and C++ side effects.
 #[repr(C)]
@@ -2527,7 +2527,7 @@ pub struct FfiComputedStoreEntry {
     pub inherited: bool,
     /// An owned replacement style value when `computed_kind` is
     /// `COMPUTED_KIND_STYLE_VALUE`. The Rust table adopts this reference before
-    /// the C++ callback runs.
+    /// returning the batch.
     pub computed_data: *const c_void,
     /// How Rust constructs the table value: with COMPUTED_KIND_UNCHANGED the
     /// stored value is `data` itself; the other kinds carry a replacement in
@@ -2557,26 +2557,12 @@ pub const COMPUTED_KIND_DISPLAY: u8 = 9;
 /// A complete Rust-owned style value transferred through `computed_data`.
 pub const COMPUTED_KIND_STYLE_VALUE: u8 = 10;
 
-/// The leaf callbacks the C++ side provides to the property computation
-/// driver. The driver selects each longhand's cascaded, inherited or initial
-/// value natively and calls back only to apply C++ side effects for completed
-/// native results.
 #[repr(C)]
-pub struct FfiLonghandCallbacks {
-    pub context: *mut c_void,
-    /// Applies one ordered action batch. Rust has already stored native
-    /// results; C++ applies their side effects, then stores a nonnegative
-    /// effective color scheme. Every entry's value stays alive for the duration
-    /// of the drive: cascaded data
-    /// is retained by the store,
-    /// initial values are immortal, and parent values are owned by the parent
-    /// style behind the snapshot, which outlives the drive.
-    pub execute_computation_batch: unsafe extern "C" fn(
-        context: *mut c_void,
-        entries: *const FfiComputedStoreEntry,
-        count: usize,
-        effective_color_scheme: i16,
-    ),
+pub struct FfiLonghandStoreBatch {
+    pub entries: *const FfiComputedStoreEntry,
+    pub count: usize,
+    pub effective_color_scheme: i16,
+    pub storage: *mut c_void,
 }
 
 /// Document-level inputs to used color-scheme resolution. Scheme values use
@@ -2955,6 +2941,21 @@ fn store_pending_values(longhand_table: *mut ComputedLonghandTable, pending_stor
     }
 }
 
+fn publish_longhand_store_batch(
+    entries: Vec<FfiComputedStoreEntry>,
+    effective_color_scheme: i16,
+) -> FfiLonghandStoreBatch {
+    let entries = Box::new(entries);
+    let pointer = entries.as_ptr();
+    let count = entries.len();
+    FfiLonghandStoreBatch {
+        entries: pointer,
+        count,
+        effective_color_scheme,
+        storage: Box::into_raw(entries).cast(),
+    }
+}
+
 /// Drives the property computation loop: iterates every longhand in
 /// computation order, resolves logical pairing, reads the winning cascaded
 /// declarations straight from the store, selects between the cascaded,
@@ -2963,17 +2964,21 @@ fn store_pending_values(longhand_table: *mut ComputedLonghandTable, pending_stor
 /// Other per-element side effects accumulate in `results` for bulk application
 /// after the loop.
 ///
+/// Returns one owned batch of ordered C++ side effects after storing the native
+/// results. Every entry's borrowed value stays alive until the returned batch is
+/// destroyed: cascaded data is retained by the store, initial values are
+/// immortal, and parent values are owned by the parent style behind the
+/// snapshot, which outlives the drive.
+///
 /// # Safety
-/// `callbacks` must point at a valid callback table, `longhand_table` at the
-/// drive's live mutable computed longhand table, `store` at a valid cascaded
-/// property store, `parent_snapshot` at a valid snapshot or null,
+/// `longhand_table` must point at the drive's live mutable computed longhand
+/// table, `store` at a valid cascaded property store, `parent_snapshot` at a
+/// valid snapshot or null,
 /// `environment` at valid element and document facts,
 /// `length_resolution_context` at the context for this stage or null for the
-/// color-scheme stage, and `results` at a valid results block; the callbacks
-/// must not mutate the store for the duration of the call.
+/// color-scheme stage, and `results` at a valid results block.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_drive_property_computation(
-    callbacks: *const FfiLonghandCallbacks,
     longhand_table: *mut ComputedLonghandTable,
     store: *const CascadedPropertyStore,
     parent_snapshot: *const FfiParentSnapshot,
@@ -2983,7 +2988,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
     phase: u8,
     length_resolution_context: *const FfiLengthResolutionContext,
     results: *mut FfiLonghandDriverResults,
-) {
+) -> FfiLonghandStoreBatch {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandDriverEntry);
     abort_on_panic(|| {
         use crate::css::property_metadata::{
@@ -2991,8 +2996,6 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             REQUIRES_COMPUTATION_NON_INHERITED, property_id as prop, property_requires_computation_level,
         };
 
-        let callbacks = unsafe { &*callbacks };
-        let context = callbacks.context;
         let store = unsafe { &*store };
         let snapshot = if parent_snapshot.is_null() {
             None
@@ -3039,41 +3042,14 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         let mut evaluated_words = vec![0; word_count];
         let mut cached_writing_mode_and_direction: Option<(u8, u8)> = None;
 
-        // Store operations queued for properties that need no computation, flushed in one
-        // crossing before any callback that may read the stored values. Every longhand queues one,
-        // so the room for them is asked for once rather than grown into ten times per element.
+        // Every longhand queues one store operation, so the room for them is asked for once rather
+        // than grown into ten times per element.
         let mut pending_stores: Vec<FfiComputedStoreEntry> =
             Vec::with_capacity(crate::css::property_metadata::property_computation_order().len());
         let mut pending_effective_color_scheme: i16 = -1;
         // The element's used color scheme, produced by the preceding color-scheme
         // stage for generic absolutizations.
         let effective_color_scheme = u8::try_from(results.effective_color_scheme).ok();
-        fn flush_pending_stores(
-            callbacks: &FfiLonghandCallbacks,
-            context: *mut c_void,
-            longhand_table: *mut ComputedLonghandTable,
-            pending_stores: &mut Vec<FfiComputedStoreEntry>,
-            pending_effective_color_scheme: &mut i16,
-        ) {
-            if pending_stores.is_empty() && *pending_effective_color_scheme < 0 {
-                return;
-            }
-            store_pending_values(longhand_table, pending_stores);
-            crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::LonghandStoreBatchCallback);
-            // SAFETY: The entries and their values stay alive for the call; the callback
-            // table outlives the drive.
-            unsafe {
-                (callbacks.execute_computation_batch)(
-                    context,
-                    pending_stores.as_ptr(),
-                    pending_stores.len(),
-                    *pending_effective_color_scheme,
-                );
-            };
-            pending_stores.clear();
-            *pending_effective_color_scheme = -1;
-        }
-
         /// The parent's computed value for a longhand: a recorded specified value
         /// that depends on currentColor wins over the stored computed value, in
         /// exactly the order computed_style_value_for_inheritance applies.
@@ -4076,16 +4052,10 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             }
         }
 
-        flush_pending_stores(
-            callbacks,
-            context,
-            longhand_table,
-            &mut pending_stores,
-            &mut pending_effective_color_scheme,
-        );
+        store_pending_values(longhand_table, &pending_stores);
         unsafe { &mut *longhand_table }.merge_driver_flags(&important_words, &inherited_words, &evaluated_words);
         if phase != LONGHAND_DRIVE_PHASE_REMAINING {
-            return;
+            return publish_longhand_store_batch(pending_stores, pending_effective_color_scheme);
         }
         let display_before = computed_display.expect("display must be computed by the longhand driver");
         let mut box_type_input = *box_type_input;
@@ -4108,7 +4078,15 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             box_type_transformation: transformation,
             element_style_adjustment: element_adjustment,
         };
-    });
+        publish_longhand_store_batch(pending_stores, pending_effective_color_scheme)
+    })
+}
+
+/// # Safety
+/// `storage` must be a live pointer returned by `rust_drive_property_computation`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_longhand_store_batch_destroy(storage: *mut c_void) {
+    abort_on_panic(|| drop(unsafe { Box::from_raw(storage.cast::<Vec<FfiComputedStoreEntry>>()) }));
 }
 
 /// Applies the post-compute box and element adjustments after C++ has captured
@@ -4882,8 +4860,6 @@ mod ffi_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_utf16_fly_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]
-    extern "C" fn ladybird_utf16_fly_string_ref(_raw: usize) {}
-    #[unsafe(no_mangle)]
     extern "C" fn ladybird_utf16_fly_string_view(
         _raw: usize,
         _short_buffer: *mut u8,
@@ -4893,7 +4869,7 @@ mod ffi_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]
-    extern "C" fn ladybird_string_ref(_raw: usize) {}
+    extern "C" fn ladybird_animated_properties_unref(_values: *const std::ffi::c_void) {}
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_font_cascade_list_unref(_raw: *const std::ffi::c_void) {}
     #[unsafe(no_mangle)]

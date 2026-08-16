@@ -13,6 +13,8 @@
 
 namespace Web::CSS {
 
+extern "C" void ladybird_animated_properties_ref(void const*);
+
 static_assert(!IsMoveConstructible<StyleEngine>);
 static_assert(!IsMoveAssignable<StyleEngine>);
 
@@ -173,6 +175,8 @@ StyleEngine::StyleRecordDelta StyleEngine::publish_computed_groups(StyleNodeID n
 {
     VERIFY(inherited_group_count <= payloads.size());
     VERIFY(inheritance_dependent_properties.size() == inheritance_dependent_values.size());
+    if (animated_properties)
+        ladybird_animated_properties_ref(animated_properties);
     auto delta = StyleEngineFFI::style_engine_publish_computed_groups(m_impl, node.value(), pseudo_kind, payloads.data(), payloads.size(), inherited_group_count, custom_property_environment, pseudo_element_styles, dependency_flags, counter_style_environment_identity, animation_overlay_identity, animated_properties, animation_overlay_payloads.data(), animation_overlay_payloads.size(), property_importance.data(), property_importance.size(), property_inheritance.data(), property_inheritance.size(), inheritance_dependent_properties.data(), inheritance_dependent_values.data(), inheritance_dependent_properties.size(), raw_cascaded_font_size, computed_longhand_table);
     return { StyleRecordID { delta.old_style_record }, StyleRecordID { delta.new_style_record } };
 }

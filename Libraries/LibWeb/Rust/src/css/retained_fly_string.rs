@@ -14,19 +14,13 @@ use crate::css::style_value::retained_list_partial_eq;
 use std::ffi::c_void;
 use std::sync::Arc;
 
-unsafe extern "C" {
-    fn ladybird_utf16_fly_string_unref(raw: usize);
-    fn ladybird_utf16_fly_string_ref(raw: usize);
-}
-
 struct FlyStringStorage {
     raw: usize,
 }
 
 impl Drop for FlyStringStorage {
     fn drop(&mut self) {
-        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
-        unsafe { ladybird_utf16_fly_string_unref(self.raw) };
+        crate::css::ffi_stats::release_utf16_fly_string(self.raw);
     }
 }
 
@@ -63,19 +57,6 @@ impl RetainedUtf16FlyString {
             raw,
             storage: Arc::into_raw(Arc::new(FlyStringStorage { raw })).cast(),
         }
-    }
-
-    /// Retains a new reference to the underlying string data.
-    ///
-    /// # Safety
-    /// `raw` must be the raw representation of a live fly string.
-    pub(crate) unsafe fn from_borrowed_raw(raw: usize) -> Self {
-        if raw == 0 {
-            return Self::none();
-        }
-        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
-        unsafe { ladybird_utf16_fly_string_ref(raw) };
-        unsafe { Self::from_leaked_raw(raw) }
     }
 }
 

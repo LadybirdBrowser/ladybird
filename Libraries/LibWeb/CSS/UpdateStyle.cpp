@@ -27,6 +27,24 @@ namespace Web::CSS {
 
 using StyleUpdateMode = DOM::Document::StyleUpdateMode;
 
+extern "C" void ladybird_animated_properties_unref(void const*);
+extern "C" void ladybird_string_unref(size_t);
+extern "C" void ladybird_utf16_fly_string_unref(size_t);
+
+static void finish_complete_style_update()
+{
+    auto releases = StyleValueFFI::rust_style_ffi_complete_style_update_end();
+    ScopeGuard destroy_releases = [&] {
+        StyleValueFFI::rust_deferred_cpp_releases_destroy(releases.storage);
+    };
+    for (size_t i = 0; i < releases.fly_string_count; ++i)
+        ladybird_utf16_fly_string_unref(releases.fly_strings[i]);
+    for (size_t i = 0; i < releases.string_count; ++i)
+        ladybird_string_unref(releases.strings[i]);
+    for (size_t i = 0; i < releases.animated_property_count; ++i)
+        ladybird_animated_properties_unref(releases.animated_properties[i]);
+}
+
 static void update_style(DOM::Document&);
 static bool update_style_for_element(DOM::Document&, DOM::AbstractElement const&, StyleUpdateMode);
 
@@ -412,9 +430,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
 static void update_style(DOM::Document& document)
 {
     StyleValueFFI::rust_style_ffi_complete_style_update_begin();
-    ScopeGuard leave_complete_style_update = [] {
-        StyleValueFFI::rust_style_ffi_complete_style_update_end();
-    };
+    ScopeGuard leave_complete_style_update = finish_complete_style_update;
     auto style_update_started_at = MonotonicTime::now();
     ScopeGuard record_style_update_time = [&] {
         document.style_invalidation_counters().style_update_microseconds += (MonotonicTime::now() - style_update_started_at).to_microseconds();
@@ -680,9 +696,7 @@ static RequiredInvalidationAfterStyleChange materialize_style_for_targeted_updat
 static bool update_style_for_element(DOM::Document& document, DOM::AbstractElement const& abstract_element, StyleUpdateMode mode)
 {
     StyleValueFFI::rust_style_ffi_complete_style_update_begin();
-    ScopeGuard leave_complete_style_update = [] {
-        StyleValueFFI::rust_style_ffi_complete_style_update_end();
-    };
+    ScopeGuard leave_complete_style_update = finish_complete_style_update;
     // Refresh computed properties for an abstract element. An ordinary read first consumes the complete exact
     // reaction batch. A reentrant layout read leaves that transaction untouched and walks the flat-tree inheritance
     // chain, re-cascading from the rootmost stale element on the path back down to the target. Normal mode also

@@ -99,10 +99,8 @@
 #include <LibWeb/Layout/Node.h>
 
 extern "C" void ladybird_utf16_fly_string_unref(size_t);
-extern "C" void ladybird_utf16_fly_string_ref(size_t);
 extern "C" Web::CSS::StyleValueFFI::FfiFlyStringView ladybird_utf16_fly_string_view(size_t, u8*);
 extern "C" void ladybird_string_unref(size_t);
-extern "C" void ladybird_string_ref(size_t);
 
 namespace Web::CSS {
 
@@ -695,20 +693,8 @@ extern "C" Web::CSS::StyleValueFFI::FfiFlyStringView ladybird_utf16_fly_string_v
     return { span.data(), span.size(), false };
 }
 
-// Called when Rust-owned cascade data retains an additional reference to a Utf16FlyString.
-extern "C" void ladybird_utf16_fly_string_ref(size_t raw)
-{
-    (void)Utf16FlyString::from_raw(raw).to_raw_leaked();
-}
-
 // Called when Rust-owned style value data drops a retained String.
 extern "C" void ladybird_string_unref(size_t raw)
 {
     String::unref_raw(raw);
-}
-
-// Called when Rust-owned style value data retains an additional reference to a String.
-extern "C" void ladybird_string_ref(size_t raw)
-{
-    (void)String::from_raw(raw).to_raw_leaked();
 }

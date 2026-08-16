@@ -939,15 +939,14 @@ impl GridValues {
         }
     }
 
-    fn intern_name_raw(&mut self, raw: usize) -> u32 {
+    fn intern_name(&mut self, name: &RetainedUtf16FlyString) -> u32 {
+        let raw = name.raw();
         assert_ne!(raw, 0, "cannot intern the no-name sentinel");
         if let Some(index) = self.names.as_slice().iter().position(|name| name.raw() == raw) {
             return index as u32;
         }
         let mut names: Vec<RetainedUtf16FlyString> = self.names.as_slice().to_vec();
-        // SAFETY: The caller passes a raw borrowed from a live source name
-        // table.
-        names.push(unsafe { RetainedUtf16FlyString::from_borrowed_raw(raw) });
+        names.push(name.clone());
         let index = (names.len() - 1) as u32;
         self.names = RetainedUtf16FlyStringList::from_retained_strings(names);
         index
@@ -3419,13 +3418,12 @@ pub unsafe extern "C" fn rust_grid_values_copy_placements(source: *const GridVal
         // SAFETY: The caller passes a valid source payload and a uniquely
         // owned target value.
         let (source, target) = unsafe { (&*source, &mut *target) };
-        let source_name_raws: Vec<usize> = source.names.as_slice().iter().map(|name| name.raw()).collect();
         let mut remapped = |placement: ComputedGridPlacement| {
             let mut remap_index = |index: u32| {
                 if index == GRID_NO_INDEX {
                     return GRID_NO_INDEX;
                 }
-                target.intern_name_raw(source_name_raws[index as usize])
+                target.intern_name(&source.names.as_slice()[index as usize])
             };
             ComputedGridPlacement {
                 name_index: remap_index(placement.name_index),

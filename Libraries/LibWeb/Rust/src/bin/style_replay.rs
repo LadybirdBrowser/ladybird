@@ -2272,12 +2272,6 @@ extern "C" fn ladybird_animated_properties_unref(_values: *const c_void) {}
 #[unsafe(no_mangle)]
 extern "C" fn ladybird_string_unref(_raw: usize) {}
 #[unsafe(no_mangle)]
-extern "C" fn ladybird_string_ref(_raw: usize) {}
-
-#[unsafe(no_mangle)]
-extern "C" fn ladybird_utf16_fly_string_ref(_raw: usize) {}
-
-#[unsafe(no_mangle)]
 extern "C" fn ladybird_utf16_fly_string_unref(_raw: usize) {}
 
 #[cfg(test)]
