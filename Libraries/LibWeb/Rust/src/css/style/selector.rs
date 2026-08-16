@@ -3385,14 +3385,6 @@ impl TransactionFactView {
         self.before_sibling_relations_available = true;
     }
 
-    pub(super) fn clear_before_sibling_relations(&mut self) {
-        self.before_sibling_geometry = SiblingSequenceGeometry::default();
-        self.before_sibling_sequence_by_parent = Vec::new();
-        self.before_sibling_parents_by_sequence = Vec::new();
-        self.before_absent_nodes = Vec::new();
-        self.before_sibling_relations_available = false;
-    }
-
     pub(super) fn is_present(&self, tree: &StyleNodeTree, side: TransactionFactSide, node: StyleNodeID) -> bool {
         match side {
             TransactionFactSide::Before => {

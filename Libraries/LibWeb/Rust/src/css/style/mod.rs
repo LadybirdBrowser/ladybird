@@ -223,6 +223,7 @@ use memory::DeviceClass;
 use memory::MemoryCategory;
 use memory::MemoryController;
 use memory::MemoryLease;
+use memory::TIER3_REFUSAL_CATEGORIES;
 use partial_view::Lookup;
 use prefix::PrefixDeltaArena;
 use prefix::PrefixEnteringDeltas;

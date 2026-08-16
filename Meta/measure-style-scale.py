@@ -43,7 +43,6 @@ GRAPH_COUNTERS = [
     "retainedPatchesPoisoned",
     "retainedPatchesCoarseCovered",
     "tier3BenefitEvictions",
-    "tier3AdmissionRetries",
     "remainingPostingRowsCopied",
     "remainingPostingRowsInspected",
     "preparedMatchingBatchCompletenessRowsInspected",

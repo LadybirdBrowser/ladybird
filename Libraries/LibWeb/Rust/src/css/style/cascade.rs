@@ -577,6 +577,7 @@ pub(super) enum WinnerGroupCoverageGap {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum WinnerGroupTokenGap {
     StaleGeneration { retained: u64, current: u64 },
+    AdmissionClosed,
 }
 
 const WINNER_RULE_PAGE_SHIFT: usize = 6;
@@ -733,6 +734,7 @@ pub struct WinnerGroups {
     newest_program_version: ProgramVersion,
     newest_version_row_count: usize,
     generation: u64,
+    admitting: bool,
     residency: MemoryLease,
     nested_residency: MemoryLease,
     #[cfg(test)]
@@ -771,6 +773,7 @@ impl Default for WinnerGroups {
             newest_program_version: ProgramVersion::default(),
             newest_version_row_count: 0,
             generation: 0,
+            admitting: true,
             residency: MemoryLease::new(MemoryCategory::CascadeWinnerGroup),
             nested_residency: MemoryLease::new(MemoryCategory::CascadeWinnerGroup),
             #[cfg(test)]
@@ -809,6 +812,7 @@ impl WinnerGroups {
             newest_program_version: self.newest_program_version,
             newest_version_row_count: self.newest_version_row_count,
             generation: self.generation,
+            admitting: self.admitting,
             residency: MemoryLease::new(MemoryCategory::CascadeWinnerGroup),
             nested_residency: MemoryLease::new(MemoryCategory::CascadeWinnerGroup),
             #[cfg(test)]
@@ -1204,14 +1208,18 @@ impl WinnerGroups {
         self.generation
     }
 
-    pub fn set(&mut self, node: StyleNodeID, state: CascadeStateID, program_version: ProgramVersion) {
+    #[must_use]
+    pub fn set(&mut self, node: StyleNodeID, state: CascadeStateID, program_version: ProgramVersion) -> bool {
         let Some(index) = node.element_index().map(|index| index as usize) else {
-            return;
+            return false;
         };
+        if !self.admitting && self.column.get(index).is_none_or(Option::is_none) {
+            return false;
+        }
         self.column.ensure(index);
         if self.column[index] == Some((state, program_version)) {
             self.set_priority_current(index, true);
-            return;
+            return true;
         }
         if let Some((previous, previous_version)) = self.column[index] {
             self.release_state(previous);
@@ -1231,26 +1239,31 @@ impl WinnerGroups {
             self.newest_version_row_count += 1;
         }
         self.set_priority_current(index, true);
+        true
     }
 
+    #[must_use]
     pub fn set_pseudo(
         &mut self,
         node: StyleNodeID,
         pseudo: PseudoElementTarget,
         state: CascadeStateID,
         program_version: ProgramVersion,
-    ) {
+    ) -> bool {
         let Some(index) = node.element_index().map(|index| index as usize) else {
-            return;
+            return false;
         };
         let key = (node, pseudo);
+        if !self.admitting && !self.pseudo_rows.contains_key(&key) {
+            return false;
+        }
         if self
             .pseudo_rows
             .get(&key)
             .is_some_and(|row| row.state == (state, program_version))
         {
             self.pseudo_rows.get_mut(&key).unwrap().priority_current = true;
-            return;
+            return true;
         }
         match self.pseudo_rows.remove(&key) {
             Some(previous) => self.release_state(previous.state.0),
@@ -1270,6 +1283,7 @@ impl WinnerGroups {
             },
         );
         self.retain_state(state);
+        true
     }
 
     pub fn remove(&mut self, node: StyleNodeID) {
@@ -1313,10 +1327,14 @@ impl WinnerGroups {
             * size_of::<(PseudoElementTarget, ProgramVersion, CascadeStateID, bool)>())
             as u64;
         memory.reserve_required(MemoryCategory::BatchScratch, scratch_bytes);
+        if !self.admitting {
+            memory.release(MemoryCategory::BatchScratch, scratch_bytes);
+            return None;
+        }
         self.remove(target);
-        self.set(target, state, program_version);
+        assert!(self.set(target, state, program_version));
         for (pseudo, version, state, priority_current) in &pseudo_states {
-            self.set_pseudo(target, *pseudo, *state, *version);
+            assert!(self.set_pseudo(target, *pseudo, *state, *version));
             if !priority_current {
                 self.mark_pseudo_inventory_incomplete(target, *pseudo);
             }
@@ -1440,8 +1458,9 @@ impl WinnerGroups {
                 current: self.generation,
             });
         }
-        self.set(node, state, program_version);
-        Ok(())
+        self.set(node, state, program_version)
+            .then_some(())
+            .ok_or(WinnerGroupTokenGap::AdmissionClosed)
     }
 
     #[must_use]
@@ -1619,13 +1638,19 @@ impl WinnerGroups {
     pub fn settle_memory(&mut self, memory: &mut MemoryController) -> bool {
         self.nested_residency.settle_committed(memory);
         let current = self.capacity_bytes() - self.nested_residency.bytes();
-        if !self.residency.resize_to(memory, current).is_granted()
-            || !memory.admit_committed(MemoryCategory::CascadeWinnerGroup)
-        {
-            self.evict();
-            return false;
-        }
+        self.residency.reconcile_committed(memory, current);
+        memory.finish_committed_acceleration_growth(MemoryCategory::CascadeWinnerGroup);
+        self.admitting = memory.is_tier3_admitting(MemoryCategory::CascadeWinnerGroup);
         true
+    }
+
+    pub(super) fn begin_quota_period(&mut self) {
+        self.admitting = true;
+    }
+
+    #[must_use]
+    pub(super) fn admits_new_rows(&self) -> bool {
+        self.admitting
     }
 }
 
@@ -1671,6 +1696,10 @@ impl WinnerGroups {
 mod tests {
     use super::super::memory::DeviceClass;
     use super::*;
+
+    fn memory() -> MemoryController {
+        MemoryController::new(DeviceClass::ForegroundDesktop)
+    }
 
     fn inputs(origin: CascadeOrigin, important: bool) -> PriorityInputs {
         PriorityInputs {
@@ -2183,15 +2212,15 @@ mod tests {
         let second_node = StyleNodeID::element(2);
         let sparse_node = StyleNodeID::element(3);
 
-        groups.set(first_node, first, ProgramVersion(1));
-        groups.set(second_node, first, ProgramVersion(1));
+        assert!(groups.set(first_node, first, ProgramVersion(1)));
+        assert!(groups.set(second_node, first, ProgramVersion(1)));
         assert!(groups.rule_is_a_winner(RuleID(3)));
         assert!(groups.rule_is_a_winner(RuleID(5)));
-        groups.set(sparse_node, sparse, ProgramVersion(1));
+        assert!(groups.set(sparse_node, sparse, ProgramVersion(1)));
         assert!(groups.rule_is_a_winner(RuleID(100_000)));
         assert_eq!(groups.winner_rule_references.entries.len(), 3);
 
-        groups.set(first_node, second, ProgramVersion(1));
+        assert!(groups.set(first_node, second, ProgramVersion(1)));
         groups.remove(second_node);
         assert!(!groups.rule_is_a_winner(RuleID(3)));
         assert!(groups.rule_is_a_winner(RuleID(5)));
@@ -2204,6 +2233,30 @@ mod tests {
     }
 
     #[test]
+    fn closed_winner_admission_preserves_existing_rows_without_adding_new_ones() {
+        let mut memory = memory();
+        memory.set_tier3_limit_for_test(0);
+        memory.begin_tier3_quota_period();
+        let mut groups = WinnerGroups::new();
+        let state = groups.intern_sorted(&[winner(1, 1, 3)], None);
+        let resident = StyleNodeID::element(1);
+        assert!(groups.set(resident, state, ProgramVersion(1)));
+        groups.settle_memory(&mut memory);
+        assert!(!memory.is_tier3_admitting(MemoryCategory::CascadeWinnerGroup));
+
+        let refused = StyleNodeID::element(2);
+        assert!(!groups.set(refused, state, ProgramVersion(1)));
+        assert!(matches!(
+            groups.lookup(WinnerGroupKey::current(resident, ProgramVersion(1))),
+            Lookup::Known(_)
+        ));
+        assert!(matches!(
+            groups.lookup(WinnerGroupKey::current(refused, ProgramVersion(1))),
+            Lookup::Missing(WinnerGroupGap::MissingNode(node)) if node == refused
+        ));
+    }
+
+    #[test]
     fn pseudo_cascade_states_are_sparse_and_independent_from_the_element_column() {
         let mut groups = WinnerGroups::new();
         let node = StyleNodeID::element(1);
@@ -2213,9 +2266,9 @@ mod tests {
         let before_state = groups.intern_sorted(&[winner(1, 20, 2)], None);
         let after_state = groups.intern_sorted(&[winner(1, 30, 3)], None);
 
-        groups.set(node, element_state, ProgramVersion(1));
-        groups.set_pseudo(node, before, before_state, ProgramVersion(1));
-        groups.set_pseudo(node, after, after_state, ProgramVersion(1));
+        assert!(groups.set(node, element_state, ProgramVersion(1)));
+        assert!(groups.set_pseudo(node, before, before_state, ProgramVersion(1)));
+        assert!(groups.set_pseudo(node, after, after_state, ProgramVersion(1)));
 
         assert!(matches!(
             groups.winner(WinnerGroupKey::current(node, ProgramVersion(1)), 1),
@@ -2273,7 +2326,7 @@ mod tests {
 
         let group = groups.intern_sorted(&[winner(1, 1, 1)], None);
         for index in 1..1000_u32 {
-            groups.set(StyleNodeID::element(index), group, ProgramVersion(1));
+            assert!(groups.set(StyleNodeID::element(index), group, ProgramVersion(1)));
         }
         assert!(groups.settle_memory(&mut memory));
         assert!(memory.bytes_in_category(MemoryCategory::CascadeWinnerGroup) > 0);

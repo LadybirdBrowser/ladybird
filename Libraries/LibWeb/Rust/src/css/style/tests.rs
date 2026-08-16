@@ -693,6 +693,37 @@ fn retained_match_answer_payloads_are_evictable_without_losing_identity() {
 }
 
 #[test]
+fn selector_incidence_crossing_pressure_stays_until_the_boundary() {
+    let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+    memory.set_tier3_limit_for_test(0);
+    memory.begin_tier3_quota_period();
+    let mut incidences = RetainedSelectorIncidences::default();
+    let program = SelectorProgramID(1);
+
+    assert!(
+        incidences
+            .remember(
+                program,
+                vec![RetainedSelectorIncidence {
+                    node: StyleNodeID::element(1),
+                    entry: 0,
+                }],
+                &mut memory,
+            )
+            .is_some()
+    );
+    assert!(incidences.lookup(program).is_some());
+    assert!(
+        incidences
+            .remember(SelectorProgramID(2), Vec::new(), &mut memory)
+            .is_none()
+    );
+    assert!(memory.finish_tier3_quota_period()[MemoryCategory::RetainedSelectorIncidence as usize]);
+    incidences.clear();
+    assert_eq!(memory.bytes_in_category(MemoryCategory::RetainedSelectorIncidence), 0);
+}
+
+#[test]
 fn selector_truth_sets_intern_canonical_twelve_byte_rows() {
     assert_eq!(size_of::<SelectorTruth>(), 12);
 
@@ -818,6 +849,8 @@ fn refused_retained_match_answer_replacement_forgets_only_that_node() {
             .reserve(MemoryCategory::CascadeWinnerGroup, memory.tier3_limit() - charged)
             .is_granted()
     );
+    memory.record_benefit_lookups(MemoryCategory::CascadeWinnerGroup, 1, 0);
+    memory.begin_tier3_quota_period();
 
     let replacement = RuleMatch {
         rule: RuleID(2),
@@ -956,7 +989,7 @@ fn shared_retained_match_answer_lives_until_its_last_column_owner_forgets() {
 }
 
 #[test]
-fn retained_match_answer_admission_reclaims_a_lower_benefit_view() {
+fn retained_match_answer_refusal_does_not_evict_mid_admission() {
     let (mut engine, nodes) = nested_document();
     let retained = RuleMatch {
         node: nodes[1],
@@ -984,17 +1017,63 @@ fn retained_match_answer_admission_reclaims_a_lower_benefit_view() {
     };
     engine.remember_retained_match_answer(nodes[1], &[replacement]);
 
-    let missing_posting_bytes = engine.memory.bytes_in_category(MemoryCategory::FeaturePosting);
-    assert!(missing_posting_bytes > 0);
-    assert!(missing_posting_bytes < posting_bytes);
-    let retained = match engine.retained_match_answer(nodes[1]) {
-        Lookup::Known(answer) => answer,
-        Lookup::KnownAbsent | Lookup::Missing(_) => panic!("expected a retained answer"),
-    };
-    assert_eq!(retained[0].rule, RuleID(2));
-    assert_eq!(engine.counters.get(Counter::Tier3BenefitEvictions), 1);
-    assert_eq!(engine.counters.get(Counter::Tier3AdmissionRetries), 1);
-    assert_eq!(engine.counters.get(Counter::RetainedMatchAnswerRefusals), 0);
+    assert_eq!(
+        engine.memory.bytes_in_category(MemoryCategory::FeaturePosting),
+        posting_bytes
+    );
+    assert!(matches!(engine.retained_match_answer(nodes[1]), Lookup::Missing(_)));
+    assert_eq!(engine.counters.get(Counter::Tier3BenefitEvictions), 0);
+    assert_eq!(engine.counters.get(Counter::RetainedMatchAnswerRefusals), 1);
+}
+
+#[test]
+fn failed_posting_rebuild_does_not_condemn_resident_postings() {
+    let (mut engine, nodes) = nested_document();
+    let resident_class = StyleAtomID(200);
+    add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(resident_class));
+    engine.take_style_transaction_nodes(nodes[0], |_| {});
+
+    let resident_key = SelectorPostingKey::Class(resident_class);
+    assert!(matches!(engine.facts.postings().lookup(resident_key), Lookup::Known(_)));
+    let missing_key = SelectorPostingKey::TagName(StyleAtomID(100));
+    engine.facts.postings_mut().evict(missing_key);
+    assert!(matches!(
+        engine.facts.postings().lookup(missing_key),
+        Lookup::Missing(_)
+    ));
+    engine
+        .memory
+        .set_tier3_limit_for_test(engine.memory.bytes_in_tier(memory::Tier::Acceleration));
+
+    engine.record_environment_change();
+    engine.take_style_transaction_nodes(nodes[0], |_| {});
+    assert!(engine.memory.refusals(MemoryCategory::FeaturePosting) > 0);
+    assert!(matches!(engine.facts.postings().lookup(resident_key), Lookup::Known(_)));
+    let refusals = engine.memory.refusals(MemoryCategory::FeaturePosting);
+
+    engine.record_environment_change();
+    engine.take_style_transaction_nodes(nodes[0], |_| {});
+    assert!(matches!(engine.facts.postings().lookup(resident_key), Lookup::Known(_)));
+    assert_eq!(engine.memory.refusals(MemoryCategory::FeaturePosting), refusals);
+}
+
+#[test]
+fn closed_substitution_cache_admission_accounts_committed_growth() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    engine.memory.set_tier3_limit_for_test(0);
+    engine.memory.begin_tier3_quota_period();
+
+    assert!(engine.resize_parsed_substitution_cache(64));
+    assert!(engine.resize_parsed_substitution_cache(128));
+    assert_eq!(
+        engine.memory.bytes_in_category(MemoryCategory::ParsedSubstitutionCache),
+        128
+    );
+    assert!(engine.resize_parsed_substitution_cache(32));
+    assert_eq!(
+        engine.memory.bytes_in_category(MemoryCategory::ParsedSubstitutionCache),
+        32
+    );
 }
 
 #[test]
@@ -3597,7 +3676,7 @@ fn rule_declaration_edits_repair_only_their_property_inventory() {
 }
 
 #[test]
-fn rule_declaration_repair_falls_back_when_winner_retention_is_refused() {
+fn rule_declaration_repair_keeps_committed_winners_until_the_next_boundary() {
     let (mut engine, nodes) = linear_document();
     let target = StyleAtomID(200);
     let rule = add_target_rule(&mut engine, StyleSheetObjectID(1), target);
@@ -3621,8 +3700,10 @@ fn rule_declaration_repair_falls_back_when_winner_retention_is_refused() {
         planned.extend(answers.iter().map(|answer| answer.style_node));
     }));
     assert_eq!(planned, vec![nodes[1].raw()]);
-    assert_eq!(engine.memory().bytes_in_category(MemoryCategory::CascadeWinnerGroup), 0);
+    assert!(engine.memory().bytes_in_category(MemoryCategory::CascadeWinnerGroup) > 0);
     engine.discard_style_transaction_outputs();
+    assert!(engine.take_style_transaction(nodes[0], |_, _, _| {}));
+    assert_eq!(engine.memory().bytes_in_category(MemoryCategory::CascadeWinnerGroup), 0);
 }
 
 #[test]
@@ -3741,7 +3822,7 @@ fn held_pseudo_styles_without_witnesses_force_a_recompute() {
     let state = engine.intern_cascade_state(&[], None);
     let target = tree::PseudoElementTarget::new(tree::PseudoElementKind(u16::from(pseudo_kind)));
     let version = engine.program.version();
-    engine.winner_groups.set_pseudo(node, target, state, version);
+    assert!(engine.winner_groups.set_pseudo(node, target, state, version));
     engine.computed_group_sets.observe_pseudo_retained_cascade_state(
         computed::ComputedStyleTarget::new(node, pseudo_kind),
         Some((engine.winner_groups.generation(), state)),
@@ -3766,9 +3847,11 @@ fn assigned_marker_and_backdrop_winners_without_retained_states_force_a_recomput
         engine
             .computed_group_sets
             .record_pseudo_kind_for_test(node, pseudo_kind);
-        engine
-            .winner_groups
-            .set_pseudo(node, target, state, engine.program.version());
+        assert!(
+            engine
+                .winner_groups
+                .set_pseudo(node, target, state, engine.program.version())
+        );
 
         assert!(
             !engine.pseudo_cascade_states_are_unchanged(node),
@@ -4830,7 +4913,7 @@ fn element_declarations_refuse_selector_only_prefix_answer_reuse() {
 }
 
 #[test]
-fn retained_prefix_transitions_are_discarded_under_pressure() {
+fn retained_prefix_transitions_crossing_pressure_survive_until_the_boundary() {
     let (mut engine, nodes) = nested_document();
     let guard = StyleAtomID(200);
     let target = StyleAtomID(201);
@@ -4841,17 +4924,29 @@ fn retained_prefix_transitions_are_discarded_under_pressure() {
     discard_transaction(&mut engine);
 
     engine.memory.set_tier3_limit_for_test(0);
+    engine.memory.begin_tier3_quota_period();
     assert!(engine.begin_cold_matching_batch(nodes[0]));
     for &node in &nodes {
         engine.match_element(node).unwrap();
     }
     engine.end_cold_matching_batch();
 
+    assert!(engine.memory().bytes_in_category(MemoryCategory::PrefixTransitionCache) > 0);
+    assert_eq!(engine.memory().bytes_in_category(MemoryCategory::BatchScratch), 0);
+    for category in TIER3_REFUSAL_CATEGORIES {
+        if category != MemoryCategory::PrefixTransitionCache {
+            engine.memory.record_benefit_lookups(category, 1, 0);
+        }
+    }
+    let evictions = engine.memory.finish_tier3_quota_period();
+    assert!(evictions[MemoryCategory::PrefixTransitionCache as usize]);
+    assert!(engine.evict_tier3_category(MemoryCategory::PrefixTransitionCache));
     assert_eq!(
         engine.memory().bytes_in_category(MemoryCategory::PrefixTransitionCache),
         0
     );
     assert_eq!(engine.memory().bytes_in_category(MemoryCategory::BatchScratch), 0);
+    engine.memory.begin_tier3_quota_period();
 
     remove_feature(&mut engine, nodes[1], LocalFeatureKey::Class(guard));
     let mut planned = Vec::new();

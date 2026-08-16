@@ -560,9 +560,19 @@ impl StyleEngine {
     }
 
     pub(crate) fn resize_parsed_substitution_cache(&mut self, bytes: u64) -> bool {
+        let category = MemoryCategory::ParsedSubstitutionCache;
+        if self.memory.external_tier3_drop_is_pending(category) {
+            if bytes != 0 {
+                return false;
+            }
+            self.parsed_substitution_memory.reconcile_committed(&mut self.memory, 0);
+            self.memory.complete_external_tier3_drop(category);
+            return true;
+        }
         self.parsed_substitution_memory
-            .resize_to(&mut self.memory, bytes)
-            .is_granted()
+            .reconcile_committed(&mut self.memory, bytes);
+        self.memory.finish_committed_acceleration_growth(category);
+        true
     }
 
     /// Mint `out.len()` element identities in one call. Identity allocation is batched because a
@@ -1626,10 +1636,10 @@ impl StyleEngine {
         };
         let (state, _) =
             self.with_cascade_interning_counters(|groups| groups.apply_property_updates(previous, &updates));
-        self.winner_groups.set(node, state, self.program.version());
-        if !self.winner_groups.settle_memory(&mut self.memory) {
-            return;
+        let published = self.winner_groups.set(node, state, self.program.version());
+        self.winner_groups.settle_memory(&mut self.memory);
+        if published {
+            self.counters.bump(Counter::CascadeNodeHandlesPublished);
         }
-        self.counters.bump(Counter::CascadeNodeHandlesPublished);
     }
 }

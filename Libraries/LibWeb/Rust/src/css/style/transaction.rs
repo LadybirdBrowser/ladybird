@@ -436,11 +436,16 @@ pub struct NormalizationJournal {
     entries: HashMap<InputKey, (InputValue, InputValue)>,
     markers: Vec<CompleteScopeMarker>,
     covered: [bool; INPUT_KIND_COUNT],
-    charged_bytes: u64,
+    charged_bytes: u32,
+    document_capacity_limit: u32,
+    #[cfg(test)]
+    capacity_limit_override: Option<u64>,
 }
 
 const JOURNAL_ENTRY_BYTES: usize = size_of::<InputKey>() + 2 * size_of::<InputValue>() + 1;
-
+const JOURNAL_ENTRIES_PER_CONNECTED_ELEMENT: u64 = 4;
+const MIN_JOURNAL_CAPACITY_LIMIT: u64 = 4 * 1024 * 1024;
+const MAX_JOURNAL_CAPACITY_LIMIT: u64 = 32 * 1024 * 1024;
 impl NormalizationJournal {
     #[must_use]
     pub fn new() -> Self {
@@ -476,7 +481,24 @@ impl NormalizationJournal {
 
     #[must_use]
     pub fn charged_bytes(&self) -> u64 {
-        self.charged_bytes
+        u64::from(self.charged_bytes)
+    }
+
+    #[inline(never)]
+    fn capacity_limit(&self) -> u64 {
+        #[cfg(test)]
+        if let Some(limit) = self.capacity_limit_override {
+            return limit;
+        }
+        u64::from(self.document_capacity_limit.max(MIN_JOURNAL_CAPACITY_LIMIT as u32))
+    }
+
+    pub(super) fn set_document_capacity_limit(&mut self, connected_element_count: u32) {
+        let limit = (JOURNAL_ENTRY_BYTES as u64)
+            .saturating_mul(JOURNAL_ENTRIES_PER_CONNECTED_ELEMENT)
+            .saturating_mul(u64::from(connected_element_count))
+            .clamp(MIN_JOURNAL_CAPACITY_LIMIT, MAX_JOURNAL_CAPACITY_LIMIT);
+        self.document_capacity_limit = u32::try_from(limit).expect("normalization journal limit exceeds u32");
     }
 
     /// The pre-transaction value already journalled for `key`, if anything has been recorded for it.
@@ -496,7 +518,7 @@ impl NormalizationJournal {
         self.markers.clear();
         self.markers.shrink_to_fit();
         self.covered = [false; INPUT_KIND_COUNT];
-        memory.release(MemoryCategory::NormalizationJournal, self.charged_bytes);
+        memory.release(MemoryCategory::NormalizationJournal, u64::from(self.charged_bytes));
         self.charged_bytes = 0;
     }
 
@@ -559,11 +581,7 @@ impl NormalizationJournal {
             return;
         }
         self.entries.insert(key, (old, new));
-        if self.settle(memory, counters) {
-            // Exact element-style actions are required journal state. Other kinds may give bytes
-            // back immediately by widening the largest one into a typed marker.
-            self.coarsen_largest_kind(memory, counters);
-        }
+        self.settle(memory, counters);
     }
 
     /// Record one input action whose semantic scope is already the complete document.
@@ -646,7 +664,7 @@ impl NormalizationJournal {
 
         // The scratch charge moves to the transaction, which now owns the drained storage. Both
         // sides stay accounted across the handover.
-        memory.release(MemoryCategory::NormalizationJournal, self.charged_bytes);
+        memory.release(MemoryCategory::NormalizationJournal, u64::from(self.charged_bytes));
         self.charged_bytes = 0;
         let charged_bytes = (inputs.capacity() * size_of::<NormalizedInput>()
             + markers.capacity() * size_of::<CompleteScopeMarker>()) as u64;
@@ -669,20 +687,30 @@ impl NormalizationJournal {
             shallow [self.entries, self.markers];
             cached [];
             nested [];
-            skip [self.covered, self.charged_bytes];
+            skip [self.covered, self.charged_bytes, self.document_capacity_limit];
         }
     }
 
     /// Ensure one more fine-grained entry may be inserted, coarsening until it fits. Returns false
     /// when the entry must not be journalled at all, in which case its kind has been marked.
     fn make_room_for_one(&mut self, kind: InputKind, memory: &mut MemoryController, counters: &mut Counters) -> bool {
+        if self.entries.len() < self.entries.capacity() {
+            return true;
+        }
+        self.make_room_for_one_slow(kind, memory, counters)
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn make_room_for_one_slow(
+        &mut self,
+        kind: InputKind,
+        memory: &mut MemoryController,
+        counters: &mut Counters,
+    ) -> bool {
         while self.entries.len() >= self.entries.capacity() {
             let growth = (JOURNAL_ENTRY_BYTES * self.entries.capacity().max(4)) as u64;
-            if memory
-                .reserve(MemoryCategory::NormalizationJournal, growth)
-                .is_granted()
-            {
-                memory.release(MemoryCategory::NormalizationJournal, growth);
+            if u64::from(self.charged_bytes).saturating_add(growth) <= self.capacity_limit() {
                 return true;
             }
             if !self.coarsen_largest_kind(memory, counters) {
@@ -739,18 +767,17 @@ impl NormalizationJournal {
     }
 
     /// Reconcile the charge with the containers' actual capacity. Growth is already committed by
-    /// the time it can be measured, so it is charged rather than refused; the return value reports
-    /// whether that charge exceeded the scratch limit.
-    fn settle(&mut self, memory: &mut MemoryController, _counters: &mut Counters) -> bool {
+    /// the time it can be measured, so Tier 4 reports it rather than refusing it. Capacity growth
+    /// is checked against the document-shaped cap before insertion.
+    fn settle(&mut self, memory: &mut MemoryController, _counters: &mut Counters) {
         let current = self.capacity_bytes();
-        let mut over_limit = false;
-        if current > self.charged_bytes {
-            over_limit = memory.reserve_required(MemoryCategory::NormalizationJournal, current - self.charged_bytes);
-        } else if self.charged_bytes > current {
-            memory.release(MemoryCategory::NormalizationJournal, self.charged_bytes - current);
+        let charged_bytes = u64::from(self.charged_bytes);
+        if current > charged_bytes {
+            memory.reserve_required(MemoryCategory::NormalizationJournal, current - charged_bytes);
+        } else if charged_bytes > current {
+            memory.release(MemoryCategory::NormalizationJournal, charged_bytes - current);
         }
-        self.charged_bytes = current;
-        over_limit
+        self.charged_bytes = u32::try_from(current).expect("normalization journal charge exceeds u32");
     }
 }
 
@@ -778,9 +805,9 @@ mod tests {
             }
         }
 
-        fn with_scratch_budget(bytes: u64) -> Self {
+        fn with_journal_cap(bytes: u64) -> Self {
             let mut fixture = Self::new();
-            fixture.memory.set_tier4_limit_for_test(bytes);
+            fixture.journal.capacity_limit_override = Some(bytes);
             fixture
         }
 
@@ -1012,7 +1039,7 @@ mod tests {
 
     #[test]
     fn journal_overflow_coarsens_the_largest_kind_into_a_typed_marker() {
-        let mut fixture = JournalFixture::with_scratch_budget(4096);
+        let mut fixture = JournalFixture::with_journal_cap(4096);
         fixture.record(
             InputKey::TreeRelations(StyleNodeID::element(1)),
             relations(1),
@@ -1054,7 +1081,7 @@ mod tests {
 
     #[test]
     fn element_style_actions_remain_exact_without_scratch_headroom() {
-        let mut fixture = JournalFixture::with_scratch_budget(0);
+        let mut fixture = JournalFixture::with_journal_cap(0);
         fixture.element_style_input(10);
         fixture.element_style_input(20);
 
@@ -1072,7 +1099,7 @@ mod tests {
 
     #[test]
     fn a_coarsened_kind_absorbs_further_records_without_growing() {
-        let mut fixture = JournalFixture::with_scratch_budget(512);
+        let mut fixture = JournalFixture::with_journal_cap(512);
         for node in 10..200_u32 {
             fixture.class(node, 1, false, true);
         }
