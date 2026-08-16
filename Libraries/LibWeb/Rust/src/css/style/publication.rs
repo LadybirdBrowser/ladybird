@@ -157,6 +157,19 @@ impl StyleEngine {
         }
     }
 
+    pub(crate) fn recording_computed_longhand_table(
+        &self,
+        style_record: u64,
+    ) -> Option<(u32, &[*const std::ffi::c_void])> {
+        #[cfg(feature = "style-recording")]
+        return self.computed_group_sets.recording_longhand_table(style_record);
+        #[cfg(not(feature = "style-recording"))]
+        {
+            let _ = style_record;
+            None
+        }
+    }
+
     pub(crate) fn style_record_view(&self, style_record: u64) -> Option<computed::StyleRecordView<'_>> {
         self.computed_group_sets.style_record_view(style_record)
     }

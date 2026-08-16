@@ -94,6 +94,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         let mut detailed_counter_reader = None;
         let mut recorded_style_record_payloads = Vec::<Vec<Option<Option<EncodedU64Slice<'_>>>>>::new();
         let mut recorded_style_record_views = Vec::<Vec<Option<Option<RecordedStyleRecordView<'_>>>>>::new();
+        let mut computed_longhand_tables =
+            Vec::<Vec<Option<*mut libweb_rust::css::computed_longhand_table::ComputedLonghandTable>>>::new();
         let mut computed_group_payloads = Vec::new();
         let mut animation_overlay_payloads = Vec::new();
         let mut inheritance_dependent_properties = Vec::new();
@@ -135,9 +137,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     if live_engines.len() <= index {
                         live_engines.resize(index + 1, None);
                         match_answer_identity_mappings.resize_with(index + 1, MatchAnswerIdentityMapping::default);
+                        computed_longhand_tables.resize_with(index + 1, Vec::new);
                     }
                     live_engines[index] = Some(engine);
                     match_answer_identity_mappings[index] = MatchAnswerIdentityMapping::default();
+                    computed_longhand_tables[index].clear();
                     engine_count += 1;
                 }
                 EventKind::SetComputedGroupDependencyMasks => {
@@ -155,11 +159,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 EventKind::DestroyGraph => {
                     let engine_id = event.payload.read_u64()?;
-                    let engine = usize::try_from(engine_id)
-                        .ok()
-                        .and_then(|index| live_engines.get_mut(index))
+                    let engine_index = usize::try_from(engine_id)?;
+                    let engine = live_engines
+                        .get_mut(engine_index)
                         .and_then(Option::take)
                         .ok_or_else(|| format!("engine {engine_id} was destroyed without being live"))?;
+                    release_computed_longhand_tables(&mut computed_longhand_tables[engine_index]);
                     accumulate_memory_pressure(&mut memory_pressure, unsafe {
                         bridge::replay_memory_pressure_snapshot(engine)
                     });
@@ -711,7 +716,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
                 EventKind::PublishComputedGroups => {
-                    let engine = read_engine(&mut event.payload, &live_engines)?;
+                    let (engine_index, engine) = read_engine_indexed(&mut event.payload, &live_engines)?;
                     let node = event.payload.read_u32()?;
                     let pseudo_kind = event.payload.read_u8()?;
                     let group_count = event.payload.read_length()?;
@@ -759,38 +764,45 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let longhand_table = match event.payload.read_bool()? {
                         false => std::ptr::null_mut(),
                         true => {
-                            let table =
-                                libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_create();
-                            let stored_value_count = event.payload.read_length()?;
-                            let mut stored_values = Vec::with_capacity(stored_value_count);
-                            for _ in 0..stored_value_count {
-                                let property = event.payload.read_u16()?;
-                                let token = event.payload.read_u64()?;
-                                let flags = event.payload.read_u8()?;
-                                stored_values.push((property, bridge::replay_style_value(token, flags)));
-                            }
-                            let source_slot_count = event.payload.read_length()?;
-                            let mut source_slots = std::collections::HashMap::new();
-                            for _ in 0..source_slot_count {
-                                let property = event.payload.read_u16()?;
-                                let slot = event.payload.read_u32()?;
-                                source_slots.insert(property, slot);
-                            }
-                            for (property, value) in stored_values {
-                                let slot = source_slots.get(&property).map_or(-1, |&slot| i64::from(slot));
+                            let identity = usize::try_from(event.payload.read_u32()?)?;
+                            let record_definition = event.payload.read_bool()?;
+                            let tables = &mut computed_longhand_tables[engine_index];
+                            if record_definition {
+                                if tables.len() <= identity {
+                                    tables.resize(identity + 1, None);
+                                }
+                                if tables[identity].is_some() {
+                                    return Err(format!("computed longhand table {identity} was defined twice").into());
+                                }
+                                let table =
+                                    libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_create();
+                                let stored_value_count = event.payload.read_length()?;
+                                for _ in 0..stored_value_count {
+                                    let property = event.payload.read_u16()?;
+                                    let token = event.payload.read_u64()?;
+                                    let flags = event.payload.read_u8()?;
+                                    let value = bridge::replay_style_value(token, flags);
+                                    unsafe {
+                                        libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_set(
+                                            table,
+                                            property,
+                                            value.cast(),
+                                            -1,
+                                        );
+                                    }
+                                }
                                 unsafe {
-                                    libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_set(
+                                    libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_freeze(
                                         table,
-                                        property,
-                                        value.cast(),
-                                        slot,
                                     );
                                 }
+                                tables[identity] = Some(table);
                             }
-                            unsafe {
-                                libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_freeze(table);
-                            }
-                            table
+                            tables
+                                .get(identity)
+                                .copied()
+                                .flatten()
+                                .ok_or_else(|| format!("computed longhand table {identity} was not defined"))?
                         }
                     };
                     let expected = bridge::FfiStyleRecordDelta {
@@ -824,13 +836,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                             longhand_table.cast_const().cast(),
                         )
                     };
-                    if !longhand_table.is_null() {
-                        unsafe {
-                            libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_release(
-                                longhand_table,
-                            );
-                        }
-                    }
                     if actual != expected {
                         return Err(format!(
                             "computed style publication diverged for node {node}: expected {expected:?}, got {actual:?}"
@@ -930,6 +935,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             event.payload.finish()?;
         }
         let live_at_process_exit = live_engines.iter().flatten().count();
+        for tables in &mut computed_longhand_tables {
+            release_computed_longhand_tables(tables);
+        }
         for engine in live_engines.into_iter().flatten() {
             accumulate_memory_pressure(&mut memory_pressure, unsafe {
                 bridge::replay_memory_pressure_snapshot(engine)
@@ -1574,6 +1582,14 @@ fn read_engine_indexed(
         return engine_not_live(engine_id);
     };
     Ok((index, pointer))
+}
+
+fn release_computed_longhand_tables(
+    tables: &mut Vec<Option<*mut libweb_rust::css::computed_longhand_table::ComputedLonghandTable>>,
+) {
+    for table in tables.drain(..).flatten() {
+        unsafe { libweb_rust::css::computed_longhand_table::rust_computed_longhand_table_release(table) };
+    }
 }
 
 fn style_record_replay_index(style_record: u64) -> Result<usize, std::num::TryFromIntError> {

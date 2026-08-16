@@ -405,15 +405,6 @@ impl ComputedLonghandTable {
         &self.value_view
     }
 
-    /// The complete style-sheet-context sidecar, in property order.
-    pub(crate) fn source_slot_entries(&self) -> impl Iterator<Item = (u16, u32)> + '_ {
-        self.source_slots.iter().enumerate().filter_map(|(index, &slot)| {
-            u32::try_from(slot)
-                .ok()
-                .map(|slot| (FIRST_LONGHAND_PROPERTY_ID + index as u16, slot))
-        })
-    }
-
     pub(crate) fn is_frozen(&self) -> bool {
         self.frozen
     }

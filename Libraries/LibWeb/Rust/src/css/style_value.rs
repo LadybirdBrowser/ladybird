@@ -18,21 +18,21 @@
 use std::ffi::c_void;
 use std::sync::Arc;
 
-#[cfg(feature = "style-recording")]
+#[cfg(any(test, feature = "style-recording"))]
 use std::cell::RefCell;
-#[cfg(feature = "style-recording")]
+#[cfg(any(test, feature = "style-recording"))]
 use std::collections::HashMap;
 
 use crate::abort_on_panic;
 
 pub(crate) use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
 
-#[cfg(feature = "style-recording")]
+#[cfg(any(test, feature = "style-recording"))]
 thread_local! {
     static REPLAY_STYLE_VALUES: RefCell<HashMap<usize, u8>> = RefCell::new(HashMap::new());
 }
 
-#[cfg(feature = "style-recording")]
+#[cfg(any(test, feature = "style-recording"))]
 pub(crate) fn register_replay_style_value(token: u64, dependency_flags: u8) -> *const StyleValueData {
     let pointer = usize::try_from(token).expect("style-value token exceeds usize");
     assert!(pointer != 0, "style-value tokens are nonzero");
@@ -44,9 +44,9 @@ pub(crate) fn register_replay_style_value(token: u64, dependency_flags: u8) -> *
 }
 
 fn replay_style_value_dependency_flags(value: *const StyleValueData) -> Option<u8> {
-    #[cfg(feature = "style-recording")]
+    #[cfg(any(test, feature = "style-recording"))]
     return REPLAY_STYLE_VALUES.with(|values| values.borrow().get(&(value as usize)).copied());
-    #[cfg(not(feature = "style-recording"))]
+    #[cfg(not(any(test, feature = "style-recording")))]
     {
         let _ = value;
         None
@@ -3678,6 +3678,11 @@ pub unsafe extern "C" fn rust_style_value_equals(first: *const StyleValueData, s
         if first.is_null() || second.is_null() {
             return false;
         }
+        // Replay pointers are opaque identity tokens rather than readable StyleValueData.
+        if replay_style_value_dependency_flags(first).is_some() || replay_style_value_dependency_flags(second).is_some()
+        {
+            return false;
+        }
         unsafe { *first == *second }
     })
 }
@@ -3855,6 +3860,20 @@ mod substitution_clone_tests {
             rust_style_value_release(shorthand);
             rust_style_value_release(cloned_shorthand);
         }
+    }
+}
+
+#[cfg(test)]
+mod replay_tests {
+    use super::*;
+
+    #[test]
+    fn distinct_replay_tokens_compare_unequal_without_being_dereferenced() {
+        let first = register_replay_style_value(0x1234, 0);
+        let second = register_replay_style_value(0x5678, 0);
+
+        assert!(unsafe { rust_style_value_equals(first, first) });
+        assert!(!unsafe { rust_style_value_equals(first, second) });
     }
 }
 
