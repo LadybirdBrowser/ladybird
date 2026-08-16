@@ -17,9 +17,6 @@ class HTMLAudioElement final : public HTMLMediaElement {
 public:
     virtual ~HTMLAudioElement() override;
 
-    Layout::AudioBox* layout_node();
-    Layout::AudioBox const* layout_node() const;
-
     bool should_paint() const;
 
 private:

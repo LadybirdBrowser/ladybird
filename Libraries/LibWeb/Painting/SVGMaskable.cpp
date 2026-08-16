@@ -5,9 +5,7 @@
  */
 
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/Layout/SVGClipBox.h>
-#include <LibWeb/Layout/SVGMaskBox.h>
-#include <LibWeb/Layout/SVGSVGBox.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Blending.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
@@ -18,27 +16,32 @@
 #include <LibWeb/Painting/SVGPaintable.h>
 #include <LibWeb/Painting/SVGPathPaintable.h>
 #include <LibWeb/Painting/StackingContext.h>
+#include <LibWeb/SVG/SVGClipPathElement.h>
+#include <LibWeb/SVG/SVGMaskElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 
 namespace Web::Painting {
 
-template<typename T>
-static T const* first_child_layout_node_of_type(SVG::SVGGraphicsElement const& graphics_element)
+static Layout::Box const* first_child_layout_box_of_kind(SVG::SVGGraphicsElement const& graphics_element, Layout::RustFFI::NodeKind kind)
 {
     // NB: Called during painting.
     if (!graphics_element.unsafe_layout_node())
         return nullptr;
-    return graphics_element.unsafe_layout_node()->first_child_of_type<T>();
+    for (auto child = graphics_element.unsafe_layout_node()->first_child(); child; child = child->next_sibling()) {
+        if (child->kind() == kind)
+            return static_cast<Layout::Box const*>(child.ptr());
+    }
+    return nullptr;
 }
 
-static auto get_mask_box(SVG::SVGGraphicsElement const& graphics_element)
+static Layout::Box const* get_mask_box(SVG::SVGGraphicsElement const& graphics_element)
 {
-    return first_child_layout_node_of_type<Layout::SVGMaskBox>(graphics_element);
+    return first_child_layout_box_of_kind(graphics_element, Layout::RustFFI::NodeKind::SVGMaskBox);
 }
 
-static auto get_clip_box(SVG::SVGGraphicsElement const& graphics_element)
+static Layout::Box const* get_clip_box(SVG::SVGGraphicsElement const& graphics_element)
 {
-    return first_child_layout_node_of_type<Layout::SVGClipBox>(graphics_element);
+    return first_child_layout_box_of_kind(graphics_element, Layout::RustFFI::NodeKind::SVGClipBox);
 }
 
 // The object bounding box covers the target's geometry alone. The paintable's border box is not
@@ -72,7 +75,7 @@ Optional<CSSPixelRect> SVGMaskable::get_svg_mask_area() const
         viewport_size = svg_viewport_user_rect(*viewport_paintable).size();
 
     auto target_object_bounding_box = target_user_space_object_bounding_box(*target_paintable);
-    return mask_box->dom_node().resolve_masking_area(target_object_bounding_box, viewport_size, Gfx::AffineTransform {});
+    return as<SVG::SVGMaskElement>(*mask_box->dom_node()).resolve_masking_area(target_object_bounding_box, viewport_size, Gfx::AffineTransform {});
 }
 
 Optional<CSSPixelRect> SVGMaskable::get_svg_clip_area() const
@@ -86,7 +89,7 @@ Optional<CSSPixelRect> SVGMaskable::get_svg_clip_area() const
 
     // The area must cover the same space calculate_svg_clip_display_list paints the content in.
     auto clip_path_transform = clip_paintable.layout_node().used_svg_element_transform();
-    if (clip_box->dom_node().clip_path_units() == SVG::SVGUnits::ObjectBoundingBox)
+    if (as<SVG::SVGClipPathElement>(*clip_box->dom_node()).clip_path_units() == SVG::SVGUnits::ObjectBoundingBox)
         clip_path_transform = object_bounding_box_content_units_transform().multiply(clip_path_transform);
     // An empty clipping path will completely clip away the element that had the clip-path property applied.
     return clip_paintable.clip_path_geometry_bounds(clip_path_transform).value_or(CSSPixelRect {});
@@ -162,7 +165,7 @@ Optional<DisplayListResource> SVGMaskable::calculate_svg_mask_display_list(Displ
         return {};
     auto& mask_paintable = static_cast<Paintable const&>(*mask_box->paintable());
     auto content_units_transform = Gfx::AffineTransform {};
-    if (mask_box->dom_node().mask_content_units() == SVG::SVGUnits::ObjectBoundingBox)
+    if (as<SVG::SVGMaskElement>(*mask_box->dom_node()).mask_content_units() == SVG::SVGUnits::ObjectBoundingBox)
         content_units_transform = object_bounding_box_content_units_transform();
     return paint_mask_or_clip_to_display_list(context, content_units_transform, mask_paintable, mask_area, false);
 }
@@ -175,7 +178,7 @@ Optional<DisplayListResource> SVGMaskable::calculate_svg_clip_display_list(Displ
         return {};
     auto& clip_paintable = static_cast<Paintable const&>(*clip_box->paintable());
     auto content_units_transform = Gfx::AffineTransform {};
-    if (clip_box->dom_node().clip_path_units() == SVG::SVGUnits::ObjectBoundingBox)
+    if (as<SVG::SVGClipPathElement>(*clip_box->dom_node()).clip_path_units() == SVG::SVGUnits::ObjectBoundingBox)
         content_units_transform = object_bounding_box_content_units_transform();
     return paint_mask_or_clip_to_display_list(context, content_units_transform, clip_paintable, clip_area, true);
 }

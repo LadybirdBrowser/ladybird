@@ -49,7 +49,7 @@ public:
 
     virtual ~Box() override;
 
-    virtual void did_set_content_size() { }
+    void did_set_content_size();
     bool has_saved_abspos_layout_inputs() const { return has_flag(RustFFI::NodeFlag::HasSavedAbsposLayoutInputs); }
     bool has_saved_committed_geometry() const { return has_flag(RustFFI::NodeFlag::HasSavedCommittedGeometry); }
     bool saved_abspos_cb_derives_from_own_computed_values() const { return has_flag(RustFFI::NodeFlag::SavedAbsposCbDerivesFromOwnComputedValues); }

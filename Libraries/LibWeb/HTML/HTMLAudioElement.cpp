@@ -27,19 +27,9 @@ RefPtr<Layout::Node> HTMLAudioElement::create_layout_node(CSS::LayoutStyle style
     return make_ref_counted<Layout::AudioBox>(document(), *this, style);
 }
 
-Layout::AudioBox* HTMLAudioElement::layout_node()
-{
-    return static_cast<Layout::AudioBox*>(Node::layout_node());
-}
-
 bool HTMLAudioElement::should_paint() const
 {
     return has_attribute(HTML::AttributeNames::controls) || is_scripting_disabled();
-}
-
-Layout::AudioBox const* HTMLAudioElement::layout_node() const
-{
-    return static_cast<Layout::AudioBox const*>(Node::layout_node());
 }
 
 }

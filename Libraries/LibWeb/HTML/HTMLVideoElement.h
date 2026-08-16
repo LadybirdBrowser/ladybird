@@ -31,9 +31,6 @@ public:
 
     virtual ~HTMLVideoElement() override;
 
-    Layout::VideoBox* layout_node();
-    Layout::VideoBox const* layout_node() const;
-
     void set_intrinsic_video_dimensions(Optional<Gfx::Size<u32>>);
     u32 video_width() const;
     u32 video_height() const;

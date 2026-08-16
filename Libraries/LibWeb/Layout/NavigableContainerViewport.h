@@ -22,7 +22,6 @@ public:
     [[nodiscard]] HTML::NavigableContainer& dom_node() { return as<HTML::NavigableContainer>(*ReplacedBox::dom_node()); }
 
 private:
-    virtual void did_set_content_size() override;
 };
 
 }

@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Layout/FieldSetBox.h>
-#include <LibWeb/Layout/LegendBox.h>
+#include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/FieldSetPaintable.h>
 
@@ -21,14 +20,27 @@ FieldSetPaintable::FieldSetPaintable(Layout::BlockContainer const& layout_box)
 {
 }
 
-Layout::FieldSetBox& FieldSetPaintable::layout_box()
+Layout::BlockContainer const& FieldSetPaintable::layout_box() const
 {
-    return static_cast<Layout::FieldSetBox&>(layout_node());
+    return static_cast<Layout::BlockContainer const&>(layout_node());
 }
 
-Layout::FieldSetBox const& FieldSetPaintable::layout_box() const
+// https://html.spec.whatwg.org/multipage/rendering.html#rendered-legend
+// If the element's box has a child box that matches the conditions in the list below, then the first such child box
+// is the 'fieldset' element's rendered legend:
+//   * The child is a legend element.
+//   * The child's used value of 'float' is 'none'.
+//   * The child's used value of 'position' is not 'absolute' or 'fixed'.
+static Layout::Box const* rendered_legend_of_fieldset(Layout::BlockContainer const& fieldset_box)
 {
-    return static_cast<Layout::FieldSetBox const&>(layout_node());
+    Layout::Box const* legend = nullptr;
+    fieldset_box.for_each_child_of_type<Layout::Box>([&](Layout::Box const& child) {
+        if (!child.is_legend_box() || !child.is_in_flow())
+            return IterationDecision::Continue;
+        legend = &child;
+        return IterationDecision::Break;
+    });
+    return legend;
 }
 
 // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
@@ -38,7 +50,7 @@ CSSPixels FieldSetPaintable::effective_border_top() const
     // 'border-block-start-width' or the rendered legend's margin box size in the fieldset's block-flow direction,
     // whichever is greater.
     auto css_border_top = layout_box().border_top().width;
-    if (auto legend = layout_box().rendered_legend()) {
+    if (auto const* legend = rendered_legend_of_fieldset(layout_box())) {
         auto legend_paintable = legend->paintable_box();
         auto legend_margin_box_height = legend_paintable->box_model().margin.top
             + legend_paintable->absolute_border_box_rect().height()
@@ -82,7 +94,7 @@ void FieldSetPaintable::paint(DisplayListRecordingContext& context, PaintPhase p
         return;
     }
 
-    auto legend = layout_box().rendered_legend();
+    auto const* legend = rendered_legend_of_fieldset(layout_box());
     if (!legend) {
         Paintable::paint(context, phase);
         return;

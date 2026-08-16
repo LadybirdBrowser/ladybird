@@ -43,7 +43,6 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Page/EventHandler.h>
@@ -72,6 +71,7 @@
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
 #include <LibWeb/SVG/SVGFitToViewBox.h>
+#include <LibWeb/SVG/SVGSVGElement.h>
 
 namespace Web::Painting {
 
@@ -888,10 +888,21 @@ Paintable const* nearest_svg_viewport_paintable_of(Layout::Node const& layout_no
     return nullptr;
 }
 
+// active_view_box covers <view> redirection and the svg-as-image fallback viewBox, which
+// layout used to build the geometry these callers interpret.
+static Gfx::FloatRect svg_svg_box_view_box_or_viewport_rect(Layout::Box const& svg_svg_box)
+{
+    if (auto view_box = as<SVG::SVGSVGElement>(*svg_svg_box.dom_node()).active_view_box(); view_box.has_value())
+        return { view_box->min_x, view_box->min_y, view_box->width, view_box->height };
+    if (auto const* paintable = as_if<SVGSVGPaintable>(svg_svg_box.paintable_box().ptr()))
+        return { {}, { paintable->svg_viewport_size().width().to_float(), paintable->svg_viewport_size().height().to_float() } };
+    return {};
+}
+
 Gfx::FloatRect svg_viewport_user_rect(Paintable const& viewport_paintable)
 {
-    if (auto const* svg_svg_box = as_if<Layout::SVGSVGBox>(viewport_paintable.layout_node()))
-        return svg_svg_box->view_box_or_viewport_rect();
+    if (viewport_paintable.layout_node().is_svg_svg_box())
+        return svg_svg_box_view_box_or_viewport_rect(static_cast<Layout::Box const&>(viewport_paintable.layout_node()));
     if (auto dom_node = viewport_paintable.dom_node()) {
         if (auto const* fit_to_view_box = as_if<SVG::SVGFitToViewBox>(*dom_node)) {
             if (auto view_box = fit_to_view_box->view_box(); view_box.has_value())

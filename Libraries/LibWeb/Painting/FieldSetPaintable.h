@@ -22,8 +22,7 @@ public:
 private:
     explicit FieldSetPaintable(Layout::BlockContainer const&);
 
-    Layout::FieldSetBox& layout_box();
-    Layout::FieldSetBox const& layout_box() const;
+    Layout::BlockContainer const& layout_box() const;
 
     CSSPixels effective_border_top() const;
     CSSPixelRect visual_border_box_rect() const;
