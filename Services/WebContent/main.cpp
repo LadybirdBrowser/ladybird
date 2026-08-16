@@ -41,6 +41,10 @@
 #include <WebContent/WebContentCompositorHost.h>
 #include <WebContent/WebDriverConnection.h>
 
+#if defined(HAVE_WASM_COMPILER_SERVICE)
+#    include <LibWasmCompilerClient/State.h>
+#endif
+
 #include <openssl/thread.h>
 
 #if defined(AK_OS_MACOS)
@@ -268,6 +272,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         if (auto result = connect_to_image_decoder(handle); result.is_error())
             dbgln("Failed to connect to image decoder: {}", result.error());
     };
+
+#if defined(HAVE_WASM_COMPILER_SERVICE)
+    WasmCompilerClient::compiler_state().install_compiler_callback();
+
+    webcontent_client->on_wasm_compiler_connection = [](auto const& handle) {
+        WasmCompilerClient::compiler_state().replace_connection(handle);
+    };
+#endif
 
     return event_loop.exec();
 }

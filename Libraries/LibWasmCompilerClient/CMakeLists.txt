@@ -1,5 +1,6 @@
 set(SOURCES
     Client.cpp
+    State.cpp
     ThreadedClient.cpp
 )
 
@@ -12,4 +13,4 @@ set(GENERATED_SOURCES
 )
 
 ladybird_lib(LibWasmCompilerClient wasmcompilerclient)
-target_link_libraries(LibWasmCompilerClient PRIVATE LibCore LibIPC LibSync LibThreading)
+target_link_libraries(LibWasmCompilerClient PRIVATE LibCore LibIPC LibSync LibThreading LibWasm)

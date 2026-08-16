@@ -19,6 +19,7 @@ void abort_cranelift_cache_capture() { }
 void abort_cranelift_cache_install() { }
 Optional<ByteBuffer> serialize_cranelift_cache_blob(ReadonlyBytes) { return {}; }
 bool try_install_cranelift_cache_blob(ReadonlyBytes, ReadonlyBytes) { return false; }
+void set_cranelift_compile_callback(CraneliftCompileCallback) { }
 
 ErrorOr<Core::AnonymousBuffer> compile_cranelift_buffer(Core::AnonymousBuffer const&)
 {
