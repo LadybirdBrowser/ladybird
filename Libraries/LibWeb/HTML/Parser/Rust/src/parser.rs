@@ -3047,7 +3047,6 @@ impl TreeBuilder {
     fn insert_html_element_for_document(&mut self, token: &Token, document: usize) -> usize {
         self.flush_character_insertions();
         let attributes = attributes_from_token(token, RustFfiHtmlNamespace::Html);
-        let owned_attributes = owned_attributes_from_token(token, RustFfiHtmlNamespace::Html);
         let local_name = token.tag_name();
         let element = self.create_element(
             document,
@@ -3064,7 +3063,7 @@ impl TreeBuilder {
             local_name: local_name.to_string(),
             namespace_: RustFfiHtmlNamespace::Html,
             namespace_uri: None,
-            attributes: owned_attributes,
+            attributes: Vec::new(),
             template_content: None,
         });
         element
@@ -3089,7 +3088,11 @@ impl TreeBuilder {
         let adjusted_insertion_location = self.appropriate_place_for_inserting_node(None);
         let local_name = adjusted_foreign_tag_name(token.tag_name(), namespace_);
         let attributes = attributes_from_token(token, namespace_);
-        let owned_attributes = owned_attributes_from_token(token, namespace_);
+        let owned_attributes = if namespace_ == RustFfiHtmlNamespace::MathMl && local_name == "annotation-xml" {
+            owned_attributes_from_token(token, namespace_)
+        } else {
+            Vec::new()
+        };
         let namespace_uri = if namespace_ == RustFfiHtmlNamespace::Other {
             self.adjusted_current_node()
                 .and_then(|node| node.namespace_uri.as_ref())
