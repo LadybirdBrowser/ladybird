@@ -68,22 +68,29 @@ WEB_API void preserve_wrapper(Wrappable&, PlatformObject&);
 WEB_API bool wrapper_is_preserved(PlatformObject const&);
 
 #ifndef WEB_WRAPPABLE
-#    define WEB_WRAPPABLE(class_, base_class)                           \
-        GC_CELL(class_, base_class)                                     \
-    public:                                                             \
-        using Base::initialize;                                         \
-        virtual Bindings::InterfaceName interface_name() const override \
-        {                                                               \
-            return Bindings::InterfaceName::class_;                     \
-        }                                                               \
-        virtual bool implements_interface(                              \
-            String const& interface) const override                     \
-        {                                                               \
-            if (interface == #class_)                                   \
-                return true;                                            \
-            return Base::implements_interface(interface);               \
-        }                                                               \
-                                                                        \
+#    define WEB_WRAPPABLE(class_, base_class)                                               \
+        GC_CELL(class_, base_class)                                                         \
+    public:                                                                                 \
+        using Base::initialize;                                                             \
+        static constexpr auto s_interface_name = Bindings::InterfaceName::class_;           \
+        virtual Bindings::InterfaceName interface_name() const override                     \
+        {                                                                                   \
+            return s_interface_name;                                                        \
+        }                                                                                   \
+        virtual bool implements_interface(Bindings::InterfaceName interface) const override \
+        {                                                                                   \
+            if (interface == s_interface_name)                                              \
+                return true;                                                                \
+            return Base::implements_interface(interface);                                   \
+        }                                                                                   \
+        virtual bool implements_interface(                                                  \
+            String const& interface) const override                                         \
+        {                                                                                   \
+            if (interface == #class_)                                                       \
+                return true;                                                                \
+            return Base::implements_interface(interface);                                   \
+        }                                                                                   \
+                                                                                            \
     public:
 #endif
 
@@ -105,7 +112,33 @@ public:
     virtual ~Wrappable() override = default;
 
     [[nodiscard]] virtual Bindings::InterfaceName interface_name() const { VERIFY_NOT_REACHED(); }
+    [[nodiscard]] virtual bool implements_interface(Bindings::InterfaceName) const { return false; }
     [[nodiscard]] virtual bool implements_interface(String const&) const { return false; }
+
+    template<typename T>
+    requires(IsBaseOf<Wrappable, T> && requires { T::s_interface_name; })
+    bool fast_is() const
+    {
+        return implements_interface(T::s_interface_name);
+    }
+
+    template<typename T>
+    requires(IsBaseOf<Wrappable, T> && requires { T::s_interface_name; })
+    T* fast_as()
+    {
+        if (!fast_is<T>())
+            return nullptr;
+        return static_cast<T*>(this);
+    }
+
+    template<typename T>
+    requires(IsBaseOf<Wrappable, T> && requires { T::s_interface_name; })
+    T const* fast_as() const
+    {
+        if (!fast_is<T>())
+            return nullptr;
+        return static_cast<T const*>(this);
+    }
 
     // https://html.spec.whatwg.org/multipage/browsers.html#extract-an-origin
     // Wrappers forward PlatformObject's extract an origin operation here.

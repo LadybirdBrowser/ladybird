@@ -204,6 +204,9 @@ public:
     void set_requires_slow_add_own_property() { m_flags |= Flag::RequiresSlowAddOwnProperty; }
     void clear_requires_slow_add_own_property() { m_flags &= ~Flag::RequiresSlowAddOwnProperty; }
 
+    [[nodiscard]] bool is_platform_object() const { return m_flags & Flag::IsPlatformObject; }
+    void set_is_platform_object() { m_flags |= Flag::IsPlatformObject; }
+
     ThrowCompletionOr<bool> ordinary_set_with_own_descriptor(PropertyKey const&, Value, Value, Optional<PropertyDescriptor>, CacheableSetPropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty);
 
     // 10.4.7 Immutable Prototype Exotic Objects, https://tc39.es/ecma262/#sec-immutable-prototype-exotic-objects
@@ -430,6 +433,7 @@ private:
         static constexpr u16 IsECMAScriptFunctionObject = 1 << 6;
         static constexpr u16 IsFunction = 1 << 7;
         static constexpr u16 RequiresSlowAddOwnProperty = 1 << 8;
+        static constexpr u16 IsPlatformObject = 1 << 9;
     };
 
     u16 m_flags { Flag::IsExtensible };
