@@ -610,9 +610,9 @@ pub struct FfiCustomPropertyDeclaration {
 }
 
 /// Applies one declaration block to the cascade: filters by importance and applicability,
-/// resolves arbitrary-substitution values through the parser callback, downgrades
-/// invalid-at-computed-value-time declarations to unset, expands shorthands, and routes
-/// each longhand to the store as a set, revert, or revert-layer.
+/// consumes pre-resolved arbitrary-substitution values, downgrades invalid-at-computed-value-time
+/// declarations to unset, expands shorthands, and routes each longhand to the store as a set,
+/// revert, or revert-layer.
 #[allow(clippy::too_many_arguments)]
 fn apply_declaration_block(
     store: &mut CascadedPropertyStore,
@@ -624,10 +624,7 @@ fn apply_declaration_block(
     source_shadow_root_identity: usize,
     unset_data: *const c_void,
     is_property_disallowed: &dyn Fn(u16) -> bool,
-    resolve_unresolved: &dyn Fn(u16, *const c_void) -> FfiResolvedStyleValue,
-    parse_substituted: &dyn Fn(u16, *const c_void, &[u8]) -> FfiResolvedStyleValue,
-    custom_property_store: *const c_void,
-    custom_property_registry: *const c_void,
+    next_resolved_value: &mut impl FnMut() -> FfiResolvedStyleValue,
     mut assign_source_slot: impl FnMut(u32),
 ) {
     let mut seen = [0u64; CONTAINED_BITMAP_WORDS];
@@ -652,26 +649,9 @@ fn apply_declaration_block(
         let mut has_style_sheet_context = declaration.has_style_sheet_context;
 
         if declared_is_unresolved {
-            let native_resolution = unsafe {
-                crate::css::custom_properties::resolve_vars(custom_property_store, custom_property_registry, data)
-            };
-            match native_resolution {
-                crate::css::custom_properties::NativeVarResolution::Resolved(source) => {
-                    let resolved = parse_substituted(declaration.property_id, declaration.data, &source);
-                    data = resolved.data;
-                    has_style_sheet_context = resolved.has_style_sheet_context;
-                }
-                crate::css::custom_properties::NativeVarResolution::Invalid => {
-                    let resolved = parse_substituted(declaration.property_id, declaration.data, &[]);
-                    data = resolved.data;
-                    has_style_sheet_context = resolved.has_style_sheet_context;
-                }
-                crate::css::custom_properties::NativeVarResolution::NotHandled => {
-                    let resolved = resolve_unresolved(declaration.property_id, data);
-                    data = resolved.data;
-                    has_style_sheet_context = resolved.has_style_sheet_context;
-                }
-            }
+            let resolved = next_resolved_value();
+            data = resolved.data;
+            has_style_sheet_context = resolved.has_style_sheet_context;
         }
 
         if matches!(
@@ -811,46 +791,343 @@ pub struct FfiCascadedCustomProperty {
     pub data: *const c_void,
 }
 
-/// Callbacks for the parser-dependent parts of the bulk cascade. Values cross
-/// as shared Rust data; the C++ side pins every value it creates until the
-/// cascade returns.
+/// The custom-property winners for one cascade. `storage` owns the property
+/// array until `rust_cascaded_custom_properties_destroy` releases it.
 #[repr(C)]
-pub struct FfiBulkCascadeCallbacks {
-    pub context: *mut c_void,
-    /// Resolves borrowed Rust value data and returns pinned Rust-owned data.
-    pub resolve_unresolved:
-        unsafe extern "C" fn(context: *mut c_void, property_id: u16, data: *const c_void) -> FfiResolvedStyleValue,
-    /// Parses a substituted token stream and returns pinned Rust-owned data.
-    pub parse_substituted: unsafe extern "C" fn(
-        context: *mut c_void,
-        style_engine_rule_id: u32,
-        property_id: u16,
-        unresolved_data: *const c_void,
-        source: *const u8,
-        source_length: usize,
-    ) -> FfiResolvedStyleValue,
-    /// Receives every winning slot's source assignment in one batch.
-    pub assign_source_slots:
-        unsafe extern "C" fn(context: *mut c_void, assignments: *const FfiSourceSlotAssignment, count: usize),
-    /// Installs the complete custom-property cascade before unresolved longhands are resolved.
-    pub set_custom_properties: unsafe extern "C" fn(
-        context: *mut c_void,
-        properties: *const FfiCascadedCustomProperty,
-        count: usize,
-    ) -> *const c_void,
+pub struct FfiCascadedCustomProperties {
+    pub applies: bool,
+    pub properties: *const FfiCascadedCustomProperty,
+    pub count: usize,
+    pub storage: *mut c_void,
+}
+
+/// One parser-dependent value resolution requested before the cascade. When
+/// `parse_substituted` is false, C++ resolves `unresolved_data` directly.
+#[repr(C)]
+pub struct FfiCascadeResolutionRequest {
+    pub style_engine_rule_id: u32,
+    pub property_id: u16,
+    pub parse_substituted: bool,
+    pub unresolved_data: *const c_void,
+    pub source: *const u8,
+    pub source_length: usize,
+}
+
+/// An owned batch of parser-dependent resolution requests.
+#[repr(C)]
+pub struct FfiCascadeResolutionRequests {
+    pub requests: *const FfiCascadeResolutionRequest,
+    pub count: usize,
+    pub storage: *mut c_void,
 }
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct FfiResolvedStyleValue {
     pub data: *const c_void,
     pub has_style_sheet_context: bool,
 }
 
+/// Source assignments produced by a completed cascade.
+#[repr(C)]
+pub struct FfiCascadeResult {
+    pub source_slot_assignments: *const FfiSourceSlotAssignment,
+    pub source_slot_assignment_count: usize,
+    pub storage: *mut c_void,
+}
+
 /// Sentinel passed when cascading for an element rather than a pseudo-element.
 pub(crate) const NO_PSEUDO_ELEMENT: u8 = u8::MAX;
 
-/// Runs the whole cascade for one element in css-cascade-5 origin order over
-/// the matched declaration blocks:
+fn cascade_application_order(blocks: &[FfiCascadeBlock], author_context_count: u32) -> Vec<(usize, bool, bool)> {
+    // StyleEngine supplied rule blocks in specificity and source order within each context and
+    // layer, and C++ preserved that order while appending element-attached blocks. Partition by
+    // the remaining cascade components without re-sorting inside those groups.
+    let mut user_agent_blocks = Vec::new();
+    let mut user_blocks = Vec::new();
+    let mut presentational_hint_blocks = Vec::new();
+    let mut author_layer_blocks: Vec<Vec<usize>> = vec![Vec::new(); author_context_count as usize];
+    let mut author_inline_blocks: Vec<Option<usize>> = vec![None; author_context_count as usize];
+    for (index, block) in blocks.iter().enumerate() {
+        match block.origin {
+            CascadeOrigin::UserAgent => user_agent_blocks.push(index),
+            CascadeOrigin::User => user_blocks.push(index),
+            CascadeOrigin::AuthorPresentationalHint => presentational_hint_blocks.push(index),
+            CascadeOrigin::Author => {
+                let context_index = block.author_context_index as usize;
+                if block.is_inline_style {
+                    author_inline_blocks[context_index] = Some(index);
+                } else {
+                    author_layer_blocks[context_index].push(index);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let mut application_order: Vec<(usize, bool, bool)> = Vec::new();
+
+    // Normal user agent, user, and presentational hint declarations.
+    for &index in &user_agent_blocks {
+        application_order.push((index, false, false));
+    }
+    for &index in &user_blocks {
+        application_order.push((index, false, false));
+    }
+    for &index in &presentational_hint_blocks {
+        application_order.push((index, false, false));
+    }
+
+    // Normal author declarations, with inner contexts first so outer contexts win,
+    // layers in declaration order, and inline style after its context's layers.
+    for context_index in (0..author_context_count as usize).rev() {
+        for &index in &author_layer_blocks[context_index] {
+            application_order.push((index, false, true));
+        }
+        if let Some(index) = author_inline_blocks[context_index] {
+            application_order.push((index, false, false));
+        }
+    }
+
+    // Important author declarations, with outer contexts first so inner contexts
+    // win and layers reversed; layer names do not apply in the important pass.
+    for context_index in 0..author_context_count as usize {
+        let layer_blocks = &author_layer_blocks[context_index];
+        let mut boundaries: Vec<(u32, usize, usize)> = Vec::new();
+        for (position, &index) in layer_blocks.iter().enumerate() {
+            let layer = blocks[index].layer_index;
+            match boundaries.last_mut() {
+                Some((last_layer, _, end)) if *last_layer == layer => *end = position + 1,
+                _ => boundaries.push((layer, position, position + 1)),
+            }
+        }
+        for &(_, start, end) in boundaries.iter().rev() {
+            for &index in &layer_blocks[start..end] {
+                application_order.push((index, true, false));
+            }
+        }
+        if let Some(index) = author_inline_blocks[context_index] {
+            application_order.push((index, true, false));
+        }
+    }
+
+    // Important user and user agent declarations.
+    for &index in &user_blocks {
+        application_order.push((index, true, false));
+    }
+    for &index in &user_agent_blocks {
+        application_order.push((index, true, false));
+    }
+
+    application_order
+}
+
+/// Selects the custom-property winners before the longhand cascade so C++ can
+/// install their environment without a callback from Rust.
+///
+/// # Safety
+/// `blocks` must point at `block_count` valid blocks whose custom-property
+/// declaration lists stay live for this call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_cascade_custom_properties(
+    blocks: *const FfiCascadeBlock,
+    block_count: usize,
+    author_context_count: u32,
+    pseudo_element: u8,
+) -> FfiCascadedCustomProperties {
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadeCustomPropertyEntry);
+    abort_on_panic(|| {
+        let blocks = if block_count == 0 {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(blocks, block_count) }
+        };
+        let applies = pseudo_element == NO_PSEUDO_ELEMENT
+            || crate::css::property_metadata::pseudo_element_supports_property(
+                pseudo_element,
+                crate::css::property_metadata::property_id::CUSTOM,
+            );
+        if !applies {
+            return FfiCascadedCustomProperties {
+                applies,
+                properties: std::ptr::null(),
+                count: 0,
+                storage: std::ptr::null_mut(),
+            };
+        }
+
+        let mut property_indices = HashMap::new();
+        let mut properties: Vec<FfiCascadedCustomProperty> = Vec::new();
+        for (block_index, important, _) in cascade_application_order(blocks, author_context_count) {
+            let block = &blocks[block_index];
+            let declarations = if block.custom_property_declaration_count == 0 {
+                &[]
+            } else {
+                unsafe {
+                    std::slice::from_raw_parts(
+                        block.custom_property_declarations,
+                        block.custom_property_declaration_count,
+                    )
+                }
+            };
+            for declaration in declarations {
+                if declaration.important != important || declaration.is_revert_layer {
+                    continue;
+                }
+                let property = FfiCascadedCustomProperty {
+                    name_raw: declaration.name_raw,
+                    important,
+                    data: declaration.data,
+                };
+                if let Some(index) = property_indices.get(&declaration.name_raw) {
+                    properties[*index] = property;
+                } else {
+                    property_indices.insert(declaration.name_raw, properties.len());
+                    properties.push(property);
+                }
+            }
+        }
+
+        let properties = properties.into_boxed_slice();
+        let count = properties.len();
+        if count == 0 {
+            return FfiCascadedCustomProperties {
+                applies,
+                properties: std::ptr::null(),
+                count,
+                storage: std::ptr::null_mut(),
+            };
+        }
+        let storage = Box::into_raw(properties);
+        FfiCascadedCustomProperties {
+            applies,
+            properties: storage.cast::<FfiCascadedCustomProperty>(),
+            count,
+            storage: storage.cast(),
+        }
+    })
+}
+
+/// # Safety
+/// `storage` and `count` must come from `rust_cascade_custom_properties` and
+/// must not already have been released.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_cascaded_custom_properties_destroy(storage: *mut c_void, count: usize) {
+    if !storage.is_null() {
+        drop(unsafe {
+            Box::from_raw(std::ptr::slice_from_raw_parts_mut(
+                storage.cast::<FfiCascadedCustomProperty>(),
+                count,
+            ))
+        });
+    }
+}
+
+struct CascadeResolutionBatch {
+    requests: Vec<FfiCascadeResolutionRequest>,
+    _sources: Vec<Vec<u8>>,
+}
+
+/// Collects every parser-dependent value resolution in cascade application order. C++ resolves
+/// this batch before reentering Rust, so the cascade itself never calls back into C++.
+///
+/// # Safety
+/// `blocks` must point at `block_count` valid blocks whose declaration lists stay live for this
+/// call. `custom_property_store` and `custom_property_registry` must be null or valid stores.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_prepare_cascade_resolutions(
+    blocks: *const FfiCascadeBlock,
+    block_count: usize,
+    author_context_count: u32,
+    custom_property_store: *const c_void,
+    custom_property_registry: *const c_void,
+) -> FfiCascadeResolutionRequests {
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadeResolutionEntry);
+    abort_on_panic(|| {
+        let blocks = if block_count == 0 {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(blocks, block_count) }
+        };
+        let mut requests = Vec::new();
+        let mut sources = Vec::new();
+        for (block_index, important, _) in cascade_application_order(blocks, author_context_count) {
+            let block = &blocks[block_index];
+            let declarations = if block.declaration_count == 0 {
+                &[]
+            } else {
+                unsafe { std::slice::from_raw_parts(block.declarations, block.declaration_count) }
+            };
+            for declaration in declarations {
+                if declaration.important != important {
+                    continue;
+                }
+                let value = unsafe { &*declaration.data.cast::<StyleValueData>() };
+                if !matches!(value, StyleValueData::Unresolved { .. }) {
+                    continue;
+                }
+                let native_resolution = unsafe {
+                    crate::css::custom_properties::resolve_vars(
+                        custom_property_store,
+                        custom_property_registry,
+                        declaration.data,
+                    )
+                };
+                let (parse_substituted, source) = match native_resolution {
+                    crate::css::custom_properties::NativeVarResolution::Resolved(source) => (true, source),
+                    crate::css::custom_properties::NativeVarResolution::Invalid => (true, Vec::new()),
+                    crate::css::custom_properties::NativeVarResolution::NotHandled => (false, Vec::new()),
+                };
+                crate::css::ffi_stats::bump(if parse_substituted {
+                    crate::css::ffi_stats::FfiOp::CascadeNativeSubstitutionRequest
+                } else {
+                    crate::css::ffi_stats::FfiOp::CascadeCppResolutionRequest
+                });
+                sources.push(source);
+                let source = sources.last().expect("new cascade resolution source");
+                requests.push(FfiCascadeResolutionRequest {
+                    style_engine_rule_id: block.style_engine_rule_id,
+                    property_id: declaration.property_id,
+                    parse_substituted,
+                    unresolved_data: declaration.data,
+                    source: source.as_ptr(),
+                    source_length: source.len(),
+                });
+            }
+        }
+        if requests.is_empty() {
+            return FfiCascadeResolutionRequests {
+                requests: std::ptr::null(),
+                count: 0,
+                storage: std::ptr::null_mut(),
+            };
+        }
+        let storage = Box::new(CascadeResolutionBatch {
+            requests,
+            _sources: sources,
+        });
+        let requests = storage.requests.as_ptr();
+        let count = storage.requests.len();
+        let storage = Box::into_raw(storage).cast();
+        FfiCascadeResolutionRequests {
+            requests,
+            count,
+            storage,
+        }
+    })
+}
+
+/// # Safety
+/// `storage` must be null or a live pointer returned by `rust_prepare_cascade_resolutions`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_cascade_resolution_requests_destroy(storage: *mut c_void) {
+    if !storage.is_null() {
+        drop(unsafe { Box::from_raw(storage.cast::<CascadeResolutionBatch>()) });
+    }
+}
+
+/// Runs the longhand cascade for one element in css-cascade-5 origin order
+/// over the matched declaration blocks:
 ///
 /// https://drafts.csswg.org/css-cascade-5/#cascade-origin
 /// Declarations are applied lowest priority first, so that later
@@ -865,7 +1142,8 @@ pub(crate) const NO_PSEUDO_ELEMENT: u8 = u8::MAX;
 /// # Safety
 /// `store` must be a valid store, `blocks` must point at `block_count` valid
 /// blocks whose declaration lists and layer names stay live for the call,
-/// and `callbacks` must be a valid callback table.
+/// and `resolved_values` must contain `resolved_value_count` live values in
+/// the order requested by `rust_prepare_cascade_resolutions`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_cascade_matched_blocks(
     store: *mut CascadedPropertyStore,
@@ -873,147 +1151,29 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
     block_count: usize,
     author_context_count: u32,
     pseudo_element: u8,
-    custom_property_registry: *const c_void,
     unset_data: *const c_void,
-    callbacks: *const FfiBulkCascadeCallbacks,
-) {
+    resolved_values: *const FfiResolvedStyleValue,
+    resolved_value_count: usize,
+) -> FfiCascadeResult {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadeBulkEntry);
     abort_on_panic(|| {
         let store = unsafe { &mut *store };
-        let callbacks = unsafe { &*callbacks };
-        let context = callbacks.context;
         let blocks = if block_count == 0 {
             &[]
         } else {
             unsafe { std::slice::from_raw_parts(blocks, block_count) }
         };
+        let resolved_values = if resolved_value_count == 0 {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(resolved_values, resolved_value_count) }
+        };
 
-        // StyleEngine supplied rule blocks in specificity and source order within each context and
-        // layer, and C++ preserved that order while appending element-attached blocks. Partition by
-        // the remaining cascade components without re-sorting inside those groups.
-        let mut user_agent_blocks = Vec::new();
-        let mut user_blocks = Vec::new();
-        let mut presentational_hint_blocks = Vec::new();
-        let mut author_layer_blocks: Vec<Vec<usize>> = vec![Vec::new(); author_context_count as usize];
-        let mut author_inline_blocks: Vec<Option<usize>> = vec![None; author_context_count as usize];
-        for (index, block) in blocks.iter().enumerate() {
-            match block.origin {
-                CascadeOrigin::UserAgent => user_agent_blocks.push(index),
-                CascadeOrigin::User => user_blocks.push(index),
-                CascadeOrigin::AuthorPresentationalHint => presentational_hint_blocks.push(index),
-                CascadeOrigin::Author => {
-                    let context_index = block.author_context_index as usize;
-                    if block.is_inline_style {
-                        author_inline_blocks[context_index] = Some(index);
-                    } else {
-                        author_layer_blocks[context_index].push(index);
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        let mut application_order: Vec<(usize, bool, bool)> = Vec::new();
-
-        // Normal user agent, user, and presentational hint declarations.
-        for &index in &user_agent_blocks {
-            application_order.push((index, false, false));
-        }
-        for &index in &user_blocks {
-            application_order.push((index, false, false));
-        }
-        for &index in &presentational_hint_blocks {
-            application_order.push((index, false, false));
-        }
-
-        // Normal author declarations, with inner contexts first so outer contexts win,
-        // layers in declaration order, and inline style after its context's layers.
-        for context_index in (0..author_context_count as usize).rev() {
-            for &index in &author_layer_blocks[context_index] {
-                application_order.push((index, false, true));
-            }
-            if let Some(index) = author_inline_blocks[context_index] {
-                application_order.push((index, false, false));
-            }
-        }
-
-        // Important author declarations, with outer contexts first so inner contexts
-        // win and layers reversed; layer names do not apply in the important pass.
-        for context_index in 0..author_context_count as usize {
-            let layer_blocks = &author_layer_blocks[context_index];
-            let mut boundaries: Vec<(u32, usize, usize)> = Vec::new();
-            for (position, &index) in layer_blocks.iter().enumerate() {
-                let layer = blocks[index].layer_index;
-                match boundaries.last_mut() {
-                    Some((last_layer, _, end)) if *last_layer == layer => *end = position + 1,
-                    _ => boundaries.push((layer, position, position + 1)),
-                }
-            }
-            for &(_, start, end) in boundaries.iter().rev() {
-                for &index in &layer_blocks[start..end] {
-                    application_order.push((index, true, false));
-                }
-            }
-            if let Some(index) = author_inline_blocks[context_index] {
-                application_order.push((index, true, false));
-            }
-        }
-
-        // Important user and user agent declarations.
-        for &index in &user_blocks {
-            application_order.push((index, true, false));
-        }
-        for &index in &user_agent_blocks {
-            application_order.push((index, true, false));
-        }
-
+        let application_order = cascade_application_order(blocks, author_context_count);
         let has_pseudo_element = pseudo_element != NO_PSEUDO_ELEMENT;
-        let cascade_custom_properties = !has_pseudo_element
-            || crate::css::property_metadata::pseudo_element_supports_property(
-                pseudo_element,
-                crate::css::property_metadata::property_id::CUSTOM,
-            );
-        let mut custom_property_store = std::ptr::null();
-        if cascade_custom_properties {
-            let mut custom_property_indices = HashMap::new();
-            let mut custom_properties: Vec<FfiCascadedCustomProperty> = Vec::new();
-            for &(block_index, important, _) in &application_order {
-                let block = &blocks[block_index];
-                let declarations = if block.custom_property_declaration_count == 0 {
-                    &[]
-                } else {
-                    unsafe {
-                        std::slice::from_raw_parts(
-                            block.custom_property_declarations,
-                            block.custom_property_declaration_count,
-                        )
-                    }
-                };
-                for declaration in declarations {
-                    if declaration.important != important || declaration.is_revert_layer {
-                        continue;
-                    }
-                    let property = FfiCascadedCustomProperty {
-                        name_raw: declaration.name_raw,
-                        important,
-                        data: declaration.data,
-                    };
-                    if let Some(index) = custom_property_indices.get(&declaration.name_raw) {
-                        custom_properties[*index] = property;
-                    } else {
-                        custom_property_indices.insert(declaration.name_raw, custom_properties.len());
-                        custom_properties.push(property);
-                    }
-                }
-            }
-            crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::CascadeCustomPropertyBatchCallback);
-            unsafe {
-                custom_property_store =
-                    (callbacks.set_custom_properties)(context, custom_properties.as_ptr(), custom_properties.len());
-            }
-        }
 
         let mut source_slot_assignments: Vec<FfiSourceSlotAssignment> = Vec::new();
+        let mut resolved_value_index = 0;
 
         let mut apply = |block_index: usize, important: bool, use_layer_name: bool| {
             let block = &blocks[block_index];
@@ -1038,29 +1198,13 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                 block.source_shadow_root_identity,
                 unset_data,
                 &is_property_disallowed,
-                &|property_id, data| {
-                    crate::css::ffi_stats::bump_cpp_callback(
-                        crate::css::ffi_stats::FfiOp::CascadeResolveUnresolvedCallback,
-                    );
-                    unsafe { (callbacks.resolve_unresolved)(context, property_id, data) }
+                &mut || {
+                    let resolved = *resolved_values
+                        .get(resolved_value_index)
+                        .expect("missing prepared cascade resolution");
+                    resolved_value_index += 1;
+                    resolved
                 },
-                &|property_id, unresolved_data, source| {
-                    crate::css::ffi_stats::bump_cpp_callback(
-                        crate::css::ffi_stats::FfiOp::CascadeParseSubstitutedCallback,
-                    );
-                    unsafe {
-                        (callbacks.parse_substituted)(
-                            context,
-                            block.style_engine_rule_id,
-                            property_id,
-                            unresolved_data,
-                            source.as_ptr(),
-                            source.len(),
-                        )
-                    }
-                },
-                custom_property_store,
-                custom_property_registry,
                 |slot| {
                     source_slot_assignments.push(FfiSourceSlotAssignment {
                         slot,
@@ -1073,18 +1217,39 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
         for &(block_index, important, use_layer_name) in &application_order {
             apply(block_index, important, use_layer_name);
         }
+        assert_eq!(resolved_value_index, resolved_values.len());
 
-        if !source_slot_assignments.is_empty() {
-            crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::CascadeSourceSlotCallback);
-            unsafe {
-                (callbacks.assign_source_slots)(
-                    context,
-                    source_slot_assignments.as_ptr(),
-                    source_slot_assignments.len(),
-                );
+        if source_slot_assignments.is_empty() {
+            return FfiCascadeResult {
+                source_slot_assignments: std::ptr::null(),
+                source_slot_assignment_count: 0,
+                storage: std::ptr::null_mut(),
             };
         }
-    });
+        let source_slot_assignments = source_slot_assignments.into_boxed_slice();
+        let source_slot_assignment_count = source_slot_assignments.len();
+        let storage = Box::into_raw(source_slot_assignments);
+        FfiCascadeResult {
+            source_slot_assignments: storage.cast::<FfiSourceSlotAssignment>(),
+            source_slot_assignment_count,
+            storage: storage.cast(),
+        }
+    })
+}
+
+/// # Safety
+/// `storage` and `count` must come from `rust_cascade_matched_blocks` and must not already have
+/// been released.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_cascade_result_destroy(storage: *mut c_void, count: usize) {
+    if !storage.is_null() {
+        drop(unsafe {
+            Box::from_raw(std::ptr::slice_from_raw_parts_mut(
+                storage.cast::<FfiSourceSlotAssignment>(),
+                count,
+            ))
+        });
+    }
 }
 
 #[cfg(test)]

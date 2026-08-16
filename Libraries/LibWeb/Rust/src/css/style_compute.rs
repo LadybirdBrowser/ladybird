@@ -4231,12 +4231,17 @@ fn property_affects_font_metrics(property_id: u16) -> bool {
         || property_id == crate::css::property_metadata::property_id::LINE_HEIGHT
 }
 
-/// Callback for each longhand produced by shorthand expansion. Values are
-/// borrowed shared Rust data handles valid for the duration of the call.
 #[repr(C)]
-pub struct FfiShorthandExpansionCallbacks {
-    pub context: *mut c_void,
-    pub set_longhand_property: unsafe extern "C" fn(context: *mut c_void, property_id: u16, data: *const c_void),
+pub struct FfiExpandedProperty {
+    pub property_id: u16,
+    pub data: *const c_void,
+}
+
+#[repr(C)]
+pub struct FfiShorthandExpansion {
+    pub properties: *const FfiExpandedProperty,
+    pub count: usize,
+    pub storage: *mut c_void,
 }
 
 pub(crate) fn value_is_css_wide_keyword(value: &StyleValueData) -> bool {
@@ -4313,28 +4318,60 @@ pub(crate) fn expand_shorthands_with<Sink>(
     sink(property_id, data, has_style_sheet_context);
 }
 
-fn expand_shorthands(callbacks: &FfiShorthandExpansionCallbacks, property_id: u16, data: *const c_void) {
-    let context = callbacks.context;
-    expand_shorthands_with(property_id, data, false, &mut |longhand_id, longhand_data, _| {
-        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::ShorthandSetLonghandCallback);
-        unsafe { (callbacks.set_longhand_property)(context, longhand_id, longhand_data) };
-    });
+struct ShorthandExpansion {
+    properties: Vec<FfiExpandedProperty>,
+    _values: Vec<RetainedStyleValueData>,
 }
 
-/// Expands a declared property into longhand assignments, recursing through
+fn expand_shorthands(property_id: u16, data: *const c_void) -> ShorthandExpansion {
+    let mut properties = Vec::new();
+    let mut values = Vec::new();
+    expand_shorthands_with(property_id, data, false, &mut |longhand_id, longhand_data, _| {
+        let value = unsafe {
+            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(
+                longhand_data.cast(),
+            ))
+        };
+        properties.push(FfiExpandedProperty {
+            property_id: longhand_id,
+            data: value.pointer().cast(),
+        });
+        values.push(value);
+    });
+    ShorthandExpansion {
+        properties,
+        _values: values,
+    }
+}
+
+/// Expands a declared property into one owned batch of longhand assignments, recursing through
 /// shorthand and pending-substitution values.
 ///
 /// # Safety
-/// `callbacks` must be a valid callback table and `data` valid Rust-owned
-/// style value data.
+/// `data` must point to live Rust-owned style value data.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_for_each_property_expanding_shorthands(
-    callbacks: *const FfiShorthandExpansionCallbacks,
+pub unsafe extern "C" fn rust_expand_property_shorthands(
     property_id: u16,
     data: *const c_void,
-) {
+) -> FfiShorthandExpansion {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::ShorthandExpansionEntry);
-    abort_on_panic(|| expand_shorthands(unsafe { &*callbacks }, property_id, data));
+    abort_on_panic(|| {
+        let expansion = Box::new(expand_shorthands(property_id, data));
+        let properties = expansion.properties.as_ptr();
+        let count = expansion.properties.len();
+        FfiShorthandExpansion {
+            properties,
+            count,
+            storage: Box::into_raw(expansion).cast(),
+        }
+    })
+}
+
+/// # Safety
+/// `storage` must be a live pointer returned by `rust_expand_property_shorthands`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_shorthand_expansion_destroy(storage: *mut c_void) {
+    abort_on_panic(|| drop(unsafe { Box::from_raw(storage.cast::<ShorthandExpansion>()) }));
 }
 
 pub(crate) fn display_is_none(raw: u32) -> bool {

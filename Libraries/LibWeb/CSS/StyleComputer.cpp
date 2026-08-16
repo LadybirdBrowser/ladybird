@@ -389,23 +389,21 @@ static u64 pseudo_element_style_bit(PseudoElement pseudo_element)
 void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_id, StyleValue const& value, Function<void(PropertyID, StyleValue const&)> const& set_longhand_property)
 {
     // The expansion recursion and pending-substitution values live in the Rust style value graph.
-    // This wrapper creates C++ facades only for the longhand roots requested by the callback.
-    struct ExpansionContext {
-        Function<void(PropertyID, StyleValue const&)> const& set_longhand_property;
-        HashMap<void const*, NonnullRefPtr<StyleValue const>> wrapper_cache;
-    } expansion_context { set_longhand_property, {} };
-
-    ComputedValuesFFI::FfiShorthandExpansionCallbacks const callbacks {
-        .context = &expansion_context,
-        .set_longhand_property = [](void* context, u16 property_id, void const* data) {
-            auto& expansion_context = *static_cast<ExpansionContext*>(context);
-            auto& value = expansion_context.wrapper_cache.ensure(data, [&] {
-                return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-                    static_cast<StyleValueFFI::StyleValueData const*>(data)));
-            });
-            expansion_context.set_longhand_property(static_cast<PropertyID>(property_id), *value); },
+    // This wrapper creates C++ facades only for the returned longhand roots.
+    auto expansion = ComputedValuesFFI::rust_expand_property_shorthands(
+        to_underlying(property_id), value.rust_style_value_data());
+    ScopeGuard destroy_expansion = [&] {
+        ComputedValuesFFI::rust_shorthand_expansion_destroy(expansion.storage);
     };
-    ComputedValuesFFI::rust_for_each_property_expanding_shorthands(&callbacks, to_underlying(property_id), value.rust_style_value_data());
+    HashMap<void const*, NonnullRefPtr<StyleValue const>> wrapper_cache;
+    for (size_t i = 0; i < expansion.count; ++i) {
+        auto const& property = expansion.properties[i];
+        auto& expanded_value = wrapper_cache.ensure(property.data, [&] {
+            return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+                static_cast<StyleValueFFI::StyleValueData const*>(property.data)));
+        });
+        set_longhand_property(static_cast<PropertyID>(property.property_id), *expanded_value);
+    }
 }
 
 static RefPtr<CustomPropertyData const> inheritable_custom_property_data(DOM::AbstractElement abstract_element)
@@ -890,9 +888,6 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         };
     };
 
-    struct AnimationEvaluationContext {
-        decltype(compute_animation_values)& compute_values;
-    } evaluation_context { compute_animation_values };
     StyleValueFFI::FfiAnimationBatch batch {
         .declarations = ffi_declarations.data(),
         .declaration_count = ffi_declarations.size(),
@@ -901,13 +896,16 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         .important_property_bitmap = important_property_bitmap.data(),
         .important_property_bitmap_length = important_property_bitmap.size(),
     };
-    StyleValueFFI::FfiAnimationCallbacks callbacks {
-        .context = &evaluation_context,
-        .compute_values = [](void* context, StyleValueFFI::FfiResolvedAnimationProperty const* properties, size_t property_count) {
-            auto& evaluation_context = *static_cast<AnimationEvaluationContext*>(context);
-            return evaluation_context.compute_values(ReadonlySpan<StyleValueFFI::FfiResolvedAnimationProperty> { properties, property_count }); },
+    auto resolved_properties = StyleValueFFI::rust_resolve_animation_declarations(&batch);
+    ScopeGuard destroy_resolved_properties = [&] {
+        StyleValueFFI::rust_resolved_animation_properties_destroy(resolved_properties.storage);
     };
-    auto result_count = StyleValueFFI::rust_evaluate_animations(&batch, &callbacks);
+    StyleValueFFI::FfiComputedAnimationBatch computed_batch {};
+    if (resolved_properties.count > 0) {
+        computed_batch = compute_animation_values(ReadonlySpan<StyleValueFFI::FfiResolvedAnimationProperty> {
+            resolved_properties.properties, resolved_properties.count });
+    }
+    auto result_count = StyleValueFFI::rust_evaluate_animations(&computed_batch);
     VERIFY(result_count == prepared_values.size());
     VERIFY(result_count == ffi_results.size());
     for (size_t index = 0; index < result_count; ++index) {
@@ -2667,165 +2665,193 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
     // The cascade only reads this value's data pointer, so mint a bare Rust handle instead of a wrapper.
     RustStyleValueHandle const unset_value { StyleValueFFI::rust_style_value_create_keyword(to_underlying(Keyword::Unset)) };
 
-    ComputedValuesFFI::FfiBulkCascadeCallbacks const callbacks {
-        .context = &bulk_context,
-        .resolve_unresolved = [](void* context, u16 property_id, void const* data) -> ComputedValuesFFI::FfiResolvedStyleValue {
-            auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
-            auto unresolved = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-                static_cast<StyleValueFFI::StyleValueData const*>(data)));
-            auto resolved = Parser::Parser::resolve_unresolved_style_value(
-                Parser::ParsingParams { bulk_context.abstract_element.document() },
-                bulk_context.abstract_element,
-                {},
-                PropertyNameAndID::from_id(static_cast<PropertyID>(property_id)),
-                unresolved->as_unresolved());
-            ComputedValuesFFI::FfiResolvedStyleValue result {
-                .data = resolved->rust_style_value_data(),
-                .has_style_sheet_context = resolved->has_style_sheet_context(),
-            };
-            bulk_context.pinned_values.append(move(resolved));
-            return result;
-        },
-        .parse_substituted = [](void* context, u32 style_engine_rule_id, u16 property_id, void const* unresolved_data, u8 const* source, size_t source_length) -> ComputedValuesFFI::FfiResolvedStyleValue {
-            auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
-            bulk_context.abstract_element.element().set_style_uses_var_css_function();
-            auto unresolved = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-                static_cast<StyleValueFFI::StyleValueData const*>(unresolved_data)));
-            auto const& scan = bulk_context.abstract_element.document().style_computer().custom_property_reference_scan(unresolved);
-            for (auto const& name : scan.references)
-                bulk_context.abstract_element.element().record_style_custom_property_reference(name);
-            auto& document = bulk_context.abstract_element.document();
-            auto& style_computer = document.style_computer();
-            auto property = static_cast<PropertyID>(property_id);
-            auto registration_generation = document.custom_property_registration_generation();
-            if (registration_generation != style_computer.m_parsed_substitution_registration_generation) {
-                style_computer.m_parsed_substitutions.clear();
-                style_computer.m_parsed_substitution_registration_generation = registration_generation;
-                style_computer.settle_parsed_substitution_cache();
+    auto install_custom_properties = [&](ComputedValuesFFI::FfiCascadedCustomProperty const* properties, size_t count) -> void const* {
+        auto& document = bulk_context.abstract_element.element().document();
+        auto& style_computer = document.style_computer();
+
+        RefPtr<CustomPropertyData const> parent_data;
+        auto inherit_from = bulk_context.abstract_element.element_to_inherit_style_from();
+        if (inherit_from.has_value())
+            parent_data = inheritable_custom_property_data(*inherit_from);
+
+        // OPTIMIZATION: The declarations below name the whole answer, together with what the
+        //               element inherits and which names are registered, so an element handed the
+        //               same list against the same environment gets the same one back.
+        auto& key = style_computer.m_cascaded_custom_property_key_scratch;
+        key.clear_with_capacity();
+        key.append(bit_cast<FlatPtr>(parent_data.ptr()));
+        key.append(document.custom_property_registration_generation());
+        for (size_t i = 0; i < count; ++i) {
+            key.append(properties[i].name_raw);
+            key.append(bit_cast<FlatPtr>(properties[i].data));
+            key.append(properties[i].important ? 1 : 0);
+        }
+        Fnv1a64 key_hash;
+        for (auto word : key)
+            key_hash.add(word);
+        auto apply_environment = [&](RefPtr<CustomPropertyData const> const& result) -> void const* {
+            if (!result || result == parent_data) {
+                bulk_context.abstract_element.set_custom_property_data(result);
+            } else {
+                bulk_context.abstract_element.set_custom_property_data(custom_property_data_keeping_identity(
+                    document, bulk_context.abstract_element.custom_property_data(), result));
             }
-            if (style_engine_rule_id != 0) {
-                auto& cache = style_computer.m_parsed_substitutions.ensure(StyleEngineRuleID { style_engine_rule_id });
-                for (auto const& entry : cache) {
-                    if (entry.custom_property_environment_identity != bulk_context.custom_property_environment_identity
-                        || entry.registration_generation != registration_generation
-                        || entry.property_id != property)
-                        continue;
-                    NonnullRefPtr<StyleValue const> resolved = entry.parsed->is_shorthand()
-                        ? StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_clone_for_substitution(entry.parsed->rust_style_value_data()))
-                        : entry.parsed;
-                    ComputedValuesFFI::FfiResolvedStyleValue result {
-                        .data = resolved->rust_style_value_data(),
-                        .has_style_sheet_context = resolved->has_style_sheet_context(),
-                    };
-                    bulk_context.pinned_values.append(move(resolved));
-                    return result;
-                }
-            }
-            ++document.style_invalidation_counters().substitution_value_parses;
-            auto parsed = parse_css_value(
-                Parser::ParsingParams { document },
-                StringView { reinterpret_cast<char const*>(source), source_length },
-                property);
-            NonnullRefPtr<StyleValue const> parsed_value = parsed
-                ? parsed.release_nonnull()
-                : GuaranteedInvalidStyleValue::create();
-            if (style_engine_rule_id != 0) {
-                style_computer.m_parsed_substitutions.ensure(StyleEngineRuleID { style_engine_rule_id }).append({
-                    .custom_property_environment_identity = bulk_context.custom_property_environment_identity,
-                    .registration_generation = registration_generation,
-                    .property_id = property,
-                    .parsed = parsed_value,
+            auto custom_property_data = bulk_context.abstract_element.custom_property_data();
+            bulk_context.custom_property_environment_identity = custom_property_data ? custom_property_data->identity() : 0;
+            return custom_property_data ? custom_property_data->rust_store() : nullptr;
+        };
+        auto& memo_bucket = style_computer.m_cascaded_custom_property_environments.ensure(key_hash.value());
+        for (auto const& entry : memo_bucket) {
+            if (entry.key == key)
+                return apply_environment(entry.result);
+        }
+
+        OrderedHashMap<Utf16FlyString, StyleProperty> cascaded_all;
+        cascaded_all.ensure_capacity(count);
+        for (size_t i = 0; i < count; ++i) {
+            auto const& property = properties[i];
+            auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+                static_cast<StyleValueFFI::StyleValueData const*>(property.data)));
+            cascaded_all.set(
+                Utf16FlyString::from_raw(property.name_raw),
+                StyleProperty {
+                    .important = property.important ? Important::Yes : Important::No,
+                    .property_id = PropertyID::Custom,
+                    .value = move(value),
                 });
-                style_computer.settle_parsed_substitution_cache();
-            }
-            ComputedValuesFFI::FfiResolvedStyleValue result {
-                .data = parsed_value->rust_style_value_data(),
-                .has_style_sheet_context = parsed_value->has_style_sheet_context(),
-            };
-            bulk_context.pinned_values.append(move(parsed_value));
-            return result;
-        },
-        .assign_source_slots = [](void* context, ComputedValuesFFI::FfiSourceSlotAssignment const* assignments, size_t count) {
-            auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
-            for (size_t i = 0; i < count; ++i) {
-                auto const& source = bulk_context.block_sources[assignments[i].source_id];
-                bulk_context.cascaded_properties.assign_source_slot(assignments[i].slot, source.source, source.source_shadow_root);
-            } },
-        .set_custom_properties = [](void* context, ComputedValuesFFI::FfiCascadedCustomProperty const* properties, size_t count) -> void const* {
-            auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
-            auto& document = bulk_context.abstract_element.element().document();
-            auto& style_computer = document.style_computer();
+        }
 
-            RefPtr<CustomPropertyData const> parent_data;
-            auto inherit_from = bulk_context.abstract_element.element_to_inherit_style_from();
-            if (inherit_from.has_value())
-                parent_data = inheritable_custom_property_data(*inherit_from);
-
-            // OPTIMIZATION: The declarations below name the whole answer, together with what the
-            //               element inherits and which names are registered, so an element handed the
-            //               same list against the same environment gets the same one back.
-            auto& key = style_computer.m_cascaded_custom_property_key_scratch;
-            key.clear_with_capacity();
-            key.append(bit_cast<FlatPtr>(parent_data.ptr()));
-            key.append(document.custom_property_registration_generation());
-            for (size_t i = 0; i < count; ++i) {
-                key.append(properties[i].name_raw);
-                key.append(bit_cast<FlatPtr>(properties[i].data));
-                key.append(properties[i].important ? 1 : 0);
+        OrderedHashMap<Utf16FlyString, StyleProperty> cascaded_own;
+        for (auto& [name, property] : cascaded_all) {
+            if (parent_data) {
+                auto const* parent_property = parent_data->get(name);
+                if (parent_property && parent_property->value->rust_style_value_data() == property.value->rust_style_value_data())
+                    continue;
             }
-            Fnv1a64 key_hash;
-            for (auto word : key)
-                key_hash.add(word);
-            auto apply_environment = [&](RefPtr<CustomPropertyData const> const& result) -> void const* {
-                if (!result || result == parent_data) {
-                    bulk_context.abstract_element.set_custom_property_data(result);
-                } else {
-                    bulk_context.abstract_element.set_custom_property_data(custom_property_data_keeping_identity(
-                        document, bulk_context.abstract_element.custom_property_data(), result));
-                }
-                auto custom_property_data = bulk_context.abstract_element.custom_property_data();
-                bulk_context.custom_property_environment_identity = custom_property_data ? custom_property_data->identity() : 0;
-                return custom_property_data ? custom_property_data->rust_store() : nullptr;
-            };
-            auto& memo_bucket = style_computer.m_cascaded_custom_property_environments.ensure(key_hash.value());
-            for (auto const& entry : memo_bucket) {
-                if (entry.key == key)
-                    return apply_environment(entry.result);
-            }
+            cascaded_own.set(name, move(property));
+        }
 
-            OrderedHashMap<Utf16FlyString, StyleProperty> cascaded_all;
-            cascaded_all.ensure_capacity(count);
-            for (size_t i = 0; i < count; ++i) {
-                auto const& property = properties[i];
-                auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-                    static_cast<StyleValueFFI::StyleValueData const*>(property.data)));
-                cascaded_all.set(
-                    Utf16FlyString::from_raw(property.name_raw),
-                    StyleProperty {
-                        .important = property.important ? Important::Yes : Important::No,
-                        .property_id = PropertyID::Custom,
-                        .value = move(value),
-                    });
-            }
+        RefPtr<CustomPropertyData const> resolved;
+        if (cascaded_own.is_empty())
+            resolved = parent_data;
+        else
+            resolved = style_computer.intern_custom_property_data(CustomPropertyData::create(move(cascaded_own), parent_data));
+        style_computer.m_cascaded_custom_property_environments.ensure(key_hash.value()).append({ key, parent_data, resolved });
+        return apply_environment(resolved);
+    };
 
-            OrderedHashMap<Utf16FlyString, StyleProperty> cascaded_own;
-            for (auto& [name, property] : cascaded_all) {
-                if (parent_data) {
-                    auto const* parent_property = parent_data->get(name);
-                    if (parent_property && parent_property->value->rust_style_value_data() == property.value->rust_style_value_data())
-                        continue;
-                }
-                cascaded_own.set(name, move(property));
-            }
+    auto cascaded_custom_properties = ComputedValuesFFI::rust_cascade_custom_properties(
+        blocks.data(),
+        blocks.size(),
+        cascade_input.author_context_count,
+        pseudo_element_to_ffi(abstract_element.pseudo_element()));
+    ScopeGuard destroy_cascaded_custom_properties = [&] {
+        ComputedValuesFFI::rust_cascaded_custom_properties_destroy(
+            cascaded_custom_properties.storage, cascaded_custom_properties.count);
+    };
+    void const* custom_property_store = nullptr;
+    if (cascaded_custom_properties.applies)
+        custom_property_store = install_custom_properties(cascaded_custom_properties.properties, cascaded_custom_properties.count);
 
-            RefPtr<CustomPropertyData const> resolved;
-            if (cascaded_own.is_empty())
-                resolved = parent_data;
-            else
-                resolved = style_computer.intern_custom_property_data(CustomPropertyData::create(move(cascaded_own), parent_data));
-            style_computer.m_cascaded_custom_property_environments.ensure(key_hash.value()).append({ key, parent_data, resolved });
-            return apply_environment(resolved);
-        },
+    auto resolve_unresolved = [&](u16 property_id, void const* data) {
+        auto unresolved = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+            static_cast<StyleValueFFI::StyleValueData const*>(data)));
+        auto resolved = Parser::Parser::resolve_unresolved_style_value(
+            Parser::ParsingParams { bulk_context.abstract_element.document() },
+            bulk_context.abstract_element,
+            {},
+            PropertyNameAndID::from_id(static_cast<PropertyID>(property_id)),
+            unresolved->as_unresolved());
+        ComputedValuesFFI::FfiResolvedStyleValue result {
+            .data = resolved->rust_style_value_data(),
+            .has_style_sheet_context = resolved->has_style_sheet_context(),
+        };
+        bulk_context.pinned_values.append(move(resolved));
+        return result;
+    };
+
+    auto parse_substituted = [&](u32 style_engine_rule_id, u16 property_id, void const* unresolved_data, u8 const* source, size_t source_length) {
+        bulk_context.abstract_element.element().set_style_uses_var_css_function();
+        auto unresolved = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+            static_cast<StyleValueFFI::StyleValueData const*>(unresolved_data)));
+        auto const& scan = bulk_context.abstract_element.document().style_computer().custom_property_reference_scan(unresolved);
+        for (auto const& name : scan.references)
+            bulk_context.abstract_element.element().record_style_custom_property_reference(name);
+        auto& document = bulk_context.abstract_element.document();
+        auto& style_computer = document.style_computer();
+        auto property = static_cast<PropertyID>(property_id);
+        auto registration_generation = document.custom_property_registration_generation();
+        if (registration_generation != style_computer.m_parsed_substitution_registration_generation) {
+            style_computer.m_parsed_substitutions.clear();
+            style_computer.m_parsed_substitution_registration_generation = registration_generation;
+            style_computer.settle_parsed_substitution_cache();
+        }
+        if (style_engine_rule_id != 0) {
+            auto& cache = style_computer.m_parsed_substitutions.ensure(StyleEngineRuleID { style_engine_rule_id });
+            for (auto const& entry : cache) {
+                if (entry.custom_property_environment_identity != bulk_context.custom_property_environment_identity
+                    || entry.registration_generation != registration_generation
+                    || entry.property_id != property)
+                    continue;
+                NonnullRefPtr<StyleValue const> resolved = entry.parsed->is_shorthand()
+                    ? StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_clone_for_substitution(entry.parsed->rust_style_value_data()))
+                    : entry.parsed;
+                ComputedValuesFFI::FfiResolvedStyleValue result {
+                    .data = resolved->rust_style_value_data(),
+                    .has_style_sheet_context = resolved->has_style_sheet_context(),
+                };
+                bulk_context.pinned_values.append(move(resolved));
+                return result;
+            }
+        }
+        ++document.style_invalidation_counters().substitution_value_parses;
+        auto parsed = parse_css_value(
+            Parser::ParsingParams { document },
+            StringView { reinterpret_cast<char const*>(source), source_length },
+            property);
+        NonnullRefPtr<StyleValue const> parsed_value = parsed
+            ? parsed.release_nonnull()
+            : GuaranteedInvalidStyleValue::create();
+        if (style_engine_rule_id != 0) {
+            style_computer.m_parsed_substitutions.ensure(StyleEngineRuleID { style_engine_rule_id }).append({
+                .custom_property_environment_identity = bulk_context.custom_property_environment_identity,
+                .registration_generation = registration_generation,
+                .property_id = property,
+                .parsed = parsed_value,
+            });
+            style_computer.settle_parsed_substitution_cache();
+        }
+        ComputedValuesFFI::FfiResolvedStyleValue result {
+            .data = parsed_value->rust_style_value_data(),
+            .has_style_sheet_context = parsed_value->has_style_sheet_context(),
+        };
+        bulk_context.pinned_values.append(move(parsed_value));
+        return result;
+    };
+
+    auto resolution_requests = ComputedValuesFFI::rust_prepare_cascade_resolutions(
+        blocks.data(),
+        blocks.size(),
+        cascade_input.author_context_count,
+        custom_property_store,
+        abstract_element.document().rust_custom_property_registry());
+    ScopeGuard destroy_resolution_requests = [&] {
+        ComputedValuesFFI::rust_cascade_resolution_requests_destroy(resolution_requests.storage);
+    };
+    Vector<ComputedValuesFFI::FfiResolvedStyleValue> resolved_values;
+    resolved_values.ensure_capacity(resolution_requests.count);
+    for (size_t i = 0; i < resolution_requests.count; ++i) {
+        auto const& request = resolution_requests.requests[i];
+        resolved_values.unchecked_append(request.parse_substituted
+                ? parse_substituted(request.style_engine_rule_id, request.property_id, request.unresolved_data, request.source, request.source_length)
+                : resolve_unresolved(request.property_id, request.unresolved_data));
+    }
+
+    auto assign_source_slots = [&](ComputedValuesFFI::FfiSourceSlotAssignment const* assignments, size_t count) {
+        for (size_t i = 0; i < count; ++i) {
+            auto const& source = bulk_context.block_sources[assignments[i].source_id];
+            bulk_context.cascaded_properties.assign_source_slot(assignments[i].slot, source.source, source.source_shadow_root);
+        }
     };
 
     if (auto node = abstract_element.element().style_node_id(); node != 0) {
@@ -2836,19 +2862,23 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
             cascaded_properties->rust_store(),
             blocks);
         if (!retained_assignments.is_empty())
-            callbacks.assign_source_slots(callbacks.context, retained_assignments.data(), retained_assignments.size());
+            assign_source_slots(retained_assignments.data(), retained_assignments.size());
         style_engine.discard_retained_cascade_assignments();
     }
 
-    ComputedValuesFFI::rust_cascade_matched_blocks(
+    auto cascade_result = ComputedValuesFFI::rust_cascade_matched_blocks(
         cascaded_properties->rust_store(),
         blocks.data(),
         blocks.size(),
         cascade_input.author_context_count,
         pseudo_element_to_ffi(abstract_element.pseudo_element()),
-        abstract_element.document().rust_custom_property_registry(),
         unset_value.data(),
-        &callbacks);
+        resolved_values.data(),
+        resolved_values.size());
+    ScopeGuard destroy_cascade_result = [&] {
+        ComputedValuesFFI::rust_cascade_result_destroy(cascade_result.storage, cascade_result.source_slot_assignment_count);
+    };
+    assign_source_slots(cascade_result.source_slot_assignments, cascade_result.source_slot_assignment_count);
 
     for (auto layer_name_raw : leaked_layer_names)
         Utf16FlyString::unref_raw(layer_name_raw);

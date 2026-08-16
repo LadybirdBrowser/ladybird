@@ -39,6 +39,10 @@ macro_rules! define_ffi_ops {
 define_ffi_ops! {
     // Entries: C++ -> Rust.
     CascadeBulkEntry => "cascadeBulkEntries",
+    CascadeCustomPropertyEntry => "cascadeCustomPropertyEntries",
+    CascadeResolutionEntry => "cascadeResolutionEntries",
+    CascadeNativeSubstitutionRequest => "cascadeNativeSubstitutionRequests",
+    CascadeCppResolutionRequest => "cascadeCppResolutionRequests",
     CascadedStoreQueryEntry => "cascadedStoreQueryEntries",
     CustomPropertyStoreLifecycleEntry => "customPropertyStoreLifecycleEntries",
     CustomPropertyStoreQueryEntry => "customPropertyStoreQueryEntries",
@@ -59,14 +63,8 @@ define_ffi_ops! {
     TransitionDecisionEntry => "transitionDecisionEntries",
     // Callbacks: Rust -> C++.
     SelectorMetadataCallback => "selectorMetadataCallbacks",
-    CascadeResolveUnresolvedCallback => "cascadeResolveUnresolvedCallbacks",
-    CascadeParseSubstitutedCallback => "cascadeParseSubstitutedCallbacks",
-    CascadeSourceSlotCallback => "cascadeSourceSlotCallbacks",
-    CascadeCustomPropertyBatchCallback => "cascadeCustomPropertyBatchCallbacks",
-    ShorthandSetLonghandCallback => "shorthandSetLonghandCallbacks",
     LonghandStoreBatchCallback => "longhandStoreBatchCallbacks",
     StringRetainReleaseCallback => "stringRetainReleaseCallbacks",
-    AnimationComputeBatchCallback => "animationComputeBatchCallbacks",
     AnimatedPropertiesRetainReleaseCallback => "animatedPropertiesRetainReleaseCallbacks",
     ComputedStyleBuildCppCallback => "computedStyleBuildCppCallbacks",
     CompleteStyleUpdateCppCallback => "completeStyleUpdateCppCallbacks",
@@ -111,14 +109,8 @@ pub(crate) fn bump_cpp_callback(op: FfiOp) {
                 bump(FfiOp::CompleteStyleUpdateOwnershipCppCallback);
                 None
             }
-            FfiOp::SelectorMetadataCallback
-            | FfiOp::CascadeResolveUnresolvedCallback
-            | FfiOp::CascadeParseSubstitutedCallback
-            | FfiOp::CascadeSourceSlotCallback
-            | FfiOp::CascadeCustomPropertyBatchCallback => Some(FfiOp::CompleteStyleUpdateCascadeCallback),
+            FfiOp::SelectorMetadataCallback => Some(FfiOp::CompleteStyleUpdateCascadeCallback),
             FfiOp::LonghandStoreBatchCallback => Some(FfiOp::CompleteStyleUpdateLonghandCallback),
-            FfiOp::AnimationComputeBatchCallback => Some(FfiOp::CompleteStyleUpdateAnimationCallback),
-            FfiOp::ShorthandSetLonghandCallback => Some(FfiOp::CompleteStyleUpdateShorthandCallback),
             _ => None,
         };
         if let Some(phase) = phase {
