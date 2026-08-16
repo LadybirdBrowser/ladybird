@@ -15,6 +15,9 @@ namespace Web::CSS::Invalidation {
 
 void invalidate_style_after_custom_element_state_change(DOM::Element& element)
 {
+    if (element.style_node_id() == 0)
+        return;
+
     record_element_state_changed(element, PseudoClass::Defined, element.is_defined());
     record_element_state_changed(element, PseudoClass::Enabled, SelectorMatching::element_matches_state(element, PseudoClass::Enabled));
     record_element_state_changed(element, PseudoClass::Disabled, SelectorMatching::element_matches_state(element, PseudoClass::Disabled));
