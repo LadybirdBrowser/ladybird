@@ -1934,6 +1934,28 @@ impl ComputedGroupSets {
         )
     }
 
+    #[cfg(feature = "style-recording")]
+    pub(crate) fn recording_longhand_table(&self, raw_style_record: u64) -> Option<(u32, &[*const c_void])> {
+        let final_style_record = FinalStyleRecordID(raw_style_record);
+        let base_style_record = match final_style_record.base_record() {
+            Some(style_record) => style_record,
+            None => {
+                let slot = *self.animation_overlay_slots_by_record.get(&final_style_record)?;
+                self.animation_overlay_slots[slot as usize].as_ref()?.base_style_record
+            }
+        };
+        let identity = self
+            .style_records
+            .get_index(base_style_record.raw() as usize - 1)?
+            .longhand_table?;
+        Some((
+            identity.0,
+            self.computed_longhand_tables
+                .get_index(identity.0 as usize)?
+                .value_view(),
+        ))
+    }
+
     pub(crate) fn style_record_view(&self, raw_style_record: u64) -> Option<StyleRecordView<'_>> {
         let final_style_record = FinalStyleRecordID(raw_style_record);
         let (base_style_record, payloads, animation_overlay_identity, animated_properties) =

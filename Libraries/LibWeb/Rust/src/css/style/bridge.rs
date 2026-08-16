@@ -2059,24 +2059,25 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
                     .as_ref()
             };
             payload.write_bool(longhand_table.is_some());
-            if let Some(table) = longhand_table {
-                let stored_values = table
-                    .value_pointers()
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, value)| !value.is_null())
-                    .collect::<Vec<_>>();
-                payload.write_length(stored_values.len());
-                for (index, &value) in stored_values {
-                    payload.write_u16(crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID + index as u16);
-                    payload.write_u64(pointer_token(value));
-                    payload.write_u8(crate::css::style_value::style_value_dependency_flags(value.cast()));
-                }
-                let source_slots = table.source_slot_entries().collect::<Vec<_>>();
-                payload.write_length(source_slots.len());
-                for (property, slot) in source_slots {
-                    payload.write_u16(property);
-                    payload.write_u32(slot);
+            if longhand_table.is_some() {
+                let (identity, canonical_values) = engine
+                    .recording_computed_longhand_table(result.new_style_record)
+                    .expect("a published style record must retain its longhand table");
+                payload.write_u32(identity);
+                let record_definition = engine.recording_first_response(2, u64::from(identity));
+                payload.write_bool(record_definition);
+                if record_definition {
+                    let stored_values = canonical_values
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, value)| !value.is_null())
+                        .collect::<Vec<_>>();
+                    payload.write_length(stored_values.len());
+                    for (index, &value) in stored_values {
+                        payload.write_u16(crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID + index as u16);
+                        payload.write_u64(pointer_token(value));
+                        payload.write_u8(crate::css::style_value::style_value_dependency_flags(value.cast()));
+                    }
                 }
             }
             payload.write_u64(result.old_style_record);
