@@ -19,6 +19,22 @@
         `;
         parent.appendChild(target);
 
+        const contextTarget = document.createElement("div");
+        contextTarget.style.cssText = `
+            font-size: calc(1em + 200%);
+            font-weight: calc(sign(1rem - 1px) * 10);
+            font-stretch: calc(sign(1rem - 1px) * 100%);
+        `;
+        parent.appendChild(contextTarget);
+
+        const anchorTarget = document.createElement("div");
+        anchorTarget.style.cssText = `
+            position: absolute;
+            left: calc(anchor(--missing left, 5px) + 1px);
+            top: calc(anchor(--missing top, 7px) + 2px);
+        `;
+        parent.appendChild(anchorTarget);
+
         internals.resetStyleFfiCounters();
         document.body.appendChild(parent);
         internals.updateStyle();
@@ -36,12 +52,19 @@
         ]) {
             println(`${property}: ${computedStyle.getPropertyValue(property)}`);
         }
-        println(`used no C++ longhand fallback: ${internals.styleFfiCounters().longhandCppComputeFallbacks === 0}`);
+        const contextStyle = getComputedStyle(contextTarget);
+        println(`context font-size: ${contextStyle.fontSize}`);
+        println(`context font-weight: ${contextStyle.fontWeight}`);
+        println(`context font-stretch: ${contextStyle.fontStretch}`);
+        const anchorStyle = getComputedStyle(anchorTarget);
+        println(`deferred anchor left: ${anchorStyle.left}`);
+        println(`deferred anchor top: ${anchorStyle.top}`);
+        println(`used no C++ longhand fallback: ${!("longhandCppComputeFallbacks" in internals.styleFfiCounters())}`);
 
         internals.resetStyleFfiCounters();
         target.style.fontSize = "16px";
         internals.updateStyle();
         println(`partial font-size: ${getComputedStyle(target).fontSize}`);
-        println(`partial restyle used no C++ longhand fallback: ${internals.styleFfiCounters().longhandCppComputeFallbacks === 0}`);
+        println(`partial restyle used no C++ longhand fallback: ${!("longhandCppComputeFallbacks" in internals.styleFfiCounters())}`);
     });
 </script>

@@ -38,6 +38,6 @@
             "width",
         ];
         println(`all structural values computed: ${properties.every(property => computedStyle.getPropertyValue(property) !== "")}`);
-        println(`used no C++ longhand fallback: ${internals.styleFfiCounters().longhandCppComputeFallbacks === 0}`);
+        println(`used no C++ longhand fallback: ${!("longhandCppComputeFallbacks" in internals.styleFfiCounters())}`);
     });
 </script>

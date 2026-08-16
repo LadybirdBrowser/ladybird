@@ -5071,10 +5071,6 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
     auto const* computed_values_to_inherit_from = inheritance_parent_values ? inheritance_parent_values : computed_values_to_inherit_from_view ? &*computed_values_to_inherit_from_view
                                                                                                                                                : nullptr;
 
-    Function<NonnullRefPtr<StyleValue const>(PropertyID)> const get_property_specified_value = [&](auto property_id) -> NonnullRefPtr<StyleValue const> {
-        return computed_style.property(property_id);
-    };
-
     auto const device_pixels_per_css_pixel = m_document->page().client().device_pixels_per_css_pixel();
 
     Vector<u8> document_supported_color_scheme_codes;
@@ -5091,15 +5087,6 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         .document_supported_scheme_count = document_supported_color_scheme_codes.size(),
     };
     computed_style.clear_effective_color_scheme();
-
-    auto const compute_property = [&](PropertyID property_id, NonnullRefPtr<StyleValue const> const& style_value, bool& depends_on_viewport_metrics) {
-        auto const& computation_context = get_computation_context_for_property(property_id, computed_style, abstract_element);
-        computation_context.reset_viewport_metric_dependency_tracking();
-        auto computed_value = compute_value_of_property(property_id, style_value, get_property_specified_value, computation_context, device_pixels_per_css_pixel);
-        if (computation_context.depends_on_viewport_metrics())
-            depends_on_viewport_metrics = true;
-        return computed_value;
-    };
 
     // The parent's computed values, handed to the driver as the parent style's own longhand
     // table span, so the inherit path never crosses the FFI and pins nothing: the span and
@@ -5182,33 +5169,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
             }
             if (entry.inherited)
                 copy_animated_inherited_value(property_id, inherited_property_id);
-            // The selected specified value is wrapped only for the C++ computation fallback.
-            // Stored values and inheritance-dependent metadata stay as Rust data.
-            RefPtr<StyleValue const> specified_wrapper;
-            auto specified_value = [&]() -> StyleValue const& {
-                if (!specified_wrapper) {
-                    specified_wrapper = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-                        static_cast<StyleValueFFI::StyleValueData const*>(entry.data)));
-                    CSS::count_longhand_wrapper_mint({});
-                    if (style_sheet)
-                        const_cast<StyleValue&>(*specified_wrapper).set_style_sheet(style_sheet);
-                }
-                return *specified_wrapper;
-            };
             switch (entry.computed_kind) {
-            case ComputedValuesFFI::COMPUTED_KIND_COMPUTE_IN_CPP: {
-                // NB: We compute using the inherited (physical) property to avoid having to add cases for all the
-                //     logical alias properties in `compute_value_of_property`
-                bool depends_on_viewport_metrics = false;
-                auto computed_value = compute_property(inherited_property_id, specified_value(), depends_on_viewport_metrics);
-                if (depends_on_viewport_metrics) {
-                    computed_style.set_depends_on_viewport_metrics();
-                    if (property_affects_font_metrics(inherited_property_id))
-                        computed_style.set_font_metrics_depend_on_viewport_metrics();
-                }
-                computed_style.set_property_without_modifying_flags(property_id, move(computed_value), style_sheet_source_slot);
-                break;
-            }
             case ComputedValuesFFI::COMPUTED_KIND_UNCHANGED:
                 computed_style.did_store_property_data_from_drive(property_id, style_sheet);
                 break;
