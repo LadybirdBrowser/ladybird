@@ -50,6 +50,10 @@
 #    include <LibIPC/TransportBootstrapMach.h>
 #endif
 
+#if defined(HAVE_WASM_COMPILER_SERVICE)
+#    include <LibWasmCompilerClient/Client.h>
+#endif
+
 namespace Web {
 
 struct MouseEvent;
@@ -86,6 +90,9 @@ public:
 
     static Requests::RequestClient& request_server_client(IsPrivate = IsPrivate::No);
     static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }
+#if defined(HAVE_WASM_COMPILER_SERVICE)
+    static WasmCompilerClient::Client& wasm_compiler_client() { return *the().m_wasm_compiler_client; }
+#endif
 
     virtual bool supports_vertical_tabs() const { return false; }
     virtual bool supports_private_browsing_windows() const { return false; }
@@ -324,6 +331,9 @@ private:
     void crash_compositor_process();
     ErrorOr<void> launch_request_server();
     ErrorOr<void> launch_image_decoder_server();
+#if defined(HAVE_WASM_COMPILER_SERVICE)
+    ErrorOr<void> launch_wasm_compiler_server();
+#endif
     ErrorOr<void> launch_devtools_server();
     ErrorOr<void> load_content_blocker_lists();
     ErrorOr<NonnullRawPtr<Core::GeolocationProvider>> ensure_geolocation_provider();
@@ -436,6 +446,9 @@ private:
     RefPtr<Requests::RequestClient> m_request_server_client;
     RefPtr<Requests::RequestClient> m_private_request_server_client;
     RefPtr<ImageDecoderClient::Client> m_image_decoder_client;
+#if defined(HAVE_WASM_COMPILER_SERVICE)
+    RefPtr<WasmCompilerClient::Client> m_wasm_compiler_client;
+#endif
     RefPtr<CompositorClient> m_compositor_client;
     bool m_reported_compositor_gpu_presentation_unavailable { false };
     size_t m_compositor_restart_count { 0 };

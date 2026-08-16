@@ -117,8 +117,15 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, W
 
     auto request_server_handle = MUST(connect_new_request_server_client(is_private));
     auto image_decoder_handle = MUST(connect_new_image_decoder_client());
-    client->async_connect_to_request_server(move(request_server_handle));
-    client->async_connect_to_image_decoder(move(image_decoder_handle));
+#if defined(HAVE_WASM_COMPILER_SERVICE)
+    auto wasm_compiler_handle = MUST(connect_new_wasm_compiler_client());
+#endif
+
+    client->async_connect_to_request_server(request_server_handle);
+    client->async_connect_to_image_decoder(image_decoder_handle);
+#if defined(HAVE_WASM_COMPILER_SERVICE)
+    client->async_connect_to_wasm_compiler(wasm_compiler_handle);
+#endif
 
     if (auto compositor_handle = Application::the().connect_new_compositor_canvas_client(); !compositor_handle.is_error())
         client->async_connect_to_compositor(compositor_handle.release_value());

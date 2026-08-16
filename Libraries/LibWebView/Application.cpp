@@ -47,6 +47,8 @@
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
+#include <LibWebView/WebWorkerClient.h>
+#include <LibWebView/WorkerProcessManager.h>
 
 #if defined(AK_OS_MACOS)
 #    include <LibIPC/MachBootstrapListener.h>
@@ -737,6 +739,9 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
 {
     auto request_server_handle = TRY(connect_new_request_server_client(is_private));
     auto image_decoder_handle = TRY(connect_new_image_decoder_client());
+#if defined(HAVE_WASM_COMPILER_SERVICE)
+    auto wasm_compiler_handle = TRY(connect_new_wasm_compiler_client());
+#endif
 
     auto cross_process_id_allocator = allocate_cross_process_id_allocator();
     if (!root_navigable_id.has_value())
@@ -749,8 +754,11 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
     if (view.has_value())
         client->assign_view({}, *view);
 
-    client->async_connect_to_request_server(move(request_server_handle));
-    client->async_connect_to_image_decoder(move(image_decoder_handle));
+    client->async_connect_to_request_server(request_server_handle);
+    client->async_connect_to_image_decoder(image_decoder_handle);
+#if defined(HAVE_WASM_COMPILER_SERVICE)
+    client->async_connect_to_wasm_compiler(wasm_compiler_handle);
+#endif
     TRY(Application::the().connect_web_content_to_compositor(*client));
 
     return client;
@@ -1190,6 +1198,9 @@ ErrorOr<void> Application::launch_services()
 
     TRY(launch_request_server());
     TRY(launch_image_decoder_server());
+#if defined(HAVE_WASM_COMPILER_SERVICE)
+    TRY(launch_wasm_compiler_server());
+#endif
     TRY(launch_compositor_process());
 
     if (m_browser_options.devtools_port.has_value())
@@ -1398,6 +1409,46 @@ ErrorOr<void> Application::launch_image_decoder_server()
     return {};
 }
 
+#if defined(HAVE_WASM_COMPILER_SERVICE)
+ErrorOr<void> Application::launch_wasm_compiler_server()
+{
+    m_wasm_compiler_client = TRY(launch_wasm_compiler_process());
+
+    m_wasm_compiler_client->on_death = [this]() {
+        m_wasm_compiler_client = nullptr;
+
+        if (Core::EventLoop::current().was_exit_requested())
+            return;
+
+        if (auto result = launch_wasm_compiler_server(); result.is_error()) {
+            dbgln("Failed to restart WebAssembly compiler: {}", result.error());
+            VERIFY_NOT_REACHED();
+        }
+
+        auto client_count = WebContentClient::client_count() + WorkerProcessManager::the().client_count();
+
+        auto response = m_wasm_compiler_client->send_sync_but_allow_failure<Messages::WasmCompilerServer::ConnectNewClients>(client_count);
+        if (!response || response->handles().size() != client_count) {
+            dbgln("Failed to connect {} new clients to WasmCompiler", client_count);
+            VERIFY_NOT_REACHED();
+        }
+
+        auto handles = response->take_handles();
+
+        WebContentClient::for_each_client([&](WebContentClient& client) {
+            client.async_connect_to_wasm_compiler(handles.take_last());
+            return IterationDecision::Continue;
+        });
+        WorkerProcessManager::the().for_each_client([&](WebWorkerClient& client) {
+            client.async_connect_to_wasm_compiler(handles.take_last());
+            return IterationDecision::Continue;
+        });
+    };
+
+    return {};
+}
+#endif
+
 ErrorOr<void> Application::launch_devtools_server()
 {
     VERIFY(!m_devtools);
@@ -1575,6 +1626,15 @@ void Application::process_did_exit(Process&& process, Optional<int> exit_status)
             if (auto on_request_server_died = move(client->on_request_server_died))
                 on_request_server_died();
         }
+        break;
+    case ProcessType::WasmCompiler:
+#if defined(HAVE_WASM_COMPILER_SERVICE)
+        if (auto client = process.client<WasmCompilerClient::Client>(); client.has_value()) {
+            dbgln_if(WEBVIEW_PROCESS_DEBUG, "Restart WebAssembly compiler");
+            if (auto on_death = move(client->on_death))
+                on_death();
+        }
+#endif
         break;
     case ProcessType::WebContent:
         if (auto client = process.client<WebContentClient>(); client.has_value()) {

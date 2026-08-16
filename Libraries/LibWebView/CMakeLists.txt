@@ -114,6 +114,11 @@ compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebUIServer.ipc ${CMAKE_B
 ladybird_lib(LibWebView webview EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibWebView PRIVATE LibCore LibCrypto LibDatabase LibDevTools LibFileSystem LibGfx LibHTTP LibImageDecoderClient LibIPC LibRequests LibJS LibMedia LibWeb LibUnicode LibURL LibSync LibSyntax LibTextCodec LibThreading)
 
+if (ENABLE_CRANELIFT_JIT)
+    target_link_libraries(LibWebView PRIVATE LibWasmCompilerClient)
+    target_compile_definitions(LibWebView PUBLIC HAVE_WASM_COMPILER_SERVICE=1)
+endif()
+
 # Third-party
 if (HAS_FONTCONFIG)
     target_link_libraries(LibWebView PRIVATE Fontconfig::Fontconfig)

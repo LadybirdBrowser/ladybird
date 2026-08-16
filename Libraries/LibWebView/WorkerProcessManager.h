@@ -43,6 +43,17 @@ public:
 
     void broadcast_channel_message_from_web_content(Web::HTML::BroadcastChannelMessage const&, IsPrivate);
 
+    size_t client_count() const { return m_agents.size(); }
+
+    template<CallableAs<IterationDecision, WebWorkerClient&> Callback>
+    void for_each_client(Callback callback)
+    {
+        for (auto& agent : m_agents) {
+            if (callback(*agent.value.client) == IterationDecision::Break)
+                break;
+        }
+    }
+
 private:
     friend class WebWorkerClient;
 

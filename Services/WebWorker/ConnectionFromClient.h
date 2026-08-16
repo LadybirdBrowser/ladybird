@@ -44,6 +44,9 @@ public:
 
     Function<void(IPC::TransportHandle const&)> on_request_server_connection;
     Function<void(IPC::TransportHandle const&)> on_image_decoder_connection;
+#if defined(HAVE_WASM_COMPILER_SERVICE)
+    Function<void(IPC::TransportHandle const&)> on_wasm_compiler_connection;
+#endif
 
 private:
     explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
@@ -53,6 +56,7 @@ private:
 
     virtual void connect_to_request_server(IPC::TransportHandle handle) override;
     virtual void connect_to_image_decoder(IPC::TransportHandle handle) override;
+    virtual void connect_to_wasm_compiler(IPC::TransportHandle handle) override;
     virtual void connect_to_compositor(IPC::TransportHandle handle) override;
     virtual void set_system_font_family(String family) override;
     virtual void start_worker(URL::URL url, Web::HTML::WorkerType type, Web::HTML::RequestCredentials credentials, String name, Web::HTML::TransferDataEncoder, Web::HTML::SerializedEnvironmentSettingsObject, Web::HTML::AgentType) override;

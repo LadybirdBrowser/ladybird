@@ -17,6 +17,7 @@ enum class ProcessType : u8 {
     WebWorker,
     RequestServer,
     ImageDecoder,
+    WasmCompiler,
 };
 
 }

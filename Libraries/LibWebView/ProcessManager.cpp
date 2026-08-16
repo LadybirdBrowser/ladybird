@@ -25,6 +25,8 @@ ProcessType process_type_from_name(StringView name)
         return ProcessType::RequestServer;
     if (name == "ImageDecoder"sv)
         return ProcessType::ImageDecoder;
+    if (name == "WasmCompiler"sv)
+        return ProcessType::WasmCompiler;
 
     dbgln("Unknown process type: '{}'", name);
     VERIFY_NOT_REACHED();
@@ -45,6 +47,8 @@ StringView process_name_from_type(ProcessType type)
         return "RequestServer"sv;
     case ProcessType::ImageDecoder:
         return "ImageDecoder"sv;
+    case ProcessType::WasmCompiler:
+        return "WasmCompiler"sv;
     }
     VERIFY_NOT_REACHED();
 }
