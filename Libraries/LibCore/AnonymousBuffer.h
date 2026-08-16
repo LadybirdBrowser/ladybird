@@ -49,6 +49,8 @@ public:
 
     bool is_valid() const { return m_impl; }
 
+    ErrorOr<AnonymousBuffer> snapshot(Sealability = Sealability::Unsealable) const;
+
     int fd() const { return m_impl ? m_impl->fd() : -1; }
     size_t size() const { return m_impl ? m_impl->size() : 0; }
 
