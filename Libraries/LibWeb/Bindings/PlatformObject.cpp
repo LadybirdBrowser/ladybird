@@ -47,12 +47,14 @@ JS::ThrowCompletionOr<bool> ordinary_define_own_property_and_preserve_wrapper_if
 PlatformObject::PlatformObject(JS::Realm& realm, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
     : JS::Object(realm, nullptr, may_interfere_with_indexed_property_access)
 {
+    set_is_platform_object();
     set_requires_slow_add_own_property();
 }
 
 PlatformObject::PlatformObject(JS::Object& prototype, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
     : JS::Object(ConstructWithPrototypeTag::Tag, prototype, may_interfere_with_indexed_property_access)
 {
+    set_is_platform_object();
     set_requires_slow_add_own_property();
 }
 

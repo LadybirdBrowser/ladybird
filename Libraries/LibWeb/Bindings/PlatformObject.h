@@ -137,3 +137,6 @@ private:
 WEB_API JS::ThrowCompletionOr<bool> ordinary_define_own_property_and_preserve_wrapper_if_needed(PlatformObject&, JS::PropertyKey const&, JS::PropertyDescriptor&, Optional<JS::PropertyDescriptor>* precomputed_get_own_property);
 
 }
+
+template<>
+inline bool JS::Object::fast_is<Web::Bindings::PlatformObject>() const { return is_platform_object(); }
