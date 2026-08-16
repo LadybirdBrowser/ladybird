@@ -3131,7 +3131,7 @@ fn composite_scalar_value(
             }
             owned(StyleValueData::OpenTypeTagged {
                 mode: OPEN_TYPE_MODE_FONT_VARIATION_SETTINGS,
-                tag: unsafe { RetainedUtf16FlyString::from_borrowed_raw(underlying_tag.raw()) },
+                tag: underlying_tag.clone(),
                 packed_tag: *underlying_packed_tag,
                 value: unsafe { RetainedStyleValueData::from_retained_pointer(value.value) },
             })
@@ -3160,7 +3160,7 @@ fn composite_scalar_value(
                 return handled_without_value();
             }
             owned(StyleValueData::Function {
-                name: unsafe { RetainedUtf16FlyString::from_borrowed_raw(underlying_name.raw()) },
+                name: underlying_name.clone(),
                 value: unsafe { RetainedStyleValueData::from_retained_pointer(value.value) },
             })
         }
@@ -3851,7 +3851,7 @@ fn interpolate_scalar_value(
             }
             owned(StyleValueData::OpenTypeTagged {
                 mode: OPEN_TYPE_MODE_FONT_VARIATION_SETTINGS,
-                tag: unsafe { RetainedUtf16FlyString::from_borrowed_raw(from_tag.raw()) },
+                tag: from_tag.clone(),
                 packed_tag: *from_packed_tag,
                 value: unsafe { RetainedStyleValueData::from_retained_pointer(value.value) },
             })
@@ -3881,7 +3881,7 @@ fn interpolate_scalar_value(
                 return handled_without_value();
             }
             owned(StyleValueData::Function {
-                name: unsafe { RetainedUtf16FlyString::from_borrowed_raw(from_name.raw()) },
+                name: from_name.clone(),
                 value: unsafe { RetainedStyleValueData::from_retained_pointer(value.value) },
             })
         }

@@ -326,11 +326,11 @@ Optional<Painting::PaintStyle> SVGPatternElement::to_gfx_paint_style(SVGPaintCon
     Optional<Gfx::AffineTransform> user_space_pattern_transform;
     auto style = computed_style();
     VERIFY(style);
-    auto const& css_transformations = style->transformations();
-    if (!css_transformations.is_empty()) {
+    if (style->has_transformations()) {
         auto matrix = Gfx::FloatMatrix4x4::identity();
-        for (auto const& css_transform : css_transformations)
-            matrix = matrix * css_transform->to_matrix(*pattern_paintable);
+        style->for_each_transformation([&](auto const& css_transform) {
+            matrix = matrix * css_transform.to_matrix(*pattern_paintable);
+        });
 
         user_space_pattern_transform = extract_2d_affine_transform(matrix);
     } else {

@@ -3876,14 +3876,6 @@ mod ffi_test_stubs {
         crate::css::serialize::FfiFlyStringView::empty()
     }
     #[unsafe(no_mangle)]
-    extern "C" fn ladybird_utf16_fly_string_concat_ascii(
-        _raw: usize,
-        _suffix: *const u8,
-        _suffix_length: usize,
-    ) -> usize {
-        0
-    }
-    #[unsafe(no_mangle)]
     extern "C" fn ladybird_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_string_ref(_raw: usize) {}

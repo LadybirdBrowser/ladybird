@@ -78,7 +78,7 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
     auto operating_color_space = [](DOM::Element const& element) {
         // linearRGB performs color operations in the linear-light sRGB color space; auto and sRGB use gamma-encoded sRGB.
         auto const* svg_values = element.style_group<CSS::ComputedValues::InheritedSVGValues>();
-        auto color_interpolation_filters = svg_values ? svg_values->color_interpolation_filters : CSS::ColorInterpolation::Linearrgb;
+        auto color_interpolation_filters = svg_values ? svg_values->color_interpolation_filters_value() : CSS::ColorInterpolation::Linearrgb;
         return CSS::to_interpolation_color_space(color_interpolation_filters);
     };
 

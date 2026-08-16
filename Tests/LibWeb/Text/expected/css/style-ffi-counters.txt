@@ -2,4 +2,11 @@ has counters: true
 all zero after reset: true
 longhand driver ran: true
 longhand loop called back into C++: true
-computed build called back into C++: true
+computed build stayed in Rust: true
+C++ lifecycle counter exists: false
+position-anchor build retained a C++ string: false
+container-name build retained a C++ string: false
+font build stayed in Rust: true
+grid build stayed in Rust: true
+C++ fly-string operation counter exists: false
+payload assembler counter exists: false

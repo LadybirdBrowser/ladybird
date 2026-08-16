@@ -339,7 +339,7 @@ ErrorOr<void> ViewTransition::capture_the_old_state()
         capture->old_mix_blend_mode = element.layout_node()->mix_blend_mode();
 
         // 11. Set capture’s old backdrop-filter to the computed value of backdrop-filter on element.
-        capture->old_backdrop_filter = element.layout_node()->backdrop_filter();
+        capture->old_backdrop_filter = element.layout_node()->backdrop_filter().materialize();
 
         // 12. Set capture’s old color-scheme to the computed value of color-scheme on element.
         capture->old_color_scheme = element.layout_node()->color_scheme();
@@ -920,7 +920,7 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
             mix_blend_mode = captured_element->new_element->layout_node()->mix_blend_mode();
 
             // 10. Set backdropFilter to the computed value of backdrop-filter on capturedElement’s new element.
-            backdrop_filter = captured_element->new_element->layout_node()->backdrop_filter();
+            backdrop_filter = captured_element->new_element->layout_node()->backdrop_filter().materialize();
 
             // 11. Set colorScheme to the computed value of color-scheme on capturedElement’s new element.
             color_scheme = captured_element->new_element->layout_node()->color_scheme();

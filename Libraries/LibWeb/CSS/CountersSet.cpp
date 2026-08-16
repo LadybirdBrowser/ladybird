@@ -251,7 +251,8 @@ void resolve_counters(DOM::AbstractElement& element_reference)
     VERIFY(style);
 
     // 2. New counters are instantiated (counter-reset).
-    for (auto const& counter : content_values->counter_reset) {
+    auto counter_reset = content_values->counter_reset_value();
+    for (auto const& counter : counter_reset) {
         auto value = counter.value;
         if (counter.is_reversed && !value.has_value())
             value = reversed_counter_start_value(counter.name, element_reference, *style);
@@ -265,7 +266,8 @@ void resolve_counters(DOM::AbstractElement& element_reference)
     //    new counter.
 
     // 3. Counter values are incremented (counter-increment).
-    for (auto const& counter : content_values->counter_increment)
+    auto counter_increment = content_values->counter_increment_value();
+    for (auto const& counter : counter_increment)
         element_reference.ensure_counters_set().increment_a_counter(counter.name, element_reference, *counter.value);
 
     if (style_has_implicit_list_item_increment(*style)) {
@@ -276,7 +278,8 @@ void resolve_counters(DOM::AbstractElement& element_reference)
     }
 
     // 4. Counter values are explicitly set (counter-set).
-    for (auto const& counter : content_values->counter_set)
+    auto counter_set = content_values->counter_set_value();
+    for (auto const& counter : counter_set)
         element_reference.ensure_counters_set().set_a_counter(counter.name, element_reference, *counter.value);
 
     // 5. Counter values are used (counter()/counters()).

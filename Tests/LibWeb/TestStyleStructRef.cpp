@@ -53,17 +53,16 @@ TEST_CASE(access_does_not_clone_when_unique)
 TEST_CASE(copies_share_until_mutated)
 {
     StyleStructRef<TextGroup> a;
-    a.access().word_break = WordBreak::BreakAll;
-    a.access().text_shadow.append(ShadowData { .offset_x = 1, .offset_y = 2 });
+    a.access().word_break = to_underlying(WordBreak::BreakAll);
 
     StyleStructRef<TextGroup> b(a);
     EXPECT(a.ptr_equals(b));
 
-    b.access().word_break = WordBreak::KeepAll;
+    b.access().word_break = to_underlying(WordBreak::KeepAll);
     EXPECT(!a.ptr_equals(b));
-    EXPECT_EQ(a->word_break, WordBreak::BreakAll);
-    EXPECT_EQ(b->word_break, WordBreak::KeepAll);
-    EXPECT_EQ(b->text_shadow.size(), 1u);
+    EXPECT_EQ(a->word_break, to_underlying(WordBreak::BreakAll));
+    EXPECT_EQ(b->word_break, to_underlying(WordBreak::KeepAll));
+    EXPECT_EQ(b->text_shadow_span().size(), 0u);
 }
 
 TEST_CASE(assignment_shares_and_releases_old_payload)

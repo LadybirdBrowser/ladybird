@@ -78,7 +78,19 @@ private:
             if (placement.has_identifier())
                 name = placement.identifier();
         }
-        return StyleValueFFI::rust_style_value_create_grid_track_placement(kind, value, name.has_value(), name.has_value() ? name->to_raw_leaked() : 0);
+        Optional<Utf16FlyString> implicit_start_name;
+        Optional<Utf16FlyString> implicit_end_name;
+        if (kind == 2 && name.has_value()) {
+            implicit_start_name = implicit_grid_line_name(*name, "-start"sv);
+            implicit_end_name = implicit_grid_line_name(*name, "-end"sv);
+        }
+        return StyleValueFFI::rust_style_value_create_grid_track_placement(
+            kind,
+            value,
+            name.has_value(),
+            name.has_value() ? name->to_raw_leaked() : 0,
+            implicit_start_name.has_value() ? implicit_start_name->to_raw_leaked() : 0,
+            implicit_end_name.has_value() ? implicit_end_name->to_raw_leaked() : 0);
     }
 };
 

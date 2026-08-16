@@ -434,7 +434,36 @@ pub struct RetainedRequestUrlModifierList {
     length: usize,
 }
 
-retained_list!(RetainedRequestUrlModifierList, RetainedRequestUrlModifier);
+impl RetainedRequestUrlModifierList {
+    /// Takes ownership of each modifier's leaked string reference. C++ leaves
+    /// the Rust storage pointer empty in this input array.
+    unsafe fn from_raw(elements: *const RetainedRequestUrlModifier, length: usize) -> Self {
+        let slice: Box<[RetainedRequestUrlModifier]> = (0..length)
+            .map(|i| {
+                let element = unsafe { &*elements.add(i) };
+                RetainedRequestUrlModifier {
+                    modifier_type: element.modifier_type,
+                    enum_value: element.enum_value,
+                    string_value: unsafe { RetainedUtf16FlyString::from_leaked_raw(element.string_value.raw()) },
+                }
+            })
+            .collect();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedRequestUrlModifier;
+        Self { pointer, length }
+    }
+}
+
+retained_list_drop!(RetainedRequestUrlModifierList);
+
+impl Clone for RetainedRequestUrlModifierList {
+    fn clone(&self) -> Self {
+        let slice = self.as_slice().to_vec().into_boxed_slice();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedRequestUrlModifier;
+        Self { pointer, length }
+    }
+}
 
 /// A Rust-owned array of bytes, used for lists of C++ u8 enum values.
 #[repr(C)]
@@ -489,7 +518,29 @@ pub struct RetainedCounterDefinitionList {
     length: usize,
 }
 
-retained_list!(RetainedCounterDefinitionList, RetainedCounterDefinition);
+impl RetainedCounterDefinitionList {
+    unsafe fn from_raw(elements: *const RetainedCounterDefinition, length: usize) -> Self {
+        let elements = (0..length)
+            .map(|i| {
+                let element = unsafe { &*elements.add(i) };
+                RetainedCounterDefinition {
+                    name: unsafe { RetainedUtf16FlyString::from_leaked_raw(element.name.raw()) },
+                    is_reversed: element.is_reversed,
+                    value: unsafe { std::ptr::read(&raw const element.value) },
+                }
+            })
+            .collect();
+        Self::from_retained_elements(elements)
+    }
+}
+
+retained_list_drop!(RetainedCounterDefinitionList);
+
+impl Clone for RetainedCounterDefinitionList {
+    fn clone(&self) -> Self {
+        Self::from_retained_elements(self.as_slice().to_vec())
+    }
+}
 
 /// A retained image-set() option: the image, its resolution and an optional type string (a
 /// retained AK::Utf16String raw, 0 when absent, released through the same bridge as fly
@@ -510,7 +561,30 @@ pub struct RetainedImageSetOptionList {
     length: usize,
 }
 
-retained_list!(RetainedImageSetOptionList, RetainedImageSetOption);
+impl RetainedImageSetOptionList {
+    unsafe fn from_raw(elements: *const RetainedImageSetOption, length: usize) -> Self {
+        let elements = (0..length)
+            .map(|i| {
+                let element = unsafe { &*elements.add(i) };
+                RetainedImageSetOption {
+                    image: unsafe { std::ptr::read(&raw const element.image) },
+                    resolution: unsafe { std::ptr::read(&raw const element.resolution) },
+                    has_type: element.has_type,
+                    type_string: unsafe { RetainedUtf16FlyString::from_leaked_raw(element.type_string.raw()) },
+                }
+            })
+            .collect();
+        Self::from_retained_elements(elements)
+    }
+}
+
+retained_list_drop!(RetainedImageSetOptionList);
+
+impl Clone for RetainedImageSetOptionList {
+    fn clone(&self) -> Self {
+        Self::from_retained_elements(self.as_slice().to_vec())
+    }
+}
 
 /// A retained gradient color stop: an optional transition hint, then an optional color,
 /// position and second position (each null when absent).
@@ -665,6 +739,8 @@ impl RetainedColorStopList {
 #[derive(Clone, PartialEq)]
 pub struct RetainedGridArea {
     name: RetainedUtf16FlyString,
+    implicit_start_name: RetainedUtf16FlyString,
+    implicit_end_name: RetainedUtf16FlyString,
     row_start: usize,
     row_end: usize,
     column_start: usize,
@@ -674,6 +750,14 @@ pub struct RetainedGridArea {
 impl RetainedGridArea {
     pub(crate) fn name(&self) -> &RetainedUtf16FlyString {
         &self.name
+    }
+
+    pub(crate) fn implicit_start_name(&self) -> &RetainedUtf16FlyString {
+        &self.implicit_start_name
+    }
+
+    pub(crate) fn implicit_end_name(&self) -> &RetainedUtf16FlyString {
+        &self.implicit_end_name
     }
 
     pub(crate) fn grid_lines(&self) -> [usize; 4] {
@@ -692,7 +776,46 @@ pub struct RetainedGridAreaList {
     length: usize,
 }
 
-retained_list!(RetainedGridAreaList, RetainedGridArea);
+impl RetainedGridAreaList {
+    unsafe fn from_raw(elements: *const RetainedGridArea, length: usize) -> Self {
+        let slice: Box<[RetainedGridArea]> = (0..length)
+            .map(|i| {
+                let element = unsafe { &*elements.add(i) };
+                RetainedGridArea {
+                    name: unsafe { RetainedUtf16FlyString::from_leaked_raw(element.name.raw()) },
+                    implicit_start_name: unsafe {
+                        RetainedUtf16FlyString::from_leaked_raw(element.implicit_start_name.raw())
+                    },
+                    implicit_end_name: unsafe {
+                        RetainedUtf16FlyString::from_leaked_raw(element.implicit_end_name.raw())
+                    },
+                    row_start: element.row_start,
+                    row_end: element.row_end,
+                    column_start: element.column_start,
+                    column_end: element.column_end,
+                }
+            })
+            .collect();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedGridArea;
+        Self { pointer, length }
+    }
+
+    fn from_retained_elements(elements: Vec<RetainedGridArea>) -> Self {
+        let slice = elements.into_boxed_slice();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedGridArea;
+        Self { pointer, length }
+    }
+}
+
+retained_list_drop!(RetainedGridAreaList);
+
+impl Clone for RetainedGridAreaList {
+    fn clone(&self) -> Self {
+        Self::from_retained_elements(self.as_slice().to_vec())
+    }
+}
 
 /// A retained linear() easing stop: the output value and an optional input (null when absent).
 #[repr(C)]
@@ -1019,6 +1142,24 @@ pub struct ColorBase {
     pub(crate) color_syntax: u8,
 }
 
+/// Fetch context carried by a computed url() image. This is not part of the CSS value's
+/// identity, so equality deliberately ignores it.
+#[repr(C)]
+#[derive(Clone)]
+pub struct ImageResourceContext {
+    pub(crate) base_url: RetainedString,
+    pub(crate) has_base_url: bool,
+    pub(crate) has_parent_style_sheet_origin_clean: bool,
+    pub(crate) parent_style_sheet_origin_clean: bool,
+    pub(crate) should_absolutize_url_for_computed_value: bool,
+}
+
+impl PartialEq for ImageResourceContext {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
 /// The data of a single immutable CSS style value.
 ///
 /// Variant payload fields are read directly by the corresponding C++ StyleValue subclass, so
@@ -1294,12 +1435,13 @@ pub enum StyleValueData {
         color_interpolation_method: RetainedStyleValueData,
         color_syntax: u8,
     },
-    /// A url() image. Only the CSS URL is immutable value data; the style sheet attachment and
-    /// loading state stay on the C++ side.
+    /// A url() image. The resource context is snapshotted into computed images so a later C++
+    /// wrapper can remain a lazy consumer adapter. Loading state stays on the C++ side.
     Image {
         url: RetainedString,
         url_type: u8,
         url_modifiers: RetainedRequestUrlModifierList,
+        resource_context: ImageResourceContext,
     },
     /// image-set() with its retained options.
     ImageSet { options: RetainedImageSetOptionList },
@@ -1347,6 +1489,8 @@ pub enum StyleValueData {
         value: RetainedStyleValueData,
         has_name: bool,
         name: RetainedUtf16FlyString,
+        implicit_start_name: RetainedUtf16FlyString,
+        implicit_end_name: RetainedUtf16FlyString,
     },
     /// counter() or counters(). The function is the C++ CounterFunction enum, opaque to Rust;
     /// the join string is empty for counter().
@@ -1907,6 +2051,7 @@ impl StyleValueData {
                 url,
                 url_type,
                 url_modifiers: _,
+                ..
             } => {
                 hasher.write(url.as_bytes());
                 hasher.write_u8(*url_type);
@@ -1957,6 +2102,8 @@ impl StyleValueData {
                 value,
                 has_name,
                 name,
+                implicit_start_name: _,
+                implicit_end_name: _,
             } => {
                 hasher.write_u8(*kind);
                 write_value(hasher, value);
@@ -2951,6 +3098,8 @@ pub unsafe extern "C" fn rust_style_value_create_grid_track_placement(
     value: *const StyleValueData,
     has_name: bool,
     name: usize,
+    implicit_start_name: usize,
+    implicit_end_name: usize,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::GridTrackPlacement {
@@ -2958,6 +3107,8 @@ pub unsafe extern "C" fn rust_style_value_create_grid_track_placement(
             value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(value) },
             has_name,
             name: unsafe { RetainedUtf16FlyString::from_leaked_raw(name) },
+            implicit_start_name: unsafe { RetainedUtf16FlyString::from_leaked_raw(implicit_start_name) },
+            implicit_end_name: unsafe { RetainedUtf16FlyString::from_leaked_raw(implicit_end_name) },
         }))
     })
 }
@@ -3306,12 +3457,28 @@ pub unsafe extern "C" fn rust_style_value_create_image(
     url_type: u8,
     url_modifiers: *const RetainedRequestUrlModifier,
     url_modifier_count: usize,
+    resource_base_url: usize,
+    resource_base_url_bytes: *const u8,
+    resource_base_url_length: usize,
+    has_resource_base_url: bool,
+    has_parent_style_sheet_origin_clean: bool,
+    parent_style_sheet_origin_clean: bool,
+    should_absolutize_url_for_computed_value: bool,
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::Image {
             url: unsafe { RetainedString::from_raw(url, url_bytes, url_length) },
             url_type,
             url_modifiers: unsafe { RetainedRequestUrlModifierList::from_raw(url_modifiers, url_modifier_count) },
+            resource_context: ImageResourceContext {
+                base_url: unsafe {
+                    RetainedString::from_raw(resource_base_url, resource_base_url_bytes, resource_base_url_length)
+                },
+                has_base_url: has_resource_base_url,
+                has_parent_style_sheet_origin_clean,
+                parent_style_sheet_origin_clean,
+                should_absolutize_url_for_computed_value,
+            },
         }))
     })
 }

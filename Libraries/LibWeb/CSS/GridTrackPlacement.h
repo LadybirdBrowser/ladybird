@@ -14,6 +14,8 @@
 
 namespace Web::CSS {
 
+Utf16FlyString implicit_grid_line_name(Utf16FlyString const&, StringView suffix);
+
 class GridTrackPlacement {
 public:
     static GridTrackPlacement make_auto()

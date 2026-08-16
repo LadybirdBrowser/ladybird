@@ -388,7 +388,7 @@ Paintable::SelectionStyle Paintable::selection_style_for_node(Layout::Node const
         // Only use text-decoration if it was explicitly set in the ::selection rule, not inherited.
         if (!computed_selection_style->is_property_inherited(CSS::PropertyID::TextDecorationLine)) {
             style.text_decoration = TextDecorationStyle {
-                .line = computed_selection_style->text_decoration_line(),
+                .line = Vector<CSS::TextDecorationLine> { computed_selection_style->text_decoration_line() },
                 .style = computed_selection_style->text_decoration_style(),
                 .color = computed_selection_style->text_decoration_color(),
             };
@@ -900,18 +900,25 @@ Gfx::FloatRect svg_viewport_user_rect(Paintable const& viewport_paintable)
     return { {}, viewport_paintable.absolute_rect().size().to_type<float>() };
 }
 
-ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, Paintable const& paintable_box)
+ResolvedCSSFilter resolve_css_filter(CSS::ComputedFilterView computed_filter, Paintable const& paintable_box)
 {
     auto const& layout_node = paintable_box.layout_node();
 
     ResolvedCSSFilter result;
-    for (auto const& operation : computed_filter.operations()) {
-        if (auto const* url = operation.get_pointer<CSS::Filter::Url>()) {
-            if (url->fragment.is_empty())
-                return {};
+    bool failed = false;
+    computed_filter.for_each_operation([&](auto const& operation) {
+        if (failed)
+            return;
+        if (auto const* url = operation.template get_pointer<CSS::Filter::Url>()) {
+            if (url->fragment.is_empty()) {
+                failed = true;
+                return;
+            }
             auto maybe_filter = paintable_box.document().get_element_by_id(url->fragment);
-            if (!maybe_filter)
-                return {};
+            if (!maybe_filter) {
+                failed = true;
+                return;
+            }
             if (auto* filter_element = as_if<SVG::SVGFilterElement>(*maybe_filter)) {
                 // Filter primitive lengths are specified in the filtered element's user coordinate system, but the
                 // resulting filter operates in device pixels. Compute the user-unit-to-device-pixel scale so the
@@ -932,9 +939,9 @@ ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, Paintab
                 if (!bounds.is_empty())
                     result.svg_filter_bounds = bounds;
             } else {
-                return {};
+                failed = true;
             }
-            continue;
+            return;
         }
 
         operation.visit(
@@ -963,7 +970,9 @@ ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, Paintab
                 });
             },
             [&](CSS::Filter::Url const&) {});
-    }
+    });
+    if (failed)
+        return {};
     return result;
 }
 
@@ -2792,7 +2801,7 @@ void Paintable::paint_box_shadow(DisplayListRecordingContext& context) const
 
 void Paintable::paint_box_shadow(DisplayListRecordingContext& context, CSSPixelRect const& border_box_rect, CSSPixelRect const& padding_box_rect, BorderRadiiData const& border_radii) const
 {
-    auto const& box_shadow_layers = layout_node().box_shadow();
+    auto box_shadow_layers = layout_node().box_shadow();
     if (box_shadow_layers.is_empty())
         return;
     Vector<Painting::ShadowData> resolved_box_shadow_data;

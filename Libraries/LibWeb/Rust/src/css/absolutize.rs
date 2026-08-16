@@ -1377,6 +1377,8 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
             value,
             has_name,
             name,
+            implicit_start_name,
+            implicit_end_name,
         } => {
             let mut changed = false;
             let value = absolutize_child(value, context, &mut changed)?;
@@ -1387,6 +1389,8 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
                     value,
                     has_name: *has_name,
                     name: name.clone(),
+                    implicit_start_name: implicit_start_name.clone(),
+                    implicit_end_name: implicit_end_name.clone(),
                 }
             )
         }

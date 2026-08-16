@@ -3110,6 +3110,28 @@ pub(crate) fn resolve_calculated_length_with_context(
     numeric_type.matches_dimension(0, resolve_as).then_some(value)
 }
 
+/// Resolves a calculated length-percentage against a pixel basis and the
+/// element's immutable length metrics.
+pub(crate) fn resolve_calculated_length_percentage_with_context(
+    calculated: &crate::css::style_value::StyleValueData,
+    percentage_basis_px: f64,
+    context: &crate::css::style_compute::FfiLengthResolutionContext,
+) -> Option<f64> {
+    let basis = CalcNumericValue::Length {
+        value: percentage_basis_px,
+        unit: canonical_unit_code(&crate::css::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS),
+    };
+    let (value, numeric_type, resolve_as) = resolve_calculated_with_length_resolution(
+        calculated,
+        Some(basis),
+        LengthResolution {
+            context: Some(context),
+            fallback: None,
+        },
+    )?;
+    (numeric_type.matches_dimension(0, resolve_as) || numeric_type.matches_percentage()).then_some(value)
+}
+
 /// The outcome of resolving a line-height calculation: a pixel length or a
 /// unitless number multiplier.
 pub(crate) enum ResolvedLineHeightCalc {

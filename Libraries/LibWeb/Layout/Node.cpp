@@ -254,13 +254,13 @@ static bool style_establishes_fixed_positioning_containing_block(NodeWithStyle c
 
     // https://drafts.csswg.org/css-transforms-1/#propdef-transform
     // Any computed value other than none for the transform affects containing block and stacking context.
-    if ((!node.transformations().is_empty() || will_change_property(CSS::PropertyID::Transform)) && node_is_transformable())
+    if ((node.has_transformations() || will_change_property(CSS::PropertyID::Transform)) && node_is_transformable())
         return true;
-    if ((node.translate() || will_change_property(CSS::PropertyID::Translate)) && node_is_transformable())
+    if ((node.has_translate() || will_change_property(CSS::PropertyID::Translate)) && node_is_transformable())
         return true;
-    if ((node.rotate() || will_change_property(CSS::PropertyID::Rotate)) && node_is_transformable())
+    if ((node.has_rotate() || will_change_property(CSS::PropertyID::Rotate)) && node_is_transformable())
         return true;
-    if ((node.scale() || will_change_property(CSS::PropertyID::Scale)) && node_is_transformable())
+    if ((node.has_scale() || will_change_property(CSS::PropertyID::Scale)) && node_is_transformable())
         return true;
 
     // https://drafts.csswg.org/css-transforms-2/#propdef-perspective
@@ -305,7 +305,7 @@ static bool style_establishes_fixed_positioning_containing_block(NodeWithStyle c
     // https://drafts.csswg.org/css-transforms-2/#backface-visibility-property
     // A computed value of hidden for backface-visibility on a transformable element that participates in a 3D
     // rendering context establishes both a stacking context and a containing block for all descendants.
-    if ((node.style_group<CSS::ComputedValues::TransformValues>().backface_visibility == CSS::BackfaceVisibility::Hidden || will_change_property(CSS::PropertyID::BackfaceVisibility))
+    if ((node.style_group<CSS::ComputedValues::TransformValues>().backface_visibility_value() == CSS::BackfaceVisibility::Hidden || will_change_property(CSS::PropertyID::BackfaceVisibility))
         && node_is_transformable() && node.participates_in_a_3d_rendering_context())
         return true;
 
@@ -563,16 +563,16 @@ bool NodeWithStyle::establishes_stacking_context() const
     }
 
     if (is_transformable()) {
-        if (!transformations().is_empty() || will_change_property(CSS::PropertyID::Transform))
+        if (has_transformations() || will_change_property(CSS::PropertyID::Transform))
             return true;
 
-        if (translate() || will_change_property(CSS::PropertyID::Translate))
+        if (has_translate() || will_change_property(CSS::PropertyID::Translate))
             return true;
 
-        if (rotate() || will_change_property(CSS::PropertyID::Rotate))
+        if (has_rotate() || will_change_property(CSS::PropertyID::Rotate))
             return true;
 
-        if (scale() || will_change_property(CSS::PropertyID::Scale))
+        if (has_scale() || will_change_property(CSS::PropertyID::Scale))
             return true;
     }
 
@@ -650,7 +650,7 @@ bool NodeWithStyle::establishes_stacking_context() const
     // https://drafts.csswg.org/css-transforms-2/#backface-visibility-property
     // A computed value of hidden for backface-visibility on a transformable element that participates in a 3D
     // rendering context establishes both a stacking context and a containing block for all descendants.
-    if ((style_group<CSS::ComputedValues::TransformValues>().backface_visibility == CSS::BackfaceVisibility::Hidden || will_change_property(CSS::PropertyID::BackfaceVisibility))
+    if ((style_group<CSS::ComputedValues::TransformValues>().backface_visibility_value() == CSS::BackfaceVisibility::Hidden || will_change_property(CSS::PropertyID::BackfaceVisibility))
         && is_transformable() && participates_in_a_3d_rendering_context())
         return true;
 
@@ -829,9 +829,9 @@ void NodeWithStyle::rebuild_image_observers()
     add_observer_for(list_style_image(), new_observers);
     for (auto const& layer : mask_layers())
         add_observer_for(layer.background_image.ptr(), new_observers);
-    for (auto const& cursor : this->cursor()) {
-        if (auto const* cursor_style_value = cursor.get_pointer<NonnullRefPtr<CSS::CursorStyleValue const>>())
-            add_observer_for(&(*cursor_style_value)->image(), new_observers);
+    for (auto const& cursor_style_value : m_cursor_style_values) {
+        if (cursor_style_value)
+            add_observer_for(&cursor_style_value->image(), new_observers);
     }
     if (auto const& border_image = this->border_image(); border_image.source)
         add_observer_for(border_image.source.ptr(), new_observers);
@@ -847,6 +847,11 @@ namespace Web::Layout {
 void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
 {
     release_pinned_style_record();
+    m_background_layers.clear();
+    m_mask_layers.clear();
+    m_border_image.clear();
+    m_list_style_image.clear();
+    m_content.clear();
     m_owned_computed_values = nullptr;
     m_style_record_identity = style_record_identity;
     publish_style_record_to_node_data();
@@ -874,9 +879,13 @@ void NodeWithStyle::attach_style_resources()
         load_image(layer.background_image.ptr());
     if (auto const& border_image = this->border_image(); border_image.source)
         load_image(border_image.source.ptr());
+    m_cursor_style_values.clear();
+    m_cursor_style_values.ensure_capacity(cursor().size());
     for (auto const& cursor_data : cursor()) {
-        if (auto const* cursor_style_value = cursor_data.get_pointer<NonnullRefPtr<CSS::CursorStyleValue const>>())
-            load_image(&(*cursor_style_value)->image());
+        auto cursor_style_value = CSS::ComputedValues::InheritedUIValues::cursor_style_value(cursor_data);
+        if (cursor_style_value)
+            load_image(&cursor_style_value->image());
+        m_cursor_style_values.unchecked_append(move(cursor_style_value));
     }
     load_image(mask_image());
 
@@ -1022,14 +1031,13 @@ NodeWithStyle const* Node::nearest_fragmented_inline_ancestor() const
 // https://drafts.csswg.org/css-transforms-1/#transformable-element
 // The used transform of an SVG element in its own user space, for bounding box computation:
 // style transforms in property-application order plus the element's additional transform, without
-// transform-origin conjugation. Components whose percentages need a reference box are skipped —
-// the box is not available at layout time, so such transforms under-report the bounding box.
+// transform-origin conjugation. Percentages resolve against an empty reference box because the
+// box is not available at layout time, so such transforms under-report the bounding box.
 Gfx::AffineTransform NodeWithStyle::used_svg_element_transform() const
 {
     auto matrix = Gfx::FloatMatrix4x4::identity();
-    for_each_transform_component([&](auto const& component) {
-        if (component.can_be_converted_to_matrix_without_reference_box())
-            matrix = matrix * component.to_matrix({});
+    for_each_resolved_transform([&](auto const& transform) {
+        matrix = matrix * transform.to_matrix({}, {});
     });
     auto transform = Gfx::extract_2d_affine_transform(matrix);
     if (auto const* graphics_element = as_if<SVG::SVGGraphicsElement>(dom_node()))
@@ -1159,6 +1167,11 @@ void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const>
     }
 
     release_pinned_style_record();
+    m_background_layers.clear();
+    m_mask_layers.clear();
+    m_border_image.clear();
+    m_list_style_image.clear();
+    m_content.clear();
     Optional<DOM::AbstractElement> abstract_element;
     if (is_generated_for_pseudo_element())
         abstract_element = DOM::AbstractElement { *pseudo_element_generator(), generated_for_pseudo_element() };
@@ -1214,6 +1227,11 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
     }
 
     release_pinned_style_record();
+    m_background_layers.clear();
+    m_mask_layers.clear();
+    m_border_image.clear();
+    m_list_style_image.clear();
+    m_content.clear();
     m_owned_computed_values = nullptr;
     m_style_record_identity = style_record_identity;
     set_flag(RustFFI::NodeFlag::HasAnchorNames, !new_record_view->anchor_names().is_empty());
@@ -1298,9 +1316,7 @@ void NodeWithStyle::set_display(CSS::Display display)
 
 void NodeWithStyle::set_content(CSS::ContentData const& content)
 {
-    modify_computed_values([&](auto& values) {
-        values.set_content(content);
-    });
+    m_content = content;
 }
 
 void NodeWithStyle::set_overflow(CSS::Overflow overflow_x, CSS::Overflow overflow_y)
