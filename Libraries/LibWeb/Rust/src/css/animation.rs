@@ -5224,6 +5224,13 @@ fn animation_length_resolution_context(
         root_font_metrics: font_metrics(&animation_context.root_font_metrics),
         font_metrics_depend_on_viewport_metrics: animation_context.font_metrics_depend_on_viewport_metrics,
         root_font_metrics_depend_on_viewport_metrics: animation_context.root_font_metrics_depend_on_viewport_metrics,
+        has_container_width_basis: false,
+        has_container_height_basis: false,
+        container_width_basis: 0.0,
+        container_height_basis: 0.0,
+        container_width_basis_depends_on_viewport_metrics: false,
+        container_height_basis_depends_on_viewport_metrics: false,
+        subject_inline_axis_is_horizontal: true,
         resolved_viewport_relative_length: std::ptr::null_mut(),
     })
 }

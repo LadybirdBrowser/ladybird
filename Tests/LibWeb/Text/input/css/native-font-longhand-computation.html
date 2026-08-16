@@ -37,5 +37,11 @@
             println(`${property}: ${computedStyle.getPropertyValue(property)}`);
         }
         println(`used no C++ longhand fallback: ${internals.styleFfiCounters().longhandCppComputeFallbacks === 0}`);
+
+        internals.resetStyleFfiCounters();
+        target.style.fontSize = "16px";
+        internals.updateStyle();
+        println(`partial font-size: ${getComputedStyle(target).fontSize}`);
+        println(`partial restyle used no C++ longhand fallback: ${internals.styleFfiCounters().longhandCppComputeFallbacks === 0}`);
     });
 </script>

@@ -5245,16 +5245,24 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         .depends_on_viewport_metrics = false,
         .font_metrics_depend_on_viewport_metrics = false,
         .explicitly_inherited_non_inherited_property = false,
+        .uses_tree_counting_function = false,
         .effective_color_scheme = -1,
         .post_compute_adjustment = {},
     };
     auto box_type_input = make_box_type_transformation_input(
         abstract_element, InitialValues::display(), Keyword::Static, Keyword::None);
+    Optional<DOM::AbstractElement::TreeCountingFunctionResolutionContext> tree_counting_context;
+    if (ComputedValuesFFI::rust_cascaded_properties_uses_tree_counting_function(cascaded_properties.rust_store()))
+        tree_counting_context = abstract_element.tree_counting_function_resolution_context();
+    auto const container_relative_length_unit_mask = ComputedValuesFFI::rust_cascaded_properties_container_relative_length_unit_mask(cascaded_properties.rust_store());
     ComputedValuesFFI::FfiStyleComputationEnvironment const computation_environment {
         .box_type_input = box_type_input,
         .color_scheme_input = effective_color_scheme_input,
         .is_th_element = abstract_element.element().local_name() == HTML::TagNames::th,
         .has_new_font_size = new_font_size != nullptr,
+        .has_tree_counting_context = tree_counting_context.has_value(),
+        .sibling_count = tree_counting_context.has_value() ? static_cast<u64>(tree_counting_context->sibling_count) : 0,
+        .sibling_index = tree_counting_context.has_value() ? static_cast<u64>(tree_counting_context->sibling_index) : 0,
         .device_pixels_per_css_pixel = device_pixels_per_css_pixel,
         .initial_font_size_raw = InitialValues::font_size().raw_value(),
         .default_font_size_raw = default_user_font_size().raw_value(),
@@ -5263,7 +5271,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_resolution_context;
         if (context_property.has_value()) {
             auto const& computation_context = get_computation_context_for_property(*context_property, computed_style, abstract_element);
-            length_resolution_context = to_ffi_length_resolution_context(computation_context.length_resolution_context);
+            length_resolution_context = to_ffi_length_resolution_context_with_container_bases(computation_context.length_resolution_context, container_relative_length_unit_mask);
         }
         ComputedValuesFFI::rust_drive_property_computation(&callbacks, computed_style.mutable_computed_longhand_table(), cascaded_properties.rust_store(), parent_snapshot.has_value() ? &*parent_snapshot : nullptr, &computation_environment, computed_group_mask, computed_properties_to_evaluate, phase, length_resolution_context.has_value() ? &*length_resolution_context : nullptr, &driver_results);
     };
@@ -5291,6 +5299,8 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
     auto line_height_metrics = input_line_height_metrics(computed_style, abstract_element, post_compute_adjustment.element_style_adjustment.check_input_line_height);
     auto post_adjusted_longhands = ComputedValuesFFI::rust_apply_post_compute_adjustments(computed_style.mutable_computed_longhand_table(), &post_compute_adjustment, &line_height_metrics);
     document().style_invalidation_counters().computed_longhand_evaluations += driver_results.longhand_evaluations;
+    if (driver_results.uses_tree_counting_function)
+        abstract_element.element().set_style_uses_tree_counting_function();
 
     auto invalidate_post_adjusted_longhand = [&](u8 flag, PropertyID property_id) {
         if (post_adjusted_longhands & flag)

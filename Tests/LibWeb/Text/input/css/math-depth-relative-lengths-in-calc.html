@@ -10,14 +10,24 @@
                 font-size: 2px;
                 math-depth: calc(sign(1em - 1px));
             }
+
+            #baz {
+                font-size: 2px;
+                math-depth: add(calc(sign(1em - 1px)));
+            }
         </style>
         <div id="foo">
             <div id="bar"></div>
+            <div id="baz"></div>
         </div>
         <script src="../include.js"></script>
         <script>
             test(() => {
+                internals.resetStyleFfiCounters();
+                internals.updateStyle();
                 println(getComputedStyle(bar).mathDepth);
+                println(getComputedStyle(baz).mathDepth);
+                println(`used no C++ longhand fallback: ${internals.styleFfiCounters().longhandCppComputeFallbacks === 0}`);
             });
         </script>
     </body>

@@ -312,8 +312,7 @@ impl CalcResult {
     }
 }
 
-/// Resolves a length not handled by the shared resolver (container-relative
-/// units, which need the per-element query container lookup), to pixels.
+/// Resolves a length not handled by the shared resolver to pixels.
 pub(crate) type LengthFallbackResolver<'a> = dyn Fn(f64, u8) -> Option<f64> + 'a;
 
 /// The length resolution information available in an evaluation: the shared
@@ -3738,11 +3737,14 @@ pub(crate) enum AbsolutizedCalculation {
 }
 
 /// Absolutizes a Calculated style value against a length resolution context, with no
-/// percentage basis. Returns None when the tree needs external state (non-math functions,
-/// channel keywords, random sharing, container-relative lengths).
+/// percentage basis. Tree-counting functions resolve from the supplied sibling facts, and lengths
+/// resolve from the immutable context. Other external state such as channel keywords and random
+/// sharing declines.
+#[allow(clippy::arc_with_non_send_sync)]
 pub(crate) fn absolutize_calculation_value(
     value: &crate::css::style_value::StyleValueData,
     length_resolution_context: *const std::ffi::c_void,
+    tree_counting: Option<(u64, u64)>,
 ) -> Option<AbsolutizedCalculation> {
     use crate::css::style_value::StyleValueData;
     let StyleValueData::Calculated {
@@ -3761,16 +3763,52 @@ pub(crate) fn absolutize_calculation_value(
     let root = rust_calculation.node_arc();
     let mut externals = Vec::new();
     collect_external_resolutions(&root, &mut externals);
-    if !externals.is_empty() {
-        return None;
+    let mut resolved_nodes = Vec::new();
+    for external in &mut externals {
+        if matches!(external.kind, FfiCalcExternalResolutionKind::Length) {
+            // SAFETY: The caller supplies the live context used by the enclosing absolutization.
+            let length_context = unsafe {
+                &*(length_resolution_context as *const crate::css::style_compute::FfiLengthResolutionContext)
+            };
+            let result = crate::css::style_compute::absolutize_length_for_calc(
+                external.input_value,
+                external.unit_or_channel as usize,
+                length_context,
+            );
+            if !result.handled {
+                return None;
+            }
+            external.has_number = true;
+            external.number = result.px;
+            continue;
+        }
+        if !matches!(external.kind, FfiCalcExternalResolutionKind::NonMathFunction) {
+            return None;
+        }
+        let StyleValueData::TreeCountingFunction { function, .. } =
+            (unsafe { &*external.source.cast::<StyleValueData>() })
+        else {
+            return None;
+        };
+        let (sibling_count, sibling_index) = tree_counting?;
+        let resolved = Arc::new(CalcNode::Numeric(CalcNumericValue::Number {
+            value: if *function == 0 {
+                sibling_count as f64
+            } else {
+                sibling_index as f64
+            },
+            number_type: 0,
+        }));
+        external.resolved_node = Arc::as_ptr(&resolved);
+        resolved_nodes.push(resolved);
     }
     let context = FfiCalcResolutionContext {
         basis_kind: 0,
         basis_value: 0.0,
         basis_unit: 0,
         length_resolution_context,
-        external_resolutions: std::ptr::null(),
-        external_resolution_count: 0,
+        external_resolutions: externals.as_ptr(),
+        external_resolution_count: externals.len(),
     };
     let resolve_as = resolve_as_from_fields(*has_percentages_resolve_as, *resolve_as_is_number, *resolve_as_base);
     Some(with_ffi_evaluation(

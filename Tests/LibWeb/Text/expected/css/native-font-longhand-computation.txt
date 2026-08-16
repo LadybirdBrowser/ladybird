@@ -7,3 +7,5 @@ letter-spacing: 2.5px
 word-spacing: 5px
 math-depth: 3
 used no C++ longhand fallback: true
+partial font-size: 16px
+partial restyle used no C++ longhand fallback: true
