@@ -53,6 +53,7 @@ public:
 
     void report_timing(JS::Object&) const;
     void process_next_manual_redirect() const;
+    [[nodiscard]] bool has_full_timing_info() const { return !!m_full_timing_info; }
     [[nodiscard]] GC::Ref<FetchTimingInfo> extract_full_timing_info() const;
     void abort(JS::Realm&, Optional<JS::Value>);
     Optional<HTML::IPCSerializationRecord> const& serialized_abort_reason() const { return m_serialized_abort_reason; }

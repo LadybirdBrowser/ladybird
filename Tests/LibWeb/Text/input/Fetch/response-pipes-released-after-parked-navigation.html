@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A navigation whose response has headers but not enough body bytes to sniff a MIME type parks in
+    // wait_for_sniff_bytes. Destroying the navigable while it is parked has to release the network request --
+    // nothing else ever will, since the callback that would release it only runs once more bytes arrive.
+    asyncTest(async done => {
+        const server = httpTestServer();
+
+        // This view's WebContent process runs many tests in sequence, and a previous test's pipes can still be
+        // draining when this one starts. Wait them out, so the counts below measure this test alone.
+        let leftover = internals.openResponsePipeCount();
+        for (let attempt = 0; attempt < 500 && leftover !== 0; ++attempt) {
+            await timeout(10);
+            leftover = internals.openResponsePipeCount();
+        }
+        // A neighbor's leak would pin its pipes for good; measure this test as the delta over that baseline
+        // rather than against an absolute zero it cannot reach.
+        const basePipeCount = internals.openResponsePipeCount();
+
+        // No Content-Type, so the load must sniff -- and the server sends one body byte and then stalls for
+        // longer than the whole test, so the sniff threshold is never reached and the navigation stays parked.
+        const url = await server.createEcho("GET", "/response-pipe-parked-navigation", {
+            status: 200,
+            headers: { "Cache-Control": "no-store" },
+            body: "0123456789",
+        });
+
+        document.body.insertAdjacentHTML(
+            "beforeend",
+            `<iframe id="parked" src="${url}?chunks=1&chunk_delay_ms=60000"></iframe>`
+        );
+
+        // Wait for the navigation's request to reach the network layer, then give the response and the parking
+        // task a moment to land. On this machine parking follows the first byte within a few milliseconds; the
+        // long grace only guards against a slow CI box removing the iframe before the navigation has parked.
+        for (let attempt = 0; attempt < 100 && internals.openResponsePipeCount() <= basePipeCount; ++attempt) {
+            await timeout(10);
+        }
+        if (internals.openResponsePipeCount() <= basePipeCount)
+            throw new Error("The navigation never opened a response pipe, so nothing can park");
+        await timeout(800);
+
+        document.getElementById("parked").remove();
+
+        // Pipe teardown runs on a deferred task -- so give the event loop a few turns.
+        let pipeCount = internals.openResponsePipeCount();
+        for (let attempt = 0; attempt < 500 && pipeCount > basePipeCount; ++attempt) {
+            await timeout(10);
+            pipeCount = internals.openResponsePipeCount();
+        }
+
+        println(`open response pipes after removing the parked iframe: ${Math.max(0, pipeCount - basePipeCount)}`);
+        done();
+    });
+</script>
