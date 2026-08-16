@@ -1240,8 +1240,24 @@ fn compute_math_depth(
                 None => NUMBER_UNHANDLED,
             }
         }
-        // AD-HOC: the add(<integer>) function form is resolved by the C++ caller.
-        StyleValueData::Function { .. } => NUMBER_UNHANDLED,
+        // - If the specified value of math-depth is of the form add(<integer>) then the computed
+        //   value of math-depth of the element is its inherited value plus the specified integer.
+        StyleValueData::Function { value, .. } => {
+            let Some(value) = value.optional_data() else {
+                return NUMBER_UNHANDLED;
+            };
+            let added = match value {
+                StyleValueData::Integer { value } => Some(*value),
+                StyleValueData::Calculated { .. } => {
+                    crate::css::calc::resolve_calculated_integer_without_context(value)
+                }
+                _ => None,
+            };
+            match added {
+                Some(added) => computed(inherited_math_depth.saturating_add(added)),
+                None => NUMBER_UNHANDLED,
+            }
+        }
         // - Otherwise, the computed value of math-depth of the element is the inherited one.
         _ => computed(inherited_math_depth),
     }
@@ -1335,7 +1351,11 @@ pub unsafe extern "C" fn rust_compute_line_height(
 
 // https://drafts.csswg.org/css-backgrounds/#border-width
 // absolute length, snapped as a border width
-fn compute_border_or_outline_width(value: &StyleValueData, device_pixels_per_css_pixel: f64) -> FfiComputedNumber {
+fn compute_border_or_outline_width(
+    value: &StyleValueData,
+    device_pixels_per_css_pixel: f64,
+    length_resolution_context: Option<&FfiLengthResolutionContext>,
+) -> FfiComputedNumber {
     let absolute_length = match value {
         // The thin, medium, and thick keywords are equivalent to 1px, 3px, and 5px, respectively.
         // https://drafts.csswg.org/css-backgrounds/#typedef-line-width
@@ -1352,6 +1372,16 @@ fn compute_border_or_outline_width(value: &StyleValueData, device_pixels_per_css
                 Some(LengthUnitKind::Absolute { px_per_unit }) => CssPixels::nearest_value_for(px_per_unit * value),
                 _ => return NUMBER_UNHANDLED,
             }
+        }
+        StyleValueData::Calculated { .. } => {
+            let Some(length_resolution_context) = length_resolution_context else {
+                return NUMBER_UNHANDLED;
+            };
+            let Some(px) = crate::css::calc::resolve_calculated_length_with_context(value, length_resolution_context)
+            else {
+                return NUMBER_UNHANDLED;
+            };
+            CssPixels::nearest_value_for(px)
         }
         _ => return NUMBER_UNHANDLED,
     };
@@ -1399,7 +1429,7 @@ pub unsafe extern "C" fn rust_compute_border_or_outline_width(
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
         let value = unsafe { &*(absolutized_value as *const StyleValueData) };
-        compute_border_or_outline_width(value, device_pixels_per_css_pixel)
+        compute_border_or_outline_width(value, device_pixels_per_css_pixel, None)
     })
 }
 
@@ -1480,41 +1510,51 @@ pub unsafe extern "C" fn rust_font_family_is_monospace(data: *const c_void) -> b
 /// deduplicate by tag with the later occurrence taking precedence, then sort
 /// the survivors ascending by tag.
 /// https://drafts.csswg.org/css-fonts/#font-feature-settings-prop
+#[allow(clippy::arc_with_non_send_sync)]
+fn compute_font_feature_tag_value_list(value: &StyleValueData) -> Arc<StyleValueData> {
+    let StyleValueData::ValueList {
+        values,
+        separator,
+        collapsible,
+    } = value
+    else {
+        unreachable!("font feature settings must be a value list")
+    };
+    let values = values.as_slice();
+    let packed_tag = |index: usize| match values[index].data() {
+        StyleValueData::OpenTypeTagged { packed_tag, .. } => *packed_tag,
+        _ => unreachable!("font feature settings must contain OpenType tagged values"),
+    };
+
+    // Keep the last occurrence of each tag; later declarations take precedence.
+    let mut survivors: Vec<usize> = (0..values.len())
+        .filter(|&i| !((i + 1)..values.len()).any(|j| packed_tag(i) == packed_tag(j)))
+        .collect();
+    survivors.sort_unstable_by_key(|&index| packed_tag(index));
+    let values = survivors
+        .into_iter()
+        .map(|index| values[index].clone_retained())
+        .collect();
+    Arc::new(StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(values),
+        separator: *separator,
+        collapsible: *collapsible,
+    })
+}
+
+/// Computes a font-feature-settings or font-variation-settings value list:
+/// deduplicate by tag with the later occurrence taking precedence, then sort
+/// the survivors ascending by tag.
+/// https://drafts.csswg.org/css-fonts/#font-feature-settings-prop
 ///
 /// # Safety
 /// `data` must point at a value list of OpenType tagged values.
 #[unsafe(no_mangle)]
-#[allow(clippy::arc_with_non_send_sync)]
 pub unsafe extern "C" fn rust_compute_font_feature_settings(data: *const c_void) -> *const c_void {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     abort_on_panic(|| {
-        let StyleValueData::ValueList {
-            values,
-            separator,
-            collapsible,
-        } = (unsafe { &*data.cast::<StyleValueData>() })
-        else {
-            unreachable!("font feature settings must be a value list")
-        };
-        let values = values.as_slice();
-        let packed_tag = |index: usize| match values[index].data() {
-            StyleValueData::OpenTypeTagged { packed_tag, .. } => *packed_tag,
-            _ => unreachable!("font feature settings must contain OpenType tagged values"),
-        };
-
-        // Keep the last occurrence of each tag; later declarations take precedence.
-        let mut survivors: Vec<usize> = (0..values.len())
-            .filter(|&i| !((i + 1)..values.len()).any(|j| packed_tag(i) == packed_tag(j)))
-            .collect();
-        survivors.sort_unstable_by_key(|&index| packed_tag(index));
-        let values = survivors
-            .into_iter()
-            .map(|index| values[index].clone_retained())
-            .collect();
-        Arc::into_raw(Arc::new(StyleValueData::ValueList {
-            values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(values),
-            separator: *separator,
-            collapsible: *collapsible,
+        Arc::into_raw(compute_font_feature_tag_value_list(unsafe {
+            &*data.cast::<StyleValueData>()
         }))
         .cast()
     })
@@ -2116,6 +2156,67 @@ fn property_has_dedicated_compute_rule(property_id: u16) -> bool {
     )
 }
 
+/// Repeats a coordinated list to the background layer count. The outer option
+/// rejects non-list or empty values, while the inner option preserves the
+/// original allocation when its length already matches.
+#[allow(clippy::arc_with_non_send_sync)]
+fn repeat_style_value_list_to_n_elements(value: &StyleValueData, count: usize) -> Option<Option<Arc<StyleValueData>>> {
+    let StyleValueData::ValueList { values, separator, .. } = value else {
+        return None;
+    };
+    let values = values.as_slice();
+    if values.len() == count {
+        return Some(None);
+    }
+    if values.is_empty() {
+        return None;
+    }
+    let repeated_values = (0..count)
+        .map(|index| values[index % values.len()].clone_retained())
+        .collect();
+    Some(Some(Arc::new(StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(repeated_values),
+        separator: *separator,
+        collapsible: true,
+    })))
+}
+
+/// https://drafts.csswg.org/css-animations-1/#animation-name
+/// list, each item either a case-sensitive css identifier or the keyword none
+#[allow(clippy::arc_with_non_send_sync)]
+fn compute_animation_name(value: &StyleValueData) -> Option<Arc<StyleValueData>> {
+    let StyleValueData::ValueList { values, .. } = value else {
+        return None;
+    };
+    let computed_entries = values
+        .as_slice()
+        .iter()
+        .map(|entry| match entry.data() {
+            // none | <custom-ident>
+            StyleValueData::Keyword { keyword } if *keyword == keyword::NONE => Some(entry.clone_retained()),
+            StyleValueData::CustomIdent { .. } => Some(entry.clone_retained()),
+            // <string>
+            StyleValueData::String {
+                string,
+                is_valid_animation_name_custom_ident,
+            } => Some(if *is_valid_animation_name_custom_ident {
+                let pointer = Arc::into_raw(Arc::new(StyleValueData::CustomIdent {
+                    custom_ident: string.clone(),
+                }));
+                unsafe { RetainedStyleValueData::from_retained_pointer(pointer) }
+            } else {
+                entry.clone_retained()
+            }),
+            _ => None,
+        })
+        .collect::<Option<Vec<_>>>()?;
+    Some(Arc::new(StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(computed_entries),
+        separator: 1,
+        collapsible: true,
+    }))
+}
+
 /// The parent's computed values, handed to the drive as the parent style's own
 /// longhand table span: one shared Rust data identity per longhand in property
 /// id order, null where the parent stored none. Everything the span points at
@@ -2425,7 +2526,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         }
 
         // The computed math-depth, remembered for the font-size rule; None when C++
-        // computed it, in which case font-size falls back as well.
+        // computed a cascaded value, in which case font-size falls back as well.
         let mut computed_math_depth: Option<i32> = None;
         // The background-image list length, for the coordinated background properties.
         let mut background_image_list_length: Option<usize> = None;
@@ -2603,6 +2704,13 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             // value must be kept for re-resolution when an ancestor changes.
             let value_data = unsafe { &*(value as *const StyleValueData) };
 
+            if inherited_property_id == crate::css::property_metadata::property_id::MATH_DEPTH
+                && let StyleValueData::Integer { value } = value_data
+            {
+                // An inherited or initial math-depth is already computed and skips the
+                // cascaded-value computation rule, but font-size still consumes it.
+                computed_math_depth = Some(*value);
+            }
             if inherited_property_id == crate::css::property_metadata::property_id::BACKGROUND_IMAGE
                 && let StyleValueData::ValueList { values, .. } = value_data
             {
@@ -2685,7 +2793,36 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                         let result = compute_border_or_outline_width(
                             synthesized.as_ref().unwrap_or(value_data),
                             device_pixels_per_css_pixel,
+                            None,
                         );
+                        if result.handled {
+                            NativeValue::Px(result.value)
+                        } else {
+                            NativeValue::Unsupported
+                        }
+                    }
+                    (
+                        None,
+                        prop::BORDER_BOTTOM_WIDTH
+                        | prop::BORDER_LEFT_WIDTH
+                        | prop::BORDER_RIGHT_WIDTH
+                        | prop::BORDER_TOP_WIDTH
+                        | prop::OUTLINE_WIDTH,
+                    ) if matches!(value_data, StyleValueData::Calculated { .. }) => {
+                        let resolution_context = length_resolution_context
+                            .expect("calculated border widths require a length resolution context");
+                        let mut resolved_viewport_relative_length = false;
+                        let mut calc_resolution_context = *resolution_context;
+                        calc_resolution_context.resolved_viewport_relative_length =
+                            &raw mut resolved_viewport_relative_length;
+                        let result = compute_border_or_outline_width(
+                            value_data,
+                            device_pixels_per_css_pixel,
+                            Some(&calc_resolution_context),
+                        );
+                        if resolved_viewport_relative_length {
+                            results.depends_on_viewport_metrics = true;
+                        }
                         if result.handled {
                             NativeValue::Px(result.value)
                         } else {
@@ -2699,8 +2836,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                         | prop::CORNER_TOP_LEFT_SHAPE
                         | prop::CORNER_TOP_RIGHT_SHAPE,
                     ) => {
-                        // Corner shape values are keywords or superellipses; only keywords
-                        // reach here since superellipse absolutization stays with C++.
+                        // Corner shape keywords reach here because their absolutization is the identity.
                         let result = compute_corner_shape_parameter(value_data);
                         if result.handled && !result.unchanged {
                             NativeValue::Superellipse(result.value)
@@ -2710,7 +2846,55 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                             NativeValue::Unsupported
                         }
                     }
-                    (Some(_), prop::MATH_DEPTH) => {
+                    (
+                        None,
+                        prop::CORNER_BOTTOM_LEFT_SHAPE
+                        | prop::CORNER_BOTTOM_RIGHT_SHAPE
+                        | prop::CORNER_TOP_LEFT_SHAPE
+                        | prop::CORNER_TOP_RIGHT_SHAPE,
+                    ) => {
+                        let resolution_context =
+                            length_resolution_context.expect("corner shapes require a length resolution context");
+                        let absolutization_context = crate::css::absolutize::AbsolutizationContext {
+                            length: resolution_context,
+                            scheme: effective_color_scheme,
+                            resolved_viewport_relative_length: std::cell::Cell::new(false),
+                        };
+                        let absolutized = crate::css::absolutize::absolutize(value_data, &absolutization_context);
+                        if absolutization_context.resolved_viewport_relative_length.get() {
+                            results.depends_on_viewport_metrics = true;
+                        }
+                        match absolutized {
+                            Some(crate::css::absolutize::Absolutized::Unchanged) => {
+                                let result = compute_corner_shape_parameter(value_data);
+                                if result.handled && !result.unchanged {
+                                    NativeValue::Superellipse(result.value)
+                                } else if result.handled {
+                                    NativeValue::Unchanged
+                                } else {
+                                    NativeValue::Unsupported
+                                }
+                            }
+                            Some(crate::css::absolutize::Absolutized::Changed(value)) => {
+                                let result = compute_corner_shape_parameter(value.data());
+                                if result.handled && !result.unchanged {
+                                    NativeValue::Superellipse(result.value)
+                                } else if result.handled {
+                                    NativeValue::StyleValue(value.into_arc())
+                                } else {
+                                    NativeValue::Unsupported
+                                }
+                            }
+                            None => NativeValue::Unsupported,
+                        }
+                    }
+                    (native_absolutized, prop::MATH_DEPTH)
+                        if native_absolutized.is_some()
+                            || matches!(
+                                value_data,
+                                StyleValueData::Calculated { .. } | StyleValueData::Function { .. }
+                            ) =>
+                    {
                         // The inherited math-depth and math-style come from the parent
                         // snapshot; without an inheritance parent the initial values apply
                         // (math-depth 0, math-style normal).
@@ -2737,7 +2921,10 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                             NativeValue::Unsupported
                         }
                     }
-                    (Some(absolutized), prop::FONT_SIZE) => {
+                    (native_absolutized, prop::FONT_SIZE)
+                        if native_absolutized.is_some() || matches!(value_data, StyleValueData::Calculated { .. }) =>
+                    {
+                        let absolutized = native_absolutized.flatten();
                         if let Some(computed_math_depth) = computed_math_depth {
                             // A font-size relative to the inherited size also inherits the
                             // parent's viewport dependence of its font metrics.
@@ -2789,7 +2976,9 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                             NativeValue::Unsupported
                         }
                     }
-                    (Some(_), prop::FONT_WEIGHT) => {
+                    (native_absolutized, prop::FONT_WEIGHT)
+                        if native_absolutized.is_some() || matches!(value_data, StyleValueData::Calculated { .. }) =>
+                    {
                         let inherited_font_weight = match snapshot {
                             Some(snapshot) => match snapshot_entry_data(snapshot, prop::FONT_WEIGHT) {
                                 Some(StyleValueData::Number { value }) => Some(*value),
@@ -2820,7 +3009,25 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                         },
                         _ => NativeValue::Unchanged,
                     },
-                    (Some(_), prop::FONT_WIDTH) => {
+                    (None, prop::FONT_STYLE) if matches!(value_data, StyleValueData::FontStyle { .. }) => {
+                        let resolution_context =
+                            length_resolution_context.expect("font-style requires a length resolution context");
+                        let absolutization_context = crate::css::absolutize::AbsolutizationContext {
+                            length: resolution_context,
+                            scheme: None,
+                            resolved_viewport_relative_length: std::cell::Cell::new(false),
+                        };
+                        match crate::css::absolutize::absolutize(value_data, &absolutization_context) {
+                            Some(crate::css::absolutize::Absolutized::Unchanged) => NativeValue::Unchanged,
+                            Some(crate::css::absolutize::Absolutized::Changed(value)) => {
+                                NativeValue::StyleValue(value.into_arc())
+                            }
+                            None => NativeValue::Unsupported,
+                        }
+                    }
+                    (native_absolutized, prop::FONT_WIDTH)
+                        if native_absolutized.is_some() || matches!(value_data, StyleValueData::Calculated { .. }) =>
+                    {
                         let result = compute_font_width(value_data);
                         if result.handled {
                             if result.unchanged {
@@ -2836,6 +3043,28 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                         if matches!(value_data, StyleValueData::Keyword { .. }) =>
                     {
                         NativeValue::Unchanged
+                    }
+                    (None, prop::FONT_FEATURE_SETTINGS | prop::FONT_VARIATION_SETTINGS) => {
+                        let resolution_context = length_resolution_context
+                            .expect("font feature settings require a length resolution context");
+                        let absolutization_context = crate::css::absolutize::AbsolutizationContext {
+                            length: resolution_context,
+                            scheme: None,
+                            resolved_viewport_relative_length: std::cell::Cell::new(false),
+                        };
+                        let absolutized = crate::css::absolutize::absolutize(value_data, &absolutization_context);
+                        if absolutization_context.resolved_viewport_relative_length.get() {
+                            results.depends_on_viewport_metrics = true;
+                        }
+                        match absolutized {
+                            Some(crate::css::absolutize::Absolutized::Unchanged) => {
+                                NativeValue::StyleValue(compute_font_feature_tag_value_list(value_data))
+                            }
+                            Some(crate::css::absolutize::Absolutized::Changed(value)) => {
+                                NativeValue::StyleValue(compute_font_feature_tag_value_list(value.data()))
+                            }
+                            None => NativeValue::Unsupported,
+                        }
                     }
                     (Some(absolutized), prop::LINE_HEIGHT) => {
                         let result = if matches!(value_data, StyleValueData::Percentage { .. }) {
@@ -2864,6 +3093,53 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                             NativeValue::Unsupported
                         }
                     }
+                    (None, prop::LINE_HEIGHT) if matches!(value_data, StyleValueData::Calculated { .. }) => {
+                        let resolution_context = length_resolution_context
+                            .expect("calculated line-height requires a length resolution context");
+                        let absolutization_context = crate::css::absolutize::AbsolutizationContext {
+                            length: resolution_context,
+                            scheme: None,
+                            resolved_viewport_relative_length: std::cell::Cell::new(false),
+                        };
+                        let absolutized = crate::css::absolutize::absolutize(value_data, &absolutization_context);
+                        if absolutization_context.resolved_viewport_relative_length.get() {
+                            results.depends_on_viewport_metrics = true;
+                            results.font_metrics_depend_on_viewport_metrics = true;
+                        }
+                        match absolutized {
+                            Some(crate::css::absolutize::Absolutized::Unchanged) => {
+                                let result = compute_line_height(
+                                    value_data,
+                                    CssPixels::nearest_value_for(resolution_context.font_metrics.font_size),
+                                );
+                                if result.handled && result.is_number {
+                                    NativeValue::Number(result.value)
+                                } else if result.handled && !result.unchanged {
+                                    NativeValue::Px(result.value)
+                                } else if result.handled {
+                                    NativeValue::Unchanged
+                                } else {
+                                    NativeValue::Unsupported
+                                }
+                            }
+                            Some(crate::css::absolutize::Absolutized::Changed(value)) => {
+                                let result = compute_line_height(
+                                    value.data(),
+                                    CssPixels::nearest_value_for(resolution_context.font_metrics.font_size),
+                                );
+                                if result.handled && result.is_number {
+                                    NativeValue::Number(result.value)
+                                } else if result.handled && !result.unchanged {
+                                    NativeValue::Px(result.value)
+                                } else if result.handled {
+                                    NativeValue::StyleValue(value.into_arc())
+                                } else {
+                                    NativeValue::Unsupported
+                                }
+                            }
+                            None => NativeValue::Unsupported,
+                        }
+                    }
                     (None, prop::FONT_FAMILY) if matches!(value_data, StyleValueData::ValueList { .. }) => {
                         // A font-family list only ever holds keywords, strings and custom
                         // identifiers, whose absolutization is the identity.
@@ -2874,18 +3150,50 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                         prop::BACKGROUND_ATTACHMENT
                         | prop::BACKGROUND_CLIP
                         | prop::BACKGROUND_ORIGIN
-                        | prop::BACKGROUND_REPEAT,
+                        | prop::BACKGROUND_POSITION_X
+                        | prop::BACKGROUND_POSITION_Y
+                        | prop::BACKGROUND_REPEAT
+                        | prop::BACKGROUND_SIZE,
                     ) => {
-                        // These coordinated lists only ever hold keywords and repeat-style
-                        // values, whose absolutization is the identity; the coordination is
-                        // the identity too when the list already matches the layer count.
-                        match (value_data, background_image_list_length) {
-                            (StyleValueData::ValueList { values, .. }, Some(layer_count))
-                                if values.as_slice().len() == layer_count =>
-                            {
-                                NativeValue::Unchanged
+                        // NB: The background properties are coordinated at compute time rather
+                        //     than use time, unlike other coordinating list property groups.
+                        let layer_count = background_image_list_length
+                            .or_else(|| {
+                                unsafe { &*longhand_table }
+                                    .get(prop::BACKGROUND_IMAGE)
+                                    .and_then(|value| match value.data() {
+                                        StyleValueData::ValueList { values, .. } => Some(values.as_slice().len()),
+                                        _ => None,
+                                    })
+                            })
+                            .expect("background-image must be a computed value list");
+                        let resolution_context =
+                            length_resolution_context.expect("background lists require a length resolution context");
+                        let absolutization_context = crate::css::absolutize::AbsolutizationContext {
+                            length: resolution_context,
+                            scheme: effective_color_scheme,
+                            resolved_viewport_relative_length: std::cell::Cell::new(false),
+                        };
+                        let absolutized = crate::css::absolutize::absolutize(value_data, &absolutization_context);
+                        if absolutization_context.resolved_viewport_relative_length.get() {
+                            results.depends_on_viewport_metrics = true;
+                        }
+                        match absolutized {
+                            Some(crate::css::absolutize::Absolutized::Unchanged) => {
+                                match repeat_style_value_list_to_n_elements(value_data, layer_count) {
+                                    Some(None) => NativeValue::Unchanged,
+                                    Some(Some(value)) => NativeValue::StyleValue(value),
+                                    None => NativeValue::Unsupported,
+                                }
                             }
-                            _ => NativeValue::Unsupported,
+                            Some(crate::css::absolutize::Absolutized::Changed(value)) => {
+                                match repeat_style_value_list_to_n_elements(value.data(), layer_count) {
+                                    Some(None) => NativeValue::StyleValue(value.into_arc()),
+                                    Some(Some(value)) => NativeValue::StyleValue(value),
+                                    None => NativeValue::Unsupported,
+                                }
+                            }
+                            None => NativeValue::Unsupported,
                         }
                     }
                     (Some(_), prop::ANIMATION_NAME)
@@ -2896,6 +3204,10 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     {
                         NativeValue::Unchanged
                     }
+                    (None, prop::ANIMATION_NAME) => match compute_animation_name(value_data) {
+                        Some(value) => NativeValue::StyleValue(value),
+                        None => NativeValue::Unsupported,
+                    },
                     (Some(absolutized), prop::LETTER_SPACING | prop::WORD_SPACING) => {
                         let synthesized = synthesized_px_length(absolutized);
                         let result = compute_letter_or_word_spacing_value(synthesized.as_ref().unwrap_or(value_data));
@@ -2910,6 +3222,29 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                             }
                         } else {
                             NativeValue::Unsupported
+                        }
+                    }
+                    (None, prop::LETTER_SPACING | prop::WORD_SPACING)
+                        if matches!(value_data, StyleValueData::Calculated { .. }) =>
+                    {
+                        let resolution_context =
+                            length_resolution_context.expect("calculated spacing requires a length resolution context");
+                        let absolutization_context = crate::css::absolutize::AbsolutizationContext {
+                            length: resolution_context,
+                            scheme: None,
+                            resolved_viewport_relative_length: std::cell::Cell::new(false),
+                        };
+                        let absolutized = crate::css::absolutize::absolutize(value_data, &absolutization_context);
+                        if absolutization_context.resolved_viewport_relative_length.get() {
+                            results.depends_on_viewport_metrics = true;
+                            results.font_metrics_depend_on_viewport_metrics = true;
+                        }
+                        match absolutized {
+                            Some(crate::css::absolutize::Absolutized::Unchanged) => NativeValue::Unchanged,
+                            Some(crate::css::absolutize::Absolutized::Changed(value)) => {
+                                NativeValue::StyleValue(value.into_arc())
+                            }
+                            None => NativeValue::Unsupported,
                         }
                     }
                     (_, prop::POSITION_AREA) => match compute_position_area(value_data) {

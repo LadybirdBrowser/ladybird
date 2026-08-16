@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        internals.updateStyle();
+
+        const target = document.createElement("div");
+        target.style.cssText = `
+            border-style: solid;
+            border-top-width: calc(0.2px);
+            border-right-width: calc(1px + 0.8px);
+            border-bottom-width: calc(1px + 1px);
+            border-left-width: calc(0.1em);
+            font-size: 20px;
+            outline-style: solid;
+            outline-width: calc(4px - 0.5px);
+        `;
+
+        internals.resetStyleFfiCounters();
+        document.body.appendChild(target);
+        internals.updateStyle();
+
+        const computedStyle = getComputedStyle(target);
+        for (const property of [
+            "border-top-width",
+            "border-right-width",
+            "border-bottom-width",
+            "border-left-width",
+            "outline-width",
+        ]) {
+            println(`${property}: ${computedStyle.getPropertyValue(property)}`);
+        }
+        println(`used no C++ longhand fallback: ${internals.styleFfiCounters().longhandCppComputeFallbacks === 0}`);
+    });
+</script>

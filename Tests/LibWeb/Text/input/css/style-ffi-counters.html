@@ -63,6 +63,8 @@
         const simple = document.createElement("div");
         const simpleCounters = measureUpdate("simple element", () => {
             simple.style.color = "green";
+            // Keep one intentionally unported computation so bitmap recording remains covered.
+            simple.style.order = "sibling-count()";
             document.body.appendChild(simple);
         });
         println(`transaction returned without callbacks: ${simpleCounters.completeStyleUpdateTransactionCallbacks === 0}`);

@@ -522,7 +522,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             }
             true
         }
-        StyleValueData::String { string } => {
+        StyleValueData::String { string, .. } => {
             with_fly_string_units(string, |units| serialize_a_string(sink, &units));
             true
         }

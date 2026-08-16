@@ -1,0 +1,6 @@
+border-top-width: 1px
+border-right-width: 1px
+border-bottom-width: 2px
+border-left-width: 2px
+outline-width: 3px
+used no C++ longhand fallback: true

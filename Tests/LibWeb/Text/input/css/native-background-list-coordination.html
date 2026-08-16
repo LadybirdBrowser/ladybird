@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        internals.updateStyle();
+
+        const target = document.createElement("div");
+        target.style.cssText = `
+            background-image: none, none, none;
+            background-attachment: fixed;
+            background-clip: padding-box;
+            background-origin: content-box;
+            background-position: 10px 20px;
+            background-repeat: no-repeat;
+            background-size: 30px auto;
+        `;
+
+        internals.resetStyleFfiCounters();
+        document.body.appendChild(target);
+        internals.updateStyle();
+
+        const computedStyle = getComputedStyle(target);
+        for (const property of [
+            "background-attachment",
+            "background-clip",
+            "background-origin",
+            "background-position-x",
+            "background-position-y",
+            "background-repeat",
+            "background-size",
+        ]) {
+            println(`${property}: ${computedStyle.getPropertyValue(property)}`);
+        }
+        println(`initial update used no C++ longhand fallback: ${internals.styleFfiCounters().longhandCppComputeFallbacks === 0}`);
+
+        internals.resetStyleFfiCounters();
+        target.style.backgroundPosition = "20px 30px";
+        internals.updateStyle();
+
+        println(`partial background-position-x: ${computedStyle.getPropertyValue("background-position-x")}`);
+        println(`partial background-position-y: ${computedStyle.getPropertyValue("background-position-y")}`);
+        println(`partial update used no C++ longhand fallback: ${internals.styleFfiCounters().longhandCppComputeFallbacks === 0}`);
+    });
+</script>
