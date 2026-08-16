@@ -40,6 +40,7 @@
 #include <LibWeb/HTML/HTMLTemplateElement.h>
 #include <LibWeb/HTML/ImageRequest.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/NavigationHistoryEntry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
@@ -47,7 +48,6 @@
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
-#include <LibWeb/Layout/NavigableContainerViewport.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -339,9 +339,8 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
 
         builder.appendff(" children: {}", box.children_are_inline() ? "inline" : "not-inline");
 
-        if (is<Layout::NavigableContainerViewport>(box)) {
-            auto const& frame_box = static_cast<Layout::NavigableContainerViewport const&>(box);
-            if (auto const* document = frame_box.dom_node().content_document_without_origin_check()) {
+        if (box.kind() == Layout::RustFFI::NodeKind::NavigableContainerViewport) {
+            if (auto const* document = as<HTML::NavigableContainer>(*box.dom_node()).content_document_without_origin_check()) {
                 builder.appendff(" (url: {})", document->url());
                 builder.append("\n"sv);
                 if (auto const* nested_layout_root = document->layout_node()) {

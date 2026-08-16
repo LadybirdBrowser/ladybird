@@ -11,8 +11,8 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/BreakNode.h>
-#include <LibWeb/Layout/ReplacedBox.h>
 #include <LibWeb/VisualLines.h>
 
 namespace Web::HTML {
@@ -69,7 +69,7 @@ static bool is_rendered_inline_content(DOM::Node const& node)
         auto const* layout_node = element->layout_node();
         if (!layout_node)
             return false;
-        if (is<Layout::ReplacedBox>(*layout_node))
+        if (layout_node->is_replaced_box())
             return true;
         if (layout_node->display().is_inline_outside() && !layout_node->display().is_flow_inside())
             return true;

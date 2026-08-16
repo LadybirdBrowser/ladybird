@@ -9,7 +9,6 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/Layout/Box.h>
-#include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Layout/ScrollableOverflow.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
@@ -180,7 +179,7 @@ CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMap const
     auto in_flow_and_floated_content_bounds = paintable_absolute_content_box;
 
     // Replaced SVG viewports clip their content
-    if (is<SVGSVGBox>(box)) {
+    if (box.is_svg_svg_box()) {
         store_overflow_data({
             .scrollable_overflow_rect = scrollable_overflow_rect,
             .has_scrollable_overflow = false,

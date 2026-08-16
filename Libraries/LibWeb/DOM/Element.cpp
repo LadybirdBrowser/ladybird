@@ -126,7 +126,6 @@
 #include <LibWeb/IntersectionObserver/IntersectionObserver.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/InlineNode.h>
-#include <LibWeb/Layout/ListItemBox.h>
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
@@ -1101,7 +1100,7 @@ RefPtr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM::
         return make_ref_counted<Layout::Box>(document, element, style);
 
     if (display.is_list_item())
-        return make_ref_counted<Layout::ListItemBox>(document, element, style);
+        return make_ref_counted<Layout::BlockContainer>(document, element, style, Layout::RustFFI::NodeKind::ListItemBox);
 
     if (display.is_table_cell())
         return make_ref_counted<Layout::BlockContainer>(document, element, style);

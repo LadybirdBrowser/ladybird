@@ -44,7 +44,7 @@
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/HTML/SupportedImageTypes.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/Layout/ImageBox.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -94,7 +94,7 @@ static BatchingDispatcher& batching_dispatcher()
     return *dispatcher;
 }
 
-static bool image_element_dimensions_may_depend_on_intrinsic_size(Layout::ImageBox const& image_box)
+static bool image_element_dimensions_may_depend_on_intrinsic_size(Layout::Box const& image_box)
 {
     auto size_is_definite = [](CSS::Size const& size) {
         return size.is_length() || (size.is_calculated() && !size.contains_percentage());
@@ -121,7 +121,7 @@ static bool image_element_dimensions_may_depend_on_intrinsic_size(Layout::ImageB
     return false;
 }
 
-static void reset_intrinsic_size_caches_after_image_data_change(Layout::ImageBox& image_box)
+static void reset_intrinsic_size_caches_after_image_data_change(Layout::Box& image_box)
 {
     image_box.bump_fragment_cache_epoch_of_self_and_ancestors();
     image_box.reset_cached_intrinsic_sizes();
@@ -140,7 +140,7 @@ void HTMLImageElement::set_needs_layout_update_or_repaint_after_image_data_chang
     update_alt_text_shadow_tree();
 
     auto layout_node = unsafe_layout_node();
-    auto* image_box = as_if<Layout::ImageBox>(layout_node);
+    auto* image_box = layout_node && layout_node->kind() == Layout::RustFFI::NodeKind::ImageBox ? static_cast<Layout::Box*>(layout_node) : nullptr;
 
     // The request state change may have flipped which kind of layout node create_layout_node()
     // produces (ImageBox vs. non-replaced alt text container); if the existing node no longer
@@ -322,7 +322,7 @@ RefPtr<Layout::Node> HTMLImageElement::create_layout_node(CSS::LayoutStyle style
         VERIFY(computed_style);
         return Element::create_layout_node_for_display_type(document(), computed_style->display(), style, this);
     }
-    return make_ref_counted<Layout::ImageBox>(document(), *this, style, *this);
+    return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::ImageBox);
 }
 
 void HTMLImageElement::create_alt_text_shadow_tree()

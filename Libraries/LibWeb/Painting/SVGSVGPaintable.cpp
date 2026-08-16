@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Layout/ReplacedBox.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
@@ -68,7 +68,7 @@ void SVGSVGPaintable::paint_svg_box(DisplayListRecordingContext& context, Painta
             record_foreign_object_descendant_hit_test_items(context, svg_box);
         if (!svg_box.is_svg_paintable()
             && !svg_box.is_svg_svg_paintable()
-            && is<Layout::ReplacedBox>(svg_box.layout_node()))
+            && svg_box.layout_node().is_replaced_box())
             svg_box.paint(context, PaintPhase::Background);
         svg_box.paint(context, PaintPhase::Foreground);
         paint_descendants(context, svg_box, phase);

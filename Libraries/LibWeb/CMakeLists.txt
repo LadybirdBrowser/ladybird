@@ -799,36 +799,18 @@ set(SOURCES
     Internals/XRTest.cpp
     IntersectionObserver/IntersectionObserver.cpp
     IntersectionObserver/IntersectionObserverEntry.cpp
-    Layout/AudioBox.cpp
     Layout/BlockContainer.cpp
     Layout/Box.cpp
     Layout/BreakNode.cpp
-    Layout/CanvasBox.cpp
-    Layout/CheckBox.cpp
-    Layout/FieldSetBox.cpp
-    Layout/ImageBox.cpp
     Layout/ImageProvider.cpp
     Layout/InlineNode.cpp
     Layout/LayoutRustBridge.cpp
-    Layout/LegendBox.cpp
-    Layout/ListItemBox.cpp
-    Layout/ListItemMarkerBox.cpp
-    Layout/NavigableContainerViewport.cpp
     Layout/Node.cpp
     Layout/NodeArena.cpp
-    Layout/RadioButton.cpp
-    Layout/RangeInputBox.cpp
-    Layout/ReplacedBox.cpp
-    Layout/SVGForeignObjectBox.cpp
-    Layout/SVGSVGBox.cpp
     Layout/ScrollableOverflow.cpp
-    Layout/TableWrapper.cpp
-    Layout/TextAreaBox.cpp
-    Layout/TextInputBox.cpp
     Layout/TextNode.cpp
     Layout/TextOffsetMapping.cpp
     Layout/TreeBuilder.cpp
-    Layout/VideoBox.cpp
     Layout/Viewport.cpp
     Loader/ContentBlocker.cpp
     Loader/DownloadFilename.cpp

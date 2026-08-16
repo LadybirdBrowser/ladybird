@@ -15,7 +15,7 @@ class BlockContainer : public Box {
     LAYOUT_NODE(BlockContainer, Box);
 
 public:
-    BlockContainer(DOM::Document&, GC::Ptr<DOM::Node>, CSS::LayoutStyle);
+    BlockContainer(DOM::Document&, GC::Ptr<DOM::Node>, CSS::LayoutStyle, RustFFI::NodeKind = RustFFI::NodeKind::BlockContainer);
     virtual ~BlockContainer() override;
 
     RefPtr<Painting::PaintableWithLines const> paintable_with_lines() const;

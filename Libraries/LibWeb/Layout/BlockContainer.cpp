@@ -9,9 +9,10 @@
 
 namespace Web::Layout {
 
-BlockContainer::BlockContainer(DOM::Document& document, GC::Ptr<DOM::Node> node, CSS::LayoutStyle style)
-    : Box(document, node, move(style))
+BlockContainer::BlockContainer(DOM::Document& document, GC::Ptr<DOM::Node> node, CSS::LayoutStyle style, RustFFI::NodeKind kind)
+    : Box(document, node, move(style), kind)
 {
+    set_node_kind(kind);
 }
 
 BlockContainer::~BlockContainer() = default;

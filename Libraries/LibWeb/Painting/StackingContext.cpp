@@ -13,7 +13,7 @@
 #include <LibCore/Environment.h>
 #include <LibGfx/Rect.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/Layout/ReplacedBox.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
@@ -339,7 +339,7 @@ void StackingContext::paint_descendants(DisplayListRecordingContext& context, Pa
             return IterationDecision::Continue;
         }
 
-        bool child_is_inline_or_replaced = child.is_inline() || is<Layout::ReplacedBox>(child.layout_node());
+        bool child_is_inline_or_replaced = child.is_inline() || child.layout_node().is_replaced_box();
         bool child_has_inline_level_painting_context = establishes_inline_level_painting_context(child);
         switch (phase) {
         case StackingContextPaintPhase::BackgroundAndBorders:

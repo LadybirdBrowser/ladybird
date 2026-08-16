@@ -5,7 +5,6 @@
  */
 
 #include <LibGfx/BoundingBox.h>
-#include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/SVGPaintable.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
@@ -64,8 +63,10 @@ CSSPixelRect SVGPaintable::compute_absolute_rect() const
 {
     // SVG content geometry lives in the user space of the nearest ancestor viewport, and layout
     // places every box viewport-relative already, so no ancestor offsets accumulate.
-    if (layout_box().first_ancestor_of_type<Layout::SVGSVGBox>())
-        return { offset(), content_size() };
+    for (auto const* ancestor = layout_box().parent(); ancestor; ancestor = ancestor->parent()) {
+        if (ancestor->is_svg_svg_box())
+            return { offset(), content_size() };
+    }
     return Paintable::compute_absolute_rect();
 }
 

@@ -27,7 +27,7 @@
 #include <LibWeb/HTML/VideoTrack.h>
 #include <LibWeb/HTML/VideoTrackList.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
-#include <LibWeb/Layout/VideoBox.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 
@@ -73,7 +73,9 @@ void HTMLVideoElement::attribute_changed(Utf16FlyString const& name, Optional<Ut
 
 RefPtr<Layout::Node> HTMLVideoElement::create_layout_node(CSS::LayoutStyle style)
 {
-    return make_ref_counted<Layout::VideoBox>(document(), *this, style);
+    auto video_box = make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::VideoBox);
+    video_box->set_replaced_box_can_have_children(shadow_root() != nullptr);
+    return video_box;
 }
 
 void HTMLVideoElement::set_intrinsic_video_dimensions(Optional<Gfx::Size<u32>> dimensions)
