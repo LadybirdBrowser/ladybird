@@ -319,10 +319,10 @@ private:
 
     void set_containing_block(Box*);
     void set_inline_containing_block(InlineNode const*);
-    void set_node_kind(RustFFI::NodeKind);
     void synchronize_topology();
 
 protected:
+    void set_node_kind(RustFFI::NodeKind);
     void enroll_for_arena_replaced_content_facts_sync_if_eligible();
 
 private:

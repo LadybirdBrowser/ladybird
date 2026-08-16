@@ -6,8 +6,8 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Layout/SVGGraphicsBox.h>
 #include <LibWeb/SVG/SVGFEFloodElement.h>
 
 namespace Web::SVG {
@@ -27,7 +27,7 @@ void SVGFEFloodElement::visit_edges(Cell::Visitor& visitor)
 
 RefPtr<Layout::Node> SVGFEFloodElement::create_layout_node(CSS::LayoutStyle style)
 {
-    return make_ref_counted<Layout::SVGBox>(document(), *this, style);
+    return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGBox);
 }
 
 // https://www.w3.org/TR/filter-effects-1/#FloodColorProperty

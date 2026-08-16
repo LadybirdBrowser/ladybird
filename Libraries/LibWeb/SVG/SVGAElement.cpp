@@ -8,7 +8,7 @@
 #include <LibGC/Heap.h>
 #include <LibWeb/CSS/Invalidation/LinkInvalidator.h>
 #include <LibWeb/DOM/DOMTokenList.h>
-#include <LibWeb/Layout/SVGGraphicsBox.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGAElement.h>
 
@@ -69,7 +69,7 @@ GC::Ref<DOM::DOMTokenList> SVGAElement::rel_list()
 
 RefPtr<Layout::Node> SVGAElement::create_layout_node(CSS::LayoutStyle style)
 {
-    return make_ref_counted<Layout::SVGGraphicsBox>(document(), *this, style);
+    return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGGraphicsBox);
 }
 
 void SVGAElement::activation_behavior(DOM::Event const& event)

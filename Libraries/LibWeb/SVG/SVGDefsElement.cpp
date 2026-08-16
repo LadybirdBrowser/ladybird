@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Layout/SVGBox.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/SVG/SVGDefsElement.h>
 
 namespace Web::SVG {

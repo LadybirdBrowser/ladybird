@@ -78,7 +78,7 @@ public:
             ++epoch;
     }
 
-    Box(DOM::Document&, GC::Ptr<DOM::Node>, CSS::LayoutStyle);
+    Box(DOM::Document&, GC::Ptr<DOM::Node>, CSS::LayoutStyle, RustFFI::NodeKind = RustFFI::NodeKind::Box);
 
 private:
     CSS::SizeWithAspectRatio compute_auto_content_box_size() const;

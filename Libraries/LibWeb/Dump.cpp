@@ -49,7 +49,6 @@
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/NavigableContainerViewport.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Layout/SVGBox.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Namespace.h>
@@ -259,7 +258,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         dump_box_model();
     } else {
         auto& box = as<Layout::Box>(layout_node);
-        StringView color_on = is<Layout::SVGBox>(box) ? svg_box_color_on : box_color_on;
+        StringView color_on = box.is_svg_box() ? svg_box_color_on : box_color_on;
 
         builder.appendff("{}{}{} <{}{}{}{}> ",
             color_on,

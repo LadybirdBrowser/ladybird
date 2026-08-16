@@ -6,8 +6,8 @@
 
 #include <LibGfx/Matrix4x4.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Layout/SVGPatternBox.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
@@ -235,9 +235,9 @@ Optional<Painting::PaintStyle> SVGPatternElement::to_gfx_paint_style(SVGPaintCon
     if (!content_element)
         return {};
 
-    Layout::SVGPatternBox const* pattern_box = nullptr;
-    target_layout_node.for_each_child_of_type<Layout::SVGPatternBox>([&](auto const& candidate) {
-        if (&candidate.dom_node() == content_element.ptr()) {
+    Layout::Box const* pattern_box = nullptr;
+    target_layout_node.for_each_child_of_type<Layout::Box>([&](auto const& candidate) {
+        if (candidate.is_svg_pattern_box() && candidate.dom_node() == content_element.ptr()) {
             pattern_box = &candidate;
             return IterationDecision::Break;
         }

@@ -819,17 +819,8 @@ set(SOURCES
     Layout/RadioButton.cpp
     Layout/RangeInputBox.cpp
     Layout/ReplacedBox.cpp
-    Layout/SVGBox.cpp
-    Layout/SVGClipBox.cpp
     Layout/SVGForeignObjectBox.cpp
-    Layout/SVGGeometryBox.cpp
-    Layout/SVGGraphicsBox.cpp
-    Layout/SVGImageBox.cpp
-    Layout/SVGMaskBox.cpp
-    Layout/SVGPatternBox.cpp
     Layout/SVGSVGBox.cpp
-    Layout/SVGTextBox.cpp
-    Layout/SVGTextPathBox.cpp
     Layout/ScrollableOverflow.cpp
     Layout/TableWrapper.cpp
     Layout/TextAreaBox.cpp
