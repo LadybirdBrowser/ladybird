@@ -40,7 +40,7 @@ Optional<SessionHistoryTraversalQueue::Item> SessionHistoryTraversalQueue::take_
 
 void SessionHistoryTraversalQueue::process_queue()
 {
-    while (!m_algorithm_set.is_empty()) {
+    for (;;) {
         if (m_running_steps && !m_running_steps->is_resolved() && !m_running_steps->is_rejected()) {
             m_running_steps->when_resolved([weak_this = make_weak_ptr()](Empty) {
                 if (weak_this)
@@ -49,7 +49,12 @@ void SessionHistoryTraversalQueue::process_queue()
             return;
         }
 
+        m_current_item_is_synchronous_navigation_steps = false;
+        if (m_algorithm_set.is_empty())
+            return;
+
         auto item = m_algorithm_set.take_first();
+        m_current_item_is_synchronous_navigation_steps = item.target_navigable.has_value();
         m_running_steps = Core::Promise<Empty>::construct();
         item.steps(*m_running_steps);
     }
