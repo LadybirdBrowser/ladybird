@@ -8,7 +8,6 @@
 
 #include <AK/Optional.h>
 #include <LibWeb/Layout/BlockContainer.h>
-#include <LibWeb/Layout/SVGGraphicsBox.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
 
 namespace Web::Layout {

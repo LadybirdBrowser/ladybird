@@ -5,7 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Layout/SVGTextBox.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/SVG/SVGTextElement.h>
 
 namespace Web::SVG {
@@ -19,7 +19,7 @@ SVGTextElement::SVGTextElement(DOM::Document& document, DOM::QualifiedName quali
 
 RefPtr<Layout::Node> SVGTextElement::create_layout_node(CSS::LayoutStyle style)
 {
-    return make_ref_counted<Layout::SVGTextBox>(document(), *this, style);
+    return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGTextBox);
 }
 
 }

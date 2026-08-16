@@ -14,7 +14,7 @@
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
-#include <LibWeb/Layout/SVGImageBox.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Namespace.h>
 
 namespace Web::SVG {
