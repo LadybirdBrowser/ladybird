@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        internals.updateStyle();
+
+        const target = document.createElement("div");
+        target.style.animationName = '"something", "none", "initial", foo, "multi word string"';
+
+        internals.resetStyleFfiCounters();
+        document.body.appendChild(target);
+        internals.updateStyle();
+
+        println(`animation-name: ${getComputedStyle(target).animationName}`);
+        println(`used no C++ longhand fallback: ${internals.styleFfiCounters().longhandCppComputeFallbacks === 0}`);
+    });
+</script>

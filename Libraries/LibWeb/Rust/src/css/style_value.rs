@@ -1265,8 +1265,12 @@ pub enum StyleValueData {
         bottom: RetainedStyleValueData,
         left: RetainedStyleValueData,
     },
-    /// A CSS `<string>`.
-    String { string: RetainedUtf16FlyString },
+    /// A CSS `<string>`, with its animation-name custom-ident classification captured when C++
+    /// creates the immutable value so computation does not read the string across FFI.
+    String {
+        string: RetainedUtf16FlyString,
+        is_valid_animation_name_custom_ident: bool,
+    },
     /// An unrecognized CSS function, kept as its name and argument value.
     Function {
         name: RetainedUtf16FlyString,
@@ -1823,7 +1827,7 @@ impl StyleValueData {
                 write_value(hasher, bottom);
                 write_value(hasher, left);
             }
-            Self::String { string } => write_fly(hasher, string),
+            Self::String { string, .. } => write_fly(hasher, string),
             Self::Function { name, value } => {
                 write_fly(hasher, name);
                 write_value(hasher, value);
@@ -2550,10 +2554,14 @@ pub unsafe extern "C" fn rust_style_value_create_border_radius_rect(
 
 /// Takes ownership of one leaked reference to the string.
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_style_value_create_string(string: usize) -> *const StyleValueData {
+pub extern "C" fn rust_style_value_create_string(
+    string: usize,
+    is_valid_animation_name_custom_ident: bool,
+) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::String {
             string: unsafe { RetainedUtf16FlyString::from_leaked_raw(string) },
+            is_valid_animation_name_custom_ident,
         }))
     })
 }

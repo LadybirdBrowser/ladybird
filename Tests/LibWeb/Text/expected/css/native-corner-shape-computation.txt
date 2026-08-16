@@ -1,0 +1,5 @@
+corner-top-left-shape: round
+corner-top-right-shape: superellipse(2)
+corner-bottom-right-shape: superellipse(-1)
+corner-bottom-left-shape: superellipse(2)
+used no C++ longhand fallback: true

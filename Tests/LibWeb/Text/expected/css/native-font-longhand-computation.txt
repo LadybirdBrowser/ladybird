@@ -1,0 +1,9 @@
+font-size: 15px
+font-style: oblique 15deg
+font-weight: 700
+font-stretch: 75%
+line-height: 20px
+letter-spacing: 2.5px
+word-spacing: 5px
+math-depth: 3
+used no C++ longhand fallback: true

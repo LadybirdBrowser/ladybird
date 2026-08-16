@@ -6,6 +6,8 @@
 // occurrence winning, and the result sorts ascending by tag.
 test(() => {
     const target = document.getElementById("target");
+    internals.updateStyle();
+    internals.resetStyleFfiCounters();
     for (const value of [
         '"liga" 1, "kern" 1',
         '"kern" 1, "liga" 0, "kern" 0',
@@ -21,5 +23,6 @@ test(() => {
         println(`variation ${value} => ${getComputedStyle(target).fontVariationSettings}`);
         target.style.removeProperty("font-variation-settings");
     }
+    println(`used no C++ longhand fallback: ${internals.styleFfiCounters().longhandCppComputeFallbacks === 0}`);
 });
 </script>

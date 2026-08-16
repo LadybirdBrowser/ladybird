@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        internals.updateStyle();
+
+        const parent = document.createElement("div");
+        parent.style.fontSize = "20px";
+        const target = document.createElement("div");
+        target.style.cssText = `
+            font-size: calc(50% + 5px);
+            font-style: oblique calc(10deg + 5deg);
+            font-weight: calc(300 + 400);
+            font-stretch: calc(50% + 25%);
+            line-height: calc(1em + 5px);
+            letter-spacing: calc(0.1em + 1px);
+            word-spacing: calc(0.2em + 2px);
+            math-depth: add(calc(1 + 2));
+        `;
+        parent.appendChild(target);
+
+        internals.resetStyleFfiCounters();
+        document.body.appendChild(parent);
+        internals.updateStyle();
+
+        const computedStyle = getComputedStyle(target);
+        for (const property of [
+            "font-size",
+            "font-style",
+            "font-weight",
+            "font-stretch",
+            "line-height",
+            "letter-spacing",
+            "word-spacing",
+            "math-depth",
+        ]) {
+            println(`${property}: ${computedStyle.getPropertyValue(property)}`);
+        }
+        println(`used no C++ longhand fallback: ${internals.styleFfiCounters().longhandCppComputeFallbacks === 0}`);
+    });
+</script>

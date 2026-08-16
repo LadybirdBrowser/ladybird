@@ -1,0 +1,2 @@
+animation-name: something, "none", "initial", foo, multi\ word\ string
+used no C++ longhand fallback: true

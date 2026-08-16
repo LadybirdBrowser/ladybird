@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        internals.updateStyle();
+
+        const target = document.createElement("div");
+        target.style.cssText = `
+            corner-top-left-shape: round;
+            corner-top-right-shape: superellipse(calc(1 + 1));
+            corner-bottom-right-shape: superellipse(calc(-2 + 1));
+            corner-bottom-left-shape: superellipse(calc(4 / 2));
+        `;
+
+        internals.resetStyleFfiCounters();
+        document.body.appendChild(target);
+        internals.updateStyle();
+
+        const computedStyle = getComputedStyle(target);
+        for (const property of [
+            "corner-top-left-shape",
+            "corner-top-right-shape",
+            "corner-bottom-right-shape",
+            "corner-bottom-left-shape",
+        ]) {
+            println(`${property}: ${computedStyle.getPropertyValue(property)}`);
+        }
+        println(`used no C++ longhand fallback: ${internals.styleFfiCounters().longhandCppComputeFallbacks === 0}`);
+    });
+</script>
