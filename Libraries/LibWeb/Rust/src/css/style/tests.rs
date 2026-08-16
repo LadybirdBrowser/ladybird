@@ -5,6 +5,7 @@
  */
 
 use super::batch_matcher::insert_scope_rule;
+use super::index::SelectorPostingKey;
 use super::instrumentation::Counter;
 use super::program::DeclarationBlockID;
 use super::program::SelectorProgramID;
@@ -2600,7 +2601,7 @@ fn an_exact_unchanged_custom_state_cascade_stops_before_style_recomputation() {
     engine.set_rule_declared_properties_with_values(first_rule, &[(1, false, value)], true);
     engine.set_rule_declared_properties_with_values(second_rule, &[(1, false, value)], true);
     discard_transaction(&mut engine);
-    engine.facts.set_custom_states(nodes[1], &[]);
+    engine.facts.set_custom_states(nodes[1], &[], &mut engine.memory);
     engine.facts.apply_staged(&mut engine.memory);
 
     let old_answer = engine.match_element_for_cascade(nodes[1]).unwrap();

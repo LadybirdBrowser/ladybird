@@ -214,7 +214,6 @@ use index::LocalFeatureKey;
 use index::MatchingFactBatch;
 use index::PostingKey;
 use index::RuleDispatch;
-use index::SelectorPostingKey;
 use index::StyleAtomID;
 use index::StyleNodeFacts;
 use input_routing::input_routes_on_key;

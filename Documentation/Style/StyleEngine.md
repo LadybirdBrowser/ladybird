@@ -432,6 +432,8 @@ Index keys are semantic feature atoms, not strings: a tag/namespace pair, ID, cl
 
 Representation: **chunked sorted postings**, sorted by `StyleNodeID`. The index contains only features used by an attached selector program; removing the last consumer makes it reclaimable.
 
+One key stops retaining a posting when its membership grows beyond the greater of 4096 elements and one quarter of the live elements. The key then reads as missing acceleration, so every consumer takes its exact fallback instead of retaining a near-document-sized secondary index.
+
 *Database counterpart:* secondary inverted indexes, and non-clustered ones: `StyleNodeID` is not a tree-order label, so proving a posting candidate lies in a region is the row lookup a non-clustered index pays when the predicate lives on the clustering dimension.
 
 Because `StyleNodeID` is not a tree-order label, a subtree impact region is *not* a numeric posting interval. For a selective plan, enumerate posting candidates and prove region membership through the named tree relation, charging ancestor/sibling steps explicitly. Those steps walk the required relation columns, so a selective plan costs `Hregion` in-evaluator pointer hops rather than boundary crossings. For a broad region, stream the region in preorder and test local features from authoritative facts instead of building a full posting-to-preorder join.
