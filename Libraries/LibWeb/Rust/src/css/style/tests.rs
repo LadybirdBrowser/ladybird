@@ -2503,7 +2503,7 @@ fn an_exact_unchanged_custom_state_cascade_stops_before_style_recomputation() {
     engine.set_rule_declared_properties_with_values(second_rule, &[(1, false, value)], true);
     discard_transaction(&mut engine);
     engine.facts.set_custom_states(nodes[1], &[]);
-    engine.facts.commit_pending(&mut engine.memory);
+    engine.facts.apply_staged(&mut engine.memory);
 
     let old_answer = engine.match_element_for_cascade(nodes[1]).unwrap();
     assert_eq!(old_answer.len(), 1);
@@ -2676,7 +2676,7 @@ fn recycled_selector_entries_keep_delta_answers_canonical() {
         _ => panic!("initial cascade input must be retained"),
     };
     add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(second));
-    engine.facts.commit_pending(&mut engine.memory);
+    engine.facts.apply_staged(&mut engine.memory);
 
     let retained = prepare_retained_match_answer(retained.into_iter());
     let mut patch = engine.prepare_retained_answer_patch(RetainedAnswerPatchSelection {
@@ -2756,7 +2756,7 @@ fn retained_answer_patching_matches_only_unresolved_rules_after_signed_deltas() 
     engine.remember_cascade_input(nodes[1], &compact_answer);
     add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(delta_target));
     add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(second_delta_target));
-    engine.facts.commit_pending(&mut engine.memory);
+    engine.facts.apply_staged(&mut engine.memory);
     let mut patch = engine.prepare_retained_answer_patch(RetainedAnswerPatchSelection {
         affected: vec![
             RetainedAnswerPatchSelectionRule {
@@ -4057,11 +4057,7 @@ fn an_attribute_in_flux_includes_every_name_form() {
         before_sibling_relations_available: false,
         prefix: None,
         retained_truth_available: false,
-        resident_side: TransactionFactSide::After,
-        local_facts_are_shared: false,
         before: None,
-        after: None,
-        opposite_fully_materialized: false,
     });
     assert!(!engine.moved_features_of(nodes[1]).is_empty());
     assert!(engine.moved_features_of(nodes[2]).is_empty());
@@ -4865,7 +4861,7 @@ fn state_input_commits_after_its_old_row_is_snapshotted() {
         InputValue::State(true),
     );
     assert!(engine.facts.states_of_node(nodes[1]).contains(StateFact::Hover));
-    let committed = engine.facts.before_pending_facts();
+    let committed = engine.facts.staged_before_facts();
     let committed_row = committed.row_of(nodes[1]).unwrap();
     assert!(!committed.states_of(committed_row).contains(StateFact::Hover));
     assert!(!committed.carries_dispatch_key(committed_row, DispatchKey::Class(class), false));
@@ -4874,7 +4870,6 @@ fn state_input_commits_after_its_old_row_is_snapshotted() {
     assert!(engine.facts.states_of_node(nodes[1]).contains(StateFact::Hover));
     let view = engine.transaction_fact_view_for(&mut transaction, nodes[0], &ImpactRegions::new());
     engine.transaction_fact_view = Some(view);
-    engine.ensure_transaction_fact_rows(&[nodes[1]]);
     let before = engine.transaction_fact_view.as_ref().unwrap().before.as_ref().unwrap();
     let row = before.row_of(nodes[1]).unwrap();
     assert!(!before.states_of(row).contains(StateFact::Hover));

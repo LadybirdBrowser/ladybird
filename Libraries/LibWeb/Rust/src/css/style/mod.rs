@@ -525,8 +525,6 @@ pub struct StyleEngine {
     sheet_rule_replacement: Option<SheetRuleReplacement>,
     /// Unmatched old rule sequences retained until the transaction boundary, indexed by sheet.
     pending_sheet_rule_replacements: Column<Option<SheetRuleReplacement>>,
-    /// Elements that left during the transaction. Their facts remain available through routing.
-    departed: Vec<StyleNodeID>,
     match_workspace: MatchEvaluationWorkspace,
     /// Scratch for the fact rows one exact candidate evaluation covers, reused across candidates.
     exact_covered_scratch: Vec<StyleNodeID>,

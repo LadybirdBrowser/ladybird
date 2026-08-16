@@ -1146,22 +1146,12 @@ impl StyleEngine {
         // The compound of a retainable query reads only facts the witness itself publishes, so one
         // current-side row decides it exactly. A node the store has no row for reports a miss, and
         // the miss routes conservatively rather than deciding anything.
-        self.ensure_transaction_fact_rows(&[witness]);
-        let resident_facts = if self
-            .transaction_fact_view
-            .as_ref()
-            .is_some_and(|view| view.resident_side == TransactionFactSide::Before)
-        {
-            self.facts.committed()
-        } else {
-            self.facts.primary()
-        };
-        let current_facts = self
-            .transaction_fact_view
-            .as_ref()
-            .and_then(|view| view.facts(TransactionFactSide::After, resident_facts))
-            .unwrap_or(resident_facts);
-        if current_facts.row_of(witness).is_none() {
+        let resident_facts = self.facts.primary();
+        let transaction_fact_view = self.transaction_fact_view.as_ref();
+        let current_row = transaction_fact_view
+            .and_then(|view| view.row_of(TransactionFactSide::After, resident_facts, witness))
+            .or_else(|| resident_facts.row_of(witness).map(|row| (resident_facts, row)));
+        if current_row.is_none() {
             return Lookup::Missing(RelationalWitnessGap::IncompleteFacts {
                 key,
                 witness,
@@ -1169,7 +1159,10 @@ impl StyleEngine {
             });
         }
         let program = self.programs.get(program_id);
-        let evaluator = MatchEvaluator::new(&self.tree, current_facts);
+        let mut evaluator = MatchEvaluator::new(&self.tree, resident_facts);
+        if let Some(view) = transaction_fact_view {
+            evaluator = evaluator.with_transaction_fact_view(view, TransactionFactSide::After);
+        }
         match evaluator.matches_selector_node(program, query.compound, witness, &mut self.counters) {
             Ok(true) => Lookup::Known(witness),
             Ok(false) => {

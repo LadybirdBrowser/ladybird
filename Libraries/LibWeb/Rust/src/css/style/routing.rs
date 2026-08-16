@@ -956,8 +956,8 @@ impl StyleEngine {
         let before_states = self
             .transaction_fact_view
             .as_ref()
-            .and_then(|view| view.facts(TransactionFactSide::Before, self.planning_facts()))
-            .and_then(|facts| facts.row_of(node).map(|row| facts.states_of(row)));
+            .and_then(|view| view.row_of(TransactionFactSide::Before, self.facts.primary(), node))
+            .map(|(facts, row)| facts.states_of(row));
         if let Some(before_states) = before_states {
             for state in before_states.facts() {
                 for &route in routing.sibling_first_routes_for_origin(DispatchKey::State(state)) {
@@ -1107,11 +1107,11 @@ impl StyleEngine {
         if !directionality.is_none() {
             callback(DispatchKey::Directionality(directionality));
         }
-        if let Some(row) = self.planning_facts().row_of(node) {
-            for &state in self.planning_facts().custom_states_of(row) {
+        if let Some(row) = self.facts.primary().row_of(node) {
+            for &state in self.facts.primary().custom_states_of(row) {
                 callback(DispatchKey::CustomState(state));
             }
-            for &part in self.planning_facts().parts_of(row) {
+            for &part in self.facts.primary().parts_of(row) {
                 callback(DispatchKey::Part(part));
             }
         }
@@ -1663,7 +1663,7 @@ impl StyleEngine {
             return true;
         }
         let is_root = self.tree.parent(node).is_none();
-        let resident_facts = self.planning_facts();
+        let resident_facts = self.facts.primary();
         if resident_facts
             .row_of(node)
             .is_some_and(|row| resident_facts.carries_dispatch_key(row, key, is_root))
@@ -1673,15 +1673,8 @@ impl StyleEngine {
         if self
             .transaction_fact_view
             .as_ref()
-            .and_then(|view| match view.resident_side {
-                TransactionFactSide::Before => view.after.as_ref(),
-                TransactionFactSide::After => view.before.as_ref(),
-            })
-            .and_then(|facts| {
-                facts
-                    .row_of(node)
-                    .map(|row| facts.carries_dispatch_key(row, key, is_root))
-            })
+            .and_then(|view| view.row_of(TransactionFactSide::Before, resident_facts, node))
+            .map(|(facts, row)| facts.carries_dispatch_key(row, key, is_root))
             == Some(true)
         {
             return true;
@@ -1803,54 +1796,6 @@ impl StyleEngine {
         true
     }
 
-    /// Pack the old fact side for the whole transaction subtree, once per transaction.
-    ///
-    /// The activation filter enumerates posting candidates across the document, so it reads
-    /// arbitrary old-side rows; the new side is always the primary document arrangement.
-    pub(super) fn materialize_transaction_fact_view_fully(&mut self) {
-        let Some(transition) = self.transaction_fact_view.as_mut() else {
-            return;
-        };
-        if transition.opposite_fully_materialized {
-            return;
-        }
-        transition.opposite_fully_materialized = true;
-        let opposite = match transition.resident_side {
-            TransactionFactSide::Before => &mut transition.after,
-            TransactionFactSide::After => &mut transition.before,
-        };
-        let Some(opposite) = opposite.as_mut() else {
-            return;
-        };
-        let bytes_before = opposite.capacity_bytes();
-        self.facts.materialize_missing(
-            self.tree.preorder(transition.root).chain(self.departed.iter().copied()),
-            opposite,
-        );
-        let bytes_after = opposite.capacity_bytes();
-        self.memory
-            .reserve_required(MemoryCategory::BatchScratch, bytes_after - bytes_before);
-    }
-
-    /// Grow the transaction's shared old-side batch to cover `covered`.
-    pub(super) fn ensure_transaction_fact_rows(&mut self, covered: &[StyleNodeID]) {
-        let Some(transition) = self.transaction_fact_view.as_mut() else {
-            return;
-        };
-        let opposite = match transition.resident_side {
-            TransactionFactSide::Before => &mut transition.after,
-            TransactionFactSide::After => &mut transition.before,
-        };
-        let Some(opposite) = opposite.as_mut() else {
-            return;
-        };
-        let bytes_before = opposite.capacity_bytes();
-        self.facts.materialize_missing(covered.iter().copied(), opposite);
-        let bytes_after = opposite.capacity_bytes();
-        self.memory
-            .reserve_required(MemoryCategory::BatchScratch, bytes_after - bytes_before);
-    }
-
     /// Whether an entry is monotonic under a positive tree arrival.
     ///
     /// An arriving element is routed from the facts it publishes, so the new side alone decides
@@ -1907,9 +1852,6 @@ impl StyleEngine {
                 .and_then(|_| self.retained_entry_matches(node, program, entry)),
         };
         let change = loop {
-            if old_matches.is_none() {
-                self.ensure_transaction_fact_rows(&covered);
-            }
             let result = {
                 let compiled = self.programs.get(program);
                 let exact_entry = &compiled.entries()[entry as usize];
@@ -1993,76 +1935,27 @@ impl StyleEngine {
             .as_ref()
             .filter(|view| view.retained_truth_available)
             .and_then(|_| self.retained_entry_matches(node, program, entry));
-        let resident_facts = if self
-            .transaction_fact_view
-            .as_ref()
-            .is_some_and(|view| view.resident_side == TransactionFactSide::Before)
-        {
-            self.facts.committed()
-        } else {
-            self.facts.primary()
-        };
-        if retained_old_matches.is_none()
-            && self
-                .transaction_fact_view
-                .as_ref()
-                .and_then(|view| view.facts(TransactionFactSide::Before, resident_facts))
-                .is_none()
-        {
-            return Lookup::Missing(ExactEntryGap);
-        }
-
         let mut covered = std::mem::take(&mut self.exact_covered_scratch);
         covered.clear();
         covered.push(node);
         let mut sibling_window = INITIAL_SIBLING_FACT_WINDOW;
         let changed = loop {
-            if retained_old_matches.is_none()
-                || self
-                    .transaction_fact_view
-                    .as_ref()
-                    .is_some_and(|view| view.resident_side == TransactionFactSide::Before)
-            {
-                self.ensure_transaction_fact_rows(&covered);
-            }
             let result = {
-                let resident_facts = if self
-                    .transaction_fact_view
-                    .as_ref()
-                    .is_some_and(|view| view.resident_side == TransactionFactSide::Before)
-                {
-                    self.facts.committed()
-                } else {
-                    self.facts.primary()
-                };
+                let resident_facts = self.facts.primary();
                 let view = self
                     .transaction_fact_view
                     .as_ref()
                     .expect("exact evaluation has a transaction fact view");
-                let old_facts = view
-                    .facts(TransactionFactSide::Before, resident_facts)
-                    .expect("old facts were checked before exact evaluation");
-                let new_facts = view
-                    .facts(TransactionFactSide::After, resident_facts)
-                    .expect("exact evaluation has after facts");
                 let compiled = self.programs.get(program);
                 let exact_entry = &compiled.entries()[entry as usize];
-                let new_matches = MatchEvaluator::new(&self.tree, new_facts).matches_entry_for_program(
-                    program,
-                    compiled,
-                    exact_entry,
-                    node,
-                    &mut self.counters,
-                );
+                let new_matches = MatchEvaluator::new(&self.tree, resident_facts)
+                    .with_transaction_fact_view(view, TransactionFactSide::After)
+                    .matches_entry_for_program(program, compiled, exact_entry, node, &mut self.counters);
                 let old_matches = match retained_old_matches {
                     Some(old_matches) => Ok(old_matches),
-                    None => MatchEvaluator::new(&self.tree, old_facts).matches_entry_for_program(
-                        program,
-                        compiled,
-                        exact_entry,
-                        node,
-                        &mut self.counters,
-                    ),
+                    None => MatchEvaluator::new(&self.tree, resident_facts)
+                        .with_transaction_fact_view(view, TransactionFactSide::Before)
+                        .matches_entry_for_program(program, compiled, exact_entry, node, &mut self.counters),
                 };
                 (old_matches, new_matches)
             };
@@ -2853,32 +2746,11 @@ impl StyleEngine {
             //     warm across departure-bearing flushes.
             let can_reuse = retained.lookup_mut(scope_program).sparse().is_ok();
             if can_reuse {
-                if self
+                let view = self
                     .transaction_fact_view
                     .as_ref()
-                    .is_some_and(|view| view.resident_side == TransactionFactSide::Before)
-                {
-                    self.materialize_transaction_fact_view_fully();
-                }
-                let resident_facts = if self
-                    .transaction_fact_view
-                    .as_ref()
-                    .is_some_and(|view| view.resident_side == TransactionFactSide::Before)
-                {
-                    self.facts.committed()
-                } else {
-                    self.facts.primary()
-                };
-                let new_facts = self
-                    .transaction_fact_view
-                    .as_ref()
-                    .and_then(|view| view.facts(TransactionFactSide::After, resident_facts))
-                    .expect("prefix planning has after facts");
-                let old_facts = self
-                    .transaction_fact_view
-                    .as_ref()
-                    .and_then(|view| view.facts(TransactionFactSide::Before, resident_facts))
-                    .expect("prefix planning has before facts");
+                    .expect("prefix planning has a transaction fact view");
+                let resident_facts = self.facts.primary();
                 self.counters.bump(Counter::PrefixTransitionCacheHits);
                 let nodes_in_preorder = regions.sort_nodes_for_top_down_walk(&mut pending_nodes, &self.tree);
                 if automaton_has_sibling_steps && !nodes_in_preorder {
@@ -2889,21 +2761,23 @@ impl StyleEngine {
                 let mut visited = Vec::new();
                 let mut changed_nodes = Vec::new();
                 let mut prefix_delta_arena = PrefixDeltaArena::default();
-                let old_evaluator = MatchEvaluator::new(&self.tree, old_facts);
+                let old_evaluator = MatchEvaluator::new(&self.tree, resident_facts)
+                    .with_transaction_fact_view(view, TransactionFactSide::Before);
                 let old_evaluation = PrefixEvaluation::new(
                     dispatch.prefixes(),
                     &self.tree,
-                    old_facts,
+                    resident_facts,
                     &self.programs,
                     &old_evaluator,
                     None,
                     None,
                 );
-                let new_evaluator = MatchEvaluator::new(&self.tree, new_facts);
+                let new_evaluator = MatchEvaluator::new(&self.tree, resident_facts)
+                    .with_transaction_fact_view(view, TransactionFactSide::After);
                 let new_evaluation = PrefixEvaluation::new(
                     dispatch.prefixes(),
                     &self.tree,
-                    new_facts,
+                    resident_facts,
                     &self.programs,
                     &new_evaluator,
                     None,
@@ -4143,33 +4017,11 @@ impl StyleEngine {
                 first_program_rule = end_program_rule;
                 continue;
             }
-            if can_filter_exactly {
-                self.materialize_transaction_fact_view_fully();
-            }
-            let activation_fact_sides = can_filter_exactly
-                .then(|| {
-                    let view = self
-                        .transaction_fact_view
-                        .as_ref()
-                        .expect("planning has a transaction fact view");
-                    match (input.old, input.new) {
-                        (InputValue::Flag(false), InputValue::Flag(true)) => {
-                            Some((None, view.facts(TransactionFactSide::After, self.facts.primary())))
-                        }
-                        (InputValue::Flag(true), InputValue::Flag(false)) => view
-                            .facts(TransactionFactSide::Before, self.facts.primary())
-                            .map(|before| (Some(before), None)),
-                        _ => view
-                            .facts(TransactionFactSide::Before, self.facts.primary())
-                            .map(|before| {
-                                (
-                                    Some(before),
-                                    view.facts(TransactionFactSide::After, self.facts.primary()),
-                                )
-                            }),
-                    }
-                })
-                .flatten();
+            let activation_fact_sides = can_filter_exactly.then_some(match (input.old, input.new) {
+                (InputValue::Flag(false), InputValue::Flag(true)) => (None, Some(TransactionFactSide::After)),
+                (InputValue::Flag(true), InputValue::Flag(false)) => (Some(TransactionFactSide::Before), None),
+                _ => (Some(TransactionFactSide::Before), Some(TransactionFactSide::After)),
+            });
             let compiled = self.programs.get(selector_program);
             for (entry_index, entry) in compiled.entries().iter().enumerate() {
                 if scopes.as_slice() == [TreeScopeID::DOCUMENT]
@@ -4254,15 +4106,17 @@ impl StyleEngine {
                             if !self.node_is_within_subject_position(node, position) {
                                 continue;
                             }
-                            if let Some((old_facts, new_facts)) = activation_fact_sides {
+                            if let Some((old_side, new_side)) = activation_fact_sides {
                                 let mut may_match = false;
-                                for facts in [old_facts, new_facts].into_iter().flatten() {
-                                    match MatchEvaluator::new(&self.tree, facts).matches_entry(
-                                        compiled,
-                                        entry,
-                                        node,
-                                        &mut self.counters,
-                                    ) {
+                                for side in [old_side, new_side].into_iter().flatten() {
+                                    let view = self
+                                        .transaction_fact_view
+                                        .as_ref()
+                                        .expect("exact activation filtering has a transaction fact view");
+                                    match MatchEvaluator::new(&self.tree, self.facts.primary())
+                                        .with_transaction_fact_view(view, side)
+                                        .matches_entry(compiled, entry, node, &mut self.counters)
+                                    {
                                         Ok(false) => {}
                                         Ok(true) | Err(_) => {
                                             may_match = true;

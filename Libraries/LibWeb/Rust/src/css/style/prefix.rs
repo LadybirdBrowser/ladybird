@@ -45,6 +45,7 @@ use super::selector::AttributeOperator;
 use super::selector::FeatureTest;
 use super::selector::Incomplete;
 use super::selector::MatchEvaluator;
+use super::selector::MatchFactRow;
 use super::selector::NamespaceTest;
 use super::selector::PrefixStructuralTest;
 use super::selector::RouteID;
@@ -999,13 +1000,18 @@ impl LocalFactInterner {
             return self.identities[slot].0;
         }
         counters.bump(Counter::PrefixLocalFactIdentityMisses);
+        let identity = self.mint_identity();
+        let slot = LocalFactSlot(u32::try_from(self.identities.len()).expect("local fact table exceeds u32 indexing"));
+        self.identities.insert(hash, slot, (identity, row));
+        identity
+    }
+
+    fn mint_identity(&mut self) -> u32 {
         let identity = self.next_identity;
         self.next_identity = self
             .next_identity
             .checked_add(1)
             .expect("local fact identity space exhausted");
-        let slot = LocalFactSlot(u32::try_from(self.identities.len()).expect("local fact table exceeds u32 indexing"));
-        self.identities.insert(hash, slot, (identity, row));
         identity
     }
 
@@ -1078,7 +1084,7 @@ pub(super) struct PrefixStates {
     /// The batch row space `transition_by_row` and the local-fact representatives were built
     /// against; see StyleNodeFacts::generation.
     facts_generation: u64,
-    ancestor_chain: Vec<(StyleNodeID, u32)>,
+    ancestor_chain: Vec<StyleNodeID>,
     epoch: u32,
     complete: bool,
     automaton_step_count: usize,
@@ -1387,10 +1393,8 @@ impl<'a, 'b> PrefixEvaluation<'a, 'b> {
                     .matches_nth(self.programs.get(program), nth, node, counters)
             }
             PrefixStructuralTest::Empty => {
-                let Some(row) = self.facts.row_of(node) else {
-                    return Err(Incomplete::MissingFacts(node));
-                };
-                Ok(self.tree.first_element_child(node).is_none() && !self.facts.has_text_content_of(row))
+                let row = self.row_of(node)?;
+                Ok(self.tree.first_element_child(node).is_none() && !row.facts.has_text_content_of(row.row))
             }
         }
     }
@@ -1401,7 +1405,7 @@ impl<'a, 'b> PrefixEvaluation<'a, 'b> {
         step: PrefixStepID,
         counters: &mut Counters,
     ) -> Result<bool, Incomplete> {
-        let row = self.facts.row_of(node).ok_or(Incomplete::MissingFacts(node))?;
+        let row = self.row_of(node)?;
         let compound = &self.automaton.compounds[self.automaton.steps[step.0 as usize].compound.0 as usize];
         match &compound.predicate {
             PrefixPredicate::Features {
@@ -1421,7 +1425,7 @@ impl<'a, 'b> PrefixEvaluation<'a, 'b> {
                     .automaton
                     .features_for(*feature_start, *feature_len)
                     .iter()
-                    .all(|&feature| matches_feature(self.facts, row, feature)))
+                    .all(|&feature| matches_feature(row.facts, row.row, feature)))
             }
             PrefixPredicate::Program { program, local } => {
                 self.evaluator
@@ -1437,7 +1441,7 @@ impl<'a, 'b> PrefixEvaluation<'a, 'b> {
         step: PrefixStepID,
         counters: &mut Counters,
     ) -> Result<bool, Incomplete> {
-        let row = self.facts.row_of(node).ok_or(Incomplete::MissingFacts(node))?;
+        let row = self.row_of(node)?;
         let compound = &self.automaton.compounds[self.automaton.steps[step.0 as usize].compound.0 as usize];
         match &compound.predicate {
             PrefixPredicate::Features {
@@ -1450,7 +1454,7 @@ impl<'a, 'b> PrefixEvaluation<'a, 'b> {
                         .automaton
                         .features_for(*feature_start, *feature_len)
                         .iter()
-                        .all(|&feature| matches_feature(self.facts, row, feature)),
+                        .all(|&feature| matches_feature(row.facts, row.row, feature)),
             ),
             PrefixPredicate::Program { program, local } => {
                 self.evaluator
@@ -1490,6 +1494,14 @@ impl<'a, 'b> PrefixEvaluation<'a, 'b> {
             shadow_root,
             selection,
         }
+    }
+
+    fn row_of(&self, node: StyleNodeID) -> Result<MatchFactRow<'b>, Incomplete> {
+        self.evaluator.row_of(node)
+    }
+
+    fn facts_are_composite(&self) -> bool {
+        !self.evaluator.serves_only_resident_rows()
     }
 }
 
@@ -2257,7 +2269,7 @@ impl PrefixStates {
         &mut self,
         evaluation: &PrefixEvaluation<'_, '_>,
         node: StyleNodeID,
-        row: u32,
+        row: MatchFactRow<'_>,
         old: PrefixTransition,
         entering: EnteringStates,
         entering_deltas: PrefixEnteringDeltas,
@@ -2323,7 +2335,9 @@ impl PrefixStates {
             self.set_positional_bits(node, positional_bits);
         }
         self.set_entering(node, entering);
-        self.transition_by_row[row as usize] = transition;
+        if !evaluation.facts_are_composite() {
+            self.transition_by_row[row.row as usize] = transition;
+        }
         self.set_transition(node, transition);
         Some(transition)
     }
@@ -2346,8 +2360,11 @@ impl PrefixStates {
         counters: &mut Counters,
     ) -> PrefixTransitionLookup<PrefixDifference> {
         self.prepare_rows(evaluation.facts.generation(), evaluation.facts.row_count());
-        let Some(row) = evaluation.facts.row_of(node) else {
-            return PrefixTransitionLookup::Missing(PrefixTransitionGap::Incomplete(Incomplete::MissingFacts(node)));
+        let row = match evaluation.row_of(node) {
+            Ok(row) => row,
+            Err(incomplete) => {
+                return PrefixTransitionLookup::Missing(PrefixTransitionGap::Incomplete(incomplete));
+            }
         };
         let old = match self.transition_of(node) {
             PrefixTransitionLookup::Known(transition) => Some(transition),
@@ -2372,7 +2389,13 @@ impl PrefixStates {
             0
         };
         let local_facts = if local_facts_changed || old.is_none() {
-            let identity = self.local_fact_interner.intern(evaluation.facts, row, counters);
+            let identity = match evaluation.facts_are_composite() {
+                true => {
+                    counters.bump(Counter::PrefixLocalFactIdentityMisses);
+                    self.local_fact_interner.mint_identity()
+                }
+                false => self.local_fact_interner.intern(row.facts, row.row, counters),
+            };
             self.set_local_facts(node, identity);
             identity
         } else {
@@ -2429,18 +2452,19 @@ impl PrefixStates {
             {
                 self.collect_active(active, &mut active_candidates);
             }
-            let mut append_roots = |facts: &StyleNodeFacts| {
-                let Some(row) = facts.row_of(node) else {
+            let mut append_roots = |evaluation: &PrefixEvaluation<'_, '_>| {
+                let Ok(row) = evaluation.row_of(node) else {
                     return;
                 };
-                facts.for_each_dispatch_probe(row, evaluation.tree.parent(node).is_none(), |key, _| {
-                    if let Some(bucket) = evaluation.automaton.bucket(key) {
-                        active_candidates.extend_from_slice(&bucket.root_steps);
-                    }
-                });
+                row.facts
+                    .for_each_dispatch_probe(row.row, evaluation.tree.parent(node).is_none(), |key, _| {
+                        if let Some(bucket) = evaluation.automaton.bucket(key) {
+                            active_candidates.extend_from_slice(&bucket.root_steps);
+                        }
+                    });
             };
-            append_roots(old_evaluation.facts);
-            append_roots(evaluation.facts);
+            append_roots(old_evaluation);
+            append_roots(evaluation);
             active_candidates.retain(|step| {
                 local_affected_candidates
                     .binary_search_by_key(step, |producer| producer.step)
@@ -2455,8 +2479,8 @@ impl PrefixStates {
         affected_candidates.retain(|&step| {
             local_affected_candidates
                 .is_some_and(|producers| producers.binary_search_by_key(&step, |producer| producer.step).is_ok())
-                || evaluation.facts.carries_dispatch_key(
-                    row,
+                || row.facts.carries_dispatch_key(
+                    row.row,
                     evaluation.automaton.compounds[evaluation.automaton.steps[step.0 as usize].compound.0 as usize]
                         .dispatch_key,
                     is_document_root,
@@ -2532,7 +2556,7 @@ impl PrefixStates {
                 PrefixTransitionLookup::Known(transition) => transition,
                 PrefixTransitionLookup::Missing(gap) => return PrefixTransitionLookup::Missing(gap),
             };
-            surface.remember_transition(node, row, transition);
+            surface.remember_transition(evaluation, node, row, transition);
             (transition, origin == PrefixTransitionOrigin::Computed)
         };
 
@@ -2718,7 +2742,7 @@ impl PrefixStates {
         &mut self,
         evaluation: &PrefixEvaluation<'_, '_>,
         entering: EnteringStates,
-        row: u32,
+        row: MatchFactRow<'_>,
         node: StyleNodeID,
         is_document_root: bool,
         positional_bits: u32,
@@ -2732,11 +2756,9 @@ impl PrefixStates {
         self.begin_transition(automaton);
         self.enter_states(entering);
 
-        evaluation
-            .facts
-            .for_each_dispatch_probe(row, is_document_root, |key, _| {
-                self.offer_key(automaton, entering, key, evaluation.selection, counters);
-            });
+        row.facts.for_each_dispatch_probe(row.row, is_document_root, |key, _| {
+            self.offer_key(automaton, entering, key, evaluation.selection, counters);
+        });
 
         for candidate_index in 0..self.candidates.len() {
             let step_id = self.candidates[candidate_index];
@@ -2756,7 +2778,7 @@ impl PrefixStates {
                             && automaton
                                 .features_for(*feature_start, *feature_len)
                                 .iter()
-                                .all(|&feature| matches_feature(evaluation.facts, row, feature))
+                                .all(|&feature| matches_feature(row.facts, row.row, feature))
                     }
                     PrefixPredicate::Program { program, local } => match evaluation.evaluator.matches_prefix_local(
                         *program,
@@ -3540,25 +3562,27 @@ impl PrefixTransitionSurface<'_> {
         }
     }
 
-    fn push_ancestor(&mut self, node: StyleNodeID, row: u32) {
+    fn push_ancestor(&mut self, node: StyleNodeID) {
         match self {
-            Self::Retained(states) => states.ancestor_chain.push((node, row)),
+            Self::Retained(states) => states.ancestor_chain.push(node),
         }
     }
 
-    fn pop_ancestor(&mut self) -> Option<(StyleNodeID, u32)> {
+    fn pop_ancestor(&mut self) -> Option<StyleNodeID> {
         match self {
             Self::Retained(states) => states.ancestor_chain.pop(),
         }
     }
 
-    fn known_transition(&self, facts: &StyleNodeFacts, node: StyleNodeID) -> Option<PrefixTransition> {
-        let row = facts.row_of(node)? as usize;
-        let known = match self {
-            Self::Retained(states) => states.transition_by_row[row],
-        };
-        if known.state != UNKNOWN_STATE {
-            return Some(known);
+    fn known_transition(&self, evaluation: &PrefixEvaluation<'_, '_>, node: StyleNodeID) -> Option<PrefixTransition> {
+        if !evaluation.facts_are_composite() {
+            let row = evaluation.facts.row_of(node)? as usize;
+            let known = match self {
+                Self::Retained(states) => states.transition_by_row[row],
+            };
+            if known.state != UNKNOWN_STATE {
+                return Some(known);
+            }
         }
         match self {
             Self::Retained(states) => match states.transition_of(node) {
@@ -3570,16 +3594,22 @@ impl PrefixTransitionSurface<'_> {
 
     fn local_fact_identity(
         &mut self,
-        facts: &StyleNodeFacts,
+        evaluation: &PrefixEvaluation<'_, '_>,
         node: StyleNodeID,
-        row: u32,
+        row: MatchFactRow<'_>,
         counters: &mut Counters,
     ) -> u32 {
         match self {
             Self::Retained(states) => match states.local_facts_of(node) {
                 Some(identity) => identity,
                 None => {
-                    let identity = states.local_fact_interner.intern(facts, row, counters);
+                    let identity = match evaluation.facts_are_composite() {
+                        true => {
+                            counters.bump(Counter::PrefixLocalFactIdentityMisses);
+                            states.local_fact_interner.mint_identity()
+                        }
+                        false => states.local_fact_interner.intern(row.facts, row.row, counters),
+                    };
                     states.set_local_facts(node, identity);
                     identity
                 }
@@ -3601,10 +3631,18 @@ impl PrefixTransitionSurface<'_> {
         }
     }
 
-    fn remember_transition(&mut self, node: StyleNodeID, row: u32, transition: PrefixTransition) {
+    fn remember_transition(
+        &mut self,
+        evaluation: &PrefixEvaluation<'_, '_>,
+        node: StyleNodeID,
+        row: MatchFactRow<'_>,
+        transition: PrefixTransition,
+    ) {
         match self {
             Self::Retained(states) => {
-                states.transition_by_row[row as usize] = transition;
+                if !evaluation.facts_are_composite() {
+                    states.transition_by_row[row.row as usize] = transition;
+                }
                 // Retained coverage is ancestor-closed: a missing parent therefore proves that no
                 // descendant below it can hold a transition that this update would leave stale.
                 states.set_transition(node, transition);
@@ -3628,7 +3666,7 @@ impl PrefixTransitionSurface<'_> {
         &mut self,
         evaluation: &PrefixEvaluation<'_, '_>,
         node: StyleNodeID,
-        row: u32,
+        row: MatchFactRow<'_>,
         inputs: TransitionInputs,
         counters: &mut Counters,
     ) -> PrefixTransitionLookup<(PrefixTransition, PrefixTransitionOrigin)> {
@@ -3684,16 +3722,16 @@ fn transition_for(
     surface.clear_ancestor_chain();
     let mut current = node;
     loop {
-        let Some(row) = evaluation.facts.row_of(current) else {
-            return PrefixTransitionLookup::Missing(PrefixTransitionGap::Incomplete(Incomplete::MissingFacts(current)));
-        };
-        if let Some(known) = surface.known_transition(evaluation.facts, current) {
+        if let Err(incomplete) = evaluation.row_of(current) {
+            return PrefixTransitionLookup::Missing(PrefixTransitionGap::Incomplete(incomplete));
+        }
+        if let Some(known) = surface.known_transition(evaluation, current) {
             if surface.ancestor_chain_is_empty() {
                 return PrefixTransitionLookup::Known(known);
             }
             break;
         }
-        surface.push_ancestor(current, row);
+        surface.push_ancestor(current);
         if has_sibling_steps && let Some(previous) = evaluation.tree.previous_element_sibling(current) {
             current = previous;
             continue;
@@ -3708,10 +3746,16 @@ fn transition_for(
     }
 
     let mut result = UNKNOWN_TRANSITION;
-    while let Some((node, row)) = surface.pop_ancestor() {
+    while let Some(node) = surface.pop_ancestor() {
+        let row = match evaluation.row_of(node) {
+            Ok(row) => row,
+            Err(incomplete) => {
+                return PrefixTransitionLookup::Missing(PrefixTransitionGap::Incomplete(incomplete));
+            }
+        };
         let parent_state = match evaluation.tree.parent(node) {
             Some(parent) if Some(parent) != evaluation.shadow_root => {
-                match surface.known_transition(evaluation.facts, parent) {
+                match surface.known_transition(evaluation, parent) {
                     Some(transition) => transition.state,
                     None => return PrefixTransitionLookup::Missing(PrefixTransitionGap::MissingTransition(parent)),
                 }
@@ -3720,7 +3764,7 @@ fn transition_for(
         };
         let previous_state = if has_sibling_steps {
             match evaluation.tree.previous_element_sibling(node) {
-                Some(previous) => match surface.known_transition(evaluation.facts, previous) {
+                Some(previous) => match surface.known_transition(evaluation, previous) {
                     Some(transition) => transition.right,
                     None => {
                         return PrefixTransitionLookup::Missing(PrefixTransitionGap::MissingTransition(previous));
@@ -3731,7 +3775,7 @@ fn transition_for(
         } else {
             0
         };
-        let local_facts = surface.local_fact_identity(evaluation.facts, node, row, counters);
+        let local_facts = surface.local_fact_identity(evaluation, node, row, counters);
         let positional_bits = match evaluation.positional_bits(node, counters) {
             Ok(bits) => bits,
             Err(incomplete) => return PrefixTransitionLookup::Missing(PrefixTransitionGap::Incomplete(incomplete)),
@@ -3753,7 +3797,7 @@ fn transition_for(
             PrefixTransitionLookup::Known((transition, _)) => transition,
             PrefixTransitionLookup::Missing(gap) => return PrefixTransitionLookup::Missing(gap),
         };
-        surface.remember_transition(node, row, result);
+        surface.remember_transition(evaluation, node, row, result);
     }
     PrefixTransitionLookup::Known(result)
 }
