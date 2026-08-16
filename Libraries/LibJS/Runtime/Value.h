@@ -442,10 +442,10 @@ public:
     bool to_boolean() const;
 
     ThrowCompletionOr<Value> get(VM&, PropertyKey const&) const;
-    ThrowCompletionOr<Value> get(VM&, PropertyKey const&, Bytecode::PropertyLookupCache&) const;
+    ThrowCompletionOr<Value> get(VM&, PropertyKey const&, Bytecode::StaticPropertyLookupCache&) const;
 
     ThrowCompletionOr<GC::Ptr<FunctionObject>> get_method(VM&, PropertyKey const&) const;
-    ThrowCompletionOr<GC::Ptr<FunctionObject>> get_method(VM&, PropertyKey const&, Bytecode::PropertyLookupCache&) const;
+    ThrowCompletionOr<GC::Ptr<FunctionObject>> get_method(VM&, PropertyKey const&, Bytecode::StaticPropertyLookupCache&) const;
 
     [[nodiscard]] Utf16String to_utf16_string_without_side_effects() const;
 

@@ -1297,11 +1297,11 @@ ThrowCompletionOr<Value> Value::get(VM& vm, PropertyKey const& property_key) con
     return TRY(object->internal_get(property_key, *this));
 }
 
-ThrowCompletionOr<Value> Value::get(VM& vm, PropertyKey const& property, Bytecode::PropertyLookupCache& cache) const
+ThrowCompletionOr<Value> Value::get(VM& vm, PropertyKey const& property, Bytecode::StaticPropertyLookupCache& cache) const
 {
     if (is_nullish())
         return vm.throw_completion<TypeError>(ErrorType::ToObjectNullOrUndefined);
-    return Bytecode::get_by_id<Bytecode::GetByIdMode::Normal>(vm, [&]() { return Optional<Utf16FlyString const&> {}; }, [&]() { return property; }, *this, *this, cache);
+    return Bytecode::get_by_id<Bytecode::GetByIdMode::Normal>(vm, [&]() { return Optional<Utf16FlyString const&> {}; }, [&]() { return property; }, *this, *this, cache, Bytecode::CachePropertyAbsence::Yes);
 }
 
 // 7.3.11 GetMethod ( V, P ), https://tc39.es/ecma262/#sec-getmethod
@@ -1323,7 +1323,7 @@ ThrowCompletionOr<GC::Ptr<FunctionObject>> Value::get_method(VM& vm, PropertyKey
 }
 
 // 7.3.11 GetMethod ( V, P ), https://tc39.es/ecma262/#sec-getmethod
-ThrowCompletionOr<GC::Ptr<FunctionObject>> Value::get_method(VM& vm, PropertyKey const& property_key, Bytecode::PropertyLookupCache& cache) const
+ThrowCompletionOr<GC::Ptr<FunctionObject>> Value::get_method(VM& vm, PropertyKey const& property_key, Bytecode::StaticPropertyLookupCache& cache) const
 {
     // 1. Let func be ? GetV(V, P).
     auto function = TRY(get(vm, property_key, cache));

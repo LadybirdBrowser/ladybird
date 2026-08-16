@@ -224,7 +224,7 @@ ThrowCompletionOr<Value> Object::get(PropertyKey const& property_key) const
 }
 
 // 7.3.2 Get ( O, P ), https://tc39.es/ecma262/#sec-get-o-p
-ThrowCompletionOr<Value> Object::get(PropertyKey const& property_key, Bytecode::PropertyLookupCache& cache) const
+ThrowCompletionOr<Value> Object::get(PropertyKey const& property_key, Bytecode::StaticPropertyLookupCache& cache) const
 {
     // 1. Return ? O.[[Get]](P, O).
     return TRY(Value(this).get(vm(), property_key, cache));
@@ -1064,13 +1064,18 @@ ThrowCompletionOr<Value> Object::internal_get(PropertyKey const& property_key, V
         auto* parent = TRY(internal_get_prototype_of());
 
         // b. If parent is null, return undefined.
-        if (!parent)
+        if (!parent) {
+            if (cacheable_metadata && cacheable_metadata->property_absence_is_cacheable)
+                cacheable_metadata->type = CacheableGetPropertyMetadata::Type::GetMissingProperty;
             return js_undefined();
+        }
 
         // c. Return ? parent.[[Get]](P, Receiver).
         // AD-HOC: Avoid a native stack overflow when walking a pathologically-deep prototype chain.
         if (vm.did_reach_stack_space_limit()) [[unlikely]]
             return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
+        if (cacheable_metadata && !parent->is_cacheable_for_property_absence())
+            cacheable_metadata->property_absence_is_cacheable = false;
         return parent->internal_get(property_key, receiver, cacheable_metadata, PropertyLookupPhase::PrototypeChain);
     }
 

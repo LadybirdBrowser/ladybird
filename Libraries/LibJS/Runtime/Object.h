@@ -52,10 +52,12 @@ struct CacheableGetPropertyMetadata {
         NotCacheable,
         GetOwnProperty,
         GetPropertyInPrototypeChain,
+        GetMissingProperty,
     };
     Type type { Type::NotCacheable };
     Optional<u32> property_offset;
     GC::Ptr<Object const> prototype;
+    bool property_absence_is_cacheable { true };
 };
 
 struct CacheableSetPropertyMetadata {
@@ -133,7 +135,7 @@ public:
     // 7.3 Operations on Objects, https://tc39.es/ecma262/#sec-operations-on-objects
 
     ThrowCompletionOr<Value> get(PropertyKey const&) const;
-    ThrowCompletionOr<Value> get(PropertyKey const&, Bytecode::PropertyLookupCache&) const;
+    ThrowCompletionOr<Value> get(PropertyKey const&, Bytecode::StaticPropertyLookupCache&) const;
     ThrowCompletionOr<void> set(PropertyKey const&, Value, ShouldThrowExceptions);
     ThrowCompletionOr<void> set(PropertyKey const&, Value, Bytecode::PropertyLookupCache&);
     ThrowCompletionOr<bool> create_data_property(PropertyKey const&, Value, Optional<u32>* new_property_offset = nullptr);
@@ -172,6 +174,7 @@ public:
         PrototypeChain,
     };
     virtual ThrowCompletionOr<Value> internal_get(PropertyKey const&, Value receiver, CacheableGetPropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty) const;
+    virtual bool is_cacheable_for_property_absence() const { return true; }
     virtual ThrowCompletionOr<bool> internal_set(PropertyKey const&, Value value, Value receiver, CacheableSetPropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty);
     virtual ThrowCompletionOr<bool> internal_delete(PropertyKey const&);
     virtual ThrowCompletionOr<GC::RootVector<Value>> internal_own_property_keys() const;
