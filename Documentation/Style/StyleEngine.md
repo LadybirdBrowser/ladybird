@@ -600,6 +600,8 @@ One compiled program attaches to multiple scopes without duplicating its logical
 
 Match and transpose bytecode contains document-local `StyleAtomID` values and is therefore **compiled per document**. Routing registries, attachments, order tokens, and all result materializations are always document-local. Authoritative parsed stylesheet resources may be shared across documents, but nothing carrying one document's IDs, generations, scopes, or privacy state crosses a document boundary.
 
+The memory lease for a shared selector payload binds to the document that first inserts it. That document reports the program bytes, later documents sharing the payload report zero, and the original charge remains until the payload's final document reference drops.
+
 ### 8.5 Source order
 
 Source order composes from per-axis components:

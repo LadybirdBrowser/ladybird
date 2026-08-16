@@ -9,9 +9,13 @@ use std::alloc::Layout;
 use std::alloc::System;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use std::collections::HashSet;
 use std::collections::VecDeque;
+use std::collections::hash_map::DefaultHasher;
 use std::env;
 use std::ffi::c_void;
+use std::hash::Hash;
+use std::hash::Hasher;
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::time::Duration;
@@ -47,6 +51,7 @@ use libweb_rust::css::style::record_replay::EventKind;
 use libweb_rust::css::style::record_replay::LogReader;
 use libweb_rust::css::style::record_replay::PayloadReader;
 use libweb_rust::css::style::record_replay::PayloadWriter;
+use libweb_rust::css::style::selector::SelectorProgram;
 
 include!(concat!(env!("OUT_DIR"), "/style_engine_replay_generated.rs"));
 
@@ -81,6 +86,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         let mut engine_count = 0_u64;
         let mut event_count = 0_u64;
         let mut intern_atom_boundary_calls = 0_u64;
+        let mut selector_program_sharing = SelectorProgramSharing::default();
         let mut flush_count = 0_u64;
         let mut presence_degraded_publication_comparisons = 0_u64;
         let mut boundary_time = Duration::ZERO;
@@ -137,6 +143,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     unsafe { bridge::style_engine_use_recording_memory_policy(engine) };
                     if live_engines.len() <= index {
                         live_engines.resize(index + 1, None);
+                        selector_program_sharing.resize_engines(index + 1);
                         match_answer_identity_mappings.resize_with(index + 1, MatchAnswerIdentityMapping::default);
                         computed_longhand_tables.resize_with(index + 1, Vec::new);
                     }
@@ -244,7 +251,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
                 EventKind::AddStyleRule => {
-                    let engine = read_engine(&mut event.payload, &live_engines)?;
+                    let (engine_index, engine) = read_engine_indexed(&mut event.payload, &live_engines)?;
                     let sheet = event.payload.read_u32()?;
                     let before_rule = event.payload.read_u32()?;
                     let expected = event.payload.read_u32()?;
@@ -253,6 +260,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         _ => {
                             replay_atom_mappings(engine, &mut event.payload)?;
                             let program = libweb_rust::css::style::selector::replay::read(&mut event.payload)?;
+                            selector_program_sharing.record(engine_index, &program);
                             unsafe { bridge::replay_add_style_rule(engine, sheet, before_rule, program) }
                         }
                     };
@@ -273,10 +281,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     replay_atom_mappings(engine, &mut event.payload)?;
                 }
                 EventKind::ReplaceStyleRuleSelectors => {
-                    let engine = read_engine(&mut event.payload, &live_engines)?;
+                    let (engine_index, engine) = read_engine_indexed(&mut event.payload, &live_engines)?;
                     let rule = event.payload.read_u32()?;
                     replay_atom_mappings(engine, &mut event.payload)?;
                     let program = libweb_rust::css::style::selector::replay::read(&mut event.payload)?;
+                    selector_program_sharing.record(engine_index, &program);
                     unsafe { bridge::replay_replace_style_rule_selectors(engine, rule, program) };
                 }
                 EventKind::SetElementDeclaredProperties => {
@@ -989,6 +998,19 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         if options.detailed_counters {
             println!("boundary counters:");
             println!("  internAtomCalls: {intern_atom_boundary_calls}");
+            println!(
+                "  selectorProgramCompilations: {}",
+                selector_program_sharing.compilations
+            );
+            println!(
+                "  selectorProgramsDistinct: documents={}, process={}",
+                selector_program_sharing.document_distinct_count(),
+                selector_program_sharing.process_hashes.len()
+            );
+            println!(
+                "  selectorProgramBytesDistinct: documents={}, process={}",
+                selector_program_sharing.document_distinct_bytes, selector_program_sharing.process_distinct_bytes
+            );
         }
         detailed_counters.print(detailed_counter_reader.as_ref());
         reports.push(serde_json::json!({
@@ -1000,6 +1022,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             "presence_degraded_exact_cascade_publication_comparisons": presence_degraded_publication_comparisons,
             "boundary_counters": {
                 "intern_atom_calls": intern_atom_boundary_calls,
+                "selector_program_compilations": selector_program_sharing.compilations,
+                "selector_programs_distinct_documents": selector_program_sharing.document_distinct_count(),
+                "selector_programs_distinct_process": selector_program_sharing.process_hashes.len(),
+                "selector_program_bytes_distinct_documents": selector_program_sharing.document_distinct_bytes,
+                "selector_program_bytes_distinct_process": selector_program_sharing.process_distinct_bytes,
             },
             "timing": {
                 "boundary_ms": duration_ms(boundary_time),
@@ -1032,6 +1059,39 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         serde_json::to_writer_pretty(file, &output)?;
     }
     Ok(())
+}
+
+#[derive(Default)]
+struct SelectorProgramSharing {
+    compilations: u64,
+    document_hashes: Vec<HashSet<u64>>,
+    process_hashes: HashSet<u64>,
+    document_distinct_bytes: u64,
+    process_distinct_bytes: u64,
+}
+
+impl SelectorProgramSharing {
+    fn resize_engines(&mut self, length: usize) {
+        self.document_hashes.resize_with(length, HashSet::new);
+    }
+
+    fn record(&mut self, engine: usize, program: &SelectorProgram) {
+        let mut hasher = DefaultHasher::new();
+        program.hash(&mut hasher);
+        let hash = hasher.finish();
+        let bytes = program.capacity_bytes();
+        self.compilations += 1;
+        if self.document_hashes[engine].insert(hash) {
+            self.document_distinct_bytes += bytes;
+        }
+        if self.process_hashes.insert(hash) {
+            self.process_distinct_bytes += bytes;
+        }
+    }
+
+    fn document_distinct_count(&self) -> usize {
+        self.document_hashes.iter().map(HashSet::len).sum()
+    }
 }
 
 #[derive(Clone)]

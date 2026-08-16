@@ -19,14 +19,22 @@ impl StyleEngine {
 
     #[must_use]
     pub fn new(device_class: DeviceClass) -> Self {
-        Self::new_with_atoms(device_class, DocumentAtoms::for_live_engine())
+        Self::new_with_owners(
+            device_class,
+            DocumentAtoms::for_live_engine(),
+            SelectorPrograms::for_live_engine(),
+        )
     }
 
     pub(crate) fn new_for_replay(device_class: DeviceClass) -> Self {
-        Self::new_with_atoms(device_class, DocumentAtoms::for_replay())
+        Self::new_with_owners(
+            device_class,
+            DocumentAtoms::for_replay(),
+            SelectorPrograms::for_replay(),
+        )
     }
 
-    fn new_with_atoms(device_class: DeviceClass, atoms: DocumentAtoms) -> Self {
+    fn new_with_owners(device_class: DeviceClass, atoms: DocumentAtoms, programs: SelectorPrograms) -> Self {
         let mut memory = MemoryController::new(device_class);
         let tree = StyleNodeTree::new(&mut memory);
         Self {
@@ -84,7 +92,7 @@ impl StyleEngine {
             ffi_retained_cascade_assignments_memory: MemoryLease::new(MemoryCategory::BridgeBuffer),
             transaction_fact_view: None,
             facts: ElementFactStore::new(),
-            programs: SelectorPrograms::new(),
+            programs,
             selector_programs_need_sweep: false,
             routing: Rc::new(RoutingRegistry::new()),
             selector_truth_changes: SelectorTruthChanges::default(),
@@ -348,7 +356,7 @@ impl StyleEngine {
         let previous_program = self
             .replacement_rule(rule)
             .and_then(|replacement| replacement.version.selector_program);
-        let (program, inserted) = self.programs.add_with_status(selector_program);
+        let (program, inserted) = self.programs.add_with_status(selector_program, &mut self.memory);
         self.selector_programs_need_sweep |= inserted;
         self.programs.settle_memory(&mut self.memory);
         if previous_program != Some(program) {
@@ -363,7 +371,7 @@ impl StyleEngine {
 
     #[cfg(feature = "style-recording")]
     pub(crate) fn replace_replayed_style_rule_selectors(&mut self, rule: RuleID, selector_program: SelectorProgram) {
-        let (program, inserted) = self.programs.add_with_status(selector_program);
+        let (program, inserted) = self.programs.add_with_status(selector_program, &mut self.memory);
         self.selector_programs_need_sweep |= inserted;
         self.programs.settle_memory(&mut self.memory);
         self.add_routing_rule(rule, program);
@@ -516,7 +524,7 @@ impl StyleEngine {
         {
             return reusable;
         }
-        let (program, inserted) = self.programs.add_with_status(compiled);
+        let (program, inserted) = self.programs.add_with_status(compiled, &mut self.memory);
         self.selector_programs_need_sweep |= inserted;
         self.programs.settle_memory(&mut self.memory);
         program
