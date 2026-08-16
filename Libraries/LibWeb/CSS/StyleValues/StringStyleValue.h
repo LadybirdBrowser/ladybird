@@ -32,10 +32,9 @@ private:
 
     explicit StringStyleValue(Utf16FlyString string)
         : StyleValueWithDefaultOperators(Type::String, [&] {
-            auto keyword = keyword_from_string(string);
             auto is_valid_animation_name_custom_ident = !string.equals_ignoring_ascii_case("default"sv)
                 && !string.equals_ignoring_ascii_case("none"sv)
-                && (!keyword.has_value() || !CSS::is_css_wide_keyword(keyword.value()));
+                && !CSS::is_css_wide_keyword(string);
             return StyleValueFFI::rust_style_value_create_string(
                 string.to_raw_leaked(), is_valid_animation_name_custom_ident);
         }())

@@ -71,6 +71,15 @@ inline bool is_css_wide_keyword(StringView name)
         || name.equals_ignoring_ascii_case("unset"sv);
 }
 
+inline bool is_css_wide_keyword(Utf16View name)
+{
+    return name.equals_ignoring_ascii_case("inherit"sv)
+        || name.equals_ignoring_ascii_case("initial"sv)
+        || name.equals_ignoring_ascii_case("revert"sv)
+        || name.equals_ignoring_ascii_case("revert-layer"sv)
+        || name.equals_ignoring_ascii_case("unset"sv);
+}
+
 inline bool is_css_wide_keyword(Keyword keyword)
 {
     switch (keyword) {
