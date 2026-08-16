@@ -458,6 +458,11 @@ impl AncestorRequirements {
         // Rows normally arrive in tree order. Following parents until an already-built row also
         // keeps this exact for a differently ordered batch without making deep DOM trees recurse.
         for start in 0..row_count {
+            if !facts.has_row(u32::try_from(start).expect("fact batch row space exhausted")) {
+                computed[start] = true;
+                unbounded[start] = true;
+                continue;
+            }
             if computed[start] {
                 continue;
             }

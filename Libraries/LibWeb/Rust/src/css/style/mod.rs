@@ -211,6 +211,7 @@ use index::ElementFactStore;
 use index::FeaturePostings;
 use index::FeatureValue;
 use index::LocalFeatureKey;
+use index::MatchingFactBatch;
 use index::PostingKey;
 use index::RuleDispatch;
 use index::SelectorPostingKey;

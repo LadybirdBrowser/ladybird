@@ -89,6 +89,7 @@ impl StyleEngine {
 
     pub fn prepare_selector_query(&mut self) {
         self.apply_staged_tree_deltas();
+        self.discard_prepared_batch_matching_traversal();
         self.facts.prepare_selector_query(&mut self.memory);
     }
 
@@ -122,7 +123,7 @@ impl StyleEngine {
         &mut self,
         root: StyleNodeID,
         topology: Option<&TransactionTopology>,
-    ) -> Option<StyleNodeFacts> {
+    ) -> Option<MatchingFactBatch> {
         let fallback_nodes;
         let nodes = if let Some(topology) = topology
             && topology.nodes().len() == self.tree.connected_element_count() as usize
@@ -155,7 +156,7 @@ impl StyleEngine {
             Counter::ColdMatchingBatchRows,
             u64::try_from(batch.row_count()).unwrap_or(u64::MAX),
         );
-        Some(batch)
+        Some(batch.into())
     }
 
     pub(super) fn discard_prepared_batch_matching_traversal(&mut self) {
@@ -385,7 +386,7 @@ impl StyleEngine {
     pub(super) fn traversal_with_cold_matching_batch(
         &mut self,
         root: StyleNodeID,
-        batch: StyleNodeFacts,
+        batch: MatchingFactBatch,
         topology: Option<TransactionTopology>,
         reuse_retained_match_answers: bool,
         match_workspace: MatchEvaluationWorkspace,

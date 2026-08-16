@@ -619,7 +619,7 @@ impl StyleEngine {
         self.resolve_already_planned_selector_truth(&regions, patch_cover.as_ref().map(|cover| &cover.full));
         let program_base_version = transaction.program_base_version;
         // A scoped plan consumes retained match answers or packs its missing rows adaptively. Do
-        // not walk and clone the complete required fact store merely to prepare for that bounded
+        // not walk and snapshot the complete required fact store merely to prepare for that bounded
         // traversal. Broad plans will consume the complete batch, so their broad reaction pays the
         // preparation cost once here and reuses it during matching.
         let prepare_complete_matching_batch = regions.regions().iter().any(|region| {
@@ -640,27 +640,6 @@ impl StyleEngine {
                 .add(Counter::PreparedMatchingBatchCompletenessRowsInspected, inspected);
             is_complete
         };
-        let prepared_matching_batch = if prepared_matching_batch_is_complete {
-            let batch = self.facts.primary().clone();
-            self.counters
-                .add(Counter::PreparedMatchingBatchRowsCloned, batch.row_count() as u64);
-            self.memory
-                .reserve_required(MemoryCategory::BatchScratch, batch.capacity_bytes());
-            Some(batch)
-        } else {
-            None
-        };
-        if let Some(batch) = prepared_matching_batch {
-            match &mut self.prepared_batch_matching_traversal {
-                Some(prepared) => prepared.batch = Some(batch),
-                None => {
-                    let mut prepared = PreparedBatchMatchingTraversal::new(root);
-                    prepared.batch = Some(batch);
-                    prepared.reuse_retained_match_answers = reuse_retained_match_answers;
-                    self.prepared_batch_matching_traversal = Some(prepared);
-                }
-            }
-        }
         let fact_view_bytes = self
             .transaction_fact_view
             .as_ref()
@@ -701,6 +680,24 @@ impl StyleEngine {
         self.memory
             .reserve_required(MemoryCategory::BatchScratch, style_input_reaction_bytes);
         self.release_transaction(transaction);
+        // Releasing staging can compact primary payloads. Take the shared view afterwards so that
+        // compaction does not need to copy the complete primary arrangement away from its view.
+        if prepared_matching_batch_is_complete {
+            let batch = self.facts.primary_view();
+            // NB: This externally visible counter predates shared primary views. It now counts the
+            //     rows made available to the prepared batch without implying a physical copy.
+            self.counters
+                .add(Counter::PreparedMatchingBatchRowsCloned, batch.live_row_count() as u64);
+            match &mut self.prepared_batch_matching_traversal {
+                Some(prepared) => prepared.batch = Some(batch),
+                None => {
+                    let mut prepared = PreparedBatchMatchingTraversal::new(root);
+                    prepared.batch = Some(batch);
+                    prepared.reuse_retained_match_answers = reuse_retained_match_answers;
+                    self.prepared_batch_matching_traversal = Some(prepared);
+                }
+            }
+        }
         if plan_is_broad {
             if !transaction_reaches_no_selector {
                 self.retained_match_answers.evict(&mut self.match_answers);
