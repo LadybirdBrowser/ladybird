@@ -1583,6 +1583,19 @@ impl StyleEngine {
         declared: &[DeclaredProperty],
         declarations_are_complete: bool,
     ) {
+        if matches!(
+            kind,
+            ElementDeclarationKind::PresentationalHint | ElementDeclarationKind::SvgPresentationAttribute
+        ) {
+            verify_cascade_winners(|| {
+                let mut properties: Vec<u16> = declared.iter().map(|declared| declared.property).collect();
+                properties.sort_unstable();
+                assert!(
+                    properties.windows(2).all(|pair| pair[0] != pair[1]),
+                    "element-attached declarations repeat a property"
+                );
+            });
+        }
         let (current_declared, current_declarations_are_complete) = self.facts.element_declared_properties(node, kind);
         if current_declarations_are_complete == declarations_are_complete && current_declared == declared {
             return;

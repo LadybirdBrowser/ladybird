@@ -2403,6 +2403,11 @@ static Vector<StyleProperty> collect_presentational_hint_properties(DOM::Abstrac
         collect_dimension_attribute(properties, dimension_source, HTML::AttributeNames::width, CSS::PropertyID::Width);
         collect_dimension_attribute(properties, dimension_source, HTML::AttributeNames::height, CSS::PropertyID::Height);
     }
+    HashTable<CSS::PropertyID> seen_properties;
+    for (size_t i = properties.size(); i > 0; --i) {
+        if (seen_properties.set(properties[i - 1].property_id) != AK::HashSetResult::InsertedNewEntry)
+            properties.remove(i - 1);
+    }
     // Which properties a hint decides is a fact about the element, and this is the one place that
     // knows it: mapping the attributes needs the element fully built, and for a table cell it needs
     // the table's computed style, so it cannot be done when the element arrives.
