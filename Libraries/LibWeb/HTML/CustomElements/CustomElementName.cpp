@@ -12,6 +12,11 @@ namespace Web::HTML {
 
 bool is_valid_custom_element_name(Utf16View const& name)
 {
+    // OPTIMIZATION: A valid custom element name must contain a hyphen. Check this first so ordinary built-in element
+    //               names do not need the more expensive element local name validation below.
+    if (!name.contains('-'))
+        return false;
+
     // A string name is a valid custom element name if all of the following are true:
     // - name is a valid element local name;
     if (!DOM::is_valid_element_local_name(name))
@@ -24,16 +29,13 @@ bool is_valid_custom_element_name(Utf16View const& name)
     // - name does not contain any ASCII upper alphas;
     // - name contains a U+002D (-); and
     bool contains_ascii_upper_alpha = false;
-    bool contains_hyphen = false;
     for (auto code_point : name) {
         if (is_ascii_upper_alpha(code_point)) {
             contains_ascii_upper_alpha = true;
             break;
         }
-        if (code_point == '-')
-            contains_hyphen = true;
     }
-    if (contains_ascii_upper_alpha || !contains_hyphen)
+    if (contains_ascii_upper_alpha)
         return false;
 
     // - name is not one of the following:
