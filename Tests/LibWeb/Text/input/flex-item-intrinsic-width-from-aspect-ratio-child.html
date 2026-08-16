@@ -1,0 +1,33 @@
+<!doctype html>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#intrinsic-item-contributions">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#aspect-ratio-size-transfers">
+<script src="include.js"></script>
+<style>
+    #container {
+        display: flex;
+        width: 300px;
+        height: 200px;
+    }
+
+    #item {
+        display: flex;
+        flex-shrink: 0;
+    }
+
+    #child {
+        width: auto;
+        height: 100%;
+        aspect-ratio: 2 / 1;
+    }
+</style>
+<div id="container">
+    <div id="item">
+        <div id="child"></div>
+    </div>
+</div>
+<script>
+    test(() => {
+        println(`item width: ${item.getBoundingClientRect().width}`);
+        println(`child width: ${child.getBoundingClientRect().width}`);
+    });
+</script>

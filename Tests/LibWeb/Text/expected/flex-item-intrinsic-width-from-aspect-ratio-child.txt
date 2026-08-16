@@ -1,0 +1,2 @@
+item width: 400
+child width: 400
