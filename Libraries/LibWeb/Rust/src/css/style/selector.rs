@@ -3517,6 +3517,12 @@ impl Iterator for SiblingChildren<'_> {
 }
 
 /// Evaluates match programs against the live tree and a batch of local facts.
+#[derive(Clone, Copy)]
+pub(super) struct MatchFactRow<'a> {
+    pub(super) facts: &'a StyleNodeFacts,
+    pub(super) row: u32,
+}
+
 pub struct MatchEvaluator<'a> {
     tree: &'a StyleNodeTree,
     facts: &'a StyleNodeFacts,
@@ -4519,9 +4525,9 @@ impl<'a> MatchEvaluator<'a> {
 
     fn node_carries_dispatch_key(&self, key: DispatchKey, node: StyleNodeID) -> Result<bool, Incomplete> {
         let row = self.row_of(node)?;
-        Ok(self
+        Ok(row
             .facts
-            .carries_dispatch_key(row, key, self.tree.parent(node).is_none()))
+            .carries_dispatch_key(row.row, key, self.tree.parent(node).is_none()))
     }
 
     #[inline]
@@ -4760,7 +4766,7 @@ impl<'a> MatchEvaluator<'a> {
         let reaches = |name: StyleAtomID| match pairs.is_empty() {
             // With no pairing recorded the element is addressable only under the names it carries,
             // and all of them reach the host of the tree it stands in.
-            true => self.facts.parts_of(row).contains(&name),
+            true => row.facts.parts_of(row.row).contains(&name),
             false => pairs
                 .iter()
                 .any(|&(exposed, exposed_to)| exposed == name && exposed_to == host),
@@ -4841,7 +4847,7 @@ impl<'a> MatchEvaluator<'a> {
             SelectorOp::Language { first, count } => {
                 counters.bump(Counter::StateTests);
                 let row = self.row_of(node)?;
-                let tag = self.facts.language_tag_of(row);
+                let tag = row.facts.language_tag_of(row.row);
                 // An element with no resolved language matches no range at all, not even `*`.
                 Ok(!tag.is_empty()
                     && program
@@ -4851,7 +4857,7 @@ impl<'a> MatchEvaluator<'a> {
             SelectorOp::State(fact) => {
                 counters.bump(Counter::StateTests);
                 let row = self.row_of(node)?;
-                Ok(self.facts.states_of(row).contains(fact))
+                Ok(row.facts.states_of(row.row).contains(fact))
             }
             SelectorOp::And { first, count } => self.matches_compound(program, first, count, node, counters),
             SelectorOp::Or { first, count } => {
@@ -4983,7 +4989,7 @@ impl<'a> MatchEvaluator<'a> {
             }
             SelectorOp::Part(part) => {
                 let row = self.row_of(node)?;
-                Ok(self.facts.parts_of(row).contains(&part))
+                Ok(row.facts.parts_of(row.row).contains(&part))
             }
             // The host the part is exposed to, which is what the rule's outer compound describes.
             //
@@ -5108,7 +5114,7 @@ impl<'a> MatchEvaluator<'a> {
                 // Element children are style nodes and the tree answers for them. A text or comment
                 // child is not, so the element publishes whether it holds one.
                 let row = self.row_of(node)?;
-                Ok(self.tree.first_element_child(node).is_none() && !self.facts.has_text_content_of(row))
+                Ok(self.tree.first_element_child(node).is_none() && !row.facts.has_text_content_of(row.row))
             }
             SelectorOp::IsNode(named) => {
                 counters.bump(Counter::StructuralTests);
@@ -5131,14 +5137,14 @@ impl<'a> MatchEvaluator<'a> {
                 counters.bump(Counter::StateTests);
                 let row = self.row_of(node)?;
                 Ok(match kind {
-                    ValueStateTestKind::Directionality => self.facts.directionality_of(row) == value,
-                    ValueStateTestKind::CustomState => self.facts.custom_states_of(row).contains(&value),
+                    ValueStateTestKind::Directionality => row.facts.directionality_of(row.row) == value,
+                    ValueStateTestKind::CustomState => row.facts.custom_states_of(row.row).contains(&value),
                 })
             }
             SelectorOp::Heading(levels) => {
                 counters.bump(Counter::StructuralTests);
                 let row = self.row_of(node)?;
-                let level = self.facts.heading_level_of(row);
+                let level = row.facts.heading_level_of(row.row);
                 Ok((1..=9).contains(&level) && levels & (1 << (level - 1)) != 0)
             }
             // The existential answer: does any candidate on the query's axis satisfy its compound.
@@ -5233,21 +5239,21 @@ impl<'a> MatchEvaluator<'a> {
         let row = self.row_of(node)?;
         Ok(match test {
             FeatureTest::AnyElement => true,
-            FeatureTest::Namespace(NamespaceTest::None) => self.facts.namespace_of(row) == StyleAtomID::NONE,
-            FeatureTest::Namespace(NamespaceTest::Named(namespace)) => self.facts.namespace_of(row) == namespace,
-            FeatureTest::TagName(tag) => tag.matches(self.facts.tag_of(row), self.facts.namespace_of(row)),
-            FeatureTest::Id(id) => self.facts.id_of(row) == id,
-            FeatureTest::Class(class) => self.facts.classes_of(row).contains(&class),
+            FeatureTest::Namespace(NamespaceTest::None) => row.facts.namespace_of(row.row) == StyleAtomID::NONE,
+            FeatureTest::Namespace(NamespaceTest::Named(namespace)) => row.facts.namespace_of(row.row) == namespace,
+            FeatureTest::TagName(tag) => tag.matches(row.facts.tag_of(row.row), row.facts.namespace_of(row.row)),
+            FeatureTest::Id(id) => row.facts.id_of(row.row) == id,
+            FeatureTest::Class(class) => row.facts.classes_of(row.row).contains(&class),
             FeatureTest::Attribute(test) => {
                 let insensitive = match test.case {
                     AttributeCase::Sensitive => false,
                     AttributeCase::Insensitive => true,
-                    AttributeCase::InsensitiveForNamespace(namespace) => self.facts.namespace_of(row) == namespace,
+                    AttributeCase::InsensitiveForNamespace(namespace) => row.facts.namespace_of(row.row) == namespace,
                 };
                 // `[*|x]` names one attribute per namespace the element carries `x` in, and the
                 // test holds when any of them satisfies it.
                 self.attributes_named_by(row, test)
-                    .any(|attribute| self.matches_attribute_value(program, test, attribute, insensitive))
+                    .any(|attribute| self.matches_attribute_value(program, test, row.facts, attribute, insensitive))
             }
         })
     }
@@ -5267,23 +5273,32 @@ impl<'a> MatchEvaluator<'a> {
     ///
     /// There can be more than one: `[*|x]` names the attribute called `x` in each namespace the
     /// element carries it in, and they publish the same any-namespace atom.
-    fn attributes_named_by(&self, row: u32, test: AttributeTest) -> impl Iterator<Item = super::index::AttributeFact> {
+    fn attributes_named_by(
+        &self,
+        row: MatchFactRow<'a>,
+        test: AttributeTest,
+    ) -> impl Iterator<Item = super::index::AttributeFact> {
         // Whether this subject folds attribute names at all, which is one namespace comparison for
         // the whole test rather than one per attribute.
-        let folds = !test.fold_in_namespace.is_none() && self.facts.namespace_of(row) == test.fold_in_namespace;
-        self.facts.attributes_of(row).iter().copied().filter(move |attribute| {
-            let (written, folded) = match test.any_namespace {
-                true => (attribute.local, attribute.folded_local),
-                false => (attribute.name, attribute.folded_name),
-            };
-            written == test.name || (folds && folded == test.folded)
-        })
+        let folds = !test.fold_in_namespace.is_none() && row.facts.namespace_of(row.row) == test.fold_in_namespace;
+        row.facts
+            .attributes_of(row.row)
+            .iter()
+            .copied()
+            .filter(move |attribute| {
+                let (written, folded) = match test.any_namespace {
+                    true => (attribute.local, attribute.folded_local),
+                    false => (attribute.name, attribute.folded_name),
+                };
+                written == test.name || (folds && folded == test.folded)
+            })
     }
 
     fn matches_attribute_value(
         &self,
         program: &SelectorProgram,
         test: AttributeTest,
+        facts: &StyleNodeFacts,
         attribute: super::index::AttributeFact,
         insensitive: bool,
     ) -> bool {
@@ -5301,7 +5316,7 @@ impl<'a> MatchEvaluator<'a> {
         }
 
         let literal = program.literal(test.value_offset, test.value_length);
-        let Some(value) = self.facts.text_of(attribute) else {
+        let Some(value) = facts.text_of(attribute) else {
             return false;
         };
         match test.operator {
@@ -5357,7 +5372,7 @@ impl<'a> MatchEvaluator<'a> {
         let subject_type = match position.of_type {
             true => {
                 let row = self.row_of(node)?;
-                Some((self.facts.tag_of(row), self.facts.namespace_of(row)))
+                Some((row.facts.tag_of(row.row), row.facts.namespace_of(row.row)))
             }
             false => None,
         };
@@ -5485,7 +5500,7 @@ impl<'a> MatchEvaluator<'a> {
                     }
                     Err(incomplete) => return Err(incomplete),
                 };
-                let sibling_type = (self.facts.tag_of(row), self.facts.namespace_of(row));
+                let sibling_type = (row.facts.tag_of(row.row), row.facts.namespace_of(row.row));
                 let next_type_id = u32::try_from(totals.len()).expect("sibling type space exhausted");
                 let type_id = *type_ids.entry(sibling_type).or_insert_with(|| {
                     totals.push(0);
@@ -5531,15 +5546,29 @@ impl<'a> MatchEvaluator<'a> {
         match (subject_type, position.of_selector) {
             (Some((tag, namespace)), _) => {
                 let row = self.row_of(sibling)?;
-                Ok(self.facts.tag_of(row) == tag && self.facts.namespace_of(row) == namespace)
+                Ok(row.facts.tag_of(row.row) == tag && row.facts.namespace_of(row.row) == namespace)
             }
             (None, Some(selector)) => self.matches_node(program, selector, sibling, counters),
             (None, None) => Ok(true),
         }
     }
 
-    fn row_of(&self, node: StyleNodeID) -> Result<u32, Incomplete> {
-        self.facts.row_of(node).ok_or(Incomplete::MissingFacts(node))
+    pub(super) fn row_of(&self, node: StyleNodeID) -> Result<MatchFactRow<'a>, Incomplete> {
+        let row = match self.transaction_fact_view {
+            Some((view, side)) => view.row_of(side, self.facts, node),
+            None => self.facts.row_of(node).map(|row| (self.facts, row)),
+        };
+        row.map(|(facts, row)| MatchFactRow { facts, row })
+            .ok_or(Incomplete::MissingFacts(node))
+    }
+
+    /// Whether every row this evaluator serves comes from the resident arrangement. Only a
+    /// before-side view with retained before rows can serve a row from somewhere else.
+    pub(super) fn serves_only_resident_rows(&self) -> bool {
+        match self.transaction_fact_view {
+            Some((view, TransactionFactSide::Before)) => view.before.is_none(),
+            _ => true,
+        }
     }
 }
 
@@ -6042,11 +6071,7 @@ mod tests {
             before_sibling_relations_available: false,
             prefix: None,
             retained_truth_available: false,
-            resident_side: TransactionFactSide::After,
-            local_facts_are_shared: false,
             before: None,
-            after: None,
-            opposite_fully_materialized: false,
         };
         view.insert_before_sibling_sequence(
             fixture.nodes[0],

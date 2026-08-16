@@ -23,6 +23,9 @@ use super::AncestorDispatchShape;
 use super::capacity::capacity_bytes;
 use super::column::Column;
 use super::column::EpochColumn;
+use super::column::PagedColumn;
+use super::column::PagedColumnPage;
+use super::column::RemovablePagedColumnPage;
 use super::column::advance_epoch;
 use super::fast_hash::FastMap as HashMap;
 use super::fast_hash::FastSet as HashSet;
@@ -2132,8 +2135,7 @@ pub struct ElementFactStore {
     /// Required primary arrangement. Element identity selects the current immutable packed row;
     /// mutations append one replacement per touched node when their publication batch settles.
     rows: StyleNodeFacts,
-    pending_rows: HashMap<StyleNodeID, PendingFactRow>,
-    selector_query_before_rows: HashMap<StyleNodeID, PendingFactRow>,
+    pending_rows: StagedFactRows,
     metadata: Column<Option<ElementFactMetadata>>,
     /// Logical row bytes still reachable through the directory, and bytes carried only by stale
     /// rows. Their ratio decides when rebuilding costs less than retaining append garbage.
@@ -2144,6 +2146,7 @@ pub struct ElementFactStore {
     postings: FeaturePostings,
     memory: MemoryLease,
     memory_dirty: bool,
+    settled_non_apply_capacity_bytes: u64,
     /// One entry per distinct set of declared custom property names, and the sets each name is in.
     /// A theme is one set however many elements it decides for, which is what keeps the index
     /// proportional to the stylesheet rather than to the document times the stylesheet.
@@ -2170,7 +2173,7 @@ pub struct ElementFactStore {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-struct PendingFactRow {
+struct StagedFactRow {
     tag: StyleAtomID,
     /// The ASCII-lowercase folding of `tag`, held only when it differs from it. Type selectors
     /// dispatch on their folded form, so an element whose local name is not already lowercase is
@@ -2199,7 +2202,7 @@ struct PendingFactRow {
     attributes: Vec<(StyleAtomID, StyleAtomID)>,
 }
 
-impl PendingFactRow {
+impl StagedFactRow {
     fn capacity_bytes(&self) -> u64 {
         capacity_bytes! {
             shallow [self.custom_states, self.parts, self.classes, self.attributes];
@@ -2218,6 +2221,278 @@ impl PendingFactRow {
                 self.states,
             ];
         }
+    }
+}
+
+#[derive(Default)]
+struct StagedFactRows {
+    rows: PagedColumn<StagedFactRowsPage>,
+    entries: Vec<Option<StagedFactRowPair>>,
+    touched: Vec<(StyleNodeID, u32)>,
+    dirty: Vec<(StyleNodeID, u32)>,
+    live_count: usize,
+    dirty_count: usize,
+    capacity_bytes: u64,
+}
+
+const PENDING_FACT_ROWS_PAGE_SHIFT: usize = 6;
+const PENDING_FACT_ROWS_PAGE_SIZE: usize = 1 << PENDING_FACT_ROWS_PAGE_SHIFT;
+
+struct StagedFactRowsPage {
+    entries: [u32; PENDING_FACT_ROWS_PAGE_SIZE],
+}
+
+impl Default for StagedFactRowsPage {
+    fn default() -> Self {
+        Self {
+            entries: [NO_ROW; PENDING_FACT_ROWS_PAGE_SIZE],
+        }
+    }
+}
+
+impl PagedColumnPage for StagedFactRowsPage {
+    type Value = u32;
+
+    const SHIFT: usize = PENDING_FACT_ROWS_PAGE_SHIFT;
+
+    fn get(&self, index: usize) -> Option<Self::Value> {
+        (self.entries[index] != NO_ROW).then_some(self.entries[index])
+    }
+
+    fn insert(&mut self, index: usize, value: Self::Value) {
+        self.entries[index] = value;
+    }
+}
+
+impl RemovablePagedColumnPage for StagedFactRowsPage {
+    fn remove(&mut self, index: usize) -> Option<Self::Value> {
+        let previous = std::mem::replace(&mut self.entries[index], NO_ROW);
+        (previous != NO_ROW).then_some(previous)
+    }
+}
+
+struct StagedFactRowPair {
+    before: StagedFactRow,
+    after: StagedFactRow,
+    dirty: bool,
+}
+
+impl StagedFactRows {
+    fn index(node: StyleNodeID) -> usize {
+        node.element_index().expect("only elements carry fact staging") as usize
+    }
+
+    fn is_empty(&self) -> bool {
+        self.live_count == 0
+    }
+
+    fn has_dirty(&self) -> bool {
+        self.dirty_count != 0
+    }
+
+    fn len(&self) -> usize {
+        self.live_count
+    }
+
+    fn contains(&self, node: StyleNodeID) -> bool {
+        self.get(node).is_some()
+    }
+
+    fn get(&self, node: StyleNodeID) -> Option<&StagedFactRow> {
+        let entry = self.rows.get(Self::index(node))? as usize;
+        Some(&self.entries.get(entry)?.as_ref()?.after)
+    }
+
+    fn edit<R>(&mut self, node: StyleNodeID, edit: impl FnOnce(&mut StagedFactRow) -> R) -> Option<R> {
+        let entry = self.rows.get(Self::index(node))? as usize;
+        let is_dirty = self.entries.get(entry)?.as_ref()?.dirty;
+        if !is_dirty {
+            let previous_dirty_capacity = self.dirty.capacity();
+            self.entries[entry]
+                .as_mut()
+                .expect("mapped fact staging entry must be live")
+                .dirty = true;
+            self.dirty_count += 1;
+            self.dirty.push((node, entry as u32));
+            self.capacity_bytes = self
+                .capacity_bytes
+                .checked_add(
+                    u64::try_from(self.dirty.capacity() - previous_dirty_capacity)
+                        .expect("fact staging dirty capacity exceeds u64")
+                        .checked_mul(size_of::<(StyleNodeID, u32)>() as u64)
+                        .expect("fact staging dirty byte count overflow"),
+                )
+                .expect("fact staging byte count overflow");
+        }
+        let pair = self.entries[entry]
+            .as_mut()
+            .expect("mapped fact staging entry must be live");
+        let previous_payload_bytes = pair.after.capacity_bytes();
+        let result = edit(&mut pair.after);
+        self.capacity_bytes = self
+            .capacity_bytes
+            .checked_sub(previous_payload_bytes)
+            .and_then(|bytes| bytes.checked_add(pair.after.capacity_bytes()))
+            .expect("fact staging byte count overflow");
+        Some(result)
+    }
+
+    fn before(&self, node: StyleNodeID) -> Option<&StagedFactRow> {
+        let entry = self.rows.get(Self::index(node))? as usize;
+        Some(&self.entries.get(entry)?.as_ref()?.before)
+    }
+
+    fn insert_pair(&mut self, node: StyleNodeID, before: StagedFactRow, after: StagedFactRow) {
+        let index = Self::index(node);
+        assert!(self.rows.get(index).is_none());
+        let previous_storage_bytes = self.storage_capacity_bytes();
+        let payload_bytes = before
+            .capacity_bytes()
+            .checked_add(after.capacity_bytes())
+            .expect("fact staging byte count overflow");
+        let entry = u32::try_from(self.entries.len()).expect("fact staging entry overflow");
+        self.entries.push(Some(StagedFactRowPair {
+            before,
+            after,
+            dirty: true,
+        }));
+        self.rows.insert(index, entry);
+        self.touched.push((node, entry));
+        self.dirty.push((node, entry));
+        self.live_count += 1;
+        self.dirty_count += 1;
+        self.capacity_bytes = self
+            .capacity_bytes
+            .checked_sub(previous_storage_bytes)
+            .and_then(|bytes| bytes.checked_add(self.storage_capacity_bytes()))
+            .and_then(|bytes| bytes.checked_add(payload_bytes))
+            .expect("fact staging byte count overflow");
+    }
+
+    fn insert(&mut self, node: StyleNodeID, row: StagedFactRow) {
+        let index = Self::index(node);
+        if let Some(entry) = self.rows.get(index) {
+            let previous_storage_bytes = self.storage_capacity_bytes();
+            let pair = self.entries[entry as usize]
+                .as_mut()
+                .expect("mapped fact staging entry must be live");
+            let previous_payload_bytes = pair.after.capacity_bytes();
+            let replacement_payload_bytes = row.capacity_bytes();
+            pair.after = row;
+            if !pair.dirty {
+                pair.dirty = true;
+                self.dirty_count += 1;
+                self.dirty.push((node, entry));
+            }
+            self.capacity_bytes = self
+                .capacity_bytes
+                .checked_sub(previous_storage_bytes)
+                .and_then(|bytes| bytes.checked_add(self.storage_capacity_bytes()))
+                .and_then(|bytes| bytes.checked_sub(previous_payload_bytes))
+                .and_then(|bytes| bytes.checked_add(replacement_payload_bytes))
+                .expect("fact staging byte count overflow");
+            return;
+        }
+        self.insert_pair(node, row.clone(), row);
+    }
+
+    fn remove(&mut self, node: StyleNodeID) -> Option<StagedFactRow> {
+        let entry = self.rows.remove(Self::index(node))? as usize;
+        let pair = self.entries.get_mut(entry)?.take()?;
+        self.live_count -= 1;
+        self.dirty_count -= usize::from(pair.dirty);
+        self.capacity_bytes = self
+            .capacity_bytes
+            .checked_sub(pair.before.capacity_bytes())
+            .and_then(|bytes| bytes.checked_sub(pair.after.capacity_bytes()))
+            .expect("fact staging byte count underflow");
+        Some(pair.after)
+    }
+
+    fn keys(&self) -> impl Iterator<Item = StyleNodeID> + '_ {
+        self.touched
+            .iter()
+            .filter_map(|&(node, entry)| (self.rows.get(Self::index(node)) == Some(entry)).then_some(node))
+    }
+
+    fn values(&self) -> impl Iterator<Item = &StagedFactRow> {
+        self.keys().filter_map(|node| self.get(node))
+    }
+
+    fn dirty_rows(&self) -> Vec<(StyleNodeID, StagedFactRow)> {
+        self.dirty
+            .iter()
+            .filter_map(|&(node, entry)| {
+                if self.rows.get(Self::index(node)) != Some(entry) {
+                    return None;
+                }
+                let pair = self.entries.get(entry as usize)?.as_ref()?;
+                pair.dirty.then(|| (node, pair.after.clone()))
+            })
+            .collect()
+    }
+
+    fn mark_applied(&mut self) {
+        for &(node, entry) in &self.dirty {
+            if self.rows.get(Self::index(node)) == Some(entry)
+                && let Some(pair) = self.entries[entry as usize].as_mut()
+            {
+                pair.dirty = false;
+            }
+        }
+        self.dirty.clear();
+        self.dirty_count = 0;
+    }
+
+    fn clear(&mut self) {
+        for &(node, _) in &self.touched {
+            self.rows.remove(Self::index(node));
+        }
+        const RETAINED_ENTRY_CAPACITY_RATIO: usize = 4;
+        const MIN_RETAINED_ENTRY_CAPACITY: usize = 64;
+        let transaction_high_water = self.entries.len();
+        if self.entries.capacity()
+            > transaction_high_water
+                .saturating_mul(RETAINED_ENTRY_CAPACITY_RATIO)
+                .max(MIN_RETAINED_ENTRY_CAPACITY)
+        {
+            self.entries.shrink_to(transaction_high_water);
+        }
+        self.entries.clear();
+        self.touched.clear();
+        self.dirty.clear();
+        self.live_count = 0;
+        self.dirty_count = 0;
+        self.capacity_bytes = self.storage_capacity_bytes();
+    }
+
+    fn capacity_bytes(&self) -> u64 {
+        self.capacity_bytes
+    }
+
+    fn storage_capacity_bytes(&self) -> u64 {
+        capacity_bytes! {
+            shallow [self.entries, self.touched, self.dirty];
+            cached [self.rows.capacity_bytes()];
+            nested [];
+            skip [self.live_count, self.dirty_count, self.capacity_bytes];
+        }
+    }
+
+    #[cfg(test)]
+    fn recomputed_capacity_bytes(&self) -> u64 {
+        self.storage_capacity_bytes()
+            + self
+                .touched
+                .iter()
+                .filter_map(|&(node, entry)| {
+                    if self.rows.get(Self::index(node)) != Some(entry) {
+                        return None;
+                    }
+                    self.entries.get(entry as usize)?.as_ref()
+                })
+                .map(|pair| pair.before.capacity_bytes() + pair.after.capacity_bytes())
+                .sum::<u64>()
     }
 }
 
@@ -2252,16 +2527,16 @@ impl ElementFactMetadata {
 
 impl Default for ElementFactStore {
     fn default() -> Self {
-        Self {
+        let mut store = Self {
             rows: StyleNodeFacts::new(),
-            pending_rows: HashMap::default(),
-            selector_query_before_rows: HashMap::default(),
+            pending_rows: StagedFactRows::default(),
             metadata: Column::default(),
             primary_live_bytes: 0,
             primary_stale_bytes: 0,
             postings: FeaturePostings::default(),
             memory: MemoryLease::new(MemoryCategory::StyleNodeMapping),
             memory_dirty: false,
+            settled_non_apply_capacity_bytes: 0,
             custom_property_name_sets: super::intern_table::InternTable::default(),
             custom_property_name_set_vacancies: Vec::new(),
             custom_property_set_ids_by_name: HashMap::default(),
@@ -2269,7 +2544,9 @@ impl Default for ElementFactStore {
             attribute_value_texts: HashMap::default(),
             attribute_name_locals: HashMap::default(),
             element_declared_properties: ElementDeclarationRows::default(),
-        }
+        };
+        store.settled_non_apply_capacity_bytes = store.capacity_bytes() - store.apply_capacity_bytes();
+        store
     }
 }
 
@@ -2399,26 +2676,25 @@ impl ElementFactStore {
     #[must_use]
     pub fn primary(&self) -> &StyleNodeFacts {
         assert!(
-            !self.has_pending_input(),
-            "cannot evaluate facts while pending input is uncommitted"
+            !self.has_dirty_staging(),
+            "cannot evaluate facts while fact staging is unapplied"
         );
         &self.rows
     }
 
-    /// The committed arrangement while a staged transaction is being planned.
     #[must_use]
-    pub fn committed(&self) -> &StyleNodeFacts {
-        &self.rows
+    pub fn has_dirty_staging(&self) -> bool {
+        self.pending_rows.has_dirty()
     }
 
     #[must_use]
-    pub fn has_pending_input(&self) -> bool {
+    pub fn has_staged_input(&self) -> bool {
         !self.pending_rows.is_empty()
     }
 
     #[must_use]
     pub fn parts_of(&self, node: StyleNodeID) -> &[StyleAtomID] {
-        if let Some(row) = self.pending_rows.get(&node) {
+        if let Some(row) = self.pending_rows.get(node) {
             return &row.parts;
         }
         self.rows.row_of(node).map_or(&[], |row| self.rows.parts_of(row))
@@ -2426,7 +2702,7 @@ impl ElementFactStore {
 
     #[must_use]
     pub fn custom_states_of(&self, node: StyleNodeID) -> &[StyleAtomID] {
-        if let Some(row) = self.pending_rows.get(&node) {
+        if let Some(row) = self.pending_rows.get(node) {
             return &row.custom_states;
         }
         self.rows
@@ -2446,11 +2722,11 @@ impl ElementFactStore {
         self.metadata.get(node.element_index()? as usize)?.as_ref()
     }
 
-    fn snapshot_row(&self, node: StyleNodeID) -> PendingFactRow {
+    fn snapshot_row(&self, node: StyleNodeID) -> StagedFactRow {
         let Some(row) = self.rows.row_of(node) else {
-            return PendingFactRow::default();
+            return StagedFactRow::default();
         };
-        PendingFactRow {
+        StagedFactRow {
             tag: self.rows.tag_of(row),
             folded_tag: self.rows.folded_tag_of(row),
             id: self.rows.id_of(row),
@@ -2473,13 +2749,13 @@ impl ElementFactStore {
         }
     }
 
-    fn pending_row_mut(&mut self, node: StyleNodeID) -> &mut PendingFactRow {
+    fn edit_pending_row<R>(&mut self, node: StyleNodeID, edit: impl FnOnce(&mut StagedFactRow) -> R) -> R {
         self.memory_dirty = true;
-        if !self.pending_rows.contains_key(&node) {
+        if !self.pending_rows.contains(node) {
             let row = self.snapshot_row(node);
             self.pending_rows.insert(node, row);
         }
-        self.pending_rows.get_mut(&node).unwrap()
+        self.pending_rows.edit(node, edit).unwrap()
     }
 
     /// Give a node a row of its own without putting a feature in it.
@@ -2489,15 +2765,14 @@ impl ElementFactStore {
     /// selector that reads it - a relative anchor bound at the root, the leftmost step of a chain
     /// that lands there - asks for a row that never arrives and the whole match gives up.
     pub fn ensure_row(&mut self, node: StyleNodeID) {
-        if self.rows.row_of(node).is_none() && !self.pending_rows.contains_key(&node) {
+        if self.rows.row_of(node).is_none() && !self.pending_rows.contains(node) {
             self.memory_dirty = true;
-            self.pending_rows.insert(node, PendingFactRow::default());
+            self.pending_rows.insert(node, StagedFactRow::default());
         }
     }
 
     pub fn set_tag(&mut self, node: StyleNodeID, tag: StyleAtomID, memory: &mut MemoryController) {
-        let facts = self.pending_row_mut(node);
-        let previous = std::mem::replace(&mut facts.tag, tag);
+        let previous = self.edit_pending_row(node, |facts| std::mem::replace(&mut facts.tag, tag));
         if previous != tag {
             if !previous.is_none() {
                 self.postings.remove(SelectorPostingKey::TagName(previous), node);
@@ -2512,9 +2787,10 @@ impl ElementFactStore {
     /// equal to the name itself carries no information and is dropped, so the posting is never
     /// inserted twice for one element.
     pub fn set_folded_tag(&mut self, node: StyleNodeID, folded: StyleAtomID, memory: &mut MemoryController) {
-        let facts = self.pending_row_mut(node);
-        let folded = if folded == facts.tag { StyleAtomID::NONE } else { folded };
-        let previous = std::mem::replace(&mut facts.folded_tag, folded);
+        let (previous, folded) = self.edit_pending_row(node, |facts| {
+            let folded = if folded == facts.tag { StyleAtomID::NONE } else { folded };
+            (std::mem::replace(&mut facts.folded_tag, folded), folded)
+        });
         if previous != folded {
             if !previous.is_none() {
                 self.postings.remove(SelectorPostingKey::TagName(previous), node);
@@ -2526,8 +2802,7 @@ impl ElementFactStore {
     }
 
     pub fn set_id(&mut self, node: StyleNodeID, id: StyleAtomID, memory: &mut MemoryController) {
-        let facts = self.pending_row_mut(node);
-        let previous = std::mem::replace(&mut facts.id, id);
+        let previous = self.edit_pending_row(node, |facts| std::mem::replace(&mut facts.id, id));
         if previous != id {
             if !previous.is_none() {
                 self.postings.remove(SelectorPostingKey::Id(previous), node);
@@ -2610,7 +2885,7 @@ impl ElementFactStore {
 
     #[must_use]
     pub fn states_of_node(&self, node: StyleNodeID) -> StateSet {
-        if let Some(row) = self.pending_rows.get(&node) {
+        if let Some(row) = self.pending_rows.get(node) {
             return row.states;
         }
         self.rows
@@ -2626,7 +2901,7 @@ impl ElementFactStore {
     }
 
     pub fn set_part_exposure(&mut self, node: StyleNodeID, exposure: StyleAtomID) {
-        self.pending_row_mut(node).part_exposure = exposure;
+        self.edit_pending_row(node, |facts| facts.part_exposure = exposure);
     }
 
     #[must_use]
@@ -2645,7 +2920,7 @@ impl ElementFactStore {
 
     #[must_use]
     pub fn directionality_of(&self, node: StyleNodeID) -> StyleAtomID {
-        if let Some(row) = self.pending_rows.get(&node) {
+        if let Some(row) = self.pending_rows.get(node) {
             return row.directionality;
         }
         self.rows
@@ -2654,7 +2929,7 @@ impl ElementFactStore {
     }
 
     pub fn set_has_text_content(&mut self, node: StyleNodeID, has_text_content: bool) {
-        self.pending_row_mut(node).has_text_content = has_text_content;
+        self.edit_pending_row(node, |facts| facts.has_text_content = has_text_content);
     }
 
     /// An element's heading level follows from what it is, so it is published as it arrives and
@@ -2678,7 +2953,7 @@ impl ElementFactStore {
     }
 
     pub fn set_heading_level(&mut self, node: StyleNodeID, level: u8) {
-        self.pending_row_mut(node).heading_level = level;
+        self.edit_pending_row(node, |facts| facts.heading_level = level);
     }
 
     #[must_use]
@@ -2696,13 +2971,13 @@ impl ElementFactStore {
     }
 
     pub fn set_language(&mut self, node: StyleNodeID, language: StyleAtomID) {
-        self.pending_row_mut(node).language = language;
+        self.edit_pending_row(node, |facts| facts.language = language);
     }
 
     /// An element's namespace is fixed when it is created, so this is published once, on arrival,
     /// and is never an input that moves.
     pub fn set_namespace(&mut self, node: StyleNodeID, namespace: StyleAtomID) {
-        self.pending_row_mut(node).namespace = namespace;
+        self.edit_pending_row(node, |facts| facts.namespace = namespace);
     }
 
     pub fn set_directionality(
@@ -2711,8 +2986,9 @@ impl ElementFactStore {
         directionality: StyleAtomID,
         memory: &mut MemoryController,
     ) {
-        let facts = self.pending_row_mut(node);
-        let previous = std::mem::replace(&mut facts.directionality, directionality);
+        let previous = self.edit_pending_row(node, |facts| {
+            std::mem::replace(&mut facts.directionality, directionality)
+        });
         if previous != directionality {
             if !previous.is_none() {
                 self.postings.remove(SelectorPostingKey::Directionality(previous), node);
@@ -2725,17 +3001,23 @@ impl ElementFactStore {
     }
 
     pub fn set_class(&mut self, node: StyleNodeID, class: StyleAtomID, present: bool, memory: &mut MemoryController) {
-        let facts = self.pending_row_mut(node);
-        match (present, facts.classes.binary_search(&class)) {
+        let changed = self.edit_pending_row(node, |facts| match (present, facts.classes.binary_search(&class)) {
             (true, Err(index)) => {
                 facts.classes.insert(index, class);
-                self.postings.insert(SelectorPostingKey::Class(class), node, memory);
+                true
             }
             (false, Ok(index)) => {
                 facts.classes.remove(index);
+                true
+            }
+            _ => false,
+        });
+        if changed {
+            if present {
+                self.postings.insert(SelectorPostingKey::Class(class), node, memory);
+            } else {
                 self.postings.remove(SelectorPostingKey::Class(class), node);
             }
-            _ => {}
         }
     }
 
@@ -2897,35 +3179,44 @@ impl ElementFactStore {
         // names are postings rather than facts, so they say only that at least one attribute of the
         // element answers to them.
         let keys = self.attribute_name_keys(name);
-        let facts = self.pending_row_mut(node);
-        let found = facts.attributes.binary_search_by_key(&name, |entry| entry.0);
-        match (present, found) {
-            (true, Ok(index)) => facts.attributes[index].1 = value,
-            (true, Err(index)) => {
-                facts.attributes.insert(index, (name, value));
-                for key in keys {
-                    self.postings
-                        .insert(SelectorPostingKey::AttributeName(key), node, memory);
+        let changed = self.edit_pending_row(node, |facts| {
+            let found = facts.attributes.binary_search_by_key(&name, |entry| entry.0);
+            match (present, found) {
+                (true, Ok(index)) => {
+                    facts.attributes[index].1 = value;
+                    false
+                }
+                (true, Err(index)) => {
+                    facts.attributes.insert(index, (name, value));
+                    true
+                }
+                (false, Ok(index)) => {
+                    facts.attributes.remove(index);
+                    true
+                }
+                (false, Err(_)) => false,
+            }
+        });
+        if changed && present {
+            for key in keys {
+                self.postings
+                    .insert(SelectorPostingKey::AttributeName(key), node, memory);
+            }
+        } else if changed {
+            // A shared name stays true of the element while another of its attributes still
+            // answers to it, so only the names nothing implies any more are dropped.
+            for key in keys {
+                if key == name || !self.node_answers_to_attribute_name(node, key) {
+                    self.postings.remove(SelectorPostingKey::AttributeName(key), node);
                 }
             }
-            (false, Ok(index)) => {
-                facts.attributes.remove(index);
-                // A shared name stays true of the element while another of its attributes still
-                // answers to it, so only the names nothing implies any more are dropped.
-                for key in keys {
-                    if key == name || !self.node_answers_to_attribute_name(node, key) {
-                        self.postings.remove(SelectorPostingKey::AttributeName(key), node);
-                    }
-                }
-            }
-            (false, Err(_)) => {}
         }
     }
 
     /// Whether any attribute the node still carries is indexed under `key`.
     #[must_use]
     fn node_answers_to_attribute_name(&self, node: StyleNodeID, key: StyleAtomID) -> bool {
-        self.pending_rows.get(&node).is_some_and(|facts| {
+        self.pending_rows.get(node).is_some_and(|facts| {
             facts
                 .attributes
                 .iter()
@@ -3001,26 +3292,27 @@ impl ElementFactStore {
     }
 
     pub fn set_state(&mut self, node: StyleNodeID, fact: StateFact, value: bool) {
-        let facts = self.pending_row_mut(node);
-        if value {
-            facts.states.insert(fact);
-        } else {
-            facts.states.remove(fact);
-        }
+        self.edit_pending_row(node, |facts| {
+            if value {
+                facts.states.insert(fact);
+            } else {
+                facts.states.remove(fact);
+            }
+        });
     }
 
     pub fn set_parts(&mut self, node: StyleNodeID, parts: &[StyleAtomID]) {
-        self.pending_row_mut(node).parts = parts.to_vec();
+        self.edit_pending_row(node, |facts| facts.parts = parts.to_vec());
     }
 
     pub fn set_custom_states(&mut self, node: StyleNodeID, states: &[StyleAtomID]) {
-        self.pending_row_mut(node).custom_states = states.to_vec();
+        self.edit_pending_row(node, |facts| facts.custom_states = states.to_vec());
     }
 
     pub fn forget(&mut self, node: StyleNodeID) {
         self.memory_dirty = true;
         self.element_declared_properties.remove(node);
-        self.pending_rows.remove(&node);
+        self.pending_rows.remove(node);
         let Some(row) = self.rows.row_of(node) else {
             return;
         };
@@ -3099,11 +3391,7 @@ impl ElementFactStore {
                 }
             }
         }
-        for row in self
-            .pending_rows
-            .values()
-            .chain(self.selector_query_before_rows.values())
-        {
+        for row in self.pending_rows.values() {
             if !row.language.is_none() {
                 live_languages.insert(row.language, ());
             }
@@ -3152,7 +3440,7 @@ impl ElementFactStore {
     #[must_use]
     #[cfg(test)]
     pub fn covers(&self, node: StyleNodeID) -> bool {
-        self.rows.row_of(node).is_some() || self.pending_rows.contains_key(&node)
+        self.rows.row_of(node).is_some() || self.pending_rows.contains(node)
     }
 
     /// Pack the facts of a bounded set of style nodes into one batch.
@@ -3192,16 +3480,6 @@ impl ElementFactStore {
     }
 
     fn auxiliary_capacity_bytes(&self) -> u64 {
-        let pending_payloads = self
-            .pending_rows
-            .values()
-            .map(PendingFactRow::capacity_bytes)
-            .sum::<u64>();
-        let selector_query_before_payloads = self
-            .selector_query_before_rows
-            .values()
-            .map(PendingFactRow::capacity_bytes)
-            .sum::<u64>();
         let metadata_payloads = self
             .metadata
             .iter()
@@ -3231,8 +3509,6 @@ impl ElementFactStore {
 
         capacity_bytes! {
             shallow [
-                self.pending_rows,
-                self.selector_query_before_rows,
                 self.custom_property_name_sets,
                 self.custom_property_name_set_vacancies,
                 self.custom_property_set_ids_by_name,
@@ -3242,8 +3518,7 @@ impl ElementFactStore {
             ];
             cached [];
             nested [
-                pending_payloads,
-                selector_query_before_payloads,
+                self.pending_rows.capacity_bytes(),
                 metadata_payloads,
                 custom_property_name_payloads,
                 custom_property_name_index_payloads,
@@ -3252,6 +3527,12 @@ impl ElementFactStore {
             ];
             skip [];
         }
+    }
+
+    fn apply_capacity_bytes(&self) -> u64 {
+        self.rows.capacity_bytes()
+            + self.pending_rows.capacity_bytes()
+            + self.element_declared_properties.capacity_bytes()
     }
 
     #[must_use]
@@ -3271,7 +3552,6 @@ impl ElementFactStore {
                 self.memory,
                 self.memory_dirty,
                 self.pending_rows,
-                self.selector_query_before_rows,
                 self.custom_property_name_sets,
                 self.custom_property_name_set_vacancies,
                 self.custom_property_set_ids_by_name,
@@ -3282,13 +3562,13 @@ impl ElementFactStore {
         }
     }
 
-    /// Commit every pending fact-row edit to the authoritative arrangement.
-    pub fn commit_pending(&mut self, memory: &mut MemoryController) {
+    /// Commit every fact-staging edit to the authoritative arrangement.
+    pub fn apply_staged(&mut self, memory: &mut MemoryController) {
         if !self.memory_dirty {
             self.rebuild_missing_postings(memory);
             return;
         }
-        let pending_rows = std::mem::take(&mut self.pending_rows);
+        let pending_rows = self.pending_rows.dirty_rows();
         for (node, facts) in pending_rows {
             let replaced_bytes = self
                 .rows
@@ -3314,8 +3594,9 @@ impl ElementFactStore {
                 .checked_add(replaced_bytes)
                 .expect("primary fact byte count overflow");
         }
+        self.pending_rows.mark_applied();
         if self.primary_stale_bytes > self.primary_live_bytes {
-            let live: Vec<(StyleNodeID, PendingFactRow)> = self
+            let live: Vec<(StyleNodeID, StagedFactRow)> = self
                 .rows
                 .live_nodes()
                 .map(|node| (node, self.snapshot_row(node)))
@@ -3340,60 +3621,35 @@ impl ElementFactStore {
                     .sum::<u64>()
             );
         }
-        let current = self.capacity_bytes();
+        let apply_capacity_bytes = self.apply_capacity_bytes();
+        let current = self
+            .settled_non_apply_capacity_bytes
+            .checked_add(apply_capacity_bytes)
+            .expect("element fact byte count overflow");
         self.memory.resize_required_to(memory, current);
         self.memory_dirty = false;
         self.rebuild_missing_postings(memory);
     }
 
     pub fn prepare_selector_query(&mut self, memory: &mut MemoryController) {
-        let mut pending_nodes = Vec::with_capacity(self.pending_rows.len());
-        for &node in self.pending_rows.keys() {
-            pending_nodes.push(node);
-        }
-        for node in pending_nodes {
-            if !self.selector_query_before_rows.contains_key(&node) {
-                let before = self.snapshot_row(node);
-                self.selector_query_before_rows.insert(node, before);
-            }
-        }
-        self.commit_pending(memory);
-    }
-
-    /// Put the saved before rows back in the resident arrangement and stage the query-visible rows as the after side.
-    pub fn restore_prepared_selector_query_input(&mut self, memory: &mut MemoryController) {
-        if self.selector_query_before_rows.is_empty() {
-            return;
-        }
-
-        let mut after_rows = std::mem::take(&mut self.pending_rows);
-        for &node in self.selector_query_before_rows.keys() {
-            after_rows.entry(node).or_insert_with(|| self.snapshot_row(node));
-        }
-
-        self.pending_rows = std::mem::take(&mut self.selector_query_before_rows);
-        self.memory_dirty = true;
-        self.commit_pending(memory);
-        self.pending_rows = after_rows;
-        self.memory_dirty = !self.pending_rows.is_empty();
-        let current = self.capacity_bytes();
-        self.memory.resize_required_to(memory, current);
+        self.apply_staged(memory);
     }
 
     /// Snapshot the committed rows which pending local facts will replace at the barrier.
     #[must_use]
-    pub fn before_pending_facts(&self) -> StyleNodeFacts {
+    pub fn staged_before_facts(&self) -> StyleNodeFacts {
         let mut nodes = Vec::with_capacity(self.pending_rows.len());
-        for &node in self.pending_rows.keys() {
+        for node in self.pending_rows.keys() {
             nodes.push(node);
         }
         nodes.sort_unstable();
         let mut before = StyleNodeFacts::new();
         for node in nodes {
-            let facts = self.snapshot_row(node);
             append_fact_row(
                 node,
-                &facts,
+                self.pending_rows
+                    .before(node)
+                    .expect("fact staging node must have a before row"),
                 &self.attribute_value_texts,
                 &self.attribute_name_locals,
                 &self.language_texts,
@@ -3403,32 +3659,17 @@ impl ElementFactStore {
         before
     }
 
-    /// Pack the final rows of the pending transaction without committing them.
-    #[must_use]
-    pub fn pending_facts(&self) -> StyleNodeFacts {
-        let mut nodes = Vec::with_capacity(self.pending_rows.len());
-        for &node in self.pending_rows.keys() {
-            nodes.push(node);
-        }
-        nodes.sort_unstable();
-        let mut after = StyleNodeFacts::new();
-        for node in nodes {
-            append_fact_row(
-                node,
-                &self.pending_rows[&node],
-                &self.attribute_value_texts,
-                &self.attribute_name_locals,
-                &self.language_texts,
-                &mut after,
-            );
-        }
-        after
+    pub fn release_staging(&mut self, memory: &mut MemoryController) {
+        self.pending_rows.clear();
+        let current = self.capacity_bytes();
+        self.memory.resize_required_to(memory, current);
+        self.settled_non_apply_capacity_bytes = current - self.apply_capacity_bytes();
     }
 }
 
 fn append_fact_row(
     node: StyleNodeID,
-    facts: &PendingFactRow,
+    facts: &StagedFactRow,
     attribute_value_texts: &HashMap<StyleAtomID, Vec<u16>>,
     attribute_name_locals: &HashMap<StyleAtomID, AttributeNameForms>,
     language_texts: &HashMap<StyleAtomID, Vec<u16>>,
@@ -3565,7 +3806,7 @@ mod tests {
         );
         facts.set_attribute(node, attribute, StyleAtomID(42), true, &mut memory);
         facts.set_directionality(node, directionality, &mut memory);
-        facts.commit_pending(&mut memory);
+        facts.apply_staged(&mut memory);
 
         for key in [
             DispatchKey::TagName(tag),
@@ -3592,7 +3833,7 @@ mod tests {
         let node = StyleNodeID::element(1);
 
         facts.set_directionality(node, StyleAtomID(2), &mut memory);
-        facts.commit_pending(&mut memory);
+        facts.apply_staged(&mut memory);
         facts.set_directionality(node, StyleAtomID(4), &mut memory);
 
         assert_eq!(facts.directionality_of(node), StyleAtomID(4));
@@ -3611,7 +3852,7 @@ mod tests {
         };
         facts.note_attribute_name_forms(name, forms);
         facts.set_attribute(node, name, StyleAtomID(20), true, &mut memory);
-        facts.commit_pending(&mut memory);
+        facts.apply_staged(&mut memory);
 
         for key in [name, forms.local, forms.folded_name, forms.folded_local] {
             assert!(known_posting(&facts.postings, SelectorPostingKey::AttributeName(key)).contains(node));
@@ -3636,7 +3877,7 @@ mod tests {
 
         facts.set_tag(first, StyleAtomID(10), &mut memory);
         facts.set_tag(later, StyleAtomID(20), &mut memory);
-        facts.commit_pending(&mut memory);
+        facts.apply_staged(&mut memory);
         assert_eq!(facts.len(), 2);
         assert_eq!(facts.rows.row_by_element_index.len(), 65);
         assert_eq!(facts.tag_of_node(first), StyleAtomID(10));
@@ -3646,7 +3887,7 @@ mod tests {
         assert_eq!(facts.len(), 1);
         assert!(!facts.covers(first));
         facts.ensure_row(first);
-        facts.commit_pending(&mut memory);
+        facts.apply_staged(&mut memory);
         assert_eq!(facts.len(), 2);
         assert_eq!(facts.tag_of_node(first), StyleAtomID::NONE);
     }
@@ -3663,9 +3904,9 @@ mod tests {
 
         facts.set_tag(node, StyleAtomID(10), &mut memory);
         facts.set_class(node, first_class, true, &mut memory);
-        assert!(facts.has_pending_input());
-        facts.commit_pending(&mut memory);
-        assert!(!facts.has_pending_input());
+        assert!(facts.has_dirty_staging());
+        facts.apply_staged(&mut memory);
+        assert!(!facts.has_dirty_staging());
         let initial_generation = facts.primary().generation();
         assert_eq!(facts.primary().row_count(), 1);
         assert_eq!(facts.primary().stale_rows(), 0);
@@ -3675,7 +3916,7 @@ mod tests {
         facts.set_state(node, StateFact::Hover, true);
         facts.set_parts(node, &[part]);
         facts.set_custom_states(node, &[custom_state]);
-        facts.commit_pending(&mut memory);
+        facts.apply_staged(&mut memory);
         assert_eq!(facts.primary().generation(), initial_generation);
         assert_eq!(facts.primary().row_count(), 2);
         assert_eq!(facts.primary().stale_rows(), 1);
@@ -3687,7 +3928,7 @@ mod tests {
         assert_eq!(facts.primary().custom_states_of(row), &[custom_state]);
 
         facts.set_class(node, first_class, false, &mut memory);
-        facts.commit_pending(&mut memory);
+        facts.apply_staged(&mut memory);
         assert_ne!(facts.primary().generation(), initial_generation);
         assert_eq!(facts.primary().row_count(), 1);
         assert_eq!(facts.primary().stale_rows(), 0);
@@ -3743,7 +3984,8 @@ mod tests {
         let text_catalogs = facts.capacity_bytes();
         facts.set_custom_property_names(node, &[StyleAtomID(16), StyleAtomID(17)], &mut memory);
         assert!(facts.capacity_bytes() > text_catalogs);
-        facts.commit_pending(&mut memory);
+        facts.apply_staged(&mut memory);
+        facts.release_staging(&mut memory);
         assert_eq!(
             memory.bytes_in_category(MemoryCategory::StyleNodeMapping),
             facts.capacity_bytes()
@@ -3767,7 +4009,7 @@ mod tests {
             facts.set_attribute_value_text(attribute_value, &[index as u16]);
             facts.set_attribute(node, attribute_name, attribute_value, true, &mut memory);
             facts.set_custom_property_names(node, &[custom_property], &mut memory);
-            facts.commit_pending(&mut memory);
+            facts.apply_staged(&mut memory);
 
             facts.forget(node);
             facts.sweep_auxiliary_catalogs();
@@ -3833,7 +4075,7 @@ mod tests {
             facts.element_declared_properties.get(later, svg),
             (&[declared(4, false, 40)][..], true)
         );
-        facts.commit_pending(&mut memory);
+        facts.apply_staged(&mut memory);
         assert_eq!(
             memory.bytes_in_category(MemoryCategory::StyleNodeMapping),
             facts.capacity_bytes()
@@ -3914,19 +4156,19 @@ mod tests {
         facts.ensure_row(node);
         facts.set_class(node, old_class, true, &mut memory);
         facts.set_animation_names(node, &[old_animation], &mut memory);
-        facts.commit_pending(&mut memory);
+        facts.apply_staged(&mut memory);
         facts.postings_mut().evict_all();
 
         memory.set_tier3_limit_for_test(0);
         facts.set_class(node, old_class, false, &mut memory);
         facts.set_class(node, new_class, true, &mut memory);
         facts.set_animation_names(node, &[new_animation], &mut memory);
-        facts.commit_pending(&mut memory);
+        facts.apply_staged(&mut memory);
         let new_class_key = SelectorPostingKey::Class(new_class);
         assert!(matches!(facts.postings().lookup(new_class_key), Lookup::Missing(gap) if gap == new_class_key));
 
         memory.set_tier3_limit_for_test(u64::MAX);
-        facts.commit_pending(&mut memory);
+        facts.apply_staged(&mut memory);
         let old_class_key = SelectorPostingKey::Class(old_class);
         let old_animation_key = DependencyPostingKey::AnimationName(old_animation);
         let new_animation_key = DependencyPostingKey::AnimationName(new_animation);
@@ -3965,7 +4207,8 @@ mod tests {
                 store.set_class(node, StyleAtomID(name), true, &mut memory);
                 store.set_attribute(node, StyleAtomID(name), StyleAtomID::NONE, true, &mut memory);
             }
-            store.commit_pending(&mut memory);
+            store.apply_staged(&mut memory);
+            store.release_staging(&mut memory);
             assert_eq!(
                 memory.bytes_in_category(MemoryCategory::StyleNodeMapping),
                 store.capacity_bytes()
@@ -3979,7 +4222,8 @@ mod tests {
                 store.set_class(node, StyleAtomID(name), false, &mut memory);
                 store.set_attribute(node, StyleAtomID(name), StyleAtomID::NONE, false, &mut memory);
             }
-            store.commit_pending(&mut memory);
+            store.apply_staged(&mut memory);
+            store.release_staging(&mut memory);
             assert_eq!(
                 memory.bytes_in_category(MemoryCategory::StyleNodeMapping),
                 store.capacity_bytes()
@@ -3988,7 +4232,8 @@ mod tests {
 
         for index in 1..40_u32 {
             store.forget(StyleNodeID::element(index));
-            store.commit_pending(&mut memory);
+            store.apply_staged(&mut memory);
+            store.release_staging(&mut memory);
             assert_eq!(
                 memory.bytes_in_category(MemoryCategory::StyleNodeMapping),
                 store.capacity_bytes()
@@ -3997,7 +4242,8 @@ mod tests {
         assert!(store.is_empty());
 
         // The retained column capacities remain charged after every live row is forgotten.
-        store.commit_pending(&mut memory);
+        store.apply_staged(&mut memory);
+        store.release_staging(&mut memory);
         assert_eq!(
             memory.bytes_in_category(MemoryCategory::StyleNodeMapping),
             store.capacity_bytes()
@@ -4438,11 +4684,13 @@ mod tests {
         store.set_attribute_value_text(old, &old_text);
         store.set_attribute_value_text(new, &new_text);
         store.set_attribute(node, name, old, true, &mut memory);
-        store.commit_pending(&mut memory);
+        store.apply_staged(&mut memory);
+        store.release_staging(&mut memory);
         store.set_attribute(node, name, new, true, &mut memory);
 
-        let before = store.before_pending_facts();
-        let after = store.pending_facts();
+        let before = store.staged_before_facts();
+        store.apply_staged(&mut memory);
+        let after = store.primary();
 
         let old_attribute = before.attribute_of(before.row_of(node).unwrap(), name).unwrap();
         assert_eq!(old_attribute.value, old);
@@ -4450,6 +4698,66 @@ mod tests {
         let new_attribute = after.attribute_of(after.row_of(node).unwrap(), name).unwrap();
         assert_eq!(new_attribute.value, new);
         assert_eq!(after.text_of(new_attribute), Some(new_text.as_slice()));
+    }
+
+    #[test]
+    fn pending_fact_rows_use_paged_element_identity_slots() {
+        let first = StyleNodeID::element(1);
+        let distant = StyleNodeID::element(64);
+        let mut rows = StagedFactRows::default();
+        let mut before = StagedFactRow::default();
+        before.tag = StyleAtomID(1);
+        let mut after = StagedFactRow::default();
+        after.tag = StyleAtomID(2);
+
+        rows.insert(distant, before);
+        rows.insert(first, StagedFactRow::default());
+        rows.insert(distant, after);
+
+        assert!(rows.has_dirty());
+        assert_eq!(rows.rows.page_count(), 2);
+        assert_eq!(rows.entries.len(), 2);
+        assert_eq!(rows.keys().collect::<Vec<_>>(), vec![distant, first]);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows.before(distant).unwrap().tag, StyleAtomID(1));
+        assert_eq!(rows.get(distant).unwrap().tag, StyleAtomID(2));
+        rows.mark_applied();
+        assert!(!rows.has_dirty());
+        rows.edit(first, |row| row.tag = StyleAtomID(3)).unwrap();
+        assert!(rows.has_dirty());
+        rows.remove(distant);
+        assert!(rows.has_dirty());
+        assert_eq!(rows.keys().collect::<Vec<_>>(), vec![first]);
+        rows.remove(first);
+        assert!(!rows.has_dirty());
+        rows.insert(first, StagedFactRow::default());
+        assert_eq!(rows.keys().collect::<Vec<_>>(), vec![first]);
+        assert_eq!(rows.dirty_rows().len(), 1);
+        assert_eq!(rows.capacity_bytes(), rows.recomputed_capacity_bytes());
+
+        let directory_capacity = rows.rows.directory_capacity();
+        let entry_capacity = rows.entries.capacity();
+        rows.clear();
+        assert!(rows.is_empty());
+        assert_eq!(rows.rows.page_count(), 2);
+        assert_eq!(rows.rows.directory_capacity(), directory_capacity);
+        assert_eq!(rows.entries.capacity(), entry_capacity);
+    }
+
+    #[test]
+    fn pending_fact_rows_release_oversized_entry_arenas() {
+        let mut rows = StagedFactRows::default();
+        for index in 1..=1024 {
+            rows.insert(StyleNodeID::element(index), StagedFactRow::default());
+        }
+        rows.clear();
+        let peak_capacity = rows.entries.capacity();
+
+        rows.insert(StyleNodeID::element(1), StagedFactRow::default());
+        rows.clear();
+
+        assert!(rows.entries.capacity() < peak_capacity);
+        assert_eq!(rows.capacity_bytes(), rows.recomputed_capacity_bytes());
     }
 
     #[test]

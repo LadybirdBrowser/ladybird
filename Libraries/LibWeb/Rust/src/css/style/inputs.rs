@@ -54,7 +54,6 @@ impl StyleEngine {
             routing_needs_detachment_sweep: false,
             sheet_rule_replacement: None,
             pending_sheet_rule_replacements: Column::default(),
-            departed: Vec::new(),
             match_workspace: MatchEvaluationWorkspace::default(),
             exact_covered_scratch: Vec::new(),
             next_style_transaction_version: StyleTransactionVersion(1),
@@ -1046,9 +1045,6 @@ impl StyleEngine {
                 live_animation_overlays_after as u64,
             );
             self.tree.retire_element(node, &mut self.memory);
-            // The facts stay until routing finishes because they determine which selectors the
-            // departure can reach.
-            self.departed.push(node);
         }
         self.tree_staging.mark_applied();
         self.publish_budget_inputs();

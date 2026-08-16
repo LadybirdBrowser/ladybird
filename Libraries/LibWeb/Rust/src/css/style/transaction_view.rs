@@ -158,10 +158,8 @@ pub(super) enum TransactionFactSide {
 
 /// The local facts and tree relations available while planning one transaction.
 ///
-/// One semantic side remains in the resident arrangement. The other is a sparse batch grown to
-/// the rows evaluation touches. Tree and program transactions currently plan after commit and
-/// reconstruct their before side; eligible local facts plan before commit and materialize their
-/// staged after side instead.
+/// The after side lives in the resident arrangement. Changed local facts retain sparse before rows;
+/// unchanged nodes fall back to the resident arrangement on both sides.
 pub(super) struct TransactionFactView {
     pub(super) root: StyleNodeID,
     /// Every (node, key) local feature moved by this transaction, including all attribute name
@@ -175,15 +173,8 @@ pub(super) struct TransactionFactView {
     pub(super) before_sibling_relations_available: bool,
     pub(super) prefix: Option<PrefixFactTransition>,
     pub(super) retained_truth_available: bool,
-    /// Which semantic side is still resident in the engine's primary fact arrangement.
-    pub(super) resident_side: TransactionFactSide,
-    /// Whether both semantic sides share the resident local-fact arrangement.
-    pub(super) local_facts_are_shared: bool,
-    /// Shared before-side exact-evaluation batch when the after side is resident.
+    /// Sparse before-side rows for the local facts changed by this transaction.
     pub(super) before: Option<StyleNodeFacts>,
-    /// Shared after-side exact-evaluation batch when the before side is resident.
-    pub(super) after: Option<StyleNodeFacts>,
-    pub(super) opposite_fully_materialized: bool,
 }
 
 impl TransactionFactView {
@@ -201,32 +192,29 @@ impl TransactionFactView {
                 self.before_sibling_geometry.capacity_bytes(),
                 self.prefix.as_ref().map_or(0, PrefixFactTransition::capacity_bytes),
                 self.before.as_ref().map_or(0, StyleNodeFacts::capacity_bytes),
-                self.after.as_ref().map_or(0, StyleNodeFacts::capacity_bytes),
             ];
             skip [
                 self.root,
                 self.before_sibling_relations_available,
                 self.retained_truth_available,
-                self.resident_side,
-                self.local_facts_are_shared,
-                self.opposite_fully_materialized,
             ];
         }
     }
 
     #[must_use]
-    pub(super) fn facts<'a>(
+    pub(super) fn row_of<'a>(
         &'a self,
         side: TransactionFactSide,
         resident: &'a StyleNodeFacts,
-    ) -> Option<&'a StyleNodeFacts> {
-        if side == self.resident_side || self.local_facts_are_shared {
-            return Some(resident);
+        node: StyleNodeID,
+    ) -> Option<(&'a StyleNodeFacts, u32)> {
+        if side == TransactionFactSide::Before
+            && let Some(facts) = self.before.as_ref()
+            && let Some(row) = facts.row_of(node)
+        {
+            return Some((facts, row));
         }
-        match side {
-            TransactionFactSide::Before => self.before.as_ref(),
-            TransactionFactSide::After => self.after.as_ref(),
-        }
+        resident.row_of(node).map(|row| (resident, row))
     }
 }
 
@@ -253,6 +241,7 @@ impl PrefixFactTransition {
 
 #[cfg(test)]
 mod tests {
+    use super::super::index::StateSet;
     use super::super::index::StyleAtomID;
     use super::*;
 
@@ -298,9 +287,11 @@ mod tests {
 
     #[test]
     fn an_unchanged_local_fact_arrangement_serves_both_semantic_sides() {
-        let resident = StyleNodeFacts::new();
+        let node = StyleNodeID::element(1);
+        let mut resident = StyleNodeFacts::new();
+        resident.push_row(node, StyleAtomID(100), StyleAtomID::NONE, StateSet::default(), &[], &[]);
         let view = TransactionFactView {
-            root: StyleNodeID::element(1),
+            root: node,
             moved_features: FeatureFluxColumn::default(),
             before_sibling_geometry: SiblingSequenceGeometry::default(),
             before_sibling_sequence_by_parent: Vec::new(),
@@ -309,20 +300,13 @@ mod tests {
             before_sibling_relations_available: false,
             prefix: None,
             retained_truth_available: false,
-            resident_side: TransactionFactSide::After,
-            local_facts_are_shared: true,
             before: None,
-            after: None,
-            opposite_fully_materialized: false,
         };
 
-        assert!(std::ptr::eq(
-            view.facts(TransactionFactSide::Before, &resident).unwrap(),
-            &resident
-        ));
-        assert!(std::ptr::eq(
-            view.facts(TransactionFactSide::After, &resident).unwrap(),
-            &resident
-        ));
+        for side in [TransactionFactSide::Before, TransactionFactSide::After] {
+            let (facts, row) = view.row_of(side, &resident, node).unwrap();
+            assert!(std::ptr::eq(facts, &resident));
+            assert_eq!(facts.tag_of(row), StyleAtomID(100));
+        }
     }
 }

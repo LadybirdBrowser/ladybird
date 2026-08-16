@@ -1083,14 +1083,9 @@ impl StyleEngine {
         let workspace_after = self.match_workspace.capacity_bytes();
         self.memory
             .release(MemoryCategory::BatchScratch, workspace_before - workspace_after);
-        let plan_before_commit = self.facts.has_pending_input();
         let classification = self.classify_transaction_facts(transaction, arrival_regions);
         let before_facts = transaction.take_before_facts(&mut self.memory);
-        let local_facts_are_shared =
-            !plan_before_commit && before_facts.is_none() && !transaction.has_coarsened_markers();
-        let before = (!plan_before_commit && !local_facts_are_shared && !transaction.has_coarsened_markers())
-            .then(|| before_facts.expect("a changed local fact transaction retained its old side"));
-        let after = plan_before_commit.then(|| self.facts.pending_facts());
+        let before = (!transaction.has_coarsened_markers()).then_some(before_facts).flatten();
         TransactionFactView {
             root,
             moved_features: if !transaction.has_coarsened_markers() {
@@ -1099,7 +1094,6 @@ impl StyleEngine {
                 FeatureFluxColumn::default()
             },
             before,
-            after,
             before_sibling_geometry: SiblingSequenceGeometry::default(),
             before_sibling_sequence_by_parent: Vec::new(),
             before_sibling_parents_by_sequence: Vec::new(),
@@ -1107,26 +1101,6 @@ impl StyleEngine {
             before_sibling_relations_available: false,
             prefix: classification.prefix,
             retained_truth_available: classification.retained_truth_available,
-            resident_side: if plan_before_commit {
-                TransactionFactSide::Before
-            } else {
-                TransactionFactSide::After
-            },
-            local_facts_are_shared,
-            opposite_fully_materialized: false,
-        }
-    }
-
-    /// The fact arrangement resident on the side from which this planning epoch started.
-    pub(super) fn planning_facts(&self) -> &StyleNodeFacts {
-        if self
-            .transaction_fact_view
-            .as_ref()
-            .is_some_and(|view| view.resident_side == TransactionFactSide::Before)
-        {
-            self.facts.committed()
-        } else {
-            self.facts.primary()
         }
     }
 

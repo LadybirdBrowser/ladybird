@@ -1536,12 +1536,6 @@ pub(super) struct DiagnosticPlanCapture {
     pub(super) scoped: bool,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) enum BeforeFactRetention {
-    Retain,
-    Omit,
-}
-
 pub(crate) struct RecordedAtomMappings {
     pub atoms: Vec<(u64, u32)>,
     pub qualified_atoms: Vec<(u32, u32, u32)>,

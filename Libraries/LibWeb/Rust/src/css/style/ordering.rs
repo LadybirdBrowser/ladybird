@@ -1129,14 +1129,13 @@ impl StyleEngine {
 
     /// Normalize the pending inputs without advancing the committed snapshot.
     pub(super) fn drain_transaction(&mut self) -> StyleTransaction {
-        self.facts.restore_prepared_selector_query_input(&mut self.memory);
         self.initial_tree_bulk_load_is_pending = false;
         self.finalize_pending_sheet_rule_replacements();
         self.journal.take_transaction(&mut self.memory, &mut self.counters)
     }
 
     /// Advance staged program and tree state to the transaction's final snapshot.
-    pub(super) fn commit_pending_structural_state(&mut self) {
+    pub(super) fn apply_staged_structural_state(&mut self) {
         self.apply_pending_program_activation();
         self.apply_pending_rule_declarations();
         self.apply_pending_rule_versions();
@@ -1150,15 +1149,11 @@ impl StyleEngine {
     }
 
     /// Advance staged local facts to the transaction's final snapshot.
-    pub(super) fn commit_pending_facts(
-        &mut self,
-        transaction: &mut StyleTransaction,
-        before_facts: BeforeFactRetention,
-    ) {
-        if before_facts == BeforeFactRetention::Retain && self.facts.has_pending_input() {
-            transaction.install_before_facts(self.facts.before_pending_facts(), &mut self.memory);
+    pub(super) fn apply_staged_facts(&mut self, transaction: &mut StyleTransaction) {
+        if self.facts.has_staged_input() {
+            transaction.install_before_facts(self.facts.staged_before_facts(), &mut self.memory);
         }
-        self.facts.commit_pending(&mut self.memory);
+        self.facts.apply_staged(&mut self.memory);
     }
 
     /// Finish the transaction metadata which depends on committed program state.
@@ -1190,9 +1185,9 @@ impl StyleEngine {
     }
 
     /// Advance every staged input family to the transaction's final snapshot.
-    pub(super) fn commit_pending(&mut self, transaction: &mut StyleTransaction, before_facts: BeforeFactRetention) {
-        self.commit_pending_structural_state();
-        self.commit_pending_facts(transaction, before_facts);
+    pub(super) fn apply_staged(&mut self, transaction: &mut StyleTransaction) {
+        self.apply_staged_structural_state();
+        self.apply_staged_facts(transaction);
         self.finish_pending_commit(transaction);
     }
 
@@ -1200,7 +1195,7 @@ impl StyleEngine {
     /// drains here first, so normalization never combines changes across an observation boundary.
     pub fn take_transaction(&mut self) -> StyleTransaction {
         let mut transaction = self.drain_transaction();
-        self.commit_pending(&mut transaction, BeforeFactRetention::Retain);
+        self.apply_staged(&mut transaction);
         transaction
     }
 
@@ -1210,6 +1205,7 @@ impl StyleEngine {
         self.forget_departed_elements();
         self.tree_staging.clear();
         self.tree_staging_memory.resize_required_to(&mut self.memory, 0);
+        self.facts.release_staging(&mut self.memory);
         self.rules_with_incomplete_old_declarations.clear();
         self.sweep_selector_programs();
         self.shed_routing_for_detached_sheets();
@@ -1315,7 +1311,12 @@ impl StyleEngine {
     /// left behind here would be read as the next occupant's. Dropping it at the transaction
     /// boundary keeps the row alive for exactly as long as routing needs it.
     pub(super) fn forget_departed_elements(&mut self) {
-        let departed = std::mem::take(&mut self.departed);
+        let departed: Vec<_> = self
+            .tree_staging
+            .rows()
+            .into_iter()
+            .filter_map(|(node, _, after)| after.is_none().then_some(node))
+            .collect();
         if departed.is_empty() {
             return;
         }

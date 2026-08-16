@@ -22,29 +22,13 @@ impl StyleEngine {
         }
         self.discard_prepared_batch_matching_traversal();
         self.discard_published_match_answers();
-        self.facts.restore_prepared_selector_query_input(&mut self.memory);
         let document_root_arrival_is_pending =
             self.journal.pending_old(InputKey::TreeRelations(root)) == Some(InputValue::TreeRelations(None));
         let initial_tree_was_bulk_loaded = self.initial_tree_bulk_load_is_pending && document_root_arrival_is_pending;
         let publish_document_root_arrival = document_root_arrival_is_pending;
 
         let mut transaction = self.drain_transaction();
-        let plan_before_commit = !transaction.is_empty()
-            && !transaction.has_coarsened_markers()
-            && transaction.inputs.iter().all(|input| match input.key {
-                InputKey::LocalFeature(
-                    _,
-                    LocalFeatureKey::Language | LocalFeatureKey::Directionality | LocalFeatureKey::HeadingLevel,
-                ) => false,
-                InputKey::LocalFeature(..)
-                | InputKey::State(..)
-                | InputKey::ElementDeclaration(..)
-                | InputKey::ElementStyleInput(..) => true,
-                _ => false,
-            });
-        if !plan_before_commit {
-            self.commit_pending(&mut transaction, BeforeFactRetention::Retain);
-        }
+        self.apply_staged(&mut transaction);
         if transaction.is_empty() {
             self.release_transaction(transaction);
             return true;
@@ -636,9 +620,6 @@ impl StyleEngine {
             .as_ref()
             .map(|_| regions.compile_patch_cover(&self.tree, Some(root)));
         self.resolve_already_planned_selector_truth(&regions, patch_cover.as_ref().map(|cover| &cover.full));
-        if plan_before_commit {
-            self.commit_pending(&mut transaction, BeforeFactRetention::Omit);
-        }
         let program_base_version = transaction.program_base_version;
         // A scoped plan consumes retained match answers or packs its missing rows adaptively. Do
         // not walk and clone the complete required fact store merely to prepare for that bounded
@@ -989,7 +970,7 @@ impl StyleEngine {
             for node in self.elements_under(root) {
                 self.facts.ensure_row(node);
             }
-            self.facts.commit_pending(&mut self.memory);
+            self.facts.apply_staged(&mut self.memory);
             self.counters = counters;
         }
         let publish_style_answers = true;
