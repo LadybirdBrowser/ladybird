@@ -11,12 +11,12 @@
 
 namespace Web::Painting {
 
-NonnullRefPtr<FieldSetPaintable> FieldSetPaintable::create(Layout::FieldSetBox const& layout_box)
+NonnullRefPtr<FieldSetPaintable> FieldSetPaintable::create(Layout::BlockContainer const& layout_box)
 {
     return adopt_ref(*new FieldSetPaintable(layout_box));
 }
 
-FieldSetPaintable::FieldSetPaintable(Layout::FieldSetBox const& layout_box)
+FieldSetPaintable::FieldSetPaintable(Layout::BlockContainer const& layout_box)
     : Paintable(layout_box)
 {
 }

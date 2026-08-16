@@ -13,13 +13,13 @@ namespace Web::Painting {
 
 class CheckBoxPaintable final : public Paintable {
 public:
-    static NonnullRefPtr<CheckBoxPaintable> create(Layout::CheckBox const&);
+    static NonnullRefPtr<CheckBoxPaintable> create(Layout::Box const&);
     virtual StringView class_name() const override { return "CheckBoxPaintable"sv; }
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
 private:
-    CheckBoxPaintable(Layout::CheckBox const&);
+    CheckBoxPaintable(Layout::Box const&);
 };
 
 }

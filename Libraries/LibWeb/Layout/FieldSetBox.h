@@ -24,7 +24,6 @@ public:
     DOM::Element const& dom_node() const { return static_cast<DOM::Element const&>(*BlockContainer::dom_node()); }
 
     GC::Ptr<LegendBox const> rendered_legend() const;
-    virtual RefPtr<Painting::Paintable> create_paintable() const override;
 };
 
 template<>

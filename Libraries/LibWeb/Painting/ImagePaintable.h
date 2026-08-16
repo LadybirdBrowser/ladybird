@@ -6,14 +6,14 @@
 
 #pragma once
 
-#include <LibWeb/Layout/ImageBox.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Painting {
 
 class ImagePaintable final : public Paintable {
 public:
-    static NonnullRefPtr<ImagePaintable> create(Layout::ImageBox const& layout_box);
+    static NonnullRefPtr<ImagePaintable> create(Layout::Box const& layout_box, Layout::ImageProvider const& image_provider);
     virtual StringView class_name() const override { return "ImagePaintable"sv; }
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;

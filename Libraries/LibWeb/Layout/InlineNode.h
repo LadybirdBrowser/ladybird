@@ -16,8 +16,6 @@ class InlineNode final : public NodeWithStyle {
 public:
     InlineNode(DOM::Document&, GC::Ptr<DOM::Element>, CSS::LayoutStyle);
     virtual ~InlineNode() override;
-
-    virtual RefPtr<Painting::Paintable> create_paintable() const override;
 };
 
 template<>

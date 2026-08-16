@@ -22,9 +22,4 @@ RefPtr<Painting::PaintableWithLines const> BlockContainer::paintable_with_lines(
     return as_if<Painting::PaintableWithLines>(paintable_box.ptr());
 }
 
-RefPtr<Painting::Paintable> BlockContainer::create_paintable() const
-{
-    return Painting::PaintableWithLines::create(*this);
-}
-
 }

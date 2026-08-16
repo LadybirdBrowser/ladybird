@@ -8,6 +8,7 @@
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/HTML/DecodedImageData.h>
+#include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/ImagePaintable.h>
@@ -15,9 +16,9 @@
 
 namespace Web::Painting {
 
-NonnullRefPtr<ImagePaintable> ImagePaintable::create(Layout::ImageBox const& layout_box)
+NonnullRefPtr<ImagePaintable> ImagePaintable::create(Layout::Box const& layout_box, Layout::ImageProvider const& image_provider)
 {
-    return adopt_ref(*new ImagePaintable(layout_box, layout_box.image_provider()));
+    return adopt_ref(*new ImagePaintable(layout_box, image_provider));
 }
 
 ImagePaintable::ImagePaintable(Layout::Box const& layout_box, Layout::ImageProvider const& image_provider)

@@ -20,8 +20,6 @@ public:
 
     DOM::Element& dom_node() { return static_cast<DOM::Element&>(*BlockContainer::dom_node()); }
     DOM::Element const& dom_node() const { return static_cast<DOM::Element const&>(*BlockContainer::dom_node()); }
-
-    virtual RefPtr<Painting::Paintable> create_paintable() const override;
 };
 
 template<>

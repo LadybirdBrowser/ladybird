@@ -6,14 +6,14 @@
 
 #pragma once
 
-#include <LibWeb/Layout/SVGClipBox.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Painting/SVGPaintable.h>
 
 namespace Web::Painting {
 
 class SVGClipPaintable : public SVGPaintable {
 public:
-    static NonnullRefPtr<SVGClipPaintable> create(Layout::SVGClipBox const&);
+    static NonnullRefPtr<SVGClipPaintable> create(Layout::Box const&);
     virtual StringView class_name() const override { return "SVGClipPaintable"sv; }
 
     bool forms_unconnected_subtree() const override
@@ -22,7 +22,7 @@ public:
     }
 
 protected:
-    SVGClipPaintable(Layout::SVGClipBox const&);
+    SVGClipPaintable(Layout::Box const&);
 };
 
 }

@@ -9,19 +9,14 @@
 
 namespace Web::Painting {
 
-NonnullRefPtr<SVGForeignObjectPaintable> SVGForeignObjectPaintable::create(Layout::SVGForeignObjectBox const& layout_box)
+NonnullRefPtr<SVGForeignObjectPaintable> SVGForeignObjectPaintable::create(Layout::BlockContainer const& layout_box)
 {
     return adopt_ref(*new SVGForeignObjectPaintable(layout_box));
 }
 
-SVGForeignObjectPaintable::SVGForeignObjectPaintable(Layout::SVGForeignObjectBox const& layout_box)
+SVGForeignObjectPaintable::SVGForeignObjectPaintable(Layout::BlockContainer const& layout_box)
     : PaintableWithLines(layout_box)
 {
-}
-
-Layout::SVGForeignObjectBox const& SVGForeignObjectPaintable::layout_box() const
-{
-    return static_cast<Layout::SVGForeignObjectBox const&>(layout_node());
 }
 
 void SVGForeignObjectPaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const

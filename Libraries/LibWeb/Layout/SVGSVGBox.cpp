@@ -9,7 +9,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/Layout/ReplacedBox.h>
-#include <LibWeb/Layout/SVGGeometryBox.h>
+#include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
 
 namespace Web::Layout {
@@ -17,11 +17,6 @@ namespace Web::Layout {
 SVGSVGBox::SVGSVGBox(DOM::Document& document, SVG::SVGSVGElement& element, CSS::LayoutStyle style)
     : ReplacedBox(document, element, style)
 {
-}
-
-RefPtr<Painting::Paintable> SVGSVGBox::create_paintable() const
-{
-    return Painting::SVGSVGPaintable::create(*this);
 }
 
 CSS::SizeWithAspectRatio SVGSVGBox::natural_size() const

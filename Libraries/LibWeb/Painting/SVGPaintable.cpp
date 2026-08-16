@@ -5,7 +5,6 @@
  */
 
 #include <LibGfx/BoundingBox.h>
-#include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/SVGPaintable.h>
@@ -13,14 +12,14 @@
 
 namespace Web::Painting {
 
-SVGPaintable::SVGPaintable(Layout::SVGBox const& layout_box)
+SVGPaintable::SVGPaintable(Layout::Box const& layout_box)
     : Paintable(layout_box)
 {
 }
 
-Layout::SVGBox const& SVGPaintable::layout_box() const
+Layout::Box const& SVGPaintable::layout_box() const
 {
-    return static_cast<Layout::SVGBox const&>(layout_node());
+    return static_cast<Layout::Box const&>(layout_node());
 }
 
 // https://drafts.csswg.org/css-masking-1/#ClipPathElement

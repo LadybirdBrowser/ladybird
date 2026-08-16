@@ -20,8 +20,6 @@ public:
 
     SVG::SVGPatternElement& dom_node() { return as<SVG::SVGPatternElement>(SVGBox::dom_node()); }
     SVG::SVGPatternElement const& dom_node() const { return as<SVG::SVGPatternElement>(SVGBox::dom_node()); }
-
-    virtual RefPtr<Painting::Paintable> create_paintable() const override;
 };
 
 template<>

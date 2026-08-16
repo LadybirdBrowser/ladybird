@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Layout/SVGGraphicsBox.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Painting/SVGMaskable.h>
 #include <LibWeb/Painting/SVGPaintable.h>
 
@@ -15,7 +15,7 @@ namespace Web::Painting {
 class SVGGraphicsPaintable : public SVGPaintable
     , public SVGMaskable {
 public:
-    static NonnullRefPtr<SVGGraphicsPaintable> create(Layout::SVGGraphicsBox const&);
+    static NonnullRefPtr<SVGGraphicsPaintable> create(Layout::Box const&);
     virtual StringView class_name() const override { return "SVGGraphicsPaintable"sv; }
 
     virtual GC::Ptr<DOM::Node const> dom_node_of_svg() const override { return dom_node(); }
@@ -26,7 +26,7 @@ public:
     virtual Optional<DisplayListResource> calculate_clip(DisplayListRecordingContext& context, CSSPixelRect const& clip_area) const override { return calculate_svg_clip_display_list(context, clip_area); }
 
 protected:
-    SVGGraphicsPaintable(Layout::SVGGraphicsBox const&);
+    SVGGraphicsPaintable(Layout::Box const&);
 
 private:
     virtual bool is_svg_graphics_paintable() const final { return true; }

@@ -13,14 +13,14 @@ namespace Web::Painting {
 
 class FieldSetPaintable final : public Paintable {
 public:
-    static NonnullRefPtr<FieldSetPaintable> create(Layout::FieldSetBox const&);
+    static NonnullRefPtr<FieldSetPaintable> create(Layout::BlockContainer const&);
     virtual StringView class_name() const override { return "FieldSetPaintable"sv; }
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
     virtual void paint_background(DisplayListRecordingContext&) const override;
 
 private:
-    explicit FieldSetPaintable(Layout::FieldSetBox const&);
+    explicit FieldSetPaintable(Layout::BlockContainer const&);
 
     Layout::FieldSetBox& layout_box();
     Layout::FieldSetBox const& layout_box() const;

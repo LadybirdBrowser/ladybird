@@ -20,8 +20,6 @@ public:
     HTML::HTMLVideoElement& dom_node();
     HTML::HTMLVideoElement const& dom_node() const;
 
-    virtual RefPtr<Painting::Paintable> create_paintable() const override;
-
 private:
     virtual CSS::SizeWithAspectRatio natural_size() const override;
 };

@@ -55,9 +55,4 @@ void NavigableContainerViewport::did_set_content_size()
     }
 }
 
-RefPtr<Painting::Paintable> NavigableContainerViewport::create_paintable() const
-{
-    return Painting::NavigableContainerViewportPaintable::create(*this);
-}
-
 }

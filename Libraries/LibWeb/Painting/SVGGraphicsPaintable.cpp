@@ -4,9 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Layout/ImageBox.h>
-#include <LibWeb/Layout/SVGClipBox.h>
-#include <LibWeb/Layout/SVGMaskBox.h>
 #include <LibWeb/Painting/SVGClipPaintable.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/Painting/StackingContext.h>
@@ -14,12 +11,12 @@
 
 namespace Web::Painting {
 
-NonnullRefPtr<SVGGraphicsPaintable> SVGGraphicsPaintable::create(Layout::SVGGraphicsBox const& layout_box)
+NonnullRefPtr<SVGGraphicsPaintable> SVGGraphicsPaintable::create(Layout::Box const& layout_box)
 {
     return adopt_ref(*new SVGGraphicsPaintable(layout_box));
 }
 
-SVGGraphicsPaintable::SVGGraphicsPaintable(Layout::SVGGraphicsBox const& layout_box)
+SVGGraphicsPaintable::SVGGraphicsPaintable(Layout::Box const& layout_box)
     : SVGPaintable(layout_box)
 {
 }

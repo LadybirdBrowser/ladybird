@@ -66,9 +66,4 @@ CSS::SizeWithAspectRatio ImageBox::natural_size() const
     return { 0, 0, {} };
 }
 
-RefPtr<Painting::Paintable> ImageBox::create_paintable() const
-{
-    return Painting::ImagePaintable::create(*this);
-}
-
 }

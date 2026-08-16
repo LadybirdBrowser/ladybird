@@ -12,19 +12,14 @@
 
 namespace Web::Painting {
 
-NonnullRefPtr<SVGImagePaintable> SVGImagePaintable::create(Layout::SVGImageBox const& layout_box)
+NonnullRefPtr<SVGImagePaintable> SVGImagePaintable::create(Layout::Box const& layout_box)
 {
     return adopt_ref(*new SVGImagePaintable(layout_box));
 }
 
-SVGImagePaintable::SVGImagePaintable(Layout::SVGImageBox const& layout_box)
+SVGImagePaintable::SVGImagePaintable(Layout::Box const& layout_box)
     : SVGGraphicsPaintable(layout_box)
 {
-}
-
-Layout::SVGImageBox const& SVGImagePaintable::layout_box() const
-{
-    return static_cast<Layout::SVGImageBox const&>(layout_node());
 }
 
 void SVGImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
@@ -41,7 +36,8 @@ void SVGImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase p
     if (phase != PaintPhase::Foreground)
         return;
 
-    auto decoded_image_data = layout_box().dom_node().decoded_image_data();
+    auto const& image_element = as<SVG::SVGImageElement>(*layout_box().dom_node());
+    auto decoded_image_data = image_element.decoded_image_data();
     if (!decoded_image_data)
         return;
 
@@ -49,7 +45,7 @@ void SVGImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase p
     // pixels, so the positioning math stays in float and only the overflow clip quantizes.
     auto device_scale = static_cast<float>(context.device_pixels_per_css_pixel());
     auto image_rect = absolute_rect().to_type<float>().scaled(device_scale, device_scale);
-    auto natural_size = layout_box().dom_node().intrinsic_size().map([](auto size) { return size.template to_type<float>(); }).value_or(image_rect.size());
+    auto natural_size = image_element.intrinsic_size().map([](auto size) { return size.template to_type<float>(); }).value_or(image_rect.size());
     // FIXME: Respect the preserveAspectRatio attribute instead of assuming its default value.
     auto draw_rect = image_rect;
     if (natural_size.width() > 0 && natural_size.height() > 0) {

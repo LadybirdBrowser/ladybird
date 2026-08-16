@@ -6,22 +6,20 @@
 
 #pragma once
 
-#include <LibWeb/Layout/SVGImageBox.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 
 namespace Web::Painting {
 
 class SVGImagePaintable final : public SVGGraphicsPaintable {
 public:
-    static NonnullRefPtr<SVGImagePaintable> create(Layout::SVGImageBox const&);
+    static NonnullRefPtr<SVGImagePaintable> create(Layout::Box const&);
     virtual StringView class_name() const override { return "SVGImagePaintable"sv; }
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
-    Layout::SVGImageBox const& layout_box() const;
-
 private:
-    SVGImagePaintable(Layout::SVGImageBox const&);
+    SVGImagePaintable(Layout::Box const&);
 };
 
 }

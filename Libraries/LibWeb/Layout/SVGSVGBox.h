@@ -24,8 +24,6 @@ public:
 
     Gfx::FloatRect view_box_or_viewport_rect() const;
 
-    virtual RefPtr<Painting::Paintable> create_paintable() const override;
-
 private:
     virtual CSS::SizeWithAspectRatio natural_size() const override;
 };

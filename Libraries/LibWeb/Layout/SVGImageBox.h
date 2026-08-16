@@ -21,8 +21,6 @@ public:
 
     SVG::SVGImageElement& dom_node() { return static_cast<SVG::SVGImageElement&>(SVGGraphicsBox::dom_node()); }
     SVG::SVGImageElement const& dom_node() const { return static_cast<SVG::SVGImageElement const&>(SVGGraphicsBox::dom_node()); }
-
-    virtual RefPtr<Painting::Paintable> create_paintable() const override;
 };
 
 }

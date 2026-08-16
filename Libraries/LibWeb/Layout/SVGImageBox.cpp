@@ -14,9 +14,4 @@ SVGImageBox::SVGImageBox(DOM::Document& document, SVG::SVGGraphicsElement& eleme
 {
 }
 
-RefPtr<Painting::Paintable> SVGImageBox::create_paintable() const
-{
-    return Painting::SVGImagePaintable::create(*this);
-}
-
 }
