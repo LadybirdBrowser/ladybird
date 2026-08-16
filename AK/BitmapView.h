@@ -94,68 +94,69 @@ public:
     Optional<size_t> find_one_anywhere(size_t hint = 0) const
     {
         VERIFY(hint < m_size);
-        u8 const* end = &m_data[size_in_bytes()];
+        auto find_in_range = [&](size_t start, size_t end) -> Optional<size_t> {
+            if (start == end)
+                return {};
 
-        for (;;) {
-            // We will use hint as what it is: a hint. Because we try to
-            // scan over entire 32 bit words, we may start searching before
-            // the hint!
-            size_t const* ptr_large = reinterpret_cast<size_t const*>(reinterpret_cast<FlatPtr>(&m_data[hint / 8]) & ~(sizeof(size_t) - 1));
-            if (reinterpret_cast<u8 const*>(ptr_large) < &m_data[0]) {
-                ptr_large++;
+            auto first_byte = start / 8;
+            auto last_byte = (end - 1) / 8;
+            auto find_in_byte = [&](size_t i, u8 mask = 0xff) -> Optional<size_t> {
+                u8 matching_bits = VALUE ? m_data[i] : static_cast<u8>(~m_data[i]);
+                matching_bits &= mask;
+                if (matching_bits != 0)
+                    return i * 8 + bit_scan_forward(matching_bits) - 1;
+                return {};
+            };
 
-                // m_data isn't aligned, check first bytes
-                size_t start_ptr_large = reinterpret_cast<u8 const*>(ptr_large) - &m_data[0];
-                size_t i = 0;
-                u8 byte = VALUE ? 0x00 : 0xff;
-                while (i < start_ptr_large && m_data[i] == byte)
-                    i++;
-                if (i < start_ptr_large) {
-                    byte = m_data[i];
-                    if constexpr (!VALUE)
-                        byte = ~byte;
-                    VERIFY(byte != 0);
-                    return i * 8 + bit_scan_forward(byte) - 1;
-                }
+            if (first_byte == last_byte) {
+                auto mask = bitmask_first_byte[start % 8];
+                if (end % 8 != 0)
+                    mask &= bitmask_last_byte[end % 8];
+                return find_in_byte(first_byte, mask);
             }
 
-            size_t val_large = VALUE ? 0x0 : NumericLimits<size_t>::max();
-            size_t const* end_large = reinterpret_cast<size_t const*>(reinterpret_cast<FlatPtr>(end) & ~(sizeof(size_t) - 1));
-            while (ptr_large < end_large && *ptr_large == val_large)
-                ptr_large++;
-
-            if (ptr_large == end_large) {
-                // We didn't find anything, check the remaining few bytes (if any)
-                u8 byte = VALUE ? 0x00 : 0xff;
-                size_t i = reinterpret_cast<u8 const*>(ptr_large) - &m_data[0];
-                size_t byte_count = size_in_bytes();
-                VERIFY(i <= byte_count);
-                while (i < byte_count && m_data[i] == byte)
-                    i++;
-                if (i == byte_count) {
-                    if (hint <= 8)
-                        return {}; // We already checked from the beginning
-
-                    // Try scanning before the hint
-                    end = reinterpret_cast<u8 const*>(reinterpret_cast<FlatPtr>(&m_data[hint / 8]) & ~(sizeof(size_t) - 1));
-                    hint = 0;
-                    continue;
-                }
-                byte = m_data[i];
-                if constexpr (!VALUE)
-                    byte = ~byte;
-                VERIFY(byte != 0);
-                return i * 8 + bit_scan_forward(byte) - 1;
+            if (start % 8 != 0) {
+                if (auto result = find_in_byte(first_byte, bitmask_first_byte[start % 8]); result.has_value())
+                    return result;
+                ++first_byte;
             }
 
-            // NOTE: We don't really care about byte ordering. We found *one*
-            // free bit, just calculate the position and return it
-            val_large = *ptr_large;
-            if constexpr (!VALUE)
-                val_large = ~val_large;
-            VERIFY(val_large != 0);
-            return (reinterpret_cast<u8 const*>(ptr_large) - &m_data[0]) * 8 + bit_scan_forward(val_large) - 1;
-        }
+            auto full_byte_end = end / 8;
+            while (first_byte < full_byte_end && reinterpret_cast<FlatPtr>(&m_data[first_byte]) % alignof(size_t) != 0) {
+                if (auto result = find_in_byte(first_byte); result.has_value())
+                    return result;
+                ++first_byte;
+            }
+
+            while (full_byte_end - first_byte >= sizeof(size_t)) {
+                auto word = *reinterpret_cast<size_t const*>(&m_data[first_byte]);
+                auto matching_bits = VALUE ? word : ~word;
+                if (matching_bits != 0) {
+                    for (size_t i = 0; i < sizeof(size_t); ++i) {
+                        if (auto result = find_in_byte(first_byte + i); result.has_value())
+                            return result;
+                    }
+                    VERIFY_NOT_REACHED();
+                }
+                first_byte += sizeof(size_t);
+            }
+
+            while (first_byte < full_byte_end) {
+                if (auto result = find_in_byte(first_byte); result.has_value())
+                    return result;
+                ++first_byte;
+            }
+
+            if (end % 8 != 0)
+                return find_in_byte(full_byte_end, bitmask_last_byte[end % 8]);
+            return {};
+        };
+
+        auto bits_per_word = sizeof(size_t) * 8;
+        auto search_start = hint / bits_per_word * bits_per_word;
+        if (auto result = find_in_range(search_start, m_size); result.has_value())
+            return result;
+        return find_in_range(0, search_start);
     }
 
     Optional<size_t> find_one_anywhere_set(size_t hint = 0) const
@@ -171,20 +172,9 @@ public:
     template<bool VALUE>
     Optional<size_t> find_first() const
     {
-        size_t byte_count = size_in_bytes();
-        size_t i = 0;
-
-        u8 byte = VALUE ? 0x00 : 0xff;
-        while (i < byte_count && m_data[i] == byte)
-            i++;
-        if (i == byte_count)
+        if (m_size == 0)
             return {};
-
-        byte = m_data[i];
-        if constexpr (!VALUE)
-            byte = ~byte;
-        VERIFY(byte != 0);
-        return i * 8 + bit_scan_forward(byte) - 1;
+        return find_one_anywhere<VALUE>();
     }
 
     Optional<size_t> find_first_set() const { return find_first<true>(); }

@@ -43,6 +43,115 @@ TEST_CASE(find_first_unset)
     EXPECT_EQ(bitmap.find_first_unset().value(), 51u);
 }
 
+TEST_CASE(find_functions_match_only_logical_bits)
+{
+    Array<u8, sizeof(size_t) + 1> storage {};
+
+    for (size_t offset = 0; offset < sizeof(size_t); ++offset) {
+        for (size_t size = 1; size <= 8; ++size) {
+            for (size_t pattern = 0; pattern <= 0xff; ++pattern) {
+                storage[offset] = static_cast<u8>(pattern);
+                BitmapView bitmap { &storage[offset], size };
+
+                for (bool value : { false, true }) {
+                    Optional<size_t> expected;
+                    for (size_t i = 0; i < size; ++i) {
+                        if (bitmap.get(i) == value) {
+                            expected = i;
+                            break;
+                        }
+                    }
+
+                    auto first = value ? bitmap.find_first_set() : bitmap.find_first_unset();
+                    EXPECT_EQ(first, expected);
+
+                    for (size_t hint = 0; hint < size; ++hint) {
+                        auto found = value ? bitmap.find_one_anywhere_set(hint) : bitmap.find_one_anywhere_unset(hint);
+                        EXPECT_EQ(found.has_value(), expected.has_value());
+                        if (found.has_value()) {
+                            EXPECT(*found < size);
+                            EXPECT_EQ(bitmap.get(*found), value);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST_CASE(find_one_anywhere_is_independent_of_storage_alignment)
+{
+    constexpr auto bits_per_word = sizeof(size_t) * 8;
+    constexpr auto size = bits_per_word * 2 + 5;
+    Array<u8, sizeof(size_t) * 3> storage {};
+
+    for (size_t offset = 0; offset < sizeof(size_t); ++offset) {
+        storage.fill(offset % 2 == 0 ? 0x00 : 0xff);
+        BitmapView bitmap { &storage[offset], size };
+        for (size_t i = 0; i < size; ++i) {
+            auto value = i % 17 == 3 || i % 19 == 7;
+            if (value)
+                storage[offset + i / 8] |= static_cast<u8>(1u << (i % 8));
+            else
+                storage[offset + i / 8] &= static_cast<u8>(~(1u << (i % 8)));
+        }
+
+        for (bool value : { false, true }) {
+            for (size_t hint = 0; hint < size; ++hint) {
+                auto search_start = hint / bits_per_word * bits_per_word;
+                Optional<size_t> expected;
+                for (size_t i = search_start; i < size; ++i) {
+                    if (bitmap.get(i) == value) {
+                        expected = i;
+                        break;
+                    }
+                }
+                if (!expected.has_value()) {
+                    for (size_t i = 0; i < search_start; ++i) {
+                        if (bitmap.get(i) == value) {
+                            expected = i;
+                            break;
+                        }
+                    }
+                }
+
+                auto found = value ? bitmap.find_one_anywhere_set(hint) : bitmap.find_one_anywhere_unset(hint);
+                EXPECT_EQ(found, expected);
+            }
+        }
+    }
+}
+
+TEST_CASE(find_functions_handle_partial_words)
+{
+    auto maximum_size = sizeof(size_t) * 8 * 2 + 1;
+    for (size_t size = 1; size <= maximum_size; ++size) {
+        auto set_bitmap = MUST(Bitmap::create(size, false));
+        for (size_t i = 0; i < size; ++i)
+            set_bitmap.set(i, true);
+        EXPECT(!set_bitmap.find_first_unset().has_value());
+        for (size_t hint = 0; hint < size; ++hint)
+            EXPECT(!set_bitmap.find_one_anywhere_unset(hint).has_value());
+
+        set_bitmap.set(size - 1, false);
+        EXPECT_EQ(set_bitmap.find_first_unset(), size - 1);
+        for (size_t hint = 0; hint < size; ++hint)
+            EXPECT_EQ(set_bitmap.find_one_anywhere_unset(hint), size - 1);
+
+        auto unset_bitmap = MUST(Bitmap::create(size, true));
+        for (size_t i = 0; i < size; ++i)
+            unset_bitmap.set(i, false);
+        EXPECT(!unset_bitmap.find_first_set().has_value());
+        for (size_t hint = 0; hint < size; ++hint)
+            EXPECT(!unset_bitmap.find_one_anywhere_set(hint).has_value());
+
+        unset_bitmap.set(size - 1, true);
+        EXPECT_EQ(unset_bitmap.find_first_set(), size - 1);
+        for (size_t hint = 0; hint < size; ++hint)
+            EXPECT_EQ(unset_bitmap.find_one_anywhere_set(hint), size - 1);
+    }
+}
+
 TEST_CASE(find_one_anywhere_set)
 {
     {
