@@ -517,6 +517,12 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
     });
 }
 
+void FontComputer::pin_font_list_for_style_record(NonnullRefPtr<Gfx::FontCascadeList const> font_list) const
+{
+    if (!m_style_record_font_list_pins.contains_slow(font_list))
+        m_style_record_font_list_pins.append(move(font_list));
+}
+
 NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_values_impl(StyleValue const& font_family, CSSPixels const& font_size, int slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data) const
 {
     // FIXME: We round to int here as that is what is expected by our font infrastructure below
@@ -718,11 +724,8 @@ static bool style_value_references_font_family(StyleValue const& font_family_val
 
 static bool font_values_reference_font_family(ComputedValues::FontValues const& font_values, Utf16FlyString const& family_name)
 {
-    for (auto const& family : font_values.font_families) {
-        if (auto const* name = family.get_pointer<ComputedFontFamilyName>(); name && name->name.equals_ignoring_ascii_case(family_name))
-            return true;
-    }
-    return false;
+    auto font_family = font_values.font_family_style_value();
+    return font_family && style_value_references_font_family(*font_family, family_name);
 }
 
 void FontComputer::clear_computed_font_cache(Utf16FlyString const& family_name)

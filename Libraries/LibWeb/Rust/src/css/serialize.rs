@@ -1076,6 +1076,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             url,
             url_type,
             url_modifiers,
+            ..
         } => {
             sink.push_ascii(if *url_type == 0 { "url(" } else { "src(" });
             serialize_a_string_utf8(sink, url);
@@ -1251,6 +1252,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             value,
             has_name,
             name,
+            ..
         } => {
             // GridTrackPlacement::Type: Auto is 0, Span is 1, AreaOrLine is 2.
             match kind {

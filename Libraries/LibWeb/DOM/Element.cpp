@@ -1311,7 +1311,7 @@ static void add_element_dependent_invalidation(CSS::RequiredInvalidationAfterSty
             invalidation.ensure_at_least(CSS::InvalidationLevel::RebuildLayoutTree);
 
         if (old_list_counter_style.has_value()) {
-            auto const& new_list_style_type = new_computed_values.list_style_type();
+            auto new_list_style_type = new_computed_values.list_style_type(abstract_element.style_scope());
             if (new_list_style_type.has<RefPtr<CSS::CounterStyle const>>()) {
                 ValueComparingRefPtr<CSS::CounterStyle const> new_counter_style = new_list_style_type.get<RefPtr<CSS::CounterStyle const>>();
                 if (*old_list_counter_style != new_counter_style)
@@ -2401,7 +2401,7 @@ int Element::client_top() const
     // 2. Return the computed value of the border-top-width property
     //    plus the height of any scrollbar rendered between the top padding edge and the top border edge,
     //    ignoring any transforms that apply to the element and its ancestors.
-    auto const& border_top = style_group<CSS::ComputedValues::BorderValues>()->border_top;
+    auto const& border_top = style_group<CSS::ComputedValues::BorderValues>()->border_top_value();
     if (border_top.line_style == CSS::LineStyle::None || border_top.line_style == CSS::LineStyle::Hidden)
         return 0;
     return border_top.width.to_int();
@@ -2426,7 +2426,7 @@ int Element::client_left() const
     // 2. Return the computed value of the border-left-width property
     //    plus the width of any scrollbar rendered between the left padding edge and the left border edge,
     //    ignoring any transforms that apply to the element and its ancestors.
-    auto const& border_left = style_group<CSS::ComputedValues::BorderValues>()->border_left;
+    auto const& border_left = style_group<CSS::ComputedValues::BorderValues>()->border_left_value();
     if (border_left.line_style == CSS::LineStyle::None || border_left.line_style == CSS::LineStyle::Hidden)
         return 0;
     return border_left.width.to_int();
@@ -2534,7 +2534,7 @@ void Element::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, No
                 ? as<ShadowRoot>(old_root).anchor_name_map()
                 : document().anchor_name_map();
             bool element_had_registered_anchor_names = false;
-            for (auto const& name : anchor_values->anchor_names) {
+            for (auto const& name : anchor_values->anchor_names_span()) {
                 element_had_registered_anchor_names = true;
                 anchor_names.unregister_name(name, *this);
             }
@@ -3632,7 +3632,7 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, CS
 
     // AD-HOC: The spec doesn't specify when to do this, but we need to apply scroll-margin and scroll-margin to target
     //         bounding border box (https://drafts.csswg.org/cssom-view-1/#example-51af1565).
-    auto const& scroll_margin = target.style_group<CSS::ComputedValues::MiscResetValues>()->scroll_margin;
+    auto scroll_margin = target.computed_style()->scroll_margin();
     auto scroll_margin_top = scroll_margin.top().to_px_or_zero(CSSPixels { 0 });
     auto scroll_margin_right = scroll_margin.right().to_px_or_zero(CSSPixels { 0 });
     auto scroll_margin_bottom = scroll_margin.bottom().to_px_or_zero(CSSPixels { 0 });
@@ -5479,7 +5479,7 @@ Optional<Utf16FlyString> Element::document_scoped_view_transition_name()
     // 1. Let scopedViewTransitionName be the computed value of view-transition-name for element.
     auto const* values = style_group<CSS::ComputedValues::MiscResetValues>();
     VERIFY(values);
-    auto scoped_view_transition_name = values->view_transition_name;
+    auto scoped_view_transition_name = values->view_transition_name_value();
 
     // 2. If scopedViewTransitionName is associated with element’s node document, then return
     //    scopedViewTransitionName.

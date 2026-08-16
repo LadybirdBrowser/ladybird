@@ -4813,7 +4813,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
     auto should_scroll_smoothly = behavior == Bindings::ScrollBehavior::Smooth;
     if (behavior == Bindings::ScrollBehavior::Auto && associated_element) {
         if (auto const* values = associated_element->style_group<CSS::ComputedValues::MiscResetValues>())
-            should_scroll_smoothly = values->scroll_behavior == CSS::ScrollBehavior::Smooth;
+            should_scroll_smoothly = static_cast<CSS::ScrollBehavior>(values->scroll_behavior) == CSS::ScrollBehavior::Smooth;
     }
 
     // https://drafts.csswg.org/cssom-view-1/#perform-a-scroll

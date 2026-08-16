@@ -67,7 +67,9 @@ static StyleValueFFI::StyleValueData const* create_test_image(StringView url)
 {
     auto url_string = MUST(String::from_utf8(url));
     auto url_bytes = url_string.bytes();
-    return StyleValueFFI::rust_style_value_create_image(url_string.to_raw_leaked(), url_bytes.data(), url_bytes.size(), 0, nullptr, 0);
+    return StyleValueFFI::rust_style_value_create_image(
+        url_string.to_raw_leaked(), url_bytes.data(), url_bytes.size(), 0, nullptr, 0,
+        0, nullptr, 0, false, false, false, false);
 }
 
 TEST_CASE(rust_composites_scalar_style_values)
@@ -634,6 +636,8 @@ TEST_CASE(rust_grid_track_placement_handles_retain_line_data)
         2,
         StyleValueFFI::rust_style_value_create_integer(3),
         false,
+        0,
+        0,
         0);
 
     auto placement = StyleValue::adopt_rust_style_value_data(data);
@@ -1022,7 +1026,7 @@ TEST_CASE(rust_counter_definition_handles_retain_value_data)
 {
     auto value = IntegerStyleValue::create(2);
     StyleValueFFI::RetainedCounterDefinition definition {
-        { Utf16FlyString::from_utf8("item"sv).to_raw_leaked() },
+        { Utf16FlyString::from_utf8("item"sv).to_raw_leaked(), nullptr },
         false,
         { StyleValueFFI::rust_style_value_retain(value->rust_style_value_data()) },
     };
@@ -1266,7 +1270,7 @@ TEST_CASE(rust_image_set_handles_retain_option_data)
         { create_test_image("candidate.png"sv) },
         { StyleValueFFI::rust_style_value_create_resolution(1, 0) },
         false,
-        { 0 },
+        { 0, nullptr },
     };
     auto image_set = StyleValue::adopt_rust_style_value_data(
         StyleValueFFI::rust_style_value_create_image_set(&option, 1));

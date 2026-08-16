@@ -128,6 +128,7 @@ public:
     void unload_fonts_from_sheet(CSSStyleSheet&);
 
     NonnullRefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data) const;
+    void pin_font_list_for_style_record(NonnullRefPtr<Gfx::FontCascadeList const>) const;
 
 private:
     virtual void visit_edges(Visitor&) override;
@@ -146,6 +147,10 @@ private:
     HashMap<String, GC::Ref<FontLoader>> m_loaders_by_url;
 
     mutable HashMap<ComputedFontCacheKey, NonnullRefPtr<Gfx::FontCascadeList const>> m_computed_font_cache;
+    // Rust-owned style records borrow their platform font pointers. Keep each
+    // cascade created for a style record alive until the document goes away,
+    // including cascades evicted after a web font finishes loading.
+    mutable Vector<NonnullRefPtr<Gfx::FontCascadeList const>> m_style_record_font_list_pins;
     mutable HashMap<Utf16FlyString, HashMap<FontFeatureValueKey, Vector<u32>>> m_font_feature_values_cache;
 };
 

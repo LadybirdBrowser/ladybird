@@ -3379,22 +3379,22 @@ static constexpr Gfx::Cursor css_to_gfx_cursor(CSS::CursorPredefined css_cursor)
     }
 }
 
-static Gfx::Cursor resolve_cursor(Layout::NodeWithStyle const& layout_node, ReadonlySpan<CSS::CursorData> cursor_data, Gfx::StandardCursor auto_cursor)
+static Gfx::Cursor resolve_cursor(Layout::NodeWithStyle const& layout_node, ReadonlySpan<CSS::ComputedValuesFFI::ComputedCursor> cursor_data, ReadonlySpan<RefPtr<CSS::CursorStyleValue const>> cursor_style_values, Gfx::StandardCursor auto_cursor)
 {
-    for (auto const& cursor : cursor_data) {
-        auto result = cursor.visit(
-            [auto_cursor](CSS::CursorPredefined css_cursor) -> Optional<Gfx::Cursor> {
-                if (css_cursor == CSS::CursorPredefined::Auto)
-                    return auto_cursor;
-                return css_to_gfx_cursor(css_cursor);
-            },
-            [&layout_node](NonnullRefPtr<CSS::CursorStyleValue const> const& cursor_style_value) -> Optional<Gfx::Cursor> {
-                if (auto image_cursor = cursor_style_value->make_image_cursor(layout_node); image_cursor.has_value())
-                    return image_cursor.release_value();
-                return {};
-            });
-        if (result.has_value())
-            return result.release_value();
+    for (size_t index = 0; index < cursor_data.size(); ++index) {
+        auto const& cursor = cursor_data[index];
+        if (!cursor.is_cursor_value) {
+            auto predefined = static_cast<CSS::CursorPredefined>(cursor.predefined);
+            if (predefined == CSS::CursorPredefined::Auto)
+                return auto_cursor;
+            return css_to_gfx_cursor(predefined);
+        }
+        auto cursor_style_value = index < cursor_style_values.size() ? cursor_style_values[index] : nullptr;
+        if (!cursor_style_value)
+            cursor_style_value = CSS::ComputedValues::InheritedUIValues::cursor_style_value(cursor);
+        VERIFY(cursor_style_value);
+        if (auto image_cursor = cursor_style_value->make_image_cursor(layout_node); image_cursor.has_value())
+            return image_cursor.release_value();
     }
 
     // We should never get here
@@ -3413,9 +3413,12 @@ void EventHandler::update_cursor(RefPtr<Painting::Paintable> paintable, GC::Ptr<
 
         if (paintable) {
             auto* host_layout_node = host_element ? host_element->layout_node() : nullptr;
-            auto const* cursor_data = &paintable->layout_node().cursor();
+            auto cursor_data = paintable->layout_node().cursor();
+            auto cursor_style_values = paintable->layout_node().cursor_style_values();
             if (hit_text_fragment && host_layout_node)
-                cursor_data = &as<Layout::NodeWithStyle>(*host_layout_node).cursor();
+                cursor_data = as<Layout::NodeWithStyle>(*host_layout_node).cursor();
+            if (hit_text_fragment && host_layout_node)
+                cursor_style_values = as<Layout::NodeWithStyle>(*host_layout_node).cursor_style_values();
 
             auto* host_node_with_style = host_layout_node ? as_if<Layout::NodeWithStyle>(*host_layout_node) : nullptr;
             auto is_selectable_text_fragment = hit_text_fragment
@@ -3424,18 +3427,18 @@ void EventHandler::update_cursor(RefPtr<Painting::Paintable> paintable, GC::Ptr<
 
             if (is_selectable_text_fragment || host_element->is_editable_or_editing_host()) {
                 if (host_node_with_style)
-                    return resolve_cursor(*host_node_with_style, *cursor_data, Gfx::StandardCursor::IBeam);
-                return resolve_cursor(*paintable->layout_node().parent(), *cursor_data, Gfx::StandardCursor::IBeam);
+                    return resolve_cursor(*host_node_with_style, cursor_data, cursor_style_values, Gfx::StandardCursor::IBeam);
+                return resolve_cursor(*paintable->layout_node().parent(), cursor_data, cursor_style_values, Gfx::StandardCursor::IBeam);
             }
             if (host_element && host_element->is_element() && host_node_with_style)
-                return resolve_cursor(*host_node_with_style, *cursor_data, Gfx::StandardCursor::Arrow);
+                return resolve_cursor(*host_node_with_style, cursor_data, cursor_style_values, Gfx::StandardCursor::Arrow);
 
             // AD-HOC: Area elements are never rendered, so they have no layout node of their own to resolve a cursor
             //         from. Resolve the cursor from the area's computed values instead, falling back to the layout
             //         node of the image that renders the area's image map for image cursors.
             if (auto const* area_element = as_if<HTML::HTMLAreaElement>(host_element.ptr())) {
                 if (auto area_computed_values = area_element->computed_style(); area_computed_values)
-                    return resolve_cursor(paintable->layout_node(), area_computed_values->cursor(), Gfx::StandardCursor::Arrow);
+                    return resolve_cursor(paintable->layout_node(), area_computed_values->cursor(), {}, Gfx::StandardCursor::Arrow);
             }
         }
 

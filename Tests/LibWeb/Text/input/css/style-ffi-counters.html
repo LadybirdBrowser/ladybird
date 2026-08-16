@@ -19,6 +19,57 @@
         const afterOneElement = internals.styleFfiCounters();
         println(`longhand driver ran: ${afterOneElement.longhandDriverEntries >= 1}`);
         println(`longhand loop called back into C++: ${afterOneElement.longhandStoreBatchCallbacks >= 1}`);
-        println(`computed build called back into C++: ${afterOneElement.computedStyleBuildCppCallbacks >= 1}`);
+        println(`computed build stayed in Rust: ${afterOneElement.computedStyleBuildCppCallbacks === 0}`);
+        println(`C++ lifecycle counter exists: ${"styleGroupLifecycleCallbacks" in afterOneElement}`);
+
+        element.style.positionAnchor = "--target";
+        internals.resetStyleFfiCounters();
+        internals.updateStyle();
+        const afterPositionAnchor = internals.styleFfiCounters();
+        println(`position-anchor build retained a C++ string: ${afterPositionAnchor.stringRetainReleaseCallbacks > 0}`);
+
+        element.style.containerName = "--container";
+        internals.resetStyleFfiCounters();
+        internals.updateStyle();
+        const afterContainerName = internals.styleFfiCounters();
+        println(`container-name build retained a C++ string: ${afterContainerName.stringRetainReleaseCallbacks > 0}`);
+
+        element.style.font = 'italic 700 20px/1.5 "Test Family"';
+        element.style.fontFeatureSettings = '"kern" 0';
+        element.style.fontVariationSettings = '"wght" 650';
+        internals.resetStyleFfiCounters();
+        internals.updateStyle();
+        const afterFont = internals.styleFfiCounters();
+        println(`font build stayed in Rust: ${afterFont.computedStyleBuildCppCallbacks === 0}`);
+
+        element.style.gridTemplateAreas = '"main"';
+        element.style.gridColumnStart = "main";
+        internals.resetStyleFfiCounters();
+        internals.updateStyle();
+        const afterGrid = internals.styleFfiCounters();
+        println(`grid build stayed in Rust: ${afterGrid.computedStyleBuildCppCallbacks === 0}`);
+        println(`C++ fly-string operation counter exists: ${"flyStringOperationCallbacks" in afterGrid}`);
+
+        element.style.outline = "5px dotted rgb(10, 20, 30)";
+        element.style.outlineOffset = "calc(2px + 3px)";
+        element.style.scrollMargin = "1px 2px 3px 4px";
+        element.style.scrollPadding = "5% 6px auto 8px";
+        element.style.overflowClipMargin = "content-box 9px";
+        element.style.appearance = "checkbox";
+        element.style.objectFit = "cover";
+        element.style.objectPosition = "10% 20%";
+        element.style.viewTransitionName = "--transition";
+        element.style.touchAction = "pan-left pinch-zoom";
+        element.style.scrollBehavior = "smooth";
+        element.style.scrollbarGutter = "stable both-edges";
+        element.style.scrollbarWidth = "thin";
+        element.style.shapeImageThreshold = "0.5";
+        element.style.shapeMargin = "12px";
+        element.style.shapeOutside = "circle(25%) border-box";
+        element.style.willChange = "contents, scroll-position, opacity";
+        internals.resetStyleFfiCounters();
+        internals.updateStyle();
+        const afterMiscReset = internals.styleFfiCounters();
+        println(`payload assembler counter exists: ${"styleGroupPayloadAssemblerCallbacks" in afterMiscReset}`);
     });
 </script>

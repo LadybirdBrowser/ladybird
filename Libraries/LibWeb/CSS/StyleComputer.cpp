@@ -3627,7 +3627,9 @@ StyleEngine::StyleRecordDelta StyleComputer::record_computed_style_inputs(Option
             dependency_flags |= inherited_group_swap_eligible_flag;
     }
     u64 counter_style_environment_identity = 0;
-    if (abstract_element.has_value() && computed_content_depends_on_counter_style_environment(base.computed_content()))
+    if (abstract_element.has_value()
+        && (computed_content_depends_on_counter_style_environment(base.computed_content())
+            || base.list_style_type_depends_on_counter_style_environment()))
         counter_style_environment_identity = abstract_element->style_scope().counter_style_environment_identity();
     auto animated_properties = style_node_id != 0 ? values.animated_properties() : nullptr;
     u64 animation_overlay_identity = animated_properties ? animated_properties->identity() : 0;

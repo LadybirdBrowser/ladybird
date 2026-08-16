@@ -24,13 +24,13 @@ static Optional<bool> typed_value_creates_stacking_context(PropertyID property_i
     case PropertyID::Opacity:
         return values.opacity() < 1;
     case PropertyID::Transform:
-        return !values.transformations().is_empty();
+        return values.has_transformations();
     case PropertyID::Translate:
-        return values.translate() != nullptr;
+        return values.has_translate();
     case PropertyID::Rotate:
-        return values.rotate() != nullptr;
+        return values.has_rotate();
     case PropertyID::Scale:
-        return values.scale() != nullptr;
+        return values.has_scale();
     case PropertyID::Filter:
         return values.filter().has_filters();
     case PropertyID::BackdropFilter:
@@ -206,7 +206,7 @@ static Optional<bool> transform_value_is_invertible(PropertyID property_id, Styl
 {
     if (computed_values) {
         if (property_id == PropertyID::Scale) {
-            if (!computed_values->scale())
+            if (!computed_values->has_scale())
                 return true;
             if (!computed_values->scale()->can_be_converted_to_matrix_without_reference_box())
                 return {};
@@ -214,11 +214,16 @@ static Optional<bool> transform_value_is_invertible(PropertyID property_id, Styl
         }
         if (property_id == PropertyID::Transform) {
             auto matrix = Gfx::FloatMatrix4x4::identity();
-            for (auto const& transformation : computed_values->transformations()) {
-                if (!transformation->can_be_converted_to_matrix_without_reference_box())
-                    return {};
-                matrix = matrix * transformation->to_matrix({});
-            }
+            bool can_be_converted_without_reference_box = true;
+            computed_values->for_each_transformation([&](auto const& transformation) {
+                if (!transformation.can_be_converted_to_matrix_without_reference_box()) {
+                    can_be_converted_without_reference_box = false;
+                    return;
+                }
+                matrix = matrix * transformation.to_matrix({});
+            });
+            if (!can_be_converted_without_reference_box)
+                return {};
             return matrix.is_invertible();
         }
     }

@@ -150,7 +150,7 @@ static TransformData compute_svg_viewport_transform_data(Paintable const& viewpo
 
 static bool style_has_transform(Layout::NodeWithStyle const& style_source)
 {
-    return !style_source.resolved_transform_list().is_empty();
+    return style_source.has_resolved_transforms();
 }
 
 static Gfx::AffineTransform svg_additional_element_transform(Layout::NodeWithStyle const& style_source)
@@ -187,8 +187,9 @@ Optional<TransformData> compute_transform(Paintable const& paintable_box, double
     // 7. Multiply by each of the transform functions in transform from left to right.
     // NB: The resolved transform list carries translate, rotate, scale, and the
     //     transform functions pre-lowered in exactly that order.
-    for (auto const& transform : style_source.resolved_transform_list())
+    style_source.for_each_resolved_transform([&](auto const& transform) {
         matrix = matrix * transform.to_matrix(reference_box.width(), reference_box.height());
+    });
 
     // The x and y properties of <use> define an additional translation applied after any
     // transformations specified with other properties.
@@ -538,7 +539,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
             return inherited_contexts.normal_plane_root;
         }();
         bool appended_backface_marker = false;
-        if (layout_node.style_group<CSS::ComputedValues::TransformValues>().backface_visibility == CSS::BackfaceVisibility::Hidden && layout_node.is_transformable()) {
+        if (layout_node.style_group<CSS::ComputedValues::TransformValues>().backface_visibility_value() == CSS::BackfaceVisibility::Hidden && layout_node.is_transformable()) {
             own_state = append_node(own_state, BackfaceVisibilityData { inherited_plane_root, !appended_transform_node && flattens_inherited_transform });
             appended_backface_marker = true;
         }

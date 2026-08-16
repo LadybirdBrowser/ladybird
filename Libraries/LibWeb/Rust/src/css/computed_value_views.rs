@@ -647,13 +647,17 @@ impl<'a> ComputedValuesView<'a> {
     }
 
     pub(crate) fn has_position_anchor(self) -> bool {
-        self.surround().position_anchor_name.raw() != 0
+        !self.surround().position_anchor.pointer.is_null()
     }
 
     /// The raw fly-string representation of the computed position-anchor
     /// name, borrowed from the surround payload for the duration of the pass.
     pub(crate) fn position_anchor_name(self) -> usize {
-        self.surround().position_anchor_name.raw()
+        let pointer = self.surround().position_anchor.pointer.cast::<StyleValueData>();
+        match unsafe { pointer.as_ref() } {
+            Some(StyleValueData::CustomIdent { custom_ident }) => custom_ident.raw(),
+            _ => 0,
+        }
     }
 
     pub(crate) fn first_available_font(self) -> *const c_void {

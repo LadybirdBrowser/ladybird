@@ -125,7 +125,7 @@ GC::Ptr<SVG::SVGPatternElement const> SVGGraphicsElement::fill_pattern() const
 {
     if (!unsafe_layout_node())
         return {};
-    auto const& fill = unsafe_layout_node()->fill();
+    auto fill = unsafe_layout_node()->fill();
     if (!fill.has_value() || !fill->is_url())
         return {};
     return try_resolve_url_to<SVG::SVGPatternElement const>(fill->as_url());
@@ -135,7 +135,7 @@ GC::Ptr<SVG::SVGPatternElement const> SVGGraphicsElement::stroke_pattern() const
 {
     if (!unsafe_layout_node())
         return {};
-    auto const& stroke = unsafe_layout_node()->stroke();
+    auto stroke = unsafe_layout_node()->stroke();
     if (!stroke.has_value() || !stroke->is_url())
         return {};
     return try_resolve_url_to<SVG::SVGPatternElement const>(stroke->as_url());
@@ -313,13 +313,10 @@ Vector<float> SVGGraphicsElement::stroke_dasharray() const
 
     Vector<float> dasharray;
     for (auto const& value : unsafe_layout_node()->stroke_dasharray()) {
-        value.visit(
-            [&](CSS::LengthPercentage const& length_percentage) {
-                dasharray.append(resolve_relative_to_viewport_size(length_percentage));
-            },
-            [&](float number) {
-                dasharray.append(number);
-            });
+        if (value.is_number)
+            dasharray.append(static_cast<float>(value.number));
+        else
+            dasharray.append(resolve_relative_to_viewport_size(CSS::LengthPercentage::view(value.value)));
     }
 
     // https://svgwg.org/svg2-draft/painting.html#StrokeDashing

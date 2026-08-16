@@ -68,9 +68,6 @@ define_ffi_ops! {
     LonghandCppComputeFallback => "longhandCppComputeFallbacks",
     StringRetainReleaseCallback => "stringRetainReleaseCallbacks",
     AnimationComputeBatchCallback => "animationComputeBatchCallbacks",
-    StyleGroupLifecycleCallback => "styleGroupLifecycleCallbacks",
-    StyleGroupPayloadAssemblerCallback => "styleGroupPayloadAssemblerCallbacks",
-    FlyStringOperationCallback => "flyStringOperationCallbacks",
     AnimatedPropertiesRetainReleaseCallback => "animatedPropertiesRetainReleaseCallbacks",
     ComputedStyleBuildCppCallback => "computedStyleBuildCppCallbacks",
 }

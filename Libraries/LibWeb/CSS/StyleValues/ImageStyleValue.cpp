@@ -27,13 +27,18 @@
 
 namespace Web::CSS {
 
-StyleValueFFI::StyleValueData const* ImageStyleValue::make_image_url_data(URL const& url)
+StyleValueFFI::StyleValueData const* ImageStyleValue::make_image_url_data(URL const& url, Optional<::URL::URL> const& style_resource_base_url, Optional<bool> parent_style_sheet_origin_clean, bool should_absolutize_url_for_computed_value)
 {
     // The Rust allocation takes ownership of one leaked reference to each retained string.
     auto modifiers = retain_url_modifiers_for_rust(url);
     auto url_string = url.url();
     auto url_bytes = url_string.bytes();
-    return StyleValueFFI::rust_style_value_create_image(url_string.to_raw_leaked(), url_bytes.data(), url_bytes.size(), to_underlying(url.type()), modifiers.data(), modifiers.size());
+    auto resource_base_url = style_resource_base_url.has_value() ? style_resource_base_url->to_string() : String {};
+    auto resource_base_url_bytes = resource_base_url.bytes();
+    return StyleValueFFI::rust_style_value_create_image(
+        url_string.to_raw_leaked(), url_bytes.data(), url_bytes.size(), to_underlying(url.type()), modifiers.data(), modifiers.size(),
+        resource_base_url.to_raw_leaked(), resource_base_url_bytes.data(), resource_base_url_bytes.size(), style_resource_base_url.has_value(),
+        parent_style_sheet_origin_clean.has_value(), parent_style_sheet_origin_clean.value_or(false), should_absolutize_url_for_computed_value);
 }
 
 URL ImageStyleValue::url_value() const
@@ -113,15 +118,25 @@ ValueComparingNonnullRefPtr<ImageStyleValue const> ImageStyleValue::create(::URL
     return adopt_ref(*new (nothrow) ImageStyleValue(URL { url.to_string() }));
 }
 
-ImageStyleValue::ImageStyleValue(URL const& url, Optional<::URL::URL> style_resource_base_url)
-    : AbstractImageStyleValue(Type::Image, make_image_url_data(url))
+ImageStyleValue::ImageStyleValue(URL const& url, Optional<::URL::URL> style_resource_base_url, Optional<bool> parent_style_sheet_origin_clean, bool should_absolutize_url_for_computed_value)
+    : AbstractImageStyleValue(Type::Image, make_image_url_data(url, style_resource_base_url, parent_style_sheet_origin_clean, should_absolutize_url_for_computed_value))
     , m_style_resource_base_url(move(style_resource_base_url))
+    , m_parent_style_sheet_origin_clean(parent_style_sheet_origin_clean)
+    , m_should_absolutize_url_for_computed_value(should_absolutize_url_for_computed_value)
 {
 }
 
 ImageStyleValue::ImageStyleValue(StyleValueFFI::StyleValueData const* data)
     : AbstractImageStyleValue(Type::Image, data)
 {
+    auto const& context = data->image.resource_context;
+    if (context.has_base_url) {
+        auto serialized_base_url = String::from_raw(context.base_url.raw);
+        m_style_resource_base_url = DOMURL::parse_from_byte_string(serialized_base_url.bytes_as_string_view());
+    }
+    if (context.has_parent_style_sheet_origin_clean)
+        m_parent_style_sheet_origin_clean = context.parent_style_sheet_origin_clean;
+    m_should_absolutize_url_for_computed_value = context.should_absolutize_url_for_computed_value;
 }
 
 ImageStyleValue::~ImageStyleValue() = default;
@@ -273,24 +288,19 @@ ValueComparingNonnullRefPtr<StyleValue const> ImageStyleValue::absolutized(Compu
     if (base_url.has_value()) {
         if (m_should_absolutize_url_for_computed_value) {
             if (DOMURL::parse_from_byte_string(url_value.url().bytes_as_string_view()).has_value()) {
-                auto absolutized_image = adopt_ref(*new (nothrow) ImageStyleValue(url_value, *base_url));
-                absolutized_image->m_parent_style_sheet_origin_clean = m_parent_style_sheet_origin_clean;
-                absolutized_image->m_should_absolutize_url_for_computed_value = true;
+                auto absolutized_image = adopt_ref(*new (nothrow) ImageStyleValue(url_value, *base_url, m_parent_style_sheet_origin_clean, true));
                 return absolutized_image;
             }
 
             if (auto resolved_url = DOMURL::parse_from_byte_string(url_value.url().bytes_as_string_view(), *base_url); resolved_url.has_value()) {
-                auto absolutized_image = adopt_ref(*new (nothrow) ImageStyleValue(URL { resolved_url->to_string(), url_value.type(), url_value.request_url_modifiers() }, *base_url));
-                absolutized_image->m_parent_style_sheet_origin_clean = m_parent_style_sheet_origin_clean;
-                absolutized_image->m_should_absolutize_url_for_computed_value = true;
+                auto absolutized_image = adopt_ref(*new (nothrow) ImageStyleValue(URL { resolved_url->to_string(), url_value.type(), url_value.request_url_modifiers() }, *base_url, m_parent_style_sheet_origin_clean, true));
                 return absolutized_image;
             }
 
             return *this;
         }
 
-        auto absolutized_image = adopt_ref(*new (nothrow) ImageStyleValue(url_value, *base_url));
-        absolutized_image->m_parent_style_sheet_origin_clean = m_parent_style_sheet_origin_clean;
+        auto absolutized_image = adopt_ref(*new (nothrow) ImageStyleValue(url_value, *base_url, m_parent_style_sheet_origin_clean));
         return absolutized_image;
     }
 

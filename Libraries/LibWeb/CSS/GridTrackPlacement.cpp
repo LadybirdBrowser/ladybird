@@ -8,10 +8,20 @@
 
 #include "GridTrackPlacement.h"
 #include <AK/StringBuilder.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 
 namespace Web::CSS {
+
+Utf16FlyString implicit_grid_line_name(Utf16FlyString const& name, StringView suffix)
+{
+    Utf16StringBuilder builder;
+    builder.append(name.view());
+    builder.append_ascii(suffix);
+    auto result = builder.to_string();
+    return Utf16FlyString::from_utf16(result.utf16_view());
+}
 
 void GridTrackPlacement::serialize(StringBuilder& builder, SerializationMode mode) const
 {

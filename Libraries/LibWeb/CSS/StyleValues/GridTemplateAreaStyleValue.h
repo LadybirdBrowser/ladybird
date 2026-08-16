@@ -11,6 +11,7 @@
 
 #include <AK/HashMap.h>
 #include <AK/Utf16FlyString.h>
+#include <LibWeb/CSS/GridTrackPlacement.h>
 #include <LibWeb/CSS/GridTrackSize.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
@@ -55,8 +56,19 @@ private:
         // The Rust allocation takes ownership of one leaked reference to each area name.
         Vector<StyleValueFFI::RetainedGridArea> areas;
         areas.ensure_capacity(grid_areas.size());
-        for (auto const& [name, area] : grid_areas)
-            areas.unchecked_append({ { name.to_raw_leaked() }, area.row_start, area.row_end, area.column_start, area.column_end });
+        for (auto const& [name, area] : grid_areas) {
+            auto implicit_start_name = implicit_grid_line_name(name, "-start"sv);
+            auto implicit_end_name = implicit_grid_line_name(name, "-end"sv);
+            areas.unchecked_append({
+                { name.to_raw_leaked(), nullptr },
+                { implicit_start_name.to_raw_leaked(), nullptr },
+                { implicit_end_name.to_raw_leaked(), nullptr },
+                area.row_start,
+                area.row_end,
+                area.column_start,
+                area.column_end,
+            });
+        }
         return StyleValueFFI::rust_style_value_create_grid_template_area(areas.data(), areas.size(), row_count, column_count);
     }
 };

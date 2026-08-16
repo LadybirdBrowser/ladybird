@@ -145,7 +145,7 @@ CSS::UserSelect Node::user_select_used_value() const
         return CSS::UserSelect::None;
 
     // The used value is the same as the computed value, except:
-    auto computed_value = values->user_select;
+    auto computed_value = static_cast<CSS::UserSelect>(values->user_select);
 
     auto* form_control = as_if<HTML::FormAssociatedTextControlElement>(*element);
     if (element->is_editing_host() || (form_control && form_control->text_control_to_html_element().is_mutable()))

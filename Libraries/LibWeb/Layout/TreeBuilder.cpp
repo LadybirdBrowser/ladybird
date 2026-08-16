@@ -488,7 +488,7 @@ static RustFFI::FfiComputedContentType ffi_computed_content_type(CSS::ComputedCo
 struct PseudoElementFrame {
     CSS::StyleRecordID style_record_identity;
     CSS::Display display;
-    CSS::AbstractImageStyleValue const* replacement_image { nullptr };
+    RefPtr<CSS::AbstractImageStyleValue const> replacement_image;
     ListItemBox* originating_list_box { nullptr };
     RefPtr<NodeWithStyle> layout_node;
     CSS::ContentData resolved_content;
@@ -564,10 +564,8 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
             frame.replacement_image = content_replacement_image(computed_values->computed_content());
             if (pseudo_element == CSS::PseudoElement::Marker)
                 frame.originating_list_box = as_if<ListItemBox>(*element.unsafe_layout_node());
-            auto const* list_values = element.style_group<CSS::ComputedValues::InheritedListValues>();
             auto const normal_marker_has_content = frame.originating_list_box
-                && list_values
-                && (!list_values->list_style_type.has<Empty>() || list_values->list_style_image);
+                && (!frame.originating_list_box->list_style_type().has<Empty>() || frame.originating_list_box->list_style_image());
             return {
                 .has_style = true,
                 .pseudo_element = ffi_pseudo,
@@ -579,8 +577,7 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
                 .originating_layout_node_is_list_item = frame.originating_list_box != nullptr,
                 .normal_marker_has_content = normal_marker_has_content,
                 .marker_position_is_inside = frame.originating_list_box
-                    && list_values
-                    && list_values->list_style_position == CSS::ListStylePosition::Inside,
+                    && frame.originating_list_box->list_style_position() == CSS::ListStylePosition::Inside,
             }; },
         .create_layout_node = [](void* builder_pointer, void* frame_pointer, void* element_pointer, RustFFI::FfiPseudoElement, RustFFI::FfiPseudoElementDecision decision) {
             VERIFY(builder_pointer);
@@ -1088,7 +1085,8 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             CSS::LayoutStyle style { frame.style_record_identity };
             switch (kind) {
             case RustFFI::FfiElementLayoutKind::ContentReplacement: {
-                auto const* replacement_image = content_replacement_image(computed_values->computed_content());
+                auto computed_content = computed_values->computed_content();
+                auto const* replacement_image = content_replacement_image(computed_content);
                 VERIFY(replacement_image);
                 frame.layout_node = create_content_image_box(element.document(), element, style, const_cast<CSS::AbstractImageStyleValue&>(*replacement_image));
                 break;

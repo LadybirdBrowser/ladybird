@@ -758,7 +758,7 @@ static Vector<DecorationSegment> compute_skip_ink_segments(
 static void paint_decoration_lines(DisplayListRecordingContext& context, PaintableFragment const& fragment,
     Layout::NodeWithStyle const& decorating_node, CSSPixelRect const& fragment_box,
     CSSPixels baseline, bool anchored_at_fragment_baseline,
-    Vector<CSS::TextDecorationLine> const& text_decoration_lines, CSS::TextDecorationStyle line_style,
+    ReadonlySpan<CSS::TextDecorationLine> text_decoration_lines, CSS::TextDecorationStyle line_style,
     Color line_color, CSSPixels decoration_thickness)
 {
     auto& recorder = context.display_list_recorder();
