@@ -43,7 +43,7 @@ use crate::css::computed_value_types::{
 };
 use crate::css::computed_values::{
     FfiGroupValueEntry, GROUP_FIELD_COLOR, GROUP_FIELD_COLOR_OR_KEYWORD, GROUP_FIELD_RESOLVED_F32,
-    GROUP_FIELD_RESOLVED_F64, GROUP_FIELD_RESOLVED_U8, registered_field_descriptors, rust_build_alignment_group,
+    GROUP_FIELD_RESOLVED_F64, GROUP_FIELD_RESOLVED_U8, registered_group_field_descriptors, rust_build_alignment_group,
     rust_build_grid_group, rust_build_inherited_box_group, rust_build_inherited_table_group, rust_build_sizing_group,
     rust_build_style_group, rust_build_surround_group, rust_build_svg_reset_group, rust_build_text_reset_group,
 };
@@ -135,6 +135,40 @@ struct EffectiveValues<'a> {
     override_values: &'a [*const c_void],
 }
 
+const MAX_GROUP_FIELD_COUNT: usize = 32;
+
+struct GroupValueEntries {
+    entries: [std::mem::MaybeUninit<FfiGroupValueEntry>; MAX_GROUP_FIELD_COUNT],
+    len: usize,
+}
+
+impl GroupValueEntries {
+    fn new() -> Self {
+        Self {
+            entries: [const { std::mem::MaybeUninit::uninit() }; MAX_GROUP_FIELD_COUNT],
+            len: 0,
+        }
+    }
+
+    fn push(&mut self, entry: FfiGroupValueEntry) {
+        assert!(
+            self.len < self.entries.len(),
+            "a computed style group has too many fields"
+        );
+        self.entries[self.len].write(entry);
+        self.len += 1;
+    }
+}
+
+impl std::ops::Deref for GroupValueEntries {
+    type Target = [FfiGroupValueEntry];
+
+    fn deref(&self) -> &Self::Target {
+        // SAFETY: push initializes every entry below len and FfiGroupValueEntry has no drop glue.
+        unsafe { std::slice::from_raw_parts(self.entries.as_ptr().cast(), self.len) }
+    }
+}
+
 impl EffectiveValues<'_> {
     fn pointer(&self, property_id: u16) -> *const c_void {
         if let Some(index) = self.override_properties.iter().position(|id| *id == property_id) {
@@ -205,13 +239,11 @@ unsafe fn gather_group_entries(
     values: &EffectiveValues,
     input: &ColorResolutionInput,
     used_color_scheme: u8,
-) -> Option<Vec<FfiGroupValueEntry>> {
-    let all_descriptors = registered_field_descriptors()?;
-    let mut entries: Vec<FfiGroupValueEntry> = Vec::new();
-    for descriptor in all_descriptors
-        .iter()
-        .filter(|descriptor| descriptor.group_index as usize == group_index)
-    {
+) -> Option<GroupValueEntries> {
+    let descriptors = registered_group_field_descriptors(group_index)?;
+    assert!(descriptors.len() <= MAX_GROUP_FIELD_COUNT);
+    let mut entries = GroupValueEntries::new();
+    for descriptor in descriptors {
         let data_pointer = values.pointer(descriptor.property_id);
         let data = unsafe { data_pointer.cast::<StyleValueData>().as_ref() }?;
         let mut entry = FfiGroupValueEntry {
@@ -3094,6 +3126,16 @@ unsafe fn build_animation_group(
         return std::ptr::null();
     };
     let retained = |property| ComputedStyleValueHandle::retained(values.pointer(property).cast());
+    let is_single_zero_time = |property| {
+        let value = unsafe { &*values.pointer(property).cast::<StyleValueData>() };
+        let StyleValueData::ValueList { values, .. } = value else {
+            return false;
+        };
+        let [item] = values.as_slice() else {
+            return false;
+        };
+        matches!(item.data(), StyleValueData::Time { value, .. } if *value == 0.0)
+    };
     unsafe {
         crate::css::computed_values::build_group_payload_with_rust_fill(
             group_index::ANIMATION,
@@ -3121,6 +3163,9 @@ unsafe fn build_animation_group(
                 payload.transition_timing_function = retained(property_id::TRANSITION_TIMING_FUNCTION);
                 payload.transition_delay = retained(property_id::TRANSITION_DELAY);
                 payload.transition_behavior = retained(property_id::TRANSITION_BEHAVIOR);
+                payload.transition_delay_and_duration_are_single_zero =
+                    is_single_zero_time(property_id::TRANSITION_DELAY)
+                        && is_single_zero_time(property_id::TRANSITION_DURATION);
             },
             parent_payload,
         )

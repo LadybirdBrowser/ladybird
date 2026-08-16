@@ -483,6 +483,7 @@ impl_computed_payload_clone_and_eq!(AnimationValues {
     transition_timing_function,
     transition_delay,
     transition_behavior,
+    transition_delay_and_duration_are_single_zero,
 });
 impl_computed_payload_clone_and_eq!(MaskValues {
     mask_image,
@@ -1577,7 +1578,10 @@ pub struct FfiGroupValueEntry {
     pub has_resolved_number: bool,
 }
 
-struct FieldDescriptors(Box<[FfiGroupFieldDescriptor]>);
+struct FieldDescriptors {
+    entries: Box<[FfiGroupFieldDescriptor]>,
+    group_ranges: Box<[std::ops::Range<usize>]>,
+}
 
 // SAFETY: The keyword tables are immortal C++ statics.
 unsafe impl Send for FieldDescriptors {}
@@ -1585,10 +1589,10 @@ unsafe impl Sync for FieldDescriptors {}
 
 static FIELD_DESCRIPTORS: OnceLock<FieldDescriptors> = OnceLock::new();
 
-/// Every registered pokeable-field descriptor, in registration order, for the
-/// table-driven group builder's gathering pass.
-pub(crate) fn registered_field_descriptors() -> Option<&'static [FfiGroupFieldDescriptor]> {
-    FIELD_DESCRIPTORS.get().map(|descriptors| &*descriptors.0)
+pub(crate) fn registered_group_field_descriptors(group_index: usize) -> Option<&'static [FfiGroupFieldDescriptor]> {
+    let descriptors = FIELD_DESCRIPTORS.get()?;
+    let range = descriptors.group_ranges.get(group_index).cloned().unwrap_or(0..0);
+    Some(&descriptors.entries[range])
 }
 
 struct PropertyDependencyMasks {
@@ -1659,8 +1663,28 @@ pub unsafe extern "C" fn rust_style_group_register_field_descriptors(
             .iter()
             .map(|descriptor| FfiGroupFieldDescriptor { ..*descriptor })
             .collect();
+        let group_count = copied
+            .iter()
+            .map(|descriptor| descriptor.group_index as usize + 1)
+            .max()
+            .unwrap_or(0);
+        let mut group_ranges = vec![0..0; group_count];
+        for (index, descriptor) in copied.iter().enumerate() {
+            let range = &mut group_ranges[descriptor.group_index as usize];
+            if range.start == range.end {
+                *range = index..index + 1;
+            } else {
+                assert_eq!(range.end, index, "a group's field descriptors must be contiguous");
+                range.end += 1;
+            }
+        }
         assert!(
-            FIELD_DESCRIPTORS.set(FieldDescriptors(copied)).is_ok(),
+            FIELD_DESCRIPTORS
+                .set(FieldDescriptors {
+                    entries: copied,
+                    group_ranges: group_ranges.into_boxed_slice(),
+                })
+                .is_ok(),
             "field descriptors installed twice"
         );
     });
@@ -1704,19 +1728,54 @@ enum GroupFieldPoke {
     Data(u32, *const crate::css::style_value::StyleValueData),
 }
 
+const MAX_GROUP_FIELD_COUNT: usize = 32;
+
+struct GroupFieldPokes {
+    entries: [std::mem::MaybeUninit<GroupFieldPoke>; MAX_GROUP_FIELD_COUNT],
+    len: usize,
+}
+
+impl GroupFieldPokes {
+    fn new() -> Self {
+        Self {
+            entries: [const { std::mem::MaybeUninit::uninit() }; MAX_GROUP_FIELD_COUNT],
+            len: 0,
+        }
+    }
+
+    fn push(&mut self, poke: GroupFieldPoke) {
+        assert!(
+            self.len < self.entries.len(),
+            "a computed style group has too many fields"
+        );
+        self.entries[self.len].write(poke);
+        self.len += 1;
+    }
+}
+
+impl std::ops::Deref for GroupFieldPokes {
+    type Target = [GroupFieldPoke];
+
+    fn deref(&self) -> &Self::Target {
+        // SAFETY: push initializes every entry below len and GroupFieldPoke has no drop glue.
+        unsafe { std::slice::from_raw_parts(self.entries.as_ptr().cast(), self.len) }
+    }
+}
+
 /// Decodes one group's gathered values against its descriptors into scratch
 /// pokes. Constraint descriptors (the REQUIRE kinds) fail the decode when the
 /// value diverges and constraints are enforced. A Rust group builder that
 /// completes complex members itself skips those constraints.
 fn decode_group_field_pokes(
-    descriptors: &[&FfiGroupFieldDescriptor],
+    descriptors: &[FfiGroupFieldDescriptor],
     values: &[FfiGroupValueEntry],
     enforce_constraints: bool,
-) -> Option<Vec<GroupFieldPoke>> {
+) -> Option<GroupFieldPokes> {
     use crate::css::style_value::StyleValueData;
     use GroupFieldPoke as Poke;
 
-    let mut pokes = Vec::with_capacity(values.len());
+    assert!(values.len() <= MAX_GROUP_FIELD_COUNT);
+    let mut pokes = GroupFieldPokes::new();
     for (descriptor, value) in descriptors.iter().zip(values) {
         let data = unsafe { (value.data as *const StyleValueData).as_ref() }?;
         match descriptor.kind {
@@ -1962,16 +2021,12 @@ pub unsafe extern "C" fn rust_build_style_group(
     parent_payload: *const c_void,
 ) -> *const c_void {
     abort_on_panic(|| {
-        let all = &FIELD_DESCRIPTORS.get()?.0;
-        let descriptors: Vec<&FfiGroupFieldDescriptor> = all
-            .iter()
-            .filter(|descriptor| descriptor.group_index as usize == group_index)
-            .collect();
+        let descriptors = registered_group_field_descriptors(group_index)?;
         if descriptors.len() != count {
             return None;
         }
         let values = unsafe { std::slice::from_raw_parts(values, count) };
-        let pokes = decode_group_field_pokes(&descriptors, values, true)?;
+        let pokes = decode_group_field_pokes(descriptors, values, true)?;
 
         let table = vtable(group_index);
 
@@ -2040,16 +2095,9 @@ pub(crate) unsafe fn build_group_payload_with_rust_fill(
     fill: impl FnOnce(*mut c_void),
     parent_payload: *const c_void,
 ) -> *const c_void {
-    let all = &FIELD_DESCRIPTORS
-        .get()
-        .expect("descriptors register before any build")
-        .0;
-    let descriptors: Vec<&FfiGroupFieldDescriptor> = all
-        .iter()
-        .filter(|descriptor| descriptor.group_index as usize == group_index)
-        .collect();
+    let descriptors = registered_group_field_descriptors(group_index).expect("descriptors register before any build");
     assert_eq!(descriptors.len(), values.len());
-    let pokes = decode_group_field_pokes(&descriptors, values, false)
+    let pokes = decode_group_field_pokes(descriptors, values, false)
         .expect("computed values decode for every non-constraint descriptor");
 
     let table = vtable(group_index);
@@ -2743,6 +2791,7 @@ impl AnimationValues {
             transition_timing_function: initial(property_id::TRANSITION_TIMING_FUNCTION),
             transition_delay: initial(property_id::TRANSITION_DELAY),
             transition_behavior: initial(property_id::TRANSITION_BEHAVIOR),
+            transition_delay_and_duration_are_single_zero: true,
         }
     }
 }

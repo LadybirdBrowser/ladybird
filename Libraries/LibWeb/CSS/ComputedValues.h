@@ -1333,6 +1333,7 @@ public:
     StyleValueVector transition_timing_function_style_values() const { return m_noninherited.animation->transition_timing_function_style_values_value(); }
     Vector<Time> transition_delays() const { return m_noninherited.animation->transition_delays_value(); }
     Vector<TransitionBehavior> transition_behaviors() const { return m_noninherited.animation->transition_behaviors_value(); }
+    bool transition_delay_and_duration_are_single_zero() const { return m_noninherited.animation->transition_delay_and_duration_are_single_zero_value(); }
     WhiteSpaceCollapse white_space_collapse() const { return m_inherited.text->white_space_collapse_value(); }
     WhiteSpaceTrimData white_space_trim() const { return m_noninherited.text_reset->white_space_trim(); }
     WordBreak word_break() const { return m_inherited.text->word_break_value(); }
@@ -1937,6 +1938,7 @@ public:
         StyleValueVector transition_timing_function_style_values_value() const;
         Vector<Time> transition_delays_value() const;
         Vector<TransitionBehavior> transition_behaviors_value() const;
+        bool transition_delay_and_duration_are_single_zero_value() const { return transition_delay_and_duration_are_single_zero; }
 
         bool operator==(AnimationValues const& other) const
         {

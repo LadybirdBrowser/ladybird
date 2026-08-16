@@ -251,7 +251,7 @@ void StyleComputer::visit_edges(Visitor& visitor)
     for (auto const& entry : m_style_engine_rules_by_id)
         visitor.visit(entry.value);
     for (auto const& entry : m_style_engine_cascade_input_cache) {
-        for (auto const& contribution : entry.value.contributions) {
+        for (auto const& contribution : entry.value->contributions) {
             visitor.visit(contribution.declaration);
             visitor.visit(contribution.source_shadow_root);
         }
@@ -1129,14 +1129,13 @@ static void compute_transitioned_properties(ComputedValues const& style, DOM::Ab
     auto pseudo_element = abstract_element.pseudo_element();
     element.clear_registered_transitions(pseudo_element);
 
-    auto const& delays = style.transition_delays();
-    auto const& durations = style.transition_durations();
     if (element.property_ids_with_existing_transitions(pseudo_element).is_empty()
-        && delays.size() == 1 && delays[0].to_seconds() == 0
-        && durations.size() == 1 && durations[0].to_seconds() == 0) {
+        && style.transition_delay_and_duration_are_single_zero()) {
         return;
     }
 
+    auto const& delays = style.transition_delays();
+    auto const& durations = style.transition_durations();
     auto const& properties = style.transition_properties();
     auto const& timing_functions = style.transition_timing_functions();
     auto const& behaviors = style.transition_behaviors();
@@ -2211,7 +2210,7 @@ static CascadeBlockKeyDependencies append_cascade_blocks_to_key(Vector<u64>& key
 // source order, and carries the cascade context it used. Nothing here sorts: each match is turned
 // back into what its rule contributes, with its layer rank queried from that context's engine-owned
 // topology.
-Optional<StyleComputer::CascadeInput> StyleComputer::style_engine_cascade_input(DOM::AbstractElement abstract_element, StyleEngineMatchResult* reusable_matches) const
+RefPtr<StyleComputer::CascadeInput const> StyleComputer::style_engine_cascade_input(DOM::AbstractElement abstract_element, StyleEngineMatchResult* reusable_matches) const
 {
     // Matching is a read that grows the engine's own scratch, so it is not const on the engine even
     // though it decides nothing about it.
@@ -2284,13 +2283,13 @@ Optional<StyleComputer::CascadeInput> StyleComputer::style_engine_cascade_input(
 
     auto context_shadow_roots = author_context_shadow_roots(abstract_element);
 
-    CascadeInput input;
+    auto input = adopt_ref(*new CascadeInput);
     bool input_is_cacheable = match_signature.has_value();
-    input.author_context_count = static_cast<u32>(context_shadow_roots.size());
+    input->author_context_count = static_cast<u32>(context_shadow_roots.size());
     GC::Ptr<DOM::ShadowRoot const> element_context_shadow_root = as_if<DOM::ShadowRoot>(abstract_element.element().root());
     for (u32 index = 0; index < context_shadow_roots.size(); ++index) {
         if (context_shadow_roots[index] == element_context_shadow_root)
-            input.inline_style_context_index = index;
+            input->inline_style_context_index = index;
     }
 
     for (auto const& match : *matches) {
@@ -2307,7 +2306,7 @@ Optional<StyleComputer::CascadeInput> StyleComputer::style_engine_cascade_input(
                 && *match_pseudo_element < to_underlying(PseudoElement::KnownPseudoElementCount)) {
                 auto pseudo_element = static_cast<PseudoElement>(*match_pseudo_element);
                 if (is_synthetic_pseudo_element(pseudo_element))
-                    input.matching_pseudo_element_styles |= pseudo_element_style_bit(pseudo_element);
+                    input->matching_pseudo_element_styles |= pseudo_element_style_bit(pseudo_element);
             }
             continue;
         }
@@ -2353,7 +2352,7 @@ Optional<StyleComputer::CascadeInput> StyleComputer::style_engine_cascade_input(
         if (target->cascade_origin == CascadeOrigin::Author && !target->qualified_layer_name.is_empty())
             layer_name = target->qualified_layer_name;
 
-        input.contributions.append({
+        input->contributions.append({
             .declaration = &declaration_of_rule(*target->rule),
             .style_engine_rule_id = StyleEngineRuleID { match.rule },
             .semantic_declaration_id = match.semantic_declaration,
@@ -2366,7 +2365,7 @@ Optional<StyleComputer::CascadeInput> StyleComputer::style_engine_cascade_input(
     }
 
     if (input_is_cacheable) {
-        input.match_signature = match_signature;
+        input->match_signature = match_signature;
         m_style_engine_cascade_input_cache.set(cache_key_for(*match_signature), input);
     }
     return input;
@@ -2537,6 +2536,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
     };
     Vector<ComputedValuesFFI::FfiCascadeDeclaration> all_declarations;
     Vector<ComputedValuesFFI::FfiCustomPropertyDeclaration> all_custom_property_declarations;
+    bool has_unresolved_declarations = false;
     struct PendingBlock {
         ComputedValuesFFI::FfiCascadeBlock block;
         size_t declarations_offset { 0 };
@@ -2550,6 +2550,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         auto declarations_offset = all_declarations.size();
         all_declarations.ensure_capacity(all_declarations.size() + properties.size());
         for (auto const& property : properties) {
+            has_unresolved_declarations |= property.value->is_unresolved();
             all_declarations.unchecked_append({
                 .property_id = to_underlying(property.property_id),
                 .important = property.important == Important::Yes,
@@ -2827,12 +2828,15 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         return result;
     };
 
-    auto resolution_requests = ComputedValuesFFI::rust_prepare_cascade_resolutions(
-        blocks.data(),
-        blocks.size(),
-        cascade_input.author_context_count,
-        custom_property_store,
-        abstract_element.document().rust_custom_property_registry());
+    ComputedValuesFFI::FfiCascadeResolutionRequests resolution_requests {};
+    if (has_unresolved_declarations) {
+        resolution_requests = ComputedValuesFFI::rust_prepare_cascade_resolutions(
+            blocks.data(),
+            blocks.size(),
+            cascade_input.author_context_count,
+            custom_property_store,
+            abstract_element.document().rust_custom_property_registry());
+    }
     ScopeGuard destroy_resolution_requests = [&] {
         ComputedValuesFFI::rust_cascade_resolution_requests_destroy(resolution_requests.storage);
     };
@@ -3187,7 +3191,8 @@ static void compute_text_align(ComputedStyleWorkingSet& style, DOM::AbstractElem
 }
 
 static ComputedValuesFFI::FfiBoxTypeTransformationInput make_box_type_transformation_input(
-    DOM::AbstractElement abstract_element, Display display, Keyword position, Keyword float_value)
+    DOM::AbstractElement abstract_element, Display display, Keyword position, Keyword float_value,
+    Optional<Display> known_parent_display = {})
 {
     auto& element = abstract_element.element();
 
@@ -3195,10 +3200,22 @@ static ComputedValuesFFI::FfiBoxTypeTransformationInput make_box_type_transforma
     auto parent = abstract_element.element_to_inherit_style_from();
 
     // Climb out of `display: contents` context.
-    while (parent.has_value() && parent->has_style() && parent->computed_style()->display().is_contents())
+    Optional<Display> parent_display;
+    while (parent.has_value() && parent->has_style()) {
+        auto display = [&] {
+            if (known_parent_display.has_value())
+                return *known_parent_display;
+            return parent->computed_style()->display();
+        }();
+        known_parent_display.clear();
+        if (!display.is_contents()) {
+            parent_display = display;
+            break;
+        }
         parent = parent->element_to_inherit_style_from();
+    }
 
-    bool has_parent_display = parent.has_value() && parent->has_style();
+    bool has_parent_display = parent_display.has_value();
     bool is_html_element = element.namespace_uri() == Namespace::HTML;
     bool should_adjust_element = !abstract_element.pseudo_element().has_value();
     auto local_name = element.local_name();
@@ -3254,7 +3271,7 @@ static ComputedValuesFFI::FfiBoxTypeTransformationInput make_box_type_transforma
         .is_mathml_mtr = element.tag_name().equals_ignoring_ascii_case("mtr"sv),
         .is_mathml_mtd = element.tag_name().equals_ignoring_ascii_case("mtd"sv),
         .has_parent_display = has_parent_display,
-        .parent_display = has_parent_display ? to_ffi_display(parent->computed_style()->display()) : ComputedValuesFFI::FfiDisplay {},
+        .parent_display = has_parent_display ? to_ffi_display(*parent_display) : ComputedValuesFFI::FfiDisplay {},
         .is_wbr_element = should_adjust_element && is_html_element && local_name == HTML::TagNames::wbr,
         .disallow_display_contents = should_adjust_element && (input_allows_adjustment || (is_html_element && first_is_one_of(local_name, HTML::TagNames::textarea, HTML::TagNames::audio, HTML::TagNames::video, HTML::TagNames::canvas, HTML::TagNames::object, HTML::TagNames::iframe, HTML::TagNames::progress, HTML::TagNames::embed, HTML::TagNames::frame, HTML::TagNames::meter, HTML::TagNames::frameset, HTML::TagNames::img))),
         .rewrite_inline_flow = should_adjust_element && (input_allows_adjustment || (is_html_element && first_is_one_of(local_name, HTML::TagNames::textarea, HTML::TagNames::audio, HTML::TagNames::video, HTML::TagNames::select))),
@@ -3402,15 +3419,17 @@ static bool style_sharing_keys_are_equal(Vector<u64> const& first, Vector<u64> c
     if (first.size() != second.size())
         return false;
     VERIFY(first.size() >= ComputedValues::inherited_style_group_count);
+    for (size_t i = ComputedValues::inherited_style_group_count; i < first.size(); ++i) {
+        if (first[i] != second[i])
+            return false;
+    }
     for (size_t i = 0; i < ComputedValues::inherited_style_group_count; ++i) {
+        if (first[i] == second[i])
+            continue;
         if (!ComputedValuesFFI::rust_style_group_payloads_equal(
                 i,
                 bit_cast<void const*>(static_cast<FlatPtr>(first[i])),
                 bit_cast<void const*>(static_cast<FlatPtr>(second[i]))))
-            return false;
-    }
-    for (size_t i = ComputedValues::inherited_style_group_count; i < first.size(); ++i) {
-        if (first[i] != second[i])
             return false;
     }
     return true;
@@ -3677,24 +3696,62 @@ NonnullRefPtr<ComputedValues const> StyleComputer::materialize_style_record(DOM:
     ScopeGuard restore_materialization_mode = [&] {
         m_materializing_for_targeted_style_update = was_materializing_for_targeted_style_update;
     };
+    StyleSharingCandidate sharing;
+    sharing.inherited_style_groups = inherited_style_groups;
     auto publish_computed_groups = [&](NonnullRefPtr<ComputedValues const> values) {
         auto publication = publish_computed_style_inputs(abstract_element, *values);
+        if (sharing.new_style_sharing_entry_hash.has_value()) {
+            auto bucket = m_style_sharing_cache.get(*sharing.new_style_sharing_entry_hash);
+            VERIFY(bucket.has_value());
+            auto& entry = bucket->last();
+            VERIFY(entry.values.ptr() == values.ptr());
+            VERIFY(entry.custom_property_data.ptr() == abstract_element.custom_property_data().ptr());
+            entry.style_record_identity = publication.new_style_record;
+        }
         if (style_record_delta.has_value())
             *style_record_delta = publication;
         return values;
     };
 
     auto& style_scope = abstract_element.style_scope();
-    StyleSharingCandidate sharing;
-    sharing.inherited_style_groups = inherited_style_groups;
     auto computed_properties = compute_style_impl(abstract_element, ComputeStyleMode::Normal, did_change_custom_properties, style_scope, IncludeInlineStyle::Yes, reusable_matches, &sharing);
     if (sharing.reused_values)
         return publish_computed_groups(sharing.reused_values.release_nonnull());
+    if (sharing.shared_values && sharing.shared_style_record_identity.has_value()) {
+        auto& values = *sharing.shared_values;
+        bool const inherited_group_swap_eligible = !abstract_element.pseudo_element().has_value()
+            && abstract_element.element().style_input_record()
+            && values.property_inheritance_is_standard()
+            && !values.display().is_list_item();
+        auto publication = const_cast<StyleComputer&>(*this).style_engine().assign_shared_style_record(
+            abstract_element.element().style_node_id(),
+            pseudo_element_to_ffi(abstract_element.pseudo_element()),
+            *sharing.shared_style_record_identity,
+            inherited_group_swap_eligible);
+        if (!!publication.new_style_record) {
+            if (!abstract_element.pseudo_element().has_value()) {
+                if (auto* record = abstract_element.element().style_input_record(); record && record->bind_next_published_style) {
+                    record->computed_style_record = publication.new_style_record;
+                    record->bind_next_published_style = false;
+                }
+            }
+            if (style_record_delta.has_value())
+                *style_record_delta = publication;
+            return sharing.shared_values.release_nonnull();
+        }
+    }
     if (sharing.shared_values)
         return publish_computed_groups(sharing.shared_values.release_nonnull());
     VERIFY(computed_properties);
     return publish_computed_groups(build_and_share_computed_values(computed_properties.release_nonnull(), abstract_element, style_scope, sharing));
 }
+
+// Where the halves of a style input record meet. Everything before the blocks is a fixed number of
+// words, so the index of the first differing one says which half moved.
+static constexpr size_t style_input_record_parent_custom_properties_index = ComputedValues::inherited_style_group_count;
+static constexpr size_t style_sharing_style_scope_index = ComputedValues::inherited_style_group_count + 2;
+static constexpr size_t style_input_record_element_index = style_input_record_parent_custom_properties_index + 1;
+static constexpr size_t style_input_record_block_index = style_input_record_element_index + 6;
 
 NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_values(NonnullRefPtr<ComputedStyleWorkingSet> computed_properties, DOM::AbstractElement abstract_element, StyleScope const& style_scope, StyleSharingCandidate& sharing) const
 {
@@ -3748,7 +3805,17 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
             record->explicitly_inherited_non_inherited_property = sharing.explicitly_inherited_non_inherited_property;
         }
         if (computation_read_only_the_key) {
-            m_style_sharing_cache.ensure(compute_style_sharing_key_hash(sharing.key)).append({
+            auto key_hash = compute_style_sharing_key_hash(sharing.key);
+            Vector<u64> style_input_declaration_words;
+            Vector<NonnullRefPtr<StyleValue const>> pinned_style_input_values;
+            bool cascade_declares_custom_properties = false;
+            if (!abstract_element.pseudo_element().has_value()) {
+                auto declaration_words = element.style_input_record()->words.span().slice(style_input_record_block_index);
+                style_input_declaration_words.append(declaration_words.data(), declaration_words.size());
+                pinned_style_input_values = element.style_input_record()->pinned_values;
+                cascade_declares_custom_properties = element.style_input_record()->cascade_declares_custom_properties;
+            }
+            m_style_sharing_cache.ensure(key_hash).append({
                 .key = move(sharing.key),
                 .pinned_parent_groups = move(sharing.pinned_parent_groups),
                 .pinned_key_values = move(sharing.pinned_key_values),
@@ -3756,10 +3823,15 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
                 .explicitly_inherited_non_inherited_property = sharing.explicitly_inherited_non_inherited_property,
                 .values = computed_values,
                 .custom_property_data = abstract_element.custom_property_data(),
+                .style_record_identity = {},
+                .style_input_declaration_words = move(style_input_declaration_words),
+                .pinned_style_input_values = move(pinned_style_input_values),
+                .cascade_declares_custom_properties = cascade_declares_custom_properties,
                 .custom_property_references = abstract_element.pseudo_element().has_value() ? Vector<Utf16FlyString> {} : element.style_input_record()->custom_property_references,
                 .style_uses_var_css_function = element.style_uses_var_css_function(),
                 .style_uses_inherit_css_function = element.style_uses_inherit_css_function(),
             });
+            sharing.new_style_sharing_entry_hash = key_hash;
             ++m_style_sharing_cache_entry_count;
         }
     }
@@ -3784,18 +3856,38 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties_without
 
 RefPtr<ComputedValues const> StyleComputer::compute_pseudo_element_style_if_needed(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties, StyleEngineMatchResult* reusable_matches, Optional<StyleEngine::StyleRecordDelta&> style_record_delta) const
 {
+    StyleSharingCandidate sharing;
     auto publish_computed_groups = [&](NonnullRefPtr<ComputedValues const> values) {
         auto publication = publish_computed_style_inputs(abstract_element, *values);
+        if (sharing.new_style_sharing_entry_hash.has_value()) {
+            auto bucket = m_style_sharing_cache.get(*sharing.new_style_sharing_entry_hash);
+            VERIFY(bucket.has_value());
+            auto& entry = bucket->last();
+            VERIFY(entry.values.ptr() == values.ptr());
+            VERIFY(entry.custom_property_data.ptr() == abstract_element.custom_property_data().ptr());
+            entry.style_record_identity = publication.new_style_record;
+        }
         if (style_record_delta.has_value())
             *style_record_delta = publication;
         return values;
     };
 
     auto& style_scope = abstract_element.style_scope();
-    StyleSharingCandidate sharing;
     auto computed_properties = compute_style_impl(abstract_element, ComputeStyleMode::CreatePseudoElementStyleIfNeeded, did_change_custom_properties, style_scope, IncludeInlineStyle::Yes, reusable_matches, &sharing);
     if (sharing.reused_values)
         return publish_computed_groups(sharing.reused_values.release_nonnull());
+    if (sharing.shared_values && sharing.shared_style_record_identity.has_value()) {
+        auto publication = const_cast<StyleComputer&>(*this).style_engine().assign_shared_style_record(
+            abstract_element.element().style_node_id(),
+            pseudo_element_to_ffi(abstract_element.pseudo_element()),
+            *sharing.shared_style_record_identity,
+            false);
+        if (!!publication.new_style_record) {
+            if (style_record_delta.has_value())
+                *style_record_delta = publication;
+            return sharing.shared_values.release_nonnull();
+        }
+    }
     if (sharing.shared_values)
         return publish_computed_groups(sharing.shared_values.release_nonnull());
     if (!computed_properties) {
@@ -3962,12 +4054,12 @@ void StyleComputer::apply_animated_properties_to_reconstruction(ComputedStyleWor
 // answering them the same way are interchangeable to the computation. Anything the computation
 // discovers about the element outside these is caught afterwards, when the result is offered for
 // sharing; this is only what has to be asked before the computation runs.
-static void append_element_shape_to_style_sharing_key(Vector<u64>& key, DOM::AbstractElement abstract_element)
+static Array<u64, 3> element_shape_style_sharing_key(DOM::AbstractElement abstract_element, Optional<Display> known_parent_display)
 {
     auto const shape = make_box_type_transformation_input(
-        abstract_element, InitialValues::display(), Keyword::Static, Keyword::None);
+        abstract_element, InitialValues::display(), Keyword::Static, Keyword::None, known_parent_display);
     auto& element = abstract_element.element();
-    key.append(static_cast<u64>(shape.is_br_element)
+    auto const shape_bits = static_cast<u64>(shape.is_br_element)
         | (static_cast<u64>(shape.is_document_element) << 1)
         | (static_cast<u64>(shape.is_mathml_element) << 2)
         | (static_cast<u64>(shape.is_mathml_mtable) << 3)
@@ -3983,25 +4075,18 @@ static void append_element_shape_to_style_sharing_key(Vector<u64>& key, DOM::Abs
         | (static_cast<u64>(shape.hide_audio_without_controls) << 13)
         | (static_cast<u64>(shape.is_table_element) << 14)
         | (static_cast<u64>(shape.force_position_static) << 15)
-        | (static_cast<u64>(shape.force_symbol_display_inline) << 16));
+        | (static_cast<u64>(shape.force_symbol_display_inline) << 16);
     // The parent's display is read to decide the box type, and a parent whose display differs is a
     // different question even when the inherited half of its style is the same.
-    key.append(static_cast<u64>(shape.parent_display.tag)
+    auto const parent_display_bits = static_cast<u64>(shape.parent_display.tag)
         | (static_cast<u64>(shape.parent_display.outside) << 8)
         | (static_cast<u64>(shape.parent_display.inside) << 16)
         | (static_cast<u64>(shape.parent_display.list_item) << 24)
         | (static_cast<u64>(shape.parent_display.internal) << 32)
-        | (static_cast<u64>(shape.parent_display.box_value) << 40));
+        | (static_cast<u64>(shape.parent_display.box_value) << 40);
     // The one question the box type transformation does not ask, and the one the driver does.
-    key.append(static_cast<u64>(element.local_name() == HTML::TagNames::th));
+    return { shape_bits, parent_display_bits, static_cast<u64>(element.local_name() == HTML::TagNames::th) };
 }
-
-// Where the halves of a style input record meet. Everything before the blocks is a fixed number of
-// words, so the index of the first differing one says which half moved.
-static constexpr size_t style_input_record_parent_custom_properties_index = ComputedValues::inherited_style_group_count;
-static constexpr size_t style_sharing_style_scope_index = ComputedValues::inherited_style_group_count + 2;
-static constexpr size_t style_input_record_element_index = style_input_record_parent_custom_properties_index + 1;
-static constexpr size_t style_input_record_block_index = style_input_record_element_index + 6;
 
 void StyleComputer::record_style_custom_property_reference(DOM::Element& element, Utf16FlyString const& name) const
 {
@@ -4179,15 +4264,15 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
     auto style_engine_input = style_engine_cascade_input(abstract_element, reusable_matches);
     // A pseudo-element is materialized because some rule decides for it, so the rules that decide
     // for it are exactly what answers that question.
-    if (style_engine_input.has_value() && mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded)
+    if (style_engine_input && mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded)
         did_match_any_pseudo_element_rules = !style_engine_input->contributions.is_empty();
     // StyleEngine is the only thing that decides what matches. An element it cannot answer for is an
     // invariant breach rather than a request for a second opinion: a disconnected element is not
     // that case, since it has no identity and nothing decides for it at all (see the note on
     // disconnected elements in `style_engine_cascade_input`), and every other case is a bug that a
     // second answer would hide rather than fix.
-    VERIFY(style_engine_input.has_value());
-    auto cascade_input = style_engine_input.release_value();
+    VERIFY(style_engine_input);
+    auto const& cascade_input = *style_engine_input;
 
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
         // NOTE: If we're computing style for a pseudo-element, we look for a number of reasons to bail early.
@@ -4214,39 +4299,72 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
     // below. Transitions read the before-change style too, but their per-element state excludes
     // them from sharing before a key is built.
     auto const inheritance_parent = abstract_element.element_to_inherit_style_from();
-    auto inheritance_parent_style = inheritance_parent.has_value() ? inheritance_parent->computed_style() : ComputedStyleRecordView {};
-    auto const* inheritance_parent_values = inheritance_parent_style ? &*inheritance_parent_style : nullptr;
+    auto const inheritance_parent_style_record_identity = inheritance_parent.has_value() ? inheritance_parent->style_record_identity() : StyleRecordID {};
+    auto const inheritance_parent_style_record = m_style_engine.style_record_view(inheritance_parent_style_record_identity);
     auto previous_style_record_identity = abstract_element.style_record_identity();
-    auto previous_style = abstract_element.computed_style();
-    auto const* previous_values = previous_style ? &*previous_style : nullptr;
+    auto const previous_style_record = m_style_engine.style_record_view(previous_style_record_identity);
+    OwnPtr<ComputedStyleRecordView> inheritance_parent_style;
+    OwnPtr<ComputedStyleRecordView> previous_style;
+    ComputedValues const* inheritance_parent_values = nullptr;
+    ComputedValues const* previous_values = nullptr;
     if (sharing) {
         auto& element = abstract_element.element();
         // A registered or running transition is decided per element from the style it is replacing,
         // and starting one is not something the values carry.
-        sharing->is_candidate = inheritance_parent_values && !element.is_document_element()
-            && !inheritance_parent_values->animated_properties()
+        sharing->is_candidate = inheritance_parent_style_record.present && !element.is_document_element()
+            && !inheritance_parent_style_record.animated_properties
             && !element.has_relevant_animations()
             && !element.has_css_defined_animations()
             && element.property_ids_with_existing_transitions(abstract_element.pseudo_element()).is_empty()
             && element.property_ids_with_matching_transition_property_entry(abstract_element.pseudo_element()).is_empty();
     }
+    Optional<Array<void const*, ComputedValues::inherited_style_group_count>> inherited_style_group_identities;
+    auto get_inherited_style_group_identities = [&]() -> auto const& {
+        if (!inherited_style_group_identities.has_value()) {
+            VERIFY(inheritance_parent_style_record.payload_count >= ComputedValues::inherited_style_group_count);
+            Array<void const*, ComputedValues::inherited_style_group_count> identities;
+            for (size_t index = 0; index < identities.size(); ++index)
+                identities[index] = inheritance_parent_style_record.payloads[index];
+            inherited_style_group_identities = identities;
+        }
+        return *inherited_style_group_identities;
+    };
+    Optional<Array<u64, 3>> element_shape_key;
+    auto append_element_shape_key = [&](Vector<u64>& key) {
+        if (!element_shape_key.has_value()) {
+            Optional<Display> parent_display;
+            if (inheritance_parent_style_record.present) {
+                auto const* box = static_cast<ComputedValuesFFI::BoxValues const*>(inheritance_parent_style_record.payloads[to_underlying(StyleGroupIndex::BoxValues)]);
+                parent_display = display_from_ffi_display(box->display);
+            }
+            element_shape_key = element_shape_style_sharing_key(abstract_element, parent_display);
+        }
+        for (auto word : *element_shape_key)
+            key.append(word);
+    };
     if (sharing && sharing->is_candidate) {
         // What a child reads of the style it inherits from is that style's inherited half, so the
         // parent is named by the values of those groups rather than by the whole style: two parents
         // that differ only in what they say about themselves ask their children the same question.
         // A computation that reads more than that is bound to the style it read.
-        for (auto const* group : inheritance_parent_values->inherited_style_group_identities())
+        auto const& inherited_group_identities = get_inherited_style_group_identities();
+        for (auto const* group : inherited_group_identities)
             sharing->key.append(bit_cast<FlatPtr>(group));
-        sharing->pinned_parent_groups.set(inheritance_parent_values->inherited_style_group_identities());
+        sharing->pinned_parent_groups.set(inherited_group_identities);
         sharing->pinned_parent_custom_property_data = inheritable_custom_property_data(*inheritance_parent);
         sharing->key.append(0);
-        sharing->key.append(previous_values ? to_underlying(previous_values->writing_mode()) + 1 : 0);
+        if (previous_style_record.present) {
+            auto const* inherited_box = static_cast<ComputedValuesFFI::InheritedBoxValues const*>(previous_style_record.payloads[to_underlying(StyleGroupIndex::InheritedBoxValues)]);
+            sharing->key.append(inherited_box->writing_mode + 1);
+        } else {
+            sharing->key.append(0);
+        }
         sharing->key.append(0);
         sharing->key.append(document().style_environment_version());
         sharing->key.append(abstract_element.pseudo_element().has_value() ? to_underlying(*abstract_element.pseudo_element()) + 1 : 0);
         sharing->key.append(cascade_input.matching_pseudo_element_styles);
         sharing->parent_style_record_identity = inheritance_parent->style_record_identity();
-        append_element_shape_to_style_sharing_key(sharing->key, abstract_element);
+        append_element_shape_key(sharing->key);
     }
 
     // What this computation is allowed to read, recorded so the next one on this element can ask
@@ -4274,20 +4392,16 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         Vector<Utf16FlyString> custom_property_references;
     };
     Optional<PreviousComputation> previous_computation;
-    auto record_style_input = [&] {
-        if (!sharing || abstract_element.pseudo_element().has_value() || !inheritance_parent_values)
+    auto record_style_input = [&](StyleSharingEntry const* shared_entry = nullptr) {
+        if (!sharing || abstract_element.pseudo_element().has_value() || !inheritance_parent_style_record.present)
             return;
         auto& element = abstract_element.element();
         auto& counters = document().style_invalidation_counters();
 
-        if (!collected_presentational_hints) {
+        if (!shared_entry && !collected_presentational_hints) {
             presentational_hint_properties = collect_presentational_hint_properties(abstract_element);
             collected_presentational_hints = true;
         }
-
-        auto const inline_style = include_inline_style == IncludeInlineStyle::Yes && cascade_input.inline_style_context_index.has_value()
-            ? abstract_element.inline_style()
-            : GC::Ptr<CSSStyleProperties const> {};
 
         auto record = move(m_style_input_record_scratch);
         if (!record)
@@ -4310,14 +4424,14 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         record->pinned_parent_custom_property_data = nullptr;
         record->computed_style_record = {};
         record->bind_next_published_style = false;
-        auto inherited_group_identities = inheritance_parent_values->inherited_style_group_identities();
+        auto const& inherited_group_identities = get_inherited_style_group_identities();
         record->pinned_parent_groups.set(inherited_group_identities.span());
         for (auto const* group : inherited_group_identities)
             record->words.append(bit_cast<FlatPtr>(group));
         record->words.append(0);
         record->words.append(style_scope.style_engine_tree_scope().value());
         record->words.append(cascade_input.matching_pseudo_element_styles);
-        append_element_shape_to_style_sharing_key(record->words, abstract_element);
+        append_element_shape_key(record->words);
         // The environment names what reaches an element by no route the blocks describe: a font
         // arriving, the viewport moving, a registration. It sits with the element's own words rather
         // than with the blocks, so that a version that moved is never reported as a change of
@@ -4325,10 +4439,20 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         record->words.append(document().style_environment_version());
         VERIFY(record->words.size() == style_input_record_block_index);
 
-        auto const dependencies = append_cascade_blocks_to_key(record->words, record->pinned_values, cascade_input, presentational_hint_properties, inline_style, CascadeBlockKeyValueComparison::ByValue);
-        record->cascade_reads_custom_properties = dependencies.reads_custom_properties;
-        record->cascade_declares_custom_properties = dependencies.declares_custom_properties;
-        if (dependencies.reads_custom_properties && inheritance_parent.has_value()) {
+        if (shared_entry) {
+            record->words.append(shared_entry->style_input_declaration_words.data(), shared_entry->style_input_declaration_words.size());
+            record->pinned_values = shared_entry->pinned_style_input_values;
+            record->cascade_reads_custom_properties = sharing->cascade_reads_custom_properties;
+            record->cascade_declares_custom_properties = shared_entry->cascade_declares_custom_properties;
+        } else {
+            auto const inline_style = include_inline_style == IncludeInlineStyle::Yes && cascade_input.inline_style_context_index.has_value()
+                ? abstract_element.inline_style()
+                : GC::Ptr<CSSStyleProperties const> {};
+            auto const dependencies = append_cascade_blocks_to_key(record->words, record->pinned_values, cascade_input, presentational_hint_properties, inline_style, CascadeBlockKeyValueComparison::ByValue);
+            record->cascade_reads_custom_properties = dependencies.reads_custom_properties;
+            record->cascade_declares_custom_properties = dependencies.declares_custom_properties;
+        }
+        if (record->cascade_reads_custom_properties && inheritance_parent.has_value()) {
             record->pinned_parent_custom_property_data = inheritance_parent->custom_property_data();
             record->words[style_input_record_parent_custom_properties_index] = bit_cast<FlatPtr>(record->pinned_parent_custom_property_data.ptr());
         }
@@ -4470,6 +4594,8 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             // for an element inheriting from that very style.
             if (entry.explicitly_inherited_non_inherited_property && entry.parent_style_record_identity != inheritance_parent->style_record_identity())
                 continue;
+            if (!new_style_input_record)
+                record_style_input(&entry);
             sharing->shared_values = entry.values;
             // The custom properties the computation resolved are the other element's only when the
             // key named the environment they resolved against. An element that reads none keeps the
@@ -4479,6 +4605,9 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
                 abstract_element.set_custom_property_data(custom_property_data_keeping_identity(document(), abstract_element.custom_property_data(), entry.custom_property_data));
             else if (has_complete_sharing_key)
                 abstract_element.set_custom_property_data(inheritance_parent.has_value() ? inheritable_custom_property_data(*inheritance_parent) : nullptr);
+            if (entry.style_record_identity.has_value()
+                && abstract_element.custom_property_data().ptr() == entry.custom_property_data.ptr())
+                sharing->shared_style_record_identity = entry.style_record_identity;
             if (entry.style_uses_var_css_function)
                 abstract_element.element().set_style_uses_var_css_function();
             if (entry.style_uses_inherit_css_function)
@@ -4505,7 +4634,8 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         return false;
     };
 
-    record_style_input();
+    if (!m_materializing_for_targeted_style_update)
+        record_style_input();
 
     // The element's own last answer comes before another element's: it needs no lookup, and it is
     // the one whose marks are already on the element.
@@ -4562,6 +4692,10 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         auto const inline_style = include_inline_style == IncludeInlineStyle::Yes && cascade_input.inline_style_context_index.has_value()
             ? abstract_element.inline_style()
             : GC::Ptr<CSSStyleProperties const> {};
+        if (!collected_presentational_hints) {
+            presentational_hint_properties = collect_presentational_hint_properties(abstract_element);
+            collected_presentational_hints = true;
+        }
         auto const dependencies = append_cascade_blocks_to_key(sharing->key, sharing->pinned_key_values, cascade_input, presentational_hint_properties, inline_style, CascadeBlockKeyValueComparison::ByIdentity);
         sharing->cascade_reads_custom_properties = dependencies.reads_custom_properties;
         if (dependencies.reads_style_scope)
@@ -4584,6 +4718,21 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             return {};
         }
     }
+
+    if (!new_style_input_record)
+        record_style_input();
+
+    auto materialize_style_record_view = [&](StyleEngine::StyleRecordView const& view, StyleRecordID identity) -> OwnPtr<ComputedStyleRecordView> {
+        if (!view.present)
+            return {};
+        if (view.animation_overlay_identity != 0)
+            pin_style_record(identity);
+        return make<ComputedStyleRecordView>(view, *this, identity);
+    };
+    inheritance_parent_style = materialize_style_record_view(inheritance_parent_style_record, inheritance_parent_style_record_identity);
+    inheritance_parent_values = inheritance_parent_style ? &**inheritance_parent_style : nullptr;
+    previous_style = materialize_style_record_view(previous_style_record, previous_style_record_identity);
+    previous_values = previous_style ? &**previous_style : nullptr;
 
     auto cascade_started_at = MonotonicTime::now();
     auto cascaded_properties = compute_cascaded_values(
@@ -5207,6 +5356,11 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                 computed_style.did_store_property_data_from_drive(property_id, nullptr);
                 break;
             }
+            if (entry.inherited && entry.computed_kind == ComputedValuesFFI::COMPUTED_KIND_UNCHANGED && computed_values_to_inherit_from) {
+                auto inherited_value = computed_values_to_inherit_from->computed_style_value_for_inheritance(inherited_property_id, ComputedValues::WithAnimationsApplied::No);
+                if (inherited_value && inherited_value->rust_style_value_data() == entry.data)
+                    computed_style.cache_property_wrapper_from_drive(property_id, inherited_value.release_nonnull());
+            }
             if (property_id == PropertyID::ColorScheme && !computed_style.has_effective_color_scheme()) {
                 auto effective_color_scheme = ComputedValuesFFI::rust_resolve_effective_color_scheme(computed_style.property(PropertyID::ColorScheme).rust_style_value_data(), &effective_color_scheme_input);
                 computed_style.set_effective_color_scheme(static_cast<PreferredColorScheme>(effective_color_scheme));
@@ -5248,42 +5402,48 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         };
         random_base_values.empend(sharing.source, const_cast<DOM::Element&>(abstract_element.element()).ensure_css_random_base_value(random_caching_key));
     }
+    auto const environment_requirements = ComputedValuesFFI::rust_cascaded_properties_environment_requirements(cascaded_properties.rust_store());
     Vector<String> style_sheet_base_urls;
     Vector<ComputedValuesFFI::FfiStyleSheetResourceContext> style_sheet_resource_contexts;
-    style_sheet_base_urls.resize(cascaded_properties.source_slot_count());
-    style_sheet_resource_contexts.resize(cascaded_properties.source_slot_count());
-    for (size_t slot = 0; slot < cascaded_properties.source_slot_count(); ++slot) {
-        auto& resource_context = style_sheet_resource_contexts[slot];
-        auto source = cascaded_properties.source_for_slot(static_cast<u32>(slot));
-        if (!source || !source->parent_rule())
-            continue;
-        auto style_sheet = source->parent_rule()->parent_style_sheet();
-        if (!style_sheet)
-            continue;
-        auto base_url = style_sheet->base_url()
-                            .value_or_lazy_evaluated_optional([&]() { return style_sheet->location(); })
-                            .value_or_lazy_evaluated_optional([&]() -> Optional<::URL::URL> {
-                                if (auto document = style_sheet->owning_document())
-                                    return HTML::relevant_settings_object(*document).api_base_url();
-                                return {};
-                            });
-        if (base_url.has_value())
-            style_sheet_base_urls[slot] = base_url->to_string();
-        resource_context.has_value = true;
-        resource_context.origin_clean = style_sheet->is_origin_clean();
+    if (environment_requirements & ComputedValuesFFI::CASCADED_ENVIRONMENT_NEEDS_STYLE_SHEET_CONTEXT) {
+        style_sheet_base_urls.resize(cascaded_properties.source_slot_count());
+        style_sheet_resource_contexts.resize(cascaded_properties.source_slot_count());
+        for (size_t slot = 0; slot < cascaded_properties.source_slot_count(); ++slot) {
+            auto& resource_context = style_sheet_resource_contexts[slot];
+            auto source = cascaded_properties.source_for_slot(static_cast<u32>(slot));
+            if (!source || !source->parent_rule())
+                continue;
+            auto style_sheet = source->parent_rule()->parent_style_sheet();
+            if (!style_sheet)
+                continue;
+            auto base_url = style_sheet->base_url()
+                                .value_or_lazy_evaluated_optional([&]() { return style_sheet->location(); })
+                                .value_or_lazy_evaluated_optional([&]() -> Optional<::URL::URL> {
+                                    if (auto document = style_sheet->owning_document())
+                                        return HTML::relevant_settings_object(*document).api_base_url();
+                                    return {};
+                                });
+            if (base_url.has_value())
+                style_sheet_base_urls[slot] = base_url->to_string();
+            resource_context.has_value = true;
+            resource_context.origin_clean = style_sheet->is_origin_clean();
+        }
+        for (size_t slot = 0; slot < style_sheet_resource_contexts.size(); ++slot) {
+            auto bytes = style_sheet_base_urls[slot].bytes();
+            style_sheet_resource_contexts[slot].base_url = bytes.data();
+            style_sheet_resource_contexts[slot].base_url_length = bytes.size();
+        }
     }
-    for (size_t slot = 0; slot < style_sheet_resource_contexts.size(); ++slot) {
-        auto bytes = style_sheet_base_urls[slot].bytes();
-        style_sheet_resource_contexts[slot].base_url = bytes.data();
-        style_sheet_resource_contexts[slot].base_url_length = bytes.size();
-    }
-    auto document_base_url = abstract_element.document().base_url().to_string();
+    String document_base_url;
+    if (environment_requirements & ComputedValuesFFI::CASCADED_ENVIRONMENT_NEEDS_DOCUMENT_BASE_URL)
+        document_base_url = abstract_element.document().base_url().to_string();
     auto document_base_url_bytes = document_base_url.bytes();
     ComputedValuesFFI::FfiStyleComputationEnvironment const computation_environment {
         .box_type_input = box_type_input,
         .color_scheme_input = effective_color_scheme_input,
         .is_th_element = abstract_element.element().local_name() == HTML::TagNames::th,
         .has_new_font_size = new_font_size != nullptr,
+        .has_animated_inheritance_parent = computed_values_to_inherit_from && computed_values_to_inherit_from->animated_properties(),
         .has_tree_counting_context = tree_counting_context.has_value(),
         .sibling_count = tree_counting_context.has_value() ? static_cast<u64>(tree_counting_context->sibling_count) : 0,
         .sibling_index = tree_counting_context.has_value() ? static_cast<u64>(tree_counting_context->sibling_index) : 0,

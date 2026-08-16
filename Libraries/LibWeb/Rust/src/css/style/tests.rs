@@ -7010,6 +7010,82 @@ fn rule_activation_reaches_only_current_selector_matches() {
 }
 
 #[test]
+fn rule_deactivation_reaches_only_nodes_where_the_rule_won() {
+    let (mut engine, nodes) = linear_document();
+    let target = StyleAtomID(200);
+    let overriding = StyleAtomID(201);
+    let toggled = add_target_rule(&mut engine, StyleSheetObjectID(1), target);
+    engine.set_rule_declared_properties(toggled, &[(1, false)], true);
+    let winner = add_target_rule(&mut engine, StyleSheetObjectID(2), overriding);
+    engine.set_rule_declared_properties(winner, &[(1, true)], true);
+    for node in [nodes[1], nodes[2]] {
+        add_feature(&mut engine, node, FeatureKey::Class(target));
+    }
+    add_feature(&mut engine, nodes[1], FeatureKey::Class(overriding));
+    discard_transaction(&mut engine);
+
+    for &node in &nodes {
+        let exact = engine.match_element(node).unwrap();
+        let compact = engine.matches_for_cascade(exact.clone(), false, Some(node));
+        engine.remember_retained_match_answer(node, &exact);
+        engine.remember_cascade_input(node, &compact);
+        publish_current_cascade_as_computed(&mut engine, node);
+    }
+
+    engine.set_rule_conditions_hold(toggled, false);
+    let mut planned = Vec::new();
+    assert!(engine.take_style_transaction_nodes(nodes[0], |nodes| planned.extend_from_slice(nodes)));
+    assert_eq!(
+        planned,
+        vec![nodes[2].raw()],
+        "removing a matching loser cannot change the retained winner"
+    );
+}
+
+#[test]
+fn local_routes_for_one_exact_entry_are_compared_once() {
+    let (mut engine, nodes) = nested_document();
+    let first = StyleAtomID(200);
+    let second = StyleAtomID(201);
+    let target = StyleAtomID(202);
+    let program = engine.programs.add(test_selector_program(
+        ".first.second .target",
+        &[("first", first), ("second", second), ("target", target)],
+    ));
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::User);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    let rule = engine.append_rule(sheet, None, RuleKind::Style);
+    engine.add_routing_rule(rule, program);
+    let mut version = engine.program.rule_version(rule);
+    version.selector_program = Some(program);
+    version.declaration_block = Some(DeclarationBlockID(1));
+    engine.replace_rule_version(rule, version);
+    engine.set_rule_declared_properties(rule, &[(1, false)], true);
+    add_feature(&mut engine, nodes[3], FeatureKey::Class(target));
+    discard_transaction(&mut engine);
+
+    for &node in &nodes {
+        let exact = engine.match_element(node).unwrap();
+        let compact = engine.matches_for_cascade(exact.clone(), false, Some(node));
+        engine.remember_retained_match_answer(node, &exact);
+        engine.remember_cascade_input(node, &compact);
+        publish_current_cascade_as_computed(&mut engine, node);
+    }
+
+    let grouped_before = engine.counters().get(Counter::GroupedExactSelectorRoutes);
+    add_feature(&mut engine, nodes[1], FeatureKey::Class(first));
+    add_feature(&mut engine, nodes[1], FeatureKey::Class(second));
+    let mut planned = Vec::new();
+    assert!(engine.take_style_transaction_nodes(nodes[0], |nodes| planned.extend_from_slice(nodes)));
+    assert_eq!(planned, vec![nodes[3].raw()]);
+    assert_eq!(
+        engine.counters().get(Counter::GroupedExactSelectorRoutes) - grouped_before,
+        1
+    );
+    assert_eq!(engine.memory().bytes_in_category(MemoryCategory::BatchScratch), 0);
+}
+
+#[test]
 fn rule_activation_exactly_matches_a_refused_prefix_chain() {
     let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
     let mut raw = vec![0_u32; 36];

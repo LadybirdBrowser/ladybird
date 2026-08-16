@@ -2072,9 +2072,9 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
                     payload.write_u64(pointer_token(value));
                     payload.write_u8(crate::css::style_value::style_value_dependency_flags(value.cast()));
                 }
-                let source_slots = table.source_slot_entries();
+                let source_slots = table.source_slot_entries().collect::<Vec<_>>();
                 payload.write_length(source_slots.len());
-                for &(property, slot) in source_slots {
+                for (property, slot) in source_slots {
                     payload.write_u16(property);
                     payload.write_u32(slot);
                 }
@@ -2083,6 +2083,48 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
             payload.write_u64(result.new_style_record);
         });
         result
+    })
+}
+
+/// Assigns an already-interned base style record to one element or pseudo-element.
+/// Returns an empty delta when recording is active so the caller can use the fully recorded
+/// publication path instead.
+///
+/// # Safety
+/// `engine` must be live and `style_record` must name a live base record from that engine.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_assign_shared_style_record(
+    engine: *mut c_void,
+    node: u32,
+    pseudo_kind: u8,
+    style_record: u64,
+    inherited_group_count: usize,
+    inherited_group_swap_eligible: bool,
+) -> FfiStyleRecordDelta {
+    abort_on_panic(|| {
+        if engine.is_null() || node == 0 || style_record == 0 {
+            return FfiStyleRecordDelta::default();
+        }
+        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+        if engine.recording_id().is_some() {
+            return FfiStyleRecordDelta::default();
+        }
+        let target = super::computed::ComputedStyleTarget::new(
+            StyleNodeID::from_raw(node).expect("a nonzero node must be a style node"),
+            pseudo_kind,
+        );
+        let publication = engine.assign_shared_style_record(
+            target,
+            style_record,
+            inherited_group_count,
+            inherited_group_swap_eligible,
+        );
+        FfiStyleRecordDelta {
+            old_style_record: publication
+                .previous_style_record_identity
+                .map_or(0, super::computed::FinalStyleRecordID::raw),
+            new_style_record: publication.style_record_identity.raw(),
+        }
     })
 }
 

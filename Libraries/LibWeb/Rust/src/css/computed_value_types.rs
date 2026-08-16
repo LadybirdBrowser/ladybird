@@ -403,6 +403,7 @@ pub struct AnimationValues {
     pub transition_timing_function: ComputedStyleValueHandle,
     pub transition_delay: ComputedStyleValueHandle,
     pub transition_behavior: ComputedStyleValueHandle,
+    pub transition_delay_and_duration_are_single_zero: bool,
 }
 
 /// The mask computed values. Each handle retains a canonical Rust longhand;
