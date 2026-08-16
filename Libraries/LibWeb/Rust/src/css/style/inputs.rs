@@ -256,6 +256,7 @@ impl StyleEngine {
     }
 
     pub(super) fn add_routing_rule(&mut self, rule: RuleID, program: SelectorProgramID) {
+        self.programs.settle_memory(&mut self.memory);
         // A detached sheet's routes were shed, and reattachment restores the current routes of
         // every live rule in the sheet, so routes added for a rule edited while its sheet is
         // detached would come back twice. The exclusion covers the edit until the sheet reattaches.
@@ -266,7 +267,7 @@ impl StyleEngine {
             return;
         }
         let routing = Rc::get_mut(&mut self.routing).expect("routing program is shared outside a planning epoch");
-        routing.add_rule(rule, program, self.programs.get(program));
+        routing.add_rule(rule, program, &self.programs);
         routing.settle_memory(&mut self.memory);
     }
 
@@ -739,26 +740,26 @@ impl StyleEngine {
     pub(super) fn apply_to_facts_without_settling(&mut self, key: InputKey, new: InputValue) {
         match (key, new) {
             (InputKey::LocalFeature(node, feature), InputValue::Feature(value)) => match feature {
-                FeatureKey::TagName => {
+                LocalFeatureKey::TagName => {
                     if let FeatureValue::Atom(atom) = value {
                         self.facts.set_tag(node, atom, &mut self.memory);
                     }
                 }
-                FeatureKey::PartExposure => self.facts.set_part_exposure(
+                LocalFeatureKey::PartExposure => self.facts.set_part_exposure(
                     node,
                     match value {
                         FeatureValue::Atom(atom) => atom,
                         _ => StyleAtomID::NONE,
                     },
                 ),
-                FeatureKey::Language => self.facts.set_language(
+                LocalFeatureKey::Language => self.facts.set_language(
                     node,
                     match value {
                         FeatureValue::Atom(atom) => atom,
                         _ => StyleAtomID::NONE,
                     },
                 ),
-                FeatureKey::Directionality => self.facts.set_directionality(
+                LocalFeatureKey::Directionality => self.facts.set_directionality(
                     node,
                     match value {
                         FeatureValue::Atom(atom) => atom,
@@ -766,14 +767,14 @@ impl StyleEngine {
                     },
                     &mut self.memory,
                 ),
-                FeatureKey::HeadingLevel => self.facts.set_heading_level(
+                LocalFeatureKey::HeadingLevel => self.facts.set_heading_level(
                     node,
                     match value {
                         FeatureValue::Number(level) => level as u8,
                         _ => 0,
                     },
                 ),
-                FeatureKey::FoldedTagName => self.facts.set_folded_tag(
+                LocalFeatureKey::FoldedTagName => self.facts.set_folded_tag(
                     node,
                     match value {
                         FeatureValue::Atom(atom) => atom,
@@ -783,11 +784,11 @@ impl StyleEngine {
                 ),
                 // Parts and custom states are published as complete sets after their individual
                 // journal deltas have been recorded. Arrival is only a routing key.
-                FeatureKey::Part(_) | FeatureKey::CustomState(_) | FeatureKey::ArrivingFacts => {}
+                LocalFeatureKey::Part(_) | LocalFeatureKey::CustomState(_) | LocalFeatureKey::ArrivingFacts => {}
                 // A text node is not a style node, so nothing in the tree can say it is there.
                 // `Present` on this key means the element is empty.
-                FeatureKey::Emptiness => self.facts.set_has_text_content(node, !value.holds()),
-                FeatureKey::Id => self.facts.set_id(
+                LocalFeatureKey::Emptiness => self.facts.set_has_text_content(node, !value.holds()),
+                LocalFeatureKey::Id => self.facts.set_id(
                     node,
                     match value {
                         FeatureValue::Atom(atom) => atom,
@@ -795,8 +796,8 @@ impl StyleEngine {
                     },
                     &mut self.memory,
                 ),
-                FeatureKey::Class(class) => self.facts.set_class(node, class, value.holds(), &mut self.memory),
-                FeatureKey::Attribute(name) => {
+                LocalFeatureKey::Class(class) => self.facts.set_class(node, class, value.holds(), &mut self.memory),
+                LocalFeatureKey::Attribute(name) => {
                     // The value's atom rides on the same delta. Presence is what routing reads; the
                     // value is what an exact test compares, and a cold pass has no DOM to ask.
                     let atom = match value {
@@ -820,7 +821,7 @@ impl StyleEngine {
             // per element rather than one per fact. Routing reads the facts back off the element.
             self.counters.bump(Counter::ArrivingNodeFactsFolded);
             self.journal.record(
-                InputKey::LocalFeature(node, FeatureKey::ArrivingFacts),
+                InputKey::LocalFeature(node, LocalFeatureKey::ArrivingFacts),
                 InputValue::Feature(FeatureValue::Absent),
                 InputValue::Feature(FeatureValue::Present),
                 &mut self.memory,
@@ -849,7 +850,7 @@ impl StyleEngine {
     #[must_use]
     pub(super) fn node_whose_arrival_carries(&self, key: InputKey) -> Option<StyleNodeID> {
         let node = match key {
-            InputKey::LocalFeature(node, feature) if feature != FeatureKey::ArrivingFacts => node,
+            InputKey::LocalFeature(node, feature) if feature != LocalFeatureKey::ArrivingFacts => node,
             InputKey::State(node, _) => node,
             _ => return None,
         };
@@ -886,18 +887,18 @@ impl StyleEngine {
             }
         }
         if !self.facts.language_of(node).is_none() {
-            keys.push(RoutingKey::ValueState(ValueStateKind::Language, StyleAtomID::NONE));
+            keys.push(RoutingKey::Language);
         }
         let directionality = self.facts.directionality_of(node);
         if !directionality.is_none() {
-            keys.push(RoutingKey::ValueState(ValueStateKind::Directionality, directionality));
+            keys.push(RoutingKey::Directionality(directionality));
         }
         if let Some(row) = self.facts.primary().row_of(node) {
             for &part in self.facts.primary().parts_of(row) {
                 keys.push(RoutingKey::Part(part));
             }
             for &state in self.facts.primary().custom_states_of(row) {
-                keys.push(RoutingKey::ValueState(ValueStateKind::CustomState, state));
+                keys.push(RoutingKey::CustomState(state));
             }
         }
         for fact in self.facts.states_of_node(node).facts() {
@@ -1104,23 +1105,19 @@ impl StyleEngine {
         if self.facts.parts_of(node) != parts {
             let previous: Vec<StyleAtomID> = self.facts.parts_of(node).to_vec();
             for part in previous.iter().filter(|part| !parts.contains(part)) {
-                self.facts
-                    .postings_mut()
-                    .remove(PostingKey::Selector(SelectorPostingKey::Part(*part)), node);
+                self.facts.postings_mut().remove(SelectorPostingKey::Part(*part), node);
                 self.record_input(
-                    InputKey::LocalFeature(node, FeatureKey::Part(*part)),
+                    InputKey::LocalFeature(node, LocalFeatureKey::Part(*part)),
                     InputValue::Feature(FeatureValue::Present),
                     InputValue::Feature(FeatureValue::Absent),
                 );
             }
             for part in parts.iter().filter(|part| !previous.contains(part)) {
-                self.facts.postings_mut().insert(
-                    PostingKey::Selector(SelectorPostingKey::Part(*part)),
-                    node,
-                    &mut self.memory,
-                );
+                self.facts
+                    .postings_mut()
+                    .insert(SelectorPostingKey::Part(*part), node, &mut self.memory);
                 self.record_input(
-                    InputKey::LocalFeature(node, FeatureKey::Part(*part)),
+                    InputKey::LocalFeature(node, LocalFeatureKey::Part(*part)),
                     InputValue::Feature(FeatureValue::Absent),
                     InputValue::Feature(FeatureValue::Present),
                 );
@@ -1149,7 +1146,7 @@ impl StyleEngine {
             return;
         }
         self.record_input(
-            InputKey::LocalFeature(node, FeatureKey::PartExposure),
+            InputKey::LocalFeature(node, LocalFeatureKey::PartExposure),
             InputValue::Feature(Self::atom_or_absent(previous)),
             InputValue::Feature(Self::atom_or_absent(exposure)),
         );
@@ -1176,7 +1173,7 @@ impl StyleEngine {
             return;
         }
         self.record_input(
-            InputKey::LocalFeature(node, FeatureKey::HeadingLevel),
+            InputKey::LocalFeature(node, LocalFeatureKey::HeadingLevel),
             InputValue::Feature(FeatureValue::Number(u32::from(previous))),
             InputValue::Feature(FeatureValue::Number(u32::from(level))),
         );
@@ -1203,7 +1200,7 @@ impl StyleEngine {
             return;
         }
         self.record_input(
-            InputKey::LocalFeature(node, FeatureKey::Language),
+            InputKey::LocalFeature(node, LocalFeatureKey::Language),
             InputValue::Feature(Self::atom_or_absent(previous)),
             InputValue::Feature(Self::atom_or_absent(language)),
         );
@@ -1216,7 +1213,7 @@ impl StyleEngine {
             return;
         }
         self.record_input(
-            InputKey::LocalFeature(node, FeatureKey::Directionality),
+            InputKey::LocalFeature(node, LocalFeatureKey::Directionality),
             InputValue::Feature(Self::atom_or_absent(previous)),
             InputValue::Feature(Self::atom_or_absent(directionality)),
         );
@@ -1235,21 +1232,19 @@ impl StyleEngine {
         for state in previous.iter().filter(|state| !states.contains(state)) {
             self.facts
                 .postings_mut()
-                .remove(PostingKey::Selector(SelectorPostingKey::CustomState(*state)), node);
+                .remove(SelectorPostingKey::CustomState(*state), node);
             self.record_input(
-                InputKey::LocalFeature(node, FeatureKey::CustomState(*state)),
+                InputKey::LocalFeature(node, LocalFeatureKey::CustomState(*state)),
                 InputValue::Feature(FeatureValue::Present),
                 InputValue::Feature(FeatureValue::Absent),
             );
         }
         for state in states.iter().filter(|state| !previous.contains(state)) {
-            self.facts.postings_mut().insert(
-                PostingKey::Selector(SelectorPostingKey::CustomState(*state)),
-                node,
-                &mut self.memory,
-            );
+            self.facts
+                .postings_mut()
+                .insert(SelectorPostingKey::CustomState(*state), node, &mut self.memory);
             self.record_input(
-                InputKey::LocalFeature(node, FeatureKey::CustomState(*state)),
+                InputKey::LocalFeature(node, LocalFeatureKey::CustomState(*state)),
                 InputValue::Feature(FeatureValue::Absent),
                 InputValue::Feature(FeatureValue::Present),
             );
@@ -1296,7 +1291,7 @@ impl StyleEngine {
         let programs = &self.programs;
         let routing = Rc::get_mut(&mut self.routing).expect("routing program is shared outside a planning epoch");
         for (rule, program) in rules {
-            routing.add_rule(rule, program, programs.get(program));
+            routing.add_rule(rule, program, programs);
         }
         routing.settle_memory(&mut self.memory);
     }
@@ -1560,8 +1555,10 @@ impl StyleEngine {
         }
         let mut regions = Vec::new();
         for key in keys {
-            let posting = posting_for_dispatch_key(key)?;
-            match self.facts.postings().lookup(posting) {
+            if !key.has_selector_posting() {
+                return None;
+            }
+            match self.facts.postings().lookup(key) {
                 Lookup::Known(posting) => {
                     for relative in posting.candidates() {
                         regions.push(region(relative));

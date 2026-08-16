@@ -903,8 +903,14 @@ pub(super) struct RetainedAnswerDeltaMemoKey {
 }
 
 pub(super) struct RetainedAnswerDeltaMemoEntry {
-    pub(super) deltas: Vec<(RuleID, SelectorProgramID, u32, SetChange)>,
+    pub(super) deltas: Vec<(RuleID, EntryID, SetChange)>,
     pub(super) transition: RetainedAnswerDeltaTransition,
+}
+
+impl RetainedAnswerDeltaMemoEntry {
+    pub(super) fn capacity_bytes(&self) -> u64 {
+        (self.deltas.capacity() * size_of::<(RuleID, EntryID, SetChange)>()) as u64
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -953,11 +959,7 @@ impl RetainedAnswerPatch {
                 self.cascade_compaction_workspace.capacity_bytes(),
                 self.delta_memo
                     .values()
-                    .map(|entry| {
-                        (entry.deltas.capacity()
-                            * size_of::<(RuleID, SelectorProgramID, u32, SetChange)>())
-                            as u64
-                    })
+                    .map(RetainedAnswerDeltaMemoEntry::capacity_bytes)
                     .sum::<u64>(),
             ];
             skip [];

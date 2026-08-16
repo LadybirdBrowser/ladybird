@@ -12,8 +12,8 @@
 use super::fast_hash::FastMap as HashMap;
 
 use super::capacity::capacity_bytes;
-use super::index::FeatureKey;
 use super::index::FeatureValue;
+use super::index::LocalFeatureKey;
 use super::index::StyleNodeFacts;
 use super::instrumentation::Counter;
 use super::instrumentation::Counters;
@@ -181,7 +181,7 @@ define_input_kinds! {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum InputKey {
     TreeRelations(StyleNodeID),
-    LocalFeature(StyleNodeID, FeatureKey),
+    LocalFeature(StyleNodeID, LocalFeatureKey),
     State(StyleNodeID, StateFact),
     ElementDeclaration(StyleNodeID, ElementDeclarationKind),
     /// A non-selector style input owned by the element changed. This is an edge-triggered action,
@@ -622,7 +622,7 @@ impl NormalizationJournal {
                     return true;
                 }
                 match input.key {
-                    InputKey::LocalFeature(_, FeatureKey::ArrivingFacts) => false,
+                    InputKey::LocalFeature(_, LocalFeatureKey::ArrivingFacts) => false,
                     InputKey::LocalFeature(..) | InputKey::State(..) => {
                         counters.bump(Counter::ArrivingNodeFactsFolded);
                         false
@@ -631,7 +631,7 @@ impl NormalizationJournal {
                 }
             });
             inputs.extend(arriving_nodes.into_iter().map(|node| NormalizedInput {
-                key: InputKey::LocalFeature(node, FeatureKey::ArrivingFacts),
+                key: InputKey::LocalFeature(node, LocalFeatureKey::ArrivingFacts),
                 old: InputValue::Feature(FeatureValue::Absent),
                 new: InputValue::Feature(FeatureValue::Present),
             }));
@@ -797,7 +797,7 @@ mod tests {
                 })
             };
             self.record(
-                InputKey::LocalFeature(StyleNodeID::element(node), FeatureKey::Class(StyleAtomID(class))),
+                InputKey::LocalFeature(StyleNodeID::element(node), LocalFeatureKey::Class(StyleAtomID(class))),
                 value(old),
                 value(new),
             );
@@ -930,7 +930,7 @@ mod tests {
         let mut fixture = JournalFixture::new();
         let node = StyleNodeID::element(5);
         fixture.record(
-            InputKey::LocalFeature(node, FeatureKey::TagName),
+            InputKey::LocalFeature(node, LocalFeatureKey::TagName),
             InputValue::Feature(FeatureValue::Absent),
             InputValue::Feature(FeatureValue::Atom(StyleAtomID(1))),
         );
@@ -954,7 +954,7 @@ mod tests {
                 && input.new == relations(1)
         }));
         assert!(transaction.inputs.iter().any(|input| {
-            input.key == InputKey::LocalFeature(node, FeatureKey::ArrivingFacts)
+            input.key == InputKey::LocalFeature(node, LocalFeatureKey::ArrivingFacts)
                 && input.old == InputValue::Feature(FeatureValue::Absent)
                 && input.new == InputValue::Feature(FeatureValue::Present)
         }));

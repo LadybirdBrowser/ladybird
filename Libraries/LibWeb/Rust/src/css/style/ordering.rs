@@ -731,9 +731,7 @@ impl StyleEngine {
     ) -> bool {
         let mut targets = Vec::new();
         for delta in deltas {
-            let Some(entry) = self.programs.get(delta.program).entries().get(delta.entry as usize) else {
-                return false;
-            };
+            let entry = self.programs.entry(delta.entry).1;
             if !targets.contains(&entry.pseudo_element) {
                 targets.push(entry.pseudo_element);
             }
@@ -765,15 +763,7 @@ impl StyleEngine {
         let mut repair_properties = Vec::new();
         let mut updates = Vec::new();
         for delta in deltas {
-            let Some(entry) = self
-                .programs
-                .get(delta.program)
-                .entries()
-                .get(delta.entry as usize)
-                .copied()
-            else {
-                return false;
-            };
+            let entry = *self.programs.entry(delta.entry).1;
             if entry.pseudo_element != pseudo {
                 continue;
             }
@@ -793,7 +783,7 @@ impl StyleEngine {
                     continue;
                 }
                 let Some(matched) = matches.iter().find(|matched| {
-                    matched.rule == delta.rule && matched.program == delta.program && matched.entry == delta.entry
+                    matched.rule == delta.rule && self.programs.entry_id(matched.program, matched.entry) == delta.entry
                 }) else {
                     return false;
                 };
@@ -1251,7 +1241,7 @@ impl StyleEngine {
             if excluded_sheets.contains(&self.program.rule_sheet(rule)) {
                 continue;
             }
-            rebuilt_routing.add_rule(rule, program, self.programs.get(program));
+            rebuilt_routing.add_rule(rule, program, &self.programs);
         }
         let mut previous_routing = std::mem::replace(&mut self.routing, Rc::new(rebuilt_routing));
         Rc::get_mut(&mut previous_routing)
@@ -1291,7 +1281,7 @@ impl StyleEngine {
                 excluded_sheets.insert(sheet);
                 continue;
             }
-            rebuilt_routing.add_rule(rule, program, self.programs.get(program));
+            rebuilt_routing.add_rule(rule, program, &self.programs);
         }
         self.sheets_excluded_from_routing = excluded_sheets;
         let mut previous_routing = std::mem::replace(&mut self.routing, Rc::new(rebuilt_routing));

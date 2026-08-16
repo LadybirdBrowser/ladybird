@@ -32,6 +32,7 @@ use super::column::PagedColumnPage;
 use super::fast_hash::FastMap as HashMap;
 use super::fast_hash::fast_hasher;
 use super::index::DispatchKey;
+use super::index::FeatureKey;
 use super::index::StyleAtomID;
 use super::index::StyleNodeFacts;
 use super::instrumentation::Counter;
@@ -49,6 +50,7 @@ use super::memory::MemoryCategory;
 use super::memory::MemoryController;
 use super::memory::MemoryLease;
 use super::partial_view::Lookup;
+use super::program::EntryID;
 use super::program::RuleID;
 use super::program::SelectorProgramID;
 use super::relative_selector::RelationalWitnessKey;
@@ -2147,25 +2149,6 @@ fn dispatch_key_for_feature(test: FeatureTest) -> DispatchKey {
     }
 }
 
-/// The semantic input represented by a dispatch key, when one can move independently.
-#[must_use]
-fn routing_key_for_dispatch(key: DispatchKey) -> Option<RoutingKey> {
-    match key {
-        DispatchKey::TagName(tag) => Some(RoutingKey::TagName(tag)),
-        DispatchKey::Id(id) => Some(RoutingKey::Id(id)),
-        DispatchKey::Class(class) => Some(RoutingKey::Class(class)),
-        DispatchKey::AttributeName(attribute) => Some(RoutingKey::AttributeName(attribute)),
-        DispatchKey::State(state) => Some(RoutingKey::State(state)),
-        DispatchKey::Part(part) => Some(RoutingKey::Part(part)),
-        DispatchKey::CustomState(state) => Some(RoutingKey::ValueState(ValueStateKind::CustomState, state)),
-        DispatchKey::Directionality(direction) => {
-            Some(RoutingKey::ValueState(ValueStateKind::Directionality, direction))
-        }
-        DispatchKey::Root | DispatchKey::Heading => Some(RoutingKey::Structural),
-        DispatchKey::Universal => None,
-    }
-}
-
 /// How many keys a compound may carry before checking them all costs more than the rejections save.
 const MAX_DISPATCH_KEYS: usize = 8;
 
@@ -2199,6 +2182,7 @@ fn dispatch_selectivity(key: DispatchKey) -> u8 {
         DispatchKey::State(_) => 5,
         DispatchKey::Heading => 5,
         DispatchKey::Universal => 6,
+        _ => unreachable!("non-dispatch feature key"),
     }
 }
 
@@ -2209,6 +2193,9 @@ fn dispatch_selectivity(key: DispatchKey) -> u8 {
 pub struct SelectorPrograms {
     programs: Vec<Option<SelectorProgram>>,
     vacant_programs: Vec<SelectorProgramID>,
+    entry_ids_by_program: Vec<Option<Box<[EntryID]>>>,
+    entry_locations: Vec<Option<(SelectorProgramID, u32)>>,
+    vacant_entries: Vec<EntryID>,
     /// Open-addressed structural interning table. Reclamation rebuilds it, so lookup never has to
     /// carry tombstones for vacant program identities.
     program_index: Vec<Option<SelectorProgramID>>,
@@ -2225,6 +2212,9 @@ impl Default for SelectorPrograms {
         Self {
             programs: Vec::new(),
             vacant_programs: Vec::new(),
+            entry_ids_by_program: Vec::new(),
+            entry_locations: Vec::new(),
+            vacant_entries: Vec::new(),
             program_index: Vec::new(),
             program_memory: MemoryLease::new(MemoryCategory::RuleProgram),
             memory: MemoryLease::new(MemoryCategory::RuleProgram),
@@ -2256,6 +2246,7 @@ impl SelectorPrograms {
             }
         }
 
+        let entry_count = program.entries().len();
         let id = self.vacant_programs.pop().unwrap_or_else(|| {
             SelectorProgramID(u32::try_from(self.programs.len()).expect("selector program space exhausted"))
         });
@@ -2265,6 +2256,33 @@ impl SelectorPrograms {
         } else {
             self.programs[id.0 as usize] = Some(program);
         }
+        let recycled_count = entry_count.min(self.vacant_entries.len());
+        let mut recycled_entries = self
+            .vacant_entries
+            .split_off(self.vacant_entries.len() - recycled_count);
+        recycled_entries.sort_unstable();
+        let mut recycled_entries = recycled_entries.into_iter();
+        let entries: Box<[EntryID]> = (0..entry_count)
+            .map(|index| {
+                let entry = recycled_entries.next().unwrap_or_else(|| {
+                    EntryID(u32::try_from(self.entry_locations.len()).expect("selector entry space exhausted"))
+                });
+                let location = Some((
+                    id,
+                    u32::try_from(index).expect("selector program entry space exhausted"),
+                ));
+                if entry.0 as usize == self.entry_locations.len() {
+                    self.entry_locations.push(location);
+                } else {
+                    self.entry_locations[entry.0 as usize] = location;
+                }
+                entry
+            })
+            .collect();
+        if self.entry_ids_by_program.len() <= id.0 as usize {
+            self.entry_ids_by_program.resize_with(id.0 as usize + 1, || None);
+        }
+        self.entry_ids_by_program[id.0 as usize] = Some(entries);
         self.program_index[bucket] = Some(id);
         (id, true)
     }
@@ -2301,6 +2319,30 @@ impl SelectorPrograms {
             .expect("a selector program identity must remain live while referenced")
     }
 
+    #[must_use]
+    pub fn entry_id(&self, program: SelectorProgramID, entry: u32) -> EntryID {
+        self.entry_ids_by_program[program.0 as usize]
+            .as_ref()
+            .expect("a live selector program must have entry identities")[entry as usize]
+    }
+
+    #[must_use]
+    pub fn entry_location(&self, entry: EntryID) -> (SelectorProgramID, u32) {
+        self.entry_locations[entry.0 as usize].expect("a referenced selector entry identity must remain live")
+    }
+
+    #[must_use]
+    pub fn entry(&self, entry: EntryID) -> (&SelectorProgram, &SelectorEntry) {
+        let (program, index) = self.entry_location(entry);
+        let program = self.get(program);
+        (program, &program.entries()[index as usize])
+    }
+
+    #[must_use]
+    pub fn entry_capacity(&self) -> usize {
+        self.entry_locations.len()
+    }
+
     pub fn sweep_unreferenced(&mut self, referenced: &[bool]) {
         self.vacant_programs.clear();
         for (index, slot) in self.programs.iter_mut().enumerate() {
@@ -2310,6 +2352,12 @@ impl SelectorPrograms {
             }
             if let Some(program) = slot.take() {
                 self.program_memory.shrink_committed(program.capacity_bytes());
+            }
+            if let Some(entries) = self.entry_ids_by_program[index].take() {
+                for entry in entries {
+                    self.entry_locations[entry.0 as usize] = None;
+                    self.vacant_entries.push(entry);
+                }
             }
             self.vacant_programs.push(SelectorProgramID(
                 u32::try_from(index).expect("selector program space exhausted"),
@@ -2347,9 +2395,22 @@ impl SelectorPrograms {
     #[must_use]
     pub fn capacity_bytes(&self) -> u64 {
         capacity_bytes! {
-            shallow [self.programs, self.vacant_programs, self.program_index];
+            shallow [
+                self.programs,
+                self.vacant_programs,
+                self.entry_ids_by_program,
+                self.entry_locations,
+                self.vacant_entries,
+                self.program_index,
+            ];
             cached [self.program_memory.bytes()];
-            nested [];
+            nested [self
+                .entry_ids_by_program
+                .iter()
+                .flatten()
+                .map(|entries| size_of_val(entries.as_ref()))
+                .sum::<usize>()
+                ];
             skip [self.memory];
         }
     }
@@ -2405,22 +2466,8 @@ pub enum InverseStep {
     SlotAssignees,
 }
 
-/// The semantic input a transpose route is routed from.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum RoutingKey {
-    TagName(StyleAtomID),
-    Id(StyleAtomID),
-    Class(StyleAtomID),
-    /// Attribute presence and value share one key, because one mutation changes both.
-    AttributeName(StyleAtomID),
-    State(StateFact),
-    /// The entry depends on the shape of a child sequence rather than on any local fact.
-    Structural,
-    /// One exposed part name.
-    Part(StyleAtomID),
-    /// One parameterized state and the value it tests.
-    ValueState(ValueStateKind, StyleAtomID),
-}
+/// The semantic feature a transpose route is routed from.
+pub type RoutingKey = FeatureKey;
 
 /// How a possible witness reaches the anchors whose relational truth it can flip.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -2471,8 +2518,8 @@ pub struct RelativeAnchor {
 /// How to get from one semantic input in a selector entry to the subjects it can affect.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TransposeRoute {
-    pub program: SelectorProgramID,
-    pub entry: u32,
+    pub rule: RuleID,
+    pub entry: EntryID,
     /// Whether the selector entry can be answered by the top-down prefix automaton.
     pub has_prefix_chain: bool,
     /// Whether every prefix compound reads only facts on its own element.
@@ -2558,8 +2605,7 @@ impl RouteID {
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 struct RouteDescriptor<'a> {
     rule: RuleID,
-    program: SelectorProgramID,
-    entry: u32,
+    entry: EntryID,
     structural_node: Option<SelectorNodeID>,
     subject_dispatch: &'a [DispatchKey],
     subject_required: &'a [DispatchKey],
@@ -2653,7 +2699,8 @@ impl SelectorProgram {
 
         match self.node(id) {
             SelectorOp::Feature(test) => {
-                if let Some(key) = routing_key_for_dispatch(dispatch_key_for_feature(test)) {
+                let key = dispatch_key_for_feature(test);
+                if key != RoutingKey::Universal {
                     emit(walk, key, visit);
                 } else if anchor.is_some() {
                     // `*` names no fact, so as a subject it needs no key: the only thing that can
@@ -2797,7 +2844,15 @@ impl SelectorProgram {
             // The compounds of the chain carry the keys the query is reachable by.
             SelectorOp::RelativeAnchorInstance => {}
             SelectorOp::ValueState { kind, value } => {
-                emit(walk, RoutingKey::ValueState(kind.routing_kind(), value), visit);
+                emit(
+                    walk,
+                    match kind.routing_kind() {
+                        ValueStateKind::Directionality => RoutingKey::Directionality(value),
+                        ValueStateKind::CustomState => RoutingKey::CustomState(value),
+                        ValueStateKind::Language => unreachable!("language has its own selector operator"),
+                    },
+                    visit,
+                );
             }
             // The subject is reached through what the rule writes inside the scope, so that is the
             // path. An element becoming or ceasing to be a scoping root moves the scope of
@@ -2817,11 +2872,7 @@ impl SelectorProgram {
             }
             // A range is not a name, so every `:lang()` registers under one key and a resolved
             // language moving reaches all of them.
-            SelectorOp::Language { .. } => emit(
-                walk,
-                RoutingKey::ValueState(ValueStateKind::Language, StyleAtomID::NONE),
-                visit,
-            ),
+            SelectorOp::Language { .. } => emit(walk, RoutingKey::Language, visit),
             SelectorOp::Heading(_) => emit(walk, RoutingKey::Structural, visit),
         }
     }
@@ -2934,7 +2985,6 @@ pub struct RoutingRegistry {
     sibling_first: Vec<RouteID>,
     /// Sibling-first routes indexed by a distinguishing feature of their left compound.
     sibling_first_by_origin: HashMap<DispatchKey, Vec<RouteID>>,
-    rules: Vec<RuleID>,
     by_input: HashMap<RoutingKey, Vec<RouteID>>,
     arrival_by_input: HashMap<RoutingKey, Vec<RouteID>>,
     canonical_routes: HashMap<u64, RouteID>,
@@ -2952,7 +3002,6 @@ impl Default for RoutingRegistry {
             relational: Vec::new(),
             sibling_first: Vec::new(),
             sibling_first_by_origin: HashMap::default(),
-            rules: Vec::new(),
             by_input: HashMap::default(),
             arrival_by_input: HashMap::default(),
             canonical_routes: HashMap::default(),
@@ -2995,7 +3044,6 @@ impl RoutingRegistry {
         }
         let RouteDescriptor {
             rule,
-            program,
             entry,
             structural_node,
             subject_dispatch,
@@ -3025,7 +3073,7 @@ impl RoutingRegistry {
             let waypoint_offset = u32::try_from(self.keys.len()).expect("dispatch key space exhausted");
             self.keys.extend_from_slice(waypoints);
             self.routes.push(TransposeRoute {
-                program,
+                rule,
                 entry,
                 has_prefix_chain: selector_entry.has_prefix_chain(),
                 prefix_chain_has_only_local_facts: selector_entry.prefix_chain_has_only_local_facts(),
@@ -3047,7 +3095,6 @@ impl RoutingRegistry {
                 waypoint_offset,
                 waypoint_length: u32::try_from(waypoints.len()).expect("dispatch key space exhausted"),
             });
-            self.rules.push(rule);
             if anchor.is_some() {
                 self.relational.push(route);
             }
@@ -3090,8 +3137,7 @@ impl RoutingRegistry {
     fn route_descriptor(&self, route: RouteID) -> RouteDescriptor<'_> {
         let point = self.route(route);
         RouteDescriptor {
-            rule: self.rule_of(route),
-            program: point.program,
+            rule: point.rule,
             entry: point.entry,
             structural_node: point.structural_node,
             subject_dispatch: self.subject_dispatch_of(route),
@@ -3143,7 +3189,7 @@ impl RoutingRegistry {
 
     #[must_use]
     pub fn rule_of(&self, route: RouteID) -> RuleID {
-        self.rules[route.index()]
+        self.route(route).rule
     }
 
     #[must_use]
@@ -3222,8 +3268,10 @@ impl RoutingRegistry {
     }
 
     /// Add every transpose route of one attached rule.
-    pub fn add_rule(&mut self, rule: RuleID, program: SelectorProgramID, compiled: &SelectorProgram) {
+    pub fn add_rule(&mut self, rule: RuleID, program: SelectorProgramID, programs: &SelectorPrograms) {
+        let compiled = programs.get(program);
         for entry in 0..compiled.entries().len() {
+            let entry_id = programs.entry_id(program, u32::try_from(entry).expect("selector entry space exhausted"));
             let selector_entry = compiled.entries()[entry];
             let subject_dispatch = compiled.subject_dispatch_keys(entry);
             let subject_required = compiled.subject_required_keys(entry);
@@ -3233,8 +3281,7 @@ impl RoutingRegistry {
                     site.key,
                     RouteDescriptor {
                         rule,
-                        program,
-                        entry: u32::try_from(entry).expect("selector entry space exhausted"),
+                        entry: entry_id,
                         structural_node: (site.key == RoutingKey::Structural).then_some(site.node),
                         subject_dispatch,
                         subject_required,
@@ -3260,7 +3307,6 @@ impl RoutingRegistry {
                 self.relational,
                 self.sibling_first,
                 self.sibling_first_by_origin,
-                self.rules,
                 self.paths,
                 self.keys,
                 self.by_input,
@@ -5531,7 +5577,7 @@ fn starts_with(value: &[u16], literal: &[u16], insensitive: bool) -> bool {
 #[cfg(test)]
 mod tests {
     use super::super::index::AttributeFact;
-    use super::super::index::FeatureKey;
+    use super::super::index::LocalFeatureKey;
     use super::super::index::StateSet;
     use super::super::memory::DeviceClass;
     use super::super::memory::MemoryController;
@@ -6096,7 +6142,7 @@ mod tests {
             let has_descendant = builder.push_relative_exists(RelativeQuery {
                 axis: RelativeAxis::Descendant,
                 compound: descendant,
-                driving_feature: Some(FeatureKey::Class(CLASS_THEME)),
+                driving_feature: Some(LocalFeatureKey::Class(CLASS_THEME)),
                 simple: true,
                 witness_is_below_the_axis: false,
                 match_in_shadow_tree: false,
@@ -6123,7 +6169,7 @@ mod tests {
             builder.push_relative_exists(RelativeQuery {
                 axis: RelativeAxis::FollowingSibling,
                 compound: item,
-                driving_feature: Some(FeatureKey::Class(CLASS_ITEM)),
+                driving_feature: Some(LocalFeatureKey::Class(CLASS_ITEM)),
                 simple: true,
                 witness_is_below_the_axis: false,
                 match_in_shadow_tree: false,
@@ -6572,6 +6618,7 @@ mod tests {
     fn the_registry_returns_only_the_routes_that_mention_an_input() {
         let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
         let mut registry = RoutingRegistry::new();
+        let mut programs = SelectorPrograms::new();
 
         let hovered = single_entry(|builder| {
             let class = builder.push_feature(FeatureTest::Class(CLASS_ITEM));
@@ -6599,10 +6646,14 @@ mod tests {
             builder.push_compound(&[theme, has])
         });
 
-        registry.add_rule(RuleID(1), SelectorProgramID(0), &hovered);
-        registry.add_rule(RuleID(2), SelectorProgramID(1), &unrelated);
-        registry.add_rule(RuleID(3), SelectorProgramID(2), &sibling);
-        registry.add_rule(RuleID(4), SelectorProgramID(3), &relational);
+        let hovered = programs.add(hovered);
+        let unrelated = programs.add(unrelated);
+        let sibling = programs.add(sibling);
+        let relational = programs.add(relational);
+        registry.add_rule(RuleID(1), hovered, &programs);
+        registry.add_rule(RuleID(2), unrelated, &programs);
+        registry.add_rule(RuleID(3), sibling, &programs);
+        registry.add_rule(RuleID(4), relational, &programs);
         registry.settle_memory(&mut memory);
 
         // A hover change reaches only the rule that mentions it.
@@ -6635,7 +6686,9 @@ mod tests {
             builder.push_compound(&[target, preceding])
         });
         let mut registry = RoutingRegistry::new();
-        registry.add_rule(RuleID(1), SelectorProgramID(0), &sibling);
+        let mut programs = SelectorPrograms::new();
+        let sibling = programs.add(sibling);
+        registry.add_rule(RuleID(1), sibling, &programs);
 
         let item_routes = registry.routes_for(RoutingKey::Class(CLASS_ITEM));
         let theme_routes = registry.routes_for(RoutingKey::Class(CLASS_THEME));
@@ -6661,7 +6714,9 @@ mod tests {
             builder.push_compound(&[empty, first])
         });
         let mut registry = RoutingRegistry::new();
-        registry.add_rule(RuleID(1), SelectorProgramID(0), &structural);
+        let mut programs = SelectorPrograms::new();
+        let structural = programs.add(structural);
+        registry.add_rule(RuleID(1), structural, &programs);
 
         let routes = registry.routes_for(RoutingKey::Structural);
         assert_eq!(routes.len(), 2);
@@ -6701,6 +6756,8 @@ mod tests {
         let first = programs.add(make_program());
         let second = programs.add(make_program());
         assert_eq!(first, second);
+        let entry = programs.entry_id(first, 0);
+        assert_eq!(entry, programs.entry_id(second, 0));
         assert_eq!(programs.len(), 1);
 
         let different = programs.add(single_entry(|builder| {
@@ -6716,6 +6773,7 @@ mod tests {
         let first = programs.add(single_entry(|builder| {
             builder.push_feature(FeatureTest::Class(StyleAtomID(7)))
         }));
+        let first_entry = programs.entry_id(first, 0);
         let retained = programs.add(single_entry(|builder| {
             builder.push_feature(FeatureTest::Class(StyleAtomID(8)))
         }));
@@ -6729,12 +6787,14 @@ mod tests {
             builder.push_feature(FeatureTest::Class(StyleAtomID(9)))
         }));
         assert_eq!(reused, first);
+        assert_eq!(programs.entry_id(reused, 0), first_entry);
         assert_eq!(programs.len(), 2);
     }
 
     #[test]
     fn the_registry_stays_proportional_to_selector_input_incidence() {
         let mut registry = RoutingRegistry::new();
+        let mut programs = SelectorPrograms::new();
         for index in 0..200_u32 {
             let program = single_entry(|builder| {
                 let class = builder.push_feature(FeatureTest::Class(StyleAtomID(1000 + index)));
@@ -6742,7 +6802,8 @@ mod tests {
                 let ancestor = builder.push(SelectorOp::Ancestor(theme));
                 builder.push_compound(&[class, ancestor])
             });
-            registry.add_rule(RuleID(index), SelectorProgramID(index), &program);
+            let program = programs.add(program);
+            registry.add_rule(RuleID(index), program, &programs);
         }
 
         // Two inputs per rule, and the shared ancestor class collects all two hundred entries.
@@ -6801,7 +6862,7 @@ mod tests {
             let has = builder.push_relative_exists(RelativeQuery {
                 axis: RelativeAxis::NextSibling,
                 compound: selected,
-                driving_feature: Some(super::super::index::FeatureKey::Class(CLASS_ITEM)),
+                driving_feature: Some(super::super::index::LocalFeatureKey::Class(CLASS_ITEM)),
                 simple: true,
                 witness_is_below_the_axis: false,
                 match_in_shadow_tree: false,

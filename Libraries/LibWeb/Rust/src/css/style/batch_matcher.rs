@@ -36,6 +36,7 @@ use super::prefix::PrefixStates;
 use super::prefix::PrefixTransitionGap;
 use super::prefix::PrefixTransitionLookup;
 use super::program::CascadeOrigin;
+use super::program::EntryID;
 use super::program::RuleID;
 use super::program::SelectorProgramID;
 use super::program::StyleSheetProgram;
@@ -272,6 +273,10 @@ pub(super) fn insert_scope_rule(
             _ => StyleAtomID::NONE,
         };
         let template = super::index::DispatchEntry {
+            identity: programs.entry_id(
+                selector_program,
+                u32::try_from(index).expect("selector entry space exhausted"),
+            ),
             rule,
             program: selector_program,
             entry: u32::try_from(index).expect("selector entry space exhausted"),
@@ -307,14 +312,7 @@ pub(super) fn insert_scope_rule(
                 //     automaton, taxing each transition and widening every tree
                 //     flush's re-compare frontier, without any route ever being
                 //     subsumed in return.
-                dispatch.add_prefix_entry(
-                    programs,
-                    selector_program,
-                    u32::try_from(index).expect("selector entry space exhausted"),
-                    &chain,
-                    dispatch_entry,
-                    author,
-                );
+                dispatch.add_prefix_entry(programs, selector_program, &chain, dispatch_entry, author);
             }
         } else {
             // NB: A branch copy carries no required attribute value: a disjunction branch's
@@ -775,31 +773,35 @@ pub(super) fn append_prefix_matches(
     dispatch: &RuleDispatch,
     program: &StyleSheetProgram,
     programs: &SelectorPrograms,
-    matches: &[super::index::DispatchEntryID],
+    matches: &[EntryID],
     counters: &mut Counters,
     count_emission: CountRuleMatchEmission,
 ) {
     let mut completed = None;
     for &matched in matches {
-        let candidate = dispatch.entry(matched);
-        if !program.rule_can_decide(candidate.rule) {
-            continue;
+        for candidate in dispatch.entries_for_identity(matched) {
+            if !candidate.prefix_matched {
+                continue;
+            }
+            if !program.rule_can_decide(candidate.rule) {
+                continue;
+            }
+            let compiled = programs.get(candidate.program);
+            let entry = &compiled.entries()[candidate.entry as usize];
+            append_matched_entry(
+                out,
+                0,
+                node,
+                scope,
+                candidate,
+                compiled,
+                entry,
+                u32::MAX,
+                &mut completed,
+                counters,
+                count_emission,
+            );
         }
-        let compiled = programs.get(candidate.program);
-        let entry = &compiled.entries()[candidate.entry as usize];
-        append_matched_entry(
-            out,
-            0,
-            node,
-            scope,
-            candidate,
-            compiled,
-            entry,
-            u32::MAX,
-            &mut completed,
-            counters,
-            count_emission,
-        );
     }
 }
 
@@ -1216,40 +1218,46 @@ impl<'a> BatchMatcher<'a> {
             if let Some((states, prefix_matches)) = prefix_matches {
                 used_prefixes = true;
                 cascade_pruning_blocked = self.cascade_only
-                    && states
-                        .matches_in(prefix_matches)
-                        .iter()
-                        .any(|&matched| self.dispatch.cascade_pruning_blocker(self.dispatch.entry(matched)));
+                    && states.matches_in(prefix_matches).iter().any(|&matched| {
+                        self.dispatch
+                            .entries_for_identity(matched)
+                            .filter(|candidate| candidate.prefix_matched)
+                            .any(|candidate| self.dispatch.cascade_pruning_blocker(candidate))
+                    });
                 if let Some(deferred) = deferred_prefix_matches {
                     *deferred = Some(prefix_matches);
                 } else {
                     for &matched in states.matches_in(prefix_matches) {
-                        let candidate = self.dispatch.entry(matched);
-                        if !self.rule_filter_admits(candidate.rule, candidate.program) {
-                            continue;
+                        for candidate in self.dispatch.entries_for_identity(matched) {
+                            if !candidate.prefix_matched {
+                                continue;
+                            }
+                            if !self.rule_filter_admits(candidate.rule, candidate.program) {
+                                continue;
+                            }
+                            if !self.program.rule_can_decide(candidate.rule) {
+                                continue;
+                            }
+                            let candidate_index = candidate.cascade_order as usize;
+                            if completed.as_deref().is_some_and(|completed| completed[candidate_index]) {
+                                continue;
+                            }
+                            let compiled = self.programs.get(candidate.program);
+                            let entry = &compiled.entries()[candidate.entry as usize];
+                            append_matched_entry(
+                                out,
+                                start,
+                                node,
+                                self.scope,
+                                candidate,
+                                compiled,
+                                entry,
+                                u32::MAX,
+                                &mut completed,
+                                counters,
+                                self.count_rule_match_emission(),
+                            );
                         }
-                        if !self.program.rule_can_decide(candidate.rule) {
-                            continue;
-                        }
-                        let candidate_index = candidate.cascade_order as usize;
-                        if completed.as_deref().is_some_and(|completed| completed[candidate_index]) {
-                            continue;
-                        }
-                        let compiled = self.programs.get(candidate.program);
-                        let entry = &compiled.entries()[candidate.entry as usize];
-                        append_matched_entry(
-                            out,
-                            start,
-                            node,
-                            self.scope,
-                            candidate,
-                            compiled,
-                            entry,
-                            u32::MAX,
-                            &mut completed,
-                            counters,
-                            self.count_rule_match_emission(),
-                        );
                     }
                 }
             }
@@ -1507,6 +1515,8 @@ mod tests {
     use super::super::index::StateSet;
     use super::super::index::StyleAtomID;
     use super::super::memory::DeviceClass;
+    use super::super::planning::SelectorTruthChanges;
+    use super::super::planning::record_match_set_difference;
     use super::super::program::CascadeOrigin;
     use super::super::program::RuleKind;
     use super::super::program::StyleSheetObjectID;
@@ -1656,6 +1666,76 @@ mod tests {
         assert_eq!(document.matched_nodes(&matches, item), vec![1, 3]);
         assert_eq!(document.matched_nodes(&matches, header), vec![2]);
         assert_eq!(document.matched_nodes(&matches, descendant), vec![2]);
+    }
+
+    #[test]
+    fn shared_selector_entries_join_every_rule_after_prefix_matching() {
+        let mut document = Document::new();
+        let mut builder = SelectorProgramBuilder::new();
+        class_rule(CLASS_ITEM)(&mut builder);
+        let selector_program = document.programs.add(builder.finish());
+        let mut rules = Vec::new();
+        for _ in 0..2 {
+            let rule = document.program.append_rule(document.sheet(), None, RuleKind::Style);
+            let mut version = document.program.rule_version(rule);
+            version.selector_program = Some(selector_program);
+            document.program.replace_rule_version(rule, version);
+            rules.push(rule);
+        }
+
+        let matches = document.run();
+        assert_eq!(document.matched_nodes(&matches, rules[0]), vec![1, 3]);
+        assert_eq!(document.matched_nodes(&matches, rules[1]), vec![1, 3]);
+        assert_eq!(document.counters.get(Counter::CandidateChecks), 0);
+    }
+
+    #[test]
+    fn shared_prefix_identity_emits_only_rows_admitted_to_the_automaton() {
+        let mut document = Document::new();
+        let user_agent_sheet = document
+            .program
+            .add_sheet(StyleSheetObjectID(2), CascadeOrigin::UserAgent);
+        document.program.attach_sheet(user_agent_sheet, TreeScopeID::DOCUMENT);
+
+        let mut builder = SelectorProgramBuilder::new();
+        let any = builder.push_feature(FeatureTest::AnyElement);
+        let first_of_type = builder.push(SelectorOp::NthPosition(NthPosition {
+            step: 0,
+            offset: 1,
+            from_end: false,
+            of_selector: None,
+            of_type: true,
+        }));
+        let root = builder.push_compound(&[any, first_of_type]);
+        builder.push_entry(root);
+        let selector_program = document.programs.add(builder.finish());
+
+        let author_sheet = document.sheet();
+        let mut add_rule = |sheet| {
+            let rule = document.program.append_rule(sheet, None, RuleKind::Style);
+            let mut version = document.program.rule_version(rule);
+            version.selector_program = Some(selector_program);
+            document.program.replace_rule_version(rule, version);
+            rule
+        };
+        let user_agent_rule = add_rule(user_agent_sheet);
+        let author_rule = add_rule(author_sheet);
+
+        let matches = document.run();
+        assert_eq!(document.matched_nodes(&matches, user_agent_rule), vec![0, 1, 2]);
+        assert_eq!(document.matched_nodes(&matches, author_rule), vec![0, 1, 2]);
+
+        let dispatch = build_scope_dispatch(&document.program, &document.programs, TreeScopeID::DOCUMENT);
+        let entry = document.programs.entry_id(selector_program, 0);
+        let rows: Vec<_> = dispatch.entries_for_identity(entry).collect();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows.iter().filter(|row| row.prefix_matched).count(), 1);
+
+        let mut changes = SelectorTruthChanges::default();
+        record_match_set_difference(&mut changes, true, document.nodes[0], &[], &[entry], &dispatch);
+        let mut changed_rules: Vec<_> = changes.deltas.as_slice().iter().map(|delta| delta.rule).collect();
+        changed_rules.sort_unstable();
+        assert_eq!(changed_rules, vec![user_agent_rule, author_rule]);
     }
 
     #[test]

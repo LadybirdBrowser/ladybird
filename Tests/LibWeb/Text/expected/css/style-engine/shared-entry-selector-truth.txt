@@ -1,0 +1,3 @@
+initial: block, rgb(0, 0, 0)
+incremental: list-item, rgb(255, 0, 0)
+cold: list-item, rgb(255, 0, 0)

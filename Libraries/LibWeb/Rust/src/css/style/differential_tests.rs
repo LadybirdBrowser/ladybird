@@ -19,8 +19,8 @@ use super::computed::ComputedMetadataInput;
 use super::computed::ComputedReconstructionMetadataInput;
 use super::fast_hash::fast_hasher;
 use super::index::DispatchCandidateWorkspace;
-use super::index::FeatureKey;
 use super::index::FeatureValue;
+use super::index::LocalFeatureKey;
 use super::index::StyleAtomID;
 use super::instrumentation::Counters;
 use super::memory::DeviceClass;
@@ -135,7 +135,7 @@ impl Workload {
         let mut classes = vec![Vec::new(); nodes.len()];
         for (index, &node) in nodes.iter().enumerate() {
             engine.record_input(
-                InputKey::LocalFeature(node, FeatureKey::TagName),
+                InputKey::LocalFeature(node, LocalFeatureKey::TagName),
                 InputValue::Feature(FeatureValue::Absent),
                 InputValue::Feature(FeatureValue::Atom(tag_atom(node))),
             );
@@ -146,7 +146,7 @@ impl Workload {
                 }
                 classes[index].push(class);
                 engine.record_input(
-                    InputKey::LocalFeature(node, FeatureKey::Class(class_atom(class))),
+                    InputKey::LocalFeature(node, LocalFeatureKey::Class(class_atom(class))),
                     InputValue::Feature(FeatureValue::Absent),
                     InputValue::Feature(FeatureValue::Present),
                 );
@@ -264,7 +264,7 @@ impl Workload {
                     (FeatureValue::Absent, FeatureValue::Present)
                 };
                 self.engine.record_input(
-                    InputKey::LocalFeature(node, FeatureKey::Class(class_atom(class))),
+                    InputKey::LocalFeature(node, LocalFeatureKey::Class(class_atom(class))),
                     InputValue::Feature(old),
                     InputValue::Feature(new),
                 );

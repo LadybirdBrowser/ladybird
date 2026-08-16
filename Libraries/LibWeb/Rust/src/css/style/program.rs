@@ -58,6 +58,10 @@ define_id! {
     /// Immutable identity of a compiled selector program.
     pub struct SelectorProgramID(pub);
 }
+define_id! {
+    /// Dense document identity of one entry in a compiled selector program.
+    pub struct EntryID(pub);
+}
 
 /// One longhand property a rule declares, and whether it declares it important. Importance is part
 /// of the identity because it moves the declaration to a different rung of the cascade, not because

@@ -10,14 +10,12 @@
 //! normalized transaction input publishes the corresponding keys so planning can ask whether an
 //! attached selector observes that input.
 
-use super::index::FeatureKey;
 use super::index::FeatureValue;
+use super::index::LocalFeatureKey;
 use super::selector::RoutingKey;
-use super::selector::ValueStateKind;
 use super::transaction::InputKey;
 use super::transaction::InputValue;
 use super::transaction::NormalizedInput;
-use crate::css::style::StyleAtomID;
 
 /// The routing keys one normalized input publishes.
 #[must_use]
@@ -50,7 +48,7 @@ fn for_each_routing_key(input: &NormalizedInput, mut publish: impl FnMut(Routing
 /// change truth. A class or attribute key already names its atom, and one attribute mutation
 /// changes presence and value together, so the attribute name covers both.
 fn for_each_feature_routing_key(
-    feature: FeatureKey,
+    feature: LocalFeatureKey,
     old: InputValue,
     new: InputValue,
     mut publish: impl FnMut(RoutingKey),
@@ -60,7 +58,7 @@ fn for_each_feature_routing_key(
         _ => None,
     };
     match feature {
-        FeatureKey::TagName | FeatureKey::FoldedTagName => {
+        LocalFeatureKey::TagName | LocalFeatureKey::FoldedTagName => {
             if let Some(atom) = atom_of(old) {
                 publish(RoutingKey::TagName(atom));
             }
@@ -68,7 +66,7 @@ fn for_each_feature_routing_key(
                 publish(RoutingKey::TagName(atom));
             }
         }
-        FeatureKey::Id => {
+        LocalFeatureKey::Id => {
             if let Some(atom) = atom_of(old) {
                 publish(RoutingKey::Id(atom));
             }
@@ -76,26 +74,26 @@ fn for_each_feature_routing_key(
                 publish(RoutingKey::Id(atom));
             }
         }
-        FeatureKey::Class(class) => publish(RoutingKey::Class(class)),
-        FeatureKey::Part(part) => publish(RoutingKey::Part(part)),
-        FeatureKey::CustomState(state) => publish(RoutingKey::ValueState(ValueStateKind::CustomState, state)),
+        LocalFeatureKey::Class(class) => publish(RoutingKey::Class(class)),
+        LocalFeatureKey::Part(part) => publish(RoutingKey::Part(part)),
+        LocalFeatureKey::CustomState(state) => publish(RoutingKey::CustomState(state)),
         // Routed to the element directly rather than through a transpose route.
-        FeatureKey::PartExposure => {}
+        LocalFeatureKey::PartExposure => {}
         // Every `:lang()` entry registers under one key, because a range is not an atom.
-        FeatureKey::Language => publish(RoutingKey::ValueState(ValueStateKind::Language, StyleAtomID::NONE)),
-        FeatureKey::Directionality => {
+        LocalFeatureKey::Language => publish(RoutingKey::Language),
+        LocalFeatureKey::Directionality => {
             if let Some(atom) = atom_of(old) {
-                publish(RoutingKey::ValueState(ValueStateKind::Directionality, atom));
+                publish(RoutingKey::Directionality(atom));
             }
             if let Some(atom) = atom_of(new) {
-                publish(RoutingKey::ValueState(ValueStateKind::Directionality, atom));
+                publish(RoutingKey::Directionality(atom));
             }
         }
-        FeatureKey::HeadingLevel => publish(RoutingKey::Structural),
-        FeatureKey::Emptiness => publish(RoutingKey::Structural),
+        LocalFeatureKey::HeadingLevel => publish(RoutingKey::Structural),
+        LocalFeatureKey::Emptiness => publish(RoutingKey::Structural),
         // The facts an arrival folded onto one key are read back off the element by the engine,
         // which has the fact store this function does not.
-        FeatureKey::ArrivingFacts => {}
-        FeatureKey::Attribute(name) => publish(RoutingKey::AttributeName(name)),
+        LocalFeatureKey::ArrivingFacts => {}
+        LocalFeatureKey::Attribute(name) => publish(RoutingKey::AttributeName(name)),
     }
 }

@@ -34,7 +34,7 @@ impl StyleEngine {
             && transaction.inputs.iter().all(|input| match input.key {
                 InputKey::LocalFeature(
                     _,
-                    FeatureKey::Language | FeatureKey::Directionality | FeatureKey::HeadingLevel,
+                    LocalFeatureKey::Language | LocalFeatureKey::Directionality | LocalFeatureKey::HeadingLevel,
                 ) => false,
                 InputKey::LocalFeature(..)
                 | InputKey::State(..)
@@ -111,20 +111,20 @@ impl StyleEngine {
                         input.key,
                         InputKey::LocalFeature(
                             _,
-                            FeatureKey::Id
-                                | FeatureKey::Class(_)
-                                | FeatureKey::CustomState(_)
-                                | FeatureKey::Attribute(_)
+                            LocalFeatureKey::Id
+                                | LocalFeatureKey::Class(_)
+                                | LocalFeatureKey::CustomState(_)
+                                | LocalFeatureKey::Attribute(_)
                         )
                     )
                 }) && transaction.inputs.iter().all(|input| {
-                    let InputKey::LocalFeature(node, FeatureKey::Attribute(_)) = input.key else {
+                    let InputKey::LocalFeature(node, LocalFeatureKey::Attribute(_)) = input.key else {
                         return true;
                     };
                     transaction.inputs.iter().any(|candidate| {
                         matches!(
                             candidate.key,
-                            InputKey::LocalFeature(candidate_node, FeatureKey::Id | FeatureKey::Class(_))
+                            InputKey::LocalFeature(candidate_node, LocalFeatureKey::Id | LocalFeatureKey::Class(_))
                                 if candidate_node == node
                         )
                     })
@@ -492,7 +492,7 @@ impl StyleEngine {
                     // the witness of a relational selector whose anchor is outside it.
                     let nested_fact_arrival_without_relational_selectors = matches!(
                         input.key,
-                        InputKey::LocalFeature(node, FeatureKey::ArrivingFacts)
+                        InputKey::LocalFeature(node, LocalFeatureKey::ArrivingFacts)
                             if nested_arrivals.binary_search(&node).is_ok()
                                 && self.routing.relational_routes().is_empty()
                     );
@@ -789,7 +789,7 @@ impl StyleEngine {
         let mut previous_cascade_inputs = Vec::new();
         let mut exact_cascade_stop_nodes = DeltaBatch::default();
         let mut exact_cascade_confirmation_nodes = DeltaBatch::default();
-        let mut attribution_scratch: Vec<(RuleID, SelectorProgramID)> = Vec::new();
+        let mut attribution_scratch: Vec<(RuleID, EntryID)> = Vec::new();
         let mut attribution_sweep = AttributionSweep::default();
         regions.for_each_batch(&compiled_regions, |node| {
             #[cfg(test)]
@@ -864,7 +864,8 @@ impl StyleEngine {
                         has_upquery = true;
                         SelectorTruthPatch::Full
                     };
-                    let rule_is_safe = |rule: RuleID, program: SelectorProgramID| {
+                    let rule_is_safe = |rule: RuleID, entry: EntryID| {
+                        let (program, _) = self.programs.entry_location(entry);
                         self.program.declarations_are_complete_for(rule)
                             && self.program.rule_version(rule).selector_program == Some(program)
                             && !self.programs.get(program).contains_relational_selector()
@@ -872,24 +873,24 @@ impl StyleEngine {
                     let node_has_safe_exact_cascade_provenance = match truth_patch {
                         SelectorTruthPatch::Full => false,
                         SelectorTruthPatch::Direct(deltas) => {
-                            deltas.iter().all(|delta| rule_is_safe(delta.rule, delta.program))
+                            deltas.iter().all(|delta| rule_is_safe(delta.rule, delta.entry))
                         }
                         SelectorTruthPatch::Refresh { deltas, refreshes } => {
-                            deltas.iter().all(|delta| rule_is_safe(delta.rule, delta.program))
-                                && refreshes.iter().all(|refresh| {
-                                    refresh.rule.is_some_and(|(rule, program)| rule_is_safe(rule, program))
-                                })
+                            deltas.iter().all(|delta| rule_is_safe(delta.rule, delta.entry))
+                                && refreshes
+                                    .iter()
+                                    .all(|refresh| refresh.rule.is_some_and(|(rule, entry)| rule_is_safe(rule, entry)))
                         }
                         SelectorTruthPatch::Attributed {
                             deltas,
                             refreshes,
                             rules,
                         } => {
-                            deltas.iter().all(|delta| rule_is_safe(delta.rule, delta.program))
-                                && refreshes.iter().all(|refresh| {
-                                    refresh.rule.is_some_and(|(rule, program)| rule_is_safe(rule, program))
-                                })
-                                && rules.iter().all(|&(rule, program)| rule_is_safe(rule, program))
+                            deltas.iter().all(|delta| rule_is_safe(delta.rule, delta.entry))
+                                && refreshes
+                                    .iter()
+                                    .all(|refresh| refresh.rule.is_some_and(|(rule, entry)| rule_is_safe(rule, entry)))
+                                && rules.iter().all(|&(rule, entry)| rule_is_safe(rule, entry))
                         }
                     };
                     can_confirm_exact_cascade = transaction_supports_retained_cascade_stops
@@ -1270,13 +1271,10 @@ impl StyleEngine {
             for node in published_nodes.iter().copied() {
                 let pseudo_inputs_may_have_changed = pseudo_inputs_may_have_changed
                     || !selector_truth_changes.refreshes_for(node).is_empty()
-                    || selector_truth_changes.deltas_for(node).iter().any(|delta| {
-                        self.programs
-                            .get(delta.program)
-                            .entries()
-                            .get(delta.entry as usize)
-                            .is_some_and(|entry| entry.pseudo_element.is_some())
-                    });
+                    || selector_truth_changes
+                        .deltas_for(node)
+                        .iter()
+                        .any(|delta| self.programs.entry(delta.entry).1.pseudo_element.is_some());
                 let answer = published_match_answers
                     .lookup(node)
                     .expect("each accepted style reaction has a published match answer");
@@ -1410,13 +1408,13 @@ impl StyleEngine {
             return None;
         };
         let key = match feature {
-            FeatureKey::Class(atom) => DispatchKey::Class(atom),
-            FeatureKey::Part(atom) => DispatchKey::Part(atom),
-            FeatureKey::CustomState(atom) => DispatchKey::CustomState(atom),
+            LocalFeatureKey::Class(atom) => DispatchKey::Class(atom),
+            LocalFeatureKey::Part(atom) => DispatchKey::Part(atom),
+            LocalFeatureKey::CustomState(atom) => DispatchKey::CustomState(atom),
             // Emptiness is not a feature a compound dispatches on, so nothing is in flux for it.
-            FeatureKey::Emptiness => return None,
-            FeatureKey::Attribute(atom) => DispatchKey::AttributeName(atom),
-            FeatureKey::Id => match (input.old, input.new) {
+            LocalFeatureKey::Emptiness => return None,
+            LocalFeatureKey::Attribute(atom) => DispatchKey::AttributeName(atom),
+            LocalFeatureKey::Id => match (input.old, input.new) {
                 (InputValue::Feature(FeatureValue::Atom(atom)), _)
                 | (_, InputValue::Feature(FeatureValue::Atom(atom))) => DispatchKey::Id(atom),
                 _ => return None,
@@ -1424,15 +1422,15 @@ impl StyleEngine {
             // A resolved language or directionality carries its own value, like an ID.
             // Neither a language nor a part exposure is dispatched on its value, so nothing is in
             // flux for either.
-            FeatureKey::Language | FeatureKey::PartExposure | FeatureKey::HeadingLevel => return None,
-            FeatureKey::Directionality => match (input.old, input.new) {
+            LocalFeatureKey::Language | LocalFeatureKey::PartExposure | LocalFeatureKey::HeadingLevel => return None,
+            LocalFeatureKey::Directionality => match (input.old, input.new) {
                 (InputValue::Feature(FeatureValue::Atom(atom)), _)
                 | (_, InputValue::Feature(FeatureValue::Atom(atom))) => DispatchKey::Directionality(atom),
                 _ => return None,
             },
             // A tag never changes, so it is never in flux. Neither is the folded key an arrival's
             // facts are journalled under: every fact it stands for holds on the element now.
-            FeatureKey::TagName | FeatureKey::FoldedTagName | FeatureKey::ArrivingFacts => return None,
+            LocalFeatureKey::TagName | LocalFeatureKey::FoldedTagName | LocalFeatureKey::ArrivingFacts => return None,
         };
         Some((node, key))
     }

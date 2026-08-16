@@ -208,12 +208,11 @@ use impact::TransactionTopology;
 use impact::choose_plan;
 use index::DependencyPostingKey;
 use index::DispatchCandidateWorkspace;
-use index::DispatchEntryID;
 use index::DispatchKey;
 use index::ElementFactStore;
-use index::FeatureKey;
 use index::FeaturePostings;
 use index::FeatureValue;
+use index::LocalFeatureKey;
 use index::PostingKey;
 use index::RuleDispatch;
 use index::SelectorPostingKey;
@@ -239,6 +238,7 @@ use prefix::PrefixTransitionLookup;
 use program::CascadeLayerID;
 use program::DeclarationBlockID;
 use program::DeclaredProperty;
+use program::EntryID;
 use program::RuleID;
 use program::RuleKind;
 use program::RuleVersion;
@@ -272,7 +272,6 @@ use selector::SelectorPrograms;
 use selector::SiblingSequenceGeometry;
 use selector::Specificity;
 use selector::SubjectPosition;
-use selector::ValueStateKind;
 use specified_value::SpecifiedValues;
 use transaction::ElementDeclarationKind;
 use transaction::InputKey;
@@ -400,21 +399,6 @@ fn anchor_region_for(axis: RelativeAxis) -> Option<fn(StyleNodeID) -> ImpactRegi
         RelativeAxis::NextSibling => Some(ImpactRegion::PreviousSibling),
         RelativeAxis::FollowingSibling => Some(ImpactRegion::PrecedingSiblings),
         RelativeAxis::NextSiblingSubtree | RelativeAxis::FollowingSiblingSubtree => None,
-    }
-}
-
-fn posting_for_dispatch_key(key: DispatchKey) -> Option<PostingKey> {
-    match key {
-        DispatchKey::Part(atom) => Some(PostingKey::Selector(SelectorPostingKey::Part(atom))),
-        DispatchKey::CustomState(atom) => Some(PostingKey::Selector(SelectorPostingKey::CustomState(atom))),
-        DispatchKey::Id(atom) => Some(PostingKey::Selector(SelectorPostingKey::Id(atom))),
-        DispatchKey::Class(atom) => Some(PostingKey::Selector(SelectorPostingKey::Class(atom))),
-        DispatchKey::AttributeName(atom) => Some(PostingKey::Selector(SelectorPostingKey::AttributeName(atom))),
-        DispatchKey::TagName(atom) => Some(PostingKey::Selector(SelectorPostingKey::Tag(atom))),
-        DispatchKey::Directionality(atom) => Some(PostingKey::Selector(SelectorPostingKey::Directionality(atom))),
-        // These have no posting to enumerate from, so a caller that needs one widens, exactly as it
-        // does for the universal bucket these used to sit in.
-        DispatchKey::Root | DispatchKey::State(_) | DispatchKey::Heading | DispatchKey::Universal => None,
     }
 }
 

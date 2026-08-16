@@ -36,8 +36,8 @@ use super::cascade::CascadeOperator;
 use super::compiler::ImplicitScopeRoot;
 use super::compiler::NamespaceScope;
 use super::compiler::ScopeChain;
-use super::index::FeatureKey;
 use super::index::FeatureValue;
+use super::index::LocalFeatureKey;
 use super::index::StyleAtomID;
 use super::memory::DeviceClass;
 #[cfg(feature = "style-recording")]
@@ -527,14 +527,14 @@ impl FfiCascadeOrigin {
     }
 }
 
-fn decode_feature_key(delta: &FfiLocalFeatureDelta) -> FeatureKey {
+fn decode_feature_key(delta: &FfiLocalFeatureDelta) -> LocalFeatureKey {
     match delta.feature_kind {
-        FfiFeatureKind::TagName => FeatureKey::TagName,
-        FfiFeatureKind::FoldedTagName => FeatureKey::FoldedTagName,
-        FfiFeatureKind::Emptiness => FeatureKey::Emptiness,
-        FfiFeatureKind::Id => FeatureKey::Id,
-        FfiFeatureKind::Class => FeatureKey::Class(StyleAtomID(delta.name_atom)),
-        FfiFeatureKind::Attribute => FeatureKey::Attribute(StyleAtomID(delta.name_atom)),
+        FfiFeatureKind::TagName => LocalFeatureKey::TagName,
+        FfiFeatureKind::FoldedTagName => LocalFeatureKey::FoldedTagName,
+        FfiFeatureKind::Emptiness => LocalFeatureKey::Emptiness,
+        FfiFeatureKind::Id => LocalFeatureKey::Id,
+        FfiFeatureKind::Class => LocalFeatureKey::Class(StyleAtomID(delta.name_atom)),
+        FfiFeatureKind::Attribute => LocalFeatureKey::Attribute(StyleAtomID(delta.name_atom)),
     }
 }
 
@@ -2663,7 +2663,7 @@ mod tests {
         assert_eq!(transaction.inputs.len(), 2);
         assert!(transaction.inputs.iter().all(|input| matches!(
             input.key,
-            InputKey::TreeRelations(node) | InputKey::LocalFeature(node, FeatureKey::ArrivingFacts) if node == root
+            InputKey::TreeRelations(node) | InputKey::LocalFeature(node, LocalFeatureKey::ArrivingFacts) if node == root
         )));
         engine.release_transaction(transaction);
 
@@ -2697,7 +2697,7 @@ mod tests {
                 .iter()
                 .filter(|input| matches!(
                     input.key,
-                    InputKey::TreeRelations(node) | InputKey::LocalFeature(node, FeatureKey::ArrivingFacts) if node == later
+                    InputKey::TreeRelations(node) | InputKey::LocalFeature(node, LocalFeatureKey::ArrivingFacts) if node == later
                 ))
                 .count(),
             2
