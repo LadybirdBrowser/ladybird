@@ -13,6 +13,31 @@ use super::tree::PseudoElementKind;
 use super::tree::PseudoElementTarget;
 use super::*;
 
+#[test]
+fn dense_program_staging_freezes_before_until_release() {
+    let rule = RuleID(7);
+    let mut staged = StagedField::default();
+    staged.stage(rule, 10_u32, 20);
+    staged.stage(rule, 99, 30);
+
+    assert_eq!(staged.side(rule, TransactionFactSide::Before, || 0), 10);
+    assert_eq!(staged.current(rule, || 0), 30);
+    assert_eq!(staged.take_dirty(), [(rule, 30)]);
+    assert!(staged.is_empty());
+    assert_eq!(staged.side(rule, TransactionFactSide::Before, || 0), 10);
+    assert_eq!(staged.current(rule, || 35), 30);
+
+    staged.stage(rule, 99, 40);
+    assert_eq!(staged.side(rule, TransactionFactSide::Before, || 0), 10);
+    assert_eq!(staged.take_dirty(), [(rule, 40)]);
+    assert_eq!(staged.current(rule, || 50), 40);
+
+    staged.clear();
+    assert_eq!(staged.current(rule, || 50), 50);
+    assert_eq!(staged.rows.capacity(), 0);
+    assert_eq!(staged.touched.capacity(), 0);
+}
+
 fn test_nth_position(argument: &str, of_type: bool) -> selector::NthPosition {
     let (step, offset) = match argument.split_once('n') {
         Some((step, offset)) => {
@@ -2019,7 +2044,7 @@ fn concrete_rule_match(
         node,
         pseudo_element,
         rule,
-        program: engine.program.rule_version(rule).selector_program.unwrap(),
+        program: engine.current_rule_version(rule).selector_program.unwrap(),
         entry: 0,
         cascade_order,
         specificity: Specificity {
@@ -3064,8 +3089,8 @@ fn routes_covered_by_an_attributed_subtree_still_attribute_their_extent() {
     let (mut engine, nodes) = nested_document();
     let rule_a = add_guard_target_rule(&mut engine, StyleAtomID(200), StyleAtomID(201));
     let rule_b = add_guard_target_rule(&mut engine, StyleAtomID(202), StyleAtomID(203));
-    let program_a = engine.program.rule_version(rule_a).selector_program.unwrap();
-    let program_b = engine.program.rule_version(rule_b).selector_program.unwrap();
+    let program_a = engine.current_rule_version(rule_a).selector_program.unwrap();
+    let program_b = engine.current_rule_version(rule_b).selector_program.unwrap();
     discard_transaction(&mut engine);
     let mut regions = ImpactRegions::with_topology(&engine.tree, nodes[0]);
     regions.add_attributed(
@@ -3146,7 +3171,7 @@ fn routes_covered_by_an_attributed_subtree_still_attribute_their_extent() {
 fn already_planned_routes_skip_truth_without_a_retained_answer() {
     let (mut engine, nodes) = nested_document();
     let rule = add_guard_target_rule(&mut engine, StyleAtomID(200), StyleAtomID(201));
-    let program = engine.program.rule_version(rule).selector_program.unwrap();
+    let program = engine.current_rule_version(rule).selector_program.unwrap();
     let site = RoutingSite {
         subject: &[],
         subject_required: &[],
@@ -3474,12 +3499,12 @@ fn rule_declaration_edits_repair_only_their_property_inventory() {
     let mut version = engine.program.rule_version(rule);
     version.declaration_block = Some(DeclarationBlockID(2));
     engine.replace_rule_version(rule, version);
-    assert_eq!(engine.pending_rule_declaration_changes.len(), 1);
-    assert_eq!(engine.pending_rule_declaration_changes[0].old_properties, [1]);
-    assert_eq!(engine.pending_rule_declaration_changes[0].new_properties, [2]);
+    assert_eq!(engine.program_staging.rule_declaration_changes.len(), 1);
+    assert_eq!(engine.program_staging.rule_declaration_changes[0].old_properties, [1]);
+    assert_eq!(engine.program_staging.rule_declaration_changes[0].new_properties, [2]);
     assert_eq!(engine.program.declared_properties_of(rule)[0].property, 1);
     assert_eq!(engine.current_declared_properties_of(rule)[0].property, 2);
-    assert!(engine.pending_program_base_version.is_some());
+    assert!(engine.program_staging.base_version.is_some());
     let feature_tests_before = engine.counters().get(Counter::LocalFeatureTests);
 
     let mut planned = Vec::new();
@@ -7699,13 +7724,13 @@ fn rule_changes_share_one_sheet_attachment_decision_per_transaction() {
 
     engine.append_rule(sheet, None, RuleKind::Style);
     engine.append_rule(sheet, None, RuleKind::Style);
-    assert_eq!(engine.rule_change_is_carried_by_sheet.len(), 1);
+    assert_eq!(engine.program_staging.rule_change_is_carried_by_sheet.len(), 1);
 
     discard_transaction(&mut engine);
-    assert!(engine.rule_change_is_carried_by_sheet.is_empty());
+    assert!(engine.program_staging.rule_change_is_carried_by_sheet.is_empty());
 
     engine.append_rule(sheet, None, RuleKind::Style);
-    assert_eq!(engine.rule_change_is_carried_by_sheet.len(), 1);
+    assert_eq!(engine.program_staging.rule_change_is_carried_by_sheet.len(), 1);
     let transaction = engine.take_transaction();
     assert!(
         transaction
@@ -7783,7 +7808,7 @@ fn publishing_an_implicit_layer_order_does_not_edit_the_program() {
     engine.set_layer_order(TreeScopeID::DOCUMENT, &[CascadeLayerID::UNLAYERED]);
 
     assert_eq!(engine.program.version(), version);
-    assert!(engine.pending_program_base_version.is_none());
+    assert!(engine.program_staging.base_version.is_none());
     let transaction = engine.take_transaction();
     assert!(transaction.is_empty());
     engine.release_transaction(transaction);

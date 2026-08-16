@@ -29,31 +29,15 @@ impl StyleEngine {
             counters: Counters::new(),
             tree,
             program: StyleSheetProgram::new(),
-            committed_rule_count: 0,
             journal: NormalizationJournal::new(),
             initial_tree_batch_applied: false,
             initial_tree_bulk_load_is_pending: false,
             tree_staging: TreeRelationStaging::default(),
             tree_staging_memory: MemoryLease::new(MemoryCategory::NormalizationJournal),
-            pending_rule_conditions: PendingField::default(),
-            pending_sheet_conditions: PendingField::default(),
-            pending_sheet_enabled: PendingField::default(),
-            pending_rule_declarations: HashMap::default(),
-            pending_rule_versions: PendingField::default(),
-            pending_rule_in_a_layer: PendingField::default(),
-            pending_rule_gated_by_container_query: PendingField::default(),
-            pending_rule_liveness: PendingField::default(),
-            pending_layer_orders: HashMap::default(),
-            pending_scopes_using_document_sheets: HashSet::default(),
-            pending_sheets_in_scope: PendingField::default(),
-            rule_change_is_carried_by_sheet: HashMap::default(),
-            pending_program_base_version: None,
-            pending_rule_declaration_changes: Vec::new(),
-            rules_with_incomplete_old_declarations: Vec::new(),
+            program_staging: ProgramStaging::default(),
             sheets_excluded_from_routing: HashSet::default(),
             routing_needs_detachment_sweep: false,
             sheet_rule_replacement: None,
-            pending_sheet_rule_replacements: Column::default(),
             match_workspace: MatchEvaluationWorkspace::default(),
             exact_covered_scratch: Vec::new(),
             next_style_transaction_version: StyleTransactionVersion(1),
@@ -659,19 +643,8 @@ impl StyleEngine {
     pub fn has_pending_transaction(&self) -> bool {
         !self.journal.is_empty()
             || !self.tree_staging.is_empty()
-            || !self.pending_rule_conditions.is_empty()
-            || !self.pending_sheet_conditions.is_empty()
-            || !self.pending_sheet_enabled.is_empty()
-            || !self.pending_rule_declarations.is_empty()
-            || !self.pending_rule_versions.is_empty()
-            || !self.pending_rule_in_a_layer.is_empty()
-            || !self.pending_rule_gated_by_container_query.is_empty()
-            || !self.pending_rule_liveness.is_empty()
-            || !self.pending_layer_orders.is_empty()
-            || !self.pending_scopes_using_document_sheets.is_empty()
-            || !self.pending_sheets_in_scope.is_empty()
+            || self.program_staging.is_dirty()
             || self.sheet_rule_replacement.is_some()
-            || self.pending_sheet_rule_replacements.iter().any(Option::is_some)
     }
 
     /// Record one member of a flat FFI batch without repeatedly settling the fact-store capacity.
@@ -946,7 +919,7 @@ impl StyleEngine {
         self.stage_tree_row(node, old, Some(new));
     }
 
-    pub(super) fn set_pending_first_child(&mut self, parent: StyleNodeID, child: Option<StyleNodeID>) {
+    pub(super) fn stage_first_child(&mut self, parent: StyleNodeID, child: Option<StyleNodeID>) {
         self.tree_staging
             .stage_first_child(parent, self.tree.first_element_child(parent), child);
     }
@@ -969,7 +942,7 @@ impl StyleEngine {
                     relations.next_element_sibling = old.next_element_sibling;
                 });
             } else if let Some(parent) = old.parent {
-                self.set_pending_first_child(parent, old.next_element_sibling);
+                self.stage_first_child(parent, old.next_element_sibling);
             }
             if let Some(next) = old.next_element_sibling {
                 self.stage_connected_tree_row(next, |relations| {
@@ -983,7 +956,7 @@ impl StyleEngine {
                     relations.next_element_sibling = Some(node);
                 });
             } else if let Some(parent) = new.parent {
-                self.set_pending_first_child(parent, Some(node));
+                self.stage_first_child(parent, Some(node));
             }
             if let Some(next) = new.next_element_sibling {
                 self.stage_connected_tree_row(next, |relations| {
@@ -1000,10 +973,10 @@ impl StyleEngine {
         if self.tree_staging.is_empty() || self.tree_staging.is_applied() {
             return;
         }
-        let pending_rows = self.tree_staging.dirty_rows();
-        let pending_first_children = self.tree_staging.dirty_first_children();
+        let staged_rows = self.tree_staging.dirty_rows();
+        let staged_first_children = self.tree_staging.dirty_first_children();
 
-        for &(node, _, relations) in &pending_rows {
+        for &(node, _, relations) in &staged_rows {
             let Some(relations) = relations else {
                 self.tree.set_parent(node, None);
                 self.tree.set_next_element_sibling(node, None);
@@ -1024,10 +997,10 @@ impl StyleEngine {
             self.tree
                 .set_assigned_slot(node, relations.assigned_slot, &mut self.memory);
         }
-        for (parent, _, child) in &pending_first_children {
+        for (parent, _, child) in &staged_first_children {
             self.tree.set_first_element_child(*parent, *child);
         }
-        for &(node, _, relations) in &pending_rows {
+        for &(node, _, relations) in &staged_rows {
             if relations.is_some() || !self.tree.is_live(node) {
                 continue;
             }
@@ -1382,13 +1355,19 @@ impl StyleEngine {
     /// is what lets a sheet attached there be bounded by the tree it decides in.
     /// Record that a tree scope decides with the document's author sheets as well as its own.
     pub fn set_tree_scope_uses_document_sheets(&mut self, tree_scope: TreeScopeID) {
-        if self.program.scope_uses_document_sheets(tree_scope) {
+        let previous = self
+            .program_staging
+            .scopes_using_document_sheets
+            .current(tree_scope, || self.program.scope_uses_document_sheets(tree_scope));
+        if previous {
             return;
         }
-        if !self.pending_scopes_using_document_sheets.insert(tree_scope) {
-            return;
-        }
-        self.pending_program_base_version.get_or_insert(self.program.version());
+        self.program_staging.scopes_using_document_sheets.stage(
+            tree_scope,
+            self.program.scope_uses_document_sheets(tree_scope),
+            true,
+        );
+        self.program_staging.base_version.get_or_insert(self.program.version());
         self.invalidate_scope_program(tree_scope);
     }
 
@@ -1424,10 +1403,10 @@ impl StyleEngine {
     pub(super) fn scopes_of_sheet(
         &self,
         sheet: SheetID,
-        scopes_departed: &[(SheetID, TreeScopeID)],
+        departed_sheet_scopes: &[(SheetID, TreeScopeID)],
     ) -> Vec<TreeScopeID> {
         let mut scopes = self.program.sheet_scopes(sheet);
-        for &(departed_sheet, scope) in scopes_departed {
+        for &(departed_sheet, scope) in departed_sheet_scopes {
             if departed_sheet == sheet && !scopes.contains(&scope) {
                 scopes.push(scope);
             }
