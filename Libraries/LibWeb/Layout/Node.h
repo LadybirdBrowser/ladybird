@@ -72,13 +72,10 @@ protected:
 class WEB_API Node
     : public RefCounted<Node>
     , public Weakable<Node>
-    , private NodeArenaAllocation
-    , public RefCountedTreeNode<Node> {
+    , private NodeArenaAllocation {
 
 public:
     AK_ALLOC_WITH_KMALLOC_PARTITION(HeapPartition::Layout);
-
-    using Base = RefCountedTreeNode<Node>;
 
     virtual ~Node();
     StringView class_name() const;
@@ -212,6 +209,14 @@ public:
         }
         return false;
     }
+
+    void append_child(NonnullRefPtr<Node>);
+    void prepend_child(NonnullRefPtr<Node>);
+    void insert_before(NonnullRefPtr<Node>, Node* before);
+    void insert_before(NonnullRefPtr<Node> node, Node& before) { insert_before(move(node), &before); }
+    void remove_child(Node&);
+    void replace_child(NonnullRefPtr<Node> new_child, Node& old_child);
+    void remove();
 
     bool is_anonymous() const { return has_flag(RustFFI::NodeFlag::Anonymous); }
     bool insets_use_anchor_functions() const { return has_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions); }
@@ -424,7 +429,6 @@ protected:
 
 private:
     friend class NodeWithStyle;
-    friend class RefCountedTreeNode<Node>;
 
     static constexpr u8 encode_generated_for(CSS::PseudoElement pseudo_element)
     {
@@ -434,7 +438,6 @@ private:
 
     void set_containing_block(Box*);
     void set_inline_containing_block(NodeWithStyle const*);
-    void synchronize_topology();
 
     Node* tree_node_from_slot(RustFFI::NodeSlotId id) const
     {

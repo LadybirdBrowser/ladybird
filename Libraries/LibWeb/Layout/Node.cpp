@@ -98,6 +98,11 @@ Node::~Node()
 {
     if (m_paintable)
         m_paintable->detach_from_layout_node({});
+    VERIFY(!parent_ptr());
+    while (auto* child = first_child_ptr()) {
+        RustFFI::layout_arena_remove_child(m_arena->handle(), slot_id(this), slot_id(child));
+        child->unref();
+    }
 }
 
 RustFFI::NodeSlotId Node::slot_id(Node const* node)
@@ -211,21 +216,46 @@ void* Node::arena_handle() const
     return m_arena->handle();
 }
 
-void Node::synchronize_topology()
+void Node::insert_before(NonnullRefPtr<Node> node, Node* before)
 {
-    auto old_parent = m_data->parent;
-    auto new_parent = slot_id(Base::parent_ptr());
-    if (old_parent.index != new_parent.index) {
-        if (old_parent.index != RustFFI::NodeSlotId_INVALID.index)
-            node_arena().note_inline_layout_damage(old_parent);
-        if (new_parent.index != RustFFI::NodeSlotId_INVALID.index)
-            node_arena().note_inline_layout_damage(new_parent);
-    }
-    m_data->parent = new_parent;
-    m_data->first_child = slot_id(Base::first_child_ptr());
-    m_data->last_child = slot_id(Base::last_child_ptr());
-    m_data->previous_sibling = slot_id(Base::previous_sibling_ptr());
-    m_data->next_sibling = slot_id(Base::next_sibling_ptr());
+    RustFFI::layout_arena_insert_child(m_arena->handle(), slot_id(this), slot_id(node.ptr()), slot_id(before));
+    bump_fragment_cache_epoch_of_self_and_ancestors();
+    (void)node.leak_ref();
+}
+
+void Node::append_child(NonnullRefPtr<Node> node)
+{
+    insert_before(move(node), nullptr);
+}
+
+void Node::prepend_child(NonnullRefPtr<Node> node)
+{
+    insert_before(move(node), first_child_ptr());
+}
+
+void Node::remove_child(Node& node)
+{
+    RustFFI::layout_arena_remove_child(m_arena->handle(), slot_id(this), slot_id(&node));
+    bump_fragment_cache_epoch_of_self_and_ancestors();
+    node.unref();
+}
+
+void Node::replace_child(NonnullRefPtr<Node> new_child, Node& old_child)
+{
+    VERIFY(&old_child != new_child.ptr());
+    auto successor_slot = old_child.m_data->next_sibling;
+    RustFFI::layout_arena_remove_child(m_arena->handle(), slot_id(this), slot_id(&old_child));
+    RustFFI::layout_arena_insert_child(m_arena->handle(), slot_id(this), slot_id(new_child.ptr()), successor_slot);
+    bump_fragment_cache_epoch_of_self_and_ancestors();
+    old_child.unref();
+    (void)new_child.leak_ref();
+}
+
+void Node::remove()
+{
+    auto* parent = parent_ptr();
+    VERIFY(parent);
+    parent->remove_child(*this);
 }
 
 void Node::set_containing_block(Box* containing_block)
