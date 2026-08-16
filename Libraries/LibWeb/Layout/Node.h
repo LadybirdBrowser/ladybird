@@ -52,17 +52,6 @@ static_assert(offsetof(RustFFI::NodeData, shell) == 56);
 static_assert(sizeof(RustFFI::NodeKind) == sizeof(u8));
 static_assert(sizeof(RustFFI::NodeFlag) == sizeof(u32));
 
-class NodeKindSetter;
-
-#define LAYOUT_NODE_KIND(class_) \
-private:                         \
-    NO_UNIQUE_ADDRESS NodeKindSetter m_node_kind_setter { *this, RustFFI::NodeKind::class_ }
-
-#define LAYOUT_NODE(class_, base_class) \
-    LAYOUT_NODE_KIND(class_)
-
-class InlineNode;
-
 enum class LayoutUpdatePropagation : u8 {
     ThroughAncestors,
     BoundarySelfOnly,
@@ -253,7 +242,7 @@ public:
     // positioned element, if applicable. This is needed because m_containing_block can only hold
     // a Box*, but CSS allows inline elements (like a <span> with position:relative) to establish
     // containing blocks for their absolutely positioned descendants.
-    [[nodiscard]] InlineNode const* inline_containing_block_if_applicable() const { return m_inline_containing_block_if_applicable; }
+    [[nodiscard]] NodeWithStyle const* inline_containing_block_if_applicable() const { return m_inline_containing_block_if_applicable; }
 
     void recompute_containing_block(Badge<DOM::Document>);
 
@@ -310,7 +299,6 @@ protected:
 
 private:
     friend class NodeWithStyle;
-    friend class NodeKindSetter;
     friend class RefCountedTreeNode<Node>;
 
     static constexpr u8 encode_generated_for(CSS::PseudoElement pseudo_element)
@@ -320,7 +308,7 @@ private:
     }
 
     void set_containing_block(Box*);
-    void set_inline_containing_block(InlineNode const*);
+    void set_inline_containing_block(NodeWithStyle const*);
     void synchronize_topology();
 
 protected:
@@ -340,25 +328,17 @@ private:
     // (because it's not a Box), we store it here. This happens when a block element is inside an
     // inline element - the layout tree restructures so the block becomes a sibling of the inline,
     // but the CSS containing block relationship is based on the DOM structure.
-    InlineNode const* m_inline_containing_block_if_applicable { nullptr };
+    NodeWithStyle const* m_inline_containing_block_if_applicable { nullptr };
 
     GC::Weak<DOM::Element> m_pseudo_element_generator;
 
     bool m_enrolled_for_arena_replaced_content_facts_sync { false };
 };
 
-class NodeKindSetter {
-public:
-    NodeKindSetter(Node& node, RustFFI::NodeKind kind)
-    {
-        node.set_node_kind(kind);
-    }
-};
-
 class WEB_API NodeWithStyle : public Node {
-    LAYOUT_NODE(NodeWithStyle, Node);
-
 public:
+    NodeWithStyle(DOM::Document&, GC::Ptr<DOM::Node>, CSS::LayoutStyle, RustFFI::NodeKind = RustFFI::NodeKind::NodeWithStyle);
+
     virtual ~NodeWithStyle() override;
 
     class ImageObserver final : public CSS::ImageStyleValue::Client {
@@ -721,9 +701,6 @@ public:
     void set_display(CSS::Display);
     void set_content(CSS::ContentData const&);
     void set_overflow(CSS::Overflow overflow_x, CSS::Overflow overflow_y);
-
-protected:
-    NodeWithStyle(DOM::Document&, GC::Ptr<DOM::Node>, CSS::LayoutStyle);
 
 private:
     virtual bool is_node_with_style() const final { return true; }

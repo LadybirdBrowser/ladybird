@@ -12,8 +12,6 @@ namespace Web::Layout {
 
 // https://www.w3.org/TR/css-display/#block-container
 class BlockContainer : public Box {
-    LAYOUT_NODE(BlockContainer, Box);
-
 public:
     BlockContainer(DOM::Document&, GC::Ptr<DOM::Node>, CSS::LayoutStyle, RustFFI::NodeKind = RustFFI::NodeKind::BlockContainer);
     virtual ~BlockContainer() override;

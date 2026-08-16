@@ -12,8 +12,6 @@
 namespace Web::Layout {
 
 class Viewport final : public BlockContainer {
-    LAYOUT_NODE(Viewport, BlockContainer);
-
 public:
     explicit Viewport(DOM::Document&, CSS::LayoutStyle);
     virtual ~Viewport() override;

@@ -125,7 +125,6 @@
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserver.h>
 #include <LibWeb/Layout/BlockContainer.h>
-#include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
@@ -1122,13 +1121,13 @@ RefPtr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM::
         if (display.is_flow_root_inside())
             return make_ref_counted<Layout::BlockContainer>(document, element, style);
         if (display.is_flow_inside())
-            return make_ref_counted<Layout::InlineNode>(document, element, style);
+            return make_ref_counted<Layout::NodeWithStyle>(document, element, style, Layout::RustFFI::NodeKind::InlineNode);
         if (display.is_flex_inside())
             return make_ref_counted<Layout::Box>(document, element, style);
         if (display.is_grid_inside())
             return make_ref_counted<Layout::Box>(document, element, style);
         dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Support display: {}", display.to_string());
-        return make_ref_counted<Layout::InlineNode>(document, element, style);
+        return make_ref_counted<Layout::NodeWithStyle>(document, element, style, Layout::RustFFI::NodeKind::InlineNode);
     }
 
     if (display.is_flex_inside() || display.is_grid_inside())
@@ -1143,7 +1142,7 @@ RefPtr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM::
     if (display.is_ruby_inside())
         return make_ref_counted<Layout::BlockContainer>(document, element, style);
 
-    return make_ref_counted<Layout::InlineNode>(document, element, style);
+    return make_ref_counted<Layout::NodeWithStyle>(document, element, style, Layout::RustFFI::NodeKind::InlineNode);
 }
 
 void Element::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const

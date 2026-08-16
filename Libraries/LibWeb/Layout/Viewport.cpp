@@ -18,7 +18,7 @@
 namespace Web::Layout {
 
 Viewport::Viewport(DOM::Document& document, CSS::LayoutStyle style)
-    : BlockContainer(document, &document, style)
+    : BlockContainer(document, &document, style, RustFFI::NodeKind::Viewport)
 {
 }
 

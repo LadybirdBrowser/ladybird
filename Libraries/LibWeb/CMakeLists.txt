@@ -801,9 +801,7 @@ set(SOURCES
     IntersectionObserver/IntersectionObserverEntry.cpp
     Layout/BlockContainer.cpp
     Layout/Box.cpp
-    Layout/BreakNode.cpp
     Layout/ImageProvider.cpp
-    Layout/InlineNode.cpp
     Layout/LayoutRustBridge.cpp
     Layout/Node.cpp
     Layout/NodeArena.cpp

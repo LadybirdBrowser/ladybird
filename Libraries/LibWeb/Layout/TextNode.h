@@ -22,8 +22,6 @@ class GeneratedTextNode;
 class TextSliceNode;
 
 class TextNode : public Node {
-    LAYOUT_NODE(TextNode, Node);
-
 public:
     TextNode(DOM::Document&, DOM::Text&);
     virtual ~TextNode() override;
@@ -51,8 +49,8 @@ public:
     bool update_produces_line_box_fragment_when_empty_flag();
 
 protected:
-    TextNode(DOM::Document&, DOM::Text&, AttachToDOMNode);
-    explicit TextNode(DOM::Document&);
+    TextNode(DOM::Document&, DOM::Text&, AttachToDOMNode, RustFFI::NodeKind = RustFFI::NodeKind::TextNode);
+    TextNode(DOM::Document&, RustFFI::NodeKind);
 
     virtual GC::Ptr<DOM::Element const> parent_element_for_text_transform() const;
     virtual bool is_password_input() const;
@@ -87,8 +85,6 @@ private:
 };
 
 class GeneratedTextNode final : public TextNode {
-    LAYOUT_NODE(GeneratedTextNode, TextNode);
-
 public:
     GeneratedTextNode(DOM::Document&, Utf16String);
     virtual ~GeneratedTextNode() override;
@@ -104,8 +100,6 @@ private:
 };
 
 class TextSliceNode final : public TextNode {
-    LAYOUT_NODE(TextSliceNode, TextNode);
-
 public:
     TextSliceNode(DOM::Document&, DOM::Text&, AttachToDOMNode, size_t dom_start_offset, size_t dom_length);
     virtual ~TextSliceNode() override;

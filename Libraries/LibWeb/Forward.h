@@ -1010,7 +1010,6 @@ namespace Web::Layout {
 class BlockContainer;
 class ImageProvider;
 class Box;
-class InlineNode;
 class LayoutRustBridge;
 class Node;
 class NodeArena;

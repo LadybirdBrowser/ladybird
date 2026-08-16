@@ -36,7 +36,6 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/Layout/BlockContainer.h>
-#include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -593,7 +592,7 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
                 frame.layout_node = create_content_image_box(document, nullptr, style, const_cast<CSS::AbstractImageStyleValue&>(*frame.replacement_image));
                 break;
             case RustFFI::FfiPseudoElementDecision::Contents:
-                frame.layout_node = make_ref_counted<InlineNode>(document, nullptr, style);
+                frame.layout_node = make_ref_counted<NodeWithStyle>(document, nullptr, style, RustFFI::NodeKind::InlineNode);
                 frame.layout_node->set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
                 break;
             case RustFFI::FfiPseudoElementDecision::Box:
@@ -1224,7 +1223,7 @@ static RefPtr<Layout::Node> create_layout_node_for_text(DOM::Text& text_node, bo
         auto style_parent_values = style_parent.computed_style();
         VERIFY(style_parent_values);
         auto wrapper_values = CSS::ComputedValues::Builder { *style_parent_values }.build();
-        auto wrapper = make_ref_counted<Layout::InlineNode>(document, nullptr, move(wrapper_values));
+        auto wrapper = make_ref_counted<Layout::NodeWithStyle>(document, nullptr, move(wrapper_values), RustFFI::NodeKind::InlineNode);
         wrapper->attach_style_resources();
         wrapper->set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
         wrapper->set_children_are_inline(true);

@@ -24,7 +24,6 @@
 #include <LibWeb/HTML/HTMLTableColElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/BlockContainer.h>
-#include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
@@ -235,7 +234,7 @@ void Node::set_containing_block(Box* containing_block)
     m_data->containing_block = slot_id(containing_block);
 }
 
-void Node::set_inline_containing_block(InlineNode const* containing_block)
+void Node::set_inline_containing_block(NodeWithStyle const* containing_block)
 {
     m_inline_containing_block_if_applicable = containing_block;
     m_data->inline_containing_block = slot_id(containing_block);
@@ -522,7 +521,7 @@ void Node::recompute_containing_block(Badge<DOM::Document>)
                 // NB: Called during containing block recomputation as part of layout.
                 // Check if this DOM element has an InlineNode in the layout tree.
                 auto layout_node = dom_ancestor->unsafe_layout_node();
-                if (!layout_node || !is<InlineNode>(*layout_node))
+                if (!layout_node || !layout_node->is_inline_node())
                     continue;
 
                 // Restrict the per-property trigger set to those that actually apply to
@@ -536,7 +535,7 @@ void Node::recompute_containing_block(Badge<DOM::Document>)
                     || layout_node->filter().has_filters() || will_change.has_property(CSS::PropertyID::Filter)
                     || layout_node->backdrop_filter().has_filters() || will_change.has_property(CSS::PropertyID::BackdropFilter);
                 if (inline_establishes_cb) {
-                    set_inline_containing_block(&as<InlineNode>(*layout_node));
+                    set_inline_containing_block(static_cast<NodeWithStyle const*>(layout_node));
                     break;
                 }
             }
@@ -784,9 +783,10 @@ bool NodeWithStyle::is_text_decoration_propagation_boundary() const
     return is_out_of_flow() || is_atomic_inline();
 }
 
-NodeWithStyle::NodeWithStyle(DOM::Document& document, GC::Ptr<DOM::Node> node, CSS::LayoutStyle style)
+NodeWithStyle::NodeWithStyle(DOM::Document& document, GC::Ptr<DOM::Node> node, CSS::LayoutStyle style, RustFFI::NodeKind kind)
     : Node(document, node)
 {
+    set_node_kind(kind);
     VERIFY(style);
     if (!!style.style_record_identity()) {
         m_style_record_identity = style.style_record_identity();
