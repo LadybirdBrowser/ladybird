@@ -259,7 +259,7 @@ fn published_match_answer(node: u32, cascade_input: Option<u32>, match_count: us
     };
     PublishedMatchAnswer {
         node: StyleNodeID::element(node),
-        cascade_input: cascade_input.map(CascadeInputID),
+        cascade_input: cascade_input.map(MatchAnswerID),
         matches: Some(vec![rule_match; match_count].into_boxed_slice()),
         cascade_winners_are_complete: true,
         observed: false,
@@ -490,7 +490,7 @@ fn an_evicted_prefix_answer_is_a_typed_missing_key() {
         prefix_contribution: contribution,
         non_prefix_matches: non_prefix,
     };
-    answers.remember(&mut catalog, key, &[], None, CascadeInputID(1), true);
+    answers.remember(&mut catalog, key, &[], None, MatchAnswerID(1), true);
     answers.settle_memory(&catalog, &mut memory);
     assert!(answers.retain(&mut memory));
     assert!(matches!(
@@ -558,7 +558,7 @@ fn cascade_input_catalog_entries_follow_retained_column_lifetimes() {
 
     for _ in 0..128 {
         let identity = catalog.intern(&[]);
-        answers.remember_cascade_input(&mut catalog, node, CascadeInputID(identity.0), &mut memory);
+        answers.remember_cascade_input(&mut catalog, node, identity, &mut memory);
         answers.forget(&mut catalog, node);
     }
 
@@ -567,7 +567,7 @@ fn cascade_input_catalog_entries_follow_retained_column_lifetimes() {
     assert!(catalog.answers.live_is_empty());
     assert_eq!(
         memory.bytes_in_category(MemoryCategory::MatchAnswerIdentity),
-        (answers.cascade_input_column.capacity() * size_of::<CascadeInputID>()) as u64
+        (answers.cascade_input_column.capacity() * size_of::<MatchAnswerID>()) as u64
     );
 }
 
@@ -628,19 +628,19 @@ fn retained_match_answer_payloads_are_evictable_without_losing_identity() {
         ..retained
     };
     assert_eq!(catalog.intern(&[same_retained_match]), identity);
-    answers.remember_cascade_input(&mut catalog, node, CascadeInputID(cascade_input.0), &mut memory);
+    answers.remember_cascade_input(&mut catalog, node, cascade_input, &mut memory);
 
     answers.evict(&mut catalog);
     assert!(catalog.retained_answer(identity).is_none());
     assert!(matches!(answers.lookup(node), Lookup::Missing(gap) if gap == node));
     assert!(matches!(
         answers.cascade_input_lookup(node),
-        Lookup::Known(retained) if *retained == CascadeInputID(cascade_input.0)
+        Lookup::Known(retained) if *retained == cascade_input
     ));
     assert_eq!(memory.bytes_in_category(MemoryCategory::RetainedMatchAnswer), 0);
     assert_eq!(
         memory.bytes_in_category(MemoryCategory::MatchAnswerIdentity),
-        (answers.cascade_input_column.capacity() * size_of::<CascadeInputID>() + cascade_payload_bytes) as u64
+        (answers.cascade_input_column.capacity() * size_of::<MatchAnswerID>() + cascade_payload_bytes) as u64
     );
 }
 
@@ -2300,7 +2300,7 @@ fn an_evicted_retained_match_answer_falls_back_to_cold_matching() {
     ));
     assert!(matches!(
         engine.retained_match_answers.cascade_input_lookup(nodes[1]),
-        Lookup::Known(cascade_input) if *cascade_input != CascadeInputID::default()
+        Lookup::Known(cascade_input) if *cascade_input != MatchAnswerID::default()
     ));
 
     engine.set_layer_order(TreeScopeID::DOCUMENT, &[theme, base]);
@@ -2822,7 +2822,7 @@ fn selector_list_entry_deltas_fall_back_when_the_compact_winner_is_insufficient(
                 &mut patch,
                 MatchAnswerID::default(),
                 &retained,
-                CascadeInputID::default(),
+                MatchAnswerID::default(),
                 &[delta(0, SetChange::Added)],
             )
             .is_none(),
@@ -2835,7 +2835,7 @@ fn selector_list_entry_deltas_fall_back_when_the_compact_winner_is_insufficient(
                 &mut patch,
                 MatchAnswerID::default(),
                 &retained,
-                CascadeInputID::default(),
+                MatchAnswerID::default(),
                 &[delta(1, SetChange::Removed)],
             )
             .is_none(),
