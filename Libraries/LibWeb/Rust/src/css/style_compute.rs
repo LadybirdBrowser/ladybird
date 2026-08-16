@@ -5357,20 +5357,21 @@ mod tests {
             value: 2.5,
             unit: unit_code("px") as u8,
         };
-        assert_eq!(compute_border_or_outline_width(&length, 2.0).value, 2.5);
+        assert_eq!(compute_border_or_outline_width(&length, 2.0, None).value, 2.5);
         // 0.4px at 1 dppx rounds up to 1 device pixel.
         let thin = StyleValueData::Length {
             value: 0.4,
             unit: unit_code("px") as u8,
         };
-        assert_eq!(compute_border_or_outline_width(&thin, 1.0).value, 1.0);
+        assert_eq!(compute_border_or_outline_width(&thin, 1.0, None).value, 1.0);
         // medium is 3px.
         assert_eq!(
             compute_border_or_outline_width(
                 &StyleValueData::Keyword {
                     keyword: keyword::MEDIUM
                 },
-                1.0
+                1.0,
+                None
             )
             .value,
             3.0
