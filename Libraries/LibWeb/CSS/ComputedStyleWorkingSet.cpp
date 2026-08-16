@@ -16,6 +16,7 @@
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
@@ -179,7 +180,7 @@ void reset_longhand_wrappers_minted()
     s_longhand_wrappers_minted = 0;
 }
 
-void count_longhand_wrapper_mint(Badge<StyleComputer>)
+void count_longhand_wrapper_mint()
 {
     ++s_longhand_wrappers_minted;
 }
@@ -535,6 +536,18 @@ StyleValue const& ComputedStyleWorkingSet::property(PropertyID property_id, With
     return *wrapper;
 }
 
+void const* ComputedStyleWorkingSet::effective_property_data(PropertyID property_id, WithAnimationsApplied return_animated_value) const
+{
+    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
+    auto effective = ComputedValuesFFI::rust_computed_longhand_table_effective_value(
+        m_computed_longhand_table,
+        m_animated_properties ? m_animated_properties->overlay() : nullptr,
+        to_underlying(property_id),
+        return_animated_value == WithAnimationsApplied::Yes);
+    VERIFY(effective.value);
+    return effective.value;
+}
+
 void ComputedStyleWorkingSet::collect_effective_longhand_overrides(Vector<u16>& properties, Vector<void const*>& values) const
 {
     auto const* table = m_computed_longhand_table;
@@ -551,7 +564,11 @@ void ComputedStyleWorkingSet::collect_effective_longhand_overrides(Vector<u16>& 
 
 Color ComputedStyleWorkingSet::color(PropertyID id, ColorResolutionContext color_resolution_context) const
 {
-    return property(id).to_color(color_resolution_context).value();
+    Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_storage;
+    auto input = make_rust_color_resolution_input(color_resolution_context, length_storage);
+    auto resolved = StyleValueFFI::rust_style_value_to_color(effective_property_data(id), &input);
+    VERIFY(resolved.resolved);
+    return Color(resolved.rgba[0], resolved.rgba[1], resolved.rgba[2], resolved.rgba[3]);
 }
 
 // https://drafts.csswg.org/css-values-4/#linked-properties
@@ -589,42 +606,19 @@ PreferredColorScheme ComputedStyleWorkingSet::color_scheme(PreferredColorScheme 
     if (!has_animated_property(PropertyID::ColorScheme) && m_effective_color_scheme.has_value())
         return *m_effective_color_scheme;
 
-    // NB: Animated color-scheme values keep using this path until animations move
-    //     into the Rust driver.
-    // To determine the used color scheme of an element:
-    auto const& scheme_value = property(PropertyID::ColorScheme).as_color_scheme();
-    auto schemes = scheme_value.schemes();
-
-    // 1. If the user’s preferred color scheme, as indicated by the prefers-color-scheme media feature,
-    //    is present among the listed color schemes, and is supported by the user agent,
-    //    that’s the element’s used color scheme.
-    if (preferred_scheme != PreferredColorScheme::Auto && schemes.contains_slow(preferred_color_scheme_to_utf16_fly_string(preferred_scheme)))
-        return preferred_scheme;
-
-    // 2. Otherwise, if the user has indicated an overriding preference for their chosen color scheme,
-    //    and the only keyword is not present in color-scheme for the element,
-    //    the user agent must override the color scheme with the user’s preferred color scheme.
-    //    See § 2.3 Overriding the Color Scheme.
-    // FIXME: We don't currently support setting an "overriding preference" for color schemes.
-
-    // 3. Otherwise, if the user agent supports at least one of the listed color schemes,
-    //    the used color scheme is the first supported color scheme in the list.
-    auto first_supported = schemes.first_matching([](auto scheme) { return preferred_color_scheme_from_string(scheme) != PreferredColorScheme::Auto; });
-    if (first_supported.has_value())
-        return preferred_color_scheme_from_string(first_supported.value());
-
-    // 4. Otherwise, the used color scheme is the browser default. (Same as normal.)
-    // `normal` indicates that the element supports the page’s supported color schemes, if they are set
+    Vector<u8> document_supported_scheme_codes;
     if (document_supported_schemes.has_value()) {
-        if (preferred_scheme != PreferredColorScheme::Auto && document_supported_schemes->contains_slow(preferred_color_scheme_to_utf16_fly_string(preferred_scheme)))
-            return preferred_scheme;
-
-        auto document_first_supported = document_supported_schemes->first_matching([](auto scheme) { return preferred_color_scheme_from_string(scheme) != PreferredColorScheme::Auto; });
-        if (document_first_supported.has_value())
-            return preferred_color_scheme_from_string(document_first_supported.value());
+        document_supported_scheme_codes.ensure_capacity(document_supported_schemes->size());
+        for (auto const& scheme : *document_supported_schemes)
+            document_supported_scheme_codes.unchecked_append(to_underlying(preferred_color_scheme_from_string(scheme)));
     }
-
-    return PreferredColorScheme::Light;
+    ComputedValuesFFI::FfiEffectiveColorSchemeInput input {
+        .preferred_color_scheme = static_cast<u8>(to_underlying(preferred_scheme)),
+        .has_document_supported_schemes = document_supported_schemes.has_value(),
+        .document_supported_scheme_codes = document_supported_scheme_codes.data(),
+        .document_supported_scheme_count = document_supported_scheme_codes.size(),
+    };
+    return static_cast<PreferredColorScheme>(ComputedValuesFFI::rust_resolve_effective_color_scheme(effective_property_data(PropertyID::ColorScheme), &input));
 }
 
 CSSPixels normal_line_height(Gfx::FontPixelMetrics const& font_metrics)
@@ -794,7 +788,9 @@ Visibility ComputedStyleWorkingSet::visibility() const
 
 Display ComputedStyleWorkingSet::display() const
 {
-    return property(PropertyID::Display).as_display().display();
+    auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(effective_property_data(PropertyID::Display));
+    VERIFY(value->tag == StyleValueFFI::StyleValueData::Tag::Display);
+    return bit_cast<Display>(value->display.raw);
 }
 
 ListStyleType ComputedStyleWorkingSet::list_style_type(StyleScope const& style_scope) const
@@ -1278,7 +1274,7 @@ ScrollbarColorData ComputedStyleWorkingSet::scrollbar_color(ColorResolutionConte
 ValueComparingNonnullRefPtr<Gfx::FontCascadeList const> ComputedStyleWorkingSet::computed_font_list(FontComputer const& font_computer) const
 {
     if (!m_cached_computed_font_list) {
-        m_cached_computed_font_list = font_computer.compute_font_for_style_values(property(PropertyID::FontFamily), font_size(), font_slope(), font_weight(), font_width(), font_optical_sizing(), font_variation_settings(), font_feature_data());
+        m_cached_computed_font_list = font_computer.compute_font_for_style_values(computed_font_families(), font_size(), font_slope(), font_weight(), font_width(), font_optical_sizing(), font_variation_settings(), font_feature_data());
         VERIFY(!m_cached_computed_font_list->is_empty());
     }
 
@@ -1303,17 +1299,45 @@ int ComputedStyleWorkingSet::math_depth() const
 
 CSSPixels ComputedStyleWorkingSet::font_size() const
 {
-    return property(PropertyID::FontSize).as_length().length().absolute_length_to_px();
+    return CSSPixels { StyleValueFFI::rust_style_value_computed_length_value(effective_property_data(PropertyID::FontSize)) };
+}
+
+Vector<ComputedFontFamily> ComputedStyleWorkingSet::computed_font_families() const
+{
+    auto const* data = effective_property_data(PropertyID::FontFamily);
+    auto count = StyleValueFFI::rust_style_value_copy_computed_font_families(data, nullptr, 0);
+    Vector<StyleValueFFI::FfiComputedFontFamilyEntry> entries;
+    entries.resize(count);
+    VERIFY(StyleValueFFI::rust_style_value_copy_computed_font_families(data, entries.data(), entries.size()) == count);
+
+    Vector<ComputedFontFamily> families;
+    families.ensure_capacity(count);
+    for (auto const& entry : entries) {
+        if (entry.kind == StyleValueFFI::COMPUTED_FONT_FAMILY_GENERIC) {
+            auto family = keyword_to_generic_font_family(static_cast<Keyword>(entry.keyword));
+            VERIFY(family.has_value());
+            families.unchecked_append(family.release_value());
+            continue;
+        }
+        VERIFY(entry.kind == StyleValueFFI::COMPUTED_FONT_FAMILY_CUSTOM_IDENT || entry.kind == StyleValueFFI::COMPUTED_FONT_FAMILY_STRING);
+        families.unchecked_append(ComputedFontFamilyName {
+            .name = Utf16FlyString::from_raw(entry.string_raw),
+            .syntax = entry.kind == StyleValueFFI::COMPUTED_FONT_FAMILY_STRING
+                ? ComputedFontFamilySyntax::String
+                : ComputedFontFamilySyntax::CustomIdent,
+        });
+    }
+    return families;
 }
 
 double ComputedStyleWorkingSet::font_weight() const
 {
-    return property(PropertyID::FontWeight).as_number().number();
+    return StyleValueFFI::rust_style_value_computed_number(effective_property_data(PropertyID::FontWeight));
 }
 
 Percentage ComputedStyleWorkingSet::font_width() const
 {
-    return property(PropertyID::FontWidth).as_percentage().percentage();
+    return Percentage { StyleValueFFI::rust_style_value_computed_percentage(effective_property_data(PropertyID::FontWidth)) };
 }
 
 int ComputedStyleWorkingSet::font_slope() const

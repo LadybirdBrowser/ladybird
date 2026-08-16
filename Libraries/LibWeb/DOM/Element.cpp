@@ -32,6 +32,7 @@
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
+#include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
@@ -145,6 +146,7 @@
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/StyleValueRustFFI.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
@@ -1207,13 +1209,6 @@ void Element::run_attribute_change_steps(Utf16FlyString const& local_name, Optio
     }
 }
 
-static bool style_value_changed(CSS::StyleValue const& old_value, CSS::StyleValue const& new_value)
-{
-    if (&old_value == &new_value)
-        return false;
-    return !old_value.equals(new_value);
-}
-
 static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidation_between_computed_values(CSS::ComputedValues const& old_computed_values, CSS::ComputedValues const& new_computed_values, bool element_folds_transform_into_layout = false)
 {
     CSS::StyleComputer::ComputedStyleInvalidation result;
@@ -1235,20 +1230,50 @@ static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidati
             result.invalidation.ensure_at_least(CSS::InvalidationLevel::Relayout);
         }
 
-        for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
-            auto property_id = static_cast<CSS::PropertyID>(i);
+        constexpr auto longhand_count = CSS::number_of_longhand_properties;
+        constexpr auto longhand_bitmap_bytes = (longhand_count + 7) / 8;
+        Array<u16, longhand_count> old_physical_properties;
+        Array<u16, longhand_count> new_physical_properties;
+        for (size_t index = 0; index < longhand_count; ++index) {
+            auto property_id = static_cast<CSS::PropertyID>(to_underlying(CSS::first_longhand_property_id) + index);
             auto old_physical_property_id = property_id;
             auto new_physical_property_id = property_id;
             if (CSS::property_is_logical_alias(property_id)) {
                 old_physical_property_id = CSS::map_logical_alias_to_physical_property(property_id, CSS::LogicalAliasMappingContext { old_computed_values.writing_mode(), old_computed_values.direction() });
                 new_physical_property_id = CSS::map_logical_alias_to_physical_property(property_id, CSS::LogicalAliasMappingContext { new_computed_values.writing_mode(), new_computed_values.direction() });
             }
+            old_physical_properties[index] = to_underlying(old_physical_property_id);
+            new_physical_properties[index] = to_underlying(new_physical_property_id);
+        }
 
-            auto old_value = old_computed_values.computed_style_value(old_physical_property_id);
-            auto new_value = new_computed_values.computed_style_value(new_physical_property_id);
+        auto old_longhands = old_computed_values.computed_longhand_values();
+        auto new_longhands = new_computed_values.computed_longhand_values();
+        VERIFY(old_longhands.size() == longhand_count);
+        VERIFY(new_longhands.size() == longhand_count);
+        auto old_importance = old_computed_values.property_importance_bitmap();
+        auto new_importance = new_computed_values.property_importance_bitmap();
+        Array<u8, longhand_bitmap_bytes> changed_properties;
+        auto const* old_animated_properties = old_computed_values.animated_properties();
+        auto const* new_animated_properties = new_computed_values.animated_properties();
+        VERIFY(CSS::StyleValueFFI::rust_style_value_diff_effective_longhands(
+            old_longhands.data(),
+            new_longhands.data(),
+            old_physical_properties.data(),
+            new_physical_properties.data(),
+            longhand_count,
+            old_animated_properties ? old_animated_properties->overlay() : nullptr,
+            new_animated_properties ? new_animated_properties->overlay() : nullptr,
+            old_importance.data(),
+            new_importance.data(),
+            old_importance.size(),
+            changed_properties.data(),
+            changed_properties.size()));
 
-            if (!style_value_changed(*old_value, *new_value))
+        for (size_t index = 0; index < longhand_count; ++index) {
+            if (!(changed_properties[index / 8] & (1 << (index % 8))))
                 continue;
+            auto property_id = static_cast<CSS::PropertyID>(to_underlying(CSS::first_longhand_property_id) + index);
+            auto new_physical_property_id = static_cast<CSS::PropertyID>(new_physical_properties[index]);
             result.any_computed_value_changed = true;
             if (CSS::is_inherited_property(property_id)) {
                 // Equal groups adopted the old payload above, so a changed value names a group
@@ -1259,7 +1284,7 @@ static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidati
                 else
                     result.invalidation.mark_all_inherited_style_groups_changed();
             }
-            auto property_invalidation = CSS::compute_property_invalidation(property_id, old_value.ptr(), new_value.ptr(), &old_computed_values, &new_computed_values);
+            auto property_invalidation = CSS::compute_property_invalidation(property_id, old_computed_values, new_computed_values);
             // SVG layout folds element transforms into container bounding boxes, so a transform
             // change needs layout there even though it stays paint-only for CSS boxes.
             if (element_folds_transform_into_layout

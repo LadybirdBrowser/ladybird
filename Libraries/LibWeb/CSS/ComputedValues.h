@@ -880,20 +880,6 @@ struct BorderRadiusData {
     bool operator==(BorderRadiusData const&) const = default;
 };
 
-enum class ComputedFontFamilySyntax {
-    CustomIdent,
-    String,
-};
-
-struct ComputedFontFamilyName {
-    Utf16FlyString name;
-    ComputedFontFamilySyntax syntax { ComputedFontFamilySyntax::CustomIdent };
-
-    bool operator==(ComputedFontFamilyName const&) const = default;
-};
-
-using ComputedFontFamily = Variant<GenericFontFamily, ComputedFontFamilyName>;
-
 enum class ComputedAnimationNameSyntax {
     None,
     CustomIdent,

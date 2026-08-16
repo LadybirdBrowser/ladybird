@@ -3761,8 +3761,7 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
     auto const* previous_base = previous_values ? &previous_values->base_values() : nullptr;
     auto groups_to_rebuild = sharing.computed_groups_to_rebuild.value_or(ComputedValues::all_style_groups);
     auto& element = abstract_element.element();
-    auto const& font_family = computed_properties->property(PropertyID::FontFamily);
-    bool has_monospace_font_size_recascade = ComputedValuesFFI::rust_font_family_is_monospace(font_family.rust_style_value_data());
+    bool has_monospace_font_size_recascade = ComputedValuesFFI::rust_font_family_is_monospace(computed_properties->effective_property_data(PropertyID::FontFamily));
     if (groups_to_rebuild != ComputedValues::all_style_groups) {
         if (element.has_relevant_animations()
             || element.has_css_defined_animations())
@@ -3912,7 +3911,7 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_computed_values(Compute
     ColorResolutionContext color_resolution_context {
         .color_scheme = computation_context.color_scheme,
         .current_color = InitialValues::color(),
-        .current_color_style_value = &computed_properties.property(PropertyID::Color),
+        .current_color_style_value_data = computed_properties.effective_property_data(PropertyID::Color),
         .calculation_resolution_context = { .length_resolution_context = computation_context.length_resolution_context },
     };
     // NB: Sharing group payloads with the parent costs almost nothing for groups that already
@@ -4003,7 +4002,7 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_animated_computed_value
     ColorResolutionContext color_resolution_context {
         .color_scheme = computation_context.color_scheme,
         .current_color = InitialValues::color(),
-        .current_color_style_value = &computed_properties.property(PropertyID::Color),
+        .current_color_style_value_data = computed_properties.effective_property_data(PropertyID::Color),
         .calculation_resolution_context = { .length_resolution_context = computation_context.length_resolution_context },
     };
 
@@ -5009,15 +5008,24 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         auto fully_computed_values = build_computed_values(*fully_computed_properties, abstract_element, style_scope);
         document().style_invalidation_counters() = counters;
         abstract_element.set_custom_property_data(move(custom_property_data));
+        auto partially_computed_longhands = partially_computed_values->computed_longhand_values();
+        auto fully_computed_longhands = fully_computed_values->computed_longhand_values();
+        VERIFY(partially_computed_longhands.size() == number_of_longhand_properties);
+        VERIFY(fully_computed_longhands.size() == number_of_longhand_properties);
         for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
             auto property_id = static_cast<PropertyID>(i);
-            auto partial_value = partially_computed_values->computed_style_value_for_inheritance(property_id);
-            auto full_value = fully_computed_values->computed_style_value_for_inheritance(property_id);
+            auto index = i - to_underlying(first_longhand_property_id);
+            auto const* partial_value = static_cast<StyleValueFFI::StyleValueData const*>(partially_computed_longhands[index]);
+            auto const* full_value = static_cast<StyleValueFFI::StyleValueData const*>(fully_computed_longhands[index]);
             VERIFY(partial_value);
             VERIFY(full_value);
-            if (!partial_value->equals(*full_value))
-                dbgln("computed closure differs on {}: partial {}, full {} (element {} id={})", string_from_property_id(property_id), partial_value->to_string(SerializationMode::Normal), full_value->to_string(SerializationMode::Normal), abstract_element.element().tag_name(), abstract_element.element().id().value_or(Utf16FlyString {}));
-            VERIFY(partial_value->equals(*full_value));
+            bool values_are_equal = partial_value == full_value || StyleValueFFI::rust_style_value_equals(partial_value, full_value);
+            if (!values_are_equal) {
+                auto partial_wrapper = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(partial_value));
+                auto full_wrapper = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(full_value));
+                dbgln("computed closure differs on {}: partial {}, full {} (element {} id={})", string_from_property_id(property_id), partial_wrapper->to_string(SerializationMode::Normal), full_wrapper->to_string(SerializationMode::Normal), abstract_element.element().tag_name(), abstract_element.element().id().value_or(Utf16FlyString {}));
+            }
+            VERIFY(values_are_equal);
             if (partially_computed_values->is_property_important(property_id) != fully_computed_values->is_property_important(property_id))
                 dbgln("computed closure importance differs on {}: partial {}, full {}", string_from_property_id(property_id), partially_computed_values->is_property_important(property_id), fully_computed_values->is_property_important(property_id));
             VERIFY(partially_computed_values->is_property_important(property_id) == fully_computed_values->is_property_important(property_id));
@@ -5356,13 +5364,8 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                 computed_style.did_store_property_data_from_drive(property_id, nullptr);
                 break;
             }
-            if (entry.inherited && entry.computed_kind == ComputedValuesFFI::COMPUTED_KIND_UNCHANGED && computed_values_to_inherit_from) {
-                auto inherited_value = computed_values_to_inherit_from->computed_style_value_for_inheritance(inherited_property_id, ComputedValues::WithAnimationsApplied::No);
-                if (inherited_value && inherited_value->rust_style_value_data() == entry.data)
-                    computed_style.cache_property_wrapper_from_drive(property_id, inherited_value.release_nonnull());
-            }
             if (property_id == PropertyID::ColorScheme && !computed_style.has_effective_color_scheme()) {
-                auto effective_color_scheme = ComputedValuesFFI::rust_resolve_effective_color_scheme(computed_style.property(PropertyID::ColorScheme).rust_style_value_data(), &effective_color_scheme_input);
+                auto effective_color_scheme = ComputedValuesFFI::rust_resolve_effective_color_scheme(computed_style.effective_property_data(PropertyID::ColorScheme), &effective_color_scheme_input);
                 computed_style.set_effective_color_scheme(static_cast<PreferredColorScheme>(effective_color_scheme));
             }
         }

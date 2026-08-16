@@ -174,6 +174,7 @@ struct ColorResolutionContext {
     Optional<Color> current_color;
     // Unlike current_color, this preserves precision and missing components, as needed by relative color origins.
     RefPtr<StyleValue const> current_color_style_value {};
+    void const* current_color_style_value_data { nullptr };
     CalculationResolutionContext calculation_resolution_context;
 
     [[nodiscard]] static ColorResolutionContext for_element(DOM::AbstractElement const&);

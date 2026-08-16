@@ -2165,6 +2165,7 @@ RefPtr<StyleValue const> ComputedValues::style_value_from_handle(PropertyID prop
     if (auto it = m_style_value_cache.find(property_id); it != m_style_value_cache.end() && it->value->rust_style_value_data() == handle.data())
         return it->value;
     auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(handle.data()));
+    count_longhand_wrapper_mint();
     m_style_value_cache.set(property_id, value);
     return value;
 }
@@ -2312,6 +2313,7 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     if (auto it = m_style_value_cache.find(property_id); it != m_style_value_cache.end() && it->value->rust_style_value_data() == stored)
         return it->value;
     auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(stored)));
+    count_longhand_wrapper_mint();
     m_style_value_cache.set(property_id, value);
     return value;
 }
