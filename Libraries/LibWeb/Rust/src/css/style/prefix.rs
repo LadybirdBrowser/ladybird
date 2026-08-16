@@ -895,23 +895,15 @@ fn step_hash(step: PrefixStepID) -> u64 {
     (u64::from(step.0) ^ 0x9E37_79B9_7F4A_7C15).wrapping_mul(0x2545_F491_4F6C_DD1D)
 }
 
-/// Structural identity of a delta state: the base it extends plus its own payload. Two
-/// semantically equal states built over different bases intern separately, which is bounded and
-/// acceptable; content comparisons therefore never rely on state identity alone.
-fn state_structural_hash(
-    base: u32,
-    additions_len: u32,
-    additions_hash: u64,
+/// Content identity of a prefix state. The two digests are fast lookup keys only; interning still
+/// compares the complete persisting and expiring sets on a hit.
+fn state_content_key(
+    descendant_len: u32,
+    descendant_hash: u64,
     expiring_len: u32,
     expiring_hash: u32,
-) -> u64 {
-    let mut hasher = fast_hasher();
-    base.hash(&mut hasher);
-    additions_len.hash(&mut hasher);
-    additions_hash.hash(&mut hasher);
-    expiring_len.hash(&mut hasher);
-    expiring_hash.hash(&mut hasher);
-    hasher.finish()
+) -> (u32, u64, u32, u32) {
+    (descendant_len, descendant_hash, expiring_len, expiring_hash)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -965,6 +957,11 @@ const UNKNOWN_TRANSITION: PrefixTransition = PrefixTransition {
 };
 
 define_id! { struct PrefixStateID(); }
+
+struct PrefixStateCandidates {
+    first: PrefixStateID,
+    collisions: Vec<PrefixStateID>,
+}
 
 impl super::intern_table::InternIdentity for PrefixStateID {
     fn index(self) -> usize {
@@ -1031,7 +1028,8 @@ pub(super) struct PrefixStates {
     states: Vec<PrefixState>,
     /// Every state's delta payload: its persisting additions followed by its expiring steps.
     delta_steps: Vec<std::mem::MaybeUninit<PrefixStepID>>,
-    states_by_hash: super::intern_table::InternTable<PrefixStateID, ()>,
+    states_by_hash: HashMap<(u32, u64, u32, u32), PrefixStateCandidates>,
+    states_by_hash_collision_bytes: u64,
     match_offsets: Vec<u32>,
     match_entries: Vec<DispatchEntryID>,
     truth_offsets: Vec<u32>,
@@ -1049,6 +1047,8 @@ pub(super) struct PrefixStates {
     /// Per-element positional truth retained only for automata that test it.
     positional_bits_by_element: Column<u32>,
     candidate_epoch: EpochColumn,
+    comparison_epoch: u32,
+    comparison_marks: EpochColumn,
     compound_epoch: EpochColumn,
     compound_answer: Vec<bool>,
     output_epoch: EpochColumn,
@@ -1499,7 +1499,8 @@ impl PrefixStates {
         Self {
             states: vec![PrefixState::default()],
             delta_steps: Vec::new(),
-            states_by_hash: super::intern_table::InternTable::default(),
+            states_by_hash: HashMap::default(),
+            states_by_hash_collision_bytes: 0,
             match_offsets: vec![0, 0],
             match_entries: Vec::new(),
             truth_offsets: vec![0, 0],
@@ -1519,6 +1520,8 @@ impl PrefixStates {
             local_facts_by_element: Column::default(),
             positional_bits_by_element: Column::default(),
             candidate_epoch: EpochColumn::default(),
+            comparison_epoch: 0,
+            comparison_marks: EpochColumn::default(),
             compound_epoch: EpochColumn::default(),
             compound_answer: Vec::new(),
             output_epoch: EpochColumn::default(),
@@ -1641,9 +1644,9 @@ impl PrefixStates {
 
     /// Whether two states hold the same active steps, viewed through an optional selection.
     ///
-    /// Structural interning means distinct identities can still be content-equal, so identity is
-    /// only a fast positive. The persisting hash is a fast negative when no selection filters
-    /// the view; the full check compares both persisting sets through dense epoch marks, with the
+    /// A selection can make states with different complete contents equal, so identity is only a
+    /// fast positive here. The persisting hash is a fast negative when no selection filters the
+    /// view; the full check compares both persisting sets through dense epoch marks, with the
     /// expiring parts compared directly.
     fn selected_states_equal(&mut self, left: u32, right: u32, selection: Option<&PrefixSelection>) -> bool {
         if left == right {
@@ -1657,21 +1660,10 @@ impl PrefixStates {
         {
             return false;
         }
-        advance_epoch(
-            &mut self.epoch,
-            2,
-            &mut [
-                &mut self.candidate_epoch,
-                &mut self.compound_epoch,
-                &mut self.output_epoch,
-                &mut self.match_epoch,
-                &mut self.parent_persisting_epoch,
-                &mut self.previous_persisting_epoch,
-            ],
-        );
-        let left_epoch = self.epoch - 1;
-        let right_epoch = self.epoch;
-        let mut compare_epoch = std::mem::take(&mut self.candidate_epoch);
+        advance_epoch(&mut self.comparison_epoch, 2, &mut [&mut self.comparison_marks]);
+        let left_epoch = self.comparison_epoch - 1;
+        let right_epoch = self.comparison_epoch;
+        let mut compare_epoch = std::mem::take(&mut self.comparison_marks);
         compare_epoch.ensure_len(self.automaton_step_count);
         let mut left_count = 0;
         let mut current = left;
@@ -1728,12 +1720,55 @@ impl PrefixStates {
                 None => left_expiring.eq(right_expiring),
             };
         }
-        self.candidate_epoch = compare_epoch;
-        self.compare_left.clear();
-        self.compare_left.reserve(left_count);
-        self.compare_right.clear();
-        self.compare_right.reserve(right_count);
+        self.comparison_marks = compare_epoch;
         equal
+    }
+
+    /// Find the canonical state with `probe`'s complete contents. Copy each candidate identity out
+    /// before comparison because the equality check borrows the state scratch mutably.
+    fn find_equal_state(&mut self, key: (u32, u64, u32, u32), probe: u32) -> Option<u32> {
+        let first = self.states_by_hash.get(&key)?.first.0;
+        if self.states_have_equal_contents(first, probe) {
+            return Some(first);
+        }
+        let collision_count = self.states_by_hash[&key].collisions.len();
+        for index in 0..collision_count {
+            let candidate = self.states_by_hash[&key].collisions[index].0;
+            if self.states_have_equal_contents(candidate, probe) {
+                return Some(candidate);
+            }
+        }
+        None
+    }
+
+    fn states_have_equal_contents(&mut self, left: u32, right: u32) -> bool {
+        let left_contents = &self.states[left as usize];
+        let right_contents = &self.states[right as usize];
+        if left_contents.base == right_contents.base
+            && self.additions_in(left) == self.additions_in(right)
+            && self.expiring_in(left) == self.expiring_in(right)
+        {
+            return true;
+        }
+        self.selected_states_equal(left, right, None)
+    }
+
+    fn remember_state(&mut self, key: (u32, u64, u32, u32), state: u32) {
+        match self.states_by_hash.entry(key) {
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                entry.insert(PrefixStateCandidates {
+                    first: PrefixStateID(state),
+                    collisions: Vec::new(),
+                });
+            }
+            std::collections::hash_map::Entry::Occupied(mut entry) => {
+                let collisions = &mut entry.get_mut().collisions;
+                let old_capacity = collisions.capacity();
+                collisions.push(PrefixStateID(state));
+                self.states_by_hash_collision_bytes +=
+                    ((collisions.capacity() - old_capacity) * size_of::<PrefixStateID>()) as u64;
+            }
+        }
     }
 
     fn transition_of(&self, node: StyleNodeID) -> PrefixTransitionLookup<PrefixTransition> {
@@ -2642,15 +2677,13 @@ impl PrefixStates {
         if self.states.len() > 1 && self.states_by_hash.is_empty() {
             for state in 1..self.states.len() {
                 let contents = &self.states[state];
-                let base_hash = self.states[contents.base as usize].descendant_hash;
-                let hash = state_structural_hash(
-                    contents.base,
-                    contents.additions_len,
-                    contents.descendant_hash.wrapping_sub(base_hash),
+                let key = state_content_key(
+                    contents.descendant_len,
+                    contents.descendant_hash,
                     contents.expiring_len,
                     contents.expiring_hash,
                 );
-                self.states_by_hash.insert_identity(hash, PrefixStateID(state as u32));
+                self.remember_state(key, state as u32);
             }
         }
         if self.match_offsets.len() > 2 && self.match_sets_by_hash.is_empty() {
@@ -3072,18 +3105,10 @@ impl PrefixStates {
         }
         let additions_len = u32::try_from(additions.len()).expect("selector prefix state payload overflow");
         let expiring_len = u32::try_from(expiring.len()).expect("selector prefix state payload overflow");
-        let hash = state_structural_hash(base_state, additions_len, additions_hash, expiring_len, expiring_hash);
-        if let Some(candidate) = self.states_by_hash.find(hash, |candidate, ()| {
-            self.states[candidate.0 as usize].base == base_state
-                && self.additions_in(candidate.0) == additions
-                && self.expiring_in(candidate.0) == expiring
-        }) {
-            return candidate.0;
-        }
-
         let base = &self.states[base_state as usize];
         let descendant_len = base.descendant_len + additions_len;
         let descendant_hash = base.descendant_hash.wrapping_add(additions_hash);
+        let key = state_content_key(descendant_len, descendant_hash, expiring_len, expiring_hash);
         let state = u32::try_from(self.states.len()).expect("selector prefix state space exhausted");
         let payload_start = u32::try_from(self.delta_steps.len()).expect("selector prefix state payload overflow");
         self.append_delta_steps(additions);
@@ -3101,7 +3126,13 @@ impl PrefixStates {
             true => state,
             false => UNKNOWN_STATE,
         });
-        self.states_by_hash.insert_identity(hash, PrefixStateID(state));
+        if let Some(candidate) = self.find_equal_state(key, state) {
+            self.states.pop();
+            self.descendant_only.pop();
+            self.delta_steps.truncate(payload_start as usize);
+            return candidate;
+        }
+        self.remember_state(key, state);
         state
     }
 
@@ -3157,21 +3188,9 @@ impl PrefixStates {
             .checked_add(additions_len)
             .expect("selector prefix state payload overflow");
         let descendant_hash = new_base.descendant_hash.wrapping_add(additions_hash);
-        let hash = state_structural_hash(
-            new_base_state,
-            additions_len,
-            additions_hash,
-            expiring_len,
-            expiring_hash,
-        );
-        if let Some(candidate) = self.states_by_hash.find(hash, |candidate, ()| {
-            self.states[candidate.0 as usize].base == new_base_state
-                && self.additions_in(candidate.0) == self.additions_in(source_state)
-                && self.expiring_in(candidate.0) == self.expiring_in(source_state)
-        }) {
-            return Some(candidate.0);
-        }
+        let key = state_content_key(descendant_len, descendant_hash, expiring_len, expiring_hash);
         let state = u32::try_from(self.states.len()).expect("selector prefix state space exhausted");
+        let delta_steps_len = self.delta_steps.len();
         self.skip_delta_steps(additions_len as usize, expiring_len as usize);
         self.states.push(PrefixState {
             base: new_base_state,
@@ -3186,7 +3205,13 @@ impl PrefixStates {
             true => state,
             false => UNKNOWN_STATE,
         });
-        self.states_by_hash.insert_identity(hash, PrefixStateID(state));
+        if let Some(candidate) = self.find_equal_state(key, state) {
+            self.states.pop();
+            self.descendant_only.pop();
+            self.delta_steps.truncate(delta_steps_len);
+            return Some(candidate);
+        }
+        self.remember_state(key, state);
         Some(state)
     }
 
@@ -3344,7 +3369,8 @@ impl PrefixStates {
         self.states = states;
         self.delta_steps = delta_steps;
         self.descendant_only = descendant_only;
-        self.states_by_hash = super::intern_table::InternTable::default();
+        self.states_by_hash = HashMap::default();
+        self.states_by_hash_collision_bytes = 0;
         self.transitions = old_transitions
             .into_iter()
             .filter_map(|(key, transition)| {
@@ -3411,6 +3437,7 @@ impl PrefixStates {
         // their complete allocations back because none of their contents cross this boundary.
         self.transition_by_row = Vec::new();
         self.candidate_epoch = EpochColumn::default();
+        self.comparison_marks = EpochColumn::default();
         self.compound_epoch = EpochColumn::default();
         self.compound_answer = Vec::new();
         self.output_epoch = EpochColumn::default();
@@ -3450,6 +3477,7 @@ impl PrefixStates {
                 self.local_facts_by_element,
                 self.positional_bits_by_element,
                 self.candidate_epoch,
+                self.comparison_marks,
                 self.compound_epoch,
                 self.output_epoch,
                 self.match_epoch,
@@ -3469,9 +3497,11 @@ impl PrefixStates {
                 self.ancestor_chain,
             ];
             cached [];
-            nested [];
+            nested [self.states_by_hash_collision_bytes];
             skip [
                 self.local_fact_interner,
+                self.comparison_epoch,
+                self.states_by_hash_collision_bytes,
                 self.new_descendant_hash,
                 self.new_child_hash,
                 self.new_following_hash,
@@ -4195,6 +4225,53 @@ mod tests {
         assert_eq!(states.states[rebased as usize].payload_start, source_payload);
         assert_eq!(states.additions_in(rebased), [local_step]);
         assert_eq!(states.expiring_in(rebased), [expiring_step]);
+    }
+
+    #[test]
+    fn equal_prefix_state_contents_share_an_identity_across_base_chains() {
+        let first = PrefixStepID(1);
+        let second = PrefixStepID(2);
+        let mut states = PrefixStates::new(0);
+        states.automaton_step_count = 3;
+        let mut counters = Counters::new();
+        let first_base = states.intern_extended_state(0, &[first], step_hash(first), &[], 0, &mut counters);
+        let second_base = states.intern_extended_state(0, &[second], step_hash(second), &[], 0, &mut counters);
+
+        let first_then_second =
+            states.intern_extended_state(first_base, &[second], step_hash(second), &[], 0, &mut counters);
+        let second_then_first =
+            states.intern_extended_state(second_base, &[first], step_hash(first), &[], 0, &mut counters);
+
+        assert_eq!(first_then_second, second_then_first);
+    }
+
+    #[test]
+    fn prefix_state_interning_checks_equal_length_and_hash_collisions() {
+        let first = PrefixStepID(1);
+        let second = PrefixStepID(2);
+        let third = PrefixStepID(3);
+        let fourth = PrefixStepID(4);
+        let mut states = PrefixStates::new(0);
+        states.automaton_step_count = 5;
+        let mut counters = Counters::new();
+        let first_base = states.intern_extended_state(0, &[first], step_hash(first), &[], 0, &mut counters);
+        let second_base = states.intern_extended_state(0, &[second], step_hash(second), &[], 0, &mut counters);
+        let collision_hash = step_hash(first).wrapping_add(step_hash(second));
+        let collision = states.intern_extended_state(0, &[third, fourth], collision_hash, &[], 0, &mut counters);
+        let first_then_second =
+            states.intern_extended_state(first_base, &[second], step_hash(second), &[], 0, &mut counters);
+
+        assert_ne!(collision, first_then_second);
+        let key = state_content_key(2, collision_hash, 0, 0);
+        assert_eq!(states.states_by_hash[&key].first, PrefixStateID(collision));
+        assert_eq!(
+            states.states_by_hash[&key].collisions,
+            [PrefixStateID(first_then_second)]
+        );
+
+        let second_then_first =
+            states.intern_extended_state(second_base, &[first], step_hash(first), &[], 0, &mut counters);
+        assert_eq!(second_then_first, first_then_second);
     }
 
     #[test]
