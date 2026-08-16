@@ -28,6 +28,11 @@ enum class GetByIdMode {
     Length,
 };
 
+enum class CachePropertyAbsence {
+    No,
+    Yes,
+};
+
 ALWAYS_INLINE ThrowCompletionOr<Value> get_cached_property_value(VM& vm, Value value, Value this_value)
 {
     if (!value.is_accessor())
@@ -84,7 +89,7 @@ ALWAYS_INLINE ThrowCompletionOr<GC::Ref<Object>> base_object_for_get(VM& vm, Val
 }
 
 template<GetByIdMode mode, typename GetBaseIdentifier, typename GetPropertyName>
-ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_base_identifier, GetPropertyName get_property_name, Value base_value, Value this_value, PropertyLookupCache& cache)
+ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_base_identifier, GetPropertyName get_property_name, Value base_value, Value this_value, PropertyLookupCache& cache, CachePropertyAbsence cache_property_absence = CachePropertyAbsence::No)
 {
     if constexpr (mode == GetByIdMode::Length) {
         if (base_value.is_string()) {
@@ -113,6 +118,23 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
     auto& shape = base_obj->shape();
 
     for (auto& cache_entry : cache.entries_for_shape(shape)) {
+        if (cache_entry.type == PropertyLookupCache::Entry::Type::GetMissingProperty) {
+            if (cache_property_absence == CachePropertyAbsence::No)
+                continue;
+            if (!base_obj->is_cacheable_for_property_absence()) [[unlikely]]
+                continue;
+            if (&shape != cache_entry.shape.ptr()) [[unlikely]]
+                continue;
+            if (shape.is_dictionary() && shape.dictionary_generation() != cache_entry.shape_dictionary_generation) [[unlikely]]
+                continue;
+            if (shape.prototype()) {
+                auto prototype_chain_validity = cache_entry.prototype_chain_validity.ptr();
+                if (!prototype_chain_validity || !prototype_chain_validity->is_valid()) [[unlikely]]
+                    continue;
+            }
+            return js_undefined();
+        }
+
         if (cache_entry.type != PropertyLookupCache::Entry::Type::GetOwnProperty
             && cache_entry.type != PropertyLookupCache::Entry::Type::GetPropertyInPrototypeChain) {
             continue;
@@ -162,6 +184,7 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
         prototype_chain_validity = shape.prototype()->shape().prototype_chain_validity();
 
     CacheableGetPropertyMetadata cacheable_metadata;
+    cacheable_metadata.property_absence_is_cacheable = base_obj->is_cacheable_for_property_absence();
     auto value = TRY(base_obj->internal_get(property_name, this_value, &cacheable_metadata));
 
     // If internal_get() caused object's shape change, we can no longer be sure
@@ -187,6 +210,15 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
                 if (shape.is_dictionary()) {
                     entry.shape_dictionary_generation = shape.dictionary_generation();
                 }
+            });
+        } else if (cache_property_absence == CachePropertyAbsence::Yes
+            && cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetMissingProperty) {
+            cache.update(PropertyLookupCache::Entry::Type::GetMissingProperty, [&](auto& entry) {
+                entry.shape = shape;
+                entry.prototype_chain_validity = prototype_chain_validity;
+
+                if (shape.is_dictionary())
+                    entry.shape_dictionary_generation = shape.dictionary_generation();
             });
         }
     }
@@ -340,6 +372,7 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                 }
                 case PropertyLookupCache::Entry::Type::GetOwnProperty:
                 case PropertyLookupCache::Entry::Type::GetPropertyInPrototypeChain:
+                case PropertyLookupCache::Entry::Type::GetMissingProperty:
                     break;
                 }
             }

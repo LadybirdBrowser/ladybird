@@ -274,6 +274,7 @@ bool PropertyLookupCache::entries_have_same_cache_key(Entry const& a, Entry cons
         return a.from_shape == b.from_shape && a.shape == b.shape;
     case Entry::Type::ChangeOwnProperty:
     case Entry::Type::GetOwnProperty:
+    case Entry::Type::GetMissingProperty:
         return a.shape == b.shape;
     case Entry::Type::ChangePropertyInPrototypeChain:
     case Entry::Type::GetPropertyInPrototypeChain:

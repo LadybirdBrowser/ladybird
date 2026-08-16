@@ -71,6 +71,7 @@ struct PropertyLookupCache {
             GetOwnProperty,
             ChangePropertyInPrototypeChain,
             GetPropertyInPrototypeChain,
+            GetMissingProperty,
         };
         Type type { Type::Empty };
         u32 property_offset { 0 };

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<div id="container"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const collection = container.children;
+        const value = document.createElement("span");
+        value.id = "value";
+
+        let iteration = 0;
+        const iterator = {
+            next() {
+                if (iteration === 1)
+                    container.append(value);
+                if (iteration++ === 2)
+                    return { done: true };
+                return collection;
+            },
+            [Symbol.iterator]() {
+                return this;
+            },
+        };
+
+        for (const item of iterator)
+            println(item?.id ?? "undefined");
+    });
+</script>

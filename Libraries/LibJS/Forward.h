@@ -322,6 +322,7 @@ class Generator;
 class Instruction;
 class Operand;
 struct PropertyLookupCache;
+struct StaticPropertyLookupCache;
 class RegexTable;
 class Register;
 

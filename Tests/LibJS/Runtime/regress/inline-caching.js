@@ -91,3 +91,30 @@ test("Modifying prototype in dictionary mode should cause prototype-chain validi
     });
     f(obj, 123);
 });
+
+test("Static property lookup cache invalidates missing own properties", () => {
+    const object = {
+        valueOf() {
+            return 1;
+        },
+    };
+
+    for (let i = 0; i < 10; ++i) expect(+object).toBe(1);
+
+    object[Symbol.toPrimitive] = () => 2;
+    expect(+object).toBe(2);
+});
+
+test("Static property lookup cache invalidates missing prototype properties", () => {
+    const prototype = {
+        valueOf() {
+            return 1;
+        },
+    };
+    const object = Object.create(prototype);
+
+    for (let i = 0; i < 10; ++i) expect(+object).toBe(1);
+
+    prototype[Symbol.toPrimitive] = () => 2;
+    expect(+object).toBe(2);
+});

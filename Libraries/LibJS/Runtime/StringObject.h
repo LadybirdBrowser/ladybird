@@ -29,6 +29,7 @@ protected:
 
 private:
     virtual ThrowCompletionOr<Optional<PropertyDescriptor>> internal_get_own_property(PropertyKey const&) const override;
+    virtual bool is_cacheable_for_property_absence() const override { return false; }
     virtual ThrowCompletionOr<bool> internal_define_own_property(PropertyKey const&, PropertyDescriptor&, Optional<PropertyDescriptor>* precomputed_get_own_property = nullptr) override;
     virtual ThrowCompletionOr<GC::RootVector<Value>> internal_own_property_keys() const override;
 
