@@ -233,7 +233,7 @@ public:
         Delete delete_download_history { Delete::No };
         Delete delete_site_data { Delete::No };
     };
-    void clear_browsing_data(ClearBrowsingDataOptions const&);
+    NonnullRefPtr<Core::Promise<Empty>> clear_browsing_data(ClearBrowsingDataOptions const&);
 
     Action& reload_action() { return *m_reload_action; }
     Action& copy_selection_action() { return *m_copy_selection_action; }
