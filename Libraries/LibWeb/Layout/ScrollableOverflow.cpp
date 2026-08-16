@@ -25,7 +25,7 @@ ContainedBoxesMap collect_scrollable_overflow_contained_boxes(Node const& root, 
         if (box_visitor)
             box_visitor(box);
         if (auto const* containing_block = box.containing_block())
-            contained_boxes_map.ensure(containing_block).append(&box);
+            contained_boxes_map.ensure(containing_block).append(box.template make_weak_ptr<Box const>());
         return TraversalDecision::Continue;
     });
     return contained_boxes_map;
@@ -220,8 +220,15 @@ CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMap const
     //   FIXME: accounting for 3D transforms by projecting each box onto the plane of the element that establishes
     //          its 3D rendering context. [CSS3-TRANSFORMS]
     if (auto it = contained_boxes_map.find(&box); it != contained_boxes_map.end()) {
-        for (auto const* child_ptr : it->value) {
+        for (auto const& weak_child : it->value) {
+            auto const* child_ptr = weak_child.ptr();
+            if (!child_ptr)
+                continue;
+
             auto const& child = *child_ptr;
+            auto child_paintable = child.paintable_box();
+            if (!child_paintable || child.containing_block() != &box)
+                continue;
 
             // https://drafts.csswg.org/css-position/#fixed-positioning-containing-block
             // [..] As a result, parts of fixed-positioned boxes that extend outside the layout viewport/page area
@@ -230,19 +237,18 @@ CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMap const
             if (child.is_fixed_position())
                 continue;
 
-            auto const& child_paintable = *child.paintable_box();
-            auto const child_has_css_transform = child_paintable.has_css_transform();
+            auto const child_has_css_transform = child_paintable->has_css_transform();
             if (child.position() == CSS::Positioning::Static && child.display().is_inline_outside() && !child.is_floating() && !child_has_css_transform) {
-                if (auto const& cached_overflow = child_paintable.cached_overflow_data(); cached_overflow.has_value()) {
-                    auto const& border = child_paintable.box_model().border;
+                if (auto const& cached_overflow = child_paintable->cached_overflow_data(); cached_overflow.has_value()) {
+                    auto const& border = child_paintable->box_model().border;
                     auto const has_border = border.top != 0 || border.right != 0 || border.bottom != 0 || border.left != 0;
                     if (!has_border) {
-                        auto const& padding = child_paintable.box_model().padding;
+                        auto const& padding = child_paintable->box_model().padding;
                         CSSPixelRect content_box_relative_to_padding_box {
                             { padding.left, padding.top },
                             {
-                                child_paintable.content_width(),
-                                child_paintable.content_height(),
+                                child_paintable->content_width(),
+                                child_paintable->content_height(),
                             },
                         };
                         // The committed line fragment already contributes this content box. A box with no border whose
@@ -253,7 +259,7 @@ CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMap const
                 }
             }
 
-            auto untransformed_child_border_box = child_paintable.absolute_border_box_rect();
+            auto untransformed_child_border_box = child_paintable->absolute_border_box_rect();
             auto child_border_box = apply_css_transform_to_overflow_rect(child, untransformed_child_border_box, child_has_css_transform);
 
             // NOTE: Only boxes that are not wholly in the unreachable scrollable overflow region contribute.

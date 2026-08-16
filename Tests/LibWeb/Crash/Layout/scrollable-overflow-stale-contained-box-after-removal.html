@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    #scroller {
+        position: relative;
+        overflow: auto;
+        width: 100px;
+        height: 100px;
+    }
+    #boundary {
+        position: absolute;
+        left: 20px;
+        top: 20px;
+        width: 160px;
+        height: 120px;
+        overflow: hidden;
+    }
+    #victim {
+        width: 220px;
+        height: 40px;
+    }
+</style>
+<div id="scroller">
+    <div id="boundary">
+        <div id="victim"></div>
+    </div>
+</div>
+<script>
+    scroller.scrollHeight;
+    let victimElement = document.getElementById("victim");
+    victimElement.remove();
+    victimElement = null;
+    boundary.style.transform = "translateX(1px)";
+    internals.gc();
+    boundary.getBoundingClientRect();
+</script>
