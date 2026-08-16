@@ -17,11 +17,6 @@ impl super::intern_table::InternIdentity for MatchAnswerID {
     }
 }
 
-define_id! {
-    /// Identity of the cascade-compacted rule input published to style computation.
-    default pub(super) struct CascadeInputID(pub(super));
-}
-
 pub(super) struct MatchAnswerCatalogEntry {
     pub(super) answer: Rc<[RetainedRuleMatch]>,
     pub(super) prefix_references: u32,
@@ -325,7 +320,7 @@ impl MatchAnswerCatalog {
 pub(super) struct PrefixAnswer {
     pub(super) matches: MatchAnswerID,
     pub(super) winner_group: Option<(u64, CascadeStateID)>,
-    pub(super) cascade_input: CascadeInputID,
+    pub(super) cascade_input: MatchAnswerID,
     pub(super) cascade_winner_inventory_is_complete: bool,
 }
 
@@ -515,7 +510,7 @@ impl PrefixAnswerCache {
         key: PrefixAnswerKey,
         answer: &[RuleMatch],
         winner_group: Option<(u64, CascadeStateID)>,
-        cascade_input: CascadeInputID,
+        cascade_input: MatchAnswerID,
         cascade_winner_inventory_is_complete: bool,
     ) {
         self.with_payload_accounting(catalog, |cache, catalog| {
@@ -720,7 +715,7 @@ pub(super) fn merge_retained_match_answers(answer: &mut Vec<RetainedRuleMatch>, 
 
 pub(super) struct RetainedMatchAnswers {
     pub(super) column: Vec<MatchAnswerID>,
-    pub(super) cascade_input_column: Vec<CascadeInputID>,
+    pub(super) cascade_input_column: Vec<MatchAnswerID>,
     pub(super) cascade_input_memory: MemoryLease,
     pub(super) residency: MemoryLease,
 }
@@ -902,7 +897,7 @@ pub(super) struct RetainedAnswerPatch {
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub(super) struct RetainedAnswerDeltaMemoKey {
     pub(super) old_answer: MatchAnswerID,
-    pub(super) old_cascade_input: CascadeInputID,
+    pub(super) old_cascade_input: MatchAnswerID,
     pub(super) delta_count: usize,
     pub(super) delta_digest: u64,
 }
@@ -917,7 +912,7 @@ pub(super) struct RetainedAnswerDeltaTransition {
     pub(super) new_answer: MatchAnswerID,
     /// The compact identity after the transition. Equal to the asker's old identity exactly when
     /// the transition stopped.
-    pub(super) new_cascade_input: CascadeInputID,
+    pub(super) new_cascade_input: MatchAnswerID,
     /// The winner state the cohort's first member settled after applying the same deltas, with
     /// its program version, when one was retained. Emitting replays assign it by column store.
     pub(super) winner_state: Option<(CascadeStateID, ProgramVersion)>,
@@ -937,7 +932,7 @@ pub(super) struct RetainedAnswerPatchOutcome {
 
 pub(super) struct IncrementalCascadeAnswer {
     pub(super) node: StyleNodeID,
-    pub(super) cascade_input: CascadeInputID,
+    pub(super) cascade_input: MatchAnswerID,
     pub(super) matches: Option<Box<[RuleMatch]>>,
     pub(super) cascade_winners_are_complete: bool,
 }
@@ -1118,14 +1113,14 @@ impl RetainedMatchAnswers {
         &mut self,
         catalog: &mut MatchAnswerCatalog,
         node: StyleNodeID,
-        cascade_input: CascadeInputID,
+        cascade_input: MatchAnswerID,
         memory: &mut MemoryController,
     ) {
         let Some(index) = node.element_index().map(|index| index as usize) else {
             return;
         };
         if self.cascade_input_column.len() <= index {
-            self.cascade_input_column.resize(index + 1, CascadeInputID::default());
+            self.cascade_input_column.resize(index + 1, MatchAnswerID::default());
             let current = self.cascade_input_capacity_bytes(catalog);
             self.cascade_input_memory.resize_required_to(memory, current);
         }
@@ -1133,10 +1128,10 @@ impl RetainedMatchAnswers {
         if previous == cascade_input {
             return;
         }
-        if previous != CascadeInputID::default() {
-            catalog.release_cascade(MatchAnswerID(previous.0));
+        if previous != MatchAnswerID::default() {
+            catalog.release_cascade(previous);
         }
-        catalog.retain_cascade(MatchAnswerID(cascade_input.0));
+        catalog.retain_cascade(cascade_input);
         let current = self.cascade_input_capacity_bytes(catalog);
         self.cascade_input_memory.resize_required_to(memory, current);
     }
@@ -1149,19 +1144,19 @@ impl RetainedMatchAnswers {
             return;
         };
         let previous = std::mem::take(slot);
-        if previous != CascadeInputID::default() {
-            catalog.release_cascade(MatchAnswerID(previous.0));
+        if previous != MatchAnswerID::default() {
+            catalog.release_cascade(previous);
             self.cascade_input_memory
                 .shrink_to(self.cascade_input_capacity_bytes(catalog));
         }
     }
 
-    pub(super) fn cascade_input_lookup(&self, node: StyleNodeID) -> Lookup<&CascadeInputID, StyleNodeID> {
+    pub(super) fn cascade_input_lookup(&self, node: StyleNodeID) -> Lookup<&MatchAnswerID, StyleNodeID> {
         let Some(index) = node.element_index().map(|index| index as usize) else {
             return Lookup::Missing(node);
         };
         match self.cascade_input_column.get(index) {
-            Some(cascade_input) if *cascade_input != CascadeInputID::default() => Lookup::Known(cascade_input),
+            Some(cascade_input) if *cascade_input != MatchAnswerID::default() => Lookup::Known(cascade_input),
             _ => Lookup::Missing(node),
         }
     }
@@ -1311,7 +1306,7 @@ pub(super) type RoutePruningStateCache = HashMap<(DispatchKey, u64), Option<Rc<V
 
 pub(super) struct PublishedMatchAnswer {
     pub(super) node: StyleNodeID,
-    pub(super) cascade_input: Option<CascadeInputID>,
+    pub(super) cascade_input: Option<MatchAnswerID>,
     pub(super) matches: Option<Box<[RuleMatch]>>,
     pub(super) cascade_winners_are_complete: bool,
     pub(super) observed: bool,
@@ -1319,7 +1314,7 @@ pub(super) struct PublishedMatchAnswer {
 
 pub(super) struct PublishedMatchAnswers {
     pub(super) entries: Vec<PublishedMatchAnswer>,
-    pub(super) shared_payloads: HashMap<CascadeInputID, Box<[RuleMatch]>>,
+    pub(super) shared_payloads: HashMap<MatchAnswerID, Box<[RuleMatch]>>,
     pub(super) memory: MemoryLease,
     pub(super) match_element_calls_at_publication: u64,
     pub(super) discard_unobserved_retained_answers: bool,
@@ -1400,7 +1395,7 @@ impl PublishedMatchAnswers {
         self.entries.push(entry);
         let added_bytes = (self.entries.capacity() - entries_capacity_before) * size_of::<PublishedMatchAnswer>()
             + (self.shared_payloads.capacity() - shared_payload_capacity_before)
-                * (size_of::<CascadeInputID>() + size_of::<Box<[RuleMatch]>>() + 1)
+                * (size_of::<MatchAnswerID>() + size_of::<Box<[RuleMatch]>>() + 1)
             + added_payload_bytes;
         let added_bytes = added_bytes as u64;
         self.memory.grow_required(memory, added_bytes);

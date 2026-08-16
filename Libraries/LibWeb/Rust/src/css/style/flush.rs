@@ -995,7 +995,7 @@ impl StyleEngine {
         {
             let published_node_bytes = (published_nodes.capacity() * size_of::<StyleNodeID>()) as u64;
             let previous_cascade_input_bytes =
-                (previous_cascade_inputs.capacity() * size_of::<Option<CascadeInputID>>()) as u64;
+                (previous_cascade_inputs.capacity() * size_of::<Option<MatchAnswerID>>()) as u64;
             let identity_repair_node_bytes = (identity_repair_nodes.capacity() * size_of::<StyleNodeID>()) as u64;
             self.memory
                 .reserve_required(MemoryCategory::BatchScratch, published_node_bytes);
@@ -1034,7 +1034,7 @@ impl StyleEngine {
                 // Exact retained answers are interned across elements. Once one sufficiently
                 // expensive answer has been compacted in this completion batch, other elements
                 // without element declarations can share its cascade input and winner identities.
-                let mut completed_retained_answers: HashMap<MatchAnswerID, (StyleNodeID, CascadeInputID, bool)> =
+                let mut completed_retained_answers: HashMap<MatchAnswerID, (StyleNodeID, MatchAnswerID, bool)> =
                     HashMap::default();
                 let mut completed_retained_answer_bytes = 0_u64;
                 let share_cascade_completions = published_nodes.len() >= MIN_SHARED_CASCADE_COMPLETION_BATCH;
@@ -1102,7 +1102,7 @@ impl StyleEngine {
                             published_answer.cascade_winners_are_complete,
                         ));
                         let added_bytes = ((completed_retained_answers.capacity() - capacity_before)
-                            * (size_of::<MatchAnswerID>() + size_of::<(StyleNodeID, CascadeInputID, bool)>() + 1))
+                            * (size_of::<MatchAnswerID>() + size_of::<(StyleNodeID, MatchAnswerID, bool)>() + 1))
                             as u64;
                         self.memory.reserve_required(MemoryCategory::BatchScratch, added_bytes);
                         completed_retained_answer_bytes += added_bytes;

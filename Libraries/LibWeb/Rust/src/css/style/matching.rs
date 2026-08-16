@@ -24,7 +24,7 @@ fn verify_against_cold<T: std::fmt::Debug + PartialEq>(
 impl StyleEngine {
     fn retained_answer_delta_memo_key(
         old_answer: MatchAnswerID,
-        old_cascade_input: CascadeInputID,
+        old_cascade_input: MatchAnswerID,
         deltas: &[SelectorTruthDelta],
     ) -> RetainedAnswerDeltaMemoKey {
         let mut hasher = fast_hash::fast_hasher();
@@ -1323,7 +1323,7 @@ impl StyleEngine {
                 .any(|scope| scope != TreeScopeID::DOCUMENT)
     }
 
-    pub(super) fn publish_cascade_input(&mut self, node: StyleNodeID, cascade_input: CascadeInputID) {
+    pub(super) fn publish_cascade_input(&mut self, node: StyleNodeID, cascade_input: MatchAnswerID) {
         if !self.match_answer_is_comparable_across_elements(node) {
             self.retained_match_answers
                 .forget_cascade_input(&mut self.match_answers, node);
@@ -2017,7 +2017,7 @@ impl StyleEngine {
         node: StyleNodeID,
         patch: &mut RetainedAnswerPatch,
         retained: &[RetainedRuleMatch],
-        old_cascade_input: CascadeInputID,
+        old_cascade_input: MatchAnswerID,
     ) -> Option<RetainedAnswerPatchOutcome> {
         if patch.cascade_update_properties.is_empty() || patch.requires_full_match {
             return None;
@@ -2045,7 +2045,7 @@ impl StyleEngine {
         }) {
             return None;
         }
-        let old_compact = Rc::clone(self.match_answers.answer(MatchAnswerID(old_cascade_input.0))?);
+        let old_compact = Rc::clone(self.match_answers.answer(old_cascade_input)?);
         let updates = self.exact_cascade_winner_updates_for_properties_with_scratch(
             node,
             &exact_answer,
@@ -2297,7 +2297,7 @@ impl StyleEngine {
         patch: &mut RetainedAnswerPatch,
         old_identity: MatchAnswerID,
         retained: &[RetainedRuleMatch],
-        old_cascade_input: CascadeInputID,
+        old_cascade_input: MatchAnswerID,
         deltas: &[SelectorTruthDelta],
     ) -> Option<RetainedAnswerPatchOutcome> {
         if !patch.cascade_update_properties.is_empty() {
@@ -2770,7 +2770,7 @@ impl StyleEngine {
         self.publish_cascade_input(node, cascade_input);
     }
 
-    pub(super) fn intern_cascade_input(&mut self, matches: &[RuleMatch]) -> CascadeInputID {
+    pub(super) fn intern_cascade_input(&mut self, matches: &[RuleMatch]) -> MatchAnswerID {
         // The catalog converts matches to RetainedRuleMatch before canonicalizing them. That
         // representation already omits the element identity and absolute cascade rank, so cloning,
         // normalizing and sorting RuleMatch here would canonicalize fields the catalog discards.
@@ -2781,7 +2781,7 @@ impl StyleEngine {
         } else {
             Counter::MatchAnswerSignatures
         });
-        CascadeInputID(identity.0)
+        identity
     }
 
     pub fn match_element(&mut self, node: StyleNodeID) -> Result<Vec<RuleMatch>, Incomplete> {
@@ -2873,11 +2873,11 @@ impl StyleEngine {
         &mut self,
         node: StyleNodeID,
         source: StyleNodeID,
-        cascade_input: CascadeInputID,
+        cascade_input: MatchAnswerID,
         orders: RetainedAnswerCascadeOrders<'_>,
         cascade_winners_are_complete: bool,
     ) -> Option<PublishedMatchAnswer> {
-        let compact = Rc::clone(self.match_answers.answer(MatchAnswerID(cascade_input.0))?);
+        let compact = Rc::clone(self.match_answers.answer(cascade_input)?);
         let mut matches = compact
             .iter()
             .copied()
@@ -2917,12 +2917,12 @@ impl StyleEngine {
     pub(super) fn shared_cascade_completion_is_profitable(
         &self,
         answer: MatchAnswerID,
-        cascade_input: CascadeInputID,
+        cascade_input: MatchAnswerID,
     ) -> bool {
         let Some(full) = self.match_answers.answer(answer) else {
             return false;
         };
-        let Some(compact) = self.match_answers.answer(MatchAnswerID(cascade_input.0)) else {
+        let Some(compact) = self.match_answers.answer(cascade_input) else {
             return false;
         };
         let declaration_count = |answer: &[RetainedRuleMatch]| {
@@ -2938,9 +2938,9 @@ impl StyleEngine {
     /// closure. The active traversal owns the current cascade orders for retained answers, so lend
     /// them to the same completion path used before publication. A retained miss runs exact
     /// matching here, before the closure node is handed to style computation.
-    pub(super) fn retained_closure_cascade_input(&self, node: StyleNodeID) -> Option<CascadeInputID> {
+    pub(super) fn retained_closure_cascade_input(&self, node: StyleNodeID) -> Option<MatchAnswerID> {
         let cascade_input = *self.retained_match_answers.cascade_input_lookup(node).sparse().ok()?;
-        let retained = self.match_answers.answer(MatchAnswerID(cascade_input.0))?;
+        let retained = self.match_answers.answer(cascade_input)?;
         if !matches!(
             self.winner_groups
                 .token_for(WinnerGroupKey::current(node, self.program.version())),
@@ -2967,14 +2967,14 @@ impl StyleEngine {
         Some(cascade_input)
     }
 
-    pub(super) fn retained_cascade_input_is_exact(&mut self, node: StyleNodeID, cascade_input: CascadeInputID) -> bool {
+    pub(super) fn retained_cascade_input_is_exact(&mut self, node: StyleNodeID, cascade_input: MatchAnswerID) -> bool {
         let Ok((full_answer, verification_winner_groups)) = self.exact_cascade_answer_for_verification(node) else {
             return false;
         };
         let prepared_answer = prepare_retained_match_answer(full_answer.into_iter());
         let answer_is_equal = self
             .match_answers
-            .answer(MatchAnswerID(cascade_input.0))
+            .answer(cascade_input)
             .is_some_and(|retained_answer| retained_answer.as_ref() == prepared_answer);
         let winner_rows_are_equal = self.winner_groups.node_rows_are_semantically_equal(
             &verification_winner_groups,
@@ -2986,8 +2986,8 @@ impl StyleEngine {
 
     /// Whether any entry of the answer observes sibling or positional relations, whose truth is
     /// maintained state in the prefix automaton.
-    pub(super) fn answer_observes_sibling_relations(&self, input: CascadeInputID) -> bool {
-        let Some(rows) = self.match_answers.answer(MatchAnswerID(input.0)) else {
+    pub(super) fn answer_observes_sibling_relations(&self, input: MatchAnswerID) -> bool {
+        let Some(rows) = self.match_answers.answer(input) else {
             return true;
         };
         rows.iter().any(|row| {
@@ -3008,8 +3008,8 @@ impl StyleEngine {
     pub(super) fn answer_transition_cannot_change_cascade(
         &mut self,
         node: StyleNodeID,
-        previous_input: CascadeInputID,
-        current_input: CascadeInputID,
+        previous_input: MatchAnswerID,
+        current_input: MatchAnswerID,
     ) -> bool {
         // Identity equality is NOT a proof: a stale retained answer compares equal to itself.
         if previous_input == current_input {
@@ -3024,11 +3024,11 @@ impl StyleEngine {
             self.counters.bump(Counter::TransitionProofGenerationGap);
             return false;
         }
-        let Some(previous_rows) = self.match_answers.answer(MatchAnswerID(previous_input.0)) else {
+        let Some(previous_rows) = self.match_answers.answer(previous_input) else {
             self.counters.bump(Counter::TransitionProofMissingAnswer);
             return false;
         };
-        let Some(current_rows) = self.match_answers.answer(MatchAnswerID(current_input.0)) else {
+        let Some(current_rows) = self.match_answers.answer(current_input) else {
             self.counters.bump(Counter::TransitionProofMissingAnswer);
             return false;
         };
@@ -3118,7 +3118,7 @@ impl StyleEngine {
         true
     }
 
-    pub(super) fn verify_retained_cascade_input(&mut self, node: StyleNodeID, cascade_input: CascadeInputID) {
+    pub(super) fn verify_retained_cascade_input(&mut self, node: StyleNodeID, cascade_input: MatchAnswerID) {
         assert!(
             self.retained_cascade_input_is_exact(node, cascade_input),
             "retained cascade identity stop diverged from exact matching"
@@ -3216,7 +3216,7 @@ impl StyleEngine {
         {
             let mut answer = Vec::new();
             if self
-                .append_catalog_answer(MatchAnswerID(cascade_input.0), node, None, &mut answer)
+                .append_catalog_answer(cascade_input, node, None, &mut answer)
                 .is_some()
             {
                 // The catalog canonicalizes rule identities independently of cascade rank.
@@ -3303,7 +3303,7 @@ impl StyleEngine {
                 .map(<[RuleMatch]>::len);
             let compact_len = cascade_input
                 .filter(|_| materialized_len.is_none())
-                .and_then(|identity| self.match_answers.answer(MatchAnswerID(identity.0)))
+                .and_then(|identity| self.match_answers.answer(identity))
                 .map(|matches| matches.len());
             if let Some(len) = materialized_len {
                 self.published_match_answers.mark_observed(node);
@@ -3552,7 +3552,7 @@ impl StyleEngine {
         &mut self,
         node: StyleNodeID,
         compact_for_cascade: bool,
-        mut compact_answer: Option<&mut Option<CascadeInputID>>,
+        mut compact_answer: Option<&mut Option<MatchAnswerID>>,
         mut cascade_winners_are_complete: Option<&mut bool>,
     ) -> Result<Vec<RuleMatch>, Incomplete> {
         if compact_for_cascade
