@@ -2460,9 +2460,6 @@ mod tests {
             StateSet::default(),
             &[],
             &[AttributeFact {
-                folded_local: StyleAtomID::NONE,
-                folded_name: StyleAtomID(30),
-                local: StyleAtomID::NONE,
                 name: StyleAtomID(30),
                 value: StyleAtomID(31),
                 text_offset: u32::MAX,

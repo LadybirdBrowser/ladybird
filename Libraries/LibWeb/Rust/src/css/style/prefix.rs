@@ -4110,9 +4110,6 @@ fn hash_local_facts(facts: &StyleNodeFacts, row: u32) -> u64 {
     facts.classes_of(row).hash(&mut hasher);
     for &attribute in facts.attributes_of(row) {
         attribute.name.hash(&mut hasher);
-        attribute.local.hash(&mut hasher);
-        attribute.folded_name.hash(&mut hasher);
-        attribute.folded_local.hash(&mut hasher);
         attribute.value.hash(&mut hasher);
         facts.text_of(attribute).hash(&mut hasher);
     }
@@ -4139,12 +4136,7 @@ fn rows_have_equal_local_facts(facts: &StyleNodeFacts, left: u32, right: u32) ->
     let right_attributes = facts.attributes_of(right);
     left_attributes.len() == right_attributes.len()
         && left_attributes.iter().zip(right_attributes).all(|(&left, &right)| {
-            left.name == right.name
-                && left.local == right.local
-                && left.folded_name == right.folded_name
-                && left.folded_local == right.folded_local
-                && left.value == right.value
-                && facts.text_of(left) == facts.text_of(right)
+            left.name == right.name && left.value == right.value && facts.text_of(left) == facts.text_of(right)
         })
 }
 
@@ -4159,9 +4151,10 @@ fn matches_feature(facts: &StyleNodeFacts, row: u32, feature: FeatureTest) -> bo
         FeatureTest::Attribute(test) => {
             let folds = !test.fold_in_namespace.is_none() && facts.namespace_of(row) == test.fold_in_namespace;
             facts.attributes_of(row).iter().any(|attribute| {
+                let forms = facts.attribute_name_forms(attribute.name);
                 let (written, folded) = match test.any_namespace {
-                    true => (attribute.local, attribute.folded_local),
-                    false => (attribute.name, attribute.folded_name),
+                    true => (forms.local, forms.folded_local),
+                    false => (attribute.name, forms.folded_name),
                 };
                 (written == test.name || (folds && folded == test.folded))
                     && match test.operator {

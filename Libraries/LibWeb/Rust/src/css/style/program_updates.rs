@@ -956,7 +956,6 @@ impl StyleEngine {
         };
         self.facts
             .attribute_name_keys(name)
-            .into_iter()
             .map(RoutingKey::AttributeName)
             .any(route_is_prefix)
     }

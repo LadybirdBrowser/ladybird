@@ -5286,9 +5286,10 @@ impl<'a> MatchEvaluator<'a> {
             .iter()
             .copied()
             .filter(move |attribute| {
+                let forms = row.facts.attribute_name_forms(attribute.name);
                 let (written, folded) = match test.any_namespace {
-                    true => (attribute.local, attribute.folded_local),
-                    false => (attribute.name, attribute.folded_name),
+                    true => (forms.local, forms.folded_local),
+                    false => (attribute.name, forms.folded_name),
                 };
                 written == test.name || (folds && folded == test.folded)
             })
@@ -5840,9 +5841,6 @@ mod tests {
                 StateSet::default(),
                 &[CLASS_ITEM],
                 &[AttributeFact {
-                    folded_local: StyleAtomID::NONE,
-                    folded_name: ATTR_HREF,
-                    local: StyleAtomID::NONE,
                     name: ATTR_HREF,
                     value: StyleAtomID::NONE,
                     text_offset: offset,
@@ -5858,9 +5856,6 @@ mod tests {
                 hovered,
                 &[CLASS_ITEM],
                 &[AttributeFact {
-                    folded_local: StyleAtomID::NONE,
-                    folded_name: ATTR_TYPE,
-                    local: StyleAtomID::NONE,
                     name: ATTR_TYPE,
                     value: VALUE_TEXT,
                     text_offset: u32::MAX,
