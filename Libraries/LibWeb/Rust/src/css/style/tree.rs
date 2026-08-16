@@ -878,8 +878,7 @@ impl StyleNodeTree {
     fn charge(&self, memory: &mut MemoryController, previous_bytes: u64) {
         let current = self.capacity_bytes();
         if current > previous_bytes {
-            let outcome = memory.reserve(MemoryCategory::RelationColumns, current - previous_bytes);
-            assert!(outcome.is_granted(), "required relation columns must not be refused");
+            memory.reserve_required(MemoryCategory::RelationColumns, current - previous_bytes);
         } else if previous_bytes > current {
             memory.release(MemoryCategory::RelationColumns, previous_bytes - current);
         }

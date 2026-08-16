@@ -2774,9 +2774,9 @@ pub struct ElementFactStore {
     /// Candidate sets over the same facts. A rule arriving needs to find the elements it could
     /// match without walking the document, and this is what answers that.
     postings: FeaturePostings,
-    /// Tier-3 headroom at the last refused full rebuild. Until more headroom appears, another scan
-    /// can only reach the same refusal.
-    posting_rebuild_refused_at_headroom: Option<u64>,
+    /// Tier-3 headroom when admission last closed during a full rebuild. Until more headroom
+    /// appears, another scan can only reach the same closure.
+    posting_rebuild_closed_at_headroom: Option<u64>,
     memory: MemoryLease,
     memory_dirty: bool,
     settled_non_apply_capacity_bytes: u64,
@@ -3159,7 +3159,7 @@ impl Default for ElementFactStore {
             primary_live_payload_bytes: 0,
             primary_stale_payload_bytes: 0,
             postings: FeaturePostings::default(),
-            posting_rebuild_refused_at_headroom: None,
+            posting_rebuild_closed_at_headroom: None,
             memory: MemoryLease::new(MemoryCategory::StyleNodeMapping),
             memory_dirty: false,
             settled_non_apply_capacity_bytes: 0,
@@ -3362,26 +3362,26 @@ impl ElementFactStore {
 
     fn rebuild_missing_postings(&mut self, memory: &mut MemoryController) {
         if !self.postings.is_incomplete() {
-            self.posting_rebuild_refused_at_headroom = None;
+            self.posting_rebuild_closed_at_headroom = None;
             return;
         }
 
         let headroom = Self::posting_rebuild_headroom(memory);
         if self
-            .posting_rebuild_refused_at_headroom
-            .is_some_and(|refused_at| headroom <= refused_at)
+            .posting_rebuild_closed_at_headroom
+            .is_some_and(|closed_at| headroom <= closed_at)
         {
             return;
         }
 
-        let rebuild_started_with_headroom = headroom != 0;
+        let rebuild_started_admitting = memory.is_tier3_admitting(MemoryCategory::FeaturePosting);
         let Some(rebuilt) = self.build_missing_postings(memory) else {
-            self.posting_rebuild_refused_at_headroom =
-                rebuild_started_with_headroom.then(|| Self::posting_rebuild_headroom(memory));
+            self.posting_rebuild_closed_at_headroom =
+                rebuild_started_admitting.then(|| Self::posting_rebuild_headroom(memory));
             return;
         };
         self.postings.take_rebuilt(rebuilt);
-        self.posting_rebuild_refused_at_headroom = None;
+        self.posting_rebuild_closed_at_headroom = None;
     }
 
     #[must_use]
@@ -4334,8 +4334,8 @@ impl ElementFactStore {
                 self.primary_live_payload_bytes,
                 self.primary_stale_payload_bytes,
                 self.postings,
+                self.posting_rebuild_closed_at_headroom,
                 self.attribute_catalogs,
-                self.posting_rebuild_refused_at_headroom,
                 self.memory,
                 self.memory_dirty,
                 self.staging,
@@ -5010,17 +5010,17 @@ mod tests {
         let new_animation_key = DependencyPostingKey::AnimationName(new_animation);
         assert_eq!(known_posting(facts.postings(), new_class_key).length, 1);
         assert!(matches!(facts.postings().lookup(new_animation_key), Lookup::Missing(gap) if gap == new_animation_key));
-        assert_eq!(facts.posting_rebuild_refused_at_headroom, None);
+        assert_eq!(facts.posting_rebuild_closed_at_headroom, None);
 
         // Admission was already closed before the rebuild began, so its failure says nothing about
         // whether the same headroom could fund a later rebuild after another category reopens it.
         facts.apply_staged(&mut memory);
-        assert_eq!(facts.posting_rebuild_refused_at_headroom, None);
+        assert_eq!(facts.posting_rebuild_closed_at_headroom, None);
 
         memory.set_tier3_limit_for_test(u64::MAX);
         memory.begin_tier3_quota_period();
         facts.apply_staged(&mut memory);
-        assert_eq!(facts.posting_rebuild_refused_at_headroom, None);
+        assert_eq!(facts.posting_rebuild_closed_at_headroom, None);
         let old_class_key = SelectorPostingKey::Class(old_class);
         let old_animation_key = DependencyPostingKey::AnimationName(old_animation);
         assert!(matches!(facts.postings().lookup(old_class_key), Lookup::KnownAbsent));

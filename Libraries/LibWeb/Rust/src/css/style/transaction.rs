@@ -281,7 +281,7 @@ impl InputValue {
 /// scope and compare them against last committed outputs. This is still an exact path that
 /// emits only actual semantic changes - not a conservative restyle. A marker can represent an input
 /// that is inherently scope-wide, or replace fine-grained entries which exceeded their scratch
-/// reservation.
+/// journal capacity.
 ///
 /// The marker currently covers the whole document for its input kind. Narrowing it to a proven
 /// common ancestor of the coarsened keys is an optimization, not a correctness requirement: a

@@ -193,11 +193,8 @@ impl StyleEngine {
         let mut regions = if transaction.inputs.len() >= TRANSACTION_TOPOLOGY_MINIMUM_INPUTS {
             let regions = ImpactRegions::with_topology(&self.tree, root);
             let bytes = regions.topology_capacity_bytes();
-            if self.memory.reserve(MemoryCategory::BatchScratch, bytes).is_granted() {
-                regions
-            } else {
-                ImpactRegions::new()
-            }
+            self.memory.reserve_required(MemoryCategory::BatchScratch, bytes);
+            regions
         } else {
             ImpactRegions::new()
         };

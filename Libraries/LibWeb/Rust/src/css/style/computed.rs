@@ -2063,10 +2063,17 @@ impl ComputedGroupSets {
     }
 
     pub fn settle_nested_memory(&mut self, memory: &mut MemoryController) {
-        self.group_set_nested_memory.settle_committed(memory);
-        self.reconstruction_nested_memory.settle_committed(memory);
-        self.animation_overlay_nested_memory.settle_committed(memory);
-        self.pseudo_assignment_nested_memory.settle_committed(memory);
+        let group_set = self.group_set_nested_memory.bytes();
+        self.group_set_nested_memory.reconcile_committed(memory, group_set);
+        let reconstruction = self.reconstruction_nested_memory.bytes();
+        self.reconstruction_nested_memory
+            .reconcile_committed(memory, reconstruction);
+        let animation_overlay = self.animation_overlay_nested_memory.bytes();
+        self.animation_overlay_nested_memory
+            .reconcile_committed(memory, animation_overlay);
+        let pseudo_assignment = self.pseudo_assignment_nested_memory.bytes();
+        self.pseudo_assignment_nested_memory
+            .reconcile_committed(memory, pseudo_assignment);
     }
 
     #[must_use]
