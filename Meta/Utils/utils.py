@@ -8,6 +8,7 @@ import sys
 
 from pathlib import Path
 from typing import Optional
+from typing import TextIO
 from typing import Union
 
 
@@ -57,6 +58,66 @@ def string_hash(string: str) -> int:
     h = (h + (h << 15)) & 0xFFFFFFFF
 
     return h
+
+
+def write_case_insensitive_ascii_string_to_enum_lookup(
+    out: TextIO, function_name: str, enum_type: str, entries: dict[str, str]
+) -> None:
+    entries_by_length_and_first_character = {}
+    for name, value in entries.items():
+        entries_by_length_and_first_character.setdefault((len(name), name[0]), []).append((name, value))
+
+    out.write(f"""
+static size_t {function_name}_length(StringView string)
+{{
+    return string.length();
+}}
+
+static size_t {function_name}_length(Utf16View string)
+{{
+    return string.length_in_code_units();
+}}
+
+static u32 {function_name}_first_character(StringView string)
+{{
+    return string[0];
+}}
+
+static u32 {function_name}_first_character(Utf16View string)
+{{
+    return string.code_unit_at(0);
+}}
+
+template<typename StringType>
+static Optional<{enum_type}> {function_name}(StringType string)
+{{
+    switch ({function_name}_length(string)) {{
+""")
+
+    lengths = sorted({length for length, _ in entries_by_length_and_first_character})
+    for length in lengths:
+        out.write(f"""    case {length}:
+        switch (AK::to_ascii_lowercase({function_name}_first_character(string))) {{
+""")
+        first_characters = sorted(
+            first_character
+            for entry_length, first_character in entries_by_length_and_first_character
+            if entry_length == length
+        )
+        for first_character in first_characters:
+            out.write(f"        case {first_character!r}:\n")
+            for name, value in entries_by_length_and_first_character[(length, first_character)]:
+                out.write(
+                    f'            if (string.equals_ignoring_ascii_case("{name}"sv))\n                return {value};\n'
+                )
+            out.write("            break;\n")
+        out.write("        }\n        break;\n")
+
+    out.write("""
+    }
+    return {};
+}
+""")
 
 
 def title_casify(dashy_name: str) -> str:

@@ -20,6 +20,7 @@ from Utils.utils import camel_casify
 from Utils.utils import snake_casify
 from Utils.utils import title_casify
 from Utils.utils import underlying_type_for_enum
+from Utils.utils import write_case_insensitive_ascii_string_to_enum_lookup
 
 
 def is_legacy_alias(prop: dict) -> bool:
@@ -348,6 +349,7 @@ struct Formatter<Web::CSS::PropertyID> : Formatter<Utf16FlyString> {
 def write_implementation_file(out: TextIO, properties: dict, logical_property_groups: dict, enum_names: list) -> None:
     out.write("""
 #include <AK/Assertions.h>
+#include <AK/CharacterTypes.h>
 #include <AK/NeverDestroyed.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -392,30 +394,25 @@ Optional<PropertyID> property_id_from_camel_case_string(Utf16View string)
     return {};
 }
 
-static auto generate_properties_table()
-{
-    HashMap<StringView, PropertyID, CaseInsensitiveASCIIStringViewTraits> table;
 """)
 
+    property_ids_by_name = {}
     for name, value in properties.items():
         legacy_alias_for = value.get("legacy-alias-for")
         target = title_casify(legacy_alias_for) if legacy_alias_for is not None else title_casify(name)
-        out.write(f"""
-    table.set("{name}"sv, PropertyID::{target});
-""")
+        property_ids_by_name[name] = f"PropertyID::{target}"
+    write_case_insensitive_ascii_string_to_enum_lookup(
+        out, "property_id_from_string_impl", "PropertyID", property_ids_by_name
+    )
 
     out.write("""
-    return table;
-}
-
-static auto const& properties_table = *new HashMap<StringView, PropertyID, CaseInsensitiveASCIIStringViewTraits>(generate_properties_table());
 
 Optional<PropertyID> property_id_from_string(StringView string)
 {
     if (is_a_custom_property_name_string(string))
         return PropertyID::Custom;
 
-    return properties_table.get(string);
+    return property_id_from_string_impl(string);
 }
 
 Optional<PropertyID> property_id_from_string(Utf16View string)
@@ -423,14 +420,7 @@ Optional<PropertyID> property_id_from_string(Utf16View string)
     if (is_a_custom_property_name_string(string))
         return PropertyID::Custom;
 
-    if (string.has_ascii_storage())
-        return properties_table.get(StringView { string.bytes() });
-
-    for (auto const& entry : properties_table) {
-        if (string.equals_ignoring_ascii_case(entry.key))
-            return entry.value;
-    }
-    return {};
+    return property_id_from_string_impl(string);
 }
 
 Utf16FlyString const& string_from_property_id(PropertyID property_id) {

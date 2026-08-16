@@ -57,6 +57,7 @@ function (generate_css_implementation)
                   -e "${LIBWEB_INPUT_FOLDER}/CSS/Enums.json"
                   -g "${LIBWEB_INPUT_FOLDER}/CSS/LogicalPropertyGroups.json"
         dependencies "${LIBWEB_INPUT_FOLDER}/CSS/Enums.json" "${LIBWEB_INPUT_FOLDER}/CSS/LogicalPropertyGroups.json"
+                     "${LADYBIRD_SOURCE_DIR}/Meta/Utils/utils.py"
     )
 
     invoke_py_generator(
@@ -113,6 +114,7 @@ function (generate_css_implementation)
         "CSS/Keyword.h"
         "CSS/Keyword.cpp"
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Keywords.json"
+        dependencies "${LADYBIRD_SOURCE_DIR}/Meta/Utils/utils.py"
     )
 
     invoke_py_idl_generator(
