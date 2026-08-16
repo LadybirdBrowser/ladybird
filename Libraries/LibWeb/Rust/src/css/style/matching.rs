@@ -148,10 +148,7 @@ impl StyleEngine {
         }
 
         let bytes = batch.capacity_bytes();
-        if self.memory.reserve_required(MemoryCategory::BatchScratch, bytes) {
-            self.memory.release(MemoryCategory::BatchScratch, bytes);
-            return None;
-        }
+        self.memory.reserve_required(MemoryCategory::BatchScratch, bytes);
         self.counters.add(
             Counter::ColdMatchingBatchRows,
             u64::try_from(batch.row_count()).unwrap_or(u64::MAX),
@@ -496,12 +493,9 @@ impl StyleEngine {
                     let prefix_caches = Rc::clone(&self.prefix_caches);
                     let mut caches = prefix_caches.borrow_mut();
                     caches.states.make_scratch(&mut self.memory);
-                    let mut states = caches.states.get_or_insert(
-                        scope_program,
-                        batch.generation(),
-                        batch.row_count(),
-                        &mut self.memory,
-                    );
+                    let states = caches
+                        .states
+                        .get_or_insert(scope_program, batch.generation(), batch.row_count());
                     // The batch just matched every node it iterates here, so completing the
                     // transitions matching did not touch is the cheap tail of work already paid
                     // for: each one is a chain walk over memoized dependencies. A complete cache
@@ -551,7 +545,7 @@ impl StyleEngine {
                             &mut self.counters,
                         );
                     }
-                    drop(states);
+                    let _ = states;
                     caches.states.settle_memory(&mut self.memory);
                 }
             }
@@ -923,17 +917,16 @@ impl StyleEngine {
         }
         let mut local_prefix_states = None;
         let mut shared_prefix_caches = shared_prefix_caches.map(|caches| caches.borrow_mut());
-        let mut shared_prefix_guard = None;
+        let mut shared_prefix_states = None;
         let prefix_states = if self.tree.tree_scope(node) != scope || dispatch.prefixes().is_empty() {
             None
         } else if let Some(caches) = shared_prefix_caches.as_deref_mut() {
-            shared_prefix_guard = Some(caches.states.get_or_insert(
+            shared_prefix_states = Some(caches.states.get_or_insert(
                 scope_program,
                 facts.generation(),
                 facts.row_count(),
-                &mut self.memory,
             ));
-            shared_prefix_guard.as_deref_mut()
+            shared_prefix_states.as_deref_mut()
         } else {
             local_prefix_states = Some(PrefixStates::new(facts.row_count()));
             local_prefix_states.as_mut()
@@ -956,7 +949,7 @@ impl StyleEngine {
                 cascade_only: retry.cascade_only,
             },
         );
-        drop(shared_prefix_guard);
+        let _ = shared_prefix_states;
         if let Some(caches) = shared_prefix_caches.as_deref_mut() {
             caches.states.settle_memory(&mut self.memory);
         }
@@ -1039,8 +1032,9 @@ impl StyleEngine {
         result
     }
 
-    /// Keep the retained-witness reservation in step with the table, dropping the whole table if
-    /// the budget refuses the growth: it is a shortcut, so an empty table is always correct.
+    /// Keep the retained-witness reservation in step with the table. Capacity is already committed
+    /// at this boundary, so pressure keeps the table usable for this period and schedules the whole
+    /// category for eviction at the next boundary.
     pub(super) fn settle_relational_witness_memory(&mut self) {
         let bytes = self.relational_witnesses.borrow().capacity_bytes();
         self.relational_witness_residency
@@ -2498,7 +2492,6 @@ impl StyleEngine {
             patch.scope_program,
             self.facts.primary().generation(),
             self.facts.primary().row_count(),
-            &mut self.memory,
         );
         let interpreter = BatchMatcher::new(
             &self.tree,
@@ -2521,7 +2514,7 @@ impl StyleEngine {
                 deferred_prefix_matches: None,
             },
         );
-        drop(states);
+        let _ = states;
         caches.states.settle_memory(&mut self.memory);
         if result.is_err() {
             matches.settle_memory(&mut self.memory);
@@ -2909,17 +2902,15 @@ impl StyleEngine {
         let published_rows =
             self.winner_groups
                 .copy_node_rows(source, node, self.program.version(), &mut self.memory)?;
-        let winner_rows_retained = self.winner_groups.settle_memory(&mut self.memory);
-        if winner_rows_retained {
-            self.counters
-                .add(Counter::CascadeNodeHandlesPublished, published_rows as u64);
-        }
+        self.winner_groups.settle_memory(&mut self.memory);
+        self.counters
+            .add(Counter::CascadeNodeHandlesPublished, published_rows as u64);
         self.publish_cascade_input(node, cascade_input);
         Some(PublishedMatchAnswer {
             node,
             cascade_input: Some(cascade_input),
             matches: Some(matches.into_boxed_slice()),
-            cascade_winners_are_complete: cascade_winners_are_complete && winner_rows_retained,
+            cascade_winners_are_complete,
             observed: false,
         })
     }
@@ -3922,8 +3913,8 @@ impl StyleEngine {
                                         .winner_groups
                                         .set_from_token(node, generation, group, self.program.version())
                                         .is_ok()
-                                    && self.winner_groups.settle_memory(&mut self.memory)
                                 {
+                                    self.winner_groups.settle_memory(&mut self.memory);
                                     self.counters.bump(Counter::CascadeNodeHandlesPublished);
                                 }
                                 matches

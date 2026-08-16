@@ -17,11 +17,12 @@
 //!   registry. It can never absorb selector-result state.
 //! * Tier 3 is pure acceleration. It is strictly budgeted and fully evictable, and eviction changes
 //!   no semantic version - a later observer reconstructs from authoritative inputs.
-//! * Tier 4 is transaction scratch, capped at a peak rather than accumulated across transactions.
+//! * Tier 4 is transaction scratch. Its ceiling is reported, never refused, and its capacity is
+//!   released or shrunk at transaction boundaries rather than accumulated across transactions.
 //!
-//! Tier 3 and Tier 4 reserve their full capacity charge *before* allocating or growing. Allocating
-//! over budget and evicting afterwards is forbidden, so a refused reservation means the requesting
-//! view is not built and evaluation continues cold.
+//! Tier 3 owners which know their growth reserve before allocating. Coarse owners whose exact
+//! capacity is only known after growth reconcile at their settlement boundary and remain usable
+//! until whole-category eviction at the next flush boundary.
 
 use std::cell::Cell;
 use std::rc::Rc;
@@ -204,7 +205,7 @@ pub struct BudgetInputs {
 pub enum ReservationOutcome {
     Granted,
     /// The reservation was refused, and this many bytes would have to be freed for it to succeed.
-    /// The caller either evicts that much and retries, or continues without the view.
+    /// The requesting view remains missing for the rest of its quota period.
     Refused {
         shortfall_bytes: u64,
     },
@@ -330,8 +331,8 @@ impl MemoryLease {
     ///
     /// This is the mutation-side half of a coarse lease: it keeps the exact retained total in the
     /// lease without making the owner mirror it. Once bound, later mutations update the shared
-    /// ledger directly. Optional owners must call [`MemoryController::admit_committed`] at the same
-    /// boundary where they previously settled their complete container.
+    /// ledger directly. Optional owners reconcile their complete container at the same coarse
+    /// boundary where they previously settled it.
     pub fn grow_committed(&mut self, bytes: u64) {
         if bytes == 0 {
             return;
@@ -361,6 +362,16 @@ impl MemoryLease {
         self.bytes -= bytes;
     }
 
+    /// Reconcile capacity already committed by an owner at one coarse growth boundary.
+    pub fn reconcile_committed(&mut self, memory: &mut MemoryController, bytes: u64) -> bool {
+        if bytes >= self.bytes {
+            self.grow_committed(bytes - self.bytes);
+        } else {
+            self.shrink_committed(self.bytes - bytes);
+        }
+        self.settle_committed(memory)
+    }
+
     /// Attach mutation-fed capacity to this document's ledger.
     pub fn settle_committed(&mut self, memory: &mut MemoryController) -> bool {
         if self.ledger.is_some() {
@@ -376,15 +387,6 @@ impl MemoryLease {
             );
         }
         memory.is_category_over_limit(self.category)
-    }
-
-    pub fn reconcile_committed(&mut self, memory: &mut MemoryController, bytes: u64) {
-        if bytes > self.bytes {
-            self.bind(memory);
-            self.grow_committed(bytes - self.bytes);
-        } else {
-            self.shrink_to(bytes);
-        }
     }
 
     pub fn shrink_to(&mut self, bytes: u64) {
@@ -415,51 +417,6 @@ impl MemoryLease {
 impl Drop for MemoryLease {
     fn drop(&mut self) {
         self.release();
-    }
-}
-
-pub struct CapacityGuard<'a, T> {
-    value: &'a mut T,
-    memory: &'a mut MemoryLease,
-    capacity_before: u64,
-    capacity_bytes: fn(&T) -> u64,
-}
-
-impl<'a, T> CapacityGuard<'a, T> {
-    #[must_use]
-    pub fn new(value: &'a mut T, memory: &'a mut MemoryLease, capacity_bytes: fn(&T) -> u64) -> Self {
-        let capacity_before = capacity_bytes(value);
-        Self {
-            value,
-            memory,
-            capacity_before,
-            capacity_bytes,
-        }
-    }
-}
-
-impl<T> std::ops::Deref for CapacityGuard<'_, T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        self.value
-    }
-}
-
-impl<T> std::ops::DerefMut for CapacityGuard<'_, T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.value
-    }
-}
-
-impl<T> Drop for CapacityGuard<'_, T> {
-    fn drop(&mut self) {
-        let capacity_after = (self.capacity_bytes)(self.value);
-        if capacity_after > self.capacity_before {
-            self.memory.grow_committed(capacity_after - self.capacity_before);
-        } else {
-            self.memory.shrink_committed(self.capacity_before - capacity_after);
-        }
     }
 }
 
@@ -503,8 +460,6 @@ pub struct MemoryController {
     recording_policy_enabled: bool,
     #[cfg(test)]
     tier3_limit_override: Option<u64>,
-    #[cfg(test)]
-    tier4_limit_override: Option<u64>,
 }
 
 impl MemoryController {
@@ -528,8 +483,6 @@ impl MemoryController {
             recording_policy_enabled: false,
             #[cfg(test)]
             tier3_limit_override: None,
-            #[cfg(test)]
-            tier4_limit_override: None,
         }
     }
 
@@ -552,19 +505,12 @@ impl MemoryController {
             recording_policy_enabled: self.recording_policy_enabled,
             #[cfg(test)]
             tier3_limit_override: self.tier3_limit_override,
-            #[cfg(test)]
-            tier4_limit_override: self.tier4_limit_override,
         }
     }
 
     #[cfg(test)]
     pub fn set_tier3_limit_for_test(&mut self, limit: u64) {
         self.tier3_limit_override = Some(limit);
-    }
-
-    #[cfg(test)]
-    pub fn set_tier4_limit_for_test(&mut self, limit: u64) {
-        self.tier4_limit_override = Some(limit);
     }
 
     pub fn set_budget_inputs(&mut self, inputs: BudgetInputs) {
@@ -772,14 +718,10 @@ impl MemoryController {
     /// The node term is what lets a broad transaction hold one row per element: the fact batch a
     /// broad match reads is one row per element by construction, and without the term a document of
     /// a few thousand elements is refused one and matches every element from scratch instead. The
-    /// device scratch cap still binds, so a large enough document goes without, which is the
-    /// degradation the design intends rather than a floor deciding it by accident.
+    /// The device scratch ceiling makes an unusually broad transaction visible in pressure reports;
+    /// it does not refuse scratch required to complete the flush.
     #[must_use]
     pub fn tier4_limit(&self) -> u64 {
-        #[cfg(test)]
-        if let Some(limit) = self.tier4_limit_override {
-            return limit;
-        }
         (4 * MIB)
             .max(self.tier3_limit())
             .max(PER_TRANSACTION_NODE.saturating_mul(u64::from(self.inputs.connected_element_count)))
@@ -797,24 +739,6 @@ impl MemoryController {
     fn is_category_over_limit(&self, category: MemoryCategory) -> bool {
         self.limit_for(category.tier())
             .is_some_and(|limit| self.charges.tier_bytes[category.tier().index()].get() > limit)
-    }
-
-    /// Admit capacity which an optional owner accumulated since its previous settlement.
-    pub fn admit_committed(&mut self, category: MemoryCategory) -> bool {
-        let Some(limit) = self.limit_for(category.tier()) else {
-            return true;
-        };
-        let current = self.charges.tier_bytes[category.tier().index()].get();
-        if current <= limit {
-            self.last_refused_bytes[category as usize] = 0;
-            return true;
-        }
-        self.refusals[category as usize] += 1;
-        self.last_refused_bytes[category as usize] = current - limit;
-        if category.tier() == Tier::Acceleration {
-            self.record_benefit_lookup(category, false);
-        }
-        false
     }
 
     /// Charge `bytes` of capacity to `category` before it is allocated or grown.
@@ -852,7 +776,9 @@ impl MemoryController {
                     },
                 };
             }
-        } else if let Some(limit) = self.limit_for(tier) {
+        } else if tier != Tier::Scratch
+            && let Some(limit) = self.limit_for(tier)
+        {
             let projected = self.charges.tier_bytes[tier.index()].get().saturating_add(bytes);
             if projected > limit {
                 self.refusals[category as usize] += 1;
@@ -1008,6 +934,17 @@ mod tests {
     }
 
     #[test]
+    fn tier_four_reports_its_ceiling_without_refusing_scratch() {
+        let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
+        assert!(
+            controller
+                .reserve(MemoryCategory::BatchScratch, controller.tier4_limit() + 1)
+                .is_granted()
+        );
+        assert_eq!(controller.bytes_in_tier(Tier::Scratch), controller.tier4_limit() + 1);
+    }
+
+    #[test]
     fn recording_policy_uses_the_device_cap() {
         let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
         controller.enable_recording_policy();
@@ -1129,6 +1066,22 @@ mod tests {
     }
 
     #[test]
+    fn committed_external_state_requests_owner_eviction_after_the_boundary() {
+        let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
+        controller.set_tier3_limit_for_test(0);
+        controller.begin_tier3_quota_period();
+        let mut lease = MemoryLease::new(MemoryCategory::ParsedSubstitutionCache);
+        lease.reconcile_committed(&mut controller, 1);
+        controller.finish_committed_acceleration_growth(MemoryCategory::ParsedSubstitutionCache);
+
+        assert!(!controller.finish_tier3_quota_period().iter().any(|&selected| selected));
+        assert!(controller.external_tier3_drop_is_pending(MemoryCategory::ParsedSubstitutionCache));
+        lease.reconcile_committed(&mut controller, 0);
+        controller.complete_external_tier3_drop(MemoryCategory::ParsedSubstitutionCache);
+        assert_eq!(controller.bytes_in_tier(Tier::Acceleration), 0);
+    }
+
+    #[test]
     fn the_node_coefficient_reaches_the_device_cap_where_the_model_says_it_does() {
         let below = controller(DeviceClass::ForegroundDesktop, 32_255, 0);
         assert!(below.tier3_limit() < 64 * MIB);
@@ -1216,32 +1169,6 @@ mod tests {
     }
 
     #[test]
-    fn a_capacity_guard_tracks_growth_and_shrinkage() {
-        fn bytes(values: &Vec<u64>) -> u64 {
-            (values.capacity() * size_of::<u64>()) as u64
-        }
-
-        let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
-        let mut lease = MemoryLease::new(MemoryCategory::BatchScratch);
-        let mut values = Vec::new();
-        {
-            let mut guarded = CapacityGuard::new(&mut values, &mut lease, bytes);
-            guarded.extend(0..128);
-        }
-        assert_eq!(lease.bytes(), bytes(&values));
-        assert_eq!(controller.bytes_in_category(MemoryCategory::BatchScratch), 0);
-
-        lease.settle_committed(&mut controller);
-        {
-            let mut guarded = CapacityGuard::new(&mut values, &mut lease, bytes);
-            guarded.clear();
-            guarded.shrink_to_fit();
-        }
-        assert_eq!(lease.bytes(), 0);
-        assert_eq!(controller.bytes_in_category(MemoryCategory::BatchScratch), 0);
-    }
-
-    #[test]
     fn a_scratch_charge_releases_on_drop() {
         let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
         {
@@ -1271,13 +1198,15 @@ mod tests {
     }
 
     #[test]
-    fn committed_acceleration_is_refused_at_its_existing_settlement_gate() {
+    fn committed_acceleration_is_dropped_at_the_next_quota_boundary() {
         let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
+        controller.begin_tier3_quota_period();
         let mut lease = MemoryLease::new(MemoryCategory::CascadeWinnerGroup);
         lease.grow_committed(MIB + 1);
         assert!(lease.settle_committed(&mut controller));
-        assert!(!controller.admit_committed(MemoryCategory::CascadeWinnerGroup));
+        controller.finish_committed_acceleration_growth(MemoryCategory::CascadeWinnerGroup);
         assert_eq!(controller.refusals(MemoryCategory::CascadeWinnerGroup), 1);
+        assert!(controller.finish_tier3_quota_period()[MemoryCategory::CascadeWinnerGroup as usize]);
         lease.release();
         assert_eq!(controller.bytes_in_tier(Tier::Acceleration), 0);
     }

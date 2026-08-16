@@ -640,9 +640,11 @@ impl PrefixAnswerCache {
         if self.retained {
             return true;
         }
-        if !self.residency.grow(memory, self.scratch_memory.bytes()).is_granted() {
+        if !memory.is_tier3_admitting(MemoryCategory::PrefixAnswerCache) {
             return false;
         }
+        self.residency.reconcile_committed(memory, self.scratch_memory.bytes());
+        memory.finish_committed_acceleration_growth(MemoryCategory::PrefixAnswerCache);
         self.scratch_memory.release();
         self.retained = true;
         true
@@ -1075,13 +1077,6 @@ impl RetainedMatchAnswers {
         self.cascade_input_memory.shrink_committed(bytes);
     }
 
-    pub(super) fn vec_capacity_after_growing(capacity: usize, required_len: usize) -> usize {
-        if required_len <= capacity {
-            return capacity;
-        }
-        capacity.saturating_mul(2).max(required_len).max(4)
-    }
-
     pub(super) fn remember_prepared(
         &mut self,
         catalog: &mut MatchAnswerCatalog,
@@ -1099,23 +1094,9 @@ impl RetainedMatchAnswers {
             .column
             .get(index)
             .map_or(MatchAnswerID::default(), |identity| *identity);
-        let column_len = index + 1;
-        let column_capacity = Self::vec_capacity_after_growing(self.column.capacity(), column_len);
-        let retained_growth = (!identity_is_retained).then_some(
-            (answer.len() * size_of::<RetainedRuleMatch>()
-                + 2 * size_of::<usize>()
-                + size_of::<MatchAnswerID>()
-                + size_of::<MatchAnswerCatalogEntry>()
-                + 1) as u64,
-        );
-        let reserved_capacity_bytes = catalog.retained_capacity_bytes()
-            + retained_growth.unwrap_or(0)
-            + (column_capacity * size_of::<MatchAnswerID>()) as u64;
-        let reserved_growth = reserved_capacity_bytes.saturating_sub(self.residency.bytes());
-        if !self.residency.grow(memory, reserved_growth).is_granted() {
-            // NB: Refusing a replacement must not leave this node's previous answer resident.
-            //     Other nodes still own valid entries and remain untouched.
-            self.forget_answer(catalog, node);
+        if previous_identity == MatchAnswerID::default()
+            && !memory.is_tier3_admitting(MemoryCategory::RetainedMatchAnswer)
+        {
             return Err(answer);
         }
 
@@ -1140,12 +1121,8 @@ impl RetainedMatchAnswers {
             catalog.release_identity(previous_identity);
         }
         let current = self.capacity_bytes(catalog);
-        assert!(
-            current <= reserved_capacity_bytes,
-            "retained match answer preflight underestimated capacity: current {current}, reserved {reserved_capacity_bytes}, columns {} <= {column_capacity}",
-            self.column.capacity(),
-        );
-        self.residency.shrink_to(current);
+        self.residency.reconcile_committed(memory, current);
+        memory.finish_committed_acceleration_growth(MemoryCategory::RetainedMatchAnswer);
         Ok(())
     }
 

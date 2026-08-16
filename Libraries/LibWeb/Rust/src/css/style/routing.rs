@@ -2807,7 +2807,7 @@ impl StyleEngine {
                 let mut prefix_completion_budget = PREFIX_TRANSITION_CACHE_COMPLETION_BUDGET;
                 let mut sibling_walk_abandoned = false;
                 {
-                    let mut states = match retained.lookup_mut(scope_program) {
+                    let states = match retained.lookup_mut(scope_program) {
                         Lookup::Known(states) => states,
                         Lookup::KnownAbsent | Lookup::Missing(_) => {
                             unreachable!("prefix cache reuse proved the program present")
@@ -2983,7 +2983,7 @@ impl StyleEngine {
                 retained.settle_memory(&mut self.memory);
                 if complete {
                     {
-                        let mut states = match retained.lookup_mut(scope_program) {
+                        let states = match retained.lookup_mut(scope_program) {
                             Lookup::Known(states) => states,
                             Lookup::KnownAbsent | Lookup::Missing(_) => {
                                 unreachable!("prefix cache reuse proved the program present")

@@ -796,7 +796,7 @@ fn retained_answer_verifier_rejects_a_dropped_selector_truth_row() {
 }
 
 #[test]
-fn refused_retained_match_answer_replacement_forgets_only_that_node() {
+fn retained_match_answer_pressure_preserves_existing_rows() {
     let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
     let mut answers = RetainedMatchAnswers::default();
     let mut catalog = MatchAnswerCatalog::default();
@@ -865,12 +865,30 @@ fn refused_retained_match_answer_replacement_forgets_only_that_node() {
                 prepare_retained_match_answer([replacement].into_iter()),
                 &mut memory
             )
-            .is_err()
+            .is_ok()
     );
-    assert!(matches!(answers.lookup(replaced_node), Lookup::Missing(gap) if gap == replaced_node));
+    assert!(matches!(answers.lookup(replaced_node), Lookup::Known(_)));
     assert!(matches!(answers.lookup(preserved_node), Lookup::Known(identity) if *identity == shared_identity));
     assert!(catalog.retained_answer(shared_identity).is_some());
-    assert_eq!(memory.bytes_in_category(MemoryCategory::RetainedMatchAnswer), charged);
+    let new_node = StyleNodeID::element(3);
+    assert!(
+        answers
+            .remember_prepared(
+                &mut catalog,
+                new_node,
+                prepare_retained_match_answer(
+                    [RuleMatch {
+                        node: new_node,
+                        ..retained
+                    }]
+                    .into_iter(),
+                ),
+                &mut memory,
+            )
+            .is_err()
+    );
+    assert!(matches!(answers.lookup(new_node), Lookup::Missing(gap) if gap == new_node));
+    assert!(memory.finish_tier3_quota_period()[MemoryCategory::RetainedMatchAnswer as usize]);
 }
 
 #[test]
@@ -989,7 +1007,7 @@ fn shared_retained_match_answer_lives_until_its_last_column_owner_forgets() {
 }
 
 #[test]
-fn retained_match_answer_refusal_does_not_evict_mid_admission() {
+fn retained_match_answer_admission_does_not_evict_mid_period() {
     let (mut engine, nodes) = nested_document();
     let retained = RuleMatch {
         node: nodes[1],
@@ -1021,9 +1039,9 @@ fn retained_match_answer_refusal_does_not_evict_mid_admission() {
         engine.memory.bytes_in_category(MemoryCategory::FeaturePosting),
         posting_bytes
     );
-    assert!(matches!(engine.retained_match_answer(nodes[1]), Lookup::Missing(_)));
+    assert!(matches!(engine.retained_match_answer(nodes[1]), Lookup::Known(_)));
     assert_eq!(engine.counters.get(Counter::Tier3BenefitEvictions), 0);
-    assert_eq!(engine.counters.get(Counter::RetainedMatchAnswerRefusals), 1);
+    assert_eq!(engine.counters.get(Counter::RetainedMatchAnswerRefusals), 0);
 }
 
 #[test]
@@ -4413,7 +4431,7 @@ fn covered_prefix_changes_forget_only_the_covered_subtree() {
     assert!(states.has_transition(nodes[0]));
     assert!(!states.has_transition(nodes[1]));
     assert!(!states.has_transition(nodes[3]));
-    drop(states);
+    let _ = states;
     drop(caches);
 
     let fact_view_bytes = engine.transaction_fact_view.as_ref().unwrap().capacity_bytes();
@@ -4494,7 +4512,7 @@ fn a_prefix_upquery_retains_every_transition_on_its_ancestor_chain() {
         Lookup::KnownAbsent | Lookup::Missing(_) => panic!("expected a retained prefix program"),
     };
     assert!(nodes.iter().all(|&node| states.has_transition(node)));
-    drop(states);
+    let _ = states;
     drop(caches);
     engine.end_cold_matching_batch();
 

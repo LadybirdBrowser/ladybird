@@ -1635,13 +1635,12 @@ impl WinnerGroups {
         }
     }
 
-    pub fn settle_memory(&mut self, memory: &mut MemoryController) -> bool {
+    pub fn settle_memory(&mut self, memory: &mut MemoryController) {
         self.nested_residency.settle_committed(memory);
         let current = self.capacity_bytes() - self.nested_residency.bytes();
         self.residency.reconcile_committed(memory, current);
         memory.finish_committed_acceleration_growth(MemoryCategory::CascadeWinnerGroup);
         self.admitting = memory.is_tier3_admitting(MemoryCategory::CascadeWinnerGroup);
-        true
     }
 
     pub(super) fn begin_quota_period(&mut self) {
@@ -2328,7 +2327,7 @@ mod tests {
         for index in 1..1000_u32 {
             assert!(groups.set(StyleNodeID::element(index), group, ProgramVersion(1)));
         }
-        assert!(groups.settle_memory(&mut memory));
+        groups.settle_memory(&mut memory);
         assert!(memory.bytes_in_category(MemoryCategory::CascadeWinnerGroup) > 0);
         assert!(matches!(
             groups.coverage_at_least(ProgramVersion(1), 999),
