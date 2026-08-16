@@ -20,8 +20,6 @@ public:
 
     HTML::HTMLAudioElement& dom_node();
     HTML::HTMLAudioElement const& dom_node() const;
-
-    virtual RefPtr<Painting::Paintable> create_paintable() const override;
 };
 
 }

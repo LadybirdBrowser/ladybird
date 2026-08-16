@@ -20,9 +20,4 @@ InlineNode::InlineNode(DOM::Document& document, GC::Ptr<DOM::Element> element, C
 
 InlineNode::~InlineNode() = default;
 
-RefPtr<Painting::Paintable> InlineNode::create_paintable() const
-{
-    return Painting::InlinePaintable::create(*this);
-}
-
 }

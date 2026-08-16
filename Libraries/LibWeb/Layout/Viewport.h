@@ -33,8 +33,6 @@ public:
     DOM::Document const& dom_node() const;
 
 private:
-    virtual RefPtr<Painting::Paintable> create_paintable() const override;
-
     void update_text_blocks();
 
     virtual bool is_viewport() const override { return true; }

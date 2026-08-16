@@ -8,12 +8,12 @@
 
 namespace Web::Painting {
 
-NonnullRefPtr<SVGMaskPaintable> SVGMaskPaintable::create(Layout::SVGMaskBox const& layout_box)
+NonnullRefPtr<SVGMaskPaintable> SVGMaskPaintable::create(Layout::Box const& layout_box)
 {
     return adopt_ref(*new SVGMaskPaintable(layout_box));
 }
 
-SVGMaskPaintable::SVGMaskPaintable(Layout::SVGMaskBox const& layout_box)
+SVGMaskPaintable::SVGMaskPaintable(Layout::Box const& layout_box)
     : SVGGraphicsPaintable(layout_box)
 {
 }

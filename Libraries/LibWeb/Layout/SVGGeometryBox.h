@@ -21,8 +21,6 @@ public:
 
     SVG::SVGGeometryElement& dom_node() { return static_cast<SVG::SVGGeometryElement&>(SVGGraphicsBox::dom_node()); }
     SVG::SVGGeometryElement const& dom_node() const { return static_cast<SVG::SVGGeometryElement const&>(SVGGraphicsBox::dom_node()); }
-
-    virtual RefPtr<Painting::Paintable> create_paintable() const override;
 };
 
 template<>

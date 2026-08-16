@@ -20,8 +20,6 @@ public:
 
     RefPtr<Painting::PaintableWithLines const> paintable_with_lines() const;
 
-    virtual RefPtr<Painting::Paintable> create_paintable() const override;
-
 private:
     virtual bool is_block_container() const final { return true; }
 };

@@ -21,8 +21,6 @@ public:
 
     SVG::SVGClipPathElement& dom_node() { return as<SVG::SVGClipPathElement>(SVGBox::dom_node()); }
     SVG::SVGClipPathElement const& dom_node() const { return as<SVG::SVGClipPathElement>(SVGBox::dom_node()); }
-
-    virtual RefPtr<Painting::Paintable> create_paintable() const override;
 };
 
 template<>

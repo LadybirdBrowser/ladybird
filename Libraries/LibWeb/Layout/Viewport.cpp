@@ -29,11 +29,6 @@ DOM::Document const& Viewport::dom_node() const
     return static_cast<DOM::Document const&>(*Node::dom_node());
 }
 
-RefPtr<Painting::Paintable> Viewport::create_paintable() const
-{
-    return Painting::ViewportPaintable::create(*this);
-}
-
 Vector<Viewport::TextBlock> const& Viewport::text_blocks()
 {
     if (!m_text_blocks.has_value())

@@ -19,9 +19,6 @@ public:
     ImageBox(DOM::Document&, GC::Ptr<DOM::Element>, CSS::LayoutStyle, ImageProvider const&);
     ImageBox(DOM::Document&, GC::Ptr<DOM::Element>, CSS::LayoutStyle, NonnullOwnPtr<ImageProvider>);
     virtual ~ImageBox() override;
-
-    virtual RefPtr<Painting::Paintable> create_paintable() const override;
-
     ImageProvider const& image_provider() const;
     ImageProvider& image_provider()
     {

@@ -18,9 +18,4 @@ CheckBox::CheckBox(DOM::Document& document, HTML::HTMLInputElement& element, CSS
 
 CheckBox::~CheckBox() = default;
 
-RefPtr<Painting::Paintable> CheckBox::create_paintable() const
-{
-    return Painting::CheckBoxPaintable::create(*this);
-}
-
 }

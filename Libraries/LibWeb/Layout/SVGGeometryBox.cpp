@@ -17,9 +17,4 @@ SVGGeometryBox::SVGGeometryBox(DOM::Document& document, SVG::SVGGeometryElement&
 {
 }
 
-RefPtr<Painting::Paintable> SVGGeometryBox::create_paintable() const
-{
-    return Painting::SVGPathPaintable::create(*this);
-}
-
 }

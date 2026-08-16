@@ -26,9 +26,4 @@ HTML::HTMLAudioElement const& AudioBox::dom_node() const
     return static_cast<HTML::HTMLAudioElement const&>(*ReplacedBox::dom_node());
 }
 
-RefPtr<Painting::Paintable> AudioBox::create_paintable() const
-{
-    return Painting::Paintable::create(*this);
-}
-
 }

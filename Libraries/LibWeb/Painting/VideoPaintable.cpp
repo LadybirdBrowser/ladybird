@@ -13,7 +13,7 @@
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/VideoTrackList.h>
-#include <LibWeb/Layout/VideoBox.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/ReplacedElementCommon.h>
@@ -26,12 +26,12 @@ static CSSPixelSize to_css_pixel_size(Gfx::IntSize size)
     return CSSPixelSize { CSSPixels(size.width()), CSSPixels(size.height()) };
 }
 
-NonnullRefPtr<VideoPaintable> VideoPaintable::create(Layout::VideoBox const& layout_box)
+NonnullRefPtr<VideoPaintable> VideoPaintable::create(Layout::Box const& layout_box)
 {
     return adopt_ref(*new VideoPaintable(layout_box));
 }
 
-VideoPaintable::VideoPaintable(Layout::VideoBox const& layout_box)
+VideoPaintable::VideoPaintable(Layout::Box const& layout_box)
     : Paintable(layout_box)
 {
 }

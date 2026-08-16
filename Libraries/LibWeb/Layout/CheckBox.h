@@ -20,7 +20,6 @@ public:
 
 private:
     virtual CSS::SizeWithAspectRatio compute_auto_content_box_size() const override { return { 13, 13, {} }; }
-    virtual RefPtr<Painting::Paintable> create_paintable() const override;
 };
 
 }

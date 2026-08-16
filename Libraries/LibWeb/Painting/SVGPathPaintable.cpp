@@ -10,15 +10,17 @@
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/SVGPathPaintable.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
+#include <LibWeb/SVG/SVGGradientElement.h>
+#include <LibWeb/SVG/SVGGraphicsElement.h>
 
 namespace Web::Painting {
 
-NonnullRefPtr<SVGPathPaintable> SVGPathPaintable::create(Layout::SVGGraphicsBox const& layout_box)
+NonnullRefPtr<SVGPathPaintable> SVGPathPaintable::create(Layout::Box const& layout_box)
 {
     return adopt_ref(*new SVGPathPaintable(layout_box));
 }
 
-SVGPathPaintable::SVGPathPaintable(Layout::SVGGraphicsBox const& layout_box)
+SVGPathPaintable::SVGPathPaintable(Layout::Box const& layout_box)
     : SVGGraphicsPaintable(layout_box)
 {
 }

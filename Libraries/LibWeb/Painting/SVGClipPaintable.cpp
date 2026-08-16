@@ -8,12 +8,12 @@
 
 namespace Web::Painting {
 
-NonnullRefPtr<SVGClipPaintable> SVGClipPaintable::create(Layout::SVGClipBox const& layout_box)
+NonnullRefPtr<SVGClipPaintable> SVGClipPaintable::create(Layout::Box const& layout_box)
 {
     return adopt_ref(*new SVGClipPaintable(layout_box));
 }
 
-SVGClipPaintable::SVGClipPaintable(Layout::SVGClipBox const& layout_box)
+SVGClipPaintable::SVGClipPaintable(Layout::Box const& layout_box)
     : SVGPaintable(layout_box)
 {
 }

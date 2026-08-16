@@ -20,8 +20,6 @@ public:
 
     SVG::SVGTextPathElement& dom_node() { return static_cast<SVG::SVGTextPathElement&>(SVGGraphicsBox::dom_node()); }
     SVG::SVGTextPathElement const& dom_node() const { return static_cast<SVG::SVGTextPathElement const&>(SVGGraphicsBox::dom_node()); }
-
-    virtual RefPtr<Painting::Paintable> create_paintable() const override;
 };
 
 }

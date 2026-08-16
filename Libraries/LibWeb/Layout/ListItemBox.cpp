@@ -17,11 +17,4 @@ ListItemBox::ListItemBox(DOM::Document& document, GC::Ptr<DOM::Element> element,
 
 ListItemBox::~ListItemBox() = default;
 
-RefPtr<Painting::Paintable> ListItemBox::create_paintable() const
-{
-    if (is_fragmented_inline())
-        return Painting::InlinePaintable::create(*this);
-    return BlockContainer::create_paintable();
-}
-
 }

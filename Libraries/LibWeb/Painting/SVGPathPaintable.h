@@ -8,14 +8,14 @@
 
 #include <LibGfx/Path.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Layout/SVGGraphicsBox.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 
 namespace Web::Painting {
 
 class WEB_API SVGPathPaintable final : public SVGGraphicsPaintable {
 public:
-    static NonnullRefPtr<SVGPathPaintable> create(Layout::SVGGraphicsBox const&);
+    static NonnullRefPtr<SVGPathPaintable> create(Layout::Box const&);
     virtual StringView class_name() const override { return "SVGPathPaintable"sv; }
 
     virtual Optional<CSSPixelRect> clip_path_geometry_bounds(Gfx::AffineTransform const& additional_transform) const override;
@@ -40,7 +40,7 @@ public:
     Optional<Gfx::Path> const& computed_path() const { return m_computed_path; }
 
 protected:
-    SVGPathPaintable(Layout::SVGGraphicsBox const&);
+    SVGPathPaintable(Layout::Box const&);
 
     Optional<Gfx::Path> m_computed_path = {};
     u64 m_committed_path_identity { 0 };

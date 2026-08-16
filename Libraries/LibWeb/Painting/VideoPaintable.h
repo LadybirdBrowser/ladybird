@@ -14,13 +14,13 @@ namespace Web::Painting {
 
 class VideoPaintable final : public Paintable {
 public:
-    static NonnullRefPtr<VideoPaintable> create(Layout::VideoBox const&);
+    static NonnullRefPtr<VideoPaintable> create(Layout::Box const&);
     virtual StringView class_name() const override { return "VideoPaintable"sv; }
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
 private:
-    VideoPaintable(Layout::VideoBox const&);
+    VideoPaintable(Layout::Box const&);
 };
 
 }

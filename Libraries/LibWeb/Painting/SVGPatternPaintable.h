@@ -6,14 +6,14 @@
 
 #pragma once
 
-#include <LibWeb/Layout/SVGPatternBox.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Painting/SVGPaintable.h>
 
 namespace Web::Painting {
 
 class SVGPatternPaintable : public SVGPaintable {
 public:
-    static NonnullRefPtr<SVGPatternPaintable> create(Layout::SVGPatternBox const&);
+    static NonnullRefPtr<SVGPatternPaintable> create(Layout::Box const&);
     virtual StringView class_name() const override { return "SVGPatternPaintable"sv; }
 
     bool forms_unconnected_subtree() const override
@@ -22,7 +22,7 @@ public:
     }
 
 protected:
-    SVGPatternPaintable(Layout::SVGPatternBox const&);
+    SVGPatternPaintable(Layout::Box const&);
 };
 
 }

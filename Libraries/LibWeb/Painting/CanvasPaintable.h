@@ -6,20 +6,20 @@
 
 #pragma once
 
-#include <LibWeb/Layout/CanvasBox.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Painting {
 
 class CanvasPaintable final : public Paintable {
 public:
-    static NonnullRefPtr<CanvasPaintable> create(Layout::CanvasBox const&);
+    static NonnullRefPtr<CanvasPaintable> create(Layout::Box const&);
     virtual StringView class_name() const override { return "CanvasPaintable"sv; }
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
 private:
-    CanvasPaintable(Layout::CanvasBox const&);
+    CanvasPaintable(Layout::Box const&);
 };
 
 }

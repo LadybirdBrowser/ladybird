@@ -6,14 +6,14 @@
 
 #pragma once
 
-#include <LibWeb/Layout/SVGSVGBox.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Painting {
 
 class SVGSVGPaintable final : public Paintable {
 public:
-    static NonnullRefPtr<SVGSVGPaintable> create(Layout::SVGSVGBox const&);
+    static NonnullRefPtr<SVGSVGPaintable> create(Layout::Box const&);
     virtual StringView class_name() const override { return "SVGSVGPaintable"sv; }
 
     static void paint_svg_box(DisplayListRecordingContext& context, Paintable const& svg_box, PaintPhase phase);
@@ -32,7 +32,7 @@ public:
     }
 
 protected:
-    SVGSVGPaintable(Layout::SVGSVGBox const&);
+    SVGSVGPaintable(Layout::Box const&);
 
 private:
     virtual bool is_svg_svg_paintable() const final { return true; }

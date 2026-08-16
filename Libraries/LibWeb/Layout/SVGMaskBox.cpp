@@ -15,9 +15,4 @@ SVGMaskBox::SVGMaskBox(DOM::Document& document, SVG::SVGMaskElement& element, CS
 {
 }
 
-RefPtr<Painting::Paintable> SVGMaskBox::create_paintable() const
-{
-    return Painting::SVGMaskPaintable::create(*this);
-}
-
 }

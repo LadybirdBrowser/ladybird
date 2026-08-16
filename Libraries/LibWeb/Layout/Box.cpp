@@ -129,11 +129,6 @@ RustFFI::FfiReplacedContentFacts Box::build_replaced_content_facts_for_arena() c
     return facts;
 }
 
-RefPtr<Painting::Paintable> Box::create_paintable() const
-{
-    return Painting::Paintable::create(*this);
-}
-
 RefPtr<Painting::Paintable> Box::paintable_box()
 {
     if (auto paintable = Node::paintable())

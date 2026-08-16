@@ -22,8 +22,6 @@ public:
 
     SVG::SVGForeignObjectElement& dom_node() { return static_cast<SVG::SVGForeignObjectElement&>(*BlockContainer::dom_node()); }
     SVG::SVGForeignObjectElement const& dom_node() const { return static_cast<SVG::SVGForeignObjectElement const&>(*BlockContainer::dom_node()); }
-
-    virtual RefPtr<Painting::Paintable> create_paintable() const override;
 };
 
 template<>
