@@ -119,6 +119,56 @@ bool Node::can_have_children() const
     return RustFFI::layout_node_data_can_have_children(m_data);
 }
 
+StringView Node::class_name() const
+{
+#define LAYOUT_NODE_KIND_NAME_CASE(kind_name) \
+    case RustFFI::NodeKind::kind_name:        \
+        return #kind_name##sv;
+    switch (kind()) {
+        LAYOUT_NODE_KIND_NAME_CASE(AudioBox)
+        LAYOUT_NODE_KIND_NAME_CASE(BlockContainer)
+        LAYOUT_NODE_KIND_NAME_CASE(Box)
+        LAYOUT_NODE_KIND_NAME_CASE(BreakNode)
+        LAYOUT_NODE_KIND_NAME_CASE(CanvasBox)
+        LAYOUT_NODE_KIND_NAME_CASE(CheckBox)
+        LAYOUT_NODE_KIND_NAME_CASE(FieldSetBox)
+        LAYOUT_NODE_KIND_NAME_CASE(GeneratedTextNode)
+        LAYOUT_NODE_KIND_NAME_CASE(ImageBox)
+        LAYOUT_NODE_KIND_NAME_CASE(InlineNode)
+        LAYOUT_NODE_KIND_NAME_CASE(LegendBox)
+        LAYOUT_NODE_KIND_NAME_CASE(ListItemBox)
+        LAYOUT_NODE_KIND_NAME_CASE(ListItemMarkerBox)
+        LAYOUT_NODE_KIND_NAME_CASE(NavigableContainerViewport)
+        LAYOUT_NODE_KIND_NAME_CASE(Node)
+        LAYOUT_NODE_KIND_NAME_CASE(NodeWithStyle)
+        LAYOUT_NODE_KIND_NAME_CASE(RadioButton)
+        LAYOUT_NODE_KIND_NAME_CASE(RangeInputBox)
+        LAYOUT_NODE_KIND_NAME_CASE(ReplacedBox)
+        LAYOUT_NODE_KIND_NAME_CASE(SVGBox)
+        LAYOUT_NODE_KIND_NAME_CASE(SVGClipBox)
+        LAYOUT_NODE_KIND_NAME_CASE(SVGForeignObjectBox)
+        LAYOUT_NODE_KIND_NAME_CASE(SVGGeometryBox)
+        LAYOUT_NODE_KIND_NAME_CASE(SVGGraphicsBox)
+        LAYOUT_NODE_KIND_NAME_CASE(SVGImageBox)
+        LAYOUT_NODE_KIND_NAME_CASE(SVGMaskBox)
+        LAYOUT_NODE_KIND_NAME_CASE(SVGPatternBox)
+        LAYOUT_NODE_KIND_NAME_CASE(SVGSVGBox)
+        LAYOUT_NODE_KIND_NAME_CASE(SVGTextBox)
+        LAYOUT_NODE_KIND_NAME_CASE(SVGTextPathBox)
+        LAYOUT_NODE_KIND_NAME_CASE(TableWrapper)
+        LAYOUT_NODE_KIND_NAME_CASE(TextAreaBox)
+        LAYOUT_NODE_KIND_NAME_CASE(TextInputBox)
+        LAYOUT_NODE_KIND_NAME_CASE(TextNode)
+        LAYOUT_NODE_KIND_NAME_CASE(TextSliceNode)
+        LAYOUT_NODE_KIND_NAME_CASE(VideoBox)
+        LAYOUT_NODE_KIND_NAME_CASE(Viewport)
+    case RustFFI::NodeKind::Unset:
+        break;
+    }
+#undef LAYOUT_NODE_KIND_NAME_CASE
+    VERIFY_NOT_REACHED();
+}
+
 void Node::enroll_for_arena_replaced_content_facts_sync_if_eligible()
 {
     if (m_enrolled_for_arena_replaced_content_facts_sync)
