@@ -96,9 +96,7 @@ pub unsafe extern "C" fn rust_animated_overlay_set(
 ) {
     abort_on_panic(|| {
         let retained = unsafe {
-            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(
-                value.cast(),
-            ))
+            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(value.cast()))
         };
         let entry = AnimatedOverlayEntry {
             property,

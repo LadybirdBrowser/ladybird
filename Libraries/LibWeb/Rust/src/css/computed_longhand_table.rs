@@ -201,9 +201,7 @@ impl ComputedLonghandTable {
         assert_eq!(values.len(), LONGHAND_COUNT);
         for (index, &value) in values.iter().enumerate() {
             self.slots[index] = (!value.is_null()).then(|| unsafe {
-                RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(
-                    value.cast(),
-                ))
+                RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(value.cast()))
             });
             self.value_view[index] = value;
         }
@@ -469,7 +467,7 @@ pub unsafe extern "C" fn rust_computed_longhand_table_set(
 ) {
     abort_on_panic(|| {
         let value = unsafe {
-            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(data.cast()))
+            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(data.cast()))
         };
         unsafe { &mut *table }.set(property_id, value, source_slot);
     });
@@ -693,9 +691,7 @@ pub unsafe extern "C" fn rust_computed_longhand_table_add_inheritance_dependent_
 ) {
     abort_on_panic(|| {
         let value = unsafe {
-            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(
-                value.cast(),
-            ))
+            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(value.cast()))
         };
         unsafe { &mut *table }.add_inheritance_dependent_value(property_id, value);
     });

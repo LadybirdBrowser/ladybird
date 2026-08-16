@@ -34,9 +34,7 @@ extern "C" void ladybird_utf16_fly_string_unref(size_t);
 static void finish_complete_style_update()
 {
     auto releases = StyleValueFFI::rust_style_ffi_complete_style_update_end();
-    ScopeGuard destroy_releases = [&] {
-        StyleValueFFI::rust_deferred_cpp_releases_destroy(releases.storage);
-    };
+    ScopeGuard clear_releases = StyleValueFFI::rust_deferred_cpp_releases_clear;
     for (size_t i = 0; i < releases.fly_string_count; ++i)
         ladybird_utf16_fly_string_unref(releases.fly_strings[i]);
     for (size_t i = 0; i < releases.string_count; ++i)

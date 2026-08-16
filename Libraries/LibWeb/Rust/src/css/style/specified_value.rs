@@ -8,7 +8,7 @@
 
 use crate::css::style_value::RetainedStyleValueData;
 use crate::css::style_value::StyleValueData;
-use crate::css::style_value::rust_style_value_retain;
+use crate::css::style_value::retain_style_value;
 
 use super::capacity::capacity_bytes;
 use super::cascade::SpecifiedValueID;
@@ -151,7 +151,7 @@ impl SpecifiedValues {
             .next_id
             .checked_add(1)
             .expect("specified value identity space exhausted");
-        let retained = unsafe { RetainedStyleValueData::from_retained_pointer(rust_style_value_retain(value)) };
+        let retained = unsafe { RetainedStyleValueData::from_retained_pointer(retain_style_value(value)) };
         self.push_entry(id, retained, value as usize);
         if !self.settle_memory(memory) {
             let SpecifiedValueCoverage::Partial { eviction_generation } = self.coverage else {
@@ -183,7 +183,7 @@ impl SpecifiedValues {
             debug_assert_eq!(existing, id);
             return;
         }
-        let retained = unsafe { RetainedStyleValueData::from_retained_pointer(rust_style_value_retain(value)) };
+        let retained = unsafe { RetainedStyleValueData::from_retained_pointer(retain_style_value(value)) };
         self.push_entry(id, retained, value as usize);
         self.settle_memory(memory);
     }

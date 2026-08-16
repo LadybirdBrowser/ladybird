@@ -2659,7 +2659,7 @@ pub unsafe extern "C" fn rust_calc_external_resolutions_release(storage: *mut st
             drop(unsafe { Arc::from_raw(resolution.resolved_node) });
         }
         if !resolution.resolved_style_value.is_null() {
-            unsafe { crate::css::style_value::rust_style_value_release(resolution.resolved_style_value.cast()) };
+            unsafe { crate::css::style_value::release_style_value(resolution.resolved_style_value.cast()) };
         }
     }
 }
@@ -2770,7 +2770,7 @@ fn with_ffi_evaluation<R>(
             })
             .filter(|resolution| !resolution.resolved_style_value.is_null())
             .map(|resolution| unsafe {
-                RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(
+                RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
                     resolution.resolved_style_value.cast(),
                 ))
             })

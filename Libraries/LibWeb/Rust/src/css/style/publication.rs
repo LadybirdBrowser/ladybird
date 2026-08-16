@@ -447,7 +447,7 @@ impl StyleEngine {
                 continue;
             }
             let retained = unsafe {
-                RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(
+                RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
                     declaration.data.cast(),
                 ))
             };

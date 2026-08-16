@@ -104,7 +104,7 @@ impl RetainedStyleValueData {
     }
 
     pub(crate) fn clone_retained(&self) -> Self {
-        let pointer = unsafe { rust_style_value_retain(self.pointer.cast()) };
+        let pointer = unsafe { retain_style_value(self.pointer.cast()) };
         unsafe { Self::from_retained_optional_pointer(pointer) }
     }
 
@@ -125,7 +125,7 @@ impl Clone for RetainedStyleValueData {
 
 impl Drop for RetainedStyleValueData {
     fn drop(&mut self) {
-        unsafe { rust_style_value_release(self.pointer.cast()) };
+        unsafe { release_style_value(self.pointer.cast()) };
     }
 }
 
@@ -193,7 +193,7 @@ impl Clone for RetainedStyleValueDataList {
                 };
                 let pointer = data as *const StyleValueData as usize;
                 if let Some((_, cloned)) = cloned_by_pointer.iter().find(|(original, _)| *original == pointer) {
-                    return unsafe { RetainedStyleValueData::from_retained_pointer(rust_style_value_retain(*cloned)) };
+                    return unsafe { RetainedStyleValueData::from_retained_pointer(retain_style_value(*cloned)) };
                 }
                 let cloned = Arc::into_raw(Arc::new(data.clone()));
                 cloned_by_pointer.push((pointer, cloned));
@@ -3641,22 +3641,24 @@ pub unsafe extern "C" fn rust_style_value_create_image(
     })
 }
 
+pub(crate) unsafe fn release_style_value(value: *const StyleValueData) {
+    if value.is_null() {
+        return;
+    }
+    if replay_style_value_dependency_flags(value).is_some() {
+        return;
+    }
+    let value_reference = std::mem::ManuallyDrop::new(unsafe { Arc::from_raw(value) });
+    if Arc::strong_count(&value_reference) == 1 {
+        crate::css::style::record_replay::invalidate_pointer(value as usize);
+    }
+    unsafe { Arc::decrement_strong_count(value) };
+}
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_release(value: *const StyleValueData) {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleValueDestroyEntry);
-    abort_on_panic(|| {
-        if value.is_null() {
-            return;
-        }
-        if replay_style_value_dependency_flags(value).is_some() {
-            return;
-        }
-        let value_reference = std::mem::ManuallyDrop::new(unsafe { Arc::from_raw(value) });
-        if Arc::strong_count(&value_reference) == 1 {
-            crate::css::style::record_replay::invalidate_pointer(value as usize);
-        }
-        unsafe { Arc::decrement_strong_count(value) };
-    });
+    abort_on_panic(|| unsafe { release_style_value(value) });
 }
 
 /// Whether two shared style values hold the same value.
@@ -3786,17 +3788,19 @@ pub unsafe extern "C" fn rust_style_value_diff_effective_longhands(
 ///
 /// # Safety
 /// `value` must be null or point at a live `StyleValueData` allocated by this module.
+pub(crate) unsafe fn retain_style_value(value: *const StyleValueData) -> *const StyleValueData {
+    if !value.is_null() {
+        if replay_style_value_dependency_flags(value).is_some() {
+            return value;
+        }
+        unsafe { Arc::increment_strong_count(value) };
+    }
+    value
+}
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_retain(value: *const StyleValueData) -> *const StyleValueData {
-    abort_on_panic(|| {
-        if !value.is_null() {
-            if replay_style_value_dependency_flags(value).is_some() {
-                return value;
-            }
-            unsafe { Arc::increment_strong_count(value) };
-        }
-        value
-    })
+    abort_on_panic(|| unsafe { retain_style_value(value) })
 }
 
 /// Clones a parsed value into a distinct allocation. Repeated direct children retain their alias

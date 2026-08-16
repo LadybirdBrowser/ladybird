@@ -780,7 +780,7 @@ fn apply_declaration_block(
                     // stylesheet can be adopted into multiple scopes at once, so the declaration object alone is
                     // not specific enough.
                     let retained_value = unsafe {
-                        RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(
+                        RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
                             longhand_data.cast(),
                         ))
                     };
