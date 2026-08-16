@@ -946,7 +946,7 @@ impl StyleEngine {
             self.routing
                 .routes_for(key)
                 .iter()
-                .any(|&route| self.routing.route(route).has_prefix_chain)
+                .any(|&route| self.routing.entry_has_prefix_chain(route))
         };
         if routing_keys_for_input(input).into_iter().any(route_is_prefix) {
             return true;

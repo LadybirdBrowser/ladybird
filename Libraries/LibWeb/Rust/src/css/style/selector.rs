@@ -2664,65 +2664,256 @@ pub struct RelativeAnchor {
 pub struct TransposeRoute {
     pub rule: RuleID,
     pub entry: EntryID,
-    /// Whether the selector entry can be answered by the top-down prefix automaton.
-    pub has_prefix_chain: bool,
-    /// Whether every prefix compound reads only facts on its own element.
-    pub prefix_chain_has_only_local_facts: bool,
     /// The IR node containing a structural operator, which distinguishes how the route is planned.
     pub structural_node: Option<SelectorNodeID>,
     /// Set when the input is a possible relational witness, in which case the path applies from an
     /// anchor rather than from the changed node.
     pub anchor: Option<RelativeAnchor>,
-    path_offset: u32,
-    path_length: u32,
-    /// The distinguishing features of the compound the input occurs in.
-    ///
-    /// An input reaches this route only if the element it happened to also satisfies the rest
-    /// of its own compound. Hovering a paragraph cannot change anything through `.action:hover *`,
-    /// because the paragraph is not an `.action`, and rejecting that here costs one posting lookup
-    /// instead of a subtree walk. Empty means the compound distinguishes nothing and rejects
-    /// nothing.
-    origin_offset: u32,
-    origin_length: u32,
-    /// Independently necessary features of the compound containing the input.
-    origin_required_offset: u32,
-    origin_required_length: u32,
-    /// What the selector says the parent of that compound must be.
-    ///
-    /// A positional test names a place in a child sequence, and a whole sequence shares one parent,
-    /// so `#list > .row:first-child .leaf` is rejected for every sequence whose parent is not the
-    /// list - however far the subject is from the test.
-    parent_offset: u32,
-    parent_length: u32,
-    /// The subject's own bounded position in its sibling sequence, when it has one.
-    ///
-    /// `:first-child` names one element of a sequence however long it is, and a compound with no
-    /// feature to enumerate by has nothing else to narrow a child region with.
+}
+
+#[derive(Clone, Copy)]
+struct RouteRange {
+    offset: u32,
+    length: u32,
+}
+
+enum RouteDirectory {
+    BuildingAfterIdle(HashMap<RoutingKey, Vec<RouteID>>),
+    BuildingAfterChange(HashMap<RoutingKey, Vec<RouteID>>),
+    BuildingIdleAfterChange(HashMap<RoutingKey, Vec<RouteID>>),
+    FlatAfterIdle {
+        ranges: HashMap<RoutingKey, RouteRange>,
+        routes: Vec<RouteID>,
+    },
+    FlatAfterChange {
+        ranges: HashMap<RoutingKey, RouteRange>,
+        routes: Vec<RouteID>,
+    },
+}
+
+impl Default for RouteDirectory {
+    fn default() -> Self {
+        Self::FlatAfterIdle {
+            ranges: HashMap::default(),
+            routes: Vec::new(),
+        }
+    }
+}
+
+impl RouteDirectory {
+    fn reopen(ranges: HashMap<RoutingKey, RouteRange>, routes: Vec<RouteID>) -> HashMap<RoutingKey, Vec<RouteID>> {
+        let mut building = HashMap::with_capacity_and_hasher(ranges.len(), Default::default());
+        for (key, range) in ranges {
+            building.insert(
+                key,
+                routes[range.offset as usize..(range.offset + range.length) as usize].to_vec(),
+            );
+        }
+        building
+    }
+
+    fn push(&mut self, key: RoutingKey, route: RouteID) {
+        match std::mem::take(self) {
+            Self::FlatAfterIdle { ranges, routes } => {
+                *self = Self::BuildingAfterIdle(Self::reopen(ranges, routes));
+            }
+            Self::FlatAfterChange { ranges, routes } => {
+                *self = Self::BuildingAfterChange(Self::reopen(ranges, routes));
+            }
+            Self::BuildingIdleAfterChange(building) => {
+                *self = Self::BuildingAfterChange(building);
+            }
+            state => *self = state,
+        }
+        let building = match self {
+            Self::BuildingAfterIdle(building)
+            | Self::BuildingAfterChange(building)
+            | Self::BuildingIdleAfterChange(building) => building,
+            Self::FlatAfterIdle { .. } | Self::FlatAfterChange { .. } => unreachable!(),
+        };
+        let routes = building.entry(key).or_default();
+        if routes.last() != Some(&route) {
+            routes.push(route);
+        }
+    }
+
+    fn get(&self, key: RoutingKey) -> &[RouteID] {
+        match self {
+            Self::BuildingAfterIdle(building)
+            | Self::BuildingAfterChange(building)
+            | Self::BuildingIdleAfterChange(building) => building.get(&key).map_or(&[], Vec::as_slice),
+            Self::FlatAfterIdle { ranges, routes } | Self::FlatAfterChange { ranges, routes } => {
+                ranges.get(&key).map_or(&[], |range| {
+                    &routes[range.offset as usize..(range.offset + range.length) as usize]
+                })
+            }
+        }
+    }
+
+    #[cfg(test)]
+    fn len(&self) -> usize {
+        match self {
+            Self::BuildingAfterIdle(building)
+            | Self::BuildingAfterChange(building)
+            | Self::BuildingIdleAfterChange(building) => building.len(),
+            Self::FlatAfterIdle { ranges, .. } | Self::FlatAfterChange { ranges, .. } => ranges.len(),
+        }
+    }
+
+    fn finish(&mut self) -> bool {
+        match std::mem::take(self) {
+            Self::FlatAfterIdle { ranges, routes } | Self::FlatAfterChange { ranges, routes } => {
+                *self = Self::FlatAfterIdle { ranges, routes };
+                false
+            }
+            Self::BuildingAfterChange(building) => {
+                *self = Self::BuildingIdleAfterChange(building);
+                true
+            }
+            Self::BuildingAfterIdle(building) => {
+                *self = Self::flatten(building, true);
+                true
+            }
+            Self::BuildingIdleAfterChange(building) => {
+                *self = Self::flatten(building, false);
+                true
+            }
+        }
+    }
+
+    fn flatten(building: HashMap<RoutingKey, Vec<RouteID>>, after_change: bool) -> Self {
+        let mut entries = building.into_iter().collect::<Vec<_>>();
+        entries.sort_unstable_by_key(|(key, _)| *key);
+        let route_count = entries.iter().map(|(_, routes)| routes.len()).sum();
+        let mut ranges = HashMap::with_capacity_and_hasher(entries.len(), Default::default());
+        let mut flat_routes = Vec::with_capacity(route_count);
+        for (key, routes) in entries {
+            let offset = u32::try_from(flat_routes.len()).expect("routing directory space exhausted");
+            flat_routes.extend_from_slice(&routes);
+            ranges.insert(
+                key,
+                RouteRange {
+                    offset,
+                    length: u32::try_from(routes.len()).expect("routing directory space exhausted"),
+                },
+            );
+        }
+        if after_change {
+            Self::FlatAfterChange {
+                ranges,
+                routes: flat_routes,
+            }
+        } else {
+            Self::FlatAfterIdle {
+                ranges,
+                routes: flat_routes,
+            }
+        }
+    }
+
+    fn capacity_bytes(&self) -> u64 {
+        match self {
+            Self::BuildingAfterIdle(building)
+            | Self::BuildingAfterChange(building)
+            | Self::BuildingIdleAfterChange(building) => capacity_bytes! {
+                shallow [building];
+                cached [];
+                nested [building
+                    .values()
+                    .map(|routes| routes.capacity() * size_of::<RouteID>())
+                    .sum::<usize>()];
+                skip [];
+            },
+            Self::FlatAfterIdle { ranges, routes } | Self::FlatAfterChange { ranges, routes } => capacity_bytes! {
+                shallow [ranges, routes];
+                cached [];
+                nested [];
+                skip [];
+            },
+        }
+    }
+}
+
+#[derive(Default)]
+struct RouteColumns {
+    headers: Vec<RouteHeader>,
+    paths: Vec<RouteRange>,
+    origins: Vec<RouteRange>,
+    origin_requirements: Vec<RouteRange>,
+    parents: Vec<RouteRange>,
+    waypoints: Vec<RouteRange>,
+}
+
+const NO_ROUTE_INDEX: u32 = u32::MAX;
+
+#[derive(Clone, Copy)]
+struct RouteHeader {
+    rule: RuleID,
+    entry: EntryID,
+    structural_node: u32,
+    anchor_index: u32,
+}
+
+struct RouteRanges {
+    path: RouteRange,
+    origin: RouteRange,
+    origin_requirements: RouteRange,
+    parent: RouteRange,
+    waypoints: RouteRange,
+}
+
+impl RouteColumns {
+    fn push(&mut self, header: RouteHeader, ranges: RouteRanges) {
+        self.headers.push(header);
+        self.paths.push(ranges.path);
+        self.origins.push(ranges.origin);
+        self.origin_requirements.push(ranges.origin_requirements);
+        self.parents.push(ranges.parent);
+        self.waypoints.push(ranges.waypoints);
+    }
+
+    fn len(&self) -> usize {
+        self.headers.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.headers.is_empty()
+    }
+
+    fn capacity_bytes(&self) -> u64 {
+        capacity_bytes! {
+            shallow [
+                self.headers,
+                self.paths,
+                self.origins,
+                self.origin_requirements,
+                self.parents,
+                self.waypoints,
+            ];
+            cached [];
+            nested [];
+            skip [];
+        }
+    }
+}
+
+/// Subject-side facts shared by every transpose route of one selector entry.
+#[derive(Clone, Copy)]
+struct EntryRouteFacts {
+    /// Whether prefix matching applies, and whether its compounds read only local facts.
+    flags: u8,
+    /// The subject's bounded position in its sibling sequence, when it has one.
     subject_position: SubjectPosition,
-    /// The subject's own distinguishing features.
-    ///
-    /// This is what turns a region into a candidate list. `.guard:hover .target` reaches a whole
-    /// subtree through its combinator, but only the `.target` elements in that subtree can change,
-    /// and these keys are how they are found without streaming the rest.
+    /// Distinguishing subject features used to enumerate candidates within a region.
     subject_offset: u32,
     subject_length: u32,
     /// Independently necessary features of the subject compound.
     subject_required_offset: u32,
     subject_required_length: u32,
-    /// One key per step of the path: what the node that step lands on must carry.
-    ///
-    /// A region names where a change can reach; it does not say what the selector required on the
-    /// way. `[data-active] [class] span` reaches every `span` under the changed element, but only a
-    /// `span` with a `[class]` ancestor can match it, and the rest are recomputed for nothing.
-    /// Requiring each of these of some ancestor is a necessary condition of the selector, so it can
-    /// only remove subjects that could not have matched either before or after the change.
-    ///
-    /// Empty unless every step of the path is ancestral, since a sibling or shadow step is not
-    /// answered by walking a subject's ancestors. Compounds that distinguish nothing, and the ones
-    /// whose set is wider than a single key, contribute no requirement rather than a loose one.
-    waypoint_offset: u32,
-    waypoint_length: u32,
 }
+
+const ENTRY_HAS_PREFIX_CHAIN: u8 = 1 << 0;
+const ENTRY_PREFIX_CHAIN_HAS_ONLY_LOCAL_FACTS: u8 = 1 << 1;
 
 /// Stable identity of one canonical transpose route.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -2751,9 +2942,6 @@ struct RouteDescriptor<'a> {
     rule: RuleID,
     entry: EntryID,
     structural_node: Option<SelectorNodeID>,
-    subject_dispatch: &'a [DispatchKey],
-    subject_required: &'a [DispatchKey],
-    subject_position: SubjectPosition,
     origin_dispatch: &'a [DispatchKey],
     origin_required: &'a [DispatchKey],
     parent_dispatch: &'a [DispatchKey],
@@ -3119,7 +3307,9 @@ fn state_is_published_on_arrival(fact: StateFact) -> bool {
 /// Feature postings may accelerate subject enumeration on top of it, but evicting a posting never
 /// changes which routes run.
 pub struct RoutingRegistry {
-    routes: Vec<TransposeRoute>,
+    routes: RouteColumns,
+    anchors: Vec<RelativeAnchor>,
+    entry_facts: Vec<Option<EntryRouteFacts>>,
     /// Every route that sits inside a relational argument. A subtree leaving takes its facts
     /// with it, so there is no feature left to route from and these have to be asked directly.
     relational: Vec<RouteID>,
@@ -3129,9 +3319,9 @@ pub struct RoutingRegistry {
     sibling_first: Vec<RouteID>,
     /// Sibling-first routes indexed by a distinguishing feature of their left compound.
     sibling_first_by_origin: HashMap<DispatchKey, Vec<RouteID>>,
-    by_input: HashMap<RoutingKey, Vec<RouteID>>,
-    arrival_by_input: HashMap<RoutingKey, Vec<RouteID>>,
-    canonical_routes: HashMap<u64, RouteID>,
+    by_input: RouteDirectory,
+    arrival_by_input: RouteDirectory,
+    canonical_route_heads: Vec<Option<RouteID>>,
     canonical_next: Vec<Option<RouteID>>,
     paths: Vec<InverseStep>,
     keys: Vec<DispatchKey>,
@@ -3142,13 +3332,15 @@ pub struct RoutingRegistry {
 impl Default for RoutingRegistry {
     fn default() -> Self {
         Self {
-            routes: Vec::new(),
+            routes: RouteColumns::default(),
+            anchors: Vec::new(),
+            entry_facts: Vec::new(),
             relational: Vec::new(),
             sibling_first: Vec::new(),
             sibling_first_by_origin: HashMap::default(),
-            by_input: HashMap::default(),
-            arrival_by_input: HashMap::default(),
-            canonical_routes: HashMap::default(),
+            by_input: RouteDirectory::default(),
+            arrival_by_input: RouteDirectory::default(),
+            canonical_route_heads: Vec::new(),
             canonical_next: Vec::new(),
             paths: Vec::new(),
             keys: Vec::new(),
@@ -3170,14 +3362,14 @@ impl RoutingRegistry {
         memory.grow_committed(((routes.capacity() - capacity_before) * size_of::<RouteID>()) as u64);
     }
 
-    fn insert(&mut self, key: RoutingKey, descriptor: RouteDescriptor<'_>, selector_entry: SelectorEntry) -> RouteID {
-        let route_hash = Self::route_hash(&descriptor);
+    fn insert(&mut self, key: RoutingKey, descriptor: RouteDescriptor<'_>) -> RouteID {
         let starts_through_a_sibling = descriptor.anchor.is_none()
             && matches!(
                 descriptor.path.first(),
                 Some(InverseStep::NextSibling | InverseStep::FollowingSiblings)
             );
-        let mut candidate = self.canonical_routes.get(&route_hash).copied();
+        let rule_index = descriptor.rule.0 as usize;
+        let mut candidate = self.canonical_route_heads.get(rule_index).copied().flatten();
         let mut canonical_route = None;
         while let Some(route) = candidate {
             if self.route_descriptor(route) == descriptor {
@@ -3190,9 +3382,6 @@ impl RoutingRegistry {
             rule,
             entry,
             structural_node,
-            subject_dispatch,
-            subject_required,
-            subject_position,
             origin_dispatch,
             origin_required,
             parent_dispatch,
@@ -3210,35 +3399,48 @@ impl RoutingRegistry {
             self.keys.extend_from_slice(origin_required);
             let parent_offset = u32::try_from(self.keys.len()).expect("dispatch key space exhausted");
             self.keys.extend_from_slice(parent_dispatch);
-            let subject_offset = u32::try_from(self.keys.len()).expect("dispatch key space exhausted");
-            self.keys.extend_from_slice(subject_dispatch);
-            let subject_required_offset = u32::try_from(self.keys.len()).expect("dispatch key space exhausted");
-            self.keys.extend_from_slice(subject_required);
             let waypoint_offset = u32::try_from(self.keys.len()).expect("dispatch key space exhausted");
             self.keys.extend_from_slice(waypoints);
-            self.routes.push(TransposeRoute {
-                rule,
-                entry,
-                has_prefix_chain: selector_entry.has_prefix_chain(),
-                prefix_chain_has_only_local_facts: selector_entry.prefix_chain_has_only_local_facts(),
-                structural_node,
-                anchor,
-                path_offset,
-                path_length: u32::try_from(path.len()).expect("transpose path space exhausted"),
-                origin_offset,
-                origin_length: u32::try_from(origin_dispatch.len()).expect("dispatch key space exhausted"),
-                origin_required_offset,
-                origin_required_length: u32::try_from(origin_required.len()).expect("dispatch key space exhausted"),
-                parent_offset,
-                parent_length: u32::try_from(parent_dispatch.len()).expect("dispatch key space exhausted"),
-                subject_offset,
-                subject_length: u32::try_from(subject_dispatch.len()).expect("dispatch key space exhausted"),
-                subject_required_offset,
-                subject_required_length: u32::try_from(subject_required.len()).expect("dispatch key space exhausted"),
-                subject_position,
-                waypoint_offset,
-                waypoint_length: u32::try_from(waypoints.len()).expect("dispatch key space exhausted"),
+            let anchor_index = anchor.map(|anchor| {
+                let index = u32::try_from(self.anchors.len()).expect("relative anchor space exhausted");
+                assert_ne!(index, NO_ROUTE_INDEX, "relative anchor space exhausted");
+                self.anchors.push(anchor);
+                index
             });
+            let structural_node = structural_node.map_or(NO_ROUTE_INDEX, |node| {
+                assert_ne!(node.0, NO_ROUTE_INDEX, "structural selector node space exhausted");
+                node.0
+            });
+            self.routes.push(
+                RouteHeader {
+                    rule,
+                    entry,
+                    structural_node,
+                    anchor_index: anchor_index.unwrap_or(NO_ROUTE_INDEX),
+                },
+                RouteRanges {
+                    path: RouteRange {
+                        offset: path_offset,
+                        length: u32::try_from(path.len()).expect("transpose path space exhausted"),
+                    },
+                    origin: RouteRange {
+                        offset: origin_offset,
+                        length: u32::try_from(origin_dispatch.len()).expect("dispatch key space exhausted"),
+                    },
+                    origin_requirements: RouteRange {
+                        offset: origin_required_offset,
+                        length: u32::try_from(origin_required.len()).expect("dispatch key space exhausted"),
+                    },
+                    parent: RouteRange {
+                        offset: parent_offset,
+                        length: u32::try_from(parent_dispatch.len()).expect("dispatch key space exhausted"),
+                    },
+                    waypoints: RouteRange {
+                        offset: waypoint_offset,
+                        length: u32::try_from(waypoints.len()).expect("dispatch key space exhausted"),
+                    },
+                },
+            );
             if anchor.is_some() {
                 self.relational.push(route);
             }
@@ -3254,28 +3456,19 @@ impl RoutingRegistry {
                     }
                 }
             }
-            let previous = self.canonical_routes.insert(route_hash, route);
+            if self.canonical_route_heads.len() <= rule_index {
+                self.canonical_route_heads.resize(rule_index + 1, None);
+            }
+            let previous = self.canonical_route_heads[rule_index].replace(route);
             self.canonical_next.push(previous);
             route
         });
 
         if anchor.is_some() || starts_through_a_sibling {
-            let arrivals = self.arrival_by_input.entry(key).or_default();
-            if arrivals.last() != Some(&route) {
-                Self::push_route(&mut self.nested_memory, arrivals, route);
-            }
+            self.arrival_by_input.push(key, route);
         }
-        let entries = self.by_input.entry(key).or_default();
-        if entries.last() != Some(&route) {
-            Self::push_route(&mut self.nested_memory, entries, route);
-        }
+        self.by_input.push(key, route);
         route
-    }
-
-    fn route_hash(descriptor: &RouteDescriptor<'_>) -> u64 {
-        let mut hasher = fast_hasher();
-        descriptor.hash(&mut hasher);
-        hasher.finish()
     }
 
     fn route_descriptor(&self, route: RouteID) -> RouteDescriptor<'_> {
@@ -3284,9 +3477,6 @@ impl RoutingRegistry {
             rule: point.rule,
             entry: point.entry,
             structural_node: point.structural_node,
-            subject_dispatch: self.subject_dispatch_of(route),
-            subject_required: self.subject_required_of(route),
-            subject_position: point.subject_position,
             origin_dispatch: self.origin_dispatch_of(route),
             origin_required: self.origin_required_of(route),
             parent_dispatch: self.parent_dispatch_of(route),
@@ -3317,82 +3507,119 @@ impl RoutingRegistry {
     /// Routes reached from one semantic input, in a stable order.
     #[must_use]
     pub fn routes_for(&self, key: RoutingKey) -> &[RouteID] {
-        self.by_input.get(&key).map_or(&[], Vec::as_slice)
+        self.by_input.get(key)
     }
 
     /// Routes for which an arriving element's facts can affect nodes outside its subtree.
     #[must_use]
     pub fn arrival_routes_for(&self, key: RoutingKey) -> &[RouteID] {
-        self.arrival_by_input.get(&key).map_or(&[], Vec::as_slice)
+        self.arrival_by_input.get(key)
     }
 
     #[must_use]
     pub fn route(&self, route: RouteID) -> TransposeRoute {
-        self.routes[route.index()]
+        let index = route.index();
+        let header = self.routes.headers[index];
+        TransposeRoute {
+            rule: header.rule,
+            entry: header.entry,
+            structural_node: (header.structural_node != NO_ROUTE_INDEX)
+                .then_some(SelectorNodeID(header.structural_node)),
+            anchor: (header.anchor_index != NO_ROUTE_INDEX).then(|| self.anchors[header.anchor_index as usize]),
+        }
     }
 
     #[must_use]
     pub fn rule_of(&self, route: RouteID) -> RuleID {
-        self.route(route).rule
+        self.routes.headers[route.index()].rule
+    }
+
+    fn entry_facts_of(&self, route: RouteID) -> EntryRouteFacts {
+        self.entry_facts[self.routes.headers[route.index()].entry.0 as usize]
+            .expect("a route must reference registered entry facts")
+    }
+
+    #[must_use]
+    pub fn entry_has_prefix_chain(&self, route: RouteID) -> bool {
+        self.entry_facts_of(route).flags & ENTRY_HAS_PREFIX_CHAIN != 0
+    }
+
+    #[must_use]
+    pub fn entry_prefix_chain_has_only_local_facts(&self, route: RouteID) -> bool {
+        self.entry_facts_of(route).flags & ENTRY_PREFIX_CHAIN_HAS_ONLY_LOCAL_FACTS != 0
     }
 
     #[must_use]
     pub fn path_of(&self, route: RouteID) -> &[InverseStep] {
-        let point = self.route(route);
-        &self.paths[point.path_offset as usize..(point.path_offset + point.path_length) as usize]
+        let range = self.routes.paths[route.index()];
+        &self.paths[range.offset as usize..(range.offset + range.length) as usize]
     }
 
-    /// The features the element an input happened to must carry for this route to be
-    /// reachable from it. Empty means it rejects nothing.
+    /// The features the element an input happened to must carry for this route to be reachable.
+    ///
+    /// Hovering a paragraph cannot change anything through `.action:hover *`, because the
+    /// paragraph is not an `.action`. Rejecting it here costs one posting lookup instead of a
+    /// subtree walk. Empty means the compound distinguishes nothing and rejects nothing.
     #[must_use]
     pub fn origin_dispatch_of(&self, route: RouteID) -> &[DispatchKey] {
-        let point = self.route(route);
-        &self.keys[point.origin_offset as usize..(point.origin_offset + point.origin_length) as usize]
+        let range = self.routes.origins[route.index()];
+        &self.keys[range.offset as usize..(range.offset + range.length) as usize]
     }
 
     /// Independently necessary features of the compound containing the input.
     #[must_use]
     pub fn origin_required_of(&self, route: RouteID) -> &[DispatchKey] {
-        let point = self.route(route);
-        &self.keys[point.origin_required_offset as usize
-            ..(point.origin_required_offset + point.origin_required_length) as usize]
+        let range = self.routes.origin_requirements[route.index()];
+        &self.keys[range.offset as usize..(range.offset + range.length) as usize]
     }
 
-    /// What the parent of the compound an input occurs in must be. Empty means it rejects nothing.
+    /// What the parent of the compound an input occurs in must be.
+    ///
+    /// A positional test names a place in one child sequence, so
+    /// `#list > .row:first-child .leaf` is rejected for every sequence whose parent is not the
+    /// list, however far the subject is from the test. Empty means it rejects nothing.
     #[must_use]
     pub fn parent_dispatch_of(&self, route: RouteID) -> &[DispatchKey] {
-        let point = self.route(route);
-        &self.keys[point.parent_offset as usize..(point.parent_offset + point.parent_length) as usize]
+        let range = self.routes.parents[route.index()];
+        &self.keys[range.offset as usize..(range.offset + range.length) as usize]
     }
 
     /// How far into a sibling sequence the entry's subjects can be, when a positional test says so.
+    ///
+    /// `:first-child` names one element however long the sequence is, including when its compound
+    /// has no feature by which to enumerate it.
     #[must_use]
     pub fn subject_position_of(&self, route: RouteID) -> SubjectPosition {
-        self.route(route).subject_position
+        self.entry_facts_of(route).subject_position
     }
 
-    /// The features the entry's subjects carry, which is what a region is narrowed to. Empty means
-    /// the subjects have no feature to enumerate them by.
+    /// The features the entry's subjects carry, which is what a region is narrowed to.
+    ///
+    /// `.guard:hover .target` reaches a whole subtree through its combinator, but only `.target`
+    /// elements can change. Empty means the subjects have no feature by which to enumerate them.
     #[must_use]
     pub fn subject_dispatch_of(&self, route: RouteID) -> &[DispatchKey] {
-        let point = self.route(route);
-        &self.keys[point.subject_offset as usize..(point.subject_offset + point.subject_length) as usize]
+        let facts = self.entry_facts_of(route);
+        &self.keys[facts.subject_offset as usize..(facts.subject_offset + facts.subject_length) as usize]
     }
 
     /// Independently necessary features of the entry's subject compound.
     #[must_use]
     pub fn subject_required_of(&self, route: RouteID) -> &[DispatchKey] {
-        let point = self.route(route);
-        &self.keys[point.subject_required_offset as usize
-            ..(point.subject_required_offset + point.subject_required_length) as usize]
+        let facts = self.entry_facts_of(route);
+        &self.keys[facts.subject_required_offset as usize
+            ..(facts.subject_required_offset + facts.subject_required_length) as usize]
     }
 
-    /// Keys some ancestor of a subject must carry for this route to reach it. Empty rejects
-    /// nothing.
+    /// Keys some ancestor of a subject must carry for this route to reach it.
+    ///
+    /// `[data-active] [class] span` reaches every `span` below the changed element, but only one
+    /// with a `[class]` ancestor can match. These necessary keys reject the rest without changing
+    /// the answer. Empty means a non-ancestral step or indistinct compound prevents that proof.
     #[must_use]
     pub fn waypoints_of(&self, route: RouteID) -> &[DispatchKey] {
-        let point = self.route(route);
-        &self.keys[point.waypoint_offset as usize..(point.waypoint_offset + point.waypoint_length) as usize]
+        let range = self.routes.waypoints[route.index()];
+        &self.keys[range.offset as usize..(range.offset + range.length) as usize]
     }
 
     #[must_use]
@@ -3411,6 +3638,68 @@ impl RoutingRegistry {
         self.by_input.len()
     }
 
+    pub(super) fn finish_directories(&mut self) -> bool {
+        self.by_input.finish() | self.arrival_by_input.finish()
+    }
+
+    #[cfg(test)]
+    fn directories_are_flat(&self) -> bool {
+        matches!(
+            self.by_input,
+            RouteDirectory::FlatAfterIdle { .. } | RouteDirectory::FlatAfterChange { .. }
+        ) && matches!(
+            self.arrival_by_input,
+            RouteDirectory::FlatAfterIdle { .. } | RouteDirectory::FlatAfterChange { .. }
+        )
+    }
+
+    fn register_entry_facts(
+        &mut self,
+        entry: EntryID,
+        selector_entry: SelectorEntry,
+        subject_dispatch: &[DispatchKey],
+        subject_required: &[DispatchKey],
+        subject_position: SubjectPosition,
+    ) {
+        let index = entry.0 as usize;
+        if self.entry_facts.len() <= index {
+            self.entry_facts.resize(index + 1, None);
+        }
+        let mut flags = 0;
+        if selector_entry.has_prefix_chain() {
+            flags |= ENTRY_HAS_PREFIX_CHAIN;
+        }
+        if selector_entry.prefix_chain_has_only_local_facts() {
+            flags |= ENTRY_PREFIX_CHAIN_HAS_ONLY_LOCAL_FACTS;
+        }
+        if let Some(facts) = self.entry_facts[index] {
+            debug_assert_eq!(facts.flags, flags);
+            debug_assert_eq!(facts.subject_position, subject_position);
+            debug_assert_eq!(
+                &self.keys[facts.subject_offset as usize..(facts.subject_offset + facts.subject_length) as usize],
+                subject_dispatch
+            );
+            debug_assert_eq!(
+                &self.keys[facts.subject_required_offset as usize
+                    ..(facts.subject_required_offset + facts.subject_required_length) as usize],
+                subject_required
+            );
+            return;
+        }
+        let subject_offset = u32::try_from(self.keys.len()).expect("dispatch key space exhausted");
+        self.keys.extend_from_slice(subject_dispatch);
+        let subject_required_offset = u32::try_from(self.keys.len()).expect("dispatch key space exhausted");
+        self.keys.extend_from_slice(subject_required);
+        self.entry_facts[index] = Some(EntryRouteFacts {
+            flags,
+            subject_position,
+            subject_offset,
+            subject_length: u32::try_from(subject_dispatch.len()).expect("dispatch key space exhausted"),
+            subject_required_offset,
+            subject_required_length: u32::try_from(subject_required.len()).expect("dispatch key space exhausted"),
+        });
+    }
+
     /// Add every transpose route of one attached rule.
     pub fn add_rule(&mut self, rule: RuleID, program: SelectorProgramID, programs: &SelectorPrograms) {
         let compiled = programs.get(program);
@@ -3420,16 +3709,24 @@ impl RoutingRegistry {
             let subject_dispatch = compiled.subject_dispatch_keys(entry);
             let subject_required = compiled.subject_required_keys(entry);
             let subject_position = compiled.subject_position(entry);
+            let mut entry_registered = false;
             compiled.collect_transpose_entry_points(entry, |site| {
+                if !entry_registered {
+                    self.register_entry_facts(
+                        entry_id,
+                        selector_entry,
+                        subject_dispatch,
+                        subject_required,
+                        subject_position,
+                    );
+                    entry_registered = true;
+                }
                 self.insert(
                     site.key,
                     RouteDescriptor {
                         rule,
                         entry: entry_id,
                         structural_node: (site.key == RoutingKey::Structural).then_some(site.node),
-                        subject_dispatch,
-                        subject_required,
-                        subject_position,
                         origin_dispatch: site.origin_dispatch,
                         origin_required: site.origin_required,
                         parent_dispatch: site.parent_dispatch,
@@ -3437,7 +3734,6 @@ impl RoutingRegistry {
                         anchor: site.anchor,
                         path: site.path,
                     },
-                    selector_entry,
                 );
             });
         }
@@ -3447,19 +3743,22 @@ impl RoutingRegistry {
     pub fn capacity_bytes(&self) -> u64 {
         capacity_bytes! {
             shallow [
-                self.routes,
+                self.anchors,
+                self.entry_facts,
                 self.relational,
                 self.sibling_first,
                 self.sibling_first_by_origin,
                 self.paths,
                 self.keys,
-                self.by_input,
-                self.arrival_by_input,
-                self.canonical_routes,
+                self.canonical_route_heads,
                 self.canonical_next,
             ];
             cached [self.nested_memory.bytes()];
-            nested [];
+            nested [
+                self.routes.capacity_bytes()
+                    + self.by_input.capacity_bytes()
+                    + self.arrival_by_input.capacity_bytes()
+            ];
             skip [self.memory];
         }
     }
@@ -6858,6 +7157,48 @@ mod tests {
     }
 
     #[test]
+    fn a_flat_route_directory_reopens_for_program_changes() {
+        let first = single_entry(|builder| builder.push_feature(FeatureTest::Class(CLASS_ITEM)));
+        let second = single_entry(|builder| builder.push_feature(FeatureTest::Class(CLASS_THEME)));
+        let mut registry = RoutingRegistry::new();
+        let mut programs = SelectorPrograms::new();
+        let first = programs.add(first);
+        let second = programs.add(second);
+
+        registry.add_rule(RuleID(1), first, &programs);
+        assert!(registry.finish_directories());
+        assert!(!registry.finish_directories());
+        assert_eq!(registry.routes_for(RoutingKey::Class(CLASS_ITEM)).len(), 1);
+
+        registry.add_rule(RuleID(2), second, &programs);
+        assert_eq!(registry.routes_for(RoutingKey::Class(CLASS_ITEM)).len(), 1);
+        assert_eq!(registry.routes_for(RoutingKey::Class(CLASS_THEME)).len(), 1);
+        assert!(registry.finish_directories());
+        assert_eq!(registry.routes_for(RoutingKey::Class(CLASS_ITEM)).len(), 1);
+        assert_eq!(registry.routes_for(RoutingKey::Class(CLASS_THEME)).len(), 1);
+    }
+
+    #[test]
+    fn route_directories_stay_mutable_while_rules_are_added() {
+        let program = single_entry(|builder| builder.push_feature(FeatureTest::Class(CLASS_ITEM)));
+        let mut registry = RoutingRegistry::new();
+        let mut programs = SelectorPrograms::new();
+        let program = programs.add(program);
+
+        registry.add_rule(RuleID(1), program, &programs);
+        assert!(registry.finish_directories());
+        assert!(registry.directories_are_flat());
+
+        for rule in 2..=8 {
+            registry.add_rule(RuleID(rule), program, &programs);
+            assert!(registry.finish_directories());
+            assert!(!registry.directories_are_flat());
+        }
+        assert!(registry.finish_directories());
+        assert!(registry.directories_are_flat());
+    }
+
+    #[test]
     fn distinct_structural_operators_have_distinct_routes() {
         let structural = single_entry(|builder| {
             let empty = builder.push(SelectorOp::Empty);
@@ -7010,6 +7351,44 @@ mod tests {
         assert_eq!(registry.routes_for(RoutingKey::Class(CLASS_THEME)).len(), 200);
         assert_eq!(registry.routes_for(RoutingKey::Class(StyleAtomID(1007))).len(), 1);
         assert_eq!(registry.routed_input_count(), 201);
+    }
+
+    #[test]
+    fn routes_and_rules_share_one_subject_fact_record_per_entry() {
+        let mut programs = SelectorPrograms::new();
+        let program = single_entry(|builder| {
+            let target = builder.push_feature(FeatureTest::Class(StyleAtomID(7)));
+            let hovered = builder.push(SelectorOp::State(StateFact::Hover));
+            builder.push_compound(&[target, hovered])
+        });
+        let program = programs.add(program);
+        let mut registry = RoutingRegistry::new();
+        registry.add_rule(RuleID(1), program, &programs);
+        registry.add_rule(RuleID(2), program, &programs);
+
+        assert_eq!(registry.len(), 2);
+        assert_ne!(
+            registry.rule_of(RouteID::from_index(0)),
+            registry.rule_of(RouteID::from_index(1))
+        );
+        assert_eq!(registry.entry_facts.iter().flatten().count(), 1);
+        let first_route = RouteID::from_index(0);
+        for index in 1..registry.len() {
+            assert_eq!(
+                registry.subject_dispatch_of(RouteID::from_index(index)),
+                registry.subject_dispatch_of(first_route)
+            );
+            assert_eq!(
+                registry.subject_required_of(RouteID::from_index(index)),
+                registry.subject_required_of(first_route)
+            );
+        }
+    }
+
+    #[test]
+    fn routing_columns_keep_the_hot_header_compact() {
+        assert_eq!(size_of::<RouteHeader>(), 16);
+        assert_eq!(size_of::<RouteRange>(), 8);
     }
 
     #[test]

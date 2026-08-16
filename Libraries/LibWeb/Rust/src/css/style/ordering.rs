@@ -1143,6 +1143,13 @@ impl StyleEngine {
     pub(super) fn drain_transaction(&mut self) -> StyleTransaction {
         self.initial_tree_bulk_load_is_pending = false;
         self.finalize_staged_sheet_rule_replacements();
+        // A diagnostic or retained planning snapshot may still hold this exact immutable routing
+        // program. It remains queryable in builder form; compact it at the next unshared boundary.
+        if let Some(routing) = Rc::get_mut(&mut self.routing)
+            && routing.finish_directories()
+        {
+            routing.settle_memory(&mut self.memory);
+        }
         self.journal.take_transaction(&mut self.memory, &mut self.counters)
     }
 

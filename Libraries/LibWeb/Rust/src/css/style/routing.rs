@@ -2396,8 +2396,8 @@ impl StyleEngine {
         route: RouteID,
     ) -> bool {
         let point = routing.route(route);
-        point.has_prefix_chain
-            && point.prefix_chain_has_only_local_facts
+        routing.entry_has_prefix_chain(route)
+            && routing.entry_prefix_chain_has_only_local_facts(route)
             && self
                 .program
                 .sheet_origin(self.program.rule_sheet(routing.rule_of(route)))
