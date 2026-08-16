@@ -1,0 +1,18 @@
+<!doctype html>
+<map id="mapElement">text</map>
+<table id="tableElement" bordercolor="black">
+    <th id="thElement">text</th>
+</table>
+<hr id="ruleElement" color="red" noshade />
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        document.body.offsetHeight;
+        tableElement.border = "1px";
+        document.body.offsetHeight;
+        document.dir = "x";
+        thElement.bgColor = "black";
+        println(getComputedStyle(thElement).backgroundColor);
+        println(getComputedStyle(ruleElement).borderTopStyle);
+    });
+</script>
