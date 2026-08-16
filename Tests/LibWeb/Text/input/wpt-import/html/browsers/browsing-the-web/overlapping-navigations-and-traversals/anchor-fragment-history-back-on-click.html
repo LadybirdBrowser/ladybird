@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script>
+promise_test(async t => {
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+
+  location.hash = "#1";
+  assert_equals(location.hash, "#1");
+  location.hash = "#2";
+  assert_equals(location.hash, "#2");
+
+  let anchor = document.createElement("a");
+  anchor.href = "#3";
+  anchor.onclick = () => {
+    history.back();
+  };
+
+  let navigations = [];
+  let navigationsPromise = new Promise(resolve => {
+    onpopstate = () => {
+      navigations.push(location.hash);
+      if (navigations.length === 2) {
+        resolve();
+      }
+    }
+  });
+
+  anchor.click();
+  await navigationsPromise;
+
+  // We were on #2 when history.back() was called so we should be on #1 now.
+  assert_equals(location.hash, "#1");
+
+  // While the history navigation back to "#1" was pending, we should have navigated to "#3".
+  assert_array_equals(navigations, ["#3", "#1"]);
+}, "Anchor with a fragment href and a click handler that navigates back");
+</script>

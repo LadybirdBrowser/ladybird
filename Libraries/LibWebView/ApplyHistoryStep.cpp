@@ -230,7 +230,11 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
         //       traversal potentially unloads their document. More details can be found here:
         //       https://html.spec.whatwg.org/multipage/browsing-the-web.html#sync-navigation-steps-queue-jumping-examples
         // 1. If traversable's running nested apply history step is false, then:
-        if (!m_traversable_state.running_nested_apply_history_step) {
+        // AD-HOC: Applying synchronous navigation steps can continue asynchronously. Do not let a later synchronous
+        //         navigation jump into that application. Both pushes could otherwise derive their target from the same
+        //         current history step and the later push could remove the earlier entry as forward history.
+        if (!m_session_history_traversal_queue.current_item_is_synchronous_navigation_steps()
+            && !m_traversable_state.running_nested_apply_history_step) {
             // IPC allows WebContent to append more steps while a nested run is pending. Limit this pass to the steps present at its
             // start so a ready continuation cannot be starved.
             if (!m_synchronous_navigation_steps_to_jump_through.has_value())

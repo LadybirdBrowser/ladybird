@@ -48,6 +48,8 @@ public:
 
     u64 last_enqueued_sequence_number() const { return m_last_enqueued_sequence_number; }
 
+    bool current_item_is_synchronous_navigation_steps() const { return m_current_item_is_synchronous_navigation_steps; }
+
     bool is_empty() const { return m_algorithm_set.is_empty(); }
 
 private:
@@ -59,6 +61,7 @@ private:
     u64 m_last_enqueued_sequence_number { 0 };
 
     bool m_processing_scheduled { false };
+    bool m_current_item_is_synchronous_navigation_steps { false };
     RefPtr<Core::Promise<Empty>> m_running_steps;
 };
 
