@@ -15,7 +15,7 @@
 #include <LibWeb/DOM/StaticNodeList.h>
 #include <LibWeb/Geometry/DOMPoint.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
-#include <LibWeb/Layout/SVGSVGBox.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/FragmentIdentifier.h>
 #include <LibWeb/SVG/SVGAnimatedRect.h>
@@ -47,7 +47,7 @@ void SVGSVGElement::visit_edges(Visitor& visitor)
 
 RefPtr<Layout::Node> SVGSVGElement::create_layout_node(CSS::LayoutStyle style)
 {
-    return make_ref_counted<Layout::SVGSVGBox>(document(), *this, style);
+    return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGSVGBox);
 }
 
 Optional<CSS::Length> SVGSVGElement::width_attribute_length() const

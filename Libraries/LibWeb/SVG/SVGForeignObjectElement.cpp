@@ -7,7 +7,6 @@
 #include <LibGC/Heap.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/Layout/BlockContainer.h>
-#include <LibWeb/Layout/SVGForeignObjectBox.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
@@ -30,7 +29,7 @@ void SVGForeignObjectElement::initialize_element()
 
 RefPtr<Layout::Node> SVGForeignObjectElement::create_layout_node(CSS::LayoutStyle style)
 {
-    return make_ref_counted<Layout::SVGForeignObjectBox>(document(), *this, style);
+    return make_ref_counted<Layout::BlockContainer>(document(), *this, style, Layout::RustFFI::NodeKind::SVGForeignObjectBox);
 }
 
 void SVGForeignObjectElement::visit_edges(GC::Cell::Visitor& visitor)

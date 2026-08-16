@@ -7,7 +7,7 @@
 #include <LibGC/Heap.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
 #include <LibWeb/HTML/HTMLLegendElement.h>
-#include <LibWeb/Layout/LegendBox.h>
+#include <LibWeb/Layout/BlockContainer.h>
 
 namespace Web::HTML {
 
@@ -35,7 +35,7 @@ HTMLFormElement* HTMLLegendElement::form()
 
 RefPtr<Layout::Node> HTMLLegendElement::create_layout_node(CSS::LayoutStyle style)
 {
-    return make_ref_counted<Layout::LegendBox>(document(), *this, style);
+    return make_ref_counted<Layout::BlockContainer>(document(), *this, style, Layout::RustFFI::NodeKind::LegendBox);
 }
 
 }

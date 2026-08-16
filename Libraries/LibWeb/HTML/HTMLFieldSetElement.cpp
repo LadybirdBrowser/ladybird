@@ -13,7 +13,7 @@
 #include <LibWeb/HTML/HTMLOutputElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
-#include <LibWeb/Layout/FieldSetBox.h>
+#include <LibWeb/Layout/BlockContainer.h>
 
 namespace Web::HTML {
 
@@ -82,7 +82,16 @@ GC::Ptr<DOM::HTMLCollection> const& HTMLFieldSetElement::elements()
 
 RefPtr<Layout::Node> HTMLFieldSetElement::create_layout_node(CSS::LayoutStyle style)
 {
-    return make_ref_counted<Layout::FieldSetBox>(document(), *this, style);
+    auto fieldset_box = make_ref_counted<Layout::BlockContainer>(document(), this, style, Layout::RustFFI::NodeKind::FieldSetBox);
+    // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
+    // If the computed outer display type is inline, the fieldset is expected to behave as inline-block. Otherwise, it
+    // is expected to behave as flow-root. This does not change the computed value.
+    if (fieldset_box->display().is_flow_inside()) {
+        fieldset_box->modify_computed_values([&](auto& values) {
+            values.set_display(CSS::Display { fieldset_box->display().outside(), CSS::DisplayInside::FlowRoot });
+        });
+    }
+    return fieldset_box;
 }
 
 }

@@ -11,7 +11,7 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/Layout/ReplacedBox.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -145,7 +145,7 @@ void ViewportPaintable::build_stacking_context_tree()
             parent_context->m_positioned_descendants_and_stacking_contexts_with_stack_level_0.append(paintable_box);
         if (!paintable_box.is_positioned() && paintable_box.is_floating())
             parent_context->m_non_positioned_floating_descendants.append(paintable_box);
-        if (!establishes_stacking_context && (paintable_box.is_inline() || is<Layout::ReplacedBox>(paintable_box.layout_node())))
+        if (!establishes_stacking_context && (paintable_box.is_inline() || paintable_box.layout_node().is_replaced_box()))
             parent_context->m_contains_inline_or_replaced_descendants = true;
         if (!establishes_stacking_context) {
             VERIFY(!paintable_box.stacking_context());

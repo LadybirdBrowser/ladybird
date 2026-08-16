@@ -54,11 +54,7 @@
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Layout/BlockContainer.h>
-#include <LibWeb/Layout/CheckBox.h>
-#include <LibWeb/Layout/ImageBox.h>
-#include <LibWeb/Layout/RadioButton.h>
-#include <LibWeb/Layout/RangeInputBox.h>
-#include <LibWeb/Layout/TextInputBox.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Namespace.h>
@@ -169,7 +165,7 @@ RefPtr<Layout::Node> HTMLInputElement::create_layout_node(CSS::LayoutStyle style
             VERIFY(computed_style);
             return Element::create_layout_node_for_display_type(document(), computed_style->display(), style, this);
         }
-        return make_ref_counted<Layout::ImageBox>(document(), *this, style, *this);
+        return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::ImageBox);
     }
 
     // https://drafts.csswg.org/css-ui/#appearance-switching
@@ -189,16 +185,16 @@ RefPtr<Layout::Node> HTMLInputElement::create_layout_node(CSS::LayoutStyle style
     case TypeAttributeState::ResetButton:
         return make_ref_counted<Layout::BlockContainer>(document(), this, style);
     case TypeAttributeState::Checkbox:
-        return make_ref_counted<Layout::CheckBox>(document(), *this, style);
+        return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::CheckBox);
     case TypeAttributeState::RadioButton:
-        return make_ref_counted<Layout::RadioButton>(document(), *this, style);
+        return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::RadioButton);
     case TypeAttributeState::Range:
-        return make_ref_counted<Layout::RangeInputBox>(document(), *this, style);
+        return make_ref_counted<Layout::BlockContainer>(document(), *this, style, Layout::RustFFI::NodeKind::RangeInputBox);
     case TypeAttributeState::Color:
     case TypeAttributeState::FileUpload:
         return Element::create_layout_node_for_display_type(document(), computed_style->display(), style, this);
     default:
-        return make_ref_counted<Layout::TextInputBox>(document(), *this, style);
+        return make_ref_counted<Layout::BlockContainer>(document(), *this, style, Layout::RustFFI::NodeKind::TextInputBox);
     }
 }
 

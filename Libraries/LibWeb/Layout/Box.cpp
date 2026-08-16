@@ -9,6 +9,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
+#include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
@@ -16,10 +17,8 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/Box.h>
-#include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
-#include <LibWeb/Layout/TableWrapper.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
@@ -30,10 +29,41 @@ Box::Box(DOM::Document& document, GC::Ptr<DOM::Node> node, CSS::LayoutStyle styl
     : NodeWithStyle(document, node, move(style))
 {
     set_node_kind(kind);
+    if (RustFFI::layout_node_kind_is_replaced_box(kind))
+        set_flag(RustFFI::NodeFlag::IsReplacedElement, true);
 }
 
 Box::~Box()
 {
+}
+
+static ImageProvider const& image_provider_for_element(DOM::Element const& element)
+{
+    if (auto const* image = as_if<HTML::HTMLImageElement>(element))
+        return *image;
+    if (auto const* input = as_if<HTML::HTMLInputElement>(element))
+        return *input;
+    if (auto const* object = as_if<HTML::HTMLObjectElement>(element))
+        return *object;
+
+    VERIFY_NOT_REACHED();
+}
+
+ImageProvider const& Box::image_provider() const
+{
+    VERIFY(kind() == RustFFI::NodeKind::ImageBox);
+    if (m_owned_image_provider)
+        return *m_owned_image_provider;
+
+    auto const* element = dom_node();
+    VERIFY(element);
+    return image_provider_for_element(as<DOM::Element>(*element));
+}
+
+void Box::set_owned_image_provider(NonnullOwnPtr<ImageProvider> image_provider)
+{
+    VERIFY(kind() == RustFFI::NodeKind::ImageBox);
+    m_owned_image_provider = move(image_provider);
 }
 
 bool Box::is_partial_relayout_boundary() const
@@ -141,7 +171,7 @@ CSS::SizeWithAspectRatio Box::natural_size() const
 {
     switch (kind()) {
     case RustFFI::NodeKind::ImageBox: {
-        auto const& image_provider = static_cast<ImageBox const&>(*this).image_provider();
+        auto const& image_provider = this->image_provider();
         if (image_provider.is_image_available()) {
             return {
                 .width = image_provider.intrinsic_width(),

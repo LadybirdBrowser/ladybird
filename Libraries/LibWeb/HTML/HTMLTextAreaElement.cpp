@@ -24,7 +24,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/Strings.h>
-#include <LibWeb/Layout/TextAreaBox.h>
+#include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/InputEvent.h>
@@ -537,7 +537,7 @@ Optional<Utf16String> HTMLTextAreaElement::placeholder_value() const
 
 RefPtr<Layout::Node> HTMLTextAreaElement::create_layout_node(CSS::LayoutStyle style)
 {
-    return make_ref_counted<Layout::TextAreaBox>(document(), *this, style);
+    return make_ref_counted<Layout::BlockContainer>(document(), *this, style, Layout::RustFFI::NodeKind::TextAreaBox);
 }
 
 }

@@ -33,8 +33,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
-#include <LibWeb/Layout/ImageBox.h>
-#include <LibWeb/Layout/NavigableContainerViewport.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/MimeSniff/Resource.h>
@@ -213,10 +212,10 @@ RefPtr<Layout::Node> HTMLObjectElement::create_layout_node(CSS::LayoutStyle styl
     case Representation::Children:
         return NavigableContainer::create_layout_node(style);
     case Representation::ContentNavigable:
-        return make_ref_counted<Layout::NavigableContainerViewport>(document(), *this, style);
+        return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::NavigableContainerViewport);
     case Representation::Image:
         if (image_data())
-            return make_ref_counted<Layout::ImageBox>(document(), *this, style, *this);
+            return make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::ImageBox);
         break;
     default:
         break;

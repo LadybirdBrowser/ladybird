@@ -9,7 +9,7 @@
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/HTML/HTMLAudioElement.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/Layout/AudioBox.h>
+#include <LibWeb/Layout/Box.h>
 
 namespace Web::HTML {
 
@@ -24,7 +24,9 @@ HTMLAudioElement::~HTMLAudioElement() = default;
 
 RefPtr<Layout::Node> HTMLAudioElement::create_layout_node(CSS::LayoutStyle style)
 {
-    return make_ref_counted<Layout::AudioBox>(document(), *this, style);
+    auto audio_box = make_ref_counted<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::AudioBox);
+    audio_box->set_replaced_box_can_have_children(shadow_root() != nullptr);
+    return audio_box;
 }
 
 bool HTMLAudioElement::should_paint() const
