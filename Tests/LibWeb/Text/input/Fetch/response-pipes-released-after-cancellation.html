@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Aborting a fetch has to release its response pipe, the same way a completed fetch does. A page that
+    // starts and cancels requests in a loop would otherwise pin one file descriptor per cycle, since abort()
+    // and terminate() mark the fetch as canceled without telling the network layer to drop the request.
+    asyncTest(async done => {
+        const server = httpTestServer();
+
+        // This view's WebContent process runs many tests in sequence, and a previous test's pipes can still be
+        // draining when this one starts. Wait them out, so the counts below measure this test alone.
+        let leftover = internals.openResponsePipeCount();
+        for (let attempt = 0; attempt < 500 && leftover !== 0; ++attempt) {
+            await timeout(10);
+            leftover = internals.openResponsePipeCount();
+        }
+        // A neighbor's leak would pin its pipes for good; measure this test as the delta over that baseline
+        // rather than against an absolute zero it cannot reach.
+        const basePipeCount = internals.openResponsePipeCount();
+
+        // The response blocks until it is unblocked, so the fetch is still in flight — with its pipe open and
+        // no headers received — at the moment it is aborted.
+        // The token also keys the echo path: under --repeat, every clone of this test re-registers its echo
+        // against one shared server, and a definition that differs (this one embeds the random token) makes a
+        // fixed path a 409 Conflict for every clone after the first.
+        const token = `cancel-${Math.random().toString(36).slice(2)}`;
+        const url = await server.createEcho("GET", `/response-pipe-cancel-${token}`, {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "no-store",
+            },
+            body: "pong",
+            wait_for_unblock: token,
+        });
+
+        const controller = new AbortController();
+        const pending = fetch(url, { signal: controller.signal, cache: "no-store" });
+
+        // Wait for the request to actually reach the network layer before aborting it — and fail rather than
+        // pass vacuously if it never does, since aborting a request with no pipe open tests nothing.
+        for (let attempt = 0; attempt < 100 && internals.openResponsePipeCount() <= basePipeCount; ++attempt) {
+            await timeout(10);
+        }
+        if (internals.openResponsePipeCount() <= basePipeCount)
+            throw new Error("The fetch never opened a response pipe, so there is nothing to abort");
+
+        controller.abort();
+        // The abort rejection is the expected outcome; anything else is a real failure this test must surface.
+        await pending.then(
+            () => {
+                throw new Error("The aborted fetch resolved instead of rejecting");
+            },
+            error => {
+                if (error.name !== "AbortError")
+                    throw error;
+            }
+        );
+
+        // The server stays blocked until after the count is read: unblocking here would let the request
+        // finish normally, and the completion path would release the pipe whether the abort did or not.
+        // Pipe teardown runs on a deferred task, so give the event loop a few turns.
+        let pipeCount = internals.openResponsePipeCount();
+        for (let attempt = 0; attempt < 500 && pipeCount > basePipeCount; ++attempt) {
+            await timeout(10);
+            pipeCount = internals.openResponsePipeCount();
+        }
+
+        println(`open response pipes after aborting: ${Math.max(0, pipeCount - basePipeCount)}`);
+
+        // Now let the blocked server thread go, and wait for the reply: page teardown cancels an unawaited
+        // fetch, and an unblock that never arrives leaves that thread parked forever.
+        await fetch(`${server.baseURL}/unblock/${token}`).catch(() => {});
+        done();
+    });
+</script>
