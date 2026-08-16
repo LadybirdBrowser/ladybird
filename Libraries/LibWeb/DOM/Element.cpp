@@ -5608,24 +5608,24 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
     // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes:concept-element-attributes-change-ext
     // 1. If localName is not attr or namespace is not null, then return.
     // 2. Set element's explicitly set attr-element to null.
-#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)    \
-    else if (local_name == ARIA::AttributeNames::referencing_attribute) \
-    {                                                                   \
-        set_##attribute({});                                            \
+    if (local_name.view().starts_with(u"aria-"sv)) {
+#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute) \
+    if (local_name == ARIA::AttributeNames::referencing_attribute) { \
+        set_##attribute({});                                         \
     }
-    ENUMERATE_ARIA_ELEMENT_REFERENCING_ATTRIBUTES
+        ENUMERATE_ARIA_ELEMENT_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 
-    // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes:concept-element-attributes-change-ext-2
-    // 1. If localName is not attr or namespace is not null, then return.
-    // 2. Set element's explicitly set attr-elements to null.
-#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute)    \
-    else if (local_name == ARIA::AttributeNames::referencing_attribute) \
-    {                                                                   \
-        set_##attribute({});                                            \
+        // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes:concept-element-attributes-change-ext-2
+        // 1. If localName is not attr or namespace is not null, then return.
+        // 2. Set element's explicitly set attr-elements to null.
+#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute) \
+    if (local_name == ARIA::AttributeNames::referencing_attribute) { \
+        set_##attribute({});                                         \
     }
-    ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
+        ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
 #undef __ENUMERATE_ARIA_ATTRIBUTE
+    }
 
     // Every attribute mutation publishes its own typed effects: a selector feature always, and for
     // some names an element declaration or an attr() input as well. Routing sends each to its own
