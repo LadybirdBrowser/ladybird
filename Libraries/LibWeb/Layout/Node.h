@@ -20,6 +20,7 @@
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TreeBuilderRustFFI.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -87,6 +88,130 @@ public:
     u32 arena_slot_index() const { return m_slot.index; }
     void* arena_handle() const;
     NodeArena& node_arena() const { return *m_arena; }
+
+    Node* parent_ptr() { return tree_node_from_slot(m_data->parent); }
+    Node const* parent_ptr() const { return tree_node_from_slot(m_data->parent); }
+    Node* first_child_ptr() { return tree_node_from_slot(m_data->first_child); }
+    Node const* first_child_ptr() const { return tree_node_from_slot(m_data->first_child); }
+    Node* last_child_ptr() { return tree_node_from_slot(m_data->last_child); }
+    Node* next_sibling_ptr() { return tree_node_from_slot(m_data->next_sibling); }
+    Node const* next_sibling_ptr() const { return tree_node_from_slot(m_data->next_sibling); }
+    Node* previous_sibling_ptr() { return tree_node_from_slot(m_data->previous_sibling); }
+    bool has_children() const { return m_data->first_child.index != RustFFI::NodeSlotId_INVALID.index; }
+
+    RefPtr<Node> first_child() { return first_child_ptr(); }
+    RefPtr<Node const> first_child() const { return first_child_ptr(); }
+    RefPtr<Node> next_sibling() { return next_sibling_ptr(); }
+    RefPtr<Node const> next_sibling() const { return next_sibling_ptr(); }
+    RefPtr<Node> previous_sibling() { return previous_sibling_ptr(); }
+    RefPtr<Node const> previous_sibling() const { return const_cast<Node*>(this)->previous_sibling_ptr(); }
+
+    template<typename Callback>
+    TraversalDecision for_each_in_inclusive_subtree(Callback callback) const
+    {
+        return traverse_ref_counted_preorder(*this, IncludeRefCountedTreeRoot::Yes, callback);
+    }
+
+    template<typename Callback>
+    TraversalDecision for_each_in_inclusive_subtree(Callback callback)
+    {
+        return traverse_ref_counted_preorder(*this, IncludeRefCountedTreeRoot::Yes, callback);
+    }
+
+    template<typename U, typename Callback>
+    TraversalDecision for_each_in_inclusive_subtree_of_type(Callback callback)
+    {
+        return for_each_in_inclusive_subtree([callback = move(callback)](Node& node) {
+            if (auto* node_of_type = as_if<U>(node))
+                return callback(*node_of_type);
+            return TraversalDecision::Continue;
+        });
+    }
+
+    template<typename U, typename Callback>
+    TraversalDecision for_each_in_inclusive_subtree_of_type(Callback callback) const
+    {
+        return for_each_in_inclusive_subtree([callback = move(callback)](Node const& node) {
+            if (auto const* node_of_type = as_if<U>(node))
+                return callback(*node_of_type);
+            return TraversalDecision::Continue;
+        });
+    }
+
+    template<typename Callback>
+    void for_each_child(Callback callback) const
+    {
+        return const_cast<Node&>(*this).for_each_child(move(callback));
+    }
+
+    template<typename Callback>
+    void for_each_child(Callback callback)
+    {
+        for (auto* node = first_child_ptr(); node; node = node->next_sibling_ptr()) {
+            if (callback(*node) == IterationDecision::Break)
+                return;
+        }
+    }
+
+    template<typename U, typename Callback>
+    void for_each_child_of_type(Callback callback)
+    {
+        for (auto* node = first_child_ptr(); node; node = node->next_sibling_ptr()) {
+            auto* node_of_type = as_if<U>(*node);
+            if (!node_of_type)
+                continue;
+            if (callback(*node_of_type) == IterationDecision::Break)
+                return;
+        }
+    }
+
+    template<typename U, typename Callback>
+    void for_each_child_of_type(Callback callback) const
+    {
+        return const_cast<Node&>(*this).template for_each_child_of_type<U>(move(callback));
+    }
+
+    Node* next_in_pre_order()
+    {
+        if (auto* child = first_child_ptr())
+            return child;
+        for (auto* node = this; node; node = node->parent_ptr()) {
+            if (auto* next = node->next_sibling_ptr())
+                return next;
+        }
+        return nullptr;
+    }
+
+    Node const* next_in_pre_order() const
+    {
+        return const_cast<Node*>(this)->next_in_pre_order();
+    }
+
+    Node* previous_in_pre_order()
+    {
+        if (auto* node = previous_sibling_ptr()) {
+            while (auto* last_child = node->last_child_ptr())
+                node = last_child;
+            return node;
+        }
+        return parent_ptr();
+    }
+
+    Node const* previous_in_pre_order() const
+    {
+        return const_cast<Node*>(this)->previous_in_pre_order();
+    }
+
+    bool is_before(Node const& other) const
+    {
+        if (this == &other)
+            return false;
+        for (auto const* node = this; node; node = node->next_in_pre_order()) {
+            if (node == &other)
+                return true;
+        }
+        return false;
+    }
 
     bool is_anonymous() const { return has_flag(RustFFI::NodeFlag::Anonymous); }
     bool insets_use_anchor_functions() const { return has_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions); }
@@ -310,6 +435,13 @@ private:
     void set_containing_block(Box*);
     void set_inline_containing_block(NodeWithStyle const*);
     void synchronize_topology();
+
+    Node* tree_node_from_slot(RustFFI::NodeSlotId id) const
+    {
+        if (id.index == RustFFI::NodeSlotId_INVALID.index)
+            return nullptr;
+        return static_cast<Node*>(RustFFI::layout_arena_node_data(m_arena->handle(), id)->shell);
+    }
 
 protected:
     void set_node_kind(RustFFI::NodeKind);
@@ -753,12 +885,12 @@ inline Gfx::Font const& Node::font(float scale_factor) const
 
 inline NodeWithStyle const* Node::parent() const
 {
-    return static_cast<NodeWithStyle const*>(Base::parent_ptr());
+    return static_cast<NodeWithStyle const*>(parent_ptr());
 }
 
 inline NodeWithStyle* Node::parent()
 {
-    return static_cast<NodeWithStyle*>(Base::parent_ptr());
+    return static_cast<NodeWithStyle*>(parent_ptr());
 }
 
 inline Gfx::Font const& NodeWithStyle::first_available_font() const
