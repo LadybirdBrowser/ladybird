@@ -27,11 +27,6 @@ use crate::abort_on_panic;
 
 pub(crate) use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
 
-unsafe extern "C" {
-    fn ladybird_string_unref(raw: usize);
-    fn ladybird_string_ref(raw: usize);
-}
-
 #[cfg(feature = "style-recording")]
 thread_local! {
     static REPLAY_STYLE_VALUES: RefCell<HashMap<usize, u8>> = RefCell::new(HashMap::new());
@@ -286,11 +281,22 @@ impl RetainedPropertyIdList {
 
 /// A UTF-8 string shared with C++. A nonzero raw value retains an AK::String; zero means the
 /// copied bytes are Rust-owned and C++ materializes an AK::String when it consumes the value.
+struct StringStorage {
+    raw: usize,
+}
+
+impl Drop for StringStorage {
+    fn drop(&mut self) {
+        crate::css::ffi_stats::release_string(self.raw);
+    }
+}
+
 #[repr(C)]
 pub struct RetainedString {
     raw: usize,
     bytes: *mut u8,
     length: usize,
+    storage: *const c_void,
 }
 
 impl RetainedString {
@@ -304,6 +310,7 @@ impl RetainedString {
             raw: readable.raw,
             bytes: readable.bytes,
             length: readable.length,
+            storage: readable.storage,
         };
         std::mem::forget(readable);
         result
@@ -313,7 +320,12 @@ impl RetainedString {
         let bytes = bytes.into_boxed_slice();
         let length = bytes.len();
         let bytes = Box::into_raw(bytes).cast::<u8>();
-        Self { raw: 0, bytes, length }
+        Self {
+            raw: 0,
+            bytes,
+            length,
+            storage: std::ptr::null(),
+        }
     }
 
     pub(crate) fn from_utf8(string: String) -> Self {
@@ -339,17 +351,22 @@ impl Clone for RetainedString {
         if self.raw == 0 {
             return Self::from_bytes(self.as_bytes().to_vec());
         }
-        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
-        unsafe { ladybird_string_ref(self.raw) };
-        unsafe { Self::from_raw(self.raw, self.bytes, self.length) }
+        unsafe { Arc::increment_strong_count(self.storage.cast::<StringStorage>()) };
+        let bytes = self.as_bytes().to_vec().into_boxed_slice();
+        let length = bytes.len();
+        Self {
+            raw: self.raw,
+            bytes: Box::into_raw(bytes).cast(),
+            length,
+            storage: self.storage,
+        }
     }
 }
 
 impl Drop for RetainedString {
     fn drop(&mut self) {
         if self.raw != 0 {
-            crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
-            unsafe { ladybird_string_unref(self.raw) };
+            unsafe { Arc::decrement_strong_count(self.storage.cast::<StringStorage>()) };
         }
         if !self.bytes.is_null() {
             drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.bytes, self.length)) });
@@ -364,6 +381,7 @@ pub struct RetainedReadableString {
     raw: usize,
     bytes: *mut u8,
     length: usize,
+    storage: *const c_void,
 }
 
 impl RetainedReadableString {
@@ -378,12 +396,26 @@ impl RetainedReadableString {
                 raw,
                 bytes: std::ptr::null_mut(),
                 length: 0,
+                storage: if raw == 0 {
+                    std::ptr::null()
+                } else {
+                    Arc::into_raw(Arc::new(StringStorage { raw })).cast()
+                },
             };
         }
         let owned = source.to_vec().into_boxed_slice();
         let length = owned.len();
         let bytes = Box::into_raw(owned).cast::<u8>();
-        Self { raw, bytes, length }
+        Self {
+            raw,
+            bytes,
+            length,
+            storage: if raw == 0 {
+                std::ptr::null()
+            } else {
+                Arc::into_raw(Arc::new(StringStorage { raw })).cast()
+            },
+        }
     }
 
     pub(crate) fn as_bytes(&self) -> &[u8] {
@@ -402,16 +434,25 @@ impl PartialEq for RetainedReadableString {
 
 impl Clone for RetainedReadableString {
     fn clone(&self) -> Self {
-        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
-        unsafe { ladybird_string_ref(self.raw) };
-        unsafe { Self::from_raw(self.raw, self.bytes, self.length) }
+        if self.raw != 0 {
+            unsafe { Arc::increment_strong_count(self.storage.cast::<StringStorage>()) };
+        }
+        let bytes = self.as_bytes().to_vec().into_boxed_slice();
+        let length = bytes.len();
+        Self {
+            raw: self.raw,
+            bytes: Box::into_raw(bytes).cast(),
+            length,
+            storage: self.storage,
+        }
     }
 }
 
 impl Drop for RetainedReadableString {
     fn drop(&mut self) {
-        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
-        unsafe { ladybird_string_unref(self.raw) };
+        if self.raw != 0 {
+            unsafe { Arc::decrement_strong_count(self.storage.cast::<StringStorage>()) };
+        }
         if !self.bytes.is_null() {
             drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.bytes, self.length)) });
         }

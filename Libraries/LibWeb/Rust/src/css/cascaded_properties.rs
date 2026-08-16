@@ -619,14 +619,15 @@ fn apply_declaration_block(
     declarations: &[FfiCascadeDeclaration],
     important: bool,
     origin: CascadeOrigin,
-    has_layer_name: bool,
-    layer_name_raw: usize,
+    layer_name: Option<&RetainedUtf16FlyString>,
     source_shadow_root_identity: usize,
     unset_data: *const c_void,
     is_property_disallowed: &dyn Fn(u16) -> bool,
     next_resolved_value: &mut impl FnMut() -> FfiResolvedStyleValue,
     mut assign_source_slot: impl FnMut(u32),
 ) {
+    let has_layer_name = layer_name.is_some();
+    let layer_name_raw = layer_name.map_or(0, RetainedUtf16FlyString::raw);
     let mut seen = [0u64; CONTAINED_BITMAP_WORDS];
 
     for declaration in declarations {
@@ -725,9 +726,7 @@ fn apply_declaration_block(
                             longhand_data.cast(),
                         ))
                     };
-                    let layer_name = LayerName(
-                        has_layer_name.then(|| unsafe { RetainedUtf16FlyString::from_borrowed_raw(layer_name_raw) }),
-                    );
+                    let layer_name = LayerName(layer_name.cloned());
                     let slot = store.set_property(
                         longhand_id,
                         retained_value,
@@ -1141,7 +1140,8 @@ pub unsafe extern "C" fn rust_cascade_resolution_requests_destroy(storage: *mut 
 ///
 /// # Safety
 /// `store` must be a valid store, `blocks` must point at `block_count` valid
-/// blocks whose declaration lists and layer names stay live for the call,
+/// blocks whose declaration lists stay live for the call and whose nonzero
+/// layer names each transfer one leaked fly-string reference,
 /// and `resolved_values` must contain `resolved_value_count` live values in
 /// the order requested by `rust_prepare_cascade_resolutions`.
 #[unsafe(no_mangle)]
@@ -1171,6 +1171,14 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
 
         let application_order = cascade_application_order(blocks, author_context_count);
         let has_pseudo_element = pseudo_element != NO_PSEUDO_ELEMENT;
+        let block_layer_names: Vec<Option<RetainedUtf16FlyString>> = blocks
+            .iter()
+            .map(|block| {
+                block
+                    .has_layer_name
+                    .then(|| unsafe { RetainedUtf16FlyString::from_leaked_raw(block.layer_name_raw) })
+            })
+            .collect();
 
         let mut source_slot_assignments: Vec<FfiSourceSlotAssignment> = Vec::new();
         let mut resolved_value_index = 0;
@@ -1193,8 +1201,11 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                 declarations,
                 important,
                 block.origin,
-                use_layer_name && block.has_layer_name,
-                block.layer_name_raw,
+                if use_layer_name {
+                    block_layer_names[block_index].as_ref()
+                } else {
+                    None
+                },
                 block.source_shadow_root_identity,
                 unset_data,
                 &is_property_disallowed,

@@ -23,6 +23,7 @@
 <script>
     test(() => {
         internals.updateStyle();
+        internals.gc();
         internals.resetStyleFfiCounters();
         const afterReset = internals.styleFfiCounters();
         const keys = Object.keys(afterReset);
@@ -30,34 +31,44 @@
         println(`all zero after reset: ${keys.every(key => afterReset[key] === 0)}`);
         println(`has no C++ longhand fallback counter: ${!("longhandCppComputeFallbacks" in afterReset)}`);
 
-        const phaseCounters = [
+        const removedSemanticCallbackCounters = [
+            "selectorMetadataCallbacks",
+            "longhandStoreBatchCallbacks",
+            "completeStyleUpdateSemanticCppCallbacks",
             "completeStyleUpdateTransactionCallbacks",
             "completeStyleUpdateFlatTreeCallbacks",
             "completeStyleUpdateCascadeCallbacks",
             "completeStyleUpdateLonghandCallbacks",
             "completeStyleUpdateAnimationCallbacks",
             "completeStyleUpdateShorthandCallbacks",
+            "completeStyleUpdateCppCallbacks",
+            "completeStyleUpdateOwnershipCppCallbacks",
+            "computedStyleBuildCppCallbacks",
         ];
-        println(`has complete-update aggregates: ${
-            "completeStyleUpdateCppCallbacks" in afterReset
-            && "completeStyleUpdateSemanticCppCallbacks" in afterReset
-            && "completeStyleUpdateOwnershipCppCallbacks" in afterReset
-        }`);
-        println(`has complete-update phase counters: ${phaseCounters.every(name => name in afterReset)}`);
+        println(`callback aggregate counters removed: ${removedSemanticCallbackCounters.every(name => !(name in afterReset))}`);
+
+        function mergeCounters(first, second) {
+            const merged = { ...first };
+            for (const [name, count] of Object.entries(second))
+                merged[name] = (merged[name] ?? 0) + count;
+            return merged;
+        }
 
         function measureUpdate(label, mutation) {
             internals.updateStyle();
+            internals.gc();
             internals.resetStyleFfiCounters();
             mutation();
+            const mutationCounters = internals.styleFfiCounters();
+            internals.gc();
+            internals.resetStyleFfiCounters();
             internals.updateStyle();
-            const counters = internals.styleFfiCounters();
-            println(`${label} measured semantic callbacks: ${counters.completeStyleUpdateSemanticCppCallbacks > 0}`);
-            println(`${label} kept ownership separate: ${
-                counters.completeStyleUpdateCppCallbacks
-                    === counters.completeStyleUpdateSemanticCppCallbacks
-                        + counters.completeStyleUpdateOwnershipCppCallbacks
+            const updateCounters = internals.styleFfiCounters();
+            println(`${label} stayed callback-free: ${
+                updateCounters.stringRetainReleaseCallbacks === 0
+                && updateCounters.animatedPropertiesRetainReleaseCallbacks === 0
             }`);
-            return counters;
+            return mergeCounters(mutationCounters, updateCounters);
         }
 
         const simple = document.createElement("div");
@@ -67,13 +78,15 @@
             simple.style.listStyleImage = `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'/>")`;
             document.body.appendChild(simple);
         });
-        println(`transaction returned without callbacks: ${simpleCounters.completeStyleUpdateTransactionCallbacks === 0}`);
-        println(`longhand computation measured: ${simpleCounters.completeStyleUpdateLonghandCallbacks > 0}`);
+        println(`transaction stayed callback-free: ${!("completeStyleUpdateTransactionCallbacks" in simpleCounters)}`);
+        println(`longhand computation returned without callbacks: ${
+            simpleCounters.longhandDriverEntries > 0
+            && !("longhandStoreBatchCallbacks" in simpleCounters)
+        }`);
         println(`shorthand expansion returned without callbacks: ${
             simpleCounters.shorthandExpansionEntries > 0
             && !("shorthandSetLonghandCallbacks" in simpleCounters)
         }`);
-        println(`computed build stayed in Rust: ${simpleCounters.computedStyleBuildCppCallbacks === 0}`);
         const inheritanceParent = document.createElement("div");
         const inheritanceChild = document.createElement("span");
         inheritanceParent.appendChild(inheritanceChild);
@@ -140,7 +153,7 @@
             animationCounters.animationEvaluationEntries > 0
             && !("animationComputeBatchCallbacks" in animationCounters)
         }`);
-        println(`flat-tree descendants returned without callbacks: ${animationCounters.completeStyleUpdateFlatTreeCallbacks === 0}`);
+        println(`flat-tree descendants stayed callback-free: ${!("completeStyleUpdateFlatTreeCallbacks" in animationCounters)}`);
 
         const resourceBacked = document.createElement("div");
         measureUpdate("resource-backed value", () => {

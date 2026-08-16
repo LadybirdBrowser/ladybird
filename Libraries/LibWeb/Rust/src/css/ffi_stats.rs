@@ -16,7 +16,8 @@
 //! The counters are always compiled in: one relaxed atomic increment per
 //! crossing is negligible next to the crossing itself.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
+use std::ffi::c_void;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 macro_rules! define_ffi_ops {
@@ -61,28 +62,50 @@ define_ffi_ops! {
     StyleGroupFreeEntry => "styleGroupFreeEntries",
     AnimationEvaluationEntry => "animationEvaluationEntries",
     TransitionDecisionEntry => "transitionDecisionEntries",
-    // Callbacks: Rust -> C++.
-    SelectorMetadataCallback => "selectorMetadataCallbacks",
-    LonghandStoreBatchCallback => "longhandStoreBatchCallbacks",
+    // Ownership callbacks: Rust -> C++.
     StringRetainReleaseCallback => "stringRetainReleaseCallbacks",
     AnimatedPropertiesRetainReleaseCallback => "animatedPropertiesRetainReleaseCallbacks",
-    ComputedStyleBuildCppCallback => "computedStyleBuildCppCallbacks",
-    CompleteStyleUpdateCppCallback => "completeStyleUpdateCppCallbacks",
-    CompleteStyleUpdateSemanticCppCallback => "completeStyleUpdateSemanticCppCallbacks",
-    CompleteStyleUpdateOwnershipCppCallback => "completeStyleUpdateOwnershipCppCallbacks",
-    CompleteStyleUpdateTransactionCallback => "completeStyleUpdateTransactionCallbacks",
-    CompleteStyleUpdateFlatTreeCallback => "completeStyleUpdateFlatTreeCallbacks",
-    CompleteStyleUpdateCascadeCallback => "completeStyleUpdateCascadeCallbacks",
-    CompleteStyleUpdateLonghandCallback => "completeStyleUpdateLonghandCallbacks",
-    CompleteStyleUpdateAnimationCallback => "completeStyleUpdateAnimationCallbacks",
-    CompleteStyleUpdateShorthandCallback => "completeStyleUpdateShorthandCallbacks",
 }
 
 static COUNTERS: [AtomicU64; FFI_OP_COUNT] = [const { AtomicU64::new(0) }; FFI_OP_COUNT];
 
 thread_local! {
-    static COMPUTED_STYLE_BUILD_DEPTH: Cell<u32> = const { Cell::new(0) };
     static COMPLETE_STYLE_UPDATE_DEPTH: Cell<u32> = const { Cell::new(0) };
+    static DEFERRED_CPP_RELEASES: RefCell<DeferredCppReleases> = const { RefCell::new(DeferredCppReleases::new()) };
+}
+
+#[derive(Default)]
+struct DeferredCppReleases {
+    fly_strings: Vec<usize>,
+    strings: Vec<usize>,
+    animated_properties: Vec<*const c_void>,
+}
+
+impl DeferredCppReleases {
+    const fn new() -> Self {
+        Self {
+            fly_strings: Vec::new(),
+            strings: Vec::new(),
+            animated_properties: Vec::new(),
+        }
+    }
+}
+
+#[repr(C)]
+pub struct FfiDeferredCppReleases {
+    pub fly_strings: *const usize,
+    pub fly_string_count: usize,
+    pub strings: *const usize,
+    pub string_count: usize,
+    pub animated_properties: *const *const c_void,
+    pub animated_property_count: usize,
+    pub storage: *mut c_void,
+}
+
+unsafe extern "C" {
+    fn ladybird_utf16_fly_string_unref(raw: usize);
+    fn ladybird_string_unref(raw: usize);
+    fn ladybird_animated_properties_unref(values: *const c_void);
 }
 
 #[inline]
@@ -93,31 +116,36 @@ pub(crate) fn bump(op: FfiOp) {
 #[inline]
 pub(crate) fn bump_cpp_callback(op: FfiOp) {
     bump(op);
-    COMPUTED_STYLE_BUILD_DEPTH.with(|depth| {
-        if depth.get() != 0 {
-            bump(FfiOp::ComputedStyleBuildCppCallback);
-        }
-    });
-    COMPLETE_STYLE_UPDATE_DEPTH.with(|depth| {
-        if depth.get() == 0 {
-            return;
-        }
+}
 
-        bump(FfiOp::CompleteStyleUpdateCppCallback);
-        let phase = match op {
-            FfiOp::StringRetainReleaseCallback | FfiOp::AnimatedPropertiesRetainReleaseCallback => {
-                bump(FfiOp::CompleteStyleUpdateOwnershipCppCallback);
-                None
-            }
-            FfiOp::SelectorMetadataCallback => Some(FfiOp::CompleteStyleUpdateCascadeCallback),
-            FfiOp::LonghandStoreBatchCallback => Some(FfiOp::CompleteStyleUpdateLonghandCallback),
-            _ => None,
-        };
-        if let Some(phase) = phase {
-            bump(FfiOp::CompleteStyleUpdateSemanticCppCallback);
-            bump(phase);
-        }
-    });
+pub(crate) fn release_utf16_fly_string(raw: usize) {
+    let deferred = COMPLETE_STYLE_UPDATE_DEPTH.with(|depth| depth.get() != 0);
+    if deferred {
+        DEFERRED_CPP_RELEASES.with(|releases| releases.borrow_mut().fly_strings.push(raw));
+        return;
+    }
+    bump_cpp_callback(FfiOp::StringRetainReleaseCallback);
+    unsafe { ladybird_utf16_fly_string_unref(raw) };
+}
+
+pub(crate) fn release_string(raw: usize) {
+    let deferred = COMPLETE_STYLE_UPDATE_DEPTH.with(|depth| depth.get() != 0);
+    if deferred {
+        DEFERRED_CPP_RELEASES.with(|releases| releases.borrow_mut().strings.push(raw));
+        return;
+    }
+    bump_cpp_callback(FfiOp::StringRetainReleaseCallback);
+    unsafe { ladybird_string_unref(raw) };
+}
+
+pub(crate) fn release_animated_properties(values: *const c_void) {
+    let deferred = COMPLETE_STYLE_UPDATE_DEPTH.with(|depth| depth.get() != 0);
+    if deferred {
+        DEFERRED_CPP_RELEASES.with(|releases| releases.borrow_mut().animated_properties.push(values));
+        return;
+    }
+    bump_cpp_callback(FfiOp::AnimatedPropertiesRetainReleaseCallback);
+    unsafe { ladybird_animated_properties_unref(values) };
 }
 
 /// Marks a complete C++-orchestrated style update, from transaction planning
@@ -135,37 +163,48 @@ pub extern "C" fn rust_style_ffi_complete_style_update_begin() {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_style_ffi_complete_style_update_end() {
-    COMPLETE_STYLE_UPDATE_DEPTH.with(|depth| {
-        depth.set(
-            depth
-                .get()
-                .checked_sub(1)
-                .expect("unbalanced complete style update scope"),
-        );
+pub extern "C" fn rust_style_ffi_complete_style_update_end() -> FfiDeferredCppReleases {
+    let depth = COMPLETE_STYLE_UPDATE_DEPTH.with(|depth| {
+        let new_depth = depth
+            .get()
+            .checked_sub(1)
+            .expect("unbalanced complete style update scope");
+        depth.set(new_depth);
+        new_depth
     });
+    if depth != 0 {
+        return FfiDeferredCppReleases {
+            fly_strings: std::ptr::null(),
+            fly_string_count: 0,
+            strings: std::ptr::null(),
+            string_count: 0,
+            animated_properties: std::ptr::null(),
+            animated_property_count: 0,
+            storage: std::ptr::null_mut(),
+        };
+    }
+    DEFERRED_CPP_RELEASES.with(|releases| {
+        let releases = Box::new(std::mem::take(&mut *releases.borrow_mut()));
+        FfiDeferredCppReleases {
+            fly_strings: releases.fly_strings.as_ptr(),
+            fly_string_count: releases.fly_strings.len(),
+            strings: releases.strings.as_ptr(),
+            string_count: releases.strings.len(),
+            animated_properties: releases.animated_properties.as_ptr(),
+            animated_property_count: releases.animated_properties.len(),
+            storage: Box::into_raw(releases).cast(),
+        }
+    })
 }
 
-/// Marks the complete C++-orchestrated computed-value build. This temporary
-/// bracket makes every Rust-to-C++ callback inside the path measurable while
-/// the build itself migrates into the Rust style engine.
+/// # Safety
+/// `storage` must be null or a live pointer returned by
+/// `rust_style_ffi_complete_style_update_end`.
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_style_ffi_computed_style_build_begin() {
-    COMPUTED_STYLE_BUILD_DEPTH.with(|depth| {
-        depth.set(depth.get().checked_add(1).expect("computed style build depth overflow"));
-    });
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_ffi_computed_style_build_end() {
-    COMPUTED_STYLE_BUILD_DEPTH.with(|depth| {
-        depth.set(
-            depth
-                .get()
-                .checked_sub(1)
-                .expect("unbalanced computed style build scope"),
-        );
-    });
+pub unsafe extern "C" fn rust_deferred_cpp_releases_destroy(storage: *mut c_void) {
+    if !storage.is_null() {
+        drop(unsafe { Box::from_raw(storage.cast::<DeferredCppReleases>()) });
+    }
 }
 
 /// Returns the number of FFI boundary counters.

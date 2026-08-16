@@ -2544,7 +2544,6 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
     };
     Vector<PendingBlock> pending_blocks;
     Vector<BlockSource> block_sources;
-    Vector<FlatPtr> leaked_layer_names;
     Vector<FlatPtr> leaked_custom_property_names;
 
     auto add_block = [&](ReadonlySpan<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> const* custom_properties, CascadeOrigin origin, u32 author_context_index, u32 layer_index, bool is_inline_style, bool bypass_pseudo_element_property_whitelist, Optional<Utf16FlyString> const& layer_name, GC::Ptr<CSSStyleDeclaration const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root, StyleEngineRuleID style_engine_rule_id = {}) {
@@ -2575,7 +2574,6 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         FlatPtr layer_name_raw = 0;
         if (layer_name.has_value()) {
             layer_name_raw = layer_name->to_raw_leaked();
-            leaked_layer_names.append(layer_name_raw);
         }
         pending_blocks.append({
             .block = {
@@ -2880,8 +2878,6 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
     };
     assign_source_slots(cascade_result.source_slot_assignments, cascade_result.source_slot_assignment_count);
 
-    for (auto layer_name_raw : leaked_layer_names)
-        Utf16FlyString::unref_raw(layer_name_raw);
     for (auto custom_property_name_raw : leaked_custom_property_names)
         Utf16FlyString::unref_raw(custom_property_name_raw);
 
@@ -3817,10 +3813,6 @@ RefPtr<ComputedValues const> StyleComputer::compute_pseudo_element_style_if_need
 
 NonnullRefPtr<ComputedValues const> StyleComputer::build_computed_values(ComputedStyleWorkingSet& computed_properties, DOM::AbstractElement abstract_element, StyleScope const& style_scope, ComputedValues const* previous_base, u32 groups_to_apply) const
 {
-    StyleValueFFI::rust_style_ffi_computed_style_build_begin();
-    ScopeGuard leave_computed_style_build = [] {
-        StyleValueFFI::rust_style_ffi_computed_style_build_end();
-    };
     VERIFY(computation_context_cache_is_empty());
     ScopeGuard clear_computation_context_cache = [&] { clear_computation_context_caches(); };
 
@@ -5224,14 +5216,6 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
             computed_style.set_effective_color_scheme(static_cast<PreferredColorScheme>(effective_color_scheme));
     };
 
-    // The property computation flow is driven from the Rust style computation core: it
-    // iterates the longhands in computation order, resolves logical pairing through its
-    // mapping tables, and selects the cascaded, inherited or initial value natively.
-    ComputedValuesFFI::FfiLonghandCallbacks const callbacks {
-        .context = &execute_computation_batch,
-        .execute_computation_batch = [](void* context, ComputedValuesFFI::FfiComputedStoreEntry const* entries, size_t count, i16 effective_color_scheme) { (*static_cast<decltype(execute_computation_batch)*>(context))(entries, count, effective_color_scheme); },
-    };
-
     ComputedValuesFFI::FfiLonghandDriverResults driver_results {
         .longhand_evaluations = 0,
         .raw_cascaded_font_size_data = nullptr,
@@ -5319,7 +5303,11 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
             auto const& computation_context = get_computation_context_for_property(*context_property, computed_style, abstract_element);
             length_resolution_context = to_ffi_length_resolution_context_with_container_bases(computation_context.length_resolution_context, container_relative_length_unit_mask);
         }
-        ComputedValuesFFI::rust_drive_property_computation(&callbacks, computed_style.mutable_computed_longhand_table(), cascaded_properties.rust_store(), parent_snapshot.has_value() ? &*parent_snapshot : nullptr, &computation_environment, computed_group_mask, computed_properties_to_evaluate, phase, length_resolution_context.has_value() ? &*length_resolution_context : nullptr, &driver_results);
+        auto store_batch = ComputedValuesFFI::rust_drive_property_computation(computed_style.mutable_computed_longhand_table(), cascaded_properties.rust_store(), parent_snapshot.has_value() ? &*parent_snapshot : nullptr, &computation_environment, computed_group_mask, computed_properties_to_evaluate, phase, length_resolution_context.has_value() ? &*length_resolution_context : nullptr, &driver_results);
+        ScopeGuard destroy_store_batch = [&] {
+            ComputedValuesFFI::rust_longhand_store_batch_destroy(store_batch.storage);
+        };
+        execute_computation_batch(store_batch.entries, store_batch.count, store_batch.effective_color_scheme);
     };
     auto apply_font_metric_dependencies = [&] {
         if (driver_results.depends_on_viewport_metrics)

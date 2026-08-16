@@ -196,10 +196,9 @@ struct StyleRecord {
 struct RetainedAnimatedProperties(*const c_void);
 
 impl RetainedAnimatedProperties {
-    fn new(pointer: *const c_void) -> Self {
+    /// Assumes ownership of one leaked C++ reference.
+    unsafe fn from_leaked(pointer: *const c_void) -> Self {
         assert!(!pointer.is_null(), "style-record animated properties are null");
-        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::AnimatedPropertiesRetainReleaseCallback);
-        unsafe { ladybird_animated_properties_ref(pointer) };
         Self(pointer)
     }
 
@@ -210,22 +209,9 @@ impl RetainedAnimatedProperties {
 
 impl Drop for RetainedAnimatedProperties {
     fn drop(&mut self) {
-        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::AnimatedPropertiesRetainReleaseCallback);
-        unsafe { ladybird_animated_properties_unref(self.0) };
+        crate::css::ffi_stats::release_animated_properties(self.0);
     }
 }
-
-#[cfg(not(test))]
-unsafe extern "C" {
-    fn ladybird_animated_properties_ref(values: *const c_void);
-    fn ladybird_animated_properties_unref(values: *const c_void);
-}
-
-#[cfg(test)]
-unsafe fn ladybird_animated_properties_ref(_: *const c_void) {}
-
-#[cfg(test)]
-unsafe fn ladybird_animated_properties_unref(_: *const c_void) {}
 
 pub struct ComputedReconstructionMetadataInput<'a> {
     pub property_importance: &'a [u8],
@@ -663,7 +649,7 @@ impl ComputedGroupSets {
         &mut self,
         base_style_record: StyleRecordID,
         source_identity: u64,
-        animated_properties: *const c_void,
+        animated_properties: RetainedAnimatedProperties,
         payloads: &[*const c_void],
     ) -> AnimationOverlayRecord {
         assert!(payloads.iter().all(|payload| !payload.is_null()));
@@ -674,7 +660,7 @@ impl ComputedGroupSets {
             base_style_record,
             source_identity,
             final_style_record: self.next_animation_overlay_record(),
-            animated_properties: RetainedAnimatedProperties::new(animated_properties),
+            animated_properties,
             payloads: payloads.into(),
             pin_count: 0,
             is_assigned: true,
@@ -685,11 +671,17 @@ impl ComputedGroupSets {
         &mut self,
         base_style_record: StyleRecordID,
         source_identity: u64,
-        animated_properties: *const c_void,
+        animated_properties: &mut Option<RetainedAnimatedProperties>,
         payloads: &[*const c_void],
     ) -> (u32, FinalStyleRecordID, bool) {
-        let record =
-            self.make_animation_overlay_record(base_style_record, source_identity, animated_properties, payloads);
+        let record = self.make_animation_overlay_record(
+            base_style_record,
+            source_identity,
+            animated_properties
+                .take()
+                .expect("animation overlay properties are missing"),
+            payloads,
+        );
         self.animation_overlay_nested_memory
             .grow_committed(size_of_val(record.payloads.as_ref()) as u64);
         let final_style_record = record.final_style_record;
@@ -739,7 +731,7 @@ impl ComputedGroupSets {
         current_slot: Option<u32>,
         base_style_record: StyleRecordID,
         source_identity: u64,
-        animated_properties: *const c_void,
+        animated_properties: &mut Option<RetainedAnimatedProperties>,
         payloads: &[*const c_void],
     ) -> AnimationOverlayPublication {
         if source_identity == 0 {
@@ -777,7 +769,9 @@ impl ComputedGroupSets {
                 let record = self.make_animation_overlay_record(
                     base_style_record,
                     source_identity,
-                    animated_properties,
+                    animated_properties
+                        .take()
+                        .expect("animation overlay properties are missing"),
                     payloads,
                 );
                 let new_payload_bytes = size_of_val(record.payloads.as_ref()) as u64;
@@ -848,6 +842,11 @@ impl ComputedGroupSets {
             longhand_table,
             reconstruction: reconstruction_metadata,
         } = metadata_input;
+        let mut animated_properties = if animated_properties.is_null() {
+            None
+        } else {
+            Some(unsafe { RetainedAnimatedProperties::from_leaked(animated_properties) })
+        };
         let longhand_table = unsafe { longhand_table.as_ref() };
         let inherited_group_swap_eligible = dependency_flags & INHERITED_GROUP_SWAP_ELIGIBLE != 0;
         let dependency_flags = dependency_flags & COMPUTED_VALUE_DEPENDENCY_FLAGS;
@@ -1108,7 +1107,7 @@ impl ComputedGroupSets {
                 previous.and_then(|previous| previous.animation_overlay_slot),
                 style_record_identity,
                 animation_overlay_identity,
-                animated_properties,
+                &mut animated_properties,
                 animation_overlay_payloads,
             );
             if previous.is_none() {
@@ -1161,7 +1160,7 @@ impl ComputedGroupSets {
                 self.animation_overlay_column[index],
                 style_record_identity,
                 animation_overlay_identity,
-                animated_properties,
+                &mut animated_properties,
                 animation_overlay_payloads,
             );
             let changed = (
