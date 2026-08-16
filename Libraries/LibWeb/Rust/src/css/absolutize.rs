@@ -41,6 +41,18 @@ pub(crate) struct AbsolutizationContext<'a> {
     /// Immutable sibling facts supplied only when a winning cascaded value uses a
     /// tree-counting function.
     pub(crate) tree_counting: Option<(u64, u64)>,
+    /// Random base values captured before entering the longhand drive.
+    pub(crate) random_base_values: &'a [crate::css::style_compute::FfiRandomBaseValue],
+    /// The document base URL captured before entering the longhand drive.
+    pub(crate) document_base_url: &'a [u8],
+    /// The stylesheet resource context for the selected cascade source, if any.
+    pub(crate) style_sheet_resource_context: Option<StyleSheetResourceContext<'a>>,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct StyleSheetResourceContext<'a> {
+    pub(crate) base_url: &'a [u8],
+    pub(crate) origin_clean: bool,
 }
 
 /// The outcome for one value: unchanged (preserve identity) or a new allocation.
@@ -106,6 +118,78 @@ const COLOR_SYNTAX_MODERN: u8 = 1;
 fn retained_null() -> RetainedStyleValueData {
     // SAFETY: null encodes an absent optional value.
     unsafe { RetainedStyleValueData::from_retained_optional_pointer(std::ptr::null()) }
+}
+
+fn absolutize_image(value: &StyleValueData, context: &AbsolutizationContext) -> Option<Absolutized> {
+    let StyleValueData::Image {
+        url,
+        url_type,
+        url_modifiers,
+        resource_context,
+    } = value
+    else {
+        return None;
+    };
+    if url.as_bytes().is_empty() {
+        return Some(Absolutized::Unchanged);
+    }
+
+    let base_url = context
+        .style_sheet_resource_context
+        .map(|resource_context| resource_context.base_url)
+        .filter(|base_url| !base_url.is_empty())
+        .or_else(|| {
+            resource_context
+                .has_base_url
+                .then(|| resource_context.base_url.as_bytes())
+        })
+        .unwrap_or(context.document_base_url);
+    if base_url.is_empty() {
+        return Some(Absolutized::Unchanged);
+    }
+
+    let url_string = std::str::from_utf8(url.as_bytes()).ok()?;
+    let should_absolutize_url_for_computed_value =
+        context.style_sheet_resource_context.is_some() || resource_context.should_absolutize_url_for_computed_value;
+    let absolutized_url = if should_absolutize_url_for_computed_value {
+        if liburl_rust::basic_parse(url_string, liburl_rust::BasicParseOptions::new()).is_some() {
+            crate::css::style_value::RetainedString::from_utf8(url_string.to_owned())
+        } else {
+            let base_url = std::str::from_utf8(base_url).ok()?;
+            let base_url = liburl_rust::basic_parse(base_url, liburl_rust::BasicParseOptions::new())?;
+            let resolved_url =
+                liburl_rust::basic_parse(url_string, liburl_rust::BasicParseOptions::new().base_url(&base_url));
+            let Some(resolved_url) = resolved_url else {
+                return Some(Absolutized::Unchanged);
+            };
+            crate::css::style_value::RetainedString::from_utf8(resolved_url.serialization())
+        }
+    } else {
+        crate::css::style_value::RetainedString::from_utf8(url_string.to_owned())
+    };
+    let base_url = std::str::from_utf8(base_url).ok()?;
+    let base_url = crate::css::style_value::RetainedString::from_utf8(base_url.to_owned());
+
+    let (has_parent_style_sheet_origin_clean, parent_style_sheet_origin_clean) = context
+        .style_sheet_resource_context
+        .map(|context| (true, context.origin_clean))
+        .unwrap_or((
+            resource_context.has_parent_style_sheet_origin_clean,
+            resource_context.parent_style_sheet_origin_clean,
+        ));
+
+    Some(Absolutized::Changed(retain_new(StyleValueData::Image {
+        url: absolutized_url,
+        url_type: *url_type,
+        url_modifiers: url_modifiers.clone(),
+        resource_context: crate::css::style_value::ImageResourceContext {
+            base_url,
+            has_base_url: true,
+            has_parent_style_sheet_origin_clean,
+            parent_style_sheet_origin_clean,
+            should_absolutize_url_for_computed_value,
+        },
+    })))
 }
 
 /// The color-resolution input the C++ absolutizers build from a computation context: the
@@ -1254,6 +1338,7 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
                 value,
                 (&raw const calc_length_context).cast(),
                 context.tree_counting,
+                context.random_base_values,
             );
             if tracked {
                 context.resolved_viewport_relative_length.set(true);
@@ -1433,7 +1518,8 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
                 }
             })))
         }
-        StyleValueData::RandomValueSharing { .. } | StyleValueData::Image { .. } => None,
+        StyleValueData::Image { .. } => absolutize_image(value, context),
+        StyleValueData::RandomValueSharing { .. } => None,
 
         StyleValueData::ColorFunction { .. } => absolutize_color_function(value, context),
         StyleValueData::ColorMix { .. } => absolutize_color_mix(value, context),
@@ -1555,6 +1641,9 @@ pub unsafe extern "C" fn rust_style_value_absolutize(
             scheme: has_scheme.then_some(scheme),
             resolved_viewport_relative_length: Cell::new(false),
             tree_counting: None,
+            random_base_values: &[],
+            document_base_url: &[],
+            style_sheet_resource_context: None,
         };
         match absolutize(value, &context) {
             Some(Absolutized::Unchanged) => FfiAbsolutizedValue {

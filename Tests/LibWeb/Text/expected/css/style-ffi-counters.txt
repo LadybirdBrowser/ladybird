@@ -8,7 +8,7 @@ simple element kept ownership separate: true
 transaction returned without callbacks: true
 longhand computation measured: true
 computed build stayed in Rust: true
-fallback property IDs recorded: true
+fallback property IDs empty: true
 fallback property IDs sorted: true
 inherited partial restyle measured semantic callbacks: true
 inherited partial restyle kept ownership separate: true

@@ -284,8 +284,8 @@ impl RetainedPropertyIdList {
     }
 }
 
-/// A retained AK::String, stored as its one-word raw representation. Owns one reference to the
-/// underlying string data unless it is a short string; the C++ bridge handles both cases.
+/// A UTF-8 string shared with C++. A nonzero raw value retains an AK::String; zero means the
+/// copied bytes are Rust-owned and C++ materializes an AK::String when it consumes the value.
 #[repr(C)]
 pub struct RetainedString {
     raw: usize,
@@ -309,6 +309,17 @@ impl RetainedString {
         result
     }
 
+    fn from_bytes(bytes: Vec<u8>) -> Self {
+        let bytes = bytes.into_boxed_slice();
+        let length = bytes.len();
+        let bytes = Box::into_raw(bytes).cast::<u8>();
+        Self { raw: 0, bytes, length }
+    }
+
+    pub(crate) fn from_utf8(string: String) -> Self {
+        Self::from_bytes(string.into_bytes())
+    }
+
     pub(crate) fn as_bytes(&self) -> &[u8] {
         if self.bytes.is_null() {
             return &[];
@@ -325,6 +336,9 @@ impl PartialEq for RetainedString {
 
 impl Clone for RetainedString {
     fn clone(&self) -> Self {
+        if self.raw == 0 {
+            return Self::from_bytes(self.as_bytes().to_vec());
+        }
         crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
         unsafe { ladybird_string_ref(self.raw) };
         unsafe { Self::from_raw(self.raw, self.bytes, self.length) }
@@ -333,8 +347,10 @@ impl Clone for RetainedString {
 
 impl Drop for RetainedString {
     fn drop(&mut self) {
-        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
-        unsafe { ladybird_string_unref(self.raw) };
+        if self.raw != 0 {
+            crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
+            unsafe { ladybird_string_unref(self.raw) };
+        }
         if !self.bytes.is_null() {
             drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.bytes, self.length)) });
         }

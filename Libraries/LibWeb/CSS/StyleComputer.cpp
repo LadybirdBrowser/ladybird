@@ -79,6 +79,7 @@
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
@@ -100,6 +101,7 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
@@ -5255,6 +5257,53 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
     if (ComputedValuesFFI::rust_cascaded_properties_uses_tree_counting_function(cascaded_properties.rust_store()))
         tree_counting_context = abstract_element.tree_counting_function_resolution_context();
     auto const container_relative_length_unit_mask = ComputedValuesFFI::rust_cascaded_properties_container_relative_length_unit_mask(cascaded_properties.rust_store());
+    auto unfixed_random_sharings = ComputedValuesFFI::rust_cascaded_properties_unfixed_random_sharings(cascaded_properties.rust_store());
+    ScopeGuard release_unfixed_random_sharings = [&] {
+        ComputedValuesFFI::rust_cascaded_properties_unfixed_random_sharings_release(unfixed_random_sharings.storage, unfixed_random_sharings.entry_count);
+    };
+    Vector<ComputedValuesFFI::FfiRandomBaseValue> random_base_values;
+    random_base_values.ensure_capacity(unfixed_random_sharings.entry_count);
+    for (auto const& sharing : ReadonlySpan<ComputedValuesFFI::FfiUnfixedRandomSharing> { unfixed_random_sharings.entries, unfixed_random_sharings.entry_count }) {
+        VERIFY(sharing.name != 0);
+        RandomCachingKey random_caching_key {
+            .name = Utf16FlyString::from_raw(sharing.name),
+            .element_id = sharing.element_shared
+                ? Optional<UniqueNodeID> { OptionalNone {} }
+                : Optional<UniqueNodeID> { abstract_element.element().unique_id() },
+        };
+        random_base_values.empend(sharing.source, const_cast<DOM::Element&>(abstract_element.element()).ensure_css_random_base_value(random_caching_key));
+    }
+    Vector<String> style_sheet_base_urls;
+    Vector<ComputedValuesFFI::FfiStyleSheetResourceContext> style_sheet_resource_contexts;
+    style_sheet_base_urls.resize(cascaded_properties.source_slot_count());
+    style_sheet_resource_contexts.resize(cascaded_properties.source_slot_count());
+    for (size_t slot = 0; slot < cascaded_properties.source_slot_count(); ++slot) {
+        auto& resource_context = style_sheet_resource_contexts[slot];
+        auto source = cascaded_properties.source_for_slot(static_cast<u32>(slot));
+        if (!source || !source->parent_rule())
+            continue;
+        auto style_sheet = source->parent_rule()->parent_style_sheet();
+        if (!style_sheet)
+            continue;
+        auto base_url = style_sheet->base_url()
+                            .value_or_lazy_evaluated_optional([&]() { return style_sheet->location(); })
+                            .value_or_lazy_evaluated_optional([&]() -> Optional<::URL::URL> {
+                                if (auto document = style_sheet->owning_document())
+                                    return HTML::relevant_settings_object(*document).api_base_url();
+                                return {};
+                            });
+        if (base_url.has_value())
+            style_sheet_base_urls[slot] = base_url->to_string();
+        resource_context.has_value = true;
+        resource_context.origin_clean = style_sheet->is_origin_clean();
+    }
+    for (size_t slot = 0; slot < style_sheet_resource_contexts.size(); ++slot) {
+        auto bytes = style_sheet_base_urls[slot].bytes();
+        style_sheet_resource_contexts[slot].base_url = bytes.data();
+        style_sheet_resource_contexts[slot].base_url_length = bytes.size();
+    }
+    auto document_base_url = abstract_element.document().base_url().to_string();
+    auto document_base_url_bytes = document_base_url.bytes();
     ComputedValuesFFI::FfiStyleComputationEnvironment const computation_environment {
         .box_type_input = box_type_input,
         .color_scheme_input = effective_color_scheme_input,
@@ -5263,6 +5312,12 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         .has_tree_counting_context = tree_counting_context.has_value(),
         .sibling_count = tree_counting_context.has_value() ? static_cast<u64>(tree_counting_context->sibling_count) : 0,
         .sibling_index = tree_counting_context.has_value() ? static_cast<u64>(tree_counting_context->sibling_index) : 0,
+        .random_base_values = random_base_values.data(),
+        .random_base_value_count = random_base_values.size(),
+        .document_base_url = document_base_url_bytes.data(),
+        .document_base_url_length = document_base_url_bytes.size(),
+        .style_sheet_resource_contexts = style_sheet_resource_contexts.data(),
+        .style_sheet_resource_context_count = style_sheet_resource_contexts.size(),
         .device_pixels_per_css_pixel = device_pixels_per_css_pixel,
         .initial_font_size_raw = InitialValues::font_size().raw_value(),
         .default_font_size_raw = default_user_font_size().raw_value(),

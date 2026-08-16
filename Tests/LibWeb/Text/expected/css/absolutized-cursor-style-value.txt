@@ -1,1 +1,1 @@
-url("foo.png") 1 2, pointer
+true

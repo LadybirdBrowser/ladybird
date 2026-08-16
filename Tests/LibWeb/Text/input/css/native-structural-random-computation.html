@@ -1,0 +1,43 @@
+<!doctype html>
+<style>
+    #target {
+        aspect-ratio: random(1, 10) / 1;
+        background-color: rgb(from blue random(51, 10) random(g + 51, g) random(b, b));
+        border-top-left-radius: random(0px, 10px);
+        color: color-mix(in srgb, rgb(from blue random(10, 30) random(g, g + 30) random(b, b)), rgb(random(10, 90) 0 0));
+        corner-top-left-shape: superellipse(random(0, 2));
+        font-variation-settings: "wght" random(100, 900);
+        font-size: random(10%, 30%);
+        font-stretch: random(50%, 100%);
+        font-weight: random(100, 900);
+        text-indent: random(0px, 10px) hanging;
+        translate: random(fixed random(-2, -1), 0%, 100%) random(0%, 100%);
+        width: random(fixed random(1, 2), 10px, 20px);
+    }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        internals.resetStyleFfiCounters();
+        internals.updateStyle();
+
+        const computedStyle = getComputedStyle(target);
+        const properties = [
+            "aspect-ratio",
+            "background-color",
+            "border-top-left-radius",
+            "color",
+            "corner-top-left-shape",
+            "font-variation-settings",
+            "font-size",
+            "font-stretch",
+            "font-weight",
+            "text-indent",
+            "translate",
+            "width",
+        ];
+        println(`all structural values computed: ${properties.every(property => computedStyle.getPropertyValue(property) !== "")}`);
+        println(`used no C++ longhand fallback: ${internals.styleFfiCounters().longhandCppComputeFallbacks === 0}`);
+    });
+</script>

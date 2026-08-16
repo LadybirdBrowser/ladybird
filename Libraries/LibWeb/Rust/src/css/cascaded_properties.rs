@@ -514,6 +514,81 @@ pub unsafe extern "C" fn rust_cascaded_properties_container_relative_length_unit
     })
 }
 
+#[repr(C)]
+pub struct FfiUnfixedRandomSharing {
+    pub source: *const c_void,
+    pub name: usize,
+    pub element_shared: bool,
+}
+
+#[repr(C)]
+pub struct FfiUnfixedRandomSharings {
+    pub entries: *const FfiUnfixedRandomSharing,
+    pub entry_count: usize,
+    pub storage: *mut c_void,
+}
+
+/// Returns unfixed random sharing values from winning declarations.
+///
+/// # Safety
+/// `store` must be a valid store.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_cascaded_properties_unfixed_random_sharings(
+    store: *const CascadedPropertyStore,
+) -> FfiUnfixedRandomSharings {
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadedStoreQueryEntry);
+    abort_on_panic(|| {
+        let mut sharings = Vec::new();
+        for (_, value, _) in unsafe { &*store }.winning_declarations() {
+            crate::css::style_compute::collect_unfixed_random_sharings_in_value(unsafe { &*value }, &mut sharings);
+        }
+        let entries = sharings
+            .into_iter()
+            .map(|source| {
+                let StyleValueData::RandomValueSharing {
+                    has_name,
+                    name,
+                    element_shared,
+                    ..
+                } = (unsafe { &*source })
+                else {
+                    unreachable!();
+                };
+                FfiUnfixedRandomSharing {
+                    source: source.cast(),
+                    name: if *has_name { name.raw() } else { 0 },
+                    element_shared: *element_shared,
+                }
+            })
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+        let entry_count = entries.len();
+        let entries = Box::into_raw(entries);
+        FfiUnfixedRandomSharings {
+            entries: entries.cast(),
+            entry_count,
+            storage: entries.cast(),
+        }
+    })
+}
+
+/// # Safety
+/// `storage` must be null or returned by `rust_cascaded_properties_unfixed_random_sharings`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_cascaded_properties_unfixed_random_sharings_release(
+    storage: *mut c_void,
+    entry_count: usize,
+) {
+    if !storage.is_null() {
+        drop(unsafe {
+            Box::from_raw(std::ptr::slice_from_raw_parts_mut(
+                storage.cast::<FfiUnfixedRandomSharing>(),
+                entry_count,
+            ))
+        });
+    }
+}
+
 /// A declared property in an `FfiCascadeBlock` crossing into `rust_cascade_matched_blocks`:
 /// the property identifier, its importance, and borrowed shared Rust value data.
 #[repr(C)]

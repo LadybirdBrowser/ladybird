@@ -40,6 +40,7 @@ public:
     // GC-weak declaration source pair for a slot the store handed out.
     ComputedValuesFFI::CascadedPropertyStore* rust_store() { return m_store; }
     void assign_source_slot(u32 slot, GC::Ptr<CSS::CSSStyleDeclaration const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root);
+    [[nodiscard]] size_t source_slot_count() const { return m_source_slots.size(); }
     [[nodiscard]] GC::Ptr<CSS::CSSStyleDeclaration const> source_for_slot(u32 slot) const;
 
 private:

@@ -12,6 +12,13 @@
 
 namespace Web::CSS {
 
+inline String string_from_rust_data(StyleValueFFI::RetainedString const& string)
+{
+    if (string.raw != 0)
+        return String::from_raw(string.raw);
+    return String::from_utf8_without_validation({ string.bytes, string.length });
+}
+
 // Marshals a URL's request URL modifiers for a Rust-owned allocation, retaining one leaked
 // reference to each string-valued modifier.
 inline Vector<StyleValueFFI::RetainedRequestUrlModifier> retain_url_modifiers_for_rust(URL const& url)
@@ -48,7 +55,7 @@ inline URL url_from_rust_data(StyleValueFFI::RetainedString const& url_string, u
             break;
         }
     }
-    return URL(String::from_raw(url_string.raw), static_cast<URL::Type>(url_type), move(modifiers));
+    return URL(string_from_rust_data(url_string), static_cast<URL::Type>(url_type), move(modifiers));
 }
 
 class URLStyleValue final : public StyleValueWithDefaultOperators<URLStyleValue> {

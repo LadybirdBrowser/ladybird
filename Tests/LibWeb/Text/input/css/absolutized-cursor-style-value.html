@@ -8,6 +8,7 @@
 <script src="../include.js"></script>
 <script>
     test(() => {
-        println(getComputedStyle(foo).cursor);
+        const absoluteURL = new URL("foo.png", document.baseURI).href;
+        println(getComputedStyle(foo).cursor === `url("${absoluteURL}") 1 2, pointer`);
     });
 </script>

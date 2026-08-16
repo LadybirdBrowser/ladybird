@@ -830,6 +830,7 @@ dependencies = [
  "foldhash 0.1.5",
  "hashbrown 0.16.1",
  "libgfx_rust",
+ "liburl_rust",
  "libweb_html_tokenizer",
  "serde_json",
 ]
