@@ -878,13 +878,15 @@ void HTMLElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16St
 
     // 1. If namespace is not null, or localName is not the name of an event handler content attribute on element, then return.
     // FIXME: Add the namespace part once we support attribute namespaces.
+    if (name.view().starts_with(u"on"sv)) {
 #undef __ENUMERATE
 #define __ENUMERATE(attribute_name, event_name)               \
     if (name == HTML::AttributeNames::attribute_name) {       \
         element_event_handler_attribute_changed(name, value); \
     }
-    ENUMERATE_GLOBAL_EVENT_HANDLERS(__ENUMERATE)
+        ENUMERATE_GLOBAL_EVENT_HANDLERS(__ENUMERATE)
 #undef __ENUMERATE
+    }
 
     [&]() {
         // https://html.spec.whatwg.org/multipage/popover.html#the-popover-attribute:concept-element-attributes-change-ext
