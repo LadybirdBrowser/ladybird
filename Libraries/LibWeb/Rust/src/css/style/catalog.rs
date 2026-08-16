@@ -1334,7 +1334,7 @@ impl RetainedMatchAnswers {
 /// Matching scratch owned by one synchronous style traversal.
 pub(super) struct BatchMatchingTraversal {
     pub(super) root: StyleNodeID,
-    pub(super) batch: Option<StyleNodeFacts>,
+    pub(super) batch: Option<MatchingFactBatch>,
     pub(super) topology: Option<TransactionTopology>,
     pub(super) reuse_retained_match_answers: bool,
     pub(super) retained_answer_cascade_orders: Vec<RetainedAnswerCascadeOrder>,
@@ -1353,7 +1353,7 @@ pub(super) struct BatchMatchingTraversal {
 /// traversal.
 pub(super) struct PreparedBatchMatchingTraversal {
     pub(super) root: StyleNodeID,
-    pub(super) batch: Option<StyleNodeFacts>,
+    pub(super) batch: Option<MatchingFactBatch>,
     pub(super) topology: Option<TransactionTopology>,
     pub(super) reuse_retained_match_answers: bool,
     pub(super) match_workspace: MatchEvaluationWorkspace,
@@ -1375,7 +1375,7 @@ impl PreparedBatchMatchingTraversal {
             shallow [];
             cached [];
             nested [
-                self.batch.as_ref().map_or(0, StyleNodeFacts::capacity_bytes),
+                self.batch.as_ref().map_or(0, MatchingFactBatch::capacity_bytes),
                 self.topology.as_ref().map_or(0, TransactionTopology::capacity_bytes),
                 self.match_workspace.capacity_bytes(),
             ];

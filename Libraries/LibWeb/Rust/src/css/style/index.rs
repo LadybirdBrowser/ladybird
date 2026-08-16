@@ -22,6 +22,7 @@
 use super::AncestorDispatchShape;
 use super::capacity::ShallowCapacityBytes;
 use super::capacity::capacity_bytes;
+use super::column::BitColumn;
 use super::column::Column;
 use super::column::EpochColumn;
 use super::column::PagedColumn;
@@ -278,9 +279,94 @@ impl<T: Clone + Default> ShallowCapacityBytes for PagedOwnedColumn<T> {
 struct AttributeCatalogs {
     name_forms: PagedCopyColumn<AttributeNameForms>,
     value_texts: PagedOwnedColumn<Option<Vec<u16>>>,
+    language_texts: PagedOwnedColumn<Option<Vec<u16>>>,
 }
 
 const NO_ROW: u32 = u32::MAX;
+
+#[derive(Clone, Copy, Default)]
+struct PayloadHandle {
+    offset: u32,
+    length: u32,
+}
+
+impl PayloadHandle {
+    fn appended_to<T>(payload: &mut Vec<T>, values: &[T]) -> Self
+    where
+        T: Clone,
+    {
+        let offset = u32::try_from(payload.len()).expect("fact payload offset overflow");
+        payload.extend_from_slice(values);
+        Self {
+            offset,
+            length: u32::try_from(values.len()).expect("fact payload length overflow"),
+        }
+    }
+
+    fn slice<T>(self, payload: &[T]) -> &[T] {
+        let start = self.offset as usize;
+        &payload[start..start + self.length as usize]
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+struct RareFacts {
+    heading_level: u8,
+    part_exposure: StyleAtomID,
+    custom_states: PayloadHandle,
+    parts: PayloadHandle,
+}
+
+#[derive(Clone, Copy)]
+struct PrimaryFactSnapshot {
+    tag: StyleAtomID,
+    folded_tag: StyleAtomID,
+    id: StyleAtomID,
+    states: StateSet,
+    directionality: StyleAtomID,
+    language: StyleAtomID,
+    has_text_content: bool,
+    namespace: StyleAtomID,
+    rare_facts: Option<RareFacts>,
+    class_handle: PayloadHandle,
+    attribute_handle: PayloadHandle,
+}
+
+const RARE_FACT_PAGE_SHIFT: usize = 6;
+const RARE_FACT_PAGE_SIZE: usize = 1 << RARE_FACT_PAGE_SHIFT;
+
+#[derive(Clone)]
+struct RareFactPage {
+    rows: [Option<RareFacts>; RARE_FACT_PAGE_SIZE],
+}
+
+impl Default for RareFactPage {
+    fn default() -> Self {
+        Self {
+            rows: [None; RARE_FACT_PAGE_SIZE],
+        }
+    }
+}
+
+impl PagedColumnPage for RareFactPage {
+    type Value = RareFacts;
+
+    const SHIFT: usize = RARE_FACT_PAGE_SHIFT;
+
+    fn get(&self, index: usize) -> Option<Self::Value> {
+        self.rows[index]
+    }
+
+    fn insert(&mut self, index: usize, value: Self::Value) {
+        self.rows[index] = Some(value);
+    }
+}
+
+impl RemovablePagedColumnPage for RareFactPage {
+    fn remove(&mut self, index: usize) -> Option<Self::Value> {
+        self.rows[index].take()
+    }
+}
 
 /// The next unique batch-row-space name; see `StyleNodeFacts::generation`.
 fn next_batch_generation() -> u64 {
@@ -300,12 +386,16 @@ fn next_batch_generation() -> u64 {
 #[derive(Clone, Default)]
 pub struct StyleNodeFacts {
     attribute_catalogs: Rc<AttributeCatalogs>,
+    primary: bool,
+    resident: BitColumn,
+    rare_facts: PagedColumn<RareFactPage>,
     nodes: Vec<StyleNodeID>,
     row_by_element_index: Vec<u32>,
     /// Rows no longer reachable through the element mapping. The primary arrangement repoints an
     /// element to a freshly packed row when its facts move; the old row stays as garbage until
     /// its measured carrying cost makes one rebuild cheaper than retaining it.
     stale_rows: u32,
+    live_rows: usize,
     /// Names this batch's row space. Consumers holding row indices across calls compare it:
     /// clearing a batch renumbers every row, so anything indexed by row is stale the moment the
     /// generation moves. Appending keeps the generation, since existing rows keep their places.
@@ -331,23 +421,63 @@ pub struct StyleNodeFacts {
     /// whenever it was written with a prefix or its sheet declared a default namespace.
     namespace: Vec<StyleAtomID>,
     heading_level: Vec<u8>,
-    custom_state_offsets: Vec<u32>,
+    custom_state_handles: Vec<PayloadHandle>,
     custom_states: Vec<StyleAtomID>,
     /// The part names the element is exposed under. `::part()` dispatches on one, so a row that did
     /// not carry them would make every such rule unreachable rather than merely slower.
-    part_offsets: Vec<u32>,
+    part_handles: Vec<PayloadHandle>,
     parts: Vec<StyleAtomID>,
     /// The host a `::part()` rule addresses the element from, which `exportparts` moves outwards.
     /// The outer compound of such a rule describes that host and not the one the part sits under.
     part_exposure: Vec<StyleAtomID>,
 
-    class_offsets: Vec<u32>,
+    class_handles: Vec<PayloadHandle>,
     classes: Vec<StyleAtomID>,
-    attribute_offsets: Vec<u32>,
+    attribute_handles: Vec<PayloadHandle>,
     attributes: Vec<AttributeFact>,
 
     /// Batch-local UTF-16 for language tags and non-interned attribute values.
     text: Vec<u16>,
+}
+
+pub(super) struct MatchingFactBatch {
+    facts: Rc<StyleNodeFacts>,
+    charged_bytes: u64,
+}
+
+impl MatchingFactBatch {
+    fn owned(facts: StyleNodeFacts) -> Self {
+        let charged_bytes = facts.capacity_bytes();
+        Self {
+            facts: Rc::new(facts),
+            charged_bytes,
+        }
+    }
+
+    fn primary_view(facts: Rc<StyleNodeFacts>) -> Self {
+        Self {
+            facts,
+            charged_bytes: 0,
+        }
+    }
+
+    pub(super) fn capacity_bytes(&self) -> u64 {
+        self.charged_bytes
+    }
+}
+
+impl std::ops::Deref for MatchingFactBatch {
+    type Target = StyleNodeFacts;
+
+    fn deref(&self) -> &Self::Target {
+        &self.facts
+    }
+}
+
+impl From<StyleNodeFacts> for MatchingFactBatch {
+    fn from(facts: StyleNodeFacts) -> Self {
+        Self::owned(facts)
+    }
 }
 
 impl StyleNodeFacts {
@@ -355,10 +485,14 @@ impl StyleNodeFacts {
     pub fn new() -> Self {
         Self {
             generation: next_batch_generation(),
-            class_offsets: vec![0],
-            attribute_offsets: vec![0],
-            custom_state_offsets: vec![0],
-            part_offsets: vec![0],
+            ..Self::default()
+        }
+    }
+
+    fn new_primary() -> Self {
+        Self {
+            primary: true,
+            generation: next_batch_generation(),
             ..Self::default()
         }
     }
@@ -373,6 +507,7 @@ impl StyleNodeFacts {
         classes: &[StyleAtomID],
         attributes: &[AttributeFact],
     ) {
+        assert!(!self.primary, "cannot append a batch row to primary facts");
         let row = u32::try_from(self.nodes.len()).expect("fact batch row space exhausted");
         self.nodes.push(node);
         self.tag.push(tag);
@@ -385,23 +520,20 @@ impl StyleNodeFacts {
         self.language_text.push((0, 0));
         self.namespace.push(StyleAtomID::NONE);
         self.heading_level.push(0);
-        self.custom_state_offsets
-            .push(u32::try_from(self.custom_states.len()).expect("custom state payload overflow"));
-        self.part_offsets
-            .push(u32::try_from(self.parts.len()).expect("part payload overflow"));
+        self.custom_state_handles.push(PayloadHandle::default());
+        self.part_handles.push(PayloadHandle::default());
         self.part_exposure.push(StyleAtomID::NONE);
-        self.classes.extend_from_slice(classes);
-        self.class_offsets
-            .push(u32::try_from(self.classes.len()).expect("class payload overflow"));
-        self.attributes.extend_from_slice(attributes);
-        self.attribute_offsets
-            .push(u32::try_from(self.attributes.len()).expect("attribute payload overflow"));
+        self.class_handles
+            .push(PayloadHandle::appended_to(&mut self.classes, classes));
+        self.attribute_handles
+            .push(PayloadHandle::appended_to(&mut self.attributes, attributes));
 
         self.map_row(node, row);
     }
 
     /// Append one row from another packed fact arrangement without materializing an owned row.
     fn push_row_from(&mut self, node: StyleNodeID, source: &Self, source_row: u32) {
+        assert!(!self.primary, "cannot append a batch row to primary facts");
         let row = u32::try_from(self.nodes.len()).expect("fact batch row space exhausted");
         self.nodes.push(node);
         self.tag.push(source.tag_of(source_row));
@@ -420,17 +552,18 @@ impl StyleNodeFacts {
         ));
         self.namespace.push(source.namespace_of(source_row));
         self.heading_level.push(source.heading_level_of(source_row));
-        self.custom_states
-            .extend_from_slice(source.custom_states_of(source_row));
-        self.custom_state_offsets
-            .push(u32::try_from(self.custom_states.len()).expect("custom state payload overflow"));
-        self.parts.extend_from_slice(source.parts_of(source_row));
-        self.part_offsets
-            .push(u32::try_from(self.parts.len()).expect("part payload overflow"));
+        self.custom_state_handles.push(PayloadHandle::appended_to(
+            &mut self.custom_states,
+            source.custom_states_of(source_row),
+        ));
+        self.part_handles
+            .push(PayloadHandle::appended_to(&mut self.parts, source.parts_of(source_row)));
         self.part_exposure.push(source.part_exposure_of(source_row));
-        self.classes.extend_from_slice(source.classes_of(source_row));
-        self.class_offsets
-            .push(u32::try_from(self.classes.len()).expect("class payload overflow"));
+        self.class_handles.push(PayloadHandle::appended_to(
+            &mut self.classes,
+            source.classes_of(source_row),
+        ));
+        let attribute_start = u32::try_from(self.attributes.len()).expect("attribute payload offset overflow");
         for &attribute in source.attributes_of(source_row) {
             let (text_offset, text_length) = match source.local_text_of(attribute) {
                 Some(text) => self.push_text(text),
@@ -442,10 +575,56 @@ impl StyleNodeFacts {
                 ..attribute
             });
         }
-        self.attribute_offsets
-            .push(u32::try_from(self.attributes.len()).expect("attribute payload overflow"));
+        self.attribute_handles.push(PayloadHandle {
+            offset: attribute_start,
+            length: u32::try_from(self.attributes.len()).expect("attribute payload overflow") - attribute_start,
+        });
 
         self.map_row(node, row);
+    }
+
+    fn primary_snapshot(&self, row: u32) -> PrimaryFactSnapshot {
+        assert!(self.primary);
+        PrimaryFactSnapshot {
+            tag: self.tag_of(row),
+            folded_tag: self.folded_tag_of(row),
+            id: self.id_of(row),
+            states: self.states_of(row),
+            directionality: self.directionality_of(row),
+            language: self.language_of(row),
+            has_text_content: self.has_text_content_of(row),
+            namespace: self.namespace_of(row),
+            rare_facts: self.rare_facts.get(row as usize),
+            class_handle: self.class_handles[row as usize],
+            attribute_handle: self.attribute_handles[row as usize],
+        }
+    }
+
+    fn push_row_from_primary_snapshot(&mut self, node: StyleNodeID, source: &Self, snapshot: PrimaryFactSnapshot) {
+        assert!(!self.primary);
+        assert!(source.primary);
+        let rare_facts = snapshot.rare_facts.unwrap_or_default();
+        self.push_row(
+            node,
+            snapshot.tag,
+            snapshot.id,
+            snapshot.states,
+            snapshot.class_handle.slice(&source.classes),
+            snapshot.attribute_handle.slice(&source.attributes),
+        );
+        self.set_row_folded_tag(snapshot.folded_tag);
+        self.set_row_namespace(snapshot.namespace);
+        self.set_row_part_exposure(rare_facts.part_exposure);
+        self.set_row_has_text_content(snapshot.has_text_content);
+        let row = u32::try_from(self.row_count() - 1).expect("fact batch row space exhausted");
+        self.set_row_parameters(
+            row,
+            snapshot.directionality,
+            snapshot.language,
+            rare_facts.heading_level,
+            rare_facts.custom_states.slice(&source.custom_states),
+            rare_facts.parts.slice(&source.parts),
+        );
     }
 
     /// Append UTF-16 text whose value has no atom and return its batch-local range.
@@ -456,6 +635,7 @@ impl StyleNodeFacts {
     }
 
     fn map_row(&mut self, node: StyleNodeID, row: u32) {
+        debug_assert!(!self.primary);
         let Some(index) = node.element_index() else {
             return;
         };
@@ -465,18 +645,35 @@ impl StyleNodeFacts {
         }
         if self.row_by_element_index[index] != NO_ROW {
             self.stale_rows += 1;
+        } else {
+            self.live_rows += 1;
         }
         self.row_by_element_index[index] = row;
     }
 
     #[must_use]
     pub fn row_count(&self) -> usize {
-        self.nodes.len()
+        if self.primary { self.tag.len() } else { self.nodes.len() }
     }
 
     #[must_use]
     pub fn node_at(&self, row: u32) -> StyleNodeID {
-        self.nodes[row as usize]
+        if self.primary {
+            assert!(self.resident.contains(row as usize));
+            StyleNodeID::element(row)
+        } else {
+            self.nodes[row as usize]
+        }
+    }
+
+    #[must_use]
+    pub fn has_row(&self, row: u32) -> bool {
+        let row = row as usize;
+        if self.primary {
+            self.resident.contains(row)
+        } else {
+            row < self.nodes.len() && self.row_of(self.nodes[row]) == u32::try_from(row).ok()
+        }
     }
 
     /// The row holding `node`'s facts, or `None` when the batch does not cover it. A miss is not a
@@ -486,17 +683,29 @@ impl StyleNodeFacts {
         let Some(index) = node.element_index() else {
             return;
         };
+        if self.primary {
+            if !self.resident.contains(index as usize) {
+                return;
+            }
+            self.resident.set(index as usize, false);
+            self.live_rows -= 1;
+            self.rare_facts.remove(index as usize);
+            self.class_handles[index as usize] = PayloadHandle::default();
+            self.attribute_handles[index as usize] = PayloadHandle::default();
+            return;
+        }
         if let Some(slot) = self.row_by_element_index.get_mut(index as usize)
             && *slot != NO_ROW
         {
             *slot = NO_ROW;
             self.stale_rows += 1;
+            self.live_rows -= 1;
         }
     }
 
     #[must_use]
     pub fn stale_rows(&self) -> u32 {
-        self.stale_rows
+        if self.primary { 0 } else { self.stale_rows }
     }
 
     #[must_use]
@@ -507,6 +716,12 @@ impl StyleNodeFacts {
     #[must_use]
     pub fn row_of(&self, node: StyleNodeID) -> Option<u32> {
         let index = node.element_index()? as usize;
+        if self.primary {
+            return self
+                .resident
+                .contains(index)
+                .then(|| u32::try_from(index).expect("element fact row exceeds u32"));
+        }
         match self.row_by_element_index.get(index) {
             Some(&NO_ROW) | None => None,
             Some(&row) => Some(row),
@@ -514,11 +729,132 @@ impl StyleNodeFacts {
     }
 
     fn live_nodes(&self) -> impl Iterator<Item = StyleNodeID> + '_ {
-        self.nodes
-            .iter()
-            .copied()
-            .enumerate()
-            .filter_map(|(row, node)| (self.row_of(node) == u32::try_from(row).ok()).then_some(node))
+        (0..self.row_count()).filter_map(|row| {
+            let node = if self.primary {
+                if row == 0 || !self.resident.contains(row) {
+                    return None;
+                }
+                StyleNodeID::element(u32::try_from(row).expect("element fact row exceeds u32"))
+            } else {
+                self.nodes[row]
+            };
+            (self.row_of(node) == u32::try_from(row).ok()).then_some(node)
+        })
+    }
+
+    #[must_use]
+    pub fn live_row_count(&self) -> usize {
+        self.live_rows
+    }
+
+    fn set_primary_row(&mut self, node: StyleNodeID, facts: &StagedFactRow) -> u64 {
+        assert!(self.primary, "cannot index a primary row in a batch");
+        let row = node.element_index().expect("fact row must be an element") as usize;
+        let was_resident = self.resident.contains(row);
+        self.live_rows += usize::from(!was_resident);
+        let old_rare_facts = was_resident.then(|| self.rare_facts.get(row)).flatten();
+        let old_class_handle = was_resident.then(|| self.class_handles[row]);
+        let old_attribute_handle = was_resident.then(|| self.attribute_handles[row]);
+        let mut stale_payload_bytes = 0_u64;
+        let length = row.checked_add(1).expect("element fact row space exhausted");
+        self.tag.resize(self.tag.len().max(length), StyleAtomID::NONE);
+        self.folded_tag
+            .resize(self.folded_tag.len().max(length), StyleAtomID::NONE);
+        self.id.resize(self.id.len().max(length), StyleAtomID::NONE);
+        self.states.resize(self.states.len().max(length), StateSet::default());
+        self.directionality
+            .resize(self.directionality.len().max(length), StyleAtomID::NONE);
+        self.language.resize(self.language.len().max(length), StyleAtomID::NONE);
+        self.has_text_content
+            .resize(self.has_text_content.len().max(length), false);
+        self.language_text.resize(self.language_text.len().max(length), (0, 0));
+        self.namespace
+            .resize(self.namespace.len().max(length), StyleAtomID::NONE);
+        self.class_handles
+            .resize(self.class_handles.len().max(length), PayloadHandle::default());
+        self.attribute_handles
+            .resize(self.attribute_handles.len().max(length), PayloadHandle::default());
+
+        self.tag[row] = facts.tag;
+        self.folded_tag[row] = facts.folded_tag;
+        self.id[row] = facts.id;
+        self.states[row] = facts.states;
+        self.directionality[row] = facts.directionality;
+        self.language[row] = facts.language;
+        self.has_text_content[row] = facts.has_text_content;
+        self.language_text[row] = (0, 0);
+        self.namespace[row] = facts.namespace;
+        if facts.heading_level != 0
+            || !facts.custom_states.is_empty()
+            || !facts.parts.is_empty()
+            || !facts.part_exposure.is_none()
+        {
+            let custom_states = old_rare_facts
+                .filter(|old| old.custom_states.slice(&self.custom_states) == facts.custom_states)
+                .map_or_else(
+                    || {
+                        stale_payload_bytes += old_rare_facts.map_or(0, |old| {
+                            size_of_val(old.custom_states.slice(&self.custom_states)) as u64
+                        });
+                        PayloadHandle::appended_to(&mut self.custom_states, &facts.custom_states)
+                    },
+                    |old| old.custom_states,
+                );
+            let parts = old_rare_facts
+                .filter(|old| old.parts.slice(&self.parts) == facts.parts)
+                .map_or_else(
+                    || {
+                        stale_payload_bytes +=
+                            old_rare_facts.map_or(0, |old| size_of_val(old.parts.slice(&self.parts)) as u64);
+                        PayloadHandle::appended_to(&mut self.parts, &facts.parts)
+                    },
+                    |old| old.parts,
+                );
+            self.rare_facts.insert(
+                row,
+                RareFacts {
+                    heading_level: facts.heading_level,
+                    part_exposure: facts.part_exposure,
+                    custom_states,
+                    parts,
+                },
+            );
+        } else {
+            stale_payload_bytes += old_rare_facts.map_or(0, |old| {
+                (size_of_val(old.custom_states.slice(&self.custom_states)) + size_of_val(old.parts.slice(&self.parts)))
+                    as u64
+            });
+            self.rare_facts.remove(row);
+        }
+        self.class_handles[row] = old_class_handle
+            .filter(|old| old.slice(&self.classes) == facts.classes)
+            .unwrap_or_else(|| {
+                stale_payload_bytes += old_class_handle.map_or(0, |old| size_of_val(old.slice(&self.classes)) as u64);
+                PayloadHandle::appended_to(&mut self.classes, &facts.classes)
+            });
+        let attributes_are_unchanged = old_attribute_handle.is_some_and(|old| {
+            old.slice(&self.attributes)
+                .iter()
+                .map(|attribute| (attribute.name, attribute.value))
+                .eq(facts.attributes.iter().copied())
+        });
+        if !attributes_are_unchanged {
+            stale_payload_bytes +=
+                old_attribute_handle.map_or(0, |old| size_of_val(old.slice(&self.attributes)) as u64);
+            let attributes: Vec<AttributeFact> = facts
+                .attributes
+                .iter()
+                .map(|&(name, value)| AttributeFact {
+                    name,
+                    value,
+                    text_offset: u32::MAX,
+                    text_length: 0,
+                })
+                .collect();
+            self.attribute_handles[row] = PayloadHandle::appended_to(&mut self.attributes, &attributes);
+        }
+        self.resident.set(row, true);
+        stale_payload_bytes
     }
 
     /// Record the folded name of the row just pushed. Only a name that is not already lowercase
@@ -573,12 +909,8 @@ impl StyleNodeFacts {
         self.language[row as usize] = language;
         self.heading_level[row as usize] = heading_level;
         // Custom states are appended for the last row only, which is the order rows are built in.
-        self.custom_states.extend_from_slice(custom_states);
-        let end = u32::try_from(self.custom_states.len()).expect("custom state payload overflow");
-        *self.custom_state_offsets.last_mut().expect("a row was pushed") = end;
-        self.parts.extend_from_slice(parts);
-        let end = u32::try_from(self.parts.len()).expect("part payload overflow");
-        *self.part_offsets.last_mut().expect("a row was pushed") = end;
+        self.custom_state_handles[row as usize] = PayloadHandle::appended_to(&mut self.custom_states, custom_states);
+        self.part_handles[row as usize] = PayloadHandle::appended_to(&mut self.parts, parts);
     }
 
     #[must_use]
@@ -611,7 +943,14 @@ impl StyleNodeFacts {
     #[must_use]
     pub fn language_tag_of(&self, row: u32) -> &[u16] {
         let (offset, length) = self.language_text[row as usize];
-        &self.text[offset as usize..(offset + length) as usize]
+        if length != 0 {
+            return &self.text[offset as usize..(offset + length) as usize];
+        }
+        self.attribute_catalogs
+            .language_texts
+            .get(self.language_of(row).0 as usize)
+            .and_then(Option::as_deref)
+            .unwrap_or_default()
     }
 
     /// Set the language tag of the row just pushed, appending it to the batch's text.
@@ -624,40 +963,56 @@ impl StyleNodeFacts {
 
     #[must_use]
     pub fn heading_level_of(&self, row: u32) -> u8 {
-        self.heading_level[row as usize]
+        if self.primary {
+            self.rare_facts.get(row as usize).map_or(0, |facts| facts.heading_level)
+        } else {
+            self.heading_level[row as usize]
+        }
     }
 
     #[must_use]
     pub fn part_exposure_of(&self, row: u32) -> StyleAtomID {
-        self.part_exposure[row as usize]
+        if self.primary {
+            self.rare_facts
+                .get(row as usize)
+                .map_or(StyleAtomID::NONE, |facts| facts.part_exposure)
+        } else {
+            self.part_exposure[row as usize]
+        }
     }
 
     #[must_use]
     pub fn custom_states_of(&self, row: u32) -> &[StyleAtomID] {
-        let start = self.custom_state_offsets[row as usize] as usize;
-        let end = self.custom_state_offsets[row as usize + 1] as usize;
-        &self.custom_states[start..end]
+        let handle = if self.primary {
+            self.rare_facts
+                .get(row as usize)
+                .map_or(PayloadHandle::default(), |facts| facts.custom_states)
+        } else {
+            self.custom_state_handles[row as usize]
+        };
+        handle.slice(&self.custom_states)
     }
 
     #[must_use]
     pub fn parts_of(&self, row: u32) -> &[StyleAtomID] {
-        let start = self.part_offsets[row as usize] as usize;
-        let end = self.part_offsets[row as usize + 1] as usize;
-        &self.parts[start..end]
+        let handle = if self.primary {
+            self.rare_facts
+                .get(row as usize)
+                .map_or(PayloadHandle::default(), |facts| facts.parts)
+        } else {
+            self.part_handles[row as usize]
+        };
+        handle.slice(&self.parts)
     }
 
     #[must_use]
     pub fn classes_of(&self, row: u32) -> &[StyleAtomID] {
-        let start = self.class_offsets[row as usize] as usize;
-        let end = self.class_offsets[row as usize + 1] as usize;
-        &self.classes[start..end]
+        self.class_handles[row as usize].slice(&self.classes)
     }
 
     #[must_use]
     pub fn attributes_of(&self, row: u32) -> &[AttributeFact] {
-        let start = self.attribute_offsets[row as usize] as usize;
-        let end = self.attribute_offsets[row as usize + 1] as usize;
-        &self.attributes[start..end]
+        self.attribute_handles[row as usize].slice(&self.attributes)
     }
 
     #[must_use]
@@ -824,6 +1179,42 @@ impl StyleNodeFacts {
                 .sum::<usize>()) as u64
     }
 
+    fn payload_bytes_of_row(&self, row: u32) -> u64 {
+        (size_of_val(self.custom_states_of(row))
+            + size_of_val(self.parts_of(row))
+            + size_of_val(self.classes_of(row))
+            + size_of_val(self.attributes_of(row))) as u64
+    }
+
+    fn compact_primary_payloads(&mut self) {
+        assert!(self.primary);
+        let mut custom_states = Vec::new();
+        let mut parts = Vec::new();
+        let mut classes = Vec::new();
+        let mut attributes = Vec::new();
+        for row in 1..self.row_count() {
+            if !self.resident.contains(row) {
+                continue;
+            }
+            if let Some(mut rare_facts) = self.rare_facts.get(row) {
+                rare_facts.custom_states =
+                    PayloadHandle::appended_to(&mut custom_states, rare_facts.custom_states.slice(&self.custom_states));
+                rare_facts.parts = PayloadHandle::appended_to(&mut parts, rare_facts.parts.slice(&self.parts));
+                self.rare_facts.insert(row, rare_facts);
+            }
+            self.class_handles[row] =
+                PayloadHandle::appended_to(&mut classes, self.class_handles[row].slice(&self.classes));
+            self.attribute_handles[row] =
+                PayloadHandle::appended_to(&mut attributes, self.attribute_handles[row].slice(&self.attributes));
+        }
+        self.custom_states = custom_states;
+        self.parts = parts;
+        self.classes = classes;
+        self.attributes = attributes;
+        self.text.clear();
+        self.text.shrink_to_fit();
+    }
+
     pub fn clear(&mut self) {
         self.generation = next_batch_generation();
         // Sparse batches can name high-index elements, so clearing their individual slots avoids
@@ -841,6 +1232,7 @@ impl StyleNodeFacts {
         }
         self.nodes.clear();
         self.stale_rows = 0;
+        self.live_rows = 0;
         self.tag.clear();
         self.folded_tag.clear();
         self.id.clear();
@@ -853,17 +1245,13 @@ impl StyleNodeFacts {
         self.heading_level.clear();
         self.custom_states.clear();
         self.parts.clear();
-        self.part_offsets.clear();
-        self.part_offsets.push(0);
+        self.part_handles.clear();
         self.part_exposure.clear();
-        self.custom_state_offsets.clear();
-        self.custom_state_offsets.push(0);
+        self.custom_state_handles.clear();
         self.classes.clear();
-        self.class_offsets.clear();
-        self.class_offsets.push(0);
+        self.class_handles.clear();
         self.attributes.clear();
-        self.attribute_offsets.clear();
-        self.attribute_offsets.push(0);
+        self.attribute_handles.clear();
         self.text.clear();
     }
 
@@ -871,6 +1259,7 @@ impl StyleNodeFacts {
     pub fn capacity_bytes(&self) -> u64 {
         capacity_bytes! {
             shallow [
+                self.resident,
                 self.nodes,
                 self.row_by_element_index,
                 self.tag,
@@ -883,20 +1272,20 @@ impl StyleNodeFacts {
                 self.language_text,
                 self.has_text_content,
                 self.namespace,
-                self.custom_state_offsets,
+                self.custom_state_handles,
                 self.custom_states,
                 self.parts,
-                self.part_offsets,
+                self.part_handles,
                 self.part_exposure,
-                self.class_offsets,
+                self.class_handles,
                 self.classes,
-                self.attribute_offsets,
+                self.attribute_handles,
                 self.attributes,
                 self.text,
             ];
-            cached [];
+            cached [self.rare_facts.capacity_bytes()];
             nested [];
-            skip [self.stale_rows, self.generation, self.attribute_catalogs];
+            skip [self.primary, self.stale_rows, self.live_rows, self.generation, self.attribute_catalogs];
         }
     }
 }
@@ -2251,15 +2640,20 @@ impl super::intern_table::InternIdentity for CustomPropertyNameSetID {
 }
 
 pub struct ElementFactStore {
-    /// Required primary arrangement. Element identity selects the current immutable packed row;
-    /// mutations append one replacement per touched node when their publication batch settles.
-    rows: StyleNodeFacts,
+    /// Required primary arrangement. Element identity selects its fixed column slots directly;
+    /// variable facts are append-only payloads reached through the slots' handles.
+    rows: Rc<StyleNodeFacts>,
+    /// Shared dictionaries used by primary rows and materialized batches. Keep this handle outside
+    /// `rows` so publishing a catalog entry never copies every primary fact column.
+    attribute_catalogs: Rc<AttributeCatalogs>,
+    #[cfg(test)]
+    attribute_catalog_copies: u64,
     staging: FactStaging,
     metadata: Column<Option<ElementFactMetadata>>,
-    /// Logical row bytes still reachable through the directory, and bytes carried only by stale
-    /// rows. Their ratio decides when rebuilding costs less than retaining append garbage.
+    /// Logical bytes reachable through live primary handles.
     primary_live_bytes: u64,
-    primary_stale_bytes: u64,
+    primary_live_payload_bytes: u64,
+    primary_stale_payload_bytes: u64,
     /// Candidate sets over the same facts. A rule arriving needs to find the elements it could
     /// match without walking the document, and this is what answers that.
     postings: FeaturePostings,
@@ -2272,9 +2666,6 @@ pub struct ElementFactStore {
     custom_property_name_sets: super::intern_table::InternTable<CustomPropertyNameSetID, Vec<StyleAtomID>>,
     custom_property_name_set_vacancies: Vec<u32>,
     custom_property_set_ids_by_name: Column<Vec<u32>>,
-    /// The text of each language atom. Nearly every element on a page resolves to the same handful
-    /// of languages, so the tag is held once per language rather than once per element.
-    language_texts: Column<Option<Vec<u16>>>,
     /// Attribute-name forms and value text shared by the primary and each bounded fact batch.
     ///
     /// An attribute is keyed by the name that is unique to it - its qualified atom, or its bare local
@@ -2388,7 +2779,7 @@ impl RemovablePagedColumnPage for FactStagingPage {
 }
 
 struct StagedFactRowPair {
-    before: StagedFactRow,
+    before: Option<PrimaryFactSnapshot>,
     after: StagedFactRow,
     dirty: bool,
 }
@@ -2453,19 +2844,11 @@ impl FactStaging {
         Some(result)
     }
 
-    fn before(&self, node: StyleNodeID) -> Option<&StagedFactRow> {
-        let entry = self.rows.get(Self::index(node))? as usize;
-        Some(&self.entries.get(entry)?.as_ref()?.before)
-    }
-
-    fn insert_pair(&mut self, node: StyleNodeID, before: StagedFactRow, after: StagedFactRow) {
+    fn insert_pair(&mut self, node: StyleNodeID, after: StagedFactRow, before: Option<PrimaryFactSnapshot>) {
         let index = Self::index(node);
         assert!(self.rows.get(index).is_none());
         let previous_storage_bytes = self.storage_capacity_bytes();
-        let payload_bytes = before
-            .capacity_bytes()
-            .checked_add(after.capacity_bytes())
-            .expect("fact staging byte count overflow");
+        let payload_bytes = after.capacity_bytes();
         let entry = u32::try_from(self.entries.len()).expect("fact staging entry overflow");
         self.entries.push(Some(StagedFactRowPair {
             before,
@@ -2485,7 +2868,7 @@ impl FactStaging {
             .expect("fact staging byte count overflow");
     }
 
-    fn insert(&mut self, node: StyleNodeID, row: StagedFactRow) {
+    fn insert(&mut self, node: StyleNodeID, row: StagedFactRow, before: Option<PrimaryFactSnapshot>) {
         let index = Self::index(node);
         if let Some(entry) = self.rows.get(index) {
             let previous_storage_bytes = self.storage_capacity_bytes();
@@ -2509,7 +2892,7 @@ impl FactStaging {
                 .expect("fact staging byte count overflow");
             return;
         }
-        self.insert_pair(node, row.clone(), row);
+        self.insert_pair(node, row, before);
     }
 
     fn remove(&mut self, node: StyleNodeID) -> Option<StagedFactRow> {
@@ -2519,8 +2902,7 @@ impl FactStaging {
         self.dirty_count -= usize::from(pair.dirty);
         self.capacity_bytes = self
             .capacity_bytes
-            .checked_sub(pair.before.capacity_bytes())
-            .and_then(|bytes| bytes.checked_sub(pair.after.capacity_bytes()))
+            .checked_sub(pair.after.capacity_bytes())
             .expect("fact staging byte count underflow");
         Some(pair.after)
     }
@@ -2607,7 +2989,7 @@ impl FactStaging {
                     }
                     self.entries.get(entry as usize)?.as_ref()
                 })
-                .map(|pair| pair.before.capacity_bytes() + pair.after.capacity_bytes())
+                .map(|pair| pair.after.capacity_bytes())
                 .sum::<u64>()
     }
 }
@@ -2643,12 +3025,19 @@ impl ElementFactMetadata {
 
 impl Default for ElementFactStore {
     fn default() -> Self {
+        let attribute_catalogs = Rc::new(AttributeCatalogs::default());
+        let mut rows = StyleNodeFacts::new_primary();
+        rows.attribute_catalogs = Rc::clone(&attribute_catalogs);
         let mut store = Self {
-            rows: StyleNodeFacts::new(),
+            rows: Rc::new(rows),
+            attribute_catalogs,
+            #[cfg(test)]
+            attribute_catalog_copies: 0,
             staging: FactStaging::default(),
             metadata: Column::default(),
             primary_live_bytes: 0,
-            primary_stale_bytes: 0,
+            primary_live_payload_bytes: 0,
+            primary_stale_payload_bytes: 0,
             postings: FeaturePostings::default(),
             memory: MemoryLease::new(MemoryCategory::StyleNodeMapping),
             memory_dirty: false,
@@ -2656,7 +3045,6 @@ impl Default for ElementFactStore {
             custom_property_name_sets: super::intern_table::InternTable::default(),
             custom_property_name_set_vacancies: Vec::new(),
             custom_property_set_ids_by_name: Column::default(),
-            language_texts: Column::default(),
             element_declared_properties: ElementDeclarationRows::default(),
         };
         store.settled_non_apply_capacity_bytes = store.capacity_bytes() - store.apply_capacity_bytes();
@@ -2670,10 +3058,31 @@ impl ElementFactStore {
         Self::default()
     }
 
+    fn attribute_catalogs_mut(&mut self) -> &mut AttributeCatalogs {
+        #[cfg(test)]
+        if Rc::strong_count(&self.attribute_catalogs) != 1 {
+            self.attribute_catalog_copies += 1;
+        }
+        Rc::make_mut(&mut self.attribute_catalogs)
+    }
+
+    #[cfg(test)]
+    fn attribute_catalog_copies(&self) -> u64 {
+        self.attribute_catalog_copies
+    }
+
+    fn sync_attribute_catalogs(&mut self) {
+        if Rc::ptr_eq(&self.rows.attribute_catalogs, &self.attribute_catalogs) {
+            return;
+        }
+        let rows = Rc::get_mut(&mut self.rows).expect("attribute catalog synchronization requires unique primary rows");
+        rows.attribute_catalogs = Rc::clone(&self.attribute_catalogs);
+    }
+
     #[must_use]
     #[cfg(test)]
     pub fn len(&self) -> usize {
-        self.rows.row_count() - self.rows.stale_rows() as usize
+        self.rows.live_row_count()
     }
 
     #[must_use]
@@ -2796,6 +3205,15 @@ impl ElementFactStore {
         &self.rows
     }
 
+    pub(super) fn primary_view(&mut self) -> MatchingFactBatch {
+        assert!(
+            !self.has_dirty_staging(),
+            "cannot evaluate facts while fact staging is unapplied"
+        );
+        self.sync_attribute_catalogs();
+        MatchingFactBatch::primary_view(Rc::clone(&self.rows))
+    }
+
     #[must_use]
     pub fn has_dirty_staging(&self) -> bool {
         self.staging.has_dirty()
@@ -2866,8 +3284,9 @@ impl ElementFactStore {
     fn edit_staged_row<R>(&mut self, node: StyleNodeID, edit: impl FnOnce(&mut StagedFactRow) -> R) -> R {
         self.memory_dirty = true;
         if !self.staging.contains(node) {
+            let before = self.rows.row_of(node).map(|row| self.rows.primary_snapshot(row));
             let row = self.snapshot_row(node);
-            self.staging.insert(node, row);
+            self.staging.insert(node, row, before);
         }
         self.staging.edit(node, edit).unwrap()
     }
@@ -2881,7 +3300,7 @@ impl ElementFactStore {
     pub fn ensure_row(&mut self, node: StyleNodeID) {
         if self.rows.row_of(node).is_none() && !self.staging.contains(node) {
             self.memory_dirty = true;
-            self.staging.insert(node, StagedFactRow::default());
+            self.staging.insert(node, StagedFactRow::default(), None);
         }
     }
 
@@ -3079,11 +3498,19 @@ impl ElementFactStore {
     /// Record what one language atom spells, so `:lang()` can compare ranges against it.
     pub fn set_language_text(&mut self, language: StyleAtomID, text: &[u16]) {
         let index = language.0 as usize;
-        if language.is_none() || self.language_texts.get(index).is_some_and(Option::is_some) {
+        if language.is_none()
+            || self
+                .attribute_catalogs
+                .language_texts
+                .get(index)
+                .is_some_and(Option::is_some)
+        {
             return;
         }
         self.memory_dirty = true;
-        self.language_texts.insert(index, Some(text.to_vec()));
+        self.attribute_catalogs_mut()
+            .language_texts
+            .insert(index, Some(text.to_vec()));
     }
 
     pub fn set_language(&mut self, node: StyleNodeID, language: StyleAtomID) {
@@ -3372,16 +3799,13 @@ impl ElementFactStore {
     /// whose local form is still an atom of its own.
     pub fn note_attribute_name_forms(&mut self, name: StyleAtomID, forms: AttributeNameForms) {
         self.memory_dirty = true;
-        Rc::make_mut(&mut self.rows.attribute_catalogs)
-            .name_forms
-            .insert(name.0 as usize, forms);
+        self.attribute_catalogs_mut().name_forms.insert(name.0 as usize, forms);
     }
 
     /// The other names an attribute name answers to, all `NONE` if the name has not been published.
     #[must_use]
     pub fn attribute_name_forms(&self, name: StyleAtomID) -> AttributeNameForms {
-        self.rows
-            .attribute_catalogs
+        self.attribute_catalogs
             .name_forms
             .get(name.0 as usize)
             .unwrap_or_default()
@@ -3400,7 +3824,6 @@ impl ElementFactStore {
         let index = value.0 as usize;
         if value.is_none()
             || self
-                .rows
                 .attribute_catalogs
                 .value_texts
                 .get(index)
@@ -3409,15 +3832,14 @@ impl ElementFactStore {
             return;
         }
         self.memory_dirty = true;
-        Rc::make_mut(&mut self.rows.attribute_catalogs)
+        self.attribute_catalogs_mut()
             .value_texts
             .insert(index, Some(text.to_vec()));
     }
 
     #[must_use]
     pub fn has_attribute_value_text(&self, value: StyleAtomID) -> bool {
-        self.rows
-            .attribute_catalogs
+        self.attribute_catalogs
             .value_texts
             .get(value.0 as usize)
             .is_some_and(Option::is_some)
@@ -3449,16 +3871,23 @@ impl ElementFactStore {
             return;
         };
         let row_bytes = self.rows.logical_bytes_of_row(row);
+        let payload_bytes = self.rows.payload_bytes_of_row(row);
         let facts = self.snapshot_row(node);
-        self.rows.forget_row(node);
+        Rc::get_mut(&mut self.rows)
+            .expect("forgetting a fact row requires unique primary rows")
+            .forget_row(node);
         self.primary_live_bytes = self
             .primary_live_bytes
             .checked_sub(row_bytes)
             .expect("primary live fact byte count underflow");
-        self.primary_stale_bytes = self
-            .primary_stale_bytes
-            .checked_add(row_bytes)
-            .expect("primary fact byte count overflow");
+        self.primary_live_payload_bytes = self
+            .primary_live_payload_bytes
+            .checked_sub(payload_bytes)
+            .expect("primary live fact payload byte count underflow");
+        self.primary_stale_payload_bytes = self
+            .primary_stale_payload_bytes
+            .checked_add(payload_bytes)
+            .expect("primary stale fact payload byte count overflow");
         if !facts.tag.is_none() {
             self.postings.remove(SelectorPostingKey::TagName(facts.tag), node);
         }
@@ -3539,13 +3968,13 @@ impl ElementFactStore {
                 live_custom_property_sets[metadata.custom_property_set as usize] = true;
             }
         }
-        for (index, text) in self.language_texts.iter_mut().enumerate() {
+        let attribute_catalogs = Rc::make_mut(&mut self.attribute_catalogs);
+        for (index, text) in attribute_catalogs.language_texts.indexed_iter_mut() {
             let language = StyleAtomID(u32::try_from(index).expect("language atom index exceeds u32"));
             if !live_languages.contains_key(&language) {
                 *text = None;
             }
         }
-        let attribute_catalogs = Rc::make_mut(&mut self.rows.attribute_catalogs);
         for (index, text) in attribute_catalogs.value_texts.indexed_iter_mut() {
             let value = StyleAtomID(u32::try_from(index).expect("attribute value atom index exceeds u32"));
             if !live_attribute_values.contains_key(&value) {
@@ -3584,6 +4013,7 @@ impl ElementFactStore {
                     .push(id as u32);
             }
         }
+        self.sync_attribute_catalogs();
     }
 
     #[must_use]
@@ -3600,9 +4030,10 @@ impl ElementFactStore {
     /// Every column an operator can read is filled, not only the ones a compound tests: a row whose
     /// parameters were left at their defaults answers `:dir()` and `:state()` as though the element
     /// held neither, which is a wrong answer rather than a missing one.
-    pub fn materialize(&self, nodes: impl Iterator<Item = StyleNodeID>, batch: &mut StyleNodeFacts) {
+    pub fn materialize(&mut self, nodes: impl Iterator<Item = StyleNodeID>, batch: &mut StyleNodeFacts) {
+        self.sync_attribute_catalogs();
         batch.clear();
-        batch.attribute_catalogs = Rc::clone(&self.rows.attribute_catalogs);
+        batch.attribute_catalogs = Rc::clone(&self.attribute_catalogs);
         for node in nodes {
             self.materialize_row(node, batch);
         }
@@ -3613,8 +4044,9 @@ impl ElementFactStore {
     /// One shared batch can serve a whole pass this way: consecutive asks overwhelmingly share
     /// their ancestor chains, and each row is packed at most once per pass instead of once per
     /// ask.
-    pub fn materialize_missing(&self, nodes: impl Iterator<Item = StyleNodeID>, batch: &mut StyleNodeFacts) {
-        batch.attribute_catalogs = Rc::clone(&self.rows.attribute_catalogs);
+    pub fn materialize_missing(&mut self, nodes: impl Iterator<Item = StyleNodeID>, batch: &mut StyleNodeFacts) {
+        self.sync_attribute_catalogs();
+        batch.attribute_catalogs = Rc::clone(&self.attribute_catalogs);
         for node in nodes {
             if batch.row_of(node).is_some() {
                 continue;
@@ -3648,13 +4080,13 @@ impl ElementFactStore {
             .map(|ids| ids.capacity() * size_of::<u32>())
             .sum::<usize>();
         let language_payloads = self
+            .attribute_catalogs
             .language_texts
             .iter()
             .flatten()
             .map(|text| text.capacity() * size_of::<u16>())
             .sum::<usize>();
         let attribute_value_payloads = self
-            .rows
             .attribute_catalogs
             .value_texts
             .iter()
@@ -3667,9 +4099,9 @@ impl ElementFactStore {
                 self.custom_property_name_sets,
                 self.custom_property_name_set_vacancies,
                 self.custom_property_set_ids_by_name,
-                self.language_texts,
-                self.rows.attribute_catalogs.value_texts,
-                self.rows.attribute_catalogs.name_forms,
+                self.attribute_catalogs.language_texts,
+                self.attribute_catalogs.value_texts,
+                self.attribute_catalogs.name_forms,
             ];
             cached [];
             nested [
@@ -3700,15 +4132,16 @@ impl ElementFactStore {
             ];
             skip [
                 self.primary_live_bytes,
-                self.primary_stale_bytes,
+                self.primary_live_payload_bytes,
+                self.primary_stale_payload_bytes,
                 self.postings,
+                self.attribute_catalogs,
                 self.memory,
                 self.memory_dirty,
                 self.staging,
                 self.custom_property_name_sets,
                 self.custom_property_name_set_vacancies,
                 self.custom_property_set_ids_by_name,
-                self.language_texts,
             ];
         }
     }
@@ -3719,47 +4152,40 @@ impl ElementFactStore {
             self.rebuild_missing_postings(memory);
             return;
         }
+        self.sync_attribute_catalogs();
         let staging = self.staging.dirty_rows();
         for (node, facts) in staging {
             let replaced_bytes = self
                 .rows
                 .row_of(node)
                 .map_or(0, |row| self.rows.logical_bytes_of_row(row));
-            append_fact_row(node, &facts, &self.language_texts, &mut self.rows);
+            let replaced_payload_bytes = self
+                .rows
+                .row_of(node)
+                .map_or(0, |row| self.rows.payload_bytes_of_row(row));
+            // A selector-free transaction may retain the active traversal's immutable primary
+            // view. Preserve that view while advancing the authoritative rows for the next
+            // transaction.
+            let stale_payload_bytes = Rc::make_mut(&mut self.rows).set_primary_row(node, &facts);
             let row = self.rows.row_of(node).unwrap();
             let replacement_bytes = self.rows.logical_bytes_of_row(row);
+            let replacement_payload_bytes = self.rows.payload_bytes_of_row(row);
             self.primary_live_bytes = self
                 .primary_live_bytes
                 .checked_sub(replaced_bytes)
                 .and_then(|bytes| bytes.checked_add(replacement_bytes))
                 .expect("primary live fact byte count overflow");
-            self.primary_stale_bytes = self
-                .primary_stale_bytes
-                .checked_add(replaced_bytes)
-                .expect("primary fact byte count overflow");
+            self.primary_live_payload_bytes = self
+                .primary_live_payload_bytes
+                .checked_sub(replaced_payload_bytes)
+                .and_then(|bytes| bytes.checked_add(replacement_payload_bytes))
+                .expect("primary live fact payload byte count overflow");
+            self.primary_stale_payload_bytes = self
+                .primary_stale_payload_bytes
+                .checked_add(stale_payload_bytes)
+                .expect("primary stale fact payload byte count overflow");
         }
         self.staging.mark_applied();
-        if self.primary_stale_bytes > self.primary_live_bytes {
-            let live: Vec<(StyleNodeID, StagedFactRow)> = self
-                .rows
-                .live_nodes()
-                .map(|node| (node, self.snapshot_row(node)))
-                .collect();
-            let attribute_catalogs = Rc::clone(&self.rows.attribute_catalogs);
-            self.rows = StyleNodeFacts::new();
-            self.rows.attribute_catalogs = attribute_catalogs;
-            for (node, facts) in live {
-                append_fact_row(node, &facts, &self.language_texts, &mut self.rows);
-            }
-            self.primary_stale_bytes = 0;
-            debug_assert_eq!(
-                self.primary_live_bytes,
-                self.rows
-                    .live_nodes()
-                    .map(|node| self.rows.logical_bytes_of_row(self.rows.row_of(node).unwrap()))
-                    .sum::<u64>()
-            );
-        }
         let apply_capacity_bytes = self.apply_capacity_bytes();
         let current = self
             .settled_non_apply_capacity_bytes
@@ -3776,41 +4202,46 @@ impl ElementFactStore {
 
     /// Snapshot the committed rows which staged local facts will replace at the barrier.
     #[must_use]
-    pub fn staged_before_facts(&self) -> StyleNodeFacts {
+    pub fn staged_before_facts(&mut self) -> StyleNodeFacts {
+        self.sync_attribute_catalogs();
         let mut nodes = Vec::with_capacity(self.staging.len());
         for node in self.staging.keys() {
             nodes.push(node);
         }
         nodes.sort_unstable();
         let mut before = StyleNodeFacts::new();
-        before.attribute_catalogs = Rc::clone(&self.rows.attribute_catalogs);
+        before.attribute_catalogs = Rc::clone(&self.attribute_catalogs);
         for node in nodes {
-            append_fact_row(
-                node,
-                self.staging
-                    .before(node)
-                    .expect("fact staging node must have a before row"),
-                &self.language_texts,
-                &mut before,
-            );
+            let pair = self
+                .staging
+                .rows
+                .get(FactStaging::index(node))
+                .and_then(|entry| self.staging.entries[entry as usize].as_ref())
+                .expect("fact staging node must have a staged row");
+            if let Some(snapshot) = pair.before {
+                before.push_row_from_primary_snapshot(node, &self.rows, snapshot);
+            } else {
+                append_fact_row(node, &StagedFactRow::default(), &mut before);
+            }
         }
         before
     }
 
     pub fn release_staging(&mut self, memory: &mut MemoryController) {
         self.staging.clear();
+        if self.primary_stale_payload_bytes > self.primary_live_payload_bytes {
+            Rc::get_mut(&mut self.rows)
+                .expect("compacting fact payloads requires unique primary rows")
+                .compact_primary_payloads();
+            self.primary_stale_payload_bytes = 0;
+        }
         let current = self.capacity_bytes();
         self.memory.resize_required_to(memory, current);
         self.settled_non_apply_capacity_bytes = current - self.apply_capacity_bytes();
     }
 }
 
-fn append_fact_row(
-    node: StyleNodeID,
-    facts: &StagedFactRow,
-    language_texts: &Column<Option<Vec<u16>>>,
-    batch: &mut StyleNodeFacts,
-) {
+fn append_fact_row(node: StyleNodeID, facts: &StagedFactRow, batch: &mut StyleNodeFacts) {
     let attributes: Vec<AttributeFact> = facts
         .attributes
         .iter()
@@ -3825,12 +4256,6 @@ fn append_fact_row(
     batch.set_row_folded_tag(facts.folded_tag);
     batch.set_row_namespace(facts.namespace);
     batch.set_row_part_exposure(facts.part_exposure);
-    batch.set_row_language_tag(
-        language_texts
-            .get(facts.language.0 as usize)
-            .and_then(Option::as_deref)
-            .unwrap_or_default(),
-    );
     batch.set_row_has_text_content(facts.has_text_content);
     let row = u32::try_from(batch.row_count() - 1).expect("fact batch row space exhausted");
     batch.set_row_parameters(
@@ -4004,7 +4429,9 @@ mod tests {
         facts.set_tag(later, StyleAtomID(20), &mut memory);
         facts.apply_staged(&mut memory);
         assert_eq!(facts.len(), 2);
-        assert_eq!(facts.rows.row_by_element_index.len(), 65);
+        assert!(facts.rows.row_by_element_index.is_empty());
+        assert_eq!(facts.rows.row_of(first), Some(3));
+        assert_eq!(facts.rows.row_of(later), Some(64));
         assert_eq!(facts.tag_of_node(first), StyleAtomID(10));
         assert_eq!(facts.tag_of_node(later), StyleAtomID(20));
 
@@ -4018,7 +4445,7 @@ mod tests {
     }
 
     #[test]
-    fn primary_fact_rows_append_repoint_and_compact() {
+    fn primary_fact_rows_replace_element_slots_in_place() {
         let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(3);
@@ -4033,9 +4460,8 @@ mod tests {
         facts.apply_staged(&mut memory);
         assert!(!facts.has_dirty_staging());
         let initial_generation = facts.primary().generation();
-        assert_eq!(facts.primary().row_count(), 1);
+        assert_eq!(facts.primary().row_count(), 4);
         assert_eq!(facts.primary().stale_rows(), 0);
-        assert_eq!(facts.primary_stale_bytes, 0);
 
         facts.set_class(node, second_class, true, &mut memory);
         facts.set_state(node, StateFact::Hover, true);
@@ -4043,10 +4469,8 @@ mod tests {
         facts.set_custom_states(node, &[custom_state]);
         facts.apply_staged(&mut memory);
         assert_eq!(facts.primary().generation(), initial_generation);
-        assert_eq!(facts.primary().row_count(), 2);
-        assert_eq!(facts.primary().stale_rows(), 1);
-        assert!(facts.primary_stale_bytes > 0);
-        assert!(facts.primary_stale_bytes <= facts.primary_live_bytes);
+        assert_eq!(facts.primary().row_count(), 4);
+        assert_eq!(facts.primary().stale_rows(), 0);
         assert_eq!(facts.classes_of_node(node), &[first_class, second_class]);
         let row = facts.primary().row_of(node).unwrap();
         assert_eq!(facts.primary().parts_of(row), &[part]);
@@ -4054,12 +4478,28 @@ mod tests {
 
         facts.set_class(node, first_class, false, &mut memory);
         facts.apply_staged(&mut memory);
-        assert_ne!(facts.primary().generation(), initial_generation);
-        assert_eq!(facts.primary().row_count(), 1);
+        assert_eq!(facts.primary().generation(), initial_generation);
+        assert_eq!(facts.primary().row_count(), 4);
         assert_eq!(facts.primary().stale_rows(), 0);
-        assert_eq!(facts.primary_stale_bytes, 0);
         assert_eq!(facts.classes_of_node(node), &[second_class]);
         assert!(facts.states_of_node(node).contains(StateFact::Hover));
+    }
+
+    #[test]
+    fn fixed_fact_changes_reuse_primary_payload_handles() {
+        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut facts = ElementFactStore::new();
+        let node = StyleNodeID::element(1);
+        facts.set_class(node, StyleAtomID(10), true, &mut memory);
+        facts.set_attribute(node, StyleAtomID(20), StyleAtomID(21), true, &mut memory);
+        facts.apply_staged(&mut memory);
+        let payload_lengths = (facts.rows.classes.len(), facts.rows.attributes.len());
+
+        facts.set_state(node, StateFact::Hover, true);
+        facts.apply_staged(&mut memory);
+
+        assert_eq!((facts.rows.classes.len(), facts.rows.attributes.len()), payload_lengths);
+        assert_eq!(facts.primary_stale_payload_bytes, 0);
     }
 
     #[test]
@@ -4138,7 +4578,7 @@ mod tests {
 
             facts.forget(node);
             facts.sweep_auxiliary_catalogs();
-            assert!(facts.language_texts.iter().all(Option::is_none));
+            assert!(facts.rows.attribute_catalogs.language_texts.iter().all(Option::is_none));
             assert!(
                 facts
                     .rows
@@ -4813,15 +5253,20 @@ mod tests {
         let name = StyleAtomID(40);
         let old = StyleAtomID(50);
         let new = StyleAtomID(51);
+        let newest = StyleAtomID(52);
         let old_text: Vec<u16> = "old".encode_utf16().collect();
         let new_text: Vec<u16> = "new".encode_utf16().collect();
+        let newest_text: Vec<u16> = "newest".encode_utf16().collect();
         let mut store = ElementFactStore::new();
         store.set_attribute_value_text(old, &old_text);
         store.set_attribute_value_text(new, &new_text);
+        store.set_attribute_value_text(newest, &newest_text);
         store.set_attribute(node, name, old, true, &mut memory);
         store.apply_staged(&mut memory);
         store.release_staging(&mut memory);
         store.set_attribute(node, name, new, true, &mut memory);
+        store.apply_staged(&mut memory);
+        store.set_attribute(node, name, newest, true, &mut memory);
 
         let before = store.staged_before_facts();
         store.apply_staged(&mut memory);
@@ -4833,8 +5278,73 @@ mod tests {
         assert_eq!(old_attribute.value, old);
         assert_eq!(before.text_of(old_attribute), Some(old_text.as_slice()));
         let new_attribute = after.attribute_of(after.row_of(node).unwrap(), name).unwrap();
-        assert_eq!(new_attribute.value, new);
-        assert_eq!(after.text_of(new_attribute), Some(new_text.as_slice()));
+        assert_eq!(new_attribute.value, newest);
+        assert_eq!(after.text_of(new_attribute), Some(newest_text.as_slice()));
+    }
+
+    #[test]
+    fn a_primary_fact_view_is_immutable_and_uncharged() {
+        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut tree = StyleNodeTree::new(&mut memory);
+        let node = tree.allocate_element(&mut memory);
+        let mut store = ElementFactStore::new();
+        store.set_tag(node, StyleAtomID(1), &mut memory);
+        store.apply_staged(&mut memory);
+        store.release_staging(&mut memory);
+
+        let view = store.primary_view();
+        assert_eq!(view.capacity_bytes(), 0);
+        store.set_tag(node, StyleAtomID(2), &mut memory);
+        assert_eq!(view.tag_of(view.row_of(node).unwrap()), StyleAtomID(1));
+        store.apply_staged(&mut memory);
+        assert_eq!(view.tag_of(view.row_of(node).unwrap()), StyleAtomID(1));
+        assert_eq!(store.tag_of_node(node), StyleAtomID(2));
+    }
+
+    #[test]
+    fn catalog_publication_does_not_copy_primary_fact_rows() {
+        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut store = ElementFactStore::new();
+        let node = StyleNodeID::element(1);
+        let name = StyleAtomID(20);
+        let forms = AttributeNameForms {
+            local: StyleAtomID(21),
+            folded_name: StyleAtomID(22),
+            folded_local: StyleAtomID(23),
+        };
+        store.ensure_row(node);
+        store.apply_staged(&mut memory);
+        store.release_staging(&mut memory);
+
+        let primary_rows = Rc::as_ptr(&store.rows);
+        let view = store.primary_view();
+        store.note_attribute_name_forms(name, forms);
+        assert_eq!(Rc::as_ptr(&store.rows), primary_rows);
+        assert_eq!(store.attribute_name_forms(name), forms);
+        assert_eq!(
+            view.attribute_name_forms(name),
+            AttributeNameForms {
+                folded_name: name,
+                ..AttributeNameForms::default()
+            }
+        );
+
+        drop(view);
+        store.apply_staged(&mut memory);
+        assert_eq!(Rc::as_ptr(&store.rows), primary_rows);
+        assert_eq!(store.primary().attribute_name_forms(name), forms);
+    }
+
+    #[test]
+    fn repeated_catalog_publication_copies_the_catalog_at_most_once() {
+        let mut store = ElementFactStore::new();
+
+        for raw in 1..=128 {
+            let atom = StyleAtomID(raw);
+            store.set_attribute_value_text(atom, &[raw as u16]);
+        }
+
+        assert_eq!(store.attribute_catalog_copies(), 1);
     }
 
     #[test]
@@ -4847,16 +5357,15 @@ mod tests {
         let mut after = StagedFactRow::default();
         after.tag = StyleAtomID(2);
 
-        rows.insert(distant, before);
-        rows.insert(first, StagedFactRow::default());
-        rows.insert(distant, after);
+        rows.insert(distant, before, None);
+        rows.insert(first, StagedFactRow::default(), None);
+        rows.insert(distant, after, None);
 
         assert!(rows.has_dirty());
         assert_eq!(rows.rows.page_count(), 2);
         assert_eq!(rows.entries.len(), 2);
         assert_eq!(rows.keys().collect::<Vec<_>>(), vec![distant, first]);
         assert_eq!(rows.len(), 2);
-        assert_eq!(rows.before(distant).unwrap().tag, StyleAtomID(1));
         assert_eq!(rows.get(distant).unwrap().tag, StyleAtomID(2));
         rows.mark_applied();
         assert!(!rows.has_dirty());
@@ -4867,7 +5376,7 @@ mod tests {
         assert_eq!(rows.keys().collect::<Vec<_>>(), vec![first]);
         rows.remove(first);
         assert!(!rows.has_dirty());
-        rows.insert(first, StagedFactRow::default());
+        rows.insert(first, StagedFactRow::default(), None);
         assert_eq!(rows.keys().collect::<Vec<_>>(), vec![first]);
         assert_eq!(rows.dirty_rows().len(), 1);
         assert_eq!(rows.capacity_bytes(), rows.recomputed_capacity_bytes());
@@ -4885,12 +5394,12 @@ mod tests {
     fn staged_fact_rows_release_oversized_entry_arenas() {
         let mut rows = FactStaging::default();
         for index in 1..=1024 {
-            rows.insert(StyleNodeID::element(index), StagedFactRow::default());
+            rows.insert(StyleNodeID::element(index), StagedFactRow::default(), None);
         }
         rows.clear();
         let peak_capacity = rows.entries.capacity();
 
-        rows.insert(StyleNodeID::element(1), StagedFactRow::default());
+        rows.insert(StyleNodeID::element(1), StagedFactRow::default(), None);
         rows.clear();
 
         assert!(rows.entries.capacity() < peak_capacity);
