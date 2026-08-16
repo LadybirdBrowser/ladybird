@@ -755,7 +755,6 @@ public:
     GC::Ptr<HTML::HTMLParser> parser() const { return m_parser; }
     u64 parser_generation() const { return m_parser_generation; }
 
-    void set_temporary_document_for_fragment_parsing(Badge<HTML::HTMLParser>);
     [[nodiscard]] bool is_temporary_document_for_fragment_parsing() const { return m_temporary_document_for_fragment_parsing; }
 
     static bool is_valid_name(Utf16View const&);

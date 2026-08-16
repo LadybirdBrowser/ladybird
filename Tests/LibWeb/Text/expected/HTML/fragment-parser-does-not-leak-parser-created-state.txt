@@ -1,0 +1,2 @@
+disabled-mode fragment script remained inert after adoption: true
+fragment link did not block document parser: true

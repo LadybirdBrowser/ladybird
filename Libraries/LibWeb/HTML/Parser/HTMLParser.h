@@ -109,8 +109,14 @@ private:
         Yes,
     };
 
+    enum class FragmentParser {
+        No,
+        Yes,
+    };
+
     HTMLParser(DOM::Document&, ParserScriptingMode, StringView input, StringView encoding);
     HTMLParser(DOM::Document&, ParserScriptingMode, Utf16View input, Utf16View encoding);
+    HTMLParser(DOM::Document&, ParserScriptingMode, Utf16View input, FragmentParser);
     HTMLParser(DOM::Document&, ParserScriptingMode, ScriptCreatedParser);
 
     virtual void visit_edges(Cell::Visitor&) override;
