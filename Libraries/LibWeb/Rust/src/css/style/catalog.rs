@@ -10,10 +10,76 @@ use super::fast_hash::fast_hasher;
 use super::*;
 
 define_id! { default pub(super) struct MatchAnswerID(pub(super)); }
+define_id! { default pub(super) struct SelectorTruthSetID(pub(super)); }
 
 impl super::intern_table::InternIdentity for MatchAnswerID {
     fn index(self) -> usize {
         self.0 as usize - 1
+    }
+}
+
+impl super::intern_table::InternIdentity for SelectorTruthSetID {
+    fn index(self) -> usize {
+        self.0 as usize - 1
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub(super) struct SelectorTruth {
+    pub(super) entry: EntryID,
+    pub(super) tree_scope: TreeScopeID,
+    pub(super) scope_proximity: u32,
+}
+
+#[derive(Default)]
+pub(super) struct SelectorTruthSetCatalog {
+    sets: super::intern_table::InternTable<SelectorTruthSetID, Rc<[SelectorTruth]>>,
+    verified_derived_answers: HashMap<(SelectorTruthSetID, TreeScopeID, u64), Rc<[RetainedRuleMatch]>>,
+    last_identity: u32,
+}
+
+impl SelectorTruthSetCatalog {
+    pub(super) fn intern_prepared(&mut self, truth: Vec<SelectorTruth>) -> (SelectorTruthSetID, bool) {
+        let hash = super::intern_table::content_hash(&truth);
+        if let Some(identity) = self
+            .sets
+            .find(hash, |_identity, candidate| candidate.as_ref() == truth.as_slice())
+        {
+            return (identity, true);
+        }
+        self.last_identity = self
+            .last_identity
+            .checked_add(1)
+            .expect("selector truth-set identity space exhausted");
+        let identity = SelectorTruthSetID(self.last_identity);
+        self.sets.insert(hash, identity, truth.into());
+        (identity, false)
+    }
+
+    pub(super) fn get(&self, identity: SelectorTruthSetID) -> &Rc<[SelectorTruth]> {
+        &self.sets[identity]
+    }
+
+    pub(super) fn verify_derived_answer(
+        &mut self,
+        truth: SelectorTruthSetID,
+        tree_scope: TreeScopeID,
+        program_version: ProgramVersion,
+        answer: &[RetainedRuleMatch],
+    ) -> bool {
+        match self
+            .verified_derived_answers
+            .entry((truth, tree_scope, program_version.0))
+        {
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                entry.insert(answer.into());
+                false
+            }
+            std::collections::hash_map::Entry::Occupied(entry) => {
+                assert_eq!(entry.get().as_ref(), answer, "selector truth derived two rule answers");
+                true
+            }
+        }
     }
 }
 
@@ -690,6 +756,23 @@ pub(super) fn prepare_retained_match_answer(matches: impl Iterator<Item = RuleMa
     let mut answer: Vec<_> = matches.map(RetainedRuleMatch::from_rule_match).collect();
     answer.sort_unstable();
     answer
+}
+
+pub(super) fn prepare_selector_truth_set(
+    matches: &[RetainedRuleMatch],
+    programs: &SelectorPrograms,
+) -> Vec<SelectorTruth> {
+    let mut truth = matches
+        .iter()
+        .map(|matched| SelectorTruth {
+            entry: programs.entry_id(matched.program, matched.entry),
+            tree_scope: matched.tree_scope,
+            scope_proximity: matched.scope_proximity,
+        })
+        .collect::<Vec<_>>();
+    truth.sort_unstable();
+    truth.dedup();
+    truth
 }
 
 pub(super) fn merge_retained_match_answers(answer: &mut Vec<RetainedRuleMatch>, suffix: &[RetainedRuleMatch]) {

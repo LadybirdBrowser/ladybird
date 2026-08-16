@@ -88,6 +88,7 @@ pub struct RuleMatch {
 #[derive(Default)]
 pub struct RuleMatches {
     matches: Vec<RuleMatch>,
+    selector_truth: Option<Vec<super::SelectorTruth>>,
     charged_bytes: u64,
 }
 
@@ -127,11 +128,50 @@ impl RuleMatches {
 
     pub fn clear(&mut self) {
         self.matches.clear();
+        if let Some(truth) = self.selector_truth.as_mut() {
+            truth.clear();
+        }
+    }
+
+    pub(super) fn enable_selector_truth(&mut self) {
+        self.selector_truth.get_or_insert_default();
+    }
+
+    fn selector_truth_len(&self) -> usize {
+        self.selector_truth.as_ref().map_or(0, Vec::len)
+    }
+
+    fn record_selector_truth(&mut self, entry: EntryID, tree_scope: TreeScopeID, scope_proximity: u32) {
+        if let Some(truth) = self.selector_truth.as_mut() {
+            truth.push(super::SelectorTruth {
+                entry,
+                tree_scope,
+                scope_proximity,
+            });
+        }
+    }
+
+    fn truncate(&mut self, matches: usize, selector_truth: usize) {
+        self.matches.truncate(matches);
+        if let Some(truth) = self.selector_truth.as_mut() {
+            truth.truncate(selector_truth);
+        }
+    }
+
+    pub(super) fn prepared_selector_truth(&self) -> Option<Vec<super::SelectorTruth>> {
+        let mut truth = self.selector_truth.clone()?;
+        truth.sort_unstable();
+        truth.dedup();
+        Some(truth)
     }
 
     /// Reconcile the scratch charge after a pass.
     pub fn settle_memory(&mut self, memory: &mut MemoryController) {
-        let current = (self.matches.capacity() * size_of::<RuleMatch>()) as u64;
+        let current = (self.matches.capacity() * size_of::<RuleMatch>()
+            + self
+                .selector_truth
+                .as_ref()
+                .map_or(0, |truth| truth.capacity() * size_of::<super::SelectorTruth>())) as u64;
         if current > self.charged_bytes {
             memory.reserve_required(MemoryCategory::BatchScratch, current - self.charged_bytes);
         } else if self.charged_bytes > current {
@@ -143,15 +183,16 @@ impl RuleMatches {
     #[must_use]
     pub fn take(&mut self, memory: &mut MemoryController) -> Vec<RuleMatch> {
         self.settle_memory(memory);
-        memory.release(MemoryCategory::BatchScratch, self.charged_bytes);
-        self.charged_bytes = 0;
-        std::mem::take(&mut self.matches)
+        let matches = std::mem::take(&mut self.matches);
+        self.settle_memory(memory);
+        matches
     }
 
     pub fn release(&mut self, memory: &mut MemoryController) {
         memory.release(MemoryCategory::BatchScratch, self.charged_bytes);
         self.charged_bytes = 0;
         self.matches = Vec::new();
+        self.selector_truth = None;
     }
 }
 
@@ -711,6 +752,7 @@ fn append_matched_entry(
     counters: &mut Counters,
     count_emission: CountRuleMatchEmission,
 ) {
+    out.record_selector_truth(candidate.identity, scope, scope_proximity);
     let candidate_index = candidate.cascade_order as usize;
     // A selector list can match through several entries. Only its greatest matching specificity
     // contributes, independently for the element and each pseudo-element target.
@@ -800,6 +842,47 @@ pub(super) fn append_prefix_matches(
                 &mut completed,
                 counters,
                 count_emission,
+            );
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn append_selector_truth_matches(
+    out: &mut RuleMatches,
+    node: StyleNodeID,
+    program: &StyleSheetProgram,
+    programs: &SelectorPrograms,
+    dispatch: &RuleDispatch,
+    truth: &[super::SelectorTruth],
+    counters: &mut Counters,
+) {
+    let mut completed = None;
+    for &matched in truth {
+        let mut previous = None;
+        for candidate in dispatch.entries_for_identity(matched.entry) {
+            let candidate_key = (candidate.rule, candidate.program, candidate.entry);
+            if previous == Some(candidate_key) {
+                continue;
+            }
+            previous = Some(candidate_key);
+            if !program.rule_can_decide(candidate.rule) {
+                continue;
+            }
+            let compiled = programs.get(candidate.program);
+            let entry = &compiled.entries()[candidate.entry as usize];
+            append_matched_entry(
+                out,
+                0,
+                node,
+                matched.tree_scope,
+                candidate,
+                compiled,
+                entry,
+                matched.scope_proximity,
+                &mut completed,
+                counters,
+                CountRuleMatchEmission::No,
             );
         }
     }
@@ -980,6 +1063,7 @@ impl<'a> BatchMatcher<'a> {
         counters: &mut Counters,
     ) -> Result<(), Incomplete> {
         let start = out.matches.len();
+        let selector_truth_start = out.selector_truth_len();
         let is_document_root = self.tree.parent(node).is_none();
         for &(rule, program) in rules {
             if !self.program.rule_can_decide(rule) || self.program.rule_version(rule).selector_program != Some(program)
@@ -1020,7 +1104,7 @@ impl<'a> BatchMatcher<'a> {
                 let matches = match evaluator.matches_entry_for_program(program, compiled, entry, node, counters) {
                     Ok(matches) => matches,
                     Err(incomplete) => {
-                        out.matches.truncate(start);
+                        out.truncate(start, selector_truth_start);
                         return Err(incomplete);
                     }
                 };
@@ -1030,7 +1114,7 @@ impl<'a> BatchMatcher<'a> {
                 let scope_proximity = match evaluator.scope_proximity_of(compiled, entry, node, counters) {
                     Ok(scope_proximity) => scope_proximity,
                     Err(incomplete) => {
-                        out.matches.truncate(start);
+                        out.truncate(start, selector_truth_start);
                         return Err(incomplete);
                     }
                 };
@@ -1045,6 +1129,11 @@ impl<'a> BatchMatcher<'a> {
                     specificity: entry.specificity,
                     scope_proximity,
                 };
+                out.record_selector_truth(
+                    self.programs.entry_id(program, entry_index),
+                    self.scope,
+                    scope_proximity,
+                );
                 if let Some(existing) = out.matches[start..]
                     .iter_mut()
                     .find(|existing| existing.rule == rule && existing.pseudo_element == entry.pseudo_element)
@@ -1072,6 +1161,7 @@ impl<'a> BatchMatcher<'a> {
         counters: &mut Counters,
     ) -> Result<(), Incomplete> {
         let start = out.matches.len();
+        let selector_truth_start = out.selector_truth_len();
         let mut dispatch_workspace = DispatchCandidateWorkspace::default();
         let mut prefix_states = PrefixStates::new(self.facts.row_count());
         for node in self.tree.preorder(root) {
@@ -1087,7 +1177,7 @@ impl<'a> BatchMatcher<'a> {
                     deferred_prefix_matches: None,
                 },
             ) {
-                out.matches.truncate(start);
+                out.truncate(start, selector_truth_start);
                 return Err(incomplete);
             }
         }
@@ -1165,6 +1255,7 @@ impl<'a> BatchMatcher<'a> {
             return self.match_filtered_rules_directly(node, row, rules, &evaluator, out, counters);
         }
         let start = out.matches.len();
+        let selector_truth_start = out.selector_truth_len();
         let mut used_prefixes = false;
         let mut cascade_pruning_blocked = false;
         if !self.node_is_slotted_in && !self.node_is_a_part_exposed_here && !self.node_is_the_host_of_this_tree {
@@ -1217,6 +1308,9 @@ impl<'a> BatchMatcher<'a> {
             };
             if let Some((states, prefix_matches)) = prefix_matches {
                 used_prefixes = true;
+                for &matched in states.matches_in(prefix_matches) {
+                    out.record_selector_truth(matched, self.scope, u32::MAX);
+                }
                 cascade_pruning_blocked = self.cascade_only
                     && states.matches_in(prefix_matches).iter().any(|&matched| {
                         self.dispatch
@@ -1450,7 +1544,7 @@ impl<'a> BatchMatcher<'a> {
                         }
                         continue;
                     }
-                    out.matches.truncate(start);
+                    out.truncate(start, selector_truth_start);
                     return Err(incomplete);
                 }
             }
@@ -1465,7 +1559,7 @@ impl<'a> BatchMatcher<'a> {
                         }
                         continue;
                     }
-                    out.matches.truncate(start);
+                    out.truncate(start, selector_truth_start);
                     return Err(incomplete);
                 }
             };
@@ -1501,7 +1595,7 @@ impl<'a> BatchMatcher<'a> {
         }
         if let Some(incomplete) = first_incomplete {
             if completed.is_none() {
-                out.matches.truncate(start);
+                out.truncate(start, selector_truth_start);
             }
             return Err(incomplete);
         }

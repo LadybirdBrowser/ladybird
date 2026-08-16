@@ -317,45 +317,119 @@ const RETAINED_WITNESS_SIBLING_STEPS: usize = 64;
 const INITIAL_SIBLING_FACT_WINDOW: usize = 8;
 
 mod verification {
+    use super::MatchAnswerID;
+    use super::RuleMatch;
+    use super::StyleEngine;
+    use super::StyleNodeID;
+    #[cfg(test)]
+    use std::cell::Cell;
     use std::sync::OnceLock;
 
     static STYLE_ANSWER_PATCH: OnceLock<bool> = OnceLock::new();
+    static SELECTOR_TRUTH_DERIVATION: OnceLock<bool> = OnceLock::new();
     static CASCADE_WINNERS: OnceLock<bool> = OnceLock::new();
     static STYLE_PLAN_PROVENANCE: OnceLock<bool> = OnceLock::new();
     static PUBLISHED_STYLE_TRANSACTION: OnceLock<bool> = OnceLock::new();
+
+    #[cfg(test)]
+    thread_local! {
+        static SELECTOR_TRUTH_DERIVATION_OVERRIDE: Cell<bool> = const { Cell::new(false) };
+    }
 
     fn enabled(gate: &OnceLock<bool>, variable: &str) -> bool {
         *gate.get_or_init(|| std::env::var_os(variable).is_some())
     }
 
-    /// Re-derive every patched or reused retained answer cold and compare it.
-    pub(super) fn style_answer_patch(check: impl FnOnce()) {
-        if enabled(&STYLE_ANSWER_PATCH, "LIBWEB_VERIFY_STYLE_ANSWER_PATCH") {
-            check();
+    pub(super) struct StyleAnswerVerifier<'a> {
+        engine: &'a mut StyleEngine,
+    }
+
+    impl StyleAnswerVerifier<'_> {
+        pub(super) fn verify_match_answer(&mut self, answer: &[RuleMatch], node: StyleNodeID, description: &str) {
+            let cold = self
+                .engine
+                .exact_match_answer_for_verification(node)
+                .expect("cold matching must answer wherever a retained answer did");
+            assert_eq!(answer, cold, "{description} differs from cold matching for {node:?}");
+        }
+
+        pub(super) fn verify_cascade_answer(&mut self, answer: &[RuleMatch], node: StyleNodeID, description: &str) {
+            let (cold, _) = self
+                .engine
+                .exact_cascade_answer_for_verification(node)
+                .expect("cold matching must answer wherever a retained answer did");
+            assert_eq!(answer, cold, "{description} differs from cold matching for {node:?}");
+        }
+
+        pub(super) fn verify_retained_cascade_input(&mut self, node: StyleNodeID, cascade_input: MatchAnswerID) {
+            self.engine.verify_retained_cascade_input(node, cascade_input);
         }
     }
 
+    /// Re-derive every patched or reused retained answer cold and compare it. The callback receives
+    /// only the verifier capability, so it cannot publish through or otherwise mutate the engine.
+    pub(super) fn style_answer_patch(engine: &mut StyleEngine, check: impl FnOnce(&mut StyleAnswerVerifier<'_>)) {
+        if enabled(&STYLE_ANSWER_PATCH, "LIBWEB_VERIFY_STYLE_ANSWER_PATCH") {
+            check(&mut StyleAnswerVerifier { engine });
+        }
+    }
+
+    pub(super) fn selector_truth_derivation_is_enabled() -> bool {
+        #[cfg(test)]
+        if SELECTOR_TRUTH_DERIVATION_OVERRIDE.get() {
+            return true;
+        }
+        *SELECTOR_TRUTH_DERIVATION.get_or_init(|| {
+            std::env::var_os("LIBWEB_VERIFY_STYLE_ANSWER_PATCH").is_some()
+                || std::env::var_os("LIBWEB_VERIFY_SELECTOR_TRUTH_DERIVATION").is_some()
+        })
+    }
+
+    #[cfg(test)]
+    pub(super) fn with_selector_truth_derivation_enabled<T>(run: impl FnOnce() -> T) -> T {
+        struct RestoreOverride<'a> {
+            value: &'a Cell<bool>,
+            previous: bool,
+        }
+
+        impl Drop for RestoreOverride<'_> {
+            fn drop(&mut self) {
+                self.value.set(self.previous);
+            }
+        }
+
+        SELECTOR_TRUTH_DERIVATION_OVERRIDE.with(|value| {
+            let restore = RestoreOverride {
+                previous: value.replace(true),
+                value,
+            };
+            let result = run();
+            drop(restore);
+            result
+        })
+    }
+
     /// Compare complete retained cascade winners with the legacy cascade output.
-    pub(super) fn cascade_winners(check: impl FnOnce()) {
+    pub(super) fn cascade_winners(engine: &StyleEngine, check: impl FnOnce(&StyleEngine)) {
         if enabled(&CASCADE_WINNERS, "LIBWEB_VERIFY_CASCADE_WINNERS") {
-            check();
+            check(engine);
         }
     }
 
     /// Require every scoped style transaction output to name semantic provenance.
-    pub(super) fn style_plan_provenance(check: impl FnOnce()) {
+    pub(super) fn style_plan_provenance(engine: &StyleEngine, check: impl FnOnce(&StyleEngine)) {
         if enabled(&STYLE_PLAN_PROVENANCE, "LIBWEB_VERIFY_STYLE_PLAN_PROVENANCE") {
-            check();
+            check(engine);
         }
     }
 
     /// Require a published style transaction to complete without another selector query.
-    pub(super) fn published_style_transaction(check: impl FnOnce()) {
+    pub(super) fn published_style_transaction(engine: &StyleEngine, check: impl FnOnce(&StyleEngine)) {
         if enabled(
             &PUBLISHED_STYLE_TRANSACTION,
             "LIBWEB_VERIFY_PUBLISHED_STYLE_TRANSACTION",
         ) {
-            check();
+            check(engine);
         }
     }
 
@@ -367,11 +441,13 @@ mod verification {
                 &PUBLISHED_STYLE_TRANSACTION,
                 "LIBWEB_VERIFY_PUBLISHED_STYLE_TRANSACTION",
             )) << 3)
+            | (u8::from(selector_truth_derivation_is_enabled()) << 4)
     }
 }
 
 use verification::{
     cascade_winners as verify_cascade_winners, published_style_transaction as verify_published_style_transaction,
+    selector_truth_derivation_is_enabled as verify_selector_truth_derivation_is_enabled,
     style_answer_patch as verify_style_answer_patch, style_plan_provenance as verify_style_plan_provenance,
 };
 
@@ -735,6 +811,7 @@ pub struct StyleEngine {
     /// exists inside one answers the pages that need it least. An id is never reused for a
     /// different answer, so a consumer holding one across a flush is never told the wrong thing.
     match_answers: MatchAnswerCatalog,
+    selector_truth_sets: SelectorTruthSetCatalog,
     retained_match_answers: RetainedMatchAnswers,
     retained_selector_incidences: RetainedSelectorIncidences,
     /// Whether the current transaction changes activation without changing selector inputs.

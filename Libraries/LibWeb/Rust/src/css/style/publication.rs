@@ -558,11 +558,11 @@ impl StyleEngine {
                 source: WinnerSource::ExactCascade,
             }));
         }
-        verify_cascade_winners(|| {
+        verify_cascade_winners(self, |verifier| {
             let Some(lower_bound_state) = lower_bound_state else {
                 return;
             };
-            if !self
+            if !verifier
                 .published_match_answers
                 .lookup(target.node())
                 .is_some_and(|answer| answer.cascade_winners_are_complete)
@@ -570,7 +570,8 @@ impl StyleEngine {
                 return;
             }
             let retained = Rc::clone(
-                self.retained_match_answer(target.node())
+                verifier
+                    .retained_match_answer(target.node())
                     .sparse()
                     .expect("a complete published answer retains its exact input"),
             );
@@ -601,20 +602,23 @@ impl StyleEngine {
                     }
                 };
                 for matched in retained.iter().filter(|matched| {
-                    self.programs
+                    verifier
+                        .programs
                         .get(matched.program)
                         .entries()
                         .get(matched.entry as usize)
                         .is_some_and(|entry| entry.pseudo_element == target.pseudo_element_target())
                 }) {
-                    self.program
+                    verifier
+                        .program
                         .declared_properties_of(matched.rule)
                         .iter()
                         .for_each(&mut inspect);
                 }
                 if !target.is_pseudo() {
                     for kind in ElementDeclarationKind::ALL {
-                        self.facts
+                        verifier
+                            .facts
                             .element_declared_properties(target.node(), kind)
                             .0
                             .iter()
