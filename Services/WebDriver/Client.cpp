@@ -244,12 +244,19 @@ Web::WebDriver::Response Client::get_title(Web::WebDriver::Parameters parameters
 }
 
 // Extension: POST /session/{session id}/ladybird/crash-current-page
-Web::WebDriver::Response Client::crash_current_page(Web::WebDriver::Parameters parameters, JsonValue)
+Web::WebDriver::Response Client::crash_current_page(Web::WebDriver::Parameters parameters, JsonValue payload)
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/ladybird/crash-current-page");
     auto session = TRY(find_session_with_ladybird_test_hooks(parameters));
 
+    auto wait_for_navigation_completion = true;
+    if (payload.is_object())
+        wait_for_navigation_completion = payload.as_object().get_bool("waitForNavigationCompletion"sv).value_or(true);
+
     TRY(session->run_content_command("crash_current_page"sv));
+    if (!wait_for_navigation_completion)
+        return JsonValue {};
+
     return session->wait_for_navigation_completion();
 }
 

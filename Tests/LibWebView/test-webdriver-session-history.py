@@ -898,27 +898,12 @@ return null;
     wait_for_event(document_ran_event, document_ran_label)
 
 
-def crash_current_page(webdriver_port, session_id):
-    request(webdriver_port, "POST", f"/session/{session_id}/ladybird/crash-current-page", {})
-
-
-def crash_current_page_allowing_navigation_timeout(webdriver_port, session_id):
-    try:
-        status, payload, response_body = request_raw(
-            webdriver_port, "POST", f"/session/{session_id}/ladybird/crash-current-page", {}
-        )
-    except TimeoutError:
-        return
-
-    if status < 400:
-        return
-
-    value = payload.get("value")
-    if isinstance(value, dict) and value.get("error") == "timeout":
-        return
-
-    raise RuntimeError(
-        f"POST /session/{session_id}/ladybird/crash-current-page failed with HTTP {status}: {response_body}"
+def crash_current_page(webdriver_port, session_id, wait_for_navigation_completion=True):
+    request(
+        webdriver_port,
+        "POST",
+        f"/session/{session_id}/ladybird/crash-current-page",
+        {"waitForNavigationCompletion": wait_for_navigation_completion},
     )
 
 
@@ -1634,7 +1619,7 @@ def run_blocked_process_swap_ui_forward_crash_recovery_test(
         1,
         log,
     )
-    crash_current_page_allowing_navigation_timeout(webdriver_port, session_id)
+    crash_current_page(webdriver_port, session_id, wait_for_navigation_completion=False)
     wait_for_event(page_server.process_swap_back_recovery_requested, "process-swap forward recovery request")
     page_server.release_blocked_process_swap_back.set()
     expect_ui_session_history(
@@ -3067,7 +3052,7 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
             0,
             log,
         )
-        crash_current_page_allowing_navigation_timeout(webdriver_port, session_id)
+        crash_current_page(webdriver_port, session_id, wait_for_navigation_completion=False)
         wait_for_event(page_server.process_swap_back_recovery_requested, "process-swap back recovery request")
         page_server.release_blocked_process_swap_back.set()
         expect_ui_session_history(
@@ -3159,7 +3144,7 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
         expect_session_history_synchronized(
             webdriver_port, session_id, "while nested restore crash recovery waits for frame", log
         )
-        crash_current_page_allowing_navigation_timeout(webdriver_port, session_id)
+        crash_current_page(webdriver_port, session_id, wait_for_navigation_completion=False)
         expect_ui_session_history(
             webdriver_port,
             session_id,
@@ -4877,7 +4862,7 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
         expect_current_ui_entry_reload_pending(
             webdriver_port, session_id, "during blocked reload before crash", False, log
         )
-        crash_current_page_allowing_navigation_timeout(webdriver_port, session_id)
+        crash_current_page(webdriver_port, session_id, wait_for_navigation_completion=False)
         wait_for_event(page_server.reload_recovery_requested, "reload recovery request")
         expect_ui_session_history(
             webdriver_port,
