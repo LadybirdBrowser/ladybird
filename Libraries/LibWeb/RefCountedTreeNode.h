@@ -45,12 +45,14 @@ TraversalDecision traverse_ref_counted_preorder(T& root, IncludeRefCountedTreeRo
             continue;
         }
 
-        while (current != &root && !current->next_sibling_ptr())
+        T* ancestor_next_sibling = nullptr;
+        do {
             current = current->parent_ptr();
+        } while (current != &root && !(ancestor_next_sibling = current->next_sibling_ptr()));
         if (current == &root)
             break;
 
-        current = current->next_sibling_ptr();
+        current = ancestor_next_sibling;
     }
     return TraversalDecision::Continue;
 }
