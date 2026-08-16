@@ -1419,6 +1419,52 @@ impl StyleEngine {
             .remember(program, incidences, &mut self.memory)
     }
 
+    /// Materialize several active programs' selector incidences in one retained-answer pass.
+    ///
+    /// A media-query change commonly flips many independently gated rules at once. Walking every
+    /// retained match answer once per rule makes planning proportional to rules times elements,
+    /// even though each answer already contains all of those rules together.
+    pub(super) fn retain_selector_incidences(&mut self, programs: &[SelectorProgramID], document_root: StyleNodeID) {
+        let mut missing: Vec<_> = programs
+            .iter()
+            .copied()
+            .filter(|program| self.retained_selector_incidences.lookup(*program).is_none())
+            .collect();
+        missing.sort_unstable();
+        missing.dedup();
+        if missing.is_empty() {
+            return;
+        }
+        self.counters
+            .add(Counter::RetainedSelectorIncidenceBatchPrograms, missing.len() as u64);
+
+        let mut incidences = vec![Vec::new(); missing.len()];
+        let mut rows = 0;
+        for node in self.tree.preorder(document_root) {
+            let Ok(answer) = self.retained_match_answer(node).sparse() else {
+                self.counters.bump(Counter::RetainedSelectorIncidenceBatchMissingRows);
+                return;
+            };
+            rows += 1;
+            for matched in answer.iter() {
+                let Ok(index) = missing.binary_search(&matched.program) else {
+                    continue;
+                };
+                incidences[index].push(RetainedSelectorIncidence {
+                    node,
+                    entry: matched.entry,
+                });
+            }
+        }
+        self.counters.add(Counter::RetainedSelectorIncidenceBatchRows, rows);
+        for (program, mut incidences) in missing.into_iter().zip(incidences) {
+            incidences.sort_unstable();
+            incidences.dedup();
+            self.retained_selector_incidences
+                .remember(program, incidences, &mut self.memory);
+        }
+    }
+
     /// Materialize selector incidence from current facts when no active retained answer names it.
     pub(super) fn materialize_current_selector_incidence(
         &mut self,

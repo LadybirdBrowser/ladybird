@@ -68,8 +68,8 @@ define_ffi_ops! {
 }
 
 static COUNTERS: [AtomicU64; FFI_OP_COUNT] = [const { AtomicU64::new(0) }; FFI_OP_COUNT];
-
 thread_local! {
+    static COUNTERS_ENABLED: Cell<bool> = const { Cell::new(false) };
     static COMPLETE_STYLE_UPDATE_DEPTH: Cell<u32> = const { Cell::new(0) };
     static DEFERRED_CPP_RELEASES: RefCell<DeferredCppReleases> = const { RefCell::new(DeferredCppReleases::new()) };
 }
@@ -110,7 +110,9 @@ unsafe extern "C" {
 
 #[inline]
 pub(crate) fn bump(op: FfiOp) {
-    COUNTERS[op as usize].fetch_add(1, Ordering::Relaxed);
+    if COUNTERS_ENABLED.with(Cell::get) {
+        COUNTERS[op as usize].fetch_add(1, Ordering::Relaxed);
+    }
 }
 
 #[inline]
@@ -231,6 +233,7 @@ pub extern "C" fn rust_style_ffi_counters_reset() {
     for counter in &COUNTERS {
         counter.store(0, Ordering::Relaxed);
     }
+    COUNTERS_ENABLED.with(|enabled| enabled.set(true));
 }
 
 /// Notes the adoption of a Rust style value allocation by a C++ shell; called

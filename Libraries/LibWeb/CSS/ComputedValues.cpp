@@ -1021,10 +1021,11 @@ Position ComputedValues::MiscResetValues::object_position_value() const
 
 Optional<Utf16FlyString> ComputedValues::MiscResetValues::view_transition_name_value() const
 {
-    auto value = animation_style_value(view_transition_name);
-    if (!value->is_custom_ident())
+    auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(view_transition_name.pointer);
+    VERIFY(value);
+    if (value->tag != StyleValueFFI::StyleValueData::Tag::CustomIdent)
         return {};
-    return value->as_custom_ident().custom_ident();
+    return Utf16FlyString::from_raw(value->custom_ident.custom_ident.raw);
 }
 
 TouchActionData ComputedValues::MiscResetValues::touch_action_value() const
@@ -1064,18 +1065,25 @@ ShapeOutsideData ComputedValues::MiscResetValues::shape_outside_value() const
 
 WillChange ComputedValues::MiscResetValues::will_change_value() const
 {
-    auto value = animation_style_value(will_change);
-    if (value->to_keyword() == Keyword::Auto)
+    auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(will_change.pointer);
+    VERIFY(value);
+    if (value->tag == StyleValueFFI::StyleValueData::Tag::Keyword) {
+        VERIFY(static_cast<Keyword>(value->keyword.keyword) == Keyword::Auto);
         return WillChange::make_auto();
-    VERIFY(value->is_value_list());
+    }
+    VERIFY(value->tag == StyleValueFFI::StyleValueData::Tag::ValueList);
     Vector<WillChange::WillChangeEntry> entries;
-    for (auto const& item : value->as_value_list().values()) {
-        if (item->to_keyword() == Keyword::Contents) {
+    entries.ensure_capacity(value->value_list.values.length);
+    for (size_t i = 0; i < value->value_list.values.length; ++i) {
+        auto const* item = static_cast<StyleValueFFI::StyleValueData const*>(value->value_list.values.pointer[i].pointer);
+        VERIFY(item);
+        if (item->tag == StyleValueFFI::StyleValueData::Tag::Keyword && static_cast<Keyword>(item->keyword.keyword) == Keyword::Contents) {
             entries.append(WillChange::Type::Contents);
-        } else if (item->to_keyword() == Keyword::ScrollPosition) {
+        } else if (item->tag == StyleValueFFI::StyleValueData::Tag::Keyword && static_cast<Keyword>(item->keyword.keyword) == Keyword::ScrollPosition) {
             entries.append(WillChange::Type::ScrollPosition);
-        } else if (item->is_custom_ident()) {
-            if (auto property_id = property_id_from_string(item->as_custom_ident().custom_ident()); property_id.has_value())
+        } else if (item->tag == StyleValueFFI::StyleValueData::Tag::CustomIdent) {
+            auto custom_ident = Utf16FlyString::from_raw(item->custom_ident.custom_ident.raw);
+            if (auto property_id = property_id_from_string(custom_ident); property_id.has_value())
                 entries.append(property_id.release_value());
         }
     }
@@ -1241,12 +1249,28 @@ Vector<CounterData, 0> ComputedValues::ContentValues::counter_set_value() const
 
 static BorderRadiusData border_radius_from_handle(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
 {
-    auto value = animation_style_value(handle);
-    auto const& radius = value->as_border_radius();
+    auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(handle.pointer);
+    VERIFY(value);
+    VERIFY(value->tag == StyleValueFFI::StyleValueData::Tag::BorderRadius);
     return {
-        LengthPercentage::from_style_value(radius.horizontal_radius()),
-        LengthPercentage::from_style_value(radius.vertical_radius()),
+        LengthPercentage::view(value->border_radius.horizontal_radius),
+        LengthPercentage::view(value->border_radius.vertical_radius),
     };
+}
+
+static bool border_radius_handle_is_initial(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
+{
+    auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(handle.pointer);
+    VERIFY(value);
+    VERIFY(value->tag == StyleValueFFI::StyleValueData::Tag::BorderRadius);
+    auto is_zero_px = [](StyleValueFFI::RetainedStyleValueData const& child) {
+        auto const* data = static_cast<StyleValueFFI::StyleValueData const*>(child.pointer);
+        return data->tag == StyleValueFFI::StyleValueData::Tag::Length
+            && data->length.value == 0
+            && data->length.unit == to_underlying(LengthUnit::Px);
+    };
+    return is_zero_px(value->border_radius.horizontal_radius)
+        && is_zero_px(value->border_radius.vertical_radius);
 }
 
 BorderRadiusData ComputedValues::BorderValues::border_bottom_left_radius_value() const
@@ -1271,10 +1295,10 @@ BorderRadiusData ComputedValues::BorderValues::border_top_right_radius_value() c
 
 bool ComputedValues::BorderValues::has_noninitial_border_radii_value() const
 {
-    return !border_bottom_left_radius_value().is_initial()
-        || !border_bottom_right_radius_value().is_initial()
-        || !border_top_left_radius_value().is_initial()
-        || !border_top_right_radius_value().is_initial();
+    return !border_radius_handle_is_initial(border_bottom_left_radius)
+        || !border_radius_handle_is_initial(border_bottom_right_radius)
+        || !border_radius_handle_is_initial(border_top_left_radius)
+        || !border_radius_handle_is_initial(border_top_right_radius);
 }
 
 BorderImageData ComputedValues::BorderValues::border_image_value() const

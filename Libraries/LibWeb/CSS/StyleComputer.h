@@ -243,7 +243,7 @@ public:
 
     // Everything the cascade needs that is not the element's own declarations, in the order it
     // applies them.
-    struct CascadeInput {
+    struct CascadeInput : public RefCounted<CascadeInput> {
         Vector<CascadeContribution> contributions;
         u32 author_context_count { 0 };
         // The author context the element's own inline style belongs to.
@@ -285,6 +285,8 @@ public:
         bool explicitly_inherited_non_inherited_property { false };
         // Set when an entry with this key was found, in which case nothing was computed.
         RefPtr<ComputedValues const> shared_values;
+        Optional<StyleRecordID> shared_style_record_identity;
+        Optional<u64> new_style_sharing_entry_hash;
         // Set when nothing this element's last computation read has moved, in which case the style
         // it produced is still the answer and nothing was computed either.
         RefPtr<ComputedValues const> reused_values;
@@ -302,7 +304,7 @@ private:
 
     // The same input, from StyleEngine's own matching. Empty when the engine could not answer for
     // this element, which is not the same as an element nothing decides for.
-    [[nodiscard]] Optional<CascadeInput> style_engine_cascade_input(DOM::AbstractElement, StyleEngineMatchResult* = nullptr) const;
+    [[nodiscard]] RefPtr<CascadeInput const> style_engine_cascade_input(DOM::AbstractElement, StyleEngineMatchResult* = nullptr) const;
 
     [[nodiscard]] RefPtr<ComputedStyleWorkingSet> compute_style_impl(DOM::AbstractElement, ComputeStyleMode, Optional<bool&> did_change_custom_properties, StyleScope const&, IncludeInlineStyle, StyleEngineMatchResult* = nullptr, StyleSharingCandidate* = nullptr) const;
     [[nodiscard]] NonnullRefPtr<CascadedProperties> compute_cascaded_values(DOM::AbstractElement, CascadeInput const&, IncludeInlineStyle, StyleSharingCandidate* sharing = nullptr, Vector<StyleProperty> const* precomputed_presentational_hints = nullptr) const;
@@ -383,6 +385,10 @@ private:
         bool explicitly_inherited_non_inherited_property { false };
         NonnullRefPtr<ComputedValues const> values;
         RefPtr<CustomPropertyData const> custom_property_data;
+        Optional<StyleRecordID> style_record_identity;
+        Vector<u64> style_input_declaration_words;
+        Vector<NonnullRefPtr<StyleValue const>> pinned_style_input_values;
+        bool cascade_declares_custom_properties { false };
         Vector<Utf16FlyString> custom_property_references;
         bool style_uses_var_css_function { false };
         bool style_uses_inherit_css_function { false };
@@ -492,7 +498,7 @@ private:
     // The cascade input a match signature names, expanded once and answered from for every other
     // element the traversal proves has the same one. Keyed by the signature and what is being
     // styled, and valid for exactly as long as the sharing cache above is.
-    mutable HashMap<u64, CascadeInput> m_style_engine_cascade_input_cache;
+    mutable HashMap<u64, NonnullRefPtr<CascadeInput const>> m_style_engine_cascade_input_cache;
 
     enum class ProvisionalTransitionAction : u8 {
         None,

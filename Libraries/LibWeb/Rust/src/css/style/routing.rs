@@ -31,7 +31,7 @@ impl StyleEngine {
         pending_routes: &mut PendingRoutes,
         pending_prefix_producers: &mut Vec<PendingPrefixProducer>,
         prefix_producer_admission: Option<&(ScopeProgramID, Rc<RuleDispatch>)>,
-        prefix_producer_scratch: &mut Vec<PrefixProducer>,
+        prefix_producer_cache: &mut PrefixProducerCache,
         prefix_producer_seen: &mut Vec<u32>,
         sequences: &mut SequenceChanges,
         regions: &mut ImpactRegions,
@@ -198,18 +198,20 @@ impl StyleEngine {
                                 && matches!(input.key, InputKey::LocalFeature(..) | InputKey::State(..))
                                 && self.route_is_prefix_convergence_eligible(&routing, prefix_dispatch, route)
                             {
-                                prefix_producer_scratch.clear();
-                                if prefix_dispatch.prefixes().append_route_producers(
+                                let producers = prefix_producer_cache.producers_for_route(
+                                    route,
+                                    prefix_dispatch.prefixes(),
                                     point.program,
                                     point.entry,
                                     routing.path_of(route).len(),
-                                    prefix_producer_scratch,
-                                ) && let Lookup::Known(states) =
-                                    self.prefix_caches.borrow().states.lookup(*scope_program)
+                                );
+                                if !producers.is_empty()
+                                    && let Lookup::Known(states) =
+                                        self.prefix_caches.borrow().states.lookup(*scope_program)
                                 {
                                     let node_stamp = node.raw();
                                     assert_ne!(node_stamp, 0, "a node identity used as an epoch stamp must be nonzero");
-                                    for &producer in prefix_producer_scratch.iter() {
+                                    for &producer in producers {
                                         if prefix_producer_seen.len() <= producer.index() {
                                             prefix_producer_seen.resize(producer.index() + 1, 0);
                                         }
@@ -2713,6 +2715,9 @@ impl StyleEngine {
             .filter(|key| self.route_is_prefix_convergence_eligible(&routing, &dispatch, key.route))
             .collect();
         eligible_keys.sort_unstable();
+        self.counters.add(Counter::PendingSelectorRoutes, pending.len() as u64);
+        self.counters
+            .add(Counter::PrefixEligibleRoutes, eligible_keys.len() as u64);
         // Consumption still asks for the whole pending set: at current transition unit cost a
         // maintenance walk on a mixed flush loses to the generic narrowing it would subsidize.
         // Partial consumption was measured again after positional admission and lost about a
@@ -3358,7 +3363,116 @@ impl StyleEngine {
             pending_prefix_producers,
         );
         let routing = Rc::clone(&self.routing);
-        for (key, routed_regions) in pending.iter_mut() {
+        // Several changed facts can reach different transpose points of the same selector entry.
+        // Once both exact fact sides and the retained answer are complete, their region union can
+        // be compared by evaluating that entry once per candidate. This replaces repeated partial
+        // path walks with the exact question the planner ultimately needs to answer. Keep initial
+        // and incomplete state on the original route-order path: its allocation lifetimes are part
+        // of retained-cache admission under memory pressure.
+        let can_group_exact_entries = retained_winners_are_current
+            && transaction.inputs.iter().all(|input| {
+                let (InputKey::LocalFeature(node, _) | InputKey::State(node, _)) = input.key else {
+                    return false;
+                };
+                matches!(
+                    self.winner_groups
+                        .lookup(WinnerGroupKey::current(node, self.program.version())),
+                    Lookup::Known(_)
+                ) && matches!(self.retained_match_answer(node), Lookup::Known(_))
+            })
+            && transaction
+                .inputs
+                .iter()
+                .all(|input| !matches!(input.key, InputKey::LocalFeature(_, FeatureKey::ArrivingFacts)))
+            && self.selector_incidence_is_current
+            && self
+                .transaction_fact_view
+                .as_ref()
+                .is_some_and(|view| view.retained_truth_available)
+            && matches!(
+                self.winner_groups
+                    .coverage_at_least(self.program.version(), self.tree.connected_element_count() as usize),
+                Lookup::Known(())
+            );
+        if !can_group_exact_entries {
+            for (key, routed_regions) in pending.iter_mut() {
+                let route = key.route;
+                routed_regions.sort_unstable();
+                routed_regions.dedup();
+                let rule = routing.rule_of(route);
+                let point = routing.route(route);
+                let site = RoutingSite {
+                    subject: routing.subject_dispatch_of(route),
+                    subject_required: routing.subject_required_of(route),
+                    position: routing.subject_position_of(route),
+                    path: routing.path_of(route),
+                    waypoints: routing.waypoints_of(route),
+                    in_flux: None,
+                    exact_entry: Some((rule, point.program, point.entry)),
+                    exact_tree_evaluation: key.exact_tree_evaluation,
+                    refresh_rule: Some((rule, point.program)),
+                };
+                self.discard_regions_covered_by_subtree(routed_regions, &site, regions);
+                self.add_narrowed_regions_with_workspace(routed_regions, &site, regions, workspace);
+            }
+            return prefix_convergence;
+        }
+        pending.entries.sort_unstable_by_key(|entry| {
+            let point = routing.route(entry.key.route);
+            (
+                routing.rule_of(entry.key.route),
+                point.program,
+                point.entry,
+                entry.key.exact_tree_evaluation,
+            )
+        });
+        let mut first = 0;
+        while first < pending.entries.len() {
+            let key = pending.entries[first].key;
+            let point = routing.route(key.route);
+            let exact_entry = (routing.rule_of(key.route), point.program, point.entry);
+            let mut end = first + 1;
+            while end < pending.entries.len() {
+                let next = pending.entries[end].key;
+                let next_point = routing.route(next.route);
+                if (routing.rule_of(next.route), next_point.program, next_point.entry) != exact_entry
+                    || next.exact_tree_evaluation != key.exact_tree_evaluation
+                {
+                    break;
+                }
+                debug_assert_eq!(
+                    routing.subject_dispatch_of(next.route),
+                    routing.subject_dispatch_of(key.route)
+                );
+                debug_assert_eq!(
+                    routing.subject_required_of(next.route),
+                    routing.subject_required_of(key.route)
+                );
+                debug_assert_eq!(
+                    routing.subject_position_of(next.route),
+                    routing.subject_position_of(key.route)
+                );
+                end += 1;
+            }
+            self.counters.add(
+                Counter::GroupedExactSelectorRoutes,
+                end.saturating_sub(first + 1) as u64,
+            );
+            let original_region_capacity = pending.entries[first..end]
+                .iter()
+                .map(|entry| entry.regions.capacity())
+                .sum::<usize>();
+            let mut merged_regions = std::mem::take(&mut pending.entries[first].regions);
+            for entry in &mut pending.entries[first + 1..end] {
+                merged_regions.extend(std::mem::take(&mut entry.regions));
+            }
+            let additional_region_bytes = merged_regions
+                .capacity()
+                .saturating_sub(original_region_capacity)
+                .saturating_mul(size_of::<ImpactRegion>()) as u64;
+            self.memory
+                .reserve_required(MemoryCategory::BatchScratch, additional_region_bytes);
+            let routed_regions = &mut merged_regions;
             let route = key.route;
             routed_regions.sort_unstable();
             routed_regions.dedup();
@@ -3368,8 +3482,12 @@ impl StyleEngine {
                 subject: routing.subject_dispatch_of(route),
                 subject_required: routing.subject_required_of(route),
                 position: routing.subject_position_of(route),
-                path: routing.path_of(route),
-                waypoints: routing.waypoints_of(route),
+                path: if end - first == 1 { routing.path_of(route) } else { &[] },
+                waypoints: if end - first == 1 {
+                    routing.waypoints_of(route)
+                } else {
+                    &[]
+                },
                 in_flux: None,
                 exact_entry: Some((rule, point.program, point.entry)),
                 exact_tree_evaluation: key.exact_tree_evaluation,
@@ -3377,6 +3495,9 @@ impl StyleEngine {
             };
             self.discard_regions_covered_by_subtree(routed_regions, &site, regions);
             self.add_narrowed_regions_with_workspace(routed_regions, &site, regions, workspace);
+            self.memory
+                .release(MemoryCategory::BatchScratch, additional_region_bytes);
+            first = end;
         }
         prefix_convergence
     }
@@ -4309,6 +4430,24 @@ impl StyleEngine {
                 None
             }
         };
+        if matches!(
+            (input.key, input.old, input.new),
+            (
+                InputKey::RuleField(changed, RuleField::Activation),
+                InputValue::Flag(true),
+                InputValue::Flag(false)
+            ) if changed == rule
+        ) {
+            let Some((state, _)) = node_state else {
+                return false;
+            };
+            return self.program.declared_properties_of(rule).iter().all(|declared| {
+                !matches!(
+                    self.winner_groups.winner_in_state(state, declared.property),
+                    Some(previous) if previous.source == WinnerSource::Rule(rule)
+                )
+            });
+        }
         match (input.key, input.old, input.new) {
             (
                 InputKey::SheetAttachment(..)

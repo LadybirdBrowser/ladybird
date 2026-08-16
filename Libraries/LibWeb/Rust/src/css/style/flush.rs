@@ -341,6 +341,25 @@ impl StyleEngine {
                 .all(|input| matches!(input.key, InputKey::LocalFeature(..) | InputKey::State(..)));
             let rules_arriving = Self::rules_arriving(&transaction);
             let scopes_departed = Self::scopes_departed(&transaction);
+            if self.selector_incidence_is_current {
+                let programs: Vec<_> = transaction
+                    .inputs
+                    .iter()
+                    .filter(|input| {
+                        matches!(
+                            (input.key, input.old, input.new),
+                            (
+                                InputKey::RuleField(_, RuleField::Activation),
+                                InputValue::Flag(true),
+                                InputValue::Flag(false)
+                            )
+                        )
+                    })
+                    .flat_map(|input| transaction.program_joins_for(input.key))
+                    .filter_map(|delta| delta.before_program)
+                    .collect();
+                self.retain_selector_incidences(&programs, root);
+            }
             let mut resident_nodes: Vec<StyleNodeID> = if outer_arrivals.is_empty() {
                 Vec::new()
             } else if regions.topology_node_count() == connected_element_count {
@@ -373,7 +392,7 @@ impl StyleEngine {
             let mut pending_sibling_routes = PendingSiblingRoutes::new();
             let mut pending_prefix_producers = Vec::new();
             let collect_pending_prefix_producers = self.prefix_caches.borrow().states.is_retained();
-            let mut prefix_producer_scratch = Vec::new();
+            let mut prefix_producer_cache = PrefixProducerCache::default();
             let mut prefix_producer_seen = Vec::new();
 
             // Program and cascade-topology inputs can establish the transaction's outer envelope
@@ -491,7 +510,7 @@ impl StyleEngine {
                         &mut pending_routes,
                         &mut pending_prefix_producers,
                         prefix_producer_admission.as_ref(),
-                        &mut prefix_producer_scratch,
+                        &mut prefix_producer_cache,
                         &mut prefix_producer_seen,
                         &mut sequences,
                         &mut regions,
@@ -506,7 +525,7 @@ impl StyleEngine {
             let pending_table_scratch_bytes = (pending_routes.capacity_bytes()
                 + pending_sibling_routes.capacity_bytes()
                 + pending_prefix_producers.capacity() * size_of::<PendingPrefixProducer>()
-                + prefix_producer_scratch.capacity() * size_of::<PrefixProducer>()
+                + prefix_producer_cache.capacity_bytes()
                 + prefix_producer_seen.capacity() * size_of::<u32>())
                 as u64;
             self.memory

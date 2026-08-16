@@ -27,6 +27,95 @@ impl StyleEngine {
         )
     }
 
+    pub(crate) fn assign_shared_style_record(
+        &mut self,
+        target: computed::ComputedStyleTarget,
+        style_record: u64,
+        inherited_group_count: usize,
+        inherited_group_swap_eligible: bool,
+    ) -> computed::ComputedGroupPublication {
+        let group_count = self
+            .computed_group_sets
+            .style_record_payloads(style_record)
+            .expect("a shared style record must name a live base record")
+            .len();
+        let current_cascade_state = self.computed_group_sets.take_pending_cascade_state(target);
+        let publication = self
+            .computed_group_sets
+            .assign_shared_style_record(
+                target,
+                style_record,
+                inherited_group_count,
+                inherited_group_swap_eligible,
+            )
+            .expect("a shared style record must name a live base record");
+        if let Some((current_generation, current_cascade_state)) = current_cascade_state {
+            let previous_cascade_state = self
+                .computed_group_sets
+                .bind_cascade_state(target, (current_generation, current_cascade_state))
+                .and_then(|(previous_generation, previous_state)| {
+                    (previous_generation == current_generation).then_some(previous_state)
+                });
+            let delta = self
+                .winner_groups
+                .semantic_delta(previous_cascade_state, current_cascade_state);
+            if delta.is_empty() {
+                self.counters.bump(Counter::CascadeWinnerDeltaStops);
+            } else {
+                self.counters
+                    .add(Counter::CascadeWinnerDeltaProperties, delta.properties().len() as u64);
+                self.counters.add(
+                    Counter::ComputedWinnerDeltaPropertiesConsumed,
+                    delta.properties().len() as u64,
+                );
+                if !publication.node_handle_changed {
+                    self.counters.bump(Counter::ComputedWinnerPropagationStops);
+                }
+            }
+        } else {
+            self.computed_group_sets.clear_cascade_state(target);
+        }
+        self.settle_computed_memory();
+        self.counters.add(Counter::ComputedGroupsReused, group_count as u64);
+        self.counters.bump(Counter::ComputedGroupSetsReused);
+        self.counters.bump(Counter::InheritedGroupSetsReused);
+        self.counters.bump(Counter::CustomPropertyEnvironmentsReused);
+        self.counters.bump(Counter::ComputedFixedMetadataReused);
+        self.counters.bump(Counter::ComputedReconstructionMetadataReused);
+        self.counters.bump(Counter::StyleRecordsReused);
+        if publication.node_handle_changed {
+            self.counters.bump(Counter::ComputedGroupNodeHandlesPublished);
+        }
+        if publication.inherited_node_handle_changed {
+            self.counters.bump(Counter::InheritedGroupNodeHandlesPublished);
+        }
+        if publication.custom_property_environment_node_handle_changed {
+            self.counters
+                .bump(Counter::CustomPropertyEnvironmentNodeHandlesPublished);
+        }
+        if publication.computed_fixed_metadata_node_handle_changed {
+            self.counters.bump(Counter::ComputedFixedMetadataNodeHandlesPublished);
+        }
+        if publication.computed_reconstruction_metadata_node_handle_changed {
+            self.counters
+                .bump(Counter::ComputedReconstructionMetadataNodeHandlesPublished);
+        }
+        if publication.style_record_node_handle_changed {
+            self.counters.bump(Counter::StyleRecordNodeHandlesPublished);
+        }
+        if publication.animation_overlay_slot_released {
+            self.counters.bump(Counter::AnimationOverlaySlotsReleased);
+        }
+        self.counters.set(
+            Counter::LiveAnimationOverlayRecords,
+            publication.live_animation_overlay_records as u64,
+        );
+        if publication.is_pseudo && publication.style_record_node_handle_changed {
+            self.counters.bump(Counter::ComputedPseudoAssignmentsPublished);
+        }
+        publication
+    }
+
     /// Intern the immutable computed-group payloads of a style which has no live StyleEngine target.
     pub(crate) fn intern_computed_groups(
         &mut self,

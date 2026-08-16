@@ -13,7 +13,7 @@
 //! table of weak references; each entry carries its slot index and the C++
 //! shell resolves a slot back to the source objects on demand.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::hash::BuildHasherDefault;
@@ -63,6 +63,7 @@ impl LayerName {
 
 struct Entry {
     value: RetainedStyleValueData,
+    dependencies: Cell<Option<crate::css::style_compute::ExternalValueDependencies>>,
     has_style_sheet_context: bool,
     important: bool,
     cascade_index: u64,
@@ -77,6 +78,17 @@ struct Entry {
     /// chain through the one arena rather than as a vector of its own, so an element that declares a
     /// hundred properties allocates once rather than a hundred times.
     previous_for_property: u32,
+}
+
+impl Entry {
+    fn dependencies(&self) -> crate::css::style_compute::ExternalValueDependencies {
+        if let Some(dependencies) = self.dependencies.get() {
+            return dependencies;
+        }
+        let dependencies = crate::css::style_compute::external_value_dependencies(self.value.data());
+        self.dependencies.set(Some(dependencies));
+        dependencies
+    }
 }
 
 const NO_ENTRY: u32 = u32::MAX;
@@ -232,6 +244,7 @@ impl CascadedPropertyStore {
                     return -1;
                 }
                 entry.value = value;
+                entry.dependencies.set(None);
                 entry.has_style_sheet_context = has_style_sheet_context;
                 entry.important = important;
                 entry.cascade_index = cascade_index;
@@ -248,6 +261,7 @@ impl CascadedPropertyStore {
         let index = u32::try_from(arena.len()).expect("cascaded entry space exhausted");
         arena.push(Entry {
             value,
+            dependencies: Cell::new(None),
             has_style_sheet_context,
             important,
             cascade_index,
@@ -263,20 +277,28 @@ impl CascadedPropertyStore {
 
     /// The winning declaration for a property: its Rust-owned data, importance,
     /// and C++ declaration-source slot.
-    pub(crate) fn winning_declaration(&self, property_id: u16) -> Option<(*const c_void, bool, u32, bool)> {
+    pub(crate) fn winning_declaration(
+        &self,
+        property_id: u16,
+    ) -> Option<(
+        *const c_void,
+        bool,
+        u32,
+        bool,
+        crate::css::style_compute::ExternalValueDependencies,
+    )> {
         self.last_entry(property_id).map(|entry| {
             (
                 entry.value.pointer().cast(),
                 entry.important,
                 entry.source_slot,
                 entry.has_style_sheet_context,
+                entry.dependencies(),
             )
         })
     }
 
-    pub(crate) fn winning_declarations(
-        &self,
-    ) -> impl Iterator<Item = (u16, *const StyleValueData, CascadeOrigin)> + '_ {
+    fn winning_entries(&self) -> impl Iterator<Item = (u16, &Entry)> + '_ {
         self.contained
             .iter()
             .enumerate()
@@ -295,8 +317,15 @@ impl CascadedPropertyStore {
                 self.last_entry_index
                     .get(&property)
                     .and_then(|&index| self.arena.get(index as usize))
-                    .map(|entry| (property, entry.value.pointer(), entry.origin))
+                    .map(|entry| (property, entry))
             })
+    }
+
+    pub(crate) fn winning_declarations(
+        &self,
+    ) -> impl Iterator<Item = (u16, *const StyleValueData, CascadeOrigin)> + '_ {
+        self.winning_entries()
+            .map(|(property, entry)| (property, entry.value.pointer(), entry.origin))
     }
 
     /// Returns whichever of the two properties has the higher-priority winning
@@ -491,8 +520,8 @@ pub unsafe extern "C" fn rust_cascaded_properties_uses_tree_counting_function(
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadedStoreQueryEntry);
     abort_on_panic(|| {
         unsafe { &*store }
-            .winning_declarations()
-            .any(|(_, value, _)| crate::css::style_compute::value_contains_tree_counting_function(unsafe { &*value }))
+            .winning_entries()
+            .any(|(_, entry)| entry.dependencies().uses_tree_counting_function)
     })
 }
 
@@ -506,10 +535,37 @@ pub unsafe extern "C" fn rust_cascaded_properties_container_relative_length_unit
 ) -> u8 {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadedStoreQueryEntry);
     abort_on_panic(|| {
+        unsafe { &*store }.winning_entries().fold(0, |mask, (_, entry)| {
+            mask | entry.dependencies().container_relative_length_unit_mask
+        })
+    })
+}
+
+pub const CASCADED_ENVIRONMENT_NEEDS_DOCUMENT_BASE_URL: u8 = 1 << 0;
+pub const CASCADED_ENVIRONMENT_NEEDS_STYLE_SHEET_CONTEXT: u8 = 1 << 1;
+
+/// Returns which URL-resolution inputs any winning declaration can consume.
+///
+/// # Safety
+/// `store` must be a valid store.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_cascaded_properties_environment_requirements(store: *const CascadedPropertyStore) -> u8 {
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadedStoreQueryEntry);
+    abort_on_panic(|| {
         unsafe { &*store }
-            .winning_declarations()
-            .fold(0, |mask, (_, value, _)| {
-                mask | crate::css::style_compute::container_relative_length_unit_mask(unsafe { &*value })
+            .winning_entries()
+            .fold(0, |requirements, (_, entry)| {
+                requirements
+                    | if entry.dependencies().needs_document_base_url {
+                        CASCADED_ENVIRONMENT_NEEDS_DOCUMENT_BASE_URL
+                    } else {
+                        0
+                    }
+                    | if entry.has_style_sheet_context {
+                        CASCADED_ENVIRONMENT_NEEDS_STYLE_SHEET_CONTEXT
+                    } else {
+                        0
+                    }
             })
     })
 }
@@ -539,8 +595,10 @@ pub unsafe extern "C" fn rust_cascaded_properties_unfixed_random_sharings(
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadedStoreQueryEntry);
     abort_on_panic(|| {
         let mut sharings = Vec::new();
-        for (_, value, _) in unsafe { &*store }.winning_declarations() {
-            crate::css::style_compute::collect_unfixed_random_sharings_in_value(unsafe { &*value }, &mut sharings);
+        for (_, entry) in unsafe { &*store }.winning_entries() {
+            if entry.dependencies().has_unfixed_random_sharing {
+                crate::css::style_compute::collect_unfixed_random_sharings_in_value(entry.value.data(), &mut sharings);
+            }
         }
         let entries = sharings
             .into_iter()
@@ -946,7 +1004,7 @@ pub unsafe extern "C" fn rust_cascade_custom_properties(
                 pseudo_element,
                 crate::css::property_metadata::property_id::CUSTOM,
             );
-        if !applies {
+        if !applies || !blocks.iter().any(|block| block.custom_property_declaration_count != 0) {
             return FfiCascadedCustomProperties {
                 applies,
                 properties: std::ptr::null(),
@@ -1286,7 +1344,7 @@ mod tests {
             0,
         );
 
-        let (data, important, source_slot, has_style_sheet_context) = store
+        let (data, important, source_slot, has_style_sheet_context, _) = store
             .winning_declaration(crate::css::property_metadata::property_id::OPACITY)
             .expect("the declaration must be retained");
         assert!(!important);

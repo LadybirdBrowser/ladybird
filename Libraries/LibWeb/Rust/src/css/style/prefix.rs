@@ -47,6 +47,7 @@ use super::selector::Incomplete;
 use super::selector::MatchEvaluator;
 use super::selector::NamespaceTest;
 use super::selector::PrefixStructuralTest;
+use super::selector::RouteID;
 use super::selector::SelectorPrefixAxis;
 use super::selector::SelectorPrefixLocal;
 use super::selector::SelectorPrefixStep;
@@ -61,6 +62,39 @@ define_id! { pub(super) struct PrefixStepID(); }
 #[derive(Clone, Copy)]
 pub(super) struct PrefixProducer {
     pub step: PrefixStepID,
+}
+
+#[derive(Default)]
+pub(super) struct PrefixProducerCache {
+    ranges: Vec<Option<std::ops::Range<u32>>>,
+    producers: Vec<PrefixProducer>,
+}
+
+impl PrefixProducerCache {
+    pub(super) fn producers_for_route(
+        &mut self,
+        route: RouteID,
+        prefixes: &PrefixAutomaton,
+        program: SelectorProgramID,
+        entry: u32,
+        inverse_path_length: usize,
+    ) -> &[PrefixProducer] {
+        if self.ranges.len() <= route.index() {
+            self.ranges.resize(route.index() + 1, None);
+        }
+        let range = self.ranges[route.index()].get_or_insert_with(|| {
+            let start = u32::try_from(self.producers.len()).expect("prefix producer space exhausted");
+            prefixes.append_route_producers(program, entry, inverse_path_length, &mut self.producers);
+            let end = u32::try_from(self.producers.len()).expect("prefix producer space exhausted");
+            start..end
+        });
+        &self.producers[range.start as usize..range.end as usize]
+    }
+
+    pub(super) fn capacity_bytes(&self) -> usize {
+        self.ranges.capacity() * size_of::<Option<std::ops::Range<u32>>>()
+            + self.producers.capacity() * size_of::<PrefixProducer>()
+    }
 }
 
 impl PrefixProducer {

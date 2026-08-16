@@ -1325,6 +1325,7 @@ Utf16String Internals::style_engine_matched_rules()
 
 void Internals::reset_style_ffi_counters()
 {
+    CSS::g_style_ffi_counters_enabled = true;
     CSS::StyleValueFFI::rust_style_ffi_counters_reset();
 }
 

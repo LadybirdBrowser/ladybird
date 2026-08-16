@@ -71,13 +71,15 @@ fn set_bitmap_bit(bits: &mut [u8; LONGHAND_BITMAP_BYTES], index: usize, value: b
 }
 
 pub struct ComputedLonghandTable {
-    slots: Vec<Option<RetainedStyleValueData>>,
+    slots: [Option<RetainedStyleValueData>; LONGHAND_COUNT],
     /// The raw data pointer of every slot, null where the slot is empty, so a
     /// borrower can read the whole table as one span without FFI calls.
-    value_view: Vec<*const c_void>,
-    /// `(longhand property id, cascade source slot)` for longhands whose
-    /// stored value came from a declaration carrying style sheet context.
-    source_slots: Vec<(u16, u32)>,
+    value_view: [*const c_void; LONGHAND_COUNT],
+    /// Cascade source slot for each longhand, or `-1` when its value carries
+    /// no style sheet context. This is dense because every property drive
+    /// overwrites the sidecar, so sparse lookup would make a full drive
+    /// quadratic in the number of context-bearing declarations.
+    source_slots: [i32; LONGHAND_COUNT],
     /// Whether the longhand's winning declaration was `!important`, in the
     /// byte layout of the C++ `FixedBitmap` (bit `i` is byte `i / 8`, bit
     /// `i % 8`), so whole bitmaps copy across the FFI without translation.
@@ -98,12 +100,10 @@ pub struct ComputedLonghandTable {
 
 impl ComputedLonghandTable {
     fn new() -> Self {
-        let mut slots = Vec::new();
-        slots.resize_with(LONGHAND_COUNT, || None);
         Self {
-            slots,
-            value_view: vec![std::ptr::null(); LONGHAND_COUNT],
-            source_slots: Vec::new(),
+            slots: std::array::from_fn(|_| None),
+            value_view: [std::ptr::null(); LONGHAND_COUNT],
+            source_slots: [-1; LONGHAND_COUNT],
             important_bits: [0; LONGHAND_BITMAP_BYTES],
             inherited_bits: [0; LONGHAND_BITMAP_BYTES],
             evaluated_bits: [0; LONGHAND_BITMAP_BYTES],
@@ -129,18 +129,7 @@ impl ComputedLonghandTable {
         self.value_view[Self::slot_index(property_id)] = value.pointer().cast();
         self.slots[Self::slot_index(property_id)] = Some(value);
         set_bitmap_bit(&mut self.evaluated_bits, Self::slot_index(property_id), true);
-        let existing = self
-            .source_slots
-            .iter()
-            .position(|(longhand, _)| *longhand == property_id);
-        match (existing, u32::try_from(source_slot)) {
-            (Some(index), Ok(slot)) => self.source_slots[index] = (property_id, slot),
-            (Some(index), Err(_)) => {
-                self.source_slots.swap_remove(index);
-            }
-            (None, Ok(slot)) => self.source_slots.push((property_id, slot)),
-            (None, Err(_)) => {}
-        }
+        self.source_slots[Self::slot_index(property_id)] = i32::try_from(source_slot).unwrap_or(-1);
     }
 
     pub(crate) fn set_important(&mut self, property_id: u16, important: bool) {
@@ -218,7 +207,7 @@ impl ComputedLonghandTable {
             });
             self.value_view[index] = value;
         }
-        self.source_slots.clear();
+        self.source_slots.fill(-1);
         self.important_bits = [0; LONGHAND_BITMAP_BYTES];
         self.inherited_bits = [0; LONGHAND_BITMAP_BYTES];
         self.evaluated_bits = [0; LONGHAND_BITMAP_BYTES];
@@ -266,13 +255,37 @@ impl ComputedLonghandTable {
         self.rebuild_inheritance_dependent_view();
     }
 
+    pub(crate) fn append_drive_inheritance_dependent_value(&mut self, property_id: u16, value: RetainedStyleValueData) {
+        assert!(
+            !self.frozen,
+            "the computed longhand table is immutable once its style is created"
+        );
+        debug_assert!(
+            self.inheritance_dependent
+                .iter()
+                .all(|(property, _)| *property != property_id),
+            "a longhand drive must visit each property once"
+        );
+        self.inheritance_dependent.push((property_id, value));
+    }
+
+    pub(crate) fn finish_drive_inheritance_dependent_values(&mut self) {
+        self.rebuild_inheritance_dependent_view();
+    }
+
     pub(crate) fn remove_inheritance_dependent_value(&mut self, property_id: u16) {
         assert!(
             !self.frozen,
             "the computed longhand table is immutable once its style is created"
         );
-        self.inheritance_dependent
-            .retain(|(property, _)| *property != property_id);
+        let Some(index) = self
+            .inheritance_dependent
+            .iter()
+            .position(|(property, _)| *property == property_id)
+        else {
+            return;
+        };
+        self.inheritance_dependent.swap_remove(index);
         self.rebuild_inheritance_dependent_view();
     }
 
@@ -385,10 +398,7 @@ impl ComputedLonghandTable {
     /// The cascade source slot of the declaration a longhand's value came
     /// from, recorded only when that declaration carries style sheet context.
     pub(crate) fn source_slot(&self, property_id: u16) -> Option<u32> {
-        self.source_slots
-            .iter()
-            .find(|(longhand, _)| *longhand == property_id)
-            .map(|(_, slot)| *slot)
+        u32::try_from(self.source_slots[Self::slot_index(property_id)]).ok()
     }
 
     /// One raw data pointer per longhand slot, null where the drive stored no
@@ -397,9 +407,13 @@ impl ComputedLonghandTable {
         &self.value_view
     }
 
-    /// The complete style-sheet-context sidecar, in insertion order.
-    pub(crate) fn source_slot_entries(&self) -> &[(u16, u32)] {
-        &self.source_slots
+    /// The complete style-sheet-context sidecar, in property order.
+    pub(crate) fn source_slot_entries(&self) -> impl Iterator<Item = (u16, u32)> + '_ {
+        self.source_slots.iter().enumerate().filter_map(|(index, &slot)| {
+            u32::try_from(slot)
+                .ok()
+                .map(|slot| (FIRST_LONGHAND_PROPERTY_ID + index as u16, slot))
+        })
     }
 
     pub(crate) fn is_frozen(&self) -> bool {

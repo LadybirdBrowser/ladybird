@@ -13,6 +13,8 @@
 
 namespace Web::CSS {
 
+inline thread_local bool g_style_ffi_counters_enabled { false };
+
 // Shared handle to a Rust-allocated, immutable StyleValueData. The StyleValueData layout is
 // exposed through cbindgen, so reading through the handle is an inline field access with no FFI
 // call.
@@ -24,7 +26,8 @@ public:
         : m_value(value)
     {
         VERIFY(m_value);
-        StyleValueFFI::rust_style_ffi_note_style_value_created();
+        if (g_style_ffi_counters_enabled)
+            StyleValueFFI::rust_style_ffi_note_style_value_created();
     }
 
     RustStyleValueHandle(RustStyleValueHandle const& other)

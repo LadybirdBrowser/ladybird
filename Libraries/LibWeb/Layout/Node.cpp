@@ -543,8 +543,9 @@ bool NodeWithStyle::establishes_stacking_context() const
     // https://drafts.csswg.org/css-will-change/#will-change
     // If any non-initial value of a property would create a stacking context on the element, specifying that property
     // in will-change must create a stacking context on the element.
+    auto will_change_value = will_change();
     auto will_change_property = [&](CSS::PropertyID property_id) {
-        return will_change().has_property(property_id);
+        return will_change_value.has_property(property_id);
     };
 
     auto has_z_index = z_index().has_value() || will_change_property(CSS::PropertyID::ZIndex);

@@ -417,6 +417,12 @@ void ComputedStyleWorkingSet::did_store_property_data_from_drive(PropertyID id, 
         clear_computed_font_list_cache();
 }
 
+void ComputedStyleWorkingSet::cache_property_wrapper_from_drive(PropertyID id, NonnullRefPtr<StyleValue const> value)
+{
+    VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
+    m_mint_cache->wrappers.set(id, move(value));
+}
+
 Display ComputedStyleWorkingSet::display_before_box_type_transformation() const
 {
     return m_display_before_box_type_transformation;
@@ -516,6 +522,13 @@ StyleValue const& ComputedStyleWorkingSet::property(PropertyID property_id, With
     if (effective.source == ComputedValuesFFI::EFFECTIVE_LONGHAND_SOURCE_TABLE) {
         if (auto source = m_mint_cache->style_sheet_sources.get(property_id); source.has_value())
             style_sheet = source->ptr();
+    }
+    if (!style_sheet) {
+        auto initial_value = property_initial_value(property_id);
+        if (initial_value->rust_style_value_data() == effective.value) {
+            cache.set(property_id, initial_value);
+            return *initial_value;
+        }
     }
     auto wrapper = wrap_computed_longhand_slot(effective.value, style_sheet);
     cache.set(property_id, wrapper);

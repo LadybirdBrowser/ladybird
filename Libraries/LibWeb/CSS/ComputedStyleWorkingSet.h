@@ -97,6 +97,7 @@ public:
     void set_property_data_from_drive(PropertyID, void const* value_data, i64 style_sheet_source_slot, GC::Ptr<CSSStyleSheet> style_sheet);
     // Invalidates C++ sidecars after the Rust driver stores a value directly in the table.
     void did_store_property_data_from_drive(PropertyID, GC::Ptr<CSSStyleSheet> style_sheet);
+    void cache_property_wrapper_from_drive(PropertyID, NonnullRefPtr<StyleValue const>);
     void set_display_before_box_type_transformation(Display);
 
     bool has_effective_color_scheme() const { return m_effective_color_scheme.has_value(); }

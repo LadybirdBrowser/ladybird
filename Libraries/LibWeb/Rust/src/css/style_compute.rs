@@ -1283,255 +1283,305 @@ pub(crate) fn value_is_computationally_independent(value: &StyleValueData) -> Op
     }
 }
 
-#[derive(Clone, Copy)]
-enum ExternalValueDependency {
-    TreeCounting,
-    ContainerRelativeLength(u8),
+#[derive(Clone, Copy, Default)]
+pub(crate) struct ExternalValueDependencies {
+    pub uses_tree_counting_function: bool,
+    pub container_relative_length_unit_mask: u8,
+    pub has_unfixed_random_sharing: bool,
+    pub needs_document_base_url: bool,
+    pub inheritance_dependent: bool,
 }
 
-fn value_contains_external_dependency(value: &StyleValueData, dependency: ExternalValueDependency) -> bool {
-    fn optional_contains(value: &RetainedStyleValueData, dependency: ExternalValueDependency) -> bool {
-        value
-            .optional_data()
-            .is_some_and(|value| value_contains_external_dependency(value, dependency))
+fn container_relative_length_unit_bit(unit: u8) -> u8 {
+    match LENGTH_UNIT_NAMES[unit as usize] {
+        "cqw" => 1 << 0,
+        "cqh" => 1 << 1,
+        "cqi" => 1 << 2,
+        "cqb" => 1 << 3,
+        "cqmin" => 1 << 4,
+        "cqmax" => 1 << 5,
+        _ => 0,
+    }
+}
+
+pub(crate) fn external_value_dependencies(value: &StyleValueData) -> ExternalValueDependencies {
+    fn collect_optional(value: &RetainedStyleValueData, dependencies: &mut ExternalValueDependencies) {
+        if let Some(value) = value.optional_data() {
+            collect(value, dependencies);
+        }
     }
 
-    fn list_contains(values: &RetainedStyleValueDataList, dependency: ExternalValueDependency) -> bool {
-        values
-            .as_slice()
-            .iter()
-            .any(|value| optional_contains(value, dependency))
+    fn collect_values(values: &[&RetainedStyleValueData], dependencies: &mut ExternalValueDependencies) {
+        for value in values {
+            collect_optional(value, dependencies);
+        }
     }
 
-    fn grid_entries_contain(
+    fn collect_grid_entries(
         entries: &[crate::css::style_value::RetainedGridTrackEntry],
-        dependency: ExternalValueDependency,
-    ) -> bool {
-        entries.iter().any(|entry| match entry.kind {
-            GridTrackEntryKind::LineNames => false,
-            GridTrackEntryKind::Size => value_contains_external_dependency(entry.size_value.data(), dependency),
-            GridTrackEntryKind::MinMax => {
-                value_contains_external_dependency(entry.min_value.data(), dependency)
-                    || value_contains_external_dependency(entry.max_value.data(), dependency)
+        dependencies: &mut ExternalValueDependencies,
+    ) {
+        for entry in entries {
+            match entry.kind {
+                GridTrackEntryKind::LineNames => {}
+                GridTrackEntryKind::Size => collect(entry.size_value.data(), dependencies),
+                GridTrackEntryKind::MinMax => {
+                    collect(entry.min_value.data(), dependencies);
+                    collect(entry.max_value.data(), dependencies);
+                }
+                GridTrackEntryKind::Repeat => {
+                    collect_grid_entries(entry.repeat_entries(), dependencies);
+                    collect_optional(&entry.repeat_count, dependencies);
+                }
             }
-            GridTrackEntryKind::Repeat => {
-                grid_entries_contain(entry.repeat_entries(), dependency)
-                    || optional_contains(&entry.repeat_count, dependency)
+        }
+    }
+
+    fn collect_calculation(node: &crate::css::calc::CalcNode, dependencies: &mut ExternalValueDependencies) {
+        match node {
+            crate::css::calc::CalcNode::Numeric(crate::css::calc::CalcNumericValue::Length { unit, .. }) => {
+                dependencies.container_relative_length_unit_mask |= container_relative_length_unit_bit(*unit);
             }
-        })
+            crate::css::calc::CalcNode::Random { sharing, .. }
+            | crate::css::calc::CalcNode::NonMathFunction { value: sharing, .. } => {
+                collect(sharing.data(), dependencies);
+            }
+            _ => {}
+        }
+        node.for_each_child(&mut |child| collect_calculation(child, dependencies));
     }
 
-    let any = |values: &[&RetainedStyleValueData]| values.iter().any(|value| optional_contains(value, dependency));
-    if match dependency {
-        ExternalValueDependency::TreeCounting => matches!(value, StyleValueData::TreeCountingFunction { .. }),
-        ExternalValueDependency::ContainerRelativeLength(matching_unit) => {
-            matches!(value, StyleValueData::Length { unit, .. } if *unit == matching_unit)
+    fn collect(value: &StyleValueData, dependencies: &mut ExternalValueDependencies) {
+        match value {
+            StyleValueData::TreeCountingFunction { .. } => dependencies.uses_tree_counting_function = true,
+            StyleValueData::Length { unit, .. } => {
+                dependencies.container_relative_length_unit_mask |= container_relative_length_unit_bit(*unit);
+            }
+            StyleValueData::Image {
+                url, resource_context, ..
+            } => {
+                dependencies.needs_document_base_url |= !url.as_bytes().is_empty() && !resource_context.has_base_url;
+            }
+            StyleValueData::Calculated { rust_calculation, .. } => {
+                collect_calculation(rust_calculation.node(), dependencies);
+            }
+            StyleValueData::Ratio {
+                numerator, denominator, ..
+            } => {
+                collect_values(&[numerator, denominator], dependencies);
+            }
+            StyleValueData::Edge { offset, .. } => collect_optional(offset, dependencies),
+            StyleValueData::Function { value, .. }
+            | StyleValueData::OpacityValue { value }
+            | StyleValueData::Filter { value, .. }
+            | StyleValueData::OpenTypeTagged { value, .. }
+            | StyleValueData::GridTrackPlacement { value, .. } => collect_optional(value, dependencies),
+            StyleValueData::GridTrackSizeList { entries, .. } => {
+                collect_grid_entries(entries.as_slice(), dependencies);
+            }
+            StyleValueData::ColorFunction {
+                channel_0,
+                channel_1,
+                channel_2,
+                alpha,
+                origin_color,
+                ..
+            } => collect_values(&[channel_0, channel_1, channel_2, alpha, origin_color], dependencies),
+            StyleValueData::BorderImageSlice {
+                top,
+                right,
+                bottom,
+                left,
+                ..
+            }
+            | StyleValueData::Rect {
+                top,
+                right,
+                bottom,
+                left,
+            } => {
+                collect_values(&[top, right, bottom, left], dependencies);
+            }
+            StyleValueData::Content { content, alt_text } => {
+                collect(content.data(), dependencies);
+                collect_optional(alt_text, dependencies);
+            }
+            StyleValueData::RadialSize { value_0, value_1, .. } => {
+                collect_values(&[value_0, value_1], dependencies);
+            }
+            StyleValueData::BasicShape {
+                v0,
+                v1,
+                v2,
+                v3,
+                v4,
+                points,
+                ..
+            } => {
+                collect_values(&[v0, v1, v2, v3, v4], dependencies);
+                for point in points.as_slice() {
+                    for value in point.values() {
+                        collect_optional(value, dependencies);
+                    }
+                }
+            }
+            StyleValueData::Counter { counter_style, .. } => collect(counter_style.data(), dependencies),
+            StyleValueData::RandomValueSharing { fixed_value, .. } => {
+                if fixed_value.optional_data().is_some() {
+                    collect_optional(fixed_value, dependencies);
+                } else {
+                    dependencies.has_unfixed_random_sharing = true;
+                }
+            }
+            StyleValueData::Cursor { image, x, y } => {
+                collect(image.data(), dependencies);
+                collect_values(&[x, y], dependencies);
+            }
+            StyleValueData::Easing {
+                linear_stops,
+                x1,
+                y1,
+                x2,
+                y2,
+                number_of_intervals,
+                ..
+            } => {
+                collect_values(&[x1, y1, x2, y2, number_of_intervals], dependencies);
+                for stop in linear_stops.as_slice() {
+                    for value in stop.values() {
+                        collect_optional(value, dependencies);
+                    }
+                }
+            }
+            StyleValueData::ImageSet { options } => {
+                for option in options.as_slice() {
+                    for value in option.values() {
+                        collect_optional(value, dependencies);
+                    }
+                }
+            }
+            StyleValueData::CounterDefinitions { counter_definitions } => {
+                for definition in counter_definitions.as_slice() {
+                    collect_optional(definition.value(), dependencies);
+                }
+            }
+            StyleValueData::LinearGradient {
+                direction_value,
+                color_stop_list,
+                color_interpolation_method,
+                ..
+            } => {
+                collect_values(&[direction_value, color_interpolation_method], dependencies);
+                for stop in color_stop_list.as_slice() {
+                    for value in stop.values() {
+                        collect_optional(value, dependencies);
+                    }
+                }
+            }
+            StyleValueData::ConicGradient {
+                from_angle,
+                position,
+                color_stop_list,
+                color_interpolation_method,
+                ..
+            } => {
+                collect_values(&[from_angle, position, color_interpolation_method], dependencies);
+                for stop in color_stop_list.as_slice() {
+                    for value in stop.values() {
+                        collect_optional(value, dependencies);
+                    }
+                }
+            }
+            StyleValueData::RadialGradient {
+                size,
+                position,
+                color_stop_list,
+                color_interpolation_method,
+                ..
+            } => {
+                collect_values(&[size, position, color_interpolation_method], dependencies);
+                for stop in color_stop_list.as_slice() {
+                    for value in stop.values() {
+                        collect_optional(value, dependencies);
+                    }
+                }
+            }
+            StyleValueData::ColorMix {
+                color_interpolation_method,
+                first_color,
+                first_percentage,
+                second_color,
+                second_percentage,
+                ..
+            } => collect_values(
+                &[
+                    color_interpolation_method,
+                    first_color,
+                    first_percentage,
+                    second_color,
+                    second_percentage,
+                ],
+                dependencies,
+            ),
+            StyleValueData::ContrastColor { color, .. } => collect(color.data(), dependencies),
+            StyleValueData::LightDark { light, dark, .. } => collect_values(&[light, dark], dependencies),
+            StyleValueData::Superellipse { parameter } => collect_optional(parameter, dependencies),
+            StyleValueData::ScrollbarColor {
+                thumb_color,
+                track_color,
+            } => {
+                collect_values(&[thumb_color, track_color], dependencies);
+            }
+            StyleValueData::FontStyle { angle_value, .. } => collect_optional(angle_value, dependencies),
+            StyleValueData::TextIndent { length_percentage, .. } => {
+                collect_optional(length_percentage, dependencies);
+            }
+            StyleValueData::OverflowClipMargin { offset, .. } => collect_optional(offset, dependencies),
+            StyleValueData::BackgroundSize { size_x, size_y } => collect_values(&[size_x, size_y], dependencies),
+            StyleValueData::Position { edge_x, edge_y } => collect_values(&[edge_x, edge_y], dependencies),
+            StyleValueData::Shadow {
+                color,
+                offset_x,
+                offset_y,
+                blur_radius,
+                spread_distance,
+                ..
+            } => {
+                collect_values(&[color, offset_x, offset_y, blur_radius, spread_distance], dependencies);
+            }
+            StyleValueData::Shorthand { values, .. }
+            | StyleValueData::ValueList { values, .. }
+            | StyleValueData::Tuple { values }
+            | StyleValueData::Transformation { values, .. } => {
+                for value in values.as_slice() {
+                    collect_optional(value, dependencies);
+                }
+            }
+            StyleValueData::BorderRadiusRect {
+                top_left,
+                top_right,
+                bottom_right,
+                bottom_left,
+            } => {
+                collect_values(&[top_left, top_right, bottom_right, bottom_left], dependencies);
+            }
+            StyleValueData::BorderRadius {
+                horizontal_radius,
+                vertical_radius,
+                ..
+            } => {
+                collect_values(&[horizontal_radius, vertical_radius], dependencies);
+            }
+            _ => {}
         }
-    } {
-        return true;
     }
-    match value {
-        StyleValueData::Calculated { rust_calculation, .. } => !rust_calculation
-            .node()
-            .is_computationally_independent(&|unit| {
-                !matches!(dependency, ExternalValueDependency::ContainerRelativeLength(matching_unit) if unit == matching_unit)
-            }, &|retained| {
-                !value_contains_external_dependency(retained.data(), dependency)
-            }),
-        StyleValueData::Ratio {
-            numerator, denominator, ..
-        } => any(&[numerator, denominator]),
-        StyleValueData::Edge { offset, .. } => optional_contains(offset, dependency),
-        StyleValueData::Function { value, .. }
-        | StyleValueData::OpacityValue { value }
-        | StyleValueData::Filter { value, .. }
-        | StyleValueData::OpenTypeTagged { value, .. } => optional_contains(value, dependency),
-        StyleValueData::GridTrackPlacement { value, .. } => optional_contains(value, dependency),
-        StyleValueData::GridTrackSizeList { entries, .. } => grid_entries_contain(entries.as_slice(), dependency),
-        StyleValueData::ColorFunction {
-            channel_0,
-            channel_1,
-            channel_2,
-            alpha,
-            origin_color,
-            ..
-        } => any(&[channel_0, channel_1, channel_2, alpha, origin_color]),
-        StyleValueData::BorderImageSlice {
-            top,
-            right,
-            bottom,
-            left,
-            ..
-        }
-        | StyleValueData::Rect {
-            top,
-            right,
-            bottom,
-            left,
-        } => any(&[top, right, bottom, left]),
-        StyleValueData::Content { content, alt_text } => {
-            value_contains_external_dependency(content.data(), dependency) || optional_contains(alt_text, dependency)
-        }
-        StyleValueData::RadialSize { value_0, value_1, .. } => any(&[value_0, value_1]),
-        StyleValueData::BasicShape {
-            v0,
-            v1,
-            v2,
-            v3,
-            v4,
-            points,
-            ..
-        } => {
-            any(&[v0, v1, v2, v3, v4])
-                || points
-                    .as_slice()
-                    .iter()
-                    .any(|point| point.values().iter().any(|value| optional_contains(value, dependency)))
-        }
-        StyleValueData::Counter { counter_style, .. } => {
-            value_contains_external_dependency(counter_style.data(), dependency)
-        }
-        StyleValueData::RandomValueSharing { fixed_value, .. } => optional_contains(fixed_value, dependency),
-        StyleValueData::Cursor { image, x, y } => {
-            value_contains_external_dependency(image.data(), dependency) || any(&[x, y])
-        }
-        StyleValueData::Easing {
-            linear_stops,
-            x1,
-            y1,
-            x2,
-            y2,
-            number_of_intervals,
-            ..
-        } => {
-            any(&[x1, y1, x2, y2, number_of_intervals])
-                || linear_stops
-                    .as_slice()
-                    .iter()
-                    .any(|stop| stop.values().iter().any(|value| optional_contains(value, dependency)))
-        }
-        StyleValueData::ImageSet { options } => options
-            .as_slice()
-            .iter()
-            .any(|option| option.values().iter().any(|value| optional_contains(value, dependency))),
-        StyleValueData::CounterDefinitions { counter_definitions } => counter_definitions
-            .as_slice()
-            .iter()
-            .any(|definition| optional_contains(definition.value(), dependency)),
-        StyleValueData::LinearGradient {
-            direction_value,
-            color_stop_list,
-            color_interpolation_method,
-            ..
-        } => {
-            any(&[direction_value, color_interpolation_method])
-                || color_stop_list
-                    .as_slice()
-                    .iter()
-                    .any(|stop| stop.values().iter().any(|value| optional_contains(value, dependency)))
-        }
-        StyleValueData::ConicGradient {
-            from_angle,
-            position,
-            color_stop_list,
-            color_interpolation_method,
-            ..
-        } => {
-            any(&[from_angle, position, color_interpolation_method])
-                || color_stop_list
-                    .as_slice()
-                    .iter()
-                    .any(|stop| stop.values().iter().any(|value| optional_contains(value, dependency)))
-        }
-        StyleValueData::RadialGradient {
-            size,
-            position,
-            color_stop_list,
-            color_interpolation_method,
-            ..
-        } => {
-            any(&[size, position, color_interpolation_method])
-                || color_stop_list
-                    .as_slice()
-                    .iter()
-                    .any(|stop| stop.values().iter().any(|value| optional_contains(value, dependency)))
-        }
-        StyleValueData::ColorMix {
-            color_interpolation_method,
-            first_color,
-            first_percentage,
-            second_color,
-            second_percentage,
-            ..
-        } => any(&[
-            color_interpolation_method,
-            first_color,
-            first_percentage,
-            second_color,
-            second_percentage,
-        ]),
-        StyleValueData::ContrastColor { color, .. } => value_contains_external_dependency(color.data(), dependency),
-        StyleValueData::LightDark { light, dark, .. } => any(&[light, dark]),
-        StyleValueData::Superellipse { parameter } => optional_contains(parameter, dependency),
-        StyleValueData::ScrollbarColor {
-            thumb_color,
-            track_color,
-        } => any(&[thumb_color, track_color]),
-        StyleValueData::FontStyle { angle_value, .. } => optional_contains(angle_value, dependency),
-        StyleValueData::TextIndent { length_percentage, .. } => optional_contains(length_percentage, dependency),
-        StyleValueData::OverflowClipMargin { offset, .. } => optional_contains(offset, dependency),
-        StyleValueData::BackgroundSize { size_x, size_y } => any(&[size_x, size_y]),
-        StyleValueData::Position { edge_x, edge_y } => any(&[edge_x, edge_y]),
-        StyleValueData::Shadow {
-            color,
-            offset_x,
-            offset_y,
-            blur_radius,
-            spread_distance,
-            ..
-        } => any(&[color, offset_x, offset_y, blur_radius, spread_distance]),
-        StyleValueData::Shorthand { values, .. }
-        | StyleValueData::ValueList { values, .. }
-        | StyleValueData::Tuple { values }
-        | StyleValueData::Transformation { values, .. } => list_contains(values, dependency),
-        StyleValueData::BorderRadiusRect {
-            top_left,
-            top_right,
-            bottom_right,
-            bottom_left,
-        } => any(&[top_left, top_right, bottom_right, bottom_left]),
-        StyleValueData::BorderRadius {
-            horizontal_radius,
-            vertical_radius,
-            ..
-        } => any(&[horizontal_radius, vertical_radius]),
-        _ => false,
-    }
-}
 
-/// Whether a value contains sibling-count() or sibling-index(), directly or in a nested
-/// calculation or structural value. This lets C++ snapshot the required DOM facts before
-/// entering the longhand drive instead of Rust calling back into the live tree.
-pub(crate) fn value_contains_tree_counting_function(value: &StyleValueData) -> bool {
-    value_contains_external_dependency(value, ExternalValueDependency::TreeCounting)
-}
-
-/// Returns a bit for each container-relative unit present directly or in a nested calculation
-/// or structural value. C++ uses the mask to snapshot only the required element-bound bases.
-pub(crate) fn container_relative_length_unit_mask(value: &StyleValueData) -> u8 {
-    ["cqw", "cqh", "cqi", "cqb", "cqmin", "cqmax"]
-        .iter()
-        .enumerate()
-        .fold(0, |mask, (index, name)| {
-            let unit = LENGTH_UNIT_NAMES
-                .iter()
-                .position(|candidate| candidate == name)
-                .expect("container-relative length unit must exist") as u8;
-            mask | (u8::from(value_contains_external_dependency(
-                value,
-                ExternalValueDependency::ContainerRelativeLength(unit),
-            )) << index)
-        })
+    let mut dependencies = ExternalValueDependencies::default();
+    collect(value, &mut dependencies);
+    dependencies.inheritance_dependent = crate::css::style_value::value_depends_on_current_color(value)
+        || !value_is_computationally_independent(value)
+            .expect("computational independence requested for an unsupported value");
+    dependencies
 }
 
 /// Collects the element- or document-cached random sharing nodes reachable through the
@@ -1721,12 +1771,6 @@ pub(crate) fn collect_unfixed_random_sharings_in_value(
         } => collect_values(&[horizontal_radius, vertical_radius], sharings),
         _ => {}
     }
-}
-
-fn value_contains_unfixed_random_sharing(value: &StyleValueData) -> bool {
-    let mut sharings = Vec::new();
-    collect_unfixed_random_sharings_in_value(value, &mut sharings);
-    !sharings.is_empty()
 }
 
 /// # Safety
@@ -2296,7 +2340,10 @@ fn compute_position_area(value: &StyleValueData) -> Option<Arc<StyleValueData>> 
 }
 
 /// The per-longhand initial values as shared Rust value identities.
-struct InitialValueTable(Vec<crate::css::style_value::RetainedStyleValueData>);
+struct InitialValueTable {
+    values: Vec<crate::css::style_value::RetainedStyleValueData>,
+    dependencies: Vec<ExternalValueDependencies>,
+}
 
 // SAFETY: The entries reference immortal, immutable style values.
 unsafe impl Send for InitialValueTable {}
@@ -2312,7 +2359,7 @@ static INITIAL_VALUE_TABLE: std::sync::OnceLock<InitialValueTable> = std::sync::
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_metadata_set_initial_value_table(entries: *const *const c_void, length: usize) {
     abort_on_panic(|| {
-        let entries = unsafe { std::slice::from_raw_parts(entries, length) }
+        let values: Vec<_> = unsafe { std::slice::from_raw_parts(entries, length) }
             .iter()
             .map(|entry| unsafe {
                 crate::css::style_value::RetainedStyleValueData::from_retained_pointer(
@@ -2326,7 +2373,15 @@ pub unsafe extern "C" fn rust_style_metadata_set_initial_value_table(entries: *c
             "initial value table has one entry per longhand"
         );
         assert!(
-            INITIAL_VALUE_TABLE.set(InitialValueTable(entries)).is_ok(),
+            INITIAL_VALUE_TABLE
+                .set(InitialValueTable {
+                    dependencies: values
+                        .iter()
+                        .map(|value| external_value_dependencies(value.data()))
+                        .collect(),
+                    values,
+                })
+                .is_ok(),
             "initial value table installed twice"
         );
     });
@@ -2336,7 +2391,13 @@ pub unsafe extern "C" fn rust_style_metadata_set_initial_value_table(entries: *c
 pub(crate) fn initial_value_data(property_id: u16) -> *const crate::css::style_value::StyleValueData {
     use crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
     let table = INITIAL_VALUE_TABLE.get().expect("initial value table not installed");
-    table.0[(property_id - FIRST_LONGHAND_PROPERTY_ID) as usize].pointer()
+    table.values[(property_id - FIRST_LONGHAND_PROPERTY_ID) as usize].pointer()
+}
+
+fn initial_value_dependencies(property_id: u16) -> ExternalValueDependencies {
+    use crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
+    let table = INITIAL_VALUE_TABLE.get().expect("initial value table not installed");
+    table.dependencies[(property_id - FIRST_LONGHAND_PROPERTY_ID) as usize]
 }
 
 /// FFI accessor for the parity test on the C++ side.
@@ -2602,6 +2663,7 @@ pub struct FfiStyleComputationEnvironment {
     pub color_scheme_input: FfiEffectiveColorSchemeInput,
     pub is_th_element: bool,
     pub has_new_font_size: bool,
+    pub has_animated_inheritance_parent: bool,
     pub has_tree_counting_context: bool,
     pub sibling_count: u64,
     pub sibling_index: u64,
@@ -2812,6 +2874,32 @@ pub const LONGHAND_DRIVE_PHASE_LINE_HEIGHT: u8 = 1;
 pub const LONGHAND_DRIVE_PHASE_COLOR_SCHEME: u8 = 2;
 pub const LONGHAND_DRIVE_PHASE_REMAINING: u8 = 3;
 
+fn property_computation_order_for_phase(phase: u8) -> &'static [u16] {
+    use crate::css::property_metadata::{property_computation_order, property_id as prop};
+
+    static PHASE_BOUNDARIES: OnceLock<(usize, usize)> = OnceLock::new();
+    let order = property_computation_order();
+    let &(line_height, color_scheme) = PHASE_BOUNDARIES.get_or_init(|| {
+        let line_height = order
+            .iter()
+            .position(|&property_id| property_id == prop::LINE_HEIGHT)
+            .expect("line-height must be in the property computation order");
+        let color_scheme = order
+            .iter()
+            .position(|&property_id| property_id == prop::COLOR_SCHEME)
+            .expect("color-scheme must be in the property computation order");
+        assert_eq!(color_scheme, line_height + 1);
+        (line_height, color_scheme)
+    });
+    match phase {
+        LONGHAND_DRIVE_PHASE_FONT => &order[..line_height],
+        LONGHAND_DRIVE_PHASE_LINE_HEIGHT => &order[line_height..color_scheme],
+        LONGHAND_DRIVE_PHASE_COLOR_SCHEME => &order[color_scheme..color_scheme + 1],
+        LONGHAND_DRIVE_PHASE_REMAINING => &order[color_scheme + 1..],
+        _ => unreachable!("unknown longhand drive phase"),
+    }
+}
+
 /// Which longhands either table maps at all, as one bit each.
 ///
 /// Whether a longhand is in a logical property group is a fact about the stylesheet language, and
@@ -2887,58 +2975,70 @@ fn retained_new(value: StyleValueData) -> RetainedStyleValueData {
     unsafe { RetainedStyleValueData::from_retained_pointer(Arc::into_raw(Arc::new(value))) }
 }
 
-fn store_pending_values(longhand_table: *mut ComputedLonghandTable, pending_stores: &[FfiComputedStoreEntry]) {
-    let longhand_table = unsafe { &mut *longhand_table };
-    for entry in pending_stores {
-        longhand_table.remove_inheritance_dependent_value(entry.property_id);
-        if entry.inheritance_dependent {
-            let specified_value = unsafe {
-                RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(
-                    entry.data.cast(),
-                ))
-            };
-            longhand_table.add_inheritance_dependent_value(entry.property_id, specified_value);
-        }
-        let retained = match entry.computed_kind {
-            COMPUTED_KIND_UNCHANGED => unsafe {
-                RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(
-                    entry.data.cast(),
-                ))
-            },
-            COMPUTED_KIND_PX_LENGTH => retained_new(StyleValueData::Length {
-                value: entry.value,
-                unit: px_length_unit(),
-            }),
-            COMPUTED_KIND_INTEGER => retained_new(StyleValueData::Integer {
-                value: entry.value as i32,
-            }),
-            COMPUTED_KIND_SUPERELLIPSE => retained_new(StyleValueData::Superellipse {
-                parameter: retained_new(StyleValueData::Number { value: entry.value }),
-            }),
-            COMPUTED_KIND_NUMBER => retained_new(StyleValueData::Number { value: entry.value }),
-            COMPUTED_KIND_PERCENTAGE => retained_new(StyleValueData::Percentage { value: entry.value }),
-            COMPUTED_KIND_FONT_STYLE => retained_new(StyleValueData::FontStyle {
-                font_style: entry.value as u8,
-                angle_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(std::ptr::null()) },
-            }),
-            COMPUTED_KIND_KEYWORD => retained_new(StyleValueData::Keyword {
-                keyword: entry.value as u16,
-            }),
-            COMPUTED_KIND_DISPLAY => retained_new(StyleValueData::Display {
-                raw: entry.value as u32,
-            }),
-            COMPUTED_KIND_STYLE_VALUE => unsafe {
-                RetainedStyleValueData::from_retained_pointer(entry.computed_data.cast())
-            },
-            _ => unreachable!("unknown computed longhand store kind"),
+fn store_computed_value(longhand_table: &mut ComputedLonghandTable, entry: &FfiComputedStoreEntry) {
+    if entry.inheritance_dependent {
+        let specified_value = unsafe {
+            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(
+                entry.data.cast(),
+            ))
         };
-        let source_slot = if entry.has_style_sheet_context {
-            entry.source_slot
-        } else {
-            -1
-        };
-        longhand_table.set(entry.property_id, retained, source_slot);
+        longhand_table.append_drive_inheritance_dependent_value(entry.property_id, specified_value);
     }
+    let retained = match entry.computed_kind {
+        COMPUTED_KIND_UNCHANGED => unsafe {
+            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(
+                entry.data.cast(),
+            ))
+        },
+        COMPUTED_KIND_PX_LENGTH => retained_new(StyleValueData::Length {
+            value: entry.value,
+            unit: px_length_unit(),
+        }),
+        COMPUTED_KIND_INTEGER => retained_new(StyleValueData::Integer {
+            value: entry.value as i32,
+        }),
+        COMPUTED_KIND_SUPERELLIPSE => retained_new(StyleValueData::Superellipse {
+            parameter: retained_new(StyleValueData::Number { value: entry.value }),
+        }),
+        COMPUTED_KIND_NUMBER => retained_new(StyleValueData::Number { value: entry.value }),
+        COMPUTED_KIND_PERCENTAGE => retained_new(StyleValueData::Percentage { value: entry.value }),
+        COMPUTED_KIND_FONT_STYLE => retained_new(StyleValueData::FontStyle {
+            font_style: entry.value as u8,
+            angle_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(std::ptr::null()) },
+        }),
+        COMPUTED_KIND_KEYWORD => retained_new(StyleValueData::Keyword {
+            keyword: entry.value as u16,
+        }),
+        COMPUTED_KIND_DISPLAY => retained_new(StyleValueData::Display {
+            raw: entry.value as u32,
+        }),
+        COMPUTED_KIND_STYLE_VALUE => unsafe {
+            RetainedStyleValueData::from_retained_pointer(entry.computed_data.cast())
+        },
+        _ => unreachable!("unknown computed longhand store kind"),
+    };
+    let source_slot = if entry.has_style_sheet_context {
+        entry.source_slot
+    } else {
+        -1
+    };
+    longhand_table.set(entry.property_id, retained, source_slot);
+}
+
+fn requires_cpp_store_side_effect(entry: &FfiComputedStoreEntry, has_animated_inheritance_parent: bool) -> bool {
+    use crate::css::property_metadata::property_id as prop;
+    entry.has_style_sheet_context
+        || entry.inherited && has_animated_inheritance_parent
+        || matches!(
+            entry.property_id,
+            prop::COLOR_SCHEME
+                | prop::FONT_FAMILY
+                | prop::FONT_SIZE
+                | prop::FONT_STYLE
+                | prop::FONT_VARIATION_SETTINGS
+                | prop::FONT_WEIGHT
+                | prop::FONT_WIDTH
+        )
 }
 
 fn publish_longhand_store_batch(
@@ -3036,16 +3136,15 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         };
         let length_resolution_context = unsafe { length_resolution_context.as_ref() };
         let results = unsafe { &mut *results };
-        let word_count = NUMBER_OF_LONGHAND_PROPERTIES.div_ceil(64);
-        let mut important_words = vec![0; word_count];
-        let mut inherited_words = vec![0; word_count];
-        let mut evaluated_words = vec![0; word_count];
+        const LONGHAND_WORD_COUNT: usize = NUMBER_OF_LONGHAND_PROPERTIES.div_ceil(64);
+        let mut important_words = [0; LONGHAND_WORD_COUNT];
+        let mut inherited_words = [0; LONGHAND_WORD_COUNT];
+        let mut evaluated_words = [0; LONGHAND_WORD_COUNT];
         let mut cached_writing_mode_and_direction: Option<(u8, u8)> = None;
 
-        // Every longhand queues one store operation, so the room for them is asked for once rather
-        // than grown into ten times per element.
-        let mut pending_stores: Vec<FfiComputedStoreEntry> =
-            Vec::with_capacity(crate::css::property_metadata::property_computation_order().len());
+        let computation_order = property_computation_order_for_phase(phase);
+        let mut cpp_store_side_effects = Vec::new();
+        let mut pending_overflow_x_store: Option<FfiComputedStoreEntry> = None;
         let mut pending_effective_color_scheme: i16 = -1;
         // The element's used color scheme, produced by the preceding color-scheme
         // stage for generic absolutizations.
@@ -3088,26 +3187,10 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         let computed_property_words = if computed_property_words.is_null() {
             None
         } else {
-            Some(unsafe { std::slice::from_raw_parts(computed_property_words, word_count) })
+            Some(unsafe { std::slice::from_raw_parts(computed_property_words, LONGHAND_WORD_COUNT) })
         };
 
-        let mut reached_line_height = false;
-        for &property_id in crate::css::property_metadata::property_computation_order() {
-            let property_phase = if property_id == prop::LINE_HEIGHT {
-                LONGHAND_DRIVE_PHASE_LINE_HEIGHT
-            } else if property_id == prop::COLOR_SCHEME {
-                LONGHAND_DRIVE_PHASE_COLOR_SCHEME
-            } else if reached_line_height {
-                LONGHAND_DRIVE_PHASE_REMAINING
-            } else {
-                LONGHAND_DRIVE_PHASE_FONT
-            };
-            if property_id == prop::LINE_HEIGHT {
-                reached_line_height = true;
-            }
-            if property_phase != phase {
-                continue;
-            }
+        for &property_id in computation_order {
             use crate::css::computed_values::computed_group_output_mask;
             let required_driver_input = matches!(
                 property_id,
@@ -3176,12 +3259,19 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             let mut value = std::ptr::null();
             let mut source_slot = -1;
             let mut has_style_sheet_context = false;
-            if let Some((value_data, important, cascaded_source_slot, cascaded_has_style_sheet_context)) =
-                store.winning_declaration(cascaded_property_id)
+            let mut external_dependencies = None;
+            if let Some((
+                value_data,
+                important,
+                cascaded_source_slot,
+                cascaded_has_style_sheet_context,
+                cascaded_external_dependencies,
+            )) = store.winning_declaration(cascaded_property_id)
             {
                 value = value_data;
                 source_slot = i64::from(cascaded_source_slot);
                 has_style_sheet_context = cascaded_has_style_sheet_context;
+                external_dependencies = Some(cascaded_external_dependencies);
                 if important {
                     set_longhand_bit(&mut important_words, property_id);
                 }
@@ -3212,6 +3302,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             if inherit_fetch_attempted {
                 source_slot = -1;
                 has_style_sheet_context = false;
+                external_dependencies = None;
                 let snapshot = snapshot.unwrap();
                 set_longhand_bit(&mut inherited_words, property_id);
                 if decision.explicitly_inherits_non_inherited_property {
@@ -3238,6 +3329,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             if use_initial {
                 source_slot = -1;
                 has_style_sheet_context = false;
+                external_dependencies = Some(initial_value_dependencies(property_id));
                 value = initial_value_data(property_id).cast();
                 required_level = REQUIRES_COMPUTATION_NON_INHERITED;
             }
@@ -3247,8 +3339,10 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             // Whether the computed value depends on inherited information, so the specified
             // value must be kept for re-resolution when an ancestor changes.
             let value_data = unsafe { &*(value as *const StyleValueData) };
+            let external_dependencies =
+                external_dependencies.unwrap_or_else(|| external_value_dependencies(value_data));
 
-            if tree_counting_context.is_some() && value_contains_tree_counting_function(value_data) {
+            if tree_counting_context.is_some() && external_dependencies.uses_tree_counting_function {
                 results.uses_tree_counting_function = true;
             }
 
@@ -3271,9 +3365,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     computed_direction = keyword_to_direction(*keyword);
                 }
             }
-            let inheritance_dependent = crate::css::style_value::value_depends_on_current_color(value_data)
-                || !value_is_computationally_independent(value_data)
-                    .expect("computational independence requested for an unsupported value")
+            let inheritance_dependent = external_dependencies.inheritance_dependent
                 || value_depends_on_inherited_info_for_property(value_data, property_id);
 
             let style_sheet_resource_context = if has_style_sheet_context && source_slot >= 0 {
@@ -3295,7 +3387,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 None
             };
 
-            if requires_computation {
+            let mut entry = if requires_computation {
                 // First classify values handled by simple absolutization. Recursive and
                 // dedicated property rules below handle the remaining shapes.
                 // The specified value absolutized natively when the core can:
@@ -3329,9 +3421,9 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 // Resolve recursively absolutized inputs once against the immutable facts
                 // captured before entering the drive. Dedicated property rules then consume
                 // the resolved structure just like any other specified value.
-                let externally_absolutized = if value_contains_tree_counting_function(value_data)
-                    || container_relative_length_unit_mask(value_data) != 0
-                    || value_contains_unfixed_random_sharing(value_data)
+                let externally_absolutized = if external_dependencies.uses_tree_counting_function
+                    || external_dependencies.container_relative_length_unit_mask != 0
+                    || external_dependencies.has_unfixed_random_sharing
                     || matches!(value_data, StyleValueData::Calculated { .. })
                     || inherited_property_id == crate::css::property_metadata::property_id::MATH_DEPTH
                         && matches!(
@@ -3927,7 +4019,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                         unreachable!("unsupported native computation for longhand property {inherited_property_id}")
                     }
                 };
-                pending_stores.push(FfiComputedStoreEntry {
+                FfiComputedStoreEntry {
                     property_id,
                     inherited_property_id,
                     data: value,
@@ -3938,9 +4030,9 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     computed_data,
                     computed_kind,
                     value: computed_value,
-                });
+                }
             } else {
-                pending_stores.push(FfiComputedStoreEntry {
+                FfiComputedStoreEntry {
                     property_id,
                     inherited_property_id,
                     data: value,
@@ -3951,8 +4043,8 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     computed_data: std::ptr::null(),
                     computed_kind: COMPUTED_KIND_UNCHANGED,
                     value: 0.0,
-                });
-            }
+                }
+            };
 
             if property_id == prop::OVERFLOW_X {
                 if let StyleValueData::Keyword { keyword } = value_data {
@@ -3964,23 +4056,22 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             {
                 computed_overflow_y = Some(*overflow_y);
                 let effective_overflow = resolve_effective_overflow_keywords(overflow_x, *overflow_y);
-                for entry in pending_stores.iter_mut().rev() {
-                    if entry.property_id == prop::OVERFLOW_X && effective_overflow.changed_x {
-                        debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_UNCHANGED);
-                        entry.computed_kind = COMPUTED_KIND_KEYWORD;
-                        entry.value = effective_overflow.x_keyword as f64;
-                        clear_longhand_bit(&mut important_words, prop::OVERFLOW_X);
-                        clear_longhand_bit(&mut inherited_words, prop::OVERFLOW_X);
-                    } else if entry.property_id == prop::OVERFLOW_Y && effective_overflow.changed_y {
-                        debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_UNCHANGED);
-                        entry.computed_kind = COMPUTED_KIND_KEYWORD;
-                        entry.value = effective_overflow.y_keyword as f64;
-                        clear_longhand_bit(&mut important_words, prop::OVERFLOW_Y);
-                        clear_longhand_bit(&mut inherited_words, prop::OVERFLOW_Y);
-                    }
-                    if entry.property_id == prop::OVERFLOW_X {
-                        break;
-                    }
+                let overflow_x_entry = pending_overflow_x_store
+                    .as_mut()
+                    .expect("overflow-x must precede overflow-y in computation order");
+                if effective_overflow.changed_x {
+                    debug_assert_eq!(overflow_x_entry.computed_kind, COMPUTED_KIND_UNCHANGED);
+                    overflow_x_entry.computed_kind = COMPUTED_KIND_KEYWORD;
+                    overflow_x_entry.value = effective_overflow.x_keyword as f64;
+                    clear_longhand_bit(&mut important_words, prop::OVERFLOW_X);
+                    clear_longhand_bit(&mut inherited_words, prop::OVERFLOW_X);
+                }
+                if effective_overflow.changed_y {
+                    debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_UNCHANGED);
+                    entry.computed_kind = COMPUTED_KIND_KEYWORD;
+                    entry.value = effective_overflow.y_keyword as f64;
+                    clear_longhand_bit(&mut important_words, prop::OVERFLOW_Y);
+                    clear_longhand_bit(&mut inherited_words, prop::OVERFLOW_Y);
                 }
             } else if property_id == prop::TEXT_ALIGN
                 && let StyleValueData::Keyword { keyword: text_align } = value_data
@@ -4010,8 +4101,6 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     parent_direction_is_ltr,
                 );
                 if adjustment.changed {
-                    let entry = pending_stores.last_mut().unwrap();
-                    debug_assert_eq!(entry.property_id, prop::TEXT_ALIGN);
                     debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_UNCHANGED);
                     entry.computed_kind = COMPUTED_KIND_KEYWORD;
                     entry.value = adjustment.keyword as f64;
@@ -4050,12 +4139,37 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 }
                 _ => {}
             }
+
+            let longhand_table = unsafe { &mut *longhand_table };
+            let mut store_and_collect_side_effect = |entry: FfiComputedStoreEntry| {
+                store_computed_value(longhand_table, &entry);
+                if requires_cpp_store_side_effect(&entry, environment.has_animated_inheritance_parent) {
+                    cpp_store_side_effects.push(entry);
+                }
+            };
+            if property_id == prop::OVERFLOW_X {
+                pending_overflow_x_store = Some(entry);
+            } else {
+                if property_id == prop::OVERFLOW_Y {
+                    store_and_collect_side_effect(
+                        pending_overflow_x_store
+                            .take()
+                            .expect("overflow-x must precede overflow-y in computation order"),
+                    );
+                }
+                store_and_collect_side_effect(entry);
+            }
         }
 
-        store_pending_values(longhand_table, &pending_stores);
-        unsafe { &mut *longhand_table }.merge_driver_flags(&important_words, &inherited_words, &evaluated_words);
+        assert!(
+            pending_overflow_x_store.is_none(),
+            "overflow-y must follow overflow-x in computation order"
+        );
+        let longhand_table = unsafe { &mut *longhand_table };
+        longhand_table.finish_drive_inheritance_dependent_values();
+        longhand_table.merge_driver_flags(&important_words, &inherited_words, &evaluated_words);
         if phase != LONGHAND_DRIVE_PHASE_REMAINING {
-            return publish_longhand_store_batch(pending_stores, pending_effective_color_scheme);
+            return publish_longhand_store_batch(cpp_store_side_effects, pending_effective_color_scheme);
         }
         let display_before = computed_display.expect("display must be computed by the longhand driver");
         let mut box_type_input = *box_type_input;
@@ -4078,7 +4192,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             box_type_transformation: transformation,
             element_style_adjustment: element_adjustment,
         };
-        publish_longhand_store_batch(pending_stores, pending_effective_color_scheme)
+        publish_longhand_store_batch(cpp_store_side_effects, pending_effective_color_scheme)
     })
 }
 
@@ -4171,7 +4285,11 @@ pub unsafe extern "C" fn rust_apply_post_compute_adjustments(
             ));
         }
         if !adjustments.is_empty() {
-            store_pending_values(longhand_table, &adjustments);
+            let longhand_table = unsafe { &mut *longhand_table };
+            for entry in &adjustments {
+                store_computed_value(longhand_table, entry);
+            }
+            longhand_table.finish_drive_inheritance_dependent_values();
         }
         if matches!(
             adjustment.text_align_before,
