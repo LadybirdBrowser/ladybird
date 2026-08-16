@@ -456,7 +456,16 @@ void SettingsUI::clear_browsing_data(JsonValue const& options)
         ? Application::ClearBrowsingDataOptions::Delete::Yes
         : Application::ClearBrowsingDataOptions::Delete::No;
 
-    Application::the().clear_browsing_data(clear_browsing_data_options);
+    auto& application = Application::the();
+
+    application.clear_browsing_data(clear_browsing_data_options)
+        ->when_resolved([weak_this = make_weak_ptr<SettingsUI>()](Empty) {
+            if (auto self = weak_this.strong_ref())
+                self->async_send_message("clearedBrowsingData"sv, {});
+        })
+        .when_rejected([](Error const& error) {
+            dbgln("Failed to clear browser data: {}", error);
+        });
 }
 
 void SettingsUI::set_global_privacy_control(JsonValue const& global_privacy_control)

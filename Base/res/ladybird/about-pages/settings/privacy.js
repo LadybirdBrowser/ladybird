@@ -179,5 +179,7 @@ document.addEventListener("WebUIMessage", event => {
         loadSettings(event.detail.data);
     } else if (event.detail.name === "estimatedBrowsingDataSizes") {
         updateBrowsingDataSizes(event.detail.data);
+    } else if (event.detail.name === "clearedBrowsingData") {
+        estimateBrowsingDataSizes();
     }
 });

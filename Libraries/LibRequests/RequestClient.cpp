@@ -51,11 +51,14 @@ void RequestClient::die()
 
     for (auto& [id, promise] : m_pending_cache_size_estimations)
         promise->reject(Error::from_string_literal("RequestServer process died"));
+    for (auto& [id, promise] : m_pending_clear_cache_requests)
+        promise->reject(Error::from_string_literal("RequestServer process died"));
 
     auto websockets = move(m_websockets);
 
     m_requests.clear();
     m_pending_cache_size_estimations.clear();
+    m_pending_clear_cache_requests.clear();
     m_websockets.clear();
 
     for (auto& [id, websocket] : websockets) {
@@ -164,6 +167,24 @@ void RequestClient::estimated_cache_size(u64 cache_size_estimation_id, CacheSize
 {
     if (auto promise = m_pending_cache_size_estimations.take(cache_size_estimation_id); promise.has_value())
         (*promise)->resolve(sizes);
+}
+
+NonnullRefPtr<Core::Promise<Empty>> RequestClient::clear_cache(UnixDateTime since)
+{
+    auto promise = Core::Promise<Empty>::construct();
+
+    auto clear_cache_request_id = m_next_clear_cache_request_id++;
+    m_pending_clear_cache_requests.set(clear_cache_request_id, promise);
+
+    async_remove_cache_entries_accessed_since(clear_cache_request_id, since);
+
+    return promise;
+}
+
+void RequestClient::removed_cache_entries(u64 clear_cache_request_id)
+{
+    if (auto promise = m_pending_clear_cache_requests.take(clear_cache_request_id); promise.has_value())
+        (*promise)->resolve({});
 }
 
 void RequestClient::request_started(u64 request_id, IPC::File response_file)

@@ -507,10 +507,12 @@ void ConnectionFromClient::estimate_cache_size_accessed_since(u64 cache_size_est
     async_estimated_cache_size(cache_size_estimation_id, sizes);
 }
 
-void ConnectionFromClient::remove_cache_entries_accessed_since(UnixDateTime since)
+void ConnectionFromClient::remove_cache_entries_accessed_since(u64 clear_cache_request_id, UnixDateTime since)
 {
     if (m_disk_cache.has_value())
         m_disk_cache->remove_entries_accessed_since(since);
+
+    async_removed_cache_entries(clear_cache_request_id);
 }
 
 Messages::RequestServer::StoreCacheAssociatedDataResponse ConnectionFromClient::store_cache_associated_data(URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, Core::AnonymousBuffer data)

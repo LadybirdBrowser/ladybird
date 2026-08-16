@@ -32,4 +32,5 @@ endpoint RequestClient
     certificate_requested(u64 request_id) =|
 
     estimated_cache_size(u64 cache_size_estimation_id, Requests::CacheSizes sizes) =|
+    removed_cache_entries(u64 clear_cache_request_id) =|
 }

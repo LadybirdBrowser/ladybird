@@ -38,9 +38,11 @@ endpoint RequestServer
     retrieved_http_cookie(int client_id, u64 request_id, ::RequestServer::RequestType request_type, String cookie) =|
 
     estimate_cache_size_accessed_since(u64 cache_size_estimation_id, UnixDateTime since) =|
-    remove_cache_entries_accessed_since(UnixDateTime since) =|
+    remove_cache_entries_accessed_since(u64 clear_cache_request_id, UnixDateTime since) =|
+
     store_cache_associated_data(URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, Core::AnonymousBuffer data) => (bool stored)
     retrieve_cache_associated_data(URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data) => (Optional<Core::AnonymousBuffer> data)
+
     create_synthetic_cache_entry(URL::URL url, ByteString method) => (bool created)
 
     // Websocket Connection API

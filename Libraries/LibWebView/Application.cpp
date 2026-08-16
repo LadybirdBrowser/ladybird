@@ -1722,12 +1722,13 @@ NonnullRefPtr<Core::Promise<Application::BrowsingDataSizes>> Application::estima
     return promise;
 }
 
-void Application::clear_browsing_data(ClearBrowsingDataOptions const& options)
+NonnullRefPtr<Core::Promise<Empty>> Application::clear_browsing_data(ClearBrowsingDataOptions const& options)
 {
+    RefPtr<Core::Promise<Empty>> promise;
     bool did_change_history = false;
 
     if (options.delete_cached_files == ClearBrowsingDataOptions::Delete::Yes) {
-        m_request_server_client->async_remove_cache_entries_accessed_since(options.since);
+        promise = m_request_server_client->clear_cache(options.since);
 
         // FIXME: Maybe we should forward the "since" parameter to the WebContent process, but the in-memory cache is
         //        transient anyways, so just assuming they were all accessed in the last hour is fine for now.
@@ -1760,6 +1761,16 @@ void Application::clear_browsing_data(ClearBrowsingDataOptions const& options)
 
     if (did_change_history)
         on_recently_closed_entries_changed();
+
+    if (!promise) {
+        promise = Core::Promise<Empty>::construct();
+
+        Core::deferred_invoke([promise]() {
+            promise->resolve({});
+        });
+    }
+
+    return promise.release_nonnull();
 }
 
 void Application::initialize_actions()
