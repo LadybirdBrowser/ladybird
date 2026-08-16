@@ -1070,7 +1070,6 @@ impl StyleEngine {
         if self.facts.parts_of(node) != parts {
             let previous: Vec<StyleAtomID> = self.facts.parts_of(node).to_vec();
             for part in previous.iter().filter(|part| !parts.contains(part)) {
-                self.facts.postings_mut().remove(SelectorPostingKey::Part(*part), node);
                 self.record_input(
                     InputKey::LocalFeature(node, LocalFeatureKey::Part(*part)),
                     InputValue::Feature(FeatureValue::Present),
@@ -1078,16 +1077,13 @@ impl StyleEngine {
                 );
             }
             for part in parts.iter().filter(|part| !previous.contains(part)) {
-                self.facts
-                    .postings_mut()
-                    .insert(SelectorPostingKey::Part(*part), node, &mut self.memory);
                 self.record_input(
                     InputKey::LocalFeature(node, LocalFeatureKey::Part(*part)),
                     InputValue::Feature(FeatureValue::Absent),
                     InputValue::Feature(FeatureValue::Present),
                 );
             }
-            self.facts.set_parts(node, &parts);
+            self.facts.set_parts(node, &parts, &mut self.memory);
         }
         self.tree.set_part_hosts(node, pairs, &mut self.memory);
     }
@@ -1195,9 +1191,6 @@ impl StyleEngine {
         }
         let previous: Vec<StyleAtomID> = self.facts.custom_states_of(node).to_vec();
         for state in previous.iter().filter(|state| !states.contains(state)) {
-            self.facts
-                .postings_mut()
-                .remove(SelectorPostingKey::CustomState(*state), node);
             self.record_input(
                 InputKey::LocalFeature(node, LocalFeatureKey::CustomState(*state)),
                 InputValue::Feature(FeatureValue::Present),
@@ -1205,16 +1198,13 @@ impl StyleEngine {
             );
         }
         for state in states.iter().filter(|state| !previous.contains(state)) {
-            self.facts
-                .postings_mut()
-                .insert(SelectorPostingKey::CustomState(*state), node, &mut self.memory);
             self.record_input(
                 InputKey::LocalFeature(node, LocalFeatureKey::CustomState(*state)),
                 InputValue::Feature(FeatureValue::Absent),
                 InputValue::Feature(FeatureValue::Present),
             );
         }
-        self.facts.set_custom_states(node, states);
+        self.facts.set_custom_states(node, states, &mut self.memory);
     }
 
     /// See `ElementFactStore::note_attribute_name_forms`.

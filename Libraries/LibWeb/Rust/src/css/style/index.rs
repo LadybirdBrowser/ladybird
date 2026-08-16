@@ -39,6 +39,7 @@ use std::rc::Rc;
 use super::memory::MemoryCategory;
 use super::memory::MemoryController;
 use super::memory::MemoryLease;
+use super::memory::Tier;
 use super::partial_view::Lookup;
 use super::prefix::PrefixAutomaton;
 use super::program::DeclaredProperty;
@@ -1493,6 +1494,9 @@ pub struct FeaturePostings {
     postings: HashMap<PostingKey, Posting>,
     residency: MemoryLease,
     missing: HashSet<PostingKey>,
+    cardinality_limited: HashSet<PostingKey>,
+    grown_selector_postings: HashSet<PostingKey>,
+    selector_posting_limit: usize,
     benefit_hits: Cell<u64>,
     benefit_misses: Cell<u64>,
 }
@@ -1503,6 +1507,9 @@ impl Default for FeaturePostings {
             postings: HashMap::default(),
             residency: MemoryLease::new(MemoryCategory::FeaturePosting),
             missing: HashSet::default(),
+            cardinality_limited: HashSet::default(),
+            grown_selector_postings: HashSet::default(),
+            selector_posting_limit: usize::MAX,
             benefit_hits: Cell::new(0),
             benefit_misses: Cell::new(0),
         }
@@ -1520,21 +1527,33 @@ impl FeaturePostings {
     /// that silently lost members would be a wrong answer, not a slower one. Adding a node that is
     /// already a member changes nothing and succeeds.
     pub fn insert(&mut self, key: PostingKey, node: StyleNodeID, memory: &mut MemoryController) -> bool {
-        if self.missing.contains(&key) {
+        if self.missing.contains(&key) || self.cardinality_limited.contains(&key) {
             return false;
         }
-        let posting = match self.postings.entry(key) {
-            std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut(),
-            std::collections::hash_map::Entry::Vacant(entry) => entry.insert(Posting::default()),
-        };
-        let Some(growth) = posting.insert(node) else {
+        let postings_capacity_before = self.postings_capacity_bytes();
+        self.postings.entry(key).or_default();
+        let postings_growth = self.postings_capacity_bytes() - postings_capacity_before;
+        let posting = self.postings.get_mut(&key).expect("a posting entry was just ensured");
+        let Some(posting_growth) = posting.insert(node) else {
             return true;
         };
+        let posting_length = posting.length;
+        let growth = posting_growth + postings_growth;
         if growth != 0 && !self.residency.grow(memory, growth).is_granted() {
-            let resident_bytes = posting.capacity_bytes() - growth;
+            let resident_bytes = posting.capacity_bytes() - posting_growth;
             self.postings.remove(&key);
             self.residency.shrink_to(self.residency.bytes() - resident_bytes);
+            self.residency.grow_committed(postings_growth);
             self.remember_missing(key);
+            return false;
+        }
+        if key.has_selector_posting() && posting_length > 4096 {
+            self.remember_grown_selector_posting(key);
+        }
+        let exceeds_limit = key.has_selector_posting() && posting_length > self.selector_posting_limit;
+        if exceeds_limit {
+            self.remove_posting(key);
+            self.remember_cardinality_limited(key);
             return false;
         }
         true
@@ -1558,7 +1577,7 @@ impl FeaturePostings {
     pub(super) fn lookup(&self, key: PostingKey) -> Lookup<&Posting, PostingKey> {
         let result = match self.postings.get(&key) {
             Some(posting) => Lookup::Known(posting),
-            None if self.missing.contains(&key) => Lookup::Missing(key),
+            None if self.missing.contains(&key) || self.cardinality_limited.contains(&key) => Lookup::Missing(key),
             None => Lookup::KnownAbsent,
         };
         self.record_benefit_lookup(!matches!(result, Lookup::Missing(_)));
@@ -1580,6 +1599,23 @@ impl FeaturePostings {
         }
     }
 
+    fn cardinality_limited_capacity_bytes(&self) -> u64 {
+        capacity_bytes! {
+            shallow [self.cardinality_limited];
+            cached [];
+            nested [];
+            skip [];
+        }
+    }
+
+    fn postings_capacity_bytes(&self) -> u64 {
+        self.postings.shallow_capacity_bytes()
+    }
+
+    fn grown_selector_postings_capacity_bytes(&self) -> u64 {
+        self.grown_selector_postings.shallow_capacity_bytes()
+    }
+
     fn remember_missing(&mut self, key: PostingKey) {
         let before = self.missing_capacity_bytes();
         self.missing.insert(key);
@@ -1593,6 +1629,59 @@ impl FeaturePostings {
         };
         self.residency
             .shrink_to(self.residency.bytes() - posting.capacity_bytes());
+        if self.postings.is_empty() {
+            let released = self.postings_capacity_bytes();
+            self.postings = HashMap::default();
+            self.residency.shrink_to(self.residency.bytes() - released);
+        }
+    }
+
+    fn remember_cardinality_limited(&mut self, key: PostingKey) {
+        let before = self.cardinality_limited_capacity_bytes();
+        self.cardinality_limited.insert(key);
+        let after = self.cardinality_limited_capacity_bytes();
+        self.residency.grow_committed(after - before);
+    }
+
+    fn remember_grown_selector_posting(&mut self, key: PostingKey) {
+        let before = self.grown_selector_postings_capacity_bytes();
+        self.grown_selector_postings.insert(key);
+        let after = self.grown_selector_postings_capacity_bytes();
+        self.residency.grow_committed(after - before);
+    }
+
+    fn set_selector_posting_limit(&mut self, maximum_candidates: usize) {
+        let first_limit = self.selector_posting_limit == usize::MAX;
+        self.selector_posting_limit = maximum_candidates;
+        if !first_limit {
+            return;
+        }
+        let keys: Vec<_> = self
+            .postings
+            .iter()
+            .filter_map(|(&key, posting)| {
+                (key.has_selector_posting() && posting.length > maximum_candidates).then_some(key)
+            })
+            .collect();
+        for key in keys {
+            self.remove_posting(key);
+            self.remember_cardinality_limited(key);
+        }
+    }
+
+    fn update_selector_posting_limit(&mut self, live_element_count: usize) {
+        self.set_selector_posting_limit((live_element_count / 4).max(4096));
+        let grown: Vec<_> = self.grown_selector_postings.drain().collect();
+        for key in grown {
+            if self
+                .postings
+                .get(&key)
+                .is_some_and(|posting| posting.length > self.selector_posting_limit)
+            {
+                self.remove_posting(key);
+                self.remember_cardinality_limited(key);
+            }
+        }
     }
 
     /// Discard every posting. Memory pressure reduces retained acceleration, never correctness.
@@ -1601,7 +1690,8 @@ impl FeaturePostings {
         for key in keys {
             self.remember_missing(key);
         }
-        let released = self.postings.values().map(Posting::capacity_bytes).sum::<u64>();
+        let released =
+            self.postings.values().map(Posting::capacity_bytes).sum::<u64>() + self.postings_capacity_bytes();
         self.residency.shrink_to(self.residency.bytes() - released);
         self.postings = HashMap::default();
     }
@@ -1613,10 +1703,28 @@ impl FeaturePostings {
 
     fn take_rebuilt(&mut self, mut rebuilt: FeaturePostings) {
         debug_assert!(rebuilt.missing.is_empty());
-        let rebuilt_bytes = rebuilt.residency.bytes();
+        let rebuilt_grown_bytes = rebuilt.grown_selector_postings_capacity_bytes();
+        rebuilt.grown_selector_postings = HashSet::default();
+        rebuilt.residency.shrink_committed(rebuilt_grown_bytes);
+
+        let postings_before = self.postings_capacity_bytes();
         self.postings.extend(rebuilt.postings.drain());
+        let postings_growth = self.postings_capacity_bytes() - postings_before;
+        let rebuilt_postings_bytes = rebuilt.postings_capacity_bytes();
+        rebuilt.postings = HashMap::default();
+        rebuilt.residency.shrink_committed(rebuilt_postings_bytes);
+
+        let cardinality_before = self.cardinality_limited_capacity_bytes();
+        self.cardinality_limited.extend(rebuilt.cardinality_limited.drain());
+        let cardinality_growth = self.cardinality_limited_capacity_bytes() - cardinality_before;
+        let rebuilt_cardinality_bytes = rebuilt.cardinality_limited_capacity_bytes();
+        rebuilt.cardinality_limited = HashSet::default();
+        rebuilt.residency.shrink_committed(rebuilt_cardinality_bytes);
+
+        let rebuilt_bytes = rebuilt.residency.bytes();
         rebuilt.residency.release();
-        self.residency.grow_committed(rebuilt_bytes);
+        self.residency
+            .grow_committed(rebuilt_bytes + postings_growth + cardinality_growth);
 
         let released = self.missing_capacity_bytes();
         self.missing = HashSet::default();
@@ -1627,6 +1735,15 @@ impl FeaturePostings {
     #[cfg(test)]
     pub fn feature_count(&self) -> usize {
         self.postings.len()
+    }
+
+    #[cfg(test)]
+    fn retained_capacity_bytes(&self) -> u64 {
+        self.postings_capacity_bytes()
+            + self.postings.values().map(Posting::capacity_bytes).sum::<u64>()
+            + self.missing_capacity_bytes()
+            + self.cardinality_limited_capacity_bytes()
+            + self.grown_selector_postings_capacity_bytes()
     }
 
     fn record_benefit_lookup(&self, hit: bool) {
@@ -2657,6 +2774,9 @@ pub struct ElementFactStore {
     /// Candidate sets over the same facts. A rule arriving needs to find the elements it could
     /// match without walking the document, and this is what answers that.
     postings: FeaturePostings,
+    /// Tier-3 headroom at the last refused full rebuild. Until more headroom appears, another scan
+    /// can only reach the same refusal.
+    posting_rebuild_refused_at_headroom: Option<u64>,
     memory: MemoryLease,
     memory_dirty: bool,
     settled_non_apply_capacity_bytes: u64,
@@ -2666,6 +2786,10 @@ pub struct ElementFactStore {
     custom_property_name_sets: super::intern_table::InternTable<CustomPropertyNameSetID, Vec<StyleAtomID>>,
     custom_property_name_set_vacancies: Vec<u32>,
     custom_property_set_ids_by_name: Column<Vec<u32>>,
+    language_live_counts: Column<u64>,
+    attribute_name_live_counts: Column<u64>,
+    attribute_value_live_counts: Column<u64>,
+    custom_property_set_live_counts: Vec<u64>,
     /// Attribute-name forms and value text shared by the primary and each bounded fact batch.
     ///
     /// An attribute is keyed by the name that is unique to it - its qualified atom, or its bare local
@@ -2913,10 +3037,6 @@ impl FactStaging {
             .filter_map(|&(node, entry)| (self.rows.get(Self::index(node)) == Some(entry)).then_some(node))
     }
 
-    fn values(&self) -> impl Iterator<Item = &StagedFactRow> {
-        self.keys().filter_map(|node| self.get(node))
-    }
-
     fn dirty_rows(&self) -> Vec<(StyleNodeID, StagedFactRow)> {
         self.dirty
             .iter()
@@ -3039,12 +3159,17 @@ impl Default for ElementFactStore {
             primary_live_payload_bytes: 0,
             primary_stale_payload_bytes: 0,
             postings: FeaturePostings::default(),
+            posting_rebuild_refused_at_headroom: None,
             memory: MemoryLease::new(MemoryCategory::StyleNodeMapping),
             memory_dirty: false,
             settled_non_apply_capacity_bytes: 0,
             custom_property_name_sets: super::intern_table::InternTable::default(),
             custom_property_name_set_vacancies: Vec::new(),
             custom_property_set_ids_by_name: Column::default(),
+            language_live_counts: Column::default(),
+            attribute_name_live_counts: Column::default(),
+            attribute_value_live_counts: Column::default(),
+            custom_property_set_live_counts: vec![0],
             element_declared_properties: ElementDeclarationRows::default(),
         };
         store.settled_non_apply_capacity_bytes = store.capacity_bytes() - store.apply_capacity_bytes();
@@ -3079,6 +3204,40 @@ impl ElementFactStore {
         rows.attribute_catalogs = Rc::clone(&self.attribute_catalogs);
     }
 
+    fn increment_atom_count(counts: &mut Column<u64>, atom: StyleAtomID) {
+        if atom.is_none() {
+            return;
+        }
+        let count = counts.entry(atom.0 as usize);
+        *count = count.checked_add(1).expect("live fact atom count overflow");
+    }
+
+    fn decrement_atom_count(counts: &mut Column<u64>, atom: StyleAtomID) {
+        if atom.is_none() {
+            return;
+        }
+        let count = counts
+            .get_mut(atom.0 as usize)
+            .expect("a live fact atom must have a count");
+        *count = count.checked_sub(1).expect("live fact atom count underflow");
+    }
+
+    fn add_row_catalog_references(&mut self, facts: &StagedFactRow) {
+        Self::increment_atom_count(&mut self.language_live_counts, facts.language);
+        for &(name, value) in &facts.attributes {
+            Self::increment_atom_count(&mut self.attribute_name_live_counts, name);
+            Self::increment_atom_count(&mut self.attribute_value_live_counts, value);
+        }
+    }
+
+    fn remove_row_catalog_references(&mut self, facts: &StagedFactRow) {
+        Self::decrement_atom_count(&mut self.language_live_counts, facts.language);
+        for &(name, value) in &facts.attributes {
+            Self::decrement_atom_count(&mut self.attribute_name_live_counts, name);
+            Self::decrement_atom_count(&mut self.attribute_value_live_counts, value);
+        }
+    }
+
     #[must_use]
     #[cfg(test)]
     pub fn len(&self) -> usize {
@@ -3108,15 +3267,14 @@ impl ElementFactStore {
         node: StyleNodeID,
         memory: &mut MemoryController,
     ) -> bool {
-        !self.postings.missing.contains(&key) || rebuilt.insert(key, node, memory)
+        !self.postings.missing.contains(&key)
+            || rebuilt.insert(key, node, memory)
+            || rebuilt.cardinality_limited.contains(&key)
     }
 
-    fn rebuild_missing_postings(&mut self, memory: &mut MemoryController) {
-        if !self.postings.is_incomplete() {
-            return;
-        }
-
+    fn build_missing_postings(&self, memory: &mut MemoryController) -> Option<FeaturePostings> {
         let mut rebuilt = FeaturePostings::new();
+        rebuilt.selector_posting_limit = self.postings.selector_posting_limit;
         for node in self.rows.live_nodes() {
             let row = self.rows.row_of(node).expect("a live node must have a fact row");
             for (atom, key) in [
@@ -3138,32 +3296,32 @@ impl ElementFactStore {
                     continue;
                 }
                 if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
-                    return;
+                    return None;
                 }
             }
             for &part in self.rows.parts_of(row) {
                 let key = SelectorPostingKey::Part(part);
                 if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
-                    return;
+                    return None;
                 }
             }
             for &state in self.rows.custom_states_of(row) {
                 let key = SelectorPostingKey::CustomState(state);
                 if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
-                    return;
+                    return None;
                 }
             }
             for &class in self.rows.classes_of(row) {
                 let key = SelectorPostingKey::Class(class);
                 if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
-                    return;
+                    return None;
                 }
             }
             for attribute in self.rows.attributes_of(row) {
                 for name in self.attribute_name_keys(attribute.name) {
                     let key = SelectorPostingKey::AttributeName(name);
                     if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
-                        return;
+                        return None;
                     }
                 }
             }
@@ -3171,13 +3329,13 @@ impl ElementFactStore {
                 for &name in &metadata.animation_names {
                     let key = DependencyPostingKey::AnimationName(name);
                     if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
-                        return;
+                        return None;
                     }
                 }
                 if metadata.custom_property_set != 0 {
                     let key = DependencyPostingKey::CustomPropertySet(metadata.custom_property_set);
                     if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
-                        return;
+                        return None;
                     }
                 }
                 for (uses, key) in [
@@ -3188,12 +3346,42 @@ impl ElementFactStore {
                     (metadata.uses_custom_functions, DependencyPostingKey::AnyCustomFunction),
                 ] {
                     if uses && !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
-                        return;
+                        return None;
                     }
                 }
             }
         }
+        Some(rebuilt)
+    }
+
+    fn posting_rebuild_headroom(memory: &MemoryController) -> u64 {
+        memory
+            .tier3_limit()
+            .saturating_sub(memory.bytes_in_tier(Tier::Acceleration))
+    }
+
+    fn rebuild_missing_postings(&mut self, memory: &mut MemoryController) {
+        if !self.postings.is_incomplete() {
+            self.posting_rebuild_refused_at_headroom = None;
+            return;
+        }
+
+        let headroom = Self::posting_rebuild_headroom(memory);
+        if self
+            .posting_rebuild_refused_at_headroom
+            .is_some_and(|refused_at| headroom <= refused_at)
+        {
+            return;
+        }
+
+        let rebuild_started_with_headroom = headroom != 0;
+        let Some(rebuilt) = self.build_missing_postings(memory) else {
+            self.posting_rebuild_refused_at_headroom =
+                rebuild_started_with_headroom.then(|| Self::posting_rebuild_headroom(memory));
+            return;
+        };
         self.postings.take_rebuilt(rebuilt);
+        self.posting_rebuild_refused_at_headroom = None;
     }
 
     #[must_use]
@@ -3658,6 +3846,21 @@ impl ElementFactStore {
         if previous == set {
             return;
         }
+        let required_counts = usize::try_from(previous.max(set)).expect("custom property set index overflow") + 1;
+        if self.custom_property_set_live_counts.len() < required_counts {
+            self.custom_property_set_live_counts.resize(required_counts, 0);
+        }
+        if previous != 0 {
+            self.custom_property_set_live_counts[previous as usize] = self.custom_property_set_live_counts
+                [previous as usize]
+                .checked_sub(1)
+                .expect("custom property set live count underflow");
+        }
+        if set != 0 {
+            self.custom_property_set_live_counts[set as usize] = self.custom_property_set_live_counts[set as usize]
+                .checked_add(1)
+                .expect("custom property set live count overflow");
+        }
         self.metadata_mut(node).custom_property_set = set;
         if previous != 0 {
             self.postings
@@ -3855,11 +4058,26 @@ impl ElementFactStore {
         });
     }
 
-    pub fn set_parts(&mut self, node: StyleNodeID, parts: &[StyleAtomID]) {
+    pub fn set_parts(&mut self, node: StyleNodeID, parts: &[StyleAtomID], memory: &mut MemoryController) {
+        let previous = self.parts_of(node).to_vec();
+        for &part in previous.iter().filter(|part| !parts.contains(part)) {
+            self.postings.remove(SelectorPostingKey::Part(part), node);
+        }
+        for &part in parts.iter().filter(|part| !previous.contains(part)) {
+            self.postings.insert(SelectorPostingKey::Part(part), node, memory);
+        }
         self.edit_staged_row(node, |facts| facts.parts = parts.to_vec());
     }
 
-    pub fn set_custom_states(&mut self, node: StyleNodeID, states: &[StyleAtomID]) {
+    pub fn set_custom_states(&mut self, node: StyleNodeID, states: &[StyleAtomID], memory: &mut MemoryController) {
+        let previous = self.custom_states_of(node).to_vec();
+        for &state in previous.iter().filter(|state| !states.contains(state)) {
+            self.postings.remove(SelectorPostingKey::CustomState(state), node);
+        }
+        for &state in states.iter().filter(|state| !previous.contains(state)) {
+            self.postings
+                .insert(SelectorPostingKey::CustomState(state), node, memory);
+        }
         self.edit_staged_row(node, |facts| facts.custom_states = states.to_vec());
     }
 
@@ -3873,6 +4091,7 @@ impl ElementFactStore {
         let row_bytes = self.rows.logical_bytes_of_row(row);
         let payload_bytes = self.rows.payload_bytes_of_row(row);
         let facts = self.snapshot_row(node);
+        self.remove_row_catalog_references(&facts);
         Rc::get_mut(&mut self.rows)
             .expect("forgetting a fact row requires unique primary rows")
             .forget_row(node);
@@ -3905,6 +4124,12 @@ impl ElementFactStore {
         for class in facts.classes {
             self.postings.remove(SelectorPostingKey::Class(class), node);
         }
+        for part in facts.parts {
+            self.postings.remove(SelectorPostingKey::Part(part), node);
+        }
+        for state in facts.custom_states {
+            self.postings.remove(SelectorPostingKey::CustomState(state), node);
+        }
         for (name, _) in facts.attributes {
             for key in self.attribute_name_keys(name) {
                 self.postings.remove(SelectorPostingKey::AttributeName(key), node);
@@ -3915,6 +4140,12 @@ impl ElementFactStore {
             .and_then(|index| self.metadata.get_mut(index as usize))
             .and_then(Option::take)
         {
+            if metadata.custom_property_set != 0 {
+                self.custom_property_set_live_counts[metadata.custom_property_set as usize] = self
+                    .custom_property_set_live_counts[metadata.custom_property_set as usize]
+                    .checked_sub(1)
+                    .expect("custom property set live count underflow");
+            }
             for name in metadata.animation_names {
                 self.postings.remove(DependencyPostingKey::AnimationName(name), node);
             }
@@ -3935,56 +4166,20 @@ impl ElementFactStore {
 
     pub fn sweep_auxiliary_catalogs(&mut self) {
         self.memory_dirty = true;
-        let mut live_languages = HashMap::default();
-        let mut live_attribute_values = HashMap::default();
-        let mut live_attribute_names = HashMap::default();
-        let mut live_custom_property_sets = vec![false; self.custom_property_name_sets.len() + 1];
-        for node in self.rows.live_nodes() {
-            let row = self.rows.row_of(node).expect("a live node must have a fact row");
-            let language = self.rows.language_of(row);
-            if !language.is_none() {
-                live_languages.insert(language, ());
-            }
-            for attribute in self.rows.attributes_of(row) {
-                live_attribute_names.insert(attribute.name, ());
-                if !attribute.value.is_none() {
-                    live_attribute_values.insert(attribute.value, ());
-                }
-            }
-        }
-        for row in self.staging.values() {
-            if !row.language.is_none() {
-                live_languages.insert(row.language, ());
-            }
-            for &(name, value) in &row.attributes {
-                live_attribute_names.insert(name, ());
-                if !value.is_none() {
-                    live_attribute_values.insert(value, ());
-                }
-            }
-        }
-        for metadata in self.metadata.iter().flatten() {
-            if metadata.custom_property_set != 0 {
-                live_custom_property_sets[metadata.custom_property_set as usize] = true;
-            }
-        }
         let attribute_catalogs = Rc::make_mut(&mut self.attribute_catalogs);
         for (index, text) in attribute_catalogs.language_texts.indexed_iter_mut() {
-            let language = StyleAtomID(u32::try_from(index).expect("language atom index exceeds u32"));
-            if !live_languages.contains_key(&language) {
+            if self.language_live_counts.get(index).copied().unwrap_or(0) == 0 {
                 *text = None;
             }
         }
         for (index, text) in attribute_catalogs.value_texts.indexed_iter_mut() {
-            let value = StyleAtomID(u32::try_from(index).expect("attribute value atom index exceeds u32"));
-            if !live_attribute_values.contains_key(&value) {
+            if self.attribute_value_live_counts.get(index).copied().unwrap_or(0) == 0 {
                 *text = None;
             }
         }
         for position in 0..attribute_catalogs.name_forms.indices.len() {
             let index = attribute_catalogs.name_forms.indices[position];
-            let name = StyleAtomID(u32::try_from(index).expect("attribute name atom index exceeds u32"));
-            if !live_attribute_names.contains_key(&name) {
+            if self.attribute_name_live_counts.get(index).copied().unwrap_or(0) == 0 {
                 attribute_catalogs
                     .name_forms
                     .insert(index, AttributeNameForms::default());
@@ -3995,8 +4190,8 @@ impl ElementFactStore {
             *sets = Vec::new();
         }
         self.custom_property_name_set_vacancies.clear();
-        for (id, &is_live) in live_custom_property_sets.iter().enumerate().skip(1) {
-            if !is_live {
+        for id in 1..=self.custom_property_name_sets.len() {
+            if self.custom_property_set_live_counts.get(id).copied().unwrap_or(0) == 0 {
                 let identity = CustomPropertyNameSetID(id as u32);
                 if !self.custom_property_name_sets[identity].is_empty() {
                     let hash = super::intern_table::content_hash(&self.custom_property_name_sets[identity]);
@@ -4099,6 +4294,10 @@ impl ElementFactStore {
                 self.custom_property_name_sets,
                 self.custom_property_name_set_vacancies,
                 self.custom_property_set_ids_by_name,
+                self.language_live_counts,
+                self.attribute_name_live_counts,
+                self.attribute_value_live_counts,
+                self.custom_property_set_live_counts,
                 self.attribute_catalogs.language_texts,
                 self.attribute_catalogs.value_texts,
                 self.attribute_catalogs.name_forms,
@@ -4136,12 +4335,17 @@ impl ElementFactStore {
                 self.primary_stale_payload_bytes,
                 self.postings,
                 self.attribute_catalogs,
+                self.posting_rebuild_refused_at_headroom,
                 self.memory,
                 self.memory_dirty,
                 self.staging,
                 self.custom_property_name_sets,
                 self.custom_property_name_set_vacancies,
                 self.custom_property_set_ids_by_name,
+                self.language_live_counts,
+                self.attribute_name_live_counts,
+                self.attribute_value_live_counts,
+                self.custom_property_set_live_counts,
             ];
         }
     }
@@ -4155,6 +4359,7 @@ impl ElementFactStore {
         self.sync_attribute_catalogs();
         let staging = self.staging.dirty_rows();
         for (node, facts) in staging {
+            let previous = self.rows.row_of(node).map(|_| self.snapshot_row(node));
             let replaced_bytes = self
                 .rows
                 .row_of(node)
@@ -4163,6 +4368,10 @@ impl ElementFactStore {
                 .rows
                 .row_of(node)
                 .map_or(0, |row| self.rows.payload_bytes_of_row(row));
+            if let Some(previous) = &previous {
+                self.remove_row_catalog_references(previous);
+            }
+            self.add_row_catalog_references(&facts);
             // A selector-free transaction may retain the active traversal's immutable primary
             // view. Preserve that view while advancing the authoritative rows for the next
             // transaction.
@@ -4186,6 +4395,7 @@ impl ElementFactStore {
                 .expect("primary stale fact payload byte count overflow");
         }
         self.staging.mark_applied();
+        self.postings.update_selector_posting_limit(self.rows.live_row_count());
         let apply_capacity_bytes = self.apply_capacity_bytes();
         let current = self
             .settled_non_apply_capacity_bytes
@@ -4390,11 +4600,13 @@ mod tests {
     }
 
     #[test]
-    fn forgetting_an_element_removes_every_attribute_name_alias_posting() {
+    fn forgetting_an_element_removes_every_owned_posting() {
         let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(1);
         let name = StyleAtomID(10);
+        let part = StyleAtomID(30);
+        let custom_state = StyleAtomID(31);
         let forms = AttributeNameForms {
             local: StyleAtomID(11),
             folded_name: StyleAtomID(12),
@@ -4402,11 +4614,15 @@ mod tests {
         };
         facts.note_attribute_name_forms(name, forms);
         facts.set_attribute(node, name, StyleAtomID(20), true, &mut memory);
+        facts.set_parts(node, &[part], &mut memory);
+        facts.set_custom_states(node, &[custom_state], &mut memory);
         facts.apply_staged(&mut memory);
 
         for key in [name, forms.local, forms.folded_name, forms.folded_local] {
             assert!(known_posting(&facts.postings, SelectorPostingKey::AttributeName(key)).contains(node));
         }
+        assert!(known_posting(&facts.postings, SelectorPostingKey::Part(part)).contains(node));
+        assert!(known_posting(&facts.postings, SelectorPostingKey::CustomState(custom_state)).contains(node));
 
         facts.forget(node);
 
@@ -4416,6 +4632,14 @@ mod tests {
                 Lookup::KnownAbsent
             ));
         }
+        assert!(matches!(
+            facts.postings.lookup(SelectorPostingKey::Part(part)),
+            Lookup::KnownAbsent
+        ));
+        assert!(matches!(
+            facts.postings.lookup(SelectorPostingKey::CustomState(custom_state)),
+            Lookup::KnownAbsent
+        ));
     }
 
     #[test]
@@ -4465,8 +4689,8 @@ mod tests {
 
         facts.set_class(node, second_class, true, &mut memory);
         facts.set_state(node, StateFact::Hover, true);
-        facts.set_parts(node, &[part]);
-        facts.set_custom_states(node, &[custom_state]);
+        facts.set_parts(node, &[part], &mut memory);
+        facts.set_custom_states(node, &[custom_state], &mut memory);
         facts.apply_staged(&mut memory);
         assert_eq!(facts.primary().generation(), initial_generation);
         assert_eq!(facts.primary().row_count(), 4);
@@ -4524,8 +4748,8 @@ mod tests {
         let initial = facts.capacity_bytes();
 
         facts.set_class(node, StyleAtomID(1), true, &mut memory);
-        facts.set_parts(node, &[StyleAtomID(2), StyleAtomID(3)]);
-        facts.set_custom_states(node, &[StyleAtomID(4), StyleAtomID(5)]);
+        facts.set_parts(node, &[StyleAtomID(2), StyleAtomID(3)], &mut memory);
+        facts.set_custom_states(node, &[StyleAtomID(4), StyleAtomID(5)], &mut memory);
         facts.set_attribute(node, StyleAtomID(6), StyleAtomID(7), true, &mut memory);
         assert!(facts.capacity_bytes() > initial);
 
@@ -4670,7 +4894,7 @@ mod tests {
         assert!(matches!(postings.lookup(key), Lookup::Missing(gap) if gap == key));
         assert_eq!(
             memory.bytes_in_category(MemoryCategory::FeaturePosting),
-            postings.missing_capacity_bytes()
+            postings.retained_capacity_bytes()
         );
     }
 
@@ -4688,7 +4912,49 @@ mod tests {
         assert!(matches!(postings.lookup(key), Lookup::Missing(gap) if gap == key));
         assert_eq!(
             memory.bytes_in_category(MemoryCategory::FeaturePosting),
-            postings.missing_capacity_bytes()
+            postings.retained_capacity_bytes()
+        );
+    }
+
+    #[test]
+    fn high_cardinality_caps_apply_only_to_selector_postings() {
+        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut postings = FeaturePostings::new();
+        let selector = SelectorPostingKey::Class(StyleAtomID(1));
+        let dependency = DependencyPostingKey::AnimationName(StyleAtomID(2));
+        postings.set_selector_posting_limit(2);
+        for index in 1..=3 {
+            let node = StyleNodeID::element(index);
+            assert_eq!(postings.insert(selector, node, &mut memory), index <= 2);
+            assert!(postings.insert(dependency, node, &mut memory));
+        }
+
+        assert!(matches!(postings.lookup(selector), Lookup::Missing(gap) if gap == selector));
+        assert_eq!(known_posting(&postings, dependency).length, 3);
+        assert!(!postings.insert(selector, StyleNodeID::element(4), &mut memory));
+    }
+
+    #[test]
+    fn grown_postings_are_rechecked_against_the_fresh_limit() {
+        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut postings = FeaturePostings::new();
+        let key = SelectorPostingKey::Class(StyleAtomID(1));
+        postings.set_selector_posting_limit(5000);
+        for index in 1..=4097 {
+            assert!(postings.insert(key, StyleNodeID::element(index), &mut memory));
+        }
+        assert_eq!(
+            memory.bytes_in_category(MemoryCategory::FeaturePosting),
+            postings.retained_capacity_bytes()
+        );
+
+        postings.update_selector_posting_limit(1);
+
+        assert!(matches!(postings.lookup(key), Lookup::Missing(gap) if gap == key));
+        assert!(postings.grown_selector_postings.is_empty());
+        assert_eq!(
+            memory.bytes_in_category(MemoryCategory::FeaturePosting),
+            postings.retained_capacity_bytes()
         );
     }
 
@@ -4742,9 +5008,16 @@ mod tests {
         facts.apply_staged(&mut memory);
         let new_class_key = SelectorPostingKey::Class(new_class);
         assert!(matches!(facts.postings().lookup(new_class_key), Lookup::Missing(gap) if gap == new_class_key));
+        assert_eq!(facts.posting_rebuild_refused_at_headroom, None);
+
+        // Admission was already closed before the rebuild began, so its failure says nothing about
+        // whether the same headroom could fund a later rebuild after another category reopens it.
+        facts.apply_staged(&mut memory);
+        assert_eq!(facts.posting_rebuild_refused_at_headroom, None);
 
         memory.set_tier3_limit_for_test(u64::MAX);
         facts.apply_staged(&mut memory);
+        assert_eq!(facts.posting_rebuild_refused_at_headroom, None);
         let old_class_key = SelectorPostingKey::Class(old_class);
         let old_animation_key = DependencyPostingKey::AnimationName(old_animation);
         let new_animation_key = DependencyPostingKey::AnimationName(new_animation);
