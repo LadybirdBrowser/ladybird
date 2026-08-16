@@ -32,6 +32,7 @@ use super::column::RemovablePagedColumnPage;
 use super::index::StyleAtomID;
 use super::memory::MemoryCategory;
 use super::memory::MemoryController;
+use super::transaction::TreeRelations;
 
 /// Document-local identity of an element.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -155,6 +156,195 @@ impl<T: Copy> SegmentedNodeColumn<T> {
 
     fn capacity_bytes(&self) -> u64 {
         self.0.capacity_bytes()
+    }
+}
+
+#[derive(Clone, Copy)]
+struct StagedTreeValue<T: Copy> {
+    before: T,
+    after: T,
+    dirty: bool,
+}
+
+/// Transaction-local before/after rows for the tree relation family.
+///
+/// Pages are addressed by dense element identity. The touched lists exist only to drain populated
+/// rows without scanning the document-wide page directory at the commit barrier.
+#[derive(Default)]
+pub(super) struct TreeRelationStaging {
+    rows: SegmentedNodeColumn<StagedTreeValue<Option<TreeRelations>>>,
+    touched_rows: Vec<StyleNodeID>,
+    dirty_rows: Vec<StyleNodeID>,
+    first_children: SegmentedNodeColumn<StagedTreeValue<Option<StyleNodeID>>>,
+    touched_first_children: Vec<StyleNodeID>,
+    dirty_first_children: Vec<StyleNodeID>,
+    applied: bool,
+}
+
+type StagedTreeRows = Vec<(StyleNodeID, Option<TreeRelations>, Option<TreeRelations>)>;
+type StagedFirstChildren = Vec<(StyleNodeID, Option<StyleNodeID>, Option<StyleNodeID>)>;
+
+impl TreeRelationStaging {
+    pub(super) fn is_empty(&self) -> bool {
+        self.touched_rows.is_empty() && self.touched_first_children.is_empty()
+    }
+
+    pub(super) fn is_applied(&self) -> bool {
+        self.applied
+    }
+
+    pub(super) fn current_row(&self, node: StyleNodeID, unstaged: Option<TreeRelations>) -> Option<TreeRelations> {
+        self.rows.get(node).map_or(unstaged, |pair| pair.after)
+    }
+
+    pub(super) fn stage_row(&mut self, node: StyleNodeID, before: Option<TreeRelations>, after: Option<TreeRelations>) {
+        self.applied = false;
+        match self.rows.get(node) {
+            Some(mut pair) => {
+                pair.after = after;
+                if !pair.dirty {
+                    pair.dirty = true;
+                    self.dirty_rows.push(node);
+                }
+                self.rows.insert(node, pair);
+            }
+            None => {
+                self.rows.insert(
+                    node,
+                    StagedTreeValue {
+                        before,
+                        after,
+                        dirty: true,
+                    },
+                );
+                self.touched_rows.push(node);
+                self.dirty_rows.push(node);
+            }
+        }
+    }
+
+    pub(super) fn stage_first_child(
+        &mut self,
+        parent: StyleNodeID,
+        before: Option<StyleNodeID>,
+        after: Option<StyleNodeID>,
+    ) {
+        self.applied = false;
+        match self.first_children.get(parent) {
+            Some(mut pair) => {
+                pair.after = after;
+                if !pair.dirty {
+                    pair.dirty = true;
+                    self.dirty_first_children.push(parent);
+                }
+                self.first_children.insert(parent, pair);
+            }
+            None => {
+                self.first_children.insert(
+                    parent,
+                    StagedTreeValue {
+                        before,
+                        after,
+                        dirty: true,
+                    },
+                );
+                self.touched_first_children.push(parent);
+                self.dirty_first_children.push(parent);
+            }
+        }
+    }
+
+    pub(super) fn rows(&self) -> StagedTreeRows {
+        self.touched_rows
+            .iter()
+            .copied()
+            .map(|node| {
+                let pair = self.rows.get(node).expect("touched tree row must be staged");
+                (node, pair.before, pair.after)
+            })
+            .collect()
+    }
+
+    pub(super) fn first_children(&self) -> StagedFirstChildren {
+        self.touched_first_children
+            .iter()
+            .copied()
+            .map(|parent| {
+                let pair = self
+                    .first_children
+                    .get(parent)
+                    .expect("touched first-child row must be staged");
+                (parent, pair.before, pair.after)
+            })
+            .collect()
+    }
+
+    pub(super) fn dirty_rows(&self) -> StagedTreeRows {
+        let mut rows: StagedTreeRows = self
+            .dirty_rows
+            .iter()
+            .copied()
+            .map(|node| {
+                let pair = self.rows.get(node).expect("dirty tree row must be staged");
+                (node, pair.before, pair.after)
+            })
+            .collect();
+        rows.sort_unstable_by_key(|&(node, _, _)| node);
+        rows
+    }
+
+    pub(super) fn dirty_first_children(&self) -> StagedFirstChildren {
+        self.dirty_first_children
+            .iter()
+            .copied()
+            .map(|parent| {
+                let pair = self
+                    .first_children
+                    .get(parent)
+                    .expect("dirty first-child row must be staged");
+                (parent, pair.before, pair.after)
+            })
+            .collect()
+    }
+
+    pub(super) fn before_relations(&self, node: StyleNodeID, resident: Option<TreeRelations>) -> Option<TreeRelations> {
+        self.rows.get(node).map_or(resident, |pair| pair.before)
+    }
+
+    pub(super) fn before_first_child(&self, parent: StyleNodeID, resident: Option<StyleNodeID>) -> Option<StyleNodeID> {
+        self.first_children.get(parent).map_or(resident, |pair| pair.before)
+    }
+
+    pub(super) fn mark_applied(&mut self) {
+        for &node in &self.dirty_rows {
+            let mut pair = self.rows.get(node).expect("touched tree row must be staged");
+            pair.dirty = false;
+            self.rows.insert(node, pair);
+        }
+        for &parent in &self.dirty_first_children {
+            let mut pair = self
+                .first_children
+                .get(parent)
+                .expect("touched first-child row must be staged");
+            pair.dirty = false;
+            self.first_children.insert(parent, pair);
+        }
+        self.dirty_rows.clear();
+        self.dirty_first_children.clear();
+        self.applied = true;
+    }
+
+    pub(super) fn clear(&mut self) {
+        *self = Self::default();
+    }
+
+    pub(super) fn capacity_bytes(&self) -> u64 {
+        self.rows.capacity_bytes()
+            + self.first_children.capacity_bytes()
+            + (self.touched_rows.capacity() * size_of::<StyleNodeID>()) as u64
+            + (self.dirty_rows.capacity() * size_of::<StyleNodeID>()) as u64
+            + (self.touched_first_children.capacity() * size_of::<StyleNodeID>()) as u64
+            + (self.dirty_first_children.capacity() * size_of::<StyleNodeID>()) as u64
     }
 }
 
@@ -773,6 +963,37 @@ impl Iterator for Preorder<'_> {
 mod tests {
     use super::super::memory::DeviceClass;
     use super::*;
+
+    #[test]
+    fn tree_staging_keeps_exact_before_and_after_rows_across_apply() {
+        let node = StyleNodeID::element(1);
+        let parent = StyleNodeID::element(2);
+        let final_first_child = StyleNodeID::element(4);
+        let before = Some(TreeRelations::detached(TreeScopeID::DOCUMENT));
+        let mut first_after = before.unwrap();
+        first_after.parent = Some(parent);
+        let mut final_after = first_after;
+        final_after.assigned_slot = Some(StyleNodeID::element(3));
+        let mut staging = TreeRelationStaging::default();
+
+        staging.stage_row(node, before, Some(first_after));
+        staging.stage_first_child(parent, None, Some(node));
+        staging.mark_applied();
+        assert!(staging.dirty_rows().is_empty());
+        assert!(staging.dirty_first_children().is_empty());
+        staging.stage_row(node, Some(first_after), Some(final_after));
+        staging.stage_first_child(parent, Some(node), Some(final_first_child));
+
+        assert_eq!(staging.current_row(node, None), Some(final_after));
+        assert_eq!(staging.before_relations(node, Some(final_after)), before);
+        assert_eq!(staging.before_first_child(parent, Some(final_first_child)), None);
+        assert!(!staging.is_applied());
+        let rows = staging.rows();
+        let first_children = staging.first_children();
+        assert_eq!(rows, vec![(node, before, Some(final_after))]);
+        assert_eq!(first_children, vec![(parent, None, Some(final_first_child))]);
+        assert!(!staging.is_empty());
+    }
 
     /// Builds `parent -> [children]` shapes without repeating relation bookkeeping in every test.
     struct TreeFixture {

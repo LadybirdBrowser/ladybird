@@ -142,7 +142,6 @@ use catalog::*;
 use column::Column;
 use fast_hash::FastMap as HashMap;
 use fast_hash::FastSet as HashSet;
-use fast_hash::StableIterationMap;
 use planning::*;
 use std::cell::RefCell;
 use std::collections::VecDeque;
@@ -295,6 +294,7 @@ use transaction_view::TransactionFactSide;
 use transaction_view::TransactionFactView;
 use tree::StyleNodeID;
 use tree::StyleNodeTree;
+use tree::TreeRelationStaging;
 use tree::TreeScopeID;
 
 /// A candidate source at most this large is always worth enumerating, whatever share of the
@@ -483,9 +483,8 @@ pub struct StyleEngine {
     initial_tree_bulk_load_is_pending: bool,
     /// Final relation rows staged until the next observation boundary. Moving one node updates its
     /// affected neighbours here, so those derived changes need no separate journal ingress.
-    pending_tree_rows: StableIterationMap<StyleNodeID, Option<TreeRelations>>,
-    pending_first_children: HashMap<StyleNodeID, Option<StyleNodeID>>,
-    pending_tree_memory: MemoryLease,
+    tree_staging: TreeRelationStaging,
+    tree_staging_memory: MemoryLease,
     /// Final activation flags staged until the program commit barrier.
     pending_rule_conditions: PendingField<RuleID, bool>,
     pending_sheet_conditions: PendingField<SheetID, bool>,
@@ -526,9 +525,7 @@ pub struct StyleEngine {
     sheet_rule_replacement: Option<SheetRuleReplacement>,
     /// Unmatched old rule sequences retained until the transaction boundary, indexed by sheet.
     pending_sheet_rule_replacements: Column<Option<SheetRuleReplacement>>,
-    /// Elements that left the tree in the transaction being assembled. Their facts are what says
-    /// which selectors their departure can reach, so the rows outlive the mutation and are dropped
-    /// once the transaction that carries it has been routed.
+    /// Elements that left during the transaction. Their facts remain available through routing.
     departed: Vec<StyleNodeID>,
     match_workspace: MatchEvaluationWorkspace,
     /// Scratch for the fact rows one exact candidate evaluation covers, reused across candidates.
