@@ -20,11 +20,13 @@
 //! and only for the attributes an attached program actually mentions.
 
 use super::AncestorDispatchShape;
+use super::capacity::ShallowCapacityBytes;
 use super::capacity::capacity_bytes;
 use super::column::Column;
 use super::column::EpochColumn;
 use super::column::PagedColumn;
 use super::column::PagedColumnPage;
+use super::column::PagedValuePage;
 use super::column::RemovablePagedColumnPage;
 use super::column::advance_epoch;
 use super::fast_hash::FastMap as HashMap;
@@ -164,22 +166,11 @@ impl StateSet {
 
 /// One attribute of one style node.
 ///
-/// `value` is the interned value when the value was worth interning. `text` is a range into the
-/// batch's UTF-16 blob, present only when an attached selector applies a substring or token
-/// operator to this attribute name - the case where an atom cannot answer the test.
+/// `value` is the interned value when the value was worth interning. Derived name forms and value
+/// text live once in the batch's shared atom catalog rather than once per element.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AttributeFact {
     pub name: StyleAtomID,
-    /// The any-namespace form of `name`, which is the identity `[*|x]` asks about. An element can
-    /// carry the same local name in several namespaces, so this is shared between those facts while
-    /// `name` is not.
-    pub local: StyleAtomID,
-    /// The ASCII-lowercase foldings of `name` and `local`, equal to them where the attribute's own
-    /// name is already lowercase - which is every attribute of an HTML element in an HTML document,
-    /// since both the parser and `setAttribute` fold it. They exist for the selector's sake: `[aB]`
-    /// dispatches under the folded form, so an attribute written `aB` has to answer to it as well.
-    pub folded_name: StyleAtomID,
-    pub folded_local: StyleAtomID,
     pub value: StyleAtomID,
     pub text_offset: u32,
     pub text_length: u32,
@@ -191,6 +182,102 @@ pub struct AttributeNameForms {
     pub local: StyleAtomID,
     pub folded_name: StyleAtomID,
     pub folded_local: StyleAtomID,
+}
+
+#[derive(Clone)]
+struct PagedCopyColumn<T: Copy + Default> {
+    values: PagedColumn<PagedValuePage<T>>,
+    indices: Vec<usize>,
+}
+
+impl<T: Copy + Default> Default for PagedCopyColumn<T> {
+    fn default() -> Self {
+        Self {
+            values: PagedColumn::default(),
+            indices: Vec::new(),
+        }
+    }
+}
+
+impl<T: Copy + Default> PagedCopyColumn<T> {
+    fn get(&self, index: usize) -> Option<T> {
+        self.values.get(index)
+    }
+
+    fn insert(&mut self, index: usize, value: T) {
+        let (previous, _) = self.values.insert(index, value);
+        if previous.is_none() {
+            self.indices.push(index);
+        }
+    }
+}
+
+impl<T: Copy + Default> ShallowCapacityBytes for PagedCopyColumn<T> {
+    fn shallow_capacity_bytes(&self) -> u64 {
+        self.values.capacity_bytes() + self.indices.shallow_capacity_bytes()
+    }
+}
+
+#[derive(Clone)]
+struct PagedOwnedColumn<T: Clone + Default> {
+    handles: PagedColumn<PagedValuePage<u32>>,
+    values: Vec<T>,
+    indices: Vec<usize>,
+}
+
+impl<T: Clone + Default> Default for PagedOwnedColumn<T> {
+    fn default() -> Self {
+        Self {
+            handles: PagedColumn::default(),
+            values: Vec::new(),
+            indices: Vec::new(),
+        }
+    }
+}
+
+impl<T: Clone + Default> PagedOwnedColumn<T> {
+    fn get(&self, index: usize) -> Option<&T> {
+        let handle = self.handles.get(index)? as usize;
+        self.values.get(handle)
+    }
+
+    fn entry(&mut self, index: usize) -> &mut T {
+        let handle = match self.handles.get(index) {
+            Some(handle) => handle,
+            None => {
+                let handle = u32::try_from(self.values.len()).expect("paged owned column handle overflow");
+                self.values.push(T::default());
+                self.indices.push(index);
+                self.handles.insert(index, handle);
+                handle
+            }
+        };
+        &mut self.values[handle as usize]
+    }
+
+    fn insert(&mut self, index: usize, value: T) {
+        *self.entry(index) = value;
+    }
+
+    fn iter(&self) -> impl Iterator<Item = &T> {
+        self.values.iter()
+    }
+
+    fn indexed_iter_mut(&mut self) -> impl Iterator<Item = (usize, &mut T)> {
+        self.indices.iter().copied().zip(self.values.iter_mut())
+    }
+}
+
+impl<T: Clone + Default> ShallowCapacityBytes for PagedOwnedColumn<T> {
+    fn shallow_capacity_bytes(&self) -> u64 {
+        self.handles.capacity_bytes() + self.values.shallow_capacity_bytes() + self.indices.shallow_capacity_bytes()
+    }
+}
+
+#[derive(Clone, Default)]
+struct AttributeCatalogs {
+    name_forms: PagedCopyColumn<AttributeNameForms>,
+    value_texts: PagedOwnedColumn<Option<Vec<u16>>>,
 }
 
 const NO_ROW: u32 = u32::MAX;
@@ -212,6 +299,7 @@ fn next_batch_generation() -> u64 {
 /// inside the evaluator.
 #[derive(Clone, Default)]
 pub struct StyleNodeFacts {
+    attribute_catalogs: Rc<AttributeCatalogs>,
     nodes: Vec<StyleNodeID>,
     row_by_element_index: Vec<u32>,
     /// Rows no longer reachable through the element mapping. The primary arrangement repoints an
@@ -258,8 +346,7 @@ pub struct StyleNodeFacts {
     attribute_offsets: Vec<u32>,
     attributes: Vec<AttributeFact>,
 
-    /// UTF-16 payloads for the attribute values a string operator has to read. The representation
-    /// matches the C++ side's, so nothing is converted on the way in.
+    /// Batch-local UTF-16 for language tags and non-interned attribute values.
     text: Vec<u16>,
 }
 
@@ -345,9 +432,10 @@ impl StyleNodeFacts {
         self.class_offsets
             .push(u32::try_from(self.classes.len()).expect("class payload overflow"));
         for &attribute in source.attributes_of(source_row) {
-            let (text_offset, text_length) = source
-                .text_of(attribute)
-                .map_or((u32::MAX, 0), |text| self.push_text(text));
+            let (text_offset, text_length) = match source.local_text_of(attribute) {
+                Some(text) => self.push_text(text),
+                None => (u32::MAX, 0),
+            };
             self.attributes.push(AttributeFact {
                 text_offset,
                 text_length,
@@ -358,6 +446,13 @@ impl StyleNodeFacts {
             .push(u32::try_from(self.attributes.len()).expect("attribute payload overflow"));
 
         self.map_row(node, row);
+    }
+
+    /// Append UTF-16 text whose value has no atom and return its batch-local range.
+    pub fn push_text(&mut self, text: &[u16]) -> (u32, u32) {
+        let offset = u32::try_from(self.text.len()).expect("text payload overflow");
+        self.text.extend_from_slice(text);
+        (offset, u32::try_from(text.len()).expect("text payload overflow"))
     }
 
     fn map_row(&mut self, node: StyleNodeID, row: u32) {
@@ -372,13 +467,6 @@ impl StyleNodeFacts {
             self.stale_rows += 1;
         }
         self.row_by_element_index[index] = row;
-    }
-
-    /// Append UTF-16 text for an attribute value and return its range.
-    pub fn push_text(&mut self, text: &[u16]) -> (u32, u32) {
-        let offset = u32::try_from(self.text.len()).expect("text payload overflow");
-        self.text.extend_from_slice(text);
-        (offset, u32::try_from(text.len()).expect("text payload overflow"))
     }
 
     #[must_use]
@@ -628,7 +716,8 @@ impl StyleNodeFacts {
             // Every name a selector can reach this attribute by, since a compound dispatches under
             // one of them and which one depends on how the selector wrote it.
             visit(DispatchKey::AttributeName(attribute.name), Some(attribute.value));
-            for other in [attribute.local, attribute.folded_name, attribute.folded_local] {
+            let forms = self.attribute_name_forms(attribute.name);
+            for other in [forms.local, forms.folded_name, forms.folded_local] {
                 if !other.is_none() && other != attribute.name {
                     visit(DispatchKey::AttributeName(other), Some(attribute.value));
                 }
@@ -656,10 +745,8 @@ impl StyleNodeFacts {
             DispatchKey::Id(id) => self.id_of(row) == id,
             DispatchKey::Class(class) => self.classes_of(row).contains(&class),
             DispatchKey::AttributeName(name) => self.attributes_of(row).iter().any(|attribute| {
-                attribute.name == name
-                    || attribute.local == name
-                    || attribute.folded_name == name
-                    || attribute.folded_local == name
+                let forms = self.attribute_name_forms(attribute.name);
+                attribute.name == name || forms.local == name || forms.folded_name == name || forms.folded_local == name
             }),
             DispatchKey::TagName(tag) => self.tag_of(row) == tag || self.folded_tag_of(row) == tag,
             DispatchKey::Directionality(direction) => self.directionality_of(row) == direction,
@@ -673,12 +760,45 @@ impl StyleNodeFacts {
 
     #[must_use]
     pub fn text_of(&self, attribute: AttributeFact) -> Option<&[u16]> {
+        if let Some(text) = self.local_text_of(attribute) {
+            return Some(text);
+        }
+        self.attribute_catalogs
+            .value_texts
+            .get(attribute.value.0 as usize)
+            .and_then(Option::as_deref)
+    }
+
+    fn local_text_of(&self, attribute: AttributeFact) -> Option<&[u16]> {
         if attribute.text_length == 0 && attribute.text_offset == u32::MAX {
             return None;
         }
         let start = attribute.text_offset as usize;
         let end = start + attribute.text_length as usize;
         self.text.get(start..end)
+    }
+
+    #[must_use]
+    pub fn attribute_name_forms(&self, name: StyleAtomID) -> AttributeNameForms {
+        let mut forms = self
+            .attribute_catalogs
+            .name_forms
+            .get(name.0 as usize)
+            .unwrap_or_default();
+        if forms.folded_name.is_none() {
+            forms.folded_name = name;
+        }
+        if forms.folded_local.is_none() {
+            forms.folded_local = forms.local;
+        }
+        forms
+    }
+
+    #[cfg(test)]
+    pub fn note_attribute_name_forms(&mut self, name: StyleAtomID, forms: AttributeNameForms) {
+        Rc::make_mut(&mut self.attribute_catalogs)
+            .name_forms
+            .insert(name.0 as usize, forms);
     }
 
     /// Logical bytes occupied by one packed row, excluding the dense directory shared by all rows.
@@ -692,17 +812,16 @@ impl StyleNodeFacts {
             + size_of::<(u32, u32)>()
             + size_of::<u8>()
             + 4 * size_of::<u32>();
-        let attribute_text_bytes = self
-            .attributes_of(row)
-            .iter()
-            .map(|attribute| attribute.text_length as usize * size_of::<u16>())
-            .sum::<usize>();
         (fixed
             + size_of_val(self.custom_states_of(row))
             + size_of_val(self.parts_of(row))
             + size_of_val(self.classes_of(row))
             + size_of_val(self.attributes_of(row))
-            + attribute_text_bytes) as u64
+            + self
+                .attributes_of(row)
+                .iter()
+                .map(|attribute| attribute.text_length as usize * size_of::<u16>())
+                .sum::<usize>()) as u64
     }
 
     pub fn clear(&mut self) {
@@ -777,7 +896,7 @@ impl StyleNodeFacts {
             ];
             cached [];
             nested [];
-            skip [self.stale_rows];
+            skip [self.stale_rows, self.generation, self.attribute_catalogs];
         }
     }
 }
@@ -2152,20 +2271,17 @@ pub struct ElementFactStore {
     /// proportional to the stylesheet rather than to the document times the stylesheet.
     custom_property_name_sets: super::intern_table::InternTable<CustomPropertyNameSetID, Vec<StyleAtomID>>,
     custom_property_name_set_vacancies: Vec<u32>,
-    custom_property_set_ids_by_name: HashMap<StyleAtomID, Vec<u32>>,
+    custom_property_set_ids_by_name: Column<Vec<u32>>,
     /// The text of each language atom. Nearly every element on a page resolves to the same handful
     /// of languages, so the tag is held once per language rather than once per element.
-    language_texts: HashMap<StyleAtomID, Vec<u16>>,
-    /// The text of each attribute-value atom, for the operators an atom comparison cannot answer.
-    attribute_value_texts: HashMap<StyleAtomID, Vec<u16>>,
-    /// The any-namespace atom of each attribute-name atom.
+    language_texts: Column<Option<Vec<u16>>>,
+    /// Attribute-name forms and value text shared by the primary and each bounded fact batch.
     ///
     /// An attribute is keyed by the name that is unique to it - its qualified atom, or its bare local
     /// name where it is in no namespace - because an element can carry the same local name in several
     /// namespaces at once and each of those is a fact of its own. `[*|x]` asks about all of them
     /// together, and the any-namespace atom is the identity they share, so it is held per name rather
     /// than per element: one name has one local form however many elements carry it.
-    attribute_name_locals: HashMap<StyleAtomID, AttributeNameForms>,
     /// The longhand properties each element declares itself, by the kind of declaration they came
     /// from. An element-attached declaration beats every rule in its context, so the cascade needs
     /// to know which properties one covers just as it does for a rule.
@@ -2539,10 +2655,8 @@ impl Default for ElementFactStore {
             settled_non_apply_capacity_bytes: 0,
             custom_property_name_sets: super::intern_table::InternTable::default(),
             custom_property_name_set_vacancies: Vec::new(),
-            custom_property_set_ids_by_name: HashMap::default(),
-            language_texts: HashMap::default(),
-            attribute_value_texts: HashMap::default(),
-            attribute_name_locals: HashMap::default(),
+            custom_property_set_ids_by_name: Column::default(),
+            language_texts: Column::default(),
             element_declared_properties: ElementDeclarationRows::default(),
         };
         store.settled_non_apply_capacity_bytes = store.capacity_bytes() - store.apply_capacity_bytes();
@@ -2853,10 +2967,11 @@ impl ElementFactStore {
             DispatchKey::Class(class) => row.is_some_and(|row| self.rows.classes_of(row).binary_search(&class).is_ok()),
             DispatchKey::AttributeName(name) => row.is_some_and(|row| {
                 self.rows.attributes_of(row).iter().any(|attribute| {
+                    let forms = self.rows.attribute_name_forms(attribute.name);
                     attribute.name == name
-                        || attribute.local == name
-                        || attribute.folded_name == name
-                        || attribute.folded_local == name
+                        || forms.local == name
+                        || forms.folded_name == name
+                        || forms.folded_local == name
                 })
             }),
             DispatchKey::TagName(tag) => {
@@ -2963,11 +3078,12 @@ impl ElementFactStore {
 
     /// Record what one language atom spells, so `:lang()` can compare ranges against it.
     pub fn set_language_text(&mut self, language: StyleAtomID, text: &[u16]) {
-        if language.is_none() || self.language_texts.contains_key(&language) {
+        let index = language.0 as usize;
+        if language.is_none() || self.language_texts.get(index).is_some_and(Option::is_some) {
             return;
         }
         self.memory_dirty = true;
-        self.language_texts.insert(language, text.to_vec());
+        self.language_texts.insert(index, Some(text.to_vec()));
     }
 
     pub fn set_language(&mut self, node: StyleNodeID, language: StyleAtomID) {
@@ -3144,14 +3260,14 @@ impl ElementFactStore {
         self.custom_property_name_sets
             .insert(hash, CustomPropertyNameSetID(id), names.to_vec());
         for name in names {
-            self.custom_property_set_ids_by_name.entry(*name).or_default().push(id);
+            self.custom_property_set_ids_by_name.entry(name.0 as usize).push(id);
         }
         id
     }
 
     /// The elements whose own cascade declares `name`, which is every element in any set holding it.
     pub fn custom_property_candidates(&self, name: StyleAtomID) -> Result<Vec<StyleNodeID>, PostingKey> {
-        let Some(sets) = self.custom_property_set_ids_by_name.get(&name) else {
+        let Some(sets) = self.custom_property_set_ids_by_name.get(name.0 as usize) else {
             return Ok(Vec::new());
         };
         let mut nodes = Vec::new();
@@ -3220,7 +3336,7 @@ impl ElementFactStore {
             facts
                 .attributes
                 .iter()
-                .any(|entry| self.attribute_name_keys(entry.0).contains(&key))
+                .any(|entry| self.attribute_name_keys(entry.0).any(|candidate| candidate == key))
         })
     }
 
@@ -3256,39 +3372,55 @@ impl ElementFactStore {
     /// whose local form is still an atom of its own.
     pub fn note_attribute_name_forms(&mut self, name: StyleAtomID, forms: AttributeNameForms) {
         self.memory_dirty = true;
-        self.attribute_name_locals.insert(name, forms);
+        Rc::make_mut(&mut self.rows.attribute_catalogs)
+            .name_forms
+            .insert(name.0 as usize, forms);
     }
 
     /// The other names an attribute name answers to, all `NONE` if the name has not been published.
     #[must_use]
     pub fn attribute_name_forms(&self, name: StyleAtomID) -> AttributeNameForms {
-        self.attribute_name_locals.get(&name).copied().unwrap_or_default()
+        self.rows
+            .attribute_catalogs
+            .name_forms
+            .get(name.0 as usize)
+            .unwrap_or_default()
     }
 
     /// Every atom an attribute of this name is indexed under, without repeats.
-    #[must_use]
-    pub fn attribute_name_keys(&self, name: StyleAtomID) -> Vec<StyleAtomID> {
+    pub fn attribute_name_keys(&self, name: StyleAtomID) -> impl Iterator<Item = StyleAtomID> + use<> {
         let forms = self.attribute_name_forms(name);
-        let mut keys = vec![name];
-        for other in [forms.local, forms.folded_name, forms.folded_local] {
-            if !other.is_none() && !keys.contains(&other) {
-                keys.push(other);
-            }
-        }
-        keys
+        let keys = [name, forms.local, forms.folded_name, forms.folded_local];
+        keys.into_iter()
+            .enumerate()
+            .filter_map(move |(index, key)| (!key.is_none() && !keys[..index].contains(&key)).then_some(key))
     }
 
     pub fn set_attribute_value_text(&mut self, value: StyleAtomID, text: &[u16]) {
-        if value.is_none() || self.attribute_value_texts.contains_key(&value) {
+        let index = value.0 as usize;
+        if value.is_none()
+            || self
+                .rows
+                .attribute_catalogs
+                .value_texts
+                .get(index)
+                .is_some_and(Option::is_some)
+        {
             return;
         }
         self.memory_dirty = true;
-        self.attribute_value_texts.insert(value, text.to_vec());
+        Rc::make_mut(&mut self.rows.attribute_catalogs)
+            .value_texts
+            .insert(index, Some(text.to_vec()));
     }
 
     #[must_use]
     pub fn has_attribute_value_text(&self, value: StyleAtomID) -> bool {
-        self.attribute_value_texts.contains_key(&value)
+        self.rows
+            .attribute_catalogs
+            .value_texts
+            .get(value.0 as usize)
+            .is_some_and(Option::is_some)
     }
 
     pub fn set_state(&mut self, node: StyleNodeID, fact: StateFact, value: bool) {
@@ -3407,14 +3539,32 @@ impl ElementFactStore {
                 live_custom_property_sets[metadata.custom_property_set as usize] = true;
             }
         }
-        self.language_texts
-            .retain(|language, _| live_languages.contains_key(language));
-        self.attribute_value_texts
-            .retain(|value, _| live_attribute_values.contains_key(value));
-        self.attribute_name_locals
-            .retain(|name, _| live_attribute_names.contains_key(name));
+        for (index, text) in self.language_texts.iter_mut().enumerate() {
+            let language = StyleAtomID(u32::try_from(index).expect("language atom index exceeds u32"));
+            if !live_languages.contains_key(&language) {
+                *text = None;
+            }
+        }
+        let attribute_catalogs = Rc::make_mut(&mut self.rows.attribute_catalogs);
+        for (index, text) in attribute_catalogs.value_texts.indexed_iter_mut() {
+            let value = StyleAtomID(u32::try_from(index).expect("attribute value atom index exceeds u32"));
+            if !live_attribute_values.contains_key(&value) {
+                *text = None;
+            }
+        }
+        for position in 0..attribute_catalogs.name_forms.indices.len() {
+            let index = attribute_catalogs.name_forms.indices[position];
+            let name = StyleAtomID(u32::try_from(index).expect("attribute name atom index exceeds u32"));
+            if !live_attribute_names.contains_key(&name) {
+                attribute_catalogs
+                    .name_forms
+                    .insert(index, AttributeNameForms::default());
+            }
+        }
 
-        self.custom_property_set_ids_by_name = HashMap::default();
+        for sets in self.custom_property_set_ids_by_name.iter_mut() {
+            *sets = Vec::new();
+        }
         self.custom_property_name_set_vacancies.clear();
         for (id, &is_live) in live_custom_property_sets.iter().enumerate().skip(1) {
             if !is_live {
@@ -3430,8 +3580,7 @@ impl ElementFactStore {
             let names = &self.custom_property_name_sets[CustomPropertyNameSetID(id as u32)];
             for name in names {
                 self.custom_property_set_ids_by_name
-                    .entry(*name)
-                    .or_default()
+                    .entry(name.0 as usize)
                     .push(id as u32);
             }
         }
@@ -3453,6 +3602,7 @@ impl ElementFactStore {
     /// held neither, which is a wrong answer rather than a missing one.
     pub fn materialize(&self, nodes: impl Iterator<Item = StyleNodeID>, batch: &mut StyleNodeFacts) {
         batch.clear();
+        batch.attribute_catalogs = Rc::clone(&self.rows.attribute_catalogs);
         for node in nodes {
             self.materialize_row(node, batch);
         }
@@ -3464,6 +3614,7 @@ impl ElementFactStore {
     /// their ancestor chains, and each row is packed at most once per pass instead of once per
     /// ask.
     pub fn materialize_missing(&self, nodes: impl Iterator<Item = StyleNodeID>, batch: &mut StyleNodeFacts) {
+        batch.attribute_catalogs = Rc::clone(&self.rows.attribute_catalogs);
         for node in nodes {
             if batch.row_of(node).is_some() {
                 continue;
@@ -3493,17 +3644,21 @@ impl ElementFactStore {
             .sum::<usize>();
         let custom_property_name_index_payloads = self
             .custom_property_set_ids_by_name
-            .values()
+            .iter()
             .map(|ids| ids.capacity() * size_of::<u32>())
             .sum::<usize>();
         let language_payloads = self
             .language_texts
-            .values()
+            .iter()
+            .flatten()
             .map(|text| text.capacity() * size_of::<u16>())
             .sum::<usize>();
         let attribute_value_payloads = self
-            .attribute_value_texts
-            .values()
+            .rows
+            .attribute_catalogs
+            .value_texts
+            .iter()
+            .flatten()
             .map(|text| text.capacity() * size_of::<u16>())
             .sum::<usize>();
 
@@ -3513,8 +3668,8 @@ impl ElementFactStore {
                 self.custom_property_name_set_vacancies,
                 self.custom_property_set_ids_by_name,
                 self.language_texts,
-                self.attribute_value_texts,
-                self.attribute_name_locals,
+                self.rows.attribute_catalogs.value_texts,
+                self.rows.attribute_catalogs.name_forms,
             ];
             cached [];
             nested [
@@ -3554,8 +3709,6 @@ impl ElementFactStore {
                 self.custom_property_name_set_vacancies,
                 self.custom_property_set_ids_by_name,
                 self.language_texts,
-                self.attribute_value_texts,
-                self.attribute_name_locals,
             ];
         }
     }
@@ -3572,14 +3725,7 @@ impl ElementFactStore {
                 .rows
                 .row_of(node)
                 .map_or(0, |row| self.rows.logical_bytes_of_row(row));
-            append_fact_row(
-                node,
-                &facts,
-                &self.attribute_value_texts,
-                &self.attribute_name_locals,
-                &self.language_texts,
-                &mut self.rows,
-            );
+            append_fact_row(node, &facts, &self.language_texts, &mut self.rows);
             let row = self.rows.row_of(node).unwrap();
             let replacement_bytes = self.rows.logical_bytes_of_row(row);
             self.primary_live_bytes = self
@@ -3599,16 +3745,11 @@ impl ElementFactStore {
                 .live_nodes()
                 .map(|node| (node, self.snapshot_row(node)))
                 .collect();
+            let attribute_catalogs = Rc::clone(&self.rows.attribute_catalogs);
             self.rows = StyleNodeFacts::new();
+            self.rows.attribute_catalogs = attribute_catalogs;
             for (node, facts) in live {
-                append_fact_row(
-                    node,
-                    &facts,
-                    &self.attribute_value_texts,
-                    &self.attribute_name_locals,
-                    &self.language_texts,
-                    &mut self.rows,
-                );
+                append_fact_row(node, &facts, &self.language_texts, &mut self.rows);
             }
             self.primary_stale_bytes = 0;
             debug_assert_eq!(
@@ -3642,14 +3783,13 @@ impl ElementFactStore {
         }
         nodes.sort_unstable();
         let mut before = StyleNodeFacts::new();
+        before.attribute_catalogs = Rc::clone(&self.rows.attribute_catalogs);
         for node in nodes {
             append_fact_row(
                 node,
                 self.staging
                     .before(node)
                     .expect("fact staging node must have a before row"),
-                &self.attribute_value_texts,
-                &self.attribute_name_locals,
                 &self.language_texts,
                 &mut before,
             );
@@ -3668,42 +3808,29 @@ impl ElementFactStore {
 fn append_fact_row(
     node: StyleNodeID,
     facts: &StagedFactRow,
-    attribute_value_texts: &HashMap<StyleAtomID, Vec<u16>>,
-    attribute_name_locals: &HashMap<StyleAtomID, AttributeNameForms>,
-    language_texts: &HashMap<StyleAtomID, Vec<u16>>,
+    language_texts: &Column<Option<Vec<u16>>>,
     batch: &mut StyleNodeFacts,
 ) {
     let attributes: Vec<AttributeFact> = facts
         .attributes
         .iter()
-        .map(|&(name, value)| {
-            let text = attribute_value_texts.get(&value).map_or(&[][..], Vec::as_slice);
-            let (text_offset, text_length) = batch.push_text(text);
-            let forms = attribute_name_locals.get(&name).copied().unwrap_or_default();
-            AttributeFact {
-                name,
-                local: forms.local,
-                folded_name: if forms.folded_name.is_none() {
-                    name
-                } else {
-                    forms.folded_name
-                },
-                folded_local: if forms.folded_local.is_none() {
-                    forms.local
-                } else {
-                    forms.folded_local
-                },
-                value,
-                text_offset,
-                text_length,
-            }
+        .map(|&(name, value)| AttributeFact {
+            name,
+            value,
+            text_offset: u32::MAX,
+            text_length: 0,
         })
         .collect();
     batch.push_row(node, facts.tag, facts.id, facts.states, &facts.classes, &attributes);
     batch.set_row_folded_tag(facts.folded_tag);
     batch.set_row_namespace(facts.namespace);
     batch.set_row_part_exposure(facts.part_exposure);
-    batch.set_row_language_tag(language_texts.get(&facts.language).map_or(&[], Vec::as_slice));
+    batch.set_row_language_tag(
+        language_texts
+            .get(facts.language.0 as usize)
+            .and_then(Option::as_deref)
+            .unwrap_or_default(),
+    );
     batch.set_row_has_text_content(facts.has_text_content);
     let row = u32::try_from(batch.row_count() - 1).expect("fact batch row space exhausted");
     batch.set_row_parameters(
@@ -4011,11 +4138,22 @@ mod tests {
 
             facts.forget(node);
             facts.sweep_auxiliary_catalogs();
-            assert!(facts.language_texts.is_empty());
-            assert!(facts.attribute_name_locals.is_empty());
-            assert!(facts.attribute_value_texts.is_empty());
+            assert!(facts.language_texts.iter().all(Option::is_none));
+            assert!(
+                facts
+                    .rows
+                    .attribute_catalogs
+                    .name_forms
+                    .indices
+                    .iter()
+                    .copied()
+                    .all(|index| {
+                        facts.rows.attribute_catalogs.name_forms.get(index) == Some(AttributeNameForms::default())
+                    })
+            );
+            assert!(facts.rows.attribute_catalogs.value_texts.iter().all(Option::is_none));
             assert!(facts.custom_property_name_sets.index_is_empty());
-            assert!(facts.custom_property_set_ids_by_name.is_empty());
+            assert!(facts.custom_property_set_ids_by_name.iter().all(Vec::is_empty));
         }
 
         assert_eq!(facts.custom_property_name_sets.len(), 1);
@@ -4336,9 +4474,6 @@ mod tests {
             StateSet::default(),
             &[StyleAtomID(10)],
             &[AttributeFact {
-                folded_local: StyleAtomID::NONE,
-                folded_name: StyleAtomID(30),
-                local: StyleAtomID::NONE,
                 name: StyleAtomID(30),
                 value: StyleAtomID::NONE,
                 text_offset: u32::MAX,
@@ -4390,6 +4525,20 @@ mod tests {
         dispatch.insert(DispatchKey::AttributeName(shared_local_name), entry(2, matching_value));
 
         let mut facts = StyleNodeFacts::new();
+        facts.note_attribute_name_forms(
+            StyleAtomID(31),
+            AttributeNameForms {
+                local: shared_local_name,
+                ..AttributeNameForms::default()
+            },
+        );
+        facts.note_attribute_name_forms(
+            StyleAtomID(32),
+            AttributeNameForms {
+                local: shared_local_name,
+                ..AttributeNameForms::default()
+            },
+        );
         facts.push_row(
             StyleNodeID::element(1),
             StyleAtomID(1),
@@ -4398,18 +4547,12 @@ mod tests {
             &[],
             &[
                 AttributeFact {
-                    folded_local: StyleAtomID::NONE,
-                    folded_name: StyleAtomID::NONE,
-                    local: shared_local_name,
                     name: StyleAtomID(31),
                     value: StyleAtomID(41),
                     text_offset: u32::MAX,
                     text_length: 0,
                 },
                 AttributeFact {
-                    folded_local: StyleAtomID::NONE,
-                    folded_name: StyleAtomID::NONE,
-                    local: shared_local_name,
                     name: StyleAtomID(32),
                     value: matching_value,
                     text_offset: u32::MAX,
@@ -4636,18 +4779,12 @@ mod tests {
             &[],
             &[
                 AttributeFact {
-                    folded_local: StyleAtomID::NONE,
-                    folded_name: StyleAtomID(40),
-                    local: StyleAtomID::NONE,
                     name: StyleAtomID(40),
                     value: StyleAtomID::NONE,
                     text_offset: offset,
                     text_length: length,
                 },
                 AttributeFact {
-                    folded_local: StyleAtomID::NONE,
-                    folded_name: StyleAtomID(40),
-                    local: StyleAtomID::NONE,
                     name: StyleAtomID(41),
                     value: StyleAtomID(50),
                     text_offset: u32::MAX,
@@ -4689,6 +4826,8 @@ mod tests {
         let before = store.staged_before_facts();
         store.apply_staged(&mut memory);
         let after = store.primary();
+        assert!(before.text.is_empty());
+        assert!(after.text.is_empty());
 
         let old_attribute = before.attribute_of(before.row_of(node).unwrap(), name).unwrap();
         assert_eq!(old_attribute.value, old);
@@ -4769,6 +4908,11 @@ mod tests {
         states.remove(StateFact::Hover);
         assert!(!states.contains(StateFact::Hover));
         assert_eq!(size_of::<StateSet>(), 8);
+    }
+
+    #[test]
+    fn attribute_facts_keep_only_identity_and_an_optional_text_handle() {
+        assert_eq!(size_of::<AttributeFact>(), 16);
     }
 
     #[test]

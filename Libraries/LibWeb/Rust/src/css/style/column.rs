@@ -148,7 +148,41 @@ pub(super) trait RemovablePagedColumnPage: PagedColumnPage {
     fn remove(&mut self, index: usize) -> Option<Self::Value>;
 }
 
+pub(super) const PAGED_VALUE_PAGE_SHIFT: usize = 6;
+const PAGED_VALUE_PAGE_SIZE: usize = 1 << PAGED_VALUE_PAGE_SHIFT;
+
+#[derive(Clone)]
+pub(super) struct PagedValuePage<T: Copy + Default> {
+    known: u64,
+    values: [T; PAGED_VALUE_PAGE_SIZE],
+}
+
+impl<T: Copy + Default> Default for PagedValuePage<T> {
+    fn default() -> Self {
+        Self {
+            known: 0,
+            values: [T::default(); PAGED_VALUE_PAGE_SIZE],
+        }
+    }
+}
+
+impl<T: Copy + Default> PagedColumnPage for PagedValuePage<T> {
+    type Value = T;
+
+    const SHIFT: usize = PAGED_VALUE_PAGE_SHIFT;
+
+    fn get(&self, index: usize) -> Option<T> {
+        (self.known & (1 << index) != 0).then_some(self.values[index])
+    }
+
+    fn insert(&mut self, index: usize, value: T) {
+        self.known |= 1 << index;
+        self.values[index] = value;
+    }
+}
+
 /// A sparse column whose directory and page accounting are shared across page layouts.
+#[derive(Clone)]
 pub(super) struct PagedColumn<P: PagedColumnPage> {
     pages: Vec<Option<Box<P>>>,
     page_count: usize,
@@ -211,6 +245,12 @@ impl<P: PagedColumnPage> PagedColumn<P> {
 
     pub(super) fn capacity_bytes(&self) -> u64 {
         self.pages.shallow_capacity_bytes() + (self.page_count * size_of::<P>()) as u64
+    }
+}
+
+impl<P: PagedColumnPage> ShallowCapacityBytes for PagedColumn<P> {
+    fn shallow_capacity_bytes(&self) -> u64 {
+        self.capacity_bytes()
     }
 }
 

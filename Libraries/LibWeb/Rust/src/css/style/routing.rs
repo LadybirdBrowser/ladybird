@@ -1621,9 +1621,10 @@ impl StyleEngine {
             return true;
         }
         match (flux_key, key) {
-            (DispatchKey::AttributeName(moved), DispatchKey::AttributeName(named)) => {
-                self.facts.attribute_name_keys(moved).contains(&named)
-            }
+            (DispatchKey::AttributeName(moved), DispatchKey::AttributeName(named)) => self
+                .facts
+                .attribute_name_keys(moved)
+                .any(|candidate| candidate == named),
             _ => false,
         }
     }
@@ -3238,7 +3239,9 @@ impl StyleEngine {
             else {
                 return false;
             };
-            self.facts.attribute_name_keys(changed).contains(&required)
+            self.facts
+                .attribute_name_keys(changed)
+                .any(|candidate| candidate == required)
         })
     }
 
