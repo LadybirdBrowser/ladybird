@@ -34,7 +34,6 @@ use super::index::DispatchKey;
 use super::index::StyleNodeFacts;
 use super::instrumentation::Counter;
 use super::instrumentation::Counters;
-use super::memory::CapacityGuard;
 use super::memory::MemoryCategory;
 use super::memory::MemoryController;
 use super::memory::MemoryLease;
@@ -3857,8 +3856,6 @@ impl PrefixStateCacheLifecycle {
     }
 }
 
-pub(super) type PrefixStatesGuard<'a> = CapacityGuard<'a, PrefixStates>;
-
 impl Default for PrefixStateCache {
     fn default() -> Self {
         Self {
@@ -3888,65 +3885,42 @@ impl PrefixStateCache {
         program: ScopeProgramID,
         generation: u64,
         row_count: usize,
-        memory: &mut MemoryController,
-    ) -> PrefixStatesGuard<'_> {
-        // A retained cache's committed bytes live in the residency lease, so every accounting
-        // move here has to follow the same lease choice as `lookup_mut`. Charging scratch while
-        // retained underflows the scratch lease as soon as `prepare_rows` shrinks an entry. The
-        // residency lease is acceleration-tier: capacity that already exists is recorded as
-        // committed, and the over-limit answer comes from the caller's settle.
-        let retained = self.lifecycle.is_retained();
-        let lease = if retained {
-            &mut self.residency
-        } else {
-            &mut self.scratch_memory
-        };
-        let charge = |lease: &mut MemoryLease, memory: &mut MemoryController, bytes: u64| {
-            if retained {
-                lease.grow_committed(bytes);
-            } else {
-                lease.grow_required(memory, bytes);
-            }
-        };
+    ) -> &mut PrefixStates {
         let index = program.0 as usize;
-        charge(lease, memory, self.by_program.ensure(index));
+        self.by_program.ensure(index);
         if self.by_program[index].is_none() {
-            let states = PrefixStates::new(row_count);
-            let bytes = size_of::<PrefixStates>() as u64 + states.capacity_bytes();
-            self.by_program[index] = Some(Box::new(states));
-            charge(lease, memory, bytes);
+            self.by_program[index] = Some(Box::new(PrefixStates::new(row_count)));
         } else {
             let states = self.by_program[index].as_mut().expect("program entry just checked");
-            let before = states.capacity_bytes();
             states.prepare_rows(generation, row_count);
-            let after = states.capacity_bytes();
-            if after > before {
-                charge(lease, memory, after - before);
-            } else {
-                lease.shrink_committed(before - after);
-            }
         }
-        let states = self.by_program[index].as_mut().expect("program entry just inserted");
-        CapacityGuard::new(states, lease, PrefixStates::capacity_bytes)
+        self.by_program[index].as_mut().expect("program entry just inserted")
     }
 
-    pub(super) fn lookup_mut(&mut self, program: ScopeProgramID) -> Lookup<PrefixStatesGuard<'_>, PrefixStateCacheGap> {
-        let memory = if self.lifecycle.is_retained() {
-            &mut self.residency
-        } else {
-            &mut self.scratch_memory
-        };
+    pub(super) fn lookup_mut(&mut self, program: ScopeProgramID) -> Lookup<&mut PrefixStates, PrefixStateCacheGap> {
         match self.by_program.get_mut(program.0 as usize).and_then(Option::as_mut) {
-            Some(states) => Lookup::Known(CapacityGuard::new(states, memory, PrefixStates::capacity_bytes)),
+            Some(states) => Lookup::Known(states),
             None => Lookup::Missing(PrefixStateCacheGap::MissingProgram(program)),
         }
     }
 
-    pub(super) fn settle_memory(&mut self, memory: &mut MemoryController) -> bool {
+    pub(super) fn settle_memory(&mut self, memory: &mut MemoryController) {
+        let bytes = capacity_bytes! {
+            shallow [self.by_program];
+            cached [];
+            nested [self
+                .by_program
+                .iter()
+                .flatten()
+                .map(|states| size_of::<PrefixStates>() as u64 + states.capacity_bytes())
+                .sum::<u64>()];
+            skip [self.scratch_memory, self.residency, self.lifecycle];
+        };
         if self.lifecycle.is_retained() {
-            self.residency.settle_committed(memory)
+            self.residency.reconcile_committed(memory, bytes);
+            memory.finish_committed_acceleration_growth(MemoryCategory::PrefixTransitionCache);
         } else {
-            self.scratch_memory.settle_committed(memory)
+            self.scratch_memory.resize_required_to(memory, bytes);
         }
     }
 
@@ -4707,7 +4681,7 @@ mod tests {
             &[],
         );
         {
-            let mut states = cache.get_or_insert(ScopeProgramID(0), facts.generation(), 1, &mut memory);
+            let states = cache.get_or_insert(ScopeProgramID(0), facts.generation(), 1);
             states.local_fact_interner.intern(&facts, 0, &mut counters);
         }
         cache.settle_memory(&mut memory);
@@ -4715,9 +4689,9 @@ mod tests {
         assert!(memory.bytes_in_category(MemoryCategory::PrefixTransitionCache) > 0);
 
         // A generation change clears the entry's local-fact interner, shrinking its capacity. On a
-        // retained cache that shrink and the guard's follow-up accounting must move the residency
-        // lease; the scratch lease holds zero bytes here and would underflow.
-        drop(cache.get_or_insert(ScopeProgramID(0), facts.generation() + 1, 1, &mut memory));
+        // a retained cache that shrink must reconcile the residency lease at settlement; the
+        // scratch lease holds zero bytes here and would underflow if it were adjusted instead.
+        let _ = cache.get_or_insert(ScopeProgramID(0), facts.generation() + 1, 1);
         cache.settle_memory(&mut memory);
         assert_eq!(memory.bytes_in_category(MemoryCategory::BatchScratch), 0);
     }

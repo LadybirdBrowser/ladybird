@@ -643,19 +643,7 @@ impl StyleEngine {
             }
         });
         let state = self.intern_cascade_state(&winners, previous);
-        if !self.winner_groups.settle_memory(&mut self.memory) {
-            return bridge::FfiExactCascadePublication {
-                computed_group_mask: u32::MAX,
-                computed_property_word_0: u64::MAX,
-                computed_property_word_1: u64::MAX,
-                computed_property_word_2: u64::MAX,
-                computed_property_word_3: u64::MAX,
-                computed_property_word_4: u64::MAX,
-                computed_property_word_5: u64::MAX,
-                computed_property_closure_is_exact: false,
-                unchanged: false,
-            };
-        }
+        self.winner_groups.settle_memory(&mut self.memory);
         let generation = self.winner_groups.generation();
         let delta = self.winner_groups.semantic_delta(previous, state);
         let unchanged = previous.is_some() && delta.is_empty();

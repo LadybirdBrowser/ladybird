@@ -149,15 +149,7 @@ impl SpecifiedValues {
         }
         let retained = unsafe { RetainedStyleValueData::from_retained_pointer(retain_style_value(value)) };
         self.push_entry(id, retained, value as usize);
-        if !self.settle_memory(memory) {
-            let SpecifiedValueCoverage::Partial { eviction_generation } = self.coverage else {
-                unreachable!("refused specified-value admission evicts the retained table")
-            };
-            return (
-                id,
-                Lookup::Missing(SpecifiedValueGap::RetiredPayloads { eviction_generation }),
-            );
-        }
+        self.settle_memory(memory);
         (id, lookup)
     }
 
@@ -242,11 +234,10 @@ impl SpecifiedValues {
         }
     }
 
-    fn settle_memory(&mut self, memory: &mut MemoryController) -> bool {
+    fn settle_memory(&mut self, memory: &mut MemoryController) {
         let current = self.capacity_bytes();
         self.residency.reconcile_committed(memory, current);
         memory.finish_committed_acceleration_growth(MemoryCategory::SpecifiedValueTable);
-        true
     }
 
     pub(super) fn evict(&mut self) {
