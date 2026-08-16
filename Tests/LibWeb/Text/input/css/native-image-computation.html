@@ -1,0 +1,34 @@
+<!doctype html>
+<style>
+    #stylesheet-target {
+        background-image: url("images/background.png"), image-set(url("images/set.png") 1x);
+        border-image-source: url("images/border.png");
+        cursor: url("images/cursor.png") 1 2, pointer;
+        list-style-image: url("images/list.png");
+        mask-image: url("images/mask.png"), image-set(url("images/mask-set.png") 1x);
+    }
+</style>
+<div id="stylesheet-target"></div>
+<div id="inline-target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const inlineTarget = document.getElementById("inline-target");
+        const stylesheetTarget = document.getElementById("stylesheet-target");
+        inlineTarget.style.listStyleImage = 'url("inline.png")';
+        internals.resetStyleFfiCounters();
+        internals.updateStyle();
+
+        const computedStyle = getComputedStyle(stylesheetTarget);
+        const properties = [
+            "background-image",
+            "border-image-source",
+            "cursor",
+            "list-style-image",
+            "mask-image",
+        ];
+        println(`all image values computed: ${properties.every(property => computedStyle.getPropertyValue(property) !== "")}`);
+        println(`inline image value computed: ${getComputedStyle(inlineTarget).listStyleImage !== ""}`);
+        println(`used no C++ longhand fallback: ${internals.styleFfiCounters().longhandCppComputeFallbacks === 0}`);
+    });
+</script>

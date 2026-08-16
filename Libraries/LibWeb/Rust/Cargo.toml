@@ -21,6 +21,7 @@ chardetng = "1.0.0"
 foldhash = "0.1"
 hashbrown = "0.16.1"
 libgfx_rust = { path = "../../LibGfx/Rust", default-features = false }
+liburl_rust = { path = "../../LibURL/Rust", default-features = false }
 libweb_html_tokenizer = { path = "../HTML/Parser/Rust" }
 serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
 

@@ -15,7 +15,7 @@
 
 use std::sync::Arc;
 
-use crate::css::style_value::RetainedStyleValueData;
+use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
 
 include!(concat!(env!("OUT_DIR"), "/dimension_units_generated.rs"));
 
@@ -2567,6 +2567,22 @@ fn collect_external_resolutions(node: &CalcNode, resolutions: &mut Vec<FfiCalcEx
     node.for_each_child(&mut |child| collect_external_resolutions(child, resolutions));
 }
 
+pub(crate) fn collect_unfixed_random_sharings(node: &CalcNode, sharings: &mut Vec<*const StyleValueData>) {
+    if let CalcNode::Random { sharing, .. } = node
+        && let StyleValueData::RandomValueSharing { fixed_value, .. } = sharing.data()
+    {
+        if let Some(fixed_value) = fixed_value.optional_data() {
+            crate::css::style_compute::collect_unfixed_random_sharings_in_value(fixed_value, sharings);
+        } else {
+            let pointer = sharing.pointer();
+            if !sharings.contains(&pointer) {
+                sharings.push(pointer);
+            }
+        }
+    }
+    node.for_each_child(&mut |child| collect_unfixed_random_sharings(child, sharings));
+}
+
 /// Returns every calculation leaf that needs C++-owned state. C++ fills the
 /// output fields once, before passing the batch back in a resolution context.
 ///
@@ -2863,8 +2879,8 @@ fn resolve_simplified_calculation(
 }
 
 /// Resolves a calculated value using the supplied length metrics while the
-/// callbacks for non-math functions, relative-color channels, and random()
-/// remain unavailable.
+/// callbacks for non-math functions remain unavailable. Relative-color
+/// channels and already-fixed random sharing values resolve when present.
 fn resolve_calculated_with_length_resolution(
     calculated: &crate::css::style_value::StyleValueData,
     percentage_basis: Option<CalcNumericValue>,
@@ -2895,12 +2911,21 @@ fn resolve_calculated_with_channels(
     let root = rust_calculation.node_arc();
     let resolve_as = resolve_as_from_fields(*has_percentages_resolve_as, *resolve_as_is_number, *resolve_as_base);
     let percentage_leaf_type = percentage_leaf_type_for(resolve_as);
+    let fixed_random_base_value = |sharing: &RetainedStyleValueData| {
+        let StyleValueData::RandomValueSharing { fixed_value, .. } = sharing.data() else {
+            return None;
+        };
+        match fixed_value.optional_data() {
+            Some(StyleValueData::Number { value }) => Some(*value),
+            _ => None,
+        }
+    };
     let evaluation_context = CalcEvaluationContext {
         percentage_leaf_type: &percentage_leaf_type,
         resolve_as,
         percentage_basis,
         length_resolution,
-        random_base_value: None,
+        random_base_value: Some(&fixed_random_base_value),
     };
     let callbacks = CalcSimplifyCallbacks {
         absolutize_random_sharing: &|_| None,
@@ -3737,14 +3762,16 @@ pub(crate) enum AbsolutizedCalculation {
 }
 
 /// Absolutizes a Calculated style value against a length resolution context, with no
-/// percentage basis. Tree-counting functions resolve from the supplied sibling facts, and lengths
-/// resolve from the immutable context. Other external state such as channel keywords and random
-/// sharing declines.
+/// percentage basis. Tree-counting functions resolve from the supplied sibling facts, lengths
+/// resolve from the immutable context, and fixed random sharing resolves without external state.
+/// Relative-color channel keywords remain unresolved, and element-cached random sharing resolves
+/// from the supplied snapshots. Other unavailable external state declines.
 #[allow(clippy::arc_with_non_send_sync)]
 pub(crate) fn absolutize_calculation_value(
     value: &crate::css::style_value::StyleValueData,
     length_resolution_context: *const std::ffi::c_void,
     tree_counting: Option<(u64, u64)>,
+    random_base_values: &[crate::css::style_compute::FfiRandomBaseValue],
 ) -> Option<AbsolutizedCalculation> {
     use crate::css::style_value::StyleValueData;
     let StyleValueData::Calculated {
@@ -3764,6 +3791,7 @@ pub(crate) fn absolutize_calculation_value(
     let mut externals = Vec::new();
     collect_external_resolutions(&root, &mut externals);
     let mut resolved_nodes = Vec::new();
+    let mut resolved_style_values = Vec::new();
     for external in &mut externals {
         if matches!(external.kind, FfiCalcExternalResolutionKind::Length) {
             // SAFETY: The caller supplies the live context used by the enclosing absolutization.
@@ -3780,6 +3808,63 @@ pub(crate) fn absolutize_calculation_value(
             }
             external.has_number = true;
             external.number = result.px;
+            continue;
+        }
+        if matches!(external.kind, FfiCalcExternalResolutionKind::RandomSharing) {
+            let StyleValueData::RandomValueSharing { fixed_value, .. } =
+                (unsafe { &*external.source.cast::<StyleValueData>() })
+            else {
+                return None;
+            };
+            let number = match fixed_value.optional_data() {
+                Some(StyleValueData::Number { value }) => *value,
+                Some(fixed_value @ StyleValueData::Calculated { .. }) => {
+                    // SAFETY: The caller supplies the live context used by the enclosing
+                    // absolutization.
+                    let length_context = unsafe {
+                        &*(length_resolution_context as *const crate::css::style_compute::FfiLengthResolutionContext)
+                    };
+                    match absolutize_calculation_value(
+                        fixed_value,
+                        length_resolution_context,
+                        tree_counting,
+                        random_base_values,
+                    )? {
+                        AbsolutizedCalculation::Unchanged => {
+                            resolve_calculated_number_with_context(fixed_value, length_context)?
+                        }
+                        AbsolutizedCalculation::Value(ref fixed_value) => {
+                            resolve_calculated_number_with_context(fixed_value, length_context)?
+                        }
+                        AbsolutizedCalculation::Percentage(_) => return None,
+                    }
+                }
+                Some(_) => return None,
+                None => random_base_values
+                    .iter()
+                    .find(|resolution| resolution.source == external.source)
+                    .map(|resolution| resolution.value)?,
+            };
+            let fixed_number = Arc::into_raw(Arc::new(StyleValueData::Number { value: number }));
+            let fixed_number = unsafe { RetainedStyleValueData::from_retained_pointer(fixed_number) };
+            let resolved = Arc::into_raw(Arc::new(StyleValueData::RandomValueSharing {
+                fixed_value: fixed_number,
+                is_auto: false,
+                has_name: false,
+                name: crate::css::style_value::RetainedUtf16FlyString::none(),
+                element_shared: false,
+            }));
+            let resolved = unsafe { RetainedStyleValueData::from_retained_pointer(resolved) };
+            external.has_number = true;
+            external.number = number;
+            external.resolved_style_value = resolved.pointer().cast();
+            resolved_style_values.push(resolved);
+            continue;
+        }
+        if matches!(external.kind, FfiCalcExternalResolutionKind::Channel) {
+            // Relative-color channels resolve later, once the origin color has
+            // supplied their values. They do not prevent other leaves in this
+            // calculation from being absolutized now.
             continue;
         }
         if !matches!(external.kind, FfiCalcExternalResolutionKind::NonMathFunction) {

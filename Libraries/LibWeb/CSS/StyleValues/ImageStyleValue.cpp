@@ -131,7 +131,7 @@ ImageStyleValue::ImageStyleValue(StyleValueFFI::StyleValueData const* data)
 {
     auto const& context = data->image.resource_context;
     if (context.has_base_url) {
-        auto serialized_base_url = String::from_raw(context.base_url.raw);
+        auto serialized_base_url = string_from_rust_data(context.base_url);
         m_style_resource_base_url = DOMURL::parse_from_byte_string(serialized_base_url.bytes_as_string_view());
     }
     if (context.has_parent_style_sheet_origin_clean)

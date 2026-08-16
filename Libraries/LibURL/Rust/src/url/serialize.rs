@@ -141,6 +141,10 @@ impl Host {
 }
 
 impl Url {
+    pub fn serialization(&self) -> String {
+        self.serialize(ExcludeFragment::No)
+    }
+
     // https://url.spec.whatwg.org/#url-path-serializer
     pub(crate) fn serialize_path(&self) -> String {
         // 1. If url has an opaque path, then return url's path.

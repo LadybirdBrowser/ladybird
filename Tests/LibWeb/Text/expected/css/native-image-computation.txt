@@ -1,0 +1,3 @@
+all image values computed: true
+inline image value computed: true
+used no C++ longhand fallback: true

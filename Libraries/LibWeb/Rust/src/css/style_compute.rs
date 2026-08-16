@@ -1534,6 +1534,201 @@ pub(crate) fn container_relative_length_unit_mask(value: &StyleValueData) -> u8 
         })
 }
 
+/// Collects the element- or document-cached random sharing nodes reachable through the
+/// recursively absolutized style-value graph. Keep this aligned with new structural variants
+/// and with `absolutize::absolutize`.
+pub(crate) fn collect_unfixed_random_sharings_in_value(
+    value: &StyleValueData,
+    sharings: &mut Vec<*const StyleValueData>,
+) {
+    fn collect_optional(value: &RetainedStyleValueData, sharings: &mut Vec<*const StyleValueData>) {
+        if let Some(value) = value.optional_data() {
+            collect_unfixed_random_sharings_in_value(value, sharings);
+        }
+    }
+
+    fn collect_list(values: &RetainedStyleValueDataList, sharings: &mut Vec<*const StyleValueData>) {
+        for value in values.as_slice() {
+            collect_optional(value, sharings);
+        }
+    }
+
+    let collect_values = |values: &[&RetainedStyleValueData], sharings: &mut Vec<*const StyleValueData>| {
+        for value in values {
+            collect_optional(value, sharings);
+        }
+    };
+    match value {
+        StyleValueData::Calculated { rust_calculation, .. } => {
+            crate::css::calc::collect_unfixed_random_sharings(rust_calculation.node(), sharings);
+        }
+        StyleValueData::Ratio { numerator, denominator } => collect_values(&[numerator, denominator], sharings),
+        StyleValueData::Edge { offset, .. } => collect_values(&[offset], sharings),
+        StyleValueData::Function { value, .. }
+        | StyleValueData::OpacityValue { value }
+        | StyleValueData::Filter { value, .. }
+        | StyleValueData::OpenTypeTagged { value, .. }
+        | StyleValueData::GridTrackPlacement { value, .. } => collect_values(&[value], sharings),
+        StyleValueData::ColorFunction {
+            channel_0,
+            channel_1,
+            channel_2,
+            alpha,
+            origin_color,
+            ..
+        } => collect_values(&[channel_0, channel_1, channel_2, alpha, origin_color], sharings),
+        StyleValueData::BorderImageSlice {
+            top,
+            right,
+            bottom,
+            left,
+            ..
+        }
+        | StyleValueData::Rect {
+            top,
+            right,
+            bottom,
+            left,
+        } => collect_values(&[top, right, bottom, left], sharings),
+        StyleValueData::Content { content, alt_text } => collect_values(&[content, alt_text], sharings),
+        StyleValueData::RadialSize { value_0, value_1, .. } => collect_values(&[value_0, value_1], sharings),
+        StyleValueData::BasicShape {
+            v0,
+            v1,
+            v2,
+            v3,
+            v4,
+            points,
+            ..
+        } => {
+            collect_values(&[v0, v1, v2, v3, v4], sharings);
+            for point in points.as_slice() {
+                collect_values(&point.values(), sharings);
+            }
+        }
+        StyleValueData::Counter { counter_style, .. } => collect_values(&[counter_style], sharings),
+        StyleValueData::Cursor { image, x, y } => collect_values(&[image, x, y], sharings),
+        StyleValueData::Easing {
+            linear_stops,
+            x1,
+            y1,
+            x2,
+            y2,
+            number_of_intervals,
+            ..
+        } => {
+            collect_values(&[x1, y1, x2, y2, number_of_intervals], sharings);
+            for stop in linear_stops.as_slice() {
+                collect_values(&stop.values(), sharings);
+            }
+        }
+        StyleValueData::ImageSet { options } => {
+            for option in options.as_slice() {
+                collect_values(&option.values(), sharings);
+            }
+        }
+        StyleValueData::CounterDefinitions { counter_definitions } => {
+            for definition in counter_definitions.as_slice() {
+                collect_optional(definition.value(), sharings);
+            }
+        }
+        StyleValueData::LinearGradient {
+            direction_value,
+            color_stop_list,
+            color_interpolation_method,
+            ..
+        } => {
+            collect_values(&[direction_value, color_interpolation_method], sharings);
+            for stop in color_stop_list.as_slice() {
+                collect_values(&stop.values(), sharings);
+            }
+        }
+        StyleValueData::ConicGradient {
+            from_angle,
+            position,
+            color_stop_list,
+            color_interpolation_method,
+            ..
+        } => {
+            collect_values(&[from_angle, position, color_interpolation_method], sharings);
+            for stop in color_stop_list.as_slice() {
+                collect_values(&stop.values(), sharings);
+            }
+        }
+        StyleValueData::RadialGradient {
+            size,
+            position,
+            color_stop_list,
+            color_interpolation_method,
+            ..
+        } => {
+            collect_values(&[size, position, color_interpolation_method], sharings);
+            for stop in color_stop_list.as_slice() {
+                collect_values(&stop.values(), sharings);
+            }
+        }
+        StyleValueData::ColorMix {
+            color_interpolation_method,
+            first_color,
+            first_percentage,
+            second_color,
+            second_percentage,
+            ..
+        } => collect_values(
+            &[
+                color_interpolation_method,
+                first_color,
+                first_percentage,
+                second_color,
+                second_percentage,
+            ],
+            sharings,
+        ),
+        StyleValueData::ContrastColor { color, .. } => collect_values(&[color], sharings),
+        StyleValueData::LightDark { light, dark, .. } => collect_values(&[light, dark], sharings),
+        StyleValueData::Superellipse { parameter } => collect_values(&[parameter], sharings),
+        StyleValueData::ScrollbarColor {
+            thumb_color,
+            track_color,
+        } => collect_values(&[thumb_color, track_color], sharings),
+        StyleValueData::FontStyle { angle_value, .. } => collect_values(&[angle_value], sharings),
+        StyleValueData::TextIndent { length_percentage, .. } => collect_values(&[length_percentage], sharings),
+        StyleValueData::OverflowClipMargin { offset, .. } => collect_values(&[offset], sharings),
+        StyleValueData::BackgroundSize { size_x, size_y } => collect_values(&[size_x, size_y], sharings),
+        StyleValueData::Position { edge_x, edge_y } => collect_values(&[edge_x, edge_y], sharings),
+        StyleValueData::Shadow {
+            color,
+            offset_x,
+            offset_y,
+            blur_radius,
+            spread_distance,
+            ..
+        } => collect_values(&[color, offset_x, offset_y, blur_radius, spread_distance], sharings),
+        StyleValueData::Shorthand { values, .. }
+        | StyleValueData::ValueList { values, .. }
+        | StyleValueData::Tuple { values }
+        | StyleValueData::Transformation { values, .. } => collect_list(values, sharings),
+        StyleValueData::BorderRadiusRect {
+            top_left,
+            top_right,
+            bottom_right,
+            bottom_left,
+        } => collect_values(&[top_left, top_right, bottom_right, bottom_left], sharings),
+        StyleValueData::BorderRadius {
+            horizontal_radius,
+            vertical_radius,
+            ..
+        } => collect_values(&[horizontal_radius, vertical_radius], sharings),
+        _ => {}
+    }
+}
+
+fn value_contains_unfixed_random_sharing(value: &StyleValueData) -> bool {
+    let mut sharings = Vec::new();
+    collect_unfixed_random_sharings_in_value(value, &mut sharings);
+    !sharings.is_empty()
+}
+
 /// # Safety
 /// `data` must point at a valid StyleValueData.
 #[unsafe(no_mangle)]
@@ -2429,9 +2624,29 @@ pub struct FfiStyleComputationEnvironment {
     pub has_tree_counting_context: bool,
     pub sibling_count: u64,
     pub sibling_index: u64,
+    pub random_base_values: *const FfiRandomBaseValue,
+    pub random_base_value_count: usize,
+    pub document_base_url: *const u8,
+    pub document_base_url_length: usize,
+    pub style_sheet_resource_contexts: *const FfiStyleSheetResourceContext,
+    pub style_sheet_resource_context_count: usize,
     pub device_pixels_per_css_pixel: f64,
     pub initial_font_size_raw: i32,
     pub default_font_size_raw: i32,
+}
+
+#[repr(C)]
+pub struct FfiRandomBaseValue {
+    pub source: *const c_void,
+    pub value: f64,
+}
+
+#[repr(C)]
+pub struct FfiStyleSheetResourceContext {
+    pub base_url: *const u8,
+    pub base_url_length: usize,
+    pub has_value: bool,
+    pub origin_clean: bool,
 }
 
 /// Whether a value's absolutization is the identity, so the specified value
@@ -2804,6 +3019,26 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         let tree_counting_context = environment
             .has_tree_counting_context
             .then_some((environment.sibling_count, environment.sibling_index));
+        let random_base_values = if environment.random_base_value_count == 0 {
+            &[][..]
+        } else {
+            unsafe { std::slice::from_raw_parts(environment.random_base_values, environment.random_base_value_count) }
+        };
+        let document_base_url = if environment.document_base_url_length == 0 {
+            &[][..]
+        } else {
+            unsafe { std::slice::from_raw_parts(environment.document_base_url, environment.document_base_url_length) }
+        };
+        let style_sheet_resource_contexts = if environment.style_sheet_resource_context_count == 0 {
+            &[][..]
+        } else {
+            unsafe {
+                std::slice::from_raw_parts(
+                    environment.style_sheet_resource_contexts,
+                    environment.style_sheet_resource_context_count,
+                )
+            }
+        };
         let length_resolution_context = unsafe { length_resolution_context.as_ref() };
         let results = unsafe { &mut *results };
         let word_count = NUMBER_OF_LONGHAND_PROPERTIES.div_ceil(64);
@@ -3073,6 +3308,25 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     .expect("computational independence requested for an unsupported value")
                 || value_depends_on_inherited_info_for_property(value_data, property_id);
 
+            let style_sheet_resource_context = if has_style_sheet_context && source_slot >= 0 {
+                style_sheet_resource_contexts
+                    .get(source_slot as usize)
+                    .filter(|context| context.has_value)
+                    .map(|context| {
+                        let base_url = if context.base_url_length == 0 {
+                            &[][..]
+                        } else {
+                            unsafe { std::slice::from_raw_parts(context.base_url, context.base_url_length) }
+                        };
+                        crate::css::absolutize::StyleSheetResourceContext {
+                            base_url,
+                            origin_clean: context.origin_clean,
+                        }
+                    })
+            } else {
+                None
+            };
+
             if requires_computation {
                 // Plain length values of properties without a dedicated computed-value rule
                 // absolutize natively; everything else still computes through C++.
@@ -3109,6 +3363,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 // the resolved structure just like any other specified value.
                 let externally_absolutized = if value_contains_tree_counting_function(value_data)
                     || container_relative_length_unit_mask(value_data) != 0
+                    || value_contains_unfixed_random_sharing(value_data)
                     || inherited_property_id == crate::css::property_metadata::property_id::MATH_DEPTH
                         && matches!(
                             value_data,
@@ -3126,6 +3381,9 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                         scheme,
                         resolved_viewport_relative_length: std::cell::Cell::new(false),
                         tree_counting: tree_counting_context,
+                        random_base_values,
+                        document_base_url,
+                        style_sheet_resource_context,
                     };
                     let outcome = crate::css::absolutize::absolutize(value_data, &absolutization_context);
                     if absolutization_context.resolved_viewport_relative_length.get() {
@@ -3258,6 +3516,9 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                             scheme: effective_color_scheme,
                             resolved_viewport_relative_length: std::cell::Cell::new(false),
                             tree_counting: tree_counting_context,
+                            random_base_values,
+                            document_base_url,
+                            style_sheet_resource_context,
                         };
                         let absolutized = crate::css::absolutize::absolutize(value_data, &absolutization_context);
                         if absolutization_context.resolved_viewport_relative_length.get() {
@@ -3322,7 +3583,9 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                         }
                     }
                     (native_absolutized, prop::FONT_SIZE)
-                        if native_absolutized.is_some() || matches!(value_data, StyleValueData::Calculated { .. }) =>
+                        if native_absolutized.is_some()
+                            || externally_absolutized.is_some()
+                            || matches!(value_data, StyleValueData::Calculated { .. }) =>
                     {
                         let absolutized = native_absolutized.flatten();
                         let computed_math_depth = computed_math_depth.or_else(|| {
@@ -3385,7 +3648,9 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                         }
                     }
                     (native_absolutized, prop::FONT_WEIGHT)
-                        if native_absolutized.is_some() || matches!(value_data, StyleValueData::Calculated { .. }) =>
+                        if native_absolutized.is_some()
+                            || externally_absolutized.is_some()
+                            || matches!(value_data, StyleValueData::Calculated { .. }) =>
                     {
                         let inherited_font_weight = match snapshot {
                             Some(snapshot) => match snapshot_entry_data(snapshot, prop::FONT_WEIGHT) {
@@ -3425,6 +3690,9 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                             scheme: None,
                             resolved_viewport_relative_length: std::cell::Cell::new(false),
                             tree_counting: tree_counting_context,
+                            random_base_values,
+                            document_base_url,
+                            style_sheet_resource_context,
                         };
                         match crate::css::absolutize::absolutize(value_data, &absolutization_context) {
                             Some(crate::css::absolutize::Absolutized::Unchanged) => NativeValue::Unchanged,
@@ -3435,7 +3703,9 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                         }
                     }
                     (native_absolutized, prop::FONT_WIDTH)
-                        if native_absolutized.is_some() || matches!(value_data, StyleValueData::Calculated { .. }) =>
+                        if native_absolutized.is_some()
+                            || externally_absolutized.is_some()
+                            || matches!(value_data, StyleValueData::Calculated { .. }) =>
                     {
                         let result = compute_font_width(value_data);
                         if result.handled {
@@ -3461,6 +3731,9 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                             scheme: None,
                             resolved_viewport_relative_length: std::cell::Cell::new(false),
                             tree_counting: tree_counting_context,
+                            random_base_values,
+                            document_base_url,
+                            style_sheet_resource_context,
                         };
                         let absolutized = crate::css::absolutize::absolutize(value_data, &absolutization_context);
                         if absolutization_context.resolved_viewport_relative_length.get() {
@@ -3511,6 +3784,9 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                             scheme: None,
                             resolved_viewport_relative_length: std::cell::Cell::new(false),
                             tree_counting: tree_counting_context,
+                            random_base_values,
+                            document_base_url,
+                            style_sheet_resource_context,
                         };
                         let absolutized = crate::css::absolutize::absolutize(value_data, &absolutization_context);
                         if absolutization_context.resolved_viewport_relative_length.get() {
@@ -3585,6 +3861,9 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                             scheme: effective_color_scheme,
                             resolved_viewport_relative_length: std::cell::Cell::new(false),
                             tree_counting: tree_counting_context,
+                            random_base_values,
+                            document_base_url,
+                            style_sheet_resource_context,
                         };
                         let absolutized = crate::css::absolutize::absolutize(value_data, &absolutization_context);
                         if absolutization_context.resolved_viewport_relative_length.get() {
@@ -3646,6 +3925,9 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                             scheme: None,
                             resolved_viewport_relative_length: std::cell::Cell::new(false),
                             tree_counting: tree_counting_context,
+                            random_base_values,
+                            document_base_url,
+                            style_sheet_resource_context,
                         };
                         let absolutized = crate::css::absolutize::absolutize(value_data, &absolutization_context);
                         if absolutization_context.resolved_viewport_relative_length.get() {
@@ -3687,6 +3969,9 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                             scheme,
                             resolved_viewport_relative_length: std::cell::Cell::new(false),
                             tree_counting: tree_counting_context,
+                            random_base_values,
+                            document_base_url,
+                            style_sheet_resource_context,
                         };
                         let outcome = crate::css::absolutize::absolutize(value_data, &absolutization_context);
                         if absolutization_context.resolved_viewport_relative_length.get() {

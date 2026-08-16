@@ -63,7 +63,6 @@
         const simple = document.createElement("div");
         const simpleCounters = measureUpdate("simple element", () => {
             simple.style.color = "green";
-            // Keep one intentionally unported computation so bitmap recording remains covered.
             simple.style.listStyleImage = `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'/>")`;
             document.body.appendChild(simple);
         });
@@ -71,7 +70,7 @@
         println(`longhand computation measured: ${simpleCounters.completeStyleUpdateLonghandCallbacks > 0}`);
         println(`computed build stayed in Rust: ${simpleCounters.computedStyleBuildCppCallbacks === 0}`);
         const fallbackProperties = internals.styleCppLonghandFallbacks();
-        println(`fallback property IDs recorded: ${fallbackProperties.length > 0}`);
+        println(`fallback property IDs empty: ${fallbackProperties.length === 0}`);
         println(`fallback property IDs sorted: ${fallbackProperties.every((property, index) => index === 0 || fallbackProperties[index - 1] < property)}`);
 
         const inheritanceParent = document.createElement("div");
