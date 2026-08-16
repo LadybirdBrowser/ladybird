@@ -910,20 +910,23 @@ impl StyleEngine {
     }
 
     #[must_use]
-    pub(super) fn fact_value_is_reconstructible(key: FeatureKey, value: FeatureValue) -> bool {
+    pub(super) fn fact_value_is_reconstructible(key: LocalFeatureKey, value: FeatureValue) -> bool {
         match key {
-            FeatureKey::Class(_) | FeatureKey::Part(_) | FeatureKey::CustomState(_) | FeatureKey::Emptiness => {
+            LocalFeatureKey::Class(_)
+            | LocalFeatureKey::Part(_)
+            | LocalFeatureKey::CustomState(_)
+            | LocalFeatureKey::Emptiness => {
                 matches!(value, FeatureValue::Absent | FeatureValue::Present)
             }
-            FeatureKey::TagName
-            | FeatureKey::FoldedTagName
-            | FeatureKey::Id
-            | FeatureKey::Attribute(_)
-            | FeatureKey::PartExposure
-            | FeatureKey::Language
-            | FeatureKey::Directionality => matches!(value, FeatureValue::Absent | FeatureValue::Atom(_)),
-            FeatureKey::HeadingLevel => matches!(value, FeatureValue::Number(_)),
-            FeatureKey::ArrivingFacts => false,
+            LocalFeatureKey::TagName
+            | LocalFeatureKey::FoldedTagName
+            | LocalFeatureKey::Id
+            | LocalFeatureKey::Attribute(_)
+            | LocalFeatureKey::PartExposure
+            | LocalFeatureKey::Language
+            | LocalFeatureKey::Directionality => matches!(value, FeatureValue::Absent | FeatureValue::Atom(_)),
+            LocalFeatureKey::HeadingLevel => matches!(value, FeatureValue::Number(_)),
+            LocalFeatureKey::ArrivingFacts => false,
         }
     }
 
@@ -937,7 +940,7 @@ impl StyleEngine {
         if routing_keys_for_input(input).into_iter().any(route_is_prefix) {
             return true;
         }
-        let InputKey::LocalFeature(_, FeatureKey::Attribute(name)) = input.key else {
+        let InputKey::LocalFeature(_, LocalFeatureKey::Attribute(name)) = input.key else {
             return false;
         };
         self.facts
@@ -959,7 +962,7 @@ impl StyleEngine {
             && transaction.inputs.iter().all(|input| {
                 matches!(
                     input.key,
-                    InputKey::LocalFeature(_, FeatureKey::ArrivingFacts)
+                    InputKey::LocalFeature(_, LocalFeatureKey::ArrivingFacts)
                         | InputKey::LocalFeature(..)
                         | InputKey::State(..)
                         | InputKey::RuleField(_, RuleField::Activation | RuleField::Declarations | RuleField::Layer)
@@ -968,7 +971,7 @@ impl StyleEngine {
                         | InputKey::CascadeTopology(_)
                         | InputKey::ElementDeclaration(..)
                         | InputKey::ElementStyleInput(..)
-                ) && !matches!(input.key, InputKey::LocalFeature(_, FeatureKey::ArrivingFacts))
+                ) && !matches!(input.key, InputKey::LocalFeature(_, LocalFeatureKey::ArrivingFacts))
             });
         let mut roots = Vec::new();
         let mut departures = Vec::new();
@@ -1000,7 +1003,7 @@ impl StyleEngine {
                         }
                     }
                     (
-                        InputKey::LocalFeature(_, FeatureKey::ArrivingFacts)
+                        InputKey::LocalFeature(_, LocalFeatureKey::ArrivingFacts)
                         | InputKey::ElementDeclaration(..)
                         | InputKey::ElementStyleInput(..),
                         _,

@@ -5,11 +5,11 @@
  */
 
 use super::capacity::capacity_bytes;
-use super::column::Column;
 use super::column::EpochColumn;
 use super::column::PagedColumn;
 use super::column::PagedColumnPage;
 use super::column::advance_epoch;
+use super::program::EntryID;
 use super::sorted_merge::SortedMergeEntry;
 use super::sorted_merge::merge_sorted_by;
 use super::*;
@@ -32,20 +32,42 @@ pub(super) enum RetainedWinnerProbe {
     AllResident { resident_count: usize },
 }
 
+pub(super) struct RemainingPosting {
+    nodes: Vec<StyleNodeID>,
+    plan_generation: u64,
+    pruned_nodes: Vec<StyleNodeID>,
+}
+
+#[derive(Default)]
+pub(super) struct RemainingPostingDirectory {
+    entries: Vec<(PostingKey, RemainingPosting)>,
+}
+
+impl RemainingPostingDirectory {
+    fn entry(&mut self, key: PostingKey) -> Option<&mut RemainingPosting> {
+        if let Some(index) = self.entries.iter().position(|(candidate, _)| *candidate == key) {
+            return Some(&mut self.entries[index].1);
+        }
+        None
+    }
+
+    fn capacity_bytes(&self) -> u64 {
+        (self.entries.capacity() * size_of::<(PostingKey, RemainingPosting)>()) as u64
+    }
+
+    fn insert(&mut self, key: PostingKey, posting: RemainingPosting) -> &mut RemainingPosting {
+        self.entries.push((key, posting));
+        &mut self.entries.last_mut().unwrap().1
+    }
+}
+
 pub(super) struct ImpactPlanningWorkspace {
     pub(super) batches: HashMap<Vec<ImpactRegion>, Rc<ImpactRegionBatch>>,
     // Fact postings cannot change while one transaction is being planned, and the exact-node plan
     // only grows. Removing planned nodes here is therefore permanent for the lifetime of this
     // workspace: later routes see the posting members that can still contribute, not the same
     // already-planned prefix over and over.
-    pub(super) remaining_postings: Column<Option<Vec<StyleNodeID>>>,
-    // The exact-node plan generation each remaining posting was last filtered against. Routes
-    // commonly share a posting without adding a node between them; those routes can consume the
-    // already-filtered posting without rescanning every member.
-    pub(super) remaining_posting_plan_generations: Column<u64>,
-    // The nodes each remaining posting has dropped as already planned. A later route consuming
-    // the cached posting never sees them, so it reports its rule against this list instead.
-    pub(super) pruned_postings: Column<Vec<StyleNodeID>>,
+    pub(super) remaining_postings: RemainingPostingDirectory,
     pub(super) memory: MemoryLease,
     pub(super) nested_memory: MemoryLease,
 }
@@ -54,9 +76,7 @@ impl Default for ImpactPlanningWorkspace {
     fn default() -> Self {
         Self {
             batches: HashMap::default(),
-            remaining_postings: Column::default(),
-            remaining_posting_plan_generations: Column::new(|| u64::MAX),
-            pruned_postings: Column::default(),
+            remaining_postings: RemainingPostingDirectory::default(),
             memory: MemoryLease::new(MemoryCategory::BatchScratch),
             nested_memory: MemoryLease::new(MemoryCategory::BatchScratch),
         }
@@ -84,8 +104,7 @@ pub(super) fn exact_entry_changed(result: ExactEntryResult) -> bool {
 pub(super) struct SelectorTruthDelta {
     pub(super) node: StyleNodeID,
     pub(super) rule: RuleID,
-    pub(super) program: SelectorProgramID,
-    pub(super) entry: u32,
+    pub(super) entry: EntryID,
     pub(super) change: SetChange,
     /// Activation changes the active-match join, not selector truth itself.
     pub(super) selector_truth_changed: bool,
@@ -94,13 +113,13 @@ pub(super) struct SelectorTruthDelta {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(super) struct SelectorTruthRefresh {
     pub(super) node: StyleNodeID,
-    pub(super) rule: Option<(RuleID, SelectorProgramID)>,
+    pub(super) rule: Option<(RuleID, EntryID)>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(super) struct AlreadyPlannedSelectorTruthCandidate {
     pub(super) node: StyleNodeID,
-    pub(super) exact_entry: Option<(RuleID, SelectorProgramID, u32)>,
+    pub(super) exact_entry: Option<(RuleID, EntryID)>,
     pub(super) exact_tree_evaluation: Option<ExactTreeEvaluation>,
 }
 
@@ -182,7 +201,7 @@ pub(super) enum SelectorTruthPatch<'a> {
     Attributed {
         deltas: &'a [SelectorTruthDelta],
         refreshes: &'a [SelectorTruthRefresh],
-        rules: &'a [(RuleID, SelectorProgramID)],
+        rules: &'a [(RuleID, EntryID)],
     },
 }
 
@@ -214,11 +233,7 @@ impl StyleEngine {
     }
 
     /// Record that a route needs exact selector truth refreshed for a planned node.
-    pub(super) fn record_selector_truth_refresh(
-        &mut self,
-        node: StyleNodeID,
-        rule: Option<(RuleID, SelectorProgramID)>,
-    ) {
+    pub(super) fn record_selector_truth_refresh(&mut self, node: StyleNodeID, rule: Option<(RuleID, EntryID)>) {
         if self.selector_truth_changes_active {
             self.selector_truth_changes
                 .refreshes
@@ -235,7 +250,7 @@ impl StyleEngine {
         if !self.selector_truth_changes_active {
             return;
         }
-        let Some((rule, program, entry)) = site.exact_entry else {
+        let Some((rule, entry)) = site.exact_entry else {
             self.record_selector_truth_refresh(node, site.refresh_rule);
             return;
         };
@@ -244,14 +259,13 @@ impl StyleEngine {
                 self.selector_truth_changes.deltas.push(SelectorTruthDelta {
                     node,
                     rule,
-                    program,
                     entry,
                     change: kind,
                     selector_truth_changed: true,
                 });
             }
             Lookup::KnownAbsent => {}
-            Lookup::Missing(_) => self.record_selector_truth_refresh(node, Some((rule, program))),
+            Lookup::Missing(_) => self.record_selector_truth_refresh(node, Some((rule, entry))),
         }
     }
 
@@ -324,23 +338,28 @@ pub(super) fn record_match_set_difference(
     changes: &mut SelectorTruthChanges,
     active: bool,
     node: StyleNodeID,
-    old_matches: &[DispatchEntryID],
-    new_matches: &[DispatchEntryID],
+    old_matches: &[EntryID],
+    new_matches: &[EntryID],
     dispatch: &RuleDispatch,
 ) {
     if !active {
         return;
     }
-    let mut record = |entry: DispatchEntryID, kind| {
-        let candidate = &dispatch.entries()[entry.index()];
-        changes.deltas.push(SelectorTruthDelta {
-            node,
-            rule: candidate.rule,
-            program: candidate.program,
-            entry: candidate.entry,
-            change: kind,
-            selector_truth_changed: true,
-        });
+    let mut record = |entry: EntryID, kind| {
+        let mut previous_rule = None;
+        for candidate in dispatch.entries_for_identity(entry) {
+            if previous_rule == Some(candidate.rule) {
+                continue;
+            }
+            previous_rule = Some(candidate.rule);
+            changes.deltas.push(SelectorTruthDelta {
+                node,
+                rule: candidate.rule,
+                entry,
+                change: kind,
+                selector_truth_changed: true,
+            });
+        }
     };
     debug_assert!(old_matches.is_sorted());
     debug_assert!(new_matches.is_sorted());
@@ -358,6 +377,7 @@ pub(super) fn repaired_selector_truth_deltas(
     node: StyleNodeID,
     old_matches: &[RetainedRuleMatch],
     new_matches: &mut [RuleMatch],
+    programs: &SelectorPrograms,
 ) -> Option<Vec<SelectorTruthDelta>> {
     const LINEAR_SEARCH_COMPARISONS: usize = 16;
     let retained_key = |entry: &RetainedRuleMatch| (entry.rule, entry.program, entry.entry);
@@ -386,8 +406,7 @@ pub(super) fn repaired_selector_truth_deltas(
                     deltas.push(SelectorTruthDelta {
                         node,
                         rule: old.rule,
-                        program: old.program,
-                        entry: old.entry,
+                        entry: programs.entry_id(old.program, old.entry),
                         change: SetChange::Removed,
                         selector_truth_changed: true,
                     });
@@ -396,8 +415,7 @@ pub(super) fn repaired_selector_truth_deltas(
                     deltas.push(SelectorTruthDelta {
                         node,
                         rule: new.rule,
-                        program: new.program,
-                        entry: new.entry,
+                        entry: programs.entry_id(new.program, new.entry),
                         change: SetChange::Added,
                         selector_truth_changed: true,
                     });
@@ -419,8 +437,7 @@ pub(super) fn repaired_selector_truth_deltas(
             deltas.push(SelectorTruthDelta {
                 node,
                 rule: entry.rule,
-                program: entry.program,
-                entry: entry.entry,
+                entry: programs.entry_id(entry.program, entry.entry),
                 change: SetChange::Removed,
                 selector_truth_changed: true,
             });
@@ -434,8 +451,7 @@ pub(super) fn repaired_selector_truth_deltas(
             deltas.push(SelectorTruthDelta {
                 node,
                 rule: entry.rule,
-                program: entry.program,
-                entry: entry.entry,
+                entry: programs.entry_id(entry.program, entry.entry),
                 change: SetChange::Added,
                 selector_truth_changed: true,
             });
@@ -463,18 +479,11 @@ impl SelectorTruthChanges {
                 let mut write = 0;
                 while read < deltas.len() {
                     let first = deltas[read];
-                    let key = (first.node, first.rule, first.program, first.entry);
+                    let key = (first.node, first.rule, first.entry);
                     let mut added = false;
                     let mut removed = false;
                     let mut selector_truth_changed = false;
-                    while read < deltas.len()
-                        && (
-                            deltas[read].node,
-                            deltas[read].rule,
-                            deltas[read].program,
-                            deltas[read].entry,
-                        ) == key
-                    {
+                    while read < deltas.len() && (deltas[read].node, deltas[read].rule, deltas[read].entry) == key {
                         match deltas[read].change {
                             SetChange::Added => added = true,
                             SetChange::Removed => removed = true,
@@ -500,7 +509,6 @@ impl SelectorTruthChanges {
                     deltas[write] = SelectorTruthDelta {
                         node: first.node,
                         rule: first.rule,
-                        program: first.program,
                         entry: first.entry,
                         change,
                         selector_truth_changed,
@@ -552,12 +560,9 @@ impl ImpactPlanningWorkspace {
         capacity_bytes! {
             shallow [
                 self.batches,
-                self.remaining_postings,
-                self.remaining_posting_plan_generations,
-                self.pruned_postings,
             ];
             cached [self.nested_memory.bytes()];
-            nested [];
+            nested [self.remaining_postings.capacity_bytes()];
             skip [self.memory];
         }
     }
@@ -601,29 +606,33 @@ impl ImpactPlanningWorkspace {
             Lookup::KnownAbsent => return Ok((0, false, 0, 0, 0)),
             Lookup::Missing(gap) => return Err(gap),
         };
-        let id = posting.id().index();
-        self.remaining_postings.ensure(id);
-        self.pruned_postings.ensure(id);
-        self.remaining_posting_plan_generations.ensure(id);
-        let was_present = self.remaining_postings[id].is_some();
+        let was_present = self.remaining_postings.entry(key).is_some();
         let copied = if !was_present { posting.len() } else { 0 };
-        if !was_present {
+        let remaining = if was_present {
+            self.remaining_postings.entry(key).unwrap()
+        } else {
             let candidates: Vec<StyleNodeID> = posting.candidates().collect();
             self.nested_memory
                 .grow_committed((candidates.capacity() * size_of::<StyleNodeID>()) as u64);
-            self.remaining_postings[id] = Some(candidates);
-        }
-
-        let posting = self.remaining_postings[id].as_mut().unwrap();
+            self.remaining_postings.insert(
+                key,
+                RemainingPosting {
+                    nodes: candidates,
+                    plan_generation: u64::MAX,
+                    pruned_nodes: Vec::new(),
+                },
+            )
+        };
+        let posting = &mut remaining.nodes;
         let mut inspected = 0;
         let mut pruned = 0;
         let plan_generation = plan.exact_node_generation();
-        if self.remaining_posting_plan_generations[id] != plan_generation {
-            let pruned_this_call = &mut self.pruned_postings[id];
+        if remaining.plan_generation != plan_generation {
+            let pruned_this_call = &mut remaining.pruned_nodes;
             let pruned_capacity_before = pruned_this_call.capacity();
             let previous_pruned_length = pruned_this_call.len();
             let point_removed = plan.for_each_exact_node_added_after(
-                self.remaining_posting_plan_generations[id],
+                remaining.plan_generation,
                 MAX_POINT_REMOVED_EXACT_NODES,
                 |node| {
                     if let Ok(index) = posting.binary_search(&node) {
@@ -646,7 +655,7 @@ impl ImpactPlanningWorkspace {
                 });
                 pruned = previous_length - posting.len();
             }
-            self.remaining_posting_plan_generations[id] = plan_generation;
+            remaining.plan_generation = plan_generation;
             self.nested_memory.grow_committed(
                 ((pruned_this_call.capacity() - pruned_capacity_before) * size_of::<StyleNodeID>()) as u64,
             );
@@ -655,7 +664,7 @@ impl ImpactPlanningWorkspace {
         // an earlier route are invisible to this one too. Without a consumer the history is
         // still kept, but nothing is copied or walked.
         if let Some(pruned_nodes) = pruned_nodes {
-            pruned_nodes.extend_from_slice(&self.pruned_postings[id]);
+            pruned_nodes.extend_from_slice(&remaining.pruned_nodes);
         }
         candidates.extend_from_slice(posting);
         Ok((
@@ -1179,9 +1188,9 @@ impl SiblingEntry {
             path: routing.path_of(self.route),
             waypoints: routing.waypoints_of(self.route),
             in_flux: None,
-            exact_entry: exact_tree_evaluation.map(|_| (routing.rule_of(self.route), point.program, point.entry)),
+            exact_entry: exact_tree_evaluation.map(|_| (routing.rule_of(self.route), point.entry)),
             exact_tree_evaluation,
-            refresh_rule: Some((routing.rule_of(self.route), point.program)),
+            refresh_rule: Some((routing.rule_of(self.route), point.entry)),
         }
     }
 
@@ -1210,9 +1219,9 @@ impl SiblingEntry {
             path: &path[1..],
             waypoints,
             in_flux: None,
-            exact_entry: Some((routing.rule_of(self.route), point.program, point.entry)),
+            exact_entry: Some((routing.rule_of(self.route), point.entry)),
             exact_tree_evaluation,
-            refresh_rule: Some((routing.rule_of(self.route), point.program)),
+            refresh_rule: Some((routing.rule_of(self.route), point.entry)),
         }
     }
 }
@@ -1301,10 +1310,7 @@ impl SequenceEntryIndex {
             // A relative positional input is a possible witness, so its originating compound
             // cannot reject it from the final tree alone. Non-resident dispatch keys likewise
             // cannot be used to enumerate all possible origins.
-            if point.anchor.is_some()
-                || origin.is_empty()
-                || origin.iter().any(|&key| posting_for_dispatch_key(key).is_none())
-            {
+            if point.anchor.is_some() || origin.is_empty() || origin.iter().any(|key| !key.has_selector_posting()) {
                 group.unindexed.push(entry_index);
                 continue;
             }
@@ -1352,8 +1358,8 @@ impl SequenceEntry {
             in_flux: None,
             exact_entry: self
                 .can_compare_exactly
-                .then_some((routing.rule_of(self.route), point.program, point.entry)),
-            refresh_rule: Some((routing.rule_of(self.route), point.program)),
+                .then_some((routing.rule_of(self.route), point.entry)),
+            refresh_rule: Some((routing.rule_of(self.route), point.entry)),
             exact_tree_evaluation: self
                 .can_compare_exactly
                 .then_some(ExactTreeEvaluation::BeforeSiblingRelations),
@@ -1373,7 +1379,7 @@ pub(super) fn relational_route_site(routing: &RoutingRegistry, route: RouteID) -
         in_flux: None,
         exact_entry: None,
         exact_tree_evaluation: None,
-        refresh_rule: Some((routing.rule_of(route), point.program)),
+        refresh_rule: Some((routing.rule_of(route), point.entry)),
     }
 }
 
@@ -1390,21 +1396,19 @@ pub(super) struct RoutingSite<'a> {
     pub(super) path: &'a [InverseStep],
     pub(super) waypoints: &'a [DispatchKey],
     pub(super) in_flux: Option<(StyleNodeID, DispatchKey)>,
-    pub(super) exact_entry: Option<(RuleID, SelectorProgramID, u32)>,
+    pub(super) exact_entry: Option<(RuleID, EntryID)>,
     pub(super) exact_tree_evaluation: Option<ExactTreeEvaluation>,
     /// The one rule this route can move when it cannot name an exact entry, for refresh and
     /// patch-cover attribution. A route that knows neither poisons covered answers to full
     /// re-derivation.
-    pub(super) refresh_rule: Option<(RuleID, SelectorProgramID)>,
+    pub(super) refresh_rule: Option<(RuleID, EntryID)>,
 }
 
 impl RoutingSite<'_> {
     /// The rule this route attributes its coverage to, from the exact entry when it has one.
     #[must_use]
-    pub(super) fn attribution(&self) -> Option<(RuleID, SelectorProgramID)> {
-        self.exact_entry
-            .map(|(rule, program, _)| (rule, program))
-            .or(self.refresh_rule)
+    pub(super) fn attribution(&self) -> Option<(RuleID, EntryID)> {
+        self.exact_entry.or(self.refresh_rule)
     }
 }
 

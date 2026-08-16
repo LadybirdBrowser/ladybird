@@ -30,7 +30,6 @@ use super::ScopeProgramID;
 use super::column::Column;
 use super::column::EpochColumn;
 use super::column::advance_epoch;
-use super::index::DispatchEntryID;
 use super::index::DispatchKey;
 use super::index::StyleNodeFacts;
 use super::instrumentation::Counter;
@@ -40,6 +39,7 @@ use super::memory::MemoryCategory;
 use super::memory::MemoryController;
 use super::memory::MemoryLease;
 use super::partial_view::Lookup;
+use super::program::EntryID;
 use super::program::SelectorProgramID;
 use super::selector::AttributeOperator;
 use super::selector::FeatureTest;
@@ -75,8 +75,7 @@ impl PrefixProducerCache {
         &mut self,
         route: RouteID,
         prefixes: &PrefixAutomaton,
-        program: SelectorProgramID,
-        entry: u32,
+        entry: EntryID,
         inverse_path_length: usize,
     ) -> &[PrefixProducer] {
         if self.ranges.len() <= route.index() {
@@ -84,7 +83,7 @@ impl PrefixProducerCache {
         }
         let range = self.ranges[route.index()].get_or_insert_with(|| {
             let start = u32::try_from(self.producers.len()).expect("prefix producer space exhausted");
-            prefixes.append_route_producers(program, entry, inverse_path_length, &mut self.producers);
+            prefixes.append_route_producers(entry, inverse_path_length, &mut self.producers);
             let end = u32::try_from(self.producers.len()).expect("prefix producer space exhausted");
             start..end
         });
@@ -197,7 +196,7 @@ struct PrefixStepOutputBuilder {
     descendant_successors: Vec<PrefixStepID>,
     adjacent_successors: Vec<PrefixStepID>,
     following_successors: Vec<PrefixStepID>,
-    terminals: Vec<DispatchEntryID>,
+    terminals: Vec<EntryID>,
 }
 
 #[derive(Clone, Copy)]
@@ -219,13 +218,13 @@ struct PrefixOutput {
 
 #[derive(Clone)]
 struct PrefixEntryPath {
-    terminal: DispatchEntryID,
+    terminal: EntryID,
     steps: Box<[PrefixStepID]>,
 }
 
 #[derive(Clone)]
 struct PrefixEntryPaths {
-    key: (SelectorProgramID, u32),
+    key: EntryID,
     paths: Vec<PrefixEntryPath>,
 }
 
@@ -250,7 +249,7 @@ pub(super) struct PrefixAutomaton {
     /// Runtime lookup is a packed immutable table sorted by selector entry.
     entry_paths: Vec<PrefixEntryPaths>,
     /// Builder-only index discarded when the immutable table is finished.
-    entry_path_indices: HashMap<(SelectorProgramID, u32), usize>,
+    entry_path_indices: HashMap<EntryID, usize>,
     entry_paths_finished: bool,
     /// The producer of each non-root step, retained in the storage formerly used by the finished
     /// dispatch-order builder so warm removal edits can find shadowing local output in O(1).
@@ -312,9 +311,9 @@ impl PrefixAutomaton {
                 let mut builder = PrefixStepOutputBuilder::default();
                 for output in self.outputs_for(step) {
                     match output.kind {
-                        PrefixOutputKind::UniqueTerminal | PrefixOutputKind::SharedTerminal => builder
-                            .terminals
-                            .push(DispatchEntryID::from_index(output.target as usize)),
+                        PrefixOutputKind::UniqueTerminal | PrefixOutputKind::SharedTerminal => {
+                            builder.terminals.push(EntryID(output.target));
+                        }
                         PrefixOutputKind::Child => builder.child_successors.push(PrefixStepID(output.target)),
                         PrefixOutputKind::Descendant => builder.descendant_successors.push(PrefixStepID(output.target)),
                         PrefixOutputKind::NextSibling => builder.adjacent_successors.push(PrefixStepID(output.target)),
@@ -372,9 +371,8 @@ impl PrefixAutomaton {
         &mut self,
         programs: &SelectorPrograms,
         program_id: SelectorProgramID,
-        selector_entry: u32,
         chain: &[SelectorPrefixStep],
-        entry: DispatchEntryID,
+        entry: EntryID,
         structural_tests_admissible: bool,
     ) -> bool {
         assert!(!self.entry_paths_finished, "cannot add to a finished prefix automaton");
@@ -406,6 +404,9 @@ impl PrefixAutomaton {
         }
         if self.positional_tests.len() + new_positional_tests.len() > 32 {
             return false;
+        }
+        if self.entry_path_indices.contains_key(&entry) {
+            return true;
         }
         if chain.iter().any(|step| {
             matches!(
@@ -528,7 +529,7 @@ impl PrefixAutomaton {
         self.step_output_builders[terminal_step.0 as usize]
             .terminals
             .push(entry);
-        let key = (program_id, selector_entry);
+        let key = entry;
         let index = match self.entry_path_indices.get(&key).copied() {
             Some(index) => index,
             None => {
@@ -623,7 +624,7 @@ impl PrefixAutomaton {
             bucket.end_step = order + 1;
         }
         assert_eq!(self.steps.len(), self.step_output_builders.len());
-        let mut terminal_producers = HashMap::<DispatchEntryID, u32>::default();
+        let mut terminal_producers = HashMap::<EntryID, u32>::default();
         for (step_index, builder) in self.step_output_builders.iter().enumerate() {
             let step_index = u32::try_from(step_index).expect("selector prefix step space exhausted");
             for &terminal in &builder.terminals {
@@ -646,7 +647,7 @@ impl PrefixAutomaton {
             step.output_start = u32::try_from(self.outputs.len()).expect("selector prefix output space exhausted");
             self.outputs
                 .extend(builder.terminals.into_iter().map(|terminal| PrefixOutput {
-                    target: u32::try_from(terminal.index()).expect("dispatch entry space exhausted"),
+                    target: terminal.0,
                     kind: match terminal_producers[&terminal] == step_index {
                         true => PrefixOutputKind::UniqueTerminal,
                         false => PrefixOutputKind::SharedTerminal,
@@ -718,19 +719,19 @@ impl PrefixAutomaton {
         &self.features[start..start + len as usize]
     }
 
-    fn paths_for(&self, key: (SelectorProgramID, u32)) -> Option<&[PrefixEntryPath]> {
+    fn paths_for(&self, key: EntryID) -> Option<&[PrefixEntryPath]> {
         assert!(self.entry_paths_finished, "cannot query an unfinished prefix automaton");
         let index = self.entry_paths.binary_search_by_key(&key, |entry| entry.key).ok()?;
         Some(&self.entry_paths[index].paths)
     }
 
-    pub(super) fn contains_entry(&self, program: SelectorProgramID, entry: u32) -> bool {
-        self.paths_for((program, entry)).is_some()
+    pub(super) fn contains_entry(&self, entry: EntryID) -> bool {
+        self.paths_for(entry).is_some()
     }
 
     pub(super) fn select_entries(
         &self,
-        entries: impl IntoIterator<Item = (SelectorProgramID, u32)>,
+        entries: impl IntoIterator<Item = EntryID>,
         terminal_count: usize,
     ) -> PrefixSelection {
         let mut selection = PrefixSelection {
@@ -742,7 +743,7 @@ impl PrefixAutomaton {
                 continue;
             };
             for path in paths {
-                selection.terminals[path.terminal.index()] = true;
+                selection.terminals[path.terminal.0 as usize] = true;
                 for step in &path.steps {
                     if !selection.steps[step.0 as usize] {
                         selection.steps[step.0 as usize] = true;
@@ -755,12 +756,11 @@ impl PrefixAutomaton {
 
     pub(super) fn append_route_producers(
         &self,
-        program: SelectorProgramID,
-        entry: u32,
+        entry: EntryID,
         inverse_path_length: usize,
         into: &mut Vec<PrefixProducer>,
     ) -> bool {
-        let Some(paths) = self.paths_for((program, entry)) else {
+        let Some(paths) = self.paths_for(entry) else {
             return false;
         };
         let mut found = false;
@@ -811,7 +811,7 @@ impl PrefixAutomaton {
                         + builder.adjacent_successors.capacity()
                         + builder.following_successors.capacity())
                         * size_of::<PrefixStepID>()
-                        + builder.terminals.capacity() * size_of::<DispatchEntryID>()
+                        + builder.terminals.capacity() * size_of::<EntryID>()
                 })
                 .sum::<usize>(),
                 self
@@ -842,8 +842,8 @@ impl PrefixSelection {
         self.steps[step.0 as usize]
     }
 
-    fn contains_terminal(&self, terminal: DispatchEntryID) -> bool {
-        self.terminals[terminal.index()]
+    fn contains_terminal(&self, terminal: EntryID) -> bool {
+        self.terminals[terminal.0 as usize]
     }
 
     pub(super) fn capacity_bytes(&self) -> u64 {
@@ -1031,7 +1031,7 @@ pub(super) struct PrefixStates {
     states_by_hash: HashMap<(u32, u64, u32, u32), PrefixStateCandidates>,
     states_by_hash_collision_bytes: u64,
     match_offsets: Vec<u32>,
-    match_entries: Vec<DispatchEntryID>,
+    match_entries: Vec<EntryID>,
     truth_offsets: Vec<u32>,
     truth_steps: Vec<PrefixStepID>,
     truth_sets_by_hash: super::intern_table::InternTable<PrefixTruthSetID, ()>,
@@ -1061,7 +1061,7 @@ pub(super) struct PrefixStates {
     candidates: Vec<PrefixStepID>,
     compare_left: Vec<PrefixStepID>,
     compare_right: Vec<PrefixStepID>,
-    output_matches: Vec<DispatchEntryID>,
+    output_matches: Vec<EntryID>,
     output_matched_steps: Vec<PrefixStepID>,
     new_descendant: Vec<PrefixStepID>,
     new_child: Vec<PrefixStepID>,
@@ -1182,9 +1182,9 @@ struct PrefixLocalOutputDeltas {
 pub(super) struct PrefixDeltaArena {
     steps: Vec<PrefixStepID>,
     deltas: Vec<PrefixStateDelta>,
-    matches: Vec<DispatchEntryID>,
+    matches: Vec<EntryID>,
     scratch: [Vec<PrefixStepID>; 8],
-    match_scratch: [Vec<DispatchEntryID>; 2],
+    match_scratch: [Vec<EntryID>; 2],
     signed_scratch: Vec<(PrefixStepID, i8)>,
 }
 
@@ -1203,7 +1203,7 @@ impl PrefixDeltaArena {
         &self.steps[start..start + span.len as usize]
     }
 
-    fn append_matches(&mut self, matches: &[DispatchEntryID]) -> PrefixMatchSpan {
+    fn append_matches(&mut self, matches: &[EntryID]) -> PrefixMatchSpan {
         let start = u32::try_from(self.matches.len()).expect("selector prefix match delta arena overflow");
         self.matches.extend_from_slice(matches);
         PrefixMatchSpan {
@@ -1212,7 +1212,7 @@ impl PrefixDeltaArena {
         }
     }
 
-    fn get_matches(&self, span: PrefixMatchSpan) -> &[DispatchEntryID] {
+    fn get_matches(&self, span: PrefixMatchSpan) -> &[EntryID] {
         let start = span.start as usize;
         &self.matches[start..start + span.len as usize]
     }
@@ -1366,7 +1366,7 @@ impl PrefixDeltaArena {
             cached [];
             nested [
                 self.scratch.iter().map(Vec::capacity).sum::<usize>() * size_of::<PrefixStepID>(),
-                self.match_scratch.iter().map(Vec::capacity).sum::<usize>() * size_of::<DispatchEntryID>(),
+                self.match_scratch.iter().map(Vec::capacity).sum::<usize>() * size_of::<EntryID>(),
             ];
             skip [];
         }
@@ -1572,14 +1572,14 @@ impl PrefixStates {
         }
     }
 
-    pub(super) fn matches_in(&self, matches: PrefixMatchSetID) -> &[DispatchEntryID] {
+    pub(super) fn matches_in(&self, matches: PrefixMatchSetID) -> &[EntryID] {
         let index = matches.0 as usize;
         &self.match_entries[self.match_offsets[index] as usize..self.match_offsets[index + 1] as usize]
     }
 
     /// Read the exact terminal matches already retained for one element without extending the
     /// prefix relation. A missing transition is not an empty answer.
-    pub(super) fn retained_matches_for(&self, node: StyleNodeID) -> Option<&[DispatchEntryID]> {
+    pub(super) fn retained_matches_for(&self, node: StyleNodeID) -> Option<&[EntryID]> {
         match self.transition_of(node) {
             PrefixTransitionLookup::Known(transition) => Some(self.matches_in(self.matches_of(transition))),
             PrefixTransitionLookup::Missing(_) => None,
@@ -2062,7 +2062,7 @@ impl PrefixStates {
                     outputs_changed = true;
                     match output.kind {
                         PrefixOutputKind::UniqueTerminal => {
-                            let terminal = DispatchEntryID::from_index(output.target as usize);
+                            let terminal = EntryID(output.target);
                             if evaluation
                                 .selection
                                 .is_none_or(|selection| selection.contains_terminal(terminal))
@@ -2072,7 +2072,7 @@ impl PrefixStates {
                             }
                         }
                         PrefixOutputKind::SharedTerminal => {
-                            let terminal = DispatchEntryID::from_index(output.target as usize);
+                            let terminal = EntryID(output.target);
                             if evaluation
                                 .selection
                                 .is_none_or(|selection| selection.contains_terminal(terminal))
@@ -2788,7 +2788,7 @@ impl PrefixStates {
             for output in automaton.outputs_for(step) {
                 match output.kind {
                     PrefixOutputKind::UniqueTerminal | PrefixOutputKind::SharedTerminal => {
-                        let terminal = DispatchEntryID::from_index(output.target as usize);
+                        let terminal = EntryID(output.target);
                         if evaluation
                             .selection
                             .is_none_or(|selection| selection.contains_terminal(terminal))
@@ -3005,8 +3005,8 @@ impl PrefixStates {
         }
     }
 
-    fn admit_match(&mut self, entry: DispatchEntryID) {
-        let index = entry.index();
+    fn admit_match(&mut self, entry: EntryID) {
+        let index = entry.0 as usize;
         if self.match_epoch.mark(index, self.epoch) {
             self.output_matches.push(entry);
         }
@@ -3758,7 +3758,7 @@ fn transition_for(
     PrefixTransitionLookup::Known(result)
 }
 
-fn selected_matches_equal(left: &[DispatchEntryID], right: &[DispatchEntryID], selection: &PrefixSelection) -> bool {
+fn selected_matches_equal(left: &[EntryID], right: &[EntryID], selection: &PrefixSelection) -> bool {
     left.iter()
         .copied()
         .filter(|&entry| selection.contains_terminal(entry))
@@ -4417,8 +4417,8 @@ mod tests {
             automaton.step_predecessors.push(u32::MAX);
             automaton.step_output_builders.push(PrefixStepOutputBuilder::default());
         }
-        let unique = DispatchEntryID::from_index(0);
-        let shared = DispatchEntryID::from_index(1);
+        let unique = EntryID(0);
+        let shared = EntryID(1);
         automaton.step_output_builders[0]
             .terminals
             .extend([unique, unique, shared]);
@@ -4483,9 +4483,9 @@ mod tests {
             .resize(2, PrefixStepOutputBuilder::default());
         automaton.step_output_builders[0].child_successors.push(PrefixStepID(1));
         automaton.entry_paths.push(PrefixEntryPaths {
-            key: (SelectorProgramID(0), 0),
+            key: EntryID(0),
             paths: vec![PrefixEntryPath {
-                terminal: DispatchEntryID::from_index(0),
+                terminal: EntryID(0),
                 steps: vec![PrefixStepID(0), PrefixStepID(1)].into_boxed_slice(),
             }],
         });
@@ -4514,9 +4514,9 @@ mod tests {
     fn sparse_match_delta_applies_additions_and_removals() {
         let mut states = PrefixStates::new(0);
         let mut counters = Counters::new();
-        let removed = DispatchEntryID::from_index(0);
-        let retained = DispatchEntryID::from_index(1);
-        let added = DispatchEntryID::from_index(2);
+        let removed = EntryID(0);
+        let retained = EntryID(1);
+        let added = EntryID(2);
         states.output_matches.extend([removed, retained]);
         let matches = states.intern_output_matches(&mut counters);
         let old_result = states.intern_result(matches, PrefixTruthSetID::default());

@@ -36,6 +36,7 @@ use super::memory::MemoryLease;
 use super::partial_view::Lookup;
 use super::prefix::PrefixAutomaton;
 use super::program::DeclaredProperty;
+use super::program::EntryID;
 use super::program::RuleID;
 use super::program::SelectorProgramID;
 use super::transaction::ElementDeclarationKind;
@@ -63,7 +64,7 @@ impl StyleAtomID {
 /// Attribute presence and attribute value share one key: changing an attribute changes both facts
 /// at once, and splitting them would let a consumer handle one and miss the other.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum FeatureKey {
+pub enum LocalFeatureKey {
     /// The element's qualified name, as a single interned tag/namespace atom.
     TagName,
     /// The ASCII-lowercase folding of that name, recorded only when it differs from it. A type
@@ -663,6 +664,7 @@ impl StyleNodeFacts {
             DispatchKey::State(state) => self.states_of(row).contains(state),
             DispatchKey::Heading => self.heading_level_of(row) != 0,
             DispatchKey::Universal => true,
+            _ => unreachable!("non-dispatch feature key"),
         }
     }
 
@@ -784,7 +786,6 @@ const MAX_POSTING_CHUNK: usize = 256;
 /// One feature's candidate set: chunked and sorted by `StyleNodeID`.
 #[derive(Default)]
 pub(super) struct Posting {
-    id: PostingID,
     chunks: Vec<Vec<StyleNodeID>>,
     length: usize,
 }
@@ -797,11 +798,6 @@ impl Posting {
     #[must_use]
     pub(super) fn len(&self) -> usize {
         self.length
-    }
-
-    #[must_use]
-    pub(super) fn id(&self) -> PostingID {
-        self.id
     }
 
     fn chunk_for(&self, node: StyleNodeID) -> usize {
@@ -900,32 +896,32 @@ impl Posting {
                 .iter()
                 .map(|chunk| chunk.capacity() * size_of::<StyleNodeID>())
                 .sum::<usize>()];
-            skip [self.id, self.length];
+            skip [self.length];
         }
     }
 }
 
-/// A selector posting's key: a matchable feature and the atom that identifies it.
+/// One compact key for selector routing, dispatch, and postings.
 ///
-/// Distinct from [`FeatureKey`], which names a *fact of an element* - "this element's tag" - where
-/// a posting names a *set of elements* - "the elements whose tag is div". The fact needs no atom
-/// because its value carries one; the posting needs one because it is the value.
+/// Every atom-bearing variant has the same `(kind: u8, atom: u32)` representation. Variants without
+/// an atom retain the distinctions needed by routing and dispatch without introducing another key
+/// vocabulary or a conversion between equal semantic features.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum SelectorPostingKey {
+#[repr(u8)]
+pub enum FeatureKey {
     Part(StyleAtomID),
-    /// An element in one custom state, which `:state()` tests.
     CustomState(StyleAtomID),
-    Tag(StyleAtomID),
+    TagName(StyleAtomID),
     Id(StyleAtomID),
     Class(StyleAtomID),
     AttributeName(StyleAtomID),
-    /// An element with this resolved directionality.
     Directionality(StyleAtomID),
-}
-
-/// A dependency posting's key: computed-style use which lets a named rule find its consumers.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum DependencyPostingKey {
+    Root,
+    State(StateFact),
+    Heading,
+    Universal,
+    Structural,
+    Language,
     /// An element whose style resolution called a custom function.
     ///
     /// Which function it called is not reported by the substitution machinery, so an `@function` rule
@@ -953,23 +949,25 @@ pub enum DependencyPostingKey {
     AnimationName(StyleAtomID),
 }
 
-/// The shared physical posting store's disjoint selector and dependency vocabularies.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum PostingKey {
-    Selector(SelectorPostingKey),
-    Dependency(DependencyPostingKey),
-}
-
-define_id! {
-    /// Dense identity of one live feature posting for the current posting generation.
-    default pub(super) struct PostingID();
-}
-
-impl PostingID {
-    pub(super) fn index(self) -> usize {
-        self.0 as usize
+impl FeatureKey {
+    #[must_use]
+    pub fn has_selector_posting(self) -> bool {
+        matches!(
+            self,
+            Self::Part(_)
+                | Self::CustomState(_)
+                | Self::TagName(_)
+                | Self::Id(_)
+                | Self::Class(_)
+                | Self::AttributeName(_)
+                | Self::Directionality(_)
+        )
     }
 }
+
+pub type SelectorPostingKey = FeatureKey;
+pub type DependencyPostingKey = FeatureKey;
+pub type PostingKey = FeatureKey;
 
 /// Candidate sets for observed element features.
 ///
@@ -982,7 +980,6 @@ impl PostingID {
 /// removed.
 pub struct FeaturePostings {
     postings: HashMap<PostingKey, Posting>,
-    dense_ids_are_current: bool,
     residency: MemoryLease,
     missing: HashSet<PostingKey>,
     benefit_hits: Cell<u64>,
@@ -993,7 +990,6 @@ impl Default for FeaturePostings {
     fn default() -> Self {
         Self {
             postings: HashMap::default(),
-            dense_ids_are_current: true,
             residency: MemoryLease::new(MemoryCategory::FeaturePosting),
             missing: HashSet::default(),
             benefit_hits: Cell::new(0),
@@ -1018,10 +1014,7 @@ impl FeaturePostings {
         }
         let posting = match self.postings.entry(key) {
             std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut(),
-            std::collections::hash_map::Entry::Vacant(entry) => {
-                self.dense_ids_are_current = false;
-                entry.insert(Posting::default())
-            }
+            std::collections::hash_map::Entry::Vacant(entry) => entry.insert(Posting::default()),
         };
         let Some(growth) = posting.insert(node) else {
             return true;
@@ -1061,17 +1054,6 @@ impl FeaturePostings {
         result
     }
 
-    /// Assign transaction-local direct-column identities to the current live postings.
-    pub(super) fn ensure_dense_ids(&mut self) {
-        if self.dense_ids_are_current {
-            return;
-        }
-        for (index, posting) in self.postings.values_mut().enumerate() {
-            posting.id = PostingID(u32::try_from(index).expect("feature posting identity space exhausted"));
-        }
-        self.dense_ids_are_current = true;
-    }
-
     #[cfg(test)]
     pub(crate) fn evict(&mut self, key: PostingKey) {
         self.remember_missing(key);
@@ -1098,7 +1080,6 @@ impl FeaturePostings {
         let Some(posting) = self.postings.remove(&key) else {
             return;
         };
-        self.dense_ids_are_current = false;
         self.residency
             .shrink_to(self.residency.bytes() - posting.capacity_bytes());
     }
@@ -1112,7 +1093,6 @@ impl FeaturePostings {
         let released = self.postings.values().map(Posting::capacity_bytes).sum::<u64>();
         self.residency.shrink_to(self.residency.bytes() - released);
         self.postings = HashMap::default();
-        self.dense_ids_are_current = true;
     }
 
     #[must_use]
@@ -1130,7 +1110,6 @@ impl FeaturePostings {
         let released = self.missing_capacity_bytes();
         self.missing = HashSet::default();
         self.residency.shrink_to(self.residency.bytes() - released);
-        self.dense_ids_are_current = false;
     }
 
     #[must_use]
@@ -1156,30 +1135,8 @@ impl FeaturePostings {
     }
 }
 
-/// The rightmost distinguishing feature of one selector entry: the dispatch key a candidate is
-/// probed against.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum DispatchKey {
-    /// `::part(label)`: a part name the element exposes.
-    Part(StyleAtomID),
-    /// `:state(name)`: a custom state the element is in.
-    CustomState(StyleAtomID),
-    Id(StyleAtomID),
-    Class(StyleAtomID),
-    AttributeName(StyleAtomID),
-    TagName(StyleAtomID),
-    /// `:dir(value)`: the directionality the element must resolve to.
-    Directionality(StyleAtomID),
-    /// `:root`: the one element of the document that has no parent.
-    Root,
-    /// One pseudo-class state the subject must be in. Most of them hold on almost no element, so
-    /// this is where a `:hover` or a `:link` rule belongs rather than in front of every candidate.
-    State(StateFact),
-    /// `:heading` and `:heading(n)`: the subject is a heading of some level.
-    Heading,
-    /// The entry has no selective rightmost feature, so every candidate has to consider it.
-    Universal,
-}
+/// The rightmost distinguishing feature of one selector entry.
+pub type DispatchKey = FeatureKey;
 
 /// One lossy bit for a dispatch key.
 ///
@@ -1205,6 +1162,7 @@ fn dispatch_key_hash(key: DispatchKey) -> u64 {
         DispatchKey::State(fact) => (9, fact as u64),
         DispatchKey::Heading => (10, 0),
         DispatchKey::Universal => (11, 0),
+        _ => unreachable!("non-dispatch feature key"),
     };
     let mut hash = value ^ kind.wrapping_mul(0x9e37_79b9_7f4a_7c15);
     hash = (hash ^ (hash >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
@@ -1215,6 +1173,8 @@ fn dispatch_key_hash(key: DispatchKey) -> u64 {
 /// One attached selector entry, reachable from its dispatch key.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct DispatchEntry {
+    /// Document identity of the compiled selector entry this scope-local rule row joins.
+    pub identity: EntryID,
     pub rule: RuleID,
     pub program: SelectorProgramID,
     /// Index into the selector program's entry list.
@@ -1243,11 +1203,11 @@ pub struct DispatchEntry {
 }
 
 define_id! {
-    /// Stable identity of one entry in a selector dispatch.
-    pub(super) struct DispatchEntryID();
+    /// Physical row in one scope-local selector dispatch.
+    pub(super) struct DispatchRow();
 }
 
-impl DispatchEntryID {
+impl DispatchRow {
     pub(super) fn from_index(index: usize) -> Self {
         Self(u32::try_from(index).expect("dispatch entry space exhausted"))
     }
@@ -1270,7 +1230,7 @@ struct CascadeEntryData {
 #[derive(Default)]
 pub struct DispatchCandidateWorkspace {
     seen_at_epoch: EpochColumn,
-    candidates: Vec<DispatchEntryID>,
+    candidates: Vec<DispatchRow>,
     epoch: u32,
 }
 
@@ -1299,7 +1259,7 @@ impl DispatchCandidateWorkspace {
         advance_epoch(&mut self.epoch, 1, &mut [&mut self.seen_at_epoch]);
     }
 
-    fn admit(&mut self, id: DispatchEntryID) -> bool {
+    fn admit(&mut self, id: DispatchRow) -> bool {
         self.seen_at_epoch.mark(id.index(), self.epoch)
     }
 
@@ -1361,19 +1321,19 @@ struct AncestorDispatchTopology {
 
 #[derive(Default)]
 struct RuleDispatchTopology {
-    buckets: HashMap<DispatchKey, Vec<DispatchEntryID>>,
+    buckets: HashMap<DispatchKey, Vec<DispatchRow>>,
     /// Universal-subject entries that have no exact parent requirement.
-    universal_without_parent_filter: Vec<DispatchEntryID>,
+    universal_without_parent_filter: Vec<DispatchRow>,
     /// Universal-subject entries indexed by the one feature their parent must carry.
-    universal_by_parent: HashMap<DispatchKey, Vec<DispatchEntryID>>,
+    universal_by_parent: HashMap<DispatchKey, Vec<DispatchRow>>,
     /// The same parent-filtered entries as a conservative fallback when parent facts are absent.
-    universal_with_parent_filter: Vec<DispatchEntryID>,
+    universal_with_parent_filter: Vec<DispatchRow>,
     /// Entries the top-down prefix automaton cannot answer, indexed separately so its successful
     /// path does not enumerate the old exact candidates merely to discard them.
-    non_prefix_buckets: HashMap<DispatchKey, Vec<DispatchEntryID>>,
-    non_prefix_universal_without_parent_filter: Vec<DispatchEntryID>,
-    non_prefix_universal_by_parent: HashMap<DispatchKey, Vec<DispatchEntryID>>,
-    non_prefix_universal_with_parent_filter: Vec<DispatchEntryID>,
+    non_prefix_buckets: HashMap<DispatchKey, Vec<DispatchRow>>,
+    non_prefix_universal_without_parent_filter: Vec<DispatchRow>,
+    non_prefix_universal_by_parent: HashMap<DispatchKey, Vec<DispatchRow>>,
+    non_prefix_universal_with_parent_filter: Vec<DispatchRow>,
     ancestors: Rc<AncestorDispatchTopology>,
     prefixes: PrefixAutomaton,
 }
@@ -1384,6 +1344,7 @@ pub(super) struct AncestorDispatchTopologyID(*const AncestorDispatchTopology);
 #[derive(Default)]
 pub struct RuleDispatch {
     entries: Vec<DispatchEntry>,
+    entry_rows: Vec<Vec<DispatchRow>>,
     /// Direct cascade-order projection for every rule represented in this dispatch. Rule
     /// identities are program indices, so retained answers can restore an entry's order without
     /// searching the dispatch's much larger candidate table. Sparse pages keep a scope containing
@@ -1433,6 +1394,7 @@ impl RuleDispatch {
         }
         Self {
             entries,
+            entry_rows: template.entry_rows.clone(),
             cascade_order_rule_pages: Vec::new(),
             cascade_orders_by_rule_entry: Vec::new(),
             cascade_properties: Vec::new(),
@@ -1496,15 +1458,19 @@ impl RuleDispatch {
         self.topology_mut().ancestors = Rc::clone(&template.topology.ancestors);
     }
 
-    pub(super) fn insert(&mut self, key: DispatchKey, mut entry: DispatchEntry) -> DispatchEntryID {
+    pub(super) fn insert(&mut self, key: DispatchKey, mut entry: DispatchEntry) -> DispatchRow {
         entry.required_ancestor_index = entry.required_ancestor.map(|required| {
             let topology = self.topology_mut();
             let ancestors = Rc::get_mut(&mut topology.ancestors).expect("a shared ancestor topology is immutable");
             let next = u32::try_from(ancestors.key_indices.len()).expect("ancestor requirement space exhausted");
             *ancestors.key_indices.entry(required).or_insert(next)
         });
-        let id = DispatchEntryID::from_index(self.entries.len());
+        let id = DispatchRow::from_index(self.entries.len());
         self.entries.push(entry);
+        if self.entry_rows.len() <= entry.identity.0 as usize {
+            self.entry_rows.resize_with(entry.identity.0 as usize + 1, Vec::new);
+        }
+        self.entry_rows[entry.identity.0 as usize].push(id);
         self.topology_mut().buckets.entry(key).or_default().push(id);
         if key == DispatchKey::Universal {
             self.index_universal_entry(id);
@@ -1516,23 +1482,20 @@ impl RuleDispatch {
         &mut self,
         programs: &super::selector::SelectorPrograms,
         program: SelectorProgramID,
-        selector_entry: u32,
         chain: &[super::selector::SelectorPrefixStep],
-        entry: DispatchEntryID,
+        row: DispatchRow,
         structural_tests_admissible: bool,
     ) {
         // Registration can refuse a chain whose structural tests would overflow the automaton's
         // truth bit space or whose origin does not admit them; the entry then stays a candidate
         // for the exact evaluator.
-        if self.topology_mut().prefixes.add_entry(
-            programs,
-            program,
-            selector_entry,
-            chain,
-            entry,
-            structural_tests_admissible,
-        ) {
-            self.entries[entry.index()].prefix_matched = true;
+        let entry = self.entries[row.index()].identity;
+        if self
+            .topology_mut()
+            .prefixes
+            .add_entry(programs, program, chain, entry, structural_tests_admissible)
+        {
+            self.entries[row.index()].prefix_matched = true;
         }
     }
 
@@ -1546,9 +1509,12 @@ impl RuleDispatch {
         &self.topology.prefixes
     }
 
-    #[must_use]
-    pub(super) fn entry(&self, id: DispatchEntryID) -> DispatchEntry {
-        self.entries[id.index()]
+    pub(super) fn entries_for_identity(&self, entry: EntryID) -> impl Iterator<Item = DispatchEntry> + '_ {
+        self.entry_rows
+            .get(entry.0 as usize)
+            .into_iter()
+            .flatten()
+            .map(|&row| self.entries[row.index()])
     }
 
     #[must_use]
@@ -1583,7 +1549,7 @@ impl RuleDispatch {
             })
     }
 
-    fn index_universal_entry(&mut self, id: DispatchEntryID) {
+    fn index_universal_entry(&mut self, id: DispatchRow) {
         let entry = self.entries[id.index()];
         let topology = self.topology_mut();
         match entry.required_parent {
@@ -1655,7 +1621,7 @@ impl RuleDispatch {
     /// those copies are one selector entry. They therefore share one rank, which is what the
     /// candidate walk deduplicates them by.
     pub fn assign_cascade_order<K: Ord>(&mut self, mut priority_of: impl FnMut(DispatchEntry) -> K) {
-        let mut ordered: Vec<(K, RuleID, SelectorProgramID, u32, DispatchEntryID)> = self
+        let mut ordered: Vec<(K, RuleID, SelectorProgramID, u32, DispatchRow)> = self
             .entries
             .iter()
             .copied()
@@ -1666,7 +1632,7 @@ impl RuleDispatch {
                     entry.rule,
                     entry.program,
                     entry.entry,
-                    DispatchEntryID::from_index(index),
+                    DispatchRow::from_index(index),
                 )
             })
             .collect();
@@ -1704,7 +1670,7 @@ impl RuleDispatch {
     }
 
     fn rebuild_cascade_order_projection(&mut self) {
-        let mut entries_by_identity: Vec<_> = (0..self.entries.len()).map(DispatchEntryID::from_index).collect();
+        let mut entries_by_identity: Vec<_> = (0..self.entries.len()).map(DispatchRow::from_index).collect();
         entries_by_identity.sort_unstable_by_key(|&id| {
             let entry = self.entries[id.index()];
             (entry.rule, entry.program, entry.entry)
@@ -1834,7 +1800,7 @@ impl RuleDispatch {
         self.cascade_pruning_blocker_for_order(entry.cascade_order)
     }
 
-    fn bucket_ids(&self, key: DispatchKey) -> &[DispatchEntryID] {
+    fn bucket_ids(&self, key: DispatchKey) -> &[DispatchRow] {
         self.topology.buckets.get(&key).map_or(&[], Vec::as_slice)
     }
 
@@ -1891,7 +1857,7 @@ impl RuleDispatch {
             };
         let subject_bloom = facts.dispatch_bloom_of(row, is_document_root);
         {
-            let mut offer = |id: DispatchEntryID, attribute_value: Option<StyleAtomID>| {
+            let mut offer = |id: DispatchRow, attribute_value: Option<StyleAtomID>| {
                 let entry = self.entries[id.index()];
                 if !entry.required_attribute_value.is_none() && attribute_value != Some(entry.required_attribute_value)
                 {
@@ -1967,6 +1933,7 @@ impl RuleDispatch {
         let scope_bytes = capacity_bytes! {
             shallow [
                 self.entries,
+                self.entry_rows,
                 self.cascade_order_rule_pages,
                 self.cascade_orders_by_rule_entry,
                 self.cascade_properties,
@@ -1979,6 +1946,11 @@ impl RuleDispatch {
                     .iter()
                     .flatten()
                     .map(|page| size_of_val(page.as_ref()))
+                    .sum::<usize>(),
+                self
+                    .entry_rows
+                    .iter()
+                    .map(|rows| rows.capacity() * size_of::<DispatchRow>())
                     .sum::<usize>(),
             ];
             skip [];
@@ -2000,22 +1972,22 @@ impl RuleDispatch {
                 self.topology
                 .buckets
                 .values()
-                .map(|bucket| bucket.capacity() * size_of::<DispatchEntryID>())
+                .map(|bucket| bucket.capacity() * size_of::<DispatchRow>())
                 .sum::<usize>(),
                 self.topology
                 .universal_by_parent
                 .values()
-                .map(|bucket| bucket.capacity() * size_of::<DispatchEntryID>())
+                .map(|bucket| bucket.capacity() * size_of::<DispatchRow>())
                 .sum::<usize>(),
                 self.topology
                 .non_prefix_buckets
                 .values()
-                .map(|bucket| bucket.capacity() * size_of::<DispatchEntryID>())
+                .map(|bucket| bucket.capacity() * size_of::<DispatchRow>())
                 .sum::<usize>(),
                 self.topology
                 .non_prefix_universal_by_parent
                 .values()
-                .map(|bucket| bucket.capacity() * size_of::<DispatchEntryID>())
+                .map(|bucket| bucket.capacity() * size_of::<DispatchRow>())
                 .sum::<usize>(),
                 self.topology.prefixes.capacity_bytes(),
             ];
@@ -2348,10 +2320,13 @@ impl ElementFactStore {
         for node in self.rows.live_nodes() {
             let row = self.rows.row_of(node).expect("a live node must have a fact row");
             for (atom, key) in [
-                (self.rows.tag_of(row), SelectorPostingKey::Tag(self.rows.tag_of(row))),
+                (
+                    self.rows.tag_of(row),
+                    SelectorPostingKey::TagName(self.rows.tag_of(row)),
+                ),
                 (
                     self.rows.folded_tag_of(row),
-                    SelectorPostingKey::Tag(self.rows.folded_tag_of(row)),
+                    SelectorPostingKey::TagName(self.rows.folded_tag_of(row)),
                 ),
                 (self.rows.id_of(row), SelectorPostingKey::Id(self.rows.id_of(row))),
                 (
@@ -2362,31 +2337,31 @@ impl ElementFactStore {
                 if atom.is_none() {
                     continue;
                 }
-                if !self.rebuild_missing_posting(&mut rebuilt, PostingKey::Selector(key), node, memory) {
+                if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
                     return;
                 }
             }
             for &part in self.rows.parts_of(row) {
-                let key = PostingKey::Selector(SelectorPostingKey::Part(part));
+                let key = SelectorPostingKey::Part(part);
                 if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
                     return;
                 }
             }
             for &state in self.rows.custom_states_of(row) {
-                let key = PostingKey::Selector(SelectorPostingKey::CustomState(state));
+                let key = SelectorPostingKey::CustomState(state);
                 if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
                     return;
                 }
             }
             for &class in self.rows.classes_of(row) {
-                let key = PostingKey::Selector(SelectorPostingKey::Class(class));
+                let key = SelectorPostingKey::Class(class);
                 if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
                     return;
                 }
             }
             for attribute in self.rows.attributes_of(row) {
                 for name in self.attribute_name_keys(attribute.name) {
-                    let key = PostingKey::Selector(SelectorPostingKey::AttributeName(name));
+                    let key = SelectorPostingKey::AttributeName(name);
                     if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
                         return;
                     }
@@ -2394,14 +2369,13 @@ impl ElementFactStore {
             }
             if let Some(metadata) = self.metadata_of(node) {
                 for &name in &metadata.animation_names {
-                    let key = PostingKey::Dependency(DependencyPostingKey::AnimationName(name));
+                    let key = DependencyPostingKey::AnimationName(name);
                     if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
                         return;
                     }
                 }
                 if metadata.custom_property_set != 0 {
-                    let key =
-                        PostingKey::Dependency(DependencyPostingKey::CustomPropertySet(metadata.custom_property_set));
+                    let key = DependencyPostingKey::CustomPropertySet(metadata.custom_property_set);
                     if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
                         return;
                     }
@@ -2409,12 +2383,9 @@ impl ElementFactStore {
                 for (uses, key) in [
                     (
                         metadata.uses_unnamed_custom_properties,
-                        PostingKey::Dependency(DependencyPostingKey::AnyCustomProperty),
+                        DependencyPostingKey::AnyCustomProperty,
                     ),
-                    (
-                        metadata.uses_custom_functions,
-                        PostingKey::Dependency(DependencyPostingKey::AnyCustomFunction),
-                    ),
+                    (metadata.uses_custom_functions, DependencyPostingKey::AnyCustomFunction),
                 ] {
                     if uses && !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
                         return;
@@ -2529,12 +2500,10 @@ impl ElementFactStore {
         let previous = std::mem::replace(&mut facts.tag, tag);
         if previous != tag {
             if !previous.is_none() {
-                self.postings
-                    .remove(PostingKey::Selector(SelectorPostingKey::Tag(previous)), node);
+                self.postings.remove(SelectorPostingKey::TagName(previous), node);
             }
             if !tag.is_none() {
-                self.postings
-                    .insert(PostingKey::Selector(SelectorPostingKey::Tag(tag)), node, memory);
+                self.postings.insert(SelectorPostingKey::TagName(tag), node, memory);
             }
         }
     }
@@ -2548,12 +2517,10 @@ impl ElementFactStore {
         let previous = std::mem::replace(&mut facts.folded_tag, folded);
         if previous != folded {
             if !previous.is_none() {
-                self.postings
-                    .remove(PostingKey::Selector(SelectorPostingKey::Tag(previous)), node);
+                self.postings.remove(SelectorPostingKey::TagName(previous), node);
             }
             if !folded.is_none() {
-                self.postings
-                    .insert(PostingKey::Selector(SelectorPostingKey::Tag(folded)), node, memory);
+                self.postings.insert(SelectorPostingKey::TagName(folded), node, memory);
             }
         }
     }
@@ -2563,12 +2530,10 @@ impl ElementFactStore {
         let previous = std::mem::replace(&mut facts.id, id);
         if previous != id {
             if !previous.is_none() {
-                self.postings
-                    .remove(PostingKey::Selector(SelectorPostingKey::Id(previous)), node);
+                self.postings.remove(SelectorPostingKey::Id(previous), node);
             }
             if !id.is_none() {
-                self.postings
-                    .insert(PostingKey::Selector(SelectorPostingKey::Id(id)), node, memory);
+                self.postings.insert(SelectorPostingKey::Id(id), node, memory);
             }
         }
     }
@@ -2631,6 +2596,7 @@ impl ElementFactStore {
             | DispatchKey::State(_)
             | DispatchKey::Heading
             | DispatchKey::Universal => return None,
+            _ => return None,
         })
     }
 
@@ -2749,15 +2715,11 @@ impl ElementFactStore {
         let previous = std::mem::replace(&mut facts.directionality, directionality);
         if previous != directionality {
             if !previous.is_none() {
-                self.postings
-                    .remove(PostingKey::Selector(SelectorPostingKey::Directionality(previous)), node);
+                self.postings.remove(SelectorPostingKey::Directionality(previous), node);
             }
             if !directionality.is_none() {
-                self.postings.insert(
-                    PostingKey::Selector(SelectorPostingKey::Directionality(directionality)),
-                    node,
-                    memory,
-                );
+                self.postings
+                    .insert(SelectorPostingKey::Directionality(directionality), node, memory);
             }
         }
     }
@@ -2767,13 +2729,11 @@ impl ElementFactStore {
         match (present, facts.classes.binary_search(&class)) {
             (true, Err(index)) => {
                 facts.classes.insert(index, class);
-                self.postings
-                    .insert(PostingKey::Selector(SelectorPostingKey::Class(class)), node, memory);
+                self.postings.insert(SelectorPostingKey::Class(class), node, memory);
             }
             (false, Ok(index)) => {
                 facts.classes.remove(index);
-                self.postings
-                    .remove(PostingKey::Selector(SelectorPostingKey::Class(class)), node);
+                self.postings.remove(SelectorPostingKey::Class(class), node);
             }
             _ => {}
         }
@@ -2795,17 +2755,13 @@ impl ElementFactStore {
         }
         for &name in &previous {
             if !sorted.contains(&name) {
-                self.postings
-                    .remove(PostingKey::Dependency(DependencyPostingKey::AnimationName(name)), node);
+                self.postings.remove(DependencyPostingKey::AnimationName(name), node);
             }
         }
         for name in &sorted {
             if !previous.contains(name) {
-                self.postings.insert(
-                    PostingKey::Dependency(DependencyPostingKey::AnimationName(*name)),
-                    node,
-                    memory,
-                );
+                self.postings
+                    .insert(DependencyPostingKey::AnimationName(*name), node, memory);
             }
         }
         self.metadata_mut(node).animation_names = sorted;
@@ -2822,14 +2778,11 @@ impl ElementFactStore {
         }
         self.metadata_mut(node).uses_custom_functions = uses;
         match uses {
-            true => self.postings.insert(
-                PostingKey::Dependency(DependencyPostingKey::AnyCustomFunction),
-                node,
-                memory,
-            ),
+            true => self
+                .postings
+                .insert(DependencyPostingKey::AnyCustomFunction, node, memory),
             false => {
-                self.postings
-                    .remove(PostingKey::Dependency(DependencyPostingKey::AnyCustomFunction), node);
+                self.postings.remove(DependencyPostingKey::AnyCustomFunction, node);
                 true
             }
         };
@@ -2846,14 +2799,11 @@ impl ElementFactStore {
         }
         self.metadata_mut(node).uses_unnamed_custom_properties = uses;
         match uses {
-            true => self.postings.insert(
-                PostingKey::Dependency(DependencyPostingKey::AnyCustomProperty),
-                node,
-                memory,
-            ),
+            true => self
+                .postings
+                .insert(DependencyPostingKey::AnyCustomProperty, node, memory),
             false => {
-                self.postings
-                    .remove(PostingKey::Dependency(DependencyPostingKey::AnyCustomProperty), node);
+                self.postings.remove(DependencyPostingKey::AnyCustomProperty, node);
                 true
             }
         };
@@ -2885,17 +2835,12 @@ impl ElementFactStore {
         }
         self.metadata_mut(node).custom_property_set = set;
         if previous != 0 {
-            self.postings.remove(
-                PostingKey::Dependency(DependencyPostingKey::CustomPropertySet(previous)),
-                node,
-            );
+            self.postings
+                .remove(DependencyPostingKey::CustomPropertySet(previous), node);
         }
         if set != 0 {
-            self.postings.insert(
-                PostingKey::Dependency(DependencyPostingKey::CustomPropertySet(set)),
-                node,
-                memory,
-            );
+            self.postings
+                .insert(DependencyPostingKey::CustomPropertySet(set), node, memory);
         }
     }
 
@@ -2929,10 +2874,7 @@ impl ElementFactStore {
         };
         let mut nodes = Vec::new();
         for &set in sets {
-            match self
-                .postings
-                .lookup(PostingKey::Dependency(DependencyPostingKey::CustomPropertySet(set)))
-            {
+            match self.postings.lookup(DependencyPostingKey::CustomPropertySet(set)) {
                 Lookup::Known(posting) => nodes.extend(posting.candidates()),
                 Lookup::KnownAbsent => {}
                 Lookup::Missing(gap) => return Err(gap),
@@ -2962,11 +2904,8 @@ impl ElementFactStore {
             (true, Err(index)) => {
                 facts.attributes.insert(index, (name, value));
                 for key in keys {
-                    self.postings.insert(
-                        PostingKey::Selector(SelectorPostingKey::AttributeName(key)),
-                        node,
-                        memory,
-                    );
+                    self.postings
+                        .insert(SelectorPostingKey::AttributeName(key), node, memory);
                 }
             }
             (false, Ok(index)) => {
@@ -2975,8 +2914,7 @@ impl ElementFactStore {
                 // answers to it, so only the names nothing implies any more are dropped.
                 for key in keys {
                     if key == name || !self.node_answers_to_attribute_name(node, key) {
-                        self.postings
-                            .remove(PostingKey::Selector(SelectorPostingKey::AttributeName(key)), node);
+                        self.postings.remove(SelectorPostingKey::AttributeName(key), node);
                     }
                 }
             }
@@ -3098,31 +3036,25 @@ impl ElementFactStore {
             .checked_add(row_bytes)
             .expect("primary fact byte count overflow");
         if !facts.tag.is_none() {
-            self.postings
-                .remove(PostingKey::Selector(SelectorPostingKey::Tag(facts.tag)), node);
+            self.postings.remove(SelectorPostingKey::TagName(facts.tag), node);
         }
         if !facts.folded_tag.is_none() {
             self.postings
-                .remove(PostingKey::Selector(SelectorPostingKey::Tag(facts.folded_tag)), node);
+                .remove(SelectorPostingKey::TagName(facts.folded_tag), node);
         }
         if !facts.id.is_none() {
-            self.postings
-                .remove(PostingKey::Selector(SelectorPostingKey::Id(facts.id)), node);
+            self.postings.remove(SelectorPostingKey::Id(facts.id), node);
         }
         if !facts.directionality.is_none() {
-            self.postings.remove(
-                PostingKey::Selector(SelectorPostingKey::Directionality(facts.directionality)),
-                node,
-            );
+            self.postings
+                .remove(SelectorPostingKey::Directionality(facts.directionality), node);
         }
         for class in facts.classes {
-            self.postings
-                .remove(PostingKey::Selector(SelectorPostingKey::Class(class)), node);
+            self.postings.remove(SelectorPostingKey::Class(class), node);
         }
         for (name, _) in facts.attributes {
             for key in self.attribute_name_keys(name) {
-                self.postings
-                    .remove(PostingKey::Selector(SelectorPostingKey::AttributeName(key)), node);
+                self.postings.remove(SelectorPostingKey::AttributeName(key), node);
             }
         }
         if let Some(metadata) = node
@@ -3131,22 +3063,19 @@ impl ElementFactStore {
             .and_then(Option::take)
         {
             for name in metadata.animation_names {
-                self.postings
-                    .remove(PostingKey::Dependency(DependencyPostingKey::AnimationName(name)), node);
+                self.postings.remove(DependencyPostingKey::AnimationName(name), node);
             }
             if metadata.custom_property_set != 0 {
                 self.postings.remove(
-                    PostingKey::Dependency(DependencyPostingKey::CustomPropertySet(metadata.custom_property_set)),
+                    DependencyPostingKey::CustomPropertySet(metadata.custom_property_set),
                     node,
                 );
             }
             if metadata.uses_unnamed_custom_properties {
-                self.postings
-                    .remove(PostingKey::Dependency(DependencyPostingKey::AnyCustomProperty), node);
+                self.postings.remove(DependencyPostingKey::AnyCustomProperty, node);
             }
             if metadata.uses_custom_functions {
-                self.postings
-                    .remove(PostingKey::Dependency(DependencyPostingKey::AnyCustomFunction), node);
+                self.postings.remove(DependencyPostingKey::AnyCustomFunction, node);
             }
         }
     }
@@ -3565,7 +3494,7 @@ mod tests {
     fn a_posting_stays_sorted_across_chunk_splits() {
         let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
         let mut postings = FeaturePostings::new();
-        let key = PostingKey::Selector(SelectorPostingKey::Class(StyleAtomID(1)));
+        let key = SelectorPostingKey::Class(StyleAtomID(1));
 
         // Insert in order and across enough members to force several append-only chunks.
         for index in 1..2000_u32 {
@@ -3595,7 +3524,7 @@ mod tests {
     fn removing_the_last_member_reclaims_the_posting() {
         let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
         let mut postings = FeaturePostings::new();
-        let key = PostingKey::Selector(SelectorPostingKey::Class(StyleAtomID(1)));
+        let key = SelectorPostingKey::Class(StyleAtomID(1));
         assert!(matches!(postings.lookup(key), Lookup::KnownAbsent));
         for index in 1..500_u32 {
             postings.insert(key, StyleNodeID::element(index), &mut memory);
@@ -3608,30 +3537,6 @@ mod tests {
         assert!(matches!(postings.lookup(key), Lookup::KnownAbsent));
         assert_eq!(postings.feature_count(), 0);
         assert_eq!(memory.bytes_in_category(MemoryCategory::FeaturePosting), 0);
-    }
-
-    #[test]
-    fn live_postings_receive_compact_transaction_identities() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
-        let mut postings = FeaturePostings::new();
-        let first = PostingKey::Selector(SelectorPostingKey::Class(StyleAtomID(1)));
-        let second = PostingKey::Selector(SelectorPostingKey::Class(StyleAtomID(2)));
-        let third = PostingKey::Selector(SelectorPostingKey::Class(StyleAtomID(3)));
-        let node = StyleNodeID::element(1);
-
-        postings.insert(first, node, &mut memory);
-        postings.insert(second, node, &mut memory);
-        postings.ensure_dense_ids();
-        postings.remove(first, node);
-        postings.insert(third, node, &mut memory);
-        postings.ensure_dense_ids();
-        let mut ids = [
-            known_posting(&postings, second).id().index(),
-            known_posting(&postings, third).id().index(),
-        ];
-        ids.sort_unstable();
-
-        assert_eq!(ids, [0, 1]);
     }
 
     #[test]
@@ -3709,22 +3614,14 @@ mod tests {
         facts.commit_pending(&mut memory);
 
         for key in [name, forms.local, forms.folded_name, forms.folded_local] {
-            assert!(
-                known_posting(
-                    &facts.postings,
-                    PostingKey::Selector(SelectorPostingKey::AttributeName(key))
-                )
-                .contains(node)
-            );
+            assert!(known_posting(&facts.postings, SelectorPostingKey::AttributeName(key)).contains(node));
         }
 
         facts.forget(node);
 
         for key in [name, forms.local, forms.folded_name, forms.folded_local] {
             assert!(matches!(
-                facts
-                    .postings
-                    .lookup(PostingKey::Selector(SelectorPostingKey::AttributeName(key))),
+                facts.postings.lookup(SelectorPostingKey::AttributeName(key)),
                 Lookup::KnownAbsent
             ));
         }
@@ -3948,7 +3845,7 @@ mod tests {
         let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
         memory.set_tier3_limit_for_test(0);
         let mut postings = FeaturePostings::new();
-        let key = PostingKey::Selector(SelectorPostingKey::Class(StyleAtomID(1)));
+        let key = SelectorPostingKey::Class(StyleAtomID(1));
 
         // A backgrounded document has no Tier-3 budget at all.
         assert!(!postings.insert(key, StyleNodeID::element(1), &mut memory));
@@ -3963,7 +3860,7 @@ mod tests {
     fn a_refused_posting_growth_releases_its_previous_charge() {
         let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
         let mut postings = FeaturePostings::new();
-        let key = PostingKey::Selector(SelectorPostingKey::Class(StyleAtomID(1)));
+        let key = SelectorPostingKey::Class(StyleAtomID(1));
 
         assert!(postings.insert(key, StyleNodeID::element(1), &mut memory));
         let admitted_bytes = memory.bytes_in_category(MemoryCategory::FeaturePosting);
@@ -3984,7 +3881,7 @@ mod tests {
         for feature in 1..20_u32 {
             for index in 1..50_u32 {
                 postings.insert(
-                    PostingKey::Selector(SelectorPostingKey::Class(StyleAtomID(feature))),
+                    SelectorPostingKey::Class(StyleAtomID(feature)),
                     StyleNodeID::element(index),
                     &mut memory,
                 );
@@ -3993,10 +3890,10 @@ mod tests {
         assert!(memory.bytes_in_category(MemoryCategory::FeaturePosting) > 0);
         postings.evict_all();
         assert_eq!(postings.feature_count(), 0);
-        let key = PostingKey::Selector(SelectorPostingKey::Class(StyleAtomID(1)));
+        let key = SelectorPostingKey::Class(StyleAtomID(1));
         assert!(matches!(postings.lookup(key), Lookup::Missing(gap) if gap == key));
         assert!(matches!(
-            postings.lookup(PostingKey::Selector(SelectorPostingKey::Class(StyleAtomID(100)))),
+            postings.lookup(SelectorPostingKey::Class(StyleAtomID(100))),
             Lookup::KnownAbsent
         ));
         assert_eq!(
@@ -4025,14 +3922,14 @@ mod tests {
         facts.set_class(node, new_class, true, &mut memory);
         facts.set_animation_names(node, &[new_animation], &mut memory);
         facts.commit_pending(&mut memory);
-        let new_class_key = PostingKey::Selector(SelectorPostingKey::Class(new_class));
+        let new_class_key = SelectorPostingKey::Class(new_class);
         assert!(matches!(facts.postings().lookup(new_class_key), Lookup::Missing(gap) if gap == new_class_key));
 
         memory.set_tier3_limit_for_test(u64::MAX);
         facts.commit_pending(&mut memory);
-        let old_class_key = PostingKey::Selector(SelectorPostingKey::Class(old_class));
-        let old_animation_key = PostingKey::Dependency(DependencyPostingKey::AnimationName(old_animation));
-        let new_animation_key = PostingKey::Dependency(DependencyPostingKey::AnimationName(new_animation));
+        let old_class_key = SelectorPostingKey::Class(old_class);
+        let old_animation_key = DependencyPostingKey::AnimationName(old_animation);
+        let new_animation_key = DependencyPostingKey::AnimationName(new_animation);
         assert!(matches!(facts.postings().lookup(old_class_key), Lookup::KnownAbsent));
         assert!(matches!(
             facts.postings().lookup(old_animation_key),
@@ -4046,8 +3943,8 @@ mod tests {
     fn evicting_one_posting_preserves_exact_absence_for_other_keys() {
         let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
         let mut postings = FeaturePostings::new();
-        let evicted = PostingKey::Selector(SelectorPostingKey::Class(StyleAtomID(1)));
-        let absent = PostingKey::Selector(SelectorPostingKey::Class(StyleAtomID(2)));
+        let evicted = SelectorPostingKey::Class(StyleAtomID(1));
+        let absent = SelectorPostingKey::Class(StyleAtomID(2));
         postings.insert(evicted, StyleNodeID::element(1), &mut memory);
 
         postings.evict(evicted);
@@ -4111,6 +4008,7 @@ mod tests {
     fn cascade_order_projection_handles_duplicate_entries_and_sparse_rules() {
         let mut dispatch = RuleDispatch::new();
         let entry = |rule: u32, selector_entry: u32, multi_key| DispatchEntry {
+            identity: EntryID(rule * 10 + selector_entry),
             rule: RuleID(rule),
             program: SelectorProgramID(rule),
             entry: selector_entry,
@@ -4166,6 +4064,7 @@ mod tests {
     fn a_candidate_probes_only_the_buckets_its_own_facts_name() {
         let mut dispatch = RuleDispatch::new();
         let entry = |rule: u32| DispatchEntry {
+            identity: EntryID(rule),
             rule: RuleID(rule),
             program: SelectorProgramID(rule),
             entry: 0,
@@ -4225,6 +4124,7 @@ mod tests {
     fn attribute_aliases_emit_each_candidate_once_without_hiding_value_matches() {
         let mut dispatch = RuleDispatch::new();
         let entry = |rule: u32, required_attribute_value| DispatchEntry {
+            identity: EntryID(rule),
             rule: RuleID(rule),
             program: SelectorProgramID(rule),
             entry: 0,
@@ -4297,6 +4197,7 @@ mod tests {
     fn a_universal_subject_probes_only_the_bucket_its_parent_names() {
         let mut dispatch = RuleDispatch::new();
         let entry = |rule: u32, required_parent| DispatchEntry {
+            identity: EntryID(rule),
             rule: RuleID(rule),
             program: SelectorProgramID(rule),
             entry: 0,
@@ -4371,6 +4272,7 @@ mod tests {
     fn a_local_subject_bucket_respects_its_parent_requirement() {
         let mut dispatch = RuleDispatch::new();
         let entry = |rule: u32, required_parent| DispatchEntry {
+            identity: EntryID(rule),
             rule: RuleID(rule),
             program: SelectorProgramID(rule),
             entry: 0,
@@ -4561,6 +4463,11 @@ mod tests {
         states.remove(StateFact::Hover);
         assert!(!states.contains(StateFact::Hover));
         assert_eq!(size_of::<StateSet>(), 8);
+    }
+
+    #[test]
+    fn selector_feature_keys_are_eight_bytes() {
+        assert_eq!(size_of::<FeatureKey>(), 8);
     }
 
     #[test]

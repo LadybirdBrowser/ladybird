@@ -26,8 +26,8 @@ use super::column::PagedColumn;
 use super::column::PagedColumnPage;
 use super::instrumentation::Counter;
 use super::instrumentation::Counters;
+use super::program::EntryID;
 use super::program::RuleID;
-use super::program::SelectorProgramID;
 use super::selector::InverseStep;
 use super::tree::StyleNodeID;
 use super::tree::StyleNodeTree;
@@ -903,7 +903,7 @@ pub(super) struct PatchCover {
     intervals: Vec<(u32, u32, u32)>,
     /// Running maximum interval end per sorted prefix, bounding the leftward stab walk.
     prefix_max_end: Vec<u32>,
-    keys: Vec<(RuleID, SelectorProgramID)>,
+    keys: Vec<(RuleID, EntryID)>,
 }
 
 /// The normalized impact plan for one transaction.
@@ -925,7 +925,7 @@ pub struct ImpactRegions {
     /// Rule-attributed emissions in original extent. A route naming its exact entry can prove
     /// that within its region only that rule's truth moved, so a node covered exclusively by
     /// attributed regions patches against the union of its covering attributions.
-    attributions: Vec<(ImpactRegion, (RuleID, SelectorProgramID))>,
+    attributions: Vec<(ImpactRegion, (RuleID, EntryID))>,
 }
 
 impl ImpactRegions {
@@ -1053,7 +1053,7 @@ impl ImpactRegions {
     /// Recorded in original extent, before merging, so patch narrowing can union the covering
     /// attributions per node; duplicate adds of the same extent by unattributed routes still
     /// force full re-derivation because every unattributed add is recorded independently.
-    pub fn add_attributed(&mut self, region: ImpactRegion, key: (RuleID, SelectorProgramID), counters: &mut Counters) {
+    pub fn add_attributed(&mut self, region: ImpactRegion, key: (RuleID, EntryID), counters: &mut Counters) {
         if region != ImpactRegion::Empty {
             self.attributions.push((region, key));
         }
@@ -1064,12 +1064,7 @@ impl ImpactRegions {
     /// candidates are already planned owes the patch only the fact that its rule may have moved
     /// inside its extent; this carries that fact symbolically, one row per route instead of one
     /// row per (node, rule), and the per-node union is rebuilt lazily by `covering_attributions`.
-    pub fn attribute_extent(
-        &mut self,
-        region: ImpactRegion,
-        key: (RuleID, SelectorProgramID),
-        _counters: &mut Counters,
-    ) {
+    pub fn attribute_extent(&mut self, region: ImpactRegion, key: (RuleID, EntryID), _counters: &mut Counters) {
         if region != ImpactRegion::Empty {
             self.attributions.push((region, key));
         }
@@ -1413,7 +1408,7 @@ impl ImpactRegions {
     /// carrying rule keys. Attributed regions the topology cannot canonicalize demote to the
     /// full trigger, which is always sound.
     pub(super) fn compile_patch_cover(&self, tree: &StyleNodeTree, document_root: Option<StyleNodeID>) -> PatchCover {
-        let mut keys: Vec<(RuleID, SelectorProgramID)> = Vec::new();
+        let mut keys: Vec<(RuleID, EntryID)> = Vec::new();
         let mut intervals: Vec<(u32, u32, u32)> = Vec::new();
         let mut demoted: Vec<ImpactRegion> = Vec::new();
         let mut scratch: Vec<PreorderInterval> = Vec::new();
@@ -1469,7 +1464,7 @@ impl ImpactRegions {
         cover: &PatchCover,
         sweep: &mut AttributionSweep,
         node: StyleNodeID,
-        out: &mut Vec<(RuleID, SelectorProgramID)>,
+        out: &mut Vec<(RuleID, EntryID)>,
     ) -> bool {
         out.clear();
         if cover.intervals.is_empty() {
@@ -1509,12 +1504,7 @@ impl ImpactRegions {
         true
     }
 
-    fn stab_covering_attributions(
-        &self,
-        cover: &PatchCover,
-        position: u32,
-        out: &mut Vec<(RuleID, SelectorProgramID)>,
-    ) {
+    fn stab_covering_attributions(&self, cover: &PatchCover, position: u32, out: &mut Vec<(RuleID, EntryID)>) {
         let mut index = cover.intervals.partition_point(|&(start, _, _)| start <= position);
         while index > 0 {
             index -= 1;

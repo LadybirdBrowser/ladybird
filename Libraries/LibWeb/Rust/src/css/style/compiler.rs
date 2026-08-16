@@ -1371,13 +1371,13 @@ impl<'a> SelectorCompiler<'a> {
     }
 
     /// The positive indexable feature a witness search can drive from, if the compound has one.
-    fn driving_feature_of(&self, compound: SelectorNodeID) -> Option<super::index::FeatureKey> {
+    fn driving_feature_of(&self, compound: SelectorNodeID) -> Option<super::index::LocalFeatureKey> {
         let program = self.builder.program();
         let feature_of = |test: FeatureTest| match test {
-            FeatureTest::Class(class) => Some(super::index::FeatureKey::Class(class)),
-            FeatureTest::Id(_) => Some(super::index::FeatureKey::Id),
-            FeatureTest::Attribute(attribute) => Some(super::index::FeatureKey::Attribute(attribute.folded)),
-            FeatureTest::TagName(_) => Some(super::index::FeatureKey::TagName),
+            FeatureTest::Class(class) => Some(super::index::LocalFeatureKey::Class(class)),
+            FeatureTest::Id(_) => Some(super::index::LocalFeatureKey::Id),
+            FeatureTest::Attribute(attribute) => Some(super::index::LocalFeatureKey::Attribute(attribute.folded)),
+            FeatureTest::TagName(_) => Some(super::index::LocalFeatureKey::TagName),
             // Neither enumerates a candidate set: every element is in some namespace, so driving a
             // witness search from one would be driving it from the whole document.
             FeatureTest::AnyElement | FeatureTest::Namespace(_) => None,

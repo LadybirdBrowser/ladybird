@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    details > summary:first-of-type { color: rgb(255, 0, 0); }
+    .dirty { background-color: rgb(0, 128, 0); }
+</style>
+<div id="root"></div>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        const details = document.createElement("details");
+        details.innerHTML = `<summary>first</summary><summary>target</summary>`;
+        root.appendChild(details);
+        const first = details.firstElementChild;
+        const target = details.lastElementChild;
+        internals.updateStyle();
+        println(`initial: ${getComputedStyle(target).display}, ${getComputedStyle(target).color}`);
+
+        first.remove();
+        internals.updateStyle();
+        println(`incremental: ${getComputedStyle(target).display}, ${getComputedStyle(target).color}`);
+
+        CSS.registerProperty({ name: "--force-cold-style", syntax: "*", inherits: false, initialValue: "1px" });
+        internals.updateStyle();
+        println(`cold: ${getComputedStyle(target).display}, ${getComputedStyle(target).color}`);
+    });
+</script>

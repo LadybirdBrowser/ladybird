@@ -24,7 +24,7 @@ use super::SelectorProgram;
 use super::Specificity;
 use super::TagTest;
 use super::ValueStateTestKind;
-use crate::css::style::index::FeatureKey;
+use crate::css::style::index::LocalFeatureKey;
 use crate::css::style::index::StyleAtomID;
 use crate::css::style::record_replay::Error;
 use crate::css::style::record_replay::PayloadReader;
@@ -461,39 +461,39 @@ fn read_relative_query(payload: &mut PayloadReader) -> Result<RelativeQuery, Err
     })
 }
 
-fn write_feature_key(feature: FeatureKey, payload: &mut PayloadWriter) {
+fn write_feature_key(feature: LocalFeatureKey, payload: &mut PayloadWriter) {
     match feature {
-        FeatureKey::TagName => payload.write_u8(0),
-        FeatureKey::FoldedTagName => payload.write_u8(1),
-        FeatureKey::Id => payload.write_u8(2),
-        FeatureKey::Class(atom) => write_atom(3, atom, payload),
-        FeatureKey::Part(atom) => write_atom(4, atom, payload),
-        FeatureKey::CustomState(atom) => write_atom(5, atom, payload),
-        FeatureKey::Emptiness => payload.write_u8(6),
-        FeatureKey::Attribute(atom) => write_atom(7, atom, payload),
-        FeatureKey::Language => payload.write_u8(8),
-        FeatureKey::Directionality => payload.write_u8(9),
-        FeatureKey::PartExposure => payload.write_u8(10),
-        FeatureKey::ArrivingFacts => payload.write_u8(11),
-        FeatureKey::HeadingLevel => payload.write_u8(12),
+        LocalFeatureKey::TagName => payload.write_u8(0),
+        LocalFeatureKey::FoldedTagName => payload.write_u8(1),
+        LocalFeatureKey::Id => payload.write_u8(2),
+        LocalFeatureKey::Class(atom) => write_atom(3, atom, payload),
+        LocalFeatureKey::Part(atom) => write_atom(4, atom, payload),
+        LocalFeatureKey::CustomState(atom) => write_atom(5, atom, payload),
+        LocalFeatureKey::Emptiness => payload.write_u8(6),
+        LocalFeatureKey::Attribute(atom) => write_atom(7, atom, payload),
+        LocalFeatureKey::Language => payload.write_u8(8),
+        LocalFeatureKey::Directionality => payload.write_u8(9),
+        LocalFeatureKey::PartExposure => payload.write_u8(10),
+        LocalFeatureKey::ArrivingFacts => payload.write_u8(11),
+        LocalFeatureKey::HeadingLevel => payload.write_u8(12),
     }
 }
 
-fn read_feature_key(payload: &mut PayloadReader) -> Result<FeatureKey, Error> {
+fn read_feature_key(payload: &mut PayloadReader) -> Result<LocalFeatureKey, Error> {
     Ok(match payload.read_u8()? {
-        0 => FeatureKey::TagName,
-        1 => FeatureKey::FoldedTagName,
-        2 => FeatureKey::Id,
-        3 => FeatureKey::Class(read_atom(payload)?),
-        4 => FeatureKey::Part(read_atom(payload)?),
-        5 => FeatureKey::CustomState(read_atom(payload)?),
-        6 => FeatureKey::Emptiness,
-        7 => FeatureKey::Attribute(read_atom(payload)?),
-        8 => FeatureKey::Language,
-        9 => FeatureKey::Directionality,
-        10 => FeatureKey::PartExposure,
-        11 => FeatureKey::ArrivingFacts,
-        12 => FeatureKey::HeadingLevel,
+        0 => LocalFeatureKey::TagName,
+        1 => LocalFeatureKey::FoldedTagName,
+        2 => LocalFeatureKey::Id,
+        3 => LocalFeatureKey::Class(read_atom(payload)?),
+        4 => LocalFeatureKey::Part(read_atom(payload)?),
+        5 => LocalFeatureKey::CustomState(read_atom(payload)?),
+        6 => LocalFeatureKey::Emptiness,
+        7 => LocalFeatureKey::Attribute(read_atom(payload)?),
+        8 => LocalFeatureKey::Language,
+        9 => LocalFeatureKey::Directionality,
+        10 => LocalFeatureKey::PartExposure,
+        11 => LocalFeatureKey::ArrivingFacts,
+        12 => LocalFeatureKey::HeadingLevel,
         value => {
             return Err(Error::InvalidTag {
                 category: "feature key",
@@ -629,7 +629,7 @@ mod tests {
             relative_queries: vec![RelativeQuery {
                 axis: RelativeAxis::NextSiblingSubtree,
                 compound: SelectorNodeID(2),
-                driving_feature: Some(FeatureKey::Class(StyleAtomID(9))),
+                driving_feature: Some(LocalFeatureKey::Class(StyleAtomID(9))),
                 simple: true,
                 witness_is_below_the_axis: true,
                 match_in_shadow_tree: true,

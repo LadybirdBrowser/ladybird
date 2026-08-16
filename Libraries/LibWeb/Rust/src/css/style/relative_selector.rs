@@ -15,7 +15,7 @@
 use super::fast_hash::FastMap as HashMap;
 
 use super::capacity::capacity_bytes;
-use super::index::FeatureKey;
+use super::index::LocalFeatureKey;
 use super::partial_view::Lookup;
 use super::program::SelectorProgramID;
 use super::selector::Incomplete;
@@ -69,7 +69,7 @@ impl RelativeAxis {
 pub struct RelativeQuery {
     pub axis: RelativeAxis,
     pub compound: SelectorNodeID,
-    pub driving_feature: Option<FeatureKey>,
+    pub driving_feature: Option<LocalFeatureKey>,
     /// False for a query that needs the direct evaluator: a selector list, more than one axis, an
     /// internal combinator, a structural or nested relational operator, or a scope-crossing
     /// construct. Complex is not unsupported; it is exact and retains no witness.
@@ -403,7 +403,7 @@ mod tests {
     use super::super::memory::MemoryController;
     use super::*;
 
-    const ERROR_CLASS: FeatureKey = FeatureKey::Class(StyleAtomID(1));
+    const ERROR_CLASS: LocalFeatureKey = LocalFeatureKey::Class(StyleAtomID(1));
 
     /// `root > [card > [a, b, c], other]`
     struct Fixture {

@@ -29,7 +29,7 @@ impl StyleEngine {
     ) -> RetainedAnswerDeltaMemoKey {
         let mut hasher = fast_hash::fast_hasher();
         for delta in deltas {
-            (delta.rule, delta.program, delta.entry, delta.change).hash(&mut hasher);
+            (delta.rule, delta.entry, delta.change).hash(&mut hasher);
         }
         RetainedAnswerDeltaMemoKey {
             old_answer,
@@ -43,9 +43,11 @@ impl StyleEngine {
         entry: &RetainedAnswerDeltaMemoEntry,
         deltas: &[SelectorTruthDelta],
     ) -> bool {
-        entry.deltas.iter().copied().eq(deltas
+        entry
+            .deltas
             .iter()
-            .map(|delta| (delta.rule, delta.program, delta.entry, delta.change)))
+            .copied()
+            .eq(deltas.iter().map(|delta| (delta.rule, delta.entry, delta.change)))
     }
 
     fn remember_retained_answer_delta_transition(
@@ -61,7 +63,7 @@ impl StyleEngine {
                 entry.insert(RetainedAnswerDeltaMemoEntry {
                     deltas: deltas
                         .iter()
-                        .map(|delta| (delta.rule, delta.program, delta.entry, delta.change))
+                        .map(|delta| (delta.rule, delta.entry, delta.change))
                         .collect(),
                     transition,
                 });
@@ -1480,7 +1482,10 @@ impl StyleEngine {
         }
         let mut incidences = Vec::new();
         for (entry_index, entry) in compiled.entries().iter().enumerate() {
-            let posting_key = posting_for_dispatch_key(compiled.dispatch_key(entry))?;
+            let posting_key = compiled.dispatch_key(entry);
+            if !posting_key.has_selector_posting() {
+                return None;
+            }
             let candidates: Vec<_> = match self.facts.postings().lookup(posting_key) {
                 Lookup::Known(posting) => posting.candidates().collect(),
                 Lookup::KnownAbsent => continue,
@@ -1494,10 +1499,10 @@ impl StyleEngine {
                 }
                 let mut carries_required = true;
                 for required in subject_required {
-                    let Some(required) = posting_for_dispatch_key(*required) else {
+                    if !required.has_selector_posting() {
                         continue;
-                    };
-                    match self.facts.postings().lookup(required) {
+                    }
+                    match self.facts.postings().lookup(*required) {
                         Lookup::Known(posting) => carries_required &= posting.contains(node),
                         Lookup::KnownAbsent => carries_required = false,
                         Lookup::Missing(_) => return None,
@@ -1510,19 +1515,18 @@ impl StyleEngine {
                     continue;
                 }
                 if entry.has_prefix_chain()
-                    && dispatch.prefixes().contains_entry(
+                    && dispatch.prefixes().contains_entry(self.programs.entry_id(
                         program,
                         u32::try_from(entry_index).expect("selector entry identity space exhausted"),
-                    )
+                    ))
                 {
                     let retained_prefix_match = {
                         let caches = self.prefix_caches.borrow();
                         caches.states.lookup(scope_program).sparse().ok().and_then(|states| {
                             states.retained_matches_for(node).map(|matches| {
-                                matches.iter().any(|&matched| {
-                                    let candidate = dispatch.entry(matched);
-                                    candidate.program == program && candidate.entry == entry_index as u32
-                                })
+                                matches
+                                    .iter()
+                                    .any(|&matched| matched == self.programs.entry_id(program, entry_index as u32))
                             })
                         })
                     };
@@ -1838,8 +1842,8 @@ impl StyleEngine {
                 continue;
             }
             let keys = match input.key {
-                InputKey::LocalFeature(_, FeatureKey::PartExposure) => return None,
-                InputKey::TreeRelations(_) | InputKey::LocalFeature(_, FeatureKey::ArrivingFacts) => {
+                InputKey::LocalFeature(_, LocalFeatureKey::PartExposure) => return None,
+                InputKey::TreeRelations(_) | InputKey::LocalFeature(_, LocalFeatureKey::ArrivingFacts) => {
                     // A subtree arriving, leaving, or moving cannot change a resident answer
                     // through a descendant or child compound: a non-subject compound matching
                     // inside the moved subtree puts the subject inside it too, and the plan
@@ -1857,16 +1861,17 @@ impl StyleEngine {
                         for &route in tree_mutation_routes {
                             let rule = self.routing.rule_of(route);
                             let point = self.routing.route(route);
+                            let (program, _) = self.programs.entry_location(point.entry);
                             if self.program.rule_can_decide(rule)
-                                && self.program.rule_version(rule).selector_program == Some(point.program)
+                                && self.program.rule_version(rule).selector_program == Some(program)
                             {
-                                affected_current_rules.insert((rule, point.program));
+                                affected_current_rules.insert((rule, program));
                             }
                         }
                     }
                     continue;
                 }
-                InputKey::LocalFeature(_, FeatureKey::Attribute(name)) => {
+                InputKey::LocalFeature(_, LocalFeatureKey::Attribute(name)) => {
                     let mut keys = routing_keys_for_input(input);
                     for other in self.facts.attribute_name_keys(name) {
                         if other != name {
@@ -1892,10 +1897,11 @@ impl StyleEngine {
             for &route in self.routing.routes_for(key) {
                 let rule = self.routing.rule_of(route);
                 let point = self.routing.route(route);
+                let (program, _) = self.programs.entry_location(point.entry);
                 if self.program.rule_can_decide(rule)
-                    && self.program.rule_version(rule).selector_program == Some(point.program)
+                    && self.program.rule_version(rule).selector_program == Some(program)
                 {
-                    affected_current_rules.insert((rule, point.program));
+                    affected_current_rules.insert((rule, program));
                 }
             }
         }
@@ -2145,9 +2151,7 @@ impl StyleEngine {
             }
         }
         for delta in deltas {
-            let Some(entry) = self.programs.get(delta.program).entries().get(delta.entry as usize) else {
-                return false;
-            };
+            let entry = self.programs.entry(delta.entry).1;
             if !self.rule_has_complete_element_winners(delta.rule, entry) {
                 return false;
             }
@@ -2199,8 +2203,9 @@ impl StyleEngine {
     ) -> Option<(Vec<RetainedRuleMatch>, u64)> {
         if !patch.requires_full_match {
             for delta in deltas {
-                let entries = self.programs.get(delta.program).entries();
-                let changed_entry = entries.get(delta.entry as usize)?;
+                let (program, selector_entry) = self.programs.entry_location(delta.entry);
+                let entries = self.programs.get(program).entries();
+                let changed_entry = entries.get(selector_entry as usize)?;
                 let retained_winner = retained.iter().find(|retained_entry| {
                     retained_entry.rule == delta.rule
                         && self
@@ -2212,17 +2217,18 @@ impl StyleEngine {
                 });
                 match delta.change {
                     SetChange::Added
-                        if retained_winner
-                            .is_some_and(|winner| (winner.program, winner.entry) != (delta.program, delta.entry)) =>
+                        if retained_winner.is_some_and(|winner| {
+                            self.programs.entry_id(winner.program, winner.entry) != delta.entry
+                        }) =>
                     {
                         return None;
                     }
                     SetChange::Removed
-                        if retained_winner
-                            .is_some_and(|winner| (winner.program, winner.entry) == (delta.program, delta.entry))
-                            && entries.iter().enumerate().any(|(index, entry)| {
-                                index != delta.entry as usize && entry.pseudo_element == changed_entry.pseudo_element
-                            }) =>
+                        if retained_winner.is_some_and(|winner| {
+                            self.programs.entry_id(winner.program, winner.entry) == delta.entry
+                        }) && entries.iter().enumerate().any(|(index, entry)| {
+                            index != selector_entry as usize && entry.pseudo_element == changed_entry.pseudo_element
+                        }) =>
                     {
                         return None;
                     }
@@ -2231,7 +2237,8 @@ impl StyleEngine {
             }
         }
 
-        let retained_key = |entry: &RetainedRuleMatch| (entry.rule, entry.program, entry.entry);
+        let retained_key = |entry: &RetainedRuleMatch| (entry.rule, self.programs.entry_id(entry.program, entry.entry));
+        debug_assert!(retained.is_sorted_by_key(retained_key));
         let mut answer = Vec::with_capacity(retained.len().saturating_add(deltas.len()));
         let mut retained_index = 0;
         let mut delta_index = 0;
@@ -2239,15 +2246,9 @@ impl StyleEngine {
         while delta_index < deltas.len() {
             let delta = deltas[delta_index];
             debug_assert_eq!(delta.node, node);
-            let key = (delta.rule, delta.program, delta.entry);
+            let key = (delta.rule, delta.entry);
             let mut weight = 0_i32;
-            while delta_index < deltas.len()
-                && (
-                    deltas[delta_index].rule,
-                    deltas[delta_index].program,
-                    deltas[delta_index].entry,
-                ) == key
-            {
+            while delta_index < deltas.len() && (deltas[delta_index].rule, deltas[delta_index].entry) == key {
                 weight += match deltas[delta_index].change {
                     SetChange::Added => 1,
                     SetChange::Removed => -1,
@@ -2269,14 +2270,15 @@ impl StyleEngine {
                 if held.is_some() {
                     return None;
                 }
-                let entry = self.programs.get(delta.program).entries().get(delta.entry as usize)?;
+                let (program, selector_entry) = self.programs.entry_location(delta.entry);
+                let entry = self.programs.get(program).entries().get(selector_entry as usize)?;
                 if entry.scope_root.is_some() {
                     return None;
                 }
                 answer.push(RetainedRuleMatch {
                     rule: delta.rule,
-                    program: delta.program,
-                    entry: delta.entry,
+                    program,
+                    entry: selector_entry,
                     tree_scope: TreeScopeID::DOCUMENT,
                     scope_proximity: u32::MAX,
                 });
@@ -2582,15 +2584,29 @@ impl StyleEngine {
         // its own narrowing. The filtered evaluation shrinks accordingly.
         let narrowed_keys: Option<Vec<(RuleID, SelectorProgramID)>> = match truth_patch {
             SelectorTruthPatch::Full => None,
-            SelectorTruthPatch::Direct(deltas) => {
-                Some(deltas.iter().map(|delta| (delta.rule, delta.program)).collect())
-            }
+            SelectorTruthPatch::Direct(deltas) => Some(
+                deltas
+                    .iter()
+                    .map(|delta| (delta.rule, self.programs.entry_location(delta.entry).0))
+                    .collect(),
+            ),
             SelectorTruthPatch::Refresh { deltas, refreshes } => Some(match delta_base.is_some() {
-                true => refreshes.iter().filter_map(|refresh| refresh.rule).collect(),
+                true => refreshes
+                    .iter()
+                    .filter_map(|refresh| {
+                        refresh
+                            .rule
+                            .map(|(rule, entry)| (rule, self.programs.entry_location(entry).0))
+                    })
+                    .collect(),
                 false => deltas
                     .iter()
-                    .map(|delta| (delta.rule, delta.program))
-                    .chain(refreshes.iter().filter_map(|refresh| refresh.rule))
+                    .map(|delta| (delta.rule, self.programs.entry_location(delta.entry).0))
+                    .chain(refreshes.iter().filter_map(|refresh| {
+                        refresh
+                            .rule
+                            .map(|(rule, entry)| (rule, self.programs.entry_location(entry).0))
+                    }))
                     .collect(),
             }),
             SelectorTruthPatch::Attributed {
@@ -2600,14 +2616,30 @@ impl StyleEngine {
             } => Some(match delta_base.is_some() {
                 true => refreshes
                     .iter()
-                    .filter_map(|refresh| refresh.rule)
-                    .chain(rules.iter().copied())
+                    .filter_map(|refresh| {
+                        refresh
+                            .rule
+                            .map(|(rule, entry)| (rule, self.programs.entry_location(entry).0))
+                    })
+                    .chain(
+                        rules
+                            .iter()
+                            .map(|&(rule, entry)| (rule, self.programs.entry_location(entry).0)),
+                    )
                     .collect(),
                 false => deltas
                     .iter()
-                    .map(|delta| (delta.rule, delta.program))
-                    .chain(refreshes.iter().filter_map(|refresh| refresh.rule))
-                    .chain(rules.iter().copied())
+                    .map(|delta| (delta.rule, self.programs.entry_location(delta.entry).0))
+                    .chain(refreshes.iter().filter_map(|refresh| {
+                        refresh
+                            .rule
+                            .map(|(rule, entry)| (rule, self.programs.entry_location(entry).0))
+                    }))
+                    .chain(
+                        rules
+                            .iter()
+                            .map(|&(rule, entry)| (rule, self.programs.entry_location(entry).0)),
+                    )
                     .collect(),
             }),
         }
@@ -2685,7 +2717,7 @@ impl StyleEngine {
         // A refresh is a typed request for exact old/new truth, not an alternate match-answer
         // update path. Turn the repaired relation into signed entry deltas and apply those through
         // the same authoritative operator as routes which had complete facts during planning.
-        let repair_deltas = repaired_selector_truth_deltas(node, &retained, &mut patched_answer);
+        let repair_deltas = repaired_selector_truth_deltas(node, &retained, &mut patched_answer, &self.programs);
         if let Some((repair_deltas, changed)) = repair_deltas.as_deref().and_then(|repair_deltas| {
             self.apply_retained_match_answer_deltas(
                 node,
