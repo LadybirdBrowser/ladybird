@@ -128,13 +128,20 @@ impl MemoryCategory {
             self,
             Self::RetainedWitness
                 | Self::FeaturePosting
-                | Self::SpecifiedValueTable
                 | Self::CascadeWinnerGroup
                 | Self::RetainedSelectorIncidence
                 | Self::RetainedMatchAnswer
                 | Self::PrefixTransitionCache
                 | Self::PrefixAnswerCache
         )
+    }
+
+    /// Whether this category can be released as one correctness-neutral working set at a flush
+    /// boundary. Specified values are program-owned identities, so dropping their payload table
+    /// would permanently make the attached program's identities unresolvable.
+    #[must_use]
+    fn is_boundary_evictable(self) -> bool {
+        self.is_controller_evictable() || self == Self::ParsedSubstitutionCache
     }
 }
 
@@ -150,6 +157,16 @@ pub const TIER3_REFUSAL_CATEGORIES: [MemoryCategory; 9] = [
     MemoryCategory::PrefixAnswerCache,
     MemoryCategory::ParsedSubstitutionCache,
 ];
+const TIER3_CATEGORY_COUNT: usize = TIER3_REFUSAL_CATEGORIES.len();
+#[cfg(test)]
+const BENEFIT_WEIGHT_SCALE: u64 = 255;
+fn tier3_period_index(category: MemoryCategory) -> usize {
+    if category == MemoryCategory::ParsedSubstitutionCache {
+        return TIER3_CATEGORY_COUNT - 1;
+    }
+    debug_assert!((MemoryCategory::RetainedWitness..=MemoryCategory::PrefixAnswerCache).contains(&category));
+    category as usize - MemoryCategory::RetainedWitness as usize
+}
 
 /// The sole document memory class exposed by the browser.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -361,6 +378,15 @@ impl MemoryLease {
         memory.is_category_over_limit(self.category)
     }
 
+    pub fn reconcile_committed(&mut self, memory: &mut MemoryController, bytes: u64) {
+        if bytes > self.bytes {
+            self.bind(memory);
+            self.grow_committed(bytes - self.bytes);
+        } else {
+            self.shrink_to(bytes);
+        }
+    }
+
     pub fn shrink_to(&mut self, bytes: u64) {
         assert!(bytes <= self.bytes);
         let released = self.bytes - bytes;
@@ -468,6 +494,12 @@ pub struct MemoryController {
     observed_hit_totals: [u64; MEMORY_CATEGORY_COUNT],
     observed_miss_totals: [u64; MEMORY_CATEGORY_COUNT],
     last_refused_bytes: [u64; MEMORY_CATEGORY_COUNT],
+    #[cfg(test)]
+    tier3_quotas: [u64; MEMORY_CATEGORY_COUNT],
+    tier3_period_start_bytes: [u64; TIER3_CATEGORY_COUNT],
+    tier3_admitting: [bool; MEMORY_CATEGORY_COUNT],
+    external_tier3_drop_pending: [bool; MEMORY_CATEGORY_COUNT],
+    tier3_quota_period_active: bool,
     recording_policy_enabled: bool,
     #[cfg(test)]
     tier3_limit_override: Option<u64>,
@@ -487,6 +519,12 @@ impl MemoryController {
             observed_hit_totals: [0; MEMORY_CATEGORY_COUNT],
             observed_miss_totals: [0; MEMORY_CATEGORY_COUNT],
             last_refused_bytes: [0; MEMORY_CATEGORY_COUNT],
+            #[cfg(test)]
+            tier3_quotas: [0; MEMORY_CATEGORY_COUNT],
+            tier3_period_start_bytes: [0; TIER3_CATEGORY_COUNT],
+            tier3_admitting: [true; MEMORY_CATEGORY_COUNT],
+            external_tier3_drop_pending: [false; MEMORY_CATEGORY_COUNT],
+            tier3_quota_period_active: false,
             recording_policy_enabled: false,
             #[cfg(test)]
             tier3_limit_override: None,
@@ -505,6 +543,12 @@ impl MemoryController {
             observed_hit_totals: [0; MEMORY_CATEGORY_COUNT],
             observed_miss_totals: [0; MEMORY_CATEGORY_COUNT],
             last_refused_bytes: [0; MEMORY_CATEGORY_COUNT],
+            #[cfg(test)]
+            tier3_quotas: [0; MEMORY_CATEGORY_COUNT],
+            tier3_period_start_bytes: [0; TIER3_CATEGORY_COUNT],
+            tier3_admitting: [true; MEMORY_CATEGORY_COUNT],
+            external_tier3_drop_pending: [false; MEMORY_CATEGORY_COUNT],
+            tier3_quota_period_active: false,
             recording_policy_enabled: self.recording_policy_enabled,
             #[cfg(test)]
             tier3_limit_override: self.tier3_limit_override,
@@ -533,6 +577,175 @@ impl MemoryController {
 
     pub fn disable_recording_policy(&mut self) {
         self.recording_policy_enabled = false;
+    }
+
+    #[cfg(test)]
+    fn tier3_benefit_weight(&self, category: MemoryCategory) -> u64 {
+        debug_assert_eq!(category.tier(), Tier::Acceleration);
+        let index = category as usize;
+        let observations = self.benefit_observations[index];
+        1 + self.benefit_hits[index]
+            .saturating_mul(BENEFIT_WEIGHT_SCALE)
+            .checked_div(observations)
+            .unwrap_or(0)
+    }
+
+    /// Start one flush interval with every Tier-3 category admitting. Growth that crosses the
+    /// global limit closes only the category that grew until the next interval.
+    pub(super) fn begin_tier3_quota_period(&mut self) {
+        #[cfg(test)]
+        let mut remaining_bytes = self
+            .tier3_limit()
+            .saturating_sub(self.bytes_in_tier(Tier::Acceleration));
+        #[cfg(test)]
+        let mut remaining_weight = TIER3_REFUSAL_CATEGORIES
+            .iter()
+            .map(|&category| self.tier3_benefit_weight(category))
+            .sum::<u64>();
+
+        for (position, &category) in TIER3_REFUSAL_CATEGORIES.iter().enumerate() {
+            #[cfg(test)]
+            {
+                let weight = self.tier3_benefit_weight(category);
+                let share = if position + 1 == TIER3_CATEGORY_COUNT {
+                    remaining_bytes
+                } else {
+                    u64::try_from(u128::from(remaining_bytes) * u128::from(weight) / u128::from(remaining_weight))
+                        .expect("a Tier-3 quota share must fit its remaining budget")
+                };
+                let index = category as usize;
+                self.tier3_quotas[index] = self.charges.category_bytes[index].get().saturating_add(share);
+                remaining_bytes -= share;
+                remaining_weight -= weight;
+            }
+            let index = category as usize;
+            self.tier3_period_start_bytes[position] = self.charges.category_bytes[index].get();
+            self.tier3_admitting[index] = true;
+        }
+        self.tier3_quota_period_active = true;
+    }
+
+    #[must_use]
+    #[cfg(test)]
+    pub(super) fn tier3_quota(&self, category: MemoryCategory) -> u64 {
+        debug_assert_eq!(category.tier(), Tier::Acceleration);
+        self.tier3_quotas[category as usize]
+    }
+
+    #[must_use]
+    pub(super) fn is_tier3_admitting(&self, category: MemoryCategory) -> bool {
+        debug_assert_eq!(category.tier(), Tier::Acceleration);
+        self.tier3_admitting[category as usize]
+    }
+
+    /// End the current quota period and select complete working sets in increasing benefit order
+    /// until their current residency covers the actual Tier-3 overage.
+    pub(super) fn finish_tier3_quota_period(&mut self) -> [bool; MEMORY_CATEGORY_COUNT] {
+        let mut selected = [false; MEMORY_CATEGORY_COUNT];
+        if !self.tier3_quota_period_active {
+            return selected;
+        }
+        self.tier3_quota_period_active = false;
+        let overage = self
+            .bytes_in_tier(Tier::Acceleration)
+            .saturating_sub(self.tier3_limit());
+        if overage == 0 {
+            return selected;
+        }
+        let growth_crossed_limit = TIER3_REFUSAL_CATEGORIES.iter().any(|&category| {
+            let index = category as usize;
+            let period_index = tier3_period_index(category);
+            !self.tier3_admitting[index]
+                && self.charges.category_bytes[index].get() > self.tier3_period_start_bytes[period_index]
+        });
+        if !growth_crossed_limit {
+            return selected;
+        }
+
+        let mut candidates = TIER3_REFUSAL_CATEGORIES;
+        candidates.sort_by(|left, right| {
+            let left_index = *left as usize;
+            let right_index = *right as usize;
+            let left_hits = self.benefit_hits[left_index];
+            let right_hits = self.benefit_hits[right_index];
+            match (left_hits == 0).cmp(&(right_hits == 0)).reverse() {
+                std::cmp::Ordering::Equal => {
+                    let left_observations = self.benefit_observations[left_index].max(1);
+                    let right_observations = self.benefit_observations[right_index].max(1);
+                    (u128::from(left_hits) * u128::from(right_observations))
+                        .cmp(&(u128::from(right_hits) * u128::from(left_observations)))
+                        .then_with(|| left_index.cmp(&right_index))
+                }
+                ordering => ordering,
+            }
+        });
+        let mut candidate_selection = [false; MEMORY_CATEGORY_COUNT];
+        let mut selected_bytes = 0_u64;
+        for category in candidates {
+            let index = category as usize;
+            if !category.is_boundary_evictable() || self.charges.category_bytes[index].get() == 0 {
+                continue;
+            }
+            selected_bytes = selected_bytes.saturating_add(self.charges.category_bytes[index].get());
+            candidate_selection[index] = true;
+            if selected_bytes >= overage {
+                break;
+            }
+        }
+        if selected_bytes < overage {
+            return selected;
+        }
+        for category in TIER3_REFUSAL_CATEGORIES {
+            let index = category as usize;
+            if !candidate_selection[index] {
+                continue;
+            }
+            if category.is_controller_evictable() {
+                selected[index] = true;
+            } else {
+                self.external_tier3_drop_pending[index] = true;
+            }
+        }
+        selected
+    }
+
+    /// Record acceleration capacity that an owner has already committed at its coarse settlement
+    /// boundary. Only growth by this category can close its admission for the current period; the
+    /// boundary independently chooses victims from the final, actual overage.
+    pub(super) fn finish_committed_acceleration_growth(&mut self, category: MemoryCategory) {
+        debug_assert_eq!(category.tier(), Tier::Acceleration);
+        let index = category as usize;
+        let overage = self
+            .bytes_in_tier(Tier::Acceleration)
+            .saturating_sub(self.tier3_limit());
+        if overage == 0 {
+            self.last_refused_bytes[index] = 0;
+            return;
+        }
+        let category_grew = !self.tier3_quota_period_active
+            || self.charges.category_bytes[index].get() > self.tier3_period_start_bytes[tier3_period_index(category)];
+        if !category_grew {
+            self.last_refused_bytes[index] = 0;
+            return;
+        }
+        if self.tier3_admitting[index] {
+            self.refusals[index] += 1;
+            self.record_benefit_lookup(category, false);
+        }
+        self.tier3_admitting[index] = false;
+        self.last_refused_bytes[index] = overage;
+    }
+
+    #[must_use]
+    pub(super) fn external_tier3_drop_is_pending(&self, category: MemoryCategory) -> bool {
+        debug_assert_eq!(category.tier(), Tier::Acceleration);
+        debug_assert!(!category.is_controller_evictable());
+        self.external_tier3_drop_pending[category as usize]
+    }
+
+    pub(super) fn complete_external_tier3_drop(&mut self, category: MemoryCategory) {
+        debug_assert!(self.external_tier3_drop_is_pending(category));
+        self.external_tier3_drop_pending[category as usize] = false;
     }
 
     /// `min(DeviceCap, BaseAllowance + NodeAllowance * ConnectedElementCount +
@@ -613,7 +826,33 @@ impl MemoryController {
             category.name()
         );
 
-        if let Some(limit) = self.limit_for(tier) {
+        if tier == Tier::Acceleration && self.tier3_quota_period_active {
+            let index = category as usize;
+            #[cfg(test)]
+            let projected_category = self.charges.category_bytes[index].get().saturating_add(bytes);
+            let projected_tier = self.bytes_in_tier(Tier::Acceleration).saturating_add(bytes);
+            #[cfg(test)]
+            let quota = self.tier3_quota(category);
+            if !self.tier3_admitting[index] || projected_tier > self.tier3_limit() {
+                self.tier3_admitting[index] = false;
+                self.refusals[index] += 1;
+                self.last_refused_bytes[index] = bytes;
+                self.record_benefit_lookup(category, false);
+                return ReservationOutcome::Refused {
+                    shortfall_bytes: {
+                        let tier_shortfall = projected_tier.saturating_sub(self.tier3_limit());
+                        #[cfg(test)]
+                        {
+                            tier_shortfall.max(projected_category.saturating_sub(quota))
+                        }
+                        #[cfg(not(test))]
+                        {
+                            tier_shortfall
+                        }
+                    },
+                };
+            }
+        } else if let Some(limit) = self.limit_for(tier) {
             let projected = self.charges.tier_bytes[tier.index()].get().saturating_add(bytes);
             if projected > limit {
                 self.refusals[category as usize] += 1;
@@ -670,49 +909,6 @@ impl MemoryController {
         }
         self.benefit_hits[index] += hits;
         self.benefit_observations[index] += hits.saturating_add(misses);
-    }
-
-    /// Pick the first resident zero-hit Tier-3 category when all zero-hit categories together can
-    /// satisfy the last refused reservation. Requiring a requester hit prevents a first-time scan
-    /// from displacing the working set, and refusing partial reclamation preserves resident state
-    /// when the request cannot fit.
-    #[must_use]
-    pub(super) fn eviction_candidate(&self, requester: MemoryCategory) -> Option<MemoryCategory> {
-        debug_assert_eq!(requester.tier(), Tier::Acceleration);
-        let requested_bytes = self.last_refused_bytes[requester as usize];
-        if requested_bytes == 0
-            || self.benefit_hits[requester as usize] == 0
-            || self.charges.category_bytes[requester as usize]
-                .get()
-                .saturating_add(requested_bytes)
-                > self.tier3_limit()
-        {
-            return None;
-        }
-
-        let mut candidate = None;
-        let mut reclaimable = 0u64;
-        for (index, &category) in MEMORY_CATEGORIES.iter().enumerate() {
-            if category == requester
-                || category.tier() != Tier::Acceleration
-                || !category.is_controller_evictable()
-                || self.charges.category_bytes[index].get() == 0
-                || self.benefit_hits[index] != 0
-            {
-                continue;
-            }
-            candidate.get_or_insert(category);
-            reclaimable = reclaimable.saturating_add(self.charges.category_bytes[index].get());
-        }
-
-        let projected = self.charges.tier_bytes[Tier::Acceleration.index()]
-            .get()
-            .saturating_add(requested_bytes);
-        if projected.saturating_sub(reclaimable) <= self.tier3_limit() {
-            candidate
-        } else {
-            None
-        }
     }
 
     /// Charge capacity that is already committed and therefore cannot be refused: required live
@@ -825,6 +1021,111 @@ mod tests {
         controller.enable_recording_policy();
         controller.disable_recording_policy();
         assert_eq!(controller.tier3_limit(), document_limit);
+    }
+
+    #[test]
+    fn tier_three_pressure_closes_admission_until_the_next_period() {
+        let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
+        controller.begin_tier3_quota_period();
+        let category = MemoryCategory::FeaturePosting;
+        assert!(controller.reserve(category, controller.tier3_limit()).is_granted());
+        assert!(matches!(
+            controller.reserve(category, 1),
+            ReservationOutcome::Refused { .. }
+        ));
+
+        controller.release(category, 1);
+        assert!(matches!(
+            controller.reserve(category, 1),
+            ReservationOutcome::Refused { .. }
+        ));
+        controller.begin_tier3_quota_period();
+        assert!(controller.reserve(category, 1).is_granted());
+    }
+
+    #[test]
+    fn tier_three_quota_boundary_selects_a_complete_cold_overage() {
+        let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
+        controller.set_tier3_limit_for_test(100);
+        controller.begin_tier3_quota_period();
+        let mut lease = MemoryLease::new(MemoryCategory::FeaturePosting);
+        lease.reconcile_committed(&mut controller, 101);
+        controller.finish_committed_acceleration_growth(MemoryCategory::FeaturePosting);
+
+        let selected = controller.finish_tier3_quota_period();
+
+        assert!(selected[MemoryCategory::FeaturePosting as usize]);
+        assert_eq!(selected.iter().filter(|&&candidate| candidate).count(), 1);
+    }
+
+    #[test]
+    fn tier_three_boundary_keeps_working_sets_that_cannot_cover_the_overage() {
+        let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
+        controller.set_tier3_limit_for_test(100);
+        let mut answers = MemoryLease::new(MemoryCategory::RetainedMatchAnswer);
+        answers.reconcile_committed(&mut controller, 50);
+        controller.begin_tier3_quota_period();
+        let mut program_values = MemoryLease::new(MemoryCategory::SpecifiedValueTable);
+        program_values.reconcile_committed(&mut controller, 101);
+        controller.finish_committed_acceleration_growth(MemoryCategory::SpecifiedValueTable);
+
+        assert!(!controller.finish_tier3_quota_period().iter().any(|&selected| selected));
+        assert_eq!(controller.bytes_in_category(MemoryCategory::RetainedMatchAnswer), 50);
+    }
+
+    #[test]
+    fn tier_three_quota_boundary_does_not_displace_for_a_first_scan() {
+        let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
+        controller.set_tier3_limit_for_test(100);
+        assert!(controller.reserve(MemoryCategory::FeaturePosting, 10).is_granted());
+        controller.begin_tier3_quota_period();
+        assert!(controller.reserve(MemoryCategory::FeaturePosting, 60).is_granted());
+        assert!(matches!(
+            controller.reserve(MemoryCategory::RetainedMatchAnswer, 31),
+            ReservationOutcome::Refused { .. }
+        ));
+
+        assert!(!controller.finish_tier3_quota_period().iter().any(|&selected| selected));
+    }
+
+    #[test]
+    fn tier_three_quota_boundary_does_not_partially_reclaim() {
+        let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
+        controller.set_tier3_limit_for_test(100);
+        assert!(controller.reserve(MemoryCategory::FeaturePosting, 10).is_granted());
+        controller.record_benefit_lookups(MemoryCategory::RetainedMatchAnswer, 1, 0);
+        controller.begin_tier3_quota_period();
+        assert!(controller.reserve(MemoryCategory::FeaturePosting, 10).is_granted());
+        assert!(matches!(
+            controller.reserve(MemoryCategory::RetainedMatchAnswer, 81),
+            ReservationOutcome::Refused { .. }
+        ));
+
+        assert!(!controller.finish_tier3_quota_period().iter().any(|&selected| selected));
+    }
+
+    #[test]
+    fn tier_three_quota_boundary_does_not_select_externally_owned_state() {
+        let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
+        controller.set_tier3_limit_for_test(100);
+        assert!(
+            controller
+                .reserve(MemoryCategory::ParsedSubstitutionCache, 10)
+                .is_granted()
+        );
+        controller.record_benefit_lookups(MemoryCategory::RetainedMatchAnswer, 1, 0);
+        controller.begin_tier3_quota_period();
+        assert!(
+            controller
+                .reserve(MemoryCategory::ParsedSubstitutionCache, 60)
+                .is_granted()
+        );
+        assert!(matches!(
+            controller.reserve(MemoryCategory::RetainedMatchAnswer, 31),
+            ReservationOutcome::Refused { .. }
+        ));
+
+        assert!(!controller.finish_tier3_quota_period().iter().any(|&selected| selected));
     }
 
     #[test]
@@ -982,83 +1283,38 @@ mod tests {
     }
 
     #[test]
-    fn tier_three_selects_the_first_resident_cold_category_for_eviction() {
+    fn an_over_limit_steady_state_does_not_repeat_boundary_evictions() {
         let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
-        assert!(
-            controller
-                .reserve(MemoryCategory::FeaturePosting, 256 * KIB)
-                .is_granted()
-        );
-        assert!(
-            controller
-                .reserve(MemoryCategory::CascadeWinnerGroup, 256 * KIB)
-                .is_granted()
-        );
-        assert!(
-            controller
-                .reserve(MemoryCategory::PrefixTransitionCache, 512 * KIB)
-                .is_granted()
-        );
+        controller.set_tier3_limit_for_test(0);
+        let mut program_values = MemoryLease::new(MemoryCategory::SpecifiedValueTable);
+        program_values.reconcile_committed(&mut controller, 1);
+        controller.begin_tier3_quota_period();
+        let mut answers = MemoryLease::new(MemoryCategory::RetainedMatchAnswer);
+        answers.reconcile_committed(&mut controller, 1);
+        controller.finish_committed_acceleration_growth(MemoryCategory::RetainedMatchAnswer);
+        assert!(!controller.finish_tier3_quota_period().iter().any(|&selected| selected));
+        answers.release();
 
-        for _ in 0..16 {
-            controller.record_benefit_lookup(MemoryCategory::FeaturePosting, true);
+        controller.begin_tier3_quota_period();
+        controller.finish_committed_acceleration_growth(MemoryCategory::SpecifiedValueTable);
+        assert!(!controller.finish_tier3_quota_period().iter().any(|&selected| selected));
+    }
+
+    #[test]
+    fn discarded_committed_growth_does_not_condemn_resident_state() {
+        let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
+        controller.set_tier3_limit_for_test(10);
+        let mut resident = MemoryLease::new(MemoryCategory::FeaturePosting);
+        resident.reconcile_committed(&mut controller, 10);
+        controller.begin_tier3_quota_period();
+        {
+            let mut temporary = MemoryLease::new(MemoryCategory::FeaturePosting);
+            temporary.reconcile_committed(&mut controller, 1);
+            controller.finish_committed_acceleration_growth(MemoryCategory::FeaturePosting);
         }
-        controller.record_benefit_lookup(MemoryCategory::RetainedMatchAnswer, true);
-        assert!(matches!(
-            controller.reserve(MemoryCategory::RetainedMatchAnswer, 64 * KIB),
-            ReservationOutcome::Refused { .. }
-        ));
-        assert_eq!(
-            controller.eviction_candidate(MemoryCategory::RetainedMatchAnswer),
-            Some(MemoryCategory::CascadeWinnerGroup),
-            "the hot posting survives and declaration order breaks the cold tie"
-        );
-    }
 
-    #[test]
-    fn tier_three_does_not_admit_a_requester_without_a_hit() {
-        let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
-        assert!(controller.reserve(MemoryCategory::CascadeWinnerGroup, MIB).is_granted());
-        assert!(matches!(
-            controller.reserve(MemoryCategory::RetainedMatchAnswer, 4 * KIB),
-            ReservationOutcome::Refused { .. }
-        ));
-        assert_eq!(controller.eviction_candidate(MemoryCategory::RetainedMatchAnswer), None);
-    }
-
-    #[test]
-    fn tier_three_does_not_evict_when_eligible_views_cannot_make_room() {
-        let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
-        assert!(
-            controller
-                .reserve(MemoryCategory::PrefixTransitionCache, MIB)
-                .is_granted()
-        );
-        for _ in 0..64 {
-            controller.record_benefit_lookup(MemoryCategory::PrefixTransitionCache, true);
-        }
-        controller.record_benefit_lookup(MemoryCategory::RetainedMatchAnswer, true);
-        assert!(matches!(
-            controller.reserve(MemoryCategory::RetainedMatchAnswer, 64 * KIB),
-            ReservationOutcome::Refused { .. }
-        ));
-        assert_eq!(controller.eviction_candidate(MemoryCategory::RetainedMatchAnswer), None);
-    }
-
-    #[test]
-    fn tier_three_does_not_select_externally_owned_cache_for_eviction() {
-        let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
-        assert!(
-            controller
-                .reserve(MemoryCategory::ParsedSubstitutionCache, MIB)
-                .is_granted()
-        );
-        controller.record_benefit_lookup(MemoryCategory::RetainedMatchAnswer, true);
-        assert!(matches!(
-            controller.reserve(MemoryCategory::RetainedMatchAnswer, 64 * KIB),
-            ReservationOutcome::Refused { .. }
-        ));
-        assert_eq!(controller.eviction_candidate(MemoryCategory::RetainedMatchAnswer), None);
+        assert_eq!(controller.bytes_in_category(MemoryCategory::FeaturePosting), 10);
+        assert!(!controller.finish_tier3_quota_period()[MemoryCategory::FeaturePosting as usize]);
     }
 
     #[test]

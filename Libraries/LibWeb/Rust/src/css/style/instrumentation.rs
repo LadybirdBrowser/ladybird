@@ -100,7 +100,6 @@ define_counters! {
     PrefixAnswerCacheHits => "prefixAnswerCacheHits",
     PrefixAnswerCacheMisses => "prefixAnswerCacheMisses",
     Tier3BenefitEvictions => "tier3BenefitEvictions",
-    Tier3AdmissionRetries => "tier3AdmissionRetries",
     Tier3RefusalRetainedMatchAnswerBytes => "tier3RefusalRetainedMatchAnswerBytes",
     MatchAnswerSignatures => "matchAnswerSignatures",
     MatchAnswerSignatureReuses => "matchAnswerSignatureReuses",

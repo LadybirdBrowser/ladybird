@@ -1522,12 +1522,15 @@ impl FeaturePostings {
         Self::default()
     }
 
-    /// Add `node` to a feature's candidate set. Returns false when the Tier-3 budget refused the
-    /// growth, in which case the posting is dropped entirely rather than left partial - a posting
-    /// that silently lost members would be a wrong answer, not a slower one. Adding a node that is
-    /// already a member changes nothing and succeeds.
+    /// Add `node` to a feature's candidate set. Once quota pressure closes admission, existing
+    /// postings continue to accept members so they remain exact, while new posting keys stay
+    /// missing until the next quota period.
     pub fn insert(&mut self, key: PostingKey, node: StyleNodeID, memory: &mut MemoryController) -> bool {
         if self.missing.contains(&key) || self.cardinality_limited.contains(&key) {
+            return false;
+        }
+        if !self.postings.contains_key(&key) && !memory.is_tier3_admitting(MemoryCategory::FeaturePosting) {
+            self.remember_missing(key);
             return false;
         }
         let postings_capacity_before = self.postings_capacity_bytes();
@@ -1539,13 +1542,10 @@ impl FeaturePostings {
         };
         let posting_length = posting.length;
         let growth = posting_growth + postings_growth;
-        if growth != 0 && !self.residency.grow(memory, growth).is_granted() {
-            let resident_bytes = posting.capacity_bytes() - posting_growth;
-            self.postings.remove(&key);
-            self.residency.shrink_to(self.residency.bytes() - resident_bytes);
-            self.residency.grow_committed(postings_growth);
-            self.remember_missing(key);
-            return false;
+        if growth != 0 {
+            self.residency
+                .reconcile_committed(memory, self.residency.bytes() + growth);
+            memory.finish_committed_acceleration_growth(MemoryCategory::FeaturePosting);
         }
         if key.has_selector_posting() && posting_length > 4096 {
             self.remember_grown_selector_posting(key);
@@ -4883,37 +4883,37 @@ mod tests {
     }
 
     #[test]
-    fn a_refused_posting_is_dropped_rather_than_left_partial() {
+    fn a_posting_that_crosses_the_limit_stays_exact_until_the_boundary() {
         let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
         memory.set_tier3_limit_for_test(0);
-        let mut postings = FeaturePostings::new();
-        let key = SelectorPostingKey::Class(StyleAtomID(1));
-
-        // A backgrounded document has no Tier-3 budget at all.
-        assert!(!postings.insert(key, StyleNodeID::element(1), &mut memory));
-        assert!(matches!(postings.lookup(key), Lookup::Missing(gap) if gap == key));
-        assert_eq!(
-            memory.bytes_in_category(MemoryCategory::FeaturePosting),
-            postings.retained_capacity_bytes()
-        );
-    }
-
-    #[test]
-    fn a_refused_posting_growth_releases_its_previous_charge() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        memory.begin_tier3_quota_period();
         let mut postings = FeaturePostings::new();
         let key = SelectorPostingKey::Class(StyleAtomID(1));
 
         assert!(postings.insert(key, StyleNodeID::element(1), &mut memory));
+        assert_eq!(known_posting(&postings, key).length, 1);
+        assert!(memory.finish_tier3_quota_period()[MemoryCategory::FeaturePosting as usize]);
+        postings.evict_all();
+        assert!(matches!(postings.lookup(key), Lookup::Missing(gap) if gap == key));
+    }
+
+    #[test]
+    fn closed_posting_admission_keeps_existing_postings_exact() {
+        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut postings = FeaturePostings::new();
+        let key = SelectorPostingKey::Class(StyleAtomID(1));
+        let missing_key = SelectorPostingKey::Class(StyleAtomID(2));
+
+        assert!(postings.insert(key, StyleNodeID::element(1), &mut memory));
         let admitted_bytes = memory.bytes_in_category(MemoryCategory::FeaturePosting);
         memory.set_tier3_limit_for_test(admitted_bytes);
-        assert!((2..512).any(|index| !postings.insert(key, StyleNodeID::element(index), &mut memory)));
+        for index in 2..512 {
+            assert!(postings.insert(key, StyleNodeID::element(index), &mut memory));
+        }
 
-        assert!(matches!(postings.lookup(key), Lookup::Missing(gap) if gap == key));
-        assert_eq!(
-            memory.bytes_in_category(MemoryCategory::FeaturePosting),
-            postings.retained_capacity_bytes()
-        );
+        assert_eq!(known_posting(&postings, key).length, 511);
+        assert!(!postings.insert(missing_key, StyleNodeID::element(1), &mut memory));
+        assert!(matches!(postings.lookup(missing_key), Lookup::Missing(gap) if gap == missing_key));
     }
 
     #[test]
@@ -5007,7 +5007,9 @@ mod tests {
         facts.set_animation_names(node, &[new_animation], &mut memory);
         facts.apply_staged(&mut memory);
         let new_class_key = SelectorPostingKey::Class(new_class);
-        assert!(matches!(facts.postings().lookup(new_class_key), Lookup::Missing(gap) if gap == new_class_key));
+        let new_animation_key = DependencyPostingKey::AnimationName(new_animation);
+        assert_eq!(known_posting(facts.postings(), new_class_key).length, 1);
+        assert!(matches!(facts.postings().lookup(new_animation_key), Lookup::Missing(gap) if gap == new_animation_key));
         assert_eq!(facts.posting_rebuild_refused_at_headroom, None);
 
         // Admission was already closed before the rebuild began, so its failure says nothing about
@@ -5016,11 +5018,11 @@ mod tests {
         assert_eq!(facts.posting_rebuild_refused_at_headroom, None);
 
         memory.set_tier3_limit_for_test(u64::MAX);
+        memory.begin_tier3_quota_period();
         facts.apply_staged(&mut memory);
         assert_eq!(facts.posting_rebuild_refused_at_headroom, None);
         let old_class_key = SelectorPostingKey::Class(old_class);
         let old_animation_key = DependencyPostingKey::AnimationName(old_animation);
-        let new_animation_key = DependencyPostingKey::AnimationName(new_animation);
         assert!(matches!(facts.postings().lookup(old_class_key), Lookup::KnownAbsent));
         assert!(matches!(
             facts.postings().lookup(old_animation_key),

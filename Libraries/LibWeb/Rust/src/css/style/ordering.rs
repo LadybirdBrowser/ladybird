@@ -337,9 +337,19 @@ impl StyleEngine {
         &mut self,
         all: &mut Vec<RuleMatch>,
         can_have_scope_duplicates: bool,
-        publish_winners_for: Option<StyleNodeID>,
+        mut publish_winners_for: Option<StyleNodeID>,
         workspace: &mut CascadeCompactionWorkspace,
     ) {
+        if publish_winners_for.is_some_and(|node| {
+            !self.winner_groups.admits_new_rows()
+                && matches!(
+                    self.winner_groups
+                        .lookup(WinnerGroupKey::current(node, self.program.version())),
+                    Lookup::Missing(_)
+                )
+        }) {
+            publish_winners_for = None;
+        }
         self.order_matches_in_cascade(all, can_have_scope_duplicates);
         self.counters
             .add(Counter::CascadeMatchesBeforeCompaction, all.len() as u64);
@@ -525,6 +535,7 @@ impl StyleEngine {
             let winner_scratch_bytes = (winner_count * size_of::<PropertyWinner>()) as u64;
             self.memory
                 .reserve_required(MemoryCategory::BatchScratch, winner_scratch_bytes);
+            let mut published_row_count = 0;
             for (target, winners) in published_winners {
                 let key = target.map_or_else(
                     || WinnerGroupKey::current(node, self.program.version()),
@@ -535,19 +546,20 @@ impl StyleEngine {
                 if let Some(target) = target {
                     let inventory_is_complete =
                         self.cascade_winner_inventory_is_complete_for_target(all, Some(node), Some(*target));
-                    self.winner_groups
+                    let published = self
+                        .winner_groups
                         .set_pseudo(node, *target, state, self.program.version());
-                    if !inventory_is_complete {
+                    if published && !inventory_is_complete {
                         self.winner_groups.mark_pseudo_inventory_incomplete(node, *target);
                     }
+                    published_row_count += usize::from(published);
                 } else {
-                    self.winner_groups.set(node, state, self.program.version());
+                    published_row_count += usize::from(self.winner_groups.set(node, state, self.program.version()));
                 }
             }
-            if self.winner_groups.settle_memory(&mut self.memory) {
-                self.counters
-                    .add(Counter::CascadeNodeHandlesPublished, published_winners.len() as u64);
-            }
+            self.winner_groups.settle_memory(&mut self.memory);
+            self.counters
+                .add(Counter::CascadeNodeHandlesPublished, published_row_count as u64);
             self.memory.release(MemoryCategory::BatchScratch, winner_scratch_bytes);
         }
 
@@ -841,17 +853,17 @@ impl StyleEngine {
 
         let (state, _) =
             self.with_cascade_interning_counters(|groups| groups.apply_property_updates(previous, &updates));
-        if let Some(pseudo) = pseudo {
+        let published = if let Some(pseudo) = pseudo {
             self.winner_groups
-                .set_pseudo(node, pseudo, state, self.program.version());
+                .set_pseudo(node, pseudo, state, self.program.version())
         } else {
-            self.winner_groups.set(node, state, self.program.version());
+            self.winner_groups.set(node, state, self.program.version())
+        };
+        self.winner_groups.settle_memory(&mut self.memory);
+        if published {
+            self.counters.bump(Counter::CascadeNodeHandlesPublished);
         }
-        if !self.winner_groups.settle_memory(&mut self.memory) {
-            return false;
-        }
-        self.counters.bump(Counter::CascadeNodeHandlesPublished);
-        true
+        published
     }
 
     pub(super) fn cascade_winner_inventory_is_complete_for_target(
@@ -1331,5 +1343,7 @@ impl StyleEngine {
             ..BudgetInputs::default()
         };
         self.memory.set_budget_inputs(inputs);
+        self.journal
+            .set_document_capacity_limit(self.tree.connected_element_count());
     }
 }

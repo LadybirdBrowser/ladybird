@@ -193,54 +193,14 @@ impl StyleEngine {
     }
 
     pub(super) fn retain_prefix_states(&mut self) {
-        if self
+        if !self
             .prefix_caches
             .borrow_mut()
             .states
             .retain(&mut self.memory, &mut self.counters)
         {
-            return;
+            self.prefix_caches.borrow_mut().states.release();
         }
-        self.retain_prefix_states_after_refusal();
-    }
-
-    /// Retain the prefix transition cache, displacing the retained match answers once if the
-    /// pool cannot hold both.
-    ///
-    /// The answer patches are derived views of the convergence this cache powers: without a
-    /// resident transition cache every flush upqueries its way back to the planner and the
-    /// answers stop being maintainable, so when the two cannot fit together the maintenance
-    /// structure outranks its derivative. This is a bootstrap rule, not a steady-state tax: once
-    /// the cache is resident its bytes cycle through scratch and back each flush, and the
-    /// answers rebuild inside the remaining budget without being displaced again.
-    pub(super) fn retain_prefix_states_after_refusal(&mut self) {
-        // NB: The retained match answers go first because they survive a failed transition cache
-        //     and losing them only costs re-derivation; the prefix answers go second because
-        //     they cannot outlive a transition cache that failed to become current, so evicting
-        //     them risks nothing the failure would not already forfeit. The cascade winner
-        //     groups ride along with the match answers: a retained winner state proves its
-        //     node's exact answer is retained too, so the pair must leave together.
-        for categories in [
-            &[MemoryCategory::RetainedMatchAnswer, MemoryCategory::CascadeWinnerGroup][..],
-            &[MemoryCategory::PrefixAnswerCache][..],
-        ] {
-            let mut evicted = false;
-            for &category in categories {
-                evicted |= self.memory.bytes_in_category(category) != 0 && self.evict_tier3_category(category);
-            }
-            if !evicted {
-                continue;
-            }
-            if self
-                .prefix_caches
-                .borrow_mut()
-                .states
-                .retain(&mut self.memory, &mut self.counters)
-            {
-                return;
-            }
-        }
-        self.prefix_caches.borrow_mut().states.release();
     }
 
     pub(super) fn take_prepared_batch_matching_traversal(
@@ -1083,13 +1043,12 @@ impl StyleEngine {
     /// the budget refuses the growth: it is a shortcut, so an empty table is always correct.
     pub(super) fn settle_relational_witness_memory(&mut self) {
         let bytes = self.relational_witnesses.borrow().capacity_bytes();
-        if !self
-            .relational_witness_residency
-            .resize_to(&mut self.memory, bytes)
-            .is_granted()
-        {
-            self.relational_witnesses.borrow_mut().clear_all();
-            self.relational_witness_residency.release();
+        self.relational_witness_residency
+            .reconcile_committed(&mut self.memory, bytes);
+        self.memory
+            .finish_committed_acceleration_growth(MemoryCategory::RetainedWitness);
+        if !self.memory.is_tier3_admitting(MemoryCategory::RetainedWitness) {
+            self.relational_witnesses.borrow_mut().set_admitting(false);
         }
     }
 
@@ -1359,7 +1318,7 @@ impl StyleEngine {
     pub(super) fn remember_prepared_retained_match_answer_with_truth(
         &mut self,
         node: StyleNodeID,
-        mut answer: Vec<RetainedRuleMatch>,
+        answer: Vec<RetainedRuleMatch>,
         selector_truth: Option<Vec<SelectorTruth>>,
     ) {
         if !self.match_answer_is_retainable(node) {
@@ -1412,18 +1371,12 @@ impl StyleEngine {
                 Counter::SelectorTruthDerivedAnswerMisses
             });
         }
-        loop {
-            match self
-                .retained_match_answers
-                .remember_prepared(&mut self.match_answers, node, answer, &mut self.memory)
-            {
-                Ok(()) => return,
-                Err(returned) => answer = returned,
-            }
-            if !self.reclaim_for_refused_tier3_reservation(MemoryCategory::RetainedMatchAnswer) {
-                break;
-            }
-            self.counters.bump(Counter::Tier3AdmissionRetries);
+        if self
+            .retained_match_answers
+            .remember_prepared(&mut self.match_answers, node, answer, &mut self.memory)
+            .is_ok()
+        {
+            return;
         }
         if matches!(self.retained_match_answers.lookup(node), Lookup::Missing(_)) {
             self.counters.bump(Counter::RetainedMatchAnswerRefusals);
@@ -1706,18 +1659,6 @@ impl StyleEngine {
             _ => unreachable!("only Tier-3 categories are eviction candidates"),
         }
         self.memory.bytes_in_category(category) < before
-    }
-
-    pub(super) fn reclaim_for_refused_tier3_reservation(&mut self, requester: MemoryCategory) -> bool {
-        self.sync_tier3_benefit_observations();
-        let Some(victim) = self.memory.eviction_candidate(requester) else {
-            return false;
-        };
-        if !self.evict_tier3_category(victim) {
-            return false;
-        }
-        self.counters.bump(Counter::Tier3BenefitEvictions);
-        true
     }
 
     pub(super) fn sync_tier3_benefit_observations(&mut self) {
@@ -2117,11 +2058,11 @@ impl StyleEngine {
         )?;
         let (state, delta) =
             self.with_cascade_interning_counters(|groups| groups.apply_property_updates(previous, &updates));
-        self.winner_groups.set(node, state, self.program.version());
-        if !self.winner_groups.settle_memory(&mut self.memory) {
-            return None;
+        let published = self.winner_groups.set(node, state, self.program.version());
+        self.winner_groups.settle_memory(&mut self.memory);
+        if published {
+            self.counters.bump(Counter::CascadeNodeHandlesPublished);
         }
-        self.counters.bump(Counter::CascadeNodeHandlesPublished);
 
         let mut winning_rules: Vec<RuleID> = self
             .winner_groups
@@ -2400,7 +2341,7 @@ impl StyleEngine {
             self.counters.bump(Counter::RetainedMatchAnswerDeltaMemoHits);
             let stopped = transition.new_cascade_input == old_cascade_input;
             if let Some((state, version)) = transition.winner_state {
-                self.winner_groups.set(node, state, version);
+                let _ = self.winner_groups.set(node, state, version);
             }
             self.publish_cascade_input(node, transition.new_cascade_input);
             self.counters.bump(Counter::RetainedMatchAnswerDeltaPatches);

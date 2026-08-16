@@ -3971,9 +3971,11 @@ impl PrefixStateCache {
             self.scratch_memory.shrink_committed(before - after);
         }
         let working_bytes = self.scratch_memory.bytes();
-        if !self.residency.grow(memory, working_bytes).is_granted() {
+        if !memory.is_tier3_admitting(MemoryCategory::PrefixTransitionCache) {
             return false;
         }
+        self.residency.reconcile_committed(memory, working_bytes);
+        memory.finish_committed_acceleration_growth(MemoryCategory::PrefixTransitionCache);
         self.scratch_memory.release();
         self.lifecycle = match self.lifecycle {
             PrefixStateCacheLifecycle::Scratch(coverage) => PrefixStateCacheLifecycle::Retained(coverage),

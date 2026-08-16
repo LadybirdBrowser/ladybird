@@ -857,34 +857,20 @@ impl RetainedSelectorIncidences {
         incidences: Vec<RetainedSelectorIncidence>,
         memory: &mut MemoryController,
     ) -> Option<Rc<[RetainedSelectorIncidence]>> {
-        let required_len = program.0 as usize + 1;
-        let projected_capacity = if required_len > self.by_program.capacity() {
-            self.by_program.capacity().saturating_mul(2).max(required_len).max(4)
-        } else {
-            self.by_program.capacity()
-        };
-        let projected = (projected_capacity * size_of::<Option<Rc<[RetainedSelectorIncidence]>>>()
-            + self
-                .by_program
-                .iter()
-                .flatten()
-                .map(|incidences| incidences.len() * size_of::<RetainedSelectorIncidence>())
-                .sum::<usize>()
-            + incidences.len() * size_of::<RetainedSelectorIncidence>()) as u64;
-        if !self
-            .residency
-            .grow(memory, projected.saturating_sub(self.residency.bytes()))
-            .is_granted()
+        if self.by_program.get(program.0 as usize).is_none_or(Option::is_none)
+            && !memory.is_tier3_admitting(MemoryCategory::RetainedSelectorIncidence)
         {
             return None;
         }
+        let required_len = program.0 as usize + 1;
         let incidences: Rc<[RetainedSelectorIncidence]> = incidences.into();
         if self.by_program.len() < required_len {
             self.by_program.resize(required_len, None);
         }
         self.by_program[program.0 as usize] = Some(Rc::clone(&incidences));
-        assert!(self.capacity_bytes() <= projected);
-        self.residency.shrink_to(self.capacity_bytes());
+        let bytes = self.capacity_bytes();
+        self.residency.reconcile_committed(memory, bytes);
+        memory.finish_committed_acceleration_growth(MemoryCategory::RetainedSelectorIncidence);
         Some(incidences)
     }
 

@@ -443,10 +443,10 @@ impl StyleEngine {
                 continue;
             };
             if source_declarations.next().is_some()
-                || !matches!(
-                    unsafe { self.specified_values.identity_of(declaration.data.cast()) },
-                    Lookup::Known(value) if value == winner.key.value
-                )
+                || !unsafe {
+                    self.specified_values
+                        .ensure_identity(declaration.data.cast(), winner.key.value, &mut self.memory)
+                }
             {
                 continue;
             }

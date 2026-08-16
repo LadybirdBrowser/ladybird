@@ -277,15 +277,27 @@ const MAX_RETAINED_WITNESSES: usize = 16384;
 /// such evaluation that completed with no witness. An evaluation of an overlaid or hypothetical
 /// state must never write here, because that is the one way to plant an entry whose "was true"
 /// half is false - the read-side re-verification only re-establishes the "is true now" half.
-#[derive(Default)]
 pub struct RelationalWitnesses {
     entries: HashMap<RelationalWitnessKey, StyleNodeID>,
+    admitting: bool,
+}
+
+impl Default for RelationalWitnesses {
+    fn default() -> Self {
+        Self {
+            entries: HashMap::default(),
+            admitting: true,
+        }
+    }
 }
 
 impl RelationalWitnesses {
     /// Retain `witness` for `key`, returning whether it was stored. A full table sheds the
     /// entries whose anchor or witness identity has been retired before refusing.
     pub fn retain(&mut self, key: RelationalWitnessKey, witness: StyleNodeID, tree: &StyleNodeTree) -> bool {
+        if !self.admitting && !self.entries.contains_key(&key) {
+            return false;
+        }
         if self.entries.len() >= MAX_RETAINED_WITNESSES && !self.entries.contains_key(&key) {
             self.entries
                 .retain(|entry, retained| tree.is_live(entry.anchor) && tree.is_live(*retained));
@@ -305,13 +317,17 @@ impl RelationalWitnesses {
         self.entries = HashMap::default();
     }
 
+    pub(super) fn set_admitting(&mut self, admitting: bool) {
+        self.admitting = admitting;
+    }
+
     #[must_use]
     pub fn capacity_bytes(&self) -> u64 {
         capacity_bytes! {
             shallow [self.entries];
             cached [];
             nested [];
-            skip [];
+            skip [self.admitting];
         }
     }
 }

@@ -14,6 +14,16 @@ impl StyleEngine {
         root: StyleNodeID,
         mut emit: impl FnMut(StyleTransactionVersion, ProgramVersion, &[PublishedStyleDeltaRecord]),
     ) -> bool {
+        self.sync_tier3_benefit_observations();
+        let tier3_evictions = self.memory.finish_tier3_quota_period();
+        for &category in &TIER3_REFUSAL_CATEGORIES {
+            if tier3_evictions[category as usize] && self.evict_tier3_category(category) {
+                self.counters.bump(Counter::Tier3BenefitEvictions);
+            }
+        }
+        self.memory.begin_tier3_quota_period();
+        self.winner_groups.begin_quota_period();
+        self.relational_witnesses.borrow_mut().set_admitting(true);
         self.route_pruning_states.borrow_mut().clear();
         #[cfg(test)]
         if let Some(capture) = &mut self.diagnostic_plan_capture {
@@ -1440,8 +1450,8 @@ impl StyleEngine {
     pub(super) fn install_before_sibling_geometry(&self, view: &mut TransactionFactView) -> bool {
         let staged_rows = self.tree_staging.rows();
         if staged_rows.is_empty() {
-            view.clear_before_sibling_relations();
-            return false;
+            view.finish_before_sibling_relations();
+            return true;
         }
 
         let mut parents = Vec::new();
