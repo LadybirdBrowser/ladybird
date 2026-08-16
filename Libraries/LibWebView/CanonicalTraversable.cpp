@@ -183,17 +183,6 @@ Optional<i32> CanonicalTraversable::navigation_api_traversal_target(CanonicalNav
     return target_entry->step;
 }
 
-void CanonicalTraversable::did_cancel_navigation()
-{
-    m_session_history.clear_current_entry_reload_pending();
-}
-
-void CanonicalTraversable::did_finish_navigation(URL::URL const& url)
-{
-    if (auto const* current_entry = m_session_history.current_entry(); current_entry && current_entry->url == url)
-        m_session_history.clear_current_entry_reload_pending();
-}
-
 void CanonicalTraversable::traverse_the_history_by_delta(int delta, CheckForCancelation check_for_cancelation, Function<void()> on_ready)
 {
     if (m_pending_browser_history_traversal.has_value()

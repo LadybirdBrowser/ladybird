@@ -609,33 +609,6 @@ TEST_CASE(history_log_entries_marks_nested_histories)
                                                          "used_steps=[0:0, 1:1, *2:2]"sv });
 }
 
-TEST_CASE(clear_current_entry_reload_pending)
-{
-    WebView::TraversableSessionHistory history;
-
-    auto update_result = history.initialize_for_testing({
-                                                            entry(0, "https://a.example/"sv),
-                                                            entry_with_reload_pending(1, "https://b.example/"sv, 7, "main"sv, {}),
-                                                            entry_with_reload_pending(2, "https://c.example/"sv, 7, "main"sv, {}),
-                                                        },
-        { 0, 1, 2 }, 1);
-    EXPECT_EQ(update_result, true);
-
-    auto current_entry = history.current_entry();
-    VERIFY(current_entry);
-    EXPECT(current_entry->document_state.reload_pending);
-
-    history.clear_current_entry_reload_pending();
-
-    current_entry = history.current_entry();
-    VERIFY(current_entry);
-    EXPECT(!current_entry->document_state.reload_pending);
-
-    auto shared_document_state_entry = history.entry_at(2);
-    VERIFY(shared_document_state_entry);
-    EXPECT(!shared_document_state_entry->document_state.reload_pending);
-}
-
 TEST_CASE(mark_current_entry_reload_pending)
 {
     WebView::TraversableSessionHistory history;

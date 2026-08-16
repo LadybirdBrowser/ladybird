@@ -54,7 +54,6 @@ public:
     bool initialize_for_testing(Vector<Entry>, Vector<i32> used_steps, size_t current_used_step_index);
     void initialize_with_initial_history_entry(Entry initial_history_entry);
     void mark_current_entry_reload_pending();
-    void clear_current_entry_reload_pending();
     bool update_entry(Optional<Web::HTML::CrossProcessId> nested_history_id, Utf16String const& navigation_api_key, Function<void(Entry&)> const& update_entry);
     bool update_entry_persisted_state(Optional<Web::HTML::CrossProcessId> nested_history_id, Web::HTML::SessionHistoryEntryPersistedState const&);
     bool update_document_state(Optional<Web::HTML::CrossProcessId> nested_history_id, Utf16String const& navigation_api_key, Function<void(Web::HTML::SessionHistoryDocumentStateDescriptor&)> const& update_document_state);
