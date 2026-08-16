@@ -32,7 +32,7 @@ public:
     bool is_partial_relayout_boundary() const;
 
     // https://www.w3.org/TR/css-images-3/#natural-dimensions
-    virtual CSS::SizeWithAspectRatio natural_size() const { return {}; }
+    CSS::SizeWithAspectRatio natural_size() const;
 
     // When computed width/height is auto, auto_content_box_size gives the fallback content-box size for
     // elements whose used size is determined by natural dimensions, attributes, or defaults other than
@@ -80,10 +80,9 @@ public:
 
     Box(DOM::Document&, GC::Ptr<DOM::Node>, CSS::LayoutStyle);
 
-protected:
-    virtual CSS::SizeWithAspectRatio compute_auto_content_box_size() const { return natural_size(); }
-
 private:
+    CSS::SizeWithAspectRatio compute_auto_content_box_size() const;
+
     virtual bool is_box() const final { return true; }
 
     WeakPtr<Node> m_default_scroll_shift_anchor;

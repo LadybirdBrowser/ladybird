@@ -23,9 +23,6 @@ public:
     SVG::SVGSVGElement const& dom_node() const { return as<SVG::SVGSVGElement>(*ReplacedBox::dom_node()); }
 
     Gfx::FloatRect view_box_or_viewport_rect() const;
-
-private:
-    virtual CSS::SizeWithAspectRatio natural_size() const override;
 };
 
 template<>

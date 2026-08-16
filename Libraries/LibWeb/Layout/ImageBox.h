@@ -26,8 +26,6 @@ public:
     }
 
 private:
-    virtual CSS::SizeWithAspectRatio natural_size() const override;
-
     OwnPtr<ImageProvider> m_owned_image_provider;
 };
 

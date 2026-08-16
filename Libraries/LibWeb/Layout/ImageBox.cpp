@@ -52,18 +52,4 @@ ImageProvider const& ImageBox::image_provider() const
 
 ImageBox::~ImageBox() = default;
 
-CSS::SizeWithAspectRatio ImageBox::natural_size() const
-{
-    auto const& image_provider = this->image_provider();
-    if (image_provider.is_image_available()) {
-        return {
-            .width = image_provider.intrinsic_width(),
-            .height = image_provider.intrinsic_height(),
-            .aspect_ratio = image_provider.intrinsic_aspect_ratio()
-        };
-    }
-
-    return { 0, 0, {} };
-}
-
 }

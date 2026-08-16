@@ -16,13 +16,4 @@ CanvasBox::CanvasBox(DOM::Document& document, HTML::HTMLCanvasElement& element, 
 
 CanvasBox::~CanvasBox() = default;
 
-CSS::SizeWithAspectRatio CanvasBox::compute_auto_content_box_size() const
-{
-    auto width = dom_node().width();
-    auto height = dom_node().height();
-    if (width == 0 || height == 0)
-        return { width, height, {} };
-    return { width, height, CSSPixelFraction(width, height) };
-}
-
 }

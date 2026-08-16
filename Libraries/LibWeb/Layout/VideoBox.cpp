@@ -27,14 +27,4 @@ HTML::HTMLVideoElement const& VideoBox::dom_node() const
     return static_cast<HTML::HTMLVideoElement const&>(*ReplacedBox::dom_node());
 }
 
-CSS::SizeWithAspectRatio VideoBox::natural_size() const
-{
-    auto natural_size = dom_node().natural_element_size();
-    if (!natural_size.has_value())
-        return {};
-    if (natural_size->is_empty())
-        return { 0, 0, {} };
-    return { natural_size->width(), natural_size->height(), natural_size->width() / natural_size->height() };
-}
-
 }

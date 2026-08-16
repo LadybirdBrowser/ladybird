@@ -18,9 +18,6 @@ public:
     RangeInputBox(DOM::Document&, GC::Ptr<DOM::Element>, CSS::LayoutStyle);
 
     virtual ~RangeInputBox() override = default;
-
-private:
-    virtual CSS::SizeWithAspectRatio compute_auto_content_box_size() const override;
 };
 
 }
