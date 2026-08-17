@@ -725,9 +725,8 @@ pub struct WinnerGroups {
     winner_entry_count: usize,
     winner_rule_references: WinnerRuleReferences,
     column: Column<Option<(CascadeStateID, ProgramVersion)>>,
-    pseudo_rows: HashMap<(StyleNodeID, PseudoElementTarget), PseudoWinnerRow>,
-    pseudo_targets_by_node: Column<Vec<PseudoElementTarget>>,
-    pseudo_target_capacity_bytes: u64,
+    pseudo_rows_by_node: Column<Vec<PseudoWinnerRow>>,
+    pseudo_row_capacity_bytes: u64,
     priority_current: BitColumn,
     row_count: usize,
     priority_current_row_count: usize,
@@ -743,6 +742,7 @@ pub struct WinnerGroups {
 
 #[derive(Clone)]
 struct PseudoWinnerRow {
+    pseudo: PseudoElementTarget,
     state: (CascadeStateID, ProgramVersion),
     priority_current: bool,
 }
@@ -764,9 +764,8 @@ impl Default for WinnerGroups {
             winner_entry_count: 0,
             winner_rule_references: WinnerRuleReferences::default(),
             column: Column::default(),
-            pseudo_rows: HashMap::default(),
-            pseudo_targets_by_node: Column::default(),
-            pseudo_target_capacity_bytes: 0,
+            pseudo_rows_by_node: Column::default(),
+            pseudo_row_capacity_bytes: 0,
             priority_current: BitColumn::default(),
             row_count: 0,
             priority_current_row_count: 0,
@@ -789,10 +788,10 @@ impl WinnerGroups {
     }
 
     pub(super) fn verification_copy(&self) -> Self {
-        let pseudo_targets_by_node = self.pseudo_targets_by_node.clone();
-        let pseudo_target_capacity_bytes = pseudo_targets_by_node
+        let pseudo_rows_by_node = self.pseudo_rows_by_node.clone();
+        let pseudo_row_capacity_bytes = pseudo_rows_by_node
             .iter()
-            .map(|targets| targets.capacity() * size_of::<PseudoElementTarget>())
+            .map(|rows| rows.capacity() * size_of::<PseudoWinnerRow>())
             .sum::<usize>() as u64;
         Self {
             states: self.states.clone(),
@@ -803,9 +802,8 @@ impl WinnerGroups {
             winner_entry_count: self.winner_entry_count,
             winner_rule_references: self.winner_rule_references.clone(),
             column: self.column.clone(),
-            pseudo_rows: self.pseudo_rows.clone(),
-            pseudo_targets_by_node,
-            pseudo_target_capacity_bytes,
+            pseudo_rows_by_node,
+            pseudo_row_capacity_bytes,
             priority_current: self.priority_current.clone(),
             row_count: self.row_count,
             priority_current_row_count: self.priority_current_row_count,
@@ -1253,35 +1251,37 @@ impl WinnerGroups {
         let Some(index) = node.element_index().map(|index| index as usize) else {
             return false;
         };
-        let key = (node, pseudo);
-        if !self.admitting && !self.pseudo_rows.contains_key(&key) {
+        let existing = self
+            .pseudo_rows_by_node
+            .get(index)
+            .and_then(|rows| rows.iter().position(|row| row.pseudo == pseudo));
+        if !self.admitting && existing.is_none() {
             return false;
         }
-        if self
-            .pseudo_rows
-            .get(&key)
-            .is_some_and(|row| row.state == (state, program_version))
-        {
-            self.pseudo_rows.get_mut(&key).unwrap().priority_current = true;
-            return true;
-        }
-        match self.pseudo_rows.remove(&key) {
-            Some(previous) => self.release_state(previous.state.0),
-            None => {
-                self.pseudo_targets_by_node.ensure(index);
-                let capacity_before = self.pseudo_targets_by_node[index].capacity();
-                self.pseudo_targets_by_node[index].push(pseudo);
-                self.pseudo_target_capacity_bytes += ((self.pseudo_targets_by_node[index].capacity() - capacity_before)
-                    * size_of::<PseudoElementTarget>()) as u64;
+        self.pseudo_rows_by_node.ensure(index);
+        if let Some(existing) = existing {
+            let row = &mut self.pseudo_rows_by_node[index][existing];
+            if row.state == (state, program_version) {
+                row.priority_current = true;
+                return true;
             }
-        }
-        self.pseudo_rows.insert(
-            key,
-            PseudoWinnerRow {
+            let previous = row.state.0;
+            *row = PseudoWinnerRow {
+                pseudo,
                 state: (state, program_version),
                 priority_current: true,
-            },
-        );
+            };
+            self.release_state(previous);
+        } else {
+            let capacity_before = self.pseudo_rows_by_node[index].capacity();
+            self.pseudo_rows_by_node[index].push(PseudoWinnerRow {
+                pseudo,
+                state: (state, program_version),
+                priority_current: true,
+            });
+            self.pseudo_row_capacity_bytes +=
+                ((self.pseudo_rows_by_node[index].capacity() - capacity_before) * size_of::<PseudoWinnerRow>()) as u64;
+        }
         self.retain_state(state);
         true
     }
@@ -1298,13 +1298,11 @@ impl WinnerGroups {
             }
         }
         self.set_priority_current(index, false);
-        if let Some(targets) = self.pseudo_targets_by_node.get_mut(index) {
-            let targets = std::mem::take(targets);
-            self.pseudo_target_capacity_bytes -= (targets.capacity() * size_of::<PseudoElementTarget>()) as u64;
-            for pseudo in targets {
-                if let Some(row) = self.pseudo_rows.remove(&(node, pseudo)) {
-                    self.release_state(row.state.0);
-                }
+        if let Some(rows) = self.pseudo_rows_by_node.get_mut(index) {
+            let rows = std::mem::take(rows);
+            self.pseudo_row_capacity_bytes -= (rows.capacity() * size_of::<PseudoWinnerRow>()) as u64;
+            for row in rows {
+                self.release_state(row.state.0);
             }
         }
     }
@@ -1432,8 +1430,10 @@ impl WinnerGroups {
             self.priority_current.clear();
             self.priority_current_row_count = 0;
         }
-        for row in self.pseudo_rows.values_mut() {
-            row.priority_current = false;
+        for rows in self.pseudo_rows_by_node.iter_mut() {
+            for row in rows {
+                row.priority_current = false;
+            }
         }
     }
 
@@ -1505,7 +1505,7 @@ impl WinnerGroups {
             self.newest_program_version = to;
             self.newest_version_row_count = 0;
         }
-        for (index, slot) in self.column.iter_mut().enumerate() {
+        for (index, slot) in self.column.iter_mut().enumerate().skip(1) {
             let Some((_, version)) = slot else {
                 continue;
             };
@@ -1521,9 +1521,15 @@ impl WinnerGroups {
                 self.newest_version_row_count += 1;
             }
         }
-        for ((node, _), row) in &mut self.pseudo_rows {
-            if row.state.1 == from && can_advance(*node) {
-                row.state.1 = to;
+        for (index, rows) in self.pseudo_rows_by_node.iter_mut().enumerate().skip(1) {
+            if rows.is_empty() {
+                continue;
+            }
+            let node = StyleNodeID::element(u32::try_from(index).expect("style node identity space exhausted"));
+            for row in rows {
+                if row.state.1 == from && can_advance(node) {
+                    row.state.1 = to;
+                }
             }
         }
     }
@@ -1541,16 +1547,12 @@ impl WinnerGroups {
         &self,
         node: StyleNodeID,
     ) -> impl Iterator<Item = (PseudoElementTarget, ProgramVersion, CascadeStateID, bool)> + '_ {
-        let targets = node
+        let rows = node
             .element_index()
-            .and_then(|index| self.pseudo_targets_by_node.get(index as usize))
+            .and_then(|index| self.pseudo_rows_by_node.get(index as usize))
             .into_iter()
             .flatten();
-        targets.filter_map(move |&pseudo| {
-            self.pseudo_rows
-                .get(&(node, pseudo))
-                .map(|row| (pseudo, row.state.1, row.state.0, row.priority_current))
-        })
+        rows.map(|row| (row.pseudo, row.state.1, row.state.0, row.priority_current))
     }
 
     #[must_use]
@@ -1559,13 +1561,18 @@ impl WinnerGroups {
         node: StyleNodeID,
         pseudo: PseudoElementTarget,
     ) -> Option<(ProgramVersion, CascadeStateID, bool)> {
-        self.pseudo_rows
-            .get(&(node, pseudo))
+        node.element_index()
+            .and_then(|index| self.pseudo_rows_by_node.get(index as usize))
+            .and_then(|rows| rows.iter().find(|row| row.pseudo == pseudo))
             .map(|row| (row.state.1, row.state.0, row.priority_current))
     }
 
     pub(super) fn mark_pseudo_inventory_incomplete(&mut self, node: StyleNodeID, pseudo: PseudoElementTarget) {
-        if let Some(row) = self.pseudo_rows.get_mut(&(node, pseudo)) {
+        if let Some(row) = node
+            .element_index()
+            .and_then(|index| self.pseudo_rows_by_node.get_mut(index as usize))
+            .and_then(|rows| rows.iter_mut().find(|row| row.pseudo == pseudo))
+        {
             row.priority_current = false;
         }
     }
@@ -1595,9 +1602,8 @@ impl WinnerGroups {
         self.winner_entry_count = 0;
         self.winner_rule_references = WinnerRuleReferences::default();
         self.column = Column::default();
-        self.pseudo_rows = HashMap::default();
-        self.pseudo_targets_by_node = Column::default();
-        self.pseudo_target_capacity_bytes = 0;
+        self.pseudo_rows_by_node = Column::default();
+        self.pseudo_row_capacity_bytes = 0;
         self.priority_current = BitColumn::default();
         self.row_count = 0;
         self.priority_current_row_count = 0;
@@ -1613,15 +1619,14 @@ impl WinnerGroups {
                 self.groups,
                 self.continuations,
                 self.column,
-                self.pseudo_rows,
-                self.pseudo_targets_by_node,
+                self.pseudo_rows_by_node,
                 self.priority_current,
                 self.state_reference_counts,
                 self.group_reference_counts,
                 self.winner_rule_references,
             ];
             cached [self.nested_residency.bytes()];
-            nested [self.pseudo_target_capacity_bytes];
+            nested [self.pseudo_row_capacity_bytes];
             skip [
                 self.residency,
                 self.generation,
@@ -1630,7 +1635,7 @@ impl WinnerGroups {
                 self.priority_current_row_count,
                 self.newest_program_version,
                 self.newest_version_row_count,
-                self.pseudo_target_capacity_bytes,
+                self.pseudo_row_capacity_bytes,
             ];
         }
     }
@@ -1657,7 +1662,12 @@ impl WinnerGroups {
 impl WinnerGroups {
     pub(super) fn lookup(&self, key: WinnerGroupKey) -> Lookup<&(CascadeStateID, ProgramVersion), WinnerGroupGap> {
         if let Some(pseudo) = key.pseudo {
-            let Some(row) = self.pseudo_rows.get(&(key.node, pseudo)) else {
+            let Some(row) = key
+                .node
+                .element_index()
+                .and_then(|index| self.pseudo_rows_by_node.get(index as usize))
+                .and_then(|rows| rows.iter().find(|row| row.pseudo == pseudo))
+            else {
                 return Lookup::Missing(WinnerGroupGap::MissingNode(key.node));
             };
             if row.state.1 != key.program_version {
