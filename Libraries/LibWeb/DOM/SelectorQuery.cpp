@@ -24,15 +24,18 @@ public:
         : m_engine(CSS::StyleEngine::DeviceClass::ForegroundDesktop)
         , m_has_document_root(is<Document>(root))
     {
-        CSS::populate_isolated_selector_query_engine(m_engine, root, [&](GC::Ref<Element> element, CSS::StyleNodeID identity) {
-            m_identities.set(element, identity);
-        });
-
+        // Attribute-name and default value case behavior are compiled into the query, so publish
+        // the document kind before compiling rather than while facts are populated afterward.
+        CSS::configure_isolated_selector_query_engine(m_engine, root.document());
         Vector<void const*> selector_handles;
         selector_handles.ensure_capacity(selectors.size());
         for (auto const& selector : selectors)
             selector_handles.unchecked_append(&selector->rust_selector());
         m_query = m_engine.compile_selector_query(selector_handles);
+
+        CSS::populate_isolated_selector_query_engine(m_engine, root, [&](GC::Ref<Element> element, CSS::StyleNodeID identity) {
+            m_identities.set(element, identity);
+        });
     }
 
     ~IsolatedSelectorQueryEngine()

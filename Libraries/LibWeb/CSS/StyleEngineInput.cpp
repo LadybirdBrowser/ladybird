@@ -181,42 +181,6 @@ static StyleEngineFFI::FfiTreeRelations detached_relations()
     };
 }
 
-// The name an attribute is published under, and the any-namespace name it shares.
-//
-// Three selectors ask three different questions of an attribute called `x`. `[ns|x]` reaches only
-// the one in that namespace, `[x]` reaches only the one in no namespace - which is what the bare
-// local name is - and `[*|x]` reaches whichever of them the element carries. The first two name
-// exactly one of an element's attributes, so they are the key: an element can hold `x` in several
-// namespaces at once, and each is a fact with its own value. `[*|x]` asks about all of them
-// together, so the shared form is published as an identity of the name rather than as a fact of its
-// own, and one entry per attribute answers all three.
-static StyleAtomID attribute_name_atom(StyleEngine& style_engine, Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_uri)
-{
-    auto local = style_engine.intern_atom(local_name);
-    auto any_namespace = style_engine.intern_qualified_atom(StyleEngine::any_namespace, local);
-    auto in_namespace = [&](StyleAtomID name) {
-        if (!namespace_uri.has_value() || namespace_uri->is_empty())
-            return name;
-        return style_engine.intern_qualified_atom(style_engine.intern_case_sensitive_text_atom(namespace_uri->view()), name);
-    };
-    auto name = in_namespace(local);
-
-    // An attribute name is matched ASCII case-insensitively against an HTML element in an HTML
-    // document, and a selector dispatches on the folded form, so an attribute whose own name is not
-    // already lowercase has to answer to that form as well. Only a non-HTML element can hold one:
-    // both the parser and `setAttribute` fold the name for an HTML element in an HTML document.
-    StyleAtomID folded_name;
-    StyleAtomID folded_local;
-    if (auto folded = local_name.to_ascii_lowercase(); folded != local_name) {
-        auto folded_atom = style_engine.intern_atom(folded);
-        folded_name = in_namespace(folded_atom);
-        folded_local = style_engine.intern_qualified_atom(StyleEngine::any_namespace, folded_atom);
-    }
-
-    style_engine.note_attribute_name_forms(name, any_namespace, folded_name, folded_local);
-    return name;
-}
-
 void record_element_connected(DOM::Element& element)
 {
     auto* style_engine = style_engine_for(element);
@@ -321,7 +285,8 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
     for (auto const& class_name : element.class_names())
         publish_feature(StyleEngineFFI::FfiFeatureKind::Class, intern_id_or_class_atom(style_engine, element, class_name), StyleEngineFFI::FfiFeatureValueKind::Present, StyleAtomID {});
     element.for_each_attribute([&](DOM::QualifiedName const& name, Utf16View value) {
-        publish_feature(StyleEngineFFI::FfiFeatureKind::Attribute, attribute_name_atom(style_engine, name.local_name(), name.namespace_()), StyleEngineFFI::FfiFeatureValueKind::Atom, style_engine.intern_attribute_value(value));
+        auto name_atom = style_engine.intern_attribute_name(name.local_name(), name.namespace_());
+        publish_feature(StyleEngineFFI::FfiFeatureKind::Attribute, name_atom, StyleEngineFFI::FfiFeatureValueKind::Atom, style_engine.intern_attribute_value(name_atom, value));
     });
 
     bool has_nonempty_text_child = false;
@@ -370,14 +335,27 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
         custom_states);
 }
 
-void populate_isolated_selector_query_engine(StyleEngine& style_engine, DOM::ParentNode& root, Function<void(GC::Ref<DOM::Element>, StyleNodeID)> const& publish_identity)
+void publish_required_attribute_value_texts(StyleEngine& style_engine, StyleComputer& style_computer)
 {
-    style_engine.set_fold_id_and_class_name_case(root.document().in_quirks_mode());
+    style_computer.for_each_style_node([&](DOM::Element& element) {
+        element.for_each_attribute([&](DOM::QualifiedName const& name, Utf16View value) {
+            auto name_atom = style_engine.intern_attribute_name(name.local_name(), name.namespace_());
+            style_engine.backfill_attribute_value_text_if_required(name_atom, value);
+        });
+    });
+}
+
+void configure_isolated_selector_query_engine(StyleEngine& style_engine, DOM::Document& document)
+{
+    style_engine.set_fold_id_and_class_name_case(document.in_quirks_mode());
     style_engine.set_html_element_namespace(
-        root.document().document_type() == DOM::Document::Type::HTML
+        document.document_type() == DOM::Document::Type::HTML
             ? style_engine.intern_case_sensitive_text_atom(Namespace::HTML.view())
             : 0);
+}
 
+void populate_isolated_selector_query_engine(StyleEngine& style_engine, DOM::ParentNode& root, Function<void(GC::Ref<DOM::Element>, StyleNodeID)> const& publish_identity)
+{
     Optional<StyleNodeID> non_element_root_identity;
     if (!is<DOM::Element>(root) && !is<DOM::Document>(root)) {
         non_element_root_identity = style_engine.allocate_style_node();
@@ -2217,17 +2195,19 @@ void record_element_attribute_changed(DOM::Element& element, Utf16FlyString cons
     if (name == HTML::AttributeNames::headingoffset || name == HTML::AttributeNames::headingreset)
         record_heading_levels_in_subtree(element);
 
-    // Both values cross as atoms, with their text recorded once per distinct value. This lets the
-    // match evaluator reconstruct either side of a transaction without asking the DOM, and two
-    // different values cannot cancel in the journal merely because both are present.
+    // Both values cross as atoms. Their text is recorded once per distinct value only when a
+    // compiled selector for this attribute uses an operator that cannot compare atom identities.
+    // This lets the match evaluator reconstruct either side of such a transaction without asking
+    // the DOM, and two different values cannot cancel in the journal merely because both are
+    // present.
     // The same name an arriving attribute publishes, with the same other forms noted alongside it.
-    // See `attribute_name_atom`.
-    auto atom = attribute_name_atom(*style_engine, name, namespace_uri);
+    // See `StyleEngine::intern_attribute_name`.
+    auto atom = style_engine->intern_attribute_name(name, namespace_uri);
     auto kind_of = [](Optional<Utf16String> const& value) {
         return value.has_value() ? StyleEngineFFI::FfiFeatureValueKind::Atom : StyleEngineFFI::FfiFeatureValueKind::Absent;
     };
     auto atom_of = [&](Optional<Utf16String> const& value) {
-        return value.has_value() ? style_engine->intern_attribute_value(*value) : 0;
+        return value.has_value() ? style_engine->intern_attribute_value(atom, *value) : 0;
     };
     auto old_kind = kind_of(old_value);
     auto old_atom = atom_of(old_value);
