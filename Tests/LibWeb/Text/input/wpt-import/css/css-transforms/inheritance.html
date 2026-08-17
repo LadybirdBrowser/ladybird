@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Inheritance of CSS Transforms properties</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms/#property-index">
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#property-index">
+<meta name="assert" content="Properties inherit or not according to the spec.">
+<meta name="assert" content="Properties have initial values according to the spec.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/inheritance-testcommon.js"></script>
+</head>
+<body>
+<div id="container">
+<div id="target"></div>
+</div>
+<style>
+#container {
+  width: 70px;
+  height: 90px;
+}
+#target {
+  width: 60px;
+  height: 40px;
+}
+</style>
+<script>
+assert_not_inherited('backface-visibility', 'visible', 'hidden');
+assert_not_inherited('perspective', 'none', '7px');
+assert_not_inherited('perspective-origin', '30px 20px', '8px 9px'); // '50% 50%' is '30px 20px'
+assert_not_inherited('rotate', 'none', '90deg');
+assert_not_inherited('scale', 'none', '10 11 12');
+assert_not_inherited('transform', 'none', 'matrix(2, 0, 0, 3, 1, 4)');
+assert_not_inherited('transform-box', 'view-box', 'fill-box');
+assert_not_inherited('transform-origin', '30px 20px', '5px 6px'); // '50% 50%' is '30px 20px'
+assert_not_inherited('transform-style', 'flat', 'preserve-3d');
+assert_not_inherited('translate', 'none', '13px 14px 15px');
+</script>
+</body>
+</html>

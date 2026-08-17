@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<title>'transform-origin' on &lt;svg> being direct descendant of shadow root</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/css-transforms/#transform-origin-property">
+<template>
+  <style>
+    #target {
+      height: 100px;
+      width: 100px;
+      background-color: green;
+      transform: rotate(90deg);
+    }
+  </style>
+  <svg id="target"></svg>
+</template>
+<div style="position: relative; height: 100px">
+  <div style="width: 100px; height: 100px; background-color: red; position: absolute"></div>
+  <div style="position: absolute" id="wrapper"></div>
+</div>
+<script>
+setup(function() {
+  const wrapper = document.querySelector('#wrapper');
+  wrapper.attachShadow({mode: "open"});
+  wrapper.shadowRoot.appendChild(
+    document.querySelector("template").content.cloneNode(true));
+});
+
+test(function() {
+  const wrapper = document.querySelector('#wrapper');
+  const target = wrapper.shadowRoot.getElementById('target');
+  assert_equals(getComputedStyle(target, null).transformOrigin, '50px 50px');
+});
+</script>

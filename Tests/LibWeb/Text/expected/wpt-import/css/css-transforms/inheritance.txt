@@ -1,0 +1,26 @@
+Harness status: OK
+
+Found 20 tests
+
+19 Pass
+1 Fail
+Pass	Property backface-visibility has initial value visible
+Pass	Property backface-visibility does not inherit
+Pass	Property perspective has initial value none
+Pass	Property perspective does not inherit
+Fail	Property perspective-origin has initial value 30px 20px
+Pass	Property perspective-origin does not inherit
+Pass	Property rotate has initial value none
+Pass	Property rotate does not inherit
+Pass	Property scale has initial value none
+Pass	Property scale does not inherit
+Pass	Property transform has initial value none
+Pass	Property transform does not inherit
+Pass	Property transform-box has initial value view-box
+Pass	Property transform-box does not inherit
+Pass	Property transform-origin has initial value 30px 20px
+Pass	Property transform-origin does not inherit
+Pass	Property transform-style has initial value flat
+Pass	Property transform-style does not inherit
+Pass	Property translate has initial value none
+Pass	Property translate does not inherit

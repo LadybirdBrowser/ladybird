@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Transform Module Level 2: calc values</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/">
+<link rel="help" href="https://drafts.csswg.org/css-values-3/#calc-notation">
+<meta name="assert" content="calc values are supported in css-transforms properties.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #container {
+    width: 600px;
+    height: 500px;
+    transform-style: preserve-3d;
+  }
+  #target {
+    width: 300px;
+    height: 200px;
+    font-size: 20px;
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+'use strict';
+
+test(function(){
+  target.style = 'translate: calc(30px + 20%) calc(-200px + 100%);';
+  assert_equals(getComputedStyle(target).translate, 'calc(20% + 30px) calc(100% - 200px)');
+}, 'translate supports calc');
+
+test(function(){
+  target.style = 'rotate: calc(1turn - 100grad);';
+  assert_equals(getComputedStyle(target).rotate, '270deg');
+}, 'rotate supports calc');
+
+test(function(){
+  target.style = 'scale: calc(5 + 2) calc(5 - 2) calc(5 * 2);';
+  assert_equals(getComputedStyle(target).scale, '7 3 10');
+}, 'scale supports calc');
+
+test(function(){
+  target.style = 'perspective: calc(100px - 3em);';
+  assert_equals(getComputedStyle(target).perspective, '40px');
+}, 'perspective supports calc');
+
+test(function(){
+  target.style = 'perspective-origin: calc(30px + 20%) calc(-200px + 100%);';
+  assert_equals(getComputedStyle(target).perspectiveOrigin, '90px 0px');
+}, 'perspective-origin supports calc');
+
+test(function(){
+  target.style = 'transform: translate(calc(30px + 20%), calc(-200px + 100%)) rotate(calc(1turn - 400grad)) scale(calc(5 + 2), calc(5 - 2));';
+  assert_equals(getComputedStyle(target).transform, 'matrix(7, 0, 0, 3, 90, 0)');
+}, 'transform supports calc');
+
+test(function(){
+  target.style = 'transform-origin: calc(30px + 20%) calc(-200px + 100%);';
+  assert_equals(getComputedStyle(target).transformOrigin, '90px 0px');
+}, 'transform-origin supports calc');
+
+</script>
+</body>
+</html>

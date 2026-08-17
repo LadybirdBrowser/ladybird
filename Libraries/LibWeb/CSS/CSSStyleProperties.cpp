@@ -338,6 +338,27 @@ static NonnullRefPtr<StyleValue const> style_value_for_length_percentage_or_auto
     return length_percentage.calculated();
 }
 
+static NonnullRefPtr<StyleValue const> style_value_for_transform_origin(TransformOrigin const& transform_origin, Optional<CSSPixelRect> const& reference_box)
+{
+    auto offset_in_px = [](LengthPercentage const& offset, CSSPixels reference_length) {
+        if (offset.is_percentage())
+            return reference_length.to_double() * offset.percentage().as_fraction();
+        return offset.resolved(reference_length).absolute_length_to_px_without_rounding();
+    };
+
+    StyleValueVector offsets;
+    if (reference_box.has_value()) {
+        offsets.append(LengthStyleValue::create(Length::make_px(offset_in_px(transform_origin.x, reference_box->width()))));
+        offsets.append(LengthStyleValue::create(Length::make_px(offset_in_px(transform_origin.y, reference_box->height()))));
+    } else {
+        offsets.append(style_value_for_length_percentage(transform_origin.x));
+        offsets.append(style_value_for_length_percentage(transform_origin.y));
+    }
+    if (auto z_offset = offset_in_px(transform_origin.z, 0); z_offset != 0)
+        offsets.append(LengthStyleValue::create(Length::make_px(z_offset)));
+    return StyleValueList::create(move(offsets), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
+}
+
 static NonnullRefPtr<StyleValue const> style_value_for_size(Size const& size)
 {
     if (size.is_none())
@@ -855,6 +876,8 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
                     return resolve_filter_style_value(move(computed_value), computed_values->color());
                 case PropertyID::TouchAction:
                     return style_value_for_touch_action(computed_values->touch_action());
+                case PropertyID::TransformOrigin:
+                    return style_value_for_transform_origin(computed_values->transform_origin(), {});
                 default:
                     return computed_value;
                 }
@@ -1347,6 +1370,16 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
             };
             return TransformationStyleValue::create(PropertyID::Transform, TransformFunction::Matrix3d, move(parameters));
         }
+    }
+    case PropertyID::TransformOrigin: {
+        // https://drafts.csswg.org/css-transforms/#transform-origin-property
+        // The transform-origin property is a resolved value special case property like height. [CSSOM]
+        Optional<CSSPixelRect> reference_box;
+        if (auto display = layout_node.display(); !display.is_none() && !display.is_contents()) {
+            if (auto paintable = layout_node.paintable())
+                reference_box = paintable->transform_reference_box();
+        }
+        return style_value_for_transform_origin(layout_node.transform_origin(), reference_box);
     }
     case PropertyID::AnimationDuration: {
         // https://drafts.csswg.org/css-animations-2/#animation-duration

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>transform-origin interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms/#transform-origin-property">
+<meta name="assert" content="transform supports animation by computed value">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  transform-origin: 30px 10px;
+}
+.target {
+  display: inline-block;
+  margin-top: 50px;
+  margin-bottom: 25px;
+  width: 50px;
+  height: 50px;
+  background: red;
+  transform: scale(1.5);
+  transform-origin: 10px 30px;
+}
+.expected {
+  background: green;
+  position: relative;
+  left: -50px;
+}
+</style>
+
+<body></body>
+
+<script>
+test_interpolation({
+  property: 'transform-origin',
+  from: neutralKeyframe,
+  to: '20px 20px',
+}, [
+  {at: -0.3, expect: '7px 33px'},
+  {at: 0, expect: '10px 30px'},
+  {at: 0.3, expect: '13px 27px'},
+  {at: 0.6, expect: '16px 24px'},
+  {at: 1, expect: '20px 20px'},
+  {at: 1.5, expect: '25px 15px'},
+]);
+
+test_interpolation({
+  property: 'transform-origin',
+  from: 'initial',
+  to: '20px 20px',
+}, [
+  {at: -0.3, expect: '26.5px 26.5px'},
+  {at: 0, expect: '25px 25px'},
+  {at: 0.3, expect: '23.5px 23.5px'},
+  {at: 0.6, expect: '22px 22px'},
+  {at: 1, expect: '20px 20px'},
+  {at: 1.5, expect: '17.5px 17.5px'},
+]);
+
+test_interpolation({
+  property: 'transform-origin',
+  from: 'inherit',
+  to: '20px 20px',
+}, [
+  {at: -0.3, expect: '33px 7px'},
+  {at: 0, expect: '30px 10px'},
+  {at: 0.3, expect: '27px 13px'},
+  {at: 0.6, expect: '24px 16px'},
+  {at: 1, expect: '20px 20px'},
+  {at: 1.5, expect: '15px 25px'},
+]);
+
+test_interpolation({
+  property: 'transform-origin',
+  from: 'unset',
+  to: '20px 20px',
+}, [
+  {at: -0.3, expect: '26.5px 26.5px'},
+  {at: 0, expect: '25px 25px'},
+  {at: 0.3, expect: '23.5px 23.5px'},
+  {at: 0.6, expect: '22px 22px'},
+  {at: 1, expect: '20px 20px'},
+  {at: 1.5, expect: '17.5px 17.5px'},
+]);
+
+test_interpolation({
+  property: 'transform-origin',
+  from: 'top left',
+  to: 'bottom right',
+}, [
+  {at: -0.3, expect: '-15px -15px'},
+  {at: 0, expect: '0px 0px'},
+  {at: 0.3, expect: '15px 15px'},
+  {at: 0.6, expect: '30px 30px'},
+  {at: 1, expect: '50px 50px'},
+  {at: 1.5, expect: '75px 75px'},
+]);
+
+test_interpolation({
+  property: 'transform-origin',
+  from: 'center center',
+  to: '0% 100px',
+}, [
+  {at: -0.3, expect: '32.5px 2.5px'},
+  {at: 0, expect: '25px 25px'},
+  {at: 0.3, expect: '17.5px 47.5px'},
+  {at: 0.6, expect: '10px 70px'},
+  {at: 1, expect: '0px 100px'},
+  {at: 1.5, expect: '-12.5px 137.5px'},
+]);
+
+test_interpolation({
+  property: 'transform-origin',
+  from: '0% 50% 5px',
+  to: '100% 150% 0px'
+}, [
+  {at: -0.3, expect: '-30% 20% 6.5px'},
+  {at: 0, expect: '0% 50% 5px'},
+  {at: 0.3, expect: '30% 80% 3.5px'},
+  {at: 0.6, expect: '60% 110% 2px'},
+  {at: 1, expect: '100% 150% 0px'},
+  {at: 1.5, expect: '150% 200% -2.5px'},
+]);
+</script>
