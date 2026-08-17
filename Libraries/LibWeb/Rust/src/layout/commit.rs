@@ -103,6 +103,7 @@ pub struct FfiCommitSink {
     pub set_flex_layout_data: unsafe extern "C" fn(*mut c_void, *mut c_void, *const FfiFlexLayoutData),
     pub set_used_grid_tracks:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *const FfiUsedGridTrackList, *const FfiUsedGridTrackList),
+    pub set_collapsed_table_borders: unsafe extern "C" fn(*mut c_void, *mut c_void, *const FfiCollapsedTableBorders),
     pub finish_node:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, *mut c_void, *mut c_void) -> FfiCommitNodeResult,
     pub assign_inline_box_geometry: unsafe extern "C" fn(*mut c_void, *mut c_void),
@@ -276,6 +277,11 @@ fn commit_subtree(
         if !reuses_committed_subtree && let Some(tracks) = &fragment.used_grid_tracks {
             tracks.with_ffi_views(|columns, rows| {
                 unsafe { (sink.set_used_grid_tracks)(sink.context, paintable, columns, rows) };
+            });
+        }
+        if !reuses_committed_subtree && let Some(borders) = &fragment.collapsed_table_borders {
+            borders.with_ffi_view(|view| {
+                unsafe { (sink.set_collapsed_table_borders)(sink.context, paintable, view) };
             });
         }
     }

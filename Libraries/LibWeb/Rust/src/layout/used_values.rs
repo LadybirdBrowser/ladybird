@@ -130,6 +130,7 @@ pub(crate) struct UsedValuesRareData {
     pub(crate) flex_layout_data: Option<std::rc::Rc<OwnedFlexLayoutData>>,
     pub(crate) used_grid_tracks: Option<std::rc::Rc<OwnedUsedGridTracks>>,
     pub(crate) override_borders_data: Option<FfiBordersData>,
+    pub(crate) collapsed_table_borders: Option<std::rc::Rc<OwnedCollapsedTableBorders>>,
     pub(crate) abspos_layout_inputs: Option<AbsposLayoutInputs>,
 }
 
@@ -144,6 +145,7 @@ impl UsedValuesRareData {
             flex_layout_data,
             used_grid_tracks,
             override_borders_data,
+            collapsed_table_borders,
             abspos_layout_inputs,
         } = self;
         debug_assert!(
@@ -156,6 +158,7 @@ impl UsedValuesRareData {
             && grid_layout_data.is_none()
             && flex_layout_data.is_none()
             && used_grid_tracks.is_none()
+            && collapsed_table_borders.is_none()
         {
             return;
         }
@@ -177,6 +180,9 @@ impl UsedValuesRareData {
         }
         if let Some(tracks) = used_grid_tracks {
             rare.used_grid_tracks = Some(tracks);
+        }
+        if let Some(borders) = collapsed_table_borders {
+            rare.collapsed_table_borders = Some(borders);
         }
     }
 }
