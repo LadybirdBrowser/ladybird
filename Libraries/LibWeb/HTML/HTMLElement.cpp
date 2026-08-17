@@ -2245,7 +2245,9 @@ void HTMLElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor
 
     // 5. If removedNode's popover attribute is not in the No Popover state, then run the hide popover algorithm given
     //    removedNode, false, false, false, true, and null.
-    if (popover().has_value())
+    // OPTIMIZATION: The hide popover algorithm immediately returns for a hidden popover, so avoid parsing the
+    //               attribute unless removal can actually hide it.
+    if (popover_visibility_state() == PopoverVisibilityState::Showing)
         MUST(hide_popover(FocusPreviousElement::No, FireEvents::No, ThrowExceptions::No, IgnoreDomState::Yes, nullptr));
 
     // AD-HOC: Update inertness
