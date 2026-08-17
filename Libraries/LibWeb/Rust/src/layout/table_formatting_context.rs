@@ -109,16 +109,23 @@ pub(crate) struct ElementBorders {
 // first. A candidate border only replaces the current winner of a segment when it is strictly more
 // specific (steps 1-3 of the border conflict resolution algorithm), so ties resolve towards the
 // earlier-applied part, which implements step 4 without tracking element kinds or coordinates.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct CollapsedBorderSegment {
+    pub(crate) border_data: FfiBorderData,
+    pub(crate) element_kind: u8,
+    pub(crate) source_order: u32,
+}
+
 pub(crate) struct CollapsedBorderGrid {
-    horizontal_lines: Vec<Vec<FfiBorderDataWithElementKind>>,
-    vertical_lines: Vec<Vec<FfiBorderDataWithElementKind>>,
+    horizontal_lines: Vec<Vec<CollapsedBorderSegment>>,
+    vertical_lines: Vec<Vec<CollapsedBorderSegment>>,
 }
 
 impl CollapsedBorderGrid {
     pub(crate) fn new(row_count: usize, column_count: usize) -> Self {
         Self {
-            horizontal_lines: vec![vec![FfiBorderDataWithElementKind::default(); column_count]; row_count + 1],
-            vertical_lines: vec![vec![FfiBorderDataWithElementKind::default(); row_count]; column_count + 1],
+            horizontal_lines: vec![vec![CollapsedBorderSegment::default(); column_count]; row_count + 1],
+            vertical_lines: vec![vec![CollapsedBorderSegment::default(); row_count]; column_count + 1],
         }
     }
 
@@ -130,6 +137,7 @@ impl CollapsedBorderGrid {
         column_start: usize,
         column_end: usize,
         element_kind: u8,
+        source_order: u32,
     ) {
         Self::apply_to_segments(
             &mut self.horizontal_lines[row_start],
@@ -137,6 +145,7 @@ impl CollapsedBorderGrid {
             column_end,
             borders.top,
             element_kind,
+            source_order,
         );
         Self::apply_to_segments(
             &mut self.horizontal_lines[row_end],
@@ -144,6 +153,7 @@ impl CollapsedBorderGrid {
             column_end,
             borders.bottom,
             element_kind,
+            source_order,
         );
         Self::apply_to_segments(
             &mut self.vertical_lines[column_start],
@@ -151,6 +161,7 @@ impl CollapsedBorderGrid {
             row_end,
             borders.left,
             element_kind,
+            source_order,
         );
         Self::apply_to_segments(
             &mut self.vertical_lines[column_end],
@@ -158,6 +169,7 @@ impl CollapsedBorderGrid {
             row_end,
             borders.right,
             element_kind,
+            source_order,
         );
     }
 
@@ -167,16 +179,18 @@ impl CollapsedBorderGrid {
         row_end: usize,
         column_start: usize,
         column_end: usize,
+        source_order: u32,
     ) {
         // Segments strictly inside a spanning cell are not borders of any element; mark them as hidden
         // so that borders of rows and columns crossing the span cannot win there.
-        let hidden = FfiBorderDataWithElementKind {
+        let hidden = CollapsedBorderSegment {
             border_data: FfiBorderData {
                 color: 0,
                 line_style: LINE_STYLE_HIDDEN,
                 width: CssPixels::default(),
             },
             element_kind: ELEMENT_CELL,
+            source_order,
         };
         for row in row_start + 1..row_end {
             for column in column_start..column_end {
@@ -198,7 +212,7 @@ impl CollapsedBorderGrid {
         column_end: usize,
         own: ElementBorders,
     ) -> FfiBordersData {
-        let harvest = |winner: FfiBorderDataWithElementKind, own_border: FfiBorderData| {
+        let harvest = |winner: CollapsedBorderSegment, own_border: FfiBorderData| {
             // A winner whose style is 'none' means every border meeting at this edge is 'none'; fall
             // back to the cell's own (invisible) border so the stored winner matches the cell.
             if winner.border_data.line_style == LINE_STYLE_NONE {
@@ -207,7 +221,10 @@ impl CollapsedBorderGrid {
                     element_kind: ELEMENT_CELL,
                 }
             } else {
-                winner
+                FfiBorderDataWithElementKind {
+                    border_data: winner.border_data,
+                    element_kind: winner.element_kind,
+                }
             }
         };
         FfiBordersData {
@@ -231,26 +248,28 @@ impl CollapsedBorderGrid {
     }
 
     fn apply_to_segments(
-        line: &mut [FfiBorderDataWithElementKind],
+        line: &mut [CollapsedBorderSegment],
         start: usize,
         end: usize,
         data: FfiBorderData,
         element_kind: u8,
+        source_order: u32,
     ) {
         if data.line_style == LINE_STYLE_NONE {
             return;
         }
         for segment in &mut line[start..end] {
             if candidate_wins(data, segment.border_data) {
-                *segment = FfiBorderDataWithElementKind {
+                *segment = CollapsedBorderSegment {
                     border_data: data,
                     element_kind,
+                    source_order,
                 };
             }
         }
     }
 
-    fn most_specific(line: &[FfiBorderDataWithElementKind], start: usize, end: usize) -> FfiBorderDataWithElementKind {
+    fn most_specific(line: &[CollapsedBorderSegment], start: usize, end: usize) -> CollapsedBorderSegment {
         let mut winner = line[start];
         for segment in &line[start + 1..end] {
             if candidate_wins(segment.border_data, winner.border_data) {
@@ -993,17 +1012,25 @@ impl TableFormattingContext {
         let row_count = self.rows.len();
         let column_count = self.columns.len();
         let mut grid = CollapsedBorderGrid::new(row_count, column_count);
+        let mut next_source_order = 0u32;
+        let mut take_source_order = move || {
+            let source_order = next_source_order;
+            next_source_order += 1;
+            source_order
+        };
         // Cells, column by column so that on ties the cell further to the left, then further to the
         // top, wins. TableCell spans are already clipped to the table end by TableGrid.
         let mut cells = self.cells.clone();
         cells.sort_by_key(|cell| (cell.column_index, cell.row_index));
         for cell in cells {
+            let source_order = take_source_order();
             if cell.row_span > 1 || cell.column_span > 1 {
                 grid.hide_segments_inside_span(
                     cell.row_index,
                     cell.row_index + cell.row_span,
                     cell.column_index,
                     cell.column_index + cell.column_span,
+                    source_order,
                 );
             }
             let borders = self.element_borders(cell.box_);
@@ -1014,12 +1041,13 @@ impl TableFormattingContext {
                 cell.column_index,
                 cell.column_index + cell.column_span,
                 ELEMENT_CELL,
+                source_order,
             );
         }
         for row_index in 0..row_count {
             let row_box = self.rows[row_index].box_;
             let borders = self.element_borders(row_box);
-            grid.apply_borders(borders, row_index, row_index + 1, 0, column_count, ELEMENT_ROW);
+            grid.apply_borders(borders, row_index, row_index + 1, 0, column_count, ELEMENT_ROW, take_source_order());
         }
         // Row groups, in the order their rows appear in the grid. Rows of a group are contiguous in
         // m_rows, since TableGrid collects them in tree order.
@@ -1040,7 +1068,7 @@ impl TableFormattingContext {
                 row_index += 1;
             }
             let borders = self.element_borders(group);
-            grid.apply_borders(borders, start, row_index, 0, column_count, ELEMENT_ROW_GROUP);
+            grid.apply_borders(borders, start, row_index, 0, column_count, ELEMENT_ROW_GROUP, take_source_order());
         }
 
         // Column (<col>) elements.
@@ -1052,8 +1080,9 @@ impl TableFormattingContext {
                 let span = self.table_column_span(column);
                 let end = (column_index + span).min(column_count);
                 let borders = self.element_borders(column);
+                let source_order = take_source_order();
                 while column_index < end {
-                    grid.apply_borders(borders, 0, row_count, column_index, column_index + 1, ELEMENT_COLUMN);
+                    grid.apply_borders(borders, 0, row_count, column_index, column_index + 1, ELEMENT_COLUMN, source_order);
                     column_index += 1;
                 }
             }
@@ -1062,11 +1091,11 @@ impl TableFormattingContext {
         for (column_group, group_start, group_end) in column_group_ranges {
             if group_start < group_end {
                 let borders = self.element_borders(column_group);
-                grid.apply_borders(borders, 0, row_count, group_start, group_end, ELEMENT_COLUMN_GROUP);
+                grid.apply_borders(borders, 0, row_count, group_start, group_end, ELEMENT_COLUMN_GROUP, take_source_order());
             }
         }
         let table_borders = self.element_borders(self.table_box);
-        grid.apply_borders(table_borders, 0, row_count, 0, column_count, ELEMENT_TABLE);
+        grid.apply_borders(table_borders, 0, row_count, 0, column_count, ELEMENT_TABLE, take_source_order());
 
         for cell_index in 0..self.cells.len() {
             let cell = self.cells[cell_index];
