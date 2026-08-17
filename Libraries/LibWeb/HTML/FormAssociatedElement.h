@@ -42,8 +42,8 @@ public:
 
     virtual bool is_form_associated_element() const;
 
-    HTMLFormElement* form() { return m_form; }
-    HTMLFormElement const* form() const { return m_form; }
+    HTMLFormElement* form();
+    HTMLFormElement const* form() const;
 
     void set_form(HTMLFormElement*);
 
@@ -152,7 +152,7 @@ public:
     FACESubmissionValue const& face_state() const;
     void set_face_state(Badge<ElementInternals>, FACESubmissionValue const& value);
 
-    void set_custom_validity_error_message(Badge<ElementInternals>, Utf16View value) { m_custom_validity_error_message = Utf16String::from_utf16(value); }
+    void set_custom_validity_error_message(Badge<ElementInternals>, Utf16View value);
 
 protected:
     FormAssociatedElement() = default;
@@ -168,9 +168,6 @@ protected:
     void form_node_was_moved();
     void form_node_attribute_changed(Utf16FlyString const&, Optional<Utf16String> const&);
 
-    void visit_edges(JS::Cell::Visitor&);
-
-private:
     struct FACERareData {
         ValidityStateFlags validity_flags {};
 
@@ -196,19 +193,28 @@ private:
         bool disabled_state { false };
     };
 
+    struct RareData {
+        void visit_edges(JS::Cell::Visitor&);
+
+        GC::Weak<HTMLFormElement> form;
+
+        // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#parser-inserted-flag
+        bool parser_inserted { false };
+
+        // State used only by form-associated custom elements.
+        OwnPtr<FACERareData> face_rare_data;
+
+        // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#custom-validity-error-message
+        Utf16String custom_validity_error_message;
+    };
+
+    virtual RareData* form_associated_rare_data() = 0;
+    virtual RareData const* form_associated_rare_data() const = 0;
+    virtual RareData& ensure_form_associated_rare_data() = 0;
+
+private:
     FACERareData const& face_rare_data() const;
     FACERareData& ensure_face_rare_data();
-
-    GC::Weak<HTMLFormElement> m_form;
-
-    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#parser-inserted-flag
-    bool m_parser_inserted { false };
-
-    // State used only by form-associated custom elements.
-    OwnPtr<FACERareData> m_face_rare_data;
-
-    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#custom-validity-error-message
-    Utf16String m_custom_validity_error_message;
 };
 
 enum class SelectionSource {

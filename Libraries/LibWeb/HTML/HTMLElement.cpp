@@ -63,7 +63,9 @@
 
 namespace Web::HTML {
 
-struct HTMLElement::RareData final : DOM::Element::RareData {
+struct HTMLElement::RareData final
+    : DOM::Element::RareData
+    , FormAssociatedElement::RareData {
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<DOM::NodeList> labels;
@@ -86,6 +88,7 @@ struct HTMLElement::RareData final : DOM::Element::RareData {
 void HTMLElement::RareData::visit_edges(Cell::Visitor& visitor)
 {
     DOM::Element::RareData::visit_edges(visitor);
+    FormAssociatedElement::RareData::visit_edges(visitor);
     visitor.visit(labels);
     visitor.visit(attached_internals);
     visitor.visit(popover_trigger);
@@ -110,6 +113,21 @@ HTMLElement::RareData* HTMLElement::html_element_rare_data()
 HTMLElement::RareData const* HTMLElement::html_element_rare_data() const
 {
     return static_cast<RareData const*>(rare_data());
+}
+
+FormAssociatedElement::RareData* HTMLElement::form_associated_rare_data()
+{
+    return html_element_rare_data();
+}
+
+FormAssociatedElement::RareData const* HTMLElement::form_associated_rare_data() const
+{
+    return html_element_rare_data();
+}
+
+FormAssociatedElement::RareData& HTMLElement::ensure_form_associated_rare_data()
+{
+    return ensure_html_element_rare_data();
 }
 
 Optional<Utf16FlyString> HTMLElement::opened_in_popover_mode() const
@@ -149,7 +167,6 @@ void HTMLElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     HTMLOrSVGOrMathMLElement::visit_edges(visitor);
-    FormAssociatedElement::visit_edges(visitor);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-translate
