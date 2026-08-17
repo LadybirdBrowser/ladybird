@@ -185,6 +185,7 @@ private:
     static size_t on_data_received(void* buffer, size_t size, size_t nmemb, void* user_data);
 
     ErrorOr<void> detach_curl_handle_from_multi();
+    ErrorOr<void> free_curl_structs();
     ErrorOr<void> inform_client_request_started();
     ErrorOr<void> send_request_pipe_to_client();
     ErrorOr<void> send_transferred_body_file_to_client();
@@ -243,6 +244,7 @@ private:
     size_t m_bytes_transferred_to_client { 0 };
 
     Optional<Requests::NetworkError> m_network_error;
+    bool m_content_decoding_disabled { false };
 
     Optional<u32> m_address_selection_hint;
 
