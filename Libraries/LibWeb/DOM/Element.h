@@ -815,6 +815,12 @@ private:
 
     struct RareData;
     virtual OwnPtr<Node::RareData> create_rare_data() const override;
+    virtual SlottableMixin::RareData* slottable_rare_data() override;
+    virtual SlottableMixin::RareData const* slottable_rare_data() const override;
+    virtual SlottableMixin::RareData& ensure_slottable_rare_data() override;
+    virtual ARIA::ARIAMixin::RareData* aria_rare_data() override;
+    virtual ARIA::ARIAMixin::RareData const* aria_rare_data() const override;
+    virtual ARIA::ARIAMixin::RareData& ensure_aria_rare_data() override;
     RareData& ensure_element_rare_data() const;
     RareData* element_rare_data();
     RareData const* element_rare_data() const;

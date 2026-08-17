@@ -155,7 +155,10 @@
 
 namespace Web::DOM {
 
-struct Element::RareData final : Node::RareData {
+struct Element::RareData final
+    : Node::RareData
+    , SlottableMixin::RareData
+    , ARIA::ARIAMixin::RareData {
     virtual void visit_edges(Cell::Visitor&) override;
 
     mutable Optional<Utf16FlyString> html_uppercased_qualified_name;
@@ -195,6 +198,7 @@ struct Element::RareData final : Node::RareData {
 void Element::RareData::visit_edges(Cell::Visitor& visitor)
 {
     Node::RareData::visit_edges(visitor);
+    SlottableMixin::RareData::visit_edges(visitor);
     visitor.visit(class_list);
     visitor.visit(part_list);
     if (custom_element_reaction_queue) {
@@ -241,6 +245,36 @@ void Element::RareData::visit_edges(Cell::Visitor& visitor)
 OwnPtr<Node::RareData> Element::create_rare_data() const
 {
     return make<RareData>();
+}
+
+SlottableMixin::RareData* Element::slottable_rare_data()
+{
+    return element_rare_data();
+}
+
+SlottableMixin::RareData const* Element::slottable_rare_data() const
+{
+    return element_rare_data();
+}
+
+SlottableMixin::RareData& Element::ensure_slottable_rare_data()
+{
+    return ensure_element_rare_data();
+}
+
+ARIA::ARIAMixin::RareData* Element::aria_rare_data()
+{
+    return element_rare_data();
+}
+
+ARIA::ARIAMixin::RareData const* Element::aria_rare_data() const
+{
+    return element_rare_data();
+}
+
+ARIA::ARIAMixin::RareData& Element::ensure_aria_rare_data()
+{
+    return ensure_element_rare_data();
 }
 
 Element::RareData& Element::ensure_element_rare_data() const
@@ -310,9 +344,7 @@ Element::~Element() = default;
 void Element::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    SlottableMixin::visit_edges(visitor);
     Animatable::visit_edges(visitor);
-    ARIAMixin::visit_edges(visitor);
 
     visitor.visit(m_attributes);
     visitor.visit(m_inline_style);

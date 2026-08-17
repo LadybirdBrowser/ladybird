@@ -78,22 +78,24 @@ public:
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 
 protected:
+    struct RareData {
+#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute) \
+    GC::Weak<DOM::Element> attribute;
+        ENUMERATE_ARIA_ELEMENT_REFERENCING_ATTRIBUTES
+#undef __ENUMERATE_ARIA_ATTRIBUTE
+
+#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute) \
+    OwnPtr<Vector<GC::Weak<DOM::Element>>> attribute;
+        ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
+#undef __ENUMERATE_ARIA_ATTRIBUTE
+    };
+
     ARIAMixin();
 
-    void visit_edges(GC::Cell::Visitor&);
-
     virtual bool id_reference_exists(Utf16View) const = 0;
-
-private:
-#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute) \
-    GC::Weak<DOM::Element> m_##attribute;
-    ENUMERATE_ARIA_ELEMENT_REFERENCING_ATTRIBUTES
-#undef __ENUMERATE_ARIA_ATTRIBUTE
-
-#define __ENUMERATE_ARIA_ATTRIBUTE(attribute, referencing_attribute) \
-    OwnPtr<Vector<GC::Weak<DOM::Element>>> m_##attribute;
-    ENUMERATE_ARIA_ELEMENT_LIST_REFERENCING_ATTRIBUTES
-#undef __ENUMERATE_ARIA_ATTRIBUTE
+    virtual RareData* aria_rare_data() = 0;
+    virtual RareData const* aria_rare_data() const = 0;
+    virtual RareData& ensure_aria_rare_data() = 0;
 };
 
 }
