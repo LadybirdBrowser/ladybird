@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/table-collapsed-borders-span-interior-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+    table {
+        margin: 20px;
+        border-collapse: collapse;
+        table-layout: fixed;
+        width: 300px;
+    }
+    td {
+        height: 40px;
+        padding: 0;
+        border: 2px solid silver;
+    }
+    tr:first-child {
+        border-bottom: 4px solid purple;
+    }
+</style>
+<table>
+    <tr><td></td><td rowspan="2"></td><td></td></tr>
+    <tr><td></td><td></td></tr>
+    <tr><td></td><td></td><td></td></tr>
+</table>
