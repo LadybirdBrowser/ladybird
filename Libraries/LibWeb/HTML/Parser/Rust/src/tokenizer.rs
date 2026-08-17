@@ -584,6 +584,67 @@ impl HtmlTokenizer {
         Some((cp, pos))
     }
 
+    /// Append a run of ordinary ASCII characters from the Data state to
+    /// `output`. The caller can process the run as character tokens without
+    /// constructing and dispatching a `Token` for each code point.
+    #[inline(always)]
+    pub fn try_fast_data_run(&mut self, output: &mut String) -> Option<bool> {
+        if !self.has_fast_data_run() {
+            return None;
+        }
+
+        let start_offset = self.current_offset;
+        let input_len = self.fast_scan_limit();
+        let mut offset = start_offset;
+        let mut contains_non_whitespace = false;
+        while offset < input_len {
+            let code_point = self.input[offset];
+            if code_point == 0x3C
+                || code_point == 0x26
+                || code_point == 0x00
+                || code_point == 0x0D
+                || code_point >= 0x80
+            {
+                break;
+            }
+            if !is_whitespace(code_point) {
+                contains_non_whitespace = true;
+            }
+            offset += 1;
+        }
+        if offset == start_offset {
+            self.sync_source_positions();
+            return None;
+        }
+
+        output.reserve(offset - start_offset);
+        for &code_point in &self.input[start_offset..offset] {
+            // SAFETY: The scan above only accepts ASCII code points.
+            unsafe { output.as_mut_vec().push(code_point as u8) };
+            if code_point == 0x0A {
+                self.current_line += 1;
+                self.current_column = 0;
+            } else {
+                self.current_column += 1;
+            }
+        }
+        self.prev_offset = offset - 1;
+        self.current_offset = offset;
+        Some(contains_non_whitespace)
+    }
+
+    #[inline(always)]
+    pub fn has_fast_data_run(&self) -> bool {
+        if self.aborted || self.state != State::Data || !self.queued_tokens.is_empty() {
+            return false;
+        }
+        if self.current_offset >= self.fast_scan_limit() {
+            return false;
+        }
+        let code_point = self.input[self.current_offset];
+        code_point != 0x3C && code_point != 0x26 && code_point != 0x00 && code_point != 0x0D && code_point < 0x80
+    }
+
     /// Resynchronise `source_positions` with the scalar current_line /
     /// current_column after a run of fast-path character emissions.
     #[inline(always)]
