@@ -116,6 +116,57 @@ pub(crate) struct CollapsedBorderSegment {
     pub(crate) source_order: u32,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiCollapsedBorderEdge {
+    pub border_data: FfiBorderData,
+    pub source_order: u32,
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiCollapsedTableBorders {
+    pub row_count: usize,
+    pub column_count: usize,
+    pub row_offsets: *const CssPixels,
+    pub column_offsets: *const CssPixels,
+    pub horizontal_edges: *const FfiCollapsedBorderEdge,
+    pub vertical_edges: *const FfiCollapsedBorderEdge,
+}
+
+#[derive(PartialEq, Eq)]
+pub(crate) struct OwnedCollapsedTableBorders {
+    pub(crate) row_offsets: Vec<CssPixels>,
+    pub(crate) column_offsets: Vec<CssPixels>,
+    pub(crate) horizontal_edges: Vec<FfiCollapsedBorderEdge>,
+    pub(crate) vertical_edges: Vec<FfiCollapsedBorderEdge>,
+}
+
+impl OwnedCollapsedTableBorders {
+    pub(crate) fn with_ffi_view(&self, callback: impl FnOnce(&FfiCollapsedTableBorders)) {
+        let view = FfiCollapsedTableBorders {
+            row_count: self.row_offsets.len() - 1,
+            column_count: self.column_offsets.len() - 1,
+            row_offsets: self.row_offsets.as_ptr(),
+            column_offsets: self.column_offsets.as_ptr(),
+            horizontal_edges: self.horizontal_edges.as_ptr(),
+            vertical_edges: self.vertical_edges.as_ptr(),
+        };
+        callback(&view);
+    }
+}
+
+fn grid_line_offsets(sizes: impl ExactSizeIterator<Item = CssPixels>) -> Vec<CssPixels> {
+    let mut offsets = Vec::with_capacity(sizes.len() + 1);
+    let mut offset = CssPixels::default();
+    offsets.push(offset);
+    for size in sizes {
+        offset += size;
+        offsets.push(offset);
+    }
+    offsets
+}
+
 pub(crate) struct CollapsedBorderGrid {
     horizontal_lines: Vec<Vec<CollapsedBorderSegment>>,
     vertical_lines: Vec<Vec<CollapsedBorderSegment>>,
@@ -267,6 +318,26 @@ impl CollapsedBorderGrid {
                 };
             }
         }
+    }
+
+    pub(crate) fn has_paintable_edges(&self) -> bool {
+        let paints = |segment: &CollapsedBorderSegment| {
+            segment.border_data.width > CssPixels::default()
+                && segment.border_data.line_style != LINE_STYLE_NONE
+                && segment.border_data.line_style != LINE_STYLE_HIDDEN
+        };
+        self.horizontal_lines.iter().flatten().any(paints) || self.vertical_lines.iter().flatten().any(paints)
+    }
+
+    pub(crate) fn take_edges(self) -> (Vec<FfiCollapsedBorderEdge>, Vec<FfiCollapsedBorderEdge>) {
+        let to_edge = |segment: &CollapsedBorderSegment| FfiCollapsedBorderEdge {
+            border_data: segment.border_data,
+            source_order: segment.source_order,
+        };
+        (
+            self.horizontal_lines.iter().flatten().map(to_edge).collect(),
+            self.vertical_lines.iter().flatten().map(to_edge).collect(),
+        )
     }
 
     fn most_specific(line: &[CollapsedBorderSegment], start: usize, end: usize) -> CollapsedBorderSegment {
@@ -823,6 +894,7 @@ struct TableFormattingContext {
     deferred_cell_inside_layouts: Vec<bool>,
     columns: Vec<Column>,
     rows: Vec<Row>,
+    collapsed_border_grid: Option<CollapsedBorderGrid>,
     derived_baselines_of_root_box: Cell<DerivedBaselines>,
 }
 
@@ -889,6 +961,7 @@ impl TableFormattingContext {
             deferred_cell_inside_layouts: Vec::new(),
             columns: Vec::new(),
             rows: Vec::new(),
+            collapsed_border_grid: None,
             derived_baselines_of_root_box: Cell::new(DerivedBaselines::default()),
         }
     }
@@ -1114,6 +1187,33 @@ impl TableFormattingContext {
                 .rare_data_mut()
                 .override_borders_data = Some(resolved);
         }
+        self.collapsed_border_grid = Some(grid);
+    }
+
+    fn materialize_collapsed_table_borders(&mut self) {
+        let Some(grid) = self.collapsed_border_grid.take() else {
+            return;
+        };
+        if self.purpose.is_measurement() {
+            return;
+        }
+        if !grid.has_paintable_edges() {
+            return;
+        }
+        let column_offsets = grid_line_offsets(self.columns.iter().map(|column| column.used_inline_size));
+        let row_offsets = grid_line_offsets(
+            self.rows
+                .iter()
+                .map(|row| if row.is_collapsed { CssPixels::default() } else { row.final_block_size }),
+        );
+        let (horizontal_edges, vertical_edges) = grid.take_edges();
+        self.used_values(self.table_box).rare_data_mut().collapsed_table_borders =
+            Some(std::rc::Rc::new(OwnedCollapsedTableBorders {
+                row_offsets,
+                column_offsets,
+                horizontal_edges,
+                vertical_edges,
+            }));
     }
 
     fn seed_table_participant_used_values(&mut self) {
@@ -2594,6 +2694,7 @@ impl TableFormattingContext {
         self.position_row_boxes();
         self.layout_deferred_cells_inside(run);
         self.position_cell_boxes();
+        self.materialize_collapsed_table_borders();
         table_used.set_content_block_size(self.table_block_size);
         // Derive baselines for the table internals bottom-up (rows, then row groups, then the table box)
         // now that all offsets are final, so the table exports its baseline to outside consumers

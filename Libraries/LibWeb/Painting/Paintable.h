@@ -30,6 +30,7 @@
 #include <LibWeb/Painting/BoxModelMetrics.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/ChromeWidget.h>
+#include <LibWeb/Painting/CollapsedTableBorders.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/HitTestResult.h>
@@ -393,6 +394,9 @@ public:
     void set_uses_collapsing_borders_model(bool value) { m_uses_collapsing_borders_model = value; }
     bool uses_collapsing_borders_model() const { return m_uses_collapsing_borders_model; }
 
+    void set_collapsed_table_borders(OwnPtr<CollapsedTableBorders> collapsed_table_borders) { m_collapsed_table_borders = move(collapsed_table_borders); }
+    CollapsedTableBorders const* collapsed_table_borders() const { return m_collapsed_table_borders.ptr(); }
+
     enum class ShrinkRadiiForBorders {
         Yes,
         No
@@ -589,6 +593,7 @@ private:
 
     Optional<BordersDataWithElementKind> m_override_borders_data;
     Optional<TableCellCoordinates> m_table_cell_coordinates;
+    OwnPtr<CollapsedTableBorders> m_collapsed_table_borders;
     Optional<size_t> m_containing_line_box_index;
 
     ResolvedCSSFilter m_filter;
