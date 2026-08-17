@@ -248,7 +248,7 @@ public:
 
     GC::Ref<DOMTokenList> class_list();
     GC::Ref<DOMTokenList> part_list();
-    ReadonlySpan<Utf16FlyString> part_names() const { return m_parts; }
+    ReadonlySpan<Utf16FlyString> part_names() const;
 
     using ShadowRootOptions = Bindings::ShadowRootInit;
 
@@ -326,7 +326,7 @@ public:
 
     void set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason, CSS::LayoutTreeRebuildRoot);
 
-    Optional<CSS::PseudoElement> associated_shadow_host_pseudo_element() const { return m_associated_shadow_host_pseudo_element; }
+    Optional<CSS::PseudoElement> associated_shadow_host_pseudo_element() const;
     void set_associated_shadow_host_pseudo_element(CSS::PseudoElement pseudo_element);
 
     Layout::NodeWithStyle* layout_node();
@@ -360,12 +360,13 @@ public:
     template<typename Callback>
     void for_each_synthetic_pseudo_element(Callback const& callback)
     {
-        if (!m_pseudo_element_data)
+        auto* pseudo_element_data = this->pseudo_element_data();
+        if (!pseudo_element_data)
             return;
 
         for (auto i = to_underlying(CSS::first_synthetic_pseudo_element); i <= to_underlying(CSS::last_synthetic_pseudo_element); ++i) {
             auto type = static_cast<CSS::PseudoElement>(i);
-            auto pseudo_element = m_pseudo_element_data->get(type);
+            auto pseudo_element = pseudo_element_data->get(type);
             if (!pseudo_element.has_value())
                 continue;
 
@@ -383,12 +384,13 @@ public:
     template<typename Callback>
     void for_each_synthetic_pseudo_element(Callback const& callback) const
     {
-        if (!m_pseudo_element_data)
+        auto const* pseudo_element_data = this->pseudo_element_data();
+        if (!pseudo_element_data)
             return;
 
         for (auto i = to_underlying(CSS::first_synthetic_pseudo_element); i <= to_underlying(CSS::last_synthetic_pseudo_element); ++i) {
             auto type = static_cast<CSS::PseudoElement>(i);
-            auto pseudo_element = m_pseudo_element_data->get(type);
+            auto pseudo_element = pseudo_element_data->get(type);
             if (!pseudo_element.has_value())
                 continue;
 
@@ -629,11 +631,11 @@ public:
     void enqueue_a_custom_element_callback_reaction(Utf16FlyString const& callback_name, CustomElementCallbackReactionArguments arguments);
 
     using CustomElementReactionQueue = Vector<Variant<CustomElementUpgradeReaction, CustomElementCallbackReaction, CustomElementConnectedMoveCallbackReaction>>;
-    CustomElementReactionQueue* custom_element_reaction_queue() { return m_custom_element_reaction_queue; }
-    CustomElementReactionQueue const* custom_element_reaction_queue() const { return m_custom_element_reaction_queue; }
+    CustomElementReactionQueue* custom_element_reaction_queue();
+    CustomElementReactionQueue const* custom_element_reaction_queue() const;
     CustomElementReactionQueue& ensure_custom_element_reaction_queue();
 
-    GC::Ptr<HTML::CustomStateSet const> custom_state_set() const { return m_custom_state_set; }
+    GC::Ptr<HTML::CustomStateSet const> custom_state_set() const;
     HTML::CustomStateSet& ensure_custom_state_set();
 
     bool can_upgrade_custom_element() const { return m_custom_element_state == CustomElementState::Undefined || m_custom_element_state == CustomElementState::Uncustomized; }
@@ -642,8 +644,8 @@ public:
     bool is_defined() const;
     bool is_custom() const;
 
-    Optional<Utf16FlyString> const& is_value() const { return m_is_value; }
-    void set_is_value(Optional<Utf16FlyString> const& is) { m_is_value = is; }
+    Optional<Utf16FlyString> const& is_value() const;
+    void set_is_value(Optional<Utf16FlyString> const& is);
 
     void set_custom_element_state(CustomElementState);
     void set_custom_element_definition(GC::Ptr<HTML::CustomElementDefinition> definition) { m_custom_element_definition = definition; }
@@ -706,7 +708,7 @@ public:
     void set_rendered_in_top_layer(bool rendered_in_top_layer) { m_rendered_in_top_layer = rendered_in_top_layer; }
     bool rendered_in_top_layer() const { return m_rendered_in_top_layer; }
 
-    bool has_non_empty_counters_set() const { return m_counters_set; }
+    bool has_non_empty_counters_set() const;
     Optional<CSS::CountersSet const&> counters_set() const;
     CSS::CountersSet& ensure_counters_set();
     void set_counters_set(OwnPtr<CSS::CountersSet>&&);
@@ -809,6 +811,15 @@ protected:
 
 private:
     using PreservedPseudoElementStyles = Array<RefPtr<CSS::ComputedValues const>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount)>;
+    using PseudoElementData = HashMap<CSS::PseudoElement, GC::Ref<PseudoElement>>;
+
+    struct RareData;
+    virtual OwnPtr<Node::RareData> create_rare_data() const override;
+    RareData& ensure_element_rare_data() const;
+    RareData* element_rare_data();
+    RareData const* element_rare_data() const;
+    PseudoElementData* pseudo_element_data();
+    PseudoElementData const* pseudo_element_data() const;
 
     Utf16FlyString make_html_uppercased_qualified_name() const;
 
@@ -828,14 +839,10 @@ private:
     Directionality parent_directionality() const;
 
     QualifiedName m_qualified_name;
-    mutable Optional<Utf16FlyString> m_html_uppercased_qualified_name;
 
     GC::Ptr<NamedNodeMap> m_attributes;
     GC::Ptr<CSS::CSSStyleProperties> m_inline_style;
-    GC::Ptr<CSS::StylePropertyMap> m_attribute_style_map;
-    GC::Ptr<DOMTokenList> m_class_list;
     GC::Ptr<ShadowRoot> m_shadow_root;
-    GC::Ptr<DOMTokenList> m_part_list;
 
     // The authoritative StyleEngine record. C++ compatibility consumers borrow the record-owned
     // computed-values view rather than retaining one complete style per element.
@@ -844,47 +851,22 @@ private:
     OwnPtr<CSS::StyleInputRecord> m_style_input_record;
     PublishedCustomPropertyNames m_published_custom_property_names;
 
-    using PseudoElementData = HashMap<CSS::PseudoElement, GC::Ref<PseudoElement>>;
-    mutable OwnPtr<PseudoElementData> m_pseudo_element_data;
     void register_element_reference_pseudo_element(CSS::PseudoElement type, GC::Ref<Element> element);
     SyntheticPseudoElement& ensure_synthetic_pseudo_element(CSS::PseudoElement) const;
     void clear_synthetic_pseudo_element_layout_nodes();
 
-    Optional<CSS::PseudoElement> m_associated_shadow_host_pseudo_element;
-
     Vector<Utf16FlyString> m_classes;
     CSS::StyleNodeID m_style_node_id;
-    Vector<Utf16FlyString> m_parts;
     Optional<Dir> m_dir;
 
     Optional<Utf16FlyString> m_id;
     Optional<Utf16FlyString> m_name;
-
-    // https://html.spec.whatwg.org/multipage/custom-elements.html#custom-element-reaction-queue
-    // All elements have an associated custom element reaction queue, initially empty. Each item in the custom element reaction queue is of one of two types:
-    // NOTE: See the structs at the top of this header.
-    OwnPtr<CustomElementReactionQueue> m_custom_element_reaction_queue;
 
     // https://dom.spec.whatwg.org/#element-custom-element-registry
     GC::Ptr<HTML::CustomElementRegistry> m_custom_element_registry;
 
     // https://dom.spec.whatwg.org/#concept-element-custom-element-definition
     GC::Ptr<HTML::CustomElementDefinition> m_custom_element_definition;
-
-    // https://dom.spec.whatwg.org/#concept-element-is-value
-    Optional<Utf16FlyString> m_is_value;
-
-    // https://html.spec.whatwg.org/multipage/custom-elements.html#states-set
-    GC::Ptr<HTML::CustomStateSet> m_custom_state_set;
-
-    // https://www.w3.org/TR/intersection-observer/#dom-element-registeredintersectionobservers-slot
-    // Element objects have an internal [[RegisteredIntersectionObservers]] slot, which is initialized to an empty list.
-    OwnPtr<Vector<GC::Ref<IntersectionObserver::IntersectionObserver>>> m_registered_intersection_observers;
-
-    // https://drafts.css-houdini.org/css-typed-om-1/#dom-element-computedstylemapcache-slot
-    // Every Element has a [[computedStyleMapCache]] internal slot, initially set to null, which caches the result of
-    // the computedStyleMap() method when it is first called.
-    GC::Ptr<CSS::StylePropertyMapReadOnly> m_computed_style_map_cache;
 
     CSSPixelPoint m_scroll_offset;
 
@@ -908,8 +890,6 @@ private:
 
     size_t m_sibling_invalidation_distance { 0 };
 
-    OwnPtr<CSS::CountersSet> m_counters_set;
-
     mutable Optional<Utf16String> m_lang_value;
 
     // https://w3c.github.io/webappsec-csp/#is-element-nonceable
@@ -927,9 +907,6 @@ private:
 
     // https://drafts.csswg.org/css-view-transitions-1/#captured-in-a-view-transition
     bool m_captured_in_a_view_transition { false };
-
-    // https://drafts.csswg.org/css-values-5/#random-caching
-    HashMap<CSS::RandomCachingKey, double> m_element_specific_css_random_base_value_cache;
 };
 
 template<>

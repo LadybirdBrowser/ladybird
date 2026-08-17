@@ -464,8 +464,8 @@ public:
 
     size_t length() const;
 
-    auto& registered_observer_list() { return m_registered_observer_list; }
-    auto const& registered_observer_list() const { return m_registered_observer_list; }
+    Vector<GC::Ref<RegisteredObserver>>* registered_observer_list();
+    Vector<GC::Ref<RegisteredObserver>> const* registered_observer_list() const;
 
     void add_registered_observer(RegisteredObserver&);
 
@@ -536,9 +536,28 @@ public:
     }
 
 protected:
+    struct RareData {
+        virtual ~RareData();
+        virtual void visit_edges(Cell::Visitor&);
+        virtual size_t external_memory_size() const;
+
+        mutable Optional<UniqueNodeID> unique_id;
+
+        // https://dom.spec.whatwg.org/#registered-observer-list
+        // "Nodes have a strong reference to registered observers in their registered observer list." https://dom.spec.whatwg.org/#garbage-collection
+        OwnPtr<Vector<GC::Ref<RegisteredObserver>>> registered_observer_list;
+
+        GC::Ptr<NodeList> child_nodes;
+    };
+
     Node(Document&, NodeType);
 
     void set_document(Document&);
+
+    virtual OwnPtr<RareData> create_rare_data() const;
+    RareData& ensure_rare_data() const;
+    RareData* rare_data() { return m_rare_data; }
+    RareData const* rare_data() const { return m_rare_data; }
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
@@ -557,12 +576,6 @@ protected:
     bool m_is_connected { false };
     bool m_inside_blocking_wheel_event_handler { false };
 
-    mutable Optional<UniqueNodeID> m_unique_id;
-
-    // https://dom.spec.whatwg.org/#registered-observer-list
-    // "Nodes have a strong reference to registered observers in their registered observer list." https://dom.spec.whatwg.org/#garbage-collection
-    OwnPtr<Vector<GC::Ref<RegisteredObserver>>> m_registered_observer_list;
-
     void build_accessibility_tree(AccessibilityTreeNode& parent);
 
     ErrorOr<Utf16String> name_or_description(NameOrDescription, Document const&, HashTable<UniqueNodeID>&, IsDescendant = IsDescendant::No, ShouldComputeRole = ShouldComputeRole::Yes) const;
@@ -579,7 +592,7 @@ private:
 
     static Optional<Utf16View> first_valid_id(Utf16View, Document const&);
 
-    GC::Ptr<NodeList> m_child_nodes;
+    mutable OwnPtr<RareData> m_rare_data;
 };
 
 }
