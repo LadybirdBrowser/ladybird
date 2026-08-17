@@ -308,10 +308,10 @@ template<typename PublishFeature, typename PublishEmptiness>
 static void publish_element_selector_features(StyleEngine& style_engine, DOM::Element& element, StyleNodeID node, PublishFeature publish_feature, PublishEmptiness publish_emptiness, InvalidateLanguageCache invalidate_language_cache)
 {
     // Slot identity and namespace never change during an element's lifetime.
-    if (is<HTML::HTMLSlotElement>(element))
-        style_engine.set_element_is_slot(node, true);
+    auto is_slot = is<HTML::HTMLSlotElement>(element);
+    StyleAtomID namespace_atom;
     if (auto const& namespace_uri = element.namespace_uri(); namespace_uri.has_value() && !namespace_uri->is_empty())
-        style_engine.set_element_namespace(node, style_engine.intern_case_sensitive_text_atom(namespace_uri->view()));
+        namespace_atom = style_engine.intern_case_sensitive_text_atom(namespace_uri->view());
 
     publish_feature(StyleEngineFFI::FfiFeatureKind::TagName, StyleAtomID {}, StyleEngineFFI::FfiFeatureValueKind::Atom, style_engine.intern_atom(element.local_name()));
     if (auto folded_name = element.local_name().to_ascii_lowercase(); folded_name != element.local_name())
@@ -342,21 +342,32 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
     }
 
     auto const language = element.lang_view();
-    style_engine.set_element_language(node, language.has_value() ? style_engine.intern_text_atom(*language) : 0, language.value_or({}));
+    auto language_atom = language.has_value() ? style_engine.intern_language_atom(*language) : StyleAtomID {};
     auto const directionality = element.directionality() == DOM::Element::Directionality::Rtl ? "rtl"sv : "ltr"sv;
-    style_engine.set_element_directionality(node, style_engine.intern_text_atom(Utf16View { directionality }));
+    auto directionality_atom = style_engine.intern_text_atom(Utf16View { directionality });
     if (invalidate_language_cache == InvalidateLanguageCache::Yes)
         element.invalidate_lang_value();
 
     GC::Ptr<HTML::HTMLHeadingElement const> heading = as_if<HTML::HTMLHeadingElement>(element);
-    style_engine.set_element_heading_level(node, static_cast<u8>(min(heading ? heading->heading_level() : 0, 255u)));
+    auto heading_level = static_cast<u8>(min(heading ? heading->heading_level() : 0, 255u));
 
     Vector<StyleAtomID> custom_states;
     if (auto states = element.custom_state_set()) {
         for (auto const& state : states->states())
             custom_states.append(style_engine.intern_atom(state));
     }
-    style_engine.set_element_custom_states(node, custom_states);
+    style_engine.record_element_arrival({
+                                            .node = node.value(),
+                                            .namespace_atom = namespace_atom.value(),
+                                            .language_atom = language_atom.value(),
+                                            .directionality_atom = directionality_atom.value(),
+                                            .custom_state_offset = 0,
+                                            .custom_state_count = 0,
+                                            .heading_level = heading_level,
+                                            .is_slot = is_slot,
+                                            .reserved = 0,
+                                        },
+        custom_states);
 }
 
 void populate_isolated_selector_query_engine(StyleEngine& style_engine, DOM::ParentNode& root, Function<void(GC::Ref<DOM::Element>, StyleNodeID)> const& publish_identity)

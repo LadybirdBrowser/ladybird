@@ -353,6 +353,22 @@ pub struct FfiTreeDelta {
     pub new_relations: FfiTreeRelations,
 }
 
+/// Selector-visible facts which exist when one style node first joins the tree. Variable-width
+/// custom states occupy one shared atom column and are named by this row's offset and count.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiElementArrival {
+    pub node: u32,
+    pub namespace_atom: u32,
+    pub language_atom: u32,
+    pub directionality_atom: u32,
+    pub custom_state_offset: u32,
+    pub custom_state_count: u32,
+    pub heading_level: u8,
+    pub is_slot: bool,
+    pub reserved: u16,
+}
+
 /// Which local fact a feature delta describes.
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -466,10 +482,11 @@ pub struct FfiElementStyleInput {
     pub inherited_style_groups: u8,
 }
 
-// SAFETY: the five transaction row types are pointer-free repr(C) with alignment four, and their
+// SAFETY: the six transaction row types are pointer-free repr(C) with alignment four, and their
 // enum fields are recorded only from live FFI values, so raw bytes round-trip on the capturing
 // host (the RawRecord contract).
 unsafe impl super::record_replay::RawRecord for FfiTreeDelta {}
+unsafe impl super::record_replay::RawRecord for FfiElementArrival {}
 unsafe impl super::record_replay::RawRecord for FfiLocalFeatureDelta {}
 unsafe impl super::record_replay::RawRecord for FfiStateDelta {}
 unsafe impl super::record_replay::RawRecord for FfiElementDeclarationDelta {}
@@ -481,6 +498,10 @@ unsafe impl super::record_replay::RawRecord for FfiElementStyleInput {}
 pub struct FfiStyleInputTransaction {
     pub tree_deltas: *const FfiTreeDelta,
     pub tree_delta_count: usize,
+    pub element_arrivals: *const FfiElementArrival,
+    pub element_arrival_count: usize,
+    pub arrival_custom_state_atoms: *const u32,
+    pub arrival_custom_state_atom_count: usize,
     pub local_feature_deltas: *const FfiLocalFeatureDelta,
     pub local_feature_delta_count: usize,
     pub state_deltas: *const FfiStateDelta,
@@ -679,11 +700,13 @@ impl StyleEngine {
     pub fn apply_transaction_batch(
         &mut self,
         tree_deltas: &[FfiTreeDelta],
+        arrival_columns: (&[FfiElementArrival], &[u32]),
         local_feature_deltas: &[FfiLocalFeatureDelta],
         state_deltas: &[FfiStateDelta],
         element_declaration_deltas: &[FfiElementDeclarationDelta],
         element_style_inputs: &[FfiElementStyleInput],
     ) {
+        let (element_arrivals, arrival_custom_state_atoms) = arrival_columns;
         let largest_element_index = tree_deltas
             .iter()
             .filter_map(|delta| StyleNodeID::from_raw(delta.node)?.element_index())
@@ -746,6 +769,35 @@ impl StyleEngine {
                 .copied()
                 .unwrap_or(false)
         };
+
+        if !element_arrivals.is_empty() {
+            for arrival in element_arrivals {
+                let Some(node) = StyleNodeID::from_raw(arrival.node) else {
+                    debug_assert!(false, "an element arrival named an invalid style node");
+                    continue;
+                };
+                let Some(custom_state_end) = arrival.custom_state_offset.checked_add(arrival.custom_state_count) else {
+                    debug_assert!(false, "an element arrival custom-state range overflowed");
+                    continue;
+                };
+                let Ok(custom_state_range) = usize::try_from(arrival.custom_state_offset)
+                    .and_then(|start| usize::try_from(custom_state_end).map(|end| start..end))
+                else {
+                    debug_assert!(false, "an element arrival custom-state range exceeded usize");
+                    continue;
+                };
+                let Some(custom_states) = arrival_custom_state_atoms.get(custom_state_range) else {
+                    debug_assert!(
+                        false,
+                        "an element arrival named custom states outside the shared atom column"
+                    );
+                    continue;
+                };
+                let custom_states = custom_states.iter().copied().map(StyleAtomID).collect::<Vec<_>>();
+                self.record_element_arrival(node, arrival, &custom_states, node_is_arriving(node));
+            }
+            self.settle_batched_inputs();
+        }
 
         for delta in local_feature_deltas {
             let Some(node) = StyleNodeID::from_raw(delta.node) else {
@@ -944,6 +996,13 @@ pub unsafe extern "C" fn style_engine_apply_transaction(engine: *mut c_void, tra
         let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
         // SAFETY: the caller vouches that each pointer covers its stated count for this call.
         let tree = unsafe { borrow(transaction.tree_deltas, transaction.tree_delta_count) };
+        let arrivals = unsafe { borrow(transaction.element_arrivals, transaction.element_arrival_count) };
+        let arrival_custom_state_atoms = unsafe {
+            borrow(
+                transaction.arrival_custom_state_atoms,
+                transaction.arrival_custom_state_atom_count,
+            )
+        };
         let features = unsafe { borrow(transaction.local_feature_deltas, transaction.local_feature_delta_count) };
         let states = unsafe { borrow(transaction.state_deltas, transaction.state_delta_count) };
         let declarations = unsafe {
@@ -954,9 +1013,18 @@ pub unsafe extern "C" fn style_engine_apply_transaction(engine: *mut c_void, tra
         };
         let element_style_inputs =
             unsafe { borrow(transaction.element_style_inputs, transaction.element_style_input_count) };
-        engine.apply_transaction_batch(tree, features, states, declarations, element_style_inputs);
+        engine.apply_transaction_batch(
+            tree,
+            (arrivals, arrival_custom_state_atoms),
+            features,
+            states,
+            declarations,
+            element_style_inputs,
+        );
         engine.record_boundary_call(EventKind::ApplyTransaction, |payload| {
             write_recording_tree_deltas(tree, payload);
+            payload.write_raw_slice(arrivals);
+            payload.write_u32_slice(arrival_custom_state_atoms);
             payload.write_raw_slice(features);
             write_recording_state_deltas(states, payload);
             payload.write_raw_slice(declarations);
@@ -1282,9 +1350,6 @@ pub unsafe extern "C" fn style_engine_set_element_language(
     text_length: usize,
 ) {
     abort_on_panic(|| {
-        let Some(node) = StyleNodeID::from_raw(node) else {
-            return;
-        };
         let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
         let text = match language != 0 && !text.is_null() {
             true => unsafe { std::slice::from_raw_parts(text, text_length) },
@@ -1295,14 +1360,17 @@ pub unsafe extern "C" fn style_engine_set_element_language(
             // once per language rather than once per element.
             engine.set_element_language_text(StyleAtomID(language), text);
         }
-        engine.set_element_language(node, StyleAtomID(language));
+        if let Some(node) = StyleNodeID::from_raw(node) {
+            engine.set_element_language(node, StyleAtomID(language));
+        }
         engine.record_boundary_call(EventKind::SetElementLanguage, |payload| {
-            payload.write_u32(node.raw());
+            payload.write_u32(node);
             payload.write_u32(language);
             payload.write_u16_slice(text);
         });
     });
 }
+
 /// # Safety
 /// `pointers` must be null or point to `count` live `RustSelector` pointers.
 /// How many scope roots and limits each enclosing `@scope` contributed, outermost first.
@@ -2663,7 +2731,7 @@ mod tests {
                 },
             },
         ];
-        engine.apply_transaction_batch(&initial_tree, &[], &[], &[], &[]);
+        engine.apply_transaction_batch(&initial_tree, (&[], &[]), &[], &[], &[], &[]);
 
         let root = StyleNodeID::from_raw(nodes[0]).unwrap();
         let child = StyleNodeID::from_raw(nodes[1]).unwrap();
@@ -2697,7 +2765,7 @@ mod tests {
                 ..no_relations()
             },
         }];
-        engine.apply_transaction_batch(&later_arrival, &[], &[], &[], &[]);
+        engine.apply_transaction_batch(&later_arrival, (&[], &[]), &[], &[], &[], &[]);
         let transaction = engine.take_transaction();
         assert_eq!(transaction.inputs.len(), 3);
         let later = StyleNodeID::from_raw(nodes[3]).unwrap();
@@ -2719,6 +2787,110 @@ mod tests {
         engine.release_transaction(transaction);
         assert_eq!(engine.counters().get(Counter::InitialBulkLoads), 1);
         assert_eq!(engine.counters().get(Counter::InitialBulkTreeRows), 3);
+    }
+
+    #[test]
+    fn element_arrival_rows_install_intrinsic_facts() {
+        assert_eq!(size_of::<FfiElementArrival>(), 28);
+        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut nodes = [0_u32; 2];
+        engine.allocate_style_nodes(&mut nodes);
+        let tree = [
+            FfiTreeDelta {
+                node: nodes[0],
+                old_connected: false,
+                new_connected: true,
+                old_relations: no_relations(),
+                new_relations: no_relations(),
+            },
+            FfiTreeDelta {
+                node: nodes[1],
+                old_connected: false,
+                new_connected: true,
+                old_relations: no_relations(),
+                new_relations: FfiTreeRelations {
+                    parent: nodes[0],
+                    ..no_relations()
+                },
+            },
+        ];
+        let arrivals = [
+            FfiElementArrival {
+                node: nodes[0],
+                namespace_atom: 11,
+                language_atom: 12,
+                directionality_atom: 13,
+                custom_state_offset: 0,
+                custom_state_count: 2,
+                heading_level: 4,
+                is_slot: true,
+                reserved: 0,
+            },
+            FfiElementArrival {
+                node: nodes[1],
+                namespace_atom: 21,
+                language_atom: 22,
+                directionality_atom: 23,
+                custom_state_offset: 2,
+                custom_state_count: 1,
+                heading_level: 0,
+                is_slot: false,
+                reserved: 0,
+            },
+        ];
+        engine.apply_transaction_batch(&tree, (&arrivals, &[31, 32, 33]), &[], &[], &[], &[]);
+        let transaction = engine.take_transaction();
+
+        let root = StyleNodeID::from_raw(nodes[0]).unwrap();
+        let child = StyleNodeID::from_raw(nodes[1]).unwrap();
+        assert_eq!(engine.facts.namespace_of(root), StyleAtomID(11));
+        assert_eq!(engine.facts.language_of(root), StyleAtomID(12));
+        assert_eq!(engine.facts.directionality_of(root), StyleAtomID(13));
+        assert_eq!(engine.facts.heading_level_of(root), 4);
+        assert!(engine.facts.is_slot(root));
+        assert_eq!(engine.facts.custom_states_of(root), &[StyleAtomID(31), StyleAtomID(32)]);
+        assert_eq!(engine.facts.namespace_of(child), StyleAtomID(21));
+        assert_eq!(engine.facts.custom_states_of(child), &[StyleAtomID(33)]);
+        engine.release_transaction(transaction);
+    }
+
+    fn arrival_for(node: u32, custom_state_offset: u32, custom_state_count: u32) -> FfiElementArrival {
+        FfiElementArrival {
+            node,
+            namespace_atom: 1,
+            language_atom: 2,
+            directionality_atom: 3,
+            custom_state_offset,
+            custom_state_count,
+            heading_level: 0,
+            is_slot: false,
+            reserved: 0,
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "an element arrival named an invalid style node")]
+    fn malformed_element_arrival_rejects_an_invalid_node() {
+        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        engine.apply_transaction_batch(&[], (&[arrival_for(0, 0, 0)], &[]), &[], &[], &[], &[]);
+    }
+
+    #[test]
+    #[should_panic(expected = "an element arrival custom-state range overflowed")]
+    fn malformed_element_arrival_rejects_an_overflowing_custom_state_range() {
+        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut nodes = [0];
+        engine.allocate_style_nodes(&mut nodes);
+        engine.apply_transaction_batch(&[], (&[arrival_for(nodes[0], u32::MAX, 1)], &[]), &[], &[], &[], &[]);
+    }
+
+    #[test]
+    #[should_panic(expected = "an element arrival named custom states outside the shared atom column")]
+    fn malformed_element_arrival_rejects_an_out_of_bounds_custom_state_range() {
+        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut nodes = [0];
+        engine.allocate_style_nodes(&mut nodes);
+        engine.apply_transaction_batch(&[], (&[arrival_for(nodes[0], 0, 2)], &[1]), &[], &[], &[], &[]);
     }
 
     #[test]
@@ -2764,7 +2936,7 @@ mod tests {
             new_kind: FfiFeatureValueKind::Atom,
             new_atom: 1,
         });
-        engine.apply_transaction_batch(&initial_tree, &initial_features, &[], &[], &[]);
+        engine.apply_transaction_batch(&initial_tree, (&[], &[]), &initial_features, &[], &[], &[]);
 
         let root = StyleNodeID::from_raw(nodes[0]).unwrap();
         let mut published = Vec::new();
@@ -2842,7 +3014,7 @@ mod tests {
                 },
             },
         ];
-        engine.apply_transaction_batch(&arrival, &[], &[], &[], &[]);
+        engine.apply_transaction_batch(&arrival, (&[], &[]), &[], &[], &[], &[]);
         let settled = engine.take_transaction();
         engine.release_transaction(settled);
 
@@ -2883,7 +3055,7 @@ mod tests {
             reaction: crate::css::style::transaction::STYLE_REACTION_RECOMPUTE_STYLE,
             inherited_style_groups: 0,
         }];
-        engine.apply_transaction_batch(&tree, &features, &states, &declarations, &style_inputs);
+        engine.apply_transaction_batch(&tree, (&[], &[]), &features, &states, &declarations, &style_inputs);
 
         let transaction = engine.take_transaction();
         let node0 = StyleNodeID::from_raw(nodes[0]).unwrap();
@@ -2907,7 +3079,7 @@ mod tests {
     #[test]
     fn a_batch_of_no_deltas_costs_nothing() {
         let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
-        engine.apply_transaction_batch(&[], &[], &[], &[], &[]);
+        engine.apply_transaction_batch(&[], (&[], &[]), &[], &[], &[], &[]);
         let transaction = engine.take_transaction();
         assert!(transaction.is_empty());
         engine.release_transaction(transaction);

@@ -146,6 +146,7 @@ public:
     // A name both a selector and the DOM produce as text, with no interned identity on either side:
     // a language subtag and a `:dir()` keyword. Matched ASCII case-insensitively.
     StyleAtomID intern_text_atom(Utf16View);
+    StyleAtomID intern_language_atom(Utf16View);
     // The same, without the ASCII folding, for names compared literally such as namespace URIs.
     StyleAtomID intern_case_sensitive_text_atom(Utf16View);
 
@@ -156,6 +157,7 @@ public:
     // Deltas accumulate here and cross in one flat batch per style flush, never one call per
     // element.
     void record_tree_delta(StyleEngineFFI::FfiTreeDelta const&);
+    void record_element_arrival(StyleEngineFFI::FfiElementArrival, ReadonlySpan<StyleAtomID> custom_states);
     void record_local_feature_delta(StyleEngineFFI::FfiLocalFeatureDelta const&);
     void record_state_delta(StyleEngineFFI::FfiStateDelta const&);
     void record_element_declaration_delta(StyleEngineFFI::FfiElementDeclarationDelta const&);
@@ -239,6 +241,8 @@ private:
 
     u32 m_declaration_block_version { 1 };
     Vector<StyleEngineFFI::FfiTreeDelta> m_tree_deltas;
+    Vector<StyleEngineFFI::FfiElementArrival> m_element_arrivals;
+    Vector<u32> m_arrival_custom_state_atoms;
     Vector<StyleEngineFFI::FfiLocalFeatureDelta> m_local_feature_deltas;
     Vector<StyleEngineFFI::FfiStateDelta> m_state_deltas;
     Vector<StyleEngineFFI::FfiElementDeclarationDelta> m_element_declaration_deltas;
