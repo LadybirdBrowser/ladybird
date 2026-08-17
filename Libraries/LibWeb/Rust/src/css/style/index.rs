@@ -4171,20 +4171,12 @@ impl ElementFactStore {
     pub fn sweep_auxiliary_catalogs(&mut self) {
         self.memory_dirty = true;
         let attribute_catalogs = Rc::make_mut(&mut self.attribute_catalogs);
-        // Language spellings cross the C++ boundary once per atom and remain available for the
-        // document lifetime. Unlike attribute values, the set is small and has no demand gate to
-        // republish a spelling after reclamation.
+        // Language spellings and attribute-name forms cross the C++ boundary once per atom and
+        // remain available for the document lifetime. Unlike attribute values, these small fixed
+        // catalogs have no demand gate to republish an entry after reclamation.
         for (index, text) in attribute_catalogs.value_texts.indexed_iter_mut() {
             if self.attribute_value_live_counts.get(index).copied().unwrap_or(0) == 0 {
                 *text = None;
-            }
-        }
-        for position in 0..attribute_catalogs.name_forms.indices.len() {
-            let index = attribute_catalogs.name_forms.indices[position];
-            if self.attribute_name_live_counts.get(index).copied().unwrap_or(0) == 0 {
-                attribute_catalogs
-                    .name_forms
-                    .insert(index, AttributeNameForms::default());
             }
         }
 
@@ -4794,9 +4786,14 @@ mod tests {
             let attribute_name = StyleAtomID(index * 4 + 1);
             let attribute_value = StyleAtomID(index * 4 + 2);
             let custom_property = StyleAtomID(index * 4 + 3);
+            let name_forms = AttributeNameForms {
+                local: StyleAtomID(index * 4 + 1000),
+                folded_name: StyleAtomID(index * 4 + 1001),
+                folded_local: StyleAtomID(index * 4 + 1002),
+            };
             facts.set_language_text(language, &[index as u16]);
             facts.set_language(node, language);
-            facts.note_attribute_name_forms(attribute_name, AttributeNameForms::default());
+            facts.note_attribute_name_forms(attribute_name, name_forms);
             facts.set_attribute_value_text(attribute_value, &[index as u16]);
             facts.set_attribute(node, attribute_name, attribute_value, true, &mut memory);
             facts.set_custom_property_names(node, &[custom_property], &mut memory);
@@ -4808,17 +4805,9 @@ mod tests {
                 facts.rows.attribute_catalogs.language_texts.get(language.0 as usize),
                 Some(&Some(vec![index as u16]))
             );
-            assert!(
-                facts
-                    .rows
-                    .attribute_catalogs
-                    .name_forms
-                    .indices
-                    .iter()
-                    .copied()
-                    .all(|index| {
-                        facts.rows.attribute_catalogs.name_forms.get(index) == Some(AttributeNameForms::default())
-                    })
+            assert_eq!(
+                facts.rows.attribute_catalogs.name_forms.get(attribute_name.0 as usize),
+                Some(name_forms)
             );
             assert!(facts.rows.attribute_catalogs.value_texts.iter().all(Option::is_none));
             assert!(facts.custom_property_name_sets.index_is_empty());

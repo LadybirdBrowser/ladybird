@@ -93,6 +93,8 @@ impl StyleEngine {
             transaction_fact_view: None,
             facts: ElementFactStore::new(),
             programs,
+            attribute_value_text_names: HashSet::default(),
+            attribute_value_text_requirements_version: 0,
             selector_programs_need_sweep: false,
             routing: Rc::new(RoutingRegistry::new()),
             selector_truth_changes: SelectorTruthChanges::default(),
@@ -519,6 +521,13 @@ impl StyleEngine {
             }
         }
         let compiled = compiler.finish();
+        let mut requirements_changed = false;
+        for name in compiled.attribute_value_text_names() {
+            requirements_changed |= self.attribute_value_text_names.insert(name);
+        }
+        if requirements_changed {
+            self.attribute_value_text_requirements_version += 1;
+        }
         if let Some(reusable) = reusable
             && self.programs.get(reusable) == &compiled
         {
@@ -551,7 +560,26 @@ impl StyleEngine {
         for selector in selectors {
             compiler.compile_for_query(selector);
         }
-        compiler.finish()
+        let program = compiler.finish();
+        let mut requirements_changed = false;
+        for name in program.attribute_value_text_names() {
+            requirements_changed |= self.attribute_value_text_names.insert(name);
+        }
+        if requirements_changed {
+            self.attribute_value_text_requirements_version += 1;
+        }
+        program
+    }
+
+    pub fn attribute_value_text_requirements_version(&self) -> u64 {
+        self.attribute_value_text_requirements_version
+    }
+
+    #[must_use]
+    pub fn attribute_name_requires_value_text(&self, name: StyleAtomID) -> bool {
+        self.facts
+            .attribute_name_keys(name)
+            .any(|key| self.attribute_value_text_names.contains(&key))
     }
 
     #[must_use]

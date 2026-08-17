@@ -150,9 +150,17 @@ public:
     // The same, without the ASCII folding, for names compared literally such as namespace URIs.
     StyleAtomID intern_case_sensitive_text_atom(Utf16View);
 
-    // Interns an attribute value and records what it spells, so a value operator can test it
-    // without a DOM to ask. Values repeat heavily, so the text crosses once per distinct value.
-    StyleAtomID intern_attribute_value(Utf16View);
+    // Interns the exact identity an attribute fact uses and memoizes its namespace and folded
+    // forms. Demand expansion revisits every live attribute, so these forms must not cross the
+    // boundary again merely to recover an already published name.
+    StyleAtomID intern_attribute_name(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_uri);
+
+    // Interns an attribute value and records what it spells when a selector for this name needs
+    // text. Values repeat heavily, so demanded text crosses once per distinct value.
+    StyleAtomID intern_attribute_value(StyleAtomID name, Utf16View value);
+    // Demand expansion already has every value identity. Check the name before interning the text
+    // so attributes no selector reads do not pay another string hash.
+    void backfill_attribute_value_text_if_required(StyleAtomID name, Utf16View value);
 
     // Deltas accumulate here and cross in one flat batch per style flush, never one call per
     // element.
@@ -230,12 +238,18 @@ private:
     bool read_matches(StyleNodeID, Vector<RuleMatch>&, Optional<MatchPurpose>);
     void apply_transaction(InputTransaction const&);
     void submit_recorded_input();
+    bool refresh_attribute_value_text_requirements();
+    [[nodiscard]] bool attribute_name_requires_value_text(StyleAtomID);
+    void publish_attribute_value_text(StyleAtomID, Utf16View);
 
     void* m_impl { nullptr };
     GC::Ptr<StyleComputer> m_style_computer;
 
     HashMap<FlatPtr, StyleAtomID> m_atoms;
     HashTable<StyleAtomID> m_published_language_atoms;
+    HashMap<StyleAtomID, HashMap<StyleAtomID, StyleAtomID>> m_attribute_name_atoms;
+    HashMap<StyleAtomID, bool> m_attribute_names_requiring_value_text;
+    u64 m_attribute_value_text_requirements_version { 0 };
     HashTable<StyleNodeID> m_nodes_with_pending_initial_features;
     HashTable<StyleNodeID> m_nodes_awaiting_first_style_computation;
     size_t m_element_match_capacity { 64 };

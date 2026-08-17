@@ -1,0 +1,8 @@
+before sheet: rgb(0, 0, 0)
+late substring rule: rgb(255, 0, 0)
+late insensitive rule: rgb(0, 128, 0)
+uppercase href rule: 7px
+uppercase data rule: 9px
+connected style query: true
+demanded attribute mutation: rgb(0, 0, 0)
+isolated substring query: true

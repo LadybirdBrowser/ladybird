@@ -260,6 +260,14 @@ void StyleComputer::prepare_elements_for_style_computation()
     }
 }
 
+void StyleComputer::for_each_style_node(Function<void(DOM::Element&)> callback) const
+{
+    for (auto element : m_style_nodes) {
+        if (element)
+            callback(*element);
+    }
+}
+
 void StyleComputer::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);

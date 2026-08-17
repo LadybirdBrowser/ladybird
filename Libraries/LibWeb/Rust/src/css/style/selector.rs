@@ -646,6 +646,23 @@ pub struct SelectorProgram {
 }
 
 impl SelectorProgram {
+    /// Attribute names whose tests cannot be answered from the value atom alone.
+    pub fn attribute_value_text_names(&self) -> impl Iterator<Item = StyleAtomID> + '_ {
+        self.nodes
+            .iter()
+            .filter_map(|node| {
+                let SelectorOp::Feature(FeatureTest::Attribute(test)) = node else {
+                    return None;
+                };
+                (test.operator != AttributeOperator::Presence && test.value_atom.is_none()).then_some(test)
+            })
+            .flat_map(|test| {
+                [Some(test.name), (test.folded != test.name).then_some(test.folded)]
+                    .into_iter()
+                    .flatten()
+            })
+    }
+
     #[must_use]
     pub fn node(&self, id: SelectorNodeID) -> SelectorOp {
         self.nodes[id.0 as usize]

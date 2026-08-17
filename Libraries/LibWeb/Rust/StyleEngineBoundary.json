@@ -80,7 +80,9 @@
     [77, "StyleDeltaBatch"],
     [78, "SelectorQueryAtomMappings"],
     [79, "PrepareSelectorQuery"],
-    [80, "AddCounterStyleRule"]
+    [80, "AddCounterStyleRule"],
+    [81, "AttributeValueTextRequirementsVersion"],
+    [82, "AttributeNameRequiresValueText"]
   ],
   "operations": [
     { "event": "SetFoldIdAndClassNameCase", "ffi": "style_engine_set_fold_id_and_class_name_case", "cpp": "set_fold_id_and_class_name_case", "return": "void", "args": [["fold", "bool"]], "body": "engine.set_fold_id_and_class_name_case(fold);" },
@@ -125,6 +127,8 @@
     { "event": "SetRuleLayer", "ffi": "style_engine_set_rule_layer", "cpp": "set_rule_layer", "return": "void", "args": [["rule", "style_rule_id"], ["layer", "u32"]], "body": "if rule == 0 { return; } engine.set_rule_layer(RuleID(rule - 1), CascadeLayerID(layer));" },
     { "event": "SetAttributeValueText", "ffi": "style_engine_set_attribute_value_text", "return": "void", "args": [["value", "style_atom"], ["text", "u16_slice"]], "body": "if value == 0 { return; } engine.set_attribute_value_text(StyleAtomID(value), text);" },
     { "event": "HasAttributeValueText", "ffi": "style_engine_has_attribute_value_text", "return": "bool", "receiver": "const", "args": [["value", "style_atom"]], "body": "let result = engine.has_attribute_value_text(StyleAtomID(value));" },
+    { "event": "AttributeValueTextRequirementsVersion", "ffi": "style_engine_attribute_value_text_requirements_version", "return": "u64", "receiver": "const", "replay": false, "args": [], "body": "let result = engine.attribute_value_text_requirements_version();" },
+    { "event": "AttributeNameRequiresValueText", "ffi": "style_engine_attribute_name_requires_value_text", "return": "bool", "receiver": "const", "replay": false, "args": [["name", "style_atom"]], "body": "let result = engine.attribute_name_requires_value_text(StyleAtomID(name));" },
     { "event": "DiscardStyleTransactionOutputs", "ffi": "style_engine_discard_style_transaction_outputs", "return": "void", "args": [], "body": "engine.discard_style_transaction_outputs();" },
     { "event": "RecordLayerStatement", "ffi": "style_engine_record_layer_statement", "cpp": "record_layer_statement", "return": "void", "args": [["sheet", "sheet_id"]], "body": "if sheet != 0 { engine.record_layer_statement(SheetID(sheet - 1)); }" },
     { "event": "AddPropertyRule", "ffi": "style_engine_add_property_rule", "cpp": "add_property_rule", "return": "style_rule_id", "args": [["sheet", "sheet_id"], ["before_rule", "style_rule_id"], ["name_atom", "style_atom"], ["has_initial_value", "bool"]], "body": "let result = if sheet == 0 { 0 } else { let before = (before_rule != 0).then(|| RuleID(before_rule - 1)); engine.add_property_rule(SheetID(sheet - 1), before, StyleAtomID(name_atom), has_initial_value).0 + 1 };" },

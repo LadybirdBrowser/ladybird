@@ -338,6 +338,7 @@ public:
     void unregister_style_node(StyleNodeID style_node_id);
     [[nodiscard]] GC::Ptr<DOM::Element> element_for_style_node(StyleNodeID style_node_id) const;
     void prepare_elements_for_style_computation();
+    void for_each_style_node(Function<void(DOM::Element&)>) const;
 
     // Style scopes are numbered per document, with zero naming the document's own scope. A scope is
     // never reused, so a sheet detached with an identity that has been retired detaches nothing

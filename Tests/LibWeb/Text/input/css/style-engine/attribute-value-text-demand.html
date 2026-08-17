@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="late" data-late="hay needle stack" data-case="MiXeD" style="--marker: needle"></div>
+<a id="uppercase-href" href="http://example.com/"></a>
+<div id="uppercase-data" data-x="prefix foo suffix"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("late");
+
+        println(`before sheet: ${getComputedStyle(target).color}`);
+
+        const style = document.createElement("style");
+        style.textContent = `
+            [data-late*="needle"] { color: red }
+            [data-case="mixed" i] { background-color: green }
+            [HREF^="http"] { padding-left: 7px }
+            [DATA-X*="foo"] { padding-right: 9px }
+        `;
+        document.head.append(style);
+
+        println(`late substring rule: ${getComputedStyle(target).color}`);
+        println(`late insensitive rule: ${getComputedStyle(target).backgroundColor}`);
+        println(`uppercase href rule: ${getComputedStyle(document.getElementById("uppercase-href")).paddingLeft}`);
+        println(`uppercase data rule: ${getComputedStyle(document.getElementById("uppercase-data")).paddingRight}`);
+        println(`connected style query: ${document.querySelector('[style*="needle"]') === target}`);
+
+        target.dataset.late = "miss";
+        println(`demanded attribute mutation: ${getComputedStyle(target).color}`);
+
+        const fragment = document.createDocumentFragment();
+        const detached = document.createElement("span");
+        detached.setAttribute("data-word", "a needle b");
+        fragment.append(detached);
+        println(`isolated substring query: ${fragment.querySelector('[data-word*="needle"]') === detached}`);
+    });
+</script>

@@ -262,20 +262,94 @@ StyleAtomID StyleEngine::intern_case_sensitive_text_atom(Utf16View text)
     return intern_atom(Utf16FlyString::from_utf16(text));
 }
 
-StyleAtomID StyleEngine::intern_attribute_value(Utf16View value)
+// The name an attribute is published under, and the any-namespace name it shares.
+//
+// Three selectors ask three different questions of an attribute called `x`. `[ns|x]` reaches only
+// the one in that namespace, `[x]` reaches only the one in no namespace - which is what the bare
+// local name is - and `[*|x]` reaches whichever of them the element carries. The first two name
+// exactly one of an element's attributes, so they are the key: an element can hold `x` in several
+// namespaces at once, and each is a fact with its own value. `[*|x]` asks about all of them
+// together, so the shared form is published as an identity of the name rather than as a fact of its
+// own, and one entry per attribute answers all three.
+StyleAtomID StyleEngine::intern_attribute_name(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_uri)
+{
+    auto local = intern_atom(local_name);
+    auto namespace_atom = !namespace_uri.has_value() || namespace_uri->is_empty()
+        ? StyleAtomID {}
+        : intern_case_sensitive_text_atom(namespace_uri->view());
+    auto& names_by_namespace = m_attribute_name_atoms.ensure(local, [] { return HashMap<StyleAtomID, StyleAtomID> {}; });
+    if (auto name = names_by_namespace.get(namespace_atom); name.has_value())
+        return name.release_value();
+
+    auto in_namespace = [&](StyleAtomID name) {
+        if (namespace_atom == 0)
+            return name;
+        return intern_qualified_atom(namespace_atom, name);
+    };
+    auto any_namespace = intern_qualified_atom(StyleEngine::any_namespace, local);
+    auto name = in_namespace(local);
+
+    StyleAtomID folded_name;
+    StyleAtomID folded_local;
+    if (auto folded = local_name.to_ascii_lowercase(); folded != local_name) {
+        auto folded_atom = intern_atom(folded);
+        folded_name = in_namespace(folded_atom);
+        folded_local = intern_qualified_atom(StyleEngine::any_namespace, folded_atom);
+    }
+
+    note_attribute_name_forms(name, any_namespace, folded_name, folded_local);
+    names_by_namespace.set(namespace_atom, name);
+    return name;
+}
+
+StyleAtomID StyleEngine::intern_attribute_value(StyleAtomID name, Utf16View value)
 {
     auto atom = intern_case_sensitive_text_atom(value);
+    if (!attribute_name_requires_value_text(name))
+        return atom;
+
+    publish_attribute_value_text(atom, value);
+    return atom;
+}
+
+void StyleEngine::backfill_attribute_value_text_if_required(StyleAtomID name, Utf16View value)
+{
+    if (!attribute_name_requires_value_text(name))
+        return;
+
+    auto atom = intern_case_sensitive_text_atom(value);
+    publish_attribute_value_text(atom, value);
+}
+
+void StyleEngine::publish_attribute_value_text(StyleAtomID atom, Utf16View value)
+{
     // The engine holds one copy of the text per currently used value. Ask whether it survived
     // reclamation before copying it out of the attribute's representation again.
     if (StyleEngineFFI::style_engine_has_attribute_value_text(m_impl, atom.value()))
-        return atom;
+        return;
 
     Vector<u16> code_units;
     code_units.ensure_capacity(value.length_in_code_units());
     for (size_t i = 0; i < value.length_in_code_units(); ++i)
         code_units.unchecked_append(value.code_unit_at(i));
     StyleEngineFFI::style_engine_set_attribute_value_text(m_impl, atom.value(), code_units.data(), code_units.size());
-    return atom;
+}
+
+bool StyleEngine::refresh_attribute_value_text_requirements()
+{
+    auto version = StyleEngineFFI::style_engine_attribute_value_text_requirements_version(m_impl);
+    if (version == m_attribute_value_text_requirements_version)
+        return false;
+    m_attribute_value_text_requirements_version = version;
+    m_attribute_names_requiring_value_text.clear();
+    return true;
+}
+
+bool StyleEngine::attribute_name_requires_value_text(StyleAtomID name)
+{
+    return m_attribute_names_requiring_value_text.ensure(name, [&] {
+        return StyleEngineFFI::style_engine_attribute_name_requires_value_text(m_impl, name.value());
+    });
 }
 
 void StyleEngine::set_element_language(StyleNodeID node, StyleAtomID language, Utf16View tag)
@@ -401,8 +475,11 @@ void StyleEngine::submit_recorded_input()
 {
     if (m_style_computer)
         publish_pending_element_features(*this, *m_style_computer);
-    if (!has_recorded_input())
+    if (!has_recorded_input()) {
+        if (refresh_attribute_value_text_requirements() && m_style_computer)
+            publish_required_attribute_value_texts(*this, *m_style_computer);
         return;
+    }
 
     InputTransaction transaction {
         .tree_deltas = m_tree_deltas.data(),
@@ -429,6 +506,11 @@ void StyleEngine::submit_recorded_input()
     m_state_deltas.clear_with_capacity();
     m_element_declaration_deltas.clear_with_capacity();
     m_element_style_inputs.clear_with_capacity();
+
+    // Selector demand can arrive while the program change and element facts are still staged.
+    // Refresh after applying the fact batch, then backfill values before matching observes it.
+    if (refresh_attribute_value_text_requirements() && m_style_computer)
+        publish_required_attribute_value_texts(*this, *m_style_computer);
 }
 
 void StyleEngine::apply_transaction(InputTransaction const& transaction)
@@ -511,7 +593,10 @@ bool StyleEngine::consume_published_match_answer(StyleNodeID node, Vector<RuleMa
 
 void* StyleEngine::compile_selector_query(ReadonlySpan<void const*> selectors)
 {
-    return StyleEngineFFI::style_engine_compile_selector_query(m_impl, selectors.data(), selectors.size());
+    auto* query = StyleEngineFFI::style_engine_compile_selector_query(m_impl, selectors.data(), selectors.size());
+    if (refresh_attribute_value_text_requirements() && m_style_computer)
+        publish_required_attribute_value_texts(*this, *m_style_computer);
+    return query;
 }
 
 void StyleEngine::destroy_selector_query(void* query)
