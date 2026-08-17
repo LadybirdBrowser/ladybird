@@ -894,8 +894,6 @@ private:
 
     Fullscreen::RequestType m_fullscreen_request_type { Fullscreen::RequestType::Standard };
 
-    size_t m_sibling_invalidation_distance { 0 };
-
     mutable Optional<Utf16String> m_lang_value;
 
     // https://w3c.github.io/webappsec-csp/#is-element-nonceable
