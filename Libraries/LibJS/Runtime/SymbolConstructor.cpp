@@ -51,7 +51,7 @@ ThrowCompletionOr<Value> SymbolConstructor::call()
         : TRY(description.to_utf16_string(vm));
 
     // 4. Return a new Symbol whose [[Description]] is descString.
-    return Symbol::create(vm, move(description_string), false);
+    return Symbol::create(vm, move(description_string));
 }
 
 // 20.4.1.1 Symbol ( [ description ] ), https://tc39.es/ecma262/#sec-symbol-description
@@ -78,7 +78,7 @@ JS_DEFINE_NATIVE_FUNCTION(SymbolConstructor::for_)
     VERIFY(!result.has_value());
 
     // 4. Let newSymbol be a new unique Symbol value whose [[Description]] value is stringKey.
-    auto new_symbol = Symbol::create(vm, string_key, true);
+    auto new_symbol = Symbol::create(vm, string_key, Symbol::Kind::Global);
 
     // 5. Append the Record { [[Key]]: stringKey, [[Symbol]]: newSymbol } to the GlobalSymbolRegistry List.
     vm.global_symbol_registry().set(string_key, new_symbol);

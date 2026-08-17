@@ -1352,7 +1352,7 @@ ThrowCompletionOr<GC::RootVector<Value>> Object::internal_own_property_keys() co
 
     // 4. For each own property key P of O such that Type(P) is Symbol, in ascending chronological order of property creation, do
     shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const& metadata) {
-        if (property_key.is_symbol() && !metadata.attributes.is_internal()) {
+        if (property_key.is_symbol() && !property_key.is_private() && !metadata.attributes.is_internal()) {
             // a. Add P as the last element of keys.
             keys.append(property_key.to_value(vm));
         }
@@ -1559,7 +1559,7 @@ void Object::define_direct_cached_accessor(PropertyKey const& property_key, GC::
     VERIFY(property->value.is_accessor());
     auto& accessor = property->value.as_accessor();
     if (!accessor.cached_value_key())
-        accessor.set_cached_value_key(Symbol::create(vm(), {}, false));
+        accessor.set_cached_value_key(Symbol::create(vm()));
 }
 
 void Object::clear_cached_accessor_value(PropertyKey const& property_key)

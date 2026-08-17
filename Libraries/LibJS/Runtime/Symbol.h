@@ -19,12 +19,20 @@ class JS_API Symbol final : public Cell {
     GC_DECLARE_ALLOCATOR(Symbol);
 
 public:
-    [[nodiscard]] static GC::Ref<Symbol> create(VM&, Optional<Utf16String> description, bool is_global);
+    enum class Kind {
+        Unique,
+        Global,
+        Private,
+    };
+
+    [[nodiscard]] static GC::Ref<Symbol> create(VM&, Optional<Utf16String> description = {}, Kind = Kind::Unique);
+    [[nodiscard]] static GC::Ref<Symbol> create_private(VM& vm) { return create(vm, {}, Kind::Private); }
 
     virtual ~Symbol() = default;
 
     Optional<Utf16String> const& description() const { return m_description; }
-    bool is_global() const { return m_is_global; }
+    bool is_global() const { return m_kind == Kind::Global; }
+    bool is_private() const { return m_kind == Kind::Private; }
 
     Utf16String descriptive_string() const;
     Optional<Utf16String> key() const;
@@ -32,10 +40,10 @@ public:
 private:
     virtual size_t external_memory_size() const override;
 
-    Symbol(Optional<Utf16String>, bool);
+    Symbol(Optional<Utf16String>, Kind);
 
     Optional<Utf16String> m_description;
-    bool m_is_global;
+    Kind m_kind;
 };
 
 }
