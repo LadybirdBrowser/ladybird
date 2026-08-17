@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/table-collapsed-borders-in-stacking-context-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+    table {
+        margin: 20px;
+        border-collapse: collapse;
+        table-layout: fixed;
+        width: 200px;
+    }
+    td {
+        height: 50px;
+        padding: 0;
+        border: 4px solid black;
+    }
+    .context-root {
+        position: relative;
+        z-index: 0;
+    }
+    .pseudo-context {
+        position: relative;
+    }
+</style>
+<table class="context-root">
+    <tr><td></td><td></td></tr>
+    <tr><td></td><td></td></tr>
+</table>
+<table class="pseudo-context">
+    <tr><td></td><td></td></tr>
+    <tr><td></td><td></td></tr>
+</table>
