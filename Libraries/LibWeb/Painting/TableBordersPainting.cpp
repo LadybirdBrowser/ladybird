@@ -376,20 +376,11 @@ static DeviceBorderDataWithElementKind device_border_data_from_css_border_data(P
     };
 }
 
-static void paint_separate_cell_borders(Paintable const& cell_box, HashMap<CellCoordinates, DevicePixelRect> const& cell_coordinates_to_device_rect, DisplayListRecordingContext& context)
-{
-    auto borders_data = cell_box.override_borders_data().has_value() ? Paintable::remove_element_kind_from_borders_data(cell_box.override_borders_data().value()) : BordersData {
-        .top = cell_box.box_model().border.top == 0 ? CSS::BorderData() : cell_box.layout_node().border_top(),
-        .right = cell_box.box_model().border.right == 0 ? CSS::BorderData() : cell_box.layout_node().border_right(),
-        .bottom = cell_box.box_model().border.bottom == 0 ? CSS::BorderData() : cell_box.layout_node().border_bottom(),
-        .left = cell_box.box_model().border.left == 0 ? CSS::BorderData() : cell_box.layout_node().border_left(),
-    };
-    auto cell_rect = cell_coordinates_to_device_rect.get({ cell_box.table_cell_coordinates()->row_index, cell_box.table_cell_coordinates()->column_index }).value();
-    paint_all_borders(context.display_list_recorder(), cell_rect, cell_box.normalized_border_radii_data().as_corners(context.device_pixel_converter()), borders_data.to_device_pixels(context));
-}
-
 void paint_table_borders(DisplayListRecordingContext& context, Paintable const& table_paintable)
 {
+    if (table_paintable.layout_node().border_collapse() == CSS::BorderCollapse::Separate)
+        return;
+
     // Partial implementation of painting according to the collapsing border model:
     // https://www.w3.org/TR/CSS22/tables.html#collapsing-borders
     Vector<Paintable const&> cell_boxes;
@@ -408,12 +399,6 @@ void paint_table_borders(DisplayListRecordingContext& context, Paintable const& 
     }
     auto cell_coordinates_to_device_rect = snap_cells_to_device_coordinates(cell_coordinates_to_box, row_count, column_count, context);
     for (auto const& cell_box : cell_boxes) {
-        if (table_paintable.layout_node().border_collapse() == CSS::BorderCollapse::Separate) {
-            if (cell_box.layout_node().empty_cells() == CSS::EmptyCells::Hide && !cell_box.has_children())
-                continue;
-            paint_separate_cell_borders(cell_box, cell_coordinates_to_device_rect, context);
-            continue;
-        }
         auto css_borders_data = cell_box.override_borders_data().has_value() ? cell_box.override_borders_data().value() : Paintable::BordersDataWithElementKind {
             .top = { .border_data = cell_box.box_model().border.top == 0 ? CSS::BorderData() : cell_box.layout_node().border_top(), .element_kind = Paintable::ConflictingElementKind::Cell },
             .right = { .border_data = cell_box.box_model().border.right == 0 ? CSS::BorderData() : cell_box.layout_node().border_right(), .element_kind = Paintable::ConflictingElementKind::Cell },

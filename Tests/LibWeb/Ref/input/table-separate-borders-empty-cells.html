@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/table-separate-borders-empty-cells-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+    table {
+        margin: 20px;
+        border-collapse: separate;
+        border-spacing: 6px;
+        table-layout: fixed;
+        width: 218px;
+        empty-cells: hide;
+    }
+    td {
+        height: 50px;
+        padding: 0;
+        border: 3px solid teal;
+        border-radius: 8px;
+        background: lightyellow;
+    }
+</style>
+<table>
+    <tr><td><div>x</div></td><td></td></tr>
+    <tr><td></td><td></td></tr>
+</table>

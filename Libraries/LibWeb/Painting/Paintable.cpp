@@ -1904,7 +1904,7 @@ void Paintable::paint(DisplayListRecordingContext& context, PaintPhase phase) co
     }
 
     auto const is_table_with_collapsed_borders = display().is_table_inside() && layout_node().border_collapse() == CSS::BorderCollapse::Collapse;
-    if (!display().is_table_cell() && !is_table_with_collapsed_borders && phase == PaintPhase::Border) {
+    if (phase == PaintPhase::Border && !uses_collapsing_borders_model() && !is_table_with_collapsed_borders && !empty_cells_property_applies()) {
         paint_border(context);
     }
 
