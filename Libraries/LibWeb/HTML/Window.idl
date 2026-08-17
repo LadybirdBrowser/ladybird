@@ -4,7 +4,7 @@ interface Window : EventTarget {
     // the current browsing context
     [LegacyUnforgeable] readonly attribute WindowProxy window;
     [Replaceable] readonly attribute WindowProxy self;
-    [LegacyUnforgeable] readonly attribute Document document;
+    [CachedAttribute, LegacyUnforgeable] readonly attribute Document document;
     attribute Utf16DOMString name;
     attribute Utf16DOMString status;
     undefined close();

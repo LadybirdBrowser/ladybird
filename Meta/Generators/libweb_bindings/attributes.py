@@ -51,9 +51,8 @@ def attribute_is_nullable_reflected_element(attribute: Attribute) -> bool:
 
 def attribute_uses_cached_js_value(attribute: Attribute) -> bool:
     return (
-        "CachedAttribute" in attribute.extended_attributes
-        or attribute_is_nullable_reflected_frozen_array_of_element(attribute)
-    )
+        "CachedAttribute" in attribute.extended_attributes and "LegacyUnforgeable" not in attribute.extended_attributes
+    ) or attribute_is_nullable_reflected_frozen_array_of_element(attribute)
 
 
 def reflected_attribute_name(attribute: Attribute) -> str:
@@ -214,6 +213,17 @@ def define_the_attributes(
                 definition.write(
                     f'    auto {native_setter_name} = JS::NativeFunction::create(realm, {setter_name}, 1, {cpp_name}_id, &realm, "set"sv);\n'
                 )
+        define_accessor = f"object.define_direct_accessor({cpp_name}_id, {native_getter_name}, {native_setter_name}, {cpp_name}_attributes);"
+        if "CachedAttribute" in attribute.extended_attributes and "LegacyUnforgeable" in attribute.extended_attributes:
+            # Cache the result only on the main-world wrapper, whose cached
+            # attributes can be invalidated directly when native state changes.
+            # Non-main-world wrappers do not currently participate in that
+            # invalidation path.
+            includes.add("LibWeb/Bindings/WrapperWorld.h")
+            define_accessor = f"""if (host_defined_wrapper_world(realm).is_main_world())
+        object.define_direct_cached_accessor({cpp_name}_id, {native_getter_name}, {native_setter_name}, {cpp_name}_attributes);
+    else
+        object.define_direct_accessor({cpp_name}_id, {native_getter_name}, {native_setter_name}, {cpp_name}_attributes);"""
         definition.write(
             f"""
     // 4. Let configurable be false if attr is unforgeable and true otherwise.
@@ -222,7 +232,7 @@ def define_the_attributes(
     // 5. Let desc be the PropertyDescriptor{{[[Get]]: getter, [[Set]]: setter, [[Enumerable]]: true, [[Configurable]]: configurable}}.
 
     // 7. Perform ! DefinePropertyOrThrow(target, id, desc).
-    object.define_direct_accessor({cpp_name}_id, {native_getter_name}, {native_setter_name}, {cpp_name}_attributes);
+    {define_accessor}
 
     // 8. FIXME: If attr’s type is an observable array type with type argument T, then set target’s backing observable array exotic object for attr to the result of creating an observable array exotic object in realm, given T, attr’s set an indexed value algorithm, and attr’s delete an indexed value algorithm.
 """
@@ -430,7 +440,7 @@ def write_attribute_getter(
 
     auto R = idl_object->get_the_attribute_associated_elements(content_attribute, TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return idl_object->{idl_implementation_cpp_name(attribute)}(); }})));"""
 
-    if "CachedAttribute" in attribute.extended_attributes:
+    if "CachedAttribute" in attribute.extended_attributes and "LegacyUnforgeable" not in attribute.extended_attributes:
         includes.add("LibWeb/Bindings/WrapperWorld.h")
         includes.add(bindings_glue_header_for_interface(interface))
         getter_prelude = f"""    auto& wrapper_world = host_defined_wrapper_world({getter_realm_argument});

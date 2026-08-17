@@ -240,6 +240,9 @@ public:
 
     void define_direct_property(PropertyKey const& property_key, Value value, PropertyAttributes attributes) { (void)storage_set(property_key, { value, attributes }); }
     void define_direct_accessor(PropertyKey const&, GC::Ptr<FunctionObject> getter, GC::Ptr<FunctionObject> setter, PropertyAttributes attributes);
+    // Cache the getter's result in an engine-private property on this object.
+    void define_direct_cached_accessor(PropertyKey const&, GC::Ptr<FunctionObject> getter, GC::Ptr<FunctionObject> setter, PropertyAttributes attributes);
+    void clear_cached_accessor_value(PropertyKey const&);
 
     using IntrinsicAccessor = Value (*)(Realm&);
     void define_intrinsic_accessor(PropertyKey const&, PropertyAttributes attributes, IntrinsicAccessor accessor);

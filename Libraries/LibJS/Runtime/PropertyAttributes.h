@@ -21,6 +21,8 @@ struct Attribute {
         Configurable = 1 << 2,
         // AD-HOC: This is used for reporting unimplemented IDL interfaces.
         Unimplemented = 1 << 3,
+        // OPTIMIZATION: Engine-internal properties are omitted from [[OwnPropertyKeys]].
+        Internal = 1 << 4,
     };
 };
 
@@ -36,6 +38,7 @@ public:
     [[nodiscard]] constexpr bool is_enumerable() const { return m_bits & Attribute::Enumerable; }
     [[nodiscard]] constexpr bool is_configurable() const { return m_bits & Attribute::Configurable; }
     [[nodiscard]] constexpr bool is_unimplemented() const { return m_bits & Attribute::Unimplemented; }
+    [[nodiscard]] constexpr bool is_internal() const { return m_bits & Attribute::Internal; }
 
     constexpr void set_writable(bool writable = true)
     {
