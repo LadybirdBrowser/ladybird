@@ -5,6 +5,7 @@
  */
 
 #include <LibCore/EventLoop.h>
+#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/SiteIsolationManager.h>
@@ -1544,7 +1545,7 @@ void CanonicalTraversable::did_receive_changing_navigable_history_job_ready(WebC
     }
 }
 
-void CanonicalTraversable::did_receive_changing_navigable_continuation_applied(WebContentClient& source_client, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state)
+void CanonicalTraversable::did_receive_changing_navigable_continuation_applied(WebContentClient& source_client, u64 source_page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state)
 {
     if (auto* operation = find_history_operation(operation_id)) {
         auto endpoint = operation->changing_job_endpoints.get(navigable_id);
@@ -1554,6 +1555,24 @@ void CanonicalTraversable::did_receive_changing_navigable_continuation_applied(W
         if (!pending_job.has_value())
             return;
         operation->changing_job_endpoints.remove(navigable_id);
+        if (activated_navigable_state.has_value()) {
+            auto navigable = find(navigable_id);
+            if (navigable.has_value()) {
+                activated_navigable_state->active_session_history_entry_identity = Web::HTML::session_history_entry_identity(pending_job.value()->job.target_entry);
+                auto active_document_url = activated_navigable_state->active_document_url;
+                if (navigable_id != id() && navigable->has_remote_host())
+                    SiteIsolationManager::the().transition_child_frame_to_local(*navigable);
+                navigable->did_commit_navigation(activated_navigable_state.release_value());
+
+                if (navigable_id == id()) {
+                    if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value()) {
+                        if (!Web::HTML::url_matches_about_blank(active_document_url) || !view->m_client_state.site_url.has_value())
+                            view->m_client_state.site_url = move(active_document_url);
+                        view->m_external_url_request_policy.clear_page_request_allowance();
+                    }
+                }
+            }
+        }
         if (previous_entry_persisted_state.has_value()) {
             auto navigable = find(navigable_id);
             if (navigable.has_value()) {

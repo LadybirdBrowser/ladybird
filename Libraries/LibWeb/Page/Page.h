@@ -490,7 +490,6 @@ public:
     virtual void request_new_process_for_child_frame_navigation(HTML::CrossProcessId, URL::URL const&, HTML::DocumentResource, Bindings::NavigationHistoryBehavior, Optional<HTML::NavigationSourceSnapshot> const&) { }
     virtual void page_did_create_child_frame(HTML::CrossProcessId, HTML::CrossProcessId, HTML::ReplicatedNavigableState const&) { }
     virtual void page_did_update_child_frame_viewport(HTML::CrossProcessId, CSSPixelRect) { }
-    virtual void page_did_commit_child_frame_navigation(HTML::CrossProcessId, HTML::ReplicatedNavigableState const&) { }
     virtual void page_did_destroy_child_frame(HTML::CrossProcessId) { }
     virtual Optional<Compositor::CompositorContextId> compositor_context_id_for_remote_child_frame(HTML::CrossProcessId) const { return {}; }
     virtual String dump_site_isolation_process_tree_for_testing() { return {}; }

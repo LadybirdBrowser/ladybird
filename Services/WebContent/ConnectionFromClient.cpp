@@ -386,13 +386,13 @@ void ConnectionFromClient::apply_changing_navigable_continuation(u64 page_id, u6
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
-        async_changing_navigable_continuation_applied(page_id, operation_id, navigable_id, {});
+        async_changing_navigable_continuation_applied(page_id, operation_id, navigable_id, {}, {});
         return;
     }
 
     page->page().top_level_traversable()->apply_ui_changing_navigable_continuation(operation_id, navigable_id, { script_history_length, script_history_index }, move(entries_for_navigation_api),
-        GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) {
-            async_changing_navigable_continuation_applied(page_id, operation_id, navigable_id, move(previous_entry_persisted_state));
+        GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) {
+            async_changing_navigable_continuation_applied(page_id, operation_id, navigable_id, move(activated_navigable_state), move(previous_entry_persisted_state));
         }));
 }
 

@@ -59,8 +59,6 @@ endpoint WebContentClient
     did_request_new_process_for_child_frame_navigation(u64 page_id, Web::HTML::CrossProcessId frame_id, URL::URL url, Variant<Empty, Utf16String, Web::HTML::POSTResource> document_resource, Web::Bindings::NavigationHistoryBehavior history_handling, Optional<Web::HTML::NavigationSourceSnapshot> source_snapshot) =|
     did_create_child_frame(u64 page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state) =|
     did_update_child_frame_viewport(u64 page_id, Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio) =|
-    did_commit_child_frame_navigation(u64 page_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state) =|
-    did_change_top_level_active_document(u64 page_id, Web::HTML::ReplicatedNavigableState replicated_state) =|
     did_destroy_child_frame(u64 page_id, Web::HTML::CrossProcessId frame_id) =|
     did_start_webdriver_navigation(u64 page_id) =|
     did_start_loading(u64 page_id, Optional<Utf16String> navigation_id, URL::URL url, bool is_redirect) =|
@@ -194,7 +192,7 @@ endpoint WebContentClient
     history_operation_ready(u64 page_id, u64 operation_id, Web::HistoryOperationReadyResult result) =|
     history_step_unload_cancelation_result(u64 page_id, u64 operation_id, Web::HTML::HistoryStepResult result) =|
     changing_navigable_history_job_ready(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition) =|
-    changing_navigable_continuation_applied(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) =|
+    changing_navigable_continuation_applied(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) =|
     nonchanging_navigable_history_state_updated(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id) =|
     did_reset_session_history_for_testing(u64 page_id, Web::HTML::SessionHistoryEntryDescriptor active_entry) =|
     did_request_capture_session_history_snapshot_for_testing(u64 page_id) => (bool captured)
