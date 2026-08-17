@@ -875,14 +875,6 @@ void WebContentClient::did_change_title(u64 page_id, Utf16String title)
     }
 }
 
-void WebContentClient::did_change_url(u64 page_id, URL::URL url)
-{
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->set_url({}, url);
-    else if (auto* child_frame = embedded_page_host(page_id))
-        child_frame->reporting_client().async_run_iframe_load_event_steps(child_frame->reporting_page_id(), child_frame->id());
-}
-
 void WebContentClient::did_request_tooltip_override(u64 page_id, Gfx::IntPoint position, ByteString title)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

@@ -1652,14 +1652,6 @@ void LocalTraversableNavigable::complete_ui_history_operation(u64 operation_id, 
             initiation_id = operation->initiation_id;
     }
 
-    if (committed_step.has_value()) {
-        // 20. Set traversable's current session history step to targetStep.
-        // NB: The UI process performs this step in canonical session history.
-
-        if (current_session_history_entry())
-            page().client().page_did_change_url(current_session_history_entry()->url());
-    }
-
     if (initiation_id.has_value()) {
         if (auto initiation = m_history_operation_states.take(*initiation_id); initiation.has_value()) {
             if (committed_step.has_value()
