@@ -3383,10 +3383,14 @@ impl CalcSerializer<'_> {
 
     /// https://drafts.csswg.org/css-values/#calc-range
     /// The step-1 clamping of a resolved numeric leaf, with NaN censored to zero.
-    fn clamp_and_censor(&self, value: CalcNumericValue) -> CalcNumericValue {
+    fn clamp_and_censor_numeric_leaf(
+        value: CalcNumericValue,
+        resolve_numbers_as_integers: bool,
+        accepted_ranges: &[crate::css::style_value::RetainedNumericRangeByType],
+    ) -> CalcNumericValue {
         let wanted = match value {
             CalcNumericValue::Number { .. } => {
-                if self.resolve_numbers_as_integers {
+                if resolve_numbers_as_integers {
                     value_type::INTEGER
                 } else {
                     value_type::NUMBER
@@ -3400,8 +3404,7 @@ impl CalcSerializer<'_> {
             CalcNumericValue::Resolution { .. } => value_type::RESOLUTION,
             CalcNumericValue::Time { .. } => value_type::TIME,
         };
-        let range = self
-            .accepted_ranges
+        let range = accepted_ranges
             .iter()
             .find(|entry| entry.value_type() == wanted)
             .map(|entry| entry.range())
@@ -3410,7 +3413,7 @@ impl CalcSerializer<'_> {
         // https://drafts.csswg.org/css-values-4/#css-round-to-the-nearest-integer
         // Numbers round to the nearest integer in integer contexts, in the
         // direction of positive infinity when the fraction is exactly half.
-        let raw = if matches!(value, CalcNumericValue::Number { .. }) && self.resolve_numbers_as_integers {
+        let raw = if matches!(value, CalcNumericValue::Number { .. }) && resolve_numbers_as_integers {
             (value.raw() + 0.5).floor()
         } else {
             value.raw()
@@ -3419,6 +3422,10 @@ impl CalcSerializer<'_> {
         // NaN does not escape a top-level calculation; it's censored into a zero value.
         let censored = if raw.is_nan() { 0.0 } else { raw };
         value.with_raw(censored.clamp(range.0, range.1))
+    }
+
+    fn clamp_and_censor(&self, value: CalcNumericValue) -> CalcNumericValue {
+        Self::clamp_and_censor_numeric_leaf(value, self.resolve_numbers_as_integers, self.accepted_ranges)
     }
 
     /// https://drafts.csswg.org/css-values-4/#serialize-a-math-function
@@ -3754,6 +3761,78 @@ fn percentage_dimension_mix(simplified: &Arc<CalcNode>, evaluation_context: &Cal
     None
 }
 
+/// The plain style value a calculation collapses to at computed-value time when its simplified
+/// tree is a single numeric leaf: the leaf clamped and censored exactly as resolved-mode
+/// serialization prints it, in its canonical unit, so the collapsed value serializes identically
+/// to the calculation it replaces. None keeps the calculation: the tree is not a lone leaf, the
+/// leaf still needs outside context, or the result does not fit the plain representation.
+pub(crate) fn collapse_absolutized_calculation(
+    simplified: &Arc<CalcNode>,
+    resolve_numbers_as_integers: bool,
+    accepted_ranges: &[crate::css::style_value::RetainedNumericRangeByType],
+) -> Option<crate::css::style_value::StyleValueData> {
+    use crate::css::style_value::StyleValueData;
+    let CalcNode::Numeric(leaf) = &**simplified else {
+        return None;
+    };
+    let canonicalized = |value: f64, unit: u8, ratios: &[f64]| -> Option<(f64, u8)> {
+        let canonical = ratios.iter().position(|&ratio| ratio == 1.0)? as u8;
+        let value = value * ratios[unit as usize];
+        value.is_finite().then_some((value, canonical))
+    };
+    match CalcSerializer::clamp_and_censor_numeric_leaf(*leaf, resolve_numbers_as_integers, accepted_ranges) {
+        CalcNumericValue::Number { value, .. } => {
+            if !value.is_finite() {
+                return None;
+            }
+            if resolve_numbers_as_integers {
+                if value < f64::from(i32::MIN) || value > f64::from(i32::MAX) {
+                    return None;
+                }
+                return Some(StyleValueData::Integer { value: value as i32 });
+            }
+            Some(StyleValueData::Number { value })
+        }
+        // A lone percentage stays a calculation: percentages resolve against their basis at
+        // used-value time, and the plain percentage path quantizes that resolution differently.
+        CalcNumericValue::Percentage(..) => None,
+        CalcNumericValue::Length { value, unit } => {
+            let px_unit = crate::css::style_compute::px_length_unit();
+            if unit == px_unit {
+                return value.is_finite().then_some(StyleValueData::Length { value, unit });
+            }
+            // Non-px absolute units land on the same device-pixel grid the resolved-mode
+            // serialization rounds to.
+            let px = crate::css::style_compute::absolute_length_to_px(value, unit)?;
+            let rounded = crate::css::css_pixels::CssPixels::nearest_value_for(px).to_double();
+            rounded.is_finite().then_some(StyleValueData::Length {
+                value: rounded,
+                unit: px_unit,
+            })
+        }
+        CalcNumericValue::Angle { value, unit } => {
+            let (value, unit) = canonicalized(value, unit, &ANGLE_UNIT_CANONICAL_RATIOS)?;
+            Some(StyleValueData::Angle { value, unit })
+        }
+        CalcNumericValue::Flex { value, unit } => {
+            let (value, unit) = canonicalized(value, unit, &FLEX_UNIT_CANONICAL_RATIOS)?;
+            Some(StyleValueData::Flex { value, unit })
+        }
+        CalcNumericValue::Frequency { value, unit } => {
+            let (value, unit) = canonicalized(value, unit, &FREQUENCY_UNIT_CANONICAL_RATIOS)?;
+            Some(StyleValueData::Frequency { value, unit })
+        }
+        CalcNumericValue::Resolution { value, unit } => {
+            let (value, unit) = canonicalized(value, unit, &RESOLUTION_UNIT_CANONICAL_RATIOS)?;
+            Some(StyleValueData::Resolution { value, unit })
+        }
+        CalcNumericValue::Time { value, unit } => {
+            let (value, unit) = canonicalized(value, unit, &TIME_UNIT_CANONICAL_RATIOS)?;
+            Some(StyleValueData::Time { value, unit })
+        }
+    }
+}
+
 /// The outcome of a native calc absolutization.
 pub(crate) enum AbsolutizedCalculation {
     Unchanged,
@@ -3833,10 +3912,11 @@ pub(crate) fn absolutize_calculation_value(
                         AbsolutizedCalculation::Unchanged => {
                             resolve_calculated_number_with_context(fixed_value, length_context)?
                         }
-                        AbsolutizedCalculation::Value(ref fixed_value) => {
+                        AbsolutizedCalculation::Value(StyleValueData::Number { value }) => value,
+                        AbsolutizedCalculation::Value(ref fixed_value @ StyleValueData::Calculated { .. }) => {
                             resolve_calculated_number_with_context(fixed_value, length_context)?
                         }
-                        AbsolutizedCalculation::Percentage(_) => return None,
+                        AbsolutizedCalculation::Value(_) | AbsolutizedCalculation::Percentage(_) => return None,
                     }
                 }
                 Some(_) => return None,
@@ -3907,6 +3987,11 @@ pub(crate) fn absolutize_calculation_value(
             let simplified = root.simplify(evaluation_context, callbacks);
             if let Some(percentage) = percentage_dimension_mix(&simplified, evaluation_context) {
                 return AbsolutizedCalculation::Percentage(percentage);
+            }
+            if let Some(collapsed) =
+                collapse_absolutized_calculation(&simplified, *resolve_numbers_as_integers, accepted_ranges.as_slice())
+            {
+                return AbsolutizedCalculation::Value(collapsed);
             }
             if Arc::ptr_eq(&simplified, &root) {
                 return AbsolutizedCalculation::Unchanged;
@@ -4487,13 +4572,15 @@ pub unsafe extern "C" fn rust_calc_simplify_tree(
     })
 }
 
-/// The outcome of absolutizing a calculation: either a computed percentage
-/// (the percentage-dimension mix special case) or the simplified tree as a
+/// The outcome of absolutizing a calculation: a computed percentage (the
+/// percentage-dimension mix special case), a plain style value as a transferred
+/// strong reference (the numeric-leaf collapse), or the simplified tree as a
 /// transferred handle.
 #[repr(C)]
 pub struct FfiAbsolutizedCalc {
     pub is_percentage: bool,
     pub percentage_value: f64,
+    pub collapsed: *const std::ffi::c_void,
     pub simplified: *const CalcNode,
 }
 
@@ -4504,6 +4591,7 @@ pub struct FfiAbsolutizedCalc {
 /// # Safety
 /// `calculated` must point at Calculated style value data and `context` at a
 /// valid resolution context.
+#[allow(clippy::arc_with_non_send_sync)]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_absolutize(
     calculated: *const std::ffi::c_void,
@@ -4517,6 +4605,8 @@ pub unsafe extern "C" fn rust_calc_absolutize(
             has_percentages_resolve_as,
             resolve_as_is_number,
             resolve_as_base,
+            resolve_numbers_as_integers,
+            accepted_ranges,
             ..
         } = (unsafe { &*(calculated as *const StyleValueData) })
         else {
@@ -4533,6 +4623,18 @@ pub unsafe extern "C" fn rust_calc_absolutize(
                 return FfiAbsolutizedCalc {
                     is_percentage: true,
                     percentage_value: percentage,
+                    collapsed: std::ptr::null(),
+                    simplified: std::ptr::null(),
+                };
+            }
+
+            if let Some(collapsed) =
+                collapse_absolutized_calculation(&simplified, *resolve_numbers_as_integers, accepted_ranges.as_slice())
+            {
+                return FfiAbsolutizedCalc {
+                    is_percentage: false,
+                    percentage_value: 0.0,
+                    collapsed: Arc::into_raw(Arc::new(collapsed)).cast(),
                     simplified: std::ptr::null(),
                 };
             }
@@ -4540,6 +4642,7 @@ pub unsafe extern "C" fn rust_calc_absolutize(
             FfiAbsolutizedCalc {
                 is_percentage: false,
                 percentage_value: 0.0,
+                collapsed: std::ptr::null(),
                 simplified: Arc::into_raw(simplified),
             }
         })
