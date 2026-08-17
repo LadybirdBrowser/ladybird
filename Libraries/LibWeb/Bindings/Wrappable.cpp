@@ -181,9 +181,16 @@ JS::Realm& wrapper_realm_for_wrappable(WrapperWorld const& wrapper_world, JS::Re
 
 GC::Ref<PlatformObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ref<Wrappable> wrappable)
 {
+    if (wrapper_world.is_main_world()) {
+        if (auto cached_wrapper = wrappable->cached_main_world_wrapper(wrapper_world))
+            return *cached_wrapper;
+    }
+
     auto& actual_wrapper_realm = wrapper_realm_for_wrappable(wrapper_world, preferred_realm, wrappable);
-    if (auto cached_wrapper = wrapper_world.wrapper_for(wrappable, actual_wrapper_realm))
-        return *cached_wrapper;
+    if (!wrapper_world.is_main_world()) {
+        if (auto cached_wrapper = wrapper_world.wrapper_for(wrappable, actual_wrapper_realm))
+            return *cached_wrapper;
+    }
 
     auto wrapper = wrappable->create_wrapper(actual_wrapper_realm);
 #ifndef NDEBUG
