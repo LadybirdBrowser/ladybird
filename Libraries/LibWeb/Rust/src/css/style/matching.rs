@@ -2156,6 +2156,9 @@ impl StyleEngine {
                 match delta.change {
                     SetChange::Removed if winner.source == WinnerSource::Rule(delta.rule) => return false,
                     SetChange::Added => {
+                        if winner.source == WinnerSource::ExactCascade {
+                            return false;
+                        }
                         let priority = self.cascade_priority_of(
                             delta.rule,
                             TreeScopeID::DOCUMENT,
@@ -3103,6 +3106,10 @@ impl StyleEngine {
                 };
                 if self.winner_groups.continuation(winner.key.continuation).is_some() {
                     self.counters.bump(Counter::TransitionProofOperatorOrContinuation);
+                    return false;
+                }
+                if winner.source == WinnerSource::ExactCascade {
+                    self.counters.bump(Counter::TransitionProofWinnerGap);
                     return false;
                 }
                 let priority = self.cascade_priority_of(

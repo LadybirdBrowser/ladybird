@@ -230,10 +230,12 @@ impl StyleEngine {
                 candidates.push(OrderedCascadeCandidate {
                     winner: PropertyWinner {
                         property: declared.property,
+                        important: declared.important,
                         key: Self::retained_rule_winner_key(declared),
                         priority,
                         source: WinnerSource::Rule(entry.rule),
                     },
+                    priority,
                     stratum: self.cascade_stratum_of(entry.rule, entry.tree_scope, declared.important),
                 });
             }
@@ -253,10 +255,12 @@ impl StyleEngine {
                     candidates.push(OrderedCascadeCandidate {
                         winner: PropertyWinner {
                             property: declared.property,
+                            important: declared.important,
                             key: Self::retained_rule_winner_key(declared),
                             priority,
                             source: WinnerSource::Element(kind),
                         },
+                        priority,
                         stratum: self.element_cascade_stratum(node, kind, declared.important),
                     });
                 }
@@ -483,7 +487,7 @@ impl StyleEngine {
                         .into_iter()
                         .map(|target| {
                             let materialize = |property, priority, payload| {
-                                let (key, source) = match payload {
+                                let (key, important, source) = match payload {
                                     CascadeCompactionCandidate::Rule(match_index) => {
                                         let entry = &all[match_index];
                                         let declared = *self
@@ -492,14 +496,21 @@ impl StyleEngine {
                                             .iter()
                                             .find(|declared| declared.property == property)
                                             .expect("winner candidate came from the rule's declaration inventory");
-                                        (Self::retained_rule_winner_key(declared), WinnerSource::Rule(entry.rule))
+                                        (
+                                            Self::retained_rule_winner_key(declared),
+                                            declared.important,
+                                            WinnerSource::Rule(entry.rule),
+                                        )
                                     }
-                                    CascadeCompactionCandidate::Element(kind, declared) => {
-                                        (Self::retained_rule_winner_key(declared), WinnerSource::Element(kind))
-                                    }
+                                    CascadeCompactionCandidate::Element(kind, declared) => (
+                                        Self::retained_rule_winner_key(declared),
+                                        declared.important,
+                                        WinnerSource::Element(kind),
+                                    ),
                                 };
                                 PropertyWinner {
                                     property,
+                                    important,
                                     key,
                                     priority,
                                     source,
@@ -773,7 +784,8 @@ impl StyleEngine {
         };
 
         let mut repair_properties = Vec::new();
-        let mut updates = Vec::new();
+        let mut updates: Vec<PropertyWinnerUpdate> = Vec::new();
+        let mut update_priorities = Vec::new();
         for delta in deltas {
             let entry = *self.programs.entry(delta.entry).1;
             if entry.pseudo_element != pseudo {
@@ -808,29 +820,30 @@ impl StyleEngine {
                 );
                 let winner = PropertyWinner {
                     property: declared.property,
+                    important: declared.important,
                     key: Self::retained_rule_winner_key(declared),
                     priority,
                     source: WinnerSource::Rule(delta.rule),
                 };
-                let existing = updates
-                    .iter_mut()
-                    .find(|update: &&mut PropertyWinnerUpdate| update.property == declared.property);
-                match existing {
-                    Some(update) if update.winner.is_none_or(|current| winner.priority >= current.priority) => {
-                        update.winner = Some(winner);
+                if let Some(index) = updates.iter().position(|update| update.property == declared.property) {
+                    if priority >= update_priorities[index] {
+                        updates[index].winner = Some(winner);
+                        update_priorities[index] = priority;
                     }
-                    Some(_) => {}
-                    None if self
-                        .winner_groups
-                        .winner_in_state(previous, declared.property)
-                        .is_none_or(|current| winner.priority >= current.priority) =>
-                    {
+                } else if let Some(previous_winner) = self.winner_groups.winner_in_state(previous, declared.property) {
+                    if priority >= previous_winner.priority {
                         updates.push(PropertyWinnerUpdate {
                             property: declared.property,
                             winner: Some(winner),
                         });
+                        update_priorities.push(priority);
                     }
-                    None => {}
+                } else {
+                    updates.push(PropertyWinnerUpdate {
+                        property: declared.property,
+                        winner: Some(winner),
+                    });
+                    update_priorities.push(priority);
                 }
             }
         }
