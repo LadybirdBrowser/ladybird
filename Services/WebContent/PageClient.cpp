@@ -501,11 +501,6 @@ void PageClient::page_did_update_editing_history_state(bool can_undo, bool can_r
     client().async_did_update_editing_history_state(m_id, can_undo, can_redo);
 }
 
-void PageClient::page_did_change_url(URL::URL const& url)
-{
-    client().async_did_change_url(m_id, url);
-}
-
 void PageClient::page_did_request_refresh()
 {
     client().async_did_request_refresh(m_id);

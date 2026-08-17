@@ -1426,6 +1426,13 @@ void CanonicalTraversable::finish_history_operation(u64 operation_id, Web::HTML:
         m_pending_browser_history_traversal.clear();
     }
 
+    if (committed_step.has_value()) {
+        if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value()) {
+            if (auto const* current_entry = m_session_history.current_entry())
+                view->set_url(current_entry->url);
+        }
+    }
+
     for (auto& endpoint : taken_operation.completion_endpoints)
         endpoint.client->async_complete_history_operation(
             endpoint.page_id, operation_id, result, committed_step,
