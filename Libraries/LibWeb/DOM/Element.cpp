@@ -2411,18 +2411,8 @@ void Element::set_shadow_root(GC::Ptr<ShadowRoot> shadow_root)
     if (m_shadow_root == shadow_root)
         return;
     if (m_shadow_root) {
-        if (is_connected()) {
-            m_shadow_root->for_each_shadow_including_inclusive_descendant([](DOM::Node& descendant) {
-                if (auto* element = as_if<DOM::Element>(descendant))
-                    CSS::record_element_disconnecting(*element);
-                return TraversalDecision::Continue;
-            });
-            m_shadow_root->for_each_shadow_including_inclusive_descendant([](DOM::Node& descendant) {
-                if (auto* shadow_root = as_if<DOM::ShadowRoot>(descendant))
-                    CSS::record_shadow_root_disconnecting(*shadow_root);
-                return TraversalDecision::Continue;
-            });
-        }
+        if (is_connected())
+            CSS::record_subtree_disconnecting(*m_shadow_root);
         m_shadow_root->set_host(nullptr);
         m_shadow_root->set_is_connected(false);
         // NB: We don't need to run the removed steps if the children have already been disconnected (or were never

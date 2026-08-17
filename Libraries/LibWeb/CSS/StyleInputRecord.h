@@ -43,8 +43,9 @@ struct StyleInputRecord {
     // Such a computation cannot be answered from the record, because what it read can move without
     // any word of it moving.
     bool read_beyond_the_record { true };
-    // What that computation did besides producing values. A computation that is skipped still has
-    // to leave these marks, since nothing else will leave them for it.
+    // A snapshot of the element's authoritative dependency marks. The element clears its marks
+    // before deriving a replacement, so a computation skipped through this record must restore the
+    // previous marks that nothing else will leave.
     bool style_uses_attr_css_function { false };
     bool style_uses_var_css_function { false };
     bool style_uses_if_css_function { false };

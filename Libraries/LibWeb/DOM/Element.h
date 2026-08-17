@@ -882,8 +882,9 @@ private:
     GC::Ptr<CSS::CSSStyleProperties> m_inline_style;
     GC::Ptr<ShadowRoot> m_shadow_root;
 
-    // The authoritative StyleEngine record. C++ compatibility consumers borrow the record-owned
-    // computed-values view rather than retaining one complete style per element.
+    // A consumer handle mirroring StyleEngine's authoritative style-record column. C++ consumers
+    // borrow the record-owned computed-values view rather than retaining one complete style per
+    // element.
     CSS::StyleRecordID m_style_record_identity;
     RefPtr<CSS::CustomPropertyData const> m_custom_property_data;
     OwnPtr<CSS::StyleInputRecord> m_style_input_record;
@@ -905,6 +906,7 @@ private:
     bool m_is_being_activated : 1 { false };
     bool m_in_top_layer : 1 { false };
     bool m_rendered_in_top_layer : 1 { false };
+    // Authoritative dependency marks left by this element's latest style computation.
     bool m_style_uses_attr_css_function : 1 { false };
     bool m_style_uses_var_css_function : 1 { false };
     bool m_style_uses_if_css_function : 1 { false };

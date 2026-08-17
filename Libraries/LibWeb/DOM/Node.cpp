@@ -1106,18 +1106,7 @@ void Node::remove(bool suppress_observers)
 
         // NB: Recorded here rather than in removed_from(), because StyleEngine's tree delta carries
         //     the old relations and this is the last point at which they are still readable.
-        for_each_shadow_including_inclusive_descendant([](Node& node) {
-            if (auto* element = as_if<Element>(node))
-                CSS::record_element_disconnecting(*element);
-            return TraversalDecision::Continue;
-        });
-        // Only once no element still names a shadow root as its parent can the root give up its
-        // own identity.
-        for_each_shadow_including_inclusive_descendant([](Node& node) {
-            if (auto* shadow_root = as_if<ShadowRoot>(node))
-                CSS::record_shadow_root_disconnecting(*shadow_root);
-            return TraversalDecision::Continue;
-        });
+        CSS::record_subtree_disconnecting(*this);
 
         // A display: contents element has no principal layout node of its own, but removing it also removes
         // all of its children's boxes from the parent's layout subtree.

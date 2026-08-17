@@ -235,6 +235,7 @@ void StyleComputer::unregister_style_node(StyleNodeID style_node_id)
 {
     if (style_node_id != 0 && style_node_id.value() < m_style_nodes.size()) {
         m_style_nodes[style_node_id.value()] = nullptr;
+        m_style_engine.cancel_preallocated_style_node(style_node_id);
         m_style_engine.consume_recorded_element_style_input_change(style_node_id);
     }
 }

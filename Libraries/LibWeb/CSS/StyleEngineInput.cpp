@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/NeverDestroyed.h>
 #include <LibWeb/CSS/CSSConditionRule.h>
 #include <LibWeb/CSS/CSSContainerRule.h>
 #include <LibWeb/CSS/CSSCounterStyleRule.h>
@@ -52,12 +51,6 @@ static StyleAtomID intern_id_or_class_atom(StyleEngine&, DOM::Element const&, Ut
 static constexpr StyleNodeID no_style_node;
 // Shadow trees get their own scopes with the shadow surface; today everything names the document.
 static constexpr TreeScopeID document_tree_scope;
-
-static HashTable<DOM::Element*>& preallocated_style_elements()
-{
-    static NeverDestroyed<HashTable<DOM::Element*>> elements;
-    return *elements;
-}
 
 static bool has_pending_initial_features(DOM::Element const& element)
 {
@@ -128,6 +121,21 @@ static TreeScopeID tree_scope_of(DOM::Node& document_or_shadow_root)
     return shadow_root->style_engine_tree_scope();
 }
 
+template<typename Callback>
+static void for_each_shadow_including_inclusive_descendant_with_scope(DOM::Node& node, TreeScopeID tree_scope, Callback& callback)
+{
+    callback(node, tree_scope);
+
+    if (auto* element = as_if<DOM::Element>(node); element && element->shadow_root()) {
+        auto& shadow_root = *element->shadow_root();
+        auto shadow_scope = tree_scope_of(shadow_root);
+        for_each_shadow_including_inclusive_descendant_with_scope(shadow_root, shadow_scope, callback);
+    }
+
+    for (auto* child = node.first_child(); child; child = child->next_sibling())
+        for_each_shadow_including_inclusive_descendant_with_scope(*child, tree_scope, callback);
+}
+
 TreeScopeID style_engine_tree_scope_for(DOM::Node& document_or_shadow_root)
 {
     return tree_scope_of(document_or_shadow_root);
@@ -144,7 +152,7 @@ static StyleNodeID style_tree_parent_of(DOM::Element& element, StyleEngine& styl
     return no_style_node;
 }
 
-static StyleEngineFFI::FfiTreeRelations relations_of(DOM::Element& element, StyleEngine& style_engine)
+static StyleEngineFFI::FfiTreeRelations relations_of(DOM::Element& element, StyleEngine& style_engine, TreeScopeID tree_scope)
 {
     auto assigned_slot = no_style_node;
     if (auto slot = element.assigned_slot_internal())
@@ -154,10 +162,15 @@ static StyleEngineFFI::FfiTreeRelations relations_of(DOM::Element& element, Styl
         .parent = style_tree_parent_of(element, style_engine).value(),
         .previous_element_sibling = identity_of(element.previous_element_sibling()).value(),
         .next_element_sibling = identity_of(element.next_element_sibling()).value(),
-        .tree_scope = tree_scope_of(element.root()).value(),
+        .tree_scope = tree_scope.value(),
         .assigned_slot = assigned_slot.value(),
         .reserved = 0,
     };
+}
+
+static StyleEngineFFI::FfiTreeRelations relations_of(DOM::Element& element, StyleEngine& style_engine)
+{
+    return relations_of(element, style_engine, tree_scope_of(element.root()));
 }
 
 static void record_feature(
@@ -186,13 +199,17 @@ void record_element_connected(DOM::Element& element)
     auto* style_engine = style_engine_for(element);
     if (!style_engine)
         return;
+    Optional<TreeScopeID> preallocated_tree_scope;
     if (element.style_node_id() == no_style_node) {
         element.set_style_node_id(style_engine->allocate_style_node());
         element.document().style_computer().register_style_node(element.style_node_id(), element);
-    } else if (!preallocated_style_elements().remove(&element)) {
-        // Already connected as far as the engine is concerned. Re-recording an insertion would
-        // double-link the element into its sibling sequence.
-        return;
+    } else {
+        preallocated_tree_scope = style_engine->consume_preallocated_style_node(element.style_node_id());
+        if (!preallocated_tree_scope.has_value()) {
+            // Already connected as far as the engine is concerned. Re-recording an insertion would
+            // double-link the element into its sibling sequence.
+            return;
+        }
     }
     // A shadow root that took its identity before its host had one is still waiting to be linked to
     // it. A sheet adopted into a shadow tree names that root, so the root can be identified first,
@@ -205,7 +222,9 @@ void record_element_connected(DOM::Element& element)
         .old_connected = false,
         .new_connected = true,
         .old_relations = detached_relations(),
-        .new_relations = relations_of(element, *style_engine),
+        .new_relations = preallocated_tree_scope.has_value()
+            ? relations_of(element, *style_engine, *preallocated_tree_scope)
+            : relations_of(element, *style_engine),
     });
     style_engine->defer_element_initial_features(element.style_node_id());
 
@@ -236,14 +255,20 @@ void prepare_style_nodes_for_subtree(DOM::Node& root)
     auto& style_computer = root.document().style_computer();
     auto& style_engine = style_computer.style_engine();
     Vector<GC::Ptr<DOM::Element>> elements;
+    Vector<TreeScopeID> element_tree_scopes;
     Vector<GC::Ptr<DOM::ShadowRoot>> shadow_roots;
-    root.for_each_shadow_including_inclusive_descendant([&](DOM::Node& node) {
-        if (auto* element = as_if<DOM::Element>(node); element && element->style_node_id() == no_style_node)
+    Vector<TreeScopeID> shadow_root_tree_scopes;
+    auto collect = [&](DOM::Node& node, TreeScopeID tree_scope) {
+        if (auto* element = as_if<DOM::Element>(node); element && element->style_node_id() == no_style_node) {
             elements.append(element);
-        else if (auto* shadow_root = as_if<DOM::ShadowRoot>(node); shadow_root && shadow_root->style_node_id() == no_style_node)
+            element_tree_scopes.append(tree_scope);
+        } else if (auto* shadow_root = as_if<DOM::ShadowRoot>(node); shadow_root && shadow_root->style_node_id() == no_style_node) {
             shadow_roots.append(shadow_root);
-        return TraversalDecision::Continue;
-    });
+            shadow_root_tree_scopes.append(tree_scope);
+        }
+    };
+    auto root_tree_scope = tree_scope_of(root.root());
+    for_each_shadow_including_inclusive_descendant_with_scope(root, root_tree_scope, collect);
     Vector<StyleNodeID> identities;
     identities.resize(elements.size() + shadow_roots.size());
     style_engine.allocate_style_nodes(identities.span());
@@ -251,13 +276,13 @@ void prepare_style_nodes_for_subtree(DOM::Node& root)
         auto& element = *elements[index];
         element.set_style_node_id(identities[index]);
         style_computer.register_style_node(identities[index], element);
-        preallocated_style_elements().set(&element);
+        style_engine.mark_style_node_preallocated(element.style_node_id(), element_tree_scopes[index]);
     }
     for (size_t index = 0; index < shadow_roots.size(); ++index) {
         auto& shadow_root = *shadow_roots[index];
         auto identity = identities[elements.size() + index];
         shadow_root.set_style_node_id(identity);
-        style_engine.set_tree_scope_root(tree_scope_of(shadow_root), identity);
+        style_engine.set_tree_scope_root(shadow_root_tree_scopes[index], identity);
     }
 }
 
@@ -596,7 +621,7 @@ void record_element_assigned_slot_changed(DOM::Element& element, DOM::Element* o
     });
 }
 
-void record_element_disconnecting(DOM::Element& element)
+static void record_element_disconnecting(DOM::Element& element, TreeScopeID tree_scope)
 {
     auto* style_engine = style_engine_for(element);
     if (!style_engine)
@@ -633,7 +658,7 @@ void record_element_disconnecting(DOM::Element& element)
         .node = node.value(),
         .old_connected = true,
         .new_connected = false,
-        .old_relations = relations_of(element, *style_engine),
+        .old_relations = relations_of(element, *style_engine, tree_scope),
         .new_relations = detached_relations(),
     });
 
@@ -1039,6 +1064,24 @@ void record_shadow_root_disconnecting(DOM::ShadowRoot& shadow_root)
         });
     }
     shadow_root.set_style_node_id(no_style_node);
+}
+
+void record_subtree_disconnecting(DOM::Node& root)
+{
+    auto root_tree_scope = tree_scope_of(root.root());
+    auto disconnect_element = [](DOM::Node& node, TreeScopeID tree_scope) {
+        if (auto* element = as_if<DOM::Element>(node))
+            record_element_disconnecting(*element, tree_scope);
+    };
+    for_each_shadow_including_inclusive_descendant_with_scope(root, root_tree_scope, disconnect_element);
+
+    // Only once no element still names a shadow root as its parent can the root give up its own
+    // identity.
+    auto disconnect_shadow_root = [](DOM::Node& node, TreeScopeID) {
+        if (auto* shadow_root = as_if<DOM::ShadowRoot>(node))
+            record_shadow_root_disconnecting(*shadow_root);
+    };
+    for_each_shadow_including_inclusive_descendant_with_scope(root, root_tree_scope, disconnect_shadow_root);
 }
 
 void record_shadow_root_connected(DOM::ShadowRoot& shadow_root)
