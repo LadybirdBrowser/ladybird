@@ -272,6 +272,20 @@ impl CollapsedBorderGrid {
         }
     }
 
+    pub(crate) fn outer_edge_widths(&self) -> BorderWidths {
+        let max_width = |segments: &[FfiCollapsedBorderEdge]| {
+            segments
+                .iter()
+                .fold(CssPixels::default(), |max, segment| max.max(segment.border_data.width))
+        };
+        BorderWidths {
+            top: max_width(&self.horizontal_lines[0]),
+            right: max_width(self.vertical_lines.last().expect("grid has vertical lines")),
+            bottom: max_width(self.horizontal_lines.last().expect("grid has horizontal lines")),
+            left: max_width(&self.vertical_lines[0]),
+        }
+    }
+
     pub(crate) fn has_paintable_edges(&self) -> bool {
         let paints = |segment: &FfiCollapsedBorderEdge| {
             segment.border_data.width > CssPixels::default()
@@ -1102,6 +1116,21 @@ impl TableFormattingContext {
         let table_borders = self.element_borders(self.table_box);
         grid.apply_borders(table_borders, 0, row_count, 0, column_count, take_source_order());
 
+        let outer = grid.outer_edge_widths();
+        let table_used = self.used_values(self.table_box);
+        let old_border_box_top = table_used.border_box_top(false);
+        let old_inline_borders = table_used.border_box_left(false) + table_used.border_box_right(false);
+        table_used.border_top.set(outer.top);
+        table_used.border_right.set(outer.right);
+        table_used.border_bottom.set(outer.bottom);
+        table_used.border_left.set(outer.left);
+        table_used.uses_collapsing_borders_model.set(true);
+        self.table_box_content_block_offset_in_wrapper += table_used.border_box_top(true) - old_border_box_top;
+        let freed_inline = old_inline_borders - (table_used.border_box_left(true) + table_used.border_box_right(true));
+        if let AvailableSize::Definite(available) = self.available_space.inline_size {
+            self.available_space.inline_size = AvailableSize::definite(available + freed_inline);
+        }
+
         for cell_index in 0..self.cells.len() {
             let cell = self.cells[cell_index];
             let row_end = cell.row_index + cell.row_span;
@@ -1812,7 +1841,8 @@ impl TableFormattingContext {
         let mut resolved = constraint.to_px(basis);
         if self.style(self.table_box).box_sizing() == box_sizing::BORDER_BOX {
             let used = self.used_values(self.table_box);
-            resolved -= used.border_box_left(false) + used.border_box_right(false);
+            let collapsed = used.uses_collapsing_borders_model.get();
+            resolved -= used.border_box_left(collapsed) + used.border_box_right(collapsed);
         }
         resolved.max(CssPixels::default())
     }
@@ -2245,7 +2275,8 @@ impl TableFormattingContext {
             .fold(CssPixels::default(), |sum, row| sum + row.base_block_size);
         if let Some(minimum) = self.min_border_box_block_size_from_flex_item {
             let used = self.used_values(self.table_box);
-            let content_min = minimum - used.border_box_top(false) - used.border_box_bottom(false);
+            let collapsed = used.uses_collapsing_borders_model.get();
+            let content_min = minimum - used.border_box_top(collapsed) - used.border_box_bottom(collapsed);
             self.table_block_size = self.table_block_size.max(content_min);
         }
         let table_style = self.style(self.table_box);
@@ -2255,7 +2286,8 @@ impl TableFormattingContext {
             let mut specified = table_style.height().to_px(self.table_constraints.block_basis());
             if table_style.box_sizing() == box_sizing::BORDER_BOX {
                 let used = self.used_values(self.table_box);
-                specified -= used.border_box_top(false) + used.border_box_bottom(false);
+                let collapsed = used.uses_collapsing_borders_model.get();
+                specified -= used.border_box_top(collapsed) + used.border_box_bottom(collapsed);
             }
             self.table_block_size = self.table_block_size.max(specified);
         }
@@ -2382,7 +2414,8 @@ impl TableFormattingContext {
         let table_used = self.used_values(self.table_box);
         let block_spacing = self.border_spacing_block();
         let inline_spacing = self.border_spacing_inline();
-        let inline_offset = table_used.border_left.get() + table_used.padding_left.get() + inline_spacing;
+        let inline_offset =
+            table_used.border_box_left(table_used.uses_collapsing_borders_model.get()) + inline_spacing;
         let mut row_block_offset = self.table_box_content_block_offset_in_wrapper + block_spacing;
         for row_index in 0..self.rows.len() {
             let row = &self.rows[row_index];

@@ -1817,11 +1817,22 @@ impl BlockFormattingContext {
                 },
                 participation: ParticipationInParentFormattingContext::BlockLevel,
             };
+            let pre_run_table_border_box = is_table_formatting_context.then(|| {
+                let used = self.used(node);
+                (used.border_box_left(false), used.border_box_top(false))
+            });
             let child_layout = self.layout_inside(run, node, inside_layout_input, true);
             if container_facts.is_table_wrapper() && style.display().is_table_inside() && child_layout.is_some() {
                 let used = self.used(node);
                 self.table_box_in_wrapper_border_box_block_size
                     .set(Some(used.border_box_block_size(used.uses_collapsing_borders_model.get())));
+                if used.uses_collapsing_borders_model.get()
+                    && let Some(position) = pending_position.as_mut()
+                    && let Some((pre_run_border_box_left, pre_run_border_box_top)) = pre_run_table_border_box
+                {
+                    position.x += used.border_box_left(true) - pre_run_border_box_left;
+                    position.y += used.border_box_top(true) - pre_run_border_box_top;
+                }
             }
             child_layout
         } else {
@@ -1933,7 +1944,9 @@ impl BlockFormattingContext {
             drop(margin_state);
             let used = self.used(node);
             self.block_offset_of_current_block_container.set(Some(
-                used.content_offset.get().y + used.content_block_size.get() + used.border_box_bottom(false),
+                used.content_offset.get().y
+                    + used.content_block_size.get()
+                    + used.border_box_bottom(used.uses_collapsing_borders_model.get()),
             ));
         }
         self.margin_state
@@ -1945,8 +1958,11 @@ impl BlockFormattingContext {
         self.margin_state.borrow_mut().update_open_top_margin_group();
 
         let used = self.used(node);
-        *bottom_of_lowest_margin_box = (*bottom_of_lowest_margin_box)
-            .max(used.content_offset.get().y + used.content_block_size.get() + used.margin_box_bottom(false));
+        *bottom_of_lowest_margin_box = (*bottom_of_lowest_margin_box).max(
+            used.content_offset.get().y
+                + used.content_block_size.get()
+                + used.margin_box_bottom(used.uses_collapsing_borders_model.get()),
+        );
     }
 
     fn layout_block_level_children(
@@ -2710,7 +2726,7 @@ impl BlockFormattingContext {
                 }
                 return (child_used.content_offset.get().y
                     + child_used.content_block_size.get()
-                    + child_used.border_box_bottom(false)
+                    + child_used.border_box_bottom(child_used.uses_collapsing_borders_model.get())
                     + margin_bottom)
                     .max(CssPixels::default());
             }
@@ -2835,7 +2851,8 @@ impl BlockFormattingContext {
             while let Some(node) = stack.pop() {
                 let facts = self.facts(node);
                 if facts.is_box() && self.style(node).display().is_table_inside() {
-                    return self.used(node).border_box_inline_size(false);
+                    let used = self.used(node);
+                    return used.border_box_inline_size(used.uses_collapsing_borders_model.get());
                 }
                 let mut children = Vec::new();
                 let mut child = self.first_child(node);
@@ -2966,7 +2983,7 @@ pub(crate) fn automatic_block_size_for_bfc_root(
             };
             let child_bottom = child_used.content_offset.get().y
                 + child_used.content_block_size.get()
-                + child_used.border_box_bottom(false)
+                + child_used.border_box_bottom(child_used.uses_collapsing_borders_model.get())
                 + margin_bottom;
             bottom = Some(bottom.map_or(child_bottom, |value: CssPixels| value.max(child_bottom)));
         }

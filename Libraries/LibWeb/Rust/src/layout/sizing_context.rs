@@ -1970,7 +1970,7 @@ impl SizingContext {
             true,
         );
 
-        let table_used_inline_size = table_used.border_box_inline_size(false);
+        let table_used_inline_size = table_used.border_box_inline_size(table_used.uses_collapsing_borders_model.get());
         if table_wrapper_inline_size_mode == TableWrapperInlineSizeMode::UseTableUsedInlineSizeIfNotAuto
             && !table_style.width().is_auto()
         {
