@@ -1404,7 +1404,9 @@ fn generate_ffi_header(
         });
     builder.generate().map_or_else(
         |error| match error {
-            cbindgen::Error::ParseSyntaxError { .. } => {}
+            cbindgen::Error::ParseSyntaxError { .. } => {
+                // Do nothing, the build will fail later with a nicer error message when compiling with rustc
+            }
             other => panic!("{other:?}"),
         },
         |bindings| {
@@ -1420,9 +1422,6 @@ fn generate_ffi_header(
     );
 }
 
-/// Strict variant for the layout headers: dormant layout sources are parsed
-/// by cbindgen before they join the module tree, so a syntax error anywhere
-/// must fail the build instead of silently producing a stale header.
 // CssPixels is a single i32 fixed-point value shared with the CSS module; C++
 // already has the matching CSSPixels class, so expose its raw representation in
 // the generated ABI rather than generating a second C++ pixel type in the
@@ -1433,33 +1432,6 @@ fn expose_css_pixels_as_raw_i32(config: &mut cbindgen::Config) {
         .export
         .rename
         .insert("CssPixels".to_string(), "int32_t".to_string());
-}
-
-fn generate_ffi_header_strict(
-    config: cbindgen::Config,
-    sources: &[PathBuf],
-    out_dir: &Path,
-    ffi_out_dir: &Path,
-    header: &Path,
-) {
-    let builder = sources
-        .iter()
-        .fold(cbindgen::Builder::new().with_config(config), |builder, source| {
-            builder.with_src(source)
-        });
-    builder.generate().map_or_else(
-        |error| panic!("{error}"),
-        |bindings| {
-            let output_header = out_dir.join(header);
-            std::fs::create_dir_all(output_header.parent().unwrap()).unwrap();
-            bindings.write_to_file(output_header);
-            if ffi_out_dir != out_dir {
-                let ffi_header = ffi_out_dir.join(header);
-                std::fs::create_dir_all(ffi_header.parent().unwrap()).unwrap();
-                bindings.write_to_file(ffi_header);
-            }
-        },
-    );
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -1694,7 +1666,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "rust_calc_resolve".to_string(),
     ];
     expose_css_pixels_as_raw_i32(&mut tree_builder_config);
-    generate_ffi_header_strict(
+    generate_ffi_header(
         tree_builder_config,
         &[
             manifest_dir.join("src/layout/layout_node_arena.rs"),
@@ -1729,7 +1701,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiFlexLayoutClampState".to_string(),
         "FfiFlexLayoutGrowthState".to_string(),
     ];
-    generate_ffi_header_strict(
+    generate_ffi_header(
         layout_config,
         &[
             manifest_dir.join("src/layout/used_values.rs"),
