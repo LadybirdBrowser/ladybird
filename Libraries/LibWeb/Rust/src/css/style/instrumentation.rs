@@ -196,6 +196,8 @@ define_counters! {
     ExactRegionBatchIntervals => "exactRegionBatchIntervals",
     ExactRegionBatchNodes => "exactRegionBatchNodes",
     RoutedEntryPoints => "routedEntryPoints",
+    OriginTruthRoutesFired => "originTruthRoutesFired",
+    OriginTruthRoutesSkipped => "originTruthRoutesSkipped",
     ArrivingNodeFactsFolded => "arrivingNodeFactsFolded",
     SheetChangeCandidatesRejected => "sheetChangeCandidatesRejected",
     RelationalAnchorsConsidered => "relationalAnchorsConsidered",

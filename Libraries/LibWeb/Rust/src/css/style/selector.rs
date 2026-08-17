@@ -1809,6 +1809,27 @@ impl SelectorProgram {
         }
     }
 
+    /// Whether one selector IR node can be evaluated from only the changed element's fact row.
+    ///
+    /// Routing uses this for origin compounds. Tree position, relative queries, shadow-tree
+    /// crossings, and scope bindings stay on the conservative path.
+    pub(super) fn selector_node_reads_only_local_facts(&self, id: SelectorNodeID) -> bool {
+        match self.node(id) {
+            SelectorOp::Feature(_)
+            | SelectorOp::State(_)
+            | SelectorOp::Part(_)
+            | SelectorOp::ValueState { .. }
+            | SelectorOp::Language { .. }
+            | SelectorOp::Heading(_) => true,
+            SelectorOp::And { first, count } | SelectorOp::Or { first, count } => self
+                .operands(first, count)
+                .iter()
+                .all(|&operand| self.selector_node_reads_only_local_facts(operand)),
+            SelectorOp::Where(inner) | SelectorOp::Not(inner) => self.selector_node_reads_only_local_facts(inner),
+            _ => false,
+        }
+    }
+
     /// Whether nothing an element publishes as it arrives can turn this entry's answer off.
     ///
     /// An arriving element is routed from the facts it publishes, and for most shapes those facts
@@ -2686,8 +2707,9 @@ pub struct RelativeAnchor {
 pub struct TransposeRoute {
     pub rule: RuleID,
     pub entry: EntryID,
-    /// The IR node containing a structural operator, which distinguishes how the route is planned.
-    pub structural_node: Option<SelectorNodeID>,
+    /// The structural operator for a structural route, or the locally evaluable origin compound for
+    /// an attribute route.
+    pub selector_node: Option<SelectorNodeID>,
     /// Set when the input is a possible relational witness, in which case the path applies from an
     /// anchor rather than from the changed node.
     pub anchor: Option<RelativeAnchor>,
@@ -2872,7 +2894,7 @@ const NO_ROUTE_INDEX: u32 = u32::MAX;
 struct RouteHeader {
     rule: RuleID,
     entry: EntryID,
-    structural_node: u32,
+    selector_node: u32,
     anchor_index: u32,
 }
 
@@ -2976,7 +2998,7 @@ pub(super) struct LiveRelationalRoute {
 struct RouteDescriptor<'a> {
     rule: RuleID,
     entry: EntryID,
-    structural_node: Option<SelectorNodeID>,
+    selector_node: Option<SelectorNodeID>,
     origin_dispatch: &'a [DispatchKey],
     origin_required: &'a [DispatchKey],
     parent_dispatch: &'a [DispatchKey],
@@ -3055,6 +3077,7 @@ impl SelectorProgram {
             visit(TransposeSite {
                 key,
                 node: id,
+                origin: enclosing,
                 path: &walk.applied_path,
                 anchor,
                 origin_dispatch: &walk.origin_dispatch,
@@ -3286,6 +3309,8 @@ pub struct TransposeSite<'a> {
     pub key: RoutingKey,
     /// The IR node the input occurs at.
     pub node: SelectorNodeID,
+    /// The compound whose truth controls whether the input can reach this route.
+    pub origin: SelectorNodeID,
     /// The inverse path from the input to the entry's subjects.
     pub path: &'a [InverseStep],
     /// Set when the input is a possible relational witness.
@@ -3428,7 +3453,7 @@ impl RoutingRegistry {
         let RouteDescriptor {
             rule,
             entry,
-            structural_node,
+            selector_node,
             origin_dispatch,
             origin_required,
             parent_dispatch,
@@ -3454,15 +3479,15 @@ impl RoutingRegistry {
                 self.anchors.push(anchor);
                 index
             });
-            let structural_node = structural_node.map_or(NO_ROUTE_INDEX, |node| {
-                assert_ne!(node.0, NO_ROUTE_INDEX, "structural selector node space exhausted");
+            let selector_node = selector_node.map_or(NO_ROUTE_INDEX, |node| {
+                assert_ne!(node.0, NO_ROUTE_INDEX, "selector node space exhausted");
                 node.0
             });
             self.routes.push(
                 RouteHeader {
                     rule,
                     entry,
-                    structural_node,
+                    selector_node,
                     anchor_index: anchor_index.unwrap_or(NO_ROUTE_INDEX),
                 },
                 RouteRanges {
@@ -3524,7 +3549,7 @@ impl RoutingRegistry {
         RouteDescriptor {
             rule: point.rule,
             entry: point.entry,
-            structural_node: point.structural_node,
+            selector_node: point.selector_node,
             origin_dispatch: self.origin_dispatch_of(route),
             origin_required: self.origin_required_of(route),
             parent_dispatch: self.parent_dispatch_of(route),
@@ -3571,8 +3596,7 @@ impl RoutingRegistry {
         TransposeRoute {
             rule: header.rule,
             entry: header.entry,
-            structural_node: (header.structural_node != NO_ROUTE_INDEX)
-                .then_some(SelectorNodeID(header.structural_node)),
+            selector_node: (header.selector_node != NO_ROUTE_INDEX).then_some(SelectorNodeID(header.selector_node)),
             anchor: (header.anchor_index != NO_ROUTE_INDEX).then(|| self.anchors[header.anchor_index as usize]),
         }
     }
@@ -3630,7 +3654,7 @@ impl RoutingRegistry {
             let (program, entry) = programs.entry_location(point.entry);
             let compiled = programs.get(program);
             let selector_entry = compiled.entries()[entry as usize];
-            let operator = compiled.node(point.structural_node.expect("structural route has no operator"));
+            let operator = compiled.node(point.selector_node.expect("structural route has no operator"));
             if !matches!(operator, SelectorOp::Empty | SelectorOp::NthPosition(_)) {
                 continue;
             }
@@ -3887,7 +3911,19 @@ impl RoutingRegistry {
                     RouteDescriptor {
                         rule,
                         entry: entry_id,
-                        structural_node: (site.key == RoutingKey::Structural).then_some(site.node),
+                        selector_node: match compiled.node(site.node) {
+                            SelectorOp::Feature(FeatureTest::Attribute(attribute))
+                                if attribute.operator == AttributeOperator::Presence
+                                    || (attribute.operator == AttributeOperator::Exact
+                                        && attribute.case == AttributeCase::Sensitive
+                                        && !attribute.value_atom.is_none()) =>
+                            {
+                                Some(site.node)
+                            }
+                            SelectorOp::Feature(FeatureTest::Attribute(_)) => Some(site.origin),
+                            _ if site.key == RoutingKey::Structural => Some(site.node),
+                            _ => None,
+                        },
                         origin_dispatch: site.origin_dispatch,
                         origin_required: site.origin_required,
                         parent_dispatch: site.parent_dispatch,
@@ -7398,8 +7434,8 @@ mod tests {
         let routes = registry.routes_for(RoutingKey::Structural);
         assert_eq!(routes.len(), 2);
         assert_ne!(
-            registry.route(routes[0]).structural_node,
-            registry.route(routes[1]).structural_node
+            registry.route(routes[0]).selector_node,
+            registry.route(routes[1]).selector_node
         );
     }
 

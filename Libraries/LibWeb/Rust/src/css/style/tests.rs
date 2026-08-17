@@ -271,6 +271,199 @@ fn discard_transaction(engine: &mut StyleEngine) {
     engine.release_transaction(transaction);
 }
 
+#[test]
+fn attribute_changes_publish_one_name_route() {
+    let node = StyleNodeID::element(1);
+    let name = StyleAtomID(10);
+    let old_value = StyleAtomID(20);
+    let new_value = StyleAtomID(21);
+    let changed = NormalizedInput {
+        key: InputKey::LocalFeature(node, LocalFeatureKey::Attribute(name)),
+        old: InputValue::Feature(FeatureValue::Atom(old_value)),
+        new: InputValue::Feature(FeatureValue::Atom(new_value)),
+    };
+
+    assert_eq!(routing_keys_for_input(&changed), [RoutingKey::AttributeName(name)]);
+
+    let added = NormalizedInput {
+        old: InputValue::Feature(FeatureValue::Absent),
+        new: InputValue::Feature(FeatureValue::Atom(new_value)),
+        ..changed
+    };
+    assert_eq!(routing_keys_for_input(&added), [RoutingKey::AttributeName(name)]);
+}
+
+#[test]
+fn unchanged_attribute_value_truth_skips_descendant_routing() {
+    let (mut engine, nodes) = nested_document();
+    let attribute_name = StyleAtomID(200);
+    let old_value = StyleAtomID(201);
+    let target = StyleAtomID(202);
+    let new_value = StyleAtomID(203);
+
+    let mut builder = selector::SelectorProgramBuilder::new();
+    let (value_offset, value_length) = builder.push_literal(&[u16::from(b'a')]);
+    let attribute = builder.push_feature(selector::FeatureTest::Attribute(selector::AttributeTest {
+        name: attribute_name,
+        any_namespace: false,
+        folded: attribute_name,
+        fold_in_namespace: StyleAtomID::NONE,
+        operator: selector::AttributeOperator::Prefix,
+        value_atom: StyleAtomID::NONE,
+        value_offset,
+        value_length,
+        case: selector::AttributeCase::Sensitive,
+    }));
+    let ancestor = builder.push_ancestor(attribute);
+    let target_test = builder.push_feature(selector::FeatureTest::Class(target));
+    let subject = builder.push_compound(&[target_test, ancestor]);
+    builder.push_entry(subject);
+    let program = engine.programs.add(builder.finish());
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    let rule = engine.append_rule(sheet, None, RuleKind::Style);
+    engine.add_routing_rule(rule, program);
+    let mut version = engine.program.rule_version(rule);
+    version.selector_program = Some(program);
+    version.declaration_block = Some(DeclarationBlockID(1));
+    engine.replace_rule_version(rule, version);
+
+    engine.set_attribute_value_text(old_value, &[u16::from(b'a'), u16::from(b'b')]);
+    engine.set_attribute_value_text(new_value, &[u16::from(b'a'), u16::from(b'c')]);
+    engine.record_input(
+        InputKey::LocalFeature(nodes[1], LocalFeatureKey::Attribute(attribute_name)),
+        InputValue::Feature(FeatureValue::Absent),
+        InputValue::Feature(FeatureValue::Atom(old_value)),
+    );
+    add_feature(&mut engine, nodes[3], LocalFeatureKey::Class(target));
+    discard_transaction(&mut engine);
+
+    engine.record_input(
+        InputKey::LocalFeature(nodes[1], LocalFeatureKey::Attribute(attribute_name)),
+        InputValue::Feature(FeatureValue::Atom(old_value)),
+        InputValue::Feature(FeatureValue::Atom(new_value)),
+    );
+    let skipped_before = engine.counters().get(Counter::OriginTruthRoutesSkipped);
+    let mut planned = Vec::new();
+    assert!(engine.take_style_transaction_nodes(nodes[0], |nodes| planned.extend_from_slice(nodes)));
+    assert!(planned.is_empty());
+    assert_eq!(
+        engine.counters().get(Counter::OriginTruthRoutesSkipped) - skipped_before,
+        1
+    );
+}
+
+fn assert_attribute_origin_route_fires(
+    operator: selector::AttributeOperator,
+    value_atom: StyleAtomID,
+    literal: &[u16],
+    old: FeatureValue,
+    new: FeatureValue,
+    old_text: Option<&[u16]>,
+    new_text: Option<&[u16]>,
+) {
+    let (mut engine, nodes) = nested_document();
+    let attribute_name = StyleAtomID(200);
+    let target = StyleAtomID(201);
+    let mut builder = selector::SelectorProgramBuilder::new();
+    let (value_offset, value_length) = builder.push_literal(literal);
+    let attribute = builder.push_feature(selector::FeatureTest::Attribute(selector::AttributeTest {
+        name: attribute_name,
+        any_namespace: false,
+        folded: attribute_name,
+        fold_in_namespace: StyleAtomID::NONE,
+        operator,
+        value_atom,
+        value_offset,
+        value_length,
+        case: selector::AttributeCase::Sensitive,
+    }));
+    let ancestor = builder.push_ancestor(attribute);
+    let target_test = builder.push_feature(selector::FeatureTest::Class(target));
+    let subject = builder.push_compound(&[target_test, ancestor]);
+    builder.push_entry(subject);
+    let program = engine.programs.add(builder.finish());
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    let rule = engine.append_rule(sheet, None, RuleKind::Style);
+    engine.add_routing_rule(rule, program);
+    let mut version = engine.program.rule_version(rule);
+    version.selector_program = Some(program);
+    version.declaration_block = Some(DeclarationBlockID(1));
+    engine.replace_rule_version(rule, version);
+
+    if let (FeatureValue::Atom(atom), Some(text)) = (old, old_text) {
+        engine.set_attribute_value_text(atom, text);
+    }
+    if let (FeatureValue::Atom(atom), Some(text)) = (new, new_text) {
+        engine.set_attribute_value_text(atom, text);
+    }
+    if old != FeatureValue::Absent {
+        engine.record_input(
+            InputKey::LocalFeature(nodes[1], LocalFeatureKey::Attribute(attribute_name)),
+            InputValue::Feature(FeatureValue::Absent),
+            InputValue::Feature(old),
+        );
+    }
+    add_feature(&mut engine, nodes[3], LocalFeatureKey::Class(target));
+    discard_transaction(&mut engine);
+
+    engine.record_input(
+        InputKey::LocalFeature(nodes[1], LocalFeatureKey::Attribute(attribute_name)),
+        InputValue::Feature(old),
+        InputValue::Feature(new),
+    );
+    let fired_before = engine.counters().get(Counter::OriginTruthRoutesFired);
+    let skipped_before = engine.counters().get(Counter::OriginTruthRoutesSkipped);
+    let mut planned = Vec::new();
+    assert!(engine.take_style_transaction_nodes(nodes[0], |nodes| planned.extend_from_slice(nodes)));
+    assert!(planned.contains(&nodes[3].raw()));
+    assert_eq!(engine.counters().get(Counter::OriginTruthRoutesFired) - fired_before, 1);
+    assert_eq!(
+        engine.counters().get(Counter::OriginTruthRoutesSkipped) - skipped_before,
+        0
+    );
+}
+
+#[test]
+fn attribute_presence_truth_flip_fires_descendant_routing() {
+    assert_attribute_origin_route_fires(
+        selector::AttributeOperator::Presence,
+        StyleAtomID::NONE,
+        &[],
+        FeatureValue::Absent,
+        FeatureValue::Atom(StyleAtomID(202)),
+        None,
+        None,
+    );
+}
+
+#[test]
+fn attribute_exact_value_truth_flip_fires_descendant_routing() {
+    assert_attribute_origin_route_fires(
+        selector::AttributeOperator::Exact,
+        StyleAtomID(203),
+        &[],
+        FeatureValue::Atom(StyleAtomID(202)),
+        FeatureValue::Atom(StyleAtomID(203)),
+        None,
+        None,
+    );
+}
+
+#[test]
+fn attribute_text_truth_flip_fires_descendant_routing() {
+    assert_attribute_origin_route_fires(
+        selector::AttributeOperator::Prefix,
+        StyleAtomID::NONE,
+        &[u16::from(b'x')],
+        FeatureValue::Atom(StyleAtomID(202)),
+        FeatureValue::Atom(StyleAtomID(203)),
+        Some(&[u16::from(b'a'), u16::from(b'b')]),
+        Some(&[u16::from(b'x'), u16::from(b'c')]),
+    );
+}
+
 fn published_match_answer(node: u32, cascade_input: Option<u32>, match_count: usize) -> PublishedMatchAnswer {
     let rule_match = RuleMatch {
         node: StyleNodeID::element(node),
