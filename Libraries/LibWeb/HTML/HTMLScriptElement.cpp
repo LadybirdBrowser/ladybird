@@ -374,7 +374,7 @@ void HTMLScriptElement::prepare_script()
     auto module_script_credential_mode = cors_settings_attribute_credentials_mode(m_crossorigin);
 
     // 27. Let cryptographic nonce be el's [[CryptographicNonce]] internal slot's value.
-    auto cryptographic_nonce = m_cryptographic_nonce;
+    auto cryptographic_nonce = nonce();
 
     // 28. If el has an integrity attribute, then let integrity metadata be that attribute's value.
     //     Otherwise, let integrity metadata be the empty string.

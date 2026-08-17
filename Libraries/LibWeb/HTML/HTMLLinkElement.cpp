@@ -365,7 +365,7 @@ GC::Ref<HTMLLinkElement::LinkProcessingOptions> HTMLLinkElement::create_link_opt
 
         // cryptographic nonce metadata
         //     the current value of el's [[CryptographicNonce]] internal slot
-        m_cryptographic_nonce,
+        nonce(),
 
         // fetch priority
         //     the state of el's fetchpriority content attribute

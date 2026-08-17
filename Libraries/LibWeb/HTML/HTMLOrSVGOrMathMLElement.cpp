@@ -4,8 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/ElementRareData.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLOrSVGOrMathMLElement.h>
@@ -18,13 +20,59 @@
 
 namespace Web::HTML {
 
+template<typename ElementBase>
+GC::Ptr<DOMStringMap>& HTMLOrSVGOrMathMLElement<ElementBase>::dataset_storage()
+{
+    return static_cast<ElementBase*>(this)->ensure_element_rare_data().dataset;
+}
+
+template<typename ElementBase>
+Utf16String* HTMLOrSVGOrMathMLElement<ElementBase>::cryptographic_nonce_storage()
+{
+    auto* rare_data = static_cast<ElementBase*>(this)->element_rare_data();
+    return rare_data ? &rare_data->cryptographic_nonce : nullptr;
+}
+
+template<typename ElementBase>
+Utf16String const* HTMLOrSVGOrMathMLElement<ElementBase>::cryptographic_nonce_storage() const
+{
+    auto const* rare_data = static_cast<ElementBase const*>(this)->element_rare_data();
+    return rare_data ? &rare_data->cryptographic_nonce : nullptr;
+}
+
+template<typename ElementBase>
+Utf16String& HTMLOrSVGOrMathMLElement<ElementBase>::ensure_cryptographic_nonce_storage()
+{
+    return static_cast<ElementBase*>(this)->ensure_element_rare_data().cryptographic_nonce;
+}
+
 // https://html.spec.whatwg.org/multipage/dom.html#dom-dataset-dev
 template<typename ElementBase>
 GC::Ref<DOMStringMap> HTMLOrSVGOrMathMLElement<ElementBase>::dataset()
 {
-    if (!m_dataset)
-        m_dataset = DOMStringMap::create(*static_cast<ElementBase*>(this));
-    return *m_dataset;
+    auto& dataset = dataset_storage();
+    if (!dataset)
+        dataset = DOMStringMap::create(*static_cast<ElementBase*>(this));
+    return *dataset;
+}
+
+template<typename ElementBase>
+Utf16String const& HTMLOrSVGOrMathMLElement<ElementBase>::nonce() const
+{
+    static NeverDestroyed<Utf16String> empty_nonce;
+    auto const* nonce = cryptographic_nonce_storage();
+    return nonce ? *nonce : *empty_nonce;
+}
+
+template<typename ElementBase>
+void HTMLOrSVGOrMathMLElement<ElementBase>::set_nonce(Utf16View nonce)
+{
+    if (nonce.is_empty()) {
+        if (auto* storage = cryptographic_nonce_storage())
+            *storage = {};
+        return;
+    }
+    ensure_cryptographic_nonce_storage() = Utf16String::from_utf16(nonce);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-focus
@@ -75,12 +123,12 @@ void HTMLOrSVGOrMathMLElement<ElementBase>::attribute_changed(Utf16FlyString con
 
     // 3. If value is null, then set element's [[CryptographicNonce]] to the empty string.
     if (!value.has_value()) {
-        m_cryptographic_nonce = {};
+        set_nonce({});
     }
 
     // 4. Otherwise, set element's [[CryptographicNonce]] to value.
     else {
-        m_cryptographic_nonce = *value;
+        set_nonce(*value);
     }
 }
 
@@ -90,7 +138,7 @@ WebIDL::ExceptionOr<void> HTMLOrSVGOrMathMLElement<ElementBase>::cloned(DOM::Nod
 {
     // The cloning steps for elements that include HTMLOrSVGOrMathMLElement given node, copy, and subtree
     // are to set copy's [[CryptographicNonce]] to node's [[CryptographicNonce]].
-    static_cast<ElementBase&>(copy).m_cryptographic_nonce = m_cryptographic_nonce;
+    static_cast<ElementBase&>(copy).set_nonce(nonce());
     return {};
 }
 
@@ -115,13 +163,13 @@ void HTMLOrSVGOrMathMLElement<ElementBase>::inserted()
     //    nonce content attribute whose value is not the empty string, then:
     if (csp_list->contains_header_delivered_policy() && element.has_attribute(HTML::AttributeNames::nonce)) {
         // 2.1. Let nonce be element's [[CryptographicNonce]].
-        auto nonce = m_cryptographic_nonce;
+        auto nonce = this->nonce();
 
         // 2.2. Set an attribute value for element using "nonce" and the empty string.
         element.set_attribute_value(HTML::AttributeNames::nonce, Utf16String {});
 
         // 2.3. Set element's [[CryptographicNonce]] to nonce.
-        m_cryptographic_nonce = nonce;
+        set_nonce(nonce);
     }
 
     // https://html.spec.whatwg.org/multipage/interaction.html#the-autofocus-attribute
@@ -158,12 +206,6 @@ void HTMLOrSVGOrMathMLElement<ElementBase>::inserted()
             candidates.append(GC::Ref { element });
         }
     }
-}
-
-template<typename ElementBase>
-void HTMLOrSVGOrMathMLElement<ElementBase>::visit_edges(JS::Cell::Visitor& visitor)
-{
-    visitor.visit(m_dataset);
 }
 
 template class HTMLOrSVGOrMathMLElement<HTMLElement>;

@@ -60,6 +60,13 @@ struct Element::RareData
 
     // https://dom.spec.whatwg.org/#element-custom-element-registry
     GC::Ptr<HTML::CustomElementRegistry> custom_element_registry;
+
+    // https://html.spec.whatwg.org/multipage/dom.html#dom-dataset-dev
+    GC::Ptr<HTML::DOMStringMap> dataset;
+
+    // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#cryptographicnonce
+    Utf16String cryptographic_nonce;
+
     Optional<Utf16FlyString> name;
     Fullscreen::RequestType fullscreen_request_type { Fullscreen::RequestType::Standard };
 

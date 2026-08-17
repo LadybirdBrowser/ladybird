@@ -56,7 +56,6 @@ Optional<ARIA::Role> MathMLElement::default_role() const
 void MathMLElement::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    HTMLOrSVGOrMathMLElement::visit_edges(visitor);
 }
 
 bool MathMLElement::is_presentational_hint(Utf16FlyString const& name) const

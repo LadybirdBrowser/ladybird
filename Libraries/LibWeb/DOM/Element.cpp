@@ -195,6 +195,7 @@ void Element::RareData::visit_edges(Cell::Visitor& visitor)
     visitor.visit(attribute_style_map);
     visitor.visit(custom_element_definition);
     visitor.visit(custom_element_registry);
+    visitor.visit(dataset);
     if (pseudo_element_data) {
         for (auto& pseudo_element : *pseudo_element_data)
             visitor.visit(pseudo_element.value);
