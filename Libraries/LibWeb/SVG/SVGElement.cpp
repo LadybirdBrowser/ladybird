@@ -246,7 +246,6 @@ Optional<ARIA::Role> SVGElement::default_role() const
 void SVGElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    HTMLOrSVGOrMathMLElement::visit_edges(visitor);
     visitor.visit(m_class_name_animated_string);
     visitor.visit(m_reflected_attribute_cache);
 }

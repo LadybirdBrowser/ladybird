@@ -62,6 +62,13 @@ class Element;
 
 }
 
+namespace Web::HTML {
+
+template<typename>
+class HTMLOrSVGOrMathMLElement;
+
+}
+
 namespace Web::Bindings {
 
 class PlatformObject;
@@ -805,6 +812,8 @@ protected:
     GC::Ptr<HTML::CustomElementDefinition> custom_element_definition() const;
 
     friend void Bindings::set_prototype_from_custom_element_definition_if_needed(Element&, Bindings::PlatformObject&);
+    template<typename>
+    friend class HTML::HTMLOrSVGOrMathMLElement;
 
     void play_or_cancel_animations_after_display_property_change();
     void clear_element_reference_pseudo_elements();

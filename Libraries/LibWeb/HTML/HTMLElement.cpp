@@ -166,7 +166,6 @@ void HTMLElement::set_popover_visibility_state(PopoverVisibilityState state)
 void HTMLElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    HTMLOrSVGOrMathMLElement::visit_edges(visitor);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-translate
