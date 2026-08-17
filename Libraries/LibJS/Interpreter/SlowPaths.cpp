@@ -601,6 +601,7 @@ i64 asm_slow_path_get_callee_and_this(VM*, u32 pc, Op::GetCalleeAndThisFromEnvir
 i64 asm_slow_path_dynamic_get_callee_and_this(VM*, u32 pc, Op::DynamicGetCalleeAndThisFromEnvironment const*);
 i64 asm_slow_path_postfix_increment(VM*, u32 pc, Op::PostfixIncrement const*);
 i64 asm_slow_path_get_by_id(VM*, u32 pc, Op::GetById const*);
+i64 asm_slow_path_get_by_id_cached_accessor(VM*, u32 pc, Op::GetById const*);
 i64 asm_slow_path_get_by_id_with_this(VM*, u32 pc, Op::GetByIdWithThis const*);
 i64 asm_slow_path_put_by_id(VM*, u32 pc, Op::PutById const*);
 i64 asm_slow_path_put_by_id_with_this(VM*, u32 pc, Op::PutByIdWithThis const*);
@@ -730,6 +731,7 @@ u64 asm_helper_single_ascii_character_string(u64 encoded_value);
 u64 asm_helper_single_utf16_code_unit_string(u64 encoded_value);
 i64 asm_helper_handle_raw_native_exception(u64 encoded_exception);
 i64 asm_try_inline_call(VM*, u32 pc, Op::Call const*);
+i64 asm_try_inline_get_by_id_accessor(VM*, u32 pc, Op::GetById const*);
 i64 asm_try_put_by_id_cache(VM*, u32 pc, Op::PutById const*);
 i64 asm_try_get_by_id_cache(VM*, u32 pc, Op::GetById const*);
 
@@ -966,6 +968,20 @@ i64 asm_slow_path_get_by_id(VM* vm, u32 pc, Op::GetById const* instruction)
     auto& cache = vm->current_executable().property_lookup_caches[instruction->cache()];
     auto value = ASM_TRY(*vm, pc, get_by_id<GetByIdMode::Normal>(*vm, [&] { return vm->get_identifier(instruction->base_identifier()); }, [&] -> PropertyKey const& { return vm->get_property_key(instruction->property()); }, base_value, base_value, cache, CachePropertyAbsence::Yes));
     vm->set(instruction->dst(), value);
+    return static_cast<i64>(pc + sizeof(Op::GetById));
+}
+
+i64 asm_slow_path_get_by_id_cached_accessor(VM* vm, u32 pc, Op::GetById const* instruction)
+{
+    auto& object = vm->get(instruction->base()).as_object();
+    auto& cache = vm->current_executable().property_lookup_caches[instruction->cache()];
+    auto* entry = cache.first_entry();
+    VERIFY(entry);
+
+    auto* holder = entry->prototype ? entry->prototype.ptr() : &object;
+    auto value = holder->get_direct(entry->property_offset);
+    VERIFY(value.is_accessor());
+    vm->set(instruction->dst(), ASM_TRY(*vm, pc, get_cached_property_value(*vm, value, &object)));
     return static_cast<i64>(pc + sizeof(Op::GetById));
 }
 
@@ -2194,6 +2210,38 @@ i64 asm_try_inline_call(VM* vm, u32 pc, Op::Call const* instruction)
         pc + instruction->length(),
         instruction->dst().raw(),
         vm->get(instruction->this_value()),
+        nullptr,
+        false);
+
+    return callee_context ? 0 : 1;
+}
+
+i64 asm_try_inline_get_by_id_accessor(VM* vm, u32 pc, Op::GetById const* instruction)
+{
+    auto& object = vm->get(instruction->base()).as_object();
+    auto& cache = vm->current_executable().property_lookup_caches[instruction->cache()];
+    auto* entry = cache.first_entry();
+    VERIFY(entry);
+
+    auto* holder = entry->prototype ? entry->prototype.ptr() : &object;
+    auto value = holder->get_direct(entry->property_offset);
+    VERIFY(value.is_accessor());
+
+    auto* getter = value.as_accessor().getter();
+    if (!getter || !is<ECMAScriptFunctionObject>(*getter)) [[unlikely]]
+        return 1;
+
+    auto& getter_function = static_cast<ECMAScriptFunctionObject&>(*getter);
+    if (!getter_function.can_inline_call()) [[unlikely]]
+        return 1;
+
+    auto* callee_context = vm->push_inline_frame(
+        getter_function,
+        getter_function.inline_call_executable(),
+        {},
+        pc + instruction->length(),
+        instruction->dst().raw(),
+        &object,
         nullptr,
         false);
 

@@ -4218,14 +4218,14 @@ asm_handler_GetById:
     cmp edi, 6
     je .Lasm_GetById.ssa_block_1
     test rax, rax
-    jz .Lasm_GetById.ssa_block_5
+    jz .Lasm_GetById.ssa_block_7
     mov rsi, QWORD PTR [rcx + 40]
     test rsi, rsi
     jz .Lasm_GetById.ssa_block_1
     cmp BYTE PTR [rsi + 10], 0
     jz .Lasm_GetById.ssa_block_1
     mov rsi, rax
-.Lasm_GetById.ssa_block_5:
+.Lasm_GetById.ssa_block_7:
     mov eax, DWORD PTR [rcx + 8]
     mov ecx, DWORD PTR [rcx + 4]
     cmp DWORD PTR [rdx + 92], eax
@@ -4235,10 +4235,26 @@ asm_handler_GetById:
     mov r11, rax
     shr r11, 48
     cmp r11w, 65532
-    je .Lasm_GetById.ssa_block_1
+    je .Lasm_GetById.ssa_block_3
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rax
     add r13d, 24
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_GetById.ssa_block_4:
+    mov DWORD PTR [rbx + -64], r13d
+    mov rdi, QWORD PTR [rbp - 48]
+    mov esi, r13d
+    lea rdx, [r14 + r13]
+    call CSYM(asm_slow_path_get_by_id_cached_accessor)
+    test rax, rax
+    js .Lexit
+    mov rcx, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [rcx + 15288]
+    add rbx, 120
+    mov rcx, QWORD PTR [rbx + -40]
+    mov r14, QWORD PTR [rcx + 80]
+    mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 asm_handler_GetById_hot_end:
@@ -9260,6 +9276,21 @@ asm_handler_GetById_cold:
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_GetById.ssa_block_3:
+    mov rdi, QWORD PTR [rbp - 48]
+    mov esi, r13d
+    lea rdx, [r14 + r13]
+    call CSYM(asm_try_inline_get_by_id_accessor)
+    test eax, eax
+    jnz .Lasm_GetById.ssa_block_4
+    mov rax, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [rax + 15288]
+    add rbx, 120
+    mov rax, QWORD PTR [rbx - 40]
+    mov r14, QWORD PTR [rax + 80]
+    mov r13d, 0
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 asm_handler_GetById_cold_end:
