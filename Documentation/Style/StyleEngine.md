@@ -151,8 +151,8 @@ Conservative                 neither is executable; keep the routed region as-is
 * **Style read epoch**: a mutation-free interval in which style reads the authoritative live DOM and other versioned inputs.
 * **Style node**: the engine's compact identity for a DOM element.
 * **Style feature atom**: a compact identity for a selector-mentioned tag, ID, class, attribute, value, namespace, or state fact. It does not own duplicate string payload.
-* **Match program**: bytecode answering whether a candidate subject matches a selector during one read epoch.
-* **Transpose program**: bytecode that starts from a changed selector input and traverses inverse selector relations to enumerate a safe superset of subjects whose match truth can change.
+* **Match program**: a logical-IR evaluator answering whether a candidate subject matches a selector during one read epoch.
+* **Transpose program**: compiled inverse routes that start from a changed selector input and enumerate a safe superset of subjects whose match truth can change.
 * **Delta-routing registry**: required program state mapping a typed semantic input key to transpose entry points.
 * **Impact region**: the normalized union of subjects, relation ranges, and dependent scopes emitted by transpose programs for a transaction.
 * **Impact-region attribution**: the split between regions attributed to a specific rule and program (eligible for exact planning) and unattributed regions (evaluated conservatively).
@@ -220,7 +220,7 @@ A removed style-node identity and any required relation tombstone stay valid unt
 
 Resident derived state supplies old selector truth when available. If it was evicted, discard the affected derived fragment, evaluate the final state from the live DOM, and compare with the last committed style output.
 
-**Journal overflow.** The journal is byte-accounted against its own memory category. Its capacity allows four fine-grained entries per connected element and is clamped between 4 MiB and 32 MiB. When growth would cross that capacity, the most numerous input kind's fine-grained entries are replaced with a typed **complete-scope marker** covering the whole document for that kind, and later records of that kind are dropped outright. At flush a marker widens the impact region to the document, and the plan evaluates that region exactly (§3). A pathological script can force broad discovery work but cannot force unbounded journal memory. (Environment markers are exempted from disabling the retained-selector fast paths, since environment changes cannot alter selector incidence.)
+**Journal overflow.** The journal is byte-accounted against its own memory category. Its capacity allows four fine-grained entries per connected element and is clamped between 4 MiB and 32 MiB. When growth would cross that capacity, the most numerous reconstructible fact, relation, program, or topology input kind's fine-grained entries are replaced with a typed **complete-scope marker** covering the whole document for that kind, and later records of that kind are dropped outright. Edge-triggered `ElementStyleInput` actions are never marker-coarsened: their reaction and inherited-group bits remain attached to every target and repeated actions on one target are unioned. At flush a marker widens the impact region to the document, and the plan evaluates that region exactly (§3). A pathological script can force broad discovery work but cannot discard an action whose target cannot be reconstructed from final facts. (Environment markers are exempted from disabling the retained-selector fast paths, since environment changes cannot alter selector incidence.)
 
 ### 4.5 Mutations during evaluation
 
@@ -242,7 +242,8 @@ Do not blindly duplicate fields already on DOM elements. Persistent style-side s
 
 * a minimal style-data handle reachable from an element;
 * required evaluator-local relation-navigation state;
-* sparse segmented columns for optional per-element information;
+* directly indexed columns for optional per-element fact metadata;
+* compact dense columns for live computed-style publication handles;
 * reusable temporary columnar batches for bounded-region evaluation;
 * indexes containing only style-relevant facts.
 
@@ -251,14 +252,16 @@ parent                       required, dense
 first element child          required, dense
 next element sibling         required, dense
 previous element sibling     required, dense
+depth                        required, dense
 tree scope                   conditional, allocated only for multi-scope documents
 assigned slot                allocated per segment
 shadow host                  allocated per segment
-local feature-set identity   optional, Tier 3
-style-record identity        Tier 1 for observed content
+fact metadata header         optional payload in a dense directly indexed column
+prefix local-fact identity   optional, Tier 3 segmented column
+computed publication handles compact dense columns, Tier 1 for observed content
 ```
 
-Optional columns are allocated per segment only when useful. A document with no shadow trees allocates no shadow relationship columns.
+Shadow-relation and prefix-cache columns are allocated per segment only when useful. Fact metadata and computed publication use dense directly indexed columns whose vacant rows carry no external payload; they trade empty slots below the highest used identity for constant-time access. A document with no shadow trees allocates no shadow relationship columns.
 
 ### 5.3 Required relation navigation
 
@@ -269,15 +272,15 @@ Concretely: for `.theme .item` and a class mutation on a container, the transpos
 Rules:
 
 * Dense `u32`, allocated for every connected style node, charged to **Tier 1**, counted against the mandatory per-node byte budget (§10.5).
-* **Not semantically authoritative.** The exact cold evaluator can always read the live DOM. The columns are a derived projection that must agree with the live tree at every epoch boundary.
-* Not evicted under ordinary memory pressure; Tier 3 is evicted first. If they cannot be allocated, evaluation stays exact through bounded live-fact batches.
+* The DOM remains the Web-facing semantic owner, while these columns are the engine's committed evaluation projection. C++ must publish every relation mutation, and the columns must agree with the final live tree at every epoch boundary; the exact evaluator reads this projection rather than fetching the DOM in reverse.
+* Not evicted under ordinary memory pressure; Tier 3 is evicted first. Their allocation is required engine state, and a missing committed relation row is an invariant violation rather than a cold-path signal.
 * Ownership follows the tree: the subsystem that mutates DOM structure publishes relation-column updates as part of the same `TreeDelta` that reports the mutation, so they cannot drift within a read epoch. Mismatch is an invariant violation, not a recoverable condition.
 
 Tree-scope navigation has the same traversal requirement once multiple scopes are supported, because scope-membership transposition works the same way. Allocate the dense tree-scope column only for documents that need it, and charge it to the conditional byte allowance (§10.5). Flat-tree operations derive from the sparse assigned-slot and shadow-host relations instead of duplicating a third parent column.
 
 ### 5.4 Temporary packing
 
-Packing is an execution choice, not snapshot construction. Small or selective work queries the live tree directly. A large batch may gather only its requested columns and affected region into Tier-4 scratch when dense traversal, SIMD execution, or bridge amortization wins. Batches are generation checked, released after the transaction, and never authoritative. Whole-document cold evaluation streams bounded batches; it never allocates a complete flattened DOM copy.
+Packing is an execution choice, not snapshot construction. Small or selective work queries the resident columns directly. A sufficiently large transaction compiles its affected regions into a preorder topology charged to Tier-4 scratch; broad matching holds an immutable shared view of the primary fact columns, while transaction-specific pre-images remain bounded overlays. Scratch is generation checked and released after the transaction. Whole-document cold evaluation never allocates a second complete flattened DOM or fact-store copy.
 
 ### 5.5 Multiple tree relations
 
@@ -365,7 +368,7 @@ Compound operands transpose to the node whose local fact changed. Structural pse
 
 It covers tag, ID, class, attribute, namespace, state, tree relation, structural, scope/topology, and activation inputs. Selectors with no selective local atom go into a **typed** always-consulted slice for the input kinds that can affect them, not one global universal bucket. A child-list mutation must not consult programs that depend only on an environment predicate.
 
-Construction and bytes are charged to program compilation and Tier 2. Sorted delta-coded program and entry-point IDs keep the structure proportional to selector-input incidence, not element count.
+Construction and bytes are charged to program compilation and Tier 2. Each input key indexes one insertion-ordered route slice, and all slices are packed into a flat `RouteID` vector; route headers and their variable-length paths live in parallel columnar arenas. The structure is proportional to selector-input incidence, not element count.
 
 The registry is required, not optional: scanning every selector header for every ordinary mutation changes the hot-path asymptotics. Feature postings (Tier 3) may accelerate subject enumeration, but evicting them never changes which transpose entry points run. Program replacement keeps old registry entries alive through old-result removal and installs the new program and registry atomically in the next epoch.
 
@@ -400,16 +403,16 @@ The exact batch plan consumes only a complete impact region.
 
 One selector semantics, three cooperating execution kernels. The boundaries are physical, so operators can move between them later without changing query meaning.
 
-**Local-compound kernel**: the dominant hot path. Evaluates tag names, IDs, classes, attributes, namespaces, element states, and Boolean compound structure. Uses fixed-width interned atom IDs at the C++/Rust boundary, a rightmost-feature dispatch key, and compact fused bytecode. Candidate tests are ordered cheap/high-rejection first and short-circuit on failure. **A compound with no relational operator allocates no witness.** (Non-relational chains do participate in the retained prefix automaton below when admitted; that state is Tier-3 and evictable, never required.)
+**Local-compound kernel**: the dominant hot path. Evaluates tag names, IDs, classes, attributes, namespaces, element states, and Boolean compound structure. Uses fixed-width interned atom IDs at the C++/Rust boundary, a rightmost-feature dispatch key, and an arena of fixed-width enum nodes with shared operand and literal tables. Candidate tests are ordered cheap/high-rejection first and short-circuit on failure. **A compound with no relational operator allocates no witness.** (Non-relational chains do participate in the retained prefix automaton below when admitted; that state is Tier-3 and evictable, never required.)
 
-Selector-used features have two sparse directions with independently bounded sizes:
+Selector feature keys have two sparse directions with independently bounded sizes:
 
 ```text
 feature atom -> candidate StyleNodeID posting     Tier 3, optional
 feature atom -> transpose entry points            Tier 2, required, program-proportional
 ```
 
-The first avoids scanning DOM facts and may be evicted. The second lets a class, attribute, tag, ID, or state mutation activate only bytecode mentioning the changed feature. If the posting is evicted, the routed transpose program reads authoritative DOM facts or uses an exact scope batch. No element-by-selector relation is ever required.
+The first avoids scanning DOM facts and may be evicted. The second lets a class, attribute, tag, ID, or state mutation activate only routes mentioning the changed feature. If the posting is evicted, the routed transpose program reads authoritative DOM facts or uses an exact scope batch. No element-by-selector relation is ever required.
 
 **Directional-combinator kernel**: child, descendant, adjacent-sibling, and subsequent-sibling relationships consume the same local compound programs, under operation-specific schedules:
 
@@ -418,19 +421,19 @@ The first avoids scanning DOM facts and may be evicted. The second lets a class,
 * *Mutation to an attached program*: start from changed local truths. Descendant and child effects run as a top-down prefix-state pass over the exact affected scope, warm-started from the retained prefix states of the previous transaction where those survived.
 * *Sibling effects*: adjacent-sibling inspects the immediately participating siblings; subsequent-sibling and structural effects use the same automaton's child-sequence machinery and stop at unchanged outputs.
 
-These are schedules over the same bytecode.
+These are schedules over the same logical IR.
 
 **The prefix automaton.** Selector-prefix truths are retained across transactions as a Tier-3 cache: interned prefix states (the "context tokens" entering each node), per-element entering states, per-element terminal match sets, and per-element positional truth bits. Registration is budgeted: an automaton carries at most 32 structural-test truth bits, and a chain that would overflow is refused whole and stays with its exact routes, so refusal degrades to exact matching, never to a wrong answer. The cache's bytes cycle through scratch during a flush and are retained at the end of a patched flush; it is prioritized above the retained answers it maintains (§10.3), and discarding it is always legal; the next flush rebuilds from exact evaluation.
 
 **Relational-query kernel**: `RelativeExists` reuses local compounds and directional traversal to answer an existential question per anchor. Witnesses belong only to this kernel. A document with no relational selector allocates no relational queues, per-node relational fields, or relational cache tables (the witness table is empty and unallocated, and relational routing early-returns on an empty route set).
 
-Selector lists and Boolean functional pseudo-classes compile to compact branch bytecode around these kernels. Specificity and match metadata stay static program data rather than being reconstructed per candidate.
+Selector lists and Boolean functional pseudo-classes compile to branch nodes in the same IR. Specificity, dispatch analysis, and match metadata stay static program data rather than being reconstructed per candidate or scope-dispatch build.
 
 ### 6.6 Local feature indexes
 
-Index keys are semantic feature atoms, not strings: a tag/namespace pair, ID, class, attribute presence, attribute exact value with case mode, or state. Substring and token attribute operators drive from an attribute-name posting and run their exact value test in compound bytecode rather than demanding a posting per substring.
+Selector posting keys are semantic feature atoms, not strings: tag name, ID, class, attribute name, directionality, part name, and custom state. Namespace, ordinary state, root, heading, and other fixed facts are read from the authoritative row when dispatch reaches a candidate. Every attribute operator drives from the attribute-name posting; exact equality can reject on its value atom before matching, while substring and token operators run their exact text test in the compound evaluator.
 
-Representation: **chunked sorted postings**, sorted by `StyleNodeID`. The index contains only features used by an attached selector program; removing the last consumer makes it reclaimable.
+Representation: **chunked sorted postings**, sorted by `StyleNodeID`. While the Tier-3 category is admitted, every published selector feature is maintained eagerly, whether or not the current program mentions it. Forgetting an element removes all of its posting memberships; memory pressure evicts the complete posting category, and later selective demand may rebuild its missing keys from authoritative facts.
 
 One key stops retaining a posting when its membership grows beyond the greater of 4096 elements and one quarter of the live elements. The key then reads as missing acceleration, so every consumer takes its exact fallback instead of retaining a near-document-sized secondary index.
 
@@ -478,7 +481,7 @@ The cold evaluator and the incremental evaluator consume the same static specifi
 
 ### 6.10 Ephemeral selector consumers
 
-Selectors passed to `querySelector()`, `querySelectorAll()`, `matches()`, and `closest()` are **match-only query programs**. They compile with the same selector semantics and evaluate with a bare match evaluator over the engine's fact store, but they are not attached style programs: no transpose bytecode, no routing registry entries, no rule identities, no witness reads or writes, no cascade state. Scope roots, shadow boundaries, relative-selector anchoring, and syntax failure are explicit compiler inputs. Result ownership belongs to the DOM API, not StyleEngine.
+Selectors passed to `querySelector()`, `querySelectorAll()`, `matches()`, and `closest()` are **match-only query programs**. They compile with the same selector semantics and evaluate with a bare match evaluator over the engine's fact store, but they are not attached style programs: no transpose routes, no routing registry entries, no rule identities, no witness reads or writes, no cascade state. Scope roots, shadow boundaries, relative-selector anchoring, and syntax failure are explicit compiler inputs. Result ownership belongs to the DOM API, not StyleEngine.
 
 Two mechanisms make this correct and fast against a live document:
 
@@ -598,9 +601,9 @@ Attachment connects a compiled program to one or more style scopes and is distin
 
 One compiled program attaches to multiple scopes without duplicating its logical selector or declaration representation. Scope-specific indexes and materializations stay separate where tree membership requires it.
 
-Match and transpose bytecode contains document-local `StyleAtomID` values and is therefore **compiled per document**. Routing registries, attachments, order tokens, and all result materializations are always document-local. Authoritative parsed stylesheet resources may be shared across documents, but nothing carrying one document's IDs, generations, scopes, or privacy state crosses a document boundary.
+Selector programs contain process-global `StyleAtomID` values and immutable equal programs are shared across document engines on the StyleEngine thread. Each document retains references to the global atoms it uses; the final document releases the underlying interned-string identity and makes the numeric atom reusable. Entry and rule identities, routing registries, attachments, order tokens, and all result materializations remain document-local, so no document generation, tree scope, or result state crosses the sharing boundary.
 
-The memory lease for a shared selector payload binds to the document that first inserts it. That document reports the program bytes, later documents sharing the payload report zero, and the original charge remains until the payload's final document reference drops.
+The memory lease for a shared selector payload belongs to the process-global selector-program table. Document controllers report only their local program identities and indexes; the shared table reports each immutable payload once and keeps that charge until the payload's final document reference drops.
 
 ### 8.5 Source order
 
@@ -837,7 +840,7 @@ AND ScopeConditionTrue
     -> ActiveRuleMatches
 ```
 
-An environment change can toggle already-known matches without re-running selector logic. Representation: compact predicate bytecode plus one current result per attached group (Tier 3, evictable, reevaluated from typed environment inputs). Do not build a persistent inactive-rule match cache; activation evaluates the selector program through normal inputs, reusing a cached selector answer only when one is already available in the current traversal.
+An environment change can toggle already-known matches without re-running selector logic. C++ evaluates media and supports conditions and publishes the resulting per-sheet or per-rule `conditions_hold` flips; container conditions are answered per element during matching instead. Rust retains the document-wide condition-program identity and committed Boolean in required program state. Do not build a persistent inactive-rule match cache; activation evaluates the selector program through normal inputs, reusing a cached selector answer only when one is already available in the current traversal.
 
 Environment inputs: viewport and page size; device pixel ratio; media features and preferences; document URL and target state; font selection and loading state; container sizes and styles; scroll and view timeline state; anchor-positioning inputs. Changes publish typed deltas to actual consumers.
 
@@ -863,7 +866,7 @@ Memory is a primary constraint. Time improvements requiring unbounded retained s
 
 * **Tier 0: authoritative semantic inputs.** DOM, CSSOM, stylesheet programs, browser state. Reference it; do not duplicate it.
 * **Tier 1: minimal live style state.** Compact handles and shared payloads required to answer current observers. Not evictable without first proving the content has no observer.
-* **Tier 2: shared semantic IR and intern pools.** Canonical selector, declaration, condition, cascade nodes; routing registry; transpose bytecode. Bounded relative to the compact parsed stylesheet program; cannot absorb selector-result state.
+* **Tier 2: shared semantic IR and intern pools.** Canonical selector, declaration, condition, cascade nodes; routing registry; transpose route programs. Bounded relative to the compact parsed stylesheet program; cannot absorb selector-result state.
 * **Tier 3: acceleration materializations.** Indexes, match sets, inverse maps, witnesses, proofs, flattened environments. Strictly budgeted and fully evictable.
 * **Tier 4: transaction scratch.** Reusable arenas for flattened relation ranges, delta queues, batch evaluation, comparison. High-water marks monitored; shrinks after unusually large work.
 
@@ -875,7 +878,7 @@ An interned object is not automatically Tier 2. Contexts, summaries, match answe
 | Active read-epoch header and generation | 1 | Reclaim after every reader retires |
 | Attached compact semantic rule program | 2 | Reclaim after detachment and epoch retirement |
 | Style feature atom mapping | 2 | Reclaim after last program/posting reference and epoch retirement |
-| Delta-routing registry and transpose bytecode | 2 | Reclaim with the selector program and retired epochs |
+| Delta-routing registry and transpose routes | 2 | Reclaim with the selector program and retired epochs |
 | Stable rule, attachment, and order nodes | 2 | Reclaim after semantic detachment and epoch retirement |
 | Memory controller and aggregate accounting | (uncharged) | Reclaim with the document |
 | `StyleNodeID` and DOM-to-style-node mapping | 1 | Reclaim after disconnection and epoch retirement |
@@ -903,18 +906,16 @@ Owners account exact capacity at arena, slab, vector, bitmap, and table growth b
 ```text
 Tier3Limit = min(
     DeviceCap,
-    BaseAllowance
-        + NodeAllowance * ConnectedElementCount
-        + StylesheetAllowance * CompactStyleProgramBytes)
+    BaseAllowance + NodeAllowance * ConnectedElementCount)
 ```
 
-`CompactStyleProgramBytes` is the byte length of a minimal non-commoned encoding of the attached selectors, match and transpose bytecode, routing registry, declarations, and conditions, counted once for an explicitly shared constructed program. It **excludes** allocator padding, optional indexes, results, and StyleEngine's own capacity, so acceleration overhead can never inflate its own allowance. `ConnectedElementCount` counts connected styleable DOM elements in the live DOM at the read epoch, not pseudo style nodes, arena capacity, or retired generations.
+`ConnectedElementCount` counts connected styleable DOM elements in the live DOM at the read epoch, not pseudo style nodes, arena capacity, or retired generations. Required selector and rule-program storage is charged honestly to Tier 2 but does not enlarge the optional Tier-3 pool; process-shared selector programs therefore need no per-document attribution rule in this budget.
 
-| Configuration | Device cap | Base | Per connected style node | Per program byte |
-| --- | ---: | ---: | ---: | ---: |
-| Browser document | 64 MiB | 1 MiB | 2,048 bytes | 2.00 bytes |
+| Configuration | Device cap | Base | Per connected style node |
+| --- | ---: | ---: | ---: |
+| Browser document | 64 MiB | 1 MiB | 2,048 bytes |
 
-These are a ceiling for the complete set of optional views, not an expectation. Counters report actual capacity against the limit rather than treating the limit as a target. Ignoring the program term, the node coefficient reaches the device cap at 32,256 elements; above that the cap binds and larger documents run progressively colder, which is intended.
+These are a ceiling for the complete set of optional views, not an expectation. Counters report actual capacity against the limit rather than treating the limit as a target. The node coefficient reaches the device cap at 32,256 elements; above that the cap binds and larger documents run progressively colder, which is intended.
 
 Tier 2 is required program state and is tracked without a cap. The cold-interpreted fallback that a cap would require does not exist; required program capacity must therefore never be refused or relabelled as Tier 3.
 
@@ -971,7 +972,7 @@ MandatoryNodeBytes(surface)      <= 32
 
 The engine asserts the relation-column budget in its own tests. The conditional allowance covers tree-scope identity, allocated only when the document requires it and no authoritative field can be exposed safely without duplication. Depth rejects impossible ancestry checks immediately and bounds the remaining parent walk. Slot, part, pseudo, or future relation navigation must derive a compact identity or replace the physical representation; it cannot raise the 32-byte cap. (`StyleNodeID` is a `NonZeroU32`, so optional relation slots niche-pack into one word.)
 
-Optional context, winner, dependency, and witness handles live in sparse Tier-3 columns and do not consume a reserved word on every node. Shared live style payloads are reported separately.
+Optional context, winner, dependency, and witness handles use dense, bit-packed, or segmented Tier-3 columns according to their access and clearing patterns; they do not consume a reserved mandatory word on every node. Dense optional columns and shared live style payloads are reported separately rather than hidden in the 32-byte relation surface.
 
 **Tier 1 is required state, not free memory.** No duplicate complete computed styles.
 
@@ -995,22 +996,30 @@ Memory pressure can therefore make a later flush slower and colder, but never re
 Execution is sequential. Style transactions are processed as dependency-ordered stages over homogeneous delta queues, not recursive pointer-chasing calls. The flush (`take_style_transaction`, flush.rs) runs:
 
 ```text
-1.  Normalize the journal into one transaction.
-2.  Commit staged tree and local-feature deltas into the fact store
-    (before routing, or after planning when the plan needs the before side).
-3.  Decide reuse: does the transaction preserve selector incidence, reach no
+1.  Reclaim unreachable computed payloads when due, finish the previous
+    Tier-3 quota period, evict selected complete categories, and open the next
+    period.
+2.  Finalize staged sheet-rule replacements, compact unshared routing
+    directories, and normalize the journal into one transaction.
+3.  Commit staged program, tree, and fact state to the final snapshot while
+    retaining the fact pre-images that the transaction needs.
+4.  Decide reuse: does the transaction preserve selector incidence, reach no
     selector, or qualify for retained-answer patching or exact-cascade stops?
-4.  Build impact regions (with a preorder topology above a size threshold).
-5.  Route program and cascade-topology inputs FIRST (they set the outer
+5.  Build impact regions (with a preorder topology above a size threshold)
+    and install the transaction fact view and previous prefix-state epoch.
+6.  Route program and cascade-topology inputs FIRST (they set the outer
     envelope), then local-feature/tree/state inputs, stopping early once the
     region covers the document.
-6.  Route sibling-sequence and relational (:has()) sequence changes; converge
+7.  Route sibling-sequence and relational (:has()) sequence changes; converge
     pending prefix routes.
-7.  Widen for markers, normalize regions, resolve already-planned truths.
-8.  Traverse: patch retained answers or complete published match answers;
+8.  Widen for markers, normalize regions, resolve already-planned truths, and
+    materialize every before-side fact still needed by retained-answer patching
+    or confirmation. Release the normalized transaction and its staged
+    pre-images only after that boundary.
+9.  Traverse: patch retained answers or complete published match answers;
     matched-rule production and winner-group updates happen together here,
     with exact-cascade stop and confirmation checks.
-9.  Publish: build the reaction records and emit them in one callback.
+10. Publish: build the reaction records and emit them in one callback.
 ```
 
 Computed-value construction is C++-side: the reaction batch drives StyleComputer, which builds computed properties and publishes each element's computed groups back to the engine for interning (§13). Layout, paint, animation, and accessibility consequences are produced by the C++ reaction application.
@@ -1061,17 +1070,17 @@ StyleEngine lives in the existing LibWeb Rust crate and is authoritative for sel
 * selector matching, cascade winner resolution, and reaction planning;
 * match-answer identities, winner groups, memory accounting, and instrumentation.
 
-Computed-value **construction** is C++-side: the reaction batch drives StyleComputer, which computes properties and builds computed-value groups, then publishes each element's groups back to the engine, where records are interned and become the shared authoritative representation. So the split is: Rust decides *what* must recompute and *which declarations win*; C++ computes *values*; Rust retains and interns the published result. C++ holds no copy of the engine's retained state; a fact has exactly one authoritative home.
+Computed-value **construction** is C++-side: the reaction batch drives StyleComputer, which computes properties and builds computed-value groups, then publishes each element's groups back to the engine, where records are interned and become the shared authoritative representation. So the split is: Rust decides *what* must recompute and *which declarations win*; C++ computes *values*; Rust retains and interns the published result. DOM and CSSOM remain the semantic sources for element and program facts; Rust owns the committed evaluation projection and all retained derived state, and C++ must publish every source mutation needed to keep that projection current.
 
 **Identity allocation.** The engine mints `StyleNodeID` values (C++ requests them through an allocation call that accepts a batch); C++ owns DOM lifecycle and the DOM-to-style-node mapping. Rust treats IDs as opaque dense indexes. Reuse safety comes from two-phase retirement: retired indexes enter a pending pool and are released for reallocation only at a later safe boundary, never while a stale handle can observe them.
 
-The engine likewise mints document-local `StyleAtomID` values for selector-mentioned tag, ID, class, attribute, value, namespace, and state identities, keyed by the exact interned-string identity C++ passes (a `Utf16FlyString`'s one-word raw identity, kept alive by the bridge for the atom's lifetime, so identity equality is exact and never hash-approximate). Interning on the engine side is what makes selector-name atoms and fact atoms comparable: one table assigns one sequence. Rust stores only the `u32` atom in compact bytecode and postings; a small number of text classes the engine must inspect byte-wise (attribute-value text for substring operators, language tags) are pushed to engine-side storage on demand and re-pushed if evicted.
+The engine likewise mints process-global `StyleAtomID` values for selector-mentioned tag, ID, class, attribute, value, namespace, and state identities, keyed by the exact interned-string identity C++ passes (a `Utf16FlyString`'s one-word raw identity, retained until the last document reference releases it, so identity equality is exact and never hash-approximate). Interning on the engine side is what makes selector-name atoms and fact atoms comparable across shared programs: one process table assigns one sequence, while each document records and releases the atoms it uses. Rust stores only the `u32` atom in selector IR and postings; text the engine must inspect byte-wise (attribute values for broad string operators and language tags) is pushed to engine-side storage on demand and re-pushed if evicted.
 
 **Relation columns** are stored on the Rust side, keyed by `StyleNodeID`, and maintained from the journalled tree deltas within the same transaction that reports the mutation, so transpose traversal, impact-region membership, and sibling-sequence scans run entirely inside the evaluator. Two deliberate exceptions bypass per-node journalling: initial bulk load links the whole arriving tree directly (safe because the root arrival forces whole-document evaluation), and shadow host/root registration is applied directly at registration time.
 
-**Forward transfer.** Element-fact input crosses as one flat immutable transaction per flush: five pointer-free fixed-width row arrays (tree relations, local features, state, element declarations, element style inputs) submitted in a single call. Program, sheet, rule, layer, and topology changes cross as individual generated boundary calls as they happen and are journalled engine-side into the same normalization journal. A small set of per-element scalar facts (namespace, language, directionality, heading level, custom states, slot-ness) also cross as individual calls at mutation time; the design intent remains that per-element chatter is the exception, not the shape of the boundary.
+**Forward transfer.** C++ mutation helpers append element facts to retained input buffers rather than crossing FFI immediately. One flat immutable transaction per flush submits six pointer-free fixed-width row arrays (tree relations, element arrivals, local features, state, element declarations, and element style inputs) plus the arrival custom-state atom arena in a single call. Namespace, language, directionality, heading level, custom states, and slot-ness ride the element-arrival rows. Program, sheet, rule, layer, and topology changes still cross as individual generated boundary calls as they happen and are journalled engine-side into the same normalization journal.
 
-**There is no reverse fact-fetch protocol.** The engine never asks C++ for a fact it lacks: C++ pushes every fact it owns eagerly as deltas, the engine stages them, and evaluation reads old/new values through a transaction-local fact view over the pending transaction plus the resident fact store. When a broad plan needs a complete fact table, the engine clones its own resident store (counted, charged to scratch): a Rust-to-Rust copy, no boundary round trip. The one reverse direction that exists is an enumeration callback letting C++ walk flat-tree descendants the engine knows about.
+**There is no reverse fact-fetch protocol.** The engine never asks C++ for a fact it lacks: C++ pushes every fact it owns eagerly as deltas, the engine stages them, and evaluation reads old/new values through a transaction-local fact view over retained pre-images plus the resident fact store. A broad plan holds an immutable shared view of the resident primary columns and allocates only the transaction-specific overlays and indexes it needs; it does not clone the complete fact store or cross the boundary. The one reverse direction that exists is an enumeration callback for flat-tree descendants not represented by an engine-owned child list.
 
 **Computed style crosses as a handle.** The boundary transfers a shared style-group handle, never a copied per-property object. C++ consumers hold `StyleRecordID` and read through the record view; layout and paint consume the same handle rather than materializing a private complete style per element (anonymous layout-derived boxes are the exception and own their values). Records are pinned while any C++ consumer references them and reclaimed per the Tier-1 rules in §10.1.
 
@@ -1087,7 +1096,7 @@ inputs.rs             applying staged tree/fact input
 program.rs            stylesheet program, identities, order tokens
 program_updates.rs    ProgramDelta application
 compiler.rs           selector compilation into the engine's programs
-selector.rs, selector/  logical IR, match + transpose bytecode
+selector.rs, selector/  logical IR, match evaluator + transpose routes
 relative_selector.rs  RelativeExists queries and inverse anchor enumeration
 input_routing.rs      typed input key -> routing keys
 routing.rs            delta routing, impact-region construction
@@ -1209,7 +1218,7 @@ The engine's job is to make broad costs correspond to real semantic uncertainty 
 
 ## 16. Instrumentation
 
-The engine maintains a large counter ledger (instrumentation.rs; ~160 counters), exposed to C++ and through the internals object, alongside a separate C++-side ledger of style-update and invalidation counters. The main families:
+The engine maintains a large counter ledger (169 counters in `instrumentation.rs`), exposed to C++ and through the internals object, alongside a separate C++-side ledger of style-update and invalidation counters. The main families:
 
 * Input deltas by kind; journal cancellations, replacements, and coarsened scope markers.
 * Executed selector primitives in five buckets: local-feature tests, state tests, combinator steps, structural tests, relational tests.

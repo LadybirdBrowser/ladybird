@@ -1085,13 +1085,30 @@ mod tests {
         fixture.element_style_input(10);
         fixture.element_style_input(20);
 
-        assert!(fixture.journal.markers().is_empty());
+        // Reconstructible facts may still coarsen around edge-triggered actions.
+        for node in 30..200 {
+            fixture.class(node, 1, false, true);
+        }
+        fixture.element_style_input(200);
+
+        assert_eq!(
+            fixture.journal.markers(),
+            &[CompleteScopeMarker {
+                kind: InputKind::LocalFeature
+            }]
+        );
         let transaction = fixture.take();
         assert_eq!(
-            transaction.inputs.iter().map(|input| input.key).collect::<Vec<_>>(),
+            transaction
+                .inputs
+                .iter()
+                .filter(|input| input.key.kind() == InputKind::ElementStyleInput)
+                .map(|input| input.key)
+                .collect::<Vec<_>>(),
             vec![
                 InputKey::ElementStyleInput(StyleNodeID::element(10)),
                 InputKey::ElementStyleInput(StyleNodeID::element(20)),
+                InputKey::ElementStyleInput(StyleNodeID::element(200)),
             ]
         );
         transaction.release(&mut fixture.memory);
