@@ -193,6 +193,24 @@ struct Element::RareData final
 
     // https://drafts.csswg.org/css-values-5/#random-caching
     HashMap<CSS::RandomCachingKey, double> element_specific_css_random_base_value_cache;
+
+    // https://dom.spec.whatwg.org/#concept-element-custom-element-definition
+    GC::Ptr<HTML::CustomElementDefinition> custom_element_definition;
+
+    Fullscreen::RequestType fullscreen_request_type { Fullscreen::RequestType::Standard };
+
+    // https://w3c.github.io/webappsec-csp/#is-element-nonceable
+    // AD-HOC: We need to know the element had a duplicate attribute when it was created from the HTML parser.
+    //         However, there currently isn't any specified way to do this, so we store a flag on the token, which is
+    //         then passed down to here. This is used by Content Security Policy to disable the nonce attribute if this
+    //         flag is set.
+    bool had_duplicate_attribute_during_tokenization { false };
+
+    // https://drafts.csswg.org/css-contain/#proximity-to-the-viewport
+    ProximityToTheViewport proximity_to_the_viewport { ProximityToTheViewport::NotDetermined };
+
+    // https://drafts.csswg.org/css-view-transitions-1/#captured-in-a-view-transition
+    bool captured_in_a_view_transition { false };
 };
 
 void Element::RareData::visit_edges(Cell::Visitor& visitor)
@@ -230,6 +248,7 @@ void Element::RareData::visit_edges(Cell::Visitor& visitor)
     visitor.visit(custom_state_set);
     visitor.visit(computed_style_map_cache);
     visitor.visit(attribute_style_map);
+    visitor.visit(custom_element_definition);
     if (pseudo_element_data) {
         for (auto& pseudo_element : *pseudo_element_data)
             visitor.visit(pseudo_element.value);
@@ -350,7 +369,6 @@ void Element::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_inline_style);
     visitor.visit(m_shadow_root);
     visitor.visit(m_custom_element_registry);
-    visitor.visit(m_custom_element_definition);
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattribute
@@ -4257,10 +4275,27 @@ void Element::enqueue_a_form_disabled_callback_reaction(bool is_disabled)
                                                                                                        });
 }
 
+GC::Ptr<HTML::CustomElementDefinition> Element::custom_element_definition() const
+{
+    auto const* rare_data = element_rare_data();
+    return rare_data ? rare_data->custom_element_definition : nullptr;
+}
+
+void Element::set_custom_element_definition(GC::Ptr<HTML::CustomElementDefinition> definition)
+{
+    if (!definition) {
+        if (auto* rare_data = element_rare_data())
+            rare_data->custom_element_definition = nullptr;
+        return;
+    }
+    ensure_element_rare_data().custom_element_definition = definition;
+}
+
 void Element::enqueue_a_custom_element_callback_reaction(Utf16FlyString const& callback_name, CustomElementCallbackReactionArguments arguments)
 {
     // 1. Let definition be element's custom element definition.
-    auto& definition = m_custom_element_definition;
+    auto definition = custom_element_definition();
+    VERIFY(definition);
 
     // 2. Let callback be the value of the entry in definition's lifecycle callbacks with key callbackName.
     GC::Ptr<Web::WebIDL::CallbackType> callback;
@@ -4368,7 +4403,7 @@ void Element::setup_custom_element_from_constructor(HTML::CustomElementDefinitio
     set_custom_element_state(CustomElementState::Custom);
 
     // 7.7. Set element's custom element definition to definition.
-    m_custom_element_definition = custom_element_definition;
+    set_custom_element_definition(custom_element_definition);
 
     // 7.8. Set element's is value to is value.
     set_is_value(is_value);
@@ -4886,6 +4921,12 @@ bool Element::check_visibility(CheckVisibilityOptions const& options)
     return true;
 }
 
+ProximityToTheViewport Element::proximity_to_the_viewport() const
+{
+    auto const* rare_data = element_rare_data();
+    return rare_data ? rare_data->proximity_to_the_viewport : ProximityToTheViewport::NotDetermined;
+}
+
 // https://drafts.csswg.org/css-contain/#proximity-to-the-viewport
 void Element::determine_proximity_to_the_viewport()
 {
@@ -4899,8 +4940,10 @@ void Element::determine_proximity_to_the_viewport()
     // viewport soon. A margin of 50% is suggested as a reasonable default.
     viewport_rect.inflate(viewport_rect.width(), viewport_rect.height());
     // FIXME: We don't have paint containment or the overflow clip edge yet, so this is just using the absolute rect for now.
-    if (paintable_box()->absolute_rect().intersects(viewport_rect))
-        m_proximity_to_the_viewport = ProximityToTheViewport::CloseToTheViewport;
+    if (paintable_box()->absolute_rect().intersects(viewport_rect)) {
+        ensure_element_rare_data().proximity_to_the_viewport = ProximityToTheViewport::CloseToTheViewport;
+        return;
+    }
 
     // FIXME: If a filter (see [FILTER-EFFECTS-1]) with non local effects includes the element as part of its input, the user
     //        agent should also treat the element as relevant to the user when the filter’s output can affect the rendering
@@ -4909,7 +4952,7 @@ void Element::determine_proximity_to_the_viewport()
 
     // - The element is far away from the viewport: In this state, the element’s proximity to the viewport has been
     //   computed and is not close to the viewport.
-    m_proximity_to_the_viewport = ProximityToTheViewport::FarAwayFromTheViewport;
+    ensure_element_rare_data().proximity_to_the_viewport = ProximityToTheViewport::FarAwayFromTheViewport;
 
     // - The element’s proximity to the viewport is not determined: In this state, the computation to determine the
     //   element’s proximity to the viewport has not been done since the last time the element was connected.
@@ -4922,7 +4965,7 @@ bool Element::is_relevant_to_the_user()
     // An element is relevant to the user if any of the following conditions are true:
 
     // The element is close to the viewport.
-    if (m_proximity_to_the_viewport == ProximityToTheViewport::CloseToTheViewport)
+    if (proximity_to_the_viewport() == ProximityToTheViewport::CloseToTheViewport)
         return true;
 
     // Either the element or its contents are focused, as described in the focus section of the HTML spec.
@@ -4956,6 +4999,22 @@ bool Element::is_relevant_to_the_user()
 
     // NOTE: none of the above conditions are true, so the element is not relevant to the user.
     return false;
+}
+
+bool Element::captured_in_a_view_transition() const
+{
+    auto const* rare_data = element_rare_data();
+    return rare_data && rare_data->captured_in_a_view_transition;
+}
+
+void Element::set_captured_in_a_view_transition(bool value)
+{
+    if (!value) {
+        if (auto* rare_data = element_rare_data())
+            rare_data->captured_in_a_view_transition = false;
+        return;
+    }
+    ensure_element_rare_data().captured_in_a_view_transition = true;
 }
 
 // https://drafts.csswg.org/css-contain-2/#skips-its-contents
@@ -5843,7 +5902,13 @@ bool Element::is_focusable() const
 
 void Element::set_had_duplicate_attribute_during_tokenization(Badge<HTML::HTMLParser>)
 {
-    m_had_duplicate_attribute_during_tokenization = true;
+    ensure_element_rare_data().had_duplicate_attribute_during_tokenization = true;
+}
+
+bool Element::had_duplicate_attribute_during_tokenization() const
+{
+    auto const* rare_data = element_rare_data();
+    return rare_data && rare_data->had_duplicate_attribute_during_tokenization;
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-element-computedstylemap
@@ -5905,6 +5970,22 @@ void Element::set_fullscreen_flag(bool is_fullscreen)
         return;
     m_fullscreen_flag = is_fullscreen;
     CSS::record_element_state_changed(*this, CSS::PseudoClass::Fullscreen, is_fullscreen);
+}
+
+void Element::set_fullscreen_request_type(Fullscreen::RequestType request_type)
+{
+    if (request_type == Fullscreen::RequestType::Standard) {
+        if (auto* rare_data = element_rare_data())
+            rare_data->fullscreen_request_type = request_type;
+        return;
+    }
+    ensure_element_rare_data().fullscreen_request_type = request_type;
+}
+
+Fullscreen::RequestType Element::fullscreen_request_type() const
+{
+    auto const* rare_data = element_rare_data();
+    return rare_data ? rare_data->fullscreen_request_type : Fullscreen::RequestType::Standard;
 }
 
 GC::Ptr<Element const> Element::element_to_inherit_style_from(Optional<CSS::PseudoElement> pseudo_element) const
