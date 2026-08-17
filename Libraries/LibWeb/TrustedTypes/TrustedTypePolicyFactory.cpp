@@ -314,7 +314,8 @@ Optional<TrustedTypeData> get_trusted_type_data_for_attribute(ElementInterface c
     auto const& [element_name, element_ns] = element;
 
     // 2. If attributeNs is null, « HTML namespace, SVG namespace, MathML namespace » contains element’s namespace, and attribute is the name of an event handler content attribute:
-    if (!attribute_ns.has_value()
+    if (attribute.starts_with("on"sv)
+        && !attribute_ns.has_value()
         && (Namespace::HTML == element_ns || Namespace::SVG == element_ns || Namespace::MathML == element_ns)) {
 #undef __ENUMERATE
 #define __ENUMERATE(attribute_name, event_name)                                                                                                                        \
@@ -326,6 +327,10 @@ Optional<TrustedTypeData> get_trusted_type_data_for_attribute(ElementInterface c
         ENUMERATE_WINDOW_EVENT_HANDLERS(__ENUMERATE)
 #undef __ENUMERATE
     }
+
+    // OPTIMIZATION: Every remaining row has one of these three attribute names.
+    if (!attribute.is_one_of(HTML::AttributeNames::srcdoc, HTML::AttributeNames::src, HTML::AttributeNames::href))
+        return {};
 
     static auto const& table = *new Vector<TrustedTypeData> {
         { "HTMLIFrameElement"_utf16, {}, HTML::AttributeNames::srcdoc, TrustedTypeName::TrustedHTML, InjectionSink::HTMLIFrameElement_srcdoc },
