@@ -625,6 +625,7 @@ impl_computed_payload_clone_and_eq!(FontValues {
     math_shift_value,
     math_style_value,
     math_depth_value,
+    font_size_value,
 });
 impl_computed_payload_clone_and_eq!(InheritedSVGValues {
     fill,
@@ -3016,6 +3017,7 @@ impl FontValues {
             math_shift_value: initial(property_id::MATH_SHIFT),
             math_style_value: initial(property_id::MATH_STYLE),
             math_depth_value: initial(property_id::MATH_DEPTH),
+            font_size_value: initial(property_id::FONT_SIZE),
         }
     }
 }

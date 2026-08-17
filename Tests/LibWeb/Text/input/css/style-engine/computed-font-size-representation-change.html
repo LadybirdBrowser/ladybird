@@ -1,0 +1,10 @@
+<!doctype html>
+<div id="outer" style="font-size: 20.1px"><div id="middle"><div id="target"></div></div></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        println(`inherited: ${getComputedStyle(target).fontSize}`);
+        middle.style.fontSize = "100%";
+        println(`after: ${getComputedStyle(target).fontSize}`);
+    });
+</script>
