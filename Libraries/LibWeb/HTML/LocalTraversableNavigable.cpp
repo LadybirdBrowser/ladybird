@@ -892,7 +892,7 @@ static void clear_ongoing_history_traversal(GC::Ptr<LocalNavigable> navigable, L
     navigable->set_ongoing_navigation({}, navigation_api_abort_behavior);
 }
 
-void LocalTraversableNavigable::apply_changing_navigable_history_step_continuation_impl(GC::Ref<ChangingNavigableContinuationState> continuation, LocalApplyChangingNavigableHistoryStepContinuation command, GC::Ref<GC::Function<void(Optional<SessionHistoryEntryPersistedState>)>> on_complete)
+void LocalTraversableNavigable::apply_changing_navigable_history_step_continuation_impl(GC::Ref<ChangingNavigableContinuationState> continuation, LocalApplyChangingNavigableHistoryStepContinuation command, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>> on_complete)
 {
     // 4. Let displayedDocument be changingNavigableContinuation's displayed document.
     auto displayed_document = continuation->displayed_document;
@@ -906,12 +906,12 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
 
     // AD-HOC: We should not continue navigation if navigable has been destroyed.
     if (navigable->has_been_destroyed()) {
-        on_complete->function()({});
+        on_complete->function()({}, {});
         return;
     }
     // AD-HOC: The displayed document may have been destroyed during the nested step execution above.
     if (!displayed_document->navigable()) {
-        on_complete->function()({});
+        on_complete->function()({}, {});
         return;
     }
 
@@ -935,7 +935,7 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
             if (applies_same_document_push_or_replace
                 && navigable->active_session_history_entry() != target_entry) {
                 clear_ongoing_history_traversal(navigable, navigation_api_abort_behavior);
-                on_complete->function()({});
+                on_complete->function()({}, {});
                 return;
             }
 
@@ -945,7 +945,7 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
             //         the newer frame state win, so skip this stale continuation in that case.
             if (!changing_navigable_is_still_current(navigable, displayed_document_id, applies_same_document_push_or_replace)) {
                 clear_ongoing_history_traversal(navigable, navigation_api_abort_behavior);
-                on_complete->function()({});
+                on_complete->function()({}, {});
                 return;
             }
         }
@@ -991,8 +991,11 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
 
         // 2. If changingNavigableContinuation's update-only is false, then activate history entry targetEntry for navigable.
         auto resolved_document = continuation->resolved_document;
-        if (!update_only)
+        Optional<ReplicatedNavigableState> activated_navigable_state;
+        if (!update_only) {
             navigable->activate_history_entry(*target_entry, *resolved_document);
+            activated_navigable_state = navigable->replicated_state();
+        }
         if (target_entry_persisted_state.has_value())
             target_entry->set_scroll_position_data(move(target_entry_persisted_state->scroll_position_data));
         auto previous_entry_persisted_state = !update_only && previous_entry && !target_entry_persisted_state.has_value()
@@ -1035,7 +1038,7 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
         }
 
         // 6. Increment completedChangeJobs.
-        on_complete->function()(move(previous_entry_persisted_state));
+        on_complete->function()(move(activated_navigable_state), move(previous_entry_persisted_state));
     });
 
     // 10. If changingNavigableContinuation's update-only is true, or targetEntry's document is displayedDocument, then:
@@ -1606,16 +1609,16 @@ static Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_na
     return entries;
 }
 
-void LocalTraversableNavigable::apply_ui_changing_navigable_continuation(u64 operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex history_object_length_and_index, Vector<SessionHistoryEntryDescriptor> entry_descriptors_for_navigation_api, GC::Ref<GC::Function<void(Optional<SessionHistoryEntryPersistedState>)>> on_complete)
+void LocalTraversableNavigable::apply_ui_changing_navigable_continuation(u64 operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex history_object_length_and_index, Vector<SessionHistoryEntryDescriptor> entry_descriptors_for_navigation_api, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>> on_complete)
 {
     auto operation = m_ui_history_operations.find(operation_id);
     if (operation == m_ui_history_operations.end()) {
-        on_complete->function()({});
+        on_complete->function()({}, {});
         return;
     }
     auto continuation = operation->value.changing_navigable_continuations.take(navigable_id);
     if (!continuation.has_value()) {
-        on_complete->function()({});
+        on_complete->function()({}, {});
         return;
     }
     operation->value.claimed_navigables_awaiting_continuation.remove(navigable_id);
