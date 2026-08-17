@@ -1164,6 +1164,7 @@ void Paintable::reset_for_relayout()
 
     m_enclosing_scroll_node_index = {};
     m_own_scroll_node_index = {};
+    m_has_accumulated_visual_context = false;
     m_accumulated_visual_context_index = VISUAL_VIEWPORT_NODE_INDEX;
     m_accumulated_visual_context_for_descendants_index = VISUAL_VIEWPORT_NODE_INDEX;
     m_fixed_background_visual_context = {};
