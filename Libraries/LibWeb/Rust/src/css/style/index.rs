@@ -149,7 +149,18 @@ pub struct StateSet(pub u64);
 impl StateSet {
     /// The facts this set holds, for routing an element that announced them all at once.
     pub fn facts(self) -> impl Iterator<Item = StateFact> {
-        StateFact::ALL.into_iter().filter(move |&fact| self.contains(fact))
+        let valid_bits = 1_u64
+            .checked_shl(u32::try_from(StateFact::ALL.len()).expect("state fact count exceeds u32"))
+            .map_or(u64::MAX, |limit| limit - 1);
+        let mut bits = self.0 & valid_bits;
+        std::iter::from_fn(move || {
+            if bits == 0 {
+                return None;
+            }
+            let index = bits.trailing_zeros() as usize;
+            bits &= bits - 1;
+            Some(StateFact::ALL[index])
+        })
     }
 
     #[must_use]
@@ -211,6 +222,15 @@ impl<T: Copy + Default> PagedCopyColumn<T> {
         if previous.is_none() {
             self.indices.push(index);
         }
+    }
+
+    fn indexed_iter(&self) -> impl Iterator<Item = (usize, T)> + '_ {
+        self.indices.iter().copied().map(|index| {
+            (
+                index,
+                self.values.get(index).expect("paged column index must remain present"),
+            )
+        })
     }
 }
 
@@ -396,6 +416,8 @@ pub struct StyleNodeFacts {
     rare_facts: PagedColumn<RareFactPage>,
     nodes: Vec<StyleNodeID>,
     row_by_element_index: Vec<u32>,
+    /// Bloom summary of every dispatch key carried by a row, excluding document-root status.
+    dispatch_bloom: Vec<u64>,
     /// Rows no longer reachable through the element mapping. The primary arrangement repoints an
     /// element to a freshly packed row when its facts move; the old row stays as garbage until
     /// its measured carrying cost makes one rebuild cheaper than retaining it.
@@ -532,6 +554,8 @@ impl StyleNodeFacts {
             .push(PayloadHandle::appended_to(&mut self.classes, classes));
         self.attribute_handles
             .push(PayloadHandle::appended_to(&mut self.attributes, attributes));
+        self.dispatch_bloom.push(0);
+        self.dispatch_bloom[row as usize] = self.compute_dispatch_bloom_of(row);
 
         self.map_row(node, row);
     }
@@ -584,6 +608,8 @@ impl StyleNodeFacts {
             offset: attribute_start,
             length: u32::try_from(self.attributes.len()).expect("attribute payload overflow") - attribute_start,
         });
+        self.dispatch_bloom.push(0);
+        self.dispatch_bloom[row as usize] = self.compute_dispatch_bloom_of(row);
 
         self.map_row(node, row);
     }
@@ -779,6 +805,7 @@ impl StyleNodeFacts {
             .resize(self.class_handles.len().max(length), PayloadHandle::default());
         self.attribute_handles
             .resize(self.attribute_handles.len().max(length), PayloadHandle::default());
+        self.dispatch_bloom.resize(self.dispatch_bloom.len().max(length), 0);
 
         self.tag[row] = facts.tag;
         self.folded_tag[row] = facts.folded_tag;
@@ -859,6 +886,7 @@ impl StyleNodeFacts {
             self.attribute_handles[row] = PayloadHandle::appended_to(&mut self.attributes, &attributes);
         }
         self.resident.set(row, true);
+        self.dispatch_bloom[row] = self.compute_dispatch_bloom_of(row as u32);
         stale_payload_bytes
     }
 
@@ -867,6 +895,9 @@ impl StyleNodeFacts {
     pub fn set_row_folded_tag(&mut self, folded: StyleAtomID) {
         let row = self.folded_tag.len() - 1;
         self.folded_tag[row] = folded;
+        if !folded.is_none() {
+            self.dispatch_bloom[row] |= dispatch_bloom_bit(DispatchKey::TagName(folded));
+        }
     }
 
     /// Set the namespace of the row just pushed.
@@ -916,6 +947,20 @@ impl StyleNodeFacts {
         // Custom states are appended for the last row only, which is the order rows are built in.
         self.custom_state_handles[row as usize] = PayloadHandle::appended_to(&mut self.custom_states, custom_states);
         self.part_handles[row as usize] = PayloadHandle::appended_to(&mut self.parts, parts);
+        let mut bloom = self.dispatch_bloom[row as usize];
+        if !directionality.is_none() {
+            bloom |= dispatch_bloom_bit(DispatchKey::Directionality(directionality));
+        }
+        if heading_level != 0 {
+            bloom |= dispatch_bloom_bit(DispatchKey::Heading);
+        }
+        for &state in custom_states {
+            bloom |= dispatch_bloom_bit(DispatchKey::CustomState(state));
+        }
+        for &part in parts {
+            bloom |= dispatch_bloom_bit(DispatchKey::Part(part));
+        }
+        self.dispatch_bloom[row as usize] = bloom;
     }
 
     #[must_use]
@@ -1091,10 +1136,20 @@ impl StyleNodeFacts {
     }
 
     #[must_use]
-    pub fn dispatch_bloom_of(&self, row: u32, is_document_root: bool) -> u64 {
+    fn compute_dispatch_bloom_of(&self, row: u32) -> u64 {
         let mut bloom = 0;
-        self.for_each_dispatch_key(row, is_document_root, |key| bloom |= dispatch_bloom_bit(key));
+        self.for_each_dispatch_key(row, false, |key| bloom |= dispatch_bloom_bit(key));
         bloom
+    }
+
+    #[must_use]
+    pub fn dispatch_bloom_of(&self, row: u32, is_document_root: bool) -> u64 {
+        self.dispatch_bloom[row as usize]
+            | if is_document_root {
+                dispatch_bloom_bit(DispatchKey::Root)
+            } else {
+                0
+            }
     }
 
     #[must_use]
@@ -1238,6 +1293,7 @@ impl StyleNodeFacts {
         self.nodes.clear();
         self.stale_rows = 0;
         self.live_rows = 0;
+        self.dispatch_bloom.clear();
         self.tag.clear();
         self.folded_tag.clear();
         self.id.clear();
@@ -1267,6 +1323,7 @@ impl StyleNodeFacts {
                 self.resident,
                 self.nodes,
                 self.row_by_element_index,
+                self.dispatch_bloom,
                 self.tag,
                 self.folded_tag,
                 self.id,
@@ -1834,6 +1891,61 @@ pub struct DispatchEntry {
     pub multi_key: bool,
 }
 
+/// Selector-derived half of a dispatch row, shared by scopes with the same topology.
+#[derive(Clone, Copy)]
+struct DispatchEntryMetadata {
+    identity: EntryID,
+    program: SelectorProgramID,
+    entry: u32,
+    required_attribute_value: StyleAtomID,
+    required_parent: Option<DispatchKey>,
+    required_ancestor: Option<DispatchKey>,
+    required_ancestor_index: Option<u32>,
+    required_subject_bloom: u64,
+    prefix_matched: bool,
+    multi_key: bool,
+}
+
+#[derive(Clone, Copy)]
+struct DispatchEntryBinding {
+    rule: RuleID,
+    cascade_order_index: u32,
+}
+
+struct RuleDispatchEntries {
+    rows: Vec<DispatchEntryMetadata>,
+    residency: MemoryLease,
+}
+
+impl Clone for RuleDispatchEntries {
+    fn clone(&self) -> Self {
+        Self {
+            rows: self.rows.clone(),
+            residency: MemoryLease::new(MemoryCategory::RuleProgram),
+        }
+    }
+}
+
+impl Default for RuleDispatchEntries {
+    fn default() -> Self {
+        Self {
+            rows: Vec::new(),
+            residency: MemoryLease::new(MemoryCategory::RuleProgram),
+        }
+    }
+}
+
+impl RuleDispatchEntries {
+    fn capacity_bytes(&self) -> u64 {
+        capacity_bytes! {
+            shallow [self.rows];
+            cached [];
+            nested [];
+            skip [self.residency];
+        }
+    }
+}
+
 define_id! {
     /// Physical row in one scope-local selector dispatch.
     pub(super) struct DispatchRow();
@@ -1863,10 +1975,11 @@ struct CascadeEntryData {
 pub struct DispatchCandidateWorkspace {
     seen_at_epoch: EpochColumn,
     candidates: Vec<DispatchRow>,
+    cascade_sort: Vec<(Reverse<(bool, u32)>, DispatchRow)>,
     epoch: u32,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum CandidateEntries {
     All,
     NonPrefix,
@@ -1881,6 +1994,7 @@ impl DispatchCandidateWorkspace {
                 column
             },
             candidates: Vec::with_capacity(entry_count),
+            cascade_sort: Vec::with_capacity(entry_count),
             epoch: 0,
         }
     }
@@ -1888,6 +2002,7 @@ impl DispatchCandidateWorkspace {
     fn begin(&mut self, entry_count: usize) {
         self.seen_at_epoch.ensure_len(entry_count);
         self.candidates.clear();
+        self.cascade_sort.clear();
         advance_epoch(&mut self.epoch, 1, &mut [&mut self.seen_at_epoch]);
     }
 
@@ -1898,7 +2013,7 @@ impl DispatchCandidateWorkspace {
     #[must_use]
     pub fn capacity_bytes(&self) -> u64 {
         capacity_bytes! {
-            shallow [self.seen_at_epoch, self.candidates];
+            shallow [self.seen_at_epoch, self.candidates, self.cascade_sort];
             cached [];
             nested [];
             skip [self.epoch];
@@ -1940,42 +2055,249 @@ impl<'a> AncestorDispatchFacts<'a> {
     }
 }
 
+#[derive(Clone, Copy, Default)]
+struct DispatchBucketRange {
+    start: u32,
+    length: u32,
+}
+
+const DISPATCH_ATOM_KIND_COUNT: usize = 7;
+
+#[derive(Clone, Default)]
+struct SegmentedDispatchBucketDirectory {
+    ranges: PagedCopyColumn<DispatchBucketRange>,
+}
+
+impl SegmentedDispatchBucketDirectory {
+    fn get(&self, index: usize) -> DispatchBucketRange {
+        self.ranges.get(index).unwrap_or_default()
+    }
+
+    fn insert(&mut self, index: usize, range: DispatchBucketRange) {
+        self.ranges.insert(index, range);
+    }
+
+    fn capacity_bytes(&self) -> u64 {
+        self.ranges.shallow_capacity_bytes()
+    }
+}
+
+#[derive(Clone, Default)]
+struct DispatchBucketDirectory {
+    atoms: [SegmentedDispatchBucketDirectory; DISPATCH_ATOM_KIND_COUNT],
+    states: Vec<DispatchBucketRange>,
+    fixed: [DispatchBucketRange; 3],
+    rows: Vec<DispatchRow>,
+}
+
+impl DispatchBucketDirectory {
+    fn build(mut buckets: HashMap<DispatchKey, Vec<DispatchRow>>) -> Self {
+        let mut entries: Vec<_> = buckets.drain().collect();
+        entries.sort_unstable_by_key(|&(key, _)| key);
+        let row_count = entries.iter().map(|(_, rows)| rows.len()).sum();
+        let mut directory = Self {
+            states: vec![DispatchBucketRange::default(); StateFact::ALL.len()],
+            rows: Vec::with_capacity(row_count),
+            ..Self::default()
+        };
+        for (key, rows) in entries {
+            let range = DispatchBucketRange {
+                start: u32::try_from(directory.rows.len()).expect("dispatch bucket space exhausted"),
+                length: u32::try_from(rows.len()).expect("dispatch bucket space exhausted"),
+            };
+            directory.insert_range(key, range);
+            directory.rows.extend(rows);
+        }
+        directory
+    }
+
+    fn get(&self, key: DispatchKey) -> &[DispatchRow] {
+        let range = self.range(key);
+        let start = range.start as usize;
+        &self.rows[start..start + range.length as usize]
+    }
+
+    fn range(&self, key: DispatchKey) -> DispatchBucketRange {
+        if let Some((kind, atom)) = dispatch_atom_bucket(key) {
+            return self.atoms[kind].get(atom);
+        }
+        match key {
+            DispatchKey::State(state) => self.states.get(state as usize).copied().unwrap_or_default(),
+            DispatchKey::Root => self.fixed[0],
+            DispatchKey::Heading => self.fixed[1],
+            DispatchKey::Universal => self.fixed[2],
+            _ => unreachable!("non-dispatch feature key"),
+        }
+    }
+
+    fn insert_range(&mut self, key: DispatchKey, range: DispatchBucketRange) {
+        if let Some((kind, atom)) = dispatch_atom_bucket(key) {
+            self.atoms[kind].insert(atom, range);
+            return;
+        }
+        match key {
+            DispatchKey::State(state) => self.states[state as usize] = range,
+            DispatchKey::Root => self.fixed[0] = range,
+            DispatchKey::Heading => self.fixed[1] = range,
+            DispatchKey::Universal => self.fixed[2] = range,
+            _ => unreachable!("non-dispatch feature key"),
+        }
+    }
+
+    fn to_buckets(&self) -> HashMap<DispatchKey, Vec<DispatchRow>> {
+        let mut buckets = HashMap::default();
+        for (kind, directory) in self.atoms.iter().enumerate() {
+            for (atom, range) in directory.ranges.indexed_iter() {
+                if range.length != 0 {
+                    buckets.insert(dispatch_atom_bucket_key(kind, atom), self.slice(range).to_vec());
+                }
+            }
+        }
+        for (index, &range) in self.states.iter().enumerate() {
+            if range.length != 0 {
+                buckets.insert(DispatchKey::State(StateFact::ALL[index]), self.slice(range).to_vec());
+            }
+        }
+        for (key, range) in [
+            (DispatchKey::Root, self.fixed[0]),
+            (DispatchKey::Heading, self.fixed[1]),
+            (DispatchKey::Universal, self.fixed[2]),
+        ] {
+            if range.length != 0 {
+                buckets.insert(key, self.slice(range).to_vec());
+            }
+        }
+        buckets
+    }
+
+    fn filtered(&self, mut retain: impl FnMut(DispatchRow) -> bool) -> Self {
+        let mut buckets = self.to_buckets();
+        buckets.retain(|_, rows| {
+            rows.retain(|&row| retain(row));
+            !rows.is_empty()
+        });
+        Self::build(buckets)
+    }
+
+    fn slice(&self, range: DispatchBucketRange) -> &[DispatchRow] {
+        let start = range.start as usize;
+        &self.rows[start..start + range.length as usize]
+    }
+
+    fn capacity_bytes(&self) -> u64 {
+        self.atoms
+            .iter()
+            .map(SegmentedDispatchBucketDirectory::capacity_bytes)
+            .sum::<u64>()
+            + (self.states.capacity() * size_of::<DispatchBucketRange>()) as u64
+            + (self.rows.capacity() * size_of::<DispatchRow>()) as u64
+    }
+}
+
+fn dispatch_atom_bucket(key: DispatchKey) -> Option<(usize, usize)> {
+    match key {
+        DispatchKey::Part(atom) => Some((0, atom.0 as usize)),
+        DispatchKey::CustomState(atom) => Some((1, atom.0 as usize)),
+        DispatchKey::TagName(atom) => Some((2, atom.0 as usize)),
+        DispatchKey::Id(atom) => Some((3, atom.0 as usize)),
+        DispatchKey::Class(atom) => Some((4, atom.0 as usize)),
+        DispatchKey::AttributeName(atom) => Some((5, atom.0 as usize)),
+        DispatchKey::Directionality(atom) => Some((6, atom.0 as usize)),
+        _ => None,
+    }
+}
+
+fn dispatch_atom_bucket_key(kind: usize, atom: usize) -> DispatchKey {
+    let atom = StyleAtomID(u32::try_from(atom).expect("dispatch atom exceeds u32"));
+    match kind {
+        0 => DispatchKey::Part(atom),
+        1 => DispatchKey::CustomState(atom),
+        2 => DispatchKey::TagName(atom),
+        3 => DispatchKey::Id(atom),
+        4 => DispatchKey::Class(atom),
+        5 => DispatchKey::AttributeName(atom),
+        6 => DispatchKey::Directionality(atom),
+        _ => unreachable!("dispatch atom kind out of range"),
+    }
+}
+
 /// Buckets attached selector entries by their rightmost distinguishing feature.
 ///
 /// A candidate probes only the buckets its own facts name, plus the universal bucket, so a document
 /// full of `.item` elements never considers a rule whose subject compound requires `#header`. This
 /// is program-derived dispatch rather than acceleration over elements: it is Tier 2, it is rebuilt
 /// with the program, and it is never evicted independently of it.
-#[derive(Clone, Default)]
 struct AncestorDispatchTopology {
     key_indices: HashMap<DispatchKey, u32>,
+    residency: MemoryLease,
 }
 
-#[derive(Default)]
+impl Clone for AncestorDispatchTopology {
+    fn clone(&self) -> Self {
+        Self {
+            key_indices: self.key_indices.clone(),
+            residency: MemoryLease::new(MemoryCategory::RuleProgram),
+        }
+    }
+}
+
+impl Default for AncestorDispatchTopology {
+    fn default() -> Self {
+        Self {
+            key_indices: HashMap::default(),
+            residency: MemoryLease::new(MemoryCategory::RuleProgram),
+        }
+    }
+}
+
 struct RuleDispatchTopology {
+    /// Mutable construction form, consumed when the directory is finalized.
     buckets: HashMap<DispatchKey, Vec<DispatchRow>>,
+    bucket_directory: DispatchBucketDirectory,
+    non_prefix_bucket_directory: DispatchBucketDirectory,
     /// Universal-subject entries that have no exact parent requirement.
     universal_without_parent_filter: Vec<DispatchRow>,
     /// Universal-subject entries indexed by the one feature their parent must carry.
     universal_by_parent: HashMap<DispatchKey, Vec<DispatchRow>>,
+    universal_parent_directory: DispatchBucketDirectory,
+    non_prefix_universal_parent_directory: DispatchBucketDirectory,
     /// The same parent-filtered entries as a conservative fallback when parent facts are absent.
     universal_with_parent_filter: Vec<DispatchRow>,
-    /// Entries the top-down prefix automaton cannot answer, indexed separately so its successful
-    /// path does not enumerate the old exact candidates merely to discard them.
-    non_prefix_buckets: HashMap<DispatchKey, Vec<DispatchRow>>,
     non_prefix_universal_without_parent_filter: Vec<DispatchRow>,
-    non_prefix_universal_by_parent: HashMap<DispatchKey, Vec<DispatchRow>>,
     non_prefix_universal_with_parent_filter: Vec<DispatchRow>,
+    finalized: bool,
     ancestors: Rc<AncestorDispatchTopology>,
     prefixes: PrefixAutomaton,
+    residency: MemoryLease,
+}
+
+impl Default for RuleDispatchTopology {
+    fn default() -> Self {
+        Self {
+            buckets: HashMap::default(),
+            bucket_directory: DispatchBucketDirectory::default(),
+            non_prefix_bucket_directory: DispatchBucketDirectory::default(),
+            universal_without_parent_filter: Vec::new(),
+            universal_by_parent: HashMap::default(),
+            universal_parent_directory: DispatchBucketDirectory::default(),
+            non_prefix_universal_parent_directory: DispatchBucketDirectory::default(),
+            universal_with_parent_filter: Vec::new(),
+            non_prefix_universal_without_parent_filter: Vec::new(),
+            non_prefix_universal_with_parent_filter: Vec::new(),
+            finalized: false,
+            ancestors: Rc::new(AncestorDispatchTopology::default()),
+            prefixes: PrefixAutomaton::default(),
+            residency: MemoryLease::new(MemoryCategory::RuleProgram),
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) struct AncestorDispatchTopologyID(*const AncestorDispatchTopology);
 
-#[derive(Default)]
 pub struct RuleDispatch {
-    entries: Vec<DispatchEntry>,
+    entries: Rc<RuleDispatchEntries>,
+    entry_bindings: Vec<DispatchEntryBinding>,
     entry_rows: Vec<Vec<DispatchRow>>,
     /// Direct cascade-order projection for every rule represented in this dispatch. Rule
     /// identities are program indices, so retained answers can restore an entry's order without
@@ -1986,6 +2308,23 @@ pub struct RuleDispatch {
     cascade_properties: Vec<u16>,
     cascade_entries: Vec<CascadeEntryData>,
     topology: Rc<RuleDispatchTopology>,
+    residency: MemoryLease,
+}
+
+impl Default for RuleDispatch {
+    fn default() -> Self {
+        Self {
+            entries: Rc::new(RuleDispatchEntries::default()),
+            entry_bindings: Vec::new(),
+            entry_rows: Vec::new(),
+            cascade_order_rule_pages: Vec::new(),
+            cascade_orders_by_rule_entry: Vec::new(),
+            cascade_properties: Vec::new(),
+            cascade_entries: Vec::new(),
+            topology: Rc::new(RuleDispatchTopology::default()),
+            residency: MemoryLease::new(MemoryCategory::RuleProgram),
+        }
+    }
 }
 
 const CASCADE_ORDER_RULE_PAGE_SIZE: usize = 256;
@@ -2017,21 +2356,53 @@ impl RuleDispatch {
         Rc::get_mut(&mut self.topology).expect("a shared selector topology is immutable")
     }
 
-    pub(super) fn rebind_rules(template: &Self, rules: &[RuleID]) -> Self {
-        assert_eq!(template.entries.len(), rules.len());
-        let mut entries = template.entries.clone();
-        for (entry, &rule) in entries.iter_mut().zip(rules) {
-            entry.rule = rule;
-            entry.cascade_order = 0;
+    fn entries_mut(&mut self) -> &mut Vec<DispatchEntryMetadata> {
+        &mut Rc::make_mut(&mut self.entries).rows
+    }
+
+    fn entry(&self, row: DispatchRow) -> DispatchEntry {
+        let metadata = self.entries.rows[row.index()];
+        let binding = self.entry_bindings[row.index()];
+        let cascade_order = if binding.cascade_order_index == u32::MAX {
+            0
+        } else {
+            self.cascade_orders_by_rule_entry[binding.cascade_order_index as usize]
+        };
+        DispatchEntry {
+            identity: metadata.identity,
+            rule: binding.rule,
+            program: metadata.program,
+            entry: metadata.entry,
+            cascade_order,
+            required_attribute_value: metadata.required_attribute_value,
+            required_parent: metadata.required_parent,
+            required_ancestor: metadata.required_ancestor,
+            required_ancestor_index: metadata.required_ancestor_index,
+            required_subject_bloom: metadata.required_subject_bloom,
+            prefix_matched: metadata.prefix_matched,
+            multi_key: metadata.multi_key,
         }
+    }
+
+    pub(super) fn rebind_rules(template: &Self, rules: &[RuleID]) -> Self {
+        assert_eq!(template.entries.rows.len(), rules.len());
         Self {
-            entries,
+            entries: Rc::clone(&template.entries),
+            entry_bindings: rules
+                .iter()
+                .copied()
+                .map(|rule| DispatchEntryBinding {
+                    rule,
+                    cascade_order_index: u32::MAX,
+                })
+                .collect(),
             entry_rows: template.entry_rows.clone(),
             cascade_order_rule_pages: Vec::new(),
             cascade_orders_by_rule_entry: Vec::new(),
             cascade_properties: Vec::new(),
             cascade_entries: Vec::new(),
             topology: Rc::clone(&template.topology),
+            residency: MemoryLease::new(MemoryCategory::RuleProgram),
         }
     }
 
@@ -2039,16 +2410,26 @@ impl RuleDispatch {
         let mut dispatch = Self::rebind_rules(template, rules);
         let topology = &template.topology;
         dispatch.topology = Rc::new(RuleDispatchTopology {
-            buckets: topology.buckets.clone(),
+            buckets: match topology.finalized {
+                true => topology.bucket_directory.to_buckets(),
+                false => topology.buckets.clone(),
+            },
+            bucket_directory: DispatchBucketDirectory::default(),
+            non_prefix_bucket_directory: DispatchBucketDirectory::default(),
             universal_without_parent_filter: topology.universal_without_parent_filter.clone(),
-            universal_by_parent: topology.universal_by_parent.clone(),
+            universal_by_parent: match topology.finalized {
+                true => topology.universal_parent_directory.to_buckets(),
+                false => topology.universal_by_parent.clone(),
+            },
+            universal_parent_directory: DispatchBucketDirectory::default(),
+            non_prefix_universal_parent_directory: DispatchBucketDirectory::default(),
             universal_with_parent_filter: topology.universal_with_parent_filter.clone(),
-            non_prefix_buckets: topology.non_prefix_buckets.clone(),
-            non_prefix_universal_without_parent_filter: topology.non_prefix_universal_without_parent_filter.clone(),
-            non_prefix_universal_by_parent: topology.non_prefix_universal_by_parent.clone(),
-            non_prefix_universal_with_parent_filter: topology.non_prefix_universal_with_parent_filter.clone(),
+            non_prefix_universal_without_parent_filter: Vec::new(),
+            non_prefix_universal_with_parent_filter: Vec::new(),
+            finalized: false,
             ancestors: Rc::new((*topology.ancestors).clone()),
             prefixes: topology.prefixes.clone(),
+            residency: MemoryLease::new(MemoryCategory::RuleProgram),
         });
         dispatch.topology_mut().prefixes.prepare_to_extend();
         dispatch
@@ -2057,6 +2438,11 @@ impl RuleDispatch {
     #[cfg(test)]
     pub(super) fn shares_topology_with(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.topology, &other.topology)
+    }
+
+    #[cfg(test)]
+    pub(super) fn shares_entries_with(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.entries, &other.entries)
     }
 
     pub(super) fn shares_ancestor_topology_with(&self, other: &Self) -> bool {
@@ -2091,14 +2477,33 @@ impl RuleDispatch {
     }
 
     pub(super) fn insert(&mut self, key: DispatchKey, mut entry: DispatchEntry) -> DispatchRow {
+        debug_assert!(
+            !self.topology.finalized,
+            "extend a finalized dispatch through the extension path"
+        );
         entry.required_ancestor_index = entry.required_ancestor.map(|required| {
             let topology = self.topology_mut();
             let ancestors = Rc::get_mut(&mut topology.ancestors).expect("a shared ancestor topology is immutable");
             let next = u32::try_from(ancestors.key_indices.len()).expect("ancestor requirement space exhausted");
             *ancestors.key_indices.entry(required).or_insert(next)
         });
-        let id = DispatchRow::from_index(self.entries.len());
-        self.entries.push(entry);
+        let id = DispatchRow::from_index(self.entries.rows.len());
+        self.entries_mut().push(DispatchEntryMetadata {
+            identity: entry.identity,
+            program: entry.program,
+            entry: entry.entry,
+            required_attribute_value: entry.required_attribute_value,
+            required_parent: entry.required_parent,
+            required_ancestor: entry.required_ancestor,
+            required_ancestor_index: entry.required_ancestor_index,
+            required_subject_bloom: entry.required_subject_bloom,
+            prefix_matched: entry.prefix_matched,
+            multi_key: entry.multi_key,
+        });
+        self.entry_bindings.push(DispatchEntryBinding {
+            rule: entry.rule,
+            cascade_order_index: u32::MAX,
+        });
         if self.entry_rows.len() <= entry.identity.0 as usize {
             self.entry_rows.resize_with(entry.identity.0 as usize + 1, Vec::new);
         }
@@ -2121,18 +2526,21 @@ impl RuleDispatch {
         // Registration can refuse a chain whose structural tests would overflow the automaton's
         // truth bit space or whose origin does not admit them; the entry then stays a candidate
         // for the exact evaluator.
-        let entry = self.entries[row.index()].identity;
+        let entry = self.entries.rows[row.index()].identity;
         if self
             .topology_mut()
             .prefixes
             .add_entry(programs, program, chain, entry, structural_tests_admissible)
         {
-            self.entries[row.index()].prefix_matched = true;
+            self.entries_mut()[row.index()].prefix_matched = true;
         }
     }
 
     pub(super) fn finish_prefixes(&mut self) {
+        debug_assert!(!self.topology.finalized, "a dispatch can only be finalized once");
         self.topology_mut().prefixes.finish();
+        self.finalize_bucket_directories();
+        self.rebuild_universal_with_parent_filter();
         self.rebuild_non_prefix_index();
     }
 
@@ -2146,74 +2554,65 @@ impl RuleDispatch {
             .get(entry.0 as usize)
             .into_iter()
             .flatten()
-            .map(|&row| self.entries[row.index()])
+            .map(|&row| self.entry(row))
     }
 
     #[must_use]
-    pub(super) fn entries(&self) -> &[DispatchEntry] {
-        &self.entries
+    #[cfg(test)]
+    pub(super) fn entry_at(&self, index: usize) -> DispatchEntry {
+        self.entry(DispatchRow::from_index(index))
     }
 
     fn index_universal_entry(&mut self, id: DispatchRow) {
-        let entry = self.entries[id.index()];
+        let entry = self.entry(id);
         let topology = self.topology_mut();
         match entry.required_parent {
             Some(parent) => {
                 topology.universal_by_parent.entry(parent).or_default().push(id);
-                topology.universal_with_parent_filter.push(id);
             }
             None => topology.universal_without_parent_filter.push(id),
         }
     }
 
-    fn rebuild_universal_index(&mut self) {
-        let entries = self.bucket_ids(DispatchKey::Universal).to_vec();
+    fn rebuild_universal_with_parent_filter(&mut self) {
+        let entries = self
+            .bucket_ids(DispatchKey::Universal, CandidateEntries::All)
+            .iter()
+            .copied()
+            .filter(|row| self.entries.rows[row.index()].required_parent.is_some())
+            .collect();
+        self.topology_mut().universal_with_parent_filter = entries;
+    }
+
+    fn finalize_bucket_directories(&mut self) {
         let topology = self.topology_mut();
-        topology.universal_without_parent_filter.clear();
-        topology.universal_by_parent.clear();
-        topology.universal_with_parent_filter.clear();
-        for id in entries {
-            self.index_universal_entry(id);
-        }
+        topology.bucket_directory = DispatchBucketDirectory::build(std::mem::take(&mut topology.buckets));
+        topology.universal_parent_directory =
+            DispatchBucketDirectory::build(std::mem::take(&mut topology.universal_by_parent));
+        topology.finalized = true;
     }
 
     fn rebuild_non_prefix_index(&mut self) {
-        let mut non_prefix_buckets = HashMap::default();
-        for (&key, entries) in &self.topology.buckets {
-            let entries: Vec<_> = entries
-                .iter()
-                .copied()
-                .filter(|entry| !self.entries[entry.index()].prefix_matched)
-                .collect();
-            if !entries.is_empty() {
-                non_prefix_buckets.insert(key, entries);
-            }
-        }
-
-        let entries = non_prefix_buckets
-            .get(&DispatchKey::Universal)
-            .cloned()
-            .unwrap_or_default();
+        let non_prefix_entries: Vec<_> = self.entries.rows.iter().map(|entry| !entry.prefix_matched).collect();
         let topology = self.topology_mut();
-        topology.non_prefix_buckets = non_prefix_buckets;
-        topology.non_prefix_universal_without_parent_filter.clear();
-        topology.non_prefix_universal_by_parent.clear();
-        topology.non_prefix_universal_with_parent_filter.clear();
-        for id in entries {
-            let entry = self.entries[id.index()];
-            match entry.required_parent {
-                Some(parent) => {
-                    let topology = self.topology_mut();
-                    topology
-                        .non_prefix_universal_by_parent
-                        .entry(parent)
-                        .or_default()
-                        .push(id);
-                    topology.non_prefix_universal_with_parent_filter.push(id);
-                }
-                None => self.topology_mut().non_prefix_universal_without_parent_filter.push(id),
-            }
-        }
+        topology.non_prefix_bucket_directory = topology
+            .bucket_directory
+            .filtered(|row| non_prefix_entries[row.index()]);
+        topology.non_prefix_universal_parent_directory = topology
+            .universal_parent_directory
+            .filtered(|row| non_prefix_entries[row.index()]);
+        topology.non_prefix_universal_without_parent_filter = topology
+            .universal_without_parent_filter
+            .iter()
+            .copied()
+            .filter(|row| non_prefix_entries[row.index()])
+            .collect();
+        topology.non_prefix_universal_with_parent_filter = topology
+            .universal_with_parent_filter
+            .iter()
+            .copied()
+            .filter(|row| non_prefix_entries[row.index()])
+            .collect();
     }
 
     /// Assign a dense rank to the static cascade priority of every selector entry.
@@ -2226,12 +2625,9 @@ impl RuleDispatch {
     /// those copies are one selector entry. They therefore share one rank, which is what the
     /// candidate walk deduplicates them by.
     pub fn assign_cascade_order<K: Ord>(&mut self, mut priority_of: impl FnMut(DispatchEntry) -> K) {
-        let mut ordered: Vec<(K, RuleID, SelectorProgramID, u32, DispatchRow)> = self
-            .entries
-            .iter()
-            .copied()
-            .enumerate()
-            .map(|(index, entry)| {
+        let mut ordered: Vec<(K, RuleID, SelectorProgramID, u32, DispatchRow)> = (0..self.entry_count())
+            .map(|index| {
+                let entry = self.entry(DispatchRow::from_index(index));
                 (
                     priority_of(entry),
                     entry.rule,
@@ -2243,6 +2639,7 @@ impl RuleDispatch {
             .collect();
         ordered.sort_unstable();
 
+        let mut cascade_orders_by_row = vec![0; self.entry_count()];
         let mut group_start = 0;
         while group_start < ordered.len() {
             let mut group_end = group_start + 1;
@@ -2256,40 +2653,45 @@ impl RuleDispatch {
             }
             let cascade_order = u32::try_from(group_end - 1).expect("dispatch entry space exhausted");
             for ordered_entry in &ordered[group_start..group_end] {
-                self.entries[ordered_entry.4.index()].cascade_order = cascade_order;
+                cascade_orders_by_row[ordered_entry.4.index()] = cascade_order;
             }
             group_start = group_end;
         }
 
-        self.rebuild_cascade_order_projection();
+        self.rebuild_cascade_order_projection(&cascade_orders_by_row);
     }
 
     pub(super) fn reuse_cascade_order(&mut self, template: &Self) {
-        assert_eq!(self.entries.len(), template.entries.len());
-        for (entry, template_entry) in self.entries.iter_mut().zip(&template.entries) {
+        assert_eq!(self.entry_count(), template.entry_count());
+        let mut cascade_orders_by_row = Vec::with_capacity(self.entry_count());
+        for index in 0..self.entry_count() {
+            let entry = self.entry(DispatchRow::from_index(index));
+            let template_entry = template.entry(DispatchRow::from_index(index));
             assert_eq!(entry.program, template_entry.program);
             assert_eq!(entry.entry, template_entry.entry);
-            entry.cascade_order = template_entry.cascade_order;
+            cascade_orders_by_row.push(template_entry.cascade_order);
         }
-        self.rebuild_cascade_order_projection();
+        self.rebuild_cascade_order_projection(&cascade_orders_by_row);
     }
 
-    fn rebuild_cascade_order_projection(&mut self) {
-        let mut entries_by_identity: Vec<_> = (0..self.entries.len()).map(DispatchRow::from_index).collect();
+    fn rebuild_cascade_order_projection(&mut self, cascade_orders_by_row: &[u32]) {
+        assert_eq!(cascade_orders_by_row.len(), self.entry_count());
+        let mut entries_by_identity: Vec<_> = (0..self.entry_count()).map(DispatchRow::from_index).collect();
         entries_by_identity.sort_unstable_by_key(|&id| {
-            let entry = self.entries[id.index()];
-            (entry.rule, entry.program, entry.entry)
+            let metadata = self.entries.rows[id.index()];
+            (self.entry_bindings[id.index()].rule, metadata.program, metadata.entry)
         });
         entries_by_identity.dedup_by_key(|id| {
-            let entry = self.entries[id.index()];
-            (entry.rule, entry.program, entry.entry)
+            let metadata = self.entries.rows[id.index()];
+            (self.entry_bindings[id.index()].rule, metadata.program, metadata.entry)
         });
         self.cascade_order_rule_pages.clear();
         self.cascade_orders_by_rule_entry.clear();
         self.cascade_orders_by_rule_entry.reserve(entries_by_identity.len());
         for id in entries_by_identity {
-            let entry = self.entries[id.index()];
-            let rule_index = entry.rule.0 as usize;
+            let metadata = self.entries.rows[id.index()];
+            let binding = self.entry_bindings[id.index()];
+            let rule_index = binding.rule.0 as usize;
             let page_index = rule_index / CASCADE_ORDER_RULE_PAGE_SIZE;
             if self.cascade_order_rule_pages.len() <= page_index {
                 self.cascade_order_rule_pages.resize_with(page_index + 1, || None);
@@ -2298,23 +2700,30 @@ impl RuleDispatch {
                 .get_or_insert_with(|| Box::new([CascadeOrderRule::default(); CASCADE_ORDER_RULE_PAGE_SIZE]));
             let rule = &mut page[rule_index % CASCADE_ORDER_RULE_PAGE_SIZE];
             if rule.entry_count == 0 {
-                rule.program = entry.program;
+                rule.program = metadata.program;
                 rule.entry_start =
                     u32::try_from(self.cascade_orders_by_rule_entry.len()).expect("dispatch entry space exhausted");
             }
             assert_eq!(
-                rule.program, entry.program,
+                rule.program, metadata.program,
                 "one rule cannot have multiple selector programs"
             );
             assert_eq!(
-                rule.entry_count, entry.entry,
+                rule.entry_count, metadata.entry,
                 "a rule's selector entries must form a dense identity space"
             );
             rule.entry_count = rule.entry_count.checked_add(1).expect("selector entry space exhausted");
-            self.cascade_orders_by_rule_entry.push(entry.cascade_order);
+            self.cascade_orders_by_rule_entry
+                .push(cascade_orders_by_row[id.index()]);
         }
-        if Rc::strong_count(&self.topology) == 1 {
-            self.rebuild_universal_index();
+        for (row, binding) in self.entry_bindings.iter_mut().enumerate() {
+            let metadata = self.entries.rows[row];
+            let rule_index = binding.rule.0 as usize;
+            let page = self.cascade_order_rule_pages[rule_index / CASCADE_ORDER_RULE_PAGE_SIZE]
+                .as_deref()
+                .expect("a dispatch binding must have a cascade-order page");
+            let rule = &page[rule_index % CASCADE_ORDER_RULE_PAGE_SIZE];
+            binding.cascade_order_index = rule.entry_start + metadata.entry;
         }
     }
 
@@ -2351,9 +2760,10 @@ impl RuleDispatch {
         self.cascade_properties.clear();
         self.cascade_entries.clear();
         self.cascade_entries
-            .resize(self.entries.len(), CascadeEntryData::default());
-        let mut configured = vec![false; self.entries.len()];
-        for &entry in &self.entries {
+            .resize(self.entry_count(), CascadeEntryData::default());
+        let mut configured = vec![false; self.entry_count()];
+        for index in 0..self.entry_count() {
+            let entry = self.entry(DispatchRow::from_index(index));
             let order = entry.cascade_order as usize;
             if configured[order] {
                 continue;
@@ -2405,17 +2815,37 @@ impl RuleDispatch {
         self.cascade_pruning_blocker_for_order(entry.cascade_order)
     }
 
-    fn bucket_ids(&self, key: DispatchKey) -> &[DispatchRow] {
+    fn bucket_ids(&self, key: DispatchKey, entries: CandidateEntries) -> &[DispatchRow] {
+        if self.topology.finalized {
+            return match entries {
+                CandidateEntries::All => self.topology.bucket_directory.get(key),
+                CandidateEntries::NonPrefix => self.topology.non_prefix_bucket_directory.get(key),
+            };
+        }
+        debug_assert!(entries == CandidateEntries::All);
         self.topology.buckets.get(&key).map_or(&[], Vec::as_slice)
     }
 
+    fn universal_parent_bucket_ids(&self, key: DispatchKey, entries: CandidateEntries) -> &[DispatchRow] {
+        if self.topology.finalized {
+            return match entries {
+                CandidateEntries::All => self.topology.universal_parent_directory.get(key),
+                CandidateEntries::NonPrefix => self.topology.non_prefix_universal_parent_directory.get(key),
+            };
+        }
+        debug_assert!(entries == CandidateEntries::All);
+        self.topology.universal_by_parent.get(&key).map_or(&[], Vec::as_slice)
+    }
+
     pub fn bucket(&self, key: DispatchKey) -> impl ExactSizeIterator<Item = DispatchEntry> + '_ {
-        self.bucket_ids(key).iter().map(|&id| self.entries[id.index()])
+        self.bucket_ids(key, CandidateEntries::All)
+            .iter()
+            .map(|&id| self.entry(id))
     }
 
     #[must_use]
     pub fn entry_count(&self) -> usize {
-        self.entries.len()
+        self.entries.rows.len()
     }
 
     #[must_use]
@@ -2444,34 +2874,32 @@ impl RuleDispatch {
         descending_cascade_order: bool,
         workspace: &'a mut DispatchCandidateWorkspace,
     ) -> impl Iterator<Item = DispatchEntry> + 'a {
-        workspace.begin(self.entries.len());
-        let (buckets, universal_without_parent_filter, universal_by_parent, universal_with_parent_filter) =
-            match entries {
-                CandidateEntries::All => (
-                    &self.topology.buckets,
-                    &self.topology.universal_without_parent_filter,
-                    &self.topology.universal_by_parent,
-                    &self.topology.universal_with_parent_filter,
-                ),
-                CandidateEntries::NonPrefix => (
-                    &self.topology.non_prefix_buckets,
-                    &self.topology.non_prefix_universal_without_parent_filter,
-                    &self.topology.non_prefix_universal_by_parent,
-                    &self.topology.non_prefix_universal_with_parent_filter,
-                ),
-            };
+        workspace.begin(self.entry_count());
+        debug_assert!(self.topology.finalized || entries == CandidateEntries::All);
+        let universal_without_parent_filter = match entries {
+            CandidateEntries::All => &self.topology.universal_without_parent_filter,
+            CandidateEntries::NonPrefix => &self.topology.non_prefix_universal_without_parent_filter,
+        };
+        let universal_with_parent_filter = match entries {
+            CandidateEntries::All => &self.topology.universal_with_parent_filter,
+            CandidateEntries::NonPrefix => &self.topology.non_prefix_universal_with_parent_filter,
+        };
         let subject_bloom = facts.dispatch_bloom_of(row, is_document_root);
         {
             let mut offer = |id: DispatchRow, attribute_value: Option<StyleAtomID>| {
-                let entry = self.entries[id.index()];
-                if !entry.required_attribute_value.is_none() && attribute_value != Some(entry.required_attribute_value)
+                let metadata = self.entries.rows[id.index()];
+                if !metadata.required_attribute_value.is_none()
+                    && attribute_value != Some(metadata.required_attribute_value)
                 {
+                    return;
+                }
+                if metadata.required_subject_bloom & subject_bloom != metadata.required_subject_bloom {
                     return;
                 }
                 if !workspace.admit(id) {
                     return;
                 }
-                if !match (entry.required_parent, parent) {
+                if !match (metadata.required_parent, parent) {
                     (None, _) => true,
                     (Some(_), ParentDispatchFacts::NoElementParent) => false,
                     (Some(required), ParentDispatchFacts::Known { row, is_document_root }) => {
@@ -2481,10 +2909,7 @@ impl RuleDispatch {
                 } {
                     return;
                 }
-                if entry.required_subject_bloom & subject_bloom != entry.required_subject_bloom {
-                    return;
-                }
-                if !match (entry.required_ancestor_index, ancestors) {
+                if !match (metadata.required_ancestor_index, ancestors) {
                     (Some(index), Some(ancestors)) => ancestors.contains(index),
                     _ => true,
                 } {
@@ -2499,10 +2924,8 @@ impl RuleDispatch {
             match parent {
                 ParentDispatchFacts::Known { row, is_document_root } => {
                     facts.for_each_dispatch_probe(row, is_document_root, |key, _| {
-                        if let Some(ids) = universal_by_parent.get(&key) {
-                            for &id in ids {
-                                offer(id, None);
-                            }
+                        for &id in self.universal_parent_bucket_ids(key, entries) {
+                            offer(id, None);
                         }
                     });
                 }
@@ -2517,27 +2940,38 @@ impl RuleDispatch {
                 if key == DispatchKey::Universal {
                     return;
                 }
-                if let Some(ids) = buckets.get(&key) {
-                    for &id in ids {
-                        offer(id, attribute_value);
-                    }
+                for &id in self.bucket_ids(key, entries) {
+                    offer(id, attribute_value);
                 }
             });
         }
         if descending_cascade_order {
-            workspace.candidates.sort_unstable_by_key(|&id| {
-                let entry = self.entries[id.index()];
-                Reverse((self.cascade_pruning_blocker(entry), entry.cascade_order))
-            });
+            workspace.cascade_sort.extend(workspace.candidates.iter().map(|&id| {
+                let binding = self.entry_bindings[id.index()];
+                let cascade_order = if binding.cascade_order_index == u32::MAX {
+                    0
+                } else {
+                    self.cascade_orders_by_rule_entry[binding.cascade_order_index as usize]
+                };
+                (
+                    Reverse((self.cascade_pruning_blocker_for_order(cascade_order), cascade_order)),
+                    id,
+                )
+            }));
+            // Rows with the same rank are copies of one selector entry and are deduplicated by
+            // cascade order at consumption, so their relative order is unobservable.
+            workspace.cascade_sort.sort_unstable_by_key(|&(key, _)| key);
+            for (candidate, &(_, sorted)) in workspace.candidates.iter_mut().zip(&workspace.cascade_sort) {
+                *candidate = sorted;
+            }
         }
-        workspace.candidates.iter().map(|&id| self.entries[id.index()])
+        workspace.candidates.iter().map(|&id| self.entry(id))
     }
 
-    #[must_use]
-    pub fn capacity_bytes(&self) -> u64 {
-        let scope_bytes = capacity_bytes! {
+    fn scope_capacity_bytes(&self) -> u64 {
+        capacity_bytes! {
             shallow [
-                self.entries,
+                self.entry_bindings,
                 self.entry_rows,
                 self.cascade_order_rule_pages,
                 self.cascade_orders_by_rule_entry,
@@ -2558,47 +2992,76 @@ impl RuleDispatch {
                     .map(|rows| rows.capacity() * size_of::<DispatchRow>())
                     .sum::<usize>(),
             ];
-            skip [];
-        };
-        let topology_bytes = capacity_bytes! {
+            skip [self.entries, self.residency];
+        }
+    }
+
+    fn topology_capacity_bytes(topology: &RuleDispatchTopology) -> u64 {
+        capacity_bytes! {
             shallow [
-                self.topology.buckets,
-                self.topology.universal_without_parent_filter,
-                self.topology.universal_by_parent,
-                self.topology.universal_with_parent_filter,
-                self.topology.non_prefix_buckets,
-                self.topology.non_prefix_universal_without_parent_filter,
-                self.topology.non_prefix_universal_by_parent,
-                self.topology.non_prefix_universal_with_parent_filter,
-                self.topology.ancestors.key_indices,
+                topology.buckets,
+                topology.universal_without_parent_filter,
+                topology.universal_by_parent,
+                topology.universal_with_parent_filter,
+                topology.non_prefix_universal_without_parent_filter,
+                topology.non_prefix_universal_with_parent_filter,
             ];
             cached [];
             nested [
-                self.topology
-                .buckets
+                topology
+                    .buckets
+                    .values()
+                .map(|bucket| bucket.capacity() * size_of::<DispatchRow>())
+                .sum::<usize>(),
+                topology
+                    .universal_by_parent
                 .values()
                 .map(|bucket| bucket.capacity() * size_of::<DispatchRow>())
                 .sum::<usize>(),
-                self.topology
-                .universal_by_parent
-                .values()
-                .map(|bucket| bucket.capacity() * size_of::<DispatchRow>())
-                .sum::<usize>(),
-                self.topology
-                .non_prefix_buckets
-                .values()
-                .map(|bucket| bucket.capacity() * size_of::<DispatchRow>())
-                .sum::<usize>(),
-                self.topology
-                .non_prefix_universal_by_parent
-                .values()
-                .map(|bucket| bucket.capacity() * size_of::<DispatchRow>())
-                .sum::<usize>(),
-                self.topology.prefixes.capacity_bytes(),
+                topology.bucket_directory.capacity_bytes(),
+                topology.non_prefix_bucket_directory.capacity_bytes(),
+                topology.universal_parent_directory.capacity_bytes(),
+                topology.non_prefix_universal_parent_directory.capacity_bytes(),
+                topology.prefixes.capacity_bytes(),
             ];
-            skip [];
+            skip [topology.ancestors, topology.finalized, topology.residency];
+        }
+    }
+
+    fn ancestor_capacity_bytes(ancestors: &AncestorDispatchTopology) -> u64 {
+        capacity_bytes! {
+            shallow [ancestors.key_indices];
+            cached [];
+            nested [];
+            skip [ancestors.residency];
+        }
+    }
+
+    pub(super) fn settle_memory(&mut self, memory: &mut MemoryController) {
+        self.residency.resize_required_to(memory, self.scope_capacity_bytes());
+        if let Some(entries) = Rc::get_mut(&mut self.entries) {
+            entries.residency.resize_required_to(memory, entries.capacity_bytes());
+        }
+        let Some(topology) = Rc::get_mut(&mut self.topology) else {
+            return;
         };
-        scope_bytes + topology_bytes
+        topology
+            .residency
+            .resize_required_to(memory, Self::topology_capacity_bytes(topology));
+        let Some(ancestors) = Rc::get_mut(&mut topology.ancestors) else {
+            return;
+        };
+        ancestors
+            .residency
+            .resize_required_to(memory, Self::ancestor_capacity_bytes(ancestors));
+    }
+
+    #[must_use]
+    pub fn capacity_bytes(&self) -> u64 {
+        self.scope_capacity_bytes()
+            + self.entries.capacity_bytes()
+            + Self::topology_capacity_bytes(&self.topology)
+            + Self::ancestor_capacity_bytes(&self.topology.ancestors)
     }
 }
 
@@ -5125,6 +5588,53 @@ mod tests {
     }
 
     #[test]
+    fn shared_dispatch_allocations_are_charged_once() {
+        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut dispatch = RuleDispatch::new();
+        dispatch.insert(
+            DispatchKey::Class(StyleAtomID(10)),
+            DispatchEntry {
+                identity: EntryID(1),
+                rule: RuleID(1),
+                program: SelectorProgramID(1),
+                entry: 0,
+                cascade_order: 0,
+                required_attribute_value: StyleAtomID::NONE,
+                required_parent: None,
+                required_ancestor: Some(DispatchKey::Class(StyleAtomID(20))),
+                required_ancestor_index: None,
+                required_subject_bloom: 0,
+                prefix_matched: false,
+                multi_key: false,
+            },
+        );
+        dispatch.settle_memory(&mut memory);
+        assert_eq!(
+            memory.bytes_in_category(MemoryCategory::RuleProgram),
+            dispatch.capacity_bytes()
+        );
+
+        let mut rebound = RuleDispatch::rebind_rules(&dispatch, &[RuleID(2)]);
+        rebound.settle_memory(&mut memory);
+        assert!(dispatch.shares_entries_with(&rebound));
+        let shared_bytes = dispatch.entries.capacity_bytes()
+            + RuleDispatch::topology_capacity_bytes(&dispatch.topology)
+            + RuleDispatch::ancestor_capacity_bytes(&dispatch.topology.ancestors);
+        assert_eq!(
+            memory.bytes_in_category(MemoryCategory::RuleProgram),
+            dispatch.scope_capacity_bytes() + rebound.scope_capacity_bytes() + shared_bytes
+        );
+
+        drop(dispatch);
+        assert_eq!(
+            memory.bytes_in_category(MemoryCategory::RuleProgram),
+            rebound.scope_capacity_bytes() + shared_bytes
+        );
+        drop(rebound);
+        assert_eq!(memory.bytes_in_category(MemoryCategory::RuleProgram), 0);
+    }
+
+    #[test]
     fn a_candidate_probes_only_the_buckets_its_own_facts_name() {
         let mut dispatch = RuleDispatch::new();
         let entry = |rule: u32| DispatchEntry {
@@ -5288,6 +5798,7 @@ mod tests {
             entry(2, Some(DispatchKey::Class(StyleAtomID(11)))),
         );
         dispatch.insert(DispatchKey::Universal, entry(3, None));
+        dispatch.finish_prefixes();
 
         let mut facts = StyleNodeFacts::new();
         facts.push_row(
@@ -5656,6 +6167,10 @@ mod tests {
         assert!(states.contains(StateFact::Hover));
         assert!(states.contains(StateFact::Checked));
         assert!(!states.contains(StateFact::Focus));
+        assert_eq!(
+            states.facts().collect::<Vec<_>>(),
+            vec![StateFact::Checked, StateFact::Hover]
+        );
         states.remove(StateFact::Hover);
         assert!(!states.contains(StateFact::Hover));
         assert_eq!(size_of::<StateSet>(), 8);

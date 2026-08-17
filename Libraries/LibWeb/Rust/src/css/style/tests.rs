@@ -5,7 +5,10 @@
  */
 
 use super::batch_matcher::insert_scope_rule;
+use super::index::CandidateEntries;
+use super::index::ParentDispatchFacts;
 use super::index::SelectorPostingKey;
+use super::index::StateSet;
 use super::instrumentation::Counter;
 use super::program::DeclarationBlockID;
 use super::program::SelectorProgramID;
@@ -5751,9 +5754,8 @@ fn positional_answers_stay_cold_equivalent_across_sequence_mutations() {
             let _ = engine.match_element_for_purpose(node, true);
         }
         let (_, dispatch) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
-        let mut orders: Vec<(RuleID, SelectorProgramID, u32, u32)> = dispatch
-            .entries()
-            .iter()
+        let mut orders: Vec<(RuleID, SelectorProgramID, u32, u32)> = (0..dispatch.entry_count())
+            .map(|index| dispatch.entry_at(index))
             .map(|entry| (entry.rule, entry.program, entry.entry, entry.cascade_order))
             .collect();
         orders.sort_unstable_by_key(|&(rule, program, entry, _)| (rule, program, entry));
@@ -7438,14 +7440,16 @@ fn equivalent_sheet_programs_share_dispatch_topology() {
     let (_, second) = engine.ranked_scope_program(TreeScopeID(2));
     assert!(!Rc::ptr_eq(&first, &second));
     assert!(first.shares_topology_with(&second));
+    assert!(first.shares_entries_with(&second));
     assert_eq!(engine.scope_cascade_templates.len(), 1);
-    assert_eq!(first.entries()[0].cascade_order, second.entries()[0].cascade_order);
-    assert_eq!(first.entries()[0].rule, rules[0]);
-    assert_eq!(second.entries()[0].rule, rules[1]);
+    assert_eq!(first.entry_at(0).cascade_order, second.entry_at(0).cascade_order);
+    assert_eq!(first.entry_at(0).rule, rules[0]);
+    assert_eq!(second.entry_at(0).rule, rules[1]);
 
     engine.invalidate_scope_programs();
     let (_, rebuilt) = engine.ranked_scope_program(TreeScopeID(1));
     assert!(first.shares_topology_with(&rebuilt));
+    assert!(first.shares_entries_with(&rebuilt));
 
     let replacement_program = engine
         .programs
@@ -7490,10 +7494,39 @@ fn a_scope_dispatch_can_extend_a_finished_prefix_template() {
     insert_scope_rule(&mut cold, &programs, rules[1], suffix, true);
     cold.finish_prefixes();
 
-    assert_eq!(extended.entries(), cold.entries());
+    assert_eq!(extended.entry_count(), cold.entry_count());
+    for index in 0..extended.entry_count() {
+        assert_eq!(extended.entry_at(index), cold.entry_at(index));
+    }
     assert_eq!(extended.ancestor_dispatch_shape(), cold.ancestor_dispatch_shape());
     assert!(extended.prefixes().contains_entry(programs.entry_id(base, 0)));
     assert!(extended.prefixes().contains_entry(programs.entry_id(suffix, 0)));
+
+    let mut facts = StyleNodeFacts::new();
+    facts.push_row(
+        StyleNodeID::element(1),
+        StyleAtomID(1),
+        StyleAtomID::NONE,
+        StateSet::default(),
+        &[StyleAtomID(201)],
+        &[],
+    );
+    let candidate_rules = |dispatch: &RuleDispatch| {
+        dispatch
+            .candidates_for(
+                &facts,
+                0,
+                false,
+                ParentDispatchFacts::Unknown,
+                None,
+                CandidateEntries::All,
+                false,
+                &mut DispatchCandidateWorkspace::default(),
+            )
+            .map(|entry| entry.rule)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(candidate_rules(&extended), candidate_rules(&cold));
 }
 
 #[test]
