@@ -4854,6 +4854,7 @@
     "inherited": false,
     "initial": "50% 50%",
     "max-values": 3,
+    "needs-layout-node-for-resolved-value": true,
     "requires-computation": "cascaded-value",
     "valid-types": [
       "length [-∞,∞]",

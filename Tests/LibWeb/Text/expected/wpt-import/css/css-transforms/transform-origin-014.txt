@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Percentage 'transform-origin' with 'fill-box' transform-box
+Pass	Percentage 'transform-origin' with 'view-box' transform-box
+Pass	Percentage 'transform-origin' with 'view-box' transform-box in nested <svg> with 'viewBox'
+Pass	Percentage 'transform-origin' with 'view-box' transform-box in nested <svg> without 'viewBox'

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="none" style="display: none"></div>
+<div id="contents" style="display: contents"></div>
+<script>
+    test(() => {
+        for (const id of ["none", "contents"]) {
+            const target = document.getElementById(id);
+            for (const transformOrigin of [
+                "left top",
+                "center",
+                "bottom right 3px",
+                "10% 20px",
+                "calc(10% + 1px) 2px",
+            ]) {
+                target.style.transformOrigin = transformOrigin;
+                println(`${id}: ${transformOrigin} => ${getComputedStyle(target).transformOrigin}`);
+            }
+        }
+    });
+</script>

@@ -1,0 +1,28 @@
+Harness status: OK
+
+Found 23 tests
+
+23 Pass
+Pass	Property transform-origin value '10%'
+Pass	Property transform-origin value '10% center'
+Pass	Property transform-origin value '20% 30px'
+Pass	Property transform-origin value '30px center'
+Pass	Property transform-origin value '40px top'
+Pass	Property transform-origin value 'bottom right'
+Pass	Property transform-origin value 'center'
+Pass	Property transform-origin value 'center 50px'
+Pass	Property transform-origin value 'center bottom'
+Pass	Property transform-origin value 'center center'
+Pass	Property transform-origin value 'center left'
+Pass	Property transform-origin value 'left'
+Pass	Property transform-origin value 'left 10px'
+Pass	Property transform-origin value 'left bottom'
+Pass	Property transform-origin value 'left center'
+Pass	Property transform-origin value 'right 40%'
+Pass	Property transform-origin value 'top'
+Pass	Property transform-origin value '-1px bottom 5px'
+Pass	Property transform-origin value 'left center 6px'
+Pass	Property transform-origin value 'center top'
+Pass	Property transform-origin value 'right bottom 7px'
+Pass	Property transform-origin value '-1px -2px -3px'
+Pass	Property transform-origin value 'calc(-100% + 10px - 0.5em) calc(10px - 0.5em) calc(10px - 0.5em)'

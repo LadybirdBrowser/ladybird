@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Transform Module Level 2: getComputedStyle().transformOrigin</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms/#transform-origin-property">
+<meta name="assert" content="transform-origin computed value is two or three absolute lengths">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #target {
+    width: 200px;
+    height: 300px;
+    font-size: 40px;
+  }
+</style>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("transform-origin", "10%", "20px 150px");
+test_computed_value("transform-origin", "10% center", "20px 150px");
+test_computed_value("transform-origin", "20% 30px", "40px 30px");
+test_computed_value("transform-origin", "30px center", "30px 150px");
+test_computed_value("transform-origin", "40px top", "40px 0px");
+test_computed_value("transform-origin", "bottom right", "200px 300px");
+test_computed_value("transform-origin", "center", "100px 150px");
+test_computed_value("transform-origin", "center 50px", "100px 50px");
+test_computed_value("transform-origin", "center bottom", "100px 300px");
+test_computed_value("transform-origin", "center center", "100px 150px");
+test_computed_value("transform-origin", "center left", "0px 150px");
+test_computed_value("transform-origin", "left", "0px 150px");
+test_computed_value("transform-origin", "left 10px", "0px 10px");
+test_computed_value("transform-origin", "left bottom", "0px 300px");
+test_computed_value("transform-origin", "left center", "0px 150px");
+test_computed_value("transform-origin", "right 40%", "200px 120px");
+test_computed_value("transform-origin", "top", "100px 0px");
+
+test_computed_value("transform-origin", "-1px bottom 5px", "-1px 300px 5px");
+test_computed_value("transform-origin", "left center 6px", "0px 150px 6px");
+test_computed_value("transform-origin", "center top", "100px 0px");
+test_computed_value("transform-origin", "right bottom 7px", "200px 300px 7px");
+test_computed_value("transform-origin", "-1px -2px -3px");
+
+test_computed_value("transform-origin", "calc(-100% + 10px - 0.5em) calc(10px - 0.5em) calc(10px - 0.5em)", "-210px -10px -10px");
+</script>
+</body>
+</html>

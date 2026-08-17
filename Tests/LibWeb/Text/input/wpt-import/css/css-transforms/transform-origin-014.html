@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<title>CSS Transforms: 'transform-origin' resolved values in SVG</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms/#transform-origin-property">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+#target1 {
+  transform-origin: 50% 50%;
+  transform-box: fill-box;
+}
+
+#target2, #target3, #target4 {
+  transform-origin: 50% 50%;
+}
+</style>
+<svg fill="blue">
+  <rect id="target1" x="100" y="100" width="100" height="100"/>
+  <rect id="target2" width="100" height="100"/>
+  <svg viewBox="0 0 50 50" x="100" width="100" height="100">
+    <rect id="target3" width="100" height="100"/>
+  </svg>
+  <svg y="100" width="100" height="100">
+    <rect id="target4" width="100" height="100"/>
+  </svg>
+</svg>
+<script>
+test(function() {
+  let target = document.getElementById("target1");
+  assert_equals(getComputedStyle(target).getPropertyValue("transform-origin"),
+                "50px 50px");
+}, "Percentage 'transform-origin' with 'fill-box' transform-box");
+
+test(function() {
+  let target = document.getElementById("target2");
+  assert_equals(getComputedStyle(target).getPropertyValue("transform-origin"),
+                "150px 75px");
+}, "Percentage 'transform-origin' with 'view-box' transform-box");
+
+test(function() {
+  let target = document.getElementById("target3");
+  assert_equals(getComputedStyle(target).getPropertyValue("transform-origin"),
+                "25px 25px");
+}, "Percentage 'transform-origin' with 'view-box' transform-box in nested <svg> with 'viewBox'");
+
+test(function() {
+  let target = document.getElementById("target4");
+  assert_equals(getComputedStyle(target).getPropertyValue("transform-origin"),
+                "50px 50px");
+}, "Percentage 'transform-origin' with 'view-box' transform-box in nested <svg> without 'viewBox'");
+</script>
