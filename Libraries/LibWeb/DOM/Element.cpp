@@ -1441,6 +1441,40 @@ static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidati
             result.invalidation |= property_invalidation;
         }
 
+        // The diff above compares the values that animations produce, so a change to a value that a running
+        // animation overrides is invisible to it. Descendants inherit the overridden value as their base value,
+        // and the after-change style rules start their transitions from it. Diff the longhands an animation
+        // covers separately so the change still invalidates the styles of descendants that inherit the
+        // property, whether by default or through an explicit `inherit`.
+        if (old_animated_properties || new_animated_properties) {
+            for (size_t index = 0; index < longhand_count; ++index) {
+                if (changed_properties[index / 8] & (1 << (index % 8)))
+                    continue;
+                auto property_id = static_cast<CSS::PropertyID>(to_underlying(CSS::first_longhand_property_id) + index);
+                bool const animation_covers_property = (old_animated_properties && old_animated_properties->has_property(property_id))
+                    || (new_animated_properties && new_animated_properties->has_property(property_id));
+                if (!animation_covers_property)
+                    continue;
+                auto old_index = old_physical_properties[index] - to_underlying(CSS::first_longhand_property_id);
+                auto new_index = new_physical_properties[index] - to_underlying(CSS::first_longhand_property_id);
+                auto const* old_value = static_cast<CSS::StyleValueFFI::StyleValueData const*>(old_longhands[old_index]);
+                auto const* new_value = static_cast<CSS::StyleValueFFI::StyleValueData const*>(new_longhands[new_index]);
+                if (old_value == new_value || CSS::StyleValueFFI::rust_style_value_equals(old_value, new_value))
+                    continue;
+                result.any_computed_value_changed = true;
+                if (!CSS::is_inherited_property(property_id)) {
+                    result.invalidation.non_inherited_property_inheritance_sources_changed = true;
+                    continue;
+                }
+                auto group = CSS::ComputedValues::style_group_of_property(static_cast<CSS::PropertyID>(new_physical_properties[index]));
+                if (group.has_value() && to_underlying(*group) < CSS::ComputedValues::inherited_style_group_count) {
+                    result.invalidation.mark_inherited_style_group_changed(to_underlying(*group));
+                } else {
+                    result.invalidation.mark_all_inherited_style_groups_changed();
+                }
+            }
+        }
+
         // With the verification mode enabled, the full diff must agree that a skippable style
         // change produces no invalidation at all.
         if (verify_fast_path && property_diff_can_be_skipped)
