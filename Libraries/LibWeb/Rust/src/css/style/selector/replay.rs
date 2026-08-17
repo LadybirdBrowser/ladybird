@@ -13,6 +13,7 @@
 use super::AttributeCase;
 use super::AttributeOperator;
 use super::AttributeTest;
+use super::CachedDispatchMetadata;
 use super::FeatureTest;
 use super::NamespaceTest;
 use super::NthPosition;
@@ -97,11 +98,10 @@ pub fn read(payload: &mut PayloadReader) -> Result<SelectorProgram, Error> {
         entries,
         relative_queries,
         language_ranges,
-        subject_dispatch_keys: Vec::new(),
-        subject_required_keys: Vec::new(),
+        dispatch_metadata: CachedDispatchMetadata::default(),
         can_leave_scope: payload.read_bool()?,
     };
-    program.cache_subject_dispatch_analysis();
+    program.cache_dispatch_metadata();
     Ok(program)
 }
 
@@ -574,7 +574,7 @@ mod tests {
 
     #[test]
     fn semantic_program_round_trip() {
-        let program = SelectorProgram {
+        let mut program = SelectorProgram {
             nodes: vec![
                 SelectorOp::Feature(FeatureTest::Attribute(AttributeTest {
                     name: StyleAtomID(1),
@@ -635,8 +635,10 @@ mod tests {
                 match_in_shadow_tree: true,
             }],
             language_ranges: vec![(0, 2)],
+            dispatch_metadata: CachedDispatchMetadata::default(),
             can_leave_scope: true,
         };
+        program.cache_dispatch_metadata();
 
         let mut output = Vec::new();
         let mut writer = LogWriter::new(&mut output).unwrap();

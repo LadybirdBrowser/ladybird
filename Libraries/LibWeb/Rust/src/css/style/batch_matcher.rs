@@ -24,7 +24,6 @@ use super::index::DispatchEntry;
 use super::index::DispatchKey;
 use super::index::ParentDispatchFacts;
 use super::index::RuleDispatch;
-use super::index::StyleAtomID;
 use super::index::StyleNodeFacts;
 use super::instrumentation::Counter;
 use super::instrumentation::Counters;
@@ -242,10 +241,10 @@ pub(super) fn scope_dispatch_shape_and_rules(
         for_each_scope_rule(program, tree_scope, take, |sheet, rule, selector_program| {
             shape.push((selector_program, program.sheet_origin(sheet) == CascadeOrigin::Author));
             let compiled = programs.get(selector_program);
-            for (index, entry) in compiled.entries().iter().enumerate() {
-                let key = compiled.dispatch_key(entry);
-                let copies = if key == DispatchKey::Universal {
-                    let mut branch_keys = compiled.subject_dispatch_keys(index).to_vec();
+            for index in 0..compiled.entries().len() {
+                let metadata = compiled.dispatch_metadata(index);
+                let copies = if metadata.key == DispatchKey::Universal {
+                    let mut branch_keys = metadata.subject_dispatch_keys().to_vec();
                     branch_keys.sort_unstable();
                     branch_keys.dedup();
                     branch_keys.len().max(1)
@@ -301,18 +300,10 @@ pub(super) fn insert_scope_rule(
     author: bool,
 ) {
     let compiled = programs.get(selector_program);
-    for (index, entry) in compiled.entries().iter().enumerate() {
-        let key = compiled.dispatch_key(entry);
-        let bloom_of = |keys: &[DispatchKey]| {
-            keys.iter()
-                .copied()
-                .fold(0_u64, |bloom, key| bloom | super::index::dispatch_bloom_bit(key))
-        };
-        let subject_dispatch = compiled.subject_dispatch_keys(index);
-        let required_attribute_value = match key {
-            DispatchKey::AttributeName(name) => compiled.required_attribute_value(entry, name),
-            _ => StyleAtomID::NONE,
-        };
+    for index in 0..compiled.entries().len() {
+        let metadata = compiled.dispatch_metadata(index);
+        let key = metadata.key;
+        let subject_dispatch = metadata.subject_dispatch_keys();
         let template = super::index::DispatchEntry {
             identity: programs.entry_id(
                 selector_program,
@@ -322,11 +313,11 @@ pub(super) fn insert_scope_rule(
             program: selector_program,
             entry: u32::try_from(index).expect("selector entry space exhausted"),
             cascade_order: 0,
-            required_attribute_value,
-            required_parent: compiled.subject_parent_dispatch_key(index),
-            required_ancestor: compiled.subject_ancestor_dispatch_key(index),
+            required_attribute_value: metadata.required_attribute_value,
+            required_parent: metadata.required_parent,
+            required_ancestor: metadata.required_ancestor,
             required_ancestor_index: None,
-            required_subject_bloom: bloom_of(compiled.subject_required_keys(index)),
+            required_subject_bloom: metadata.required_subject_bloom,
             prefix_matched: false,
             multi_key: false,
         };
@@ -346,14 +337,14 @@ pub(super) fn insert_scope_rule(
         };
         if branch_keys.is_empty() {
             let dispatch_entry = dispatch.insert(key, template);
-            if let Some(chain) = compiled.unified_chain(entry) {
+            if let Some(chain) = metadata.prefix_chain() {
                 // NB: Structural truth bits are admitted for author rules only. The
                 //     convergence walk consumes only author routes, so a user-agent
                 //     positional chain would put its tests into every document's
                 //     automaton, taxing each transition and widening every tree
                 //     flush's re-compare frontier, without any route ever being
                 //     subsumed in return.
-                dispatch.add_prefix_entry(programs, selector_program, &chain, dispatch_entry, author);
+                dispatch.add_prefix_entry(programs, selector_program, chain, dispatch_entry, author);
             }
         } else {
             // NB: A branch copy carries no required attribute value: a disjunction branch's
