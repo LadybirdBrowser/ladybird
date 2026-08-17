@@ -8,6 +8,68 @@ use super::column::advance_epoch;
 use super::*;
 
 impl StyleEngine {
+    /// Whether the locally evaluable compound containing an input changed truth on that element.
+    fn route_origin_truth_flipped(
+        &mut self,
+        program: SelectorProgramID,
+        origin: selector::SelectorNodeID,
+        node: StyleNodeID,
+    ) -> Option<bool> {
+        let view = self.transaction_fact_view.as_ref()?;
+        let compiled = self.programs.get(program);
+        if !compiled.selector_node_reads_only_local_facts(origin) {
+            return None;
+        }
+        let resident_facts = self.facts.primary();
+        let old = MatchEvaluator::new(&self.tree, resident_facts)
+            .with_transaction_fact_view(view, TransactionFactSide::Before)
+            .matches_selector_node(compiled, origin, node, &mut self.counters)
+            .ok()?;
+        let new = MatchEvaluator::new(&self.tree, resident_facts)
+            .with_transaction_fact_view(view, TransactionFactSide::After)
+            .matches_selector_node(compiled, origin, node, &mut self.counters)
+            .ok()?;
+        Some(old != new)
+    }
+
+    /// Whether one attribute input changed the route's origin test. Presence and case-sensitive
+    /// interned equality are answered directly; text operators use the selector evaluator.
+    fn route_attribute_origin_truth_flipped(
+        &mut self,
+        input: &NormalizedInput,
+        program: SelectorProgramID,
+        origin: selector::SelectorNodeID,
+        node: StyleNodeID,
+    ) -> Option<bool> {
+        let InputKey::LocalFeature(_, LocalFeatureKey::Attribute(_)) = input.key else {
+            return None;
+        };
+        let compiled = self.programs.get(program);
+        if let SelectorOp::Feature(selector::FeatureTest::Attribute(test)) = compiled.node(origin) {
+            let value = |input: InputValue| match input {
+                InputValue::Feature(value) => Some(value),
+                _ => None,
+            };
+            let old = value(input.old)?;
+            let new = value(input.new)?;
+            if test.operator == selector::AttributeOperator::Presence {
+                return Some(old.holds() != new.holds());
+            }
+            if test.operator == selector::AttributeOperator::Exact
+                && test.case == selector::AttributeCase::Sensitive
+                && !test.value_atom.is_none()
+            {
+                let matches = |value: FeatureValue| match value {
+                    FeatureValue::Absent => Some(false),
+                    FeatureValue::Atom(atom) => Some(atom == test.value_atom),
+                    _ => None,
+                };
+                return Some(matches(old)? != matches(new)?);
+            }
+        }
+        self.route_origin_truth_flipped(program, origin, node)
+    }
+
     /// Route one non-program input to the region its transpose routes reach.
     ///
     /// The region a path folds to is often much wider than the subjects that can actually change:
@@ -135,6 +197,24 @@ impl StyleEngine {
                 {
                     continue;
                 }
+                let path = routing.path_of(route);
+                if !is_arrival
+                    && point.anchor.is_none()
+                    && !path.is_empty()
+                    && matches!(input.key, InputKey::LocalFeature(_, LocalFeatureKey::Attribute(_)))
+                {
+                    let truth_flipped = self.route_attribute_origin_truth_flipped(
+                        input,
+                        selector_program,
+                        point.selector_node.expect("attribute route has no selector node"),
+                        node,
+                    );
+                    if truth_flipped == Some(false) {
+                        self.counters.bump(Counter::OriginTruthRoutesSkipped);
+                        continue;
+                    }
+                    self.counters.bump(Counter::OriginTruthRoutesFired);
+                }
                 // The element the input happened to must satisfy the rest of the compound the input
                 // occurs in, or this route cannot be reached from it at all.
                 if !self.node_carries_any(routing.origin_dispatch_of(route), node, in_flux) {
@@ -143,7 +223,6 @@ impl StyleEngine {
                 if !self.node_carries_all(routing.origin_required_of(route), node, in_flux) {
                     continue;
                 }
-                let path = routing.path_of(route);
                 let exact_tree_evaluation = if is_arrival && tree_routing.use_exact {
                     if tree_routing.has_before_sibling_relations
                         && self.entry_can_use_before_sibling_relations(selector_program, selector_entry)
@@ -1133,7 +1212,7 @@ impl StyleEngine {
                 let operator = self
                     .programs
                     .get(selector_program)
-                    .node(point.structural_node.expect("structural route has no operator"));
+                    .node(point.selector_node.expect("structural route has no operator"));
                 if !matches!(operator, SelectorOp::Empty | SelectorOp::NthPosition(_)) {
                     continue;
                 }
@@ -3213,9 +3292,10 @@ impl StyleEngine {
             if input_routes_on_key(input, key) {
                 return true;
             }
-            let (InputKey::LocalFeature(_, LocalFeatureKey::Attribute(changed)), RoutingKey::AttributeName(required)) =
-                (input.key, key)
-            else {
+            let InputKey::LocalFeature(_, LocalFeatureKey::Attribute(changed)) = input.key else {
+                return false;
+            };
+            let RoutingKey::AttributeName(required) = key else {
                 return false;
             };
             self.facts

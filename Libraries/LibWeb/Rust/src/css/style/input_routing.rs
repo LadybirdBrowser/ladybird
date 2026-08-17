@@ -45,8 +45,9 @@ fn for_each_routing_key(input: &NormalizedInput, mut publish: impl FnMut(Routing
 /// The routing keys one local-feature change publishes.
 ///
 /// A tag or ID change publishes both its old and new atom, because a selector mentioning either can
-/// change truth. A class or attribute key already names its atom, and one attribute mutation
-/// changes presence and value together, so the attribute name covers both.
+/// change truth. A class or attribute key already names its atom. Attribute routes share the name
+/// lookup, then classify presence and value truth from the selector node without another directory
+/// probe.
 fn for_each_feature_routing_key(
     feature: LocalFeatureKey,
     old: InputValue,
