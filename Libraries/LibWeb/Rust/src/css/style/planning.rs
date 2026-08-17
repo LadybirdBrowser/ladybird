@@ -1116,14 +1116,6 @@ impl SequenceChanges {
     }
 }
 
-/// The identity of one live sibling-first route.
-///
-/// Its immutable route lives in the routing program. Transaction workspaces keep only this identity
-/// and read the canonical route directly.
-pub(super) struct SiblingEntry {
-    pub(super) route: RouteID,
-}
-
 pub(super) struct SiblingCandidateWorkspace {
     pub(super) entry_by_route: Vec<usize>,
     pub(super) candidate_epochs: EpochColumn,

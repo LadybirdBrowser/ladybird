@@ -370,10 +370,10 @@ impl StyleEngine {
                 has_before_sibling_relations,
                 transaction_inputs: &transaction.inputs,
             };
-            let sibling_entries = self.live_sibling_entries();
+            let routing_for_siblings = Rc::clone(&self.routing);
+            let sibling_entries = routing_for_siblings.live_sibling_entries(&self.program, &self.programs);
             let mut sibling_candidates = SiblingCandidateWorkspace::new(&sibling_entries);
-            let sibling_entry_scratch_bytes =
-                (sibling_entries.capacity() * size_of::<SiblingEntry>()) as u64 + sibling_candidates.capacity_bytes();
+            let sibling_entry_scratch_bytes = sibling_candidates.capacity_bytes();
             self.memory
                 .reserve_required(MemoryCategory::BatchScratch, sibling_entry_scratch_bytes);
             let mut pending_routes = PendingRoutes::new();

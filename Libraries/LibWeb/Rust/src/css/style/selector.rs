@@ -26,6 +26,7 @@
 //! at now.
 
 use super::capacity::capacity_bytes;
+use super::column::BitColumn;
 use super::column::Column;
 use super::column::PagedColumn;
 use super::column::PagedColumnPage;
@@ -38,6 +39,7 @@ use super::index::StyleNodeFacts;
 use super::instrumentation::Counter;
 use super::instrumentation::Counters;
 use std::cell::Cell;
+use std::cell::Ref;
 use std::cell::RefCell;
 use std::hash::Hash;
 use std::hash::Hasher;
@@ -52,9 +54,12 @@ use super::memory::MemoryCategory;
 use super::memory::MemoryController;
 use super::memory::MemoryLease;
 use super::partial_view::Lookup;
+use super::planning::SequenceEntry;
+use super::planning::SequenceEntryIndex;
 use super::program::EntryID;
 use super::program::RuleID;
 use super::program::SelectorProgramID;
+use super::program::StyleSheetProgram;
 use super::relative_selector::RelationalWitnessKey;
 use super::relative_selector::RelationalWitnesses;
 use super::relative_selector::RelativeAxis;
@@ -2933,6 +2938,19 @@ impl RouteID {
     }
 }
 
+/// The identity of one live sibling-first route.
+#[derive(Clone, Copy)]
+pub(super) struct SiblingEntry {
+    pub(super) route: RouteID,
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct LiveRelationalRoute {
+    pub(super) route: RouteID,
+    pub(super) program: SelectorProgramID,
+    pub(super) anchor: RelativeAnchor,
+}
+
 /// The complete semantic identity of one transpose route.
 ///
 /// All variable-length fields borrow the registry's canonical arenas or the compiler's temporary
@@ -3323,6 +3341,12 @@ pub struct RoutingRegistry {
     arrival_by_input: RouteDirectory,
     canonical_route_heads: Vec<Option<RouteID>>,
     canonical_next: Vec<Option<RouteID>>,
+    route_liveness: RefCell<BitColumn>,
+    live_relational_routes: RefCell<Vec<LiveRelationalRoute>>,
+    live_sibling_entries: RefCell<Vec<SiblingEntry>>,
+    live_sequence_entries: RefCell<Vec<SequenceEntry>>,
+    live_sequence_index: RefCell<SequenceEntryIndex>,
+    route_liveness_version: Cell<Option<u64>>,
     paths: Vec<InverseStep>,
     keys: Vec<DispatchKey>,
     memory: MemoryLease,
@@ -3342,6 +3366,12 @@ impl Default for RoutingRegistry {
             arrival_by_input: RouteDirectory::default(),
             canonical_route_heads: Vec::new(),
             canonical_next: Vec::new(),
+            route_liveness: RefCell::new(BitColumn::default()),
+            live_relational_routes: RefCell::new(Vec::new()),
+            live_sibling_entries: RefCell::new(Vec::new()),
+            live_sequence_entries: RefCell::new(Vec::new()),
+            live_sequence_index: RefCell::new(SequenceEntryIndex::default()),
+            route_liveness_version: Cell::new(None),
             paths: Vec::new(),
             keys: Vec::new(),
             memory: MemoryLease::new(MemoryCategory::RoutingRegistry),
@@ -3441,6 +3471,7 @@ impl RoutingRegistry {
                     },
                 },
             );
+            self.route_liveness_version.set(None);
             if anchor.is_some() {
                 self.relational.push(route);
             }
@@ -3532,6 +3563,119 @@ impl RoutingRegistry {
     #[must_use]
     pub fn rule_of(&self, route: RouteID) -> RuleID {
         self.routes.headers[route.index()].rule
+    }
+
+    fn refresh_route_liveness(&self, program: &StyleSheetProgram, programs: &SelectorPrograms) {
+        let version = program.routing_liveness_version();
+        if self.route_liveness_version.get() == Some(version) {
+            return;
+        }
+        let mut liveness = self.route_liveness.borrow_mut();
+        for index in 0..self.routes.headers.len() {
+            let header = self.routes.headers[index];
+            let (selector_program, _) = programs.entry_location(header.entry);
+            liveness.set(
+                index,
+                program.rule_can_decide(header.rule)
+                    && program.rule_version(header.rule).selector_program == Some(selector_program),
+            );
+        }
+        let mut live_relational_routes = self.live_relational_routes.borrow_mut();
+        live_relational_routes.clear();
+        live_relational_routes.extend(self.relational.iter().copied().filter_map(|route| {
+            if !liveness.contains(route.index()) {
+                return None;
+            }
+            let point = self.route(route);
+            let (program, _) = programs.entry_location(point.entry);
+            Some(LiveRelationalRoute {
+                route,
+                program,
+                anchor: point.anchor.expect("a relational route must carry an anchor"),
+            })
+        }));
+        let mut live_sibling_entries = self.live_sibling_entries.borrow_mut();
+        live_sibling_entries.clear();
+        live_sibling_entries.extend(
+            self.sibling_first
+                .iter()
+                .copied()
+                .filter(|route| liveness.contains(route.index()))
+                .map(|route| SiblingEntry { route }),
+        );
+        let mut live_sequence_entries = self.live_sequence_entries.borrow_mut();
+        live_sequence_entries.clear();
+        for &route in self.routes_for(RoutingKey::Structural) {
+            if !liveness.contains(route.index()) {
+                continue;
+            }
+            let point = self.route(route);
+            let (program, entry) = programs.entry_location(point.entry);
+            let compiled = programs.get(program);
+            let selector_entry = compiled.entries()[entry as usize];
+            let operator = compiled.node(point.structural_node.expect("structural route has no operator"));
+            if !matches!(operator, SelectorOp::Empty | SelectorOp::NthPosition(_)) {
+                continue;
+            }
+            live_sequence_entries.push(SequenceEntry {
+                route,
+                operator,
+                can_compare_exactly: selector_entry.can_use_before_sibling_relations()
+                    && selector_entry.observes_sibling_relation(),
+            });
+        }
+        *self.live_sequence_index.borrow_mut() = SequenceEntryIndex::build(&live_sequence_entries, self);
+        self.route_liveness_version.set(Some(version));
+    }
+
+    #[must_use]
+    pub(super) fn route_liveness(
+        &self,
+        program: &StyleSheetProgram,
+        programs: &SelectorPrograms,
+    ) -> Ref<'_, BitColumn> {
+        self.refresh_route_liveness(program, programs);
+        self.route_liveness.borrow()
+    }
+
+    #[must_use]
+    pub(super) fn live_relational_routes(
+        &self,
+        program: &StyleSheetProgram,
+        programs: &SelectorPrograms,
+    ) -> Ref<'_, [LiveRelationalRoute]> {
+        self.refresh_route_liveness(program, programs);
+        Ref::map(self.live_relational_routes.borrow(), Vec::as_slice)
+    }
+
+    #[must_use]
+    pub(super) fn live_sibling_entries(
+        &self,
+        program: &StyleSheetProgram,
+        programs: &SelectorPrograms,
+    ) -> Ref<'_, [SiblingEntry]> {
+        self.refresh_route_liveness(program, programs);
+        Ref::map(self.live_sibling_entries.borrow(), Vec::as_slice)
+    }
+
+    #[must_use]
+    pub(super) fn live_sequence_entries(
+        &self,
+        program: &StyleSheetProgram,
+        programs: &SelectorPrograms,
+    ) -> Ref<'_, [SequenceEntry]> {
+        self.refresh_route_liveness(program, programs);
+        Ref::map(self.live_sequence_entries.borrow(), Vec::as_slice)
+    }
+
+    #[must_use]
+    pub(super) fn live_sequence_index(
+        &self,
+        program: &StyleSheetProgram,
+        programs: &SelectorPrograms,
+    ) -> std::cell::RefMut<'_, SequenceEntryIndex> {
+        self.refresh_route_liveness(program, programs);
+        self.live_sequence_index.borrow_mut()
     }
 
     fn entry_facts_of(&self, route: RouteID) -> EntryRouteFacts {
@@ -3758,6 +3902,12 @@ impl RoutingRegistry {
                 self.routes.capacity_bytes()
                     + self.by_input.capacity_bytes()
                     + self.arrival_by_input.capacity_bytes()
+                    + self.route_liveness.borrow().capacity_bytes()
+                    + self.live_relational_routes.borrow().capacity() as u64
+                        * size_of::<LiveRelationalRoute>() as u64
+                    + self.live_sibling_entries.borrow().capacity() as u64 * size_of::<SiblingEntry>() as u64
+                    + self.live_sequence_entries.borrow().capacity() as u64 * size_of::<SequenceEntry>() as u64
+                    + self.live_sequence_index.borrow().capacity_bytes()
             ];
             skip [self.memory];
         }
@@ -7126,6 +7276,18 @@ mod tests {
         assert_eq!(registry.rule_of(arrivals[0]), RuleID(3));
         assert_eq!(registry.rule_of(arrivals[1]), RuleID(4));
         assert!(memory.bytes_in_category(MemoryCategory::RoutingRegistry) > 0);
+    }
+
+    #[test]
+    fn route_liveness_charges_its_packed_word_storage() {
+        let mut registry = RoutingRegistry::new();
+        let before = registry.capacity_bytes();
+
+        let (changed, growth) = registry.route_liveness.get_mut().set(511, true);
+
+        assert!(changed);
+        assert_eq!(registry.capacity_bytes() - before, growth);
+        assert_eq!(registry.route_liveness.get_mut().capacity_bytes(), growth);
     }
 
     #[test]
