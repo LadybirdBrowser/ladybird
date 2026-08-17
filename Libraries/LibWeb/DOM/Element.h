@@ -687,7 +687,7 @@ public:
         Rtl,
         Auto,
     };
-    Optional<Dir> dir() const { return m_dir; }
+    Optional<Dir> dir() const;
     bool has_auto_directionality() const;
 
     enum class Directionality {
@@ -873,10 +873,8 @@ private:
 
     Vector<Utf16FlyString> m_classes;
     CSS::StyleNodeID m_style_node_id;
-    Optional<Dir> m_dir;
 
     Optional<Utf16FlyString> m_id;
-    CSSPixelPoint m_scroll_offset;
 
     bool m_is_being_activated : 1 { false };
     bool m_in_top_layer : 1 { false };

@@ -5049,7 +5049,8 @@ CSSPixelPoint Element::scroll_offset(Optional<CSS::PseudoElement> pseudo_element
             return pseudo_element->scroll_offset();
         return {};
     }
-    return m_scroll_offset;
+    auto const* rare_data = element_rare_data();
+    return rare_data ? rare_data->scroll_offset : CSSPixelPoint {};
 }
 
 void Element::set_scroll_offset(Optional<CSS::PseudoElement> pseudo_element_type, CSSPixelPoint offset)
@@ -5058,8 +5059,17 @@ void Element::set_scroll_offset(Optional<CSS::PseudoElement> pseudo_element_type
         if (auto pseudo_element = get_synthetic_pseudo_element(*pseudo_element_type); pseudo_element.has_value())
             pseudo_element->set_scroll_offset(offset);
     } else {
-        m_scroll_offset = offset;
+        if (!offset.is_zero())
+            ensure_element_rare_data().scroll_offset = offset;
+        else if (auto* rare_data = element_rare_data())
+            rare_data->scroll_offset = {};
     }
+}
+
+Optional<Element::Dir> Element::dir() const
+{
+    auto const* rare_data = element_rare_data();
+    return rare_data ? rare_data->dir : Optional<Dir> {};
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#translation-mode
@@ -5422,14 +5432,18 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
         bool const is_dir = local_name == HTML::AttributeNames::dir;
         if (is_dir) {
             // https://html.spec.whatwg.org/multipage/dom.html#attr-dir
+            Optional<Dir> dir;
             if (value_or_empty.equals_ignoring_ascii_case(u"ltr"sv))
-                m_dir = Dir::Ltr;
+                dir = Dir::Ltr;
             else if (value_or_empty.equals_ignoring_ascii_case(u"rtl"sv))
-                m_dir = Dir::Rtl;
+                dir = Dir::Rtl;
             else if (value_or_empty.equals_ignoring_ascii_case(u"auto"sv))
-                m_dir = Dir::Auto;
-            else
-                m_dir = {};
+                dir = Dir::Auto;
+
+            if (dir.has_value())
+                ensure_element_rare_data().dir = dir;
+            else if (auto* rare_data = element_rare_data())
+                rare_data->dir = {};
         }
         if (is_dir)
             CSS::Invalidation::invalidate_style_after_directionality_change(*this);
