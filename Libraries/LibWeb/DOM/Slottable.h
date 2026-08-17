@@ -25,29 +25,34 @@ public:
 
     virtual Node& slottable_as_node() = 0;
 
-    Utf16FlyString const& slottable_name() const { return m_name; } // Not called `name` to distinguish from `Element::name`.
-    void set_slottable_name(Utf16FlyString name) { m_name = move(name); }
+    Utf16FlyString const& slottable_name() const; // Not called `name` to distinguish from `Element::name`.
+    void set_slottable_name(Utf16FlyString name);
 
     GC::Ptr<HTML::HTMLSlotElement> assigned_slot();
 
-    GC::Ptr<HTML::HTMLSlotElement> assigned_slot_internal() const { return m_assigned_slot; }
-    void set_assigned_slot(GC::Ptr<HTML::HTMLSlotElement> assigned_slot) { m_assigned_slot = assigned_slot; }
+    GC::Ptr<HTML::HTMLSlotElement> assigned_slot_internal() const;
+    void set_assigned_slot(GC::Ptr<HTML::HTMLSlotElement> assigned_slot);
 
-    GC::Ptr<HTML::HTMLSlotElement> manual_slot_assignment() { return m_manual_slot_assignment; }
-    void set_manual_slot_assignment(GC::Ptr<HTML::HTMLSlotElement> manual_slot_assignment) { m_manual_slot_assignment = manual_slot_assignment; }
+    GC::Ptr<HTML::HTMLSlotElement> manual_slot_assignment();
+    void set_manual_slot_assignment(GC::Ptr<HTML::HTMLSlotElement> manual_slot_assignment);
 
 protected:
-    void visit_edges(JS::Cell::Visitor&);
+    struct RareData {
+        void visit_edges(JS::Cell::Visitor&);
 
-private:
-    // https://dom.spec.whatwg.org/#slotable-name
-    Utf16FlyString m_name;
+        // https://dom.spec.whatwg.org/#slotable-name
+        Utf16FlyString name;
 
-    // https://dom.spec.whatwg.org/#slotable-assigned-slot
-    GC::Ptr<HTML::HTMLSlotElement> m_assigned_slot;
+        // https://dom.spec.whatwg.org/#slotable-assigned-slot
+        GC::Ptr<HTML::HTMLSlotElement> assigned_slot;
 
-    // https://dom.spec.whatwg.org/#slottable-manual-slot-assignment
-    GC::Ptr<HTML::HTMLSlotElement> m_manual_slot_assignment;
+        // https://dom.spec.whatwg.org/#slottable-manual-slot-assignment
+        GC::Ptr<HTML::HTMLSlotElement> manual_slot_assignment;
+    };
+
+    virtual RareData* slottable_rare_data() = 0;
+    virtual RareData const* slottable_rare_data() const = 0;
+    virtual RareData& ensure_slottable_rare_data() = 0;
 };
 
 enum class OpenFlag {

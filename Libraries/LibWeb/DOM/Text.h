@@ -51,6 +51,12 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
+    struct RareData;
+    virtual OwnPtr<Node::RareData> create_rare_data() const override;
+    virtual SlottableMixin::RareData* slottable_rare_data() override;
+    virtual SlottableMixin::RareData const* slottable_rare_data() const override;
+    virtual SlottableMixin::RareData& ensure_slottable_rare_data() override;
+
     Optional<size_t> m_max_length {};
     bool m_is_password_input { false };
 };

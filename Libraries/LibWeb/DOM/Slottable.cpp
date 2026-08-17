@@ -21,10 +21,59 @@ namespace Web::DOM {
 
 SlottableMixin::~SlottableMixin() = default;
 
-void SlottableMixin::visit_edges(JS::Cell::Visitor& visitor)
+void SlottableMixin::RareData::visit_edges(JS::Cell::Visitor& visitor)
 {
-    visitor.visit(m_assigned_slot);
-    visitor.visit(m_manual_slot_assignment);
+    visitor.visit(assigned_slot);
+    visitor.visit(manual_slot_assignment);
+}
+
+Utf16FlyString const& SlottableMixin::slottable_name() const
+{
+    static Utf16FlyString const empty_name;
+    auto const* rare_data = slottable_rare_data();
+    return rare_data ? rare_data->name : empty_name;
+}
+
+void SlottableMixin::set_slottable_name(Utf16FlyString name)
+{
+    if (name.is_empty()) {
+        if (auto* rare_data = slottable_rare_data())
+            rare_data->name = Utf16FlyString {};
+        return;
+    }
+    ensure_slottable_rare_data().name = move(name);
+}
+
+GC::Ptr<HTML::HTMLSlotElement> SlottableMixin::assigned_slot_internal() const
+{
+    auto const* rare_data = slottable_rare_data();
+    return rare_data ? rare_data->assigned_slot : nullptr;
+}
+
+void SlottableMixin::set_assigned_slot(GC::Ptr<HTML::HTMLSlotElement> assigned_slot)
+{
+    if (!assigned_slot) {
+        if (auto* rare_data = slottable_rare_data())
+            rare_data->assigned_slot = nullptr;
+        return;
+    }
+    ensure_slottable_rare_data().assigned_slot = assigned_slot;
+}
+
+GC::Ptr<HTML::HTMLSlotElement> SlottableMixin::manual_slot_assignment()
+{
+    auto const* rare_data = slottable_rare_data();
+    return rare_data ? rare_data->manual_slot_assignment : nullptr;
+}
+
+void SlottableMixin::set_manual_slot_assignment(GC::Ptr<HTML::HTMLSlotElement> manual_slot_assignment)
+{
+    if (!manual_slot_assignment) {
+        if (auto* rare_data = slottable_rare_data())
+            rare_data->manual_slot_assignment = nullptr;
+        return;
+    }
+    ensure_slottable_rare_data().manual_slot_assignment = manual_slot_assignment;
 }
 
 // https://dom.spec.whatwg.org/#dom-slotable-assignedslot

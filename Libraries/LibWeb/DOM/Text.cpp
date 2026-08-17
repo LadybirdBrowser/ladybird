@@ -15,6 +15,36 @@
 
 namespace Web::DOM {
 
+struct Text::RareData final
+    : Node::RareData
+    , SlottableMixin::RareData {
+    virtual void visit_edges(Cell::Visitor& visitor) override
+    {
+        Node::RareData::visit_edges(visitor);
+        SlottableMixin::RareData::visit_edges(visitor);
+    }
+};
+
+OwnPtr<Node::RareData> Text::create_rare_data() const
+{
+    return make<RareData>();
+}
+
+SlottableMixin::RareData* Text::slottable_rare_data()
+{
+    return static_cast<RareData*>(rare_data());
+}
+
+SlottableMixin::RareData const* Text::slottable_rare_data() const
+{
+    return static_cast<RareData const*>(rare_data());
+}
+
+SlottableMixin::RareData& Text::ensure_slottable_rare_data()
+{
+    return static_cast<RareData&>(ensure_rare_data());
+}
+
 GC_DEFINE_ALLOCATOR(Text);
 
 Text::Text(Document& document, Utf16String data)
@@ -40,7 +70,6 @@ GC::Ref<Text> Text::create_for_constructor(JS::Object& relevant_global_object, U
 void Text::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    SlottableMixin::visit_edges(visitor);
 }
 
 // https://dom.spec.whatwg.org/#dom-text-splittext
