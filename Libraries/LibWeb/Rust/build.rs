@@ -526,11 +526,7 @@ fn generate_style_engine_boundary(manifest_dir: &Path, out_dir: &Path) -> Result
 // Generates the Rust twins of the C++ PseudoClass and PseudoElement enums from the same JSON
 // sources as Meta/Generators/generate_libweb_css_pseudo_{class,element}.py, so the numeric
 // values that cross the selector FFI cannot drift out of sync with the C++ side.
-fn generate_selector_pseudo_types(
-    manifest_dir: &Path,
-    out_dir: &Path,
-    ffi_out_dir: &Path,
-) -> Result<(), Box<dyn Error>> {
+fn generate_selector_pseudo_types(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<dyn Error>> {
     let css_dir = manifest_dir.parent().unwrap().join("CSS");
     let pseudo_classes_path = css_dir.join("PseudoClasses.json");
     let pseudo_elements_path = css_dir.join("PseudoElements.json");
@@ -649,9 +645,7 @@ fn generate_selector_pseudo_types(
         )?;
     }
     cpp_mapping.push_str("    default:\n        return {};\n    }\n}\n");
-    for directory in [out_dir, ffi_out_dir] {
-        std::fs::write(directory.join("StyleEngineStateFactsGenerated.inc"), &cpp_mapping)?;
-    }
+    std::fs::write(out_dir.join("StyleEngineStateFactsGenerated.inc"), cpp_mapping)?;
     Ok(())
 }
 
@@ -1390,13 +1384,7 @@ fn generate_css_enums(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<dyn
     Ok(())
 }
 
-fn generate_ffi_header(
-    config: cbindgen::Config,
-    sources: &[PathBuf],
-    out_dir: &Path,
-    ffi_out_dir: &Path,
-    header: &Path,
-) {
+fn generate_ffi_header(config: cbindgen::Config, sources: &[PathBuf], out_dir: &Path, header: &Path) {
     let builder = sources
         .iter()
         .fold(cbindgen::Builder::new().with_config(config), |builder, source| {
@@ -1413,11 +1401,6 @@ fn generate_ffi_header(
             let output_header = out_dir.join(header);
             std::fs::create_dir_all(output_header.parent().unwrap()).unwrap();
             bindings.write_to_file(output_header);
-            if ffi_out_dir != out_dir {
-                let ffi_header = ffi_out_dir.join(header);
-                std::fs::create_dir_all(ffi_header.parent().unwrap()).unwrap();
-                bindings.write_to_file(ffi_header);
-            }
         },
     );
 }
@@ -1440,14 +1423,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=cbindgen.toml");
-    println!("cargo:rerun-if-env-changed=FFI_OUTPUT_DIR");
     println!("cargo:rerun-if-changed=src");
 
-    let ffi_out_dir = env::var("FFI_OUTPUT_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| out_dir.clone());
-
-    generate_selector_pseudo_types(&manifest_dir, &out_dir, &ffi_out_dir)?;
+    generate_selector_pseudo_types(&manifest_dir, &out_dir)?;
     generate_property_metadata(&manifest_dir, &out_dir)?;
     generate_length_units(&manifest_dir, &out_dir)?;
     generate_keywords(&manifest_dir, &out_dir)?;
@@ -1477,7 +1455,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         css_config,
         &[manifest_dir.join("src/css/css_tokenizer.rs")],
         &out_dir,
-        &ffi_out_dir,
         Path::new("RustFFI.h"),
     );
 
@@ -1515,7 +1492,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/css/ffi_support.rs"),
         ],
         &out_dir,
-        &ffi_out_dir,
         Path::new("SelectorRustFFI.h"),
     );
 
@@ -1541,7 +1517,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/css/ffi_stats.rs"),
         ],
         &out_dir,
-        &ffi_out_dir,
         Path::new("StyleValueRustFFI.h"),
     );
 
@@ -1558,7 +1533,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             out_dir.join("style_engine_boundary_generated.rs"),
         ],
         &out_dir,
-        &ffi_out_dir,
         Path::new("StyleEngineRustFFI.h"),
     );
 
@@ -1630,7 +1604,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/css/table_group_builder.rs"),
         ],
         &out_dir,
-        &ffi_out_dir,
         Path::new("ComputedValuesRustFFI.h"),
     );
 
@@ -1643,7 +1616,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         html_config,
         &[manifest_dir.join("src/encoding_detection.rs")],
         &out_dir,
-        &ffi_out_dir,
         Path::new("HTML/Parser/RustFFI.h"),
     );
 
@@ -1675,7 +1647,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("../../RustAllocator.rs"),
         ],
         &out_dir,
-        &ffi_out_dir,
         Path::new("Layout/TreeBuilderRustFFI.h"),
     );
 
@@ -1723,7 +1694,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/layout/line_box_fragment.rs"),
         ],
         &out_dir,
-        &ffi_out_dir,
         Path::new("Layout/LayoutRustFFI.h"),
     );
 
