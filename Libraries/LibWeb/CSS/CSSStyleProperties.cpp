@@ -1419,17 +1419,6 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
 
         // -> Any other property
         //    The resolved value is the computed value.
-    case PropertyID::Contain: {
-        auto contain = layout_node.contain();
-        if (contain.layout_containment && contain.style_containment && contain.paint_containment) {
-            if (contain.size_containment)
-                return KeywordStyleValue::create(Keyword::Strict);
-            if (!contain.inline_size_containment)
-                return KeywordStyleValue::create(Keyword::Content);
-        }
-
-        return get_computed_value(property_id);
-    }
     case PropertyID::WebkitTextFillColor:
         return resolve_color_style_value(*get_computed_value(property_id), layout_node.webkit_text_fill_color(), &color_resolution_context);
     case PropertyID::LetterSpacing: {

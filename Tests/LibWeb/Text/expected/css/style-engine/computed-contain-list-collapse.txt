@@ -1,0 +1,8 @@
+layout style paint: resolved=content computed=content
+content: resolved=content computed=content
+size style layout paint: resolved=strict computed=strict
+strict: resolved=strict computed=strict
+inline-size layout style paint: resolved=inline-size layout style paint computed=inline-size layout style paint
+size layout paint: resolved=size layout paint computed=size layout paint
+layout style paint without layout node: resolved=content computed=content
+strict without layout node: resolved=strict computed=strict

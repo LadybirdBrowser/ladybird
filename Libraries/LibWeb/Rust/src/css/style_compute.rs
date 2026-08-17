@@ -2356,6 +2356,42 @@ fn compute_position_area(value: &StyleValueData) -> Option<Arc<StyleValueData>> 
     }))
 }
 
+// https://drafts.csswg.org/css-contain-2/#contain-property
+#[allow(clippy::arc_with_non_send_sync)]
+fn collapse_containment_list(value: &StyleValueData) -> Option<Arc<StyleValueData>> {
+    let StyleValueData::ValueList { values, .. } = value else {
+        return None;
+    };
+
+    let mut contains_size = false;
+    let mut contains_layout = false;
+    let mut contains_style = false;
+    let mut contains_paint = false;
+
+    for containment in values.as_slice() {
+        match containment.data() {
+            StyleValueData::Keyword { keyword } if *keyword == keyword::SIZE => contains_size = true,
+            StyleValueData::Keyword { keyword } if *keyword == keyword::LAYOUT => contains_layout = true,
+            StyleValueData::Keyword { keyword } if *keyword == keyword::STYLE => contains_style = true,
+            StyleValueData::Keyword { keyword } if *keyword == keyword::PAINT => contains_paint = true,
+            _ => return None,
+        }
+    }
+
+    if !contains_layout || !contains_style || !contains_paint {
+        return None;
+    }
+
+    let collapsed_keyword = if contains_size {
+        keyword::STRICT
+    } else {
+        keyword::CONTENT
+    };
+    Some(Arc::new(StyleValueData::Keyword {
+        keyword: collapsed_keyword,
+    }))
+}
+
 /// The per-longhand initial values as shared Rust value identities.
 struct InitialValueTable {
     values: Vec<crate::css::style_value::RetainedStyleValueData>,
@@ -2747,6 +2783,7 @@ fn property_has_dedicated_compute_rule(property_id: u16) -> bool {
             | prop::BORDER_LEFT_WIDTH
             | prop::BORDER_RIGHT_WIDTH
             | prop::BORDER_TOP_WIDTH
+            | prop::CONTAIN
             | prop::OUTLINE_WIDTH
             | prop::CORNER_BOTTOM_LEFT_SHAPE
             | prop::CORNER_BOTTOM_RIGHT_SHAPE
@@ -4044,6 +4081,10 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                             None => NativeValue::Unsupported,
                         }
                     }
+                    (_, prop::CONTAIN) => match collapse_containment_list(value_data) {
+                        Some(value) => NativeValue::StyleValue(value),
+                        None => NativeValue::Unchanged,
+                    },
                     (Some(absolutized), _) if !property_has_dedicated_compute_rule(inherited_property_id) => {
                         match absolutized {
                             Some(px) => NativeValue::Px(px),
