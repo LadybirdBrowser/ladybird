@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/table-collapsed-borders-hidden-at-joint-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+    table {
+        margin: 20px;
+        border-collapse: collapse;
+        table-layout: fixed;
+        width: 200px;
+    }
+    td {
+        height: 50px;
+        padding: 0;
+        border: 4px solid black;
+    }
+    td:first-child {
+        border-right: 6px hidden;
+    }
+</style>
+<table>
+    <tr><td></td><td></td></tr>
+    <tr><td></td><td></td></tr>
+</table>

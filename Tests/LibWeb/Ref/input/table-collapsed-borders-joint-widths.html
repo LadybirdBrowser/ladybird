@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/table-collapsed-borders-joint-widths-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+    table {
+        margin: 20px;
+        border-collapse: collapse;
+        table-layout: fixed;
+        width: 200px;
+    }
+    td {
+        height: 50px;
+        padding: 0;
+    }
+    .wide-vertical td {
+        border-top: 4px solid red;
+        border-bottom: 4px solid red;
+    }
+    .wide-vertical td:first-child {
+        border-right: 6px solid blue;
+    }
+    .wide-horizontal td {
+        border-top: 6px solid green;
+        border-bottom: 6px solid green;
+    }
+    .wide-horizontal td:first-child {
+        border-right: 4px solid orange;
+    }
+</style>
+<table class="wide-vertical">
+    <tr><td></td><td></td></tr>
+    <tr><td></td><td></td></tr>
+</table>
+<table class="wide-horizontal">
+    <tr><td></td><td></td></tr>
+    <tr><td></td><td></td></tr>
+</table>

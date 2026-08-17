@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/table-collapsed-borders-tie-precedence-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+    table {
+        margin: 20px;
+        border-collapse: collapse;
+        table-layout: fixed;
+        width: 200px;
+    }
+    td {
+        height: 50px;
+        padding: 0;
+    }
+    .cell-vs-cell-column {
+        width: 200px;
+    }
+    .cell-vs-cell-column td:first-child {
+        border-right: 4px solid red;
+    }
+    .cell-vs-cell-column td:last-child {
+        border-left: 4px solid orange;
+    }
+    .cell-vs-cell-row {
+        width: 100px;
+    }
+    .cell-vs-cell-row tr:first-child td {
+        border-bottom: 4px solid red;
+    }
+    .cell-vs-cell-row tr:last-child td {
+        border-top: 4px solid teal;
+    }
+    .cell-vs-row td {
+        border-bottom: 4px solid red;
+    }
+    .cell-vs-row tr {
+        border-bottom: 4px solid blue;
+    }
+    .row-vs-table tr {
+        border-bottom: 4px solid blue;
+    }
+    .row-vs-table {
+        border-bottom: 4px solid green;
+    }
+</style>
+<table class="cell-vs-cell-column">
+    <tr><td></td><td></td></tr>
+</table>
+<table class="cell-vs-cell-row">
+    <tr><td></td></tr>
+    <tr><td></td></tr>
+</table>
+<table class="cell-vs-row">
+    <tr><td></td><td></td></tr>
+</table>
+<table class="row-vs-table">
+    <tr><td></td><td></td></tr>
+</table>
