@@ -4464,9 +4464,9 @@
     "initial": "0px",
     "requires-computation": "cascaded-value",
     "valid-types": [
-      "length [0,∞]",
-      "number [0,∞]",
-      "percentage [0,∞]"
+      "length [-∞,∞]",
+      "number [-∞,∞]",
+      "percentage [-∞,∞]"
     ],
     "percentages-resolve-to": "length"
   },
