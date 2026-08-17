@@ -1909,7 +1909,7 @@ void Paintable::paint(DisplayListRecordingContext& context, PaintPhase phase) co
         paint_border(context);
     }
 
-    if (display().is_table_inside() && phase == PaintPhase::TableCollapsedBorder) {
+    if (phase == PaintPhase::TableCollapsedBorder && collapsed_table_borders()) {
         paint_table_borders(context, *this);
     }
 

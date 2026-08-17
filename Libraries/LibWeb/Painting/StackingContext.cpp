@@ -258,7 +258,8 @@ static void paint_subtree_backgrounds_and_borders(DisplayListRecordingContext& c
     // all of which are skipped by the BackgroundAndBorders phase.
     if (!is_pure_inline_box(paintable))
         StackingContext::paint_descendants(context, paintable, StackingContext::StackingContextPaintPhase::BackgroundAndBorders);
-    paint_node(paintable, context, PaintPhase::TableCollapsedBorder);
+    if (paintable.collapsed_table_borders())
+        paint_node(paintable, context, PaintPhase::TableCollapsedBorder);
 }
 
 static void paint_inline_level_non_positioned_descendant(DisplayListRecordingContext& context, Paintable const& paintable)
@@ -427,7 +428,8 @@ void StackingContext::paint_internal(DisplayListRecordingContext& context) const
 
     // Draw the background and borders for block-level children (step 4)
     paint_descendants(context, paintable_box(), StackingContextPaintPhase::BackgroundAndBorders);
-    paint_node(paintable_box(), context, PaintPhase::TableCollapsedBorder);
+    if (paintable_box().collapsed_table_borders())
+        paint_node(paintable_box(), context, PaintPhase::TableCollapsedBorder);
     // Draw the non-positioned floats (step 5)
     if (!m_non_positioned_floating_descendants.is_empty())
         paint_descendants(context, paintable_box(), StackingContextPaintPhase::Floats);
