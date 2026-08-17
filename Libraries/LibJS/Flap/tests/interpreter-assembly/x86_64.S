@@ -4214,6 +4214,9 @@ asm_handler_GetById:
     mov rax, QWORD PTR [rcx + 32]
     cmp rdi, rdx
     jne .Lasm_GetById.ssa_block_1
+    mov edi, DWORD PTR [rcx]
+    cmp edi, 6
+    je .Lasm_GetById.ssa_block_1
     test rax, rax
     jz .Lasm_GetById.ssa_block_5
     mov rsi, QWORD PTR [rcx + 40]
