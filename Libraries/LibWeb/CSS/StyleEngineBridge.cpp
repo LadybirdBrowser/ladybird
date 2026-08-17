@@ -243,6 +243,20 @@ StyleAtomID StyleEngine::intern_text_atom(Utf16View text)
     return intern_atom(Utf16FlyString::from_utf16(text).to_ascii_lowercase());
 }
 
+StyleAtomID StyleEngine::intern_language_atom(Utf16View text)
+{
+    auto atom = intern_text_atom(text);
+    if (atom == 0)
+        return atom;
+
+    Vector<u16> code_units;
+    code_units.ensure_capacity(text.length_in_code_units());
+    for (size_t i = 0; i < text.length_in_code_units(); ++i)
+        code_units.unchecked_append(text.code_unit_at(i));
+    StyleEngineFFI::style_engine_set_element_language(m_impl, 0, atom.value(), code_units.data(), code_units.size());
+    return atom;
+}
+
 StyleAtomID StyleEngine::intern_case_sensitive_text_atom(Utf16View text)
 {
     return intern_atom(Utf16FlyString::from_utf16(text));
@@ -291,6 +305,19 @@ void StyleEngine::record_tree_delta(StyleEngineFFI::FfiTreeDelta const& delta)
 {
     request_frame_for_first_recorded_input(*this, m_style_computer);
     m_tree_deltas.append(delta);
+}
+
+void StyleEngine::record_element_arrival(StyleEngineFFI::FfiElementArrival arrival, ReadonlySpan<StyleAtomID> custom_states)
+{
+    request_frame_for_first_recorded_input(*this, m_style_computer);
+    VERIFY(m_arrival_custom_state_atoms.size() <= NumericLimits<u32>::max());
+    VERIFY(custom_states.size() <= NumericLimits<u32>::max());
+    VERIFY(m_arrival_custom_state_atoms.size() + custom_states.size() <= NumericLimits<u32>::max());
+    arrival.custom_state_offset = static_cast<u32>(m_arrival_custom_state_atoms.size());
+    arrival.custom_state_count = static_cast<u32>(custom_states.size());
+    for (auto state : custom_states)
+        m_arrival_custom_state_atoms.append(state.value());
+    m_element_arrivals.append(arrival);
 }
 
 void StyleEngine::record_local_feature_delta(StyleEngineFFI::FfiLocalFeatureDelta const& delta)
@@ -361,6 +388,7 @@ void StyleEngine::record_benchmark_marker(Utf16View name)
 bool StyleEngine::has_recorded_input() const
 {
     return !m_tree_deltas.is_empty()
+        || !m_element_arrivals.is_empty()
         || !m_local_feature_deltas.is_empty()
         || !m_state_deltas.is_empty()
         || !m_element_declaration_deltas.is_empty()
@@ -377,6 +405,10 @@ void StyleEngine::submit_recorded_input()
     InputTransaction transaction {
         .tree_deltas = m_tree_deltas.data(),
         .tree_delta_count = m_tree_deltas.size(),
+        .element_arrivals = m_element_arrivals.data(),
+        .element_arrival_count = m_element_arrivals.size(),
+        .arrival_custom_state_atoms = m_arrival_custom_state_atoms.data(),
+        .arrival_custom_state_atom_count = m_arrival_custom_state_atoms.size(),
         .local_feature_deltas = m_local_feature_deltas.data(),
         .local_feature_delta_count = m_local_feature_deltas.size(),
         .state_deltas = m_state_deltas.data(),
@@ -389,6 +421,8 @@ void StyleEngine::submit_recorded_input()
     apply_transaction(transaction);
 
     m_tree_deltas.clear_with_capacity();
+    m_element_arrivals.clear_with_capacity();
+    m_arrival_custom_state_atoms.clear_with_capacity();
     m_local_feature_deltas.clear_with_capacity();
     m_state_deltas.clear_with_capacity();
     m_element_declaration_deltas.clear_with_capacity();

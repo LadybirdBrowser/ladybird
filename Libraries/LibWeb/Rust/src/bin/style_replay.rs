@@ -23,6 +23,7 @@ use std::time::Instant;
 
 use libweb_rust::css::style::bridge;
 use libweb_rust::css::style::bridge::FfiCascadeOrigin;
+use libweb_rust::css::style::bridge::FfiElementArrival;
 use libweb_rust::css::style::bridge::FfiElementDeclarationDelta;
 use libweb_rust::css::style::bridge::FfiElementDeclarationKind;
 use libweb_rust::css::style::bridge::FfiElementStyleInput;
@@ -86,6 +87,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         let mut engine_count = 0_u64;
         let mut event_count = 0_u64;
         let mut intern_atom_boundary_calls = 0_u64;
+        let mut element_arrivals = 0_u64;
+        let mut element_fact_calls = 0_u64;
+        let mut element_declaration_calls = 0_u64;
+        let mut element_animation_name_calls = 0_u64;
+        let mut attribute_value_text_queries = 0_u64;
+        let mut attribute_value_text_publications = 0_u64;
         let mut selector_program_sharing = SelectorProgramSharing::default();
         let mut flush_count = 0_u64;
         let mut presence_degraded_publication_comparisons = 0_u64;
@@ -93,6 +100,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         let mut selected_flush_count = 0_u64;
         let mut selected_boundary_time = Duration::ZERO;
         let mut active_phase = None;
+        let mut last_benchmark_marker = String::new();
         let mut phase_times = BTreeMap::<String, Duration>::new();
         let mut pending_changed_rows = FastMap::<usize, u64>::default();
         let mut amplification = AmplificationLedger::default();
@@ -118,6 +126,19 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 break;
             };
             event_count += 1;
+            match event.kind {
+                EventKind::SetElementNamespace
+                | EventKind::SetElementLanguage
+                | EventKind::SetElementDirectionality
+                | EventKind::SetElementCustomStates
+                | EventKind::SetElementIsSlot
+                | EventKind::SetElementHeadingLevel => element_fact_calls += 1,
+                EventKind::SetElementDeclaredProperties => element_declaration_calls += 1,
+                EventKind::SetElementAnimationNames => element_animation_name_calls += 1,
+                EventKind::HasAttributeValueText => attribute_value_text_queries += 1,
+                EventKind::SetAttributeValueText => attribute_value_text_publications += 1,
+                _ => {}
+            }
             match event.kind {
                 kind if replay_generated_boundary_event(kind, &mut event.payload, &live_engines)? => {}
                 EventKind::CreateGraph => {
@@ -193,6 +214,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     // The row arrays are consumed in place from the mapped log; nothing is copied.
                     let tree = event.payload.read_raw_slice::<FfiTreeDelta>()?;
+                    element_arrivals += tree
+                        .iter()
+                        .filter(|delta| !delta.old_connected && delta.new_connected)
+                        .count() as u64;
+                    let arrivals = event.payload.read_raw_slice::<FfiElementArrival>()?;
+                    let arrival_custom_state_atoms = event.payload.read_u32_vec()?;
                     let features = event.payload.read_raw_slice::<FfiLocalFeatureDelta>()?;
                     let states = event.payload.read_raw_slice::<FfiStateDelta>()?;
                     let declarations = event.payload.read_raw_slice::<FfiElementDeclarationDelta>()?;
@@ -204,6 +231,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let transaction = FfiStyleInputTransaction {
                         tree_deltas: tree.as_ptr(),
                         tree_delta_count: tree.len(),
+                        element_arrivals: arrivals.as_ptr(),
+                        element_arrival_count: arrivals.len(),
+                        arrival_custom_state_atoms: arrival_custom_state_atoms.as_ptr(),
+                        arrival_custom_state_atom_count: arrival_custom_state_atoms.len(),
                         local_feature_deltas: features.as_ptr(),
                         local_feature_delta_count: features.len(),
                         state_deltas: states.as_ptr(),
@@ -497,6 +528,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 EventKind::BenchmarkMarker => {
                     let _engine = read_engine(&mut event.payload, &live_engines)?;
                     let name = String::from_utf16(&event.payload.read_u16_vec()?)?;
+                    last_benchmark_marker.clone_from(&name);
                     if let Some(marker) = BenchmarkMarker::parse(&name) {
                         encountered_subtests.insert(format!("{}/{}", marker.suite, marker.test));
                         active_phase = marker.next_phase();
@@ -849,7 +881,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     };
                     if actual != expected {
                         return Err(format!(
-                            "computed style publication diverged for node {node}: expected {expected:?}, got {actual:?}"
+                            "computed style publication diverged at event {event_count} after {last_benchmark_marker:?} in {active_phase:?} for node {node}: expected {expected:?}, got {actual:?}"
                         )
                         .into());
                     }
@@ -998,6 +1030,16 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         if options.detailed_counters {
             println!("boundary counters:");
             println!("  internAtomCalls: {intern_atom_boundary_calls}");
+            println!("  elementArrivals: {element_arrivals}");
+            println!(
+                "  elementFactCalls: {} ({:.2}/arrival)",
+                element_fact_calls,
+                element_fact_calls as f64 / element_arrivals.max(1) as f64
+            );
+            println!("  elementDeclarationCalls: {element_declaration_calls}");
+            println!("  elementAnimationNameCalls: {element_animation_name_calls}");
+            println!("  attributeValueTextQueries: {attribute_value_text_queries}");
+            println!("  attributeValueTextPublications: {attribute_value_text_publications}");
             println!(
                 "  selectorProgramCompilations: {}",
                 selector_program_sharing.compilations
@@ -1022,6 +1064,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             "presence_degraded_exact_cascade_publication_comparisons": presence_degraded_publication_comparisons,
             "boundary_counters": {
                 "intern_atom_calls": intern_atom_boundary_calls,
+                "element_arrivals": element_arrivals,
+                "element_fact_calls": element_fact_calls,
+                "element_fact_calls_per_arrival": element_fact_calls as f64 / element_arrivals.max(1) as f64,
+                "element_declaration_calls": element_declaration_calls,
+                "element_animation_name_calls": element_animation_name_calls,
+                "attribute_value_text_queries": attribute_value_text_queries,
+                "attribute_value_text_publications": attribute_value_text_publications,
                 "selector_program_compilations": selector_program_sharing.compilations,
                 "selector_programs_distinct_documents": selector_program_sharing.document_distinct_count(),
                 "selector_programs_distinct_process": selector_program_sharing.process_hashes.len(),
@@ -1196,7 +1245,7 @@ impl Options {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct ActivePhase {
     suite: String,
     test: String,

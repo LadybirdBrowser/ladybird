@@ -707,6 +707,56 @@ impl StyleEngine {
         );
     }
 
+    /// Install the fixed facts carried by one element arrival. The tree row already routes the
+    /// arriving element, so facts which can change later update their columns without adding one
+    /// journal entry apiece.
+    pub(crate) fn record_element_arrival(
+        &mut self,
+        node: StyleNodeID,
+        arrival: &super::bridge::FfiElementArrival,
+        custom_states: &[StyleAtomID],
+        arriving_node: bool,
+    ) {
+        debug_assert!(arriving_node);
+        self.facts.set_namespace(node, StyleAtomID(arrival.namespace_atom));
+        self.facts.set_is_slot(node, arrival.is_slot);
+        let mut publish_feature = |feature, value| {
+            self.record_batched_input(
+                InputKey::LocalFeature(node, feature),
+                InputValue::Feature(FeatureValue::Absent),
+                InputValue::Feature(value),
+                arriving_node,
+            );
+        };
+        if arrival.language_atom != 0 {
+            publish_feature(
+                LocalFeatureKey::Language,
+                FeatureValue::Atom(StyleAtomID(arrival.language_atom)),
+            );
+        }
+        if arrival.directionality_atom != 0 {
+            publish_feature(
+                LocalFeatureKey::Directionality,
+                FeatureValue::Atom(StyleAtomID(arrival.directionality_atom)),
+            );
+        }
+        if arrival.heading_level != 0 {
+            publish_feature(
+                LocalFeatureKey::HeadingLevel,
+                FeatureValue::Number(u32::from(arrival.heading_level)),
+            );
+        }
+        for &state in custom_states {
+            self.record_batched_input(
+                InputKey::LocalFeature(node, LocalFeatureKey::CustomState(state)),
+                InputValue::Feature(FeatureValue::Absent),
+                InputValue::Feature(FeatureValue::Present),
+                arriving_node,
+            );
+        }
+        self.facts.set_custom_states(node, custom_states, &mut self.memory);
+    }
+
     pub(crate) fn settle_batched_inputs(&mut self) {
         if !self.journal.contains_only_element_style_inputs() {
             self.discard_prepared_batch_matching_traversal();
