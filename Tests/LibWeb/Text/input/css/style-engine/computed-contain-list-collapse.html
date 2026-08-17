@@ -1,0 +1,30 @@
+<!doctype html>
+<div id="target"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const printContain = (label) => {
+            const computed = target.computedStyleMap().get("contain").toString();
+            println(`${label}: resolved=${getComputedStyle(target).contain} computed=${computed}`);
+        };
+
+        target.style.contain = "layout style paint";
+        printContain("layout style paint");
+        target.style.contain = "content";
+        printContain("content");
+        target.style.contain = "size style layout paint";
+        printContain("size style layout paint");
+        target.style.contain = "strict";
+        printContain("strict");
+        target.style.contain = "inline-size layout style paint";
+        printContain("inline-size layout style paint");
+        target.style.contain = "size layout paint";
+        printContain("size layout paint");
+
+        target.style.display = "none";
+        target.style.contain = "layout style paint";
+        printContain("layout style paint without layout node");
+        target.style.contain = "strict";
+        printContain("strict without layout node");
+    });
+</script>

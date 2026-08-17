@@ -1598,8 +1598,7 @@
     "animation-type": "none",
     "inherited": false,
     "initial": "none",
-    "needs-layout-node-for-resolved-value": true,
-    "requires-computation": "never",
+    "requires-computation": "cascaded-value",
     "valid-types": [
       "contain"
     ]

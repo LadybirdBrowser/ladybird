@@ -6232,6 +6232,43 @@ static NonnullRefPtr<StyleValue const> compute_style_value_list(NonnullRefPtr<St
     return StyleValueList::create(move(computed_entries), StyleValueList::Separator::Comma);
 }
 
+// https://drafts.csswg.org/css-contain-2/#contain-property
+static NonnullRefPtr<StyleValue const> collapse_containment_list(NonnullRefPtr<StyleValue const> const& style_value)
+{
+    auto const* containment_list = as_if<StyleValueList>(*style_value);
+    if (!containment_list)
+        return style_value;
+
+    bool contains_size = false;
+    bool contains_layout = false;
+    bool contains_style = false;
+    bool contains_paint = false;
+
+    for (auto const& containment : containment_list->values()) {
+        switch (containment->to_keyword()) {
+        case Keyword::Size:
+            contains_size = true;
+            break;
+        case Keyword::Layout:
+            contains_layout = true;
+            break;
+        case Keyword::Style:
+            contains_style = true;
+            break;
+        case Keyword::Paint:
+            contains_paint = true;
+            break;
+        default:
+            return style_value;
+        }
+    }
+
+    if (!contains_layout || !contains_style || !contains_paint)
+        return style_value;
+
+    return KeywordStyleValue::create(contains_size ? Keyword::Strict : Keyword::Content);
+}
+
 static NonnullRefPtr<StyleValue const> repeat_style_value_list_to_n_elements(NonnullRefPtr<StyleValue const> const& style_value, size_t n)
 {
     auto const& value_list = style_value->as_value_list();
@@ -6281,6 +6318,8 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(
     case PropertyID::BorderTopWidth:
     case PropertyID::OutlineWidth:
         return compute_border_or_outline_width(absolutized_value, device_pixels_per_css_pixel);
+    case PropertyID::Contain:
+        return collapse_containment_list(absolutized_value);
     case PropertyID::CornerBottomLeftShape:
     case PropertyID::CornerBottomRightShape:
     case PropertyID::CornerTopLeftShape:
