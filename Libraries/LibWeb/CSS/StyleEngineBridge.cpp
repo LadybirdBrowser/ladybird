@@ -72,6 +72,11 @@ Vector<StyleNodeID> StyleEngine::take_deferred_element_initial_features()
     return nodes;
 }
 
+HashTable<StyleNodeID> StyleEngine::take_elements_awaiting_first_style_computation()
+{
+    return move(m_nodes_awaiting_first_style_computation);
+}
+
 bool StyleEngine::resize_parsed_substitution_cache(u64 bytes)
 {
     return StyleEngineFFI::style_engine_resize_parsed_substitution_cache(m_impl, bytes);

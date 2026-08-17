@@ -454,6 +454,10 @@ static void update_style(DOM::Document& document)
     // Fetch the viewport rect once, instead of repeatedly, during style computation.
     document.update_style_computer_viewport_rect();
 
+    // An element may have rendering-only descendants that must join the transaction which first styles it. Prepare
+    // those descendants before selector inputs cross the transaction boundary.
+    document.style_computer().prepare_elements_for_style_computation();
+
     // Media rules are evaluated before the transaction boundary below, because evaluating them is
     // itself a source of inputs: a rule that starts or stops applying publishes its activation. A
     // transaction taken ahead of that would leave those inputs for the next flush, so the flush that made

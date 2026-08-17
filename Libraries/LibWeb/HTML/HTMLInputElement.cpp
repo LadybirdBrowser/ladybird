@@ -799,9 +799,10 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value(Utf16View value)
             if (m_text_node) {
                 m_text_node->set_data(m_value);
                 update_placeholder_visibility();
-
-                set_the_selection_range(m_text_node->length(), m_text_node->length());
             }
+
+            if (selection_or_range_applies())
+                set_the_selection_range(m_value.length_in_code_units(), m_value.length_in_code_units());
 
             update_shadow_tree();
         }
@@ -963,7 +964,7 @@ void HTMLInputElement::update_text_input_shadow_tree()
 {
     update_placeholder_visibility();
 
-    if (m_type == TypeAttributeState::Number) {
+    if (m_type == TypeAttributeState::Number && m_up_button_element && m_down_button_element) {
         // The `textfield` appearance is used to hide the stepper buttons.
         if (auto style = computed_style(); style && style->appearance() == CSS::Appearance::Textfield) {
             m_up_button_element->set_inline_style(stepper_button_style_when_hidden());
@@ -1064,7 +1065,7 @@ Utf16String HTMLInputElement::placeholder() const
 // https://html.spec.whatwg.org/multipage/input.html#attr-input-placeholder
 Optional<Utf16String> HTMLInputElement::placeholder_value() const
 {
-    if (!m_text_node || !m_text_node->data().is_empty())
+    if (!relevant_value().is_empty())
         return {};
     if (!is_allowed_to_have_placeholder(type_state()))
         return {};
@@ -1175,6 +1176,9 @@ void HTMLInputElement::remove_image_button_alt_text_shadow_tree()
 
 void HTMLInputElement::update_image_button_alt_text_shadow_tree()
 {
+    if (!shadow_root() && !has_style())
+        return;
+
     auto alt_text = get_attribute_value(HTML::AttributeNames::alt);
     if (type_state() != TypeAttributeState::ImageButton || !renders_as_alt_text() || alt_text.is_empty()) {
         remove_image_button_alt_text_shadow_tree();
@@ -1745,9 +1749,11 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
         CSS::Invalidation::invalidate_style_after_default_state_change(*this, was_default);
     CSS::Invalidation::invalidate_style_after_read_write_state_change(*this, was_read_write);
     clear_element_reference_pseudo_elements();
+    auto should_materialize_shadow_tree = shadow_root() || has_style();
     set_shadow_root(nullptr);
     m_image_button_alt_text_node = nullptr;
-    create_shadow_tree_if_needed();
+    if (should_materialize_shadow_tree)
+        create_shadow_tree_if_needed();
 
     // 5. Signal a type change for the element. (The Radio Button state uses this, in particular.)
     signal_a_type_change();
@@ -2164,7 +2170,9 @@ void HTMLInputElement::clear_algorithm()
 
 void HTMLInputElement::form_associated_element_was_inserted()
 {
-    create_shadow_tree_if_needed();
+    // NB: The user-agent shadow tree is rendering state. It is created when a connected control first participates in
+    //     a style update, before computed properties are assigned. Creating it in the insertion steps would also
+    //     materialize controls in detached and short-lived trees.
 
     if (is_connected()) {
         // https://html.spec.whatwg.org/multipage/input.html#radio-button-state-(type=radio)

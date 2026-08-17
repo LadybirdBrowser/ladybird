@@ -1,0 +1,7 @@
+detached parsed input: false
+detached type change: false
+detached number value change: false
+detached parsed image input: false
+detached image alt change: false
+after style computation: true
+materialized type change: true

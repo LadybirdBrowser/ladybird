@@ -777,6 +777,8 @@ public:
 
     virtual void initialize_element() { }
 
+    void prepare_for_style_computation(Badge<CSS::StyleComputer>) { prepare_for_style_computation(); }
+
 protected:
     Element(Document&, DOM::QualifiedName);
 
@@ -791,6 +793,7 @@ protected:
     MUST_UPCALL virtual void attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_);
 
     virtual void computed_properties_changed() { }
+    virtual void prepare_for_style_computation() { }
 
     virtual void visit_edges(Cell::Visitor&) override;
 

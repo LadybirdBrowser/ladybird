@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const container = document.createElement("div");
+        container.innerHTML = '<input type="email">';
+        const parsedInput = container.firstElementChild;
+        println(`detached parsed input: ${internals.hasShadowRoot(parsedInput)}`);
+
+        const changedInput = document.createElement("input");
+        changedInput.type = "file";
+        println(`detached type change: ${internals.hasShadowRoot(changedInput)}`);
+
+        const numberInput = document.createElement("input");
+        numberInput.type = "number";
+        numberInput.value = "1";
+        println(`detached number value change: ${internals.hasShadowRoot(numberInput)}`);
+
+        const imageContainer = document.createElement("div");
+        imageContainer.innerHTML = '<input type="image" alt="Parsed image">';
+        println(`detached parsed image input: ${internals.hasShadowRoot(imageContainer.firstElementChild)}`);
+
+        const changedImageInput = document.createElement("input");
+        changedImageInput.type = "image";
+        changedImageInput.alt = "Changed image";
+        println(`detached image alt change: ${internals.hasShadowRoot(changedImageInput)}`);
+
+        document.body.appendChild(parsedInput);
+        getComputedStyle(parsedInput).display;
+        println(`after style computation: ${internals.hasShadowRoot(parsedInput)}`);
+
+        const oldShadowRoot = internals.getShadowRoot(parsedInput);
+        parsedInput.type = "color";
+        println(`materialized type change: ${oldShadowRoot !== internals.getShadowRoot(parsedInput)}`);
+    });
+</script>

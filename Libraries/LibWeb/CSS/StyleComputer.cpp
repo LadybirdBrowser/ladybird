@@ -214,6 +214,20 @@ GC::Ptr<DOM::Element> StyleComputer::element_for_style_node(StyleNodeID style_no
     return m_style_nodes[style_node_id.value()];
 }
 
+void StyleComputer::prepare_elements_for_style_computation()
+{
+    for (;;) {
+        auto elements = m_style_engine.take_elements_awaiting_first_style_computation();
+        if (elements.is_empty())
+            break;
+        for (auto style_node : elements) {
+            auto element = element_for_style_node(style_node);
+            if (element && element->is_connected())
+                element->prepare_for_style_computation({});
+        }
+    }
+}
+
 void StyleComputer::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
