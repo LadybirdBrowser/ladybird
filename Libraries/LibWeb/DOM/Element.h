@@ -809,11 +809,12 @@ protected:
     void play_or_cancel_animations_after_display_property_change();
     void clear_element_reference_pseudo_elements();
 
+    struct RareData;
+
 private:
     using PreservedPseudoElementStyles = Array<RefPtr<CSS::ComputedValues const>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount)>;
     using PseudoElementData = HashMap<CSS::PseudoElement, GC::Ref<PseudoElement>>;
 
-    struct RareData;
     virtual OwnPtr<Node::RareData> create_rare_data() const override;
     virtual SlottableMixin::RareData* slottable_rare_data() override;
     virtual SlottableMixin::RareData const* slottable_rare_data() const override;
