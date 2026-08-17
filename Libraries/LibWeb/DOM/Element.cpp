@@ -197,6 +197,9 @@ struct Element::RareData final
     // https://dom.spec.whatwg.org/#concept-element-custom-element-definition
     GC::Ptr<HTML::CustomElementDefinition> custom_element_definition;
 
+    // https://dom.spec.whatwg.org/#element-custom-element-registry
+    GC::Ptr<HTML::CustomElementRegistry> custom_element_registry;
+
     Fullscreen::RequestType fullscreen_request_type { Fullscreen::RequestType::Standard };
 
     // https://w3c.github.io/webappsec-csp/#is-element-nonceable
@@ -249,6 +252,7 @@ void Element::RareData::visit_edges(Cell::Visitor& visitor)
     visitor.visit(computed_style_map_cache);
     visitor.visit(attribute_style_map);
     visitor.visit(custom_element_definition);
+    visitor.visit(custom_element_registry);
     if (pseudo_element_data) {
         for (auto& pseudo_element : *pseudo_element_data)
             visitor.visit(pseudo_element.value);
@@ -368,7 +372,6 @@ void Element::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_attributes);
     visitor.visit(m_inline_style);
     visitor.visit(m_shadow_root);
-    visitor.visit(m_custom_element_registry);
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattribute
@@ -4289,6 +4292,32 @@ void Element::set_custom_element_definition(GC::Ptr<HTML::CustomElementDefinitio
         return;
     }
     ensure_element_rare_data().custom_element_definition = definition;
+}
+
+GC::Ptr<HTML::CustomElementRegistry> Element::custom_element_registry() const
+{
+    if (m_uses_document_global_custom_element_registry)
+        return document().effective_global_custom_element_registry();
+    auto const* rare_data = element_rare_data();
+    return rare_data ? rare_data->custom_element_registry : nullptr;
+}
+
+void Element::set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry> registry)
+{
+    if (HTML::is_a_global_custom_element_registry(registry) && registry == document().custom_element_registry()) {
+        m_uses_document_global_custom_element_registry = true;
+        if (auto* rare_data = element_rare_data())
+            rare_data->custom_element_registry = nullptr;
+        return;
+    }
+
+    m_uses_document_global_custom_element_registry = false;
+    if (!registry) {
+        if (auto* rare_data = element_rare_data())
+            rare_data->custom_element_registry = nullptr;
+        return;
+    }
+    ensure_element_rare_data().custom_element_registry = registry;
 }
 
 void Element::enqueue_a_custom_element_callback_reaction(Utf16FlyString const& callback_name, CustomElementCallbackReactionArguments arguments)

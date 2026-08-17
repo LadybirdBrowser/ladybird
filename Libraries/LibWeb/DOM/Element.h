@@ -774,8 +774,8 @@ public:
 
     WebIDL::ExceptionOr<void> request_pointer_lock(PointerLockOptions const&);
 
-    GC::Ptr<HTML::CustomElementRegistry> custom_element_registry() const { return m_custom_element_registry; }
-    void set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry> registry) { m_custom_element_registry = registry; }
+    GC::Ptr<HTML::CustomElementRegistry> custom_element_registry() const;
+    void set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry>);
 
     virtual void initialize_element() { }
 
@@ -868,9 +868,6 @@ private:
     Optional<Utf16FlyString> m_id;
     Optional<Utf16FlyString> m_name;
 
-    // https://dom.spec.whatwg.org/#element-custom-element-registry
-    GC::Ptr<HTML::CustomElementRegistry> m_custom_element_registry;
-
     CSSPixelPoint m_scroll_offset;
 
     bool m_is_being_activated : 1 { false };
@@ -888,6 +885,7 @@ private:
     bool m_child_style_uses_tree_counting_function : 1 { false };
     bool m_style_uses_tree_counting_function : 1 { false };
     bool m_fullscreen_flag : 1 { false };
+    bool m_uses_document_global_custom_element_registry : 1 { false };
 
     mutable Optional<Utf16String> m_lang_value;
 
