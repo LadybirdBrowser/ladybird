@@ -1,0 +1,3 @@
+pair: 10px
+single: 10px
+distinct pair: 10px 20px
