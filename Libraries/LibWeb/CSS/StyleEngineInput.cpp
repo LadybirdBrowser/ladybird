@@ -528,7 +528,8 @@ static void record_element_initial_features(DOM::Element& element)
 
     if (!element.part_names().is_empty())
         record_element_parts_changed(element);
-    record_element_inline_style_properties(element);
+    if (auto const inline_style = element.inline_style(); inline_style && (!inline_style->properties().is_empty() || !inline_style->custom_properties().is_empty()))
+        record_element_inline_style_properties(element);
 }
 
 void record_element_moved(DOM::Element& element, DOM::Node* old_parent, DOM::Element* old_previous_sibling, DOM::Element* old_next_sibling)
@@ -962,12 +963,11 @@ struct DeclaredPropertyColumns {
     bool declarations_are_complete;
 };
 
-static void publish_element_declared_properties(DOM::Element& element, StyleEngineFFI::FfiElementDeclarationKind kind, ReadonlySpan<StyleProperty> style_properties, bool declarations_are_complete = true)
+static bool publish_element_declared_properties(DOM::Element& element, StyleEngineFFI::FfiElementDeclarationKind kind, ReadonlySpan<StyleProperty> style_properties, bool declarations_are_complete = true)
 {
     auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element)) {
-        return;
-    }
+    if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element))
+        return false;
 
     DeclaredPropertyColumns columns(style_properties.size(), declarations_are_complete);
     for (auto const& property : style_properties) {
@@ -977,6 +977,7 @@ static void publish_element_declared_properties(DOM::Element& element, StyleEngi
         columns.append(property, ExpandShorthands::Yes);
     }
     style_engine->set_element_declared_properties(element.style_node_id(), kind, columns.properties, columns.important, columns.operators, columns.values, columns.original_values, columns.declarations_are_complete);
+    return true;
 }
 
 // An element can arrive with a style attribute already written, so this is published on arrival as
@@ -998,9 +999,9 @@ static void record_element_inline_style_properties(DOM::Element& element)
 // bordered table for that reason. The cascade builds the block anyway, so this costs the call.
 //
 // SVG presentation attributes map through the same hook, so they are published under this kind too.
-void record_element_presentational_hint_properties(DOM::Element& element, ReadonlySpan<StyleProperty> hints)
+bool record_element_presentational_hint_properties(DOM::Element& element, ReadonlySpan<StyleProperty> hints)
 {
-    publish_element_declared_properties(element, StyleEngineFFI::FfiElementDeclarationKind::PresentationalHint, hints);
+    return publish_element_declared_properties(element, StyleEngineFFI::FfiElementDeclarationKind::PresentationalHint, hints);
 }
 
 void record_element_declarations_changed(DOM::Element& element, ElementDeclarationKind kind, bool had_declarations, bool has_declarations)

@@ -235,6 +235,7 @@ private:
     GC::Ptr<StyleComputer> m_style_computer;
 
     HashMap<FlatPtr, StyleAtomID> m_atoms;
+    HashTable<StyleAtomID> m_published_language_atoms;
     HashTable<StyleNodeID> m_nodes_with_pending_initial_features;
     HashTable<StyleNodeID> m_nodes_awaiting_first_style_computation;
     size_t m_element_match_capacity { 64 };

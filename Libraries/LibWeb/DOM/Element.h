@@ -314,13 +314,20 @@ public:
     // The element's StyleEngine identity, or 0 while it has none. Disconnected and never-styled
     // elements keep 0, which is what makes them free.
     [[nodiscard]] CSS::StyleNodeID style_node_id() const { return m_style_node_id; }
-    void set_style_node_id(CSS::StyleNodeID style_node_id) { m_style_node_id = style_node_id; }
+    void set_style_node_id(CSS::StyleNodeID style_node_id)
+    {
+        if (m_style_node_id != style_node_id)
+            m_published_presentational_hint_properties.clear();
+        m_style_node_id = style_node_id;
+    }
 
     // https://html.spec.whatwg.org/multipage/embedded-content-other.html#dimension-attributes
     virtual bool supports_dimension_attributes() const { return false; }
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const { return false; }
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const;
+    bool presentational_hint_properties_need_publication(ReadonlySpan<CSS::StyleProperty>) const;
+    void did_publish_presentational_hint_properties(ReadonlySpan<CSS::StyleProperty>);
 
     void run_attribute_change_steps(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_);
 
@@ -881,6 +888,7 @@ private:
     RefPtr<CSS::CustomPropertyData const> m_custom_property_data;
     OwnPtr<CSS::StyleInputRecord> m_style_input_record;
     PublishedCustomPropertyNames m_published_custom_property_names;
+    Vector<CSS::StyleProperty> m_published_presentational_hint_properties;
 
     void register_element_reference_pseudo_element(CSS::PseudoElement type, GC::Ref<Element> element);
     SyntheticPseudoElement& ensure_synthetic_pseudo_element(CSS::PseudoElement) const;

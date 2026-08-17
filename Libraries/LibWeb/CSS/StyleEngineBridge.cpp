@@ -246,7 +246,7 @@ StyleAtomID StyleEngine::intern_text_atom(Utf16View text)
 StyleAtomID StyleEngine::intern_language_atom(Utf16View text)
 {
     auto atom = intern_text_atom(text);
-    if (atom == 0)
+    if (atom == 0 || text.is_empty() || m_published_language_atoms.set(atom) != AK::HashSetResult::InsertedNewEntry)
         return atom;
 
     Vector<u16> code_units;
@@ -283,9 +283,11 @@ void StyleEngine::set_element_language(StyleNodeID node, StyleAtomID language, U
     // A language range is not a name, so `:lang()` compares against the tag itself rather than
     // against the atom. The text is recorded once per language, not once per element.
     Vector<u16> code_units;
-    code_units.ensure_capacity(tag.length_in_code_units());
-    for (size_t i = 0; i < tag.length_in_code_units(); ++i)
-        code_units.unchecked_append(tag.code_unit_at(i));
+    if (language != 0 && !tag.is_empty() && m_published_language_atoms.set(language) == AK::HashSetResult::InsertedNewEntry) {
+        code_units.ensure_capacity(tag.length_in_code_units());
+        for (size_t i = 0; i < tag.length_in_code_units(); ++i)
+            code_units.unchecked_append(tag.code_unit_at(i));
+    }
     StyleEngineFFI::style_engine_set_element_language(m_impl, node.value(), language.value(), code_units.data(), code_units.size());
 }
 

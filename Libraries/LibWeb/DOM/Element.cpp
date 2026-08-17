@@ -1322,6 +1322,27 @@ void Element::apply_presentational_hints(Vector<CSS::StyleProperty>& properties)
     }
 }
 
+bool Element::presentational_hint_properties_need_publication(ReadonlySpan<CSS::StyleProperty> properties) const
+{
+    if (m_published_presentational_hint_properties.size() == properties.size()) {
+        bool properties_are_unchanged = true;
+        for (size_t index = 0; index < properties.size(); ++index)
+            properties_are_unchanged &= m_published_presentational_hint_properties[index] == properties[index];
+        if (properties_are_unchanged)
+            return false;
+    }
+
+    return true;
+}
+
+void Element::did_publish_presentational_hint_properties(ReadonlySpan<CSS::StyleProperty> properties)
+{
+    m_published_presentational_hint_properties.clear();
+    m_published_presentational_hint_properties.ensure_capacity(properties.size());
+    for (auto const& property : properties)
+        m_published_presentational_hint_properties.unchecked_append(property);
+}
+
 void Element::run_attribute_change_steps(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     attribute_changed(local_name, old_value, value, namespace_);
@@ -1986,14 +2007,17 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     // Which animations an element references is an index StyleEngine keeps, in the same shape as the
     // anchor-name registry above: nothing about selector matching can say it, and without it a
     // `@keyframes` rule cannot find the elements running the animation it describes.
-    {
+    auto indexable_animation_names = [](CSS::ComputedValues const& style) {
         Vector<Utf16FlyString> animation_names;
-        for (auto const& animation_name : new_style->animation_names()) {
+        for (auto const& animation_name : style.animation_names()) {
             if (animation_name.syntax != CSS::ComputedAnimationNameSyntax::None)
                 animation_names.append(animation_name.name);
         }
+        return animation_names;
+    };
+    auto animation_names = indexable_animation_names(*new_style);
+    if (old_computed_values ? indexable_animation_names(*old_computed_values) != animation_names : !animation_names.is_empty())
         CSS::record_element_animation_names(*this, animation_names);
-    }
     // Which custom properties this element declares or references decides which `@property`
     // registrations reach it. Declaring one matters because registration changes how it computes;
     // referencing one matters because registration gives it a value where it had none.
