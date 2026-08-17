@@ -735,12 +735,11 @@ impl StyleEngine {
             .map_or(0, RetainedAnswerPatch::capacity_bytes);
         self.memory
             .reserve_required(MemoryCategory::BatchScratch, retained_answer_patch_scratch_bytes);
-        let (published_retained_answer_orders, published_retained_answer_order_bytes) =
-            if retained_answer_patch.is_none() && reuse_retained_match_answers {
-                self.retained_answer_cascade_orders_for_traversal(true)
-            } else {
-                (Vec::new(), 0)
-            };
+        let published_retained_answer_dispatch = if retained_answer_patch.is_none() && reuse_retained_match_answers {
+            self.retained_answer_dispatch_for_traversal(true)
+        } else {
+            None
+        };
         let compiled_regions = regions.compile_union(regions.regions(), &self.tree, Some(root));
         if let Some(base_version) = program_base_version {
             let current_version = self.program.version();
@@ -1011,14 +1010,10 @@ impl StyleEngine {
                 if !reuse_active_batch_matching_traversal {
                     self.begin_published_match_answer_completion_batch(root, prefer_complete_batch);
                 }
-                let retained_answer_orders = retained_answer_patch
+                let retained_answer_dispatch = retained_answer_patch
                     .as_ref()
-                    .map(|patch| RetainedAnswerCascadeOrders::Dispatch(patch.dispatch.as_ref()))
-                    .or_else(|| {
-                        (!published_retained_answer_orders.is_empty()).then_some(RetainedAnswerCascadeOrders::Snapshot(
-                            published_retained_answer_orders.as_slice(),
-                        ))
-                    });
+                    .map(|patch| patch.dispatch.as_ref())
+                    .or(published_retained_answer_dispatch.as_deref());
                 patch_preserved_nodes.sort_unstable();
                 patch_preserved_nodes.dedup();
                 patch_processed_nodes.sort_unstable();
@@ -1049,7 +1044,7 @@ impl StyleEngine {
                         .ok()
                         .and(retained_cascade_input);
                     let retained_answer_identity = (share_cascade_completions
-                        && retained_answer_orders.is_some()
+                        && retained_answer_dispatch.is_some()
                         && self.match_answer_is_comparable_across_elements(node)
                         && self.has_no_element_declarations(node))
                     .then(|| self.retained_match_answers.answer_identity(node))
@@ -1079,12 +1074,12 @@ impl StyleEngine {
                                 node,
                                 source,
                                 cascade_input,
-                                retained_answer_orders.unwrap(),
+                                retained_answer_dispatch.unwrap(),
                                 cascade_winners_are_complete,
                             )
                         })
                         .unwrap_or_else(|| {
-                            self.complete_published_match_answer(node, retained_answer_orders)
+                            self.complete_published_match_answer(node, retained_answer_dispatch)
                                 .expect("a connected style reaction must have complete selector facts")
                         });
                     if let Some(identity) = retained_answer_identity
@@ -1252,8 +1247,6 @@ impl StyleEngine {
         }
         self.memory
             .release(MemoryCategory::BatchScratch, final_retained_answer_patch_scratch_bytes);
-        self.memory
-            .release(MemoryCategory::BatchScratch, published_retained_answer_order_bytes);
         self.memory
             .release(MemoryCategory::BatchScratch, selector_truth_change_bytes);
         self.memory

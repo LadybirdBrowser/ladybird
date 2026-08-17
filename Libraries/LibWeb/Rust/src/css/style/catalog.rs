@@ -132,10 +132,27 @@ impl MatchAnswerCatalog {
     }
 
     pub(super) fn intern(&mut self, answer: &[RuleMatch]) -> MatchAnswerID {
-        let mut answer: Vec<RetainedRuleMatch> =
+        const INLINE_ANSWER_LENGTH: usize = 16;
+        if let Some(first) = answer.first().copied()
+            && answer.len() <= INLINE_ANSWER_LENGTH
+        {
+            let first = RetainedRuleMatch::from_rule_match(first);
+            let mut prepared = [first; INLINE_ANSWER_LENGTH];
+            for (output, matched) in prepared.iter_mut().zip(answer.iter().copied()) {
+                *output = RetainedRuleMatch::from_rule_match(matched);
+            }
+            let prepared = &mut prepared[..answer.len()];
+            prepared.sort_unstable();
+            let hash = hash_retained_rule_matches(prepared);
+            if let Some(identity) = self.identity(prepared, hash) {
+                return identity;
+            }
+            return self.insert_new(prepared.to_vec(), hash);
+        }
+        let mut prepared: Vec<RetainedRuleMatch> =
             answer.iter().copied().map(RetainedRuleMatch::from_rule_match).collect();
-        answer.sort_unstable();
-        self.intern_prepared(answer)
+        prepared.sort_unstable();
+        self.intern_prepared(prepared)
     }
 
     pub(super) fn intern_prepared(&mut self, answer: Vec<RetainedRuleMatch>) -> MatchAnswerID {
@@ -898,40 +915,6 @@ pub(super) struct RetainedAnswerPatchRule {
     pub(super) program: SelectorProgramID,
 }
 
-pub(super) struct RetainedAnswerCascadeOrder {
-    pub(super) rule: RuleID,
-    pub(super) program: SelectorProgramID,
-    pub(super) entry: u32,
-    pub(super) cascade_order: u32,
-}
-
-#[derive(Clone, Copy)]
-pub(super) enum RetainedAnswerCascadeOrders<'a> {
-    Dispatch(&'a RuleDispatch),
-    Snapshot(&'a [RetainedAnswerCascadeOrder]),
-}
-
-impl RetainedAnswerCascadeOrders<'_> {
-    pub(super) fn cascade_order_for_entry(
-        self,
-        rule: RuleID,
-        program: SelectorProgramID,
-        selector_entry: u32,
-    ) -> Option<u32> {
-        match self {
-            Self::Dispatch(dispatch) => dispatch.cascade_order_for_entry(rule, program, selector_entry),
-            Self::Snapshot(orders) => {
-                let index = orders
-                    .binary_search_by_key(&(rule, program, selector_entry), |order| {
-                        (order.rule, order.program, order.entry)
-                    })
-                    .ok()?;
-                Some(orders[index].cascade_order)
-            }
-        }
-    }
-}
-
 pub(super) struct RetainedAnswerPatch {
     pub(super) rules: Vec<RetainedAnswerPatchRule>,
     /// Whether this transaction can reorder rules relative to each other (layer or sheet order).
@@ -1300,8 +1283,7 @@ pub(super) struct BatchMatchingTraversal {
     pub(super) batch: Option<MatchingFactBatch>,
     pub(super) topology: Option<TransactionTopology>,
     pub(super) reuse_retained_match_answers: bool,
-    pub(super) retained_answer_cascade_orders: Vec<RetainedAnswerCascadeOrder>,
-    pub(super) retained_answer_cascade_order_bytes: u64,
+    pub(super) retained_answer_dispatch: Option<Rc<RuleDispatch>>,
     pub(super) ancestor_requirements: AncestorRequirementsCache,
     pub(super) prefix_caches: Rc<RefCell<PrefixCaches>>,
     pub(super) match_workspace: MatchEvaluationWorkspace,
