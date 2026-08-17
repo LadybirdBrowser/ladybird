@@ -1,0 +1,6 @@
+initial winner: rgb(255, 0, 0)
+initial loser: rgb(0, 0, 255)
+both matches refreshed: true
+inactive winner: rgb(0, 0, 0)
+inactive loser: rgb(0, 0, 255)
+after losing declaration removal: rgb(0, 0, 0)

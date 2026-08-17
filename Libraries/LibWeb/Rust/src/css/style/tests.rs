@@ -7332,6 +7332,10 @@ fn rule_deactivation_reaches_only_nodes_where_the_rule_won() {
         engine.remember_cascade_input(node, &compact);
         publish_current_cascade_as_computed(&mut engine, node);
     }
+    assert_eq!(
+        engine.winner_groups.winning_nodes(toggled).unwrap().collect::<Vec<_>>(),
+        vec![nodes[2]]
+    );
 
     engine.set_rule_conditions_hold(toggled, false);
     let mut planned = Vec::new();

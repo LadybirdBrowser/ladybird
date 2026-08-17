@@ -604,6 +604,7 @@ pub(super) enum WinnerGroupTokenGap {
 
 const WINNER_RULE_PAGE_SHIFT: usize = 6;
 const WINNER_RULE_PAGE_SIZE: usize = 1 << WINNER_RULE_PAGE_SHIFT;
+const WINNER_RULE_NODE_LIMIT: usize = 32;
 
 struct WinnerRuleIndexPage {
     entries: [u32; WINNER_RULE_PAGE_SIZE],
@@ -640,9 +641,16 @@ impl RemovablePagedColumnPage for WinnerRuleIndexPage {
 }
 
 #[derive(Clone, Copy)]
+struct WinnerRuleNodeReference {
+    node: StyleNodeID,
+    references: u32,
+}
+
+#[derive(Clone)]
 struct WinnerRuleReferenceEntry {
     rule: RuleID,
     references: u64,
+    nodes: Option<Vec<WinnerRuleNodeReference>>,
 }
 
 /// A safe dense-and-sparse set of rules whose declarations currently win somewhere.
@@ -655,6 +663,7 @@ struct WinnerRuleReferences {
     entries: Vec<WinnerRuleReferenceEntry>,
     accounted_dense_len: usize,
     accounted_dense_capacity: usize,
+    posting_bytes: u64,
 }
 
 impl Clone for WinnerRuleReferences {
@@ -665,11 +674,17 @@ impl Clone for WinnerRuleReferences {
             ..Self::default()
         };
         clone.entries.reserve(self.entries.len());
-        for &entry in &self.entries {
+        for entry in &self.entries {
             let index = u32::try_from(clone.entries.len()).expect("winner rule inventory exhausted");
-            clone.entries.push(entry);
+            clone.entries.push(entry.clone());
             clone.indices.insert(entry.rule.0 as usize, index);
         }
+        clone.posting_bytes = clone
+            .entries
+            .iter()
+            .filter_map(|entry| entry.nodes.as_ref())
+            .map(|nodes| (nodes.capacity() * size_of::<WinnerRuleNodeReference>()) as u64)
+            .sum();
         clone
     }
 }
@@ -682,7 +697,11 @@ impl WinnerRuleReferences {
             return;
         }
         let index = u32::try_from(self.entries.len()).expect("winner rule inventory exhausted");
-        self.entries.push(WinnerRuleReferenceEntry { rule, references: 1 });
+        self.entries.push(WinnerRuleReferenceEntry {
+            rule,
+            references: 1,
+            nodes: Some(Vec::new()),
+        });
         let (previous, _) = self.indices.insert(rule.0 as usize, index);
         debug_assert!(previous.is_none());
     }
@@ -697,6 +716,13 @@ impl WinnerRuleReferences {
         if self.entries[index].references != 0 {
             return;
         }
+        let released_posting_bytes = self.entries[index].nodes.as_ref().map_or(0, |nodes| {
+            (nodes.capacity() * size_of::<WinnerRuleNodeReference>()) as u64
+        });
+        self.posting_bytes = self
+            .posting_bytes
+            .checked_sub(released_posting_bytes)
+            .expect("winner rule node posting byte count underflow");
         self.indices.remove(rule.0 as usize);
         self.entries.swap_remove(index);
         if let Some(moved) = self.entries.get(index) {
@@ -706,6 +732,56 @@ impl WinnerRuleReferences {
 
     fn contains(&self, rule: RuleID) -> bool {
         self.indices.get(rule.0 as usize).is_some()
+    }
+
+    fn retain_node(&mut self, rule: RuleID, node: StyleNodeID) {
+        let index = self
+            .indices
+            .get(rule.0 as usize)
+            .expect("a winning node must reference a retained winner rule") as usize;
+        let Some(nodes) = &mut self.entries[index].nodes else {
+            return;
+        };
+        let capacity_before = nodes.capacity();
+        match nodes.binary_search_by_key(&node, |reference| reference.node) {
+            Ok(index) => nodes[index].references += 1,
+            Err(_) if nodes.len() == WINNER_RULE_NODE_LIMIT => self.entries[index].nodes = None,
+            Err(index) => nodes.insert(index, WinnerRuleNodeReference { node, references: 1 }),
+        }
+        let capacity_after = self.entries[index].nodes.as_ref().map_or(0, Vec::capacity);
+        self.posting_bytes = self
+            .posting_bytes
+            .checked_sub((capacity_before * size_of::<WinnerRuleNodeReference>()) as u64)
+            .and_then(|bytes| bytes.checked_add((capacity_after * size_of::<WinnerRuleNodeReference>()) as u64))
+            .expect("winner rule node posting byte count overflow");
+    }
+
+    fn release_node(&mut self, rule: RuleID, node: StyleNodeID) {
+        let index = self
+            .indices
+            .get(rule.0 as usize)
+            .expect("a released winning node must reference a retained winner rule") as usize;
+        let Some(nodes) = &mut self.entries[index].nodes else {
+            return;
+        };
+        let node_index = nodes
+            .binary_search_by_key(&node, |reference| reference.node)
+            .expect("a released winning node must be retained");
+        nodes[node_index].references -= 1;
+        if nodes[node_index].references == 0 {
+            nodes.remove(node_index);
+        }
+    }
+
+    fn nodes(&self, rule: RuleID) -> Option<impl Iterator<Item = StyleNodeID> + '_> {
+        let index = self.indices.get(rule.0 as usize)? as usize;
+        Some(
+            self.entries[index]
+                .nodes
+                .as_ref()?
+                .iter()
+                .map(|reference| reference.node),
+        )
     }
 
     fn account_for_dense_rule(&mut self, rule: RuleID) {
@@ -720,6 +796,15 @@ impl WinnerRuleReferences {
         }
         self.accounted_dense_len = required;
     }
+
+    #[cfg(test)]
+    fn measured_posting_bytes(&self) -> u64 {
+        self.entries
+            .iter()
+            .filter_map(|entry| entry.nodes.as_ref())
+            .map(|nodes| (nodes.capacity() * size_of::<WinnerRuleNodeReference>()) as u64)
+            .sum()
+    }
 }
 
 impl ShallowCapacityBytes for WinnerRuleReferences {
@@ -728,7 +813,7 @@ impl ShallowCapacityBytes for WinnerRuleReferences {
         // correctness-neutral caches stay warm, so making this inventory physically smaller must
         // not give an extreme page a larger effective cache budget.
         let dense_bytes = (self.accounted_dense_capacity * size_of::<u64>()) as u64;
-        dense_bytes.max(self.indices.capacity_bytes() + self.entries.shallow_capacity_bytes())
+        dense_bytes.max(self.indices.capacity_bytes() + self.entries.shallow_capacity_bytes() + self.posting_bytes)
     }
 }
 
@@ -1358,6 +1443,7 @@ impl WinnerGroups {
             return true;
         }
         if let Some((previous, previous_version)) = self.column[index] {
+            self.update_winner_rule_node_references(previous, node, false);
             self.release_state(previous);
             if previous_version == self.newest_program_version {
                 self.newest_version_row_count -= 1;
@@ -1371,6 +1457,7 @@ impl WinnerGroups {
         }
         self.column[index] = Some((state, program_version));
         self.retain_state(state);
+        self.update_winner_rule_node_references(state, node, true);
         if program_version == self.newest_program_version {
             self.newest_version_row_count += 1;
         }
@@ -1409,6 +1496,7 @@ impl WinnerGroups {
                 state: (state, program_version),
                 priority_current: true,
             };
+            self.update_winner_rule_node_references(previous, node, false);
             self.release_state(previous);
         } else {
             let capacity_before = self.pseudo_rows_by_node[index].capacity();
@@ -1421,6 +1509,7 @@ impl WinnerGroups {
                 ((self.pseudo_rows_by_node[index].capacity() - capacity_before) * size_of::<PseudoWinnerRow>()) as u64;
         }
         self.retain_state(state);
+        self.update_winner_rule_node_references(state, node, true);
         true
     }
 
@@ -1429,6 +1518,7 @@ impl WinnerGroups {
             return;
         };
         if let Some((previous, program_version)) = self.column.get_mut(index).and_then(Option::take) {
+            self.update_winner_rule_node_references(previous, node, false);
             self.release_state(previous);
             self.row_count -= 1;
             if program_version == self.newest_program_version {
@@ -1440,6 +1530,7 @@ impl WinnerGroups {
             let rows = std::mem::take(rows);
             self.pseudo_row_capacity_bytes -= (rows.capacity() * size_of::<PseudoWinnerRow>()) as u64;
             for row in rows {
+                self.update_winner_rule_node_references(row.state.0, node, false);
                 self.release_state(row.state.0);
             }
         }
@@ -1499,9 +1590,24 @@ impl WinnerGroups {
         }
     }
 
+    fn update_winner_rule_node_references(&mut self, state: CascadeStateID, node: StyleNodeID, retain: bool) {
+        let winner_rule_references = &mut self.winner_rule_references;
+        for &rule in &self.state_winning_rules[state.0 as usize] {
+            if retain {
+                winner_rule_references.retain_node(rule, node);
+            } else {
+                winner_rule_references.release_node(rule, node);
+            }
+        }
+    }
+
     #[must_use]
     pub fn rule_is_a_winner(&self, rule: RuleID) -> bool {
         self.winner_rule_references.contains(rule)
+    }
+
+    pub fn winning_nodes(&self, rule: RuleID) -> Option<impl Iterator<Item = StyleNodeID> + '_> {
+        self.winner_rule_references.nodes(rule)
     }
 
     fn priority_is_current(&self, index: usize) -> bool {
@@ -1570,6 +1676,9 @@ impl WinnerGroups {
                 required: program_version,
             });
         }
+        // Departed nodes lose their rows at the commit barrier and arriving nodes have no row yet.
+        // Therefore the resident row count names exactly the connected elements that must already
+        // have a winner row, and covering it proves there is no connected-element gap.
         if self.newest_version_row_count < row_count {
             return Lookup::Missing(WinnerGroupCoverageGap::InsufficientProgramRows {
                 retained: self.newest_version_row_count,
@@ -2363,6 +2472,16 @@ mod tests {
         assert!(groups.set(sparse_node, sparse, ProgramVersion(1)));
         assert!(groups.rule_is_a_winner(RuleID(100_000)));
         assert_eq!(groups.winner_rule_references.entries.len(), 3);
+        assert_ne!(groups.winner_rule_references.posting_bytes, 0);
+        assert_eq!(
+            groups.winner_rule_references.posting_bytes,
+            groups.winner_rule_references.measured_posting_bytes()
+        );
+        let cloned_references = groups.winner_rule_references.clone();
+        assert_eq!(
+            cloned_references.posting_bytes,
+            cloned_references.measured_posting_bytes()
+        );
 
         assert!(groups.set(first_node, second, ProgramVersion(1)));
         groups.remove(second_node);
@@ -2374,6 +2493,7 @@ mod tests {
         groups.remove(sparse_node);
         assert!(!groups.rule_is_a_winner(RuleID(100_000)));
         assert!(groups.winner_rule_references.entries.is_empty());
+        assert_eq!(groups.winner_rule_references.posting_bytes, 0);
     }
 
     #[test]
@@ -2398,6 +2518,28 @@ mod tests {
             groups.lookup(WinnerGroupKey::current(refused, ProgramVersion(1))),
             Lookup::Missing(WinnerGroupGap::MissingNode(node)) if node == refused
         ));
+    }
+
+    #[test]
+    fn broad_winner_rule_node_postings_fall_back_to_the_rule_count() {
+        let mut groups = WinnerGroups::new();
+        let state = groups.intern_sorted(&[winner(1, 1, 3)], None);
+        for index in 1..=WINNER_RULE_NODE_LIMIT + 1 {
+            assert!(groups.set(
+                StyleNodeID::element(u32::try_from(index).unwrap()),
+                state,
+                ProgramVersion(1),
+            ));
+        }
+
+        assert!(groups.rule_is_a_winner(RuleID(3)));
+        assert!(groups.winning_nodes(RuleID(3)).is_none());
+        assert_eq!(groups.winner_rule_references.posting_bytes, 0);
+
+        for index in 1..=WINNER_RULE_NODE_LIMIT + 1 {
+            groups.remove(StyleNodeID::element(u32::try_from(index).unwrap()));
+        }
+        assert!(!groups.rule_is_a_winner(RuleID(3)));
     }
 
     #[test]

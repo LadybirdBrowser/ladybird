@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    function animationFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        iframe.style.border = "0";
+        iframe.style.width = "500px";
+        iframe.style.height = "200px";
+
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = `
+            <!DOCTYPE html>
+            <style>
+                @media (min-width: 400px) {
+                    .a { color: rgb(255, 0, 0); }
+                    .a { background-color: rgb(0, 255, 0); }
+                }
+                .b { color: rgb(0, 0, 255); }
+            </style>
+            <div id="winner" class="a"></div>
+            <div id="loser" class="a b"></div>
+            <script>
+                for (let i = 0; i < 40; ++i)
+                    document.body.appendChild(document.createElement("div"));
+            <\/script>
+        `;
+        document.body.appendChild(iframe);
+        await loaded;
+
+        const child = iframe.contentWindow;
+        const winner = child.document.getElementById("winner");
+        const loser = child.document.getElementById("loser");
+        child.internals.updateStyle();
+        println(`initial winner: ${child.getComputedStyle(winner).color}`);
+        println(`initial loser: ${child.getComputedStyle(loser).color}`);
+        const before = child.internals.styleEngineCounters();
+
+        iframe.style.width = "300px";
+        document.body.offsetWidth;
+        await animationFrame();
+        child.document.body.offsetWidth;
+        child.internals.updateStyle();
+        const after = child.internals.styleEngineCounters();
+        println(`both matches refreshed: ${after.selectorTruthRefreshes - before.selectorTruthRefreshes === 2}`);
+        println(`inactive winner: ${child.getComputedStyle(winner).color}`);
+        println(`inactive loser: ${child.getComputedStyle(loser).color}`);
+
+        loser.classList.remove("b");
+        child.internals.updateStyle();
+        println(`after losing declaration removal: ${child.getComputedStyle(loser).color}`);
+    });
+</script>

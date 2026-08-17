@@ -413,6 +413,7 @@ impl StyleEngine {
                 scopes.sort_unstable();
                 scopes.dedup();
             }
+            let mut removed_rules_requiring_refresh = Vec::new();
             for input in transaction
                 .inputs
                 .iter()
@@ -428,6 +429,7 @@ impl StyleEngine {
                         winner_program_version: transaction.program_base_version,
                         document_root: root,
                         attachment_scopes: None,
+                        removed_rules_requiring_refresh: &mut removed_rules_requiring_refresh,
                     },
                     &mut regions,
                 );
@@ -448,6 +450,7 @@ impl StyleEngine {
                             winner_program_version: transaction.program_base_version,
                             document_root: root,
                             attachment_scopes: Some(scopes),
+                            removed_rules_requiring_refresh: &mut removed_rules_requiring_refresh,
                         },
                         &mut regions,
                     );
@@ -455,6 +458,16 @@ impl StyleEngine {
                         break;
                     }
                 }
+            }
+            if self.selector_truth_changes_active && !removed_rules_requiring_refresh.is_empty() {
+                removed_rules_requiring_refresh.sort_unstable();
+                removed_rules_requiring_refresh.dedup();
+                let refreshes = &mut self.selector_truth_changes.refreshes;
+                self.retained_match_answers.for_each_answer_containing_any_rule(
+                    &self.match_answers,
+                    &removed_rules_requiring_refresh,
+                    |node| refreshes.push(SelectorTruthRefresh { node, rule: None }),
+                );
             }
             let prefix_producer_admission = if !regions.covers_document() && collect_pending_prefix_producers {
                 Some(self.ranked_scope_program(TreeScopeID::DOCUMENT))
