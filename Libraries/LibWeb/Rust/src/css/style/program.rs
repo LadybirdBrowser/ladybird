@@ -245,6 +245,7 @@ pub struct StyleSheetProgram {
 
     scopes_using_document_sheets: BitColumn,
     version: ProgramVersion,
+    routing_liveness_version: u64,
     capacity_bytes: u64,
     charged_bytes: u64,
 }
@@ -263,6 +264,7 @@ impl StyleSheetProgram {
             layer_ranks: Column::default(),
             scopes_using_document_sheets: BitColumn::default(),
             version: ProgramVersion(1),
+            routing_liveness_version: 1,
             capacity_bytes: 0,
             charged_bytes: 0,
         }
@@ -274,12 +276,24 @@ impl StyleSheetProgram {
     }
 
     #[must_use]
+    pub fn routing_liveness_version(&self) -> u64 {
+        self.routing_liveness_version
+    }
+
+    #[must_use]
     pub fn rule_count(&self) -> u32 {
         u32::try_from(self.rules.len()).expect("rule identity space exhausted")
     }
 
     fn bump_version(&mut self) {
         self.version = ProgramVersion(self.version.0 + 1);
+    }
+
+    fn bump_routing_liveness_version(&mut self) {
+        self.routing_liveness_version = self
+            .routing_liveness_version
+            .checked_add(1)
+            .expect("routing liveness version overflow");
     }
 
     fn bump_sheet_dispatch_version(&mut self, sheet: SheetID) {
@@ -348,6 +362,7 @@ impl StyleSheetProgram {
         self.sheets_by_scope[scope_index].push(sheet);
         let current_scope_capacity = (self.sheets_by_scope[scope_index].capacity() * size_of::<SheetID>()) as u64;
         self.record_capacity_change(previous_scope_capacity, current_scope_capacity);
+        self.bump_routing_liveness_version();
         self.bump_version();
         attachment
     }
@@ -383,6 +398,7 @@ impl StyleSheetProgram {
         self.sheets_by_scope[scope_index].insert(position, sheet);
         let current_scope_capacity = (self.sheets_by_scope[scope_index].capacity() * size_of::<SheetID>()) as u64;
         self.record_capacity_change(previous_scope_capacity, current_scope_capacity);
+        self.bump_routing_liveness_version();
         self.bump_version();
         attachment
     }
@@ -407,6 +423,7 @@ impl StyleSheetProgram {
         {
             sheets.remove(position);
         }
+        self.bump_routing_liveness_version();
         self.bump_version();
     }
 
@@ -427,6 +444,7 @@ impl StyleSheetProgram {
             return;
         }
         self.sheets[sheet.0 as usize].enabled = enabled;
+        self.bump_routing_liveness_version();
         self.bump_version();
     }
 
@@ -442,6 +460,7 @@ impl StyleSheetProgram {
             return;
         }
         self.sheets[sheet.0 as usize].conditions_hold = conditions_hold;
+        self.bump_routing_liveness_version();
         self.bump_version();
     }
 
@@ -480,6 +499,7 @@ impl StyleSheetProgram {
             return false;
         }
         self.rules[rule.0 as usize].conditions_hold = conditions_hold;
+        self.bump_routing_liveness_version();
         self.bump_version();
         true
     }
@@ -551,6 +571,13 @@ impl StyleSheetProgram {
         self.capacity_bytes += self.sheets_by_scope.ensure(index);
         let previous_scope_capacity = (self.sheets_by_scope[index].capacity() * size_of::<SheetID>()) as u64;
         let previous_sheets = std::mem::replace(&mut self.sheets_by_scope[index], sheets.to_vec());
+        let mut attachment_presence: Vec<_> = previous_sheets
+            .iter()
+            .chain(sheets)
+            .map(|&sheet| (sheet, self.sheet_is_attached_somewhere(sheet)))
+            .collect();
+        attachment_presence.sort_unstable_by_key(|&(sheet, _)| sheet);
+        attachment_presence.dedup_by_key(|entry| entry.0);
         let current_scope_capacity = (self.sheets_by_scope[index].capacity() * size_of::<SheetID>()) as u64;
         self.record_capacity_change(previous_scope_capacity, current_scope_capacity);
         for sheet in previous_sheets {
@@ -576,6 +603,12 @@ impl StyleSheetProgram {
         let current_order_capacity = order.capacity_bytes();
         self.sheet_order[index] = Some(order);
         self.record_capacity_change(previous_order_capacity, current_order_capacity);
+        if attachment_presence
+            .into_iter()
+            .any(|(sheet, was_attached)| was_attached != self.sheet_is_attached_somewhere(sheet))
+        {
+            self.bump_routing_liveness_version();
+        }
         self.bump_version();
     }
 
@@ -671,6 +704,7 @@ impl StyleSheetProgram {
 
         if live {
             self.bump_sheet_dispatch_version(sheet);
+            self.bump_routing_liveness_version();
             self.bump_version();
         }
         id
@@ -719,8 +753,12 @@ impl StyleSheetProgram {
     pub fn replace_rule_version(&mut self, rule: RuleID, contents: RuleVersion) {
         assert_eq!(contents.rule, rule, "a rule version must name its own rule");
         let slot = self.rules[rule.0 as usize].version_slot;
+        let selector_changed = self.rule_versions[slot as usize].selector_program != contents.selector_program;
         self.rule_versions[slot as usize] = contents;
         self.bump_rule_sheet_dispatch_version(rule);
+        if selector_changed {
+            self.bump_routing_liveness_version();
+        }
         self.bump_version();
     }
 
@@ -783,6 +821,7 @@ impl StyleSheetProgram {
             for sheet in sheets {
                 self.bump_sheet_dispatch_version(sheet);
             }
+            self.bump_routing_liveness_version();
             self.bump_version();
         }
     }
@@ -813,6 +852,7 @@ impl StyleSheetProgram {
             self.record_capacity_change(previous_capacity, current_capacity);
         }
         self.bump_sheet_dispatch_version(sheet);
+        self.bump_routing_liveness_version();
         self.bump_version();
         removed
     }
@@ -1313,6 +1353,28 @@ mod tests {
     }
 
     #[test]
+    fn routing_liveness_ignores_declarations_but_tracks_selector_and_activation_changes() {
+        let (mut program, sheet) = program_with_sheet();
+        let rule = program.append_rule(sheet, None, RuleKind::Style);
+        let mut contents = program.rule_version(rule);
+        contents.selector_program = Some(SelectorProgramID(1));
+        program.replace_rule_version(rule, contents);
+        let selector_version = program.routing_liveness_version();
+
+        contents.declaration_block = Some(DeclarationBlockID(1));
+        program.replace_rule_version(rule, contents);
+        assert_eq!(program.routing_liveness_version(), selector_version);
+
+        contents.selector_program = Some(SelectorProgramID(2));
+        program.replace_rule_version(rule, contents);
+        let replacement_version = program.routing_liveness_version();
+        assert!(replacement_version > selector_version);
+
+        assert!(program.set_rule_conditions_hold(rule, false));
+        assert!(program.routing_liveness_version() > replacement_version);
+    }
+
+    #[test]
     fn complete_equal_declarations_share_a_collision_checked_identity() {
         let (mut program, sheet) = program_with_sheet();
         let first = program.append_rule(sheet, None, RuleKind::Style);
@@ -1409,6 +1471,26 @@ mod tests {
 
         assert_eq!(program.sheets_in_scope(TreeScopeID::DOCUMENT), vec![first, second]);
         assert_eq!(program.rule_version(rule), version, "rules reference the sheet's token");
+    }
+
+    #[test]
+    fn replacing_scope_sheets_tracks_global_attachment_liveness() {
+        let mut program = StyleSheetProgram::new();
+        let first = program.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+        let second = program.add_sheet(StyleSheetObjectID(2), CascadeOrigin::Author);
+        program.append_rule(first, None, RuleKind::Style);
+        program.append_rule(second, None, RuleKind::Style);
+        let unattached_version = program.routing_liveness_version();
+
+        program.set_sheets_in_scope(TreeScopeID::DOCUMENT, &[first, second]);
+        let attached_version = program.routing_liveness_version();
+        assert!(attached_version > unattached_version);
+
+        program.set_sheets_in_scope(TreeScopeID::DOCUMENT, &[second, first]);
+        assert_eq!(program.routing_liveness_version(), attached_version);
+
+        program.set_sheets_in_scope(TreeScopeID::DOCUMENT, &[]);
+        assert!(program.routing_liveness_version() > attached_version);
     }
 
     #[test]

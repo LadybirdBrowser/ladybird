@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="has-target"><span id="has-witness"></span></div>
+<div id="sibling-anchor"></div><div id="sibling-target"></div>
+<div id="nth-parent"><span id="first"></span><span></span><span id="nth-target"></span></div>
+<script>
+    test(() => {
+        const hasTarget = document.getElementById("has-target");
+        const hasWitness = document.getElementById("has-witness");
+        const siblingAnchor = document.getElementById("sibling-anchor");
+        const siblingTarget = document.getElementById("sibling-target");
+        const first = document.getElementById("first");
+        const nthTarget = document.getElementById("nth-target");
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(`
+            #has-target:has(.witness) { color: rgb(1, 2, 3); }
+            .anchor + #sibling-target { color: rgb(4, 5, 6); }
+            #nth-parent > #nth-target:nth-child(2) { color: rgb(7, 8, 9); }
+        `);
+
+        // Compile the rules once, then refresh the routing indexes while the sheet cannot decide
+        // anything. Reattaching it must invalidate that liveness proof even though its rules and
+        // selector programs are old.
+        document.adoptedStyleSheets = [sheet];
+        internals.updateStyle();
+        document.adoptedStyleSheets = [];
+        internals.updateStyle();
+        document.adoptedStyleSheets = [sheet];
+        internals.updateStyle();
+
+        hasWitness.classList.add("witness");
+        siblingAnchor.classList.add("anchor");
+        first.remove();
+
+        println(`has: ${getComputedStyle(hasTarget).color}`);
+        println(`sibling: ${getComputedStyle(siblingTarget).color}`);
+        println(`nth: ${getComputedStyle(nthTarget).color}`);
+    });
+</script>

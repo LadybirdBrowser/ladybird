@@ -96,6 +96,7 @@ impl StyleEngine {
             }
             _ => routing_keys_for_input(input),
         };
+        let route_liveness = routing.route_liveness(&self.program, &self.programs);
         for key in keys {
             // The tree delta already puts an arriving element and its subtree in the plan. Its
             // individual facts only have work left to do as possible witnesses of relational
@@ -111,11 +112,15 @@ impl StyleEngine {
                 continue;
             };
             for &route in routes {
+                let route_is_live = route_liveness.contains(route.index());
                 // A rule that decides nothing right now cannot be reached through. Its entry
                 // points stay registered, because the rule still holds its position and its sheet
                 // can come back.
                 let rule = routing.rule_of(route);
-                if !self.program.rule_can_decide(rule) && !changed_sheets.contains(&self.program.rule_sheet(rule)) {
+                if !route_is_live
+                    && !self.program.rule_can_decide(rule)
+                    && !changed_sheets.contains(&self.program.rule_sheet(rule))
+                {
                     continue;
                 }
                 let point = routing.route(route);
@@ -124,7 +129,8 @@ impl StyleEngine {
                 // of the program it left behind are still registered under it. They describe a
                 // selector the rule no longer has, and following them would route a mutation
                 // through a selector nobody wrote.
-                if self.program.rule_version(routing.rule_of(route)).selector_program != Some(selector_program)
+                if !route_is_live
+                    && self.program.rule_version(rule).selector_program != Some(selector_program)
                     && !changed_programs.contains(&selector_program)
                 {
                     continue;
@@ -441,26 +447,9 @@ impl StyleEngine {
         if sequences.iter().all(|(_, change)| change.relational_records.is_empty()) {
             return;
         }
-        // A route stays registered under the rule that made it, so the ones nothing live decides
-        // through are dropped once for the transaction rather than once per parent.
-        let mut live: Vec<(RouteID, SelectorProgramID, RelativeAnchor)> = Vec::new();
-        for &route in routing.relational_routes() {
-            let rule = routing.rule_of(route);
-            if !self.program.rule_can_decide(rule) {
-                continue;
-            }
-            let point = routing.route(route);
-            let (program, _) = self.programs.entry_location(point.entry);
-            if self.program.rule_version(rule).selector_program != Some(program) {
-                continue;
-            }
-            let Some(anchor) = point.anchor else {
-                continue;
-            };
-            live.push((route, program, anchor));
-        }
+        let live = routing.live_relational_routes(&self.program, &self.programs);
 
-        for &(route, program, anchor) in &live {
+        for &LiveRelationalRoute { route, program, anchor } in live.iter() {
             // An argument that reaches its witness across a sibling relation of its own holds
             // because of an adjacency the query names nothing near. Any element landing in any
             // sequence breaks it while carrying nothing, so the query is asked from its witnesses
@@ -486,7 +475,7 @@ impl StyleEngine {
         &mut self,
         parent: StyleNodeID,
         change: &SequenceChange,
-        live: &[(RouteID, SelectorProgramID, RelativeAnchor)],
+        live: &[LiveRelationalRoute],
         routing: &RoutingRegistry,
         regions: &mut ImpactRegions,
     ) {
@@ -525,7 +514,7 @@ impl StyleEngine {
         let mut above: Option<Vec<StyleNodeID>> = None;
         let mut ancestor_predecessors: Option<Vec<StyleNodeID>> = None;
 
-        for &(route, program, anchor) in live {
+        for &LiveRelationalRoute { route, program, anchor } in live {
             let site = relational_route_site(routing, route);
             let anchor_posting = anchor
                 .anchor_dispatch
@@ -881,28 +870,6 @@ impl StyleEngine {
         }
     }
 
-    /// The compiled sides of a sibling-first route, or nothing when it decides nothing now.
-    ///
-    /// A route stays registered under the rule that made it, so one whose rule has taken a
-    /// new selector list or whose sheet nobody attached is still in the list and answers for
-    /// nothing.
-    pub(super) fn live_sibling_entries(&self) -> Vec<SiblingEntry> {
-        let mut entries = Vec::new();
-        for &route in self.routing.sibling_first_routes() {
-            let rule = self.routing.rule_of(route);
-            if !self.program.rule_can_decide(rule) {
-                continue;
-            }
-            let point = self.routing.route(route);
-            let (program, _) = self.programs.entry_location(point.entry);
-            if self.program.rule_version(rule).selector_program != Some(program) {
-                continue;
-            }
-            entries.push(SiblingEntry { route });
-        }
-        entries
-    }
-
     pub(super) fn sibling_entry_candidates<'a>(
         &self,
         nodes: &[StyleNodeID],
@@ -1139,36 +1106,47 @@ impl StyleEngine {
             return DeferredSequenceRoutes::default();
         }
         let routing = Rc::clone(&self.routing);
-        // A route stays registered under the rule that made it: a rule keeps its identity
-        // through a new selector list, and a detached sheet's rules keep their positions because the
-        // sheet can come back. Neither decides anything now, and routing a sequence change through
-        // one names the subjects of a selector nobody wrote or of a sheet nobody attached.
-        let mut entries = Vec::new();
-        for &route in routing.routes_for(RoutingKey::Structural) {
-            let rule = routing.rule_of(route);
-            if !self.program.rule_can_decide(rule) && !changed_sheets.contains(&self.program.rule_sheet(rule)) {
-                continue;
+        let exact_before_sibling_relations = tree_routing.use_exact && tree_routing.has_before_sibling_relations;
+        let use_cached_index = changed_sheets.is_empty();
+        let mut entries = if use_cached_index {
+            routing.live_sequence_entries(&self.program, &self.programs).to_vec()
+        } else {
+            let route_liveness = routing.route_liveness(&self.program, &self.programs);
+            // A sheet changing attachment needs the routes from both sides of the transaction. The
+            // current-program cache intentionally contains only the final side, so build this rare
+            // union directly.
+            let mut entries = Vec::new();
+            for &route in routing.routes_for(RoutingKey::Structural) {
+                let route_is_live = route_liveness.contains(route.index());
+                let rule = routing.rule_of(route);
+                if !route_is_live
+                    && !self.program.rule_can_decide(rule)
+                    && !changed_sheets.contains(&self.program.rule_sheet(rule))
+                {
+                    continue;
+                }
+                let point = routing.route(route);
+                let (selector_program, _) = self.programs.entry_location(point.entry);
+                if !route_is_live && self.program.rule_version(rule).selector_program != Some(selector_program) {
+                    continue;
+                }
+                let operator = self
+                    .programs
+                    .get(selector_program)
+                    .node(point.structural_node.expect("structural route has no operator"));
+                if !matches!(operator, SelectorOp::Empty | SelectorOp::NthPosition(_)) {
+                    continue;
+                }
+                entries.push(SequenceEntry {
+                    route,
+                    operator,
+                    can_compare_exactly: self.entry_can_use_before_sibling_relations_id(point.entry),
+                });
             }
-            let point = routing.route(route);
-            let (selector_program, _) = self.programs.entry_location(point.entry);
-            if self.program.rule_version(rule).selector_program != Some(selector_program) {
-                continue;
-            }
-            let operator = self
-                .programs
-                .get(selector_program)
-                .node(point.structural_node.expect("structural route has no operator"));
-            if !matches!(operator, SelectorOp::Empty | SelectorOp::NthPosition(_)) {
-                continue;
-            }
-            let can_compare_exactly = tree_routing.use_exact
-                && tree_routing.has_before_sibling_relations
-                && self.entry_can_use_before_sibling_relations_id(point.entry);
-            entries.push(SequenceEntry {
-                route,
-                operator,
-                can_compare_exactly,
-            });
+            entries
+        };
+        for entry in &mut entries {
+            entry.can_compare_exactly &= exact_before_sibling_relations;
         }
         if entries.is_empty() {
             return DeferredSequenceRoutes::default();
@@ -1176,8 +1154,15 @@ impl StyleEngine {
         let entry_scratch_bytes = (entries.capacity() * size_of::<SequenceEntry>()) as u64;
         self.memory
             .reserve_required(MemoryCategory::BatchScratch, entry_scratch_bytes);
-        let mut entry_index = SequenceEntryIndex::build(&entries, &routing);
-        let entry_index_bytes = entry_index.capacity_bytes();
+        let mut cached_entry_index =
+            use_cached_index.then(|| routing.live_sequence_index(&self.program, &self.programs));
+        let mut owned_entry_index = (!use_cached_index).then(|| SequenceEntryIndex::build(&entries, &routing));
+        let entry_index_bytes = owned_entry_index.as_ref().map_or(0, SequenceEntryIndex::capacity_bytes);
+        let entry_index = match (&mut cached_entry_index, &mut owned_entry_index) {
+            (Some(cached), None) => &mut **cached,
+            (None, Some(owned)) => owned,
+            _ => unreachable!(),
+        };
         self.memory
             .reserve_required(MemoryCategory::BatchScratch, entry_index_bytes);
         let parent_emptiness = entries.iter().any(|entry| entry.operator == SelectorOp::Empty);
@@ -1197,14 +1182,7 @@ impl StyleEngine {
                 }
                 regions.add(ImpactRegion::Node(parent), &mut self.counters);
             }
-            self.add_sequence_region(
-                parent,
-                change,
-                &entries,
-                &mut entry_index,
-                &mut pending_regions,
-                regions,
-            );
+            self.add_sequence_region(parent, change, &entries, entry_index, &mut pending_regions, regions);
         }
         // An entry the automaton answers exactly can wait for the convergence walk: when the
         // walk re-compares every member of every touched sequence, its exact diffs subsume this
