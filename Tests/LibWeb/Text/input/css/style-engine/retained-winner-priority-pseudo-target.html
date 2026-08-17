@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    *, ::before, ::after { margin: 0; }
+    * + *:where(.added) { margin-top: 1rem; }
+</style>
+<div id="parent"><div id="target"></div></div>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        const target = document.getElementById("target");
+        internals.updateStyle();
+        println(`initial: ${getComputedStyle(target).marginTop}`);
+
+        parent.prepend(document.createElement("div"));
+        target.classList.add("added");
+        internals.updateStyle();
+        println(`after insertion: ${getComputedStyle(target).marginTop}`);
+    });
+</script>

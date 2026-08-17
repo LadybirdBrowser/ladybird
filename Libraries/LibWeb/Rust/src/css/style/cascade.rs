@@ -164,11 +164,6 @@ impl CascadePriority {
             rule_rank: (0, 0),
         })
     }
-
-    #[must_use]
-    pub(super) fn is_important(self) -> bool {
-        (5..=8).contains(&self.origin_importance)
-    }
 }
 
 // -- Winners and stopping keys -----------------------------------------------------------------
@@ -240,6 +235,9 @@ pub enum WinnerSource {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct PropertyWinner {
     pub property: PropertyID,
+    /// Retained separately from the ordering tuple because semantic state reuse can span an
+    /// importance edit, while source publication still has to identify the winning declaration.
+    pub important: bool,
     pub key: SpecifiedWinnerKey,
     pub priority: CascadePriority,
     /// Provenance, retained for diagnostics. Not part of any stopping key.
@@ -353,6 +351,8 @@ impl CascadeStratum {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CascadeCandidate {
     pub winner: PropertyWinner,
+    /// Needed only while reducing contenders, never after the winner is retained.
+    pub priority: CascadePriority,
     pub stratum: CascadeStratum,
 }
 
@@ -474,6 +474,28 @@ define_id! {
 }
 
 impl InternIdentity for WinnerGroupID {
+    fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+define_id! {
+    /// Identity of provenance parallel to one interned winner group.
+    struct WinnerProvenanceGroupID(pub);
+}
+
+impl InternIdentity for WinnerProvenanceGroupID {
+    fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+define_id! {
+    /// Identity of one exact priority retained by winner provenance.
+    struct CascadePriorityID(pub);
+}
+
+impl InternIdentity for CascadePriorityID {
     fn index(self) -> usize {
         self.0 as usize
     }
@@ -717,10 +739,12 @@ impl ShallowCapacityBytes for WinnerRuleReferences {
 /// evicting it changes no semantic version and a later observer reconstructs a state from the
 /// node's cascade input or from the exact cold cascade.
 pub struct WinnerGroups {
-    states: InternTable<CascadeStateID, Vec<WinnerGroupID>>,
+    states: InternTable<CascadeStateID, Vec<WinnerGroupRef>>,
     state_reference_counts: Vec<u32>,
+    state_winning_rules: Vec<Vec<RuleID>>,
     groups: InternTable<WinnerGroupID, WinnerGroup>,
-    group_reference_counts: Vec<u32>,
+    provenance_groups: InternTable<WinnerProvenanceGroupID, Vec<WinnerProvenance>>,
+    priorities: InternTable<CascadePriorityID, CascadePriority>,
     continuations: InternTable<CascadeContinuationID, CascadeContinuation>,
     winner_entry_count: usize,
     winner_rule_references: WinnerRuleReferences,
@@ -749,8 +773,27 @@ struct PseudoWinnerRow {
 
 #[derive(Clone)]
 struct WinnerGroup {
-    winners: Vec<PropertyWinner>,
+    winners: Vec<SemanticPropertyWinner>,
     content_hash: u64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct SemanticPropertyWinner {
+    property: PropertyID,
+    key: SpecifiedWinnerKey,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct WinnerProvenance {
+    important: bool,
+    source: WinnerSource,
+    priority: CascadePriorityID,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct WinnerGroupRef {
+    winners: WinnerGroupID,
+    provenance: WinnerProvenanceGroupID,
 }
 
 impl Default for WinnerGroups {
@@ -758,8 +801,10 @@ impl Default for WinnerGroups {
         Self {
             states: InternTable::default(),
             state_reference_counts: Vec::new(),
+            state_winning_rules: Vec::new(),
             groups: InternTable::default(),
-            group_reference_counts: Vec::new(),
+            provenance_groups: InternTable::default(),
+            priorities: InternTable::default(),
             continuations: InternTable::default(),
             winner_entry_count: 0,
             winner_rule_references: WinnerRuleReferences::default(),
@@ -796,8 +841,10 @@ impl WinnerGroups {
         Self {
             states: self.states.clone(),
             state_reference_counts: self.state_reference_counts.clone(),
+            state_winning_rules: self.state_winning_rules.clone(),
             groups: self.groups.clone(),
-            group_reference_counts: self.group_reference_counts.clone(),
+            provenance_groups: self.provenance_groups.clone(),
+            priorities: self.priorities.clone(),
             continuations: self.continuations.clone(),
             winner_entry_count: self.winner_entry_count,
             winner_rule_references: self.winner_rule_references.clone(),
@@ -854,7 +901,7 @@ impl WinnerGroups {
     /// by `revert` and `revert-layer` operators.
     pub fn resolve_candidates(&mut self, candidates: &mut [CascadeCandidate]) -> Option<PropertyWinner> {
         // CascadePriority is the total declaration order, so equal keys are interchangeable here.
-        candidates.sort_unstable_by_key(|candidate| candidate.winner.priority);
+        candidates.sort_unstable_by_key(|candidate| candidate.priority);
         self.resolve_candidates_below(candidates, &mut Vec::new())
     }
 
@@ -868,8 +915,10 @@ impl WinnerGroups {
             .rev()
             .copied()
             .find(|candidate| ceilings.iter().all(|&ceiling| candidate.stratum.is_below(ceiling)))?;
+        let mut winner = candidate.winner;
+        winner.priority = candidate.priority;
         let Some(ceiling) = candidate.stratum.ceiling(candidate.winner.key.operator) else {
-            return Some(candidate.winner);
+            return Some(winner);
         };
         ceilings.push(ceiling);
         let continuation_winner = self.resolve_candidates_below(candidates, ceilings);
@@ -878,7 +927,6 @@ impl WinnerGroups {
             ceiling,
             winner: continuation_winner,
         });
-        let mut winner = candidate.winner;
         winner.key.continuation = continuation;
         Some(winner)
     }
@@ -945,7 +993,7 @@ impl WinnerGroups {
                     .filter(|&group| self.group_bucket(group) == bucket)
             });
             let group = previous_group
-                .filter(|&group| self.groups[group].winners == winners[start..end])
+                .filter(|&group| self.group_matches(group, &winners[start..end]))
                 .unwrap_or_else(|| self.intern_group(&winners[start..end]));
             groups.push(group);
             start = end;
@@ -958,16 +1006,37 @@ impl WinnerGroups {
         self.intern_group_ids(groups)
     }
 
-    fn intern_group_ids(&mut self, groups: Vec<WinnerGroupID>) -> CascadeStateID {
+    fn intern_group_ids(&mut self, groups: Vec<WinnerGroupRef>) -> CascadeStateID {
         let hash = content_hash(&groups);
         if let Some(id) = self.states.find(hash, |_id, candidate| *candidate == groups) {
             return id;
         }
         let id = CascadeStateID(u32::try_from(self.states.len()).expect("cascade state space exhausted"));
-        self.nested_residency
-            .grow_committed((groups.capacity() * size_of::<WinnerGroupID>()) as u64);
+        let mut winning_rules = Vec::new();
+        for &group in &groups {
+            for mut winner in self.group_winners(group) {
+                loop {
+                    if let WinnerSource::Rule(rule) = winner.source {
+                        winning_rules.push(rule);
+                    }
+                    let Some(continuation) = self.continuation(winner.key.continuation) else {
+                        break;
+                    };
+                    let Some(next) = continuation.winner else {
+                        break;
+                    };
+                    winner = next;
+                }
+            }
+        }
+        winning_rules.sort_unstable();
+        winning_rules.dedup();
+        self.nested_residency.grow_committed(
+            (groups.capacity() * size_of::<WinnerGroupRef>() + winning_rules.capacity() * size_of::<RuleID>()) as u64,
+        );
         self.states.insert(hash, id, groups);
         self.state_reference_counts.push(0);
+        self.state_winning_rules.push(winning_rules);
         id
     }
 
@@ -1003,8 +1072,8 @@ impl WinnerGroups {
                 .get(group_index)
                 .copied()
                 .filter(|&group| self.group_bucket(group) == bucket);
-            let old_winners = old_group
-                .map(|group| self.groups[group].winners.clone())
+            let old_winners: Vec<PropertyWinner> = old_group
+                .map(|group| self.group_winners(group).collect())
                 .unwrap_or_default();
             let bucket_updates = &updates[update_start..update_end];
             let mut winners = Vec::with_capacity(old_winners.len() + bucket_updates.len());
@@ -1038,7 +1107,7 @@ impl WinnerGroups {
                     groups.remove(group_index);
                 }
                 (Some(old_group), false) => {
-                    let new_group = if self.groups[old_group].winners == winners {
+                    let new_group = if self.group_matches(old_group, &winners) {
                         old_group
                     } else {
                         self.intern_group(&winners)
@@ -1067,36 +1136,100 @@ impl WinnerGroups {
         )
     }
 
-    fn intern_group(&mut self, winners: &[PropertyWinner]) -> WinnerGroupID {
-        let hash = content_hash(winners);
+    fn intern_group(&mut self, winners: &[PropertyWinner]) -> WinnerGroupRef {
+        let semantic: Vec<_> = winners
+            .iter()
+            .map(|winner| SemanticPropertyWinner {
+                property: winner.property,
+                key: winner.key,
+            })
+            .collect();
+        let provenance: Vec<_> = winners
+            .iter()
+            .map(|winner| WinnerProvenance {
+                important: winner.important,
+                source: winner.source,
+                priority: self.intern_priority(winner.priority),
+            })
+            .collect();
+        let hash = content_hash(&semantic);
         #[cfg(test)]
         {
             self.group_hash_computations += 1;
         }
         if let Some(id) = self.groups.find(hash, |_id, group| {
-            group.content_hash == hash && group.winners == winners
+            group.content_hash == hash && group.winners == semantic
         }) {
-            return id;
+            return WinnerGroupRef {
+                winners: id,
+                provenance: self.intern_provenance_group(provenance),
+            };
         }
-        let winners = winners.to_vec();
         let id = WinnerGroupID(u32::try_from(self.groups.len()).expect("winner group space exhausted"));
-        self.winner_entry_count += winners.len();
+        self.winner_entry_count += semantic.len();
         self.nested_residency
-            .grow_committed((winners.capacity() * size_of::<PropertyWinner>()) as u64);
+            .grow_committed((semantic.capacity() * size_of::<SemanticPropertyWinner>()) as u64);
         self.groups.insert(
             hash,
             id,
             WinnerGroup {
-                winners,
+                winners: semantic,
                 content_hash: hash,
             },
         );
-        self.group_reference_counts.push(0);
+        WinnerGroupRef {
+            winners: id,
+            provenance: self.intern_provenance_group(provenance),
+        }
+    }
+
+    fn intern_provenance_group(&mut self, provenance: Vec<WinnerProvenance>) -> WinnerProvenanceGroupID {
+        let hash = content_hash(&provenance);
+        if let Some(id) = self
+            .provenance_groups
+            .find(hash, |_id, candidate| *candidate == provenance)
+        {
+            return id;
+        }
+        let id = WinnerProvenanceGroupID(
+            u32::try_from(self.provenance_groups.len()).expect("winner provenance group space exhausted"),
+        );
+        self.nested_residency
+            .grow_committed((provenance.capacity() * size_of::<WinnerProvenance>()) as u64);
+        self.provenance_groups.insert(hash, id, provenance);
         id
     }
 
-    fn group_bucket(&self, group: WinnerGroupID) -> PropertyID {
-        self.groups[group]
+    fn intern_priority(&mut self, priority: CascadePriority) -> CascadePriorityID {
+        let hash = content_hash(priority);
+        if let Some(id) = self.priorities.find(hash, |_id, candidate| *candidate == priority) {
+            return id;
+        }
+        let id = CascadePriorityID(u32::try_from(self.priorities.len()).expect("cascade priority space exhausted"));
+        self.priorities.insert(hash, id, priority);
+        id
+    }
+
+    fn group_matches(&self, group: WinnerGroupRef, winners: &[PropertyWinner]) -> bool {
+        self.group_winners(group).eq(winners.iter().copied())
+    }
+
+    fn group_winners(&self, group: WinnerGroupRef) -> impl Iterator<Item = PropertyWinner> + '_ {
+        self.groups[group.winners]
+            .winners
+            .iter()
+            .zip(&self.provenance_groups[group.provenance])
+            .map(|(winner, provenance)| PropertyWinner {
+                property: winner.property,
+                important: provenance.important,
+                key: winner.key,
+                priority: self.priorities[provenance.priority],
+                source: provenance.source,
+            })
+    }
+
+    fn group_bucket(&self, group: WinnerGroupRef) -> PropertyID {
+        self.groups[group.winners]
             .winners
             .first()
             .expect("a winner group is non-empty")
@@ -1108,23 +1241,28 @@ impl WinnerGroups {
     pub fn winner_in_state(&self, state: CascadeStateID, property: PropertyID) -> Option<PropertyWinner> {
         let groups = &self.states[state];
         let index = groups.partition_point(|group| {
-            self.groups[*group]
+            self.groups[group.winners]
                 .winners
                 .last()
                 .is_some_and(|winner| winner.property < property)
         });
-        let group = groups.get(index)?;
-        let winners = &self.groups[*group].winners;
+        let group = *groups.get(index)?;
+        let winners = &self.groups[group.winners].winners;
+        let provenance = &self.provenance_groups[group.provenance];
         winners
             .binary_search_by_key(&property, |winner| winner.property)
             .ok()
-            .map(|index| winners[index])
+            .map(|index| PropertyWinner {
+                property: winners[index].property,
+                important: provenance[index].important,
+                key: winners[index].key,
+                priority: self.priorities[provenance[index].priority],
+                source: provenance[index].source,
+            })
     }
 
     pub fn winners_in_state(&self, state: CascadeStateID) -> impl Iterator<Item = PropertyWinner> + '_ {
-        self.states[state]
-            .iter()
-            .flat_map(|group| self.groups[*group].winners.iter().copied())
+        self.states[state].iter().flat_map(|&group| self.group_winners(group))
     }
 
     /// Compare the semantic winners consumed by two computed-style publications.
@@ -1138,7 +1276,7 @@ impl WinnerGroups {
     /// priority changed.
     #[must_use]
     pub fn semantic_delta(&self, previous: Option<CascadeStateID>, current: CascadeStateID) -> CascadeWinnerDelta {
-        let previous: &[WinnerGroupID] = previous.map_or(&[], |state| &self.states[state]);
+        let previous: &[WinnerGroupRef] = previous.map_or(&[], |state| &self.states[state]);
         let current = &self.states[current];
         let mut properties = Vec::new();
         for entry in merge_sorted_by(previous, current, |old, new| {
@@ -1146,15 +1284,15 @@ impl WinnerGroups {
         }) {
             match entry {
                 SortedMergeEntry::Both(old, new) => {
-                    if old != new {
-                        self.append_group_semantic_delta(Some(*old), Some(*new), &mut properties);
+                    if old.winners != new.winners {
+                        self.append_group_semantic_delta(Some(old.winners), Some(new.winners), &mut properties);
                     }
                 }
                 SortedMergeEntry::Left(old) => {
-                    self.append_group_semantic_delta(Some(*old), None, &mut properties);
+                    self.append_group_semantic_delta(Some(old.winners), None, &mut properties);
                 }
                 SortedMergeEntry::Right(new) => {
-                    self.append_group_semantic_delta(None, Some(*new), &mut properties);
+                    self.append_group_semantic_delta(None, Some(new.winners), &mut properties);
                 }
             }
         }
@@ -1167,8 +1305,8 @@ impl WinnerGroups {
         current: Option<WinnerGroupID>,
         properties: &mut Vec<PropertyID>,
     ) {
-        let previous: &[PropertyWinner] = previous.map_or(&[], |group| self.groups[group].winners.as_slice());
-        let current: &[PropertyWinner] = current.map_or(&[], |group| self.groups[group].winners.as_slice());
+        let previous: &[SemanticPropertyWinner] = previous.map_or(&[], |group| self.groups[group].winners.as_slice());
+        let current: &[SemanticPropertyWinner] = current.map_or(&[], |group| self.groups[group].winners.as_slice());
         for entry in merge_sorted_by(previous, current, |old, new| old.property.cmp(&new.property)) {
             match entry {
                 SortedMergeEntry::Both(old, new) => {
@@ -1344,9 +1482,8 @@ impl WinnerGroups {
     fn retain_state(&mut self, state: CascadeStateID) {
         let index = state.0 as usize;
         if self.state_reference_counts[index] == 0 {
-            for group_index in 0..self.states[index].len() {
-                let group = self.states[index][group_index];
-                self.retain_group(group);
+            for &rule in &self.state_winning_rules[index] {
+                self.winner_rule_references.retain(rule);
             }
         }
         self.state_reference_counts[index] += 1;
@@ -1356,51 +1493,9 @@ impl WinnerGroups {
         let index = state.0 as usize;
         self.state_reference_counts[index] -= 1;
         if self.state_reference_counts[index] == 0 {
-            for group_index in 0..self.states[index].len() {
-                let group = self.states[index][group_index];
-                self.release_group(group);
+            for &rule in &self.state_winning_rules[index] {
+                self.winner_rule_references.release(rule);
             }
-        }
-    }
-
-    fn retain_group(&mut self, group: WinnerGroupID) {
-        let index = group.0 as usize;
-        if self.group_reference_counts[index] == 0 {
-            for winner_index in 0..self.groups[index].winners.len() {
-                let winner = self.groups[index].winners[winner_index];
-                self.update_winner_rule_references(winner, true);
-            }
-        }
-        self.group_reference_counts[index] += 1;
-    }
-
-    fn release_group(&mut self, group: WinnerGroupID) {
-        let index = group.0 as usize;
-        self.group_reference_counts[index] -= 1;
-        if self.group_reference_counts[index] == 0 {
-            for winner_index in 0..self.groups[index].winners.len() {
-                let winner = self.groups[index].winners[winner_index];
-                self.update_winner_rule_references(winner, false);
-            }
-        }
-    }
-
-    fn update_winner_rule_references(&mut self, mut winner: PropertyWinner, retain: bool) {
-        loop {
-            if let WinnerSource::Rule(rule) = winner.source {
-                if retain {
-                    self.winner_rule_references.retain(rule);
-                } else {
-                    self.winner_rule_references.release(rule);
-                }
-            }
-            let Some(continuation) = self.continuation(winner.key.continuation) else {
-                break;
-            };
-            let Some(next) = continuation.winner else {
-                break;
-            };
-            winner = next;
         }
     }
 
@@ -1596,8 +1691,10 @@ impl WinnerGroups {
         self.generation = self.generation.wrapping_add(1);
         self.states = InternTable::default();
         self.state_reference_counts = Vec::new();
+        self.state_winning_rules = Vec::new();
         self.groups = InternTable::default();
-        self.group_reference_counts = Vec::new();
+        self.provenance_groups = InternTable::default();
+        self.priorities = InternTable::default();
         self.continuations = InternTable::default();
         self.winner_entry_count = 0;
         self.winner_rule_references = WinnerRuleReferences::default();
@@ -1617,12 +1714,14 @@ impl WinnerGroups {
             shallow [
                 self.states,
                 self.groups,
+                self.provenance_groups,
+                self.priorities,
                 self.continuations,
                 self.column,
                 self.pseudo_rows_by_node,
                 self.priority_current,
                 self.state_reference_counts,
-                self.group_reference_counts,
+                self.state_winning_rules,
                 self.winner_rule_references,
             ];
             cached [self.nested_residency.bytes()];
@@ -1858,6 +1957,7 @@ mod tests {
     fn winner(property: PropertyID, value: u64, rule: u32) -> PropertyWinner {
         PropertyWinner {
             property,
+            important: false,
             key: winner_key(value),
             priority: CascadePriority::new(inputs(CascadeOrigin::Author, false)),
             source: WinnerSource::Rule(RuleID(rule)),
@@ -1879,9 +1979,11 @@ mod tests {
         priority_inputs.rule_rank = (u64::from(rule), 0);
         let mut winner = winner(1, value, rule);
         winner.key.operator = operator;
-        winner.priority = CascadePriority::new(priority_inputs);
+        let priority = CascadePriority::new(priority_inputs);
+        winner.priority = priority;
         CascadeCandidate {
             winner,
+            priority,
             stratum: CascadeStratum::new(origin, important, 0, layer, (layer_rank, 0)),
         }
     }
@@ -2083,7 +2185,10 @@ mod tests {
     fn semantic_winner_deltas_ignore_provenance_and_report_exact_properties() {
         let mut groups = WinnerGroups::new();
         let before = groups.intern_sorted(&[winner(1, 10, 1), winner(3, 30, 1), winner(5, 50, 1)], None);
+        let semantic_group_count = groups.payload_count();
         let same_values = groups.intern_sorted(&[winner(1, 10, 2), winner(3, 30, 2), winner(5, 50, 2)], None);
+        assert_ne!(before, same_values);
+        assert_eq!(groups.payload_count(), semantic_group_count);
         assert!(groups.semantic_delta(Some(before), same_values).is_empty());
 
         let after = groups.intern_sorted(
@@ -2092,6 +2197,35 @@ mod tests {
         );
         assert_eq!(groups.semantic_delta(Some(before), after).properties(), &[1, 2, 3, 7]);
         assert_eq!(groups.semantic_delta(None, after).properties(), &[1, 2, 5, 7]);
+    }
+
+    #[test]
+    fn winner_provenance_retains_exact_priority_without_semantic_identity() {
+        let mut groups = WinnerGroups::new();
+        let mut before_winner = winner(1, 10, 1);
+        let mut before_inputs = inputs(CascadeOrigin::Author, false);
+        before_inputs.rule_rank = (1, 0);
+        before_winner.priority = CascadePriority::new(before_inputs);
+        let before = groups.intern_sorted(&[before_winner], None);
+        let semantic_group_count = groups.payload_count();
+
+        let mut after_winner = before_winner;
+        let mut after_inputs = before_inputs;
+        after_inputs.rule_rank = (2, 0);
+        after_winner.priority = CascadePriority::new(after_inputs);
+        let after = groups.intern_sorted(&[after_winner], None);
+
+        assert_ne!(before, after);
+        assert_eq!(groups.payload_count(), semantic_group_count);
+        assert!(groups.semantic_delta(Some(before), after).is_empty());
+        assert_eq!(
+            groups.winner_in_state(before, 1).unwrap().priority,
+            before_winner.priority
+        );
+        assert_eq!(
+            groups.winner_in_state(after, 1).unwrap().priority,
+            after_winner.priority
+        );
     }
 
     #[test]

@@ -437,7 +437,7 @@ impl StyleEngine {
             };
             let declarations = unsafe { std::slice::from_raw_parts(block.declarations, block.declaration_count) };
             let mut source_declarations = declarations.iter().filter(|declaration| {
-                declaration.property_id == winner.property && declaration.important == winner.priority.is_important()
+                declaration.property_id == winner.property && declaration.important == winner.important
             });
             let Some(declaration) = source_declarations.next() else {
                 continue;
@@ -467,7 +467,7 @@ impl StyleEngine {
             let slot = store.seed_retained_property(
                 winner.property,
                 retained,
-                winner.priority.is_important(),
+                winner.important,
                 declaration.has_style_sheet_context,
             );
             assignments.push(FfiSourceSlotAssignment {
@@ -553,6 +553,7 @@ impl StyleEngine {
                 });
             winners.push(lower_bound_winner.unwrap_or(PropertyWinner {
                 property,
+                important: false,
                 key,
                 priority: CascadePriority::exact_output_placeholder(),
                 source: WinnerSource::ExactCascade,

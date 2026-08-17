@@ -3147,36 +3147,34 @@ impl StyleEngine {
         }
         let states = states_with_moved_features.as_deref().unwrap_or(posting_states.as_ref());
 
-        let retained_winner_ignores_transaction = |previous: PropertyWinner, property| {
+        // The proof has a cheap half and an expensive half. The cheap half compares the changed
+        // rule against the exact retained priority; only when it can not win is the expensive half
+        // needed, which walks the winner's transpose sites to prove the transaction does not touch
+        // that winner. Ask the cheap question first.
+        let retained_winner_program = |previous: PropertyWinner, property| {
             let WinnerSource::Rule(winner_rule) = previous.source else {
-                return false;
+                return None;
             };
-            let Some(declaration) = self
+            if !self
                 .program
                 .declared_properties_of(winner_rule)
                 .iter()
-                .find(|declaration| declaration.property == property)
-            else {
-                return false;
-            };
-            let Some(program) = self.program.rule_version(winner_rule).selector_program else {
-                return false;
-            };
+                .any(|declaration| declaration.property == property)
+            {
+                return None;
+            }
+            let program = self.program.rule_version(winner_rule).selector_program?;
             let compiled = self.programs.get(program);
             if compiled.can_leave_its_scope() || compiled.entries().iter().any(|entry| entry.scope_root.is_some()) {
-                return false;
+                return None;
             }
 
+            Some(program)
+        };
+        let retained_winner_ignores_transaction = |program: SelectorProgramID| {
+            let compiled = self.programs.get(program);
             for (entry_index, entry) in compiled.entries().iter().enumerate() {
-                if entry.pseudo_element.is_some()
-                    || self.cascade_priority_of(
-                        winner_rule,
-                        TreeScopeID::DOCUMENT,
-                        entry.specificity,
-                        u32::MAX,
-                        declaration.important,
-                    ) < previous.priority
-                {
+                if entry.pseudo_element.is_some() {
                     continue;
                 }
                 let mut reads_changed_input = false;
@@ -3201,8 +3199,10 @@ impl StyleEngine {
                     u32::MAX,
                     declaration.important,
                 );
-                changed_priority <= previous.priority
-                    && retained_winner_ignores_transaction(previous, declaration.property)
+                let Some(previous_program) = retained_winner_program(previous, declaration.property) else {
+                    return false;
+                };
+                changed_priority <= previous.priority && retained_winner_ignores_transaction(previous_program)
             })
         })
     }
@@ -4262,23 +4262,16 @@ impl StyleEngine {
                         let Some(previous) = self.winner_groups.winner_in_state(state, current.property) else {
                             return false;
                         };
-                        let priority = self.cascade_priority_of(
-                            rule,
-                            self.tree.tree_scope(node),
-                            entry.specificity,
-                            u32::MAX,
-                            current.important,
-                        );
                         let key = Self::retained_rule_winner_key(*current);
 
                         if previous.source == WinnerSource::Rule(rule) {
                             // Raising the same winner cannot expose anything below it. Lowering it
                             // can, even when its own value is unchanged.
-                            priority >= previous.priority && key == previous.key
+                            (!previous.important || current.important) && key == previous.key
                         } else {
                             // A declaration that remains below the retained winner is inert. One
                             // that reaches or passes it is inert only for the same semantic value.
-                            priority < previous.priority || key == previous.key
+                            key == previous.key
                         }
                     });
                 }
@@ -4329,6 +4322,15 @@ impl StyleEngine {
                 let Some(previous) = self.winner_groups.winner_in_state(state, declared.property) else {
                     return false;
                 };
+                let WinnerSource::Rule(previous_rule) = previous.source else {
+                    return false;
+                };
+                let Some(previous_program) = self.program.rule_version(previous_rule).selector_program else {
+                    return false;
+                };
+                if self.programs.get(previous_program).can_leave_its_scope() {
+                    return false;
+                }
                 let priority =
                     self.cascade_priority_of(rule, tree_scope, entry.specificity, u32::MAX, declared.important);
                 priority <= previous.priority

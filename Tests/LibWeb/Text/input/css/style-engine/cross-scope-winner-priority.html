@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="document-style">my-element { color: rgb(0, 0, 255); }</style>
+<my-element id="host"></my-element>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const documentStyle = document.getElementById("document-style");
+        documentStyle.sheet.disabled = true;
+        host.attachShadow({ mode: "open" }).innerHTML = `
+            <style>:host { color: rgb(255, 0, 0); margin: revert; }</style>
+            <slot></slot>
+        `;
+
+        internals.updateStyle();
+        println(`before: ${getComputedStyle(host).color}`);
+
+        documentStyle.sheet.disabled = false;
+        internals.updateStyle();
+        println(`after: ${getComputedStyle(host).color}`);
+    });
+</script>
