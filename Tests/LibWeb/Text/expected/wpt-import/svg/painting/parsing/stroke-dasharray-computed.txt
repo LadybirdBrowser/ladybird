@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Property stroke-dasharray value 'none'
+Pass	Property stroke-dasharray value '10'
+Pass	Property stroke-dasharray value 'calc(10px + 0.5em)'
+Pass	Property stroke-dasharray value 'calc(10px - 0.5em)'
+Pass	Property stroke-dasharray value '40%'
+Pass	Property stroke-dasharray value 'calc(50% + 60px)'
+Pass	Property stroke-dasharray value '10px 20% 30px'
+Pass	Property stroke-dasharray value '0, 5'

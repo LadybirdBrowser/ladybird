@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml"
+     width="800px" height="800px">
+  <title>SVG Painting: parsing stroke-dashoffset with valid values</title>
+  <metadata>
+    <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeDashoffsetProperty"/>
+    <h:meta name="assert" content="stroke-dashoffset supports the full grammar 'length-percentage'"/>
+  </metadata>
+  <g id="target"></g>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <h:script src="../../../css/support/parsing-testcommon.js"/>
+  <script><![CDATA[
+
+test_valid_value("stroke-dashoffset", "0");
+test_valid_value("stroke-dashoffset", "10px");
+test_valid_value("stroke-dashoffset", "-20%");
+test_valid_value("stroke-dashoffset", "30");
+test_valid_value("stroke-dashoffset", "40Q", "40q");
+test_valid_value("stroke-dashoffset", "calc(2em + 3ex)");
+test_valid_value("stroke-dashoffset", "calc(3)");
+test_valid_value("stroke-dashoffset", "calc(2 + 1)", "calc(3)");
+test_valid_value("stroke-dashoffset", "calc(2 + (7 - 5))", "calc(4)");
+
+  ]]></script>
+</svg>

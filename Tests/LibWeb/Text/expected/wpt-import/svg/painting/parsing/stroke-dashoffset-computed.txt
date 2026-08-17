@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	Property stroke-dashoffset value '10'
+Pass	Property stroke-dashoffset value '0.5em'
+Pass	Property stroke-dashoffset value 'calc(10px + 0.5em)'
+Pass	Property stroke-dashoffset value 'calc(10px - 0.5em)'
+Pass	Property stroke-dashoffset value '-40%'
+Pass	Property stroke-dashoffset value 'calc(50% + 60px)'
+Pass	Property stroke-dashoffset value '254cm'
+Pass	Property stroke-dashoffset value '2540mm'
+Pass	Property stroke-dashoffset value '10160Q'
+Pass	Property stroke-dashoffset value '1in'
+Pass	Property stroke-dashoffset value '6pc'
+Pass	Property stroke-dashoffset value '72pt'
