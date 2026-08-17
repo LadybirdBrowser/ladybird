@@ -476,14 +476,13 @@ fn verify_cached_entry_against_fresh_run(root_slot: u32, cached: &FcRunCacheEntr
 macro_rules! shadow_comparable_rare_payloads {
     ($carrier:expr) => {
         (
-            $carrier.table_cell_coordinates,
-            $carrier.override_borders_data,
             $carrier.svg_viewport_transform,
             $carrier.svg_viewport_size,
             &$carrier.computed_svg_path,
             &$carrier.grid_layout_data,
             &$carrier.flex_layout_data,
             &$carrier.used_grid_tracks,
+            &$carrier.collapsed_table_borders,
         )
     };
 }

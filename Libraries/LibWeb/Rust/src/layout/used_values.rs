@@ -122,14 +122,12 @@ pub(crate) struct LineData {
 
 #[derive(Clone, Default)]
 pub(crate) struct UsedValuesRareData {
-    pub(crate) table_cell_coordinates: Option<FfiTableCellCoordinates>,
     pub(crate) computed_svg_path: Option<std::rc::Rc<libgfx_rust::path::OwnedPath>>,
     pub(crate) svg_viewport_transform: Option<crate::layout::FfiAffineTransform>,
     pub(crate) svg_viewport_size: Option<crate::layout::FfiCssPixelSize>,
     pub(crate) grid_layout_data: Option<std::rc::Rc<OwnedGridLayoutData>>,
     pub(crate) flex_layout_data: Option<std::rc::Rc<OwnedFlexLayoutData>>,
     pub(crate) used_grid_tracks: Option<std::rc::Rc<OwnedUsedGridTracks>>,
-    pub(crate) override_borders_data: Option<FfiBordersData>,
     pub(crate) collapsed_table_borders: Option<std::rc::Rc<OwnedCollapsedTableBorders>>,
     pub(crate) abspos_layout_inputs: Option<AbsposLayoutInputs>,
 }
@@ -137,19 +135,17 @@ pub(crate) struct UsedValuesRareData {
 impl UsedValuesRareData {
     pub(crate) fn install_present_payloads_into(self, record: &UsedValues) {
         let Self {
-            table_cell_coordinates,
             computed_svg_path,
             svg_viewport_transform,
             svg_viewport_size,
             grid_layout_data,
             flex_layout_data,
             used_grid_tracks,
-            override_borders_data,
             collapsed_table_borders,
             abspos_layout_inputs,
         } = self;
         debug_assert!(
-            table_cell_coordinates.is_none() && override_borders_data.is_none() && abspos_layout_inputs.is_none(),
+            abspos_layout_inputs.is_none(),
             "a run authored a parent-owned rare payload on its root record"
         );
         if computed_svg_path.is_none()

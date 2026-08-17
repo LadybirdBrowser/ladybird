@@ -764,22 +764,6 @@ pub struct FfiBorderData {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiBorderDataWithElementKind {
-    pub border_data: FfiBorderData,
-    pub element_kind: u8,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiBordersData {
-    pub top: FfiBorderDataWithElementKind,
-    pub right: FfiBorderDataWithElementKind,
-    pub bottom: FfiBorderDataWithElementKind,
-    pub left: FfiBorderDataWithElementKind,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ChildLayoutResult {
     pub automatic_content_inline_size: CssPixels,
     pub min_content_inline_size_from_max_content_layout: Option<CssPixels>,

@@ -1155,8 +1155,6 @@ void Paintable::reset_for_relayout()
     m_box_model = {};
 
     m_overflow_data.clear();
-    m_override_borders_data.clear();
-    m_table_cell_coordinates.clear();
     m_collapsed_table_borders = nullptr;
     m_uses_collapsing_borders_model = false;
     m_containing_line_box_index.clear();
@@ -2286,16 +2284,6 @@ Optional<int> Paintable::effective_z_index() const
     return {};
 }
 
-BordersData Paintable::remove_element_kind_from_borders_data(Paintable::BordersDataWithElementKind borders_data)
-{
-    return {
-        .top = borders_data.top.border_data,
-        .right = borders_data.right.border_data,
-        .bottom = borders_data.bottom.border_data,
-        .left = borders_data.left.border_data,
-    };
-}
-
 enum class BorderImageTrack {
     Start,
     Center,
@@ -2635,7 +2623,7 @@ static bool paint_border_image(DisplayListRecordingContext& context, Paintable c
 
 void Paintable::paint_border(DisplayListRecordingContext& context) const
 {
-    auto borders_data = m_override_borders_data.has_value() ? remove_element_kind_from_borders_data(m_override_borders_data.value()) : BordersData {
+    BordersData borders_data {
         .top = box_model().border.top == 0 ? CSS::BorderData() : layout_node().border_top(),
         .right = box_model().border.right == 0 ? CSS::BorderData() : layout_node().border_right(),
         .bottom = box_model().border.bottom == 0 ? CSS::BorderData() : layout_node().border_bottom(),
