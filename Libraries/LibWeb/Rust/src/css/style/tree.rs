@@ -449,6 +449,7 @@ pub struct StyleNodeTree {
     first_element_child: Vec<Option<StyleNodeID>>,
     next_element_sibling: Vec<Option<StyleNodeID>>,
     previous_element_sibling: Vec<Option<StyleNodeID>>,
+    depth: Vec<u32>,
 
     // Conditional: allocated only for documents that need them.
     tree_scope: Option<Vec<TreeScopeID>>,
@@ -462,6 +463,9 @@ pub struct StyleNodeTree {
 
     /// Allocated only once a shadow tree exists.
     shadow: Option<Box<ShadowRelations>>,
+
+    #[cfg(test)]
+    depth_recompute_visits: usize,
 }
 
 impl StyleNodeTree {
@@ -472,18 +476,22 @@ impl StyleNodeTree {
             first_element_child: Vec::new(),
             next_element_sibling: Vec::new(),
             previous_element_sibling: Vec::new(),
+            depth: Vec::new(),
             tree_scope: None,
             live: BitColumn::default(),
             connected_element_count: 0,
             pending_reuse: Vec::new(),
             free_element_indexes: Vec::new(),
             shadow: None,
+            #[cfg(test)]
+            depth_recompute_visits: 0,
         };
         // Slot 0 is never a valid identity; reserving it keeps column indexing direct.
         tree.parent.push(None);
         tree.first_element_child.push(None);
         tree.next_element_sibling.push(None);
         tree.previous_element_sibling.push(None);
+        tree.depth.push(0);
         tree.charge(memory, 0);
         tree
     }
@@ -519,6 +527,7 @@ impl StyleNodeTree {
                 self.first_element_child[index as usize] = None;
                 self.next_element_sibling[index as usize] = None;
                 self.previous_element_sibling[index as usize] = None;
+                self.depth[index as usize] = 0;
                 if let Some(column) = self.tree_scope.as_mut() {
                     column[index as usize] = TreeScopeID::DOCUMENT;
                 }
@@ -530,6 +539,7 @@ impl StyleNodeTree {
                 self.first_element_child.push(None);
                 self.next_element_sibling.push(None);
                 self.previous_element_sibling.push(None);
+                self.depth.push(0);
                 if let Some(column) = self.tree_scope.as_mut() {
                     column.push(TreeScopeID::DOCUMENT);
                 }
@@ -561,6 +571,7 @@ impl StyleNodeTree {
         self.first_element_child[index as usize] = None;
         self.next_element_sibling[index as usize] = None;
         self.previous_element_sibling[index as usize] = None;
+        self.depth[index as usize] = 0;
         self.connected_element_count -= 1;
         self.pending_reuse.push(index);
         self.charge(memory, before);
@@ -582,8 +593,77 @@ impl StyleNodeTree {
     // -- Relation maintenance ----------------------------------------------------------------
 
     pub fn set_parent(&mut self, node: StyleNodeID, parent: Option<StyleNodeID>) {
+        let depth = parent.map_or(0, |parent| {
+            self.depth(parent).checked_add(1).expect("style tree depth exhausted")
+        });
+        self.set_subtree_depth(node, depth);
         let index = self.live_element_index(node);
         self.parent[index] = parent;
+    }
+
+    fn set_subtree_depth(&mut self, node: StyleNodeID, depth: u32) {
+        let index = self.live_element_index(node);
+        let previous_depth = self.depth[index];
+        if depth != previous_depth {
+            let adjustment = i64::from(depth) - i64::from(previous_depth);
+            let mut next = Some(node);
+            while let Some(descendant) = next {
+                let descendant_index = self.live_element_index(descendant);
+                self.depth[descendant_index] = u32::try_from(i64::from(self.depth[descendant_index]) + adjustment)
+                    .expect("style tree depth exhausted");
+                next = self.first_element_child[descendant_index].or_else(|| {
+                    let mut candidate = descendant;
+                    loop {
+                        if candidate == node {
+                            return None;
+                        }
+                        let candidate_index = self.element_index(candidate);
+                        if let Some(sibling) = self.next_element_sibling[candidate_index] {
+                            return Some(sibling);
+                        }
+                        candidate = self.parent[candidate_index]?;
+                    }
+                });
+            }
+        }
+    }
+
+    pub(super) fn set_parent_without_updating_depth(&mut self, node: StyleNodeID, parent: Option<StyleNodeID>) {
+        let index = self.live_element_index(node);
+        self.parent[index] = parent;
+    }
+
+    /// Update one final staged subtree after all parent and sibling columns are installed.
+    pub(super) fn recompute_subtree_depth(&mut self, root: StyleNodeID) {
+        let mut next = Some(root);
+        while let Some(node) = next {
+            #[cfg(test)]
+            {
+                self.depth_recompute_visits += 1;
+            }
+            let index = self.live_element_index(node);
+            self.depth[index] = self.parent[index].map_or(0, |parent| {
+                self.depth(parent).checked_add(1).expect("style tree depth exhausted")
+            });
+            next = self.first_element_child[index].or_else(|| {
+                let mut candidate = node;
+                loop {
+                    if candidate == root {
+                        return None;
+                    }
+                    let candidate_index = self.element_index(candidate);
+                    if let Some(sibling) = self.next_element_sibling[candidate_index] {
+                        return Some(sibling);
+                    }
+                    candidate = self.parent[candidate_index]?;
+                }
+            });
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn take_depth_recompute_visits(&mut self) -> usize {
+        core::mem::take(&mut self.depth_recompute_visits)
     }
 
     pub fn set_first_element_child(&mut self, node: StyleNodeID, child: Option<StyleNodeID>) {
@@ -804,6 +884,11 @@ impl StyleNodeTree {
         }
     }
 
+    #[must_use]
+    pub fn depth(&self, node: StyleNodeID) -> u32 {
+        self.depth[self.element_index(node)]
+    }
+
     /// The preceding element sibling, served from a resident column.
     ///
     /// This column earned its four bytes per element by measurement: the scan it replaced walked
@@ -842,11 +927,23 @@ impl StyleNodeTree {
     }
 
     /// Whether `node` lies inside the subtree rooted at `root`. Because `StyleNodeID` is not a
-    /// tree-order label, a subtree impact region is not a numeric interval, so proving membership
-    /// costs one relation step per level. Those steps are served from resident columns.
+    /// tree-order label, a subtree impact region is not a numeric interval. The depth column rejects
+    /// impossible membership immediately and bounds the remaining parent walk exactly.
     #[must_use]
     pub fn is_in_subtree_of(&self, node: StyleNodeID, root: StyleNodeID) -> bool {
-        node == root || self.ancestors(node).any(|ancestor| ancestor == root)
+        let node_depth = self.depth(node);
+        let root_depth = self.depth(root);
+        if node_depth < root_depth {
+            return false;
+        }
+        let mut candidate = node;
+        for _ in root_depth..node_depth {
+            let Some(parent) = self.parent(candidate) else {
+                return false;
+            };
+            candidate = parent;
+        }
+        candidate == root
     }
 
     // -- Accounting --------------------------------------------------------------------------
@@ -860,6 +957,7 @@ impl StyleNodeTree {
                 self.first_element_child,
                 self.next_element_sibling,
                 self.previous_element_sibling,
+                self.depth,
                 self.pending_reuse,
                 self.free_element_indexes,
             ];
@@ -994,6 +1092,22 @@ mod tests {
         assert!(!staging.is_empty());
     }
 
+    #[test]
+    fn dirty_tree_rows_are_sorted_by_node_identity() {
+        let low = StyleNodeID::element(1);
+        let high = StyleNodeID::element(70);
+        let relations = Some(TreeRelations::detached(TreeScopeID::DOCUMENT));
+        let mut staging = TreeRelationStaging::default();
+
+        staging.stage_row(high, None, relations);
+        staging.stage_row(low, None, relations);
+
+        assert_eq!(
+            staging.dirty_rows(),
+            vec![(low, None, relations), (high, None, relations)]
+        );
+    }
+
     /// Builds `parent -> [children]` shapes without repeating relation bookkeeping in every test.
     struct TreeFixture {
         memory: MemoryController,
@@ -1080,9 +1194,57 @@ mod tests {
         assert_eq!(fixture.tree.previous_element_sibling(first), None);
         assert_eq!(fixture.tree.previous_element_sibling(third), Some(second));
 
+        assert_eq!(fixture.tree.depth(root), 0);
+        assert_eq!(fixture.tree.depth(second), 1);
+        assert_eq!(fixture.tree.depth(grandchild), 2);
+
         assert!(fixture.tree.is_in_subtree_of(grandchild, root));
         assert!(fixture.tree.is_in_subtree_of(root, root));
         assert!(!fixture.tree.is_in_subtree_of(first, second));
+    }
+
+    #[test]
+    fn moving_a_subtree_updates_every_descendant_depth() {
+        let mut fixture = TreeFixture::new();
+        let root = fixture.element();
+        let first = fixture.element();
+        let second = fixture.element();
+        let child = fixture.element();
+        let grandchild = fixture.element();
+        fixture.attach_children(root, &[first, second]);
+        fixture.attach_children(first, &[child]);
+        fixture.attach_children(child, &[grandchild]);
+
+        fixture.attach_children(second, &[first]);
+
+        assert_eq!(fixture.tree.depth(first), 2);
+        assert_eq!(fixture.tree.depth(child), 3);
+        assert_eq!(fixture.tree.depth(grandchild), 4);
+        assert!(fixture.tree.is_in_subtree_of(grandchild, second));
+        assert!(!fixture.tree.is_in_subtree_of(second, first));
+    }
+
+    #[test]
+    fn staged_parent_changes_recompute_depth_after_final_links_are_installed() {
+        let mut fixture = TreeFixture::new();
+        let root = fixture.element();
+        let parent = fixture.element();
+        let child = fixture.element();
+        fixture.attach_children(root, &[parent]);
+        fixture.attach_children(parent, &[child]);
+
+        fixture.tree.set_parent_without_updating_depth(child, Some(root));
+        fixture.tree.set_parent_without_updating_depth(parent, Some(child));
+        fixture.tree.set_first_element_child(root, Some(child));
+        fixture.tree.set_first_element_child(child, Some(parent));
+        fixture.tree.set_first_element_child(parent, None);
+        fixture.tree.set_next_element_sibling(parent, None);
+        fixture.tree.set_next_element_sibling(child, None);
+        fixture.tree.recompute_subtree_depth(child);
+
+        assert_eq!(fixture.tree.depth(root), 0);
+        assert_eq!(fixture.tree.depth(child), 1);
+        assert_eq!(fixture.tree.depth(parent), 2);
     }
 
     #[test]
@@ -1324,13 +1486,19 @@ mod tests {
 
     #[test]
     fn per_node_relation_state_fits_the_mandatory_budget() {
-        // Rust stores four relation columns plus the style-record handle per node.
+        // Rust stores four relation columns, depth, and the style-record handle per node. The DOM
+        // owns the style-node identity mapping counted by the documented surface budget.
         const STYLE_RECORD_ID_BYTES: usize = 4;
-        let required = 4 * size_of::<Option<StyleNodeID>>() + STYLE_RECORD_ID_BYTES;
+        const STYLE_NODE_ID_BYTES: usize = 4;
+        let required = 4 * size_of::<Option<StyleNodeID>>() + size_of::<u32>() + STYLE_RECORD_ID_BYTES;
         assert_eq!(size_of::<Option<StyleNodeID>>(), 4);
-        assert!(required <= 20, "phase-1 mandatory node bytes exceeded: {required}");
+        assert!(required <= 24, "mandatory engine node bytes exceeded: {required}");
 
-        let conditional = size_of::<TreeScopeID>() + size_of::<Option<StyleNodeID>>();
-        assert!(conditional <= 8, "conditional relation bytes exceeded: {conditional}");
+        let conditional = size_of::<TreeScopeID>();
+        assert!(
+            STYLE_NODE_ID_BYTES + required + conditional <= 32,
+            "mandatory node surface bytes exceeded: {}",
+            STYLE_NODE_ID_BYTES + required + conditional
+        );
     }
 }
