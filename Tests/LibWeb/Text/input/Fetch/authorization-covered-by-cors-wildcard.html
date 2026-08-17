@@ -1,0 +1,128 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        try {
+            const server = httpTestServer();
+            const testID = crypto.randomUUID();
+            const wildcardPath = `/authorization-covered-by-cors-wildcard-${testID}`;
+            const preflightToken = `authorization-covered-by-cors-wildcard-${testID}`;
+            await server.createEcho("OPTIONS", wildcardPath, {
+                status: 204,
+                headers: {
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Methods": "POST",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                wait_for_unblock: preflightToken,
+            });
+            const url = await server.createEcho("POST", wildcardPath, {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Type": "application/json",
+                },
+                reflect_headers_in_body: true,
+            });
+
+            const responsePromise = fetch(url, {
+                method: "POST",
+                headers: { Authorization: "Bearer test-token" },
+            });
+            const echoURL = new URL(url);
+            const recordedHeadersURL = `${echoURL.origin}/recorded-request-headers${echoURL.pathname}`;
+            let preflightHeaders = null;
+            for (let attempt = 0; attempt < 100; ++attempt) {
+                try {
+                    const recordedHeadersResponse = await fetch(recordedHeadersURL);
+                    if (recordedHeadersResponse.ok) {
+                        preflightHeaders = await recordedHeadersResponse.json();
+                        break;
+                    }
+                } catch {}
+                await new Promise(resolve => setTimeout(resolve, 10));
+            }
+            await fetch(`${echoURL.origin}/unblock/${preflightToken}`);
+
+            const requestedHeaderNames = preflightHeaders?.["Access-Control-Request-Headers"]?.[0]
+                ?.split(",")
+                .map(name => name.trim().toLowerCase());
+            if (!requestedHeaderNames?.includes("authorization"))
+                throw new Error("Authorization was not observed in a CORS preflight");
+
+            const response = await responsePromise;
+            const requestHeaders = await response.json();
+
+            println("Preflight: Observed");
+            println(`Status: ${response.status}`);
+            println(`Authorization: ${requestHeaders["Authorization"]?.[0]}`);
+
+            const credentialedPath = `/authorization-not-covered-by-credentialed-cors-wildcard-${testID}`;
+            await server.createEcho("OPTIONS", credentialedPath, {
+                status: 204,
+                headers: {
+                    "Access-Control-Allow-Credentials": "true",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Methods": "POST",
+                    "Access-Control-Allow-Origin": location.origin,
+                },
+            });
+            const credentialedURL = await server.createEcho("POST", credentialedPath, {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Credentials": "true",
+                    "Access-Control-Allow-Origin": location.origin,
+                },
+            });
+
+            try {
+                await fetch(credentialedURL, {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { Authorization: "Bearer test-token" },
+                });
+                println("Credentialed wildcard: FAIL - request was sent");
+            } catch {
+                println("Credentialed wildcard: Rejected");
+            }
+
+            const cachedPath = `/authorization-not-covered-by-cached-credentialed-cors-wildcard-${testID}`;
+            await server.createEcho("OPTIONS", cachedPath, {
+                status: 204,
+                headers: {
+                    "Access-Control-Allow-Credentials": "true",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Methods": "PUT",
+                    "Access-Control-Allow-Origin": location.origin,
+                    "Access-Control-Max-Age": "60",
+                },
+            });
+            const cachedURL = await server.createEcho("PUT", cachedPath, {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Credentials": "true",
+                    "Access-Control-Allow-Origin": location.origin,
+                },
+            });
+
+            const primingResponse = await fetch(cachedURL, {
+                method: "PUT",
+                credentials: "include",
+            });
+            if (!primingResponse.ok) throw new Error(`Failed to prime the preflight cache: ${primingResponse.status}`);
+
+            try {
+                await fetch(cachedURL, {
+                    method: "PUT",
+                    credentials: "include",
+                    headers: { Authorization: "Bearer test-token" },
+                });
+                println("Cached credentialed wildcard: FAIL - request was sent");
+            } catch {
+                println("Cached credentialed wildcard: Rejected");
+            }
+        } catch (error) {
+            println(`FAIL: ${error}`);
+        }
+    });
+</script>

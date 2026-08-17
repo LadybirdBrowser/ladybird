@@ -116,8 +116,15 @@ PreflightCache::Entry* PreflightCache::header_name_cache_entry_match(Request con
     for (auto& entry : m_entries) {
         if (!entry.header_name.has_value())
             continue;
-        if (!(entry.header_name->equals_ignoring_ascii_case(header_name) || (entry.header_name.value() == "*"sv && !is_cors_non_wildcard_request_header_name(header_name))))
+
+        // AD-HOC: CORS.cpp allows a wildcard to cover `Authorization` for web compatibility. This remains limited to
+        //         requests which do not include credentials, matching the wildcard handling during a live preflight.
+        auto wildcard_matches = request.credentials_mode() != Request::CredentialsMode::Include
+            && entry.header_name == "*"sv
+            && !is_cors_non_wildcard_request_header_name(header_name);
+        if (!(wildcard_matches || entry.header_name->equals_ignoring_ascii_case(header_name)))
             continue;
+
         if (is_cache_entry_match(entry, request))
             return &entry;
     }

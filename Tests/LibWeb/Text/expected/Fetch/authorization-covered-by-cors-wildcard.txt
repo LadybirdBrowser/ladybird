@@ -1,0 +1,5 @@
+Preflight: Observed
+Status: 200
+Authorization: Bearer test-token
+Credentialed wildcard: Rejected
+Cached credentialed wildcard: Rejected
