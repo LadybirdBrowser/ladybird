@@ -1266,7 +1266,10 @@ ErrorOr<void> Request::inform_client_request_started()
     }
 
     m_client_request_pipe = request_pipe.release_value();
-    TRY(send_request_pipe_to_client());
+    if (auto result = send_request_pipe_to_client(); result.is_error()) {
+        transition_to_state(State::Error);
+        return result.release_error();
+    }
 
     return {};
 }
