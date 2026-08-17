@@ -77,22 +77,17 @@ u32 ParentNode::child_element_count() const
     return count;
 }
 
-void ParentNode::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_children);
-}
-
 // https://dom.spec.whatwg.org/#dom-parentnode-children
 GC::Ref<HTMLCollection> ParentNode::children()
 {
     // The children getter steps are to return an HTMLCollection collection rooted at this matching only element children.
-    if (!m_children) {
-        m_children = HTMLCollection::create(*this, HTMLCollection::Scope::Children, [](Element const&) {
+    auto& children = ensure_rare_data().children;
+    if (!children) {
+        children = HTMLCollection::create(*this, HTMLCollection::Scope::Children, [](Element const&) {
             return true;
         });
     }
-    return *m_children;
+    return *children;
 }
 
 // https://dom.spec.whatwg.org/#concept-getelementsbytagname

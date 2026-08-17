@@ -168,6 +168,7 @@ Node::RareData::~RareData() = default;
 void Node::RareData::visit_edges(Cell::Visitor& visitor)
 {
     visitor.visit(child_nodes);
+    visitor.visit(children);
     if (registered_observer_list)
         visitor.visit(*registered_observer_list);
 }
