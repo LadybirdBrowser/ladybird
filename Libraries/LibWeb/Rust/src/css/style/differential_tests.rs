@@ -322,9 +322,8 @@ fn retained_matches(engine: &mut StyleEngine, node: StyleNodeID) -> Option<Vec<R
     }
 
     let (_, dispatch) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
-    let mut orders: Vec<_> = dispatch
-        .entries()
-        .iter()
+    let mut orders: Vec<_> = (0..dispatch.entry_count())
+        .map(|index| dispatch.entry_at(index))
         .map(|entry| (entry.rule, entry.program, entry.entry, entry.cascade_order))
         .collect();
     orders.sort_unstable_by_key(|&(rule, program, entry, _)| (rule, program, entry));

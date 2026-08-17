@@ -666,16 +666,16 @@ impl StyleEngine {
                 .filter(|(candidate, _)| {
                     !candidate.0.is_empty() && candidate.0.len() < shape.0.len() && shape.0.starts_with(&candidate.0)
                 })
-                .filter(|(_, template)| template.entries().len() >= rules.len().div_ceil(2))
-                .max_by_key(|(_, template)| template.entries().len())
+                .filter(|(_, template)| template.entry_count() >= rules.len().div_ceil(2))
+                .max_by_key(|(_, template)| template.entry_count())
                 .map(|(candidate, template)| (candidate.0.len(), Rc::clone(template)))
         });
         let mut dispatch = match (exact_template, extension_template.flatten()) {
             (Some(template), _) => RuleDispatch::rebind_rules(&template, &rules),
             (None, Some((prefix_len, template))) => {
                 let mut dispatch =
-                    RuleDispatch::rebind_rules_for_extension(&template, &rules[..template.entries().len()]);
-                let mut rule_index = template.entries().len();
+                    RuleDispatch::rebind_rules_for_extension(&template, &rules[..template.entry_count()]);
+                let mut rule_index = template.entry_count();
                 for &(selector_program, author) in &shape.0[prefix_len..] {
                     insert_scope_rule(
                         &mut dispatch,
@@ -684,7 +684,7 @@ impl StyleEngine {
                         selector_program,
                         author,
                     );
-                    rule_index = dispatch.entries().len();
+                    rule_index = dispatch.entry_count();
                 }
                 assert_eq!(rule_index, rules.len());
                 dispatch.finish_prefixes();
@@ -731,6 +731,7 @@ impl StyleEngine {
                 Some(declared.iter().map(|property| property.property).collect())
             },
         );
+        dispatch.settle_memory(&mut self.memory);
         let dispatch = Rc::new(dispatch);
         self.scope_cascade_templates
             .entry(cascade_shape)
