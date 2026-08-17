@@ -102,8 +102,8 @@ void HTMLCanvasElement::apply_presentational_hints(Vector<CSS::StyleProperty>& p
 
     // https://html.spec.whatwg.org/multipage/rendering.html#map-to-the-aspect-ratio-property
     // if element has both attributes w and h, and parsing those attributes' values using the rules for parsing non-negative integers doesn't generate an error for either
-    auto w = parse_non_negative_integer(get_attribute_value_view(HTML::AttributeNames::width).value_or({}));
-    auto h = parse_non_negative_integer(get_attribute_value_view(HTML::AttributeNames::height).value_or({}));
+    auto w = parse_non_negative_integer(attribute(HTML::AttributeNames::width).value_or({}));
+    auto h = parse_non_negative_integer(attribute(HTML::AttributeNames::height).value_or({}));
 
     // then the user agent is expected to use the parsed integers as a presentational hint for the 'aspect-ratio' property of the form auto w / h.
     if (w.has_value() && h.has_value()) {

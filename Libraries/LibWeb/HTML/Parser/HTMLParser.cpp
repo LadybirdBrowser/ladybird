@@ -871,8 +871,7 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
     // 11. Append each attribute in the given token to element.
     token.for_each_attribute([&](auto const& attribute) {
         DOM::QualifiedName qualified_name { attribute.local_name, attribute.prefix, attribute.namespace_ };
-        auto dom_attribute = DOM::Attr::create(*document, move(qualified_name), attribute.value, element);
-        element->append_attribute(dom_attribute);
+        element->append_attribute(move(qualified_name), attribute.value);
         return IterationDecision::Continue;
     });
 
@@ -1179,10 +1178,11 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragm
         attribute_prefixes.ensure_capacity(attributes->length());
         attribute_values.ensure_capacity(attributes->length());
         for (size_t i = 0; i < attributes->length(); ++i) {
-            auto const* attribute = attributes->item(i);
+            auto attribute = attributes->item(i);
             attribute_names.unchecked_append(utf16_code_units_for_ffi(attribute->local_name().view()));
             auto const& local_name = attribute_names.last();
-            attribute_values.unchecked_append(utf16_code_units_for_ffi(attribute->value().utf16_view()));
+            auto attribute_value = attribute->value();
+            attribute_values.unchecked_append(utf16_code_units_for_ffi(attribute_value));
             auto const& value = attribute_values.last();
             Vector<u16> const* prefix = nullptr;
             if (attribute->prefix().has_value()) {
@@ -1380,7 +1380,8 @@ Utf16String HTMLParser::serialize_html_fragment(DOM::Node const& node, Serializa
             }
 
             builder.append_ascii("=\""sv);
-            builder.append(escape_string(attribute.value().utf16_view(), AttributeMode::Yes));
+            auto attribute_value = attribute.value();
+            builder.append(escape_string(attribute_value.utf16_view(), AttributeMode::Yes));
             builder.append_ascii('"');
         });
 
@@ -2178,8 +2179,7 @@ extern "C" void ladybird_html_parser_add_missing_attribute(size_t element, u16 c
     if (dom_element.has_attribute(local_name))
         return;
     auto value = utf16_string_from_ffi(value_ptr, value_len);
-    auto attribute = DOM::Attr::create(dom_element.document(), move(local_name), move(value));
-    dom_element.append_attribute(attribute);
+    dom_element.append_attribute(DOM::QualifiedName { move(local_name), {}, {} }, move(value));
 }
 
 extern "C" void ladybird_html_parser_remove_node(size_t node)

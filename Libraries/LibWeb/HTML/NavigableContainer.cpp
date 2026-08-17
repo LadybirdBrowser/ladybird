@@ -217,7 +217,7 @@ Optional<URL::URL> NavigableContainer::shared_attribute_processing_steps_for_ifr
     auto url = URL::about_blank();
 
     // 2. If element has a src attribute specified, and its value is not the empty string, then:
-    auto src_attribute_value = get_attribute_value_view(HTML::AttributeNames::src);
+    auto src_attribute_value = attribute(HTML::AttributeNames::src);
     if (src_attribute_value.has_value() && !src_attribute_value->is_empty()) {
         // 1. Let maybeURL be the result of encoding-parsing a URL given that attribute's value, relative to element's node document.
         auto maybe_url = document().encoding_parse_url(*src_attribute_value);

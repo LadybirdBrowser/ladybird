@@ -530,7 +530,7 @@ void HTMLObjectElement::run_object_representation_fallback_steps()
 void HTMLObjectElement::load_image()
 {
     // FIXME: This currently reloads the image instead of reusing the resource we've already downloaded.
-    auto data = get_attribute_value_view(HTML::AttributeNames::data).value_or({});
+    auto data = attribute(HTML::AttributeNames::data).value_or({});
     auto url = document().encoding_parse_url(data);
 
     if (!url.has_value()) {

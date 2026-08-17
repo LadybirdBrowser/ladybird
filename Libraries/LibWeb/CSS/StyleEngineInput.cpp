@@ -32,7 +32,6 @@
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
-#include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -321,8 +320,8 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
         publish_feature(StyleEngineFFI::FfiFeatureKind::Id, StyleAtomID {}, StyleEngineFFI::FfiFeatureValueKind::Atom, intern_id_or_class_atom(style_engine, element, *id));
     for (auto const& class_name : element.class_names())
         publish_feature(StyleEngineFFI::FfiFeatureKind::Class, intern_id_or_class_atom(style_engine, element, class_name), StyleEngineFFI::FfiFeatureValueKind::Present, StyleAtomID {});
-    element.for_each_attribute([&](DOM::Attr const& attribute) {
-        publish_feature(StyleEngineFFI::FfiFeatureKind::Attribute, attribute_name_atom(style_engine, attribute.local_name(), attribute.namespace_uri()), StyleEngineFFI::FfiFeatureValueKind::Atom, style_engine.intern_attribute_value(attribute.value()));
+    element.for_each_attribute([&](DOM::QualifiedName const& name, Utf16View value) {
+        publish_feature(StyleEngineFFI::FfiFeatureKind::Attribute, attribute_name_atom(style_engine, name.local_name(), name.namespace_()), StyleEngineFFI::FfiFeatureValueKind::Atom, style_engine.intern_attribute_value(value));
     });
 
     bool has_nonempty_text_child = false;

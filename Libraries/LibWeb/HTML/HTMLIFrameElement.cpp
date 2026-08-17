@@ -171,7 +171,7 @@ void HTMLIFrameElement::process_the_iframe_attributes(InitialInsertion initial_i
     }
 
     // 4. Let referrerPolicy be the current state of element's referrerpolicy content attribute.
-    auto referrer_policy = ReferrerPolicy::from_string(get_attribute_value_view(HTML::AttributeNames::referrerpolicy).value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
+    auto referrer_policy = ReferrerPolicy::from_string(attribute(HTML::AttributeNames::referrerpolicy).value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
 
     // 5. Set element's current navigation was lazy loaded boolean to false.
     set_current_navigation_was_lazy_loaded(false);
@@ -368,7 +368,7 @@ ReferrerPolicy::ReferrerPolicy determine_iframe_element_referrer_policy(GC::Ptr<
     // 1. If embedder is an iframe element, then return embedder's referrerpolicy attribute's state's corresponding
     //    keyword.
     if (auto* iframe = as_if<HTMLIFrameElement>(embedder.ptr())) {
-        return ReferrerPolicy::from_string(iframe->get_attribute_value_view(HTML::AttributeNames::referrerpolicy).value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
+        return ReferrerPolicy::from_string(iframe->attribute(HTML::AttributeNames::referrerpolicy).value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
     }
 
     // 2. Return the empty string.

@@ -75,7 +75,7 @@ void HTMLBaseElement::set_the_frozen_base_url(URL::URL const& old_base_url)
     auto& document = this->document();
 
     // 2. Let urlRecord be the result of parsing the value of element's href content attribute with document's fallback base URL, and document's character encoding. (Thus, the base element isn't affected by itself.)
-    auto href = get_attribute_value_view(AttributeNames::href).value_or({});
+    auto href = attribute(AttributeNames::href).value_or({});
     auto encoding = document.encoding_or_default();
     auto url_record = DOMURL::parse(href, document.fallback_base_url(), encoding.utf16_view());
 

@@ -52,7 +52,7 @@ void MathMLAnchorElement::set_href(Utf16String const& href)
 void MathMLAnchorElement::set_the_url()
 {
     // 1. If this element's href content attribute is absent, then return.
-    auto href = get_attribute_value_view(MathML::AttributeNames::href);
+    auto href = attribute(MathML::AttributeNames::href);
     if (!href.has_value())
         return;
 

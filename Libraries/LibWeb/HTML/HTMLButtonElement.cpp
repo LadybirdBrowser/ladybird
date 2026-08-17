@@ -28,7 +28,7 @@ HTMLButtonElement::~HTMLButtonElement() = default;
 
 HTMLButtonElement::TypeAttributeState HTMLButtonElement::type_state() const
 {
-    auto value = get_attribute_value_view(HTML::AttributeNames::type);
+    auto value = attribute(HTML::AttributeNames::type);
 
     if (value.has_value() && value->equals_ignoring_ascii_case(u"submit"sv))
         return HTMLButtonElement::TypeAttributeState::Submit;

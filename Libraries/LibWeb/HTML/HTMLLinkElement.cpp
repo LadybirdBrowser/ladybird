@@ -369,7 +369,7 @@ GC::Ref<HTMLLinkElement::LinkProcessingOptions> HTMLLinkElement::create_link_opt
 
         // fetch priority
         //     the state of el's fetchpriority content attribute
-        Fetch::Infrastructure::request_priority_from_string(get_attribute_value_view(HTML::AttributeNames::fetchpriority).value_or({})).value_or(Fetch::Infrastructure::Request::Priority::Auto));
+        Fetch::Infrastructure::request_priority_from_string(attribute(HTML::AttributeNames::fetchpriority).value_or({})).value_or(Fetch::Infrastructure::Request::Priority::Auto));
 
     // 3. If el has an href attribute, then set options's href to the value of el's href attribute.
     if (auto maybe_href = get_attribute(AttributeNames::href); maybe_href.has_value())
@@ -564,7 +564,7 @@ void HTMLLinkElement::fetch_and_process_linked_preload_resource()
     auto options = create_link_options();
 
     // 3. Let destination be the result of translating the keyword representing the state of el's as attribute.
-    auto destination = translate_a_preload_destination(get_attribute_value_view(HTML::AttributeNames::as).value_or({}));
+    auto destination = translate_a_preload_destination(attribute(HTML::AttributeNames::as).value_or({}));
 
     // 4. If destination is null, then return.
     if (destination.has<Empty>())

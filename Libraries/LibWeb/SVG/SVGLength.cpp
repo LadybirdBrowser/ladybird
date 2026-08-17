@@ -280,7 +280,7 @@ SVGLength::InternalValue SVGLength::internal_value() const
 
             // FIXME: Respect source.type once we support SMIL animation.
             // FIXME: Respect attribute namespaces
-            auto maybe_attribute_value = m_element->get_attribute_value_view(source.name);
+            auto maybe_attribute_value = m_element->attribute(source.name);
             if (!maybe_attribute_value.has_value())
                 return source.default_value;
 

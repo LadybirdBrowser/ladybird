@@ -211,7 +211,7 @@ bool HTMLAreaElement::is_focusable() const
 {
     // NB: Platform conventions decide whether an area element without a tabindex attribute is a focusable area. Like
     //     other engines, only area elements that create a hyperlink are considered focusable areas.
-    if (!creates_a_hyperlink() && !HTML::parse_integer(get_attribute_value_view(HTML::AttributeNames::tabindex).value_or({})).has_value())
+    if (!creates_a_hyperlink() && !HTML::parse_integer(attribute(HTML::AttributeNames::tabindex).value_or({})).has_value())
         return false;
 
     // The shapes of area elements in an image map associated with an img element that is being rendered and is not

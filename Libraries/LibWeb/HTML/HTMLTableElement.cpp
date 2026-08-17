@@ -489,7 +489,7 @@ WebIDL::ExceptionOr<void> HTMLTableElement::delete_row(WebIDL::Long index)
 
 unsigned int HTMLTableElement::border() const
 {
-    return parse_border(get_attribute_value_view(HTML::AttributeNames::border).value_or({}));
+    return parse_border(attribute(HTML::AttributeNames::border).value_or({}));
 }
 
 Optional<u32> HTMLTableElement::cellpadding() const

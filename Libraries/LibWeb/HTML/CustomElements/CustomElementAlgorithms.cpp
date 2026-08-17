@@ -145,7 +145,7 @@ JS::ThrowCompletionOr<void> upgrade_custom_element(DOM::Element& element, GC::Re
     //    attribute's namespace ».
     if (auto attributes = element.attributes()) {
         for (size_t attribute_index = 0; attribute_index < attributes->length(); ++attribute_index) {
-            auto const* attribute = attributes->item(attribute_index);
+            auto attribute = attributes->item(attribute_index);
             VERIFY(attribute);
 
             element.enqueue_an_attribute_changed_callback_reaction(attribute->local_name(), {}, attribute->value(), attribute->namespace_uri());
