@@ -22,6 +22,8 @@ public:
     static GC::Ref<DOMMatrix> create_from_dom_matrix_2d_init(DOMMatrix2DInit const& init);
     static GC::Ref<DOMMatrix> create_from_dom_matrix_init(DOMMatrixInit const& init);
     static GC::Ref<DOMMatrix> create_from_dom_matrix_read_only(DOMMatrixReadOnly const& read_only_matrix);
+    static GC::Ref<DOMMatrix> create(Gfx::FloatMatrix4x4 const&);
+    static GC::Ref<DOMMatrix> create(Gfx::DoubleMatrix4x4 const&);
     static GC::Ref<DOMMatrix> create();
     static WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> create_for_constructor(JS::Object&, Optional<Variant<Utf16String, Vector<double>>> const& init);
     static WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> from_matrix(Bindings::DOMMatrixInit&);
@@ -76,6 +78,12 @@ private:
     DOMMatrix(double m11, double m12, double m13, double m14, double m21, double m22, double m23, double m24, double m31, double m32, double m33, double m34, double m41, double m42, double m43, double m44);
     explicit DOMMatrix(DOMMatrixReadOnly const& read_only_matrix);
     DOMMatrix();
+
+    template<typename T>
+    explicit DOMMatrix(Gfx::Matrix4x4<T> const& matrix)
+        : DOMMatrixReadOnly(matrix)
+    {
+    }
 };
 
 }

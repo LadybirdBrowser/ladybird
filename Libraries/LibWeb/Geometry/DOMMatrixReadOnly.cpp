@@ -230,6 +230,16 @@ WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::from_matrix(B
     return create_from_dom_matrix_init(TRY(validate_and_fixup_dom_matrix_init(other)));
 }
 
+GC::Ref<DOMMatrixReadOnly> DOMMatrixReadOnly::create(Gfx::FloatMatrix4x4 const& matrix)
+{
+    return GC::Heap::the().allocate<DOMMatrixReadOnly>(matrix);
+}
+
+GC::Ref<DOMMatrixReadOnly> DOMMatrixReadOnly::create(Gfx::DoubleMatrix4x4 const& matrix)
+{
+    return GC::Heap::the().allocate<DOMMatrixReadOnly>(matrix);
+}
+
 GC::Ref<DOMMatrixReadOnly> DOMMatrixReadOnly::create()
 {
     return GC::Heap::the().allocate<DOMMatrixReadOnly>();
