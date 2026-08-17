@@ -1,0 +1,35 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const url = await httpTestServer().createEcho("GET", "/unsupported-content-encoding", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Expose-Headers": "Content-Encoding",
+                "Content-Encoding": "base64",
+                "Content-Type": "application/json",
+            },
+            body: "$HEADERS",
+            reflect_headers_in_body: true,
+        });
+
+        const response = await fetch(url);
+        println(`Content-Encoding: ${response.headers.get("Content-Encoding")}`);
+        const requestHeaders = await response.json();
+        println(`Retry Accept-Encoding: ${requestHeaders["Accept-Encoding"]}`);
+
+        const gzipUrl = await httpTestServer().createEcho("GET", "/supported-content-encoding", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Encoding": "gzip",
+                "Content-Type": "text/plain",
+            },
+            body_encoding: "base64",
+            body: "H4sIAAAAAAAAAwsuLSjILypJTVFIzk/JzEtXyCxWKC7JzMlRSEkFiqSmAACsbI0mIQAAAA==",
+        });
+
+        println(await (await fetch(gzipUrl)).text());
+    });
+</script>

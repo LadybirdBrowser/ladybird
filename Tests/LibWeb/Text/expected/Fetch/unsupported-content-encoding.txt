@@ -1,0 +1,3 @@
+Content-Encoding: base64
+Retry Accept-Encoding: identity
+Supported coding is still decoded

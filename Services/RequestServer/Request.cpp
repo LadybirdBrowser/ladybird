@@ -27,6 +27,44 @@ extern OwnPtr<ResourceSubstitutionMap> g_resource_substitution_map;
 
 static long s_connect_timeout_seconds = 90L;
 
+// https://everything.curl.dev/internals/content-encoding.html#supported-content-encodings
+static bool curl_supports_content_encoding(StringView encoding)
+{
+    static auto const* version_info = curl_version_info(CURLVERSION_NOW);
+    VERIFY(version_info);
+
+    if (encoding.is_one_of_ignoring_ascii_case("identity"sv, "none"sv))
+        return true;
+    if ((version_info->features & CURL_VERSION_LIBZ) && encoding.is_one_of_ignoring_ascii_case("deflate"sv, "gzip"sv, "x-gzip"sv))
+        return true;
+
+#ifdef CURL_VERSION_BROTLI
+    if ((version_info->features & CURL_VERSION_BROTLI) && encoding.equals_ignoring_ascii_case("br"sv))
+        return true;
+#endif
+#ifdef CURL_VERSION_ZSTD
+    if ((version_info->features & CURL_VERSION_ZSTD) && encoding.equals_ignoring_ascii_case("zstd"sv))
+        return true;
+#endif
+
+    return false;
+}
+
+static bool response_has_unsupported_content_encoding(HTTP::HeaderList const& headers)
+{
+    auto content_encoding = headers.get("Content-Encoding"sv);
+    if (!content_encoding.has_value())
+        return false;
+
+    for (auto encoding : content_encoding->view().split_view(',')) {
+        encoding = HTTP::normalize_header_value(encoding);
+        if (!encoding.is_empty() && !curl_supports_content_encoding(encoding))
+            return true;
+    }
+
+    return false;
+}
+
 Request::TransferredBodyFile::~TransferredBodyFile()
 {
     if (fd != -1)
@@ -484,17 +522,7 @@ Request::~Request()
             dbgln("Warning: Request destroyed with buffered data (it's likely that the client disappeared or the request was cancelled)");
     }
 
-    if (m_curl_easy_handle) {
-        if (m_curl_easy_handle_is_in_multi) {
-            auto result = curl_multi_remove_handle(m_curl_multi_handle, m_curl_easy_handle);
-            VERIFY(result == CURLM_OK);
-        }
-
-        curl_easy_cleanup(m_curl_easy_handle);
-    }
-
-    for (auto* string_list : m_curl_string_lists)
-        curl_slist_free_all(string_list);
+    MUST(free_curl_structs());
 
     if (m_cache_entry_writer.has_value()) {
         if (m_state == State::Complete)
@@ -533,6 +561,37 @@ void Request::notify_fetch_complete(Badge<ConnectionFromClient>, int result_code
     if (m_type == RequestType::Fetch || m_type == RequestType::BackgroundRevalidation) {
         log_network_activity(m_url, m_method, m_curl_easy_handle, result_code, is_revalidation_request(), m_type);
         log_chunk_stats(this);
+    }
+
+    // Fetch requires unsupported content codings to be treated as identity:
+    // https://fetch.spec.whatwg.org/#handle-content-codings
+    //
+    // libcurl instead reports CURLE_BAD_CONTENT_ENCODING whenever automatic content decoding encounters an unknown
+    // coding. Retry safe requests with decoding disabled so that libcurl passes the response body through unchanged.
+    // Restricting this to responses that actually contain an unsupported coding ensures malformed data using a
+    // supported coding still produces a network error. Unsafe methods cannot be retried without potentially repeating
+    // their side effects, so they continue to fail until content decoding moves out of libcurl.
+    // https://github.com/curl/curl/discussions/21293
+    if (result_code == CURLE_BAD_CONTENT_ENCODING
+        && m_method.is_one_of("GET"sv, "HEAD"sv, "OPTIONS"sv)
+        && !m_content_decoding_disabled
+        && !m_sent_response_headers_to_client
+        && m_bytes_transferred_to_client == 0
+        && response_has_unsupported_content_encoding(*m_response_headers)) {
+        MUST(free_curl_structs());
+
+        m_response_headers->clear();
+        m_reason_phrase.clear();
+        m_status_code.clear();
+        m_content_decoding_disabled = true;
+
+        if constexpr (REQUESTSERVER_WIRE_DEBUG) {
+            wire_stats().remove(this);
+            wire_stats().ensure(this).created_at = MonotonicTime::now();
+        }
+
+        transition_to_state(State::Fetch);
+        return;
     }
 
     if (is_revalidation_request()) {
@@ -936,7 +995,13 @@ void Request::handle_fetch_state()
     if (auto const& path = default_certificate_path(); !path.is_empty())
         set_option(CURLOPT_CAINFO, path.characters());
 
-    set_option(CURLOPT_ACCEPT_ENCODING, ""); // Empty string lets curl define the accepted encodings.
+    if (m_content_decoding_disabled) {
+        set_option(CURLOPT_ACCEPT_ENCODING, "identity");
+        set_option(CURLOPT_HTTP_CONTENT_DECODING, 0L);
+    } else {
+        set_option(CURLOPT_ACCEPT_ENCODING, ""); // Empty string lets curl define the accepted encodings.
+    }
+
     set_option(CURLOPT_URL, m_url.to_byte_string().characters());
     set_option(CURLOPT_PORT, m_url.port_or_default());
     set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
@@ -1206,6 +1271,22 @@ ErrorOr<void> Request::detach_curl_handle_from_multi()
     return {};
 }
 
+ErrorOr<void> Request::free_curl_structs()
+{
+    TRY(detach_curl_handle_from_multi());
+
+    if (m_curl_easy_handle) {
+        curl_easy_cleanup(m_curl_easy_handle);
+        m_curl_easy_handle = nullptr;
+    }
+
+    for (auto* string_list : m_curl_string_lists)
+        curl_slist_free_all(string_list);
+    m_curl_string_lists.clear();
+
+    return {};
+}
+
 ErrorOr<void> Request::transfer_to_client(ConnectionFromClient& client, u64 request_id)
 {
     if (m_type == RequestType::BackgroundRevalidation)
@@ -1256,6 +1337,8 @@ ErrorOr<void> Request::send_transferred_body_file_to_client()
 ErrorOr<void> Request::inform_client_request_started()
 {
     if (m_type == RequestType::BackgroundRevalidation)
+        return {};
+    if (m_client_request_pipe.has_value())
         return {};
 
     auto request_pipe = RequestPipe::create();
