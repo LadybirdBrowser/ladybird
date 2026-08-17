@@ -19,6 +19,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EditingHostManager.h>
 #include <LibWeb/DOM/ElementFactory.h>
+#include <LibWeb/DOM/ElementRareData.h>
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/DOM/LiveNodeList.h>
 #include <LibWeb/DOM/Position.h>
@@ -62,6 +63,61 @@
 
 namespace Web::HTML {
 
+struct HTMLElement::RareData final : DOM::Element::RareData {
+    virtual void visit_edges(Cell::Visitor&) override;
+
+    GC::Ptr<DOM::NodeList> labels;
+
+    // https://html.spec.whatwg.org/multipage/custom-elements.html#attached-internals
+    GC::Ptr<ElementInternals> attached_internals;
+
+    // https://html.spec.whatwg.org/multipage/popover.html#popover-trigger
+    GC::Ptr<HTMLElement> popover_trigger;
+
+    // https://html.spec.whatwg.org/multipage/popover.html#the-popover-attribute:toggle-task-tracker
+    Optional<ToggleTaskTracker> popover_toggle_task_tracker;
+
+    // https://html.spec.whatwg.org/multipage/popover.html#popover-close-watcher
+    GC::Ptr<CloseWatcher> popover_close_watcher;
+
+    Optional<Utf16FlyString> opened_in_popover_mode;
+};
+
+void HTMLElement::RareData::visit_edges(Cell::Visitor& visitor)
+{
+    DOM::Element::RareData::visit_edges(visitor);
+    visitor.visit(labels);
+    visitor.visit(attached_internals);
+    visitor.visit(popover_trigger);
+    visitor.visit(popover_close_watcher);
+}
+
+OwnPtr<DOM::Node::RareData> HTMLElement::create_rare_data() const
+{
+    return make<RareData>();
+}
+
+HTMLElement::RareData& HTMLElement::ensure_html_element_rare_data() const
+{
+    return static_cast<RareData&>(ensure_rare_data());
+}
+
+HTMLElement::RareData* HTMLElement::html_element_rare_data()
+{
+    return static_cast<RareData*>(rare_data());
+}
+
+HTMLElement::RareData const* HTMLElement::html_element_rare_data() const
+{
+    return static_cast<RareData const*>(rare_data());
+}
+
+Optional<Utf16FlyString> HTMLElement::opened_in_popover_mode() const
+{
+    auto const* rare_data = html_element_rare_data();
+    return rare_data ? rare_data->opened_in_popover_mode : Optional<Utf16FlyString> {};
+}
+
 GC_DEFINE_ALLOCATOR(HTMLElement);
 
 static Optional<Utf16View> optional_utf16_view(Optional<Utf16String> const& string)
@@ -94,10 +150,6 @@ void HTMLElement::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     HTMLOrSVGOrMathMLElement::visit_edges(visitor);
     FormAssociatedElement::visit_edges(visitor);
-    visitor.visit(m_labels);
-    visitor.visit(m_attached_internals);
-    visitor.visit(m_popover_trigger);
-    visitor.visit(m_popover_close_watcher);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-translate
@@ -944,14 +996,15 @@ GC::Ptr<DOM::NodeList> HTMLElement::labels()
     if (!is_labelable())
         return {};
 
-    if (!m_labels) {
-        m_labels = DOM::LiveNodeList::create(root(), DOM::LiveNodeList::Scope::Descendants, [&](DOM::Node const& node) {
+    auto& labels = ensure_html_element_rare_data().labels;
+    if (!labels) {
+        labels = DOM::LiveNodeList::create(root(), DOM::LiveNodeList::Scope::Descendants, [&](DOM::Node const& node) {
             auto const* label_element = as_if<HTMLLabelElement>(node);
             return label_element && label_element->control().ptr() == this;
         });
     }
 
-    return m_labels;
+    return labels;
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-hidden
@@ -1186,7 +1239,7 @@ WebIDL::ExceptionOr<GC::Ref<ElementInternals>> HTMLElement::attach_internals()
         return WebIDL::NotSupportedError::create("ElementInternals are disabled for this custom element"_utf16);
 
     // 5. If this's attached internals is non-null, then throw an "NotSupportedError" DOMException.
-    if (m_attached_internals)
+    if (auto* rare_data = html_element_rare_data(); rare_data && rare_data->attached_internals)
         return WebIDL::NotSupportedError::create("ElementInternals already attached"_utf16);
 
     // 6. If this's custom element state is not "precustomized" or "custom", then throw a "NotSupportedError" DOMException.
@@ -1196,7 +1249,7 @@ WebIDL::ExceptionOr<GC::Ref<ElementInternals>> HTMLElement::attach_internals()
     // 7. Set this's attached internals to a new ElementInternals instance whose target element is this.
     auto internals = ElementInternals::create(*this);
 
-    m_attached_internals = internals;
+    ensure_html_element_rare_data().attached_internals = internals;
 
     // 8. Return this's attached internals.
     return { internals };
@@ -1297,11 +1350,13 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     if (!TRY(check_popover_validity(ExpectedToBeShowing::No, throw_exceptions, nullptr, IgnoreDomState::No)))
         return {};
 
+    auto& rare_data = ensure_html_element_rare_data();
+
     // 2. Let document be element's node document.
     auto& document = this->document();
 
     // 3. Assert: element's popover trigger is null.
-    VERIFY(!m_popover_trigger);
+    VERIFY(!rare_data.popover_trigger);
 
     // 4. Assert: element is not in document's top layer.
     VERIFY(!in_top_layer());
@@ -1449,7 +1504,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
             document.showing_auto_popover_list().append(*this);
 
             // 2. Set element's opened in popover mode to "auto".
-            m_opened_in_popover_mode = "auto"_utf16_fly_string;
+            rare_data.opened_in_popover_mode = "auto"_utf16_fly_string;
         }
         // Otherwise:
         else {
@@ -1464,7 +1519,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
             document.showing_hint_popover_list().append(*this);
 
             // 3. Set element's opened in popover mode to "hint".
-            m_opened_in_popover_mode = "hint"_utf16_fly_string;
+            rare_data.opened_in_popover_mode = "hint"_utf16_fly_string;
         }
 
         // 6. Set element's popover close watcher to the result of establishing a close watcher given element's relevant global object, with:
@@ -1482,8 +1537,8 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
         // - getEnabledState being to return true.
         auto get_enabled_state = GC::create_function(GC::Heap::the(), [] { return true; });
 
-        m_popover_close_watcher = CloseWatcher::establish(*document.window(), move(get_enabled_state));
-        m_popover_close_watcher->add_event_listener_without_options(HTML::EventNames::close, DOM::IDLEventListener::create(close_callback));
+        rare_data.popover_close_watcher = CloseWatcher::establish(*document.window(), move(get_enabled_state));
+        rare_data.popover_close_watcher->add_event_listener_without_options(HTML::EventNames::close, DOM::IDLEventListener::create(close_callback));
     }
     // FIXME: 19. Set element's previously focused element to null.
     // FIXME: 20. Let originallyFocusedElement be document's focused area of the document's DOM anchor.
@@ -1492,7 +1547,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     // 22. Set element's popover visibility state to showing.
     set_popover_visibility_state(PopoverVisibilityState::Showing);
     // 23. Set element's popover trigger to source.
-    m_popover_trigger = source;
+    rare_data.popover_trigger = source;
     // FIXME: 24. Set element's implicit anchor element to source.
     // FIXME: 25. Run the popover focusing steps given element.
     // FIXME: 26. If shouldRestoreFocus is true and element's popover attribute is not in the No Popover state, then set element's previously focused element to originallyFocusedElement.
@@ -1520,6 +1575,8 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
     if (!TRY(check_popover_validity(ExpectedToBeShowing::Yes, throw_exceptions, nullptr, ignore_dom_state)))
         return {};
 
+    auto& rare_data = ensure_html_element_rare_data();
+
     // 2. Let document be element's node document.
     auto& document = this->document();
 
@@ -1534,21 +1591,21 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
         fire_events = FireEvents::No;
 
     // 6. Let cleanupSteps be the following steps:
-    auto cleanup_steps = [&nested_hide, this] {
+    auto cleanup_steps = [&nested_hide, &rare_data, this] {
         // 6.1. If nestedHide is false, then set element's popover showing or hiding to false.
-        if (nested_hide)
+        if (!nested_hide)
             m_popover_showing_or_hiding = false;
         // 6.2. If element's popover close watcher is not null, then:
-        if (m_popover_close_watcher) {
+        if (rare_data.popover_close_watcher) {
             // 6.2.1. Destroy element's popover close watcher.
-            m_popover_close_watcher->destroy();
+            rare_data.popover_close_watcher->destroy();
             // 6.2.2. Set element's popover close watcher to null.
-            m_popover_close_watcher = nullptr;
+            rare_data.popover_close_watcher = nullptr;
         }
     };
 
     // 7. If element's opened in popover mode is "auto" or "hint", then:
-    if (m_opened_in_popover_mode.has_value() && m_opened_in_popover_mode->is_one_of(u"auto"sv, u"hint"sv)) {
+    if (rare_data.opened_in_popover_mode.has_value() && rare_data.opened_in_popover_mode->is_one_of(u"auto"sv, u"hint"sv)) {
         // 7.1. Run hide all popovers until given element, focusPreviousElement, and fireEvents.
         hide_all_popovers_until(GC::Ptr(this), focus_previous_element, fire_events);
 
@@ -1595,12 +1652,12 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
     // Spec issue: https://github.com/whatwg/html/issues/11007
 
     // If element's opened in popover mode is "auto" or "hint":
-    if (m_opened_in_popover_mode.has_value() && m_opened_in_popover_mode->is_one_of(u"auto"sv, u"hint"sv)) {
+    if (rare_data.opened_in_popover_mode.has_value() && rare_data.opened_in_popover_mode->is_one_of(u"auto"sv, u"hint"sv)) {
         // If document's showing hint popover list's last item is element:
         auto& hint_popovers = document.showing_hint_popover_list();
         if (!hint_popovers.is_empty() && hint_popovers.last().ptr() == this) {
             // Assert: element's opened in popover mode is "hint".
-            VERIFY(m_opened_in_popover_mode == u"hint"sv);
+            VERIFY(rare_data.opened_in_popover_mode == u"hint"sv);
 
             // Remove the last item from document's showing hint popover list.
             hint_popovers.remove(hint_popovers.size() - 1);
@@ -1617,10 +1674,10 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
     }
 
     // 11. Set element's popover trigger to null.
-    m_popover_trigger = nullptr;
+    rare_data.popover_trigger = nullptr;
 
     // 12. Set element's opened in popover mode to null.
-    m_opened_in_popover_mode = {};
+    rare_data.opened_in_popover_mode = {};
 
     // 13. Set element's popover visibility state to hidden.
     set_popover_visibility_state(PopoverVisibilityState::Hidden);
@@ -1696,7 +1753,7 @@ void HTMLElement::hide_all_popovers_until(Variant<GC::Ptr<HTMLElement>, GC::Ptr<
     VERIFY(endpoint.has<GC::Ptr<DOM::Document>>() || endpoint.get<GC::Ptr<HTMLElement>>()->popover_visibility_state() == PopoverVisibilityState::Showing);
 
     // 4. Assert: endpoint is a Document or endpoint's popover attribute is in the auto state or endpoint's popover attribute is in the hint state.
-    VERIFY(endpoint.has<GC::Ptr<DOM::Document>>() || endpoint.get<GC::Ptr<HTMLElement>>()->m_opened_in_popover_mode->is_one_of(u"auto"sv, u"hint"sv));
+    VERIFY(endpoint.has<GC::Ptr<DOM::Document>>() || endpoint.get<GC::Ptr<HTMLElement>>()->opened_in_popover_mode()->is_one_of(u"auto"sv, u"hint"sv));
 
     // 5. If endpoint is a Document:
     if (endpoint.has<GC::Ptr<DOM::Document>>()) {
@@ -1714,7 +1771,7 @@ void HTMLElement::hide_all_popovers_until(Variant<GC::Ptr<HTMLElement>, GC::Ptr<
     auto endpoint_element = endpoint.get<GC::Ptr<HTMLElement>>();
     if (document->showing_hint_popover_list().contains_slow(GC::Ref(*endpoint_element))) {
         // 1. Assert: endpoint's popover attribute is in the hint state.
-        VERIFY(endpoint_element->m_opened_in_popover_mode == u"hint"sv);
+        VERIFY(endpoint_element->opened_in_popover_mode() == u"hint"sv);
 
         // 2. Run hide popover stack until given endpoint, document's showing hint popover list, focusPreviousElement, and fireEvents.
         endpoint_element->hide_popover_stack_until(document->showing_hint_popover_list(), focus_previous_element, fire_events);
@@ -1949,18 +2006,20 @@ GC::Ptr<HTMLElement> HTMLElement::nearest_inclusive_target_popover()
 // https://html.spec.whatwg.org/multipage/popover.html#queue-a-popover-toggle-event-task
 void HTMLElement::queue_a_popover_toggle_event_task(Utf16FlyString old_state, Utf16FlyString new_state, GC::Ptr<HTMLElement> source)
 {
+    auto& popover_toggle_task_tracker = ensure_html_element_rare_data().popover_toggle_task_tracker;
+
     // 1. If element's popover toggle task tracker is not null, then:
-    if (m_popover_toggle_task_tracker.has_value()) {
+    if (popover_toggle_task_tracker.has_value()) {
         // 1. Set oldState to element's popover toggle task tracker's old state.
-        old_state = move(m_popover_toggle_task_tracker->old_state);
+        old_state = move(popover_toggle_task_tracker->old_state);
 
         // 2. Remove element's popover toggle task tracker's task from its task queue.
         HTML::main_thread_event_loop().task_queue().remove_tasks_matching([&](auto const& task) {
-            return task.id() == m_popover_toggle_task_tracker->task_id;
+            return task.id() == popover_toggle_task_tracker->task_id;
         });
 
         // 3. Set element's popover toggle task tracker to null.
-        m_popover_toggle_task_tracker->task_id = {};
+        popover_toggle_task_tracker.clear();
     }
 
     // 2. Queue an element task given the DOM manipulation task source and element to run the following steps:
@@ -1975,11 +2034,11 @@ void HTMLElement::queue_a_popover_toggle_event_task(Utf16FlyString old_state, Ut
         dispatch_event(ToggleEvent::create(HTML::EventNames::toggle, move(event_init), HighResolutionTime::current_high_resolution_time(relevant_global_object(*this))));
 
         // 2. Set element's popover toggle task tracker to null.
-        m_popover_toggle_task_tracker = {};
+        ensure_html_element_rare_data().popover_toggle_task_tracker = {};
     });
 
     // 3. Set element's popover toggle task tracker to a struct with task set to the just-queued task and old state set to oldState.
-    m_popover_toggle_task_tracker = ToggleTaskTracker {
+    popover_toggle_task_tracker = ToggleTaskTracker {
         .task_id = task_id,
         .old_state = move(old_state),
     };

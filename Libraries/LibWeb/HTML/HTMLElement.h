@@ -149,7 +149,7 @@ public:
 
     void set_popover(Optional<Utf16String> value);
     Optional<Utf16FlyString> popover() const;
-    Optional<Utf16FlyString> opened_in_popover_mode() const { return m_opened_in_popover_mode; }
+    Optional<Utf16FlyString> opened_in_popover_mode() const;
 
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
     virtual void moved_from(IsSubtreeRoot, GC::Ptr<DOM::Node> old_ancestor) override;
@@ -205,6 +205,12 @@ protected:
     [[nodiscard]] Utf16String get_the_text_steps();
 
 private:
+    struct RareData;
+    virtual OwnPtr<DOM::Node::RareData> create_rare_data() const override;
+    RareData& ensure_html_element_rare_data() const;
+    RareData* html_element_rare_data();
+    RareData const* html_element_rare_data() const;
+
     virtual bool is_html_element() const final { return true; }
 
     // ^FormAssociatedElement
@@ -217,8 +223,6 @@ private:
 
     GC::Ref<DOM::DocumentFragment> rendered_text_fragment(Utf16View const& input);
 
-    GC::Ptr<DOM::NodeList> m_labels;
-
     void queue_a_popover_toggle_event_task(Utf16FlyString old_state, Utf16FlyString new_state, GC::Ptr<HTMLElement> source);
 
     static Optional<Utf16FlyString> popover_value_to_state(Optional<Utf16View> value);
@@ -228,9 +232,6 @@ private:
     static void close_entire_popover_list(Vector<GC::Ref<HTMLElement>> const& popover_list, FocusPreviousElement focus_previous_element, FireEvents fire_events);
     static GC::Ptr<HTMLElement> topmost_clicked_popover(GC::Ptr<DOM::Node> node);
     size_t popover_stack_position();
-
-    // https://html.spec.whatwg.org/multipage/custom-elements.html#attached-internals
-    GC::Ptr<ElementInternals> m_attached_internals;
 
     // https://html.spec.whatwg.org/multipage/interaction.html#attr-contenteditable
     ContentEditableState m_content_editable_state { ContentEditableState::Inherit };
@@ -247,17 +248,6 @@ private:
 
     // https://html.spec.whatwg.org/multipage/popover.html#popover-showing-or-hiding
     bool m_popover_showing_or_hiding { false };
-
-    // https://html.spec.whatwg.org/multipage/popover.html#popover-trigger
-    GC::Ptr<HTMLElement> m_popover_trigger;
-
-    // https://html.spec.whatwg.org/multipage/popover.html#the-popover-attribute:toggle-task-tracker
-    Optional<ToggleTaskTracker> m_popover_toggle_task_tracker;
-
-    // https://html.spec.whatwg.org/multipage/popover.html#popover-close-watcher
-    GC::Ptr<CloseWatcher> m_popover_close_watcher;
-
-    Optional<Utf16FlyString> m_opened_in_popover_mode;
 };
 
 }
