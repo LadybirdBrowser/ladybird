@@ -253,6 +253,9 @@ ValueComparingNonnullRefPtr<StyleValue const> CalculatedStyleValue::absolutized(
     if (result.is_percentage)
         return PercentageStyleValue::create(Percentage { result.percentage_value });
 
+    if (result.collapsed)
+        return adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(result.collapsed));
+
     // The simplified root transfers straight into the new value's data; no
     // C++ tree is materialized.
     return adopt_ref(*new (nothrow) CalculatedStyleValue(result.simplified, resolved_type(), calculation_context));

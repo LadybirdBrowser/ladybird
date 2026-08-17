@@ -1,0 +1,19 @@
+<!doctype html>
+<div id="target"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        target.style.zIndex = "calc(1 + 234)";
+        println(`z-index calc: ${getComputedStyle(target).zIndex}`);
+        target.style.zIndex = "235";
+        println(`z-index numeric: ${getComputedStyle(target).zIndex}`);
+        target.style.flexGrow = "calc(2.5 * 2)";
+        println(`flex-grow calc: ${getComputedStyle(target).flexGrow}`);
+        target.style.flexGrow = "5";
+        println(`flex-grow numeric: ${getComputedStyle(target).flexGrow}`);
+        target.style.orphans = "calc(235)";
+        println(`orphans calc: ${getComputedStyle(target).orphans}`);
+        target.style.orphans = "235";
+        println(`orphans numeric: ${getComputedStyle(target).orphans}`);
+    });
+</script>

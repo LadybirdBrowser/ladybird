@@ -124,7 +124,12 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                             if (!computation_context.has_value())
                                 return nullptr;
 
-                            resolved_weight = weight->absolutized(computation_context.value())->as_calculated().resolve_integer({}).value();
+                            auto absolutized_weight = weight->absolutized(computation_context.value());
+                            if (absolutized_weight->is_integer()) {
+                                resolved_weight = absolutized_weight->as_integer().integer();
+                            } else {
+                                resolved_weight = absolutized_weight->as_calculated().resolve_integer({}).value();
+                            }
                         }
 
                         if (resolved_weight >= previous_weight)
@@ -218,7 +223,10 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                             if (!computation_context.has_value())
                                 return {};
 
-                            return value.absolutized(computation_context.value())->as_calculated().resolve_integer({}).value();
+                            auto absolutized_value = value.absolutized(computation_context.value());
+                            if (absolutized_value->is_integer())
+                                return absolutized_value->as_integer().integer();
+                            return absolutized_value->as_calculated().resolve_integer({}).value();
                         };
 
                         auto first_value = parse_value();
