@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/OwnPtr.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
@@ -137,18 +138,18 @@ public:
 
     void update_face_disabled_state();
 
-    ValidityStateFlags const& face_validity_flags() const { return m_face_validity_flags; }
+    ValidityStateFlags const& face_validity_flags() const;
     void set_face_validity_flags(Badge<ElementInternals>, ValidityStateFlags const& value);
 
-    Utf16String const& face_validation_message() const { return m_face_validation_message; }
+    Utf16String const& face_validation_message() const;
     void set_face_validation_message(Badge<ElementInternals>, Utf16View value);
 
     void set_face_validation_anchor(Badge<ElementInternals>, GC::Ptr<HTMLElement> value);
 
-    FACESubmissionValue const& face_submission_value() const { return m_face_submission_value; }
+    FACESubmissionValue const& face_submission_value() const;
     void set_face_submission_value(Badge<ElementInternals>, FACESubmissionValue const& value);
 
-    FACESubmissionValue const& face_state() const { return m_face_state; }
+    FACESubmissionValue const& face_state() const;
     void set_face_state(Badge<ElementInternals>, FACESubmissionValue const& value);
 
     void set_custom_validity_error_message(Badge<ElementInternals>, Utf16View value) { m_custom_validity_error_message = Utf16String::from_utf16(value); }
@@ -170,34 +171,41 @@ protected:
     void visit_edges(JS::Cell::Visitor&);
 
 private:
+    struct FACERareData {
+        ValidityStateFlags validity_flags {};
+
+        // https://html.spec.whatwg.org/multipage/custom-elements.html#face-validation-message
+        // Each form-associated custom element has a validation message string. It is the empty string initially.
+        Utf16String validation_message;
+
+        // https://html.spec.whatwg.org/multipage/custom-elements.html#face-validation-anchor
+        // Each form-associated custom element has a validation anchor element. It is null initially.
+        GC::Weak<HTMLElement> validation_anchor;
+
+        // https://html.spec.whatwg.org/multipage/custom-elements.html#face-submission-value
+        // Each form-associated custom element has submission value. It is used to provide one or more entries on form
+        // submission. The initial value is null, and it can be null, a string, a File, or a list of entries.
+        FACESubmissionValue submission_value;
+
+        // https://html.spec.whatwg.org/multipage/custom-elements.html#face-state
+        // Each form-associated custom element has state. The initial value is null, and it can be null, a string, a File,
+        // or a list of entries.
+        FACESubmissionValue state;
+
+        // AD-HOC: Cache the disabled state to detect changes and enqueue formDisabledCallback.
+        bool disabled_state { false };
+    };
+
+    FACERareData const& face_rare_data() const;
+    FACERareData& ensure_face_rare_data();
+
     GC::Weak<HTMLFormElement> m_form;
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#parser-inserted-flag
     bool m_parser_inserted { false };
 
-    ValidityStateFlags m_face_validity_flags {};
-
-    // https://html.spec.whatwg.org/multipage/custom-elements.html#face-validation-message
-    // Each form-associated custom element has a validation message string. It is the empty string initially.
-    Utf16String m_face_validation_message;
-
-    // https://html.spec.whatwg.org/multipage/custom-elements.html#face-validation-anchor
-    // Each form-associated custom element has a validation anchor element. It is null initially.
-    GC::Weak<HTMLElement> m_face_validation_anchor;
-
-    // https://html.spec.whatwg.org/multipage/custom-elements.html#face-submission-value
-    // Each form-associated custom element has submission value. It is used to provide one or more entries on form submission.
-    // The initial value of submission value is null, and submission value can be null, a string, a File, or a list of entries.
-    FACESubmissionValue m_face_submission_value;
-
-    // https://html.spec.whatwg.org/multipage/custom-elements.html#face-state
-    // Each form-associated custom element has state. It is information with which the user agent can restore a user's input
-    // for the element. The initial value of state is null, and state can be null, a string, a File, or a list of entries.
-    FACESubmissionValue m_face_state;
-
-    // AD-HOC: Cached disabled state for form-associated custom elements, used to detect changes
-    //         and enqueue formDisabledCallback. Only meaningful for FACEs.
-    bool m_face_disabled_state { false };
+    // State used only by form-associated custom elements.
+    OwnPtr<FACERareData> m_face_rare_data;
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#custom-validity-error-message
     Utf16String m_custom_validity_error_message;

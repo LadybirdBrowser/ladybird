@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
@@ -42,6 +43,39 @@
 #include <LibWeb/VisualLines.h>
 
 namespace Web::HTML {
+
+FormAssociatedElement::FACERareData& FormAssociatedElement::ensure_face_rare_data()
+{
+    if (!m_face_rare_data)
+        m_face_rare_data = make<FACERareData>();
+    return *m_face_rare_data;
+}
+
+FormAssociatedElement::FACERareData const& FormAssociatedElement::face_rare_data() const
+{
+    static NeverDestroyed<FACERareData> empty_data;
+    return m_face_rare_data ? *m_face_rare_data : *empty_data;
+}
+
+ValidityStateFlags const& FormAssociatedElement::face_validity_flags() const
+{
+    return face_rare_data().validity_flags;
+}
+
+Utf16String const& FormAssociatedElement::face_validation_message() const
+{
+    return face_rare_data().validation_message;
+}
+
+FormAssociatedElement::FACESubmissionValue const& FormAssociatedElement::face_submission_value() const
+{
+    return face_rare_data().submission_value;
+}
+
+FormAssociatedElement::FACESubmissionValue const& FormAssociatedElement::face_state() const
+{
+    return face_rare_data().state;
+}
 
 static SelectionDirection string_to_selection_direction(Utf16View value)
 {
@@ -333,10 +367,10 @@ void FormAssociatedElement::update_face_disabled_state()
         return;
 
     bool is_disabled = !enabled();
-    if (is_disabled == m_face_disabled_state)
+    if (is_disabled == face_rare_data().disabled_state)
         return;
 
-    m_face_disabled_state = is_disabled;
+    ensure_face_rare_data().disabled_state = is_disabled;
 
     html_element.enqueue_a_form_disabled_callback_reaction(is_disabled);
 }
@@ -566,21 +600,21 @@ bool FormAssociatedElement::novalidate_state() const
 bool FormAssociatedElement::suffering_from_being_missing() const
 {
     // When the setValidity() method sets valueMissing flag to true for a form-associated custom element.
-    return m_face_validity_flags.value_missing;
+    return face_validity_flags().value_missing;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-a-type-mismatch
 bool FormAssociatedElement::suffering_from_a_type_mismatch() const
 {
     // When the setValidity() method sets typeMismatch flag to true for a form-associated custom element.
-    return m_face_validity_flags.type_mismatch;
+    return face_validity_flags().type_mismatch;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-a-pattern-mismatch
 bool FormAssociatedElement::suffering_from_a_pattern_mismatch() const
 {
     // When the setValidity() method sets patternMismatch flag to true for a form-associated custom element.
-    return m_face_validity_flags.pattern_mismatch;
+    return face_validity_flags().pattern_mismatch;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-being-too-long
@@ -588,7 +622,7 @@ bool FormAssociatedElement::suffering_from_being_too_long() const
 {
     // When the setValidity() method sets tooLong flag to true for a form-associated custom element.
     // FIXME: Implement this for non-FACEs.
-    return m_face_validity_flags.too_long;
+    return face_validity_flags().too_long;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-being-too-short
@@ -596,35 +630,35 @@ bool FormAssociatedElement::suffering_from_being_too_short() const
 {
     // When the setValidity() method sets tooShort flag to true for a form-associated custom element.
     // FIXME: Implement this for non-FACEs.
-    return m_face_validity_flags.too_short;
+    return face_validity_flags().too_short;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-an-overflow
 bool FormAssociatedElement::suffering_from_an_underflow() const
 {
     // When the setValidity() method sets rangeUnderflow flag to true for a form-associated custom element.
-    return m_face_validity_flags.range_underflow;
+    return face_validity_flags().range_underflow;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-an-overflow
 bool FormAssociatedElement::suffering_from_an_overflow() const
 {
     // When the setValidity() method sets rangeOverflow flag to true for a form-associated custom element.
-    return m_face_validity_flags.range_overflow;
+    return face_validity_flags().range_overflow;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-a-step-mismatch
 bool FormAssociatedElement::suffering_from_a_step_mismatch() const
 {
     // When the setValidity() method sets stepMismatch flag to true for a form-associated custom element.
-    return m_face_validity_flags.step_mismatch;
+    return face_validity_flags().step_mismatch;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-bad-input
 bool FormAssociatedElement::suffering_from_bad_input() const
 {
     // When the setValidity() method sets badInput flag to true for a form-associated custom element.
-    return m_face_validity_flags.bad_input;
+    return face_validity_flags().bad_input;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-a-custom-error
@@ -637,38 +671,41 @@ bool FormAssociatedElement::suffering_from_a_custom_error() const
 
 void FormAssociatedElement::set_face_validity_flags(Badge<ElementInternals>, ValidityStateFlags const& value)
 {
-    m_face_validity_flags = value;
+    ensure_face_rare_data().validity_flags = value;
 }
 
 void FormAssociatedElement::set_face_validation_message(Badge<ElementInternals>, Utf16View value)
 {
-    m_face_validation_message = Utf16String::from_utf16(value);
+    ensure_face_rare_data().validation_message = Utf16String::from_utf16(value);
 }
 
 void FormAssociatedElement::set_face_validation_anchor(Badge<ElementInternals>, GC::Ptr<HTMLElement> value)
 {
-    m_face_validation_anchor = value;
+    ensure_face_rare_data().validation_anchor = value;
 }
 
 void FormAssociatedElement::set_face_submission_value(Badge<ElementInternals>, FACESubmissionValue const& value)
 {
-    m_face_submission_value = value;
+    ensure_face_rare_data().submission_value = value;
 }
 
 void FormAssociatedElement::set_face_state(Badge<ElementInternals>, FACESubmissionValue const& value)
 {
-    m_face_state = value;
+    ensure_face_rare_data().state = value;
 }
 
 void FormAssociatedElement::visit_edges(JS::Cell::Visitor& visitor)
 {
-    m_face_submission_value.visit(
+    if (!m_face_rare_data)
+        return;
+
+    m_face_rare_data->submission_value.visit(
         [&visitor](GC::Ref<FileAPI::File> file) {
             visitor.visit(file);
         },
         [](auto&) {});
 
-    m_face_state.visit(
+    m_face_rare_data->state.visit(
         [&visitor](GC::Ref<FileAPI::File> file) {
             visitor.visit(file);
         },
