@@ -1,0 +1,9 @@
+container before: rgb(20, 20, 20)
+child before: rgb(20, 20, 20)
+container started one transition: true
+child started one transition: true
+child transition property: background-color
+child transition survived resampling: true
+container and child midpoints match: true
+container after: rgb(220, 220, 220)
+child after: rgb(220, 220, 220)
