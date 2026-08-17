@@ -1409,6 +1409,7 @@ impl ImpactRegions {
     /// full trigger, which is always sound.
     pub(super) fn compile_patch_cover(&self, tree: &StyleNodeTree, document_root: Option<StyleNodeID>) -> PatchCover {
         let mut keys: Vec<(RuleID, EntryID)> = Vec::new();
+        let mut key_indices: super::HashMap<(RuleID, EntryID), u32> = super::HashMap::default();
         let mut intervals: Vec<(u32, u32, u32)> = Vec::new();
         let mut demoted: Vec<ImpactRegion> = Vec::new();
         let mut scratch: Vec<PreorderInterval> = Vec::new();
@@ -1419,11 +1420,13 @@ impl ImpactRegions {
                     demoted.push(region);
                     continue;
                 }
-                let key_index = match keys.iter().position(|&existing| existing == key) {
-                    Some(index) => index as u32,
+                let key_index = match key_indices.get(&key).copied() {
+                    Some(index) => index,
                     None => {
+                        let index = u32::try_from(keys.len()).expect("patch attribution key space exhausted");
                         keys.push(key);
-                        (keys.len() - 1) as u32
+                        key_indices.insert(key, index);
+                        index
                     }
                 };
                 for interval in &scratch {

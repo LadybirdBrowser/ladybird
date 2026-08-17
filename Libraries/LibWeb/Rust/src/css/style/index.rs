@@ -2154,33 +2154,6 @@ impl RuleDispatch {
         &self.entries
     }
 
-    pub(super) fn cascade_orders_in_identity_order(
-        &self,
-    ) -> impl Iterator<Item = (RuleID, SelectorProgramID, u32, u32)> + '_ {
-        self.cascade_order_rule_pages
-            .iter()
-            .enumerate()
-            .flat_map(move |(page_index, page)| {
-                page.as_deref().into_iter().flat_map(move |page| {
-                    page.iter()
-                        .enumerate()
-                        .filter(|(_, rule)| rule.entry_count != 0)
-                        .flat_map(move |(slot, rule)| {
-                            (0..rule.entry_count).map(move |entry| {
-                                let rule_index = page_index * CASCADE_ORDER_RULE_PAGE_SIZE + slot;
-                                let order_index = rule.entry_start as usize + entry as usize;
-                                (
-                                    RuleID(u32::try_from(rule_index).expect("rule identity space exhausted")),
-                                    rule.program,
-                                    entry,
-                                    self.cascade_orders_by_rule_entry[order_index],
-                                )
-                            })
-                        })
-                })
-            })
-    }
-
     fn index_universal_entry(&mut self, id: DispatchRow) {
         let entry = self.entries[id.index()];
         let topology = self.topology_mut();

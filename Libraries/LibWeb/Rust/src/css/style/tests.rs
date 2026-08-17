@@ -5020,8 +5020,9 @@ fn shared_retained_answer_completion_reuses_compact_cascade_state() {
     );
 
     let (_, dispatch) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
-    let orders = RetainedAnswerCascadeOrders::Dispatch(&dispatch);
-    let first = engine.complete_published_match_answer(nodes[2], Some(orders)).unwrap();
+    let first = engine
+        .complete_published_match_answer(nodes[2], Some(&dispatch))
+        .unwrap();
     let cascade_input = first.cascade_input.unwrap();
     assert!(engine.shared_cascade_completion_is_profitable(first_identity, cascade_input));
     let compaction_rows = engine.counters().get(Counter::CascadeMatchesBeforeCompaction);
@@ -5031,7 +5032,7 @@ fn shared_retained_answer_completion_reuses_compact_cascade_state() {
             nodes[3],
             nodes[2],
             cascade_input,
-            orders,
+            &dispatch,
             first.cascade_winners_are_complete,
         )
         .unwrap();

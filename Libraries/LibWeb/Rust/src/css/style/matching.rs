@@ -213,26 +213,11 @@ impl StyleEngine {
         None
     }
 
-    pub(super) fn retained_answer_cascade_orders_for_traversal(
+    pub(super) fn retained_answer_dispatch_for_traversal(
         &mut self,
         reuse_retained_match_answers: bool,
-    ) -> (Vec<RetainedAnswerCascadeOrder>, u64) {
-        if !reuse_retained_match_answers {
-            return (Vec::new(), 0);
-        }
-        let (_, dispatch) = self.ranked_scope_program(TreeScopeID::DOCUMENT);
-        let orders: Vec<RetainedAnswerCascadeOrder> = dispatch
-            .cascade_orders_in_identity_order()
-            .map(|(rule, program, entry, cascade_order)| RetainedAnswerCascadeOrder {
-                rule,
-                program,
-                entry,
-                cascade_order,
-            })
-            .collect();
-        let bytes = (orders.capacity() * size_of::<RetainedAnswerCascadeOrder>()) as u64;
-        self.memory.reserve_required(MemoryCategory::BatchScratch, bytes);
-        (orders, bytes)
+    ) -> Option<Rc<RuleDispatch>> {
+        reuse_retained_match_answers.then(|| self.ranked_scope_program(TreeScopeID::DOCUMENT).1)
     }
 
     /// Share current facts and selector work while a scoped plan completes typed answer misses.
@@ -275,8 +260,7 @@ impl StyleEngine {
             batch,
             topology: None,
             reuse_retained_match_answers: false,
-            retained_answer_cascade_orders: Vec::new(),
-            retained_answer_cascade_order_bytes: 0,
+            retained_answer_dispatch: None,
             ancestor_requirements: AncestorRequirementsCache::default(),
             prefix_caches: Rc::clone(&self.prefix_caches),
             match_workspace: MatchEvaluationWorkspace::default(),
@@ -352,15 +336,13 @@ impl StyleEngine {
             caches.states.make_scratch(&mut self.memory);
             caches.answers.make_scratch(&mut self.memory);
         }
-        let (retained_answer_cascade_orders, retained_answer_cascade_order_bytes) =
-            self.retained_answer_cascade_orders_for_traversal(reuse_retained_match_answers);
+        let retained_answer_dispatch = self.retained_answer_dispatch_for_traversal(reuse_retained_match_answers);
         Box::new(BatchMatchingTraversal {
             root,
             batch: Some(batch),
             topology,
             reuse_retained_match_answers,
-            retained_answer_cascade_orders,
-            retained_answer_cascade_order_bytes,
+            retained_answer_dispatch,
             ancestor_requirements: AncestorRequirementsCache::default(),
             prefix_caches: Rc::clone(&self.prefix_caches),
             match_workspace,
@@ -450,15 +432,13 @@ impl StyleEngine {
             caches.states.make_scratch(&mut self.memory);
             caches.answers.make_scratch(&mut self.memory);
         }
-        let (retained_answer_cascade_orders, retained_answer_cascade_order_bytes) =
-            self.retained_answer_cascade_orders_for_traversal(reuse_retained_match_answers);
+        let retained_answer_dispatch = self.retained_answer_dispatch_for_traversal(reuse_retained_match_answers);
         self.batch_matching_traversal = Some(Box::new(BatchMatchingTraversal {
             root,
             batch: None,
             topology,
             reuse_retained_match_answers,
-            retained_answer_cascade_orders,
-            retained_answer_cascade_order_bytes,
+            retained_answer_dispatch,
             ancestor_requirements: AncestorRequirementsCache::default(),
             prefix_caches: Rc::clone(&self.prefix_caches),
             match_workspace,
@@ -574,10 +554,6 @@ impl StyleEngine {
             self.memory.release(
                 MemoryCategory::BatchScratch,
                 traversal.cascade_compaction_workspace_bytes,
-            );
-            self.memory.release(
-                MemoryCategory::BatchScratch,
-                traversal.retained_answer_cascade_order_bytes,
             );
             self.discard_published_match_answers();
         }
@@ -2813,24 +2789,21 @@ impl StyleEngine {
     pub(super) fn complete_published_match_answer(
         &mut self,
         node: StyleNodeID,
-        retained_answer_cascade_orders: Option<RetainedAnswerCascadeOrders<'_>>,
+        retained_answer_dispatch: Option<&RuleDispatch>,
     ) -> Result<PublishedMatchAnswer, Incomplete> {
         if !self.match_answer_is_retainable(node) {
             self.retained_match_answers.forget_answer(&mut self.match_answers, node);
         }
         let tree_scope = self.tree.tree_scope(node);
         let scoped_dispatch = (tree_scope != TreeScopeID::DOCUMENT).then(|| self.ranked_scope_program(tree_scope).1);
-        let retained_answer_cascade_orders = scoped_dispatch
-            .as_deref()
-            .map(RetainedAnswerCascadeOrders::Dispatch)
-            .or(retained_answer_cascade_orders);
-        let retained_answer = retained_answer_cascade_orders.and_then(|orders| {
+        let retained_answer_dispatch = scoped_dispatch.as_deref().or(retained_answer_dispatch);
+        let retained_answer = retained_answer_dispatch.and_then(|dispatch| {
             let retained = Rc::clone(self.retained_match_answer(node).sparse().ok()?);
             let exact_answer = retained
                 .iter()
                 .copied()
                 .map(|entry| {
-                    let cascade_order = orders.cascade_order_for_entry(entry.rule, entry.program, entry.entry)?;
+                    let cascade_order = dispatch.cascade_order_for_entry(entry.rule, entry.program, entry.entry)?;
                     entry.materialize(node, &self.programs, cascade_order)
                 })
                 .collect::<Option<Vec<_>>>()?;
@@ -2883,7 +2856,7 @@ impl StyleEngine {
         node: StyleNodeID,
         source: StyleNodeID,
         cascade_input: MatchAnswerID,
-        orders: RetainedAnswerCascadeOrders<'_>,
+        dispatch: &RuleDispatch,
         cascade_winners_are_complete: bool,
     ) -> Option<PublishedMatchAnswer> {
         let compact = Rc::clone(self.match_answers.answer(cascade_input)?);
@@ -2891,7 +2864,7 @@ impl StyleEngine {
             .iter()
             .copied()
             .map(|entry| {
-                let cascade_order = orders.cascade_order_for_entry(entry.rule, entry.program, entry.entry)?;
+                let cascade_order = dispatch.cascade_order_for_entry(entry.rule, entry.program, entry.entry)?;
                 entry.materialize(node, &self.programs, cascade_order)
             })
             .collect::<Option<Vec<_>>>()?;
@@ -3137,11 +3110,11 @@ impl StyleEngine {
     }
 
     pub fn complete_published_match_answers_for_closure(&mut self, nodes: &[StyleNodeID]) -> Result<(), Incomplete> {
-        let retained_answer_cascade_orders = self
+        let retained_answer_dispatch = self
             .batch_matching_traversal
-            .as_mut()
-            .map(|traversal| std::mem::take(&mut traversal.retained_answer_cascade_orders));
-        let result = (|| {
+            .as_ref()
+            .and_then(|traversal| traversal.retained_answer_dispatch.clone());
+        (|| {
             let mut completed = 0;
             for &node in nodes {
                 if self.published_match_answers.lookup(node).is_some() {
@@ -3163,12 +3136,7 @@ impl StyleEngine {
                         observed: false,
                     }
                 } else {
-                    self.complete_published_match_answer(
-                        node,
-                        retained_answer_cascade_orders
-                            .as_deref()
-                            .map(RetainedAnswerCascadeOrders::Snapshot),
-                    )?
+                    self.complete_published_match_answer(node, retained_answer_dispatch.as_deref())?
                 };
                 self.published_match_answers
                     .push(answer, &mut self.memory, &mut self.counters);
@@ -3178,14 +3146,7 @@ impl StyleEngine {
             self.counters
                 .add(Counter::PublishedMatchAnswerClosureCompletions, completed);
             Ok(())
-        })();
-        if let Some(retained_answer_cascade_orders) = retained_answer_cascade_orders {
-            self.batch_matching_traversal
-                .as_mut()
-                .expect("closure completion keeps the matching traversal alive")
-                .retained_answer_cascade_orders = retained_answer_cascade_orders;
-        }
-        result
+        })()
     }
 
     /// Compare the complete element cascade behind the published base style with the current exact
@@ -3251,21 +3212,18 @@ impl StyleEngine {
             return None;
         }
         let exact_answer = self.retained_match_answer(node).sparse().ok().and_then(|answer| {
-            let orders = &self
+            let dispatch = self
                 .batch_matching_traversal
                 .as_ref()
                 .expect("a retained answer is consumed only inside a traversal")
-                .retained_answer_cascade_orders;
+                .retained_answer_dispatch
+                .as_deref()?;
             answer
                 .iter()
                 .copied()
                 .map(|entry| {
-                    let index = orders
-                        .binary_search_by_key(&(entry.rule, entry.program, entry.entry), |order| {
-                            (order.rule, order.program, order.entry)
-                        })
-                        .ok()?;
-                    entry.materialize(node, &self.programs, orders[index].cascade_order)
+                    let cascade_order = dispatch.cascade_order_for_entry(entry.rule, entry.program, entry.entry)?;
+                    entry.materialize(node, &self.programs, cascade_order)
                 })
                 .collect::<Option<Vec<_>>>()
         });
