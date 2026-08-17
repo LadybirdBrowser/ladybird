@@ -2440,7 +2440,9 @@ static Vector<StyleProperty> collect_presentational_hint_properties(DOM::Abstrac
     // Which properties a hint decides is a fact about the element, and this is the one place that
     // knows it: mapping the attributes needs the element fully built, and for a table cell it needs
     // the table's computed style, so it cannot be done when the element arrives.
-    record_element_presentational_hint_properties(element, properties);
+    if (element.presentational_hint_properties_need_publication(properties)
+        && record_element_presentational_hint_properties(element, properties))
+        element.did_publish_presentational_hint_properties(properties);
     return properties;
 }
 

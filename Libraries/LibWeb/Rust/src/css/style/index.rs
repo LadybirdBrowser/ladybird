@@ -4171,11 +4171,9 @@ impl ElementFactStore {
     pub fn sweep_auxiliary_catalogs(&mut self) {
         self.memory_dirty = true;
         let attribute_catalogs = Rc::make_mut(&mut self.attribute_catalogs);
-        for (index, text) in attribute_catalogs.language_texts.indexed_iter_mut() {
-            if self.language_live_counts.get(index).copied().unwrap_or(0) == 0 {
-                *text = None;
-            }
-        }
+        // Language spellings cross the C++ boundary once per atom and remain available for the
+        // document lifetime. Unlike attribute values, the set is small and has no demand gate to
+        // republish a spelling after reclamation.
         for (index, text) in attribute_catalogs.value_texts.indexed_iter_mut() {
             if self.attribute_value_live_counts.get(index).copied().unwrap_or(0) == 0 {
                 *text = None;
@@ -4786,7 +4784,7 @@ mod tests {
     }
 
     #[test]
-    fn detached_element_churn_reuses_auxiliary_catalog_storage() {
+    fn detached_element_churn_reuses_reclaimable_auxiliary_catalog_storage() {
         let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(1);
@@ -4806,7 +4804,10 @@ mod tests {
 
             facts.forget(node);
             facts.sweep_auxiliary_catalogs();
-            assert!(facts.rows.attribute_catalogs.language_texts.iter().all(Option::is_none));
+            assert_eq!(
+                facts.rows.attribute_catalogs.language_texts.get(language.0 as usize),
+                Some(&Some(vec![index as u16]))
+            );
             assert!(
                 facts
                     .rows
