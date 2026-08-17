@@ -1079,14 +1079,14 @@ ThrowCompletionOr<Value> Object::internal_get(PropertyKey const& property_key, V
         return parent->internal_get(property_key, receiver, cacheable_metadata, PropertyLookupPhase::PrototypeChain);
     }
 
-    auto update_inline_cache = [&] {
+    auto update_inline_cache = [&](u32 property_offset) {
         // Non-standard: If the caller has requested cacheable metadata and the property is an own property, fill it in.
-        if (!cacheable_metadata || !descriptor->property_offset.has_value())
+        if (!cacheable_metadata)
             return;
         if (phase == PropertyLookupPhase::OwnProperty) {
             *cacheable_metadata = CacheableGetPropertyMetadata {
                 .type = CacheableGetPropertyMetadata::Type::GetOwnProperty,
-                .property_offset = descriptor->property_offset.value(),
+                .property_offset = property_offset,
                 .prototype = nullptr,
             };
         } else if (phase == PropertyLookupPhase::PrototypeChain) {
@@ -1094,7 +1094,7 @@ ThrowCompletionOr<Value> Object::internal_get(PropertyKey const& property_key, V
             VERIFY(shape().prototype_chain_validity()->is_valid());
             *cacheable_metadata = CacheableGetPropertyMetadata {
                 .type = CacheableGetPropertyMetadata::Type::GetPropertyInPrototypeChain,
-                .property_offset = descriptor->property_offset.value(),
+                .property_offset = property_offset,
                 .prototype = this,
             };
         }
@@ -1102,7 +1102,8 @@ ThrowCompletionOr<Value> Object::internal_get(PropertyKey const& property_key, V
 
     // 3. If IsDataDescriptor(desc) is true, return desc.[[Value]].
     if (descriptor->is_data_descriptor()) {
-        update_inline_cache();
+        if (descriptor->property_offset.has_value())
+            update_inline_cache(*descriptor->property_offset);
         return *descriptor->value;
     }
 
@@ -1116,10 +1117,41 @@ ThrowCompletionOr<Value> Object::internal_get(PropertyKey const& property_key, V
     if (!getter)
         return js_undefined();
 
-    update_inline_cache();
+    GC::Ptr<Accessor> accessor;
+    bool receiver_uses_holder_cache = false;
+    if (descriptor->property_offset.has_value()) {
+        auto value = get_direct(*descriptor->property_offset);
+        if (value.is_accessor()) {
+            accessor = &value.as_accessor();
+            receiver_uses_holder_cache = receiver.is_object()
+                && (&receiver.as_object() == this || receiver.as_object().prototype() == this);
+            if (auto* cached_value_key = accessor->cached_value_key(); cached_value_key && receiver_uses_holder_cache) {
+                auto cached_property_key = PropertyKey { GC::Ref { *cached_value_key } };
+                if (auto cached_value = storage_get(cached_property_key); cached_value.has_value()) {
+                    VERIFY(cached_value->property_offset.has_value());
+                    update_inline_cache(*cached_value->property_offset);
+                    return cached_value->value;
+                }
+            }
+        }
+
+        update_inline_cache(*descriptor->property_offset);
+    }
 
     // 7. Return ? Call(getter, Receiver).
-    return TRY(call(vm, *getter, receiver));
+    auto result = TRY(call(vm, *getter, receiver));
+
+    if (accessor && receiver_uses_holder_cache) {
+        if (auto* cached_value_key = accessor->cached_value_key()) {
+            auto property = storage_get(property_key);
+            if (property.has_value() && property->value.is_accessor() && &property->value.as_accessor() == accessor.ptr()) {
+                auto cached_property_key = PropertyKey { GC::Ref { *cached_value_key } };
+                const_cast<Object*>(this)->define_direct_property(cached_property_key, result, Attribute::Internal);
+            }
+        }
+    }
+
+    return result;
 }
 
 // 10.1.9 [[Set]] ( P, V, Receiver ), https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-set-p-v-receiver
@@ -1311,16 +1343,16 @@ ThrowCompletionOr<GC::RootVector<Value>> Object::internal_own_property_keys() co
     }
 
     // 3. For each own property key P of O such that Type(P) is String and P is not an array index, in ascending chronological order of property creation, do
-    shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const&) {
-        if (property_key.is_string()) {
+    shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const& metadata) {
+        if (property_key.is_string() && !metadata.attributes.is_internal()) {
             // a. Add P as the last element of keys.
             keys.append(property_key.to_value(vm));
         }
     });
 
     // 4. For each own property key P of O such that Type(P) is Symbol, in ascending chronological order of property creation, do
-    shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const&) {
-        if (property_key.is_symbol()) {
+    shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const& metadata) {
+        if (property_key.is_symbol() && !metadata.attributes.is_internal()) {
             // a. Add P as the last element of keys.
             keys.append(property_key.to_value(vm));
         }
@@ -1515,6 +1547,32 @@ void Object::define_direct_accessor(PropertyKey const& property_key, GC::Ptr<Fun
         if (setter)
             accessor->set_setter(setter);
     }
+}
+
+void Object::define_direct_cached_accessor(PropertyKey const& property_key, GC::Ptr<FunctionObject> getter, GC::Ptr<FunctionObject> setter, PropertyAttributes attributes)
+{
+    clear_cached_accessor_value(property_key);
+    define_direct_accessor(property_key, getter, setter, attributes);
+
+    auto property = storage_get(property_key);
+    VERIFY(property.has_value());
+    VERIFY(property->value.is_accessor());
+    auto& accessor = property->value.as_accessor();
+    if (!accessor.cached_value_key())
+        accessor.set_cached_value_key(Symbol::create(vm(), {}, false));
+}
+
+void Object::clear_cached_accessor_value(PropertyKey const& property_key)
+{
+    auto property = storage_get(property_key);
+    if (!property.has_value() || !property->value.is_accessor())
+        return;
+    auto* cached_value_key = property->value.as_accessor().cached_value_key();
+    if (!cached_value_key)
+        return;
+    auto cached_property_key = PropertyKey { GC::Ref { *cached_value_key } };
+    if (storage_get(cached_property_key).has_value())
+        storage_delete(cached_property_key);
 }
 
 void Object::define_intrinsic_accessor(PropertyKey const& property_key, PropertyAttributes attributes, IntrinsicAccessor accessor)

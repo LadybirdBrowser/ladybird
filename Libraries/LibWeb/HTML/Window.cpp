@@ -910,6 +910,13 @@ void Window::invoke_idle_callback_timeout(u32 handle)
 
 void Window::set_associated_document(DOM::Document& document)
 {
+    if (m_associated_document.ptr() != &document) {
+        // The main-world Window wrapper caches the document attribute's JS
+        // value. Clear it before changing the native association so the next
+        // access wraps the new Document.
+        if (auto wrapper = cached_main_world_wrapper())
+            wrapper->clear_cached_accessor_value("document"_utf16_fly_string);
+    }
     m_associated_document = &document;
 }
 

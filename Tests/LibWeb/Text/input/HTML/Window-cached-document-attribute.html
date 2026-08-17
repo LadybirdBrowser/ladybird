@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const ownSymbolCount = Object.getOwnPropertySymbols(window).length;
+        void window.document;
+        println(`document remains an accessor: ${typeof Object.getOwnPropertyDescriptor(window, "document").get === "function"}`);
+        println(`cache slot remains private: ${Object.getOwnPropertySymbols(window).length === ownSymbolCount}`);
+        try {
+            Reflect.get(window, "document", {});
+            println("custom receiver rejected: false");
+        } catch (error) {
+            println(`custom receiver rejected: ${error instanceof TypeError}`);
+        }
+
+        const iframe = document.createElement("iframe");
+        const firstLoad = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = `
+            <script>
+                window.readSelfDocument = () => window.document;
+            <\/script>`;
+        document.body.appendChild(iframe);
+        await firstLoad;
+
+        const readStaleDocument = iframe.contentWindow.readSelfDocument;
+        const firstDocument = iframe.contentDocument;
+        println(`first document identity: ${readStaleDocument() === firstDocument}`);
+
+        const secondLoad = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = "";
+        await secondLoad;
+        internals.gc();
+
+        println(`stale function sees new document: ${readStaleDocument() === iframe.contentDocument}`);
+        println(`new document has new identity: ${readStaleDocument() !== firstDocument}`);
+    });
+</script>

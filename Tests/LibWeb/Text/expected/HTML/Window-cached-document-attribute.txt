@@ -1,0 +1,6 @@
+document remains an accessor: true
+cache slot remains private: true
+custom receiver rejected: true
+first document identity: true
+stale function sees new document: true
+new document has new identity: true
