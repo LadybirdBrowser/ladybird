@@ -489,6 +489,7 @@ pub struct FontValues {
     pub math_shift_value: ComputedStyleValueHandle,
     pub math_style_value: ComputedStyleValueHandle,
     pub math_depth_value: ComputedStyleValueHandle,
+    pub font_size_value: ComputedStyleValueHandle,
 }
 
 pub const GRID_NO_INDEX: u32 = u32::MAX;

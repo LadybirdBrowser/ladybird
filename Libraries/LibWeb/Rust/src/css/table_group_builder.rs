@@ -3090,6 +3090,7 @@ unsafe fn build_font_group(
         math_shift_value: retained(property_id::MATH_SHIFT),
         math_style_value: retained(property_id::MATH_STYLE),
         math_depth_value: retained(property_id::MATH_DEPTH),
+        font_size_value: retained(property_id::FONT_SIZE),
     };
     unsafe {
         crate::css::computed_values::build_group_payload_with_rust_fill(
