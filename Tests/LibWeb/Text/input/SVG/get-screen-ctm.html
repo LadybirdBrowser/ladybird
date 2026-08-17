@@ -1,0 +1,67 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+</style>
+<svg id="outer" width="200" height="100" viewBox="0 0 100 50" style="position: absolute; left: 400px; top: 30px">
+    <g id="translated" transform="translate(10 5)">
+        <rect id="event-rect" width="50" height="20" />
+    </g>
+</svg>
+<div style="position: absolute; left: 20px; top: 300px; perspective: 500px">
+    <svg width="100" height="100" style="transform: rotateX(60deg)">
+        <rect id="projected-rect" width="50" height="20" />
+    </svg>
+</div>
+<svg width="100" height="100">
+    <defs>
+        <mask id="mask"><rect id="mask-rect" width="50" height="20" /></mask>
+        <clipPath id="clip"><rect id="clip-rect" width="50" height="20" /></clipPath>
+    </defs>
+    <rect width="50" height="20" mask="url(#mask)" />
+    <rect y="30" width="50" height="20" clip-path="url(#clip)" />
+</svg>
+<svg id="detached"></svg>
+<script>
+    test(() => {
+        function printMatrix(label, matrix) {
+            if (matrix === null) {
+                println(`${label}: null`);
+                return;
+            }
+            println(`${label}: ${matrix.a} ${matrix.b} ${matrix.c} ${matrix.d} ${matrix.e} ${matrix.f}`);
+        }
+
+        const outer = document.getElementById("outer");
+        const translated = document.getElementById("translated");
+        const eventRect = document.getElementById("event-rect");
+
+        printMatrix("outer", outer.getScreenCTM());
+        printMatrix("translated", translated.getScreenCTM());
+        printMatrix("event-rect", eventRect.getScreenCTM());
+
+        eventRect.addEventListener("mousemove", event => {
+            // This is the coordinate conversion used by d3.mouse(), and thus by Strava's activity chart.
+            const point = outer.createSVGPoint();
+            point.x = event.clientX;
+            point.y = event.clientY;
+            const localPoint = point.matrixTransform(eventRect.getScreenCTM().inverse());
+            println(`local pointer: ${localPoint.x} ${localPoint.y}`);
+        });
+        internals.mouseMove(440, 50);
+
+        internals.setDevicePixelRatio(2);
+        printMatrix("dpr-2 event-rect", eventRect.getScreenCTM());
+        internals.setDevicePixelRatio(1);
+
+        println(`3D projected to 2D: ${document.getElementById("projected-rect").getScreenCTM().is2D}`);
+        printMatrix("mask child", document.getElementById("mask-rect").getScreenCTM());
+        printMatrix("clipPath child", document.getElementById("clip-rect").getScreenCTM());
+
+        const detached = document.getElementById("detached");
+        detached.remove();
+        printMatrix("detached", detached.getScreenCTM());
+    });
+</script>

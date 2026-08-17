@@ -424,7 +424,12 @@ public:
     void set_enclosing_scroll_node_index(VisualContextIndex index) { m_enclosing_scroll_node_index = index; }
     void set_own_scroll_node_index(VisualContextIndex index) { m_own_scroll_node_index = index; }
 
-    void set_accumulated_visual_context(VisualContextIndex index) { m_accumulated_visual_context_index = index; }
+    void set_accumulated_visual_context(VisualContextIndex index)
+    {
+        m_accumulated_visual_context_index = index;
+        m_has_accumulated_visual_context = true;
+    }
+    [[nodiscard]] bool has_accumulated_visual_context() const { return m_has_accumulated_visual_context; }
     [[nodiscard]] VisualContextIndex accumulated_visual_context_index() const { return m_accumulated_visual_context_index; }
     void set_accumulated_visual_context_for_descendants(VisualContextIndex index) { m_accumulated_visual_context_for_descendants_index = index; }
     [[nodiscard]] VisualContextIndex accumulated_visual_context_for_descendants_index() const { return m_accumulated_visual_context_for_descendants_index; }
@@ -549,6 +554,7 @@ private:
 
     VisualContextIndex m_enclosing_scroll_node_index {};
     VisualContextIndex m_own_scroll_node_index {};
+    bool m_has_accumulated_visual_context { false };
     VisualContextIndex m_accumulated_visual_context_index { VISUAL_VIEWPORT_NODE_INDEX };
     VisualContextIndex m_accumulated_visual_context_for_descendants_index { VISUAL_VIEWPORT_NODE_INDEX };
     Optional<VisualContextIndex> m_fixed_background_visual_context;

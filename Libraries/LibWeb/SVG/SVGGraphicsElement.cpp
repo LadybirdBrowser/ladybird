@@ -7,19 +7,23 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Matrix4x4.h>
 #include <LibWeb/Bindings/SVGGraphicsElement.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/SVGForeignObjectPaintable.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/Painting/SVGPathPaintable.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
+#include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/FragmentIdentifier.h>
@@ -425,10 +429,53 @@ GC::Ref<SVGAnimatedTransformList> SVGGraphicsElement::transform() const
     return SVGAnimatedTransformList::create(base_val, anim_val);
 }
 
+// https://svgwg.org/svg2-draft/types.html#__svg__SVGGraphicsElement__getScreenCTM
 GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_screen_ctm()
 {
-    dbgln("(STUBBED) SVGGraphicsElement::get_screen_ctm(). Called on: {}", debug_description());
-    return Geometry::DOMMatrix::create();
+    // 1. If the current element is not in the document, then return null.
+    if (!is_connected())
+        return {};
+
+    document().update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::SVGGraphicsElementGetScreenCTM);
+
+    // 2. If the current element is a non-rendered element, and the UA is not able to resolve the style of the element,
+    //    then return null.
+    //
+    // NB: We currently require a paintable connected to the document's visual-context tree to compute this matrix.
+    //     This also excludes geometry in resource-only subtrees such as masks, clip paths, and patterns.
+    auto paintable = this->paintable();
+    auto viewport_paintable = document().paintable();
+    if (!paintable || !viewport_paintable)
+        return {};
+
+    // 3. Let ctm be a matrix that transforms the coordinate space of the current element (including its transform
+    //    property) to the coordinate space of the document's viewport.
+    //
+    // NB: An SVG viewport's current user coordinate system is the space produced by its viewBox transform, which is the
+    //     coordinate system recorded for its descendants. Other graphics elements use their own accumulated context so
+    //     their transform property is included exactly once.
+    auto const& visual_context_tree = viewport_paintable->visual_context_tree();
+    if (!paintable->has_accumulated_visual_context())
+        return {};
+
+    auto visual_context_index = paintable->svg_viewport_transform().has_value()
+        ? paintable->accumulated_visual_context_for_descendants_index()
+        : paintable->accumulated_visual_context_index();
+    auto ctm = visual_context_tree.accumulated_matrix(
+        visual_context_index,
+        viewport_paintable->scroll_state_snapshot(),
+        Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
+
+    // NB: Accumulated visual-context matrices operate in device-pixel space. Conjugate the matrix by the device scale
+    //     to expose CSS-pixel coordinates through the DOM API, then project any 3D transform onto the SVG plane.
+    auto device_scale = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
+    auto css_to_device_scale = Gfx::scale_matrix(Vector3 { device_scale, device_scale, device_scale });
+    auto device_to_css_scale = Gfx::scale_matrix(Vector3 { 1 / device_scale, 1 / device_scale, 1 / device_scale });
+    ctm = device_to_css_scale * ctm * css_to_device_scale;
+    ctm = Gfx::extract_2d_affine_transform(Gfx::flattened(ctm)).to_matrix();
+
+    // 4. Return a newly created, detached DOMMatrix object that represents the same matrix as ctm.
+    return Geometry::DOMMatrix::create(ctm);
 }
 
 GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_ctm()
