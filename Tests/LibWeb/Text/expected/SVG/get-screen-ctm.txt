@@ -3,6 +3,7 @@ translated: 2 0 0 2 420 40
 event-rect: 2 0 0 2 420 40
 local pointer: 10 5
 dpr-2 event-rect: 2 0 0 2 420 40
+zero viewBox: 1 0 0 1 400 160
 3D projected to 2D: true
 mask child: null
 clipPath child: null
