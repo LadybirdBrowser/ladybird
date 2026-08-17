@@ -211,6 +211,10 @@ private:
     RareData* html_element_rare_data();
     RareData const* html_element_rare_data() const;
 
+    virtual FormAssociatedElement::RareData* form_associated_rare_data() override;
+    virtual FormAssociatedElement::RareData const* form_associated_rare_data() const override;
+    virtual FormAssociatedElement::RareData& ensure_form_associated_rare_data() override;
+
     virtual bool is_html_element() const final { return true; }
 
     // ^FormAssociatedElement

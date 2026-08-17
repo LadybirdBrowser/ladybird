@@ -46,15 +46,39 @@ namespace Web::HTML {
 
 FormAssociatedElement::FACERareData& FormAssociatedElement::ensure_face_rare_data()
 {
-    if (!m_face_rare_data)
-        m_face_rare_data = make<FACERareData>();
-    return *m_face_rare_data;
+    auto& face_rare_data = ensure_form_associated_rare_data().face_rare_data;
+    if (!face_rare_data)
+        face_rare_data = make<FACERareData>();
+    return *face_rare_data;
 }
 
 FormAssociatedElement::FACERareData const& FormAssociatedElement::face_rare_data() const
 {
     static NeverDestroyed<FACERareData> empty_data;
-    return m_face_rare_data ? *m_face_rare_data : *empty_data;
+    auto const* rare_data = form_associated_rare_data();
+    return rare_data && rare_data->face_rare_data ? *rare_data->face_rare_data : *empty_data;
+}
+
+HTMLFormElement* FormAssociatedElement::form()
+{
+    auto* rare_data = form_associated_rare_data();
+    return rare_data ? rare_data->form.ptr().ptr() : nullptr;
+}
+
+HTMLFormElement const* FormAssociatedElement::form() const
+{
+    auto const* rare_data = form_associated_rare_data();
+    return rare_data ? rare_data->form.ptr().ptr() : nullptr;
+}
+
+void FormAssociatedElement::set_custom_validity_error_message(Badge<ElementInternals>, Utf16View value)
+{
+    if (value.is_empty()) {
+        if (auto* rare_data = form_associated_rare_data())
+            rare_data->custom_validity_error_message = {};
+        return;
+    }
+    ensure_form_associated_rare_data().custom_validity_error_message = Utf16String::from_utf16(value);
 }
 
 ValidityStateFlags const& FormAssociatedElement::face_validity_flags() const
@@ -149,11 +173,14 @@ void FormAssociatedElement::reset_algorithm()
 
 void FormAssociatedElement::set_form(HTMLFormElement* form)
 {
-    if (m_form)
-        m_form->remove_associated_element({}, form_associated_element_to_html_element());
-    m_form = form;
-    if (m_form)
-        m_form->add_associated_element({}, form_associated_element_to_html_element());
+    if (auto* old_form = this->form())
+        old_form->remove_associated_element({}, form_associated_element_to_html_element());
+    if (form)
+        ensure_form_associated_rare_data().form = form;
+    else if (auto* rare_data = form_associated_rare_data())
+        rare_data->form = nullptr;
+    if (form)
+        form->add_associated_element({}, form_associated_element_to_html_element());
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
@@ -171,7 +198,12 @@ void FormAssociatedElement::set_custom_validity(Utf16String& error)
     error = Infra::normalize_newlines(error);
 
     // 2. Set the custom validity error message to error.
-    m_custom_validity_error_message = error;
+    if (error.is_empty()) {
+        if (auto* rare_data = form_associated_rare_data())
+            rare_data->custom_validity_error_message = {};
+    } else {
+        ensure_form_associated_rare_data().custom_validity_error_message = error;
+    }
 
     // AD-HOC: Setting a custom validity error changes which validity pseudo-classes match.
     CSS::Invalidation::invalidate_style_after_validity_change(form_associated_element_to_html_element());
@@ -201,16 +233,17 @@ bool FormAssociatedElement::enabled() const
 
 void FormAssociatedElement::set_parser_inserted(Badge<HTMLParser>)
 {
-    m_parser_inserted = true;
+    ensure_form_associated_rare_data().parser_inserted = true;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#association-of-controls-and-forms:nodes-are-inserted
 void FormAssociatedElement::form_node_was_inserted()
 {
     // 1. If the form-associated element's parser inserted flag is set, then return.
-    if (m_parser_inserted) {
-        if (m_form)
-            m_form->default_button_state_maybe_changed();
+    auto const* rare_data = form_associated_rare_data();
+    if (rare_data && rare_data->parser_inserted) {
+        if (auto* form = this->form())
+            form->default_button_state_maybe_changed();
         return;
     }
 
@@ -222,20 +255,22 @@ void FormAssociatedElement::form_node_was_inserted()
 void FormAssociatedElement::form_node_was_removed()
 {
     // 1. If the form-associated element has a form owner and the form-associated element and its form owner are no longer in the same tree, then reset the form owner of the form-associated element.
-    if (m_form && &form_associated_element_to_html_element().root() != &m_form->root())
+    auto* form = this->form();
+    if (form && &form_associated_element_to_html_element().root() != &form->root())
         reset_form_owner();
-    else if (m_form)
-        m_form->default_button_state_maybe_changed();
+    else if (form)
+        form->default_button_state_maybe_changed();
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#association-of-controls-and-forms:attr-fae-form-2
 void FormAssociatedElement::form_node_was_moved()
 {
     // When a listed form-associated element's form attribute is set, changed, or removed, then the user agent must reset the form owner of that element.
-    if (m_form && &form_associated_element_to_html_element().root() != &m_form->root())
+    auto* form = this->form();
+    if (form && &form_associated_element_to_html_element().root() != &form->root())
         reset_form_owner();
-    else if (m_form)
-        m_form->default_button_state_maybe_changed();
+    else if (form)
+        form->default_button_state_maybe_changed();
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#association-of-controls-and-forms:category-listed-3
@@ -277,20 +312,21 @@ void FormAssociatedElement::element_with_id_was_added_or_removed(Badge<DOM::Docu
 void FormAssociatedElement::reset_form_owner()
 {
     auto& html_element = form_associated_element_to_html_element();
-    GC::Ptr<HTMLFormElement> old_form { m_form.ptr() };
+    GC::Ptr<HTMLFormElement> old_form { form() };
 
     // 1. Unset element's parser inserted flag.
-    m_parser_inserted = false;
+    if (auto* rare_data = form_associated_rare_data())
+        rare_data->parser_inserted = false;
 
     // 2. If all of the following conditions are true
     //    - element's form owner is not null
     //    - element is not listed or its form content attribute is not present
     //    - element's form owner is its nearest form element ancestor after the change to the ancestor chain
     //    then do nothing, and return.
-    if (m_form
+    if (auto* form = this->form(); form
         && (!is_listed() || !html_element.has_attribute(HTML::AttributeNames::form))
-        && html_element.first_ancestor_of_type<HTMLFormElement>() == m_form.ptr().ptr()) {
-        m_form->default_button_state_maybe_changed();
+        && html_element.first_ancestor_of_type<HTMLFormElement>() == form) {
+        form->default_button_state_maybe_changed();
         return;
     }
 
@@ -326,13 +362,14 @@ void FormAssociatedElement::reset_form_owner()
     }
 
     // See the AD-HOC comment above.
-    if (m_form != old_form && html_element.is_form_associated_custom_element())
-        html_element.enqueue_a_form_associated_callback_reaction(m_form.ptr());
+    auto* new_form = form();
+    if (new_form != old_form.ptr() && html_element.is_form_associated_custom_element())
+        html_element.enqueue_a_form_associated_callback_reaction(new_form);
 
     if (old_form)
         old_form->default_button_state_maybe_changed();
-    if (m_form && m_form != old_form)
-        m_form->default_button_state_maybe_changed();
+    if (new_form && new_form != old_form.ptr())
+        new_form->default_button_state_maybe_changed();
 }
 
 void FormAssociatedElement::form_associated_element_was_inserted()
@@ -442,8 +479,11 @@ Utf16String FormAssociatedElement::validation_message() const
 
     // If the element is a candidate for constraint validation and is suffering from a custom error, then
     // the custom validity error message should be present in the return value.
-    if (suffering_from_a_custom_error())
-        return m_custom_validity_error_message;
+    if (suffering_from_a_custom_error()) {
+        auto const* rare_data = form_associated_rare_data();
+        VERIFY(rare_data);
+        return rare_data->custom_validity_error_message;
+    }
 
     // FIXME: Return more specific localized messages
     return "Invalid form"_utf16;
@@ -666,7 +706,8 @@ bool FormAssociatedElement::suffering_from_a_custom_error() const
 {
     // When a control's custom validity error message (as set by the element's setCustomValidity() method or ElementInternals's setValidity() method) is not the empty
     // string.
-    return !m_custom_validity_error_message.is_empty();
+    auto const* rare_data = form_associated_rare_data();
+    return rare_data && !rare_data->custom_validity_error_message.is_empty();
 }
 
 void FormAssociatedElement::set_face_validity_flags(Badge<ElementInternals>, ValidityStateFlags const& value)
@@ -694,18 +735,18 @@ void FormAssociatedElement::set_face_state(Badge<ElementInternals>, FACESubmissi
     ensure_face_rare_data().state = value;
 }
 
-void FormAssociatedElement::visit_edges(JS::Cell::Visitor& visitor)
+void FormAssociatedElement::RareData::visit_edges(JS::Cell::Visitor& visitor)
 {
-    if (!m_face_rare_data)
+    if (!face_rare_data)
         return;
 
-    m_face_rare_data->submission_value.visit(
+    face_rare_data->submission_value.visit(
         [&visitor](GC::Ref<FileAPI::File> file) {
             visitor.visit(file);
         },
         [](auto&) {});
 
-    m_face_rare_data->state.visit(
+    face_rare_data->state.visit(
         [&visitor](GC::Ref<FileAPI::File> file) {
             visitor.visit(file);
         },
