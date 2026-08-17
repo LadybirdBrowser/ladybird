@@ -440,8 +440,8 @@ public:
 
     void set_fullscreen_flag(bool is_fullscreen);
     bool is_fullscreen_element() const { return m_fullscreen_flag; }
-    void set_fullscreen_request_type(Fullscreen::RequestType request_type) { m_fullscreen_request_type = request_type; }
-    Fullscreen::RequestType fullscreen_request_type() const { return m_fullscreen_request_type; }
+    void set_fullscreen_request_type(Fullscreen::RequestType);
+    Fullscreen::RequestType fullscreen_request_type() const;
 
     GC::Ptr<WebIDL::CallbackType> onfullscreenchange();
     void set_onfullscreenchange(GC::Ptr<WebIDL::CallbackType>);
@@ -648,7 +648,7 @@ public:
     void set_is_value(Optional<Utf16FlyString> const& is);
 
     void set_custom_element_state(CustomElementState);
-    void set_custom_element_definition(GC::Ptr<HTML::CustomElementDefinition> definition) { m_custom_element_definition = definition; }
+    void set_custom_element_definition(GC::Ptr<HTML::CustomElementDefinition>);
     void clear_custom_element_reaction_queue();
     void setup_custom_element_from_constructor(HTML::CustomElementDefinition& custom_element_definition, Optional<Utf16FlyString> const& is_value);
 
@@ -713,7 +713,7 @@ public:
     CSS::CountersSet& ensure_counters_set();
     void set_counters_set(OwnPtr<CSS::CountersSet>&&);
 
-    ProximityToTheViewport proximity_to_the_viewport() const { return m_proximity_to_the_viewport; }
+    ProximityToTheViewport proximity_to_the_viewport() const;
     void determine_proximity_to_the_viewport();
     bool is_relevant_to_the_user();
 
@@ -732,8 +732,8 @@ public:
 
     void invalidate_list_item_counters_for_list_owner();
 
-    bool captured_in_a_view_transition() const { return m_captured_in_a_view_transition; }
-    void set_captured_in_a_view_transition(bool value) { m_captured_in_a_view_transition = value; }
+    bool captured_in_a_view_transition() const;
+    void set_captured_in_a_view_transition(bool);
 
     // https://drafts.csswg.org/css-images-4/#element-not-rendered
     bool not_rendered() const;
@@ -753,7 +753,7 @@ public:
     virtual bool contributes_a_script_blocking_style_sheet() const { return false; }
 
     void set_had_duplicate_attribute_during_tokenization(Badge<HTML::HTMLParser>);
-    bool had_duplicate_attribute_during_tokenization() const { return m_had_duplicate_attribute_during_tokenization; }
+    bool had_duplicate_attribute_during_tokenization() const;
 
     GC::Ref<CSS::StylePropertyMapReadOnly> computed_style_map();
 
@@ -802,7 +802,7 @@ protected:
     virtual bool id_reference_exists(Utf16View) const override;
 
     CustomElementState custom_element_state() const { return m_custom_element_state; }
-    GC::Ptr<HTML::CustomElementDefinition> custom_element_definition() const { return m_custom_element_definition; }
+    GC::Ptr<HTML::CustomElementDefinition> custom_element_definition() const;
 
     friend void Bindings::set_prototype_from_custom_element_definition_if_needed(Element&, Bindings::PlatformObject&);
 
@@ -871,9 +871,6 @@ private:
     // https://dom.spec.whatwg.org/#element-custom-element-registry
     GC::Ptr<HTML::CustomElementRegistry> m_custom_element_registry;
 
-    // https://dom.spec.whatwg.org/#concept-element-custom-element-definition
-    GC::Ptr<HTML::CustomElementDefinition> m_custom_element_definition;
-
     CSSPixelPoint m_scroll_offset;
 
     bool m_is_being_activated : 1 { false };
@@ -892,25 +889,10 @@ private:
     bool m_style_uses_tree_counting_function : 1 { false };
     bool m_fullscreen_flag : 1 { false };
 
-    Fullscreen::RequestType m_fullscreen_request_type { Fullscreen::RequestType::Standard };
-
     mutable Optional<Utf16String> m_lang_value;
-
-    // https://w3c.github.io/webappsec-csp/#is-element-nonceable
-    // AD-HOC: We need to know the element had a duplicate attribute when it was created from the HTML parser.
-    //         However, there currently isn't any specified way to do this, so we store a flag on the token, which is
-    //         then passed down to here. This is used by Content Security Policy to disable the nonce attribute if this
-    //         flag is set.
-    bool m_had_duplicate_attribute_during_tokenization { false };
 
     // https://dom.spec.whatwg.org/#concept-element-custom-element-state
     CustomElementState m_custom_element_state { CustomElementState::Undefined };
-
-    // https://drafts.csswg.org/css-contain/#proximity-to-the-viewport
-    ProximityToTheViewport m_proximity_to_the_viewport { ProximityToTheViewport::NotDetermined };
-
-    // https://drafts.csswg.org/css-view-transitions-1/#captured-in-a-view-transition
-    bool m_captured_in_a_view_transition { false };
 };
 
 template<>
