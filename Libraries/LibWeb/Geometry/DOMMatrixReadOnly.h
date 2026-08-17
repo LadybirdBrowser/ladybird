@@ -69,6 +69,8 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> create_from_constructor(Optional<Variant<Utf16String, Vector<double>>> const& init, DOMMatrixStringContext);
     static GC::Ref<DOMMatrixReadOnly> create_from_dom_matrix_2d_init(DOMMatrix2DInit const& init);
     static GC::Ref<DOMMatrixReadOnly> create_from_dom_matrix_init(DOMMatrixInit const& init);
+    static GC::Ref<DOMMatrixReadOnly> create(Gfx::FloatMatrix4x4 const&);
+    static GC::Ref<DOMMatrixReadOnly> create(Gfx::DoubleMatrix4x4 const&);
     static GC::Ref<DOMMatrixReadOnly> create();
     static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> create_for_constructor(JS::Object&, Optional<Variant<Utf16String, Vector<double>>> const& init);
     static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> from_matrix(Bindings::DOMMatrixInit&);
@@ -135,6 +137,16 @@ protected:
     DOMMatrixReadOnly(double m11, double m12, double m13, double m14, double m21, double m22, double m23, double m24, double m31, double m32, double m33, double m34, double m41, double m42, double m43, double m44);
     DOMMatrixReadOnly(DOMMatrixReadOnly const& other);
     DOMMatrixReadOnly();
+
+    template<typename T>
+    explicit DOMMatrixReadOnly(Gfx::Matrix4x4<T> const& matrix)
+        : m_is_2d(Gfx::is_2d_affine_transform(matrix))
+    {
+        for (size_t row = 0; row < 4; ++row) {
+            for (size_t column = 0; column < 4; ++column)
+                m_matrix[row, column] = matrix[row, column];
+        }
+    }
 
     // NOTE: The matrix used in the spec is column-major (https://drafts.fxtf.org/geometry/#4x4-abstract-matrix) but Gfx::Matrix4x4 is row-major so we need to transpose the values.
     Gfx::DoubleMatrix4x4 m_matrix { Gfx::DoubleMatrix4x4::identity() };

@@ -113,6 +113,16 @@ GC::Ref<DOMMatrix> DOMMatrix::create_from_dom_matrix_read_only(DOMMatrixReadOnly
     return GC::Heap::the().allocate<DOMMatrix>(read_only_matrix);
 }
 
+GC::Ref<DOMMatrix> DOMMatrix::create(Gfx::FloatMatrix4x4 const& matrix)
+{
+    return GC::Heap::the().allocate<DOMMatrix>(matrix);
+}
+
+GC::Ref<DOMMatrix> DOMMatrix::create(Gfx::DoubleMatrix4x4 const& matrix)
+{
+    return GC::Heap::the().allocate<DOMMatrix>(matrix);
+}
+
 GC::Ref<DOMMatrix> DOMMatrix::create()
 {
     return GC::Heap::the().allocate<DOMMatrix>();
