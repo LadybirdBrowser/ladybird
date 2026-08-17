@@ -6,15 +6,6 @@
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
-pub struct FfiTableCellCoordinates {
-    pub row_index: usize,
-    pub column_index: usize,
-    pub row_span: usize,
-    pub column_span: usize,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
 pub struct FfiCommittedBoxMetrics {
     pub fragment_identity: u64,
     pub reuses_committed_subtree: bool,
@@ -89,8 +80,6 @@ pub struct FfiCommitSink {
     pub finish_commit: unsafe extern "C" fn(*mut c_void),
     pub prepare_node: unsafe extern "C" fn(*mut c_void, *mut c_void, bool, bool) -> *mut c_void,
     pub set_box_metrics: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiCommittedBoxMetrics),
-    pub set_override_borders: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiBordersData),
-    pub set_table_cell_coordinates: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiTableCellCoordinates),
     pub begin_line_data: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub begin_line: unsafe extern "C" fn(*mut c_void, FfiLineRecord),
     pub emit_fragment: unsafe extern "C" fn(*mut c_void, FfiCommittedFragment),
@@ -208,17 +197,6 @@ fn commit_subtree(
                     uses_collapsing_borders_model: fragment.uses_collapsing_borders_model,
                 },
             );
-        }
-
-        if !reuses_committed_subtree {
-            unsafe {
-            if let Some(borders) = fragment.override_borders_data {
-                (sink.set_override_borders)(sink.context, paintable, borders);
-            }
-            if let Some(coordinates) = fragment.table_cell_coordinates {
-                (sink.set_table_cell_coordinates)(sink.context, paintable, coordinates);
-            }
-            }
         }
 
         if !reuses_committed_subtree && let Some(line_data) = &fragment.line_data {

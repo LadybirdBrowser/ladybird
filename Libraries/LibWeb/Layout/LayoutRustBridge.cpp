@@ -734,16 +734,6 @@ struct LayoutRustBridge::LineCommitContext {
     Vector<Painting::InlineBoxPiece> pieces;
 };
 
-static CSS::BorderData from_ffi_border_data(RustFFI::FfiBorderData const&);
-
-static Painting::Paintable::BorderDataWithElementKind from_ffi_border_data_with_element_kind(RustFFI::FfiBorderDataWithElementKind const& border)
-{
-    return {
-        .border_data = from_ffi_border_data(border.border_data),
-        .element_kind = static_cast<Painting::Paintable::ConflictingElementKind>(border.element_kind),
-    };
-}
-
 RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
 {
     return {
@@ -860,18 +850,6 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
             if (metrics.has_containing_line_box_index)
                 paintable.set_containing_line_box_index(metrics.containing_line_box_index);
             paintable.set_uses_collapsing_borders_model(metrics.uses_collapsing_borders_model); },
-        .set_override_borders = [](void*, void* paintable_pointer, RustFFI::FfiBordersData borders) { static_cast<Painting::Paintable*>(paintable_pointer)->set_override_borders_data({
-                                                                                                          .top = from_ffi_border_data_with_element_kind(borders.top),
-                                                                                                          .right = from_ffi_border_data_with_element_kind(borders.right),
-                                                                                                          .bottom = from_ffi_border_data_with_element_kind(borders.bottom),
-                                                                                                          .left = from_ffi_border_data_with_element_kind(borders.left),
-                                                                                                      }); },
-        .set_table_cell_coordinates = [](void*, void* paintable_pointer, RustFFI::FfiTableCellCoordinates coordinates) { static_cast<Painting::Paintable*>(paintable_pointer)->set_table_cell_coordinates({
-                                                                                                                             .row_index = coordinates.row_index,
-                                                                                                                             .column_index = coordinates.column_index,
-                                                                                                                             .row_span = coordinates.row_span,
-                                                                                                                             .column_span = coordinates.column_span,
-                                                                                                                         }); },
         .begin_line_data = [](void* context, void* paintable_pointer) {
             auto& bridge = *static_cast<LayoutRustBridge*>(context);
             VERIFY(!bridge.m_line_commit_context);
@@ -1066,12 +1044,6 @@ bool can_replay_saved_abspos_layout_inputs_after_style_change(Box const& box)
 
 RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
 {
-    static_assert(to_underlying(Painting::Paintable::ConflictingElementKind::Cell) == 0);
-    static_assert(to_underlying(Painting::Paintable::ConflictingElementKind::Row) == 1);
-    static_assert(to_underlying(Painting::Paintable::ConflictingElementKind::RowGroup) == 2);
-    static_assert(to_underlying(Painting::Paintable::ConflictingElementKind::Column) == 3);
-    static_assert(to_underlying(Painting::Paintable::ConflictingElementKind::ColumnGroup) == 4);
-    static_assert(to_underlying(Painting::Paintable::ConflictingElementKind::Table) == 5);
     static_assert(to_underlying(FlexLayoutGrowthState::Growing) == 0);
     static_assert(to_underlying(FlexLayoutGrowthState::Shrinking) == 1);
     static_assert(to_underlying(FlexLayoutClampState::Unclamped) == 0);
