@@ -373,10 +373,7 @@ impl StyleEngine {
             };
             let routing_for_siblings = Rc::clone(&self.routing);
             let sibling_entries = routing_for_siblings.live_sibling_entries(&self.program, &self.programs);
-            let mut sibling_candidates = SiblingCandidateWorkspace::new(&sibling_entries);
-            let sibling_entry_scratch_bytes = sibling_candidates.capacity_bytes();
-            self.memory
-                .reserve_required(MemoryCategory::BatchScratch, sibling_entry_scratch_bytes);
+            let mut sibling_candidates = routing_for_siblings.live_sibling_workspace(&self.program, &self.programs);
             let mut pending_routes = PendingRoutes::new();
             let mut pending_sibling_routes = PendingSiblingRoutes::new();
             let mut pending_prefix_producers = Vec::new();
@@ -594,8 +591,6 @@ impl StyleEngine {
                 .release(MemoryCategory::BatchScratch, pending_table_scratch_bytes);
             self.memory
                 .release(MemoryCategory::BatchScratch, sequence_scratch_bytes);
-            self.memory
-                .release(MemoryCategory::BatchScratch, sibling_entry_scratch_bytes);
             self.memory.release(MemoryCategory::BatchScratch, arrival_scratch_bytes);
             let mut match_workspace = std::mem::take(&mut self.match_workspace);
             let before = match_workspace.capacity_bytes();
@@ -743,10 +738,14 @@ impl StyleEngine {
         let compiled_regions = regions.compile_union(regions.regions(), &self.tree, Some(root));
         if let Some(base_version) = program_base_version {
             let current_version = self.program.version();
-            self.winner_groups
-                .advance_program_version_where(base_version, current_version, |node| {
-                    !regions.batch_contains_node(&compiled_regions, node)
-                });
+            if regions.covers_document() {
+                self.winner_groups.begin_program_version(current_version);
+            } else {
+                self.winner_groups
+                    .advance_program_version_where(base_version, current_version, |node| {
+                        !regions.batch_contains_node(&compiled_regions, node)
+                    });
+            }
         }
 
         let mut node_count = 0;

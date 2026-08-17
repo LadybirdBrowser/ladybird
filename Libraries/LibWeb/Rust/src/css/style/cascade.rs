@@ -1694,6 +1694,14 @@ impl WinnerGroups {
         Lookup::Known(())
     }
 
+    /// Start retained winner coverage for a new program version with no proven rows.
+    pub fn begin_program_version(&mut self, version: ProgramVersion) {
+        if version > self.newest_program_version {
+            self.newest_program_version = version;
+            self.newest_version_row_count = 0;
+        }
+    }
+
     /// Advance rows whose retained winners were proven unchanged by a program transaction.
     pub fn advance_program_version_where(
         &mut self,
@@ -1705,10 +1713,7 @@ impl WinnerGroups {
             return;
         }
         debug_assert!(to > from);
-        if to > self.newest_program_version {
-            self.newest_program_version = to;
-            self.newest_version_row_count = 0;
-        }
+        self.begin_program_version(to);
         for (index, slot) in self.column.iter_mut().enumerate().skip(1) {
             let Some((_, version)) = slot else {
                 continue;

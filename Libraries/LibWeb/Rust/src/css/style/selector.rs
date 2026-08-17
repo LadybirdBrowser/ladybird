@@ -56,6 +56,7 @@ use super::memory::MemoryLease;
 use super::partial_view::Lookup;
 use super::planning::SequenceEntry;
 use super::planning::SequenceEntryIndex;
+use super::planning::SiblingCandidateWorkspace;
 use super::program::EntryID;
 use super::program::RuleID;
 use super::program::SelectorProgramID;
@@ -3386,6 +3387,7 @@ pub struct RoutingRegistry {
     route_liveness: RefCell<BitColumn>,
     live_relational_routes: RefCell<Vec<LiveRelationalRoute>>,
     live_sibling_entries: RefCell<Vec<SiblingEntry>>,
+    live_sibling_workspace: RefCell<SiblingCandidateWorkspace>,
     live_sequence_entries: RefCell<Vec<SequenceEntry>>,
     live_sequence_index: RefCell<SequenceEntryIndex>,
     route_liveness_version: Cell<Option<u64>>,
@@ -3411,6 +3413,7 @@ impl Default for RoutingRegistry {
             route_liveness: RefCell::new(BitColumn::default()),
             live_relational_routes: RefCell::new(Vec::new()),
             live_sibling_entries: RefCell::new(Vec::new()),
+            live_sibling_workspace: RefCell::new(SiblingCandidateWorkspace::new(&[])),
             live_sequence_entries: RefCell::new(Vec::new()),
             live_sequence_index: RefCell::new(SequenceEntryIndex::default()),
             route_liveness_version: Cell::new(None),
@@ -3644,6 +3647,7 @@ impl RoutingRegistry {
                 .filter(|route| liveness.contains(route.index()))
                 .map(|route| SiblingEntry { route }),
         );
+        *self.live_sibling_workspace.borrow_mut() = SiblingCandidateWorkspace::new(&live_sibling_entries);
         let mut live_sequence_entries = self.live_sequence_entries.borrow_mut();
         live_sequence_entries.clear();
         for &route in self.routes_for(RoutingKey::Structural) {
@@ -3697,6 +3701,16 @@ impl RoutingRegistry {
     ) -> Ref<'_, [SiblingEntry]> {
         self.refresh_route_liveness(program, programs);
         Ref::map(self.live_sibling_entries.borrow(), Vec::as_slice)
+    }
+
+    #[must_use]
+    pub(super) fn live_sibling_workspace(
+        &self,
+        program: &StyleSheetProgram,
+        programs: &SelectorPrograms,
+    ) -> std::cell::RefMut<'_, SiblingCandidateWorkspace> {
+        self.refresh_route_liveness(program, programs);
+        self.live_sibling_workspace.borrow_mut()
     }
 
     #[must_use]
@@ -3959,6 +3973,7 @@ impl RoutingRegistry {
                     + self.live_relational_routes.borrow().capacity() as u64
                         * size_of::<LiveRelationalRoute>() as u64
                     + self.live_sibling_entries.borrow().capacity() as u64 * size_of::<SiblingEntry>() as u64
+                    + self.live_sibling_workspace.borrow().capacity_bytes()
                     + self.live_sequence_entries.borrow().capacity() as u64 * size_of::<SequenceEntry>() as u64
                     + self.live_sequence_index.borrow().capacity_bytes()
             ];
