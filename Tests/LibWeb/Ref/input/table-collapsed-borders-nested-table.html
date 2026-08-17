@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/table-collapsed-borders-nested-table-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+    .outer {
+        margin: 20px;
+        border-collapse: collapse;
+    }
+    .outer > tbody > tr > td {
+        padding: 0;
+    }
+    .inner {
+        border-collapse: separate;
+        border-spacing: 6px;
+        table-layout: fixed;
+        width: 120px;
+    }
+    .inner td {
+        height: 30px;
+        padding: 0;
+        border: 3px solid blue;
+    }
+</style>
+<table class="outer">
+    <tr>
+        <td>
+            <table class="inner">
+                <tr><td></td><td></td></tr>
+                <tr><td></td><td></td></tr>
+            </table>
+        </td>
+    </tr>
+</table>
