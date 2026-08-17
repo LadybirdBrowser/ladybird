@@ -196,6 +196,7 @@ public:
     static NonnullRefPtr<StyleValue const> compute_font_weight(NonnullRefPtr<StyleValue const> const& absolutized_value, Optional<DOM::AbstractElement> const& inheritance_parent);
     static NonnullRefPtr<StyleValue const> compute_font_width(NonnullRefPtr<StyleValue const> const& absolutized_value);
     static NonnullRefPtr<StyleValue const> compute_line_height(NonnullRefPtr<StyleValue const> const& absolutized_value, CSSPixels computed_font_size);
+    static NonnullRefPtr<StyleValue const> compute_transform_origin(NonnullRefPtr<StyleValue const> const& absolutized_value);
 
     [[nodiscard]] NonnullRefPtr<ComputedValues const> build_computed_values(ComputedStyleWorkingSet&, DOM::AbstractElement, StyleScope const&, ComputedValues const* previous_base = nullptr, u32 groups_to_apply = ComputedValues::all_style_groups) const;
     // The animation-frame variant: keep the previous style's base and rebuild only the groups the

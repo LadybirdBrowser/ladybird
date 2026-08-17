@@ -6268,6 +6268,8 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(
         return compute_line_height(absolutized_value, computation_context.length_resolution_context.font_metrics.font_size);
     case PropertyID::MathDepth:
         return compute_math_depth(absolutized_value, inheritance_parent());
+    case PropertyID::TransformOrigin:
+        return compute_transform_origin(absolutized_value);
     default:
         return absolutized_value;
     }
@@ -6461,6 +6463,15 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_math_depth(NonnullRefPtr<
 
     VERIFY(absolutized_value->is_calculated());
     return IntegerStyleValue::create(int_from_style_value(absolutized_value));
+}
+
+// https://drafts.csswg.org/css-transforms/#transform-origin-property
+NonnullRefPtr<StyleValue const> StyleComputer::compute_transform_origin(NonnullRefPtr<StyleValue const> const& absolutized_value)
+{
+    auto const* computed_value = ComputedValuesFFI::rust_compute_transform_origin(absolutized_value->rust_style_value_data());
+    if (!computed_value)
+        return absolutized_value;
+    return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(computed_value));
 }
 
 }

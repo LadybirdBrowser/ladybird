@@ -2133,6 +2133,23 @@ pub unsafe extern "C" fn rust_compute_font_feature_settings(data: *const c_void)
     })
 }
 
+/// Computes a transform-origin value list over an already absolutized value.
+/// A null return means the absolutized value is already the computed value.
+/// https://drafts.csswg.org/css-transforms/#transform-origin-property
+///
+/// # Safety
+/// `absolutized_value` must point at a valid StyleValueData.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_compute_transform_origin(absolutized_value: *const c_void) -> *const c_void {
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
+    abort_on_panic(
+        || match compute_transform_origin(unsafe { &*absolutized_value.cast::<StyleValueData>() }) {
+            Some(value) => Arc::into_raw(value).cast(),
+            None => std::ptr::null(),
+        },
+    )
+}
+
 /// Whether a value contains a percentage, either directly or inside a
 /// calculation tree; the shared core of the two font predicates below.
 fn value_contains_percentage(value: &StyleValueData) -> bool {
@@ -2746,6 +2763,7 @@ fn property_has_dedicated_compute_rule(property_id: u16) -> bool {
             | prop::LINE_HEIGHT
             | prop::MATH_DEPTH
             | prop::POSITION_AREA
+            | prop::TRANSFORM_ORIGIN
     )
 }
 
@@ -2807,6 +2825,49 @@ fn compute_animation_name(value: &StyleValueData) -> Option<Arc<StyleValueData>>
         values: RetainedStyleValueDataList::from_retained_values(computed_entries),
         separator: 1,
         collapsible: true,
+    }))
+}
+
+/// https://drafts.csswg.org/css-transforms/#transform-origin-property
+/// top and left compute to 0%, center computes to 50%, and bottom and right
+/// compute to 100%. A None return means the value is already computed.
+#[allow(clippy::arc_with_non_send_sync)]
+fn compute_transform_origin(value: &StyleValueData) -> Option<Arc<StyleValueData>> {
+    let StyleValueData::ValueList {
+        values,
+        separator,
+        collapsible,
+    } = value
+    else {
+        return None;
+    };
+    let offset_percentage = |offset: &RetainedStyleValueData| match offset.data() {
+        StyleValueData::Keyword { keyword: code } => match *code {
+            keyword::LEFT | keyword::TOP => Some(0.0),
+            keyword::CENTER => Some(50.0),
+            keyword::RIGHT | keyword::BOTTOM => Some(100.0),
+            _ => None,
+        },
+        _ => None,
+    };
+    let offsets = values.as_slice();
+    if !offsets.iter().any(|offset| offset_percentage(offset).is_some()) {
+        return None;
+    }
+    let computed_offsets = offsets
+        .iter()
+        .map(|offset| match offset_percentage(offset) {
+            Some(percentage) => {
+                let pointer = Arc::into_raw(Arc::new(StyleValueData::Percentage { value: percentage }));
+                unsafe { RetainedStyleValueData::from_retained_pointer(pointer) }
+            }
+            None => offset.clone_retained(),
+        })
+        .collect();
+    Some(Arc::new(StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(computed_offsets),
+        separator: *separator,
+        collapsible: *collapsible,
     }))
 }
 
@@ -3953,6 +4014,36 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                         Some(value) => NativeValue::StyleValue(value),
                         None => NativeValue::Unchanged,
                     },
+                    (None, prop::TRANSFORM_ORIGIN) => {
+                        let resolution_context =
+                            length_resolution_context.expect("transform-origin requires a length resolution context");
+                        let absolutization_context = crate::css::absolutize::AbsolutizationContext {
+                            length: resolution_context,
+                            scheme: effective_color_scheme,
+                            resolved_viewport_relative_length: std::cell::Cell::new(false),
+                            tree_counting: tree_counting_context,
+                            random_base_values,
+                            document_base_url,
+                            style_sheet_resource_context,
+                        };
+                        let absolutized = crate::css::absolutize::absolutize(value_data, &absolutization_context);
+                        if absolutization_context.resolved_viewport_relative_length.get() {
+                            results.depends_on_viewport_metrics = true;
+                        }
+                        match absolutized {
+                            Some(crate::css::absolutize::Absolutized::Unchanged) => {
+                                match compute_transform_origin(value_data) {
+                                    Some(value) => NativeValue::StyleValue(value),
+                                    None => NativeValue::Unchanged,
+                                }
+                            }
+                            Some(crate::css::absolutize::Absolutized::Changed(value)) => {
+                                let computed = compute_transform_origin(value.data());
+                                NativeValue::StyleValue(computed.unwrap_or_else(|| value.into_arc()))
+                            }
+                            None => NativeValue::Unsupported,
+                        }
+                    }
                     (Some(absolutized), _) if !property_has_dedicated_compute_rule(inherited_property_id) => {
                         match absolutized {
                             Some(px) => NativeValue::Px(px),
