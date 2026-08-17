@@ -39,6 +39,7 @@ pub struct FfiCommittedBoxMetrics {
     pub inset_bottom: crate::layout::CssPixels,
     pub containing_line_box_index: usize,
     pub has_containing_line_box_index: bool,
+    pub uses_collapsing_borders_model: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -203,6 +204,7 @@ fn commit_subtree(
                     inset_bottom: link.inset_bottom,
                     containing_line_box_index: link.containing_line_box_index.unwrap_or(0),
                     has_containing_line_box_index: link.containing_line_box_index.is_some(),
+                    uses_collapsing_borders_model: fragment.uses_collapsing_borders_model,
                 },
             );
         }

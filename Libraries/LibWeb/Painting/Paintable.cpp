@@ -1157,6 +1157,7 @@ void Paintable::reset_for_relayout()
     m_overflow_data.clear();
     m_override_borders_data.clear();
     m_table_cell_coordinates.clear();
+    m_uses_collapsing_borders_model = false;
     m_containing_line_box_index.clear();
     m_sticky_insets = nullptr;
 
@@ -1514,7 +1515,7 @@ CSSPixelRect Paintable::compute_absolute_border_box_rect() const
 {
     auto padded_rect = this->absolute_padding_box_rect();
     CSSPixelRect rect;
-    auto use_collapsing_borders_model = override_borders_data().has_value();
+    auto use_collapsing_borders_model = uses_collapsing_borders_model();
     // Implement the collapsing border model https://www.w3.org/TR/CSS22/tables.html#collapsing-borders.
     auto border_top = box_model().border.top;
     auto border_bottom = box_model().border.bottom;
