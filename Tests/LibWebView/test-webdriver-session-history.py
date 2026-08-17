@@ -21,6 +21,7 @@ from typing import cast
 BLOCKED_RESPONSE_TIMEOUT_SECONDS = 30
 EVENT_TIMEOUT_SECONDS = 30
 WEBDRIVER_REQUEST_TIMEOUT_SECONDS = 60
+WEB_ELEMENT_IDENTIFIER = "element-6066-11e4-a52e-4f735466cecf"
 
 
 class TestPageServer(http.server.ThreadingHTTPServer):
@@ -133,6 +134,28 @@ class TestPageHandler(http.server.BaseHTTPRequestHandler):
 <script>fetch('/document-ran?fragment-target');</script>
 <h2 id="section">Section</h2>
 <p>Fragment Target</p>""".encode()
+            )
+            return
+
+        if self.path == "/webdriver-intercepted-navigation-click":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(
+                b"""<!doctype html>
+<button id="button">Navigate</button>
+<script>
+window.navigationType = "none";
+navigation.addEventListener("navigate", event => {
+    event.intercept();
+    window.navigationType = event.navigationType;
+});
+button.addEventListener("click", () => {
+    const script = document.createElement("script");
+    script.textContent = 'location.href="?foo"';
+    document.body.append(script);
+});
+</script>"""
             )
             return
 
@@ -792,6 +815,23 @@ def execute_script(webdriver_port, session_id, script):
             "args": [],
         },
     )["value"]
+
+
+def find_element(webdriver_port, session_id, selector):
+    element = request(
+        webdriver_port,
+        "POST",
+        f"/session/{session_id}/element",
+        {
+            "using": "css selector",
+            "value": selector,
+        },
+    )["value"]
+    return element[WEB_ELEMENT_IDENTIFIER]
+
+
+def click_element(webdriver_port, session_id, element_id):
+    request(webdriver_port, "POST", f"/session/{session_id}/element/{element_id}/click", {})
 
 
 def wait_for_script_result(webdriver_port, session_id, label, script, predicate, log, timeout=EVENT_TIMEOUT_SECONDS):
@@ -1867,6 +1907,25 @@ def run_webdriver_fragment_navigation_test(webdriver_port, url):
     request(webdriver_port, "DELETE", f"/session/{session_id}")
 
 
+def run_webdriver_intercepted_navigation_click_test(webdriver_port, url):
+    session_id = create_session(webdriver_port)
+    try:
+        load_url_from_ui(webdriver_port, session_id, url)
+        element_id = find_element(webdriver_port, session_id, "#button")
+        request(webdriver_port, "POST", f"/session/{session_id}/timeouts", {"pageLoad": 1000})
+
+        click_element(webdriver_port, session_id, element_id)
+        state = execute_script(
+            webdriver_port,
+            session_id,
+            "return [location.search, window.navigationType];",
+        )
+        if state != ["?foo", "push"]:
+            raise AssertionError(f"Expected intercepted navigation to complete as a push, got {state}")
+    finally:
+        request(webdriver_port, "DELETE", f"/session/{session_id}")
+
+
 def run_failed_redirected_navigation_shows_failed_url_test(webdriver_port, page_port, url_a):
     url_redirect_to_tls_failure = f"http://localhost:{page_port}/redirect-to-tls-failure"
     url_tls_failure = f"https://127.0.0.1:{page_port}/tls-failure"
@@ -1900,6 +1959,10 @@ def run_failed_redirected_navigation_shows_failed_url_test(webdriver_port, page_
 
 def run_self_contained_navigation_tests(webdriver_port, page_port, url_a):
     run_webdriver_fragment_navigation_test(webdriver_port, url_a)
+    run_webdriver_intercepted_navigation_click_test(
+        webdriver_port,
+        f"http://localhost:{page_port}/webdriver-intercepted-navigation-click",
+    )
     run_failed_redirected_navigation_shows_failed_url_test(webdriver_port, page_port, url_a)
 
 

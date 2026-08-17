@@ -893,11 +893,17 @@ void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, G
     if (new_document->completely_loaded_deferred())
         new_document->completely_finish_loading();
 
-    if (m_ongoing_navigation.has<Empty>()) {
-        for (auto& navigation_observer : m_navigation_observers) {
-            if (navigation_observer.navigation_complete())
-                navigation_observer.navigation_complete()->function()();
-        }
+    notify_navigation_observers_navigation_complete();
+}
+
+void LocalNavigable::notify_navigation_observers_navigation_complete()
+{
+    if (!m_ongoing_navigation.has<Empty>())
+        return;
+
+    for (auto& navigation_observer : m_navigation_observers) {
+        if (navigation_observer.navigation_complete())
+            navigation_observer.navigation_complete()->function()();
     }
 }
 
