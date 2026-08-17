@@ -88,6 +88,7 @@ TEST_CASE(per_world_windowproxy_and_window_wrapper)
 
     auto& main_wrapper = Web::Bindings::platform_object_for_window(*window, window->principal_realm());
     auto main_proxy = browsing_context->window_proxy();
+    EXPECT(main_proxy->shape().prototype() == &main_wrapper);
 
     auto run_script = [&](JS::Realm& realm, Utf16View source) {
         auto script_or_error = JS::Script::parse(source, realm);
@@ -125,6 +126,7 @@ TEST_CASE(per_world_windowproxy_and_window_wrapper)
     EXPECT(extension_proxy != main_proxy);
     EXPECT(extension_proxy == browsing_context->window_proxy_for(*extension_world, extension_realm));
     EXPECT(extension_proxy->window().ptr() == window.ptr());
+    EXPECT(extension_proxy->shape().prototype() == nullptr);
     EXPECT(&Web::Bindings::this_value_realm(extension_realm, extension_proxy) == &extension_realm);
 
     auto& extension_wrapper = Web::Bindings::platform_object_for_window(*window, extension_realm);
@@ -188,6 +190,8 @@ TEST_CASE(per_world_windowproxy_and_window_wrapper)
     browsing_context->set_active_window(replacement_window);
     EXPECT(main_proxy->window().ptr() == replacement_window.ptr());
     EXPECT(extension_proxy->window().ptr() == replacement_window.ptr());
+    EXPECT(main_proxy->shape().prototype() == &Web::Bindings::platform_object_for_window(*replacement_window, main_proxy->realm()));
+    EXPECT(extension_proxy->shape().prototype() == nullptr);
 
     vm.pop_execution_context();
 }

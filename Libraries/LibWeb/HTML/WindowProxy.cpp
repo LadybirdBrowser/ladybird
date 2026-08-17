@@ -12,6 +12,7 @@
 #include <LibJS/Runtime/PropertyKey.h>
 #include <LibWeb/Bindings/Window.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/HTML/CrossOrigin/Reporting.h>
@@ -165,7 +166,7 @@ JS::ThrowCompletionOr<bool> WindowProxy::internal_define_own_property(JS::Proper
 
 // 7.4.7 [[Get]] ( P, Receiver ), https://html.spec.whatwg.org/multipage/nav-history-apis.html#windowproxy-get
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#windowproxy-get
-JS::ThrowCompletionOr<JS::Value> WindowProxy::internal_get(JS::PropertyKey const& property_key, JS::Value receiver, JS::CacheableGetPropertyMetadata*, PropertyLookupPhase) const
+JS::ThrowCompletionOr<JS::Value> WindowProxy::internal_get(JS::PropertyKey const& property_key, JS::Value receiver, JS::CacheableGetPropertyMetadata* cacheable_metadata, PropertyLookupPhase phase) const
 {
     auto& vm = this->vm();
 
@@ -176,8 +177,28 @@ JS::ThrowCompletionOr<JS::Value> WindowProxy::internal_get(JS::PropertyKey const
 
     // 3. If IsPlatformObjectSameOrigin(W) is true, then return ? OrdinaryGet(this, P, Receiver).
     // NOTE: this is passed rather than W as OrdinaryGet and CrossOriginGet will invoke the [[GetOwnProperty]] internal method.
-    if (is_platform_object_same_origin(*m_window))
+    if (is_platform_object_same_origin(*m_window)) {
+        // OPTIMIZATION: For non-index properties, [[GetOwnProperty]] and
+        // [[GetPrototypeOf]] on a same-origin WindowProxy both delegate to its
+        // Window object. Start OrdinaryGet there directly so stable accessor
+        // results and other ordinary lookup optimizations remain available.
+        if (!property_key.is_number()) {
+            auto& window_wrapper = Bindings::platform_object_for_window(*m_window, realm());
+            if (!Bindings::host_defined_wrapper_world(realm()).is_main_world())
+                return window_wrapper.internal_get(property_key, receiver);
+
+            JS::CacheableGetPropertyMetadata window_metadata;
+            auto value = TRY(window_wrapper.internal_get(property_key, receiver, &window_metadata, PropertyLookupPhase::PrototypeChain));
+
+            if (cacheable_metadata
+                && vm.current_realm() == &realm()
+                && phase == PropertyLookupPhase::OwnProperty
+                && window_metadata.type == JS::CacheableGetPropertyMetadata::Type::GetPropertyInPrototypeChain)
+                *cacheable_metadata = window_metadata;
+            return value;
+        }
         return JS::Object::internal_get(property_key, receiver);
+    }
 
     // 4. Return ? CrossOriginGet(this, P, Receiver).
     // NOTE: this is passed rather than W as OrdinaryGet and CrossOriginGet will invoke the [[GetOwnProperty]] internal method.
@@ -283,6 +304,19 @@ void WindowProxy::set_window(GC::Ref<Window> window)
 {
     m_window = move(window);
     m_cross_origin_window_wrapper = nullptr;
+
+    if (!realm().host_defined() || !Bindings::host_defined_wrapper_world(realm()).is_main_world()) {
+        set_prototype(nullptr);
+        return;
+    }
+
+    // OPTIMIZATION: Model the current Window wrapper as an engine-internal
+    // prototype of the stable WindowProxy. WindowProxy's [[GetPrototypeOf]]
+    // still exposes Window's public prototype, while ordinary property caches
+    // can guard and load through this hidden link. Retargeting the proxy after
+    // navigation changes its shape and invalidates those caches naturally.
+    auto& window_wrapper = Bindings::platform_object_for_window(*m_window, realm());
+    set_prototype(&window_wrapper);
 }
 
 Bindings::PlatformObject& WindowProxy::cross_origin_window_wrapper() const

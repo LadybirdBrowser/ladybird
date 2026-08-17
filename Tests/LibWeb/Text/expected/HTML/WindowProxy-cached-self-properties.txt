@@ -1,0 +1,9 @@
+public prototype unchanged: true
+initial value: initial
+cached initial value: initial
+changed value: changed
+accessor value: getter with proxy receiver
+re-added value: re-added
+first document value: first document
+cached first document value: first document
+stale function sees new value: second document
