@@ -52,10 +52,10 @@ protected:
     DOMPointReadOnly(double x, double y, double z, double w);
     DOMPointReadOnly();
 
-    double m_x;
-    double m_y;
-    double m_z;
-    double m_w;
+    double m_x { 0 };
+    double m_y { 0 };
+    double m_z { 0 };
+    double m_w { 1 };
 };
 
 }
