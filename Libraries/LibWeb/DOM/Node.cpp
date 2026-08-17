@@ -163,18 +163,47 @@ CSS::UserSelect Node::user_select_used_value() const
     return CSS::UserSelect::Text;
 }
 
+Node::RareData::~RareData() = default;
+
+void Node::RareData::visit_edges(Cell::Visitor& visitor)
+{
+    visitor.visit(child_nodes);
+    if (registered_observer_list)
+        visitor.visit(*registered_observer_list);
+}
+
+size_t Node::RareData::external_memory_size() const
+{
+    if (!registered_observer_list)
+        return 0;
+    return JS::vector_external_memory_size(*registered_observer_list);
+}
+
+OwnPtr<Node::RareData> Node::create_rare_data() const
+{
+    return make<RareData>();
+}
+
+Node::RareData& Node::ensure_rare_data() const
+{
+    if (!m_rare_data)
+        m_rare_data = create_rare_data();
+    return *m_rare_data;
+}
+
 void Node::finalize()
 {
     Base::finalize();
-    if (m_unique_id.has_value())
-        deallocate_unique_id(*m_unique_id);
+    if (m_rare_data && m_rare_data->unique_id.has_value())
+        deallocate_unique_id(*m_rare_data->unique_id);
 }
 
 UniqueNodeID Node::unique_id() const
 {
-    if (!m_unique_id.has_value())
-        m_unique_id = allocate_unique_id(const_cast<Node&>(*this));
-    return *m_unique_id;
+    auto& unique_id = ensure_rare_data().unique_id;
+    if (!unique_id.has_value())
+        unique_id = allocate_unique_id(const_cast<Node&>(*this));
+    return *unique_id;
 }
 
 void Node::visit_edges(Cell::Visitor& visitor)
@@ -182,18 +211,15 @@ void Node::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     TreeNode::visit_edges(visitor);
     visitor.visit(m_document);
-    visitor.visit(m_child_nodes);
-
-    if (m_registered_observer_list) {
-        visitor.visit(*m_registered_observer_list);
-    }
+    if (m_rare_data)
+        m_rare_data->visit_edges(visitor);
 }
 
 size_t Node::external_memory_size() const
 {
     auto size = Base::external_memory_size();
-    if (m_registered_observer_list)
-        size = JS::saturating_add_external_memory_size(size, JS::vector_external_memory_size(*m_registered_observer_list));
+    if (m_rare_data)
+        size = JS::saturating_add_external_memory_size(size, m_rare_data->external_memory_size());
     return size;
 }
 
@@ -1191,9 +1217,10 @@ void Node::remove(bool suppress_observers)
     //     observer whose observer is registered’s observer, options is registered’s options, and source is registered
     //     to node’s registered observer list.
     for (auto* inclusive_ancestor = parent; inclusive_ancestor; inclusive_ancestor = inclusive_ancestor->parent()) {
-        if (!inclusive_ancestor->m_registered_observer_list)
+        auto* registered_observer_list = inclusive_ancestor->registered_observer_list();
+        if (!registered_observer_list)
             continue;
-        for (auto& registered : *inclusive_ancestor->m_registered_observer_list) {
+        for (auto& registered : *registered_observer_list) {
             if (registered->options().subtree) {
                 auto transient_observer = TransientRegisteredObserver::create(registered->observer(), registered->options(), registered);
                 add_registered_observer(move(transient_observer));
@@ -2254,12 +2281,13 @@ Slottable Node::as_slottable()
 
 GC::Ref<NodeList> Node::child_nodes()
 {
-    if (!m_child_nodes) {
-        m_child_nodes = LiveNodeList::create(*this, LiveNodeList::Scope::Children, [](auto&) {
+    auto& child_nodes = ensure_rare_data().child_nodes;
+    if (!child_nodes) {
+        child_nodes = LiveNodeList::create(*this, LiveNodeList::Scope::Children, [](auto&) {
             return true;
         });
     }
-    return *m_child_nodes;
+    return *child_nodes;
 }
 
 Vector<GC::Root<Node>> Node::children_as_vector() const
@@ -3178,9 +3206,10 @@ void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlySt
     // 2. Let nodes be the inclusive ancestors of target.
     // 3. For each node of nodes, and then for each registered of node’s registered observer list:
     for (auto* node = this; node; node = node->parent()) {
-        if (!node->m_registered_observer_list)
+        auto* registered_observer_list = node->registered_observer_list();
+        if (!registered_observer_list)
             continue;
-        for (auto& registered_observer : *node->m_registered_observer_list) {
+        for (auto& registered_observer : *registered_observer_list) {
             // 1. Let options be registered’s options.
             auto& options = registered_observer->options();
 
@@ -3842,9 +3871,20 @@ Optional<Utf16View> Node::first_valid_id(Utf16View value, Document const& docume
 
 void Node::add_registered_observer(RegisteredObserver& registered_observer)
 {
-    if (!m_registered_observer_list)
-        m_registered_observer_list = make<Vector<GC::Ref<RegisteredObserver>>>();
-    m_registered_observer_list->append(registered_observer);
+    auto& registered_observer_list = ensure_rare_data().registered_observer_list;
+    if (!registered_observer_list)
+        registered_observer_list = make<Vector<GC::Ref<RegisteredObserver>>>();
+    registered_observer_list->append(registered_observer);
+}
+
+Vector<GC::Ref<RegisteredObserver>>* Node::registered_observer_list()
+{
+    return m_rare_data ? m_rare_data->registered_observer_list.ptr() : nullptr;
+}
+
+Vector<GC::Ref<RegisteredObserver>> const* Node::registered_observer_list() const
+{
+    return m_rare_data ? m_rare_data->registered_observer_list.ptr() : nullptr;
 }
 
 Element const* Node::first_letter_owner_for_layout_subtree_from(Node const& inclusive_ancestor) const
