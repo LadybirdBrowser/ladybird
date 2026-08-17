@@ -3430,12 +3430,10 @@ impl StyleEngine {
 
     fn exact_match_answer(&mut self, node: StyleNodeID) -> Result<Vec<RuleMatch>, Incomplete> {
         let scope = self.tree.tree_scope(node);
-        let inner_scope = self.tree.shadow_root_of(node).and_then(|shadow_root| {
-            self.scope_by_root
-                .get(&shadow_root)
-                .copied()
-                .filter(|&inner| inner != scope)
-        });
+        let inner_scope = self
+            .tree
+            .shadow_root_of(node)
+            .and_then(|shadow_root| self.scope_by_root.get(shadow_root).filter(|&inner| inner != scope));
         let slotted_scopes: Vec<_> = self
             .scopes_slotted_into(node)
             .filter(|&slotted| slotted != scope && Some(slotted) != inner_scope)
@@ -3540,12 +3538,10 @@ impl StyleEngine {
         let scope = self.tree.tree_scope(node);
         // A host stands outside the tree its own shadow root opens, and `:host` inside that tree
         // names it, so the tree's own rules are asked of it as well.
-        let inner_scope = self.tree.shadow_root_of(node).and_then(|shadow_root| {
-            self.scope_by_root
-                .get(&shadow_root)
-                .copied()
-                .filter(|&inner| inner != scope)
-        });
+        let inner_scope = self
+            .tree
+            .shadow_root_of(node)
+            .and_then(|shadow_root| self.scope_by_root.get(shadow_root).filter(|&inner| inner != scope));
         // A slotted element stands outside the tree it is slotted into, and `::slotted()` inside
         // that tree names it, so that tree's rules are asked of it as well. A slot is itself a
         // slottable, so an element can be re-slotted through several trees, and each of them names
