@@ -694,6 +694,49 @@ HashMap<PropertyID, NonnullRefPtr<StyleValue const>> ComputedValues::inheritance
     return values;
 }
 
+bool ComputedValues::inheritance_dependent_specified_values_equal(ComputedValues const& other) const
+{
+    // A borrowed entry overrides an owned entry for the same property, matching the snapshot
+    // the drive publishes from. Comparing raw entries avoids the snapshot's map copies and
+    // per-entry facade allocations on the diff fast path.
+    auto effective_value = [](ComputedValues const& values, PropertyID property_id) -> StyleValueFFI::StyleValueData const* {
+        for (auto const& entry : values.m_borrowed_inheritance_dependent_values) {
+            if (static_cast<PropertyID>(entry.property) == property_id)
+                return static_cast<StyleValueFFI::StyleValueData const*>(entry.value);
+        }
+        if (auto value = values.m_inheritance_dependent_specified_values.get(property_id); value.has_value())
+            return (*value)->rust_style_value_data();
+        return nullptr;
+    };
+    auto borrowed_entry_shadows_property = [](ComputedValues const& values, PropertyID property_id) {
+        for (auto const& entry : values.m_borrowed_inheritance_dependent_values) {
+            if (static_cast<PropertyID>(entry.property) == property_id)
+                return true;
+        }
+        return false;
+    };
+    auto entries_covered_by = [&](ComputedValues const& mine, ComputedValues const& theirs) {
+        auto entry_matches = [&](PropertyID property_id, StyleValueFFI::StyleValueData const* value) {
+            auto const* other_value = effective_value(theirs, property_id);
+            if (!other_value)
+                return false;
+            return value == other_value || StyleValueFFI::rust_style_value_equals(value, other_value);
+        };
+        for (auto const& entry : mine.m_borrowed_inheritance_dependent_values) {
+            if (!entry_matches(static_cast<PropertyID>(entry.property), static_cast<StyleValueFFI::StyleValueData const*>(entry.value)))
+                return false;
+        }
+        for (auto const& [property_id, value] : mine.m_inheritance_dependent_specified_values) {
+            if (borrowed_entry_shadows_property(mine, property_id))
+                continue;
+            if (!entry_matches(property_id, value->rust_style_value_data()))
+                return false;
+        }
+        return true;
+    };
+    return entries_covered_by(*this, other) && entries_covered_by(other, *this);
+}
+
 bool ComputedValues::adopt_identical_group_payloads(ComputedValues const& previous) const
 {
     bool all_shared = true;

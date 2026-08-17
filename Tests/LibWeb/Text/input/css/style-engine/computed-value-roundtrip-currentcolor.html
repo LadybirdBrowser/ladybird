@@ -1,0 +1,15 @@
+<!doctype html>
+<div id="outer" style="color: lime">
+    <div id="inner" style="color: blue; text-decoration-color: inherit"></div>
+</div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        outer.style.textDecorationColor = "currentcolor";
+        println(`currentcolor: ${getComputedStyle(outer).textDecorationColor}`);
+        println(`inherited from currentcolor: ${getComputedStyle(inner).textDecorationColor}`);
+        outer.style.textDecorationColor = "rgb(0, 255, 0)";
+        println(`resolved: ${getComputedStyle(outer).textDecorationColor}`);
+        println(`inherited from resolved: ${getComputedStyle(inner).textDecorationColor}`);
+    });
+</script>

@@ -1,0 +1,4 @@
+currentcolor: rgb(0, 255, 0)
+inherited from currentcolor: rgb(0, 0, 255)
+resolved: rgb(0, 255, 0)
+inherited from resolved: rgb(0, 255, 0)
