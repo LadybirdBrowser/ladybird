@@ -23,6 +23,28 @@
 
 namespace Web::DOM {
 
+CharacterData::RareData::~RareData() = default;
+
+OwnPtr<Node::RareData> CharacterData::create_rare_data() const
+{
+    return make<RareData>();
+}
+
+CharacterData::RareData& CharacterData::ensure_character_data_rare_data() const
+{
+    return static_cast<RareData&>(ensure_rare_data());
+}
+
+CharacterData::RareData* CharacterData::character_data_rare_data()
+{
+    return static_cast<RareData*>(rare_data());
+}
+
+CharacterData::RareData const* CharacterData::character_data_rare_data() const
+{
+    return static_cast<RareData const*>(rare_data());
+}
+
 GC_DEFINE_ALLOCATOR(CharacterData);
 
 CharacterData::CharacterData(Document& document, NodeType type, Utf16String data)
@@ -182,13 +204,15 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
 
     document().bump_character_data_version();
 
-    if (m_grapheme_segmenter)
-        m_grapheme_segmenter->set_segmented_text(m_data);
-    // The line segmenter may be the ASCII fast-path variant, which only accepts a subset of inputs; let the
-    // lazy getter re-pick the implementation against the new data.
-    m_line_segmenter = nullptr;
-    if (m_word_segmenter)
-        m_word_segmenter->set_segmented_text(m_data);
+    if (auto* rare_data = character_data_rare_data()) {
+        if (rare_data->grapheme_segmenter)
+            rare_data->grapheme_segmenter->set_segmented_text(m_data);
+        // The line segmenter may be the ASCII fast-path variant, which only accepts a subset of inputs; let the
+        // lazy getter re-pick the implementation against the new data.
+        rare_data->line_segmenter = nullptr;
+        if (rare_data->word_segmenter)
+            rare_data->word_segmenter->set_segmented_text(m_data);
+    }
 
     if (is<Text>(*this)) {
         if (auto parent = parent_element())
@@ -221,36 +245,39 @@ WebIDL::ExceptionOr<void> CharacterData::delete_data(size_t offset, size_t count
 
 Unicode::Segmenter& CharacterData::grapheme_segmenter() const
 {
-    if (!m_grapheme_segmenter) {
-        m_grapheme_segmenter = document().grapheme_segmenter().clone();
-        m_grapheme_segmenter->set_segmented_text(m_data);
+    auto& segmenter = ensure_character_data_rare_data().grapheme_segmenter;
+    if (!segmenter) {
+        segmenter = document().grapheme_segmenter().clone();
+        segmenter->set_segmented_text(m_data);
     }
 
-    return *m_grapheme_segmenter;
+    return *segmenter;
 }
 
 Unicode::Segmenter& CharacterData::line_segmenter() const
 {
-    if (!m_line_segmenter) {
+    auto& segmenter = ensure_character_data_rare_data().line_segmenter;
+    if (!segmenter) {
         if (auto ascii = Unicode::Segmenter::try_create_for_ascii_line(m_data.utf16_view())) {
-            m_line_segmenter = ascii.release_nonnull();
+            segmenter = ascii.release_nonnull();
         } else {
-            m_line_segmenter = document().line_segmenter().clone();
-            m_line_segmenter->set_segmented_text(m_data);
+            segmenter = document().line_segmenter().clone();
+            segmenter->set_segmented_text(m_data);
         }
     }
 
-    return *m_line_segmenter;
+    return *segmenter;
 }
 
 Unicode::Segmenter& CharacterData::word_segmenter() const
 {
-    if (!m_word_segmenter) {
-        m_word_segmenter = document().word_segmenter().clone();
-        m_word_segmenter->set_segmented_text(m_data);
+    auto& segmenter = ensure_character_data_rare_data().word_segmenter;
+    if (!segmenter) {
+        segmenter = document().word_segmenter().clone();
+        segmenter->set_segmented_text(m_data);
     }
 
-    return *m_word_segmenter;
+    return *segmenter;
 }
 
 }

@@ -43,16 +43,25 @@ public:
     Unicode::Segmenter& word_segmenter() const;
 
 protected:
+    struct RareData : Node::RareData {
+        virtual ~RareData() override;
+
+        OwnPtr<Unicode::Segmenter> grapheme_segmenter;
+        OwnPtr<Unicode::Segmenter> line_segmenter;
+        OwnPtr<Unicode::Segmenter> word_segmenter;
+    };
+
     CharacterData(Document&, NodeType, Utf16String);
+
+    virtual OwnPtr<Node::RareData> create_rare_data() const override;
+    RareData& ensure_character_data_rare_data() const;
+    RareData* character_data_rare_data();
+    RareData const* character_data_rare_data() const;
 
 private:
     virtual size_t external_memory_size() const override;
 
     Utf16String m_data;
-
-    mutable OwnPtr<Unicode::Segmenter> m_grapheme_segmenter;
-    mutable OwnPtr<Unicode::Segmenter> m_line_segmenter;
-    mutable OwnPtr<Unicode::Segmenter> m_word_segmenter;
 };
 
 }
