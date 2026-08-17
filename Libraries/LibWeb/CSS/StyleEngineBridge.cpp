@@ -414,11 +414,24 @@ void StyleEngine::record_element_declaration_delta(StyleEngineFFI::FfiElementDec
     m_element_declaration_deltas.append(delta);
 }
 
+void StyleEngine::append_or_merge_element_style_input(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups)
+{
+    if (auto existing = m_element_style_input_indices.find(style_node); existing != m_element_style_input_indices.end()) {
+        auto& input = m_element_style_inputs[existing->value];
+        input.reaction |= reaction;
+        input.inherited_style_groups |= inherited_style_groups;
+        return;
+    }
+
+    m_element_style_input_indices.set(style_node, m_element_style_inputs.size());
+    m_element_style_inputs.append({ style_node.value(), reaction, inherited_style_groups });
+}
+
 void StyleEngine::record_element_style_input_change(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups)
 {
     if (style_node != 0 && reaction != 0) {
         request_frame_for_first_recorded_input(*this, m_style_computer);
-        m_element_style_inputs.append({ style_node.value(), reaction, inherited_style_groups });
+        append_or_merge_element_style_input(style_node, reaction, inherited_style_groups);
     }
 }
 
@@ -434,24 +447,29 @@ void StyleEngine::record_flat_tree_descendant_style_input_changes(StyleNodeID st
     request_frame_for_first_recorded_input(*this, m_style_computer);
     auto descendants = StyleEngineFFI::style_engine_flat_tree_descendants(m_impl, style_node.value());
     for (auto descendant : ReadonlySpan<u32> { descendants.nodes, descendants.count })
-        m_element_style_inputs.append({ descendant, reaction, inherited_style_groups });
+        append_or_merge_element_style_input(StyleNodeID { descendant }, reaction, inherited_style_groups);
     StyleEngineFFI::style_engine_discard_flat_tree_descendants(m_impl);
 }
 
 void StyleEngine::consume_recorded_element_style_input_change(StyleNodeID style_node)
 {
-    m_element_style_inputs.remove_all_matching([&](auto const& input) {
-        return input.style_node == style_node.value();
-    });
+    auto existing = m_element_style_input_indices.find(style_node);
+    if (existing == m_element_style_input_indices.end())
+        return;
+
+    auto index = existing->value;
+    VERIFY(index < m_element_style_inputs.size());
+    m_element_style_input_indices.remove(style_node);
+    auto last_input = m_element_style_inputs.take_last();
+    if (index < m_element_style_inputs.size()) {
+        m_element_style_inputs[index] = last_input;
+        m_element_style_input_indices.set(StyleNodeID { last_input.style_node }, index);
+    }
 }
 
 bool StyleEngine::has_recorded_element_style_input_change(StyleNodeID style_node) const
 {
-    for (auto const& input : m_element_style_inputs) {
-        if (input.style_node == style_node.value())
-            return true;
-    }
-    return false;
+    return m_element_style_input_indices.contains(style_node);
 }
 void StyleEngine::record_benchmark_marker(Utf16View name)
 {
@@ -506,6 +524,7 @@ void StyleEngine::submit_recorded_input()
     m_state_deltas.clear_with_capacity();
     m_element_declaration_deltas.clear_with_capacity();
     m_element_style_inputs.clear_with_capacity();
+    m_element_style_input_indices.clear_with_capacity();
 
     // Selector demand can arrive while the program change and element facts are still staged.
     // Refresh after applying the fact batch, then backfill values before matching observes it.

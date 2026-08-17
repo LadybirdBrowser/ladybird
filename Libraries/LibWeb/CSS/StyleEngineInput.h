@@ -41,8 +41,8 @@ WEB_API void populate_isolated_selector_query_engine(StyleEngine&, DOM::ParentNo
 // before the first sheet attaches, and has to say it itself.
 WEB_API void record_document_kind(DOM::Document&);
 
-// Called while the node is still linked, so its old relations are still readable.
-WEB_API void record_element_disconnecting(DOM::Element&);
+// Called while the subtree is still linked, so its old relations are still readable.
+WEB_API void record_subtree_disconnecting(DOM::Node&);
 
 // Report that an element moved without leaving the tree. `moveBefore()` keeps the element's state
 // and its identity, so nothing disconnects and nothing connects, and only its relations move.

@@ -64,6 +64,9 @@ public:
     [[nodiscard]] bool has_deferred_element_initial_features(StyleNodeID style_node) const { return m_nodes_with_pending_initial_features.contains(style_node); }
     Vector<StyleNodeID> take_deferred_element_initial_features();
     HashTable<StyleNodeID> take_elements_awaiting_first_style_computation();
+    void mark_style_node_preallocated(StyleNodeID style_node, TreeScopeID tree_scope) { m_preallocated_style_nodes.set(style_node, tree_scope); }
+    Optional<TreeScopeID> consume_preallocated_style_node(StyleNodeID style_node) { return m_preallocated_style_nodes.take(style_node); }
+    void cancel_preallocated_style_node(StyleNodeID style_node) { m_preallocated_style_nodes.remove(style_node); }
     [[nodiscard]] bool resize_parsed_substitution_cache(u64 bytes);
 
     void set_element_parts(StyleNodeID node, ReadonlySpan<StyleAtomID> names, ReadonlySpan<StyleNodeID> hosts);
@@ -236,6 +239,7 @@ private:
     using InputTransaction = StyleEngineFFI::FfiStyleInputTransaction;
 
     bool read_matches(StyleNodeID, Vector<RuleMatch>&, Optional<MatchPurpose>);
+    void append_or_merge_element_style_input(StyleNodeID, u8 reaction, u8 inherited_style_groups);
     void apply_transaction(InputTransaction const&);
     void submit_recorded_input();
     bool refresh_attribute_value_text_requirements();
@@ -252,6 +256,8 @@ private:
     u64 m_attribute_value_text_requirements_version { 0 };
     HashTable<StyleNodeID> m_nodes_with_pending_initial_features;
     HashTable<StyleNodeID> m_nodes_awaiting_first_style_computation;
+    HashMap<StyleNodeID, TreeScopeID> m_preallocated_style_nodes;
+    HashMap<StyleNodeID, size_t> m_element_style_input_indices;
     size_t m_element_match_capacity { 64 };
 
     u32 m_declaration_block_version { 1 };
