@@ -2356,6 +2356,44 @@ fn compute_position_area(value: &StyleValueData) -> Option<Arc<StyleValueData>> 
     }))
 }
 
+/// The computed dash list, with each number converted to the length it measures in user units.
+/// None when the list holds no numbers, so an unchanged list keeps its identity.
+#[allow(clippy::arc_with_non_send_sync)]
+fn stroke_dasharray_numbers_as_lengths(value: &StyleValueData) -> Option<Arc<StyleValueData>> {
+    let StyleValueData::ValueList {
+        values,
+        separator,
+        collapsible,
+    } = value
+    else {
+        return None;
+    };
+    let dashes = values.as_slice();
+    if !dashes
+        .iter()
+        .any(|dash| matches!(dash.data(), StyleValueData::Number { .. }))
+    {
+        return None;
+    }
+    let computed_dashes = dashes
+        .iter()
+        .map(|dash| match dash.data() {
+            StyleValueData::Number { value } => unsafe {
+                RetainedStyleValueData::from_retained_pointer(Arc::into_raw(Arc::new(StyleValueData::Length {
+                    value: *value,
+                    unit: px_length_unit(),
+                })))
+            },
+            _ => dash.clone_retained(),
+        })
+        .collect();
+    Some(Arc::new(StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(computed_dashes),
+        separator: *separator,
+        collapsible: *collapsible,
+    }))
+}
+
 // https://drafts.csswg.org/css-contain-2/#contain-property
 #[allow(clippy::arc_with_non_send_sync)]
 fn collapse_containment_list(value: &StyleValueData) -> Option<Arc<StyleValueData>> {
@@ -4051,6 +4089,46 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                         Some(value) => NativeValue::StyleValue(value),
                         None => NativeValue::Unchanged,
                     },
+                    (_, prop::STROKE_DASHOFFSET | prop::STROKE_WIDTH)
+                        if matches!(value_data, StyleValueData::Number { .. }) =>
+                    {
+                        let StyleValueData::Number { value } = value_data else {
+                            unreachable!("the guard accepted only numbers");
+                        };
+                        NativeValue::Px(*value)
+                    }
+                    (None, prop::STROKE_DASHARRAY) if matches!(value_data, StyleValueData::ValueList { .. }) => {
+                        let resolution_context =
+                            length_resolution_context.expect("a dash list must run with a resolution context");
+                        let absolutization_context = crate::css::absolutize::AbsolutizationContext {
+                            length: resolution_context,
+                            scheme: effective_color_scheme,
+                            resolved_viewport_relative_length: std::cell::Cell::new(false),
+                            tree_counting: tree_counting_context,
+                            random_base_values,
+                            document_base_url,
+                            style_sheet_resource_context,
+                        };
+                        let outcome = crate::css::absolutize::absolutize(value_data, &absolutization_context);
+                        if absolutization_context.resolved_viewport_relative_length.get() {
+                            results.depends_on_viewport_metrics = true;
+                        }
+                        match outcome {
+                            Some(crate::css::absolutize::Absolutized::Unchanged) => {
+                                match stroke_dasharray_numbers_as_lengths(value_data) {
+                                    Some(value) => NativeValue::StyleValue(value),
+                                    None => NativeValue::Unchanged,
+                                }
+                            }
+                            Some(crate::css::absolutize::Absolutized::Changed(value)) => {
+                                match stroke_dasharray_numbers_as_lengths(value.data()) {
+                                    Some(computed) => NativeValue::StyleValue(computed),
+                                    None => NativeValue::StyleValue(value.into_arc()),
+                                }
+                            }
+                            None => NativeValue::Unsupported,
+                        }
+                    }
                     (None, prop::TRANSFORM_ORIGIN) => {
                         let resolution_context =
                             length_resolution_context.expect("transform-origin requires a length resolution context");

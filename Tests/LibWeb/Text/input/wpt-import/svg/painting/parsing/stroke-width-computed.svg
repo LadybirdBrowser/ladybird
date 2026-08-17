@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml"
+     width="800px" height="800px">
+  <title>SVG Painting: getComputedStyle().strokeWidth</title>
+  <metadata>
+    <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeWidth"/>
+    <h:meta name="assert" content="stroke-width computed value is absolute length."/>
+  </metadata>
+  <g id="target"></g>
+  <g id="ref"></g>
+  <style>
+    #target, #ref {
+      font-size: 40px;
+    }
+  </style>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <h:script src="../../../css/support/computed-testcommon.js"/>
+  <script><![CDATA[
+
+test_computed_value("stroke-width", "10", "10px");
+test_computed_value("stroke-width", "calc(10px + 0.5em)", "30px");
+test_computed_value("stroke-width", "calc(10px - 0.5em)", "0px");
+test_computed_value("stroke-width", "40%");
+test_computed_value("stroke-width", "calc(50% + 60px)");
+
+const lengthUnits = [
+  'em',
+  'ex',
+  'ch',
+  'rem',
+  'vw',
+  'vh',
+  'vmin',
+  'vmax',
+  'cm',
+  'mm',
+  'Q',
+  'in',
+  'pt',
+  'pc',
+  'px'
+];
+
+for (let lengthUnit of lengthUnits) {
+  const length = '987' + lengthUnit;
+  test(() => {
+    const target = document.getElementById('target');
+    target.style.strokeWidth = length;
+
+    const ref = document.getElementById('ref');
+    ref.style.textIndent = length;
+
+    assert_equals(getComputedStyle(target).strokeWidth, getComputedStyle(ref).textIndent);
+  }, 'stroke-width computes ' + lengthUnit + ' lengths');
+}
+
+  ]]></script>
+</svg>

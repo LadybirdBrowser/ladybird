@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Pass
+Pass	Property stroke-width value '10'
+Pass	Property stroke-width value 'calc(10px + 0.5em)'
+Pass	Property stroke-width value 'calc(10px - 0.5em)'
+Pass	Property stroke-width value '40%'
+Pass	Property stroke-width value 'calc(50% + 60px)'
+Pass	stroke-width computes em lengths
+Pass	stroke-width computes ex lengths
+Pass	stroke-width computes ch lengths
+Pass	stroke-width computes rem lengths
+Pass	stroke-width computes vw lengths
+Pass	stroke-width computes vh lengths
+Pass	stroke-width computes vmin lengths
+Pass	stroke-width computes vmax lengths
+Pass	stroke-width computes cm lengths
+Pass	stroke-width computes mm lengths
+Pass	stroke-width computes Q lengths
+Pass	stroke-width computes in lengths
+Pass	stroke-width computes pt lengths
+Pass	stroke-width computes pc lengths
+Pass	stroke-width computes px lengths

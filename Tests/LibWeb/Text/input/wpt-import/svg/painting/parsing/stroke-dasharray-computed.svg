@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml"
+     width="800px" height="800px">
+  <title>SVG Painting: getComputedStyle().strokeDasharray</title>
+  <metadata>
+    <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/painting.html#StrokeDasharrayProperty"/>
+    <h:meta name="assert" content="stroke-dasharray computed value uses absolute lengths."/>
+  </metadata>
+  <g id="target"></g>
+  <style>
+    #target {
+      font-size: 40px;
+    }
+  </style>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <h:script src="../../../css/support/computed-testcommon.js"/>
+  <script><![CDATA[
+
+test_computed_value("stroke-dasharray", "none");
+
+test_computed_value("stroke-dasharray", "10", "10px");
+test_computed_value("stroke-dasharray", "calc(10px + 0.5em)", "30px");
+test_computed_value("stroke-dasharray", "calc(10px - 0.5em)", "0px");
+test_computed_value("stroke-dasharray", "40%");
+test_computed_value("stroke-dasharray", "calc(50% + 60px)");
+
+test_computed_value("stroke-dasharray", "10px 20% 30px", "10px, 20%, 30px");
+test_computed_value("stroke-dasharray", "0, 5", "0px, 5px");
+
+  ]]></script>
+</svg>

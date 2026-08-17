@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 9 tests
+
+8 Pass
+1 Fail
+Pass	e.style['stroke-dashoffset'] = "0" should set the property value
+Pass	e.style['stroke-dashoffset'] = "10px" should set the property value
+Pass	e.style['stroke-dashoffset'] = "-20%" should set the property value
+Pass	e.style['stroke-dashoffset'] = "30" should set the property value
+Fail	e.style['stroke-dashoffset'] = "40Q" should set the property value
+Pass	e.style['stroke-dashoffset'] = "calc(2em + 3ex)" should set the property value
+Pass	e.style['stroke-dashoffset'] = "calc(3)" should set the property value
+Pass	e.style['stroke-dashoffset'] = "calc(2 + 1)" should set the property value
+Pass	e.style['stroke-dashoffset'] = "calc(2 + (7 - 5))" should set the property value
