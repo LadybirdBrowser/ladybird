@@ -1218,8 +1218,12 @@ static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidati
     // NB: The adoption also makes an unchanged element keep sharing group storage with its
     //     previous style generation, which future diffs turn into pure pointer compares.
     bool const all_group_payloads_shared = new_computed_values.adopt_identical_group_payloads(old_computed_values);
+    // The inheritance-dependent specified values live outside the group payloads, and swapping
+    // one for a concrete value with the same used color changes what descendants inherit, so
+    // equal payloads alone cannot prove the diff away.
     bool const property_diff_can_be_skipped = all_group_payloads_shared
-        && !CSS::ComputedValues::either_carries_animated_overlay(old_computed_values, new_computed_values);
+        && !CSS::ComputedValues::either_carries_animated_overlay(old_computed_values, new_computed_values)
+        && old_computed_values.inheritance_dependent_specified_values_equal(new_computed_values);
     static bool const verify_fast_path = getenv("LIBWEB_VERIFY_STYLE_DIFF_FAST_PATH") != nullptr;
 
     if (!property_diff_can_be_skipped || verify_fast_path) {
