@@ -8,6 +8,7 @@ pub(crate) const ELEMENT_CELL: u8 = 0;
 pub(crate) const ELEMENT_ROW: u8 = 1;
 pub(crate) const ELEMENT_ROW_GROUP: u8 = 2;
 pub(crate) const ELEMENT_COLUMN: u8 = 3;
+pub(crate) const ELEMENT_COLUMN_GROUP: u8 = 4;
 pub(crate) const ELEMENT_TABLE: u8 = 5;
 
 pub(crate) const LINE_STYLE_NONE: u8 = 0;
@@ -1044,7 +1045,9 @@ impl TableFormattingContext {
 
         // Column (<col>) elements.
         let mut column_index = 0usize;
+        let mut column_group_ranges = Vec::new();
         for column_group in self.matching_children(self.table_box, |facts| facts.is_table_column_group()) {
+            let group_start = column_index;
             for column in self.matching_children(column_group, |facts| facts.is_table_column()) {
                 let span = self.table_column_span(column);
                 let end = (column_index + span).min(column_count);
@@ -1053,6 +1056,13 @@ impl TableFormattingContext {
                     grid.apply_borders(borders, 0, row_count, column_index, column_index + 1, ELEMENT_COLUMN);
                     column_index += 1;
                 }
+            }
+            column_group_ranges.push((column_group, group_start, column_index));
+        }
+        for (column_group, group_start, group_end) in column_group_ranges {
+            if group_start < group_end {
+                let borders = self.element_borders(column_group);
+                grid.apply_borders(borders, 0, row_count, group_start, group_end, ELEMENT_COLUMN_GROUP);
             }
         }
         let table_borders = self.element_borders(self.table_box);

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    table {
+        margin: 20px;
+        border-collapse: collapse;
+        table-layout: fixed;
+        width: 300px;
+    }
+    td {
+        height: 40px;
+        padding: 0;
+    }
+    tr:first-child td:nth-child(-n + 2) {
+        border-top: 4px solid indigo;
+    }
+    tr:last-child td:nth-child(-n + 2) {
+        border-bottom: 4px solid indigo;
+    }
+    td:first-child {
+        border-left: 4px solid indigo;
+    }
+    tr:first-child td:last-child {
+        border-top: 6px solid orange;
+    }
+    tr:last-child td:last-child {
+        border-bottom: 6px solid orange;
+    }
+    td:last-child {
+        border-left: 6px solid orange;
+        border-right: 6px solid orange;
+    }
+</style>
+<table>
+    <tr><td></td><td></td><td></td></tr>
+    <tr><td></td><td></td><td></td></tr>
+</table>
