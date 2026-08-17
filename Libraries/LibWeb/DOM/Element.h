@@ -691,7 +691,7 @@ public:
     bool is_auto_directionality_form_associated_element() const;
 
     Optional<Utf16FlyString> const& id() const { return m_id; }
-    Optional<Utf16FlyString> const& name() const { return m_name; }
+    Optional<Utf16FlyString> name() const;
 
     virtual GC::Ptr<GC::Function<void()>> take_lazy_load_resumption_steps(Badge<DOM::Document>)
     {
@@ -866,8 +866,6 @@ private:
     Optional<Dir> m_dir;
 
     Optional<Utf16FlyString> m_id;
-    Optional<Utf16FlyString> m_name;
-
     CSSPixelPoint m_scroll_offset;
 
     bool m_is_being_activated : 1 { false };
@@ -886,6 +884,7 @@ private:
     bool m_style_uses_tree_counting_function : 1 { false };
     bool m_fullscreen_flag : 1 { false };
     bool m_uses_document_global_custom_element_registry : 1 { false };
+    bool m_has_name : 1 { false };
 
     mutable Optional<Utf16String> m_lang_value;
 

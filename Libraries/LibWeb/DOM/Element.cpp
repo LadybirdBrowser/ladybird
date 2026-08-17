@@ -200,6 +200,8 @@ struct Element::RareData final
     // https://dom.spec.whatwg.org/#element-custom-element-registry
     GC::Ptr<HTML::CustomElementRegistry> custom_element_registry;
 
+    Optional<Utf16FlyString> name;
+
     Fullscreen::RequestType fullscreen_request_type { Fullscreen::RequestType::Standard };
 
     // https://w3c.github.io/webappsec-csp/#is-element-nonceable
@@ -2666,7 +2668,7 @@ void Element::inserted()
             document().set_needs_mathml_and_svg_user_agent_style_sheets();
         if (m_id.has_value())
             document().element_with_id_was_added({}, *this);
-        if (m_name.has_value())
+        if (m_has_name)
             document().element_with_name_was_added({}, *this);
         if (m_id.has_value() || !m_classes.is_empty())
             invalidate_content_blocker_style_if_needed(*this);
@@ -2691,7 +2693,7 @@ void Element::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, No
     if (old_root.is_connected()) {
         if (m_id.has_value())
             document().element_with_id_was_removed({}, *this);
-        if (m_name.has_value())
+        if (m_has_name)
             document().element_with_name_was_removed({}, *this);
         if (anchor_values) {
             auto& anchor_names = is<ShadowRoot>(old_root)
@@ -5446,10 +5448,12 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
             document().element_id_changed({}, *this, old_id);
         }
     } else if (local_name == HTML::AttributeNames::name) {
-        if (value_or_empty.is_empty())
-            m_name = {};
-        else
-            m_name = Utf16FlyString::from_utf16(value_or_empty);
+        m_has_name = !value_or_empty.is_empty();
+        if (m_has_name) {
+            ensure_element_rare_data().name = Utf16FlyString::from_utf16(value_or_empty);
+        } else if (auto* rare_data = element_rare_data()) {
+            rare_data->name = {};
+        }
 
         if (is_connected())
             document().element_name_changed({}, *this);
@@ -5545,6 +5549,16 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
         CSS::record_element_id_changed(*this, old_style_engine_id, m_id);
     else if (local_name == HTML::AttributeNames::class_)
         CSS::record_element_class_list_changed(*this, old_style_engine_classes, m_classes);
+}
+
+Optional<Utf16FlyString> Element::name() const
+{
+    if (!m_has_name)
+        return {};
+    auto const* rare_data = element_rare_data();
+    VERIFY(rare_data);
+    VERIFY(rare_data->name.has_value());
+    return rare_data->name;
 }
 
 auto Element::ensure_custom_element_reaction_queue() -> CustomElementReactionQueue&
