@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/table-collapsed-borders-colgroup-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+    table {
+        margin: 20px;
+        border-collapse: collapse;
+        table-layout: fixed;
+        width: 300px;
+    }
+    td {
+        height: 40px;
+        padding: 0;
+    }
+    colgroup.left-pair {
+        border: 4px solid indigo;
+    }
+    colgroup.right-single {
+        border: 6px solid orange;
+    }
+</style>
+<table>
+    <colgroup class="left-pair"><col><col></colgroup>
+    <colgroup class="right-single"><col></colgroup>
+    <tr><td></td><td></td><td></td></tr>
+    <tr><td></td><td></td><td></td></tr>
+</table>
