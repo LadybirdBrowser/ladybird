@@ -532,7 +532,7 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> PlatformObject::internal_own_pr
 
     // 5. For each P of O’s own property keys that is a Symbol, in ascending chronological order of property creation, append P to keys.
     shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const&) {
-        if (property_key.is_symbol())
+        if (property_key.is_symbol() && !property_key.is_private())
             keys.append(property_key.to_value(vm));
     });
 

@@ -14,15 +14,15 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(Symbol);
 
-Symbol::Symbol(Optional<Utf16String> description, bool is_global)
+Symbol::Symbol(Optional<Utf16String> description, Kind kind)
     : m_description(move(description))
-    , m_is_global(is_global)
+    , m_kind(kind)
 {
 }
 
-GC::Ref<Symbol> Symbol::create(VM& vm, Optional<Utf16String> description, bool is_global)
+GC::Ref<Symbol> Symbol::create(VM& vm, Optional<Utf16String> description, Kind kind)
 {
-    return vm.heap().allocate<Symbol>(move(description), is_global);
+    return vm.heap().allocate<Symbol>(move(description), kind);
 }
 
 // 20.4.3.3.1 SymbolDescriptiveString ( sym ), https://tc39.es/ecma262/#sec-symboldescriptivestring
@@ -42,7 +42,7 @@ Optional<Utf16String> Symbol::key() const
 {
     // 1. For each element e of the GlobalSymbolRegistry List, do
     //    a. If SameValue(e.[[Symbol]], sym) is true, return e.[[Key]].
-    if (m_is_global) {
+    if (is_global()) {
         // NOTE: Global symbols should always have a description string
         VERIFY(m_description.has_value());
         return m_description;

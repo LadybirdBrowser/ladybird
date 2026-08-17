@@ -62,7 +62,7 @@ NonnullRefPtr<VM> VM::create()
 
     WellKnownSymbols well_known_symbols {
 #define __JS_ENUMERATE(SymbolName, snake_name) \
-    Symbol::create(*vm, "Symbol." #SymbolName##_utf16, false),
+    Symbol::create(*vm, "Symbol." #SymbolName##_utf16),
         JS_ENUMERATE_WELL_KNOWN_SYMBOLS
 #undef __JS_ENUMERATE
     };

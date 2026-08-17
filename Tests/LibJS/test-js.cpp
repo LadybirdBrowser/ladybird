@@ -12,6 +12,8 @@
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/FinalizationRegistry.h>
+#include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/Symbol.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibTest/JavaScriptTestRunner.h>
@@ -31,6 +33,14 @@ TESTJS_GLOBAL_FUNCTION(can_parse_source, canParseSource)
 TESTJS_GLOBAL_FUNCTION(collect_garbage, gc)
 {
     vm.heap().collect_garbage();
+    return JS::js_undefined();
+}
+
+TESTJS_GLOBAL_FUNCTION(add_engine_private_property, addEnginePrivateProperty)
+{
+    auto object = TRY(vm.argument(0).to_object(vm));
+    auto key = JS::Symbol::create_private(vm);
+    object->define_direct_property(key, vm.argument(1), {});
     return JS::js_undefined();
 }
 

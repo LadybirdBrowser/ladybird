@@ -168,7 +168,7 @@ ThrowCompletionOr<GC::RootVector<Value>> StringObject::internal_own_property_key
 
     // 8. For each own property key P of O such that P is a Symbol, in ascending chronological order of property creation, do
     shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const&) {
-        if (property_key.is_symbol()) {
+        if (property_key.is_symbol() && !property_key.is_private()) {
             // a. Add P as the last element of keys.
             keys.append(property_key.to_value(vm));
         }
