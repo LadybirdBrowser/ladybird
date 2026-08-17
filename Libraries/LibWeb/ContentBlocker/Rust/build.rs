@@ -14,12 +14,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=cbindgen.toml");
-    println!("cargo:rerun-if-env-changed=FFI_OUTPUT_DIR");
     println!("cargo:rerun-if-changed=src");
-
-    let ffi_out_dir = env::var("FFI_OUTPUT_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| out_dir.clone());
 
     cbindgen::generate(manifest_dir).map_or_else(
         |error| match error {
@@ -29,10 +24,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         |bindings| {
             let header_path = out_dir.join("ContentBlockerRustFFI.h");
             bindings.write_to_file(&header_path);
-
-            if ffi_out_dir != out_dir {
-                bindings.write_to_file(ffi_out_dir.join("ContentBlockerRustFFI.h"));
-            }
         },
     );
 
