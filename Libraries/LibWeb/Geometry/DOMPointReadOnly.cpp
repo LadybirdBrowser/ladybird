@@ -42,10 +42,7 @@ DOMPointReadOnly::DOMPointReadOnly(double x, double y, double z, double w)
 {
 }
 
-DOMPointReadOnly::DOMPointReadOnly()
-{
-}
-
+DOMPointReadOnly::DOMPointReadOnly() = default;
 DOMPointReadOnly::~DOMPointReadOnly() = default;
 
 // https://drafts.fxtf.org/geometry/#dom-dompointreadonly-matrixtransform

@@ -1,0 +1,12 @@
+<!doctype html>
+<svg id="svg"></svg>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const point = svg.createSVGPoint();
+        println(`x = ${point.x}`);
+        println(`y = ${point.y}`);
+        println(`z = ${point.z}`);
+        println(`w = ${point.w}`);
+    });
+</script>
