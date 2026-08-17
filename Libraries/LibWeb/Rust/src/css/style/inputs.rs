@@ -51,7 +51,7 @@ impl StyleEngine {
             tree_staging: TreeRelationStaging::default(),
             tree_staging_memory: MemoryLease::new(MemoryCategory::NormalizationJournal),
             program_staging: ProgramStaging::default(),
-            sheets_excluded_from_routing: HashSet::default(),
+            sheets_excluded_from_routing: BitColumn::default(),
             routing_needs_detachment_sweep: false,
             sheet_rule_replacement: None,
             match_workspace: MatchEvaluationWorkspace::default(),
@@ -103,7 +103,7 @@ impl StyleEngine {
             relational_witnesses: RefCell::new(RelationalWitnesses::default()),
             relational_witness_residency: MemoryLease::new(MemoryCategory::RetainedWitness),
             scope_roots: Column::default(),
-            scope_by_root: HashMap::default(),
+            scope_by_root: SegmentedNodeColumn::default(),
             scope_programs: intern_table::InternTable::default(),
             vacant_scope_programs: Vec::new(),
             scope_dispatch_templates: HashMap::default(),
@@ -273,7 +273,7 @@ impl StyleEngine {
         // detached would come back twice. The exclusion covers the edit until the sheet reattaches.
         if self
             .sheets_excluded_from_routing
-            .contains(&self.program.rule_sheet(rule))
+            .contains(self.program.rule_sheet(rule).0 as usize)
         {
             return;
         }
@@ -1346,7 +1346,7 @@ impl StyleEngine {
     /// it reattaches. The registry must be whole before the attachment's transaction plans, so
     /// this runs at recording time rather than waiting for the next sweep.
     fn restore_routing_for_reattached_sheet(&mut self, sheet: SheetID) {
-        if !self.sheets_excluded_from_routing.remove(&sheet) {
+        if !self.sheets_excluded_from_routing.set(sheet.0 as usize, false).0 {
             return;
         }
         let rules: Vec<(RuleID, SelectorProgramID)> = self
@@ -1483,7 +1483,7 @@ impl StyleEngine {
         if let Some(previous_root) = self.scope_roots.get(index).copied().flatten()
             && previous_root != root
         {
-            self.scope_by_root.remove(&previous_root);
+            self.scope_by_root.remove(previous_root);
         }
         self.scope_roots.insert(index, Some(root));
         self.scope_by_root.insert(root, tree_scope);

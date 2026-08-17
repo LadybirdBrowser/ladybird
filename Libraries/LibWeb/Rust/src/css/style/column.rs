@@ -91,6 +91,17 @@ pub(super) struct BitColumn {
     words: Vec<u64>,
 }
 
+impl PartialEq for BitColumn {
+    fn eq(&self, other: &Self) -> bool {
+        let common_length = self.words.len().min(other.words.len());
+        self.words[..common_length] == other.words[..common_length]
+            && self.words[common_length..].iter().all(|word| *word == 0)
+            && other.words[common_length..].iter().all(|word| *word == 0)
+    }
+}
+
+impl Eq for BitColumn {}
+
 impl ShallowCapacityBytes for BitColumn {
     fn shallow_capacity_bytes(&self) -> u64 {
         self.capacity_bytes()
@@ -319,4 +330,25 @@ pub(super) fn advance_epoch(epoch: &mut u32, step: u32, columns: &mut [&mut Epoc
         *epoch = step;
     }
     *epoch
+}
+
+#[cfg(test)]
+mod tests {
+    use super::BitColumn;
+
+    #[test]
+    fn bit_column_equality_ignores_trailing_zero_words() {
+        let mut left = BitColumn::default();
+        left.set(1, true);
+        left.set(70, true);
+        left.set(70, false);
+
+        let mut right = BitColumn::default();
+        right.set(1, true);
+
+        assert!(left == right);
+
+        right.set(70, true);
+        assert!(left != right);
+    }
 }

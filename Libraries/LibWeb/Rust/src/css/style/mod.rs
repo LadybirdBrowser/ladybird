@@ -141,6 +141,7 @@ pub mod tree;
 
 use atoms::DocumentAtoms;
 use catalog::*;
+use column::BitColumn;
 use column::Column;
 use fast_hash::FastMap as HashMap;
 use fast_hash::FastSet as HashSet;
@@ -296,6 +297,7 @@ use transaction_view::FeatureFluxColumn;
 use transaction_view::PrefixFactTransition;
 use transaction_view::TransactionFactSide;
 use transaction_view::TransactionFactView;
+use tree::SegmentedNodeColumn;
 use tree::StyleNodeID;
 use tree::StyleNodeTree;
 use tree::TreeRelationStaging;
@@ -779,7 +781,7 @@ pub struct StyleEngine {
     /// Sheets whose rules currently have no entry points in the routing registry. A detached
     /// sheet's rules decide nothing, so routing every input past their entry points is pure cost
     /// that grows with every sheet that ever came and went.
-    sheets_excluded_from_routing: HashSet<SheetID>,
+    sheets_excluded_from_routing: BitColumn,
     /// Whether a sheet detached since the last routing shed, so the registry may hold entry
     /// points for rules that can no longer decide.
     routing_needs_detachment_sweep: bool,
@@ -888,7 +890,7 @@ pub struct StyleEngine {
     scope_roots: Column<Option<StyleNodeID>>,
     /// The inverse of `scope_roots`. Departing ordinary elements vastly outnumber departing scope
     /// roots, so retirement must ask this index instead of scanning every historical tree scope.
-    scope_by_root: HashMap<StyleNodeID, TreeScopeID>,
+    scope_by_root: SegmentedNodeColumn<TreeScopeID>,
     /// The immutable selector dispatch of each distinct effective sheet set and encapsulation
     /// depth. Concrete scopes retain only its dense identity.
     scope_programs: intern_table::InternTable<ScopeProgramID, Option<ScopeProgram>>,

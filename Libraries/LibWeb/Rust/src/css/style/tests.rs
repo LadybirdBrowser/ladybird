@@ -6466,17 +6466,17 @@ fn departing_scope_roots_are_removed_from_the_reverse_scope_index() {
 
     engine.record_tree_delta(first_root, None, Some(TreeRelations::detached(scope)));
     engine.set_tree_scope_root(scope, first_root);
-    assert_eq!(engine.scope_by_root.get(&first_root), Some(&scope));
+    assert_eq!(engine.scope_by_root.get(first_root), Some(scope));
 
     engine.record_tree_delta(second_root, None, Some(TreeRelations::detached(scope)));
     engine.set_tree_scope_root(scope, second_root);
-    assert!(!engine.scope_by_root.contains_key(&first_root));
-    assert_eq!(engine.scope_by_root.get(&second_root), Some(&scope));
+    assert_eq!(engine.scope_by_root.get(first_root), None);
+    assert_eq!(engine.scope_by_root.get(second_root), Some(scope));
     discard_transaction(&mut engine);
 
     engine.record_tree_delta(second_root, Some(TreeRelations::detached(scope)), None);
     discard_transaction(&mut engine);
-    assert!(!engine.scope_by_root.contains_key(&second_root));
+    assert_eq!(engine.scope_by_root.get(second_root), None);
     assert_eq!(engine.scope_roots[scope.0 as usize], None);
 }
 
@@ -6500,7 +6500,7 @@ fn an_element_arriving_and_departing_in_one_transaction_is_forgotten() {
         engine.facts.postings().lookup(SelectorPostingKey::Class(class)),
         Lookup::KnownAbsent
     ));
-    assert_eq!(engine.scope_by_root.get(&node), None);
+    assert_eq!(engine.scope_by_root.get(node), None);
     assert_eq!(engine.scope_roots[scope.0 as usize], None);
 }
 

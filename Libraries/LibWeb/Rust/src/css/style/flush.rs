@@ -934,7 +934,7 @@ impl StyleEngine {
             // and a live shadow root is a synthetic relation node rather than a style output.
             // Neither has a C++ element to consume a record; every live element whose style either
             // can affect is another member of the region.
-            let is_scope_root = self.scope_by_root.contains_key(&node);
+            let is_scope_root = self.scope_by_root.get(node).is_some();
             if !self.tree.is_live(node) || is_scope_root {
                 return;
             }

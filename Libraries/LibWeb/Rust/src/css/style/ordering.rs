@@ -1249,11 +1249,11 @@ impl StyleEngine {
         }
         self.routing_needs_detachment_sweep = false;
         let live_rules = self.program.live_selector_programs().collect::<Vec<_>>();
-        let mut excluded_sheets: HashSet<SheetID> = HashSet::default();
+        let mut excluded_sheets = BitColumn::default();
         for &(rule, _) in &live_rules {
             let sheet = self.program.rule_sheet(rule);
             if !self.program.sheet_is_attached_somewhere(sheet) {
-                excluded_sheets.insert(sheet);
+                excluded_sheets.set(sheet.0 as usize, true);
             }
         }
         if excluded_sheets == self.sheets_excluded_from_routing {
@@ -1261,7 +1261,7 @@ impl StyleEngine {
         }
         let mut rebuilt_routing = RoutingRegistry::new();
         for &(rule, program) in &live_rules {
-            if excluded_sheets.contains(&self.program.rule_sheet(rule)) {
+            if excluded_sheets.contains(self.program.rule_sheet(rule).0 as usize) {
                 continue;
             }
             rebuilt_routing.add_rule(rule, program, &self.programs);
@@ -1295,13 +1295,13 @@ impl StyleEngine {
         }
 
         let mut rebuilt_routing = RoutingRegistry::new();
-        let mut excluded_sheets: HashSet<SheetID> = HashSet::default();
+        let mut excluded_sheets = BitColumn::default();
         for &(rule, program) in &live_rules {
             // A detached sheet's rules keep no routing entry points; see
             // `shed_routing_for_detached_sheets`.
             let sheet = self.program.rule_sheet(rule);
             if !self.program.sheet_is_attached_somewhere(sheet) {
-                excluded_sheets.insert(sheet);
+                excluded_sheets.set(sheet.0 as usize, true);
                 continue;
             }
             rebuilt_routing.add_rule(rule, program, &self.programs);
@@ -1348,7 +1348,7 @@ impl StyleEngine {
         for node in departed {
             self.facts.forget(node);
             self.retained_match_answers.forget(&mut self.match_answers, node);
-            if let Some(tree_scope) = self.scope_by_root.remove(&node) {
+            if let Some(tree_scope) = self.scope_by_root.remove(node) {
                 self.scope_roots[tree_scope.0 as usize] = None;
             }
         }

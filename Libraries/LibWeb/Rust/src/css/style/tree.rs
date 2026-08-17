@@ -128,7 +128,7 @@ impl<T: Copy> RemovablePagedColumnPage for SegmentedNodePage<T> {
 ///
 /// The page directory makes an absent column segment cost one pointer rather than one value per
 /// document node.
-struct SegmentedNodeColumn<T: Copy>(PagedColumn<SegmentedNodePage<T>>);
+pub(super) struct SegmentedNodeColumn<T: Copy>(PagedColumn<SegmentedNodePage<T>>);
 
 impl<T: Copy> Default for SegmentedNodeColumn<T> {
     fn default() -> Self {
@@ -137,19 +137,19 @@ impl<T: Copy> Default for SegmentedNodeColumn<T> {
 }
 
 impl<T: Copy> SegmentedNodeColumn<T> {
-    fn get(&self, node: StyleNodeID) -> Option<T> {
+    pub(super) fn get(&self, node: StyleNodeID) -> Option<T> {
         let index = node.element_index()? as usize;
         self.0.get(index)
     }
 
-    fn insert(&mut self, node: StyleNodeID, value: T) -> Option<T> {
+    pub(super) fn insert(&mut self, node: StyleNodeID, value: T) -> Option<T> {
         let index = node
             .element_index()
             .expect("conditional tree relations connect DOM nodes") as usize;
         self.0.insert(index, value).0
     }
 
-    fn remove(&mut self, node: StyleNodeID) -> Option<T> {
+    pub(super) fn remove(&mut self, node: StyleNodeID) -> Option<T> {
         let index = node.element_index()? as usize;
         self.0.remove(index)
     }
