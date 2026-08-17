@@ -1249,27 +1249,14 @@ unsafe fn build_transform_group(
         _ => ComputedStyleValueHandle::empty(),
     };
 
-    let origin_axis = |axis: &crate::css::style_value::RetainedStyleValueData| match axis.data() {
-        StyleValueData::Keyword { keyword: code } if *code == keyword::LEFT || *code == keyword::TOP => {
-            ComputedStyleValueHandle::percentage(0.0)
-        }
-        StyleValueData::Keyword { keyword: code } if *code == keyword::CENTER => {
-            ComputedStyleValueHandle::percentage(50.0)
-        }
-        StyleValueData::Keyword { keyword: code } if *code == keyword::RIGHT || *code == keyword::BOTTOM => {
-            ComputedStyleValueHandle::percentage(100.0)
-        }
-        StyleValueData::Keyword { .. } => unreachable!("computed transform-origin has a position keyword"),
-        _ => ComputedStyleValueHandle::retained(axis.pointer()),
-    };
     let (transform_origin_x, transform_origin_y, transform_origin_z) = match values.value(property_id::TRANSFORM_ORIGIN)
     {
         Some(StyleValueData::ValueList { values: list, .. }) if list.as_slice().len() == 3 => {
-            let axes = list.as_slice();
+            let offsets = list.as_slice();
             (
-                origin_axis(&axes[0]),
-                origin_axis(&axes[1]),
-                ComputedStyleValueHandle::retained(axes[2].pointer()),
+                ComputedStyleValueHandle::retained(offsets[0].pointer()),
+                ComputedStyleValueHandle::retained(offsets[1].pointer()),
+                ComputedStyleValueHandle::retained(offsets[2].pointer()),
             )
         }
         _ => unreachable!("computed transform-origin is a three-value list"),
