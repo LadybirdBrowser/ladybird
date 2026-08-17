@@ -47,6 +47,8 @@ class WEB_API StyleComputer final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(StyleComputer);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     static void for_each_property_expanding_shorthands(PropertyID, StyleValue const&, Function<void(PropertyID, StyleValue const&)> const& set_longhand_property);
     static NonnullRefPtr<StyleValue const> get_non_animated_inherit_value(PropertyID, DOM::AbstractElement);
     struct AnimatedInheritValue {
@@ -58,7 +60,7 @@ public:
     static Optional<Utf16String> user_agent_style_sheet_source(Utf16View name);
 
     explicit StyleComputer(DOM::Document&);
-    ~StyleComputer();
+    virtual ~StyleComputer() override = default;
 
     DOM::Document& document() { return m_document; }
     DOM::Document const& document() const { return m_document; }
@@ -100,30 +102,10 @@ public:
 
     // Drop caches whose keys contain inputs that are stable only within one engine transaction.
     // Style sharing has a self-validating key and survives ordinary transaction boundaries.
-    void prepare_for_style_engine_transaction() const
-    {
-        ++m_style_sharing_transaction_generation;
-        if (m_style_sharing_cache_entry_count > maximum_persistent_style_sharing_entries) {
-            m_style_sharing_cache.clear();
-            m_style_sharing_cache_entry_count = 0;
-            sweep_custom_property_environments();
-        }
-        m_computed_style_invalidation_cache.clear();
-        m_style_engine_cascade_input_cache.clear();
-        m_inherited_style_group_swaps.clear();
-        m_custom_property_environments.clear();
-    }
+    void prepare_for_style_engine_transaction() const;
 
     // Forget every style one element computed on another's behalf. See m_style_sharing_cache.
-    void drop_style_sharing_cache() const
-    {
-        m_style_sharing_cache.clear();
-        m_style_sharing_cache_entry_count = 0;
-        m_computed_style_invalidation_cache.clear();
-        m_style_engine_cascade_input_cache.clear();
-        m_inherited_style_group_swaps.clear();
-        sweep_custom_property_environments();
-    }
+    void drop_style_sharing_cache() const;
 
     struct ComputedStyleInvalidation {
         RequiredInvalidationAfterStyleChange invalidation;
@@ -150,6 +132,7 @@ public:
     [[nodiscard]] void const* style_record_payloads(StyleRecordID) const;
     void pin_style_record(StyleRecordID) const;
     void unpin_style_record(StyleRecordID) const;
+    [[nodiscard]] u64 computed_style_record_view_pin_count() const { return m_computed_style_record_view_pin_count; }
 
     // Two elements whose cascade declares the same custom properties against the same inherited
     // environment hold the same environment, so they are given one object rather than an object
@@ -211,6 +194,8 @@ public:
     void for_each_provisional_transition_effect(DOM::AbstractElement const&, Function<void(Animations::KeyframeEffect&)> const&) const;
 
 private:
+    virtual void finalize() override;
+
     virtual void visit_edges(Visitor&) override;
 
     [[nodiscard]] StyleEngine::StyleRecordDelta record_computed_style_inputs(Optional<DOM::AbstractElement>, ComputedValues const&, StyleNodeID style_node_id) const;
@@ -300,6 +285,7 @@ public:
     };
 
 private:
+    void clear_style_sharing_cache() const;
     [[nodiscard]] NonnullRefPtr<ComputedValues const> build_and_share_computed_values(NonnullRefPtr<ComputedStyleWorkingSet>, DOM::AbstractElement, StyleScope const&, StyleSharingCandidate&) const;
     [[nodiscard]] static Vector<GC::Ptr<DOM::ShadowRoot const>, 4> author_context_shadow_roots(DOM::AbstractElement);
 
@@ -551,6 +537,7 @@ private:
     CSSPixelRect m_viewport_rect;
 
     mutable StyleEngine m_style_engine;
+    mutable u64 m_computed_style_record_view_pin_count { 0 };
     Vector<GC::Ptr<DOM::Element>> m_style_nodes;
     TreeScopeID m_next_tree_scope;
     Vector<NonAuthorStyleSheet> m_non_author_style_sheets;

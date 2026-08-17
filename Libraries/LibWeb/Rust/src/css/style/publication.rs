@@ -208,9 +208,22 @@ impl StyleEngine {
         );
     }
 
+    pub(super) fn reclaim_computed_memory_if_needed(&mut self) {
+        // Recording dictionaries are keyed by computed identities. Reusing an identity for new
+        // semantics would make later events refer to the first definition replay saw for it.
+        if self.recording_id().is_none()
+            && let Some(retention) = self.computed_group_sets.reclaim_unreachable_if_needed()
+        {
+            self.counters
+                .set(Counter::ComputedGroupsRetained, retention.retained as u64);
+            self.counters
+                .set(Counter::ComputedGroupsReachable, retention.reachable as u64);
+        }
+        self.settle_computed_memory();
+    }
+
     pub(crate) fn unpin_style_record(&mut self, style_record: u64) {
         self.computed_group_sets.unpin_style_record(style_record);
-        self.settle_computed_memory();
     }
 
     pub(super) fn publish_computed_groups_impl(

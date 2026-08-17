@@ -892,7 +892,7 @@ void ComputedValues::borrow_style_record_payloads(ReadonlySpan<void const*> payl
 }
 
 ComputedStyleRecordView::ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordView const& view, StyleComputer const& style_computer, StyleRecordID style_record_identity)
-    : m_style_computer(view.animation_overlay_identity != 0 ? &style_computer : nullptr)
+    : m_style_computer(&style_computer)
     , m_style_record_identity(style_record_identity)
 {
     VERIFY(view.present);

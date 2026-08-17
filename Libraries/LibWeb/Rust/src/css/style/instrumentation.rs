@@ -161,6 +161,8 @@ define_counters! {
     SpecifiedValuesReused => "specifiedValuesReused",
     ComputedGroupNodeHandlesPublished => "computedGroupNodeHandlesPublished",
     ComputedGroupsReused => "computedGroupsReused",
+    ComputedGroupsRetained => "computedGroupsRetained",
+    ComputedGroupsReachable => "computedGroupsReachable",
     ComputedGroupSetsReused => "computedGroupSetsReused",
     InheritedGroupNodeHandlesPublished => "inheritedGroupNodeHandlesPublished",
     InheritedGroupSetsReused => "inheritedGroupSetsReused",

@@ -179,6 +179,8 @@ public:
     GC::Ref<JS::Object> style_engine_counters();
     u64 style_record_identity(DOM::Element&);
     u64 layout_style_record_identity(DOM::Element&);
+    u64 before_style_record_identity(DOM::Element&);
+    u64 before_layout_style_record_identity(DOM::Element&);
     u64 paint_style_record_identity(DOM::Element&);
     u64 layout_node_identity(DOM::Node&);
     double style_engine_match_document();

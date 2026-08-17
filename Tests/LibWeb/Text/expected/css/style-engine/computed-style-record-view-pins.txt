@@ -1,0 +1,1 @@
+computed style record view pins increased: true

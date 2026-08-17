@@ -83,7 +83,7 @@ void SyntheticPseudoElement::clear_computed_style(RefPtr<CSS::ComputedValues con
         else
             m_layout_node->pin_style_record_for_detachment();
     }
-    replace_style_record(0);
+    m_style_record_identity = 0;
 }
 
 void SyntheticPseudoElement::refresh_computed_style(CSS::StyleRecordID style_record_identity)

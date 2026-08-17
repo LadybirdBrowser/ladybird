@@ -34,6 +34,7 @@ struct HashedIdentity<Identity> {
 pub(super) struct InternTable<Identity, Payload> {
     entries: Vec<Payload>,
     identities: HashTable<HashedIdentity<Identity>>,
+    free_identities: Vec<Identity>,
 }
 
 impl<Identity, Payload> Default for InternTable<Identity, Payload> {
@@ -41,6 +42,7 @@ impl<Identity, Payload> Default for InternTable<Identity, Payload> {
         Self {
             entries: Vec::new(),
             identities: HashTable::new(),
+            free_identities: Vec::new(),
         }
     }
 }
@@ -90,6 +92,14 @@ impl<Identity: InternIdentity, Payload> InternTable<Identity, Payload> {
 
     pub(super) fn iter_mut(&mut self) -> impl Iterator<Item = &mut Payload> {
         self.entries.iter_mut()
+    }
+
+    pub(super) fn live_identities(&self) -> impl Iterator<Item = Identity> + '_ {
+        self.identities.iter().map(|candidate| candidate.identity)
+    }
+
+    pub(super) fn take_free_identity(&mut self) -> Option<Identity> {
+        self.free_identities.pop()
     }
 
     pub(super) fn shrink_to_fit(&mut self) {
@@ -143,23 +153,34 @@ impl<Identity: InternIdentity + PartialEq, Payload> InternTable<Identity, Payloa
         };
         entry.remove();
     }
+
+    pub(super) fn retire_identity(&mut self, hash: u64, identity: Identity) {
+        self.remove_identity(hash, identity);
+        self.free_identities.push(identity);
+    }
 }
 
 impl<Identity: InternIdentity, Payload> ShallowCapacityBytes for InternTable<Identity, Payload> {
     fn shallow_capacity_bytes(&self) -> u64 {
         self.entries.shallow_capacity_bytes()
             + (self.identities.capacity() * (size_of::<HashedIdentity<Identity>>() + 1)) as u64
+            + self.free_identities.shallow_capacity_bytes()
     }
 }
 
 impl<Identity: InternIdentity, Payload: Clone> Clone for InternTable<Identity, Payload> {
     fn clone(&self) -> Self {
         let entries = self.entries.clone();
+        let free_identities = self.free_identities.clone();
         let mut identities = HashTable::with_capacity(self.identities.len());
         for candidate in &self.identities {
             identities.insert_unique(candidate.hash, *candidate, |candidate| candidate.hash);
         }
-        Self { entries, identities }
+        Self {
+            entries,
+            identities,
+            free_identities,
+        }
     }
 }
 
@@ -224,5 +245,22 @@ mod tests {
             Some(TestIdentity(1))
         );
         assert_eq!(table.find(8, |_identity, _payload| true), None);
+    }
+
+    #[test]
+    fn retired_identities_can_replace_their_dense_payload() {
+        let mut table = InternTable::default();
+        let identity = TestIdentity(0);
+        table.insert(7, identity, "first");
+
+        table.retire_identity(7, identity);
+        assert_eq!(table.find(7, |_identity, _payload| true), None);
+        let recycled = table.take_free_identity().unwrap();
+        assert_eq!(recycled, identity);
+
+        table.insert(9, recycled, "second");
+        assert_eq!(table.len(), 1);
+        assert_eq!(table.find(9, |_identity, payload| *payload == "second"), Some(identity));
+        assert_eq!(table.live_identities().collect::<Vec<_>>(), vec![identity]);
     }
 }

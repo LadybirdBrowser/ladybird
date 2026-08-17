@@ -45,11 +45,19 @@
         println(`base style record handles cover the elements: ${after.styleRecordNodeHandlesPublished - before.styleRecordNodeHandlesPublished >= 100}`);
         println(`base style records are shared: ${after.styleRecordsReused - before.styleRecordsReused >= 98}`);
         println(`pseudo assignments are published sparsely: ${after.computedPseudoAssignmentsPublished - before.computedPseudoAssignmentsPublished >= 50}`);
+
+        const laterItem = document.createElement("div");
+        laterItem.className = "item even";
+        root.appendChild(laterItem);
+        internals.updateStyle();
+        const afterLaterItem = internals.styleEngineCounters();
+        println(`custom property environments survive transaction boundaries: ${afterLaterItem.customPropertyEnvironmentsReused > after.customPropertyEnvironmentsReused}`);
+
         document.styleSheets[0].deleteRule(3);
         internals.updateStyle();
         const withoutPseudos = internals.styleEngineCounters();
-        println(`pseudo assignments are removed sparsely: ${withoutPseudos.computedPseudoAssignmentsRemoved - after.computedPseudoAssignmentsRemoved >= 50}`);
+        println(`pseudo assignments are removed sparsely: ${withoutPseudos.computedPseudoAssignmentsRemoved - afterLaterItem.computedPseudoAssignmentsRemoved >= 50}`);
         println(`ordinary item: ${getComputedStyle(root.firstElementChild).color}`);
-        println(`distinct non-inherited item: ${getComputedStyle(root.lastElementChild).backgroundColor}`);
+        println(`distinct non-inherited item: ${getComputedStyle(root.children[99]).backgroundColor}`);
     });
 </script>

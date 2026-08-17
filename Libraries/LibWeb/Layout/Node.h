@@ -848,6 +848,10 @@ private:
     CSS::ComputedValues const& owned_computed_values() const;
     RefPtr<CSS::ComputedValues const> m_owned_computed_values;
     CSS::StyleRecordID m_style_record_identity;
+    // Layout nodes are ref-counted rather than GC cells, so this owner cannot be a traced GC::Ptr.
+    // Document::tear_down_layout_tree() must drop the layout root, which destroys these nodes and
+    // unpins their records before this root is cleared. Every document destruction path goes
+    // through that teardown.
     GC::Root<DOM::Document> m_style_record_owner;
     Vector<NonnullOwnPtr<ImageObserver>> m_image_observers;
     Vector<RefPtr<CSS::CursorStyleValue const>> m_cursor_style_values;
