@@ -4191,13 +4191,13 @@ asm_handler_GetById:
     ldr w4, [x0]
     cmp w4, #6
     b.eq .Lasm_GetById.ssa_block_1
-    cbz x3, .Lasm_GetById.ssa_block_5
+    cbz x3, .Lasm_GetById.ssa_block_7
     ldr x2, [x0, #40]
     cbz x2, .Lasm_GetById.ssa_block_1
     ldrb w9, [x2, #10]
     cbz w9, .Lasm_GetById.ssa_block_1
     mov x2, x3
-.Lasm_GetById.ssa_block_5:
+.Lasm_GetById.ssa_block_7:
     ldp w3, w0, [x0, #4]
     ldr w9, [x1, #92]
     cmp w9, w0
@@ -4207,11 +4207,26 @@ asm_handler_GetById:
     lsr x9, x0, #48
     mov w10, #65532
     cmp x9, x10
-    b.eq .Lasm_GetById.ssa_block_1
+    b.eq .Lasm_GetById.ssa_block_3
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #24]
     add x21, x21, #24
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetById.ssa_block_4:
+    mov x0, x20
+    sub w1, w21, w26
+    str w1, [x28, #56]
+    mov x2, x21
+    bl CSYM(asm_slow_path_get_by_id_cached_accessor)
+    tbnz x0, #63, .Lexit_veneer
+    ldr x28, [x20, #15288]
+    ldr x9, [x28, #80]
+    ldr x26, [x9, #80]
+    add x27, x28, #120
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
 asm_handler_GetById_hot_end:
@@ -9093,6 +9108,22 @@ asm_handler_GetById_cold:
     ldr x26, [x9, #80]
     add x27, x28, #120
     add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetById.ssa_block_3:
+    mov x0, x20
+    sub w1, w21, w26
+    mov x2, x21
+    bl CSYM(asm_try_inline_get_by_id_accessor)
+    cbnz w0, .Lasm_GetById.ssa_block_4
+    mov x0, x20
+    ldr x28, [x0, #15288]
+    add x27, x28, #120
+    ldr x0, [x28, #80]
+    ldr x26, [x0, #80]
+    mov w25, #0
+    add x21, x26, w25, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10

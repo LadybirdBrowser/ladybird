@@ -2247,6 +2247,21 @@ handler GetById(
         call_slow_path(get_by_id);
     };
 
+    let invoke_accessor = || @cold {
+        guard call_interp(asm_try_inline_get_by_id_accessor) == 0 else {
+            call_slow_path(get_by_id_cached_accessor);
+        };
+        let inline_vm = current_vm();
+        exec_ctx = inline_vm.running_execution_context;
+        assert_nonzero(exec_ctx);
+        values = exec_ctx.slots;
+        let inline_executable = exec_ctx.executable;
+        assert_nonzero(inline_executable);
+        pb = inline_executable.bytecode_data;
+        pc = 0;
+        goto_handler(pc);
+    };
+
     guard let Value<Object>(object) = load(base) else try_cache;
     let shape = object.shape;
     guard let property_cache = load_property_lookup_cache(cache) else try_cache;
@@ -2266,7 +2281,7 @@ handler GetById(
 
     guard property_cache.shape_dictionary_generation == shape.dictionary_generation else try_cache;
     let value = holder.named_properties[property_cache.property_offset];
-    guard value is not Value<Accessor> else try_cache;
+    guard value is not Value<Accessor> else invoke_accessor;
     store(dst, value);
     dispatch_next;
 }
