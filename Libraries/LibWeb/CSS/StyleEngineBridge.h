@@ -50,10 +50,19 @@ public:
     // Identity 0 is never returned; it means "no node".
     StyleNodeID allocate_style_node();
     void allocate_style_nodes(Span<StyleNodeID> nodes);
-    void defer_element_initial_features(StyleNodeID style_node) { m_nodes_with_pending_initial_features.set(style_node); }
-    void cancel_deferred_element_initial_features(StyleNodeID style_node) { m_nodes_with_pending_initial_features.remove(style_node); }
+    void defer_element_initial_features(StyleNodeID style_node)
+    {
+        m_nodes_with_pending_initial_features.set(style_node);
+        m_nodes_awaiting_first_style_computation.set(style_node);
+    }
+    void cancel_deferred_element_initial_features(StyleNodeID style_node)
+    {
+        m_nodes_with_pending_initial_features.remove(style_node);
+        m_nodes_awaiting_first_style_computation.remove(style_node);
+    }
     [[nodiscard]] bool has_deferred_element_initial_features(StyleNodeID style_node) const { return m_nodes_with_pending_initial_features.contains(style_node); }
     Vector<StyleNodeID> take_deferred_element_initial_features();
+    HashTable<StyleNodeID> take_elements_awaiting_first_style_computation();
     [[nodiscard]] bool resize_parsed_substitution_cache(u64 bytes);
 
     void set_element_parts(StyleNodeID node, ReadonlySpan<StyleAtomID> names, ReadonlySpan<StyleNodeID> hosts);
@@ -223,6 +232,7 @@ private:
 
     HashTable<FlatPtr> m_atoms;
     HashTable<StyleNodeID> m_nodes_with_pending_initial_features;
+    HashTable<StyleNodeID> m_nodes_awaiting_first_style_computation;
     size_t m_element_match_capacity { 64 };
 
     u32 m_declaration_block_version { 1 };

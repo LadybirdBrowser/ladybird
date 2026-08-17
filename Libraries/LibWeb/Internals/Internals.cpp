@@ -62,6 +62,7 @@
 #include <LibWeb/HTML/EventLoop/TaskQueue.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
@@ -972,8 +973,15 @@ GC::Ref<WebIDL::Promise> Internals::flush_session_history_traversal_queue()
     return promise;
 }
 
+bool Internals::has_shadow_root(GC::Ref<DOM::Element> element)
+{
+    return element->shadow_root() != nullptr;
+}
+
 GC::Ptr<DOM::ShadowRoot> Internals::get_shadow_root(GC::Ref<DOM::Element> element)
 {
+    if (auto* input = as_if<HTML::HTMLInputElement>(*element))
+        input->ensure_user_agent_shadow_tree({});
     return element->shadow_root();
 }
 

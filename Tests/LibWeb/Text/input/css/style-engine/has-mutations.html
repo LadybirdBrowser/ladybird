@@ -124,7 +124,9 @@
         plan("an argument that names a position", () =>
             document.getElementById("positional").appendChild(make("span", "positional-last")));
 
-        // A control arrives already required, which no attribute the engine indexes says.
+        // This control is already required before the mutation, so no indexed attribute mutation represents that
+        // initial state. Rendering-only user-agent descendants remain unmaterialized until style is computed, so this
+        // mutation publishes only author nodes.
         plan("an argument that names a constraint", () =>
             document.getElementById("constrained").appendChild(make("input", "constrained-input", { attributes: { required: "" } })));
 

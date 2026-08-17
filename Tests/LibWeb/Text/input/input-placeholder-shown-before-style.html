@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<input id="parsed-input" placeholder="Parsed input">
+<script>
+    test(() => {
+        println(`parsed input: ${document.querySelector("#parsed-input").matches(":placeholder-shown")}`);
+
+        const appendedInput = document.createElement("input");
+        appendedInput.placeholder = "Appended input";
+        document.body.appendChild(appendedInput);
+        println(`appended input: ${appendedInput.matches(":placeholder-shown")}`);
+        println(`shadow before value: ${internals.hasShadowRoot(appendedInput)}`);
+
+        appendedInput.value = "value";
+        println(`non-empty value: ${appendedInput.matches(":placeholder-shown")}`);
+        println(`shadow after value: ${internals.hasShadowRoot(appendedInput)}`);
+
+        appendedInput.value = "";
+        println(`cleared value: ${appendedInput.matches(":placeholder-shown")}`);
+    });
+</script>

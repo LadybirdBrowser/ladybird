@@ -1,0 +1,6 @@
+parsed input: true
+appended input: true
+shadow before value: false
+non-empty value: false
+shadow after value: false
+cleared value: true
