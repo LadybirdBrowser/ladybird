@@ -2394,6 +2394,17 @@ fn stroke_dasharray_numbers_as_lengths(value: &StyleValueData) -> Option<Arc<Sty
     }))
 }
 
+/// The computed two-value list for a `border-spacing` member used for both axes.
+#[allow(clippy::arc_with_non_send_sync)]
+fn border_spacing_pair(single: StyleValueData) -> Arc<StyleValueData> {
+    let single = unsafe { RetainedStyleValueData::from_retained_pointer(Arc::into_raw(Arc::new(single))) };
+    Arc::new(StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(vec![single.clone_retained(), single]),
+        separator: 0,
+        collapsible: true,
+    })
+}
+
 // https://drafts.csswg.org/css-contain-2/#contain-property
 #[allow(clippy::arc_with_non_send_sync)]
 fn collapse_containment_list(value: &StyleValueData) -> Option<Arc<StyleValueData>> {
@@ -4158,6 +4169,21 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                             }
                             None => NativeValue::Unsupported,
                         }
+                    }
+                    // https://drafts.csswg.org/css-tables-3/#border-spacing-property
+                    // two absolute lengths
+                    // A single specified length computes to the pair with both members equal, so
+                    // every computed border-spacing has the same two-value list shape; a specified
+                    // pair takes the generic arms below.
+                    (_, prop::BORDER_SPACING) if !matches!(value_data, StyleValueData::ValueList { .. }) => {
+                        let single = match absolutized {
+                            Some(Some(px)) => StyleValueData::Length {
+                                value: px,
+                                unit: px_length_unit(),
+                            },
+                            _ => value_data.clone(),
+                        };
+                        NativeValue::StyleValue(border_spacing_pair(single))
                     }
                     (_, prop::CONTAIN) => match collapse_containment_list(value_data) {
                         Some(value) => NativeValue::StyleValue(value),

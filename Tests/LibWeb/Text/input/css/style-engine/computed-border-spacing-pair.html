@@ -1,0 +1,13 @@
+<!doctype html>
+<table id="target"></table>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        target.style.borderSpacing = "10px 10px";
+        println(`pair: ${getComputedStyle(target).borderSpacing}`);
+        target.style.borderSpacing = "10px";
+        println(`single: ${getComputedStyle(target).borderSpacing}`);
+        target.style.borderSpacing = "10px 20px";
+        println(`distinct pair: ${getComputedStyle(target).borderSpacing}`);
+    });
+</script>

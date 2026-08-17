@@ -3606,9 +3606,9 @@ pub unsafe extern "C" fn rust_build_sizing_group(
 }
 
 /// Builds an inherited table group payload from the computed values, with the
-/// same sharing rules as the inherited box builder. Border-spacing must be an
-/// absolute pixel length; two-value spacings and anything else fall back to
-/// the C++ population path by returning null.
+/// same sharing rules as the inherited box builder. Border-spacing must be a
+/// pair of absolute pixel lengths; anything else falls back to the C++
+/// population path by returning null.
 ///
 /// # Safety
 /// The value pointers must be valid StyleValueData or null, and
@@ -3631,9 +3631,22 @@ pub unsafe extern "C" fn rust_build_inherited_table_group(
                 _ => None,
             }
         };
-        let spacing = match unsafe { (border_spacing as *const StyleValueData).as_ref() } {
-            Some(StyleValueData::Length { value, unit }) if *unit == crate::css::style_compute::px_length_unit() => {
-                crate::css::css_pixels::CssPixels::nearest_value_for(*value).raw_value()
+        let spacing_component = |data: &StyleValueData| -> Option<i32> {
+            match data {
+                StyleValueData::Length { value, unit } if *unit == crate::css::style_compute::px_length_unit() => {
+                    Some(crate::css::css_pixels::CssPixels::nearest_value_for(*value).raw_value())
+                }
+                _ => None,
+            }
+        };
+        let (horizontal_spacing, vertical_spacing) = match unsafe { (border_spacing as *const StyleValueData).as_ref() }
+        {
+            Some(StyleValueData::ValueList { values, .. }) if values.as_slice().len() == 2 => {
+                let components = values.as_slice();
+                (
+                    spacing_component(components[0].data())?,
+                    spacing_component(components[1].data())?,
+                )
             }
             _ => return None,
         };
@@ -3641,8 +3654,8 @@ pub unsafe extern "C" fn rust_build_inherited_table_group(
             border_collapse: keyword_code(border_collapse, crate::css::style_compute::keyword_to_border_collapse)?,
             caption_side: keyword_code(caption_side, crate::css::style_compute::keyword_to_caption_side)?,
             empty_cells: keyword_code(empty_cells, crate::css::style_compute::keyword_to_empty_cells)?,
-            border_spacing_horizontal: spacing,
-            border_spacing_vertical: spacing,
+            border_spacing_horizontal: horizontal_spacing,
+            border_spacing_vertical: vertical_spacing,
         };
 
         if !parent_payload.is_null() {

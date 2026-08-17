@@ -6325,6 +6325,11 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(
     case PropertyID::BorderTopWidth:
     case PropertyID::OutlineWidth:
         return compute_border_or_outline_width(absolutized_value, device_pixels_per_css_pixel);
+    case PropertyID::BorderSpacing: {
+        if (absolutized_value->is_value_list())
+            return absolutized_value;
+        return StyleValueList::create(StyleValueVector { absolutized_value, absolutized_value }, StyleValueList::Separator::Space);
+    }
     case PropertyID::Contain:
         return collapse_containment_list(absolutized_value);
     case PropertyID::CornerBottomLeftShape:
