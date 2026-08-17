@@ -16,11 +16,11 @@
 namespace Web::DOM {
 
 struct Text::RareData final
-    : Node::RareData
+    : CharacterData::RareData
     , SlottableMixin::RareData {
     virtual void visit_edges(Cell::Visitor& visitor) override
     {
-        Node::RareData::visit_edges(visitor);
+        CharacterData::RareData::visit_edges(visitor);
         SlottableMixin::RareData::visit_edges(visitor);
     }
 };
