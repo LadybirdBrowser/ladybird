@@ -3674,6 +3674,7 @@ impl StyleEngine {
             winner_program_version,
             document_root,
             attachment_scopes,
+            removed_rules_requiring_refresh,
         } = context;
         let key = input.key;
         if program_joins.is_empty() {
@@ -3867,7 +3868,7 @@ impl StyleEngine {
                         InputValue::Flag(false)
                     )
                 );
-                if removes_contribution
+                let winner_inventory_is_complete = removes_contribution
                     && self.program.declarations_are_complete_for(rule)
                     && compiled.entries().iter().all(|entry| entry.pseudo_element.is_none())
                     && winner_program_version.is_some_and(|version| {
@@ -3875,21 +3876,37 @@ impl StyleEngine {
                             self.winner_groups.coverage_at_least(version, resident_count),
                             Lookup::Known(())
                         )
-                    })
-                    && !self.winner_groups.rule_is_a_winner(rule)
-                {
-                    if self.selector_truth_changes_active {
-                        let refreshes = &mut self.selector_truth_changes.refreshes;
-                        self.retained_match_answers.for_each_answer_containing_rule(
-                            &self.match_answers,
-                            rule,
-                            |node| {
-                                refreshes.push(SelectorTruthRefresh { node, rule: None });
-                            },
-                        );
+                    });
+                if winner_inventory_is_complete {
+                    if !self.winner_groups.rule_is_a_winner(rule) {
+                        if self.selector_truth_changes_active {
+                            removed_rules_requiring_refresh.push(rule);
+                        }
+                        self.counters.bump(Counter::ProgramCandidatesRejectedByCascade);
+                        continue;
                     }
-                    self.counters.bump(Counter::ProgramCandidatesRejectedByCascade);
-                    continue;
+                    let winning_nodes = (!compiled.can_leave_its_scope()
+                        && compiled
+                            .entries()
+                            .iter()
+                            .all(|entry| compiled.dispatch_key(entry).has_selector_posting()))
+                    .then(|| {
+                        self.winner_groups.winning_nodes(rule).map(|nodes| {
+                            nodes
+                                .filter(|&node| scopes.binary_search(&self.tree.tree_scope(node)).is_ok())
+                                .collect::<Vec<_>>()
+                        })
+                    })
+                    .flatten();
+                    if let Some(nodes) = winning_nodes {
+                        if self.selector_truth_changes_active {
+                            removed_rules_requiring_refresh.push(rule);
+                        }
+                        for node in nodes {
+                            regions.add_if_not_covered(ImpactRegion::Node(node), &self.tree, &mut self.counters);
+                        }
+                        continue;
+                    }
                 }
                 programs.push((rule, selector_program));
             }

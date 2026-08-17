@@ -1232,17 +1232,18 @@ impl RetainedMatchAnswers {
         }
     }
 
-    pub(super) fn for_each_answer_containing_rule(
+    pub(super) fn for_each_answer_containing_any_rule(
         &self,
         catalog: &MatchAnswerCatalog,
-        rule: RuleID,
+        rules: &[RuleID],
         mut visit: impl FnMut(StyleNodeID),
     ) {
+        debug_assert!(rules.is_sorted());
         self.for_each_answer_node(|node| {
             let index = node.element_index().unwrap() as usize;
             if catalog
                 .retained_answer(self.column[index])
-                .is_some_and(|answer| answer.iter().any(|matched| matched.rule == rule))
+                .is_some_and(|answer| answer.iter().any(|matched| rules.binary_search(&matched.rule).is_ok()))
             {
                 visit(node);
             }

@@ -1450,12 +1450,12 @@ impl TreeRoutingMode<'_> {
     }
 }
 
-#[derive(Clone, Copy)]
 pub(super) struct ProgramRoutingContext<'a> {
     pub(super) resident_nodes: Option<&'a [StyleNodeID]>,
     pub(super) winner_program_version: Option<ProgramVersion>,
     pub(super) document_root: StyleNodeID,
     pub(super) attachment_scopes: Option<&'a [TreeScopeID]>,
+    pub(super) removed_rules_requiring_refresh: &'a mut Vec<RuleID>,
 }
 
 /// Which exact tree comparison a routed candidate can use.
