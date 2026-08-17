@@ -131,7 +131,15 @@ Vector<ByteString> get_cors_unsafe_header_names(HTTP::HeaderList const& headers)
 bool is_cors_non_wildcard_request_header_name(StringView header_name)
 {
     // A CORS non-wildcard request-header name is a header name that is a byte-case-insensitive match for `Authorization`.
-    return header_name.equals_ignoring_ascii_case("Authorization"sv);
+    //
+    // AD-HOC: Enforcing this is not yet web-compatible. See:
+    //         https://github.com/whatwg/fetch/issues/1278
+    //         https://github.com/whatwg/fetch/issues/1919
+    //
+    //         On the contrary, the use of Authorization with a wildcarded Access-Control-Allow-Headers is rising:
+    //         https://chromestatus.com/metrics/feature/timeline/popularity/3873
+    (void)header_name;
+    return false;
 }
 
 // https://fetch.spec.whatwg.org/#privileged-no-cors-request-header-name
