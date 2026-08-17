@@ -328,10 +328,10 @@ void HTMLScriptElement::prepare_script()
     // 23. If el has an event attribute and a for attribute, and el's type is "classic", then:
     if (m_script_type == ScriptType::Classic && has_attribute(HTML::AttributeNames::event) && has_attribute(HTML::AttributeNames::for_)) {
         // 1. Let for be the value of el's' for attribute.
-        auto for_ = get_attribute_value_view(HTML::AttributeNames::for_).value_or({});
+        auto for_ = attribute(HTML::AttributeNames::for_).value_or({});
 
         // 2. Let event be the value of el's event attribute.
-        auto event = get_attribute_value_view(HTML::AttributeNames::event).value_or({});
+        auto event = attribute(HTML::AttributeNames::event).value_or({});
 
         // 3. Strip leading and trailing ASCII whitespace from event and for.
         for_ = for_.trim_ascii_whitespace();
@@ -356,7 +356,7 @@ void HTMLScriptElement::prepare_script()
     Optional<Utf16String> encoding;
 
     if (has_attribute(HTML::AttributeNames::charset)) {
-        auto charset = TextCodec::get_standardized_encoding(get_attribute_value_view(HTML::AttributeNames::charset).value_or({}));
+        auto charset = TextCodec::get_standardized_encoding(attribute(HTML::AttributeNames::charset).value_or({}));
         if (charset.has_value())
             encoding = Utf16String::from_ascii_without_validation(charset->bytes());
     }
@@ -387,7 +387,7 @@ void HTMLScriptElement::prepare_script()
     auto referrer_policy = m_referrer_policy;
 
     // 30. Let fetch priority be the current state of el's fetchpriority content attribute.
-    auto fetch_priority = Fetch::Infrastructure::request_priority_from_string(get_attribute_value_view(HTML::AttributeNames::fetchpriority).value_or({})).value_or(Fetch::Infrastructure::Request::Priority::Auto);
+    auto fetch_priority = Fetch::Infrastructure::request_priority_from_string(attribute(HTML::AttributeNames::fetchpriority).value_or({})).value_or(Fetch::Infrastructure::Request::Priority::Auto);
 
     // 31. Let parser metadata be "parser-inserted" if el is parser-inserted, and "not-parser-inserted" otherwise.
     auto parser_metadata = is_parser_inserted()
@@ -423,7 +423,7 @@ void HTMLScriptElement::prepare_script()
         }
 
         // 2. Let src be the value of el's src attribute.
-        auto src = get_attribute_value_view(HTML::AttributeNames::src).value_or({});
+        auto src = attribute(HTML::AttributeNames::src).value_or({});
 
         // 3. If src is the empty string, then queue an element task on the DOM manipulation task source given el to fire an event named error at el, and return.
         if (src.is_empty()) {

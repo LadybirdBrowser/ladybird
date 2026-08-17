@@ -1182,7 +1182,7 @@ void HTMLMediaElement::select_resource()
             });
 
             // 1. ⌛ If the src attribute's value is the empty string, then end the synchronous section, and jump down to the failed with attribute step below.
-            auto source = self.get_attribute_value_view(HTML::AttributeNames::src).value_or({});
+            auto source = self.attribute(HTML::AttributeNames::src).value_or({});
             if (source.is_empty()) {
                 failed_with_attribute("The 'src' attribute is empty"_utf16);
                 return;
@@ -1312,7 +1312,7 @@ void HTMLMediaElement::load_url_resource(URL::URL const& url_record, Function<vo
 // https://html.spec.whatwg.org/multipage/media.html#attr-media-preload
 bool HTMLMediaElement::preload_attribute_is_in_none_state() const
 {
-    auto preload = get_attribute_value_view(HTML::AttributeNames::preload);
+    auto preload = attribute(HTML::AttributeNames::preload);
     return preload.has_value() && preload->equals_ignoring_ascii_case(u"none"sv);
 }
 

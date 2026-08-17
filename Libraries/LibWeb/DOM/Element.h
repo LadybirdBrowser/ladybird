@@ -209,7 +209,6 @@ public:
     Optional<Utf16String> get_attribute(Utf16FlyString const& name) const;
     Optional<Utf16String> get_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& name) const;
     Utf16String get_attribute_value(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_ = {}) const;
-    Optional<Utf16View> get_attribute_value_view(Utf16FlyString const& name) const;
 
     Utf16String get_an_elements_target(Optional<Utf16String> target = {}) const;
     HTML::TokenizedFeature::NoOpener get_an_elements_noopener(URL::URL const& url, Utf16View target) const;
@@ -235,6 +234,7 @@ public:
     WebIDL::ExceptionOr<GC::Ptr<Attr>> set_attribute_node_ns(Attr&);
 
     void append_attribute(Attr&);
+    void append_attribute(QualifiedName, Utf16String value);
     void remove_attribute(Utf16FlyString const& name);
     void remove_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& name);
     WebIDL::ExceptionOr<GC::Ref<Attr>> remove_attribute_node(GC::Ref<Attr>);
@@ -304,7 +304,8 @@ public:
     void for_each_attribute(Function<void(Attr&)>);
     void for_each_attribute(Function<void(Attr const&)>) const;
 
-    void for_each_attribute(Function<void(Utf16FlyString const&, Utf16View)>) const;
+    void for_each_attribute(Function<void(QualifiedName, Utf16String)>) const;
+    void for_each_attribute(Function<void(Utf16FlyString, Utf16String)>) const;
 
     bool has_class(Utf16View, CaseSensitivity = CaseSensitivity::CaseSensitive) const;
     bool has_class(Utf16FlyString const&, CaseSensitivity = CaseSensitivity::CaseSensitive) const;
@@ -805,6 +806,7 @@ protected:
     virtual void prepare_for_style_computation() { }
 
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual size_t external_memory_size() const override;
 
     virtual bool id_reference_exists(Utf16View) const override;
 
@@ -821,6 +823,19 @@ protected:
     struct RareData;
 
 private:
+    struct Attribute {
+        QualifiedName name;
+        Utf16String value;
+    };
+    using AttributeList = Vector<Attribute, 1>;
+
+    AttributeList& ensure_attribute_list();
+    Optional<size_t> find_attribute_index(Utf16FlyString const& qualified_name) const;
+    Optional<size_t> find_attribute_index_ns(Optional<Utf16FlyString> const&, Utf16FlyString const& local_name) const;
+    void change_attribute_value(GC::Ref<Attr>, Utf16String value);
+    void handle_attribute_changes(QualifiedName, Optional<Utf16String> old_value, Optional<Utf16String> new_value);
+    void remove_attribute_at(size_t index);
+
     using PreservedPseudoElementStyles = Array<RefPtr<CSS::ComputedValues const>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount)>;
     using PseudoElementData = HashMap<CSS::PseudoElement, GC::Ref<PseudoElement>>;
 
@@ -856,7 +871,7 @@ private:
 
     QualifiedName m_qualified_name;
 
-    GC::Ptr<NamedNodeMap> m_attributes;
+    OwnPtr<AttributeList> m_attributes;
     GC::Ptr<CSS::CSSStyleProperties> m_inline_style;
     GC::Ptr<ShadowRoot> m_shadow_root;
 
@@ -875,6 +890,9 @@ private:
     CSS::StyleNodeID m_style_node_id;
 
     Optional<Utf16FlyString> m_id;
+
+    friend class Attr;
+    friend class NamedNodeMap;
 
     bool m_is_being_activated : 1 { false };
     bool m_in_top_layer : 1 { false };

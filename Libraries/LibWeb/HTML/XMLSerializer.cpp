@@ -260,7 +260,7 @@ static Optional<Utf16FlyString> record_namespace_information(DOM::Element const&
 
     // 2. Main: For each attribute attr in element's attributes, in the order they are specified in the element's attribute list:
     for (size_t attribute_index = 0; attribute_index < element.attributes()->length(); ++attribute_index) {
-        auto const* attribute = element.attributes()->item(attribute_index);
+        auto attribute = element.attributes()->item(attribute_index);
         VERIFY(attribute);
 
         // 1. Let attribute namespace be the value of attr's namespaceURI value.
@@ -357,7 +357,7 @@ static WebIDL::ExceptionOr<Utf16String> serialize_element_attributes(DOM::Elemen
 
     // 3. Loop: For each attribute attr in element's attributes, in the order they are specified in the element's attribute list:
     for (size_t attribute_index = 0; attribute_index < element.attributes()->length(); ++attribute_index) {
-        auto const* attribute = element.attributes()->item(attribute_index);
+        auto attribute = element.attributes()->item(attribute_index);
         VERIFY(attribute);
 
         // 1. If the require well-formed flag is set (its value is true), and the localname set contains a tuple whose values match those of a new tuple consisting of attr's namespaceURI attribute and localName attribute,
@@ -488,7 +488,8 @@ static WebIDL::ExceptionOr<Utf16String> serialize_element_attributes(DOM::Elemen
         result.append_ascii("=\""sv);
 
         // 3. The result of serializing an attribute value given attr's value attribute and the require well-formed flag as input;
-        result.append(TRY(serialize_an_attribute_value(attribute->value().utf16_view(), require_well_formed)));
+        auto attribute_value = attribute->value();
+        result.append(TRY(serialize_an_attribute_value(attribute_value.utf16_view(), require_well_formed)));
 
         // 4. """ (U+0022 QUOTATION MARK).
         result.append_ascii('"');

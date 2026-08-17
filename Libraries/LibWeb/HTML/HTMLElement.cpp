@@ -192,7 +192,7 @@ Utf16FlyString HTMLElement::dir() const
 {
     // FIXME: This should probably be `Reflect` in the IDL.
     // The dir IDL attribute on an element must reflect the dir content attribute of that element, limited to only known values.
-    auto dir = get_attribute_value_view(HTML::AttributeNames::dir);
+    auto dir = attribute(HTML::AttributeNames::dir);
 
     if (dir.has_value() && dir->equals_ignoring_ascii_case(u"ltr"sv))
         return "ltr"_utf16_fly_string;
@@ -2312,7 +2312,7 @@ Utf16String HTMLElement::access_key_label() const
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-draggable
 bool HTMLElement::draggable() const
 {
-    auto attribute = get_attribute_value_view(HTML::AttributeNames::draggable);
+    auto attribute = this->attribute(HTML::AttributeNames::draggable);
 
     // If an element's draggable content attribute has the state True, the draggable IDL attribute must return true.
     if (attribute.has_value() && attribute->equals_ignoring_ascii_case(u"true"sv)) {
@@ -2333,7 +2333,7 @@ bool HTMLElement::draggable() const
 
     // If the element is an object element that represents an image, the draggable IDL attribute must return true.
     if (is<HTML::HTMLObjectElement>(*this)) {
-        if (auto type_attribute = get_attribute_value_view(HTML::AttributeNames::type); type_attribute.has_value() && type_attribute->equals_ignoring_ascii_case(u"image"sv))
+        if (auto type_attribute = this->attribute(HTML::AttributeNames::type); type_attribute.has_value() && type_attribute->equals_ignoring_ascii_case(u"image"sv))
             return true;
     }
 
@@ -2380,7 +2380,7 @@ bool HTMLElement::spellcheck() const
     // NOTE: We use "true-by-default" for elements which are editable, editing hosts, or form associated text control
     //       elements "false-by-default" for root elements, and "inherit-by-default" for other elements.
 
-    auto maybe_spellcheck_attribute = get_attribute_value_view(HTML::AttributeNames::spellcheck);
+    auto maybe_spellcheck_attribute = attribute(HTML::AttributeNames::spellcheck);
 
     // The spellcheck IDL attribute, on getting, must return true if the element's spellcheck content attribute is in the True state,
     if (maybe_spellcheck_attribute.has_value() && (maybe_spellcheck_attribute.value().equals_ignoring_ascii_case(u"true"sv) || maybe_spellcheck_attribute.value().is_empty()))
@@ -2429,7 +2429,7 @@ Utf16FlyString HTMLElement::writing_suggestions() const
     // The attribute's invalid value default is the True state.
 
     // 1. If element's writingsuggestions content attribute is in the False state, return "false".
-    auto maybe_writing_suggestions_attribute = get_attribute_value_view(HTML::AttributeNames::writingsuggestions);
+    auto maybe_writing_suggestions_attribute = attribute(HTML::AttributeNames::writingsuggestions);
 
     if (maybe_writing_suggestions_attribute.has_value() && maybe_writing_suggestions_attribute.value().equals_ignoring_ascii_case(u"false"sv))
         return "false"_utf16_fly_string;
@@ -2484,7 +2484,7 @@ HTMLElement::AutocapitalizationHint HTMLElement::own_autocapitalization_hint() c
     // To compute the own autocapitalization hint of an element element, run the following steps:
     // 1. If the autocapitalize content attribute is present on element, and its value is not the empty string, return the
     //    state of the attribute.
-    auto maybe_autocapitalize_attribute = get_attribute_value_view(HTML::AttributeNames::autocapitalize);
+    auto maybe_autocapitalize_attribute = attribute(HTML::AttributeNames::autocapitalize);
 
     if (maybe_autocapitalize_attribute.has_value() && !maybe_autocapitalize_attribute.value().is_empty()) {
         if (maybe_autocapitalize_attribute->equals_ignoring_ascii_case(u"off"sv)

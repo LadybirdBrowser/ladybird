@@ -52,7 +52,7 @@ void PopoverTargetAttributes::popover_target_activation_behaviour(GC::Ref<DOM::N
         return;
 
     // 4. If node's popovertargetaction attribute is in the show state and popover's popover visibility state is showing, then return.
-    auto popover_target_action = as<DOM::Element>(*node).get_attribute_value_view(HTML::AttributeNames::popovertargetaction);
+    auto popover_target_action = as<DOM::Element>(*node).attribute(HTML::AttributeNames::popovertargetaction);
     if (popover_target_action.has_value() && popover_target_action->equals_ignoring_ascii_case(u"show"sv)
         && popover->popover_visibility_state() == HTMLElement::PopoverVisibilityState::Showing)
         return;

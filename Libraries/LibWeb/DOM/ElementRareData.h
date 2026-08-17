@@ -27,6 +27,7 @@ struct Element::RareData
     GC::Ptr<CSS::StylePropertyMap> attribute_style_map;
     GC::Ptr<DOMTokenList> class_list;
     GC::Ptr<DOMTokenList> part_list;
+    GC::Ptr<NamedNodeMap> attribute_map;
     mutable OwnPtr<PseudoElementData> pseudo_element_data;
     Optional<CSS::PseudoElement> associated_shadow_host_pseudo_element;
     Vector<Utf16FlyString> parts;

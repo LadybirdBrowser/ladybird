@@ -1671,23 +1671,11 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document, G
         auto element_copy = TRY(DOM::create_element(document, element->local_name(), element->namespace_uri(), element->prefix(), element->is_value(), false, registry));
 
         // 5. For each attribute of node’s attribute list:
-        Optional<WebIDL::Exception> maybe_exception;
-        element->for_each_attribute([&](Attr const& attr) {
+        element->for_each_attribute([&](QualifiedName const& name, Utf16View value) {
             // 1. Let copyAttribute be the result of cloning a single node given attribute, document, and null.
-            auto copy_attribute_or_error = attr.clone_single_node(document, nullptr);
-            if (copy_attribute_or_error.is_error()) {
-                maybe_exception = copy_attribute_or_error.release_error();
-                return;
-            }
-
-            auto copy_attribute = copy_attribute_or_error.release_value();
-
             // 2. Append copyAttribute to copy.
-            element_copy->append_attribute(as<Attr>(*copy_attribute));
+            element_copy->append_attribute(name, Utf16String::from_utf16(value));
         });
-
-        if (maybe_exception.has_value())
-            return *maybe_exception;
 
         copy = move(element_copy);
     }
@@ -2720,8 +2708,8 @@ bool Node::is_equal_node(GC::Ptr<Node const> other_node) const
             return false;
         // If A is an element, each attribute in its attribute list equals an attribute in B’s attribute list.
         bool has_same_attributes = true;
-        this_element.for_each_attribute([&](auto const& attribute) {
-            if (other_element.get_attribute_ns(attribute.namespace_uri(), attribute.local_name()) != attribute.value())
+        this_element.for_each_attribute([&](QualifiedName const& name, Utf16View value) {
+            if (other_element.get_attribute_ns(name.namespace_(), name.local_name()) != value)
                 has_same_attributes = false;
         });
         if (!has_same_attributes)
@@ -2823,7 +2811,7 @@ Vector<Utf16FlyString> Node::get_in_scope_prefixes() const
 
         if (auto attributes = current->attributes()) {
             for (size_t i = 0; i < attributes->length(); ++i) {
-                auto const* attr = attributes->item(i);
+                auto attr = attributes->item(i);
                 if (attr->namespace_uri() != Web::Namespace::XMLNS)
                     continue;
 

@@ -66,10 +66,12 @@
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/ElementRareData.h>
 #include <LibWeb/DOM/HTMLCollection.h>
+#include <LibWeb/DOM/MutationType.h>
 #include <LibWeb/DOM/NamedNodeMap.h>
 #include <LibWeb/DOM/SelectorQuery.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -162,6 +164,7 @@ void Element::RareData::visit_edges(Cell::Visitor& visitor)
 {
     Node::RareData::visit_edges(visitor);
     SlottableMixin::RareData::visit_edges(visitor);
+    visitor.visit(attribute_map);
     visitor.visit(class_list);
     visitor.visit(part_list);
     if (custom_element_reaction_queue) {
@@ -307,57 +310,75 @@ Element::Element(Document& document, DOM::QualifiedName qualified_name)
 
 Element::~Element() = default;
 
+Element::AttributeList& Element::ensure_attribute_list()
+{
+    if (!m_attributes)
+        m_attributes = make<AttributeList>();
+    return *m_attributes;
+}
+
+Optional<size_t> Element::find_attribute_index(Utf16FlyString const& qualified_name) const
+{
+    if (!m_attributes)
+        return {};
+
+    Utf16FlyString const* effective_name = &qualified_name;
+    Utf16FlyString lowercase_name;
+    if (namespace_uri() == Namespace::HTML && document().is_html_document()) {
+        lowercase_name = qualified_name.to_ascii_lowercase();
+        effective_name = &lowercase_name;
+    }
+
+    for (size_t index = 0; index < m_attributes->size(); ++index) {
+        if (m_attributes->at(index).name.as_string() == *effective_name)
+            return index;
+    }
+    return {};
+}
+
+Optional<size_t> Element::find_attribute_index_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& local_name) const
+{
+    if (!m_attributes)
+        return {};
+
+    Optional<Utf16FlyString> normalized_namespace;
+    if (namespace_ != Utf16FlyString {})
+        normalized_namespace = namespace_;
+    for (size_t index = 0; index < m_attributes->size(); ++index) {
+        auto const& attribute = m_attributes->at(index);
+        if (attribute.name.namespace_() == normalized_namespace && attribute.name.local_name() == local_name)
+            return index;
+    }
+    return {};
+}
+
 void Element::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     Animatable::visit_edges(visitor);
 
-    visitor.visit(m_attributes);
     visitor.visit(m_inline_style);
     visitor.visit(m_shadow_root);
+}
+
+size_t Element::external_memory_size() const
+{
+    auto size = Base::external_memory_size();
+    if (!m_attributes)
+        return size;
+
+    size = JS::saturating_add_external_memory_size(size, sizeof(AttributeList));
+    size = JS::saturating_add_external_memory_size(size, JS::vector_external_memory_size(*m_attributes));
+    for (auto const& attribute : *m_attributes)
+        size = JS::saturating_add_external_memory_size(size, JS::utf16_string_external_memory_size(attribute.value));
+    return size;
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattribute
 Optional<Utf16String> Element::get_attribute(Utf16FlyString const& name) const
 {
-    if (!m_attributes)
-        return {};
-
-    Utf16FlyString const* effective_name = &name;
-    Utf16FlyString lowercase_name;
-    if (namespace_uri() == Namespace::HTML && document().is_html_document()) {
-        lowercase_name = name.to_ascii_lowercase();
-        effective_name = &lowercase_name;
-    }
-
-    for (size_t i = 0; i < m_attributes->length(); ++i) {
-        auto const* attribute = m_attributes->item(i);
-        if (*effective_name == attribute->name())
-            return attribute->value();
-    }
-
-    return {};
-}
-
-Optional<Utf16View> Element::get_attribute_value_view(Utf16FlyString const& name) const
-{
-    if (!m_attributes)
-        return {};
-
-    Utf16FlyString const* effective_name = &name;
-    Utf16FlyString lowercase_name;
-    if (namespace_uri() == Namespace::HTML && document().is_html_document()) {
-        lowercase_name = name.to_ascii_lowercase();
-        effective_name = &lowercase_name;
-    }
-
-    for (size_t i = 0; i < m_attributes->length(); ++i) {
-        auto const* attribute = m_attributes->item(i);
-        if (*effective_name == attribute->name())
-            return attribute->value().utf16_view();
-    }
-
-    return {};
+    auto index = find_attribute_index(name);
+    return index.has_value() ? Optional<Utf16String> { m_attributes->at(*index).value } : Optional<Utf16String> {};
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattributens
@@ -366,14 +387,14 @@ Optional<Utf16String> Element::get_attribute_ns(Optional<Utf16FlyString> const& 
     // 1. Let attr be the result of getting an attribute given namespace, localName, and this.
     if (!m_attributes)
         return {};
-    auto const* attribute = m_attributes->get_attribute_ns(namespace_, name);
+    auto index = find_attribute_index_ns(namespace_, name);
 
     // 2. If attr is null, return null.
-    if (!attribute)
+    if (!index.has_value())
         return {};
 
     // 3. Return attr’s value.
-    return attribute->value();
+    return m_attributes->at(*index).value;
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-get-value
@@ -382,14 +403,14 @@ Utf16String Element::get_attribute_value(Utf16FlyString const& local_name, Optio
     // 1. Let attr be the result of getting an attribute given namespace, localName, and element.
     if (!m_attributes)
         return {};
-    auto const* attribute = m_attributes->get_attribute_ns(namespace_, local_name);
+    auto index = find_attribute_index_ns(namespace_, local_name);
 
     // 2. If attr is null, then return the empty string.
-    if (!attribute)
+    if (!index.has_value())
         return {};
 
     // 3. Return attr’s value.
-    return attribute->value();
+    return m_attributes->at(*index).value;
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#get-an-element's-target
@@ -425,7 +446,7 @@ HTML::TokenizedFeature::NoOpener Element::get_an_elements_noopener(URL::URL cons
 {
     // To get an element's noopener, given an a, area, or form element element, a URL record url, and a string target,
     // perform the following steps. They return a boolean.
-    auto link_types = get_attribute_value_view(HTML::AttributeNames::rel).value_or({});
+    auto link_types = attribute(HTML::AttributeNames::rel).value_or({});
     auto has_link_type = [&](Utf16View link_type) {
         size_t start = 0;
         for (size_t i = 0; i <= link_types.length_in_code_units(); ++i) {
@@ -514,7 +535,7 @@ void Element::follow_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTML:
         target_attribute_value = get_an_elements_target();
 
     // 4. Let urlRecord be the result of encoding-parsing a URL given subject's href attribute value, relative to subject's node document.
-    auto url_record = document().encoding_parse_url(get_attribute_value_view(HTML::AttributeNames::href).value_or({}));
+    auto url_record = document().encoding_parse_url(attribute(HTML::AttributeNames::href).value_or({}));
 
     // 5. If urlRecord is failure, then return.
     if (!url_record.has_value())
@@ -571,7 +592,7 @@ void Element::download_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTM
 
     // 3. Let urlString be the result of encoding-parsing-and-serializing a URL given subject's href attribute
     //    value, relative to subject's node document.
-    auto url_record = document().encoding_parse_url(get_attribute_value_view(HTML::AttributeNames::href).value_or({}));
+    auto url_record = document().encoding_parse_url(attribute(HTML::AttributeNames::href).value_or({}));
 
     // 4. If urlString is failure, then return.
     if (!url_record.has_value())
@@ -730,7 +751,7 @@ GC::Ptr<Attr> Element::get_attribute_node(Utf16FlyString const& name) const
     // The getAttributeNode(qualifiedName) method steps are to return the result of getting an attribute given qualifiedName and this.
     if (!m_attributes)
         return {};
-    return m_attributes->get_attribute(name);
+    return const_cast<Element&>(*this).attributes()->get_attribute(name);
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattributenodens
@@ -739,27 +760,29 @@ GC::Ptr<Attr> Element::get_attribute_node_ns(Optional<Utf16FlyString> const& nam
     // The getAttributeNodeNS(namespace, localName) method steps are to return the result of getting an attribute given namespace, localName, and this.
     if (!m_attributes)
         return {};
-    return m_attributes->get_attribute_ns(namespace_, name);
+    return const_cast<Element&>(*this).attributes()->get_attribute_ns(namespace_, name);
 }
 
 void Element::set_attribute(FlyString qualified_name, Utf16String const& verified_value)
 {
     auto utf16_qualified_name = Utf16FlyString::from_fly_string(qualified_name);
     // Let attribute be the first attribute in this’s attribute list whose qualified name is qualifiedName, and null otherwise.
-    GC::Ptr<Attr> attribute = attributes()->get_attribute(utf16_qualified_name);
+    auto index = find_attribute_index(utf16_qualified_name);
 
     // If attribute is non-null, then change attribute to verifiedValue and return.
-    if (attribute) {
-        attribute->change_attribute(verified_value);
+    if (index.has_value()) {
+        auto& attribute = m_attributes->at(*index);
+        auto old_value = move(attribute.value);
+        attribute.value = verified_value;
+        auto name = attribute.name;
+        auto new_value = attribute.value;
+        handle_attribute_changes(move(name), move(old_value), move(new_value));
         return;
     }
 
     // Set attribute to a new attribute whose local name is qualifiedName, value is verifiedValue,
     // and node document is this’s node document.
-    attribute = Attr::create(document(), utf16_qualified_name, verified_value);
-
-    // Append attribute to this.
-    m_attributes->append_attribute(*attribute);
+    append_attribute(QualifiedName { utf16_qualified_name, {}, {} }, verified_value);
 }
 
 // https://dom.spec.whatwg.org/#valid-namespace-prefix
@@ -906,10 +929,51 @@ void Element::set_attribute_ns(QualifiedName const& qualified_name, Utf16String 
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-append
-// https://dom.spec.whatwg.org/#concept-element-attributes-append
 void Element::append_attribute(Attr& attribute)
 {
-    attributes()->append_attribute(attribute);
+    attributes()->append_attribute(GC::Ref { attribute });
+}
+
+void Element::append_attribute(QualifiedName name, Utf16String value)
+{
+    auto old_value = Optional<Utf16String> {};
+    auto& attributes = ensure_attribute_list();
+    attributes.empend(move(name), move(value));
+    auto& attribute = attributes.last();
+    auto attribute_name = attribute.name;
+    auto new_value = attribute.value;
+    handle_attribute_changes(move(attribute_name), move(old_value), move(new_value));
+}
+
+void Element::change_attribute_value(GC::Ref<Attr> attribute_node, Utf16String value)
+{
+    auto index = find_attribute_index_ns(attribute_node->namespace_uri(), attribute_node->local_name());
+    VERIFY(index.has_value());
+    auto& attribute = m_attributes->at(*index);
+    auto old_value = move(attribute.value);
+    attribute.value = move(value);
+    auto name = attribute.name;
+    auto new_value = attribute.value;
+    handle_attribute_changes(move(name), move(old_value), move(new_value));
+}
+
+// https://dom.spec.whatwg.org/#handle-attribute-changes
+void Element::handle_attribute_changes(QualifiedName name, Optional<Utf16String> old_value, Optional<Utf16String> new_value)
+{
+    // NB: Mutations during a recorded editing command must go through the Editing proxy functions.
+    if (auto history = document().editing_history_if_exists())
+        history->notify_dom_mutation();
+
+    // 1. Queue a mutation record of "attributes" for element with attribute’s local name, attribute’s namespace, oldValue, « », « », null, and null.
+    queue_mutation_record(MutationType::attributes, name.local_name(), name.namespace_(), old_value, {}, {}, nullptr, nullptr);
+
+    // 2. If element is custom, then enqueue a custom element callback reaction with element, callback name "attributeChangedCallback",
+    //    and « attribute’s local name, oldValue, newValue, attribute’s namespace ».
+    if (is_custom())
+        enqueue_an_attribute_changed_callback_reaction(name.local_name(), old_value, new_value, name.namespace_());
+
+    // 3. Run the attribute change steps with element, attribute’s local name, oldValue, newValue, and attribute’s namespace.
+    run_attribute_change_steps(name.local_name(), old_value, new_value, name.namespace_());
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-set-value
@@ -921,36 +985,40 @@ void Element::set_attribute_value(Utf16FlyString const& local_name, Utf16View va
 void Element::set_attribute_value(Utf16FlyString const& local_name, Utf16String value, Optional<Utf16FlyString> const& prefix, Optional<Utf16FlyString> const& namespace_)
 {
     // 1. Let attribute be the result of getting an attribute given namespace, localName, and element.
-    auto* attribute = attributes()->get_attribute_ns(namespace_, local_name);
+    auto index = find_attribute_index_ns(namespace_, local_name);
 
     // 2. If attribute is null, create an attribute whose namespace is namespace, namespace prefix is prefix, local name
     //    is localName, value is value, and node document is element’s node document, then append this attribute to element,
     //    and then return.
-    if (!attribute) {
+    if (!index.has_value()) {
         QualifiedName name { local_name, prefix, namespace_ };
 
-        auto new_attribute = Attr::create(document(), move(name), move(value));
-        m_attributes->append_attribute(new_attribute);
+        append_attribute(move(name), move(value));
 
         return;
     }
 
     // 3. Change attribute to value.
-    attribute->change_attribute(move(value));
+    auto& attribute = m_attributes->at(*index);
+    auto old_value = move(attribute.value);
+    attribute.value = move(value);
+    auto name = attribute.name;
+    auto new_value = attribute.value;
+    handle_attribute_changes(move(name), move(old_value), move(new_value));
 }
 
 // https://dom.spec.whatwg.org/#dom-element-setattributenode
 WebIDL::ExceptionOr<GC::Ptr<Attr>> Element::set_attribute_node(Attr& attr)
 {
     // The setAttributeNode(attr) and setAttributeNodeNS(attr) methods steps are to return the result of setting an attribute given attr and this.
-    return attributes()->set_attribute(attr);
+    return attributes()->set_attribute(GC::Ref { attr });
 }
 
 // https://dom.spec.whatwg.org/#dom-element-setattributenodens
 WebIDL::ExceptionOr<GC::Ptr<Attr>> Element::set_attribute_node_ns(Attr& attr)
 {
     // The setAttributeNode(attr) and setAttributeNodeNS(attr) methods steps are to return the result of setting an attribute given attr and this.
-    return attributes()->set_attribute(attr);
+    return attributes()->set_attribute(GC::Ref { attr });
 }
 
 // https://dom.spec.whatwg.org/#dom-element-removeattribute
@@ -967,7 +1035,8 @@ void Element::remove_attribute(Utf16FlyString const& name)
         effective_name = &lowercase_name;
     }
 
-    m_attributes->remove_attribute(*effective_name);
+    if (auto index = find_attribute_index(*effective_name); index.has_value())
+        remove_attribute_at(*index);
 }
 
 // https://dom.spec.whatwg.org/#dom-element-removeattributens
@@ -976,7 +1045,18 @@ void Element::remove_attribute_ns(Optional<Utf16FlyString> const& namespace_, Ut
     // The removeAttributeNS(namespace, localName) method steps are to remove an attribute given namespace, localName, and this, and then return undefined.
     if (!m_attributes)
         return;
-    m_attributes->remove_attribute_ns(namespace_, name);
+    if (auto index = find_attribute_index_ns(namespace_, name); index.has_value())
+        remove_attribute_at(*index);
+}
+
+void Element::remove_attribute_at(size_t index)
+{
+    auto name = m_attributes->at(index).name;
+    auto old_value = m_attributes->at(index).value;
+    if (auto* rare_data = element_rare_data(); rare_data && rare_data->attribute_map)
+        rare_data->attribute_map->detach_attribute_node(name, old_value);
+    m_attributes->remove(index);
+    handle_attribute_changes(name, old_value, {});
 }
 
 // https://dom.spec.whatwg.org/#dom-element-removeattributenode
@@ -988,7 +1068,7 @@ WebIDL::ExceptionOr<GC::Ref<Attr>> Element::remove_attribute_node(GC::Ref<Attr> 
 // https://dom.spec.whatwg.org/#dom-element-hasattribute
 bool Element::has_attribute(Utf16FlyString const& name) const
 {
-    return get_attribute_value_view(name).has_value();
+    return attribute(name).has_value();
 }
 
 // https://dom.spec.whatwg.org/#dom-element-hasattributens
@@ -1000,9 +1080,9 @@ bool Element::has_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16
     // 1. If namespace is the empty string, then set it to null.
     // 2. Return true if this has an attribute whose namespace is namespace and local name is localName; otherwise false.
     if (namespace_ == Utf16FlyString {})
-        return m_attributes->get_attribute_ns(Optional<Utf16FlyString> {}, name) != nullptr;
+        return find_attribute_index_ns(Optional<Utf16FlyString> {}, name).has_value();
 
-    return m_attributes->get_attribute_ns(namespace_, name) != nullptr;
+    return find_attribute_index_ns(namespace_, name).has_value();
 }
 
 // https://dom.spec.whatwg.org/#dom-element-toggleattribute
@@ -1018,15 +1098,14 @@ WebIDL::ExceptionOr<bool> Element::toggle_attribute(Utf16FlyString const& name, 
         effective_name = name.to_ascii_lowercase();
 
     // 3. Let attribute be the first attribute in this’s attribute list whose qualified name is qualifiedName, and null otherwise.
-    auto* attribute = attributes()->get_attribute(effective_name);
+    auto index = find_attribute_index(effective_name);
 
     // 4. If attribute is null, then:
-    if (!attribute) {
+    if (!index.has_value()) {
         // 1. If force is not given or is true, create an attribute whose local name is qualifiedName, value is the empty
         //    string, and node document is this’s node document, then append this attribute to this, and then return true.
         if (!force.has_value() || force.value()) {
-            auto new_attribute = Attr::create(document(), effective_name, Utf16String {});
-            m_attributes->append_attribute(new_attribute);
+            append_attribute(QualifiedName { effective_name, {}, {} }, {});
 
             return true;
         }
@@ -1037,7 +1116,7 @@ WebIDL::ExceptionOr<bool> Element::toggle_attribute(Utf16FlyString const& name, 
 
     // 5. Otherwise, if force is not given or is false, remove an attribute given qualifiedName and this, and then return false.
     if (!force.has_value() || !force.value()) {
-        m_attributes->remove_attribute(effective_name);
+        remove_attribute_at(*index);
         return false;
     }
 
@@ -1052,10 +1131,8 @@ Vector<Utf16FlyString> Element::get_attribute_names() const
     if (!m_attributes)
         return {};
     Vector<Utf16FlyString> names;
-    for (size_t i = 0; i < m_attributes->length(); ++i) {
-        auto const* attribute = m_attributes->item(i);
-        names.append(attribute->name());
-    }
+    for (auto const& attribute : *m_attributes)
+        names.append(attribute.name.as_string());
     return names;
 }
 
@@ -2827,7 +2904,7 @@ bool Element::matches_local_link_pseudo_class() const
     if (!matches_link_pseudo_class())
         return false;
     auto document_url = document().url();
-    auto maybe_href = get_attribute_value_view(HTML::AttributeNames::href);
+    auto maybe_href = attribute(HTML::AttributeNames::href);
     if (!maybe_href.has_value())
         return false;
     auto target_url = document().encoding_parse_url(*maybe_href);
@@ -4396,12 +4473,14 @@ Optional<Utf16String> Element::locate_a_namespace_prefix(Optional<Utf16View> nam
         return this->prefix()->to_utf16_string();
 
     // 2. If element has an attribute whose namespace prefix is "xmlns" and value is namespace, then return element’s first such attribute’s local name.
-    if (auto attributes = this->attributes(); attributes && namespace_.has_value()) {
-        for (size_t i = 0; i < attributes->length(); ++i) {
-            auto& attr = *attributes->item(i);
-            if (attr.prefix() == u"xmlns"sv && attr.value().utf16_view() == *namespace_)
-                return attr.local_name().to_utf16_string();
-        }
+    if (namespace_.has_value()) {
+        Optional<Utf16String> matching_prefix;
+        for_each_attribute([&](QualifiedName name, Utf16String value) {
+            if (!matching_prefix.has_value() && name.prefix() == u"xmlns"sv && value == *namespace_)
+                matching_prefix = name.local_name().to_utf16_string();
+        });
+        if (matching_prefix.has_value())
+            return matching_prefix;
     }
 
     // 3. If element’s parent element is not null, then return the result of running locate a namespace prefix on that element using namespace.
@@ -4416,23 +4495,40 @@ void Element::for_each_attribute(Function<void(Attr&)> callback)
 {
     if (!m_attributes)
         return;
-    for (size_t i = 0; i < m_attributes->length(); ++i)
-        callback(*m_attributes->item(i));
+    auto attribute_map = attributes();
+    for (size_t i = 0; i < m_attributes->size(); ++i)
+        callback(*attribute_map->item(i));
 }
 
 void Element::for_each_attribute(Function<void(Attr const&)> callback) const
 {
     if (!m_attributes)
         return;
-    for (size_t i = 0; i < m_attributes->length(); ++i)
-        callback(*m_attributes->item(i));
+    auto attribute_map = attributes();
+    for (size_t i = 0; i < m_attributes->size(); ++i)
+        callback(*attribute_map->item(i));
 }
 
-void Element::for_each_attribute(Function<void(Utf16FlyString const&, Utf16View)> callback) const
+void Element::for_each_attribute(Function<void(Utf16FlyString, Utf16String)> callback) const
 {
-    for_each_attribute([&callback](Attr const& attr) {
-        callback(attr.name(), attr.value().utf16_view());
-    });
+    if (!m_attributes)
+        return;
+    for (size_t index = 0; index < m_attributes->size(); ++index) {
+        auto name = m_attributes->at(index).name.as_string();
+        auto value = m_attributes->at(index).value;
+        callback(move(name), move(value));
+    }
+}
+
+void Element::for_each_attribute(Function<void(QualifiedName, Utf16String)> callback) const
+{
+    if (!m_attributes)
+        return;
+    for (size_t index = 0; index < m_attributes->size(); ++index) {
+        auto name = m_attributes->at(index).name;
+        auto value = m_attributes->at(index).value;
+        callback(move(name), move(value));
+    }
 }
 
 Layout::NodeWithStyle* Element::layout_node()
@@ -4462,7 +4558,7 @@ bool Element::has_attributes() const
 
 size_t Element::attribute_list_size() const
 {
-    return m_attributes ? m_attributes->length() : 0;
+    return m_attributes ? m_attributes->size() : 0;
 }
 
 CSS::ComputedStyleRecordView Element::computed_style(Optional<CSS::PseudoElement> pseudo_element_type) const
@@ -5082,7 +5178,7 @@ Element::TranslationMode Element::translation_mode() const
     // translate-enabled state;
     // NOTE: The attribute is in the Yes state if the attribute is present and its value is the empty string or is a
     //       ASCII-case-insensitive match for "yes".
-    auto maybe_translate_attribute = get_attribute_value_view(HTML::AttributeNames::translate);
+    auto maybe_translate_attribute = attribute(HTML::AttributeNames::translate);
     if (maybe_translate_attribute.has_value() && (maybe_translate_attribute.value().is_empty() || maybe_translate_attribute.value().equals_ignoring_ascii_case(u"yes"sv)))
         return TranslationMode::TranslateEnabled;
 
@@ -5787,9 +5883,10 @@ bool Element::has_pointer_capture(WebIDL::Long pointer_id)
 
 GC::Ptr<NamedNodeMap> Element::attributes()
 {
-    if (!m_attributes)
-        m_attributes = NamedNodeMap::create(*this);
-    return m_attributes;
+    auto& attribute_map = ensure_element_rare_data().attribute_map;
+    if (!attribute_map)
+        attribute_map = NamedNodeMap::create(*this);
+    return attribute_map;
 }
 
 GC::Ptr<NamedNodeMap const> Element::attributes() const
@@ -5894,7 +5991,7 @@ bool Element::should_indicate_focus() const
 // https://html.spec.whatwg.org/multipage/interaction.html#tabindex-value
 bool Element::is_focusable() const
 {
-    return HTML::parse_integer(get_attribute_value_view(HTML::AttributeNames::tabindex).value_or({})).has_value()
+    return HTML::parse_integer(attribute(HTML::AttributeNames::tabindex).value_or({})).has_value()
         && meets_focusable_area_rendering_requirements();
 }
 

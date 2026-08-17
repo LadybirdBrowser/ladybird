@@ -75,7 +75,7 @@ DOMTokenList::DOMTokenList(Element& associated_element, Utf16FlyString associate
     // 1. Let element be set’s element.
     // 2. Let attributeName be set’s attribute name.
     // 3. Let value be the result of getting an attribute value given element and attributeName.
-    auto value = m_associated_element->get_attribute_value_view(m_associated_attribute).value_or({});
+    auto value = m_associated_element->attribute(m_associated_attribute).value_or({});
 
     // 4. Run the attribute change steps for element, attributeName, value, value, and null.
     associated_attribute_changed(value);

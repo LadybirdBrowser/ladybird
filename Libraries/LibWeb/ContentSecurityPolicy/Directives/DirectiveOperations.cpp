@@ -949,7 +949,7 @@ enum class NonceableResult {
     // FIXME: File spec issue to ask if this should include SVGScriptElement.
     if (is<HTML::HTMLScriptElement>(element.ptr())) {
         for (size_t attribute_index = 0; attribute_index < element->attributes()->length(); ++attribute_index) {
-            auto const* attribute = element->attributes()->item(attribute_index);
+            auto attribute = element->attributes()->item(attribute_index);
             VERIFY(attribute);
 
             // 1. If attribute’s name contains an ASCII case-insensitive match for "<script" or "<style", return

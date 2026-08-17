@@ -1004,7 +1004,7 @@ void HTMLFormElement::plan_to_navigate_to(URL::URL url, DocumentResource post_re
     ReferrerPolicy::ReferrerPolicy referrer_policy = ReferrerPolicy::ReferrerPolicy::EmptyString;
 
     // 2. If the form element's link types include the noreferrer keyword, then set referrerPolicy to "no-referrer".
-    if (has_link_type(get_attribute_value_view(HTML::AttributeNames::rel).value_or({}), u"noreferrer"sv))
+    if (has_link_type(attribute(HTML::AttributeNames::rel).value_or({}), u"noreferrer"sv))
         referrer_policy = ReferrerPolicy::ReferrerPolicy::NoReferrer;
 
     // 3. If the form has a non-null planned navigation, remove it from its task queue.

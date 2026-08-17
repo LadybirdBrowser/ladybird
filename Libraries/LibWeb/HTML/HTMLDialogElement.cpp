@@ -632,7 +632,7 @@ void HTMLDialogElement::light_dismiss_open_dialogs(UIEvents::PointerEvent const&
 
         // 6. If topmostDialog's computed closed-by state is not Any, then return.
         // FIXME: This should use the "computed closed-by state" algorithm.
-        auto closedby = topmost_dialog->get_attribute_value_view(AttributeNames::closedby);
+        auto closedby = topmost_dialog->attribute(AttributeNames::closedby);
         if (!closedby.has_value() || !closedby.value().equals_ignoring_ascii_case(u"any"sv))
             return;
 
