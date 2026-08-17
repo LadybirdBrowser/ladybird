@@ -248,17 +248,22 @@ static bool is_pure_inline_box(Paintable const& paintable)
         && !paintable.is_positioned();
 }
 
-static void paint_inline_level_non_positioned_descendant(DisplayListRecordingContext& context, Paintable const& paintable)
+static void paint_subtree_backgrounds_and_borders(DisplayListRecordingContext& context, Paintable const& paintable)
 {
     paint_node(paintable, context, PaintPhase::Background);
     paint_node(paintable, context, PaintPhase::Border);
-    paint_node(paintable, context, PaintPhase::TableCollapsedBorder);
     // A pure inline paintable paints its own background/border in the inline-level phase. Its block descendants, if
     // any, are painted by the earlier BackgroundAndBorders descent through pure inline boxes. In today's layout trees,
     // this subtree sweep is a no-op for InlineNodes: it can only find inline children, floats, or positioned boxes,
     // all of which are skipped by the BackgroundAndBorders phase.
     if (!is_pure_inline_box(paintable))
         StackingContext::paint_descendants(context, paintable, StackingContext::StackingContextPaintPhase::BackgroundAndBorders);
+    paint_node(paintable, context, PaintPhase::TableCollapsedBorder);
+}
+
+static void paint_inline_level_non_positioned_descendant(DisplayListRecordingContext& context, Paintable const& paintable)
+{
+    paint_subtree_backgrounds_and_borders(context, paintable);
 
     // https://drafts.csswg.org/css2/#elaborate-stacking-contexts
     // "For inline-block and inline-table elements: [...] treat the element as if it created a new stacking context,
@@ -275,9 +280,7 @@ void StackingContext::paint_node_as_stacking_context(Paintable const& paintable,
         return;
     }
 
-    paint_node(paintable, context, PaintPhase::Background);
-    paint_node(paintable, context, PaintPhase::Border);
-    paint_descendants(context, paintable, StackingContextPaintPhase::BackgroundAndBorders);
+    paint_subtree_backgrounds_and_borders(context, paintable);
     paint_descendants(context, paintable, StackingContextPaintPhase::Floats);
     paint_descendants(context, paintable, StackingContextPaintPhase::BackgroundAndBordersForInlineLevelAndReplaced);
     paint_node(paintable, context, PaintPhase::Foreground);
@@ -344,19 +347,14 @@ void StackingContext::paint_descendants(DisplayListRecordingContext& context, Pa
         switch (phase) {
         case StackingContextPaintPhase::BackgroundAndBorders:
             if (!child_is_inline_or_replaced && !child.is_floating()) {
-                paint_node(child, context, PaintPhase::Background);
-                paint_node(child, context, PaintPhase::Border);
-                paint_descendants(context, child, phase);
-                paint_node(child, context, PaintPhase::TableCollapsedBorder);
+                paint_subtree_backgrounds_and_borders(context, child);
             } else if (is_pure_inline_box(child)) {
                 paint_descendants(context, child, phase);
             }
             break;
         case StackingContextPaintPhase::Floats:
             if (child.is_floating()) {
-                paint_node(child, context, PaintPhase::Background);
-                paint_node(child, context, PaintPhase::Border);
-                paint_descendants(context, child, StackingContextPaintPhase::BackgroundAndBorders);
+                paint_subtree_backgrounds_and_borders(context, child);
             }
             // Atomic inline-level descendants such as inline-blocks and inline tables participate in the parent's
             // inline-level painting step, so their internal floats must not be painted early during the ancestor's
@@ -429,6 +427,7 @@ void StackingContext::paint_internal(DisplayListRecordingContext& context) const
 
     // Draw the background and borders for block-level children (step 4)
     paint_descendants(context, paintable_box(), StackingContextPaintPhase::BackgroundAndBorders);
+    paint_node(paintable_box(), context, PaintPhase::TableCollapsedBorder);
     // Draw the non-positioned floats (step 5)
     if (!m_non_positioned_floating_descendants.is_empty())
         paint_descendants(context, paintable_box(), StackingContextPaintPhase::Floats);
