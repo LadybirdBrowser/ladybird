@@ -108,6 +108,7 @@ public:
     void consume_child_navigable_history_reconstruction_id(size_t index);
 
     void activate_history_entry(RefPtr<SessionHistoryEntry>, GC::Ref<DOM::Document>);
+    void notify_navigation_observers_navigation_complete();
 
     GC::Ptr<DOM::Document> active_document() const;
     Optional<UniqueNodeID> active_document_id() const;
