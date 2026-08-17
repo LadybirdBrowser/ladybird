@@ -47,11 +47,6 @@ protected:
         : Node(document, type)
     {
     }
-
-    virtual void visit_edges(Cell::Visitor&) override;
-
-private:
-    GC::Ptr<HTMLCollection> m_children;
 };
 
 template<>

@@ -548,6 +548,7 @@ protected:
         OwnPtr<Vector<GC::Ref<RegisteredObserver>>> registered_observer_list;
 
         GC::Ptr<NodeList> child_nodes;
+        GC::Ptr<HTMLCollection> children;
     };
 
     Node(Document&, NodeType);
