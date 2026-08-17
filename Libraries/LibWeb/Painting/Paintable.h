@@ -390,6 +390,9 @@ public:
     void set_table_cell_coordinates(TableCellCoordinates const& table_cell_coordinates) { m_table_cell_coordinates = table_cell_coordinates; }
     auto const& table_cell_coordinates() const { return m_table_cell_coordinates; }
 
+    void set_uses_collapsing_borders_model(bool value) { m_uses_collapsing_borders_model = value; }
+    bool uses_collapsing_borders_model() const { return m_uses_collapsing_borders_model; }
+
     enum class ShrinkRadiiForBorders {
         Yes,
         No
@@ -560,6 +563,7 @@ private:
     bool m_absolutely_positioned : 1 { false };
     bool m_floating : 1 { false };
     bool m_inline : 1 { false };
+    bool m_uses_collapsing_borders_model : 1 { false };
     CSS::Display m_display;
 
     RefPtr<StackingContext> m_stacking_context;

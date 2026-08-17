@@ -833,7 +833,8 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                 CSSPixels::from_raw(metrics.content_offset.y),
             });
             if (metrics.has_containing_line_box_index)
-                paintable.set_containing_line_box_index(metrics.containing_line_box_index); },
+                paintable.set_containing_line_box_index(metrics.containing_line_box_index);
+            paintable.set_uses_collapsing_borders_model(metrics.uses_collapsing_borders_model); },
         .set_override_borders = [](void*, void* paintable_pointer, RustFFI::FfiBordersData borders) { static_cast<Painting::Paintable*>(paintable_pointer)->set_override_borders_data({
                                                                                                           .top = from_ffi_border_data_with_element_kind(borders.top),
                                                                                                           .right = from_ffi_border_data_with_element_kind(borders.right),
