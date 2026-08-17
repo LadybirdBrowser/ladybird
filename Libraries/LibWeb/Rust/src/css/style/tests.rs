@@ -1520,6 +1520,156 @@ fn a_departed_following_sibling_anchor_widens_when_its_old_next_sibling_relocate
     );
 }
 
+#[test]
+fn sibling_only_tree_staging_does_not_recompute_the_sibling_subtree_depth() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let mut raw = [0_u32; 4];
+    engine.allocate_style_nodes(&mut raw);
+    let nodes: Vec<_> = raw.into_iter().map(|raw| StyleNodeID::from_raw(raw).unwrap()).collect();
+    engine.record_tree_delta(nodes[0], None, Some(relations(None, None, None)));
+    engine.record_tree_delta(nodes[1], None, Some(relations(Some(raw[0]), None, None)));
+    engine.record_tree_delta(nodes[2], None, Some(relations(Some(raw[1]), None, None)));
+    engine.record_tree_delta(nodes[3], None, Some(relations(Some(raw[2]), None, None)));
+    discard_transaction(&mut engine);
+    engine.tree.take_depth_recompute_visits();
+
+    let mut inserted_raw = [0_u32; 1];
+    engine.allocate_style_nodes(&mut inserted_raw);
+    let inserted = StyleNodeID::from_raw(inserted_raw[0]).unwrap();
+    engine.record_tree_delta(inserted, None, Some(relations(Some(raw[0]), None, Some(raw[1]))));
+    engine.apply_staged_tree_deltas();
+
+    assert_eq!(engine.tree.take_depth_recompute_visits(), 1);
+    assert_eq!(engine.tree.depth(nodes[3]), 3);
+}
+
+#[test]
+fn wrapping_existing_children_recomputes_depth_from_the_arriving_parent() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let mut raw = [0_u32; 4];
+    engine.allocate_style_nodes(&mut raw);
+    let nodes: Vec<_> = raw.into_iter().map(|raw| StyleNodeID::from_raw(raw).unwrap()).collect();
+    engine.record_tree_delta(nodes[0], None, Some(relations(None, None, None)));
+    engine.record_tree_delta(nodes[1], None, Some(relations(Some(raw[0]), None, Some(raw[2]))));
+    engine.record_tree_delta(nodes[2], None, Some(relations(Some(raw[0]), Some(raw[1]), None)));
+    engine.record_tree_delta(nodes[3], None, Some(relations(Some(raw[1]), None, None)));
+    discard_transaction(&mut engine);
+
+    let mut wrapper_raw = [0_u32; 1];
+    engine.allocate_style_nodes(&mut wrapper_raw);
+    let wrapper = StyleNodeID::from_raw(wrapper_raw[0]).unwrap();
+    engine.record_tree_delta(
+        nodes[1],
+        Some(relations(Some(raw[0]), None, Some(raw[2]))),
+        Some(relations(Some(wrapper.raw()), None, Some(raw[2]))),
+    );
+    engine.record_tree_delta(
+        nodes[2],
+        Some(relations(Some(raw[0]), Some(raw[1]), None)),
+        Some(relations(Some(wrapper.raw()), Some(raw[1]), None)),
+    );
+    engine.record_tree_delta(wrapper, None, Some(relations(Some(raw[0]), None, None)));
+    engine.apply_staged_tree_deltas();
+
+    assert_eq!(engine.tree.depth(wrapper), 1);
+    assert_eq!(engine.tree.depth(nodes[1]), 2);
+    assert_eq!(engine.tree.depth(nodes[2]), 2);
+    assert_eq!(engine.tree.depth(nodes[3]), 3);
+}
+
+#[test]
+fn reparenting_between_equal_depth_parents_still_visits_the_subtree() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let mut raw = [0_u32; 5];
+    engine.allocate_style_nodes(&mut raw);
+    let nodes: Vec<_> = raw.into_iter().map(|raw| StyleNodeID::from_raw(raw).unwrap()).collect();
+    engine.record_tree_delta(nodes[0], None, Some(relations(None, None, None)));
+    engine.record_tree_delta(nodes[1], None, Some(relations(Some(raw[0]), None, Some(raw[2]))));
+    engine.record_tree_delta(nodes[2], None, Some(relations(Some(raw[0]), Some(raw[1]), None)));
+    engine.record_tree_delta(nodes[3], None, Some(relations(Some(raw[1]), None, None)));
+    engine.record_tree_delta(nodes[4], None, Some(relations(Some(raw[3]), None, None)));
+    discard_transaction(&mut engine);
+    engine.tree.take_depth_recompute_visits();
+
+    engine.record_tree_delta(
+        nodes[3],
+        Some(relations(Some(raw[1]), None, None)),
+        Some(relations(Some(raw[2]), None, None)),
+    );
+    engine.apply_staged_tree_deltas();
+
+    assert_eq!(engine.tree.take_depth_recompute_visits(), 2);
+    assert_eq!(engine.tree.depth(nodes[3]), 2);
+    assert_eq!(engine.tree.depth(nodes[4]), 3);
+}
+
+#[test]
+fn reparenting_below_a_sibling_only_staged_parent_recomputes_depth() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let mut raw = [0_u32; 7];
+    engine.allocate_style_nodes(&mut raw);
+    let nodes: Vec<_> = raw.into_iter().map(|raw| StyleNodeID::from_raw(raw).unwrap()).collect();
+    let [root, a, b, m, p, c, n] = nodes.as_slice() else {
+        unreachable!();
+    };
+    engine.record_tree_delta(*root, None, Some(relations(None, None, None)));
+    engine.record_tree_delta(*a, None, Some(relations(Some(root.raw()), None, Some(b.raw()))));
+    engine.record_tree_delta(*b, None, Some(relations(Some(root.raw()), Some(a.raw()), None)));
+    engine.record_tree_delta(*m, None, Some(relations(Some(a.raw()), None, None)));
+    engine.record_tree_delta(*p, None, Some(relations(Some(m.raw()), None, None)));
+    engine.record_tree_delta(*c, None, Some(relations(Some(p.raw()), None, None)));
+    discard_transaction(&mut engine);
+
+    engine.record_tree_delta(
+        *n,
+        None,
+        Some(relations(Some(root.raw()), Some(a.raw()), Some(b.raw()))),
+    );
+    engine.record_tree_delta(
+        *p,
+        Some(relations(Some(m.raw()), None, None)),
+        Some(relations(Some(b.raw()), None, None)),
+    );
+    engine.apply_staged_tree_deltas();
+
+    assert_eq!(engine.tree.depth(*p), 2);
+    assert_eq!(engine.tree.depth(*c), 3);
+}
+
+#[test]
+fn moving_back_after_an_intermediate_tree_apply_restores_depth() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let mut raw = [0_u32; 5];
+    engine.allocate_style_nodes(&mut raw);
+    let nodes: Vec<_> = raw.into_iter().map(|raw| StyleNodeID::from_raw(raw).unwrap()).collect();
+    let [root, x, q1, q2, p] = nodes.as_slice() else {
+        unreachable!();
+    };
+    engine.record_tree_delta(*root, None, Some(relations(None, None, None)));
+    engine.record_tree_delta(*x, None, Some(relations(Some(root.raw()), None, Some(q1.raw()))));
+    engine.record_tree_delta(*q1, None, Some(relations(Some(root.raw()), Some(x.raw()), None)));
+    engine.record_tree_delta(*q2, None, Some(relations(Some(q1.raw()), None, None)));
+    engine.record_tree_delta(*p, None, Some(relations(Some(x.raw()), None, None)));
+    discard_transaction(&mut engine);
+
+    engine.record_tree_delta(
+        *p,
+        Some(relations(Some(x.raw()), None, None)),
+        Some(relations(Some(q2.raw()), None, None)),
+    );
+    engine.apply_staged_tree_deltas();
+    assert_eq!(engine.tree.depth(*p), 3);
+
+    engine.record_tree_delta(
+        *p,
+        Some(relations(Some(q2.raw()), None, None)),
+        Some(relations(Some(x.raw()), None, None)),
+    );
+    engine.apply_staged_tree_deltas();
+
+    assert_eq!(engine.tree.depth(*p), 2);
+}
+
 /// Builds `root -> [a, b, c]` through the same delta path C++ drives.
 fn linear_document() -> (StyleEngine, Vec<StyleNodeID>) {
     let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);

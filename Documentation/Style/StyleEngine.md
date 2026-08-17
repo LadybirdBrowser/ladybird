@@ -948,7 +948,7 @@ Intern pools use compact document-local handles and weak reclamation where possi
 
 ### 10.5 Per-node metadata budget
 
-Mandatory per-node state is at most **six 32-bit words**:
+Mandatory per-node state is at most **eight 32-bit words**:
 
 ```text
 StyleNodeID or its DOM mapping       (an existing DOM identity can satisfy this without duplication)
@@ -957,17 +957,19 @@ parent                               required relation column
 first element child                  required relation column
 next element sibling                 required relation column
 previous element sibling             required relation column
+depth                                required relation column
+tree scope                           conditional relation column
 ```
 
 ```text
 MandatoryNodeBytes(surface) = BaseMandatoryNodeBytes + ConditionalRelationBytes(surface)
 
-BaseMandatoryNodeBytes           <= 24
-ConditionalRelationBytes(surface) <= 8
+BaseMandatoryNodeBytes           <= 28
+ConditionalRelationBytes(surface) <= 4
 MandatoryNodeBytes(surface)      <= 32
 ```
 
-The engine asserts the relation-column budget in its own tests. The conditional allowance covers tree-scope identity, allocated only when the document requires it and no authoritative field can be exposed safely without duplication. Slot, part, pseudo, or future relation navigation must derive a compact identity or replace the physical representation; it cannot raise the 32-byte cap. (`StyleNodeID` is a `NonZeroU32`, so optional relation slots niche-pack into one word.)
+The engine asserts the relation-column budget in its own tests. The conditional allowance covers tree-scope identity, allocated only when the document requires it and no authoritative field can be exposed safely without duplication. Depth rejects impossible ancestry checks immediately and bounds the remaining parent walk. Slot, part, pseudo, or future relation navigation must derive a compact identity or replace the physical representation; it cannot raise the 32-byte cap. (`StyleNodeID` is a `NonZeroU32`, so optional relation slots niche-pack into one word.)
 
 Optional context, winner, dependency, and witness handles live in sparse Tier-3 columns and do not consume a reserved word on every node. Shared live style payloads are reported separately.
 
