@@ -36,6 +36,7 @@ use super::index::DispatchKey;
 use super::index::FeatureKey;
 use super::index::StyleAtomID;
 use super::index::StyleNodeFacts;
+use super::index::dispatch_bloom_bit;
 use super::instrumentation::Counter;
 use super::instrumentation::Counters;
 use std::cell::Cell;
@@ -588,6 +589,47 @@ struct SelectorEntryProperties {
     prefix_chain_has_only_local_facts: bool,
 }
 
+/// Immutable routing facts derived from one selector entry's IR.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub(super) struct SelectorDispatchMetadata {
+    pub key: DispatchKey,
+    pub required_attribute_value: StyleAtomID,
+    pub required_parent: Option<DispatchKey>,
+    pub required_ancestor: Option<DispatchKey>,
+    pub required_subject_bloom: u64,
+    subject_dispatch_keys: Box<[DispatchKey]>,
+    subject_required_keys: Box<[DispatchKey]>,
+    prefix_chain: Option<Box<[SelectorPrefixStep]>>,
+}
+
+/// Derived acceleration is not part of a selector program's semantic identity.
+#[derive(Default)]
+struct CachedDispatchMetadata(Vec<SelectorDispatchMetadata>);
+
+impl PartialEq for CachedDispatchMetadata {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for CachedDispatchMetadata {}
+
+impl Hash for CachedDispatchMetadata {
+    fn hash<H: Hasher>(&self, _state: &mut H) {}
+}
+
+impl SelectorDispatchMetadata {
+    #[must_use]
+    pub(super) fn subject_dispatch_keys(&self) -> &[DispatchKey] {
+        &self.subject_dispatch_keys
+    }
+
+    #[must_use]
+    pub(super) fn prefix_chain(&self) -> Option<&[SelectorPrefixStep]> {
+        self.prefix_chain.as_deref()
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum DispatchRelation {
     Subject,
@@ -639,10 +681,8 @@ pub struct SelectorProgram {
     relative_queries: Vec<RelativeQuery>,
     /// Ranges into `text`, one per extended language range a `:lang()` names.
     language_ranges: Vec<(u32, u32)>,
-    /// Immutable dispatch analysis, retained so rebuilding scope dispatches does not repeatedly
-    /// allocate the same per-entry key sets.
-    subject_dispatch_keys: Vec<Box<[DispatchKey]>>,
-    subject_required_keys: Vec<Box<[DispatchKey]>>,
+    /// Immutable dispatch analysis, retained so rebuilding scope dispatches never walks the IR.
+    dispatch_metadata: CachedDispatchMetadata,
     can_leave_scope: bool,
 }
 
@@ -764,19 +804,21 @@ impl SelectorProgram {
                 self.entries,
                 self.relative_queries,
                 self.language_ranges,
-                self.subject_dispatch_keys,
-                self.subject_required_keys,
+                self.dispatch_metadata.0,
             ];
             cached [];
             nested [
                 size_of::<bool>(),
-                self.subject_dispatch_keys
+                self.dispatch_metadata.0
                     .iter()
-                    .map(|keys| size_of_val(keys.as_ref()) as u64)
-                    .sum::<u64>(),
-                self.subject_required_keys
-                    .iter()
-                    .map(|keys| size_of_val(keys.as_ref()) as u64)
+                    .map(|metadata| {
+                        size_of_val(metadata.subject_dispatch_keys.as_ref()) as u64
+                            + size_of_val(metadata.subject_required_keys.as_ref()) as u64
+                            + metadata
+                                .prefix_chain
+                                .as_ref()
+                                .map_or(0, |chain| size_of_val(chain.as_ref()) as u64)
+                    })
                     .sum::<u64>(),
             ];
             skip [self.can_leave_scope];
@@ -958,18 +1000,20 @@ impl SelectorProgramBuilder {
 
     #[must_use]
     pub fn finish(mut self) -> SelectorProgram {
+        self.program.cache_dispatch_metadata();
         let properties: Vec<SelectorEntryProperties> = self
             .program
             .entries
             .iter()
-            .map(|entry| {
-                let unified_chain = self.program.unified_chain(entry);
+            .enumerate()
+            .map(|(index, entry)| {
+                let unified_chain = self.program.dispatch_metadata(index).prefix_chain();
                 SelectorEntryProperties {
                     monotone_under_arrivals: self.program.entry_is_monotone_under_arrivals(entry.root),
                     can_use_before_sibling_relations: self.program.entry_can_use_before_sibling_relations(entry.root),
                     observes_sibling_relation: self.program.entry_observes_sibling_relation(entry.root),
                     has_prefix_chain: unified_chain.is_some(),
-                    prefix_chain_has_only_local_facts: unified_chain.as_ref().is_some_and(|chain| {
+                    prefix_chain_has_only_local_facts: unified_chain.is_some_and(|chain| {
                         // A canonical positional step counts as local here: its truth rides the
                         // positional bits of every transition and completion key, so the retained
                         // walk answers it exactly like an interned fact.
@@ -988,22 +1032,41 @@ impl SelectorProgramBuilder {
             .entries
             .iter()
             .any(|entry| self.program.leaves_its_scope(entry.root));
-        self.program.cache_subject_dispatch_analysis();
         self.program
     }
 }
 
 impl SelectorProgram {
-    fn cache_subject_dispatch_analysis(&mut self) {
-        let (subject_dispatch_keys, subject_required_keys): (Vec<_>, Vec<_>) = (0..self.entries.len())
+    fn cache_dispatch_metadata(&mut self) {
+        self.dispatch_metadata.0 = (0..self.entries.len())
             .map(|entry| {
-                let dispatch = self.compute_subject_dispatch_keys(entry);
-                let required = self.compute_subject_required_keys(entry, &dispatch);
-                (dispatch.into_boxed_slice(), required.into_boxed_slice())
+                let selector_entry = &self.entries[entry];
+                let key = self.dispatch_key(selector_entry);
+                let subject_dispatch_keys = self.compute_subject_dispatch_keys(entry);
+                let subject_required_keys = self.compute_subject_required_keys(entry, &subject_dispatch_keys);
+                SelectorDispatchMetadata {
+                    key,
+                    required_attribute_value: match key {
+                        DispatchKey::AttributeName(name) => self.required_attribute_value(selector_entry, name),
+                        _ => StyleAtomID::NONE,
+                    },
+                    required_parent: self.subject_parent_dispatch_key(entry),
+                    required_ancestor: self.subject_ancestor_dispatch_key(entry),
+                    required_subject_bloom: subject_required_keys
+                        .iter()
+                        .copied()
+                        .fold(0_u64, |bloom, key| bloom | dispatch_bloom_bit(key)),
+                    subject_dispatch_keys: subject_dispatch_keys.into_boxed_slice(),
+                    subject_required_keys: subject_required_keys.into_boxed_slice(),
+                    prefix_chain: self.unified_chain(selector_entry).map(Vec::into_boxed_slice),
+                }
             })
-            .unzip();
-        self.subject_dispatch_keys = subject_dispatch_keys;
-        self.subject_required_keys = subject_required_keys;
+            .collect();
+    }
+
+    #[must_use]
+    pub(super) fn dispatch_metadata(&self, entry: usize) -> &SelectorDispatchMetadata {
+        &self.dispatch_metadata.0[entry]
     }
 
     /// Decompose a selector whose tree relations are its linear chain over all four axes:
@@ -1437,7 +1500,7 @@ impl SelectorProgram {
     /// The same, as the set of keys the subject can be reached by. Empty means it has none.
     #[must_use]
     pub fn subject_dispatch_keys(&self, entry: usize) -> &[DispatchKey] {
-        &self.subject_dispatch_keys[entry]
+        &self.dispatch_metadata.0[entry].subject_dispatch_keys
     }
 
     fn compute_subject_dispatch_keys(&self, entry: usize) -> Vec<DispatchKey> {
@@ -1459,7 +1522,7 @@ impl SelectorProgram {
     /// the conservative direction: the candidate survives and the exact matcher settles it.
     #[must_use]
     pub fn subject_required_keys(&self, entry: usize) -> &[DispatchKey] {
-        &self.subject_required_keys[entry]
+        &self.dispatch_metadata.0[entry].subject_required_keys
     }
 
     fn compute_subject_required_keys(&self, entry: usize, dispatch: &[DispatchKey]) -> Vec<DispatchKey> {
