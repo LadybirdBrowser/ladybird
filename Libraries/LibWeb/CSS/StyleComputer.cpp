@@ -151,7 +151,45 @@ StyleComputer::StyleComputer(DOM::Document& document)
 {
 }
 
-StyleComputer::~StyleComputer() = default;
+void StyleComputer::finalize()
+{
+    Base::finalize();
+    clear_style_sharing_cache();
+}
+
+void StyleComputer::clear_style_sharing_cache() const
+{
+    for (auto const& bucket : m_style_sharing_cache) {
+        for (auto const& entry : bucket.value) {
+            if (entry.explicitly_inherited_non_inherited_property && !!entry.parent_style_record_identity)
+                unpin_style_record(entry.parent_style_record_identity);
+            if (entry.style_record_identity.has_value())
+                unpin_style_record(*entry.style_record_identity);
+        }
+    }
+    m_style_sharing_cache.clear();
+    m_style_sharing_cache_entry_count = 0;
+}
+
+void StyleComputer::prepare_for_style_engine_transaction() const
+{
+    ++m_style_sharing_transaction_generation;
+    if (m_style_sharing_cache_entry_count > maximum_persistent_style_sharing_entries)
+        clear_style_sharing_cache();
+    m_computed_style_invalidation_cache.clear();
+    m_style_engine_cascade_input_cache.clear();
+    m_inherited_style_group_swaps.clear();
+    sweep_custom_property_environments();
+}
+
+void StyleComputer::drop_style_sharing_cache() const
+{
+    clear_style_sharing_cache();
+    m_computed_style_invalidation_cache.clear();
+    m_style_engine_cascade_input_cache.clear();
+    m_inherited_style_group_swaps.clear();
+    sweep_custom_property_environments();
+}
 
 ComputedStyleRecordView StyleComputer::computed_style_record_view(StyleRecordID style_record_identity) const
 {
@@ -160,8 +198,8 @@ ComputedStyleRecordView StyleComputer::computed_style_record_view(StyleRecordID 
     auto view = m_style_engine.style_record_view(style_record_identity);
     if (!view.present)
         return {};
-    if (view.animation_overlay_identity != 0)
-        pin_style_record(style_record_identity);
+    pin_style_record(style_record_identity);
+    ++m_computed_style_record_view_pin_count;
     return ComputedStyleRecordView { view, *this, style_record_identity };
 }
 
@@ -175,18 +213,12 @@ void const* StyleComputer::style_record_payloads(StyleRecordID style_record_iden
 void StyleComputer::pin_style_record(StyleRecordID style_record_identity) const
 {
     VERIFY(style_record_identity);
-    static constexpr u64 animation_overlay_tag = 1ull << 63;
-    if ((style_record_identity.value() & animation_overlay_tag) == 0)
-        return;
     const_cast<StyleComputer&>(*this).m_style_engine.pin_style_record(style_record_identity);
 }
 
 void StyleComputer::unpin_style_record(StyleRecordID style_record_identity) const
 {
     VERIFY(style_record_identity);
-    static constexpr u64 animation_overlay_tag = 1ull << 63;
-    if ((style_record_identity.value() & animation_overlay_tag) == 0)
-        return;
     const_cast<StyleComputer&>(*this).m_style_engine.unpin_style_record(style_record_identity);
 }
 
@@ -3625,8 +3657,8 @@ StyleEngine::StyleRecordDelta StyleComputer::publish_computed_style_inputs(DOM::
 {
     auto publication = record_computed_style_inputs(Optional<DOM::AbstractElement> { abstract_element }, values, abstract_element.element().style_node_id());
     if (!abstract_element.pseudo_element().has_value()) {
-        if (auto* record = abstract_element.element().style_input_record(); record && record->bind_next_published_style) {
-            record->computed_style_record = publication.new_style_record;
+        if (auto* record = abstract_element.element().style_input_record()) {
+            record->computed_style_record = record->bind_next_published_style ? publication.new_style_record : StyleRecordID {};
             record->bind_next_published_style = false;
         }
     }
@@ -3725,6 +3757,8 @@ NonnullRefPtr<ComputedValues const> StyleComputer::materialize_style_record(DOM:
             auto& entry = bucket->last();
             VERIFY(entry.values.ptr() == values.ptr());
             VERIFY(entry.custom_property_data.ptr() == abstract_element.custom_property_data().ptr());
+            VERIFY(!entry.style_record_identity.has_value());
+            pin_style_record(publication.new_style_record);
             entry.style_record_identity = publication.new_style_record;
         }
         if (style_record_delta.has_value())
@@ -3749,8 +3783,8 @@ NonnullRefPtr<ComputedValues const> StyleComputer::materialize_style_record(DOM:
             inherited_group_swap_eligible);
         if (!!publication.new_style_record) {
             if (!abstract_element.pseudo_element().has_value()) {
-                if (auto* record = abstract_element.element().style_input_record(); record && record->bind_next_published_style) {
-                    record->computed_style_record = publication.new_style_record;
+                if (auto* record = abstract_element.element().style_input_record()) {
+                    record->computed_style_record = record->bind_next_published_style ? publication.new_style_record : StyleRecordID {};
                     record->bind_next_published_style = false;
                 }
             }
@@ -3833,6 +3867,8 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
                 pinned_style_input_values = element.style_input_record()->pinned_values;
                 cascade_declares_custom_properties = element.style_input_record()->cascade_declares_custom_properties;
             }
+            if (sharing.explicitly_inherited_non_inherited_property && !!sharing.parent_style_record_identity)
+                pin_style_record(sharing.parent_style_record_identity);
             m_style_sharing_cache.ensure(key_hash).append({
                 .key = move(sharing.key),
                 .pinned_parent_groups = move(sharing.pinned_parent_groups),
@@ -3883,6 +3919,8 @@ RefPtr<ComputedValues const> StyleComputer::compute_pseudo_element_style_if_need
             auto& entry = bucket->last();
             VERIFY(entry.values.ptr() == values.ptr());
             VERIFY(entry.custom_property_data.ptr() == abstract_element.custom_property_data().ptr());
+            VERIFY(!entry.style_record_identity.has_value());
+            pin_style_record(publication.new_style_record);
             entry.style_record_identity = publication.new_style_record;
         }
         if (style_record_delta.has_value())
@@ -4743,8 +4781,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
     auto materialize_style_record_view = [&](StyleEngine::StyleRecordView const& view, StyleRecordID identity) -> OwnPtr<ComputedStyleRecordView> {
         if (!view.present)
             return {};
-        if (view.animation_overlay_identity != 0)
-            pin_style_record(identity);
+        pin_style_record(identity);
         return make<ComputedStyleRecordView>(view, *this, identity);
     };
     inheritance_parent_style = materialize_style_record_view(inheritance_parent_style_record, inheritance_parent_style_record_identity);

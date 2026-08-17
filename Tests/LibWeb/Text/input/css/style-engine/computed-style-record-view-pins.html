@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="target" style="color: red"></div>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+        const before = internals.styleEngineCounters().computedStyleRecordViewPins;
+        getComputedStyle(document.getElementById("target")).color;
+        const after = internals.styleEngineCounters().computedStyleRecordViewPins;
+        println(`computed style record view pins increased: ${after > before}`);
+    });
+</script>

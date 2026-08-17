@@ -485,6 +485,7 @@ static RustFFI::FfiComputedContentType ffi_computed_content_type(CSS::ComputedCo
 
 struct PseudoElementFrame {
     CSS::StyleRecordID style_record_identity;
+    GC::Ptr<CSS::StyleComputer> style_record_owner;
     CSS::Display display;
     RefPtr<CSS::AbstractImageStyleValue const> replacement_image;
     BlockContainer* originating_list_box { nullptr };
@@ -528,6 +529,13 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
             auto& storage = *static_cast<LayoutTreeBuildBridge*>(builder_pointer)->m_pseudo_element_frames;
             VERIFY(storage.active_frame_count > 0);
             VERIFY(storage.frames[storage.active_frame_count - 1].ptr() == frame_pointer);
+            auto& frame = *storage.frames[storage.active_frame_count - 1];
+            if (!!frame.style_record_identity) {
+                VERIFY(frame.style_record_owner);
+                frame.style_record_owner->unpin_style_record(frame.style_record_identity);
+                frame.style_record_identity = {};
+                frame.style_record_owner = nullptr;
+            }
             --storage.active_frame_count; },
         .initialize = [](void* frame_pointer, void* element_pointer, RustFFI::FfiPseudoElement ffi_pseudo) -> RustFFI::FfiPseudoElementFacts {
             VERIFY(frame_pointer);
@@ -535,9 +543,15 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
             auto& frame = *static_cast<PseudoElementFrame*>(frame_pointer);
             auto& element = *static_cast<DOM::Element*>(element_pointer);
             auto pseudo_element = css_pseudo_element(ffi_pseudo);
+            VERIFY(!frame.style_record_identity);
+            VERIFY(!frame.style_record_owner);
             if (auto existing_pseudo = element.get_synthetic_pseudo_element(pseudo_element); existing_pseudo.has_value() && existing_pseudo->layout_node())
                 existing_pseudo->set_layout_node(nullptr);
             frame.style_record_identity = element.style_record_identity(pseudo_element);
+            if (!!frame.style_record_identity) {
+                frame.style_record_owner = &element.document().style_computer();
+                frame.style_record_owner->pin_style_record(frame.style_record_identity);
+            }
             frame.replacement_image = nullptr;
             frame.originating_list_box = nullptr;
             frame.layout_node = nullptr;
@@ -798,6 +812,7 @@ struct PrincipalNodeFrame {
     RefPtr<Layout::Node> layout_node;
     RefPtr<CSS::ComputedValues const> anonymous_computed_values;
     CSS::StyleRecordID style_record_identity;
+    GC::Ptr<CSS::StyleComputer> style_record_owner;
 };
 
 struct LayoutTreeBuildBridge::PrincipalNodeFrameStorage {
@@ -1016,6 +1031,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             frame.old_layout_node = node.unsafe_layout_node();
             frame.layout_node = nullptr;
             frame.anonymous_computed_values = nullptr;
+            VERIFY(!frame.style_record_owner);
             frame.style_record_identity = 0;
             return {
                 .frame = &frame,
@@ -1030,6 +1046,11 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             VERIFY(storage.active_frame_count > 0);
             VERIFY(storage.frames[storage.active_frame_count - 1].ptr() == frame_pointer);
             auto& frame = *storage.frames[storage.active_frame_count - 1];
+            if (!!frame.style_record_identity) {
+                VERIFY(frame.style_record_owner);
+                frame.style_record_owner->unpin_style_record(frame.style_record_identity);
+                frame.style_record_owner = nullptr;
+            }
             frame.old_layout_node = nullptr;
             frame.layout_node = nullptr;
             frame.anonymous_computed_values = nullptr;
@@ -1053,6 +1074,9 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 update_style_if_needed_for_layout_tree_bypass_path(element);
             }
             frame.style_record_identity = element.style_record_identity();
+            VERIFY(frame.style_record_identity);
+            frame.style_record_owner = &element.document().style_computer();
+            frame.style_record_owner->pin_style_record(frame.style_record_identity);
             auto computed_values = element.computed_style();
             VERIFY(computed_values);
             return {

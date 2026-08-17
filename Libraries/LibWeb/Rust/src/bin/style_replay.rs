@@ -1663,8 +1663,9 @@ fn release_computed_longhand_tables(
 
 fn style_record_replay_index(style_record: u64) -> Result<usize, std::num::TryFromIntError> {
     const ANIMATION_OVERLAY_TAG: u64 = 1 << 63;
+    const BASE_IDENTITY_MASK: u64 = u32::MAX as u64;
 
-    let identity = style_record & !ANIMATION_OVERLAY_TAG;
+    let identity = style_record & BASE_IDENTITY_MASK;
     let namespace = u64::from(style_record & ANIMATION_OVERLAY_TAG != 0);
     usize::try_from(identity * 2 + namespace)
 }
@@ -2471,6 +2472,18 @@ mod tests {
         assert_eq!(amplification["stages"]["selector"]["changed_rows"], 4);
         assert_eq!(amplification["stages"]["selector"]["touched_rows"], 10);
         assert_eq!(amplification["stages"]["selector"]["amplification"], 2.5);
+    }
+
+    #[test]
+    fn style_record_replay_indices_ignore_base_generations() {
+        let identity = 17;
+        let first_generation = identity;
+        let later_generation = (29_u64 << 32) | identity;
+        let overlay = (1_u64 << 63) | identity;
+
+        assert_eq!(style_record_replay_index(first_generation).unwrap(), 34);
+        assert_eq!(style_record_replay_index(later_generation).unwrap(), 34);
+        assert_eq!(style_record_replay_index(overlay).unwrap(), 35);
     }
 }
 

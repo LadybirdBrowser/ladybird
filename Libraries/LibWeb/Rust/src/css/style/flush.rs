@@ -14,6 +14,7 @@ impl StyleEngine {
         root: StyleNodeID,
         mut emit: impl FnMut(StyleTransactionVersion, ProgramVersion, &[PublishedStyleDeltaRecord]),
     ) -> bool {
+        self.reclaim_computed_memory_if_needed();
         self.sync_tier3_benefit_observations();
         let tier3_evictions = self.memory.finish_tier3_quota_period();
         for &category in &TIER3_REFUSAL_CATEGORIES {

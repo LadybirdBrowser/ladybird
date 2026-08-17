@@ -23,6 +23,7 @@ use std::num::NonZeroU32;
 
 use super::capacity::capacity_bytes;
 use super::cascade::CascadeStateID;
+use super::column::BitColumn;
 use super::fast_hash::FastMap as HashMap;
 use super::fast_hash::fast_hasher;
 use super::intern_table::InternIdentity;
@@ -134,6 +135,7 @@ struct ComputedFixedMetadata {
     counter_style_environment_identity: u64,
 }
 
+#[repr(C)]
 pub(crate) struct InheritanceDependentValue {
     pub property: u16,
     pub value: RetainedStyleValueData,
@@ -143,8 +145,24 @@ struct ComputedReconstructionMetadata {
     property_importance: Box<[u8]>,
     property_inheritance: Box<[u8]>,
     inheritance_dependent_values: Box<[InheritanceDependentValue]>,
-    inheritance_dependent_value_view: Box<[super::bridge::FfiInheritanceDependentValue]>,
     raw_cascaded_font_size: Option<RetainedStyleValueData>,
+}
+
+impl ComputedReconstructionMetadata {
+    fn inheritance_dependent_value_view(&self) -> &[super::bridge::FfiInheritanceDependentValue] {
+        const {
+            assert!(size_of::<InheritanceDependentValue>() == size_of::<super::bridge::FfiInheritanceDependentValue>());
+            assert!(
+                align_of::<InheritanceDependentValue>() == align_of::<super::bridge::FfiInheritanceDependentValue>()
+            );
+        }
+        unsafe {
+            std::slice::from_raw_parts(
+                self.inheritance_dependent_values.as_ptr().cast(),
+                self.inheritance_dependent_values.len(),
+            )
+        }
+    }
 }
 
 /// The interned form of one drive's computed longhand table: one retained
@@ -271,9 +289,14 @@ pub struct FinalStyleRecordID(u64);
 
 impl FinalStyleRecordID {
     const ANIMATION_OVERLAY_TAG: u64 = 1 << 63;
+    const MAX_BASE_GENERATION: u32 = (1 << 31) - 1;
 
-    fn base(style_record: StyleRecordID) -> Self {
-        Self(style_record.raw().into())
+    fn base(style_record: StyleRecordID, generation: u32) -> Self {
+        assert!(
+            generation <= Self::MAX_BASE_GENERATION,
+            "base style-record generation space exhausted"
+        );
+        Self((u64::from(generation) << 32) | u64::from(style_record.raw()))
     }
 
     fn animation_overlay(generation: u64) -> Self {
@@ -290,8 +313,14 @@ impl FinalStyleRecordID {
         if self.0 & Self::ANIMATION_OVERLAY_TAG != 0 {
             return None;
         }
-        let raw = u32::try_from(self.0).ok()?;
-        Some(StyleRecordID(NonZeroU32::new(raw)?))
+        if self.0 as u32 == 0 {
+            return None;
+        }
+        Some(StyleRecordID(NonZeroU32::new(self.0 as u32)?))
+    }
+
+    fn base_generation(self) -> u32 {
+        (self.0 >> 32) as u32
     }
 }
 
@@ -321,7 +350,7 @@ struct ComputedGroup {
 }
 
 struct ComputedGroupSet {
-    identities: Box<[ComputedGroupID]>,
+    identity_hash: u64,
     payloads: Box<[*const c_void]>,
     canonical_longhand_table: Option<ComputedLonghandTableID>,
 }
@@ -478,6 +507,29 @@ impl PublishedComputedColumns {
     }
 }
 
+struct ComputedReachability {
+    groups: Vec<bool>,
+    sets: Vec<bool>,
+    inherited_sets: Vec<bool>,
+    custom_property_environments: Vec<bool>,
+    fixed_metadata: Vec<bool>,
+    reconstruction_metadata: Vec<bool>,
+    longhand_tables: Vec<bool>,
+    style_records: Vec<bool>,
+}
+
+impl ComputedReachability {
+    fn mark<Identity: InternIdentity>(marks: &mut [bool], identity: Identity) {
+        marks[identity.index()] = true;
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct ComputedGroupRetention {
+    pub retained: usize,
+    pub reachable: usize,
+}
+
 impl PseudoComputedRow {
     const PUBLISHED: u8 = 1;
     const CURRENT_CASCADE: usize = 0;
@@ -602,7 +654,10 @@ pub struct ComputedGroupSets {
     computed_reconstruction_metadata: InternTable<ComputedReconstructionMetadataID, ComputedReconstructionMetadata>,
     computed_longhand_tables: InternTable<ComputedLonghandTableID, RetainedLonghandTable>,
     style_records: InternTable<StyleRecordID, StyleRecord>,
+    style_record_liveness: BitColumn,
+    style_record_generations: Vec<u32>,
     style_record_column: Vec<Option<StyleRecordID>>,
+    base_style_record_pins: HashMap<StyleRecordID, u64>,
     columns: PublishedComputedColumns,
     // Recyclable animation overlays are deliberately separate from the permanent base records
     // above. Dense element assignments and sparse pseudo assignments pin at most one slot each.
@@ -617,6 +672,8 @@ pub struct ComputedGroupSets {
     reconstruction_nested_memory: MemoryLease,
     animation_overlay_nested_memory: MemoryLease,
     pseudo_assignment_nested_memory: MemoryLease,
+    style_records_interned_since_reclamation: usize,
+    next_reclamation_after: usize,
 }
 
 impl Default for ComputedGroupSets {
@@ -630,7 +687,10 @@ impl Default for ComputedGroupSets {
             computed_reconstruction_metadata: InternTable::default(),
             computed_longhand_tables: InternTable::default(),
             style_records: InternTable::default(),
+            style_record_liveness: BitColumn::default(),
+            style_record_generations: Vec::new(),
             style_record_column: Vec::new(),
+            base_style_record_pins: HashMap::default(),
             columns: PublishedComputedColumns::default(),
             animation_overlay_slots: Vec::new(),
             animation_overlay_slots_by_record: HashMap::default(),
@@ -643,11 +703,32 @@ impl Default for ComputedGroupSets {
             reconstruction_nested_memory: MemoryLease::new(MemoryCategory::ComputedReconstructionMetadata),
             animation_overlay_nested_memory: MemoryLease::new(MemoryCategory::AnimationOverlayRecord),
             pseudo_assignment_nested_memory: MemoryLease::new(MemoryCategory::ComputedPseudoAssignment),
+            style_records_interned_since_reclamation: 0,
+            next_reclamation_after: 1024,
         }
     }
 }
 
 impl ComputedGroupSets {
+    fn group_identity(&self, index: usize, payload: *const c_void) -> ComputedGroupID {
+        let key = (index, payload as usize);
+        self.groups
+            .find(content_hash(key), |_identity, group| {
+                (group.index, group.payload as usize) == key
+            })
+            .expect("computed group-set payload names a live group")
+    }
+
+    fn group_identities(&self, set: ComputedGroupSetID) -> Vec<ComputedGroupID> {
+        self.sets[set]
+            .payloads
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(index, payload)| self.group_identity(index, payload))
+            .collect()
+    }
+
     fn pseudo_rows(&self, node: StyleNodeID) -> &[PseudoComputedRow] {
         self.pseudo_rows_by_node.get(&node).map_or(&[], Box::as_ref)
     }
@@ -712,30 +793,57 @@ impl ComputedGroupSets {
         Some(self.final_style_record(style_record, self.columns.animation_overlay_slot(index)))
     }
 
-    fn intern_group_set(&mut self, groups: Vec<ComputedGroupID>) -> (ComputedGroupSetID, bool) {
-        let hash = content_hash(&groups);
-        if let Some(identity) = self.sets.find(hash, |_identity, set| set.identities.as_ref() == groups) {
+    fn intern_group_set(&mut self, groups: &[ComputedGroupID]) -> (ComputedGroupSetID, bool) {
+        let hash = content_hash(groups);
+        if let Some(identity) = self.sets.find(hash, |_identity, set| {
+            set.payloads.len() == groups.len()
+                && set
+                    .payloads
+                    .iter()
+                    .zip(groups)
+                    .all(|(&payload, &identity)| payload == self.groups[identity].payload)
+        }) {
             return (identity, false);
         }
-        let identity =
-            ComputedGroupSetID(u32::try_from(self.sets.len()).expect("computed group-set identity space exhausted"));
+        let identity = self.sets.take_free_identity().unwrap_or_else(|| {
+            ComputedGroupSetID(u32::try_from(self.sets.len()).expect("computed group-set identity space exhausted"))
+        });
         let payloads = groups
             .iter()
             .map(|identity| self.groups[*identity].payload)
             .collect::<Vec<_>>()
             .into_boxed_slice();
-        let identities = groups.into_boxed_slice();
         self.group_set_nested_memory
-            .grow_committed((size_of_val(identities.as_ref()) + size_of_val(payloads.as_ref())) as u64);
+            .grow_committed(size_of_val(payloads.as_ref()) as u64);
         self.sets.insert(
             hash,
             identity,
             ComputedGroupSet {
-                identities,
+                identity_hash: hash,
                 payloads,
                 canonical_longhand_table: None,
             },
         );
+        (identity, true)
+    }
+
+    fn intern_inherited_group_set(&mut self, groups: &[ComputedGroupID]) -> (InheritedGroupSetID, bool) {
+        let hash = content_hash(groups);
+        if let Some(identity) = self
+            .inherited_sets
+            .find(hash, |_identity, candidate| candidate.as_ref() == groups)
+        {
+            return (identity, false);
+        }
+        let identity = self.inherited_sets.take_free_identity().unwrap_or_else(|| {
+            InheritedGroupSetID(
+                u32::try_from(self.inherited_sets.len()).expect("inherited group-set identity space exhausted"),
+            )
+        });
+        let groups: Box<[ComputedGroupID]> = groups.into();
+        self.group_set_nested_memory
+            .grow_committed(size_of_val(groups.as_ref()) as u64);
+        self.inherited_sets.insert(hash, identity, groups);
         (identity, true)
     }
 
@@ -747,16 +855,45 @@ impl ComputedGroupSets {
         {
             return (identity, false);
         }
-        let raw = u32::try_from(
-            self.style_records
-                .len()
+        let identity = self.style_records.take_free_identity().unwrap_or_else(|| {
+            let raw = u32::try_from(
+                self.style_records
+                    .len()
+                    .checked_add(1)
+                    .expect("base style-record identity space exhausted"),
+            )
+            .expect("base style-record identity space exhausted");
+            StyleRecordID(NonZeroU32::new(raw).expect("base style-record identities are nonzero"))
+        });
+        if identity.index() == self.style_record_generations.len() {
+            self.style_record_generations.push(0);
+        } else {
+            let generation = &mut self.style_record_generations[identity.index()];
+            *generation = generation
                 .checked_add(1)
-                .expect("base style-record identity space exhausted"),
-        )
-        .expect("base style-record identity space exhausted");
-        let identity = StyleRecordID(NonZeroU32::new(raw).expect("base style-record identities are nonzero"));
+                .filter(|&generation| generation <= FinalStyleRecordID::MAX_BASE_GENERATION)
+                .expect("base style-record generation space exhausted");
+        }
         self.style_records.insert(hash, identity, record);
+        let (changed, _) = self.style_record_liveness.set(identity.index(), true);
+        assert!(changed, "new base style-record identity must not already be live");
+        self.style_records_interned_since_reclamation = self
+            .style_records_interned_since_reclamation
+            .checked_add(1)
+            .expect("style-record reclamation growth count overflow");
         (identity, true)
+    }
+
+    fn style_record_is_live(&self, identity: StyleRecordID) -> bool {
+        self.style_record_liveness.contains(identity.index())
+    }
+
+    fn style_record_generation_is_live(&self, identity: StyleRecordID, generation: u32) -> bool {
+        self.style_record_is_live(identity) && self.style_record_generations.get(identity.index()) == Some(&generation)
+    }
+
+    fn final_base_style_record(&self, identity: StyleRecordID) -> FinalStyleRecordID {
+        FinalStyleRecordID::base(identity, self.style_record_generations[identity.index()])
     }
 
     /// Interns the values of one drive's frozen computed longhand table, so
@@ -785,10 +922,12 @@ impl ComputedGroupSets {
         }) {
             return identity;
         }
-        let identity = ComputedLonghandTableID(
-            u32::try_from(self.computed_longhand_tables.len())
-                .expect("computed longhand-table identity space exhausted"),
-        );
+        let identity = self.computed_longhand_tables.take_free_identity().unwrap_or_else(|| {
+            ComputedLonghandTableID(
+                u32::try_from(self.computed_longhand_tables.len())
+                    .expect("computed longhand-table identity space exhausted"),
+            )
+        });
         let retained = unsafe { crate::css::computed_longhand_table::rust_computed_longhand_table_retain(table) };
         self.reconstruction_nested_memory
             .grow_committed(size_of_val(values) as u64);
@@ -820,10 +959,12 @@ impl ComputedGroupSets {
         }) {
             return identity;
         }
-        let identity = ComputedLonghandTableID(
-            u32::try_from(self.computed_longhand_tables.len())
-                .expect("computed longhand-table identity space exhausted"),
-        );
+        let identity = self.computed_longhand_tables.take_free_identity().unwrap_or_else(|| {
+            ComputedLonghandTableID(
+                u32::try_from(self.computed_longhand_tables.len())
+                    .expect("computed longhand-table identity space exhausted"),
+            )
+        });
         let value_view: Box<[*const c_void]> = values
             .iter()
             .map(|&value| match value.is_null() {
@@ -867,17 +1008,17 @@ impl ComputedGroupSets {
         }
 
         let old_style_record = *self.style_record_column.get(index)?.as_ref()?;
-        let old_record = *self.style_records.get_index(old_style_record.raw() as usize - 1)?;
+        let old_record = *self.style_records.get_index(old_style_record.index())?;
         let old_group_set = self.sets.get_index(old_record.groups.0 as usize)?;
         let parent_inherited = self.columns.inherited_groups(parent_index)?;
         let parent_groups = self.inherited_sets.get_index(parent_inherited.0 as usize)?;
-        if parent_groups.len() != INHERITED_GROUP_COUNT || old_group_set.identities.len() < INHERITED_GROUP_COUNT {
+        if parent_groups.len() != INHERITED_GROUP_COUNT || old_group_set.payloads.len() < INHERITED_GROUP_COUNT {
             return None;
         }
 
-        let mut groups = old_group_set.identities.to_vec();
+        let mut groups = self.group_identities(old_record.groups);
         groups[..INHERITED_GROUP_COUNT].copy_from_slice(parent_groups);
-        let group_set = self.intern_group_set(groups).0;
+        let group_set = self.intern_group_set(&groups).0;
         // The swap is only taken for a fully inheriting element, so every
         // inherited-by-default longhand's value is the parent's; the swapped
         // record's table is the old one with those slots replaced by the
@@ -886,7 +1027,7 @@ impl ComputedGroupSets {
         // in practice) publish without one.
         let parent_style_record = self.style_record_column.get(parent_index).copied().flatten();
         let parent_table = parent_style_record
-            .and_then(|record| self.style_records.get_index(record.raw() as usize - 1))
+            .and_then(|record| self.style_records.get_index(record.index()))
             .and_then(|record| record.longhand_table);
         let longhand_table = match (old_record.longhand_table, parent_table) {
             (Some(old_table), Some(parent_table)) => {
@@ -914,8 +1055,8 @@ impl ComputedGroupSets {
         self.columns.inherited_groups[index] = parent_inherited.0;
         self.style_record_column[index] = Some(new_style_record);
         Some((
-            FinalStyleRecordID::base(old_style_record),
-            FinalStyleRecordID::base(new_style_record),
+            self.final_base_style_record(old_style_record),
+            self.final_base_style_record(new_style_record),
         ))
     }
 
@@ -1022,7 +1163,7 @@ impl ComputedGroupSets {
             }
             return AnimationOverlayPublication {
                 slot: None,
-                final_style_record: FinalStyleRecordID::base(base_style_record),
+                final_style_record: self.final_base_style_record(base_style_record),
                 slot_allocated: false,
                 slot_released: current_slot.is_some(),
                 record_updated: false,
@@ -1096,7 +1237,7 @@ impl ComputedGroupSets {
         animation_overlay_slot: Option<u32>,
     ) -> FinalStyleRecordID {
         animation_overlay_slot.map_or_else(
-            || FinalStyleRecordID::base(base_style_record),
+            || self.final_base_style_record(base_style_record),
             |slot| {
                 self.animation_overlay_slots[slot as usize]
                     .as_ref()
@@ -1175,7 +1316,9 @@ impl ComputedGroupSets {
                 continue;
             }
             let key = (index, payload as usize);
-            let previous_identity = previous_group_set.and_then(|set| self.sets[set].identities.get(index).copied());
+            let previous_identity = previous_group_set
+                .and_then(|set| self.sets[set].payloads.get(index).copied())
+                .map(|payload| self.group_identity(index, payload));
             let previous_equal_identity = previous_identity
                 .filter(|identity| style_group_payloads_equal(index, payload, self.groups[*identity].payload));
             let identity = match previous_equal_identity {
@@ -1191,9 +1334,11 @@ impl ComputedGroupSets {
                     Some(identity) => identity,
                     None => {
                         retain_group_payload(index, payload);
-                        let identity = ComputedGroupID(
-                            u32::try_from(self.groups.len()).expect("computed group identity space exhausted"),
-                        );
+                        let identity = self.groups.take_free_identity().unwrap_or_else(|| {
+                            ComputedGroupID(
+                                u32::try_from(self.groups.len()).expect("computed group identity space exhausted"),
+                            )
+                        });
                         self.groups
                             .insert(content_hash(key), identity, ComputedGroup { index, payload });
                         self.group_set_nested_memory
@@ -1206,26 +1351,10 @@ impl ComputedGroupSets {
             groups.push(identity);
         }
 
-        let (identity, new_group_set) = self.intern_group_set(groups);
+        let (identity, new_group_set) = self.intern_group_set(&groups);
 
-        let inherited_groups = &self.sets[identity].identities[..inherited_group_count];
-        let inherited_hash = content_hash(inherited_groups);
-        let existing_inherited = self
-            .inherited_sets
-            .find(inherited_hash, |_identity, groups| groups.as_ref() == inherited_groups);
-        let (inherited_identity, new_inherited_group_set) = match existing_inherited {
-            Some(identity) => (identity, false),
-            None => {
-                let identity = InheritedGroupSetID(
-                    u32::try_from(self.inherited_sets.len()).expect("inherited group-set identity space exhausted"),
-                );
-                let inherited_groups: Box<[ComputedGroupID]> = inherited_groups.into();
-                self.group_set_nested_memory
-                    .grow_committed(size_of_val(inherited_groups.as_ref()) as u64);
-                self.inherited_sets.insert(inherited_hash, identity, inherited_groups);
-                (identity, true)
-            }
-        };
+        let (inherited_identity, new_inherited_group_set) =
+            self.intern_inherited_group_set(&groups[..inherited_group_count]);
 
         let custom_property_environment_hash = content_hash(custom_property_environment);
         let (custom_property_environment_identity, new_custom_property_environment) = match self
@@ -1235,10 +1364,15 @@ impl ComputedGroupSets {
             }) {
             Some(identity) => (identity, false),
             None => {
-                let identity = CustomPropertyEnvironmentID(
-                    u32::try_from(self.custom_property_environments.len())
-                        .expect("custom-property environment identity space exhausted"),
-                );
+                let identity = self
+                    .custom_property_environments
+                    .take_free_identity()
+                    .unwrap_or_else(|| {
+                        CustomPropertyEnvironmentID(
+                            u32::try_from(self.custom_property_environments.len())
+                                .expect("custom-property environment identity space exhausted"),
+                        )
+                    });
                 self.custom_property_environments.insert(
                     custom_property_environment_hash,
                     identity,
@@ -1259,10 +1393,12 @@ impl ComputedGroupSets {
         {
             Some(identity) => (identity, false),
             None => {
-                let identity = ComputedFixedMetadataID(
-                    u32::try_from(self.computed_fixed_metadata.len())
-                        .expect("computed fixed-metadata identity space exhausted"),
-                );
+                let identity = self.computed_fixed_metadata.take_free_identity().unwrap_or_else(|| {
+                    ComputedFixedMetadataID(
+                        u32::try_from(self.computed_fixed_metadata.len())
+                            .expect("computed fixed-metadata identity space exhausted"),
+                    )
+                });
                 self.computed_fixed_metadata
                     .insert(content_hash(metadata), identity, metadata);
                 (identity, true)
@@ -1286,9 +1422,7 @@ impl ComputedGroupSets {
                     .copied()
                     .flatten()
             }?;
-            self.style_records
-                .get_index(style_record.raw() as usize - 1)?
-                .longhand_table
+            self.style_records.get_index(style_record.index())?.longhand_table
         });
         let canonical_longhand_table = self.sets[identity].canonical_longhand_table;
         let longhand_table_identity = longhand_table
@@ -1323,10 +1457,15 @@ impl ComputedGroupSets {
             match existing_reconstruction {
                 Some(identity) => (identity, false),
                 None => {
-                    let identity = ComputedReconstructionMetadataID(
-                        u32::try_from(self.computed_reconstruction_metadata.len())
-                            .expect("computed reconstruction-metadata identity space exhausted"),
-                    );
+                    let identity = self
+                        .computed_reconstruction_metadata
+                        .take_free_identity()
+                        .unwrap_or_else(|| {
+                            ComputedReconstructionMetadataID(
+                                u32::try_from(self.computed_reconstruction_metadata.len())
+                                    .expect("computed reconstruction-metadata identity space exhausted"),
+                            )
+                        });
                     let inheritance_dependent_values: Box<[InheritanceDependentValue]> = inheritance_dependent_values
                         .into_iter()
                         .map(|(property, value)| InheritanceDependentValue {
@@ -1334,28 +1473,18 @@ impl ComputedGroupSets {
                             value: retain_style_value(value),
                         })
                         .collect();
-                    let inheritance_dependent_value_view: Box<[super::bridge::FfiInheritanceDependentValue]> =
-                        inheritance_dependent_values
-                            .iter()
-                            .map(|entry| super::bridge::FfiInheritanceDependentValue {
-                                property: entry.property,
-                                value: entry.value.pointer().cast(),
-                            })
-                            .collect();
                     let raw_cascaded_font_size = (!reconstruction_metadata.raw_cascaded_font_size.is_null())
                         .then(|| retain_style_value(reconstruction_metadata.raw_cascaded_font_size));
                     let metadata = ComputedReconstructionMetadata {
                         property_importance: reconstruction_metadata.property_importance.into(),
                         property_inheritance: reconstruction_metadata.property_inheritance.into(),
                         inheritance_dependent_values,
-                        inheritance_dependent_value_view,
                         raw_cascaded_font_size,
                     };
                     self.reconstruction_nested_memory.grow_committed(
                         (metadata.property_importance.len()
                             + metadata.property_inheritance.len()
-                            + size_of_val(metadata.inheritance_dependent_values.as_ref())
-                            + size_of_val(metadata.inheritance_dependent_value_view.as_ref()))
+                            + size_of_val(metadata.inheritance_dependent_values.as_ref()))
                             as u64,
                     );
                     self.computed_reconstruction_metadata
@@ -1468,7 +1597,7 @@ impl ComputedGroupSets {
                 None,
                 AnimationOverlayPublication {
                     slot: None,
-                    final_style_record: FinalStyleRecordID::base(style_record_identity),
+                    final_style_record: self.final_base_style_record(style_record_identity),
                     slot_allocated: false,
                     slot_released: false,
                     record_updated: false,
@@ -1512,6 +1641,10 @@ impl ComputedGroupSets {
     ) -> Option<ComputedGroupPublication> {
         let final_style_record = FinalStyleRecordID(raw_style_record);
         let requested_style_record_identity = final_style_record.base_record()?;
+        assert!(
+            self.style_record_generation_is_live(requested_style_record_identity, final_style_record.base_generation()),
+            "base style-record is not live"
+        );
         let previous_base_style_record_identity = if target.is_pseudo() {
             self.pseudo_row(target.node, target.pseudo_kind)
                 .and_then(|row| row.assignment)
@@ -1531,13 +1664,10 @@ impl ComputedGroupSets {
         let style_record_identity = previous_base_style_record_identity
             .filter(|&previous| self.style_records_equal_by_value(previous, requested_style_record_identity))
             .unwrap_or(requested_style_record_identity);
-        let record = *self.style_records.get_index(style_record_identity.raw() as usize - 1)?;
-        let inherited_groups = &self.sets[record.groups].identities[..inherited_group_count];
-        let inherited_identity = self
-            .inherited_sets
-            .find(content_hash(inherited_groups), |_identity, groups| {
-                groups.as_ref() == inherited_groups
-            })?;
+        let record = *self.style_records.get_index(style_record_identity.index())?;
+        let group_identities = self.group_identities(record.groups);
+        let inherited_groups = &group_identities[..inherited_group_count];
+        let (inherited_identity, new_inherited_group_set) = self.intern_inherited_group_set(inherited_groups);
 
         let is_pseudo = target.is_pseudo();
         let (
@@ -1633,7 +1763,7 @@ impl ComputedGroupSets {
             new_groups: 0,
             canonical_output_groups_reused: 0,
             new_group_set: false,
-            new_inherited_group_set: false,
+            new_inherited_group_set,
             new_custom_property_environment: false,
             new_computed_fixed_metadata: false,
             new_computed_reconstruction_metadata: false,
@@ -1657,10 +1787,10 @@ impl ComputedGroupSets {
         if first == second {
             return true;
         }
-        let Some(first) = self.style_records.get_index(first.raw() as usize - 1) else {
+        let Some(first) = self.style_records.get_index(first.index()) else {
             return false;
         };
-        let Some(second) = self.style_records.get_index(second.raw() as usize - 1) else {
+        let Some(second) = self.style_records.get_index(second.index()) else {
             return false;
         };
         if first.custom_properties != second.custom_properties
@@ -1669,17 +1799,14 @@ impl ComputedGroupSets {
         {
             return false;
         }
-        let first_groups = &self.sets[first.groups].identities;
-        let second_groups = &self.sets[second.groups].identities;
+        let first_groups = &self.sets[first.groups].payloads;
+        let second_groups = &self.sets[second.groups].payloads;
         if first_groups.len() != second_groups.len()
             || first_groups
                 .iter()
                 .zip(second_groups)
                 .enumerate()
-                .any(|(index, (&first, &second))| {
-                    first != second
-                        && !style_group_payloads_equal(index, self.groups[first].payload, self.groups[second].payload)
-                })
+                .any(|(index, (&first, &second))| first != second && !style_group_payloads_equal(index, first, second))
         {
             return false;
         }
@@ -2006,7 +2133,10 @@ impl ComputedGroupSets {
         capacity_bytes! {
             shallow [
                 self.style_records,
+                self.style_record_liveness,
+                self.style_record_generations,
                 self.style_record_column,
+                self.base_style_record_pins,
                 self.columns.cascade_versions,
                 self.columns.cascade_states,
                 self.columns.flags,
@@ -2038,16 +2168,272 @@ impl ComputedGroupSets {
         self.live_animation_overlay_assignments
     }
 
+    fn reachability(&self) -> ComputedReachability {
+        let mut reachable = ComputedReachability {
+            groups: vec![false; self.groups.len()],
+            sets: vec![false; self.sets.len()],
+            inherited_sets: vec![false; self.inherited_sets.len()],
+            custom_property_environments: vec![false; self.custom_property_environments.len()],
+            fixed_metadata: vec![false; self.computed_fixed_metadata.len()],
+            reconstruction_metadata: vec![false; self.computed_reconstruction_metadata.len()],
+            longhand_tables: vec![false; self.computed_longhand_tables.len()],
+            style_records: vec![false; self.style_records.len()],
+        };
+
+        {
+            let mut mark_style_record = |identity: StyleRecordID| {
+                ComputedReachability::mark(&mut reachable.style_records, identity);
+                let record = self.style_records.get(identity);
+                ComputedReachability::mark(&mut reachable.sets, record.groups);
+                ComputedReachability::mark(&mut reachable.custom_property_environments, record.custom_properties);
+                ComputedReachability::mark(&mut reachable.fixed_metadata, record.fixed_metadata);
+                ComputedReachability::mark(&mut reachable.reconstruction_metadata, record.reconstruction_metadata);
+                if let Some(longhand_table) = record.longhand_table {
+                    ComputedReachability::mark(&mut reachable.longhand_tables, longhand_table);
+                }
+            };
+            for &identity in self.style_record_column.iter().flatten() {
+                mark_style_record(identity);
+            }
+            for rows in self.pseudo_rows_by_node.values() {
+                for assignment in rows.iter().filter_map(|row| row.assignment) {
+                    mark_style_record(assignment.style_record);
+                }
+            }
+            for overlay in self.animation_overlay_slots.iter().flatten() {
+                mark_style_record(overlay.base_style_record);
+            }
+            for &identity in self.base_style_record_pins.keys() {
+                mark_style_record(identity);
+            }
+        }
+
+        for index in 0..self.columns.flags.len() {
+            if !self.columns.is_assigned(index) {
+                continue;
+            }
+            ComputedReachability::mark(&mut reachable.sets, self.columns.groups(index).unwrap());
+            ComputedReachability::mark(
+                &mut reachable.inherited_sets,
+                self.columns.inherited_groups(index).unwrap(),
+            );
+            ComputedReachability::mark(
+                &mut reachable.custom_property_environments,
+                self.columns.custom_properties(index).unwrap(),
+            );
+            ComputedReachability::mark(
+                &mut reachable.fixed_metadata,
+                self.columns.fixed_metadata(index).unwrap(),
+            );
+            ComputedReachability::mark(
+                &mut reachable.reconstruction_metadata,
+                self.columns.reconstruction_metadata(index).unwrap(),
+            );
+        }
+        for rows in self.pseudo_rows_by_node.values() {
+            for assignment in rows.iter().filter_map(|row| row.assignment) {
+                ComputedReachability::mark(&mut reachable.sets, assignment.groups);
+                ComputedReachability::mark(&mut reachable.inherited_sets, assignment.inherited_groups);
+                ComputedReachability::mark(
+                    &mut reachable.custom_property_environments,
+                    assignment.custom_properties,
+                );
+                ComputedReachability::mark(&mut reachable.fixed_metadata, assignment.fixed_metadata);
+                ComputedReachability::mark(
+                    &mut reachable.reconstruction_metadata,
+                    assignment.reconstruction_metadata,
+                );
+            }
+        }
+        for (index, is_reachable) in reachable.sets.iter().copied().enumerate() {
+            if !is_reachable {
+                continue;
+            }
+            for (group_index, &payload) in self.sets[index].payloads.iter().enumerate() {
+                ComputedReachability::mark(&mut reachable.groups, self.group_identity(group_index, payload));
+            }
+        }
+        for (index, is_reachable) in reachable.inherited_sets.iter().copied().enumerate() {
+            if !is_reachable {
+                continue;
+            }
+            for &group in &self.inherited_sets[index] {
+                ComputedReachability::mark(&mut reachable.groups, group);
+            }
+        }
+        reachable
+    }
+
+    pub(super) fn reclaim_unreachable(&mut self) -> ComputedGroupRetention {
+        let reachable = self.reachability();
+        let retention = ComputedGroupRetention {
+            retained: self.groups.live_identities().count(),
+            reachable: reachable.groups.iter().filter(|&&reachable| reachable).count(),
+        };
+        if replaying_style_groups() {
+            return retention;
+        }
+
+        let mut unreachable_style_records = self
+            .style_records
+            .live_identities()
+            .filter(|identity| !reachable.style_records[identity.index()])
+            .collect::<Vec<_>>();
+        unreachable_style_records.sort_unstable_by_key(|identity| std::cmp::Reverse(identity.index()));
+        for identity in unreachable_style_records {
+            let record = *self.style_records.get(identity);
+            if self.style_record_generations[identity.index()] == FinalStyleRecordID::MAX_BASE_GENERATION {
+                self.style_records.remove_identity(content_hash(record), identity);
+            } else {
+                self.style_records.retire_identity(content_hash(record), identity);
+            }
+            let (changed, _) = self.style_record_liveness.set(identity.index(), false);
+            assert!(changed, "retired base style-record identity must be live");
+        }
+        for identity in self.sets.live_identities().collect::<Vec<_>>() {
+            if reachable.sets[identity.index()] {
+                if let Some(longhand_table) = self.sets[identity].canonical_longhand_table
+                    && !reachable.longhand_tables[longhand_table.index()]
+                {
+                    self.sets[identity].canonical_longhand_table = None;
+                }
+                continue;
+            }
+            let set = std::mem::replace(
+                self.sets.get_mut(identity),
+                ComputedGroupSet {
+                    identity_hash: 0,
+                    payloads: Box::default(),
+                    canonical_longhand_table: None,
+                },
+            );
+            self.group_set_nested_memory
+                .shrink_committed(size_of_val(set.payloads.as_ref()) as u64);
+            self.sets.retire_identity(set.identity_hash, identity);
+        }
+        for identity in self.inherited_sets.live_identities().collect::<Vec<_>>() {
+            if reachable.inherited_sets[identity.index()] {
+                continue;
+            }
+            let groups = std::mem::take(self.inherited_sets.get_mut(identity));
+            self.group_set_nested_memory
+                .shrink_committed(size_of_val(groups.as_ref()) as u64);
+            self.inherited_sets.retire_identity(content_hash(&groups), identity);
+        }
+        for identity in self.custom_property_environments.live_identities().collect::<Vec<_>>() {
+            if reachable.custom_property_environments[identity.index()] {
+                continue;
+            }
+            let environment = *self.custom_property_environments.get(identity);
+            self.custom_property_environments
+                .retire_identity(content_hash(environment), identity);
+        }
+        for identity in self.computed_fixed_metadata.live_identities().collect::<Vec<_>>() {
+            if reachable.fixed_metadata[identity.index()] {
+                continue;
+            }
+            let metadata = *self.computed_fixed_metadata.get(identity);
+            self.computed_fixed_metadata
+                .retire_identity(content_hash(metadata), identity);
+        }
+        for identity in self
+            .computed_reconstruction_metadata
+            .live_identities()
+            .collect::<Vec<_>>()
+        {
+            if reachable.reconstruction_metadata[identity.index()] {
+                continue;
+            }
+            let metadata = self.computed_reconstruction_metadata.get(identity);
+            let inheritance_dependent_values = metadata
+                .inheritance_dependent_values
+                .iter()
+                .map(|entry| (entry.property, entry.value.pointer().cast()))
+                .collect::<Vec<_>>();
+            let hash = reconstruction_metadata_hash(
+                &metadata.property_importance,
+                &metadata.property_inheritance,
+                &inheritance_dependent_values,
+                metadata
+                    .raw_cascaded_font_size
+                    .as_ref()
+                    .map_or(std::ptr::null(), |value| value.pointer().cast()),
+            );
+            let metadata = std::mem::replace(
+                self.computed_reconstruction_metadata.get_mut(identity),
+                ComputedReconstructionMetadata {
+                    property_importance: Box::default(),
+                    property_inheritance: Box::default(),
+                    inheritance_dependent_values: Box::default(),
+                    raw_cascaded_font_size: None,
+                },
+            );
+            self.reconstruction_nested_memory.shrink_committed(
+                (metadata.property_importance.len()
+                    + metadata.property_inheritance.len()
+                    + size_of_val(metadata.inheritance_dependent_values.as_ref())) as u64,
+            );
+            self.computed_reconstruction_metadata.retire_identity(hash, identity);
+        }
+        for identity in self.computed_longhand_tables.live_identities().collect::<Vec<_>>() {
+            if reachable.longhand_tables[identity.index()] {
+                continue;
+            }
+            let hash = longhand_table_hash(self.computed_longhand_tables[identity].value_view());
+            let table = std::mem::replace(
+                self.computed_longhand_tables.get_mut(identity),
+                RetainedLonghandTable {
+                    storage: RetainedLonghandTableStorage::Values(Box::default()),
+                },
+            );
+            self.reconstruction_nested_memory
+                .shrink_committed(size_of_val(table.value_view()) as u64);
+            self.computed_longhand_tables.retire_identity(hash, identity);
+        }
+        for identity in self.groups.live_identities().collect::<Vec<_>>() {
+            if reachable.groups[identity.index()] {
+                continue;
+            }
+            let group = std::mem::replace(
+                self.groups.get_mut(identity),
+                ComputedGroup {
+                    index: usize::MAX,
+                    payload: std::ptr::null(),
+                },
+            );
+            self.groups
+                .retire_identity(content_hash((group.index, group.payload as usize)), identity);
+            self.group_set_nested_memory
+                .shrink_committed(retained_group_payload_bytes(group.index, group.payload) as u64);
+            release_group_payload(group.index, group.payload);
+        }
+        retention
+    }
+
+    pub(super) fn reclaim_unreachable_if_needed(&mut self) -> Option<ComputedGroupRetention> {
+        if self.style_records_interned_since_reclamation < self.next_reclamation_after {
+            return None;
+        }
+        self.style_records_interned_since_reclamation = 0;
+        let retention = self.reclaim_unreachable();
+        self.next_reclamation_after = self.style_records.live_identities().count().max(1024);
+        Some(retention)
+    }
+
     pub fn style_record_payloads(&self, raw_style_record: u64) -> Option<&[*const c_void]> {
+        let final_style_record = FinalStyleRecordID(raw_style_record);
         if raw_style_record & FinalStyleRecordID::ANIMATION_OVERLAY_TAG != 0 {
-            let style_record = FinalStyleRecordID(raw_style_record);
+            let style_record = final_style_record;
             let slot = *self.animation_overlay_slots_by_record.get(&style_record)?;
             let record = self.animation_overlay_slots[slot as usize].as_ref()?;
             return (!record.payloads.is_empty()).then_some(record.payloads.as_ref());
         }
-        let raw_style_record = u32::try_from(raw_style_record).ok()?;
-        let record_index = raw_style_record.checked_sub(1)? as usize;
-        let record = self.style_records.get_index(record_index)?;
+        let style_record = final_style_record.base_record()?;
+        assert!(
+            self.style_record_generation_is_live(style_record, final_style_record.base_generation()),
+            "base style-record is not live"
+        );
+        let record = self.style_records.get_index(style_record.index())?;
         Some(&self.sets[record.groups].payloads)
     }
 
@@ -2055,17 +2441,26 @@ impl ComputedGroupSets {
     pub(crate) fn recording_group_identities(&self, raw_style_record: u64) -> Option<Vec<u32>> {
         let final_style_record = FinalStyleRecordID(raw_style_record);
         let base_style_record = match final_style_record.base_record() {
-            Some(style_record) => style_record,
+            Some(style_record) => {
+                assert!(
+                    self.style_record_generation_is_live(style_record, final_style_record.base_generation()),
+                    "base style-record is not live"
+                );
+                style_record
+            }
             None => {
                 let slot = *self.animation_overlay_slots_by_record.get(&final_style_record)?;
                 self.animation_overlay_slots[slot as usize].as_ref()?.base_style_record
             }
         };
-        let record = self.style_records.get_index(base_style_record.raw() as usize - 1)?;
+        assert!(
+            self.style_record_is_live(base_style_record),
+            "base style-record is not live"
+        );
+        let record = self.style_records.get_index(base_style_record.index())?;
         Some(
-            self.sets[record.groups]
-                .identities
-                .iter()
+            self.group_identities(record.groups)
+                .into_iter()
                 .map(|identity| identity.0)
                 .collect(),
         )
@@ -2089,15 +2484,25 @@ impl ComputedGroupSets {
     pub(crate) fn recording_longhand_table(&self, raw_style_record: u64) -> Option<(u32, &[*const c_void])> {
         let final_style_record = FinalStyleRecordID(raw_style_record);
         let base_style_record = match final_style_record.base_record() {
-            Some(style_record) => style_record,
+            Some(style_record) => {
+                assert!(
+                    self.style_record_generation_is_live(style_record, final_style_record.base_generation()),
+                    "base style-record is not live"
+                );
+                style_record
+            }
             None => {
                 let slot = *self.animation_overlay_slots_by_record.get(&final_style_record)?;
                 self.animation_overlay_slots[slot as usize].as_ref()?.base_style_record
             }
         };
+        assert!(
+            self.style_record_is_live(base_style_record),
+            "base style-record is not live"
+        );
         let identity = self
             .style_records
-            .get_index(base_style_record.raw() as usize - 1)?
+            .get_index(base_style_record.index())?
             .longhand_table?;
         Some((
             identity.0,
@@ -2111,7 +2516,11 @@ impl ComputedGroupSets {
         let final_style_record = FinalStyleRecordID(raw_style_record);
         let (base_style_record, payloads, animation_overlay_identity, animated_properties) =
             if let Some(style_record) = final_style_record.base_record() {
-                let record = self.style_records.get_index(style_record.raw() as usize - 1)?;
+                assert!(
+                    self.style_record_generation_is_live(style_record, final_style_record.base_generation()),
+                    "base style-record is not live"
+                );
+                let record = self.style_records.get_index(style_record.index())?;
                 (
                     style_record,
                     self.sets[record.groups].payloads.as_ref(),
@@ -2128,7 +2537,11 @@ impl ComputedGroupSets {
                     overlay.animated_properties.pointer(),
                 )
             };
-        let record = self.style_records.get_index(base_style_record.raw() as usize - 1)?;
+        assert!(
+            self.style_record_is_live(base_style_record),
+            "base style-record is not live"
+        );
+        let record = self.style_records.get_index(base_style_record.index())?;
         let base_payloads = self.sets[record.groups].payloads.as_ref();
         let fixed_metadata = self
             .computed_fixed_metadata
@@ -2145,7 +2558,7 @@ impl ComputedGroupSets {
             base_payloads,
             property_importance: &reconstruction_metadata.property_importance,
             property_inheritance: &reconstruction_metadata.property_inheritance,
-            inheritance_dependent_values: &reconstruction_metadata.inheritance_dependent_value_view,
+            inheritance_dependent_values: reconstruction_metadata.inheritance_dependent_value_view(),
             longhand_values,
             raw_cascaded_font_size: reconstruction_metadata
                 .raw_cascaded_font_size
@@ -2161,7 +2574,13 @@ impl ComputedGroupSets {
 
     pub fn pin_style_record(&mut self, raw_style_record: u64) {
         let final_style_record = FinalStyleRecordID(raw_style_record);
-        if final_style_record.base_record().is_some() {
+        if let Some(style_record) = final_style_record.base_record() {
+            assert!(
+                self.style_record_generation_is_live(style_record, final_style_record.base_generation()),
+                "base style-record is not live"
+            );
+            let pin_count = self.base_style_record_pins.entry(style_record).or_default();
+            *pin_count = pin_count.checked_add(1).expect("base style-record pin count overflow");
             return;
         }
         let slot = *self
@@ -2179,7 +2598,19 @@ impl ComputedGroupSets {
 
     pub fn unpin_style_record(&mut self, raw_style_record: u64) {
         let final_style_record = FinalStyleRecordID(raw_style_record);
-        if final_style_record.base_record().is_some() {
+        if let Some(style_record) = final_style_record.base_record() {
+            assert!(
+                self.style_record_generation_is_live(style_record, final_style_record.base_generation()),
+                "base style-record is not live"
+            );
+            let pin_count = self
+                .base_style_record_pins
+                .get_mut(&style_record)
+                .expect("base style-record is pinned");
+            *pin_count = pin_count.checked_sub(1).expect("base style-record is pinned");
+            if *pin_count == 0 {
+                self.base_style_record_pins.remove(&style_record);
+            }
             return;
         }
         let slot = *self
@@ -2267,7 +2698,8 @@ impl ComputedGroupSets {
 
 impl Drop for ComputedGroupSets {
     fn drop(&mut self) {
-        for group in &self.groups {
+        for identity in self.groups.live_identities() {
+            let group = self.groups.get(identity);
             release_group_payload(group.index, group.payload);
         }
     }
@@ -2544,6 +2976,117 @@ mod tests {
     }
 
     #[test]
+    fn base_style_record_pins_are_counted_until_the_last_view_releases() {
+        let mut sets = ComputedGroupSets::default();
+        let publication = sets.publish(None, &[], 0, 0, metadata(0, 0, 0, &[], &[]));
+        let style_record = publication.style_record_identity;
+        let base_style_record = style_record.base_record().unwrap();
+
+        sets.pin_style_record(style_record.raw());
+        sets.pin_style_record(style_record.raw());
+        assert_eq!(sets.base_style_record_pins.len(), 1);
+        assert_eq!(sets.base_style_record_pins[&base_style_record], 2);
+
+        sets.unpin_style_record(style_record.raw());
+        assert_eq!(sets.base_style_record_pins[&base_style_record], 1);
+        sets.unpin_style_record(style_record.raw());
+        assert!(sets.base_style_record_pins.is_empty());
+    }
+
+    #[test]
+    fn computed_record_reclamation_preserves_roots_while_reusing_record_slots() {
+        let mut sets = ComputedGroupSets::default();
+        let node = StyleNodeID::element(1);
+        let target = ComputedStyleTarget::new(node, u8::MAX);
+        let pinned = sets.publish(Some(target), &[], 0, 1, metadata(0, 0, 0, &[], &[]));
+        sets.pin_style_record(pinned.style_record_identity.raw());
+
+        for environment in 2..128 {
+            sets.publish(Some(target), &[], 0, environment, metadata(0, 0, 0, &[], &[]));
+        }
+        let current = sets.assigned_style_record(node).unwrap().base_record().unwrap();
+        let dense_record_count = sets.style_records.len();
+        let retention = sets.reclaim_unreachable();
+
+        assert_eq!(retention.retained, retention.reachable);
+        assert_eq!(sets.style_records.live_len(), 2);
+        assert!(sets.style_records.live_identities().any(|identity| identity == current));
+        assert!(
+            sets.style_records
+                .live_identities()
+                .any(|identity| identity == pinned.style_record_identity.base_record().unwrap())
+        );
+
+        for environment in 128..253 {
+            sets.publish(Some(target), &[], 0, environment, metadata(0, 0, 0, &[], &[]));
+        }
+        assert_eq!(sets.style_records.len(), dense_record_count);
+
+        sets.unpin_style_record(pinned.style_record_identity.raw());
+        sets.reclaim_unreachable();
+        assert_eq!(sets.style_records.live_len(), 1);
+    }
+
+    #[test]
+    fn computed_record_reclamation_reuses_the_lowest_identity_first() {
+        let mut sets = ComputedGroupSets::default();
+        let first = sets.publish(None, &[], 0, 1, metadata(0, 0, 0, &[], &[]));
+        sets.publish(None, &[], 0, 2, metadata(0, 0, 0, &[], &[]));
+        sets.publish(None, &[], 0, 3, metadata(0, 0, 0, &[], &[]));
+        sets.reclaim_unreachable();
+
+        let replacement = sets.publish(None, &[], 0, 4, metadata(0, 0, 0, &[], &[]));
+        assert_eq!(
+            replacement.style_record_identity.base_record(),
+            first.style_record_identity.base_record()
+        );
+    }
+
+    #[test]
+    fn computed_record_reclamation_retires_an_exhausted_identity() {
+        let mut sets = ComputedGroupSets::default();
+        let exhausted = sets.publish(None, &[], 0, 1, metadata(0, 0, 0, &[], &[]));
+        let exhausted = exhausted.style_record_identity.base_record().unwrap();
+        sets.style_record_generations[exhausted.index()] = FinalStyleRecordID::MAX_BASE_GENERATION;
+        sets.reclaim_unreachable();
+
+        let replacement = sets.publish(None, &[], 0, 2, metadata(0, 0, 0, &[], &[]));
+        assert_ne!(replacement.style_record_identity.base_record(), Some(exhausted));
+    }
+
+    #[test]
+    #[should_panic(expected = "base style-record is not live")]
+    fn a_retired_base_style_record_cannot_be_viewed() {
+        let mut sets = ComputedGroupSets::default();
+        let publication = sets.publish(None, &[], 0, 1, metadata(0, 0, 0, &[], &[]));
+        let retired_final = publication.style_record_identity;
+        let retired = retired_final.base_record().unwrap();
+        sets.reclaim_unreachable();
+        let replacement = sets.publish(None, &[], 0, 2, metadata(0, 0, 0, &[], &[]));
+        let replacement_final = replacement.style_record_identity;
+        let replacement = replacement_final.base_record().unwrap();
+        assert_eq!(retired.index(), replacement.index());
+        assert_ne!(retired_final.base_generation(), replacement_final.base_generation());
+        let _ = sets.style_record_view(publication.style_record_identity.raw());
+    }
+
+    #[test]
+    #[should_panic(expected = "base style-record is not live")]
+    fn a_retired_base_style_record_cannot_be_pinned() {
+        let mut sets = ComputedGroupSets::default();
+        let publication = sets.publish(None, &[], 0, 1, metadata(0, 0, 0, &[], &[]));
+        let retired_final = publication.style_record_identity;
+        let retired = retired_final.base_record().unwrap();
+        sets.reclaim_unreachable();
+        let replacement = sets.publish(None, &[], 0, 2, metadata(0, 0, 0, &[], &[]));
+        let replacement_final = replacement.style_record_identity;
+        let replacement = replacement_final.base_record().unwrap();
+        assert_eq!(retired.index(), replacement.index());
+        assert_ne!(retired_final.base_generation(), replacement_final.base_generation());
+        sets.pin_style_record(publication.style_record_identity.raw());
+    }
+
+    #[test]
     fn computed_group_set_capacity_includes_hash_table_control_bytes() {
         let mut sets = ComputedGroupSets::default();
         sets.groups.reserve(1);
@@ -2579,6 +3122,7 @@ mod tests {
             + sets.computed_reconstruction_metadata.capacity_bytes() as usize
             + sets.computed_longhand_tables.capacity_bytes() as usize
             + sets.style_records.capacity_bytes() as usize
+            + sets.style_record_generations.capacity() * size_of::<u32>()
             + sets.pending_cascade_states.capacity()
                 * (size_of::<StyleNodeID>() + size_of::<(u64, CascadeStateID)>() + 1)
             + sets.animation_overlay_slots_by_record.capacity()

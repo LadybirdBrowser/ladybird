@@ -4,9 +4,13 @@
     .shared { color: red; --token: initial; }
     .metadata { color: red; --token: changed; }
     .changed { color: blue; --token: changed; }
+    .pseudo::before { content: "before"; color: red; --token: initial; }
+    .pseudo.changed::before { content: "before"; color: blue; --token: initial; }
+    .pseudo.changed.metadata::before { content: "before"; color: blue; --token: changed; }
 </style>
 <div id="first" class="shared"></div>
 <div id="second" class="shared"></div>
+<div id="pseudo" class="pseudo"></div>
 <script>
     test(() => {
         internals.updateStyle();
@@ -30,5 +34,15 @@
         println(`style change publishes a new record: ${changedRecord !== metadataRecord}`);
         println(`layout consumes changed record: ${internals.layoutStyleRecordIdentity(first) === changedRecord}`);
         println(`paint consumes changed record: ${internals.paintStyleRecordIdentity(first) === changedRecord}`);
+
+        pseudo.classList.add("changed");
+        internals.updateStyle();
+        const changedPseudoRecord = internals.beforeStyleRecordIdentity(pseudo);
+        println(`pseudo layout consumes changed record: ${internals.beforeLayoutStyleRecordIdentity(pseudo) === changedPseudoRecord}`);
+        pseudo.classList.add("metadata");
+        internals.updateStyle();
+        const metadataPseudoRecord = internals.beforeStyleRecordIdentity(pseudo);
+        println(`pseudo metadata-only change publishes a new record: ${metadataPseudoRecord !== changedPseudoRecord}`);
+        println(`pseudo layout consumes metadata-only record: ${internals.beforeLayoutStyleRecordIdentity(pseudo) === metadataPseudoRecord}`);
     });
 </script>

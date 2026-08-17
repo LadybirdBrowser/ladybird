@@ -844,6 +844,8 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, GC::Ptr<DOM::Node> node, C
     publish_style_record_to_node_data();
     synchronize_table_span_data();
     enroll_for_arena_replaced_content_facts_sync_if_eligible();
+    if (m_owned_computed_values)
+        pin_style_record_for_cxx_consumers();
 }
 
 CSS::ComputedValues const& NodeWithStyle::owned_computed_values() const
@@ -956,6 +958,11 @@ void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
     enroll_for_arena_replaced_content_facts_sync_if_eligible();
     propagate_style_to_anonymous_wrappers();
     attach_style_resources();
+    // A pseudo layout node can outlive replacement of the DOM pseudo's record until the layout
+    // tree is rebuilt. Root its record across that gap, including metadata-only style changes that
+    // keep the existing layout node.
+    if (is_generated_for_pseudo_element())
+        pin_style_record_for_cxx_consumers();
 }
 
 void NodeWithStyle::attach_style_resources()
@@ -1287,6 +1294,8 @@ void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const>
     set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, computed_values->inset_properties_contain_anchor_functions());
     publish_style_record_to_node_data();
     enroll_for_arena_replaced_content_facts_sync_if_eligible();
+    if (m_owned_computed_values)
+        pin_style_record_for_cxx_consumers();
 
     if (changes_layout_affecting_style)
         bump_fragment_cache_epoch_of_self_and_ancestors();
@@ -1301,13 +1310,14 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
 {
     // A detached or layout-derived record is independent of its DOM target's record. A
     // rendering consequence replaces and re-derives it explicitly through apply_style().
-    if (m_style_record_owner || m_owned_computed_values)
+    if (m_owned_computed_values)
         return;
     if (m_style_record_identity == style_record_identity) {
         publish_style_record_to_node_data();
         return;
     }
 
+    bool should_repin_style_record = m_style_record_owner;
     auto new_record_view = document().style_computer().computed_style_record_view(style_record_identity);
     VERIFY(new_record_view);
     bool changes_layout_affecting_style = false;
@@ -1330,6 +1340,8 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
     set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, new_record_view->inset_properties_contain_anchor_functions());
     publish_style_record_to_node_data();
     enroll_for_arena_replaced_content_facts_sync_if_eligible();
+    if (should_repin_style_record)
+        pin_style_record_for_cxx_consumers();
 
     if (changes_layout_affecting_style)
         bump_fragment_cache_epoch_of_self_and_ancestors();
@@ -1337,7 +1349,7 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
 
 void NodeWithStyle::pin_style_record_for_cxx_consumers()
 {
-    if (m_owned_computed_values || m_style_record_owner)
+    if (m_style_record_owner)
         return;
 
     VERIFY(m_style_record_identity);

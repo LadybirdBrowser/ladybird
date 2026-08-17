@@ -1177,6 +1177,10 @@ GC::Ref<JS::Object> Internals::style_engine_counters()
             JS::Value(static_cast<double>(value)),
             JS::default_attributes);
     }
+    object->define_direct_property(
+        "computedStyleRecordViewPins"_utf16_fly_string,
+        JS::Value(static_cast<double>(window().associated_document().style_computer().computed_style_record_view_pin_count())),
+        JS::default_attributes);
     return object;
 }
 
@@ -1189,6 +1193,18 @@ u64 Internals::layout_style_record_identity(DOM::Element& element)
 {
     element.document().update_layout(DOM::UpdateLayoutReason::Debugging);
     auto const* layout_node = element.unsafe_layout_node();
+    return layout_node ? layout_node->style_record_identity().value() : 0;
+}
+
+u64 Internals::before_style_record_identity(DOM::Element& element)
+{
+    return element.style_record_identity(CSS::PseudoElement::Before).value();
+}
+
+u64 Internals::before_layout_style_record_identity(DOM::Element& element)
+{
+    element.document().update_layout(DOM::UpdateLayoutReason::Debugging);
+    auto const* layout_node = element.pseudo_element_unsafe_layout_node(CSS::PseudoElement::Before);
     return layout_node ? layout_node->style_record_identity().value() : 0;
 }
 

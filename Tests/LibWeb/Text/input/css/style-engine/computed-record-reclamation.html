@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target { color: attr(data-color type(<color>)); }
+    .shared { color: rgb(1, 2, 3); }
+    .input-initial { padding-left: 1px; }
+    .input-shared { padding-left: 2px; }
+</style>
+<div id="target" data-color="rgb(0, 0, 0)"></div>
+<div id="donor" class="shared"></div>
+<div id="second-donor" class="shared"></div>
+<div id="input-parent">
+    <div id="input-receiver" class="input-initial"></div>
+    <div class="input-shared"></div>
+</div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        internals.updateStyle();
+        document.getElementById("donor").remove();
+        document.getElementById("second-donor").remove();
+        const inputParent = document.getElementById("input-parent");
+        const inputReceiver = document.getElementById("input-receiver");
+        inputReceiver.className = "input-shared";
+        internals.updateStyle();
+
+        const churn = (start, count) => {
+            for (let index = start; index < start + count; ++index) {
+                target.dataset.color = `rgb(${index & 255}, ${(index >> 8) & 255}, ${(index >> 16) & 255})`;
+                internals.updateStyle();
+            }
+        };
+
+        churn(1, 1100);
+        internals.updateStyle();
+        const first = internals.styleEngineCounters();
+        println(`first sweep found unreachable groups: ${first.computedGroupsRetained > first.computedGroupsReachable}`);
+
+        churn(1101, 1100);
+        internals.updateStyle();
+        const second = internals.styleEngineCounters();
+        println(`second sweep found unreachable groups: ${second.computedGroupsRetained > second.computedGroupsReachable}`);
+        println(`reclaimed group slots stay bounded: ${Math.abs(second.computedGroupsRetained - first.computedGroupsRetained) <= 256}`);
+        println(`current style survives reclamation: ${getComputedStyle(target).color === "rgb(152, 8, 0)"}`);
+        inputParent.style.color = "rgb(4, 5, 6)";
+        internals.updateStyle();
+        println(`stale input record survives reclamation: ${getComputedStyle(inputReceiver).paddingLeft === "2px" && getComputedStyle(inputReceiver).color === "rgb(4, 5, 6)"}`);
+
+        const sharedBefore = internals.getStyleInvalidationCounters().elementStyleSharedComputations;
+        const receiver = document.createElement("div");
+        receiver.className = "shared";
+        document.body.appendChild(receiver);
+        internals.updateStyle();
+        const sharedAfter = internals.getStyleInvalidationCounters().elementStyleSharedComputations;
+        println(`cached style record survives reclamation: ${sharedAfter > sharedBefore && getComputedStyle(receiver).color === "rgb(1, 2, 3)"}`);
+    });
+</script>

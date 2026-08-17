@@ -8,3 +8,6 @@ paint consumes metadata-only record: true
 style change publishes a new record: true
 layout consumes changed record: true
 paint consumes changed record: true
+pseudo layout consumes changed record: true
+pseudo metadata-only change publishes a new record: true
+pseudo layout consumes metadata-only record: true
