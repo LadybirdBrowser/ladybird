@@ -10,6 +10,13 @@
         <rect id="event-rect" width="50" height="20" />
     </g>
 </svg>
+<svg
+    id="zero-view-box"
+    width="200"
+    height="100"
+    viewBox="0 0 0 100"
+    style="position: absolute; left: 400px; top: 160px"
+></svg>
 <div style="position: absolute; left: 20px; top: 300px; perspective: 500px">
     <svg width="100" height="100" style="transform: rotateX(60deg)">
         <rect id="projected-rect" width="50" height="20" />
@@ -56,6 +63,7 @@
         printMatrix("dpr-2 event-rect", eventRect.getScreenCTM());
         internals.setDevicePixelRatio(1);
 
+        printMatrix("zero viewBox", document.getElementById("zero-view-box").getScreenCTM());
         println(`3D projected to 2D: ${document.getElementById("projected-rect").getScreenCTM().is2D}`);
         printMatrix("mask child", document.getElementById("mask-rect").getScreenCTM());
         printMatrix("clipPath child", document.getElementById("clip-rect").getScreenCTM());

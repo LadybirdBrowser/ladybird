@@ -526,18 +526,6 @@ impl SvgFormattingContext {
             );
         }
 
-        let mut active_view_box = facts.has_active_view_box.then_some(facts.active_view_box);
-        // https://svgwg.org/svg2-draft/coords.html#ViewBoxAttribute
-        if let Some(view_box) = active_view_box {
-            if view_box.width < 0.0 || view_box.height < 0.0 {
-                // A negative value for <width> or <height> is an error and invalidates the ‘viewBox’ attribute.
-                active_view_box = None;
-            } else if view_box.width == 0.0 || view_box.height == 0.0 {
-                // A value of zero disables rendering of the element.
-                return;
-            }
-        }
-
         // Viewport-establishing boxes publish their viewBox/preserveAspectRatio transform for the
         // visual context tree; content below lays out in the viewport's user units. The value is
         // published even without a viewBox so viewBox changes stay value-only for the tree. A
@@ -546,6 +534,22 @@ impl SvgFormattingContext {
         let box_establishes_viewport = kind == NodeKind::SVGSVGBox
             || (kind_is_svg_graphics_box(kind) && facts.is_fit_to_view_box)
             || (kind == NodeKind::SVGPatternBox && facts.is_fit_to_view_box);
+
+        let mut active_view_box = facts.has_active_view_box.then_some(facts.active_view_box);
+        // https://svgwg.org/svg2-draft/coords.html#ViewBoxAttribute
+        if let Some(view_box) = active_view_box {
+            if view_box.width < 0.0 || view_box.height < 0.0 {
+                // A negative value for <width> or <height> is an error and invalidates the ‘viewBox’ attribute.
+                active_view_box = None;
+            } else if view_box.width == 0.0 || view_box.height == 0.0 {
+                // A value of zero disables rendering of the element.
+                if box_establishes_viewport {
+                    self.set_svg_viewport_transform(self.box_, FfiAffineTransform::default());
+                }
+                return;
+            }
+        }
+
         if box_establishes_viewport {
             let mut viewport_transform = FfiAffineTransform::default();
             if let Some(view_box) = active_view_box {
