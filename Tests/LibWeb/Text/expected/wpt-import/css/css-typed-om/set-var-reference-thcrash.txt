@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Do not crash when referencing a variable with CSSVariableReferenceValue
+1 Pass
+Pass	Do not crash when referencing a variable with CSSVariableReferenceValue

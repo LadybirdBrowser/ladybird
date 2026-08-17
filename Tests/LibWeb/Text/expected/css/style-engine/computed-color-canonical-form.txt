@@ -1,0 +1,6 @@
+named: rgb(255, 0, 0)
+functional: rgb(255, 0, 0)
+hex: rgb(119, 255, 255)
+functional: rgb(119, 255, 255)
+hsl: rgb(0, 255, 0)
+functional: rgb(0, 255, 0)

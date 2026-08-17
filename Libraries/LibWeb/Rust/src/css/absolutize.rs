@@ -223,6 +223,18 @@ fn rgb_color_function(r: f64, g: f64, b: f64, alpha: f64, color_syntax: u8) -> S
     }
 }
 
+/// The canonical computed form of a fully-resolved legacy sRGB color.
+fn canonical_legacy_rgb(value: &StyleValueData) -> Option<StyleValueData> {
+    let rgba = crate::css::color_resolution::to_color(value, &EMPTY_INPUT)?;
+    Some(rgb_color_function(
+        f64::from(rgba.r),
+        f64::from(rgba.g),
+        f64::from(rgba.b),
+        f64::from(rgba.a) / 255.0,
+        COLOR_SYNTAX_LEGACY,
+    ))
+}
+
 /// Port of hsl_to_absolutized_rgb() in ColorFunctionStyleValue.cpp.
 // https://drafts.csswg.org/css-color-4/#hsl-to-rgb
 fn hsl_to_absolutized_rgb(
@@ -392,13 +404,11 @@ fn absolutize_color_function(value: &StyleValueData, context: &AbsolutizationCon
         } else {
             hwb_to_absolutized_rgb(c1, c2, c3, alpha)
         };
-        return Some(Absolutized::Changed(retain_new(converted)));
+        let canonical = canonical_legacy_rgb(&converted).unwrap_or(converted);
+        return Some(Absolutized::Changed(retain_new(canonical)));
     }
 
-    if !changed {
-        return Some(Absolutized::Unchanged);
-    }
-    Some(Absolutized::Changed(retain_new(StyleValueData::ColorFunction {
+    let rebuilt = StyleValueData::ColorFunction {
         color_base: *color_base,
         channel_0: absolutized_c1,
         channel_1: absolutized_c2,
@@ -407,7 +417,21 @@ fn absolutize_color_function(value: &StyleValueData, context: &AbsolutizationCon
         has_name: *has_name,
         name: name.clone(),
         origin_color: retained_null(),
-    })))
+    };
+
+    if color_base.color_type == crate::css::color_conversion::RGB
+        && let Some(canonical) = canonical_legacy_rgb(&rebuilt)
+    {
+        if canonical == *value {
+            return Some(Absolutized::Unchanged);
+        }
+        return Some(Absolutized::Changed(retain_new(canonical)));
+    }
+
+    if !changed {
+        return Some(Absolutized::Unchanged);
+    }
+    Some(Absolutized::Changed(retain_new(rebuilt)))
 }
 
 /// Port of ColorMixStyleValue::absolutized: normalizes the mix percentages, resolves relative

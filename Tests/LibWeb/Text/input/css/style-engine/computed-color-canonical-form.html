@@ -1,0 +1,20 @@
+<!doctype html>
+<div id="target"></div>
+<svg id="shape" width="1" height="1"></svg>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        target.style.textDecorationColor = "red";
+        println(`named: ${getComputedStyle(target).textDecorationColor}`);
+        target.style.textDecorationColor = "rgb(255, 0, 0)";
+        println(`functional: ${getComputedStyle(target).textDecorationColor}`);
+        shape.style.fill = "#77ffff";
+        println(`hex: ${getComputedStyle(shape).fill}`);
+        shape.style.fill = "rgb(119, 255, 255)";
+        println(`functional: ${getComputedStyle(shape).fill}`);
+        target.style.outlineColor = "hsl(120, 100%, 50%)";
+        println(`hsl: ${getComputedStyle(target).outlineColor}`);
+        target.style.outlineColor = "rgb(0, 255, 0)";
+        println(`functional: ${getComputedStyle(target).outlineColor}`);
+    });
+</script>
