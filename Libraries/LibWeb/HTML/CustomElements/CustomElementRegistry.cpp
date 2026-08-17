@@ -539,6 +539,11 @@ GC::Ptr<CustomElementDefinition> look_up_a_custom_element_definition(GC::Ptr<Cus
     if (namespace_ != Namespace::HTML)
         return nullptr;
 
+    // OPTIMIZATION: Without an `is` value, an ordinary built-in local name cannot match either kind of custom
+    //               element definition. Avoid searching the registry for names that cannot be registered.
+    if (!is.has_value() && !is_valid_custom_element_name(local_name))
+        return nullptr;
+
     // 3. If registry's custom element definition set contains an item with name and local name both equal to
     //    localName, then return that item.
     if (auto maybe_definition = registry->get_definition_with_name_and_local_name(local_name, local_name))
