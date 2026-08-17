@@ -118,3 +118,28 @@ test("Static property lookup cache invalidates missing prototype properties", ()
     prototype[Symbol.toPrimitive] = () => 2;
     expect(+object).toBe(2);
 });
+
+test("GetById cache invalidates missing own properties", () => {
+    function read_value(object) {
+        return object.value;
+    }
+
+    const object = {};
+    for (let i = 0; i < 10; ++i) expect(read_value(object)).toBeUndefined();
+
+    object.value = 42;
+    expect(read_value(object)).toBe(42);
+});
+
+test("GetById cache invalidates missing prototype properties", () => {
+    function read_value(object) {
+        return object.value;
+    }
+
+    const prototype = {};
+    const object = Object.create(prototype);
+    for (let i = 0; i < 10; ++i) expect(read_value(object)).toBeUndefined();
+
+    prototype.value = 42;
+    expect(read_value(object)).toBe(42);
+});

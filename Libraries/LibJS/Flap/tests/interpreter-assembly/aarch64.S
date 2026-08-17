@@ -4188,6 +4188,9 @@ asm_handler_GetById:
     ldp x4, x3, [x0, #24]
     cmp x4, x1
     b.ne .Lasm_GetById.ssa_block_1
+    ldr w4, [x0]
+    cmp w4, #6
+    b.eq .Lasm_GetById.ssa_block_1
     cbz x3, .Lasm_GetById.ssa_block_5
     ldr x2, [x0, #40]
     cbz x2, .Lasm_GetById.ssa_block_1

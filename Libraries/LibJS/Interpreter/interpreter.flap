@@ -2251,6 +2251,7 @@ handler GetById(
     let shape = object.shape;
     guard let property_cache = load_property_lookup_cache(cache) else try_cache;
     guard property_cache.shape == shape else try_cache;
+    guard property_cache.entry_type != PROPERTY_LOOKUP_CACHE_ENTRY_TYPE_GET_MISSING_PROPERTY else try_cache;
     let cached_prototype = property_cache.prototype;
 
     # FIXME: Restore a value-producing if once SSA destruction can coalesce its

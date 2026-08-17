@@ -115,6 +115,8 @@ int main()
 
     // PropertyLookupCache::Entry layout
     outln("\n# PropertyLookupCache::Entry layout");
+    EMIT_FIELD(PROPERTY_LOOKUP_CACHE_ENTRY_TYPE, PropertyLookupCache, entry_type, u32, PropertyLookupCache::Entry, type, 4, nullable, scalar);
+    outln("const PROPERTY_LOOKUP_CACHE_ENTRY_TYPE_GET_MISSING_PROPERTY = {}", to_underlying(PropertyLookupCache::Entry::Type::GetMissingProperty));
     EMIT_PAIRED_FIELD(PROPERTY_LOOKUP_CACHE_ENTRY_PROPERTY_OFFSET, PropertyLookupCache, property_offset, u32, PropertyLookupCache::Entry, property_offset, 4, scalar, cache_details);
     EMIT_PAIRED_FIELD(PROPERTY_LOOKUP_CACHE_ENTRY_DICTIONARY_GENERATION, PropertyLookupCache, shape_dictionary_generation, u32, PropertyLookupCache::Entry, shape_dictionary_generation, 4, scalar, cache_details);
     EMIT_OFFSET(PROPERTY_LOOKUP_CACHE_ENTRY_FROM_SHAPE, PropertyLookupCache::Entry, from_shape);
