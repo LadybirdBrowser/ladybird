@@ -1351,9 +1351,14 @@ fn nested_document() -> (StyleEngine, Vec<StyleNodeID>) {
 }
 
 fn add_guard_target_rule(engine: &mut StyleEngine, guard: StyleAtomID, target: StyleAtomID) -> RuleID {
-    let program = engine.programs.add(test_selector_program(
+    let program = engine.programs.add(test_selector_program_with_metadata(
         ".guard .target",
         &[("guard", guard), ("target", target)],
+        Some(Specificity {
+            classes: 2,
+            ..Specificity::default()
+        }),
+        None,
     ));
 
     let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
@@ -1373,9 +1378,14 @@ fn add_guard_target_rule_in_sheet(
     guard: StyleAtomID,
     target: StyleAtomID,
 ) -> RuleID {
-    let program = engine.programs.add(test_selector_program(
+    let program = engine.programs.add(test_selector_program_with_metadata(
         ".guard .target",
         &[("guard", guard), ("target", target)],
+        Some(Specificity {
+            classes: 2,
+            ..Specificity::default()
+        }),
+        None,
     ));
     let sheet = engine.add_sheet(sheet_object, CascadeOrigin::Author);
     engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
@@ -4300,7 +4310,7 @@ fn an_identity_only_published_prefix_answer_is_returned_in_cascade_order() {
     }
     discard_transaction(&mut engine);
 
-    engine.begin_published_match_answer_completion_batch(nodes[0], false);
+    engine.begin_published_match_answer_completion_batch(nodes[0], true);
     assert_eq!(
         engine
             .match_element_for_cascade(nodes[2])
@@ -7018,6 +7028,9 @@ fn rule_deactivation_reaches_only_nodes_where_the_rule_won() {
     engine.set_rule_declared_properties(toggled, &[(1, false)], true);
     let winner = add_target_rule(&mut engine, StyleSheetObjectID(2), overriding);
     engine.set_rule_declared_properties(winner, &[(1, true)], true);
+    for &node in &nodes {
+        set_atom_feature(&mut engine, node, FeatureKey::TagName, StyleAtomID(100));
+    }
     for node in [nodes[1], nodes[2]] {
         add_feature(&mut engine, node, FeatureKey::Class(target));
     }
@@ -7080,7 +7093,8 @@ fn local_routes_for_one_exact_entry_are_compared_once() {
     assert_eq!(planned, vec![nodes[3].raw()]);
     assert_eq!(
         engine.counters().get(Counter::GroupedExactSelectorRoutes) - grouped_before,
-        1
+        0,
+        "routes consolidate before late exact-entry grouping"
     );
     assert_eq!(engine.memory().bytes_in_category(MemoryCategory::BatchScratch), 0);
 }
