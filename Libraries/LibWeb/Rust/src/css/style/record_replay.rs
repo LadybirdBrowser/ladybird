@@ -30,7 +30,7 @@ use std::sync::Mutex;
 use std::sync::OnceLock;
 
 const MAGIC: [u8; 8] = *b"SGREPLAY";
-const FORMAT_VERSION: u64 = 7;
+const FORMAT_VERSION: u64 = 9;
 const EVENT_HEADER_SIZE: usize = 3 * size_of::<u64>();
 const PAYLOAD_ALIGNMENT: usize = 8;
 
@@ -561,6 +561,17 @@ pub(super) fn first_atom_mapping(engine_id: u64, atom: u32) -> bool {
         .expect("StyleEngine replay recorder lock is poisoned")
         .recorded_atoms
         .insert((engine_id, atom))
+}
+
+pub(super) fn forget_atom_mappings(engine_id: u64, atoms: impl IntoIterator<Item = u32>) {
+    let capture = CAPTURE
+        .get()
+        .and_then(Option::as_ref)
+        .expect("a recording engine must have a capture session");
+    let mut capture = capture.lock().expect("StyleEngine replay recorder lock is poisoned");
+    for atom in atoms {
+        capture.recorded_atoms.remove(&(engine_id, atom));
+    }
 }
 
 /// Records the end of one document engine and makes every preceding event durable.

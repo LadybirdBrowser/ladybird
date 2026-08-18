@@ -54,9 +54,9 @@ public:
     // are process-global, but each document must acquire its own references, so the document that
     // asked is part of what the answer is good for.
     template<typename InternName>
-    [[nodiscard]] ReadonlySpan<StyleAtomID> declared_name_atoms(FlatPtr document_identity, InternName&& intern) const
+    [[nodiscard]] ReadonlySpan<StyleAtomID> declared_name_atoms(FlatPtr document_identity, u64 atom_generation, InternName&& intern) const
     {
-        if (m_cached_name_atoms_document_identity == document_identity)
+        if (m_cached_name_atoms_document_identity == document_identity && m_cached_name_atoms_generation == atom_generation)
             return m_cached_declared_name_atoms.span();
         m_cached_declared_name_atoms.clear_with_capacity();
         m_cached_declared_name_atoms.ensure_capacity(m_declared_count);
@@ -74,6 +74,7 @@ public:
         }
         m_cached_declared_name_atoms.shrink(unique);
         m_cached_name_atoms_document_identity = document_identity;
+        m_cached_name_atoms_generation = atom_generation;
         return m_cached_declared_name_atoms.span();
     }
 
@@ -122,6 +123,7 @@ private:
     size_t m_declared_count { 0 };
     u64 m_identity { 0 };
     mutable FlatPtr m_cached_name_atoms_document_identity { NumericLimits<FlatPtr>::max() };
+    mutable u64 m_cached_name_atoms_generation { 0 };
     mutable Vector<StyleAtomID> m_cached_declared_name_atoms;
     mutable FlatPtr m_cached_inheritable_document_identity { NumericLimits<FlatPtr>::max() };
     mutable size_t m_cached_inheritable_generation { NumericLimits<size_t>::max() };

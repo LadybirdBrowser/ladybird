@@ -31,6 +31,7 @@ use super::column::Column;
 use super::column::PagedColumn;
 use super::column::PagedColumnPage;
 use super::fast_hash::FastMap as HashMap;
+use super::fast_hash::FastSet as HashSet;
 use super::fast_hash::fast_hasher;
 use super::index::DispatchKey;
 use super::index::FeatureKey;
@@ -687,6 +688,40 @@ pub struct SelectorProgram {
 }
 
 impl SelectorProgram {
+    pub(super) fn collect_atoms(&self, atoms: &mut HashSet<StyleAtomID>) -> u64 {
+        let mut visited = 0_u64;
+        let mut insert = |atom: StyleAtomID| {
+            if !atom.is_none() {
+                atoms.insert(atom);
+            }
+        };
+        for node in &self.nodes {
+            visited += 1;
+            match *node {
+                SelectorOp::Feature(FeatureTest::TagName(tag)) => {
+                    insert(tag.written);
+                    insert(tag.folded);
+                    insert(tag.fold_in_namespace);
+                }
+                SelectorOp::Feature(FeatureTest::Id(atom) | FeatureTest::Class(atom))
+                | SelectorOp::Part(atom)
+                | SelectorOp::ValueState { value: atom, .. } => insert(atom),
+                SelectorOp::Feature(FeatureTest::Attribute(attribute)) => {
+                    insert(attribute.name);
+                    insert(attribute.folded);
+                    insert(attribute.fold_in_namespace);
+                    insert(attribute.value_atom);
+                    if let AttributeCase::InsensitiveForNamespace(namespace) = attribute.case {
+                        insert(namespace);
+                    }
+                }
+                SelectorOp::Feature(FeatureTest::Namespace(NamespaceTest::Named(namespace))) => insert(namespace),
+                _ => {}
+            }
+        }
+        visited
+    }
+
     /// Attribute names whose tests cannot be answered from the value atom alone.
     pub fn attribute_value_text_names(&self) -> impl Iterator<Item = StyleAtomID> + '_ {
         self.nodes
@@ -2435,6 +2470,14 @@ impl Default for SelectorPrograms {
 }
 
 impl SelectorPrograms {
+    pub(super) fn collect_atoms(&self, atoms: &mut HashSet<StyleAtomID>) -> u64 {
+        self.programs
+            .iter()
+            .flatten()
+            .map(|program| program.program().collect_atoms(atoms))
+            .sum()
+    }
+
     #[must_use]
     pub fn new() -> Self {
         Self::default()
@@ -6527,6 +6570,42 @@ mod tests {
     const ATTR_HREF: StyleAtomID = StyleAtomID(30);
     const ATTR_TYPE: StyleAtomID = StyleAtomID(31);
     const VALUE_TEXT: StyleAtomID = StyleAtomID(40);
+
+    #[test]
+    fn selector_program_atom_roots_cover_every_operator_payload() {
+        let program = SelectorProgram {
+            nodes: vec![
+                SelectorOp::Feature(FeatureTest::TagName(TagTest {
+                    written: StyleAtomID(1),
+                    folded: StyleAtomID(2),
+                    fold_in_namespace: StyleAtomID(3),
+                })),
+                SelectorOp::Feature(FeatureTest::Id(StyleAtomID(4))),
+                SelectorOp::Feature(FeatureTest::Class(StyleAtomID(5))),
+                SelectorOp::Feature(FeatureTest::Attribute(AttributeTest {
+                    name: StyleAtomID(6),
+                    any_namespace: false,
+                    folded: StyleAtomID(7),
+                    fold_in_namespace: StyleAtomID(8),
+                    operator: AttributeOperator::Exact,
+                    value_atom: StyleAtomID(9),
+                    value_offset: 0,
+                    value_length: 0,
+                    case: AttributeCase::InsensitiveForNamespace(StyleAtomID(10)),
+                })),
+                SelectorOp::Feature(FeatureTest::Namespace(NamespaceTest::Named(StyleAtomID(11)))),
+                SelectorOp::Part(StyleAtomID(12)),
+                SelectorOp::ValueState {
+                    kind: ValueStateTestKind::Directionality,
+                    value: StyleAtomID(13),
+                },
+            ],
+            ..SelectorProgram::default()
+        };
+        let mut atoms = HashSet::default();
+        assert_eq!(program.collect_atoms(&mut atoms), 7);
+        assert_eq!(atoms, (1..=13).map(StyleAtomID).collect());
+    }
 
     impl Fixture {
         fn new() -> Self {

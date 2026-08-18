@@ -41,7 +41,7 @@ impl StyleEngine {
         let mut transaction = self.drain_transaction();
         self.apply_staged_transaction(&mut transaction);
         if transaction.is_empty() {
-            self.release_transaction(transaction);
+            self.release_transaction_and_sweep_atoms(transaction);
             return true;
         }
         let preserves_selector_incidence = !transaction.has_coarsened_markers()
@@ -183,7 +183,7 @@ impl StyleEngine {
         {
             self.discard_retained_prefix_caches();
             self.retained_match_answers.evict(&mut self.match_answers);
-            self.release_transaction(transaction);
+            self.release_transaction_and_sweep_atoms(transaction);
             return false;
         }
 
@@ -695,7 +695,7 @@ impl StyleEngine {
         let style_input_reaction_bytes = (style_input_reactions.capacity() * size_of::<(StyleNodeID, u8, u8)>()) as u64;
         self.memory
             .reserve_required(MemoryCategory::BatchScratch, style_input_reaction_bytes);
-        self.release_transaction(transaction);
+        self.release_transaction_and_sweep_atoms(transaction);
         // Releasing staging can compact primary payloads. Take the shared view afterwards so that
         // compaction does not need to copy the complete primary arrangement away from its view.
         if prepared_matching_batch_is_complete {

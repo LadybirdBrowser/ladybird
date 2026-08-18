@@ -22,6 +22,7 @@
 //! mutation.
 
 use super::fast_hash::FastMap as HashMap;
+use super::fast_hash::FastSet as HashSet;
 use std::num::NonZeroU32;
 
 use super::capacity::capacity_bytes;
@@ -469,6 +470,18 @@ pub struct StyleNodeTree {
 }
 
 impl StyleNodeTree {
+    pub(super) fn collect_atoms(&self, atoms: &mut HashSet<StyleAtomID>) -> u64 {
+        let Some(shadow) = &self.shadow else {
+            return 0;
+        };
+        let mut visited = 0_u64;
+        for pairs in shadow.part_hosts.values() {
+            visited += u64::try_from(pairs.len()).expect("part host count exceeds u64");
+            atoms.extend(pairs.iter().map(|&(atom, _)| atom));
+        }
+        visited
+    }
+
     #[must_use]
     pub fn new(memory: &mut MemoryController) -> Self {
         let mut tree = Self {
@@ -1444,9 +1457,15 @@ mod tests {
         let pairs = [(StyleAtomID(7), element), (StyleAtomID(8), element)];
         fixture.tree.set_part_hosts(element, &pairs, &mut fixture.memory);
         assert_eq!(fixture.tree.part_hosts_of(element), &pairs);
+        let mut atoms = HashSet::default();
+        assert_eq!(fixture.tree.collect_atoms(&mut atoms), 2);
+        assert_eq!(atoms, [StyleAtomID(7), StyleAtomID(8)].into_iter().collect());
 
         fixture.tree.set_part_hosts(element, &[], &mut fixture.memory);
         assert_eq!(fixture.tree.part_hosts_of(element), &[]);
+        atoms.clear();
+        assert_eq!(fixture.tree.collect_atoms(&mut atoms), 0);
+        assert!(atoms.is_empty());
     }
 
     #[test]

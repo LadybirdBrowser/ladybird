@@ -8521,3 +8521,374 @@ fn answer_transitions_refuse_equality_removals_and_winning_additions() {
     // A removal can uncover a candidate provenance cannot always name; it must refuse too.
     assert!(!engine.answer_transition_cannot_change_cascade(nodes[1], with_winner, before_input));
 }
+
+#[test]
+fn query_pin_releases_are_rate_limited_and_counted() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let atom = engine.intern_atom(0x1234);
+    drop(engine.atoms.pin([atom]));
+
+    engine.sweep_style_atoms();
+
+    assert_eq!(engine.counters().get(Counter::AtomSweeps), 0);
+    assert_eq!(engine.counters().get(Counter::AtomSweepPinReleasesSkipped), 1);
+    for _ in 1..atoms::PIN_RELEASES_PER_SWEEP {
+        drop(engine.atoms.pin([atom]));
+    }
+
+    engine.sweep_style_atoms();
+
+    assert_eq!(engine.counters().get(Counter::AtomSweeps), 1);
+    assert_eq!(engine.counters().get(Counter::AtomSweepPinReleasesSkipped), 1);
+}
+
+#[test]
+fn releasing_a_flush_transaction_does_not_reclaim_atoms() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    for raw in 0x1000..0x1100 {
+        engine.intern_atom(raw);
+    }
+
+    let transaction = engine.take_transaction();
+    engine.release_transaction(transaction);
+
+    assert!(engine.reclaimed_style_atoms.is_empty());
+    assert_eq!(engine.counters().get(Counter::AtomSweeps), 0);
+}
+
+#[test]
+fn atom_sweep_waits_for_an_active_matching_traversal() {
+    let (mut engine, nodes) = nested_document();
+    let target = StyleAtomID(200);
+    add_target_rule(&mut engine, StyleSheetObjectID(1), target);
+    add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(target));
+    // The broad initial publication prepares the traversal over the primary view itself, so the
+    // active traversal shares the fact rows exactly as a first style pass in the browser does.
+    assert!(!engine.take_style_transaction(nodes[0], |_, _, _| {}));
+    assert!(engine.begin_cold_matching_batch(nodes[0]));
+    assert!(engine.facts.primary_rows_are_shared());
+    for raw in 0x1000..0x1100 {
+        engine.intern_atom(raw);
+    }
+    engine.record_input(
+        InputKey::ElementStyleInput(nodes[1]),
+        InputValue::ElementStyleInput {
+            reaction: 0,
+            inherited_style_groups: 0,
+        },
+        InputValue::ElementStyleInput {
+            reaction: transaction::STYLE_REACTION_RECOMPUTE_STYLE,
+            inherited_style_groups: 0,
+        },
+    );
+
+    assert!(engine.take_style_transaction(nodes[0], |_, _, _| {}));
+    assert_eq!(engine.counters().get(Counter::AtomSweeps), 0);
+    assert_eq!(engine.counters().get(Counter::AtomSweepsDeferredForActiveTraversal), 1);
+    assert!(engine.reclaimed_style_atoms.is_empty());
+
+    engine.end_cold_matching_batch();
+    assert!(engine.take_style_transaction(nodes[0], |_, _, _| {}));
+    assert_eq!(engine.counters().get(Counter::AtomSweeps), 1);
+    assert!(!engine.reclaimed_style_atoms.is_empty());
+}
+
+#[test]
+fn replay_forces_a_recorded_atom_sweep_without_reclaims() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    engine.replay_reclaimed_style_atoms = Some(Vec::new());
+
+    engine.sweep_style_atoms();
+
+    assert_eq!(engine.counters().get(Counter::AtomSweeps), 1);
+    assert!(engine.style_atoms_swept);
+}
+
+#[test]
+fn replay_ffi_reclaims_the_non_empty_recorded_atom_set() {
+    let (mut engine, nodes) = linear_document();
+    for &node in &nodes {
+        set_atom_feature(&mut engine, node, LocalFeatureKey::TagName, StyleAtomID(100));
+    }
+    let reclaimable = engine.intern_atom(0x1000);
+    let recorded = [reclaimable.0];
+    let engine_pointer = (&mut engine as *mut StyleEngine).cast();
+    unsafe {
+        bridge::style_engine_set_replay_reclaimed_style_atoms(engine_pointer, recorded.as_ptr(), recorded.len());
+    }
+
+    let output = unsafe { bridge::style_engine_take_style_transaction(engine_pointer, nodes[0].raw()) };
+
+    assert!(output.style_atoms_swept);
+    assert_eq!(output.reclaimed_style_atom_count, 1);
+    let reclaimed = unsafe { *output.reclaimed_style_atoms };
+    assert_eq!(reclaimed.atom, reclaimable.0);
+    assert_eq!(reclaimed.raw, 0x1000);
+}
+
+#[test]
+fn pinned_attribute_names_keep_all_noted_forms_live() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let name = engine.intern_atom(0x1000);
+    let any_namespace = engine.intern_qualified_atom(StyleAtomID::NONE, name);
+    let folded_name = engine.intern_atom(0x1001);
+    let folded_any_namespace = engine.intern_qualified_atom(StyleAtomID::NONE, folded_name);
+    engine.note_attribute_name_forms(
+        name,
+        index::AttributeNameForms {
+            local: any_namespace,
+            folded_name,
+            folded_local: folded_any_namespace,
+        },
+    );
+    let _pin = engine.atoms.pin([name]);
+    for raw in 0x2000..0x2100 {
+        engine.intern_atom(raw);
+    }
+
+    engine.sweep_style_atoms();
+
+    let reclaimed = engine
+        .reclaimed_style_atoms
+        .iter()
+        .map(|reclaimed| reclaimed.atom)
+        .collect::<HashSet<_>>();
+    assert!(!reclaimed.contains(&name));
+    assert!(!reclaimed.contains(&any_namespace));
+    assert!(!reclaimed.contains(&folded_name));
+    assert!(!reclaimed.contains(&folded_any_namespace));
+}
+
+#[test]
+fn qualified_attribute_programs_keep_local_name_forms_live() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let namespace = engine.intern_atom(0x1000);
+    let local_name = engine.intern_atom(0x1001);
+    let qualified_name = engine.intern_qualified_atom(namespace, local_name);
+    let any_namespace = engine.intern_qualified_atom(StyleAtomID::NONE, local_name);
+    engine.note_attribute_name_forms(
+        local_name,
+        index::AttributeNameForms {
+            local: any_namespace,
+            ..index::AttributeNameForms::default()
+        },
+    );
+    let mut builder = selector::SelectorProgramBuilder::new();
+    let attribute = builder.push_feature(selector::FeatureTest::Attribute(selector::AttributeTest {
+        name: qualified_name,
+        any_namespace: false,
+        folded: qualified_name,
+        fold_in_namespace: StyleAtomID::NONE,
+        operator: selector::AttributeOperator::Presence,
+        value_atom: StyleAtomID::NONE,
+        value_offset: 0,
+        value_length: 0,
+        case: selector::AttributeCase::Sensitive,
+    }));
+    builder.push_entry(attribute);
+    let program = engine.programs.add(builder.finish());
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    let rule = engine.append_rule(sheet, None, RuleKind::Style);
+    engine.add_routing_rule(rule, program);
+    let mut version = engine.program.rule_version(rule);
+    version.selector_program = Some(program);
+    version.declaration_block = Some(DeclarationBlockID(1));
+    engine.replace_rule_version(rule, version);
+    discard_transaction(&mut engine);
+    for raw in 0x2000..0x2100 {
+        engine.intern_atom(raw);
+    }
+
+    engine.sweep_style_atoms();
+
+    let reclaimed = engine
+        .reclaimed_style_atoms
+        .iter()
+        .map(|reclaimed| reclaimed.atom)
+        .collect::<HashSet<_>>();
+    assert!(!reclaimed.contains(&namespace));
+    assert!(!reclaimed.contains(&local_name));
+    assert!(!reclaimed.contains(&qualified_name));
+    assert!(!reclaimed.contains(&any_namespace));
+}
+
+#[test]
+fn engine_atom_sweeps_preserve_roots_and_purge_reused_identities() {
+    let (mut engine, nodes) = linear_document();
+    let old_class = engine.intern_atom(0x1000);
+    let old_rule = add_target_rule(&mut engine, StyleSheetObjectID(1), old_class);
+    add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(old_class));
+    discard_transaction(&mut engine);
+
+    for raw in 0x2000..0x2100 {
+        engine.intern_atom(raw);
+    }
+    engine.sweep_style_atoms();
+    assert!(
+        engine
+            .reclaimed_style_atoms
+            .iter()
+            .all(|reclaimed| reclaimed.atom != old_class)
+    );
+    engine.reclaimed_style_atoms.clear();
+
+    remove_feature(&mut engine, nodes[1], LocalFeatureKey::Class(old_class));
+    discard_transaction(&mut engine);
+    assert!(engine.collect_live_style_atoms().0.contains(&old_class));
+    engine.remove_rule(old_rule);
+    discard_transaction(&mut engine);
+    for raw in 0x3000..0x3100 {
+        engine.intern_atom(raw);
+    }
+    engine.sweep_style_atoms();
+    assert!(
+        engine
+            .reclaimed_style_atoms
+            .iter()
+            .any(|reclaimed| reclaimed.atom == old_class)
+    );
+    engine.reclaimed_style_atoms.clear();
+
+    let new_class = engine.intern_atom(0x4000);
+    assert_eq!(new_class, old_class);
+    assert!(engine.match_element(nodes[1]).unwrap().is_empty());
+    let new_rule = add_target_rule(&mut engine, StyleSheetObjectID(2), new_class);
+    add_feature(&mut engine, nodes[2], LocalFeatureKey::Class(new_class));
+    discard_transaction(&mut engine);
+    assert!(engine.match_element(nodes[1]).unwrap().is_empty());
+    assert!(
+        engine
+            .match_element(nodes[2])
+            .unwrap()
+            .iter()
+            .any(|matched| matched.rule == new_rule)
+    );
+}
+
+#[test]
+fn engine_atom_reuse_replaces_catalog_text_and_name_forms() {
+    let (mut engine, nodes) = linear_document();
+    let old_name = engine.intern_atom(0x1000);
+    let old_any_namespace = engine.intern_qualified_atom(StyleAtomID::NONE, old_name);
+    let old_value = engine.intern_atom(0x1001);
+    let old_language = engine.intern_atom(0x1002);
+    engine.note_attribute_name_forms(
+        old_name,
+        index::AttributeNameForms {
+            local: old_any_namespace,
+            ..index::AttributeNameForms::default()
+        },
+    );
+    engine.set_attribute_value_text(old_value, &[u16::from(b'o'), u16::from(b'l'), u16::from(b'd')]);
+    engine.set_element_language_text(old_language, &[u16::from(b'e'), u16::from(b'n')]);
+    engine.record_input(
+        InputKey::LocalFeature(nodes[1], LocalFeatureKey::Attribute(old_name)),
+        InputValue::Feature(FeatureValue::Absent),
+        InputValue::Feature(FeatureValue::Atom(old_value)),
+    );
+    engine.set_element_language(nodes[1], old_language);
+    discard_transaction(&mut engine);
+    engine.record_input(
+        InputKey::LocalFeature(nodes[1], LocalFeatureKey::Attribute(old_name)),
+        InputValue::Feature(FeatureValue::Atom(old_value)),
+        InputValue::Feature(FeatureValue::Absent),
+    );
+    engine.set_element_language(nodes[1], StyleAtomID::NONE);
+    discard_transaction(&mut engine);
+    for raw in 0x2000..0x2100 {
+        engine.intern_atom(raw);
+    }
+    engine.sweep_style_atoms();
+    let reclaimed = engine
+        .reclaimed_style_atoms
+        .iter()
+        .map(|reclaimed| reclaimed.atom)
+        .collect::<HashSet<_>>();
+    for atom in [old_name, old_any_namespace, old_value, old_language] {
+        assert!(reclaimed.contains(&atom));
+    }
+    engine.reclaimed_style_atoms.clear();
+
+    let new_name = engine.intern_atom(0x3000);
+    let new_any_namespace = engine.intern_qualified_atom(StyleAtomID::NONE, new_name);
+    let new_value = engine.intern_atom(0x3001);
+    let new_language = engine.intern_atom(0x3002);
+    assert_eq!(
+        [new_name, new_any_namespace, new_value, new_language],
+        [old_name, old_any_namespace, old_value, old_language]
+    );
+    engine.note_attribute_name_forms(
+        new_name,
+        index::AttributeNameForms {
+            local: new_any_namespace,
+            ..index::AttributeNameForms::default()
+        },
+    );
+    engine.set_attribute_value_text(new_value, &[u16::from(b'n'), u16::from(b'e'), u16::from(b'w')]);
+    engine.set_element_language_text(new_language, &[u16::from(b's'), u16::from(b'v')]);
+
+    let mut builder = selector::SelectorProgramBuilder::new();
+    let (value_offset, value_length) = builder.push_literal(&[u16::from(b'n'), u16::from(b'e')]);
+    let prefix = builder.push_feature(selector::FeatureTest::Attribute(selector::AttributeTest {
+        name: new_name,
+        any_namespace: false,
+        folded: new_name,
+        fold_in_namespace: StyleAtomID::NONE,
+        operator: selector::AttributeOperator::Prefix,
+        value_atom: StyleAtomID::NONE,
+        value_offset,
+        value_length,
+        case: selector::AttributeCase::Sensitive,
+    }));
+    let (first, count) = builder.push_language_ranges(&[&[u16::from(b's'), u16::from(b'v')]]);
+    let language = builder.push(selector::SelectorOp::Language { first, count });
+    let any_namespace = builder.push_feature(selector::FeatureTest::Attribute(selector::AttributeTest {
+        name: new_any_namespace,
+        any_namespace: true,
+        folded: new_any_namespace,
+        fold_in_namespace: StyleAtomID::NONE,
+        operator: selector::AttributeOperator::Presence,
+        value_atom: StyleAtomID::NONE,
+        value_offset: 0,
+        value_length: 0,
+        case: selector::AttributeCase::Sensitive,
+    }));
+    let compound = builder.push_compound(&[prefix, language, any_namespace]);
+    builder.push_entry(compound);
+    let program = engine.programs.add(builder.finish());
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    let rule = engine.append_rule(sheet, None, RuleKind::Style);
+    engine.add_routing_rule(rule, program);
+    let mut version = engine.program.rule_version(rule);
+    version.selector_program = Some(program);
+    version.declaration_block = Some(DeclarationBlockID(1));
+    engine.replace_rule_version(rule, version);
+    engine.record_input(
+        InputKey::LocalFeature(nodes[1], LocalFeatureKey::Attribute(new_name)),
+        InputValue::Feature(FeatureValue::Absent),
+        InputValue::Feature(FeatureValue::Atom(new_value)),
+    );
+    engine.set_element_language(nodes[1], new_language);
+    discard_transaction(&mut engine);
+
+    assert!(engine.has_attribute_value_text(new_value));
+    assert_eq!(engine.facts.attribute_name_forms(new_name).local, new_any_namespace);
+    let primary = engine.facts.primary();
+    let row = primary.row_of(nodes[1]).unwrap();
+    let attribute = primary.attribute_of(row, new_name).unwrap();
+    assert_eq!(
+        primary.text_of(attribute),
+        Some([u16::from(b'n'), u16::from(b'e'), u16::from(b'w')].as_slice())
+    );
+    assert_eq!(primary.attribute_name_forms(new_name).local, new_any_namespace);
+
+    assert!(
+        engine
+            .match_element(nodes[1])
+            .unwrap()
+            .iter()
+            .any(|matched| matched.rule == rule)
+    );
+}

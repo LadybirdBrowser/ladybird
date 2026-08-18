@@ -142,6 +142,7 @@ public:
     // lookup on that word plus one reference to keep the name alive. No string is copied, and
     // neither side pays an ASCII or UTF-16 conversion for a fact a u32 comparison answers.
     StyleAtomID intern_atom(Utf16FlyString const&);
+    [[nodiscard]] u64 atom_generation() const { return m_atom_generation; }
     // The namespace `[*|x]` names, which is any of them. No interned namespace is zero, so this
     // keys a form of its own in the same table.
     static constexpr StyleAtomID any_namespace { 0 };
@@ -253,6 +254,7 @@ private:
     HashTable<StyleAtomID> m_published_language_atoms;
     HashMap<StyleAtomID, HashMap<StyleAtomID, StyleAtomID>> m_attribute_name_atoms;
     HashMap<StyleAtomID, bool> m_attribute_names_requiring_value_text;
+    u64 m_atom_generation { 1 };
     u64 m_attribute_value_text_requirements_version { 0 };
     HashTable<StyleNodeID> m_nodes_with_pending_initial_features;
     HashTable<StyleNodeID> m_nodes_awaiting_first_style_computation;

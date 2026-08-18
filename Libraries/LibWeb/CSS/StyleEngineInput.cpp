@@ -697,7 +697,7 @@ void record_element_custom_property_names(DOM::Element& element, CustomPropertyD
         return;
 
     auto atoms = data
-        ? data->declared_name_atoms(bit_cast<FlatPtr>(&element.document()), [&](Utf16FlyString const& name) { return style_engine->intern_atom(name); })
+        ? data->declared_name_atoms(bit_cast<FlatPtr>(&element.document()), style_engine->atom_generation(), [&](Utf16FlyString const& name) { return style_engine->intern_atom(name); })
         : ReadonlySpan<StyleAtomID> {};
     style_engine->set_element_custom_property_names(element.style_node_id(), atoms, uses_unnamed, uses_custom_functions);
 }

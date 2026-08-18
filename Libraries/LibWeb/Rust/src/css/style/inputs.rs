@@ -112,6 +112,9 @@ impl StyleEngine {
             scope_program_by_scope: Column::default(),
             held_scope_program: None,
             atoms,
+            reclaimed_style_atoms: Vec::new(),
+            style_atoms_swept: false,
+            replay_reclaimed_style_atoms: None,
             fold_id_and_class_name_case: false,
             #[cfg(test)]
             diagnostic_plan_capture: None,
@@ -195,6 +198,15 @@ impl StyleEngine {
         return self.recording_id;
         #[cfg(not(feature = "style-recording"))]
         None
+    }
+
+    pub(crate) fn forget_recording_atom_mappings(&self, atoms: impl IntoIterator<Item = u32>) {
+        #[cfg(feature = "style-recording")]
+        if let Some(engine_id) = self.recording_id {
+            record_replay::forget_atom_mappings(engine_id, atoms);
+        }
+        #[cfg(not(feature = "style-recording"))]
+        let _ = atoms;
     }
 
     pub(crate) fn recording_atom_mappings(&self) -> RecordedAtomMappings {
@@ -288,7 +300,7 @@ impl StyleEngine {
     /// same word but assigning their own sequences would compare unequal for the same name, which
     /// is a silent failure to match rather than a loud one.
     pub fn intern_atom(&mut self, raw: usize) -> StyleAtomID {
-        self.atoms.intern_raw(raw)
+        self.atoms.intern_cpp_raw(raw)
     }
 
     /// The document-local atom for a name qualified by a namespace.
@@ -1265,6 +1277,7 @@ impl StyleEngine {
 
     /// Record what a language atom spells, so `:lang()` can compare its ranges against the tag.
     pub fn set_element_language_text(&mut self, language: StyleAtomID, text: &[u16]) {
+        self.counters.bump(Counter::LanguageTextsPublished);
         self.facts.set_language_text(language, text);
     }
 

@@ -560,6 +560,31 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
 {
     submit_recorded_input();
     auto view = StyleEngineFFI::style_engine_take_style_transaction(m_impl, root.value());
+    if (view.reclaimed_style_atom_count != 0) {
+        HashTable<StyleAtomID> reclaimed_atoms;
+        reclaimed_atoms.ensure_capacity(view.reclaimed_style_atom_count);
+        for (auto const& reclaimed : ReadonlySpan<StyleEngineFFI::FfiReclaimedStyleAtom> { view.reclaimed_style_atoms, view.reclaimed_style_atom_count }) {
+            auto atom_id = StyleAtomID { reclaimed.atom };
+            reclaimed_atoms.set(atom_id);
+            m_published_language_atoms.remove(atom_id);
+            m_attribute_names_requiring_value_text.remove(atom_id);
+            if (reclaimed.raw == 0)
+                continue;
+            auto atom = m_atoms.take(reclaimed.raw);
+            VERIFY(atom.has_value());
+            VERIFY(atom.release_value() == reclaimed.atom);
+            Utf16FlyString::unref_raw(reclaimed.raw);
+        }
+        m_attribute_name_atoms.remove_all_matching([&](StyleAtomID local, auto& names_by_namespace) {
+            if (reclaimed_atoms.contains(local))
+                return true;
+            names_by_namespace.remove_all_matching([&](StyleAtomID namespace_atom, StyleAtomID name) {
+                return reclaimed_atoms.contains(namespace_atom) || reclaimed_atoms.contains(name);
+            });
+            return names_by_namespace.is_empty();
+        });
+        ++m_atom_generation;
+    }
     return {
         .version = { view.transaction_version, view.program_version },
         .reactions = { view.answers, view.count },

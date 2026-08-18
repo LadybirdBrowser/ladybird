@@ -1236,6 +1236,83 @@ impl StyleEngine {
         self.shed_routing_for_detached_sheets();
     }
 
+    /// Release a transaction taken through the bridge and reclaim atoms before the bridge installs
+    /// a new primary view. The returned reclamation batch lets C++ purge its atom memos before any
+    /// reclaimed identity can be reused.
+    pub(super) fn release_transaction_and_sweep_atoms(&mut self, transaction: StyleTransaction) {
+        self.release_transaction(transaction);
+        self.sweep_style_atoms();
+    }
+
+    pub(super) fn collect_live_style_atoms(&self) -> (HashSet<StyleAtomID>, u64) {
+        assert!(
+            self.tree_staging.is_empty(),
+            "style atom sweeping requires settled tree staging"
+        );
+        assert!(
+            self.facts.staging_is_empty(),
+            "style atom sweeping requires settled fact staging"
+        );
+        let mut atoms = HashSet::default();
+        let mut visited = self.tree.collect_atoms(&mut atoms);
+        visited += self.facts.collect_atoms(&mut atoms);
+        visited += self.program.collect_atoms(&mut atoms);
+        visited += self.programs.collect_atoms(&mut atoms);
+        if !self.html_element_namespace.is_none() {
+            atoms.insert(self.html_element_namespace);
+        }
+        (atoms, visited)
+    }
+
+    pub(super) fn sweep_style_atoms(&mut self) {
+        let decision = self.atoms.sweep_decision();
+        self.counters
+            .add(Counter::AtomSweepPinReleasesSkipped, decision.skipped_pin_releases);
+        if !decision.should_sweep && self.replay_reclaimed_style_atoms.is_none() {
+            return;
+        }
+        if self.batch_matching_traversal.is_some() {
+            self.counters.bump(Counter::AtomSweepsDeferredForActiveTraversal);
+            return;
+        }
+        let replay_reclaimed = self.replay_reclaimed_style_atoms.take();
+        self.style_atoms_swept = true;
+        self.facts.sweep_auxiliary_catalogs_without_sync();
+        let (mut live, visited) = self.collect_live_style_atoms();
+        self.atoms.mark_sweep_dependencies(&mut live);
+        loop {
+            let previous_live_count = live.len();
+            self.facts.extend_live_attribute_name_forms(&mut live);
+            self.atoms.mark_sweep_dependencies(&mut live);
+            if live.len() == previous_live_count {
+                break;
+            }
+        }
+        let mut reclaimable = self.atoms.reclaimable_for_sweep(&live);
+        if let Some(recorded) = replay_reclaimed {
+            assert!(
+                recorded.iter().all(|atom| reclaimable.contains(atom)),
+                "a recorded atom release still has a semantic replay owner"
+            );
+            reclaimable = recorded;
+        }
+        self.facts.forget_atoms(&reclaimable);
+        let requirement_count = self.attribute_value_text_names.len();
+        self.attribute_value_text_names
+            .retain(|atom| !reclaimable.contains(atom));
+        if self.attribute_value_text_names.len() != requirement_count {
+            self.attribute_value_text_requirements_version += 1;
+        }
+        let reclaimed = self.atoms.finish_sweep(&reclaimable);
+        self.counters.bump(Counter::AtomSweeps);
+        self.counters.add(Counter::AtomSweepRootSlotsVisited, visited);
+        self.counters.add(
+            Counter::StyleAtomsReclaimed,
+            u64::try_from(reclaimed.len()).expect("reclaimed atom count exceeds u64"),
+        );
+        self.reclaimed_style_atoms.extend(reclaimed);
+    }
+
     /// Drop routing entry points for rules whose sheet is attached nowhere.
     ///
     /// The router already skips such rules one route at a time, but enumerating their entry points
@@ -1352,7 +1429,11 @@ impl StyleEngine {
                 self.scope_roots[tree_scope.0 as usize] = None;
             }
         }
-        self.facts.sweep_auxiliary_catalogs();
+        // The catalog sweep needs unique primary rows, like the atom sweep; while a traversal
+        // borrows them the dead entries wait for the next boundary.
+        if self.batch_matching_traversal.is_none() {
+            self.facts.sweep_auxiliary_catalogs();
+        }
     }
 
     /// The document budget is written in connected elements and compact program bytes, so it has to

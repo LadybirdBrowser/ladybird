@@ -55,6 +55,12 @@ define_counters! {
     NormalizedUniqueKeys => "normalizedUniqueKeys",
     JournalCancellations => "journalCancellations",
     CoarsenedScopeMarkers => "coarsenedScopeMarkers",
+    AtomSweeps => "atomSweeps",
+    AtomSweepsDeferredForActiveTraversal => "atomSweepsDeferredForActiveTraversal",
+    AtomSweepRootSlotsVisited => "atomSweepRootSlotsVisited",
+    AtomSweepPinReleasesSkipped => "atomSweepPinReleasesSkipped",
+    StyleAtomsReclaimed => "styleAtomsReclaimed",
+    LanguageTextsPublished => "languageTextsPublished",
 
     // Stylesheet program.
     StyleRulesCompiled => "styleRulesCompiled",
