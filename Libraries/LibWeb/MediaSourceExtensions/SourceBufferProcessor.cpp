@@ -91,6 +91,11 @@ void SourceBufferProcessor::set_mode(AppendMode mode)
     m_mode = mode;
 }
 
+void SourceBufferProcessor::set_timestamp_offset(AK::Duration timestamp_offset)
+{
+    m_timestamp_offset = timestamp_offset;
+}
+
 void SourceBufferProcessor::set_generate_timestamps_flag(bool flag)
 {
     m_generate_timestamps_flag = flag;
@@ -419,6 +424,11 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
     for (auto& demuxed_frame : coded_frames) {
         auto& frame = demuxed_frame.coded_frame;
 
+        auto coded_presentation_timestamp = frame.timestamp();
+        auto coded_decode_timestamp = frame.auxiliary_data().visit(
+            [&](Media::CodedVideoFrameData const& video_data) { return video_data.decode_timestamp().value_or(coded_presentation_timestamp); },
+            [&](Media::CodedAudioFrameData const&) { return coded_presentation_timestamp; });
+
         // 1. Loop Top:
     loop_top:
 
@@ -430,10 +440,8 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
         //               of the coded frame's presentation timestamp in seconds.
         //            2. Let decode timestamp be a double precision floating point representation
         //               of the coded frame's decode timestamp in seconds.
-        auto presentation_timestamp = frame.timestamp();
-        auto decode_timestamp = frame.auxiliary_data().visit(
-            [&](Media::CodedVideoFrameData const& video_data) { return video_data.decode_timestamp().value_or(presentation_timestamp); },
-            [&](Media::CodedAudioFrameData const&) { return presentation_timestamp; });
+        auto presentation_timestamp = coded_presentation_timestamp;
+        auto decode_timestamp = coded_decode_timestamp;
 
         // 2. Let frame duration be a double precision floating point representation of the coded
         //    frame's duration in seconds.
@@ -441,7 +449,14 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
 
         // FIXME: 3. If mode equals "sequence" and group start timestamp is set, then run the following steps:
 
-        // FIXME: 4. If timestampOffset is not 0, then run the following steps:
+        // 4. If timestampOffset is not 0, then run the following steps:
+        if (!m_timestamp_offset.is_zero()) {
+            // 1. Add timestampOffset to the presentation timestamp.
+            presentation_timestamp += m_timestamp_offset;
+
+            // 2. Add timestampOffset to the decode timestamp.
+            decode_timestamp += m_timestamp_offset;
+        }
 
         // 5. Let track buffer equal the track buffer that the coded frame will be added to.
         auto maybe_track_buffer = m_track_buffers.get(demuxed_frame.track_number);
@@ -536,6 +551,10 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
         //     Otherwise:
         //         Add the coded frame with the presentation timestamp, decode timestamp, and frame
         //         duration to the track buffer.
+        frame.set_timestamp(presentation_timestamp);
+        frame.auxiliary_data().visit(
+            [&](Media::CodedVideoFrameData& video_data) { video_data.set_decode_timestamp(decode_timestamp); },
+            [&](Media::CodedAudioFrameData&) {});
         demuxer.add_coded_frame(move(frame));
 
         // 17. Set last decode timestamp for track buffer to decode timestamp.

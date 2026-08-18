@@ -1,7 +1,9 @@
 isTypeSupported: true
+timestampOffset: -0.095
+timestampOffset round trips: true
 tracks: 1 video, 1 audio
-buffered: 1 range, 0.095-6.502
-playing: has future data true, error null
-forward seek: 3.000
-backward seek: 0.000
-buffered end seek: 6.407
+media buffered
+playback started
+forward seek completed
+backward seek completed
+buffered end seek completed

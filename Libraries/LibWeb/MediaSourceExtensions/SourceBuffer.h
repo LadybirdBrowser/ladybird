@@ -53,6 +53,10 @@ public:
     // https://w3c.github.io/media-source/#dom-sourcebuffer-buffered
     GC::Ref<HTML::TimeRanges> buffered();
 
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-timestampoffset
+    double timestamp_offset() const { return m_timestamp_offset; }
+    WebIDL::ExceptionOr<void> set_timestamp_offset(double);
+
     void set_content_type(Utf16View type);
 
     // https://w3c.github.io/media-source/#addsourcebuffer-method
@@ -88,6 +92,7 @@ private:
 
     GC::Ref<MediaSource> m_media_source;
     NonnullRefPtr<SourceBufferProcessor> m_processor;
+    double m_timestamp_offset { 0 };
 
     // NB: The generation of the current buffer-append run — captured by the run when it starts. Bumped by
     //     abort_buffer_append_algorithm(). A run whose captured generation no longer matches does nothing further.

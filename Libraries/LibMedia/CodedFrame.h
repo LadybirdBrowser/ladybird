@@ -28,6 +28,7 @@ public:
     }
 
     AK::Duration timestamp() const { return m_timestamp; }
+    void set_timestamp(AK::Duration timestamp) { m_timestamp = timestamp; }
 
     AK::Duration duration() const { return m_duration; }
     void set_duration(AK::Duration duration) { m_duration = duration; }
