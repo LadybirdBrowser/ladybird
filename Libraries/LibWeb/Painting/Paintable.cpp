@@ -57,6 +57,7 @@
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
+#include <LibWeb/Painting/PrerecordedNestedDisplayLists.h>
 #include <LibWeb/Painting/ResizeHandle.h>
 #include <LibWeb/Painting/SVGForeignObjectPaintable.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
@@ -146,10 +147,15 @@ Vector<MaskLayerPresence, 3> Paintable::mask_layer_presence(MaskLayerSet mask_la
     return presence;
 }
 
-void register_mask_display_lists(DisplayListRecordingContext& context, Paintable const& paintable, ReadonlySpan<MaskLayerDisplayList> mask_display_lists)
+bool register_mask_display_lists(DisplayListRecordingContext& context, Paintable const& paintable, MaskLayerSet mask_layer_set)
 {
-    if (mask_display_lists.is_empty())
-        return;
+    auto const* prerecorded = context.prerecorded_nested_display_lists();
+    VERIFY(prerecorded);
+    auto mask_layers = prerecorded->mask_entries.get(&paintable);
+    if (!mask_layers.has_value()) {
+        VERIFY(paintable.mask_layer_presence(mask_layer_set).is_empty());
+        return false;
+    }
 
     auto const& visual_context_tree = context.display_list_recorder().visual_context_tree();
 
@@ -164,15 +170,27 @@ void register_mask_display_lists(DisplayListRecordingContext& context, Paintable
         }
     }
 
-    for (auto const& mask_display_list : mask_display_lists) {
+    bool any_svg_mask_layer_area_is_empty = false;
+    for (auto const& mask_layer : *mask_layers) {
+        if (mask_layer_set == MaskLayerSet::SvgOnly) {
+            if (mask_layer.origin == MaskLayerOrigin::CssMaskLayers)
+                continue;
+            if (mask_layer.mask_layer_area_is_empty) {
+                any_svg_mask_layer_area_is_empty = true;
+                continue;
+            }
+        }
+        if (!mask_layer.resource.has_value())
+            continue;
         Vector<VisualContextIndex, 3> node_indices_for_origin;
         for (auto node_index : mask_node_indices) {
-            if (visual_context_tree.node_at(node_index).data.get<MaskData>().origin == mask_display_list.origin)
+            if (visual_context_tree.node_at(node_index).data.get<MaskData>().origin == mask_layer.origin)
                 node_indices_for_origin.append(node_index);
         }
         VERIFY(!node_indices_for_origin.is_empty());
-        context.display_list_recorder().register_mask_display_list(node_indices_for_origin, mask_display_list.resource);
+        context.display_list_recorder().register_mask_display_list(node_indices_for_origin, *mask_layer.resource);
     }
+    return any_svg_mask_layer_area_is_empty;
 }
 
 bool Paintable::visible_for_hit_testing() const

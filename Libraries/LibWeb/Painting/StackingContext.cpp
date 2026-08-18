@@ -16,7 +16,6 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
@@ -486,8 +485,6 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
         VERIFY(context.display_list_recorder().m_save_nesting_level == 0);
     });
 
-    auto const& mask_layers = paintable_box().layout_node().mask_layers();
-
     auto effective_context_index = context.accumulated_visual_context_index_of(paintable_box());
     context.display_list_recorder().set_accumulated_visual_context(effective_context_index);
 
@@ -498,36 +495,7 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
         context.display_list_recorder().fill_rect_transparent(device_rect);
     }
 
-    // Collect all masks (CSS mask-image, SVG <mask>, SVG <clipPath>).
-    Vector<MaskLayerDisplayList> masks;
-
-    for (auto const& mask_layer : paintable_box().mask_layer_presence(MaskLayerSet::CssAndSvg)) {
-        switch (mask_layer.origin) {
-        case MaskLayerOrigin::CssMaskLayers: {
-            auto visual_context_tree = AccumulatedVisualContextTree::create();
-            auto mask_display_list = DisplayList::create(visual_context_tree);
-            DisplayListRecorder display_list_recorder(*mask_display_list, visual_context_tree, context.display_list_recorder().resource_storage());
-            auto mask_painting_context = context.clone(display_list_recorder);
-            auto mask_rect = CSSPixelRect { {}, mask_layer.area.size() };
-            auto resolved_mask = resolve_mask_layers(mask_layers, paintable_box(), mask_rect);
-
-            // FIXME: Respect `image-rendering` here.
-            paint_background(mask_painting_context, paintable_box(), CSS::ImageRendering::Auto, resolved_mask, {});
-            masks.append({ MaskLayerOrigin::CssMaskLayers, { *mask_display_list, move(visual_context_tree) } });
-            break;
-        }
-        case MaskLayerOrigin::SvgMask:
-            if (auto mask_display_list = paintable_box().calculate_mask(context, mask_layer.area); mask_display_list.has_value())
-                masks.append({ MaskLayerOrigin::SvgMask, mask_display_list.release_value() });
-            break;
-        case MaskLayerOrigin::SvgClip:
-            if (auto clip_display_list = paintable_box().calculate_clip(context, mask_layer.area); clip_display_list.has_value())
-                masks.append({ MaskLayerOrigin::SvgClip, clip_display_list.release_value() });
-            break;
-        }
-    }
-
-    register_mask_display_lists(context, paintable_box(), masks);
+    register_mask_display_lists(context, paintable_box(), MaskLayerSet::CssAndSvg);
 
     auto context_before_children = context.display_list_recorder().accumulated_visual_context();
 

@@ -11,6 +11,12 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 
+namespace Web::SVG {
+
+struct SVGPaintContext;
+
+}
+
 namespace Web::Painting {
 
 class WEB_API SVGPathPaintable final : public SVGGraphicsPaintable {
@@ -24,6 +30,9 @@ public:
     virtual void record_hit_test_items(DisplayListRecordingContext&, PaintPhase) const override;
 
     SVG::SVGGraphicsElement const& dom_node() const { return as<SVG::SVGGraphicsElement>(*Paintable::dom_node()); }
+
+    bool fill_and_stroke_paint_styles_are_resolved(DisplayListRecordingContext const&) const;
+    SVG::SVGPaintContext svg_paint_context(DisplayListRecordingContext const&) const;
 
     // The identity is process-unique per layout-side path allocation and never
     // reused, so a match proves the already-held path is byte-identical and the

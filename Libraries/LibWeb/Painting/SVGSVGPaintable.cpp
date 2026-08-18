@@ -43,26 +43,9 @@ void SVGSVGPaintable::paint_svg_box(DisplayListRecordingContext& context, Painta
         context.display_list_recorder().fill_rect_transparent(device_rect);
     }
 
-    // Collect masks (SVG <mask>, SVG <clipPath>).
-    Vector<MaskLayerDisplayList> masks;
+    bool any_svg_mask_layer_area_is_empty = register_mask_display_lists(context, svg_box, MaskLayerSet::SvgOnly);
 
-    bool skip_painting = false;
-
-    for (auto const& mask_layer : svg_box.mask_layer_presence(MaskLayerSet::SvgOnly)) {
-        if (mask_layer.area.is_empty()) {
-            skip_painting = true;
-            continue;
-        }
-        auto mask_display_list = mask_layer.origin == MaskLayerOrigin::SvgMask
-            ? svg_box.calculate_mask(context, mask_layer.area)
-            : svg_box.calculate_clip(context, mask_layer.area);
-        if (mask_display_list.has_value())
-            masks.append({ mask_layer.origin, mask_display_list.release_value() });
-    }
-
-    register_mask_display_lists(context, svg_box, masks);
-
-    if (!skip_painting) {
+    if (!any_svg_mask_layer_area_is_empty) {
         svg_box.record_hit_test_items(context, phase);
         if (svg_box.layout_node().is_svg_foreign_object_box())
             record_foreign_object_descendant_hit_test_items(context, svg_box);

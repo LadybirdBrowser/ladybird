@@ -52,7 +52,8 @@ public:
 
     GC::Ptr<SVGPatternElement const> pattern_content_element() const;
 
-    Optional<Painting::PaintStyle> to_gfx_paint_style(SVGPaintContext const&, DisplayListRecordingContext&, Layout::Node const& target_layout_node) const;
+    RefPtr<Painting::Paintable const> resolve_pattern_paintable(Layout::Node const& target_layout_node) const;
+    Optional<Painting::PaintStyle> record_pattern_paint_style(SVGPaintContext const&, DisplayListRecordingContext&, Painting::Paintable const& pattern_paintable, Gfx::FloatSize content_scale) const;
 
     virtual RefPtr<Layout::Node> create_layout_node(CSS::LayoutStyle) override { return nullptr; }
 

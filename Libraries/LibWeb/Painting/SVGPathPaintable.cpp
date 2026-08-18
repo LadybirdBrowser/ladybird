@@ -46,6 +46,26 @@ static Gfx::WindingRule to_gfx_winding_rule(SVG::FillRule fill_rule)
     }
 }
 
+bool SVGPathPaintable::fill_and_stroke_paint_styles_are_resolved(DisplayListRecordingContext const& context) const
+{
+    return computed_path().has_value() && !context.draw_svg_geometry_for_clip_path() && is_visible();
+}
+
+SVG::SVGPaintContext SVGPathPaintable::svg_paint_context(DisplayListRecordingContext const& context) const
+{
+    // Content below the viewport transform node records in user units scaled by the device pixel
+    // ratio; the visual context tree applies the viewport and element transforms at replay.
+    auto device_scale = static_cast<float>(context.device_pixels_per_css_pixel());
+    Gfx::FloatRect viewport_rect {};
+    if (auto const* viewport_paintable = nearest_svg_viewport_paintable_of(layout_node()))
+        viewport_rect = svg_viewport_user_rect(*viewport_paintable);
+    return SVG::SVGPaintContext {
+        .viewport = viewport_rect,
+        .path_bounding_box = computed_path()->bounding_box(),
+        .paint_transform = Gfx::AffineTransform {}.scale(device_scale, device_scale),
+    };
+}
+
 void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!computed_path().has_value())
@@ -65,8 +85,6 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
 
     auto& graphics_element = dom_node();
 
-    // Content below the viewport transform node records in user units scaled by the device pixel
-    // ratio; the visual context tree applies the viewport and element transforms at replay.
     auto device_scale = static_cast<float>(context.device_pixels_per_css_pixel());
     auto paint_transform = Gfx::AffineTransform {}.scale(device_scale, device_scale);
     auto path = computed_path()->copy_transformed(paint_transform);
@@ -85,14 +103,7 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
         return;
     }
 
-    Gfx::FloatRect viewport_rect {};
-    if (auto const* viewport_paintable = nearest_svg_viewport_paintable_of(layout_node()))
-        viewport_rect = svg_viewport_user_rect(*viewport_paintable);
-    SVG::SVGPaintContext paint_context {
-        .viewport = viewport_rect,
-        .path_bounding_box = computed_path()->bounding_box(),
-        .paint_transform = paint_transform,
-    };
+    auto paint_context = svg_paint_context(context);
 
     auto paint_fill = [&] {
         auto fill_opacity = graphics_element.fill_opacity().value_or(1);

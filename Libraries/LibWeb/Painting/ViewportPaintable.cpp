@@ -118,6 +118,7 @@ void ViewportPaintable::reset_for_relayout()
     m_paint_command_cache_source_referenced_resources = {};
     document().clear_hit_test_item_cache_source();
     m_paintable_boxes_with_auto_content_visibility.clear();
+    m_paintables_with_mask_nodes.clear();
     m_visual_context_tree.clear();
     m_visual_context_tree_needs_compositor_update = false;
 }
@@ -236,6 +237,11 @@ void ViewportPaintable::register_scroll_node(AccumulatedVisualContextTree& visua
     visual_context_tree_being_built.node_at(node_index).data.get<ScrollData>().state_slot = slot;
 }
 
+void ViewportPaintable::register_paintable_with_mask_nodes(Paintable const& paintable_box)
+{
+    m_paintables_with_mask_nodes.append(paintable_box);
+}
+
 void ViewportPaintable::register_sticky_node(AccumulatedVisualContextTree& visual_context_tree_being_built, VisualContextIndex node_index, Paintable const& paintable_box, VisualContextIndex parent_index)
 {
     auto slot = m_scroll_state.register_sticky_node(node_index, paintable_box, visual_context_tree_being_built.scroll_state_slot_for_node(parent_index));
@@ -251,6 +257,7 @@ CSSPixelPoint ViewportPaintable::cumulative_scroll_offset_for_node(VisualContext
 void ViewportPaintable::assign_accumulated_visual_contexts()
 {
     clear_scroll_state();
+    m_paintables_with_mask_nodes.clear_with_capacity();
     auto visual_context_tree = build_accumulated_visual_context_tree(*this);
     ++m_accumulated_visual_context_tree_build_count;
     auto is_compatible = m_visual_context_tree.has_value() && visual_context_tree.is_compatible_with(*m_visual_context_tree);

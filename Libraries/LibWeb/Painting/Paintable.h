@@ -83,12 +83,7 @@ enum class MaskLayerSet : u8 {
     SvgOnly,
 };
 
-struct MaskLayerDisplayList {
-    MaskLayerOrigin origin;
-    DisplayListResource resource;
-};
-
-void register_mask_display_lists(DisplayListRecordingContext&, Paintable const&, ReadonlySpan<MaskLayerDisplayList>);
+bool register_mask_display_lists(DisplayListRecordingContext&, Paintable const&, MaskLayerSet);
 
 class WEB_API Paintable
     : public RefCounted<Paintable>

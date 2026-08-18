@@ -773,6 +773,9 @@ public:
     void unregister_svg_use_element(Badge<SVG::SVGUseElement>, SVG::SVGUseElement&);
     SVG::SVGUseElement::DocumentUseElementList& svg_use_elements() { return m_svg_use_elements; }
 
+    void register_svg_pattern_referencing_element(Element&);
+    Vector<GC::Weak<Element>>& svg_pattern_referencing_elements() { return m_svg_pattern_referencing_elements; }
+
     template<typename Callback>
     void for_each_node_iterator(Callback callback)
     {
@@ -1657,6 +1660,8 @@ private:
     // removal. This lets SVG elements notify interested use elements about mutations without traversing the entire
     // document. Not visited: registered elements are connected and thus kept alive by the tree.
     SVG::SVGUseElement::DocumentUseElementList m_svg_use_elements;
+
+    Vector<GC::Weak<Element>> m_svg_pattern_referencing_elements;
 
     // https://html.spec.whatwg.org/multipage/dom.html#is-initial-about:blank
     bool m_is_initial_about_blank { false };

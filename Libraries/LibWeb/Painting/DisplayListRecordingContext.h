@@ -26,6 +26,7 @@ class AccumulatedVisualContextTree;
 class DisplayList;
 class HitTestDisplayList;
 class ScrollState;
+struct PrerecordedNestedDisplayLists;
 
 enum class PaintCommandCacheMode : u8 {
     ReadOnly,
@@ -75,6 +76,9 @@ public:
     Optional<Painting::NestedVisualContextAssignments> const& nested_visual_context_assignments() const { return m_nested_visual_context_assignments; }
     void set_nested_visual_context_assignments(Painting::NestedVisualContextAssignments assignments) { m_nested_visual_context_assignments = move(assignments); }
 
+    Painting::PrerecordedNestedDisplayLists* prerecorded_nested_display_lists() const { return m_prerecorded_nested_display_lists; }
+    void set_prerecorded_nested_display_lists(Painting::PrerecordedNestedDisplayLists* prerecorded) { m_prerecorded_nested_display_lists = prerecorded; }
+
     Painting::VisualContextIndex accumulated_visual_context_index_of(Painting::Paintable const&) const;
     Painting::VisualContextIndex accumulated_visual_context_for_descendants_index_of(Painting::Paintable const&) const;
 
@@ -94,6 +98,7 @@ public:
         clone.m_device_viewport_rect = m_device_viewport_rect;
         clone.m_should_show_line_box_borders = m_should_show_line_box_borders;
         clone.m_should_paint_overlay = m_should_paint_overlay;
+        clone.m_prerecorded_nested_display_lists = m_prerecorded_nested_display_lists;
         return clone;
     }
 
@@ -149,6 +154,7 @@ private:
     bool m_should_paint_overlay { true };
     bool m_draw_svg_geometry_for_clip_path { false };
     Optional<Painting::NestedVisualContextAssignments> m_nested_visual_context_assignments;
+    Painting::PrerecordedNestedDisplayLists* m_prerecorded_nested_display_lists { nullptr };
     u64 m_paint_generation_id { 0 };
     UniqueNodeID m_async_scrolling_document_id {};
     Painting::AccumulatedVisualContextTree const* m_async_scrolling_visual_context_tree { nullptr };
