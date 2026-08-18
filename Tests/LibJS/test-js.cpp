@@ -40,7 +40,7 @@ TESTJS_GLOBAL_FUNCTION(add_engine_private_property, addEnginePrivateProperty)
 {
     auto object = TRY(vm.argument(0).to_object(vm));
     auto key = JS::Symbol::create_private(vm);
-    object->define_direct_property(key, vm.argument(1), {});
+    object->set_engine_private_property(key, vm.argument(1));
     return JS::js_undefined();
 }
 
