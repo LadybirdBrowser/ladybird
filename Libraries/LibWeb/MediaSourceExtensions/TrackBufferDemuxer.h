@@ -24,6 +24,12 @@ namespace Web::MediaSourceExtensions {
 // It is shared between TrackBuffer (which writes frames) and PlaybackManager (which reads them).
 class TrackBufferDemuxer final : public Media::Demuxer {
 public:
+    struct EvictedFrame {
+        size_t byte_count { 0 };
+        AK::Duration presentation_timestamp;
+        AK::Duration decode_timestamp;
+    };
+
     TrackBufferDemuxer(Media::Track const&, Media::CodecID, ByteBuffer codec_initialization_data);
     virtual ~TrackBufferDemuxer() override;
 
@@ -40,7 +46,7 @@ public:
     size_t take_earliest_frame();
 
     Optional<AK::Duration> latest_evictable_frame_timestamp(AK::Duration current_time) const;
-    size_t take_latest_frame();
+    EvictedFrame take_latest_frame();
 
     void set_reached_end_of_stream();
     void clear_reached_end_of_stream();
@@ -80,10 +86,11 @@ private:
     size_t m_read_position { 0 };
     bool m_reached_end_of_stream { false };
 
-    Optional<AK::Duration> m_last_returned_timestamp;
+    Optional<AK::Duration> m_last_returned_presentation_timestamp;
+    Optional<AK::Duration> m_last_returned_decode_timestamp;
 
     Media::TimeRanges m_track_buffer_ranges;
-    AK::Duration m_last_frame_duration;
+    AK::Duration m_maximum_frame_duration;
     size_t m_total_bytes { 0 };
     Atomic<bool> m_aborted { false };
     Media::ReadBlockedChangeHandler m_read_blocked_change_handler;
