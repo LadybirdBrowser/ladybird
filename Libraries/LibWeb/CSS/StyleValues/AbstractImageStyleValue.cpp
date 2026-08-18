@@ -67,6 +67,13 @@ void AbstractImageStyleValue::load_any_resources(Layout::NodeWithStyle const& la
     load_any_resources(const_cast<DOM::Document&>(layout_node.document()));
 }
 
+Optional<Painting::ImagePaint> AbstractImageStyleValue::image_paint(Painting::ImagePaintRequest const&, ResolvedImage const& resolved) const
+{
+    return resolved.visit(
+        [](Empty const&) -> Optional<Painting::ImagePaint> { return OptionalNone {}; },
+        [](auto const& gradient) -> Optional<Painting::ImagePaint> { return Painting::ImagePaint { gradient }; });
+}
+
 ColorStopListElement ColorStopListElement::absolutized(ComputationContext const& context) const
 {
     auto absolutize_if_nonnull = [&context](RefPtr<StyleValue const> const& input) -> RefPtr<StyleValue const> {

@@ -11,7 +11,6 @@
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Painting/DisplayListRecorder.h>
 
 namespace Web::CSS {
 
@@ -38,14 +37,6 @@ ResolvedImage ConicGradientStyleValue::resolve_for_size(Layout::NodeWithStyle co
         Painting::resolve_conic_gradient_data(node, *this),
         position_value()->resolved(CSSPixelRect { { 0, 0 }, size }),
     };
-}
-
-void ConicGradientStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering, PreferredColorScheme, ResolvedImage const& resolved_image) const
-{
-    auto const& resolved = resolved_image.get<Painting::ResolvedConicGradient>();
-    auto destination_rect = dest_rect.to_type<int>();
-    auto position = context.rounded_device_point(resolved.position).to_type<int>();
-    context.display_list_recorder().fill_rect_with_conic_gradient(destination_rect, resolved.data, position);
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> ConicGradientStyleValue::absolutized(ComputationContext const& context) const

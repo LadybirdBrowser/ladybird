@@ -15,7 +15,6 @@
 #include <LibWeb/HTML/SupportedImageTypes.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/DisplayListRecordingContext.h>
 
 namespace Web::CSS {
 
@@ -136,10 +135,11 @@ bool ImageSetStyleValue::is_paintable(DOM::Document const& document) const
     return false;
 }
 
-void ImageSetStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const& document, DevicePixelRect const& dest_rect, ImageRendering image_rendering, PreferredColorScheme color_scheme, ResolvedImage const& resolved_image) const
+Optional<Painting::ImagePaint> ImageSetStyleValue::image_paint(Painting::ImagePaintRequest const& request, ResolvedImage const& resolved_image) const
 {
     if (m_selected_image)
-        m_selected_image->paint(context, document, dest_rect, image_rendering, color_scheme, resolved_image);
+        return m_selected_image->image_paint(request, resolved_image);
+    return {};
 }
 
 Optional<Gfx::Color> ImageSetStyleValue::color_if_single_pixel_bitmap(DOM::Document const& document) const

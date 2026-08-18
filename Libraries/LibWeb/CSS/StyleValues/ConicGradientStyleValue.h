@@ -30,8 +30,6 @@ public:
         return adopt_ref(*new (nothrow) ConicGradientStyleValue(move(from_angle), move(position), move(color_stop_list), repeating, move(color_interpolation_method), color_syntax));
     }
 
-    void paint(DisplayListRecordingContext&, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering, PreferredColorScheme, ResolvedImage const&) const override;
-
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     Vector<ColorStopListElement> color_stop_list() const
     {

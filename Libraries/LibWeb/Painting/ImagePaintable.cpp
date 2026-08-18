@@ -11,6 +11,7 @@
 #include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
+#include <LibWeb/Painting/ImagePaint.h>
 #include <LibWeb/Painting/ImagePaintable.h>
 #include <LibWeb/Painting/ReplacedElementCommon.h>
 
@@ -54,7 +55,9 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
                     context.display_list_recorder().save();
                     context.display_list_recorder().add_clip_rect(image_int_rect_device_pixels);
                 }
-                decoded_image_data->paint(context, draw_rect.to_type<float>(), layout_node().image_rendering(), layout_node().color_scheme());
+                auto request = image_paint_request_for_recording(context, layout_node().document(), draw_rect.to_type<float>(), layout_node().image_rendering(), layout_node().color_scheme());
+                if (auto image_paint = decoded_image_data->image_paint(request); image_paint.has_value())
+                    record_image_paint(context, *image_paint, request.dest_rect, layout_node().image_rendering());
                 if (draw_rect_needs_clip)
                     context.display_list_recorder().restore();
             }

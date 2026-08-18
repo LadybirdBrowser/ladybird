@@ -11,7 +11,6 @@
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Painting/DisplayListRecorder.h>
 
 namespace Web::CSS {
 
@@ -115,11 +114,6 @@ float LinearGradientStyleValue::angle_degrees(CSSPixelSize gradient_size) const
 ResolvedImage LinearGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node, CSSPixelSize size) const
 {
     return Painting::resolve_linear_gradient_data(node, size, *this);
-}
-
-void LinearGradientStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering, PreferredColorScheme, ResolvedImage const& resolved) const
-{
-    context.display_list_recorder().fill_rect_with_linear_gradient(dest_rect.to_type<int>(), resolved.get<Painting::LinearGradientData>());
 }
 
 }
