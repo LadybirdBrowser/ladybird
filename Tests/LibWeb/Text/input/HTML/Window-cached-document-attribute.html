@@ -1,11 +1,31 @@
-<!DOCTYPE html>
+<!doctype html>
 <script src="../include.js"></script>
 <script>
     promiseTest(async () => {
-        const ownSymbolCount = Object.getOwnPropertySymbols(window).length;
+        const ownKeysAreUnchanged = (object, ownKeys) => {
+            const currentOwnKeys = Reflect.ownKeys(object);
+            return (
+                currentOwnKeys.every((key, index) => key === ownKeys[index]) && currentOwnKeys.length === ownKeys.length
+            );
+        };
+        const ownKeys = Reflect.ownKeys(window);
+        const ownPropertyNames = Object.getOwnPropertyNames(window);
+        const ownPropertySymbols = Object.getOwnPropertySymbols(window);
+        const enumerableOwnPropertyNames = Object.keys(window);
         void window.document;
-        println(`document remains an accessor: ${typeof Object.getOwnPropertyDescriptor(window, "document").get === "function"}`);
-        println(`cache slot remains private: ${Object.getOwnPropertySymbols(window).length === ownSymbolCount}`);
+        println(
+            `document remains an accessor: ${typeof Object.getOwnPropertyDescriptor(window, "document").get === "function"}`
+        );
+        println(`own keys unchanged: ${ownKeysAreUnchanged(window, ownKeys)}`);
+        println(
+            `own property names unchanged: ${Object.getOwnPropertyNames(window).every((key, index) => key === ownPropertyNames[index]) && Object.getOwnPropertyNames(window).length === ownPropertyNames.length}`
+        );
+        println(
+            `own property symbols unchanged: ${Object.getOwnPropertySymbols(window).every((key, index) => key === ownPropertySymbols[index]) && Object.getOwnPropertySymbols(window).length === ownPropertySymbols.length}`
+        );
+        println(
+            `enumerable own property names unchanged: ${Object.keys(window).every((key, index) => key === enumerableOwnPropertyNames[index]) && Object.keys(window).length === enumerableOwnPropertyNames.length}`
+        );
         try {
             Reflect.get(window, "document", {});
             println("custom receiver rejected: false");
@@ -23,15 +43,25 @@
         await firstLoad;
 
         const readStaleDocument = iframe.contentWindow.readSelfDocument;
+        const firstWindowOwnKeys = Reflect.ownKeys(iframe.contentWindow);
         const firstDocument = iframe.contentDocument;
         println(`first document identity: ${readStaleDocument() === firstDocument}`);
+        println(
+            `iframe own keys unchanged after initial cache: ${ownKeysAreUnchanged(iframe.contentWindow, firstWindowOwnKeys)}`
+        );
 
         const secondLoad = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
         iframe.srcdoc = "";
         await secondLoad;
         internals.gc();
 
-        println(`stale function sees new document: ${readStaleDocument() === iframe.contentDocument}`);
-        println(`new document has new identity: ${readStaleDocument() !== firstDocument}`);
+        const secondWindowOwnKeys = Reflect.ownKeys(iframe.contentWindow);
+        const secondDocument = iframe.contentDocument;
+        const staleFunctionDocument = readStaleDocument();
+        println(`stale function sees new document: ${staleFunctionDocument === secondDocument}`);
+        println(`new document has new identity: ${staleFunctionDocument !== firstDocument}`);
+        println(
+            `iframe own keys unchanged after invalidation: ${ownKeysAreUnchanged(iframe.contentWindow, secondWindowOwnKeys)}`
+        );
     });
 </script>

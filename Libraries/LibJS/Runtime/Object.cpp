@@ -1126,8 +1126,7 @@ ThrowCompletionOr<Value> Object::internal_get(PropertyKey const& property_key, V
             receiver_uses_holder_cache = receiver.is_object()
                 && (&receiver.as_object() == this || receiver.as_object().prototype() == this);
             if (auto* cached_value_key = accessor->cached_value_key(); cached_value_key && receiver_uses_holder_cache) {
-                auto cached_property_key = PropertyKey { GC::Ref { *cached_value_key } };
-                if (auto cached_value = storage_get(cached_property_key); cached_value.has_value()) {
+                if (auto cached_value = get_engine_private_property(GC::Ref { *cached_value_key }); cached_value.has_value()) {
                     VERIFY(cached_value->property_offset.has_value());
                     update_inline_cache(*cached_value->property_offset);
                     return cached_value->value;
@@ -1145,8 +1144,7 @@ ThrowCompletionOr<Value> Object::internal_get(PropertyKey const& property_key, V
         if (auto* cached_value_key = accessor->cached_value_key()) {
             auto property = storage_get(property_key);
             if (property.has_value() && property->value.is_accessor() && &property->value.as_accessor() == accessor.ptr()) {
-                auto cached_property_key = PropertyKey { GC::Ref { *cached_value_key } };
-                const_cast<Object*>(this)->define_direct_property(cached_property_key, result, Attribute::Internal);
+                const_cast<Object*>(this)->set_engine_private_property(GC::Ref { *cached_value_key }, result);
             }
         }
     }
@@ -1343,16 +1341,16 @@ ThrowCompletionOr<GC::RootVector<Value>> Object::internal_own_property_keys() co
     }
 
     // 3. For each own property key P of O such that Type(P) is String and P is not an array index, in ascending chronological order of property creation, do
-    shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const& metadata) {
-        if (property_key.is_string() && !metadata.attributes.is_internal()) {
+    shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const&) {
+        if (property_key.is_string()) {
             // a. Add P as the last element of keys.
             keys.append(property_key.to_value(vm));
         }
     });
 
     // 4. For each own property key P of O such that Type(P) is Symbol, in ascending chronological order of property creation, do
-    shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const& metadata) {
-        if (property_key.is_symbol() && !property_key.is_private() && !metadata.attributes.is_internal()) {
+    shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const&) {
+        if (property_key.is_symbol() && !property_key.is_private()) {
             // a. Add P as the last element of keys.
             keys.append(property_key.to_value(vm));
         }
@@ -1549,6 +1547,26 @@ void Object::define_direct_accessor(PropertyKey const& property_key, GC::Ptr<Fun
     }
 }
 
+Optional<ValueAndAttributes> Object::get_engine_private_property(GC::Ref<Symbol> key) const
+{
+    VERIFY(key->is_private());
+    return storage_get(PropertyKey { key });
+}
+
+void Object::set_engine_private_property(GC::Ref<Symbol> key, Value value)
+{
+    VERIFY(key->is_private());
+    (void)storage_set(PropertyKey { key }, { value, {} });
+}
+
+void Object::delete_engine_private_property(GC::Ref<Symbol> key)
+{
+    VERIFY(key->is_private());
+    auto property_key = PropertyKey { key };
+    if (storage_has(property_key))
+        storage_delete(property_key);
+}
+
 void Object::define_direct_cached_accessor(PropertyKey const& property_key, GC::Ptr<FunctionObject> getter, GC::Ptr<FunctionObject> setter, PropertyAttributes attributes)
 {
     clear_cached_accessor_value(property_key);
@@ -1559,7 +1577,7 @@ void Object::define_direct_cached_accessor(PropertyKey const& property_key, GC::
     VERIFY(property->value.is_accessor());
     auto& accessor = property->value.as_accessor();
     if (!accessor.cached_value_key())
-        accessor.set_cached_value_key(Symbol::create(vm()));
+        accessor.set_cached_value_key(Symbol::create_private(vm()));
 }
 
 void Object::clear_cached_accessor_value(PropertyKey const& property_key)
@@ -1570,9 +1588,7 @@ void Object::clear_cached_accessor_value(PropertyKey const& property_key)
     auto* cached_value_key = property->value.as_accessor().cached_value_key();
     if (!cached_value_key)
         return;
-    auto cached_property_key = PropertyKey { GC::Ref { *cached_value_key } };
-    if (storage_get(cached_property_key).has_value())
-        storage_delete(cached_property_key);
+    delete_engine_private_property(GC::Ref { *cached_value_key });
 }
 
 void Object::define_intrinsic_accessor(PropertyKey const& property_key, PropertyAttributes attributes, IntrinsicAccessor accessor)

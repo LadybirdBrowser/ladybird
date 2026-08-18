@@ -31,7 +31,11 @@ public:
     void set_setter(GC::Ptr<FunctionObject> setter) { m_setter = setter; }
 
     Symbol* cached_value_key() const { return m_cached_value_key.ptr(); }
-    void set_cached_value_key(GC::Ptr<Symbol> cached_value_key) { m_cached_value_key = cached_value_key; }
+    void set_cached_value_key(GC::Ptr<Symbol> cached_value_key)
+    {
+        VERIFY(!cached_value_key || cached_value_key->is_private());
+        m_cached_value_key = cached_value_key;
+    }
 
     void visit_edges(Cell::Visitor& visitor) override
     {
@@ -47,6 +51,7 @@ private:
         , m_setter(setter)
         , m_cached_value_key(cached_value_key)
     {
+        VERIFY(!cached_value_key || cached_value_key->is_private());
     }
 
     GC::Ptr<FunctionObject> m_getter;

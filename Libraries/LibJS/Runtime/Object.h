@@ -239,6 +239,9 @@ public:
     Value get_without_side_effects(PropertyKey const&) const;
 
     void define_direct_property(PropertyKey const& property_key, Value value, PropertyAttributes attributes) { (void)storage_set(property_key, { value, attributes }); }
+    Optional<ValueAndAttributes> get_engine_private_property(GC::Ref<Symbol>) const;
+    void set_engine_private_property(GC::Ref<Symbol>, Value);
+    void delete_engine_private_property(GC::Ref<Symbol>);
     void define_direct_accessor(PropertyKey const&, GC::Ptr<FunctionObject> getter, GC::Ptr<FunctionObject> setter, PropertyAttributes attributes);
     // Cache the getter's result in an engine-private property on this object.
     void define_direct_cached_accessor(PropertyKey const&, GC::Ptr<FunctionObject> getter, GC::Ptr<FunctionObject> setter, PropertyAttributes attributes);
