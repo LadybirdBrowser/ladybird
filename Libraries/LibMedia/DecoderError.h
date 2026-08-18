@@ -113,7 +113,7 @@ constexpr StringView decoder_error_category_to_string(DecoderErrorCategory categ
         auto&& _result = ((expression));                                                   \
         if (_result.is_error()) [[unlikely]] {                                             \
             auto _error_string = _result.error().string_literal();                         \
-            return DecoderError::from_source_location(                                     \
+            return Media::DecoderError::from_source_location(                              \
                 ((category)), _error_string, SourceLocation::current());                   \
         }                                                                                  \
         static_assert(!::AK::Detail::IsLvalueReference<decltype(_result.release_value())>, \
@@ -121,7 +121,7 @@ constexpr StringView decoder_error_category_to_string(DecoderErrorCategory categ
         _result.release_value();                                                           \
     })
 
-#define DECODER_TRY_ALLOC(expression) DECODER_TRY(DecoderErrorCategory::Memory, expression)
+#define DECODER_TRY_ALLOC(expression) DECODER_TRY(Media::DecoderErrorCategory::Memory, expression)
 
 }
 
