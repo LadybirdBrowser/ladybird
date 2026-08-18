@@ -574,9 +574,11 @@ void EventLoop::update_the_rendering()
         // A FontFaceSet is pending on the environment if any of the following are true:
         // - the document is still loading
         // - the document has pending stylesheet requests
-        // FIXME: - the document has pending layout operations which might cause the user agent to request a font, or which depend on recently-loaded fonts
+        // - the document has pending layout operations which might cause the user agent to request a font, or which depend on recently-loaded fonts
         TemporaryExecutionContext context(document->relevant_settings_object(), TemporaryExecutionContext::CallbacksEnabled::Yes);
-        document->fonts()->set_is_pending_on_the_environment(document->readiness() == DocumentReadyState::Loading);
+        document->fonts()->set_is_pending_on_the_environment(document->readiness() == DocumentReadyState::Loading
+            || document->has_pending_style_sheet_requests()
+            || !document->layout_is_up_to_date());
     }
 }
 

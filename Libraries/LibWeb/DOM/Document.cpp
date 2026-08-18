@@ -5129,6 +5129,19 @@ void Document::decrement_number_of_things_delaying_the_load_event(Badge<Document
     schedule_html_parser_end_check();
 }
 
+void Document::increment_number_of_pending_style_sheet_requests(Badge<DocumentLoadEventDelayer>)
+{
+    ++m_number_of_pending_style_sheet_requests;
+    page().client().request_frame();
+}
+
+void Document::decrement_number_of_pending_style_sheet_requests(Badge<DocumentLoadEventDelayer>)
+{
+    VERIFY(m_number_of_pending_style_sheet_requests);
+    --m_number_of_pending_style_sheet_requests;
+    page().client().request_frame();
+}
+
 void Document::set_html_parser_end_state(GC::Ptr<HTML::HTMLParserEndState> state)
 {
     m_html_parser_end_state = state;

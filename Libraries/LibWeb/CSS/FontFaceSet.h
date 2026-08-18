@@ -57,7 +57,7 @@ public:
     Vector<GC::Ref<FontFace>>& loaded_fonts() { return m_loaded_fonts; }
     Vector<GC::Ref<FontFace>>& failed_fonts() { return m_failed_fonts; }
 
-    GC::Ref<WebIDL::Promise> ready() const;
+    GC::Ref<WebIDL::Promise> ready();
     HTML::EnvironmentSettingsObject& relevant_settings_object() const { return *m_environment; }
     FontFaceSetLoadStatus status() const { return m_status; }
 

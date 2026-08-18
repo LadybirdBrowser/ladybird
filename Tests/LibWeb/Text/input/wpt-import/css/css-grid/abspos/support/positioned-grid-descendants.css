@@ -1,0 +1,25 @@
+.grid {
+  display: grid;
+  grid: 150px 100px / 200px 300px;
+  margin: 1px 2px 3px 4px;
+  padding: 20px 15px 10px 5px;
+  border-width: 9px 3px 12px 6px;
+  border-style: solid;
+  width: 550px;
+  height: 400px;
+  position: relative;
+  font: 25px/1 Ahem;
+}
+.abspos {
+  position: absolute;
+  display: inline;
+}
+.orthogonal {
+  writing-mode: vertical-lr;
+}
+.grid > :nth-child(1) > .abspos {
+  color: cyan;
+}
+.grid > :nth-child(2) > .abspos {
+  color: yellow;
+}
