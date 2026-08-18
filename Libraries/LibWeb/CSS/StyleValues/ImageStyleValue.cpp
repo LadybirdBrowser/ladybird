@@ -22,8 +22,6 @@
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
-#include <LibWeb/Painting/DisplayListRecorder.h>
-#include <LibWeb/Painting/DisplayListRecordingContext.h>
 
 namespace Web::CSS {
 
@@ -184,22 +182,24 @@ bool ImageStyleValue::is_paintable(DOM::Document const& document) const
     return !!image_data(document);
 }
 
-void ImageStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const& document, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering, PreferredColorScheme color_scheme, ResolvedImage const&) const
+Optional<Painting::ImagePaint> ImageStyleValue::image_paint(Painting::ImagePaintRequest const& request, ResolvedImage const&) const
 {
-    auto image_data = this->image_data(document);
+    auto image_data = this->image_data(request.document);
     if (!image_data)
-        return;
+        return {};
 
-    image_data->paint(context, dest_rect.to_type<int>().to_type<float>(), image_rendering, color_scheme);
+    auto integer_request = request;
+    integer_request.dest_rect = request.dest_rect.to_type<int>().to_type<float>();
+    return image_data->image_paint(integer_request);
 }
 
-Optional<Painting::DisplayListResource> ImageStyleValue::record_display_list(DisplayListRecordingContext& context, DOM::Document const& document, DevicePixelRect const& dest_rect, PreferredColorScheme color_scheme) const
+Optional<Painting::DisplayListResource> ImageStyleValue::record_display_list(Painting::DisplayListResourceStorage& resource_storage, DOM::Document const& document, DevicePixelRect const& dest_rect, PreferredColorScheme color_scheme) const
 {
     auto image_data = this->image_data(document);
     if (!image_data)
         return {};
 
-    return image_data->record_display_list(dest_rect.size().to_type<int>(), color_scheme, context.display_list_recorder().resource_storage());
+    return image_data->record_display_list(dest_rect.size().to_type<int>(), color_scheme, resource_storage);
 }
 
 Optional<Gfx::DecodedImageFrame> ImageStyleValue::current_frame(DOM::Document const& document, DevicePixelRect const& dest_rect) const

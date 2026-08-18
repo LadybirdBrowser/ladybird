@@ -6,6 +6,7 @@
 
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
+#include <LibWeb/Painting/ImagePaint.h>
 #include <LibWeb/Painting/ReplacedElementCommon.h>
 #include <LibWeb/Painting/SVGImagePaintable.h>
 #include <LibWeb/SVG/SVGImageElement.h>
@@ -67,7 +68,9 @@ void SVGImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase p
         context.display_list_recorder().add_clip_rect(image_rect);
     }
 
-    decoded_image_data->paint(context, draw_rect, layout_box().image_rendering(), layout_box().color_scheme());
+    auto request = image_paint_request_for_recording(context, layout_box().document(), draw_rect, layout_box().image_rendering(), layout_box().color_scheme());
+    if (auto image_paint = decoded_image_data->image_paint(request); image_paint.has_value())
+        record_image_paint(context, *image_paint, request.dest_rect, layout_box().image_rendering());
 
     if (draw_rect_needs_clip)
         context.display_list_recorder().restore();

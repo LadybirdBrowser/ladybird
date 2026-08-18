@@ -14,7 +14,7 @@
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Painting/GradientData.h>
+#include <LibWeb/Painting/ImagePaint.h>
 
 namespace Web::CSS {
 
@@ -45,7 +45,7 @@ public:
     virtual ResolvedImage resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const { return Empty {}; }
 
     virtual bool is_paintable(DOM::Document const&) const = 0;
-    virtual void paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, ImageRendering, PreferredColorScheme, ResolvedImage const&) const = 0;
+    virtual Optional<Painting::ImagePaint> image_paint(Painting::ImagePaintRequest const&, ResolvedImage const&) const;
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap(DOM::Document const&) const { return {}; }
 

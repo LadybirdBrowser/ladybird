@@ -16,8 +16,8 @@
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
-#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
+#include <LibWeb/Painting/ImagePaint.h>
 
 namespace Web::CSS {
 
@@ -104,19 +104,25 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
 
         // Paint the cursor into a bitmap.
         auto visual_context_tree = Painting::AccumulatedVisualContextTree::create();
-        auto display_list = Painting::DisplayList::create(visual_context_tree);
         Painting::DisplayListResourceStorage resource_storage;
-        Painting::DisplayListRecorder display_list_recorder(display_list, visual_context_tree, resource_storage);
-        DisplayListRecordingContext paint_context { display_list_recorder, document.page().palette(), document.page().client().device_pixels_per_css_pixel(), document.page().chrome_metrics() };
 
         auto resolved_image = image.resolve_for_size(layout_node, CSSPixelSize { bitmap.size() });
         // A cursor image is not embedded by any element, so it follows the page's own preference.
-        image.paint(paint_context, document, DevicePixelRect { bitmap.rect() }, ImageRendering::Auto, current_color_scheme, resolved_image);
-
-        auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
-        Painting::DisplayListPlayerSkia display_list_player;
-        display_list_player.execute(*display_list, visual_context_tree, resource_storage, {}, painting_surface);
-        display_list_player.flush(*painting_surface);
+        Painting::ImagePaintRequest request {
+            .document = document,
+            .dest_rect = bitmap.rect().to_type<float>(),
+            .image_rendering = ImageRendering::Auto,
+            .color_scheme = current_color_scheme,
+            .accumulated_scale = { 1, 1 },
+            .resource_storage = resource_storage,
+        };
+        if (auto image_paint = image.image_paint(request, resolved_image); image_paint.has_value()) {
+            auto display_list = Painting::record_image_paint_display_list(*image_paint, request.dest_rect, ImageRendering::Auto, document.page().client().device_pixels_per_css_pixel(), visual_context_tree, resource_storage);
+            auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
+            Painting::DisplayListPlayerSkia display_list_player;
+            display_list_player.execute(*display_list, visual_context_tree, resource_storage, {}, painting_surface);
+            display_list_player.flush(*painting_surface);
+        }
     }
 
     // "If the values are unspecified, then the natural hotspot defined inside the image resource itself is used.

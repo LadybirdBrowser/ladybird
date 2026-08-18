@@ -12,8 +12,6 @@
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/HTML/AnimatedBitmapDecodedImageData.h>
-#include <LibWeb/Painting/DisplayListRecorder.h>
-#include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 #include <LibWeb/Platform/Timer.h>
 
@@ -251,15 +249,12 @@ Optional<CSSPixelFraction> AnimatedBitmapDecodedImageData::intrinsic_aspect_rati
     return CSSPixels(m_size.width()) / CSSPixels(m_size.height());
 }
 
-void AnimatedBitmapDecodedImageData::paint(DisplayListRecordingContext& context, Gfx::FloatRect dst_rect, CSS::ImageRendering image_rendering, CSS::PreferredColorScheme) const
+Optional<Painting::ImagePaint> AnimatedBitmapDecodedImageData::image_paint(Painting::ImagePaintRequest const&) const
 {
     auto decoded_frame = current_frame();
     if (!decoded_frame.has_value())
-        return;
-
-    auto scaling_mode = CSS::to_gfx_scaling_mode(image_rendering, m_size, dst_rect.to_rounded<int>().size());
-
-    context.display_list_recorder().draw_scaled_decoded_image_frame(dst_rect, *decoded_frame, scaling_mode);
+        return {};
+    return Painting::ImagePaint { Painting::ImagePaint::DecodedFrame { .frame = *decoded_frame, .natural_size = m_size } };
 }
 
 void AnimatedBitmapDecodedImageData::receive_frames(Vector<NonnullRefPtr<Gfx::Bitmap>> bitmaps, u32 start_frame_index)

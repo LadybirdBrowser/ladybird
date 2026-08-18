@@ -879,6 +879,7 @@ set(SOURCES
     Painting/FieldSetPaintable.cpp
     Painting/GradientPainting.cpp
     Painting/HitTestDisplayList.cpp
+    Painting/ImagePaint.cpp
     Painting/ImagePaintable.cpp
     Painting/InlinePaintable.cpp
     Painting/NavigableContainerViewportPaintable.cpp

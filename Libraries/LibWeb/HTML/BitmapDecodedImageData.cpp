@@ -9,8 +9,6 @@
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/HTML/BitmapDecodedImageData.h>
-#include <LibWeb/Painting/DisplayListRecorder.h>
-#include <LibWeb/Painting/DisplayListRecordingContext.h>
 
 namespace Web::HTML {
 
@@ -62,11 +60,9 @@ Optional<CSSPixelFraction> BitmapDecodedImageData::intrinsic_aspect_ratio() cons
     return CSSPixels(m_frame.width()) / CSSPixels(m_frame.height());
 }
 
-void BitmapDecodedImageData::paint(DisplayListRecordingContext& context, Gfx::FloatRect dst_rect, CSS::ImageRendering image_rendering, CSS::PreferredColorScheme) const
+Optional<Painting::ImagePaint> BitmapDecodedImageData::image_paint(Painting::ImagePaintRequest const&) const
 {
-    auto scaling_mode = CSS::to_gfx_scaling_mode(image_rendering, m_frame.size(), dst_rect.to_rounded<int>().size());
-
-    context.display_list_recorder().draw_scaled_decoded_image_frame(dst_rect, m_frame, scaling_mode);
+    return Painting::ImagePaint { Painting::ImagePaint::DecodedFrame { .frame = m_frame, .natural_size = m_frame.size() } };
 }
 
 }

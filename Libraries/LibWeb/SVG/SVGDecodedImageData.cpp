@@ -509,14 +509,14 @@ void SVGDecodedImageData::invalidate_cached_rendering()
     prune_cached_display_list_resources();
 }
 
-void SVGDecodedImageData::paint(DisplayListRecordingContext& context, Gfx::FloatRect dst_rect, CSS::ImageRendering, CSS::PreferredColorScheme color_scheme) const
+Optional<Painting::ImagePaint> SVGDecodedImageData::image_paint(Painting::ImagePaintRequest const& request) const
 {
     // The destination rect is in the recording's local units, which the visual context chain may
     // magnify arbitrarily (an SVG viewport's user units, a CSS transform); the raster resolution
     // follows the accumulated on-screen scale so the replayed content stays sharp.
-    auto const& recorder = context.display_list_recorder();
-    auto accumulated_scale = recorder.visual_context_tree().accumulated_2d_scale(
-        recorder.accumulated_visual_context(), Painting::ScrollStateSnapshot {}, Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
+    auto dst_rect = request.dest_rect;
+    auto accumulated_scale = request.accumulated_scale;
+    auto color_scheme = request.color_scheme;
     constexpr int maximum_raster_dimension = 16384;
     auto raster_dimension = [&](float local_size, float scale) {
         if (!(scale > 0))
@@ -535,7 +535,7 @@ void SVGDecodedImageData::paint(DisplayListRecordingContext& context, Gfx::Float
     Optional<Painting::DisplayListResource> display_list;
     Gfx::IntSize list_size;
     if (m_root_element->active_view_box().has_value()) {
-        display_list = record_display_list(raster_size, color_scheme, context.display_list_recorder().resource_storage());
+        display_list = record_display_list(raster_size, color_scheme, request.resource_storage);
         list_size = raster_size;
     } else {
         auto css_size = CSSPixelSize {
@@ -547,16 +547,16 @@ void SVGDecodedImageData::paint(DisplayListRecordingContext& context, Gfx::Float
             raster_scale = 1;
         auto maximum_raster_scale = static_cast<float>(maximum_raster_dimension) / max(css_size.width(), css_size.height()).to_float();
         raster_scale = min(raster_scale, maximum_raster_scale);
-        display_list = record_display_list_at_scale(css_size, raster_scale, color_scheme, context.display_list_recorder().resource_storage());
+        display_list = record_display_list_at_scale(css_size, raster_scale, color_scheme, request.resource_storage);
         list_size = {
             max(1, static_cast<int>(lroundf(css_size.width().to_float() * raster_scale))),
             max(1, static_cast<int>(lroundf(css_size.height().to_float() * raster_scale))),
         };
     }
     if (!display_list.has_value())
-        return;
+        return {};
 
-    context.display_list_recorder().paint_nested_display_list(*display_list, dst_rect, list_size);
+    return Painting::ImagePaint { Painting::ImagePaint::NestedDisplayList { .resource = *display_list, .list_size = list_size } };
 }
 
 }

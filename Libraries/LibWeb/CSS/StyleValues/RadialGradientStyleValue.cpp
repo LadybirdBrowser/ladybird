@@ -11,7 +11,6 @@
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Painting/DisplayListRecorder.h>
 
 namespace Web::CSS {
 
@@ -70,14 +69,6 @@ ValueComparingNonnullRefPtr<StyleValue const> RadialGradientStyleValue::absoluti
     auto absolutized_color_interpolation_method = color_interpolation_method_value() ? ValueComparingRefPtr<StyleValue const> { color_interpolation_method_value()->absolutized(context) } : nullptr;
 
     return create(ending_shape(), move(absolutized_size), move(absolutized_position), move(absolutized_color_stops), (is_repeating() ? GradientRepeating::Yes : GradientRepeating::No), move(absolutized_color_interpolation_method));
-}
-
-void RadialGradientStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering, PreferredColorScheme, ResolvedImage const& resolved_image) const
-{
-    auto const& resolved = resolved_image.get<Painting::ResolvedRadialGradient>();
-    auto center = context.rounded_device_point(resolved.center).to_type<int>();
-    auto size = context.rounded_device_size(resolved.gradient_size).to_type<int>();
-    context.display_list_recorder().fill_rect_with_radial_gradient(dest_rect.to_type<int>(), resolved.data, center, size);
 }
 
 }
