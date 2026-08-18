@@ -33,6 +33,7 @@ set(TEST_SOURCES
     TestStyleEngineBridge.cpp
     TestStylePropertyMetadataParity.cpp
     TestStyleStructRef.cpp
+    TestTrackBufferDemuxer.cpp
     TestTextureUpload.cpp
     TestWebGLSpanWithStorage.cpp
     TestWebIDLBuffers.cpp
@@ -74,6 +75,10 @@ target_link_libraries(TestStructuredSerializeHardening PRIVATE LibGC LibJS LibCr
 target_link_libraries(TestSecureContexts PRIVATE LibURL)
 target_link_libraries(TestSessionHistoryEntry PRIVATE LibJS LibURL)
 target_link_libraries(TestSourceHighlighter PRIVATE LibURL LibWebView)
+target_sources(TestTrackBufferDemuxer PRIVATE
+    ${ladybird_SOURCE_DIR}/Libraries/LibWeb/MediaSourceExtensions/TrackBufferDemuxer.cpp
+)
+target_link_libraries(TestTrackBufferDemuxer PRIVATE LibMedia LibSync)
 target_link_libraries(TestWrapperWorld PRIVATE LibGC LibJS LibURL)
 target_sources(TestWorldCallback PRIVATE
     ${ladybird_SOURCE_DIR}/Libraries/LibWeb/DOM/IDLEventListener.cpp

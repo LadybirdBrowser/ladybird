@@ -113,6 +113,20 @@
             println(
                 `playing: has future data ${video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA}, error ${video.error}`
             );
+            video.pause();
+
+            async function seekTo(time) {
+                const seeked = new Promise(resolve => video.addEventListener("seeked", resolve, { once: true }));
+                video.currentTime = time;
+                await seeked;
+            }
+
+            await seekTo(3);
+            println(`forward seek: ${video.currentTime.toFixed(3)}`);
+            await seekTo(0);
+            println(`backward seek: ${video.currentTime.toFixed(3)}`);
+            await seekTo(sourceBuffer.buffered.end(0));
+            println(`buffered end seek: ${video.currentTime.toFixed(3)}`);
         } catch (error) {
             println(`FAIL: ${error}`);
         }
