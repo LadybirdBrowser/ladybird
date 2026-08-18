@@ -140,6 +140,8 @@ mod transaction_view;
 pub mod tree;
 
 use atoms::DocumentAtoms;
+use atoms::PinnedAtoms;
+use atoms::ReclaimedStyleAtom;
 use catalog::*;
 use column::BitColumn;
 use column::Column;
@@ -920,6 +922,16 @@ pub struct StyleEngine {
     /// selector that names the namespace tests it. The owner retains one document reference to each
     /// global identity and releases it when this engine is destroyed.
     atoms: DocumentAtoms,
+    /// Identities released at transaction settlement. The FFI keeps this batch borrowed until C++
+    /// has removed its matching fly-string references and atom-keyed memo entries.
+    reclaimed_style_atoms: Vec<ReclaimedStyleAtom>,
+    /// Whether transaction settlement performed an atom sweep, including a sweep that reclaimed
+    /// no identities. Recording consumes this alongside the release batch.
+    style_atoms_swept: bool,
+    /// Replay reconstructs semantic engine state but not transient C++ query handles. The recorded
+    /// release batch supplies their lifetime boundary while still requiring every released atom to
+    /// be reclaimable from replay's complete semantic root set.
+    replay_reclaimed_style_atoms: Option<Vec<StyleAtomID>>,
     /// The HTML namespace when this is an HTML document, and none otherwise. Some attribute names
     /// compare their values ASCII case-insensitively on an HTML element in an HTML document.
     html_element_namespace: StyleAtomID,

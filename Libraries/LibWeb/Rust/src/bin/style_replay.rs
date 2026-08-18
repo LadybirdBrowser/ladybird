@@ -370,8 +370,44 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                             .get_or_insert_with(|| DetailedCounterReader::new(engine))
                             .read(engine)
                     });
+                    if expected.style_atoms_swept {
+                        unsafe {
+                            bridge::style_engine_set_replay_reclaimed_style_atoms(
+                                engine,
+                                expected.reclaimed_atoms.as_ptr(),
+                                expected.reclaimed_atoms.len(),
+                            );
+                        }
+                    }
                     let start = Instant::now();
                     let actual_view = unsafe { bridge::style_engine_take_style_transaction(engine, root) };
+                    let actual_reclaimed_atoms = if actual_view.reclaimed_style_atom_count == 0 {
+                        Vec::new()
+                    } else {
+                        unsafe {
+                            std::slice::from_raw_parts(
+                                actual_view.reclaimed_style_atoms,
+                                actual_view.reclaimed_style_atom_count,
+                            )
+                        }
+                        .iter()
+                        .map(|reclaimed| reclaimed.atom)
+                        .collect::<Vec<_>>()
+                    };
+                    if actual_view.style_atoms_swept != expected.style_atoms_swept {
+                        return Err(format!(
+                            "style atom sweep diverged: expected {}, got {}",
+                            expected.style_atoms_swept, actual_view.style_atoms_swept
+                        )
+                        .into());
+                    }
+                    if actual_reclaimed_atoms != expected.reclaimed_atoms {
+                        return Err(format!(
+                            "style atom reclamation diverged: expected {:?}, got {:?}",
+                            expected.reclaimed_atoms, actual_reclaimed_atoms
+                        )
+                        .into());
+                    }
                     if actual_view.count != 0 {
                         let answers = unsafe { std::slice::from_raw_parts(actual_view.answers, actual_view.count) };
                         replay_style_transaction_output(
@@ -414,6 +450,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                             result: actual_view.scoped,
                             filter_calls: Vec::new(),
                             emissions: context.actual_emissions,
+                            style_atoms_swept: actual_view.style_atoms_swept,
+                            reclaimed_atoms: actual_reclaimed_atoms,
                         };
                         let mut actual_payload = PayloadWriter::default();
                         write_style_transaction_outputs(&actual, &mut actual_payload);
@@ -1800,6 +1838,8 @@ struct StyleTransactionOutputs {
     result: bool,
     filter_calls: Vec<(Vec<u32>, Vec<u32>)>,
     emissions: Vec<StyleTransactionEmission>,
+    style_atoms_swept: bool,
+    reclaimed_atoms: Vec<u32>,
 }
 
 struct ReplayStyleTransactionContext {
@@ -1943,11 +1983,15 @@ fn read_style_transaction_outputs(
             answers,
         });
     }
+    let style_atoms_swept = payload.read_bool()?;
+    let reclaimed_atoms = payload.read_u32_vec()?;
     payload.finish()?;
     Ok(StyleTransactionOutputs {
         result,
         filter_calls,
         emissions,
+        style_atoms_swept,
+        reclaimed_atoms,
     })
 }
 
@@ -1975,6 +2019,8 @@ fn write_style_transaction_outputs(outputs: &StyleTransactionOutputs, payload: &
             payload.write_u8(answer.gap as u8);
         }
     }
+    payload.write_bool(outputs.style_atoms_swept);
+    payload.write_u32_slice(&outputs.reclaimed_atoms);
 }
 
 fn replay_atom_mappings(engine: *mut c_void, payload: &mut PayloadReader) -> Result<(), Box<dyn std::error::Error>> {
@@ -2530,6 +2576,27 @@ mod tests {
         assert_eq!(amplification["stages"]["selector"]["changed_rows"], 4);
         assert_eq!(amplification["stages"]["selector"]["touched_rows"], 10);
         assert_eq!(amplification["stages"]["selector"]["amplification"], 2.5);
+    }
+
+    #[test]
+    fn style_transaction_outputs_round_trip_a_sweep_without_reclaims() {
+        let expected = StyleTransactionOutputs {
+            result: true,
+            filter_calls: Vec::new(),
+            emissions: Vec::new(),
+            style_atoms_swept: true,
+            reclaimed_atoms: Vec::new(),
+        };
+        let mut payload = PayloadWriter::default();
+        write_style_transaction_outputs(&expected, &mut payload);
+
+        let actual = read_style_transaction_outputs(PayloadReader::new(payload.as_bytes())).unwrap();
+
+        assert!(actual.result);
+        assert!(actual.filter_calls.is_empty());
+        assert!(actual.emissions.is_empty());
+        assert!(actual.style_atoms_swept);
+        assert_eq!(actual.reclaimed_atoms, expected.reclaimed_atoms);
     }
 
     #[test]

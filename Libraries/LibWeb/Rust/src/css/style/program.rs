@@ -251,6 +251,33 @@ pub struct StyleSheetProgram {
 }
 
 impl StyleSheetProgram {
+    pub(super) fn collect_atoms(&self, atoms: &mut HashSet<StyleAtomID>) -> u64 {
+        let mut visited = 0_u64;
+        for rule in &self.rules {
+            if !rule.live {
+                continue;
+            }
+            visited += 1;
+            let version = self.rule_versions[rule.version_slot as usize];
+            if let Some(name) = version.declared_name {
+                atoms.insert(name);
+            }
+            if version.layer != CascadeLayerID::UNLAYERED {
+                atoms.insert(StyleAtomID(version.layer.0));
+            }
+        }
+        for ranks in self.layer_ranks.iter().flatten() {
+            visited += u64::try_from(ranks.len()).expect("layer rank count exceeds u64");
+            atoms.extend(
+                ranks
+                    .keys()
+                    .filter(|&&layer| layer != CascadeLayerID::UNLAYERED)
+                    .map(|layer| StyleAtomID(layer.0)),
+            );
+        }
+        visited
+    }
+
     #[must_use]
     pub fn new() -> Self {
         Self {

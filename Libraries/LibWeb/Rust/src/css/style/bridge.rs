@@ -30,6 +30,8 @@ use crate::abort_on_panic as abort_on_boundary_panic;
 use crate::css::selector::CompiledSelector;
 use crate::css::selector::RustSelector;
 
+use super::HashSet;
+use super::PinnedAtoms;
 use super::StyleEngine;
 use super::batch_matcher::RuleMatch;
 use super::cascade::CascadeOperator;
@@ -105,9 +107,18 @@ pub struct FfiStyleDelta {
 #[derive(Default)]
 pub(super) struct FfiStyleTransactionOutput {
     scoped: bool,
+    style_atoms_swept: bool,
     transaction_version: u64,
     program_version: u64,
     answers: Vec<FfiStyleDelta>,
+    reclaimed_style_atoms: Vec<FfiReclaimedStyleAtom>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiReclaimedStyleAtom {
+    pub raw: usize,
+    pub atom: u32,
 }
 
 #[derive(Clone, Copy)]
@@ -117,7 +128,10 @@ pub struct FfiStyleTransactionView {
     pub program_version: u64,
     pub answers: *const FfiStyleDelta,
     pub count: usize,
+    pub reclaimed_style_atoms: *const FfiReclaimedStyleAtom,
+    pub reclaimed_style_atom_count: usize,
     pub scoped: bool,
+    pub style_atoms_swept: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -159,7 +173,10 @@ impl Default for FfiStyleTransactionView {
             program_version: 0,
             answers: std::ptr::null(),
             count: 0,
+            reclaimed_style_atoms: std::ptr::null(),
+            reclaimed_style_atom_count: 0,
             scoped: false,
+            style_atoms_swept: false,
         }
     }
 }
@@ -186,6 +203,11 @@ fn write_style_transaction_outputs(
             payload.write_u8(answer.pseudo_kind);
             payload.write_u8(answer.gap as u8);
         }
+    }
+    payload.write_bool(output.style_atoms_swept);
+    payload.write_length(output.reclaimed_style_atoms.len());
+    for reclaimed in &output.reclaimed_style_atoms {
+        payload.write_u32(reclaimed.atom);
     }
 }
 
@@ -248,6 +270,7 @@ pub struct FfiStyleRecordView {
 
 struct SelectorQuery {
     program: SelectorProgram,
+    _atoms: PinnedAtoms,
     _memory: MemoryLease,
 }
 
@@ -684,7 +707,8 @@ impl StyleEngine {
     }
 
     fn install_ffi_style_transaction_output(&mut self, output: FfiStyleTransactionOutput) {
-        let bytes = (output.answers.capacity() * size_of::<FfiStyleDelta>()) as u64;
+        let bytes = (output.answers.capacity() * size_of::<FfiStyleDelta>()
+            + output.reclaimed_style_atoms.capacity() * size_of::<FfiReclaimedStyleAtom>()) as u64;
         self.ffi_style_transaction_output = output;
         self.ffi_style_transaction_output_memory
             .resize_required_to(&mut self.memory, bytes);
@@ -1430,6 +1454,9 @@ pub unsafe extern "C" fn style_engine_compile_selector_query(
         let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
         let selectors = unsafe { borrow_selectors(selectors, count) };
         let program = engine.compile_selector_query(&selectors);
+        let mut atoms = HashSet::default();
+        program.collect_atoms(&mut atoms);
+        let atoms = engine.atoms.pin(atoms);
         engine.record_boundary_call(EventKind::SelectorQueryAtomMappings, |payload| {
             write_recording_atom_mappings(engine, payload);
         });
@@ -1440,6 +1467,7 @@ pub unsafe extern "C" fn style_engine_compile_selector_query(
         memory.resize_required_to(&mut engine.memory, bytes);
         Box::into_raw(Box::new(SelectorQuery {
             program,
+            _atoms: atoms,
             _memory: memory,
         }))
         .cast()
@@ -2512,6 +2540,14 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
             output.program_version = program_version.0;
             output.answers.extend_from_slice(answers);
         });
+        output.reclaimed_style_atoms = std::mem::take(&mut engine.reclaimed_style_atoms)
+            .into_iter()
+            .map(|reclaimed| FfiReclaimedStyleAtom {
+                raw: reclaimed.raw,
+                atom: reclaimed.atom.0,
+            })
+            .collect();
+        output.style_atoms_swept = std::mem::take(&mut engine.style_atoms_swept);
         if engine.recording_id().is_some() {
             engine.record_boundary_call(EventKind::StyleDeltaBatch, |payload| {
                 payload.write_u32(root.raw());
@@ -2520,6 +2556,7 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
                 payload.write_bytes(outputs.as_bytes());
                 payload.write_u64(outputs.stable_digest());
             });
+            engine.forget_recording_atom_mappings(output.reclaimed_style_atoms.iter().map(|reclaimed| reclaimed.atom));
         }
         engine.install_ffi_style_transaction_output(output);
         let output = &engine.ffi_style_transaction_output;
@@ -2528,9 +2565,35 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
             program_version: output.program_version,
             answers: output.answers.as_ptr(),
             count: output.answers.len(),
+            reclaimed_style_atoms: output.reclaimed_style_atoms.as_ptr(),
+            reclaimed_style_atom_count: output.reclaimed_style_atoms.len(),
             scoped: output.scoped,
+            style_atoms_swept: output.style_atoms_swept,
         }
     })
+}
+
+/// Installs the authoritative release order recorded for the next replay transaction.
+///
+/// # Safety
+/// `engine` must be live and `atoms` must name `count` readable atom identities.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_set_replay_reclaimed_style_atoms(
+    engine: *mut c_void,
+    atoms: *const u32,
+    count: usize,
+) {
+    abort_on_panic(|| {
+        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+        assert!(engine.replay_reclaimed_style_atoms.is_none());
+        let atoms = if count == 0 {
+            &[]
+        } else {
+            assert!(!atoms.is_null());
+            unsafe { std::slice::from_raw_parts(atoms, count) }
+        };
+        engine.replay_reclaimed_style_atoms = Some(atoms.iter().copied().map(StyleAtomID).collect());
+    });
 }
 /// Reads one counter by index, returning its stable name and writing its value and name length, or
 /// null once the index is past the end. C++ enumerates the counters this way rather than

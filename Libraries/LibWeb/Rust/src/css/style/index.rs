@@ -263,6 +263,11 @@ impl<T: Clone + Default> PagedOwnedColumn<T> {
         self.values.get(handle)
     }
 
+    fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        let handle = self.handles.get(index)? as usize;
+        self.values.get_mut(handle)
+    }
+
     fn entry(&mut self, index: usize) -> &mut T {
         let handle = match self.handles.get(index) {
             Some(handle) => handle,
@@ -1536,6 +1541,28 @@ impl FeatureKey {
                 | Self::Directionality(_)
         )
     }
+
+    fn atom(self) -> Option<StyleAtomID> {
+        match self {
+            Self::Part(atom)
+            | Self::CustomState(atom)
+            | Self::TagName(atom)
+            | Self::Id(atom)
+            | Self::Class(atom)
+            | Self::AttributeName(atom)
+            | Self::Directionality(atom)
+            | Self::AnimationName(atom) => Some(atom),
+            Self::Root
+            | Self::State(_)
+            | Self::Heading
+            | Self::Universal
+            | Self::Structural
+            | Self::Language
+            | Self::AnyCustomFunction
+            | Self::AnyCustomProperty
+            | Self::CustomPropertySet(_) => None,
+        }
+    }
 }
 
 pub type SelectorPostingKey = FeatureKey;
@@ -1821,6 +1848,24 @@ impl FeaturePostings {
 
     pub(super) fn take_benefit_lookups(&self) -> (u64, u64) {
         (self.benefit_hits.replace(0), self.benefit_misses.replace(0))
+    }
+
+    fn forget_atoms(&mut self, atoms: &HashSet<StyleAtomID>) {
+        let posting_keys = self
+            .postings
+            .keys()
+            .copied()
+            .filter(|key| key.atom().is_some_and(|atom| atoms.contains(&atom)))
+            .collect::<Vec<_>>();
+        for key in posting_keys {
+            self.remove_posting(key);
+        }
+        self.missing
+            .retain(|key| !key.atom().is_some_and(|atom| atoms.contains(&atom)));
+        self.cardinality_limited
+            .retain(|key| !key.atom().is_some_and(|atom| atoms.contains(&atom)));
+        self.grown_selector_postings
+            .retain(|key| !key.atom().is_some_and(|atom| atoms.contains(&atom)));
     }
 }
 
@@ -3226,9 +3271,13 @@ pub struct ElementFactStore {
     custom_property_name_sets: super::intern_table::InternTable<CustomPropertyNameSetID, Vec<StyleAtomID>>,
     custom_property_name_set_vacancies: Vec<u32>,
     custom_property_set_ids_by_name: PagedOwnedColumn<Vec<u32>>,
-    language_live_counts: Column<u64>,
-    attribute_name_live_counts: Column<u64>,
-    attribute_value_live_counts: Column<u64>,
+    /// Authoritative semantic references from committed fact rows and per-element metadata. This
+    /// is indexed by atom so a lifetime sweep visits distinct identities rather than every live
+    /// element row.
+    atom_live_counts: PagedCopyColumn<u32>,
+    language_live_counts: PagedCopyColumn<u32>,
+    attribute_name_live_counts: PagedCopyColumn<u32>,
+    attribute_value_live_counts: PagedCopyColumn<u32>,
     custom_property_set_live_counts: Vec<u64>,
     /// Attribute-name forms and value text shared by the primary and each bounded fact batch.
     ///
@@ -3606,9 +3655,10 @@ impl Default for ElementFactStore {
             custom_property_name_sets: super::intern_table::InternTable::default(),
             custom_property_name_set_vacancies: Vec::new(),
             custom_property_set_ids_by_name: PagedOwnedColumn::default(),
-            language_live_counts: Column::default(),
-            attribute_name_live_counts: Column::default(),
-            attribute_value_live_counts: Column::default(),
+            atom_live_counts: PagedCopyColumn::default(),
+            language_live_counts: PagedCopyColumn::default(),
+            attribute_name_live_counts: PagedCopyColumn::default(),
+            attribute_value_live_counts: PagedCopyColumn::default(),
             custom_property_set_live_counts: vec![0],
             element_declared_properties: ElementDeclarationRows::default(),
         };
@@ -3636,6 +3686,10 @@ impl ElementFactStore {
         self.attribute_catalog_copies
     }
 
+    pub(super) fn staging_is_empty(&self) -> bool {
+        self.staging.is_empty()
+    }
+
     fn sync_attribute_catalogs(&mut self) {
         if Rc::ptr_eq(&self.rows.attribute_catalogs, &self.attribute_catalogs) {
             return;
@@ -3644,25 +3698,28 @@ impl ElementFactStore {
         rows.attribute_catalogs = Rc::clone(&self.attribute_catalogs);
     }
 
-    fn increment_atom_count(counts: &mut Column<u64>, atom: StyleAtomID) {
+    fn increment_atom_count(counts: &mut PagedCopyColumn<u32>, atom: StyleAtomID) {
         if atom.is_none() {
             return;
         }
-        let count = counts.entry(atom.0 as usize);
-        *count = count.checked_add(1).expect("live fact atom count overflow");
+        let index = atom.0 as usize;
+        let count = counts.get(index).unwrap_or(0);
+        counts.insert(index, count.checked_add(1).expect("live fact atom count overflow"));
     }
 
-    fn decrement_atom_count(counts: &mut Column<u64>, atom: StyleAtomID) {
+    fn decrement_atom_count(counts: &mut PagedCopyColumn<u32>, atom: StyleAtomID) {
         if atom.is_none() {
             return;
         }
-        let count = counts
-            .get_mut(atom.0 as usize)
-            .expect("a live fact atom must have a count");
-        *count = count.checked_sub(1).expect("live fact atom count underflow");
+        let index = atom.0 as usize;
+        let count = counts.get(index).expect("a live fact atom must have a count");
+        counts.insert(index, count.checked_sub(1).expect("live fact atom count underflow"));
     }
 
     fn add_row_catalog_references(&mut self, facts: &StagedFactRow) {
+        Self::for_each_row_atom(facts, |atom| {
+            Self::increment_atom_count(&mut self.atom_live_counts, atom);
+        });
         Self::increment_atom_count(&mut self.language_live_counts, facts.language);
         for &(name, value) in &facts.attributes {
             Self::increment_atom_count(&mut self.attribute_name_live_counts, name);
@@ -3671,10 +3728,90 @@ impl ElementFactStore {
     }
 
     fn remove_row_catalog_references(&mut self, facts: &StagedFactRow) {
+        Self::for_each_row_atom(facts, |atom| {
+            Self::decrement_atom_count(&mut self.atom_live_counts, atom);
+        });
         Self::decrement_atom_count(&mut self.language_live_counts, facts.language);
         for &(name, value) in &facts.attributes {
             Self::decrement_atom_count(&mut self.attribute_name_live_counts, name);
             Self::decrement_atom_count(&mut self.attribute_value_live_counts, value);
+        }
+    }
+
+    fn for_each_row_atom(facts: &StagedFactRow, mut visit: impl FnMut(StyleAtomID)) {
+        for atom in [
+            facts.tag,
+            facts.folded_tag,
+            facts.id,
+            facts.language,
+            facts.namespace,
+            facts.part_exposure,
+            facts.directionality,
+        ] {
+            visit(atom);
+        }
+        for &atom in &facts.custom_states {
+            visit(atom);
+        }
+        for &atom in &facts.parts {
+            visit(atom);
+        }
+        for &atom in &facts.classes {
+            visit(atom);
+        }
+        for &(name, value) in &facts.attributes {
+            visit(name);
+            visit(value);
+        }
+    }
+
+    pub(super) fn collect_atoms(&self, atoms: &mut HashSet<StyleAtomID>) -> u64 {
+        let mut visited = 0_u64;
+        for (index, count) in self.atom_live_counts.indexed_iter() {
+            visited += 1;
+            if count != 0 {
+                atoms.insert(StyleAtomID(u32::try_from(index).expect("fact atom index exceeds u32")));
+            }
+        }
+        for (index, count) in self.attribute_name_live_counts.indexed_iter() {
+            visited += 1;
+            if count == 0 {
+                continue;
+            }
+            let forms = self.attribute_name_forms(StyleAtomID(
+                u32::try_from(index).expect("attribute-name atom index exceeds u32"),
+            ));
+            atoms.extend(
+                [forms.local, forms.folded_name, forms.folded_local]
+                    .into_iter()
+                    .filter(|atom| !atom.is_none()),
+            );
+        }
+        for (index, count) in self.custom_property_set_live_counts.iter().enumerate().skip(1) {
+            visited += 1;
+            if *count != 0 {
+                atoms.extend(
+                    self.custom_property_name_sets
+                        [CustomPropertyNameSetID(u32::try_from(index).expect("custom property set index exceeds u32"))]
+                    .iter()
+                    .copied(),
+                );
+            }
+        }
+        visited
+    }
+
+    pub(super) fn extend_live_attribute_name_forms(&self, atoms: &mut HashSet<StyleAtomID>) {
+        for (index, forms) in self.attribute_catalogs.name_forms.indexed_iter() {
+            let name = StyleAtomID(u32::try_from(index).expect("attribute-name atom index exceeds u32"));
+            if !atoms.contains(&name) {
+                continue;
+            }
+            atoms.extend(
+                [forms.local, forms.folded_name, forms.folded_local]
+                    .into_iter()
+                    .filter(|atom| !atom.is_none()),
+            );
         }
     }
 
@@ -4209,12 +4346,14 @@ impl ElementFactStore {
         for &name in &previous {
             if !sorted.contains(&name) {
                 self.postings.remove(DependencyPostingKey::AnimationName(name), node);
+                Self::decrement_atom_count(&mut self.atom_live_counts, name);
             }
         }
         for name in &sorted {
             if !previous.contains(name) {
                 self.postings
                     .insert(DependencyPostingKey::AnimationName(*name), node, memory);
+                Self::increment_atom_count(&mut self.atom_live_counts, *name);
             }
         }
         self.metadata_mut(node).animation_names = sorted;
@@ -4588,6 +4727,7 @@ impl ElementFactStore {
             }
             for name in metadata.animation_names {
                 self.postings.remove(DependencyPostingKey::AnimationName(name), node);
+                Self::decrement_atom_count(&mut self.atom_live_counts, name);
             }
             if metadata.custom_property_set != 0 {
                 self.postings.remove(
@@ -4604,14 +4744,25 @@ impl ElementFactStore {
         }
     }
 
-    pub fn sweep_auxiliary_catalogs(&mut self) {
+    /// Whether a borrowed primary view (an active or prepared traversal) shares the fact rows.
+    #[cfg(test)]
+    pub(super) fn primary_rows_are_shared(&self) -> bool {
+        Rc::strong_count(&self.rows) != 1
+    }
+
+    pub(super) fn sweep_auxiliary_catalogs_without_sync(&mut self) {
+        assert_eq!(
+            Rc::strong_count(&self.rows),
+            1,
+            "auxiliary catalog sweeping requires unique primary rows"
+        );
         self.memory_dirty = true;
         let attribute_catalogs = Rc::make_mut(&mut self.attribute_catalogs);
-        // Language spellings and attribute-name forms cross the C++ boundary once per atom and
-        // remain available for the document lifetime. Unlike attribute values, these small fixed
-        // catalogs have no demand gate to republish an entry after reclamation.
+        // Language spellings and attribute-name forms are retained until their atom is reclaimed;
+        // forget_atoms clears them at that authoritative boundary so a reused identity can publish
+        // different text. Attribute values can be dropped earlier when their last fact leaves.
         for (index, text) in attribute_catalogs.value_texts.indexed_iter_mut() {
-            if self.attribute_value_live_counts.get(index).copied().unwrap_or(0) == 0 {
+            if self.attribute_value_live_counts.get(index).unwrap_or(0) == 0 {
                 *text = None;
             }
         }
@@ -4638,6 +4789,45 @@ impl ElementFactStore {
                     .push(id as u32);
             }
         }
+    }
+
+    pub fn sweep_auxiliary_catalogs(&mut self) {
+        self.sweep_auxiliary_catalogs_without_sync();
+        self.sync_attribute_catalogs();
+    }
+
+    /// Remove every derived row keyed by an identity before that identity can be reused.
+    pub(super) fn forget_atoms(&mut self, atoms: &[StyleAtomID]) {
+        if atoms.is_empty() {
+            return;
+        }
+        self.memory_dirty = true;
+        let atoms = atoms.iter().copied().collect::<HashSet<_>>();
+        let catalogs = Rc::make_mut(&mut self.attribute_catalogs);
+        for atom in &atoms {
+            let index = atom.0 as usize;
+            if catalogs.name_forms.get(index).is_some() {
+                catalogs.name_forms.insert(index, AttributeNameForms::default());
+            }
+            if let Some(text) = catalogs.value_texts.get_mut(index) {
+                *text = None;
+            }
+            if let Some(text) = catalogs.language_texts.get_mut(index) {
+                *text = None;
+            }
+            if let Some(sets) = self.custom_property_set_ids_by_name.get_mut(index) {
+                sets.clear();
+            }
+        }
+        for (_, forms) in catalogs.name_forms.indexed_iter() {
+            assert!(
+                ![forms.local, forms.folded_name, forms.folded_local]
+                    .into_iter()
+                    .any(|atom| atoms.contains(&atom)),
+                "a live attribute name must keep all of its derived forms live"
+            );
+        }
+        self.postings.forget_atoms(&atoms);
         self.sync_attribute_catalogs();
     }
 
@@ -4724,6 +4914,7 @@ impl ElementFactStore {
                 self.custom_property_name_sets,
                 self.custom_property_name_set_vacancies,
                 self.custom_property_set_ids_by_name,
+                self.atom_live_counts,
                 self.language_live_counts,
                 self.attribute_name_live_counts,
                 self.attribute_value_live_counts,
@@ -4772,6 +4963,7 @@ impl ElementFactStore {
                 self.custom_property_name_sets,
                 self.custom_property_name_set_vacancies,
                 self.custom_property_set_ids_by_name,
+                self.atom_live_counts,
                 self.language_live_counts,
                 self.attribute_name_live_counts,
                 self.attribute_value_live_counts,
@@ -5209,6 +5401,45 @@ mod tests {
             memory.bytes_in_category(MemoryCategory::StyleNodeMapping),
             facts.capacity_bytes()
         );
+    }
+
+    #[test]
+    fn live_fact_atom_roots_use_incremental_counts() {
+        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut facts = ElementFactStore::new();
+        let node = StyleNodeID::element(1);
+        facts.set_tag(node, StyleAtomID(1), &mut memory);
+        facts.set_folded_tag(node, StyleAtomID(2), &mut memory);
+        facts.set_id(node, StyleAtomID(3), &mut memory);
+        facts.set_language(node, StyleAtomID(4));
+        facts.set_namespace(node, StyleAtomID(5));
+        facts.set_part_exposure(node, StyleAtomID(6));
+        facts.set_directionality(node, StyleAtomID(7), &mut memory);
+        facts.set_custom_states(node, &[StyleAtomID(8)], &mut memory);
+        facts.set_parts(node, &[StyleAtomID(9)], &mut memory);
+        facts.set_class(node, StyleAtomID(10), true, &mut memory);
+        facts.note_attribute_name_forms(
+            StyleAtomID(11),
+            AttributeNameForms {
+                local: StyleAtomID(13),
+                folded_name: StyleAtomID(14),
+                folded_local: StyleAtomID(15),
+            },
+        );
+        facts.set_attribute(node, StyleAtomID(11), StyleAtomID(12), true, &mut memory);
+        facts.set_animation_names(node, &[StyleAtomID(16)], &mut memory);
+        facts.set_custom_property_names(node, &[StyleAtomID(17)], &mut memory);
+        facts.apply_staged(&mut memory);
+
+        let mut atoms = HashSet::default();
+        let visited = facts.collect_atoms(&mut atoms);
+        assert_eq!(visited, 15);
+        assert_eq!(atoms, (1..=17).map(StyleAtomID).collect());
+
+        facts.forget(node);
+        let mut atoms = HashSet::default();
+        facts.collect_atoms(&mut atoms);
+        assert!(atoms.is_empty());
     }
 
     #[test]
@@ -6036,6 +6267,89 @@ mod tests {
     }
 
     #[test]
+    fn reclaimed_atoms_leave_no_catalog_or_posting_rows_for_reuse() {
+        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut store = ElementFactStore::new();
+        let atom = StyleAtomID(40);
+        store.note_attribute_name_forms(
+            atom,
+            AttributeNameForms {
+                local: StyleAtomID(41),
+                folded_name: StyleAtomID(42),
+                folded_local: StyleAtomID(43),
+            },
+        );
+        store.set_attribute_value_text(atom, &[1, 2, 3]);
+        store.set_language_text(atom, &[4, 5, 6]);
+        store
+            .postings
+            .insert(SelectorPostingKey::Class(atom), StyleNodeID::element(1), &mut memory);
+
+        store.forget_atoms(&[atom, StyleAtomID(42)]);
+
+        assert_eq!(store.attribute_name_forms(atom), AttributeNameForms::default());
+        assert!(!store.has_attribute_value_text(atom));
+        assert_eq!(
+            store.attribute_catalogs.language_texts.get(atom.0 as usize),
+            Some(&None)
+        );
+        assert!(matches!(
+            store.postings.lookup(SelectorPostingKey::Class(atom)),
+            Lookup::KnownAbsent
+        ));
+
+        store.note_attribute_name_forms(
+            atom,
+            AttributeNameForms {
+                local: StyleAtomID(60),
+                ..AttributeNameForms::default()
+            },
+        );
+        store.set_attribute_value_text(atom, &[7, 8]);
+        store.set_language_text(atom, &[9, 10]);
+        assert_eq!(store.attribute_name_forms(atom).local, StyleAtomID(60));
+        assert_eq!(
+            store
+                .attribute_catalogs
+                .value_texts
+                .get(atom.0 as usize)
+                .and_then(Option::as_deref),
+            Some([7, 8].as_slice())
+        );
+        assert_eq!(
+            store
+                .attribute_catalogs
+                .language_texts
+                .get(atom.0 as usize)
+                .and_then(Option::as_deref),
+            Some([9, 10].as_slice())
+        );
+    }
+
+    #[test]
+    fn live_attribute_names_keep_their_derived_forms_live() {
+        let mut store = ElementFactStore::new();
+        let name = StyleAtomID(40);
+        let forms = AttributeNameForms {
+            local: StyleAtomID(41),
+            folded_name: StyleAtomID(42),
+            folded_local: StyleAtomID(43),
+        };
+        store.note_attribute_name_forms(name, forms);
+        let mut live = HashSet::default();
+        live.insert(name);
+
+        store.extend_live_attribute_name_forms(&mut live);
+
+        assert_eq!(live.len(), 4);
+        assert!(
+            [name, forms.local, forms.folded_name, forms.folded_local]
+                .into_iter()
+                .all(|atom| live.contains(&atom))
+        );
+    }
+
+    #[test]
     fn a_primary_fact_view_is_immutable_and_uncharged() {
         let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
         let mut tree = StyleNodeTree::new(&mut memory);
@@ -6098,6 +6412,28 @@ mod tests {
         }
 
         assert_eq!(store.attribute_catalog_copies(), 1);
+    }
+
+    #[test]
+    fn distant_process_atom_ids_allocate_only_touched_catalog_pages() {
+        let mut store = ElementFactStore::new();
+        let atom = StyleAtomID(1_000_000);
+        store.note_attribute_name_forms(atom, AttributeNameForms::default());
+        store.set_attribute_value_text(atom, &[1, 2, 3]);
+        store.set_language_text(atom, &[4, 5, 6]);
+        ElementFactStore::increment_atom_count(&mut store.atom_live_counts, atom);
+        store.custom_property_set_ids_by_name.entry(atom.0 as usize).push(1);
+
+        assert_eq!(store.attribute_catalogs.name_forms.values.page_count(), 1);
+        assert_eq!(store.attribute_catalogs.value_texts.handles.page_count(), 1);
+        assert_eq!(store.attribute_catalogs.language_texts.handles.page_count(), 1);
+        assert_eq!(store.atom_live_counts.values.page_count(), 1);
+        assert_eq!(store.custom_property_set_ids_by_name.handles.page_count(), 1);
+        assert_eq!(size_of_val(&store.atom_live_counts.get(atom.0 as usize).unwrap()), 4);
+
+        let mut directory = SegmentedDispatchBucketDirectory::default();
+        directory.insert(atom.0 as usize, DispatchBucketRange { start: 1, length: 1 });
+        assert_eq!(directory.ranges.values.page_count(), 1);
     }
 
     #[test]
