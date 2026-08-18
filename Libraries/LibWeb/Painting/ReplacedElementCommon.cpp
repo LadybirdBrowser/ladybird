@@ -22,8 +22,6 @@ Gfx::IntRect get_replaced_box_painting_area(Paintable const& paintable, DisplayL
     if (paintable_rect.is_empty())
         return {};
 
-    auto paintable_rect_device_pixels = context.rounded_device_rect(paintable_rect);
-
     auto bitmap_aspect_ratio = content_size.height() / content_size.width();
     auto image_aspect_ratio = paintable_rect.height() / paintable_rect.width();
 
@@ -90,11 +88,13 @@ Gfx::IntRect get_replaced_box_painting_area(Paintable const& paintable, DisplayL
         offset_y = residual_vertical - object_position.offset_y.to_px(residual_vertical);
     }
 
-    return Gfx::IntRect(
-        paintable_rect_device_pixels.x().value() + context.rounded_device_pixels(offset_x).value(),
-        paintable_rect_device_pixels.y().value() + context.rounded_device_pixels(offset_y).value(),
-        context.rounded_device_pixels(scaled_bitmap_width).value(),
-        context.rounded_device_pixels(scaled_bitmap_height).value());
+    auto destination_rect = CSSPixelRect {
+        paintable_rect.x() + offset_x,
+        paintable_rect.y() + offset_y,
+        scaled_bitmap_width,
+        scaled_bitmap_height,
+    };
+    return context.rounded_device_rect(destination_rect).to_type<int>();
 }
 
 }
