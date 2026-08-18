@@ -138,7 +138,7 @@ static DecoderErrorOr<Track> create_track_from_stream(AVStream const& stream, St
     return track;
 }
 
-DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullRefPtr<MediaStream> const& stream)
+DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullRefPtr<MediaStream> const& stream, BufferedScan buffered_scan)
 {
     auto io_context = DECODER_TRY_ALLOC(Media::FFmpeg::FFmpegIOContext::create(stream->create_cursor()));
 
@@ -189,7 +189,10 @@ DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullR
             demuxer->m_preferred_track_for_type[type_index] = static_cast<int>(i);
     }
 
-    demuxer->start_buffered_scan_thread(*format_context);
+    demuxer->m_fallback_scan_state.duration = demuxer->m_total_duration;
+
+    if (buffered_scan == BufferedScan::Enabled)
+        demuxer->start_buffered_scan_thread(*format_context);
 
     avformat_close_input(&format_context);
     return demuxer;
@@ -297,8 +300,6 @@ OwnPtr<ContainerNavigator> FFmpegDemuxer::create_single_track_container_navigato
 
 void FFmpegDemuxer::start_buffered_scan_thread(AVFormatContext& context)
 {
-    m_fallback_scan_state.duration = m_total_duration;
-
     if (m_stream_info.is_empty())
         return;
 
@@ -534,9 +535,15 @@ DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const&
             continue;
         }
 
+        if (track_context.pending_timestamp_offset.has_value() && packet.pts == 0)
+            track_context.timestamp_offset = track_context.pending_timestamp_offset.release_value();
+
         auto auxiliary_data = [&]() -> CodedFrame::AuxiliaryData {
             if (track.type() == TrackType::Video) {
-                return CodedVideoFrameData();
+                Optional<AK::Duration> decode_timestamp;
+                if (packet.dts != AV_NOPTS_VALUE)
+                    decode_timestamp = track_context.timestamp_offset + time_units_to_duration(packet.dts, stream.time_base);
+                return CodedVideoFrameData(decode_timestamp);
             }
             if (track.type() == TrackType::Audio) {
                 return CodedAudioFrameData();
@@ -547,9 +554,6 @@ DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const&
         // Copy the packet data so that we have a permanent reference to it whilst the Sample is alive, which allows us
         // to wipe the packet afterwards.
         auto packet_data = DECODER_TRY_ALLOC(ByteBuffer::copy(packet.data, packet.size));
-
-        if (track_context.pending_timestamp_offset.has_value() && packet.pts == 0)
-            track_context.timestamp_offset = track_context.pending_timestamp_offset.release_value();
 
         auto flags = (packet.flags & AV_PKT_FLAG_KEY) != 0 ? FrameFlags::Keyframe : FrameFlags::None;
         auto duration = time_units_to_duration(packet.duration, stream.time_base);

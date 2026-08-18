@@ -12,6 +12,17 @@
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 
+TEST_CASE(disabled_buffered_scan_reports_container_duration)
+{
+    auto file = MUST(Core::File::open("./avc.mp4"sv, Core::File::OpenMode::Read));
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
+    auto demuxer = MUST(Media::FFmpeg::FFmpegDemuxer::from_stream(stream, Media::FFmpeg::FFmpegDemuxer::BufferedScan::Disabled));
+
+    auto duration = MUST(demuxer->total_duration());
+    EXPECT(duration > AK::Duration::zero());
+    EXPECT_EQ(demuxer->scan_state().duration, duration);
+}
+
 TEST_CASE(read_after_aborted_blocking_read)
 {
     // This is a regression test for an issue that would occur when aborting a blocking read in the AVIOContext

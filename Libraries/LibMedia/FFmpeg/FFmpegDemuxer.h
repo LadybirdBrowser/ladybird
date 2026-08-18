@@ -25,7 +25,12 @@ namespace Media::FFmpeg {
 
 class MEDIA_API FFmpegDemuxer : public Demuxer {
 public:
-    static DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> from_stream(NonnullRefPtr<MediaStream> const&);
+    enum class BufferedScan {
+        Enabled,
+        Disabled,
+    };
+
+    static DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> from_stream(NonnullRefPtr<MediaStream> const&, BufferedScan = BufferedScan::Enabled);
 
     virtual ~FFmpegDemuxer() override;
 
