@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    html, body { margin: 0; background: #ffffff; }
+    video { display: block; width: 160px; height: 120px; }
+</style>
+<video id="video" muted playsinline></video>
+<script>
+    // Captures the frame left on screen once a clip fed through MediaSource has played out. This has to screenshot
+    // the video element itself: drawing it to a canvas reads the presented frame directly, so it would pass even
+    // when the element composites nothing into the page.
+    const MIME = 'video/webm; codecs="vp9"';
+    const video = document.getElementById("video");
+
+    (async () => {
+        const source = new MediaSource();
+        video.src = URL.createObjectURL(source);
+        await new Promise(resolve => source.addEventListener("sourceopen", resolve, { once: true }));
+
+        const buffer = source.addSourceBuffer(MIME);
+        buffer.appendBuffer(await (await fetch("../../Assets/solid-blue-160x120.webm")).arrayBuffer());
+        await new Promise(resolve => buffer.addEventListener("updateend", resolve, { once: true }));
+        source.endOfStream();
+
+        await video.play();
+        await new Promise(resolve => video.addEventListener("ended", resolve, { once: true }));
+
+        // The sink holds the last presented frame once playback ends, so the captured output is stable from here.
+        document.documentElement.classList.remove("reftest-wait");
+    })();
+</script>
+</html>
