@@ -12,11 +12,16 @@
 
 namespace Web::DOM {
 
+enum class DocumentLoadEventDelayerReason {
+    Other,
+    StyleSheetRequest,
+};
+
 class DocumentLoadEventDelayer {
     AK_MAKE_NONCOPYABLE(DocumentLoadEventDelayer);
 
 public:
-    explicit DocumentLoadEventDelayer(Document&);
+    explicit DocumentLoadEventDelayer(Document&, DocumentLoadEventDelayerReason = DocumentLoadEventDelayerReason::Other);
 
     DocumentLoadEventDelayer(DocumentLoadEventDelayer&&);
     DocumentLoadEventDelayer& operator=(DocumentLoadEventDelayer&&);
@@ -25,6 +30,7 @@ public:
 
 private:
     GC::Weak<Document> m_document;
+    DocumentLoadEventDelayerReason m_reason { DocumentLoadEventDelayerReason::Other };
 };
 
 }

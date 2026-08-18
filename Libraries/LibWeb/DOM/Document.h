@@ -132,6 +132,7 @@ enum class InvalidateLayoutTreeReason {
     X(EventHandlerHandleMouseWheel)          \
     X(EventHandlerRunActivationBehavior)     \
     X(EventHandlerShowContextMenu)           \
+    X(FontFaceSetReady)                      \
     X(HTMLElementGetTheTextSteps)            \
     X(HTMLElementOffsetHeight)               \
     X(HTMLElementOffsetLeft)                 \
@@ -715,6 +716,9 @@ public:
 
     void add_pending_css_import_rule(Badge<CSS::CSSImportRule>, GC::Ref<CSS::CSSImportRule>);
     void remove_pending_css_import_rule(Badge<CSS::CSSImportRule>, GC::Ref<CSS::CSSImportRule>);
+    bool has_pending_style_sheet_requests() const { return m_number_of_pending_style_sheet_requests > 0 || !m_pending_css_import_rules.is_empty(); }
+    void increment_number_of_pending_style_sheet_requests(Badge<DocumentLoadEventDelayer>);
+    void decrement_number_of_pending_style_sheet_requests(Badge<DocumentLoadEventDelayer>);
 
     bool page_showing() const { return m_page_showing; }
     void set_page_showing(bool);
@@ -1600,6 +1604,7 @@ private:
     HashTable<GC::Ref<DOM::Element>> m_script_blocking_style_sheet_set;
 
     HashTable<GC::Ref<CSS::CSSImportRule>> m_pending_css_import_rules;
+    size_t m_number_of_pending_style_sheet_requests { 0 };
 
     GC::Ptr<HTML::History> m_history;
 

@@ -357,8 +357,16 @@ WebIDL::ExceptionOr<bool> FontFaceSet::check(Utf16String const& font, Utf16Strin
 }
 
 // https://drafts.csswg.org/css-font-loading/#font-face-set-ready
-GC::Ref<WebIDL::Promise> FontFaceSet::ready() const
+GC::Ref<WebIDL::Promise> FontFaceSet::ready()
 {
+    // Pending style or layout changes can start a deferred font load. Flush them before returning an already fulfilled
+    // promise so switching the FontFaceSet to loading can replace it with a new pending promise.
+    if (WebIDL::is_promise_fulfilled(m_ready_promise)) {
+        auto& global = relevant_settings_object().global_object();
+        if (auto* window = HTML::window_from_global_object(global))
+            window->associated_document().update_layout(DOM::UpdateLayoutReason::FontFaceSetReady);
+    }
+
     return m_ready_promise;
 }
 
@@ -431,6 +439,16 @@ void FontFaceSet::switch_to_loaded()
         m_is_stuck_on_the_environment = true;
         return;
     }
+
+    // NB: Pending style or layout changes can depend on a recently loaded font or start another deferred font load.
+    auto& global = relevant_settings_object().global_object();
+    if (auto* window = HTML::window_from_global_object(global)) {
+        auto& document = window->associated_document();
+        if (!document.is_running_update_layout())
+            document.update_layout(DOM::UpdateLayoutReason::FontFaceSetReady);
+    }
+    if (!m_loading_fonts.is_empty())
+        return;
 
     // 3. Set font face set’s status attribute to "loaded".
     m_status = FontFaceSetLoadStatus::Loaded;

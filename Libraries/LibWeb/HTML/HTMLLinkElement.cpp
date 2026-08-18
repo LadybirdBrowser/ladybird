@@ -73,7 +73,7 @@ void HTMLLinkElement::adopted_from(DOM::Document& old_document)
     Base::adopted_from(old_document);
 
     if (m_document_load_event_delayer.has_value())
-        m_document_load_event_delayer.emplace(document());
+        m_document_load_event_delayer.emplace(document(), DOM::DocumentLoadEventDelayerReason::StyleSheetRequest);
 }
 
 void HTMLLinkElement::inserted()
@@ -626,7 +626,7 @@ bool HTMLLinkElement::stylesheet_linked_resource_fetch_setup_steps(Fetch::Infras
     if (is_potentially_render_blocking())
         block_rendering();
 
-    m_document_load_event_delayer.emplace(document());
+    m_document_load_event_delayer.emplace(document(), DOM::DocumentLoadEventDelayerReason::StyleSheetRequest);
 
     // 4. If el is currently render-blocking, then set request's render-blocking to true.
     if (document().is_render_blocking_element(*this))

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target">XX</div>
+<script>
+    const stylesheetPath = `/echo/font-face-set-ready-pending-stylesheet-${crypto.randomUUID()}.css`;
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/echo", false);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.send(JSON.stringify({
+        method: "GET",
+        path: stylesheetPath,
+        status: 200,
+        headers: {
+            "Cache-Control": "no-store",
+            "Content-Type": "text/css",
+        },
+        body: `
+            @font-face {
+                font-family: DelayedFont;
+                src: url('/fonts/Ahem.ttf');
+            }
+            #target { font-family: DelayedFont; }
+        `,
+        delay_ms: 1000,
+    }));
+
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = stylesheetPath;
+    const linkLoaded = new Promise(resolve => {
+        link.onload = () => resolve("loaded");
+        link.onerror = () => resolve("error");
+    });
+    document.head.append(link);
+
+    const ready = document.fonts.ready;
+    const firstCompleted = Promise.race([
+        linkLoaded,
+        ready.then(() => "ready"),
+    ]);
+
+    promiseTest(async () => {
+        println(`Stylesheet loaded before ready: ${await firstCompleted === "loaded"}`);
+        await ready;
+        println(`Font introduced by stylesheet loaded: ${document.fonts.check("16px DelayedFont", "X")}`);
+    });
+</script>
