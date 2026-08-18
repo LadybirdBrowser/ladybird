@@ -1,0 +1,8 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`mixed-case VP9: ${MediaSource.isTypeSupported('video/webm; codecs="vP9"')}`);
+        println(`mixed-case Opus: ${MediaSource.isTypeSupported('audio/webm; codecs="OpUs"')}`);
+    });
+</script>

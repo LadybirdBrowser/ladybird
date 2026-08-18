@@ -19,6 +19,7 @@ public:
     }
 
     Optional<AK::Duration> decode_timestamp() const { return m_decode_timestamp; }
+    void set_decode_timestamp(AK::Duration decode_timestamp) { m_decode_timestamp = decode_timestamp; }
 
 private:
     Optional<AK::Duration> m_decode_timestamp;

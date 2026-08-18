@@ -1,0 +1,4 @@
+isTypeSupported: true
+tracks: 1 video, 1 audio
+buffered: 1 range, 0.095-6.502
+playing: has future data true, error null

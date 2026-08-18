@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/CharacterTypes.h>
 #include <LibGC/Heap.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibWeb/DOM/Event.h>
@@ -419,33 +420,90 @@ static bool is_type_supported(Utf16View type)
 
     // FIXME: Ask LibMedia about what it supports instead of hardcoding this.
 
-    // 3. If type contains a media type or media subtype that the MediaSource does not support, then
-    //    return false.
-    auto type_and_subtype_are_supported = [&] {
-        if (mime_type->type() == "video" && mime_type->subtype() == "webm")
-            return true;
-        if (mime_type->type() == "audio" && mime_type->subtype() == "webm")
-            return true;
+    // 3. If type contains a media type or media subtype that the MediaSource does not support, then return false.
+    auto is_audio = mime_type->type() == "audio"sv;
+    auto is_video = mime_type->type() == "video"sv;
+    if (!is_audio && !is_video)
         return false;
-    }();
-    if (!type_and_subtype_are_supported)
+
+    auto is_mp4 = mime_type->subtype() == "mp4"sv;
+    auto is_webm = mime_type->subtype() == "webm"sv;
+    if (!is_mp4 && !is_webm)
         return false;
 
     // 4. If type contains a codec that the MediaSource does not support, then return false.
-    // 5. If the MediaSource does not support the specified combination of media type, media
-    //    subtype, and codecs then return false.
+    // 5. If the MediaSource does not support the specified combination of media type, media subtype, and codecs then
+    //    return false.
     auto codecs_iter = mime_type->parameters().find("codecs"sv);
     if (codecs_iter == mime_type->parameters().end())
         return false;
     auto codecs = codecs_iter->value.bytes_as_string_view();
+    if (codecs.is_empty())
+        return false;
+
+    auto is_avc_codec = [](StringView codec) {
+        if (!codec.starts_with("avc1."sv) && !codec.starts_with("avc3."sv))
+            return false;
+
+        auto profile_level = codec.substring_view(5);
+        if (profile_level.length() != 6)
+            return false;
+
+        for (auto code_point : profile_level) {
+            if (!is_ascii_hex_digit(code_point))
+                return false;
+        }
+
+        return true;
+    };
+
+    auto is_aac_codec = [](StringView codec) {
+        if (codec == "mp4a.67"sv)
+            return true;
+        if (!codec.starts_with("mp4a.40."sv))
+            return false;
+
+        auto audio_object_type = codec.substring_view(8);
+        if (audio_object_type.is_empty())
+            return false;
+
+        for (auto code_point : audio_object_type) {
+            if (!is_ascii_digit(code_point))
+                return false;
+        }
+
+        return true;
+    };
+
     auto had_unsupported_codec = false;
-    codecs.for_each_split_view(',', SplitBehavior::Nothing, [&](auto const& codec) {
-        if (!codec.starts_with("vp9"sv) && !codec.starts_with("vp09"sv) && !codec.starts_with("opus"sv)) {
+
+    codecs.for_each_split_view(',', SplitBehavior::KeepEmpty, [&](StringView codec) {
+        codec = codec.trim_whitespace();
+
+        auto is_supported_codec = [&] {
+            if (is_webm) {
+                return codec.starts_with("vp9"sv, CaseSensitivity::CaseInsensitive)
+                    || codec.starts_with("vp09"sv, CaseSensitivity::CaseInsensitive)
+                    || codec.starts_with("opus"sv, CaseSensitivity::CaseInsensitive);
+            }
+
+            VERIFY(is_mp4);
+            if (is_avc_codec(codec))
+                return is_video;
+            if (is_aac_codec(codec))
+                return true;
+
+            return codec.is_one_of_ignoring_ascii_case("opus"sv, "flac"sv);
+        }();
+
+        if (!is_supported_codec) {
             had_unsupported_codec = true;
             return IterationDecision::Break;
         }
+
         return IterationDecision::Continue;
     });
+
     if (had_unsupported_codec)
         return false;
 

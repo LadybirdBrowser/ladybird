@@ -28,10 +28,15 @@ public:
     }
 
     AK::Duration timestamp() const { return m_timestamp; }
+
     AK::Duration duration() const { return m_duration; }
+    void set_duration(AK::Duration duration) { m_duration = duration; }
+
     FrameFlags flags() const { return m_flags; }
     bool is_keyframe() const { return has_flag(m_flags, FrameFlags::Keyframe); }
+
     ByteBuffer const& data() const { return m_data; }
+    AuxiliaryData& auxiliary_data() { return m_auxiliary_data; }
     AuxiliaryData const& auxiliary_data() const { return m_auxiliary_data; }
 
 private:

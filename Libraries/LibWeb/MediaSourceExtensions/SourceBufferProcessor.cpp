@@ -574,15 +574,13 @@ void SourceBufferProcessor::run_coded_frame_eviction(size_t new_data_size, AK::D
     //         demuxer needs still for its clients.
     //         We also skip the ready state change here (step 5), since we explicitly avoid evicting current data.
 
-    // NB: Before the first initialization segment has been parsed, no track buffers exist and there is nothing to
-    //     evict.
     // AD-HOC: Set the buffer full flag based on the projected size of the buffer after appending the new data.
     //         If we don't do so here, we will not trigger removal until after an append throws a QuotaExceededError.
     //         https://github.com/w3c/media-source/issues/289
-    if (m_track_buffers.is_empty())
-        return;
-    auto current_bytes = total_buffered_bytes();
-    auto current_capacity_in_bytes = capacity_in_bytes();
+    auto current_bytes = total_buffered_bytes() + m_input_buffer.size();
+    auto current_capacity_in_bytes = m_track_buffers.is_empty()
+        ? AUDIO_TRACK_BYTE_CAPACITY + VIDEO_TRACK_BYTE_CAPACITY + TEXT_TRACK_BYTE_CAPACITY
+        : capacity_in_bytes();
     auto consumed_bytes_after_append = current_bytes + new_data_size;
     m_buffer_full_flag = consumed_bytes_after_append > current_capacity_in_bytes;
 
@@ -671,7 +669,7 @@ void SourceBufferProcessor::run_coded_frame_eviction(size_t new_data_size, AK::D
     // https://w3c.github.io/media-source/#dfn-coded-frame-removal
     // 4. If the [[buffer full flag]] equals true and this object is ready to accept more bytes, then set the
     //    [[buffer full flag]] to false.
-    if (total_buffered_bytes() + new_data_size < current_capacity_in_bytes)
+    if (total_buffered_bytes() + m_input_buffer.size() + new_data_size < current_capacity_in_bytes)
         m_buffer_full_flag = false;
 }
 

@@ -1,0 +1,122 @@
+<!doctype html>
+<script>
+    internals.setAutoplayPolicy("allow-audio-and-video");
+</script>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const video = document.getElementById("video");
+        const mimeType = 'video/mp4; codecs="avc1.4d400d,mp4a.40.2"';
+
+        try {
+            println(`isTypeSupported: ${MediaSource.isTypeSupported(mimeType)}`);
+
+            const mediaSource = new MediaSource();
+            video.src = URL.createObjectURL(mediaSource);
+            await new Promise(resolve => mediaSource.addEventListener("sourceopen", resolve, { once: true }));
+            const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
+
+            const httpServer = httpTestServer();
+            const mediaURL = httpServer.getStaticURL("Assets/fragmented-mp4.mp4");
+            const bridgeURL = await httpServer.createEcho("GET", `/mse-mp4-bridge-${crypto.randomUUID()}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body:
+                    `<script>fetch(${JSON.stringify(mediaURL)})` +
+                    `.then(response => response.arrayBuffer())` +
+                    `.then(data => parent.postMessage(data, "*", [data]));</` +
+                    `script>`,
+            });
+            const bridge = document.createElement("iframe");
+            const dataPromise = new Promise(resolve => {
+                const onMessage = event => {
+                    if (event.source !== bridge.contentWindow || !(event.data instanceof ArrayBuffer)) return;
+                    window.removeEventListener("message", onMessage);
+                    resolve(event.data);
+                };
+                window.addEventListener("message", onMessage);
+            });
+            bridge.src = bridgeURL;
+            document.body.appendChild(bridge);
+            const data = await dataPromise;
+            async function append(buffer) {
+                const updated = new Promise((resolve, reject) => {
+                    sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                    sourceBuffer.addEventListener("error", () => reject(new Error("SourceBuffer error")), {
+                        once: true,
+                    });
+                });
+                sourceBuffer.appendBuffer(buffer);
+                await updated;
+            }
+
+            const emptyBox = type =>
+                new Uint8Array([0, 0, 0, 8, ...type.split("").map(character => character.charCodeAt(0))]);
+            function insertBoxAfterFirstBoxOfType(buffer, boxType, insertedBox) {
+                const bytes = new Uint8Array(buffer);
+                const view = new DataView(buffer);
+                let position = 0;
+                while (position + 8 <= bytes.length) {
+                    const size = view.getUint32(position);
+                    const type = String.fromCharCode(...bytes.slice(position + 4, position + 8));
+                    if (size < 8) throw new Error(`Unsupported ${type} box size ${size}`);
+                    if (type === boxType) {
+                        const boxEnd = position + size;
+                        const result = new Uint8Array(bytes.length + insertedBox.length);
+                        result.set(bytes.slice(0, boxEnd));
+                        result.set(insertedBox, boxEnd);
+                        result.set(bytes.slice(boxEnd), boxEnd + insertedBox.length);
+                        return result.buffer;
+                    }
+                    position += size;
+                }
+                throw new Error(`Missing ${boxType} box`);
+            }
+
+            // Byte offset immediately after the `moov` box in the fixture, separating its initialization segment
+            // from its fragmented media segments.
+            const INITIALIZATION_SEGMENT_SIZE = 1413;
+            const initializationSegment = insertBoxAfterFirstBoxOfType(
+                data.slice(0, INITIALIZATION_SEGMENT_SIZE),
+                "ftyp",
+                emptyBox("pdin")
+            );
+
+            // Split the initialization segment inside its first box header, as network appends can do.
+            await append(initializationSegment.slice(0, 7));
+            await append(initializationSegment.slice(7));
+            println(`tracks: ${video.videoTracks.length} video, ${video.audioTracks.length} audio`);
+
+            // The remainder contains nine fragmented-MP4 media segments. Prefix a top-level event message and add a
+            // second media-data box to the first segment to cover valid boxes that do not carry samples.
+            const mediaSegmentsWithSecondMdat = insertBoxAfterFirstBoxOfType(
+                data.slice(INITIALIZATION_SEGMENT_SIZE),
+                "mdat",
+                emptyBox("mdat")
+            );
+            const eventMessage = emptyBox("emsg");
+            const mediaSegments = new Uint8Array(eventMessage.length + mediaSegmentsWithSecondMdat.byteLength);
+            mediaSegments.set(eventMessage);
+            mediaSegments.set(new Uint8Array(mediaSegmentsWithSecondMdat), eventMessage.length);
+            await append(mediaSegments);
+            println(
+                `buffered: ${sourceBuffer.buffered.length} range, ` +
+                    `${sourceBuffer.buffered.start(0).toFixed(3)}-${sourceBuffer.buffered.end(0).toFixed(3)}`
+            );
+
+            mediaSource.duration = 6.549;
+            mediaSource.endOfStream();
+            const playing = new Promise(resolve => video.addEventListener("playing", resolve, { once: true }));
+            await video.play();
+            await playing;
+            println(
+                `playing: has future data ${video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA}, error ${video.error}`
+            );
+        } catch (error) {
+            println(`FAIL: ${error}`);
+        }
+
+        done();
+    });
+</script>

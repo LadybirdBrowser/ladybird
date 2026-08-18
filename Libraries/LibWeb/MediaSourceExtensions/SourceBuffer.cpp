@@ -16,6 +16,7 @@
 #include <LibWeb/HTML/TimeRanges.h>
 #include <LibWeb/HTML/VideoTrackList.h>
 #include <LibWeb/MediaSourceExtensions/EventNames.h>
+#include <LibWeb/MediaSourceExtensions/ISOBaseMediaByteStreamParser.h>
 #include <LibWeb/MediaSourceExtensions/MediaSource.h>
 #include <LibWeb/MediaSourceExtensions/SourceBuffer.h>
 #include <LibWeb/MediaSourceExtensions/SourceBufferList.h>
@@ -178,6 +179,8 @@ void SourceBuffer::set_content_type(Utf16View type)
     NonnullOwnPtr<ByteStreamParser> parser = [&]() -> NonnullOwnPtr<ByteStreamParser> {
         if (mime_type->subtype() == "webm")
             return make<WebMByteStreamParser>();
+        if (mime_type->subtype() == "mp4")
+            return make<ISOBaseMediaByteStreamParser>();
         VERIFY_NOT_REACHED();
     }();
 
