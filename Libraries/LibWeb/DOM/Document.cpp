@@ -209,6 +209,7 @@
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/PrerecordedNestedDisplayLists.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -5129,6 +5130,18 @@ void Document::unregister_svg_use_element(Badge<SVG::SVGUseElement>, SVG::SVGUse
     m_svg_use_elements.remove(use_element);
 }
 
+void Document::register_svg_pattern_referencing_element(Element& referencing_element)
+{
+    m_svg_pattern_referencing_elements.remove_all_matching([](auto& weak_element) {
+        return !weak_element;
+    });
+    for (auto const& weak_element : m_svg_pattern_referencing_elements) {
+        if (weak_element == &referencing_element)
+            return;
+    }
+    m_svg_pattern_referencing_elements.append(referencing_element);
+}
+
 void Document::increment_number_of_things_delaying_the_load_event(Badge<DocumentLoadEventDelayer>)
 {
     ++m_number_of_things_delaying_the_load_event;
@@ -9026,6 +9039,10 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
     }
     viewport_paintable.refresh_scroll_state();
     viewport_paintable.initialize_async_scrolling_metadata_recording(context);
+
+    Painting::PrerecordedNestedDisplayLists prerecorded_nested_display_lists;
+    context.set_prerecorded_nested_display_lists(&prerecorded_nested_display_lists);
+    Painting::prerecord_nested_display_lists(context, viewport_paintable);
 
     viewport_paintable.paint_all_phases(context);
     viewport_paintable.finalize_async_scrolling_metadata_recording(context, *navigable(), viewport_rect.to_type<int>());

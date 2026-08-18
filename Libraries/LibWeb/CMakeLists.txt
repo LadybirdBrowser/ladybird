@@ -886,6 +886,7 @@ set(SOURCES
     Painting/PaintStyle.cpp
     Painting/PaintableFragment.cpp
     Painting/PaintableWithLines.cpp
+    Painting/PrerecordedNestedDisplayLists.cpp
     Painting/RadioButtonPaintable.cpp
     Painting/ReplacedElementCommon.cpp
     Painting/ResolvedCSSFilter.cpp

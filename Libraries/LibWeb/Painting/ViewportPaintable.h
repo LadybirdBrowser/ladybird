@@ -30,6 +30,8 @@ public:
 
     void register_scroll_node(AccumulatedVisualContextTree& visual_context_tree_being_built, VisualContextIndex node_index, Paintable const&, VisualContextIndex parent_index);
     void register_sticky_node(AccumulatedVisualContextTree& visual_context_tree_being_built, VisualContextIndex node_index, Paintable const&, VisualContextIndex parent_index);
+    void register_paintable_with_mask_nodes(Paintable const&);
+    Vector<WeakPtr<Paintable>> const& paintables_with_mask_nodes() const { return m_paintables_with_mask_nodes; }
     void refresh_scroll_state();
     void refresh_sticky_constraints();
     CSSPixelPoint cumulative_scroll_offset_for_node(VisualContextIndex scroll_node_index) const;
@@ -94,6 +96,8 @@ private:
     bool m_has_non_viewport_wheel_scroll_target_candidate { false };
 
     Vector<WeakPtr<Paintable>> m_paintable_boxes_with_auto_content_visibility;
+
+    Vector<WeakPtr<Paintable>> m_paintables_with_mask_nodes;
 
     RefPtr<DisplayList const> m_display_list_used_as_paint_command_cache_source;
     DisplayListResourceSet m_paint_command_cache_source_referenced_resources;

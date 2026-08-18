@@ -8,14 +8,14 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Blending.h>
-#include <LibWeb/Painting/DisplayListRecorder.h>
+#include <LibWeb/Painting/DisplayListRecordingContext.h>
+#include <LibWeb/Painting/PrerecordedNestedDisplayLists.h>
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
 #include <LibWeb/Painting/SVGClipPaintable.h>
 #include <LibWeb/Painting/SVGForeignObjectPaintable.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/Painting/SVGPaintable.h>
 #include <LibWeb/Painting/SVGPathPaintable.h>
-#include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
@@ -134,15 +134,7 @@ static Optional<DisplayListResource> paint_mask_or_clip_to_display_list(
                                    .translate(-surface_origin)
                                    .multiply(content_units_transform_in_recorded_space);
     TransformData root_transform { recorded_to_surface.to_matrix(), {} };
-    NestedVisualContextAssignments nested_visual_context_assignments;
-    auto visual_context_tree = build_nested_svg_visual_context_tree(const_cast<Paintable&>(paintable), move(root_transform), nested_visual_context_assignments);
-    auto display_list = DisplayList::create(visual_context_tree);
-    DisplayListRecorder display_list_recorder(*display_list, visual_context_tree, context.display_list_recorder().resource_storage());
-    auto paint_context = context.clone(display_list_recorder);
-    paint_context.set_nested_visual_context_assignments(move(nested_visual_context_assignments));
-    paint_context.set_draw_svg_geometry_for_clip_path(is_clip_path);
-    StackingContext::paint_svg(paint_context, paintable, PaintPhase::Foreground);
-    return DisplayListResource { *display_list, move(visual_context_tree) };
+    return record_nested_svg_display_list(context, paintable, root_transform, IncludeRootElementTransform::Yes, is_clip_path);
 }
 
 Gfx::AffineTransform SVGMaskable::object_bounding_box_content_units_transform() const

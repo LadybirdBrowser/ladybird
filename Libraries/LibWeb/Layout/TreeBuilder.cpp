@@ -95,6 +95,8 @@ void LayoutTreeBuilderAccess::detach_layout_node(DOM::Node& node)
 void LayoutTreeBuilderAccess::register_svg_resource_reference(SVG::SVGElement& resource, DOM::Element& referencing_element)
 {
     resource.register_resource_box_referencing_element({}, referencing_element);
+    if (is<SVG::SVGPatternElement>(resource))
+        referencing_element.document().register_svg_pattern_referencing_element(referencing_element);
 }
 
 void LayoutTreeBuilderAccess::set_synthetic_pseudo_element_node(DOM::Element& element, CSS::PseudoElement pseudo_element, Layout::NodeWithStyle* layout_node)

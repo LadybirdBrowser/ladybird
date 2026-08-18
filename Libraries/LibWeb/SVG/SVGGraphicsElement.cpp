@@ -19,6 +19,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/PrerecordedNestedDisplayLists.h>
 #include <LibWeb/Painting/SVGForeignObjectPaintable.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/Painting/SVGPathPaintable.h>
@@ -54,7 +55,7 @@ Optional<Painting::PaintStyle> SVGGraphicsElement::svg_paint_computed_value_to_g
     }
     if (auto pattern = try_resolve_url_to<SVG::SVGPatternElement const>(paint_value->as_url())) {
         if (recording_context && layout_node())
-            return pattern->to_gfx_paint_style(paint_context, *recording_context, *layout_node());
+            return Painting::prerecorded_pattern_paint_style(*recording_context, *pattern, *layout_node());
     }
     return {};
 }
