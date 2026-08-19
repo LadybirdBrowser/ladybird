@@ -91,6 +91,11 @@ private:
     bool has_content_pieces() const;
     void paint_empty_editable_cursor(DisplayListRecordingContext&) const;
 
+public:
+    Optional<PaintableWithLines::CaretPaint> resolve_empty_editable_caret_paint() const;
+
+private:
+
     Vector<u32> m_piece_indices;
     CSSPixelRect m_local_padding_box_union;
     CSSPixelRect m_local_border_box_union;
