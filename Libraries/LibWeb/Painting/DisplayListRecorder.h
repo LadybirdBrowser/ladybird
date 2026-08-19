@@ -162,7 +162,7 @@ private:
     template<DisplayListCommand Command>
     void append_command(Command const& command, ReadonlyBytes inline_data = {})
     {
-        m_save_nesting_level += display_list_command_nesting_level_change<Command>();
+        m_save_nesting_level += display_list_command_nesting_level_change(Command::command_type);
         m_display_list.append(command, m_visual_context_tree, m_accumulated_visual_context_index, m_context_geometry_only, inline_data);
     }
 

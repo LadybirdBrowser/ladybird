@@ -134,7 +134,7 @@ static DisplayListPaintStyle to_display_list_paint_style(
     DisplayListResourceStorage& resource_storage,
     PaintStyle const& paint_style)
 {
-    DisplayListPaintStyle display_list_paint_style;
+    DisplayListPaintStyle display_list_paint_style {};
     paint_style.visit(
         [&](LinearGradientPaintStyle const& linear_gradient) {
             display_list_paint_style.paint_style_type = DisplayListPaintStyleType::LinearGradient;
@@ -239,7 +239,7 @@ void DisplayListRecorder::fill_path(FillPathParams params)
     auto path_span = append_path_data(payload_builder, params.path);
     auto paint_kind = PathPaintKind::Color;
     Color color;
-    DisplayListPaintStyle paint_style;
+    DisplayListPaintStyle paint_style {};
     if (params.paint_style_or_color.has<PaintStyle>()) {
         paint_kind = PathPaintKind::PaintStyle;
         paint_style = to_display_list_paint_style(payload_builder, resource_storage(), params.paint_style_or_color.get<PaintStyle>());
@@ -277,7 +277,7 @@ void DisplayListRecorder::stroke_path(StrokePathParams params)
     auto dash_array = payload_builder.append_objects(params.dash_array.span());
     auto paint_kind = PathPaintKind::Color;
     Color color;
-    DisplayListPaintStyle paint_style;
+    DisplayListPaintStyle paint_style {};
     if (params.paint_style_or_color.has<PaintStyle>()) {
         paint_kind = PathPaintKind::PaintStyle;
         paint_style = to_display_list_paint_style(payload_builder, resource_storage(), params.paint_style_or_color.get<PaintStyle>());
