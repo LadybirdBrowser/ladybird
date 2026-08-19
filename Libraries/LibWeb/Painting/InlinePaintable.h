@@ -68,6 +68,7 @@ public:
     PaintableWithLines::FragmentOwnershipFilter const& fragment_ownership_filter() const { return m_fragment_ownership_filter; }
 
     CSSPixelRect absolute_piece_border_box_rect(InlineBoxPiece const&) const;
+    BorderRadiiData piece_border_radii_data(InlineBoxPiece const&) const;
     CSSPixelRect piece_padding_box_rect(InlineBoxPiece const&, CSSPixelRect const& border_box_rect) const;
     CSSPixelRect piece_content_box_rect(InlineBoxPiece const&, CSSPixelRect const& border_box_rect) const;
     virtual CSSPixelPoint box_type_agnostic_position() const override;
@@ -87,7 +88,6 @@ private:
     virtual CSSPixelRect compute_absolute_padding_box_rect() const override;
     virtual CSSPixelRect compute_absolute_border_box_rect() const override;
 
-    BorderRadiiData piece_border_radii_data(InlineBoxPiece const&) const;
     bool has_content_pieces() const;
     void paint_empty_editable_cursor(DisplayListRecordingContext&) const;
 

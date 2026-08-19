@@ -9023,6 +9023,7 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
         if (previous_hit_test_display_list->visual_context_tree_version() == viewport_paintable.visual_context_tree().version())
             context.set_hit_test_item_cache_source(previous_hit_test_display_list);
     }
+    viewport_paintable.build_stacking_context_tree_if_needed();
     viewport_paintable.refresh_scroll_state();
     viewport_paintable.initialize_async_scrolling_metadata_recording(context);
 

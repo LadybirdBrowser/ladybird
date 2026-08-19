@@ -27,6 +27,7 @@ public:
     void initialize_async_scrolling_metadata_recording(DisplayListRecordingContext&);
     void finalize_async_scrolling_metadata_recording(DisplayListRecordingContext const&, HTML::LocalNavigable&, Gfx::IntRect viewport_rect, DisplayList&);
     void build_stacking_context_tree_if_needed();
+    void invalidate_stacking_context_tree();
 
     void register_scroll_node(AccumulatedVisualContextTree& visual_context_tree_being_built, VisualContextIndex node_index, Paintable const&, VisualContextIndex parent_index);
     void register_sticky_node(AccumulatedVisualContextTree& visual_context_tree_being_built, VisualContextIndex node_index, Paintable const&, VisualContextIndex parent_index);
@@ -85,6 +86,8 @@ private:
 
     void ensure_visual_context_tree() const;
     void build_stacking_context_tree();
+
+    bool m_stacking_context_tree_is_valid { false };
     void clear_scroll_state();
     void precompute_sticky_constraints(ScrollStateSlot, Paintable const&);
 

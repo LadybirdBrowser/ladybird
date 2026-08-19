@@ -125,9 +125,15 @@ void ViewportPaintable::reset_for_relayout()
 
 void ViewportPaintable::build_stacking_context_tree_if_needed()
 {
-    if (stacking_context())
+    if (m_stacking_context_tree_is_valid)
         return;
     build_stacking_context_tree();
+    m_stacking_context_tree_is_valid = true;
+}
+
+void ViewportPaintable::invalidate_stacking_context_tree()
+{
+    m_stacking_context_tree_is_valid = false;
 }
 
 void ViewportPaintable::build_stacking_context_tree()
