@@ -273,6 +273,21 @@ impl LayoutNodeArena {
         }
     }
 
+    pub(crate) fn register_svg_pattern_referencing_node(&self, node: NodeSlotId) {
+        let mut nodes = self.svg_pattern_referencing_nodes.borrow_mut();
+        nodes.retain(|candidate| !self.shell_if_live(*candidate).is_null());
+        if nodes.contains(&node) {
+            return;
+        }
+        nodes.push(node);
+    }
+
+    pub(crate) fn svg_pattern_referencing_nodes(&self) -> Vec<NodeSlotId> {
+        let mut nodes = self.svg_pattern_referencing_nodes.borrow_mut();
+        nodes.retain(|candidate| !self.shell_if_live(*candidate).is_null());
+        nodes.clone()
+    }
+
     pub(crate) fn fc_run_cache_store(&self) -> &crate::layout::FcRunCacheArenaStore {
         &self.fc_run_cache_store
     }
@@ -1178,39 +1193,8 @@ impl LayoutNodeArena {
         self.note_inline_layout_damage_at_and_above(parent);
     }
 
-
-    pub(crate) fn register_svg_pattern_referencing_node(&self, node: NodeSlotId) {
-        let mut nodes = self.svg_pattern_referencing_nodes.borrow_mut();
-        nodes.retain(|candidate| !self.shell_if_live(*candidate).is_null());
-        if nodes.contains(&node) {
-            return;
-        }
-        nodes.push(node);
-    }
-
-    pub(crate) fn svg_pattern_referencing_nodes(&self) -> Vec<NodeSlotId> {
-        let mut nodes = self.svg_pattern_referencing_nodes.borrow_mut();
-        nodes.retain(|candidate| !self.shell_if_live(*candidate).is_null());
-        nodes.clone()
-    }
-
     pub(crate) fn paintables(&self) -> &RefCell<crate::painting::paintable_arena::PaintableArena> {
         &self.paintables
-    }
-
-    pub(crate) fn shell_if_live(&self, id: NodeSlotId) -> *mut c_void {
-        if id.is_invalid() {
-            return std::ptr::null_mut();
-        }
-        let index = id.slot_index() as usize;
-        let Some(metadata) = self.slot_metadata.get(index) else {
-            return std::ptr::null_mut();
-        };
-        if !metadata.occupied || metadata.generation != id.generation() {
-            return std::ptr::null_mut();
-        }
-        // SAFETY: The metadata check established a live slot of this generation.
-        unsafe { (*self.data(id)).shell }
     }
 
     pub(crate) fn node_flags_if_live(&self, id: NodeSlotId) -> u32 {
@@ -1246,6 +1230,42 @@ impl LayoutNodeArena {
         (!parent.is_invalid()).then_some(parent)
     }
 
+    pub(crate) fn node_first_child_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
+        if self.shell_if_live(id).is_null() {
+            return None;
+        }
+        // SAFETY: shell_if_live established a live slot of this generation.
+        let child = unsafe { (*self.data(id)).first_child };
+        (!child.is_invalid()).then_some(child)
+    }
+
+    pub(crate) fn node_next_sibling_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
+        if self.shell_if_live(id).is_null() {
+            return None;
+        }
+        // SAFETY: shell_if_live established a live slot of this generation.
+        let sibling = unsafe { (*self.data(id)).next_sibling };
+        (!sibling.is_invalid()).then_some(sibling)
+    }
+
+    pub(crate) fn node_is_out_of_flow_if_live(&self, id: NodeSlotId) -> bool {
+        if self.shell_if_live(id).is_null() {
+            return false;
+        }
+        // SAFETY: shell_if_live established a live slot of this generation.
+        let data = unsafe { &*self.data(id) };
+        crate::layout::node_is_out_of_flow(data, self.node_style_if_live(id))
+    }
+
+    pub(crate) fn node_containing_block_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
+        if self.shell_if_live(id).is_null() {
+            return None;
+        }
+        // SAFETY: shell_if_live established a live slot of this generation.
+        let block = unsafe { (*self.data(id)).containing_block };
+        (!block.is_invalid()).then_some(block)
+    }
+
     pub(crate) fn node_style_if_live(
         &self,
         id: NodeSlotId,
@@ -1259,6 +1279,20 @@ impl LayoutNodeArena {
         ))
     }
 
+    pub(crate) fn shell_if_live(&self, id: NodeSlotId) -> *mut c_void {
+        if id.is_invalid() {
+            return std::ptr::null_mut();
+        }
+        let index = id.slot_index() as usize;
+        let Some(metadata) = self.slot_metadata.get(index) else {
+            return std::ptr::null_mut();
+        };
+        if !metadata.occupied || metadata.generation != id.generation() {
+            return std::ptr::null_mut();
+        }
+        // SAFETY: The metadata check established a live slot of this generation.
+        unsafe { (*self.data(id)).shell }
+    }
 
     pub(crate) unsafe fn from_handle<'a>(arena: *mut c_void) -> &'a Self {
         assert!(!arena.is_null(), "layout node arena handle is null");

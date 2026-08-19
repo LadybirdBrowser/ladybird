@@ -6,6 +6,7 @@
 
 pub mod basic_shapes;
 pub mod build;
+pub mod nested;
 pub mod node_values;
 pub mod refresh;
 pub mod scroll_state;

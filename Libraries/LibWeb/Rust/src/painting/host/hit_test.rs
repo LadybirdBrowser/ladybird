@@ -1,0 +1,221 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+use std::ffi::c_void;
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiHitTestPaintableFacts {
+    pub opacity_is_zero: bool,
+    pub visible_for_hit_testing: bool,
+    pub dom_node_has_parent: bool,
+    pub is_editable_or_editing_host: bool,
+    pub has_resizer: bool,
+    pub could_be_scrolled_horizontally: bool,
+    pub could_be_scrolled_vertically: bool,
+    pub svg_path_has_fill: bool,
+    pub svg_path_winding_rule: i32,
+    pub border_radii: [i32; 8],
+    pub has_noninitial_border_radii: bool,
+    pub has_svg_filter_bounds: bool,
+    pub svg_filter_bounds: crate::layout::FfiCssPixelRect,
+    pub svg_mask_content_units_object_bbox: bool,
+    pub svg_clip_path_units_object_bbox: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiHitTestTextNodeFacts {
+    pub parent_opacity_is_zero: bool,
+    pub parent_pointer_events_none: bool,
+    pub is_inert: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiEmptyLineCaretTarget {
+    pub is_line_break_boundary: bool,
+    pub caret_offset: usize,
+    pub line_index: usize,
+    pub rect: crate::layout::FfiCssPixelRect,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiHitTestHostCallbacks {
+    pub context: *mut c_void,
+    pub paintable_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiHitTestPaintableFacts,
+    pub text_node_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiHitTestTextNodeFacts,
+    pub piece_border_radii: unsafe extern "C" fn(*mut c_void, *mut c_void, i32, i32, u8, *mut i32),
+    pub empty_line_caret_targets: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
+}
+
+impl FfiHitTestHostCallbacks {
+    pub(crate) fn paintable_facts(&self, paintable_shell: *mut c_void) -> FfiHitTestPaintableFacts {
+        // SAFETY: The C++ host answers synchronously from a live paintable shell.
+        unsafe { (self.paintable_facts)(self.context, paintable_shell) }
+    }
+    pub(crate) fn text_node_facts(&self, node_shell: *mut c_void) -> FfiHitTestTextNodeFacts {
+        // SAFETY: The C++ host answers synchronously from a live layout node shell.
+        unsafe { (self.text_node_facts)(self.context, node_shell) }
+    }
+    pub(crate) fn piece_border_radii(
+        &self,
+        paintable_shell: *mut c_void,
+        width_raw: i32,
+        height_raw: i32,
+        present_edges: u8,
+    ) -> [i32; 8] {
+        let mut radii = [0i32; 8];
+        // SAFETY: The C++ host writes eight values into the array synchronously.
+        unsafe {
+            (self.piece_border_radii)(
+                self.context,
+                paintable_shell,
+                width_raw,
+                height_raw,
+                present_edges,
+                radii.as_mut_ptr(),
+            );
+        };
+        radii
+    }
+    pub(crate) fn empty_line_caret_targets(&self, paintable_shell: *mut c_void) -> Vec<FfiEmptyLineCaretTarget> {
+        let mut targets: Vec<FfiEmptyLineCaretTarget> = Vec::new();
+        // SAFETY: The C++ host pushes into the Vec through the exported sink function, synchronously.
+        unsafe { (self.empty_line_caret_targets)(self.context, paintable_shell, (&raw mut targets).cast()) };
+        targets
+    }
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiHitTestQueryCallbacks {
+    pub context: *mut c_void,
+    pub local_point_for_visual_context: unsafe extern "C" fn(*mut c_void, usize, i32, i32, bool, *mut f32) -> bool,
+    pub chrome_widget_contains: unsafe extern "C" fn(*mut c_void, *mut c_void, u8, i32, i32) -> bool,
+    pub line_in_scope: unsafe extern "C" fn(*mut c_void, usize) -> bool,
+}
+
+impl FfiHitTestQueryCallbacks {
+    pub(crate) fn local_point_for_visual_context(
+        &self,
+        index: usize,
+        x_raw: i32,
+        y_raw: i32,
+        respect_clip: bool,
+    ) -> Option<(f32, f32)> {
+        let mut out = [0.0f32; 2];
+        // SAFETY: The C++ host writes two floats synchronously.
+        let inside = unsafe {
+            (self.local_point_for_visual_context)(self.context, index, x_raw, y_raw, respect_clip, out.as_mut_ptr())
+        };
+        inside.then_some((out[0], out[1]))
+    }
+    pub(crate) fn chrome_widget_contains(
+        &self,
+        paintable_shell: *mut c_void,
+        kind: u8,
+        local_point: crate::css::css_pixels::CssPixelPoint,
+    ) -> bool {
+        // SAFETY: The C++ host answers synchronously from a live paintable shell.
+        unsafe {
+            (self.chrome_widget_contains)(
+                self.context,
+                paintable_shell,
+                kind,
+                local_point.x.raw_value(),
+                local_point.y.raw_value(),
+            )
+        }
+    }
+    pub(crate) fn line_in_scope(&self, line_index: usize) -> bool {
+        // SAFETY: The C++ host answers synchronously.
+        unsafe { (self.line_in_scope)(self.context, line_index) }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiTopmostItem {
+    pub has_item: bool,
+    pub index: usize,
+    pub local_x: i32,
+    pub local_y: i32,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiTopmostItemsForCaret {
+    pub caret_item: FfiTopmostItem,
+    pub hit_item: FfiTopmostItem,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiClosestLine {
+    pub has_index: bool,
+    pub index: usize,
+    pub local_x: i32,
+    pub local_y: i32,
+    pub block_distance: i32,
+    pub block_start_distance: i32,
+    pub inline_distance: i32,
+    pub has_block_container_margin_rect: bool,
+    pub block_container_margin_rect: crate::layout::FfiCssPixelRect,
+    pub is_before_point: bool,
+    pub contains_point_in_block_axis: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiCaretItemForLine {
+    pub has_item: bool,
+    pub item_index: usize,
+    pub position_type: u8,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiAdjacentLine {
+    pub has_line: bool,
+    pub line_index: usize,
+    pub point_x: i32,
+    pub point_y: i32,
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiHitTestItemExport {
+    pub kind: u8,
+    pub paintable_shell: *mut c_void,
+    pub chrome_widget_kind: u8,
+    pub has_text_fragment_index: bool,
+    pub text_fragment_index: u32,
+    pub caret_node_shell: *mut c_void,
+    pub caret_offset: usize,
+    pub rect: crate::layout::FfiCssPixelRect,
+    pub caret_rect: crate::layout::FfiCssPixelRect,
+    pub has_caret_line_index: bool,
+    pub caret_line_index: usize,
+    pub has_caret_line_rect: bool,
+    pub caret_line_rect: crate::layout::FfiCssPixelRect,
+    pub has_block_container_margin_rect: bool,
+    pub block_container_margin_rect: crate::layout::FfiCssPixelRect,
+    pub visual_context_index: usize,
+    pub border_radii: [i32; 8],
+    pub path: *const c_void,
+    pub winding_rule: i32,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiCaretLineExport {
+    pub rect: crate::layout::FfiCssPixelRect,
+    pub visual_context_index: usize,
+    pub first_caret_item_index: usize,
+    pub last_caret_item_index: usize,
+}
