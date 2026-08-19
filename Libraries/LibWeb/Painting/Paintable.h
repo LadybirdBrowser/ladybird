@@ -99,12 +99,12 @@ public:
     virtual StringView class_name() const { return "Paintable"sv; }
 
     [[nodiscard]] bool is_visible() const;
-    [[nodiscard]] bool is_positioned() const { return m_positioned; }
-    [[nodiscard]] bool is_fixed_position() const { return m_fixed_position; }
-    [[nodiscard]] bool is_sticky_position() const { return m_sticky_position; }
-    [[nodiscard]] bool is_absolutely_positioned() const { return m_absolutely_positioned; }
-    [[nodiscard]] bool is_floating() const { return m_floating; }
-    [[nodiscard]] bool is_inline() const { return m_inline; }
+    [[nodiscard]] bool is_positioned() const { return has_flag(Layout::RustFFI::PaintableFlag::Positioned); }
+    [[nodiscard]] bool is_fixed_position() const { return has_flag(Layout::RustFFI::PaintableFlag::FixedPosition); }
+    [[nodiscard]] bool is_sticky_position() const { return has_flag(Layout::RustFFI::PaintableFlag::StickyPosition); }
+    [[nodiscard]] bool is_absolutely_positioned() const { return has_flag(Layout::RustFFI::PaintableFlag::AbsolutelyPositioned); }
+    [[nodiscard]] bool is_floating() const { return has_flag(Layout::RustFFI::PaintableFlag::Floating); }
+    [[nodiscard]] bool is_inline() const { return has_flag(Layout::RustFFI::PaintableFlag::Inline); }
     [[nodiscard]] CSS::Display display() const { return m_display; }
 
     bool has_stacking_context() const;
@@ -117,6 +117,7 @@ public:
     Layout::RustFFI::PaintableSlotId rust_slot() const { return m_rust_slot; }
     Layout::NodeArena& rust_arena() const { return *m_rust_arena; }
     Layout::RustFFI::PaintableData const& rust_data() const { return *m_rust_data; }
+    bool has_flag(Layout::RustFFI::PaintableFlag flag) const { return (rust_data().flags & to_underlying(flag)) != 0; }
 
     bool has_layout_node() const { return m_layout_node; }
     Layout::NodeWithStyle const& layout_node() const
@@ -171,7 +172,7 @@ public:
 
     using SelectionState = Painting::SelectionState;
 
-    SelectionState selection_state() const { return m_selection_state; }
+    SelectionState selection_state() const { return static_cast<SelectionState>(rust_data().selection_state); }
     void set_selection_state(SelectionState state);
 
     struct TextDecorationStyle {
@@ -529,14 +530,6 @@ private:
     Layout::RustFFI::PaintableData const* m_rust_data { nullptr };
     Paintable* m_containing_block { nullptr };
 
-    SelectionState m_selection_state { SelectionState::None };
-
-    bool m_positioned : 1 { false };
-    bool m_fixed_position : 1 { false };
-    bool m_sticky_position : 1 { false };
-    bool m_absolutely_positioned : 1 { false };
-    bool m_floating : 1 { false };
-    bool m_inline : 1 { false };
     bool m_uses_collapsing_borders_model : 1 { false };
     CSS::Display m_display;
 

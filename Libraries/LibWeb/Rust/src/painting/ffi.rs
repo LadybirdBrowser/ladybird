@@ -187,3 +187,43 @@ pub unsafe extern "C" fn layout_arena_paintable_used_grid_tracks(
         }
     });
 }
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_set_selection_state(
+    arena: *mut c_void,
+    slot: PaintableSlotId,
+    state: u8,
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if paintables.is_live(slot) {
+            paintables.update_data(slot, |data| data.selection_state = state);
+        }
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_set_fragment_selection_state(
+    arena: *mut c_void,
+    slot: PaintableSlotId,
+    fragment_index: u32,
+    state: u8,
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let mut paintables = arena.paintables().borrow_mut();
+        if !paintables.is_live(slot) {
+            return;
+        }
+        if let Some(fragment) = paintables.side_mut(slot).fragments.get_mut(fragment_index as usize) {
+            fragment.selection_state = state;
+        }
+    });
+}
