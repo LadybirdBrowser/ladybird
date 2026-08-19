@@ -726,12 +726,11 @@ fn print_breakpoint(debugger: &Debugger, breakpoint: &Breakpoint) {
 
 fn print_debugger_help() {
     standard_output::outln(b"Debugger commands:");
-    standard_output::outln(b"    .break <line>[:column]");
-    standard_output::outln(b"    .break <file>:<line>[:column]");
-    standard_output::outln(b"    .breakpoints");
-    standard_output::outln(b"    .continue");
-    standard_output::outln(b"    .delete <id>");
-    standard_output::outln(b"    .help");
+    standard_output::outln(b"    break [file:]<line>[:column]");
+    standard_output::outln(b"    breakpoints");
+    standard_output::outln(b"    continue");
+    standard_output::outln(b"    delete <id>");
+    standard_output::outln(b"    help");
 }
 
 /// warnln() of bytes that need not be UTF-8.
@@ -774,17 +773,17 @@ fn run_debugger_prompt(vm: &Vm, pause_info: &PauseInfo, line_editor: Option<&JSL
         };
         let command = trim_whitespace(&raw_line);
 
-        if command == b".continue" {
+        if command == b"continue" {
             debugger.continue_execution(ResumeMode::Continue);
             return;
         }
 
-        if command == b".help" {
+        if command == b"help" {
             print_debugger_help();
             continue;
         }
 
-        if command == b".breakpoints" {
+        if command == b"breakpoints" {
             let mut breakpoints = debugger.breakpoints();
             if breakpoints.is_empty() {
                 standard_output::outln(b"No breakpoints.");
@@ -797,7 +796,7 @@ fn run_debugger_prompt(vm: &Vm, pause_info: &PauseInfo, line_editor: Option<&JSL
             continue;
         }
 
-        if let Some(location) = command.strip_prefix(b".break ") {
+        if let Some(location) = command.strip_prefix(b"break ") {
             let current_filename = pause_info
                 .source_range
                 .as_ref()
@@ -808,7 +807,7 @@ fn run_debugger_prompt(vm: &Vm, pause_info: &PauseInfo, line_editor: Option<&JSL
             let location = parse_breakpoint_location(location, current_filename);
             let Some(location) = location.filter(|location| !Utf16View::of_string(&location.filename).is_empty())
             else {
-                eprintln!("Usage: .break <line>[:column] or .break <file>:<line>[:column]");
+                eprintln!("Usage: break <line>[:column] or break <file>:<line>[:column]");
                 continue;
             };
 
@@ -831,9 +830,9 @@ fn run_debugger_prompt(vm: &Vm, pause_info: &PauseInfo, line_editor: Option<&JSL
             continue;
         }
 
-        if let Some(breakpoint_id) = command.strip_prefix(b".delete ") {
+        if let Some(breakpoint_id) = command.strip_prefix(b"delete ") {
             let Some(breakpoint_id) = to_number(trim_whitespace(breakpoint_id)) else {
-                eprintln!("Usage: .delete <id>");
+                eprintln!("Usage: delete <id>");
                 continue;
             };
             if !debugger.remove_breakpoint(breakpoint_id) {
@@ -846,7 +845,7 @@ fn run_debugger_prompt(vm: &Vm, pause_info: &PauseInfo, line_editor: Option<&JSL
 
         let mut message = b"Unknown debugger command '".to_vec();
         message.extend_from_slice(command);
-        message.extend_from_slice(b"'. Enter .help for a list of commands.");
+        message.extend_from_slice(b"'. Enter help for a list of commands.");
         warn_bytes_line(&message);
     }
 }
