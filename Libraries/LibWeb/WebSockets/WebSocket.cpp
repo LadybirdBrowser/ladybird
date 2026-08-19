@@ -388,7 +388,7 @@ void WebSocket::on_message(ByteBuffer message, bool is_text)
             return;
         }
 
-        if (m_binary_type == "blob"_utf16) {
+        if (m_binary_type == Bindings::BinaryType::Blob) {
             // type indicates that the data is Binary and binaryType is "blob"
             HTML::MessageEventInit event_init;
             event_init.data = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, FileAPI::Blob::create(move(message), "text/plain;charset=utf-8"_string));
@@ -396,7 +396,7 @@ void WebSocket::on_message(ByteBuffer message, bool is_text)
             return;
         }
 
-        if (m_binary_type == "arraybuffer"_utf16) {
+        if (m_binary_type == Bindings::BinaryType::Arraybuffer) {
             // type indicates that the data is Binary and binaryType is "arraybuffer"
             HTML::MessageEventInit event_init;
             event_init.data = JS::ArrayBuffer::create(realm, message);
@@ -404,8 +404,7 @@ void WebSocket::on_message(ByteBuffer message, bool is_text)
             return;
         }
 
-        dbgln("Unsupported WebSocket message type {}", m_binary_type);
-        TODO();
+        VERIFY_NOT_REACHED();
     }));
 }
 

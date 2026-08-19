@@ -1,3 +1,5 @@
+enum BinaryType { "blob", "arraybuffer" };
+
 // https://websockets.spec.whatwg.org/#websocket
 [Exposed=(Window,Worker)]
 interface WebSocket : EventTarget {
@@ -24,6 +26,6 @@ interface WebSocket : EventTarget {
 
     // messaging
     attribute EventHandler onmessage;
-    attribute Utf16DOMString binaryType;
+    attribute BinaryType binaryType;
     undefined send((BufferSource or Blob or Utf16USVString) data);
 };

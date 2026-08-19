@@ -1,0 +1,21 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const ws = new WebSocket(`ws://localhost:${internals.getEchoServerPort()}/`);
+        println(ws.binaryType);
+
+        ws.binaryType = "lol";
+        println(ws.binaryType);
+
+        ws.binaryType = "arraybuffer";
+        println(ws.binaryType);
+
+        ws.binaryType = "rofl";
+        println(ws.binaryType);
+
+        // The binaryType is case-sensitive.
+        ws.binaryType = "bLoB";
+        println(ws.binaryType);
+    });
+</script>
