@@ -219,6 +219,7 @@ pub struct BorderValues {
     pub border_bottom_right_radius: ComputedStyleValueHandle,
     pub border_top_left_radius: ComputedStyleValueHandle,
     pub border_top_right_radius: ComputedStyleValueHandle,
+    pub has_noninitial_border_radii: bool,
     pub corner_bottom_left_shape: f64,
     pub corner_bottom_right_shape: f64,
     pub corner_top_left_shape: f64,
