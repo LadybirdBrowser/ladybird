@@ -1320,7 +1320,7 @@ build_rust_binary(
     MANIFEST_PATH Rust/Cargo.toml
     CRATE_NAME libweb_rust
     BINARY_NAME style-replay
-    FEATURES style-recording
+    FEATURES style-replay
 )
 target_link_libraries(libweb_rust INTERFACE LibGfx)
 

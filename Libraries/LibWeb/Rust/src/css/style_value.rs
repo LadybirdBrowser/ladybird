@@ -18,21 +18,21 @@
 use std::ffi::c_void;
 use std::sync::Arc;
 
-#[cfg(any(test, feature = "style-recording"))]
+#[cfg(any(test, feature = "style-replay"))]
 use std::cell::RefCell;
-#[cfg(any(test, feature = "style-recording"))]
+#[cfg(any(test, feature = "style-replay"))]
 use std::collections::HashMap;
 
 use crate::abort_on_panic;
 
 pub(crate) use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
 
-#[cfg(any(test, feature = "style-recording"))]
+#[cfg(any(test, feature = "style-replay"))]
 thread_local! {
     static REPLAY_STYLE_VALUES: RefCell<HashMap<usize, u8>> = RefCell::new(HashMap::new());
 }
 
-#[cfg(any(test, feature = "style-recording"))]
+#[cfg(any(test, feature = "style-replay"))]
 pub(crate) fn register_replay_style_value(token: u64, dependency_flags: u8) -> *const StyleValueData {
     let pointer = usize::try_from(token).expect("style-value token exceeds usize");
     assert!(pointer != 0, "style-value tokens are nonzero");
@@ -44,9 +44,9 @@ pub(crate) fn register_replay_style_value(token: u64, dependency_flags: u8) -> *
 }
 
 fn replay_style_value_dependency_flags(value: *const StyleValueData) -> Option<u8> {
-    #[cfg(any(test, feature = "style-recording"))]
+    #[cfg(any(test, feature = "style-replay"))]
     return REPLAY_STYLE_VALUES.with(|values| values.borrow().get(&(value as usize)).copied());
-    #[cfg(not(any(test, feature = "style-recording")))]
+    #[cfg(not(any(test, feature = "style-replay")))]
     {
         let _ = value;
         None

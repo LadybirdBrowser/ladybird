@@ -1970,7 +1970,7 @@ pub unsafe fn replay_exact_cascade_generation_snapshot(
     engine.exact_cascade_generation_snapshot(super::computed::ComputedStyleTarget::new(node, pseudo_kind))
 }
 
-#[cfg(feature = "style-recording")]
+#[cfg(feature = "style-replay")]
 pub fn replay_style_value(token: u64, dependency_flags: u8) -> *const c_void {
     crate::css::style_value::register_replay_style_value(token, dependency_flags).cast()
 }

@@ -9,10 +9,11 @@ crate-type = ["rlib", "staticlib"]
 [[bin]]
 name = "style-replay"
 path = "src/bin/style_replay.rs"
-required-features = ["style-recording"]
+required-features = ["style-replay"]
 
 [features]
 style-recording = []
+style-replay = ["style-recording"]
 
 # After changing dependencies, regenerate the Flatpak sources:
 #   python3 Meta/CMake/flatpak/generate-cargo-sources.py
