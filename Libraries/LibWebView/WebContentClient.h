@@ -123,6 +123,7 @@ private:
     void close_server_if_unused();
     bool forget_compositor_context(Web::Compositor::CompositorContextId);
     void destroy_all_compositor_contexts();
+    StorageJar* storage_jar_for_page(u64 page_id, Web::StorageAPI::StorageEndpointType);
 
     virtual void die() override;
 
@@ -207,16 +208,16 @@ private:
     virtual Messages::WebContentClient::DidIsKnownHstsHostResponse did_is_known_hsts_host(String) override;
     virtual Messages::WebContentClient::DidLoseRequestServerConnectionResponse did_lose_request_server_connection() override;
     virtual void did_simulate_worker_request_server_connection_loss(u64 page_id) override;
-    virtual Messages::WebContentClient::DidRequestStorageItemResponse did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key) override;
-    virtual Messages::WebContentClient::DidSetStorageItemResponse did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key, Utf16String value) override;
-    virtual void did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key) override;
-    virtual Messages::WebContentClient::DidRequestStorageKeysResponse did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) override;
-    virtual void did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) override;
-    virtual Messages::WebContentClient::DidRequestStorageUsageResponse did_request_storage_usage(String storage_key) override;
+    virtual Messages::WebContentClient::DidRequestStorageItemResponse did_request_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key) override;
+    virtual Messages::WebContentClient::DidSetStorageItemResponse did_set_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key, Utf16String value) override;
+    virtual void did_remove_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key) override;
+    virtual Messages::WebContentClient::DidRequestStorageKeysResponse did_request_storage_keys(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) override;
+    virtual void did_clear_storage(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) override;
+    virtual Messages::WebContentClient::DidRequestStorageUsageResponse did_request_storage_usage(u64 page_id, String storage_key) override;
     virtual void did_change_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String url, Optional<Utf16String> key, Optional<Utf16String> old_value, Optional<Utf16String> new_value) override;
     virtual void did_update_indexed_database(u64 page_id, String update) override;
     virtual void did_post_broadcast_channel_message(u64 page_id, Web::HTML::BroadcastChannelMessage message) override;
-    virtual Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab, Web::HTML::WebViewHints) override;
+    virtual Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab, Web::HTML::WebViewHints, bool clone_session_storage) override;
     virtual void did_request_activate_tab(u64 page_id) override;
     virtual void did_close_browsing_context(u64 page_id) override;
     virtual void did_change_needs_beforeunload_check(u64 page_id, bool needs_beforeunload_check) override;

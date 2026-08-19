@@ -50,6 +50,8 @@ public:
     u64 usage(String const& storage_key);
     Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
 
+    void clone_from(StorageJar const&);
+
 private:
     struct Statements {
         Database::StatementID get_item { 0 };

@@ -9,6 +9,7 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/SiteIsolationManager.h>
+#include <LibWebView/StorageJar.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 
@@ -16,7 +17,19 @@ namespace WebView {
 
 CanonicalTraversable::CanonicalTraversable()
     : CanonicalNavigable({}, {}, nullptr, 0)
+    , m_session_storage(StorageJar::create())
 {
+}
+
+void CanonicalTraversable::clone_session_storage_from(CanonicalTraversable const& other)
+{
+    // https://storage.spec.whatwg.org/#legacy-clone-a-traversable-storage-shed
+    // 1. For each key → shelf of A's storage shed:
+    //    1. Let newShelf be the result of running create a storage shelf with "session".
+    //    2. Set newShelf's bucket map["default"]'s bottle map["sessionStorage"]'s map to a clone of
+    //       shelf's bucket map["default"]'s bottle map["sessionStorage"]'s map.
+    //    3. Set B's storage shed[key] to newShelf.
+    m_session_storage->clone_from(*other.m_session_storage);
 }
 
 CanonicalNavigable& CanonicalTraversable::insert(WebContentClient& reporting_client, u64 page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state, CanonicalNavigable& fallback_parent)

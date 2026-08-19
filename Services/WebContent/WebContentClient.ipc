@@ -136,18 +136,18 @@ endpoint WebContentClient
     did_lose_request_server_connection() => (Optional<IPC::TransportHandle> handle)
     did_simulate_worker_request_server_connection_loss(u64 page_id) => ()
 
-    did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key) => (Optional<Utf16String> value)
-    did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key, Utf16String value) => (WebView::StorageSetResult result)
-    did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key) => ()
-    did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) => (Vector<Utf16String> keys)
-    did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) => ()
-    did_request_storage_usage(String storage_key) => (u64 usage)
+    did_request_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key) => (Optional<Utf16String> value)
+    did_set_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key, Utf16String value) => (WebView::StorageSetResult result)
+    did_remove_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key) => ()
+    did_request_storage_keys(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) => (Vector<Utf16String> keys)
+    did_clear_storage(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) => ()
+    did_request_storage_usage(u64 page_id, String storage_key) => (u64 usage)
     did_change_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String url, Optional<Utf16String> key, Optional<Utf16String> old_value, Optional<Utf16String> new_value) =|
     did_update_indexed_database(u64 page_id, String update) =|
     did_post_broadcast_channel_message(u64 page_id, Web::HTML::BroadcastChannelMessage message) =|
 
     did_update_resource_count(u64 page_id, i32 count_waiting) =|
-    did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints) => (Optional<u64> new_page_id, Optional<Web::HTML::CrossProcessId> root_navigable_id, String handle)
+    did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, bool clone_session_storage) => (Optional<u64> new_page_id, Optional<Web::HTML::CrossProcessId> root_navigable_id, String handle)
     did_request_activate_tab(u64 page_id) =|
     did_close_browsing_context(u64 page_id) =|
     did_change_needs_beforeunload_check(u64 page_id, bool needs_beforeunload_check) =|

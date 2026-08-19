@@ -90,9 +90,9 @@ class SessionStorageBottle final : public StorageBottle {
     GC_DECLARE_ALLOCATOR(SessionStorageBottle);
 
 public:
-    static GC::Ref<SessionStorageBottle> create(Optional<u64> quota)
+    static GC::Ref<SessionStorageBottle> create(GC::Ref<Page> page, StorageKey key, Optional<u64> quota)
     {
-        return GC::Heap::the().allocate<SessionStorageBottle>(quota);
+        return GC::Heap::the().allocate<SessionStorageBottle>(page, StorageEndpointType::SessionStorage, move(key), quota);
     }
 
     virtual size_t size() const override;
@@ -104,20 +104,20 @@ public:
 
     void copy_map_from(SessionStorageBottle const&);
 
+    virtual void visit_edges(GC::Cell::Visitor& visitor) override;
+
 private:
-    explicit SessionStorageBottle(Optional<u64> quota)
+    explicit SessionStorageBottle(GC::Ref<Page> page, StorageEndpointType endpoint_type, StorageKey key, Optional<u64> quota)
         : StorageBottle(quota)
+        , m_page(move(page))
+        , m_endpoint_type(endpoint_type)
+        , m_storage_key(move(key))
     {
     }
 
-    struct Entry {
-        Utf16String value;
-        // Bytes this entry contributes toward the bottle's quota: Its key plus its value.
-        size_t quota_size { 0 };
-    };
-
-    // A storage bottle has a map, which is initially an empty map
-    OrderedHashMap<Utf16String, Entry> m_map;
+    GC::Ref<Page> m_page;
+    StorageEndpointType m_endpoint_type;
+    StorageKey m_storage_key;
 };
 
 using BottleMap = Array<GC::Ptr<StorageBottle>, to_underlying(StorageEndpointType::Count)>;

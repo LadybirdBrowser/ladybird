@@ -9,6 +9,7 @@
 #include <AK/Function.h>
 #include <AK/HashFunctions.h>
 #include <AK/HashMap.h>
+#include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
 #include <AK/String.h>
@@ -85,6 +86,9 @@ public:
 
     TraversableSessionHistory const& session_history() const { return m_session_history; }
     Optional<size_t> effective_current_session_history_step_index() const;
+
+    StorageJar& session_storage() { return *m_session_storage; }
+    void clone_session_storage_from(CanonicalTraversable const&);
 
     // Fired after every canonical session-history mutation, once the history has reached its post-mutation state.
     Function<void()> on_session_history_changed;
@@ -163,6 +167,10 @@ private:
 
     HashMap<Web::HTML::CrossProcessId, WeakPtr<CanonicalNavigable>> m_navigable_index;
     TraversableSessionHistory m_session_history;
+
+    // https://storage.spec.whatwg.org/#storage-sheds
+    // A traversable navigable's storage shed holds all session storage data.
+    NonnullOwnPtr<StorageJar> m_session_storage;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-traversal-queue
     SessionHistoryTraversalQueue m_history_traversal_queue;

@@ -139,6 +139,13 @@ Requests::CacheSizes StorageJar::estimate_storage_size_accessed_since(UnixDateTi
     return m_transient_storage.estimate_storage_size_accessed_since(since);
 }
 
+void StorageJar::clone_from(StorageJar const& other)
+{
+    VERIFY(!m_persisted_storage.has_value());
+    VERIFY(!other.m_persisted_storage.has_value());
+    m_transient_storage = other.m_transient_storage;
+}
+
 Optional<Utf16String> StorageJar::TransientStorage::get_item(StorageLocation const& key)
 {
     if (auto entry = m_storage_items.get(key); entry.has_value()) {
