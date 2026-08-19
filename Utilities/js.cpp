@@ -113,6 +113,7 @@ static String s_history_path = String {};
 [[maybe_unused]] static int s_repl_line_level = 0;
 [[maybe_unused]] static bool s_keep_running_repl = true;
 static int s_exit_code = 0;
+static JS::Debugger::PauseOnExceptions s_pause_on_exceptions { JS::Debugger::PauseOnExceptions::None };
 
 static StringView debugger_pause_reason(JS::Debugger::PauseReason reason)
 {
@@ -195,6 +196,30 @@ static void print_breakpoint(JS::Breakpoint const& breakpoint)
         outln("{}: {}:{} ({})", breakpoint.id, breakpoint.filename, breakpoint.line, state);
 }
 
+static Optional<JS::Debugger::PauseOnExceptions> parse_pause_on_exceptions(StringView value)
+{
+    if (value == "none"sv)
+        return JS::Debugger::PauseOnExceptions::None;
+    if (value == "unhandled"sv)
+        return JS::Debugger::PauseOnExceptions::Uncaught;
+    if (value == "all"sv)
+        return JS::Debugger::PauseOnExceptions::All;
+    return {};
+}
+
+static StringView pause_on_exceptions_name(JS::Debugger::PauseOnExceptions mode)
+{
+    switch (mode) {
+    case JS::Debugger::PauseOnExceptions::None:
+        return "none"sv;
+    case JS::Debugger::PauseOnExceptions::Uncaught:
+        return "unhandled"sv;
+    case JS::Debugger::PauseOnExceptions::All:
+        return "all"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 static void print_debugger_help()
 {
     outln("Debugger commands:");
@@ -203,6 +228,8 @@ static void print_debugger_help()
     outln("    continue (c)");
     outln("    delete <id>");
     outln("    help");
+    outln("    set pause-on-exceptions <none|unhandled|all>");
+    outln("    show pause-on-exceptions");
 }
 
 static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
@@ -294,6 +321,29 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
             });
             VERIFY(!breakpoint.is_end());
             print_breakpoint(*breakpoint);
+            continue;
+        }
+
+        if (command_name == "set"sv) {
+            auto setting = command.consume_while([](char ch) { return is_ascii_alphanumeric(ch) || ch == '-'; });
+            command.ignore_while(is_ascii_space);
+            auto value = command.consume_all().trim_whitespace();
+            auto mode = parse_pause_on_exceptions(value);
+            if (setting != "pause-on-exceptions"sv || !mode.has_value()) {
+                warnln("Usage: set pause-on-exceptions <none|unhandled|all>");
+                continue;
+            }
+            s_pause_on_exceptions = *mode;
+            g_vm->debugger()->set_pause_on_exceptions(*mode);
+            continue;
+        }
+
+        if (command_name == "show"sv) {
+            if (command.consume_all().trim_whitespace() != "pause-on-exceptions"sv) {
+                warnln("Usage: show pause-on-exceptions");
+                continue;
+            }
+            outln("pause-on-exceptions: {}", pause_on_exceptions_name(s_pause_on_exceptions));
             continue;
         }
 
@@ -1042,6 +1092,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool use_test262_global = false;
     bool parse_only = false;
     bool debug = false;
+    StringView pause_on_exceptions = "none"sv;
     StringView evaluate_script;
     Vector<StringView> script_paths;
 
@@ -1059,10 +1110,18 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(disable_syntax_highlight, "Disable live syntax highlighting", "no-syntax-highlight", 's');
     args_parser.add_option(disable_debug_printing, "Disable debug output", "disable-debug-output", {});
     args_parser.add_option(debug, "Run with the JavaScript debugger", "debug", {});
+    args_parser.add_option(pause_on_exceptions, "Pause on JavaScript exceptions while debugging", "pause-on-exceptions", {}, "none|unhandled|all");
     args_parser.add_option(evaluate_script, "Evaluate argument as a script", "evaluate", 'c', "script");
     args_parser.add_option(use_test262_global, "Use test262 global ($262)", "use-test262-global", {});
     args_parser.add_positional_argument(script_paths, "Path to script files", "scripts", Core::ArgsParser::Required::No);
     args_parser.parse(arguments);
+
+    auto pause_on_exceptions_mode = parse_pause_on_exceptions(pause_on_exceptions);
+    if (!pause_on_exceptions_mode.has_value()) {
+        warnln("Invalid --pause-on-exceptions value '{}'. Expected none, unhandled, or all.", pause_on_exceptions);
+        return 1;
+    }
+    s_pause_on_exceptions = *pause_on_exceptions_mode;
 
     [[maybe_unused]] bool syntax_highlight = !disable_syntax_highlight;
 
@@ -1079,6 +1138,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     if (debug) {
         g_vm->enable_debugging();
         g_vm->debugger()->set_pause_callback(run_debugger_prompt);
+        g_vm->debugger()->set_pause_on_exceptions(s_pause_on_exceptions);
         g_vm->debugger()->request_pause_on_next_bytecode_execution();
     }
 

@@ -1,4 +1,9 @@
 help
+show pause-on-exceptions
+set pause-on-exceptions unhandled
+show pause-on-exceptions
+set pause-on-exceptions all
+show pause-on-exceptions
 breakpoints
 break 4
 breakpoints
@@ -6,4 +11,7 @@ delete 1
 b 4
 c
 delete 2
+continue
+set pause-on-exceptions none
+show pause-on-exceptions
 continue

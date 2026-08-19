@@ -1,0 +1,2 @@
+Paused at <ladybird>/Tests/LibJS/Debugger/input/pause-on-exceptions.js:7:1 (entry)
+Paused at <ladybird>/Tests/LibJS/Debugger/input/pause-on-exceptions.js:10:5 (exception)
