@@ -48,7 +48,8 @@ enum class CaretLineDirection : u8 {
 class WEB_API HitTestDisplayList : public RefCounted<HitTestDisplayList> {
 public:
     static NonnullRefPtr<HitTestDisplayList> create(u64 visual_context_tree_version);
-
+    static NonnullRefPtr<HitTestDisplayList> create_from_rust_recording(u64 visual_context_tree_version, Layout::NodeArena&);
+    [[nodiscard]] bool is_current() const;
     u64 id() const { return m_id; }
     size_t item_count() const { return m_items.size(); }
     void ensure_item_capacity(size_t capacity) { m_items.ensure_capacity(capacity); }
@@ -179,6 +180,8 @@ private:
     static String dump_item_for_cache_verification(Item const&);
 
     u64 m_visual_context_tree_version { 0 };
+    RefPtr<Layout::NodeArena> m_rust_arena;
+    u64 m_rust_generation { 0 };
     u64 m_id { 0 };
     Vector<Item> m_items;
     mutable bool m_derived_structures_built { false };

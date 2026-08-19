@@ -88,11 +88,8 @@ void ViewportPaintable::initialize_async_scrolling_metadata_recording(DisplayLis
     auto blocking_wheel_event_region_state = collect_root_blocking_wheel_event_regions(document());
     context.set_async_scrolling_metadata_context(
         document().unique_id(),
-        visual_context_tree(),
-        scroll_state(),
         blocking_wheel_event_region_state.has_blocking_wheel_event_listeners,
         blocking_wheel_event_region_state.has_blocking_wheel_event_region_covering_viewport);
-    context.set_should_record_wheel_hit_test_targets(m_has_non_viewport_wheel_scroll_target_candidate);
 }
 
 void ViewportPaintable::finalize_async_scrolling_metadata_recording(DisplayListRecordingContext const& context, HTML::LocalNavigable& navigable, Gfx::IntRect viewport_rect, DisplayList& display_list)
@@ -114,6 +111,7 @@ void ViewportPaintable::reset_for_relayout()
     clear_scroll_state();
     m_display_list_used_as_paint_command_cache_source = nullptr;
     m_paint_command_cache_source_referenced_resources = {};
+    mirror_rust_clear_paint_cache_sources(*this);
     m_paintable_boxes_with_auto_content_visibility.clear();
     m_paintables_with_mask_nodes.clear();
     m_visual_context_tree.clear();
@@ -125,7 +123,7 @@ void ViewportPaintable::build_stacking_context_tree_if_needed()
 {
     if (m_stacking_context_tree_is_valid)
         return;
-    build_stacking_context_tree();
+    rust_build_stacking_context_tree(*this);
     m_stacking_context_tree_is_valid = true;
 }
 
@@ -276,7 +274,6 @@ void ViewportPaintable::refresh_scroll_state()
     // https://drafts.csswg.org/css-position/#sticky-pos
     rust_refresh_scroll_state(*this);
     m_scroll_state_snapshot = rust_scroll_state_snapshot(*this);
-    m_scroll_state = materialize_rust_scroll_state(*this, m_has_non_viewport_wheel_scroll_target_candidate);
 }
 
 GC::Ptr<Selection::Selection> ViewportPaintable::selection() const

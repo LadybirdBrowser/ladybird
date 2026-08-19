@@ -56,6 +56,7 @@
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/GridInspectorOverlay.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/PrerecordedNestedDisplayLists.h>
@@ -75,16 +76,6 @@
 #include <LibWeb/SVG/SVGSVGElement.h>
 
 namespace Web::Painting {
-
-static Layout::RustFFI::FfiCssPixelRect to_ffi_css_pixel_rect(CSSPixelRect const& rect)
-{
-    return { rect.x().raw_value(), rect.y().raw_value(), rect.width().raw_value(), rect.height().raw_value() };
-}
-
-static CSSPixelRect from_ffi_css_pixel_rect(Layout::RustFFI::FfiCssPixelRect const& rect)
-{
-    return { CSSPixels::from_raw(rect.x), CSSPixels::from_raw(rect.y), CSSPixels::from_raw(rect.width), CSSPixels::from_raw(rect.height) };
-}
 
 static PixelBox pixel_box_from_ffi(Layout::RustFFI::FfiPixelBox const& box)
 {
@@ -1183,6 +1174,7 @@ Optional<Paintable::CachedCommandRange> Paintable::valid_cached_commands(PaintPh
 void Paintable::invalidate_paint_cache() const
 {
     m_cached_paint_data = nullptr;
+    mirror_rust_invalidate_paint_cache(*this);
 }
 
 void Paintable::invalidate_propagated_text_decoration_caches() const
