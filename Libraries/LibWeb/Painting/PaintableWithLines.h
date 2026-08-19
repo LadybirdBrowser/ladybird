@@ -27,6 +27,11 @@ public:
     virtual void reset_for_relayout() override;
 
     Vector<PaintableFragment> const& fragments() const { return m_fragments; }
+    u32 index_of_fragment(PaintableFragment const& fragment) const
+    {
+        VERIFY(&fragment >= m_fragments.data() && &fragment < m_fragments.data() + m_fragments.size());
+        return static_cast<u32>(&fragment - m_fragments.data());
+    }
     Vector<PaintableFragment>& fragments() { return m_fragments; }
 
     Vector<LineRecord> const& lines() const { return m_lines; }

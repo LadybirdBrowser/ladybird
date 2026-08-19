@@ -34,6 +34,15 @@ enum class MouseAction : u8 {
 
 AK_ENUM_BITWISE_OPERATORS(MouseAction);
 
+// Identifies one of a paintable's chrome widgets without holding it; resolved through the owning
+// paintable when needed.
+enum class ChromeWidgetKind : u8 {
+    None,
+    ResizeHandle,
+    HorizontalScrollbar,
+    VerticalScrollbar,
+};
+
 class ChromeWidget
     : public RefCounted<ChromeWidget>
     , public Weakable<ChromeWidget> {
