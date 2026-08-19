@@ -126,3 +126,64 @@ pub unsafe extern "C" fn layout_arena_paintable_shell(arena: *mut c_void, slot: 
         paintables.data_ref(slot).shell
     })
 }
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_grid_layout_data(
+    arena: *mut c_void,
+    paintable: PaintableSlotId,
+    context: *mut c_void,
+    consume: unsafe extern "C" fn(*mut c_void, *const crate::layout::FfiGridLayoutData),
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if let Some(data) = &paintables.side(paintable).grid_layout_data {
+            data.with_ffi_view(|view| unsafe { consume(context, view) });
+        }
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_flex_layout_data(
+    arena: *mut c_void,
+    paintable: PaintableSlotId,
+    context: *mut c_void,
+    consume: unsafe extern "C" fn(*mut c_void, *const crate::layout::FfiFlexLayoutData),
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if let Some(data) = &paintables.side(paintable).flex_layout_data {
+            data.with_ffi_view(|view| unsafe { consume(context, view) });
+        }
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_used_grid_tracks(
+    arena: *mut c_void,
+    paintable: PaintableSlotId,
+    context: *mut c_void,
+    consume: unsafe extern "C" fn(
+        *mut c_void,
+        *const crate::layout::FfiUsedGridTrackList,
+        *const crate::layout::FfiUsedGridTrackList,
+    ),
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if let Some(tracks) = &paintables.side(paintable).used_grid_tracks {
+            tracks.with_ffi_views(|columns, rows| unsafe { consume(context, columns, rows) });
+        }
+    });
+}

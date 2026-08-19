@@ -409,16 +409,12 @@ public:
     [[nodiscard]] bool could_be_scrolled_by_wheel_event() const;
     [[nodiscard]] bool could_be_scrolled_by_wheel_event(ScrollDirection direction) const;
 
-    void set_used_values_for_grid_template_columns(UsedGridTrackList used_values) { m_used_values_for_grid_template_columns = move(used_values); }
-    Optional<UsedGridTrackList> const& used_values_for_grid_template_columns() const { return m_used_values_for_grid_template_columns; }
-
-    void set_used_values_for_grid_template_rows(UsedGridTrackList used_values) { m_used_values_for_grid_template_rows = move(used_values); }
-    Optional<UsedGridTrackList> const& used_values_for_grid_template_rows() const { return m_used_values_for_grid_template_rows; }
-
-    void set_grid_layout_data(OwnPtr<Layout::GridLayoutData> grid_layout_data) { m_grid_layout_data = move(grid_layout_data); }
-    Layout::GridLayoutData const* grid_layout_data() const { return m_grid_layout_data.ptr(); }
-    void set_flex_layout_data(OwnPtr<Layout::FlexLayoutData> flex_layout_data) { m_flex_layout_data = move(flex_layout_data); }
-    Layout::FlexLayoutData const* flex_layout_data() const { return m_flex_layout_data.ptr(); }
+    // The used grid tracks and the devtools grid/flex payloads live in the Rust arena; these
+    // getters convert the committed views on demand.
+    Optional<UsedGridTrackList> used_values_for_grid_template_columns() const;
+    Optional<UsedGridTrackList> used_values_for_grid_template_rows() const;
+    OwnPtr<Layout::GridLayoutData> grid_layout_data() const;
+    OwnPtr<Layout::FlexLayoutData> flex_layout_data() const;
     void paint_flexbox_inspector_overlay(DisplayListRecordingContext&, FlexboxInspectorOverlayOptions const&) const;
     void paint_grid_inspector_overlay(DisplayListRecordingContext&, GridInspectorOverlayOptions const&) const;
 
@@ -584,11 +580,6 @@ private:
     bool m_has_non_invertible_css_transform { false };
 
     OwnPtr<StickyInsets> m_sticky_insets;
-
-    Optional<UsedGridTrackList> m_used_values_for_grid_template_columns;
-    Optional<UsedGridTrackList> m_used_values_for_grid_template_rows;
-    OwnPtr<Layout::GridLayoutData> m_grid_layout_data;
-    OwnPtr<Layout::FlexLayoutData> m_flex_layout_data;
 
     BoxModelMetrics m_box_model;
 

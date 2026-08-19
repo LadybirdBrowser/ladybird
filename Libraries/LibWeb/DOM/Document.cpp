@@ -2288,16 +2288,6 @@ void Document::clear_devtools_layout_inspection_data()
 {
     clear_grid_highlighted_node(nullptr);
     clear_flexbox_highlighted_node(nullptr);
-
-    auto paintable = this->paintable();
-    if (!paintable)
-        return;
-
-    paintable->for_each_in_subtree_of_type<Painting::Paintable>([](auto& paintable_box) {
-        paintable_box.set_grid_layout_data(nullptr);
-        paintable_box.set_flex_layout_data(nullptr);
-        return TraversalDecision::Continue;
-    });
 }
 
 bool Document::layout_is_up_to_date() const

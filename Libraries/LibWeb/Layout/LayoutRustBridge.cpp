@@ -73,7 +73,7 @@ static_assert(to_underlying(CSS::StyleGroupIndex::SizingValues) == RustFFI::STYL
 static_assert(to_underlying(CSS::StyleGroupIndex::SurroundValues) == RustFFI::STYLE_GROUP_INDEX_SURROUND);
 static_assert(to_underlying(CSS::StyleGroupIndex::BoxValues) == RustFFI::STYLE_GROUP_INDEX_BOX);
 
-static Painting::UsedGridTrackList build_used_grid_track_list(RustFFI::FfiUsedGridTrackList const& list)
+Painting::UsedGridTrackList build_used_grid_track_list(RustFFI::FfiUsedGridTrackList const& list)
 {
     VERIFY(list.is_subgrid ? list.track_count == 0 : list.track_count + 1 == list.line_count);
 
@@ -94,7 +94,7 @@ static Painting::UsedGridTrackList build_used_grid_track_list(RustFFI::FfiUsedGr
     return result;
 }
 
-static OwnPtr<FlexLayoutData> build_flex_layout_data(RustFFI::FfiFlexLayoutData const& ffi_data)
+OwnPtr<FlexLayoutData> build_flex_layout_data(RustFFI::FfiFlexLayoutData const& ffi_data)
 {
     auto growth_state = [](RustFFI::FfiFlexLayoutGrowthState state) {
         switch (state) {
@@ -189,7 +189,7 @@ static OwnPtr<FlexLayoutData> build_flex_layout_data(RustFFI::FfiFlexLayoutData 
     return data;
 }
 
-static OwnPtr<GridLayoutData> build_grid_layout_data(RustFFI::FfiGridLayoutData const& ffi_data)
+OwnPtr<GridLayoutData> build_grid_layout_data(RustFFI::FfiGridLayoutData const& ffi_data)
 {
     auto track_type = [](RustFFI::FfiGridTrackType type) {
         switch (type) {
@@ -969,18 +969,6 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
             auto const* path = static_cast<Gfx::Path const*>(path_pointer);
             if (auto* svg_path_paintable = as_if<Painting::SVGPathPaintable>(paintable))
                 svg_path_paintable->set_computed_path_if_identity_changed(*path, path_identity); },
-        .set_grid_layout_data = [](void*, void* paintable_pointer, RustFFI::FfiGridLayoutData const* data) {
-            VERIFY(data);
-            static_cast<Painting::Paintable*>(paintable_pointer)->set_grid_layout_data(build_grid_layout_data(*data)); },
-        .set_flex_layout_data = [](void*, void* paintable_pointer, RustFFI::FfiFlexLayoutData const* data) {
-            VERIFY(data);
-            static_cast<Painting::Paintable*>(paintable_pointer)->set_flex_layout_data(build_flex_layout_data(*data)); },
-        .set_used_grid_tracks = [](void*, void* paintable_pointer, RustFFI::FfiUsedGridTrackList const* columns, RustFFI::FfiUsedGridTrackList const* rows) {
-            VERIFY(columns);
-            VERIFY(rows);
-            auto& paintable = *static_cast<Painting::Paintable*>(paintable_pointer);
-            paintable.set_used_values_for_grid_template_columns(build_used_grid_track_list(*columns));
-            paintable.set_used_values_for_grid_template_rows(build_used_grid_track_list(*rows)); },
         .set_collapsed_table_borders = [](void*, void* paintable_pointer, RustFFI::FfiCollapsedTableBorders const* borders) {
             VERIFY(borders);
             static_cast<Painting::Paintable*>(paintable_pointer)->set_collapsed_table_borders(build_collapsed_table_borders(*borders)); },

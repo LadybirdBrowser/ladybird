@@ -91,10 +91,6 @@ pub struct FfiCommitSink {
     pub set_svg_viewport_transform: unsafe extern "C" fn(*mut c_void, *mut c_void, crate::layout::FfiAffineTransform),
     pub set_svg_viewport_size: unsafe extern "C" fn(*mut c_void, *mut c_void, crate::layout::FfiCssPixelSize),
     pub set_computed_svg_path: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, u64),
-    pub set_grid_layout_data: unsafe extern "C" fn(*mut c_void, *mut c_void, *const FfiGridLayoutData),
-    pub set_flex_layout_data: unsafe extern "C" fn(*mut c_void, *mut c_void, *const FfiFlexLayoutData),
-    pub set_used_grid_tracks:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, *const FfiUsedGridTrackList, *const FfiUsedGridTrackList),
     pub set_collapsed_table_borders: unsafe extern "C" fn(*mut c_void, *mut c_void, *const FfiCollapsedTableBorders),
     pub finish_node:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, *mut c_void, *mut c_void) -> FfiCommitNodeResult,
@@ -265,21 +261,12 @@ fn commit_subtree(
             }
         }
         if !reuses_committed_subtree && let Some(data) = &fragment.grid_layout_data {
-            data.with_ffi_view(|view| {
-                unsafe { (sink.set_grid_layout_data)(sink.context, paintable, view) };
-            });
             paintables.set_grid_layout_data(paintable_slot, data);
         }
         if !reuses_committed_subtree && let Some(data) = &fragment.flex_layout_data {
-            data.with_ffi_view(|view| {
-                unsafe { (sink.set_flex_layout_data)(sink.context, paintable, view) };
-            });
             paintables.set_flex_layout_data(paintable_slot, data);
         }
         if !reuses_committed_subtree && let Some(tracks) = &fragment.used_grid_tracks {
-            tracks.with_ffi_views(|columns, rows| {
-                unsafe { (sink.set_used_grid_tracks)(sink.context, paintable, columns, rows) };
-            });
             paintables.set_used_grid_tracks(paintable_slot, tracks);
         }
         if !reuses_committed_subtree && let Some(borders) = &fragment.collapsed_table_borders {
