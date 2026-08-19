@@ -213,17 +213,17 @@ DecoderErrorOr<VideoFrameMetadata> FFmpegVideoDecoder::peek_next_output(CodingIn
         case AV_PIX_FMT_YUV420P10:
         case AV_PIX_FMT_YUV420P12:
         case AV_PIX_FMT_YUVJ420P:
-            return { true, true };
+            return Subsampling::yuv420();
         case AV_PIX_FMT_YUV422P:
         case AV_PIX_FMT_YUV422P10:
         case AV_PIX_FMT_YUV422P12:
         case AV_PIX_FMT_YUVJ422P:
-            return { true, false };
+            return Subsampling::yuv422();
         case AV_PIX_FMT_YUV444P:
         case AV_PIX_FMT_YUV444P10:
         case AV_PIX_FMT_YUV444P12:
         case AV_PIX_FMT_YUVJ444P:
-            return { false, false };
+            return Subsampling::yuv444();
         default:
             VERIFY_NOT_REACHED();
         }
