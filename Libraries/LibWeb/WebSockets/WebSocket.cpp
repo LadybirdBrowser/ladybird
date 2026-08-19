@@ -392,7 +392,7 @@ void WebSocket::on_message(ByteBuffer message, bool is_text)
             // -> type indicates that the data is Binary and binary type is "blob"
             if (m_binary_type == Bindings::BinaryType::Blob) {
                 // a new Blob object, created in the relevant Realm of the WebSocket object, that represents data as its raw data [FILEAPI]
-                return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, FileAPI::Blob::create(move(message), "text/plain;charset=utf-8"_string));
+                return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, FileAPI::Blob::create(move(message), Utf16String {}));
             }
             // -> type indicates that the data is Binary and binary type is "arraybuffer"
             if (m_binary_type == Bindings::BinaryType::Arraybuffer) {
