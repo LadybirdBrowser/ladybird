@@ -2037,15 +2037,11 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
 
                 // FIXME: 2. Let username and password be the result of prompting the end user for a username and password,
                 //           respectively, in request’s window.
-                dbgln("Fetch: Username/password prompt is not implemented, using empty strings. This request will probably fail.");
-                auto username = ByteString::empty();
-                auto password = ByteString::empty();
-
-                // 3. Set the username given request’s current URL and username.
-                request->current_url().set_username(username);
-
-                // 4. Set the password given request’s current URL and password.
-                request->current_url().set_password(password);
+                // FIXME: 3. Set the username given request’s current URL and username.
+                // FIXME: 4. Set the password given request’s current URL and password.
+                dbgln("Fetch: Username/password prompt is not implemented. Aborting the request.");
+                returned_pending_response->resolve(Infrastructure::Response::aborted_network_error());
+                return;
             }
 
             // 4. Set response to the result of running HTTP-network-or-cache fetch given fetchParams and true.
