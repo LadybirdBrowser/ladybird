@@ -151,10 +151,11 @@ Vector<Debugger::FrameBinding> Debugger::bindings_for_frame(ExecutionContext con
     return bindings;
 }
 
-ThrowCompletionOr<Value> Debugger::evaluate_in_frame(ExecutionContext& execution_context, Utf16View source_text)
+ThrowCompletionOr<Value> Debugger::evaluate_in_frame(ExecutionContext& execution_context, Utf16View source_text, UpdateOriginalBindings update_original_bindings)
 {
     auto* context = const_cast<JSExecutionContext*>(execution_context_to_abi(execution_context));
-    return completion_from_abi<Value>(js_debugger_evaluate_in_frame(vm_to_abi(vm()), context, utf16_view_to_abi(source_text)));
+    return completion_from_abi<Value>(js_debugger_evaluate_in_frame(
+        vm_to_abi(vm()), context, utf16_view_to_abi(source_text), to_underlying(update_original_bindings)));
 }
 
 void Debugger::request_pause_on_next_bytecode_execution()

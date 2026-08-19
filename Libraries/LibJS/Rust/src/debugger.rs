@@ -53,6 +53,12 @@ pub enum PauseOnExceptions {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UpdateOriginalBindings {
+    No,
+    Yes,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ResumeMode {
     Continue,
     StepInto,
@@ -252,6 +258,7 @@ impl Debugger {
         vm: &Vm,
         execution_context: &ExecutionContext,
         source_text: Utf16View<'_>,
+        update_original_bindings: UpdateOriginalBindings,
     ) -> ThrowCompletionOr<Value> {
         assert!(self.is_paused.get());
         let executable = Executable::from_head(
@@ -305,19 +312,21 @@ impl Debugger {
             EvalMode::Direct,
         );
 
-        for (name, location) in &binding_locations {
-            if !location.is_mutable {
-                continue;
-            }
-            let Ok(value) = local_environment.get_binding_value(vm, name, false) else {
-                continue;
-            };
-            let slot = match location.storage {
-                BindingStorage::Local => local_variables(execution_context, &executable).get(location.index),
-                BindingStorage::Argument => execution_context.arguments().get(location.index),
-            };
-            if let Some(slot) = slot {
-                slot.set(value);
+        if update_original_bindings == UpdateOriginalBindings::Yes {
+            for (name, location) in &binding_locations {
+                if !location.is_mutable {
+                    continue;
+                }
+                let Ok(value) = local_environment.get_binding_value(vm, name, false) else {
+                    continue;
+                };
+                let slot = match location.storage {
+                    BindingStorage::Local => local_variables(execution_context, &executable).get(location.index),
+                    BindingStorage::Argument => execution_context.arguments().get(location.index),
+                };
+                if let Some(slot) = slot {
+                    slot.set(value);
+                }
             }
         }
         result

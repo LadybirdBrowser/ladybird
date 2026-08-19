@@ -50,6 +50,11 @@ public:
         StepOver,
     };
 
+    enum class UpdateOriginalBindings : u8 {
+        No,
+        Yes,
+    };
+
     struct PauseInfo {
         u32 bytecode_offset { 0 };
         Optional<SourceRange> source_range;
@@ -75,7 +80,7 @@ public:
     void continue_execution_preserving_step_state();
     bool is_paused() const;
     Vector<FrameBinding> bindings_for_frame(ExecutionContext const&) const;
-    ThrowCompletionOr<Value> evaluate_in_frame(ExecutionContext&, Utf16View source_text);
+    ThrowCompletionOr<Value> evaluate_in_frame(ExecutionContext&, Utf16View source_text, UpdateOriginalBindings = UpdateOriginalBindings::Yes);
 
     void request_pause_on_next_bytecode_execution();
     void did_finish_exception_propagation(Value);

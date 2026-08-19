@@ -15,7 +15,7 @@ use core::ptr::NonNull;
 use std::rc::Rc;
 
 use crate::breakpoint::BreakpointID;
-use crate::debugger::{Debugger, PauseInfo, PauseOnExceptions, PauseReason, ResumeMode};
+use crate::debugger::{Debugger, PauseInfo, PauseOnExceptions, PauseReason, ResumeMode, UpdateOriginalBindings};
 use crate::embedding::abi_types::{JSSourceCode, JSUtf16View, completion_into_abi, vm_from_abi, vm_into_abi};
 use crate::embedding::execution_context::JSExecutionContext;
 use crate::embedding::source_code::{shared_source_code_from_abi, source_code_into_abi};
@@ -411,8 +411,8 @@ pub unsafe extern "C" fn js_debugger_remove_breakpoint(vm: *mut JSVM, breakpoint
     debugger.remove_breakpoint(breakpoint_id)
 }
 
-/// Debugger::evaluate_in_frame(): runs `source_text` as a direct eval in a frame of the paused stack, which sees and
-/// may assign the frame's arguments and locals. Only while paused, on the VM's thread.
+/// Debugger::evaluate_in_frame(): runs `source_text` as a direct eval in a frame of the paused stack. It updates the
+/// frame's arguments and locals when `update_original_bindings` is nonzero. Only while paused, on the VM's thread.
 ///
 /// # Safety
 ///
@@ -423,6 +423,7 @@ pub unsafe extern "C" fn js_debugger_evaluate_in_frame(
     vm: *mut JSVM,
     execution_context: *mut JSExecutionContext,
     source_text: JSUtf16View,
+    update_original_bindings: u8,
 ) -> JSCompletion {
     // SAFETY: The caller passes a live VM.
     let (vm, debugger) = unsafe { debugger_of(vm) };
@@ -430,7 +431,12 @@ pub unsafe extern "C" fn js_debugger_evaluate_in_frame(
     let execution_context = unsafe { execution_context_from_abi(execution_context) };
     // SAFETY: The caller guarantees that the view is valid for the call.
     let source_text = unsafe { source_text.as_view() };
-    completion_into_abi(debugger.evaluate_in_frame(vm, execution_context, source_text))
+    let update_original_bindings = if update_original_bindings == 0 {
+        UpdateOriginalBindings::No
+    } else {
+        UpdateOriginalBindings::Yes
+    };
+    completion_into_abi(debugger.evaluate_in_frame(vm, execution_context, source_text, update_original_bindings))
 }
 
 /// Debugger::bindings_for_frame(): hands the sink each argument and local of the frame's function that is in scope at
