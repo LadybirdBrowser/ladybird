@@ -9,6 +9,7 @@
 
 #include <AK/Enumerate.h>
 #include <AK/GenericLexer.h>
+#include <AK/HashMap.h>
 #include <AK/LexicalPath.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Platform.h>
@@ -115,6 +116,7 @@ static String s_history_path = String {};
 [[maybe_unused]] static bool s_keep_running_repl = true;
 static int s_exit_code = 0;
 static JS::Debugger::PauseOnExceptions s_pause_on_exceptions { JS::Debugger::PauseOnExceptions::None };
+static HashMap<JS::BreakpointID, Utf16String> s_breakpoint_conditions;
 
 static void print_debugger_evaluation_result(JS::ThrowCompletionOr<JS::Value>);
 
@@ -193,10 +195,16 @@ static Optional<BreakpointLocation> parse_breakpoint_location(StringView input, 
 static void print_breakpoint(JS::Breakpoint const& breakpoint)
 {
     auto const* state = g_vm->debugger()->is_breakpoint_resolved(breakpoint.id) ? "resolved" : "pending";
+    StringBuilder location;
+    location.appendff("{}:{}", breakpoint.filename, breakpoint.line);
     if (breakpoint.column.has_value())
-        outln("{}: {}:{}:{} ({})", breakpoint.id, breakpoint.filename, breakpoint.line, *breakpoint.column, state);
+        location.appendff(":{}", *breakpoint.column);
+
+    auto condition = s_breakpoint_conditions.find(breakpoint.id);
+    if (condition == s_breakpoint_conditions.end())
+        outln("{}: {} ({})", breakpoint.id, location.string_view(), state);
     else
-        outln("{}: {}:{} ({})", breakpoint.id, breakpoint.filename, breakpoint.line, state);
+        outln("{}: {} ({}, condition: {})", breakpoint.id, location.string_view(), state, condition->value);
 }
 
 static Optional<JS::Debugger::PauseOnExceptions> parse_pause_on_exceptions(StringView value)
@@ -247,7 +255,7 @@ static void print_debugger_help()
 {
     outln("Debugger commands:");
     outln("    backtrace (bt)");
-    outln("    break (b) [file:]<line>[:column]");
+    outln("    break (b) [file:]<line>[:column] [condition]");
     outln("    breakpoints");
     outln("    continue (c)");
     outln("    delete <id>");
@@ -260,8 +268,36 @@ static void print_debugger_help()
     outln("    step-over (next, n)");
 }
 
+static bool breakpoint_conditions_allow_pause(JS::Debugger::PauseInfo const& pause_info)
+{
+    if (pause_info.reason != JS::Debugger::PauseReason::Breakpoint)
+        return true;
+
+    for (auto breakpoint_id : pause_info.breakpoint_ids) {
+        auto condition = s_breakpoint_conditions.find(breakpoint_id);
+        if (condition == s_breakpoint_conditions.end())
+            return true;
+
+        auto* frame = pause_info.stack_trace.first().execution_context;
+        auto result = g_vm->debugger()->evaluate_in_frame(*frame, condition->value, JS::Debugger::UpdateOriginalBindings::No);
+        if (result.is_error()) {
+            warnln("Breakpoint condition threw: {}", result.throw_completion().value().to_utf16_string_without_side_effects());
+            return true;
+        }
+        if (result.release_value().to_boolean())
+            return true;
+    }
+
+    return false;
+}
+
 static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
 {
+    if (!breakpoint_conditions_allow_pause(pause_info)) {
+        g_vm->debugger()->continue_execution_preserving_step_state();
+        return;
+    }
+
     if (pause_info.source_range.has_value()) {
         auto const& range = *pause_info.source_range;
         if (range.start.line > 0)
@@ -364,9 +400,13 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
             if (pause_info.source_range.has_value())
                 current_filename = pause_info.source_range->filename();
 
-            auto location = parse_breakpoint_location(command.consume_all().trim_whitespace(), current_filename);
+            auto location_text = command.consume_while([](char ch) { return !is_ascii_space(ch); });
+            command.ignore_while(is_ascii_space);
+            auto condition = command.consume_all().trim_whitespace();
+
+            auto location = parse_breakpoint_location(location_text, current_filename);
             if (!location.has_value() || location->filename.is_empty()) {
-                warnln("Usage: break <line>[:column] or break <file>:<line>[:column]");
+                warnln("Usage: break <line>[:column] [condition] or break <file>:<line>[:column] [condition]");
                 continue;
             }
 
@@ -380,6 +420,10 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
                 return breakpoint.id == breakpoint_id.value();
             });
             VERIFY(!breakpoint.is_end());
+            if (condition.is_empty())
+                s_breakpoint_conditions.remove(breakpoint_id.value());
+            else
+                s_breakpoint_conditions.set(breakpoint_id.value(), Utf16String::from_utf8(condition));
             print_breakpoint(*breakpoint);
             continue;
         }
@@ -417,6 +461,7 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
                 warnln("No breakpoint with id {}.", *breakpoint_id);
                 continue;
             }
+            s_breakpoint_conditions.remove(*breakpoint_id);
             outln("Deleted breakpoint {}.", *breakpoint_id);
             continue;
         }
