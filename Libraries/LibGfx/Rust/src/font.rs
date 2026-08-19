@@ -13,6 +13,9 @@ unsafe extern "C" {
     fn ladybird_gfx_font_glyph_id(font: *const c_void, code_point: u32) -> u32;
     fn ladybird_gfx_font_contains_glyph(font: *const c_void, code_point: u32) -> bool;
     fn ladybird_gfx_font_is_emoji_font(font: *const c_void) -> bool;
+    fn ladybird_gfx_font_pixel_metrics(font: *const c_void, ascent: *mut f32, descent: *mut f32);
+    fn ladybird_gfx_font_pixel_size(font: *const c_void) -> f32;
+    fn ladybird_gfx_font_x_height(font: *const c_void) -> f32;
     fn ladybird_gfx_font_cascade_list_font_for_code_point(
         list: *const c_void,
         code_point: u32,
@@ -81,6 +84,29 @@ impl<'a> FontRef<'a> {
     }
 
     #[inline]
+    pub fn pixel_metrics_ascent_descent(self) -> (f32, f32) {
+        let mut ascent = 0.0f32;
+        let mut descent = 0.0f32;
+        // SAFETY: The font is live for the lifetime of this reference; the out-pointers address
+        // local floats.
+        unsafe { ladybird_gfx_font_pixel_metrics(self.raw.as_ptr(), &raw mut ascent, &raw mut descent) };
+        (ascent, descent)
+    }
+
+    #[inline]
+    pub fn pixel_size(self) -> f32 {
+        // SAFETY: FontRef's constructor requires the Gfx::Font to remain live
+        // for this reference's lifetime.
+        unsafe { ladybird_gfx_font_pixel_size(self.raw.as_ptr()) }
+    }
+
+    #[inline]
+    pub fn x_height(self) -> f32 {
+        // SAFETY: FontRef's constructor requires the Gfx::Font to remain live
+        // for this reference's lifetime.
+        unsafe { ladybird_gfx_font_x_height(self.raw.as_ptr()) }
+    }
+
     pub fn is_emoji_font(self) -> bool {
         // SAFETY: FontRef's constructor requires the Gfx::Font to remain live
         // for this reference's lifetime.

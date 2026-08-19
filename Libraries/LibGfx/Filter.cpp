@@ -15,6 +15,8 @@
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 
+extern "C" void ladybird_gfx_filter_destroy(void*);
+
 namespace Gfx {
 
 static ErrorOr<Optional<ByteBuffer>> copy_optional_color_table(Optional<ReadonlyBytes> bytes)
@@ -673,4 +675,9 @@ ErrorOr<Gfx::Filter> decode(Decoder& decoder)
     });
 }
 
+}
+
+extern "C" void ladybird_gfx_filter_destroy(void* filter)
+{
+    delete static_cast<Gfx::Filter*>(filter);
 }

@@ -31,6 +31,9 @@ float ladybird_gfx_font_glyph_width(void const*, u32);
 u32 ladybird_gfx_font_glyph_id(void const*, u32);
 bool ladybird_gfx_font_contains_glyph(void const*, u32);
 bool ladybird_gfx_font_is_emoji_font(void const*);
+void ladybird_gfx_font_pixel_metrics(void const*, float* ascent, float* descent);
+float ladybird_gfx_font_pixel_size(void const*);
+float ladybird_gfx_font_x_height(void const*);
 void ladybird_gfx_font_ref(void const*);
 void ladybird_gfx_font_unref(void const*);
 }
@@ -275,6 +278,26 @@ extern "C" bool ladybird_gfx_font_is_emoji_font(void const* font)
 {
     VERIFY(font);
     return static_cast<Gfx::Font const*>(font)->is_emoji_font();
+}
+
+extern "C" void ladybird_gfx_font_pixel_metrics(void const* font, float* ascent, float* descent)
+{
+    VERIFY(font);
+    auto const& metrics = static_cast<Gfx::Font const*>(font)->pixel_metrics();
+    *ascent = metrics.ascent;
+    *descent = metrics.descent;
+}
+
+extern "C" float ladybird_gfx_font_pixel_size(void const* font)
+{
+    VERIFY(font);
+    return static_cast<Gfx::Font const*>(font)->pixel_size();
+}
+
+extern "C" float ladybird_gfx_font_x_height(void const* font)
+{
+    VERIFY(font);
+    return static_cast<Gfx::Font const*>(font)->x_height();
 }
 
 extern "C" void ladybird_gfx_font_ref(void const* font)
