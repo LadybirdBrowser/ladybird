@@ -1,0 +1,29 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <AK/Optional.h>
+#include <AK/String.h>
+#include <AK/Utf16String.h>
+#include <AK/Vector.h>
+#include <LibURL/URL.h>
+
+namespace Web::HTML {
+
+struct TextDirective {
+    Optional<Utf16String> prefix;
+    Utf16String start;
+    Optional<Utf16String> end;
+    Optional<Utf16String> suffix;
+};
+
+Optional<String> remove_the_fragment_directive(URL::URL&);
+Optional<Utf16String> percent_decode_a_text_directive_term(Optional<StringView> term);
+Optional<TextDirective> parse_a_text_directive(StringView text_directive_value);
+Vector<TextDirective> parse_the_fragment_directive(StringView fragment_directive);
+
+}
