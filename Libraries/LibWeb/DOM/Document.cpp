@@ -9027,15 +9027,13 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
     if (!line_box_border_overlays_replace_cacheable_content)
         context.set_paint_command_cache_source_display_list(viewport_paintable.display_list_used_as_paint_command_cache_source());
     // An incompatible visual context tree rebuild leaves the retained list's item context indices
-    // meaningless, so it only serves as a splice source while the tree version still matches.
-    if (auto const* hit_test_item_cache_source = m_hit_test_display_list_used_as_item_cache_source.ptr();
-        hit_test_item_cache_source && hit_test_item_cache_source->visual_context_tree_version() == viewport_paintable.visual_context_tree().version()) {
-        context.set_hit_test_item_cache_source(hit_test_item_cache_source);
-        // The new recording ends up with roughly as many items as the source it splices from.
-        hit_test_display_list->ensure_item_capacity(hit_test_item_cache_source->item_count());
-    } else {
-        // Versions only move forward, so a mismatched list can never be spliced from again.
-        m_hit_test_display_list_used_as_item_cache_source = nullptr;
+    // meaningless, but its item count remains useful as a capacity estimate.
+    if (auto const* previous_hit_test_display_list = m_hit_test_display_list_used_as_item_cache_source.ptr()) {
+        // The new recording ends up with roughly as many items as the previous one, even when a
+        // visual context tree rebuild prevents reusing the previous items.
+        hit_test_display_list->ensure_item_capacity(previous_hit_test_display_list->item_count());
+        if (previous_hit_test_display_list->visual_context_tree_version() == viewport_paintable.visual_context_tree().version())
+            context.set_hit_test_item_cache_source(previous_hit_test_display_list);
     }
     viewport_paintable.refresh_scroll_state();
     viewport_paintable.initialize_async_scrolling_metadata_recording(context);
