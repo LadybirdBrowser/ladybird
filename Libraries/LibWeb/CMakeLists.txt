@@ -887,6 +887,7 @@ set(SOURCES
     Painting/PaintStyle.cpp
     Painting/PaintableFragment.cpp
     Painting/PaintableWithLines.cpp
+    Painting/PaintingRustBridge.cpp
     Painting/PrerecordedNestedDisplayLists.cpp
     Painting/RadioButtonPaintable.cpp
     Painting/ReplacedElementCommon.cpp
@@ -1362,6 +1363,7 @@ if(NOT BUILD_SHARED_LIBS)
     set_property(SOURCE HTML/Parser/HTMLEncodingDetection.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
     set_property(SOURCE Layout/LayoutRustBridge.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
     set_property(SOURCE Layout/TreeBuilder.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
+    set_property(SOURCE Painting/PaintingRustBridge.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
     set_property(SOURCE Loader/ContentBlocker.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_content_blocker_rust_lib})
 endif()
 

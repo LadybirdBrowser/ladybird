@@ -320,3 +320,359 @@ pub unsafe extern "C" fn layout_arena_paintable_set_cached_overflow_data(
         }
     });
 }
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_build_stacking_context_tree(arena: *mut c_void, root: PaintableSlotId) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let tree = {
+            let paintables = arena.paintables().borrow();
+            if !paintables.is_live(root) {
+                return;
+            }
+            crate::painting::stacking_context::build_stacking_context_tree(arena, &paintables, root)
+        };
+        let mut paintables = arena.paintables().borrow_mut();
+        paintables.stacking_context_tree = Some(tree);
+        crate::painting::fragment_ownership::assign_fragment_ownership(arena, &mut paintables, root);
+    });
+}
+
+use crate::painting::host::FfiVisualContextHostCallbacks;
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_assign_accumulated_visual_contexts(
+    arena: *mut c_void,
+    viewport: PaintableSlotId,
+    callbacks: FfiVisualContextHostCallbacks,
+    force_incompatible_rebuild: bool,
+) -> bool {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let (mut tree, scroll_state, paintables_with_mask_nodes) = {
+            let paintables = arena.paintables().borrow();
+            if !paintables.is_live(viewport) {
+                return false;
+            }
+            crate::painting::visual_context::build::build_visual_context_tree(arena, &paintables, &callbacks, viewport)
+        };
+        let mut paintables = arena.paintables().borrow_mut();
+        let state = &mut paintables.visual_context;
+        state.build_count += 1;
+        let is_compatible = !force_incompatible_rebuild
+            && state
+                .tree
+                .as_ref()
+                .is_some_and(|previous| tree.is_compatible_with(previous));
+        tree.reused_previous_version = is_compatible;
+        tree.version = if is_compatible {
+            state.tree_version()
+        } else {
+            state.allocate_tree_version()
+        };
+        state.tree = Some(tree);
+        state.paintables_with_mask_nodes = paintables_with_mask_nodes;
+        state.scroll_state = scroll_state;
+        state.scroll_state_snapshot.clear();
+        state.needs_to_refresh_scroll_state = true;
+        is_compatible
+    })
+}
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the
+/// document thread; `out_matrix` and `out_origin` must hold 16 and 2 floats.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_compute_css_transform(
+    arena: *mut c_void,
+    paintable: PaintableSlotId,
+    callbacks: FfiVisualContextHostCallbacks,
+    pixel_ratio: f64,
+    out_matrix: *mut f32,
+    out_origin: *mut f32,
+) -> bool {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if !paintables.is_live(paintable) {
+            return false;
+        }
+        let Some((transform, _is_invertible)) = crate::painting::visual_context::node_values::compute_transform(
+            arena,
+            &paintables,
+            &callbacks,
+            paintable,
+            pixel_ratio,
+        ) else {
+            return false;
+        };
+        for (index, value) in transform.matrix.elements.into_iter().flatten().enumerate() {
+            // SAFETY: the caller warrants 16 floats behind out_matrix.
+            unsafe { out_matrix.add(index).write(value) };
+        }
+        // SAFETY: the caller warrants 2 floats behind out_origin.
+        unsafe {
+            out_origin.write(transform.origin.x);
+            out_origin.add(1).write(transform.origin.y);
+        }
+        true
+    })
+}
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_update_visual_context_values(
+    arena: *mut c_void,
+    paintable: PaintableSlotId,
+    callbacks: FfiVisualContextHostCallbacks,
+) -> bool {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let mut paintables = arena.paintables().borrow_mut();
+        if !paintables.is_live(paintable) {
+            return false;
+        }
+        let pixel_ratio = callbacks.tree_inputs().device_pixels_per_css_pixel;
+        let Some(mut tree) = paintables.visual_context.tree.take() else {
+            return false;
+        };
+        let updated = crate::painting::visual_context::build::update_visual_context_values(
+            arena,
+            &paintables,
+            &callbacks,
+            &mut tree,
+            paintable,
+            pixel_ratio,
+        );
+        paintables.visual_context.tree = Some(tree);
+        updated
+    })
+}
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_update_visual_viewport_transform(
+    arena: *mut c_void,
+    callbacks: FfiVisualContextHostCallbacks,
+) -> bool {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let mut paintables = arena.paintables().borrow_mut();
+        let Some(tree) = &mut paintables.visual_context.tree else {
+            return false;
+        };
+        let inputs = callbacks.tree_inputs();
+        tree.set_visual_viewport_transform(
+            crate::painting::visual_context::node_values::visual_viewport_transform_data(&inputs),
+        );
+        true
+    })
+}
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_needs_to_refresh_scroll_state(arena: *mut c_void, value: bool) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        arena
+            .paintables()
+            .borrow_mut()
+            .visual_context
+            .needs_to_refresh_scroll_state = value;
+    });
+}
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_clear_scroll_state(arena: *mut c_void) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let mut paintables = arena.paintables().borrow_mut();
+        let state = &mut paintables.visual_context;
+        state.scroll_state.clear();
+        state.scroll_state_snapshot.clear();
+        state.needs_to_refresh_scroll_state = true;
+    });
+}
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_refresh_sticky_constraints(arena: *mut c_void) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let mut paintables = arena.paintables().borrow_mut();
+        let mut scroll_state = std::mem::take(&mut paintables.visual_context.scroll_state);
+        crate::painting::visual_context::refresh::refresh_sticky_constraints(&paintables, &mut scroll_state);
+        paintables.visual_context.scroll_state = scroll_state;
+        paintables.visual_context.needs_to_refresh_scroll_state = true;
+    });
+}
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
+    arena: *mut c_void,
+    callbacks: FfiVisualContextHostCallbacks,
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let mut paintables = arena.paintables().borrow_mut();
+        if !paintables.visual_context.needs_to_refresh_scroll_state {
+            return;
+        }
+        paintables.visual_context.needs_to_refresh_scroll_state = false;
+        let mut scroll_state = std::mem::take(&mut paintables.visual_context.scroll_state);
+        crate::painting::visual_context::refresh::refresh_scroll_state(&paintables, &callbacks, &mut scroll_state);
+        let snapshot = scroll_state.snapshot(callbacks.tree_inputs().device_pixels_per_css_pixel);
+        paintables.visual_context.scroll_state = scroll_state;
+        paintables.visual_context.scroll_state_snapshot = snapshot;
+    });
+}
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_reset_visual_context_state(arena: *mut c_void) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let mut paintables = arena.paintables().borrow_mut();
+        let next_tree_version = paintables.visual_context.next_tree_version;
+        paintables.visual_context = crate::painting::visual_context::VisualContextState {
+            needs_to_refresh_scroll_state: true,
+            next_tree_version,
+            ..Default::default()
+        };
+    });
+}
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_clear_visual_context_tree(arena: *mut c_void) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let mut paintables = arena.paintables().borrow_mut();
+        paintables.visual_context.tree = None;
+        paintables.visual_context.paintables_with_mask_nodes.clear();
+    });
+}
+/// # Safety
+///
+/// `tree` must be the pointer handed to the callback, used synchronously.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_visual_context_tree_node_count(tree: *const c_void) -> usize {
+    abort_on_panic(|| {
+        // SAFETY: `tree` is the VisualContextTree pointer handed out by the host callback wrapper.
+        let tree = unsafe { &*tree.cast::<crate::painting::visual_context::VisualContextTree>() };
+        tree.nodes.len()
+    })
+}
+
+/// # Safety
+///
+/// `tree` must be the pointer handed to the callback, used synchronously.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_visual_context_tree_root_is_visual_viewport(tree: *const c_void) -> bool {
+    abort_on_panic(|| {
+        // SAFETY: `tree` is the VisualContextTree pointer handed out by the host callback wrapper.
+        let tree = unsafe { &*tree.cast::<crate::painting::visual_context::VisualContextTree>() };
+        tree.root_is_visual_viewport
+    })
+}
+
+/// # Safety
+///
+/// `tree` must be the pointer handed to the callback, used synchronously; `index` in range.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_visual_context_tree_node(
+    tree: *const c_void,
+    index: usize,
+) -> crate::painting::host::FfiVisualContextNodeExport {
+    abort_on_panic(|| {
+        // SAFETY: `tree` is the VisualContextTree pointer handed out by the host callback wrapper.
+        let tree = unsafe { &*tree.cast::<crate::painting::visual_context::VisualContextTree>() };
+        crate::painting::visual_context::export_node(&tree.nodes[index])
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_main_visual_context_tree(arena: *mut c_void) -> *const c_void {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        paintables
+            .visual_context
+            .tree
+            .as_ref()
+            .map_or(std::ptr::null(), |tree| std::ptr::from_ref(tree).cast())
+    })
+}
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread; `out`
+/// must have room for `capacity` floats.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_scroll_state_snapshot(
+    arena: *mut c_void,
+    out: *mut f32,
+    capacity: usize,
+) -> usize {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        let snapshot = &paintables.visual_context.scroll_state_snapshot;
+        let needed = snapshot.len() * 2;
+        if !out.is_null() {
+            for (index, offset) in snapshot.iter().enumerate() {
+                if index * 2 + 1 >= capacity {
+                    break;
+                }
+                // SAFETY: within the caller's capacity.
+                unsafe {
+                    *out.add(index * 2) = offset.x;
+                    *out.add(index * 2 + 1) = offset.y;
+                }
+            }
+        }
+        needed
+    })
+}
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_cumulative_scroll_offset_for_node(
+    arena: *mut c_void,
+    scroll_node_index: usize,
+    out_raw: *mut i32,
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        let state = &paintables.visual_context;
+        let offset = state.tree.as_ref().map_or_else(Default::default, |tree| {
+            state
+                .scroll_state
+                .cumulative_offset(tree.scroll_state_slot_for_node(scroll_node_index))
+        });
+        // SAFETY: the caller passes room for two values.
+        unsafe {
+            *out_raw = offset.x.raw_value();
+            *out_raw.add(1) = offset.y.raw_value();
+        }
+    });
+}

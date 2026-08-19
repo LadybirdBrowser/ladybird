@@ -377,6 +377,9 @@ pub struct PaintableSideData {
     pub(crate) piece_indices: Vec<u32>,
     pub(crate) computed_svg_path: Option<Rc<libgfx_rust::path::OwnedPath>>,
     pub(crate) computed_svg_path_identity: u64,
+    // Only meaningful while is_self_painting(); assigned by the containing block's
+    // assign_fragment_ownership().
+    pub(crate) fragment_ownership: Option<crate::painting::fragment_ownership::FragmentOwnershipFilter>,
     pub(crate) grid_layout_data: Option<Rc<OwnedGridLayoutData>>,
     pub(crate) flex_layout_data: Option<Rc<OwnedFlexLayoutData>>,
     pub(crate) used_grid_tracks: Option<Rc<OwnedUsedGridTracks>>,
@@ -389,6 +392,7 @@ impl PaintableSideData {
         self.fragments.clear();
         self.inline_box_pieces.clear();
         self.piece_indices.clear();
+        self.fragment_ownership = None;
         self.grid_layout_data = None;
         self.flex_layout_data = None;
         self.used_grid_tracks = None;

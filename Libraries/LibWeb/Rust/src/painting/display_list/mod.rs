@@ -5,4 +5,5 @@
  */
 
 pub mod commands;
+pub mod device_pixels;
 pub mod ffi_bytes;

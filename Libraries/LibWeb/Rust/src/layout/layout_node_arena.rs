@@ -10,7 +10,7 @@ use crate::layout::AvailableSize;
 use crate::layout::CssPixels;
 use crate::layout::FfiReplacedContentFacts;
 use crate::layout::UsedValues;
-use crate::layout::node_data::{FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeSlotId};
+use crate::layout::node_data::{FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind, NodeSlotId};
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -1212,6 +1212,53 @@ impl LayoutNodeArena {
         // SAFETY: The metadata check established a live slot of this generation.
         unsafe { (*self.data(id)).shell }
     }
+
+    pub(crate) fn node_flags_if_live(&self, id: NodeSlotId) -> u32 {
+        if self.shell_if_live(id).is_null() {
+            return 0;
+        }
+        // SAFETY: shell_if_live established a live slot of this generation.
+        unsafe { (*self.data(id)).flags }
+    }
+
+    pub(crate) fn node_is_generated_for_pseudo_element(&self, id: NodeSlotId) -> bool {
+        if self.shell_if_live(id).is_null() {
+            return false;
+        }
+        // SAFETY: shell_if_live established a live slot of this generation.
+        unsafe { (*self.data(id)).generated_for != 0 }
+    }
+
+    pub(crate) fn node_kind_if_live(&self, id: NodeSlotId) -> Option<NodeKind> {
+        if self.shell_if_live(id).is_null() {
+            return None;
+        }
+        // SAFETY: shell_if_live established a live slot of this generation.
+        Some(unsafe { (*self.data(id)).kind })
+    }
+
+    pub(crate) fn node_parent_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
+        if self.shell_if_live(id).is_null() {
+            return None;
+        }
+        // SAFETY: shell_if_live established a live slot of this generation.
+        let parent = unsafe { (*self.data(id)).parent };
+        (!parent.is_invalid()).then_some(parent)
+    }
+
+    pub(crate) fn node_style_if_live(
+        &self,
+        id: NodeSlotId,
+    ) -> Option<crate::css::computed_value_views::ComputedValuesView<'_>> {
+        if self.shell_if_live(id).is_null() {
+            return None;
+        }
+        let payloads = self.style_payloads(id)?;
+        Some(crate::css::computed_value_views::ComputedValuesView::new(
+            &payloads.groups,
+        ))
+    }
+
 
     pub(crate) unsafe fn from_handle<'a>(arena: *mut c_void) -> &'a Self {
         assert!(!arena.is_null(), "layout node arena handle is null");

@@ -45,6 +45,8 @@ pub struct PaintableArena {
     next_index: u32,
     live_count: u32,
     paintable_of_node: Vec<PaintableSlotId>,
+    pub(crate) stacking_context_tree: Option<crate::painting::stacking_context::StackingContextTree>,
+    pub(crate) visual_context: crate::painting::visual_context::VisualContextState,
     absolute_rect_memo: std::cell::RefCell<std::collections::HashMap<u32, crate::css::css_pixels::CssPixelRect>>,
 }
 
