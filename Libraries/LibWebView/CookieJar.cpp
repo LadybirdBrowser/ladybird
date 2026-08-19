@@ -39,25 +39,28 @@ ErrorOr<Database::MigrationOutcome> CookieJar::migrate_schema(Database::Database
     // SameSite value instead of deriving it from the enum.
     static_assert(to_underlying(HTTP::Cookie::SameSite::Lax) == 3);
 
-    Array<Database::Migration, 1> migrations { {
-        { .version = COOKIES_SCHEMA_BASELINE_VERSION, .sql = R"#(
-            CREATE TABLE IF NOT EXISTS Cookies (
-                name TEXT,
-                value TEXT,
-                same_site INTEGER CHECK (same_site >= 0 AND same_site <= 3),
-                creation_time INTEGER,
-                last_access_time INTEGER,
-                expiry_time INTEGER,
-                domain TEXT,
-                path TEXT,
-                secure BOOLEAN,
-                http_only BOOLEAN,
-                host_only BOOLEAN,
-                persistent BOOLEAN,
-                PRIMARY KEY(name, domain, path)
-            );
-        )#"sv },
-    } };
+    auto migrations = to_array<Database::Migration>({
+        {
+            .version = COOKIES_SCHEMA_BASELINE_VERSION,
+            .sql = R"#(
+                CREATE TABLE IF NOT EXISTS Cookies (
+                    name TEXT,
+                    value TEXT,
+                    same_site INTEGER CHECK (same_site >= 0 AND same_site <= 3),
+                    creation_time INTEGER,
+                    last_access_time INTEGER,
+                    expiry_time INTEGER,
+                    domain TEXT,
+                    path TEXT,
+                    secure BOOLEAN,
+                    http_only BOOLEAN,
+                    host_only BOOLEAN,
+                    persistent BOOLEAN,
+                    PRIMARY KEY(name, domain, path)
+                );
+            )#"sv,
+        },
+    });
 
     return database.migrate("Cookies"sv, migrations, mode);
 }

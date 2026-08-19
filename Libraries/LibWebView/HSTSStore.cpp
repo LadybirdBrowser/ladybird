@@ -18,14 +18,19 @@ static constexpr u32 HSTS_SCHEMA_BASELINE_VERSION = 1u;
 
 ErrorOr<Database::MigrationOutcome> HSTSStore::migrate_schema(Database::Database& database, Database::MigrationMode mode)
 {
-    Array<Database::Migration, 1> migrations { {
-        { .version = HSTS_SCHEMA_BASELINE_VERSION, .sql = "CREATE TABLE IF NOT EXISTS HSTSPolicies ("
-                                                          "    domain TEXT PRIMARY KEY,"
-                                                          "    expiry_time INTEGER NOT NULL,"
-                                                          "    include_sub_domains BOOLEAN NOT NULL,"
-                                                          "    last_observed_time INTEGER NOT NULL"
-                                                          ");"sv },
-    } };
+    auto migrations = to_array<Database::Migration>({
+        {
+            .version = HSTS_SCHEMA_BASELINE_VERSION,
+            .sql = R"#(
+                CREATE TABLE IF NOT EXISTS HSTSPolicies (
+                    domain TEXT PRIMARY KEY,
+                    expiry_time INTEGER NOT NULL,
+                    include_sub_domains BOOLEAN NOT NULL,
+                    last_observed_time INTEGER NOT NULL
+                );
+           )#"sv,
+        },
+    });
 
     return database.migrate("HSTSPolicies"sv, migrations, mode);
 }
