@@ -72,6 +72,10 @@ add_cxx_compile_options(-Wimplicit-fallthrough)
 add_cxx_compile_options(-Wlogical-op)
 add_cxx_compile_options(-Wmissing-declarations)
 add_cxx_compile_options(-Wmissing-field-initializers)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+    # Apple Clang does not include this diagnostic in -Wmissing-field-initializers as upstream Clang does.
+    add_cxx_compile_options(-Wmissing-designated-field-initializers)
+endif()
 add_cxx_compile_options(-Wsuggest-override)
 
 add_cxx_compile_options(-Wno-expansion-to-defined)
