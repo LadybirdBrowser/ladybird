@@ -143,6 +143,57 @@
         host.removeChild(firstItem);
         println(`querySelector after remove: ${host.querySelector(".item") === host.querySelectorAll(".item")[0]}`);
 
+        // A cached querySelector result must not be treated as a complete querySelectorAll result.
+        const connectedProbe = document.createElement("div");
+        connectedProbe.innerHTML = `<span class="connected-probe"></span><span class="connected-probe"></span>`;
+        host.appendChild(connectedProbe);
+        const connectedFirst = connectedProbe.querySelector(".connected-probe");
+        println(`connected querySelector found first match: ${connectedFirst === connectedProbe.firstElementChild}`);
+        println(`querySelectorAll after connected querySelector: ${connectedProbe.querySelectorAll(".connected-probe").length}`);
+
+        const disconnectedProbe = document.createElement("div");
+        disconnectedProbe.innerHTML = `<span class="disconnected-probe"></span><span class="disconnected-probe"></span>`;
+        const disconnectedFirst = disconnectedProbe.querySelector(".disconnected-probe");
+        println(`disconnected querySelector found first match: ${disconnectedFirst === disconnectedProbe.firstElementChild}`);
+        println(`querySelectorAll after disconnected querySelector: ${disconnectedProbe.querySelectorAll(".disconnected-probe").length}`);
+
+        const shadowProbeHost = document.createElement("div");
+        host.appendChild(shadowProbeHost);
+        const shadowProbe = shadowProbeHost.attachShadow({ mode: "open" });
+        shadowProbe.innerHTML = `<span class="shadow-probe"></span><span class="shadow-probe"></span>`;
+        const shadowFirst = shadowProbe.querySelector(".shadow-probe");
+        println(`shadow querySelector found first match: ${shadowFirst === shadowProbe.firstElementChild}`);
+        println(`querySelectorAll after shadow querySelector: ${shadowProbe.querySelectorAll(".shadow-probe").length}`);
+
+        const fragmentProbe = document.createDocumentFragment();
+        const fragmentFirstElement = document.createElement("span");
+        fragmentFirstElement.className = "fragment-probe";
+        fragmentProbe.append(fragmentFirstElement, fragmentFirstElement.cloneNode());
+        const fragmentFirst = fragmentProbe.querySelector(".fragment-probe");
+        println(`fragment querySelector found first match: ${fragmentFirst === fragmentFirstElement}`);
+        println(`querySelectorAll after fragment querySelector: ${fragmentProbe.querySelectorAll(".fragment-probe").length}`);
+
+        // Structural and character-data mutations invalidate first-only results too.
+        const mutationProbe = document.createElement("div");
+        mutationProbe.innerHTML = `<span class="mutation-probe"></span>`;
+        host.appendChild(mutationProbe);
+        const mutationFirst = mutationProbe.querySelector(".mutation-probe");
+        println(`querySelector before tree mutation found match: ${mutationFirst === mutationProbe.firstElementChild}`);
+        const mutationNewFirst = document.createElement("span");
+        mutationNewFirst.className = "mutation-probe";
+        mutationProbe.prepend(mutationNewFirst);
+        println(`querySelector after tree mutation found new first: ${mutationProbe.querySelector(".mutation-probe") === mutationNewFirst}`);
+        println(`querySelectorAll after tree mutation: ${mutationProbe.querySelectorAll(".mutation-probe").length}`);
+
+        const characterDataProbe = document.createElement("div");
+        characterDataProbe.innerHTML = `<span>first</span><span>second</span>`;
+        host.appendChild(characterDataProbe);
+        const nonEmptyFirst = characterDataProbe.querySelector("span:not(:empty)");
+        println(`querySelector before character-data mutation found match: ${nonEmptyFirst === characterDataProbe.firstElementChild}`);
+        characterDataProbe.firstElementChild.firstChild.data = "";
+        println(`querySelector after character-data mutation found new first: ${characterDataProbe.querySelector("span:not(:empty)") === characterDataProbe.lastElementChild}`);
+        println(`querySelectorAll after character-data mutation: ${characterDataProbe.querySelectorAll("span:not(:empty)").length}`);
+
         // Repeated identical queries with no intervening mutation return the same elements
         // in fresh NodeList objects.
         const repeatA = document.querySelectorAll("span.item");
