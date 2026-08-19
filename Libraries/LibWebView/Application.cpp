@@ -1140,6 +1140,7 @@ ErrorOr<void> Application::launch_services()
     };
 
     Optional<ByteString> history_database_directory;
+    bool should_remove_unreferenced_favicons = false;
 
     if (m_browser_options.disable_sql_database == DisableSQLDatabase::No) {
         auto database_path = profile().paths().data;
@@ -1221,6 +1222,7 @@ ErrorOr<void> Application::launch_services()
         if (favicons_outcome == Database::MigrationOutcome::Success && history_outcome == Database::MigrationOutcome::Success) {
             m_favicon_store = TRY(FaviconStore::create(*m_history_database));
             m_history_store = TRY(HistoryStore::create(*m_history_database));
+            should_remove_unreferenced_favicons = true;
         } else {
             dbgln("History database was created by a newer Ladybird version; favicons and history will not be persisted this session");
             history_database_directory = {};
@@ -1251,6 +1253,13 @@ ErrorOr<void> Application::launch_services()
         m_storage_jar = StorageJar::create();
         m_download_store = DownloadStore::create_disabled();
         m_session_store = SessionStore::create();
+    }
+
+    if (should_remove_unreferenced_favicons) {
+        auto referenced_hashes = m_bookmark_store->favicon_hashes();
+        for (auto& hash : m_history_store->referenced_favicon_hashes())
+            referenced_hashes.set(move(hash));
+        m_favicon_store->remove_unreferenced_favicons(referenced_hashes);
     }
 
     m_file_downloader.adopt_download_store({}, *m_download_store);

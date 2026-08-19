@@ -26,6 +26,27 @@ static void expect_store_behaviors(WebView::FaviconStore& store)
     EXPECT(!store.add_favicon(move(oversized)).has_value());
 }
 
+static void expect_unreferenced_favicons_are_removed(WebView::FaviconStore& store)
+{
+    auto first = store.add_favicon(MUST(ByteBuffer::copy("first"sv.bytes())));
+    auto second = store.add_favicon(MUST(ByteBuffer::copy("second"sv.bytes())));
+    auto third = store.add_favicon(MUST(ByteBuffer::copy("third"sv.bytes())));
+    VERIFY(first.has_value());
+    VERIFY(second.has_value());
+    VERIFY(third.has_value());
+
+    HashTable<String> referenced_hashes;
+    referenced_hashes.set(*first);
+    store.remove_unreferenced_favicons(referenced_hashes);
+
+    EXPECT(store.favicon_png(*first).has_value());
+    EXPECT(!store.favicon_png(*second).has_value());
+    EXPECT(!store.favicon_png(*third).has_value());
+
+    store.remove_unreferenced_favicons({});
+    EXPECT(!store.favicon_png(*first).has_value());
+}
+
 TEST_CASE(persisted_favicons_round_trip_and_deduplicate)
 {
     auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
@@ -47,6 +68,20 @@ TEST_CASE(transient_favicons_round_trip_and_deduplicate)
 {
     auto store = WebView::FaviconStore::create();
     expect_store_behaviors(*store);
+}
+
+TEST_CASE(persisted_unreferenced_favicons_are_removed)
+{
+    auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
+    EXPECT_EQ(TRY_OR_FAIL(WebView::FaviconStore::migrate_schema(*database)), Database::MigrationOutcome::Success);
+    auto store = TRY_OR_FAIL(WebView::FaviconStore::create(*database));
+    expect_unreferenced_favicons_are_removed(*store);
+}
+
+TEST_CASE(transient_unreferenced_favicons_are_removed)
+{
+    auto store = WebView::FaviconStore::create();
+    expect_unreferenced_favicons_are_removed(*store);
 }
 
 TEST_CASE(newer_favicon_schema_reports_database_too_new)

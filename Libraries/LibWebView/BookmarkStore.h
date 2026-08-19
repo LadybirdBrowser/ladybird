@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/HashTable.h>
 #include <AK/JsonValue.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
@@ -77,6 +78,7 @@ public:
     void update_favicon(URL::URL const& url, String favicon_hash);
 
     JsonValue serialize_items(Optional<FaviconStore&> favicon_store = {}) const;
+    HashTable<String> favicon_hashes() const;
 
     static void add_observer(Badge<BookmarkStoreObserver>, BookmarkStoreObserver&);
     static void remove_observer(Badge<BookmarkStoreObserver>, BookmarkStoreObserver&);

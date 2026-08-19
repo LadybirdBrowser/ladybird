@@ -370,6 +370,7 @@ TEST_CASE(history_favicon_updates_entry)
     VERIFY(entry.has_value());
     VERIFY(entry->favicon_png.has_value());
     EXPECT(entry->favicon_png->bytes() == "foo"sv.bytes());
+    EXPECT(store->referenced_favicon_hashes().is_empty());
 }
 
 TEST_CASE(history_autocomplete_entries_include_metadata)
@@ -606,6 +607,41 @@ TEST_CASE(persisted_history_autocomplete_entries_include_metadata)
     auto favicon_store = TRY_OR_FAIL(WebView::FaviconStore::create(*database));
 
     expect_history_autocomplete_entries_include_metadata(*store, add_test_favicon(*favicon_store));
+}
+
+TEST_CASE(persisted_history_reports_distinct_referenced_favicon_hashes)
+{
+    auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
+    auto store = create_persisted_store(*database);
+    auto favicon_store = TRY_OR_FAIL(WebView::FaviconStore::create(*database));
+    auto first_hash = favicon_store->add_favicon(MUST(ByteBuffer::copy("first"sv.bytes())));
+    auto second_hash = favicon_store->add_favicon(MUST(ByteBuffer::copy("second"sv.bytes())));
+    VERIFY(first_hash.has_value());
+    VERIFY(second_hash.has_value());
+
+    auto first_url = parse_url("https://first.example/"sv);
+    auto duplicate_url = parse_url("https://duplicate.example/"sv);
+    auto second_url = parse_url("https://second.example/"sv);
+    store->record_visit(first_url);
+    store->record_visit(duplicate_url);
+    store->record_visit(second_url);
+    store->update_favicon(first_url, *first_hash);
+    store->update_favicon(duplicate_url, *first_hash);
+    store->update_favicon(second_url, *second_hash);
+
+    HashTable<String> referenced_hashes;
+    for (auto& hash : store->referenced_favicon_hashes())
+        referenced_hashes.set(move(hash));
+    EXPECT_EQ(referenced_hashes.size(), 2uz);
+    EXPECT(referenced_hashes.contains(*first_hash));
+    EXPECT(referenced_hashes.contains(*second_hash));
+
+    store->remove_entry_for_url(second_url);
+    referenced_hashes.clear();
+    for (auto& hash : store->referenced_favicon_hashes())
+        referenced_hashes.set(move(hash));
+    EXPECT_EQ(referenced_hashes.size(), 1uz);
+    EXPECT(referenced_hashes.contains(*first_hash));
 }
 
 TEST_CASE(persisted_history_ranking_signals_track_visit_intent)

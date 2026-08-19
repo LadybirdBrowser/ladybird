@@ -417,6 +417,11 @@ ErrorOr<NonnullOwnPtr<HistoryStore>> HistoryStore::create(Database::Database& da
         LEFT JOIN Favicons AS f ON f.hash = h.favicon_hash
         ORDER BY h.last_visited_time DESC, h.url ASC;
     )#"sv));
+    statements.referenced_favicon_hashes = TRY(database.prepare_statement(R"#(
+        SELECT DISTINCT favicon_hash
+        FROM History
+        WHERE favicon_hash IS NOT NULL;
+    )#"sv));
     statements.delete_entry = TRY(database.prepare_statement("DELETE FROM History WHERE url = ?;"sv));
     statements.delete_entries_accessed_since = TRY(database.prepare_statement("DELETE FROM History WHERE last_visited_time >= ?;"sv));
     statements.all_urls = TRY(database.prepare_statement("SELECT url FROM History;"sv));
@@ -697,6 +702,11 @@ Vector<HistoryEntry> HistoryStore::list_entries(StringView query, size_t offset,
         log_history_entries(entries));
 
     return entries;
+}
+
+Vector<String> HistoryStore::referenced_favicon_hashes()
+{
+    return m_storage->referenced_favicon_hashes();
 }
 
 void HistoryStore::record_omnibox_engagement(OmniboxEngagement const& engagement, UnixDateTime used_at)
@@ -1145,6 +1155,19 @@ Vector<HistoryEntry> HistoryStore::PersistedStorage::list_entries(StringView tit
         static_cast<i64>(offset));
 
     return entries;
+}
+
+Vector<String> HistoryStore::PersistedStorage::referenced_favicon_hashes()
+{
+    Vector<String> hashes;
+    m_database.execute_statement(
+        m_statements.referenced_favicon_hashes,
+        [&](auto statement_id) -> ErrorOr<void> {
+            if (auto hash = m_database.result_column<String>(statement_id, 0); !hash.is_empty())
+                hashes.append(move(hash));
+            return {};
+        });
+    return hashes;
 }
 
 void HistoryStore::PersistedStorage::record_omnibox_engagement(OmniboxEngagement const& engagement, UnixDateTime used_at)
