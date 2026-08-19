@@ -197,12 +197,11 @@ static void print_breakpoint(JS::Breakpoint const& breakpoint)
 static void print_debugger_help()
 {
     outln("Debugger commands:");
-    outln("    .break <line>[:column]");
-    outln("    .break <file>:<line>[:column]");
-    outln("    .breakpoints");
-    outln("    .continue");
-    outln("    .delete <id>");
-    outln("    .help");
+    outln("    break [file:]<line>[:column]");
+    outln("    breakpoints");
+    outln("    continue");
+    outln("    delete <id>");
+    outln("    help");
 }
 
 static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
@@ -241,17 +240,17 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
         auto command = StringView { raw_line, strlen(raw_line) }.trim_whitespace();
 #endif
 
-        if (command == ".continue"sv) {
+        if (command == "continue"sv) {
             g_vm->debugger()->continue_execution();
             return;
         }
 
-        if (command == ".help"sv) {
+        if (command == "help"sv) {
             print_debugger_help();
             continue;
         }
 
-        if (command == ".breakpoints"sv) {
+        if (command == "breakpoints"sv) {
             auto breakpoints = g_vm->debugger()->breakpoints();
             if (breakpoints.is_empty()) {
                 outln("No breakpoints.");
@@ -265,14 +264,14 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
             continue;
         }
 
-        if (command.starts_with(".break "sv)) {
+        if (command.starts_with("break "sv)) {
             Utf16String current_filename;
             if (pause_info.source_range.has_value())
                 current_filename = pause_info.source_range->filename();
 
-            auto location = parse_breakpoint_location(command.substring_view(7), current_filename);
+            auto location = parse_breakpoint_location(command.substring_view(6), current_filename);
             if (!location.has_value() || location->filename.is_empty()) {
-                warnln("Usage: .break <line>[:column] or .break <file>:<line>[:column]");
+                warnln("Usage: break <line>[:column] or break <file>:<line>[:column]");
                 continue;
             }
 
@@ -290,10 +289,10 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
             continue;
         }
 
-        if (command.starts_with(".delete "sv)) {
-            auto breakpoint_id = command.substring_view(8).trim_whitespace().to_number<JS::BreakpointID>();
+        if (command.starts_with("delete "sv)) {
+            auto breakpoint_id = command.substring_view(7).trim_whitespace().to_number<JS::BreakpointID>();
             if (!breakpoint_id.has_value()) {
-                warnln("Usage: .delete <id>");
+                warnln("Usage: delete <id>");
                 continue;
             }
             if (!g_vm->debugger()->remove_breakpoint(*breakpoint_id)) {
@@ -304,7 +303,7 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
             continue;
         }
 
-        warnln("Unknown debugger command '{}'. Enter .help for a list of commands.", command);
+        warnln("Unknown debugger command '{}'. Enter help for a list of commands.", command);
     }
 }
 
