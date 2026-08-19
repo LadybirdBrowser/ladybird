@@ -7,6 +7,7 @@
 use crate::abort_on_panic;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::{FfiCssPixelPoint, FfiCssPixelRect};
 use crate::painting::paintable_data::*;
 use std::ffi::c_void;
 
@@ -224,6 +225,98 @@ pub unsafe extern "C" fn layout_arena_paintable_set_fragment_selection_state(
         }
         if let Some(fragment) = paintables.side_mut(slot).fragments.get_mut(fragment_index as usize) {
             fragment.selection_state = state;
+        }
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_set_scroll_offset(
+    arena: *mut c_void,
+    slot: PaintableSlotId,
+    offset: FfiCssPixelPoint,
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if paintables.is_live(slot) {
+            paintables.update_data(slot, |data| data.scroll_offset = offset);
+        }
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_set_sticky_insets(
+    arena: *mut c_void,
+    slot: PaintableSlotId,
+    insets: FfiStickyInsets,
+    has_insets: bool,
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if paintables.is_live(slot) {
+            paintables.update_data(slot, |data| {
+                data.sticky_insets = insets;
+                data.has_sticky_insets = has_insets;
+            });
+        }
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_set_overflow_data(
+    arena: *mut c_void,
+    slot: PaintableSlotId,
+    rect: FfiCssPixelRect,
+    has_scrollable_overflow: bool,
+    present: bool,
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if paintables.is_live(slot) {
+            paintables.update_data(slot, |data| {
+                data.overflow = FfiOverflowData {
+                    rect,
+                    has_scrollable_overflow,
+                };
+                data.has_overflow = present;
+            });
+        }
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_set_cached_overflow_data(
+    arena: *mut c_void,
+    slot: PaintableSlotId,
+    rect: FfiCssPixelRect,
+    has_scrollable_overflow: bool,
+    present: bool,
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if paintables.is_live(slot) {
+            paintables.update_data(slot, |data| {
+                data.cached_overflow = FfiOverflowData {
+                    rect,
+                    has_scrollable_overflow,
+                };
+                data.has_cached_overflow = present;
+            });
         }
     });
 }

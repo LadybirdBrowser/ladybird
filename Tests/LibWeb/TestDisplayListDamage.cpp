@@ -8,6 +8,7 @@
 #include <LibTest/TestCase.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/DisplayListDamage.h>
+#include <LibWeb/Painting/ScrollState.h>
 
 using namespace Web::Painting;
 

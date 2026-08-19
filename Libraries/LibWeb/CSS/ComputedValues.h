@@ -1056,6 +1056,29 @@ inline Display display_from_ffi_display(ComputedValuesFFI::FfiDisplay const& dis
     VERIFY_NOT_REACHED();
 }
 
+inline ComputedValuesFFI::FfiDisplay decode_ffi_display(u32 encoded)
+{
+    ComputedValuesFFI::FfiDisplay display {};
+    display.tag = encoded & 0xff;
+    auto first = static_cast<u8>((encoded >> 8) & 0xff);
+    auto second = static_cast<u8>((encoded >> 16) & 0xff);
+    auto third = static_cast<u8>((encoded >> 24) & 0xff);
+    switch (static_cast<Display::Type>(display.tag)) {
+    case Display::Type::OutsideAndInside:
+        display.outside = first;
+        display.inside = second;
+        display.list_item = third != 0;
+        break;
+    case Display::Type::Internal:
+        display.internal = first;
+        break;
+    case Display::Type::Box:
+        display.box_value = first;
+        break;
+    }
+    return display;
+}
+
 inline ComputedValuesFFI::ComputedAspectRatio to_ffi_aspect_ratio(AspectRatio const& aspect_ratio)
 {
     return {

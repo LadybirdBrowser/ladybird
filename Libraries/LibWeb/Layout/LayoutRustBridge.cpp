@@ -800,7 +800,6 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                     bridge.m_reused_paintables.append({ *paintable, paintable->absolute_position() });
                     if (paintable->parent())
                         paintable->remove();
-                    paintable->set_containing_block(nullptr);
                 } else if (paintable) {
                     paintable->reset_for_relayout();
                     reused = true;
@@ -821,32 +820,10 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
         },
         .set_box_metrics = [](void*, void* paintable_pointer, RustFFI::FfiCommittedBoxMetrics metrics) {
             auto& paintable = *static_cast<Painting::Paintable*>(paintable_pointer);
-            paintable.set_layout_fragment_identity(metrics.fragment_identity);
-            auto& box_model = paintable.box_model();
-            box_model.inset = {
-                CSSPixels::from_raw(metrics.inset_top),
-                CSSPixels::from_raw(metrics.inset_right),
-                CSSPixels::from_raw(metrics.inset_bottom),
-                CSSPixels::from_raw(metrics.inset_left),
-            };
-            box_model.padding = {
-                CSSPixels::from_raw(metrics.padding_top),
-                CSSPixels::from_raw(metrics.padding_right),
-                CSSPixels::from_raw(metrics.padding_bottom),
-                CSSPixels::from_raw(metrics.padding_left),
-            };
-            box_model.border = {
-                CSSPixels::from_raw(metrics.border_top),
-                CSSPixels::from_raw(metrics.border_right),
-                CSSPixels::from_raw(metrics.border_bottom),
-                CSSPixels::from_raw(metrics.border_left),
-            };
-            box_model.margin = {
-                CSSPixels::from_raw(metrics.margin_top),
-                CSSPixels::from_raw(metrics.margin_right),
-                CSSPixels::from_raw(metrics.margin_bottom),
-                CSSPixels::from_raw(metrics.margin_left),
-            };
+            paintable.set_offset({
+                CSSPixels::from_raw(metrics.content_offset.x),
+                CSSPixels::from_raw(metrics.content_offset.y),
+            });
             CSSPixelSize content_size {
                 CSSPixels::from_raw(metrics.content_inline_size),
                 CSSPixels::from_raw(metrics.content_block_size)
@@ -854,14 +831,7 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
             if (metrics.reuses_committed_subtree)
                 VERIFY(paintable.content_size() == content_size);
             else
-                paintable.set_content_size(content_size);
-            paintable.set_offset({
-                CSSPixels::from_raw(metrics.content_offset.x),
-                CSSPixels::from_raw(metrics.content_offset.y),
-            });
-            if (metrics.has_containing_line_box_index)
-                paintable.set_containing_line_box_index(metrics.containing_line_box_index);
-            paintable.set_uses_collapsing_borders_model(metrics.uses_collapsing_borders_model); },
+                paintable.set_content_size(content_size); },
         .begin_line_data = [](void* context, void* paintable_pointer) {
             auto& bridge = *static_cast<LayoutRustBridge*>(context);
             VERIFY(!bridge.m_line_commit_context);
@@ -987,8 +957,7 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                 paintable->set_dom_node(dom_node);
                 if (dom_node)
                     dom_node->set_paintable(paintable);
-                auto* containing_block = node.containing_block();
-                paintable->set_containing_block(containing_block ? containing_block->paintable_ptr() : nullptr);
+                paintable->invalidate_absolute_geometry_cache(Painting::Paintable::InvalidateDescendantGeometry::No);
                 paintable_for_children = paintable;
             } else {
                 if (dom_node)

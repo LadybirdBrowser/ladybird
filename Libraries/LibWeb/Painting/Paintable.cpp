@@ -76,6 +76,22 @@
 
 namespace Web::Painting {
 
+static Layout::RustFFI::FfiCssPixelRect to_ffi_css_pixel_rect(CSSPixelRect const& rect)
+{
+    return { rect.x().raw_value(), rect.y().raw_value(), rect.width().raw_value(), rect.height().raw_value() };
+}
+
+static CSSPixelRect from_ffi_css_pixel_rect(Layout::RustFFI::FfiCssPixelRect const& rect)
+{
+    return { CSSPixels::from_raw(rect.x), CSSPixels::from_raw(rect.y), CSSPixels::from_raw(rect.width), CSSPixels::from_raw(rect.height) };
+}
+
+static PixelBox pixel_box_from_ffi(Layout::RustFFI::FfiPixelBox const& box)
+{
+    return { CSSPixels::from_raw(box.top), CSSPixels::from_raw(box.right), CSSPixels::from_raw(box.bottom), CSSPixels::from_raw(box.left) };
+}
+
+
 String Paintable::debug_description() const
 {
     return MUST(String::formatted("{}({})", class_name(), layout_node().debug_description()));
@@ -93,15 +109,94 @@ DOM::Document& Paintable::document()
 
 RefPtr<Paintable> Paintable::containing_block() const
 {
-    return m_containing_block;
+    return const_cast<Paintable*>(containing_block_ptr());
 }
 
-void Paintable::set_containing_block(Paintable* containing_block)
+Paintable const* Paintable::containing_block_ptr() const
 {
-    if (m_containing_block == containing_block)
-        return;
-    m_containing_block = containing_block;
-    invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::No);
+    return static_cast<Paintable const*>(Layout::RustFFI::layout_arena_paintable_shell(m_rust_arena->handle(), rust_data().containing_block));
+}
+
+BoxModelMetrics Paintable::box_model() const
+{
+    return {
+        .margin = pixel_box_from_ffi(rust_data().margin),
+        .padding = pixel_box_from_ffi(rust_data().padding),
+        .border = pixel_box_from_ffi(rust_data().border),
+        .inset = pixel_box_from_ffi(rust_data().inset),
+    };
+}
+
+CSS::Display Paintable::display() const
+{
+    return CSS::display_from_ffi_display(CSS::decode_ffi_display(rust_data().display));
+}
+
+CSSPixelSize Paintable::content_size() const
+{
+    return { CSSPixels::from_raw(rust_data().content_size.width), CSSPixels::from_raw(rust_data().content_size.height) };
+}
+
+Optional<Paintable::OverflowData> Paintable::overflow_data() const
+{
+    if (!rust_data().has_overflow)
+        return {};
+    return OverflowData { from_ffi_css_pixel_rect(rust_data().overflow.rect), rust_data().overflow.has_scrollable_overflow };
+}
+
+Optional<Paintable::CachedOverflowData> Paintable::cached_overflow_data() const
+{
+    if (!rust_data().has_cached_overflow)
+        return {};
+    return CachedOverflowData { from_ffi_css_pixel_rect(rust_data().cached_overflow.rect), rust_data().cached_overflow.has_scrollable_overflow };
+}
+
+Paintable::StickyInsets Paintable::sticky_insets() const
+{
+    VERIFY(has_sticky_insets());
+    auto const& insets = rust_data().sticky_insets;
+    auto side = [](i32 raw, bool present) -> Optional<CSSPixels> {
+        if (!present)
+            return {};
+        return CSSPixels::from_raw(raw);
+    };
+    return { side(insets.top, insets.has_top), side(insets.right, insets.has_right), side(insets.bottom, insets.has_bottom), side(insets.left, insets.has_left) };
+}
+
+void Paintable::set_overflow_data(OverflowData data)
+{
+    Layout::RustFFI::layout_arena_paintable_set_overflow_data(m_rust_arena->handle(), m_rust_slot, to_ffi_css_pixel_rect(data.scrollable_overflow_rect), data.has_scrollable_overflow, true);
+}
+
+void Paintable::clear_overflow_data()
+{
+    Layout::RustFFI::layout_arena_paintable_set_overflow_data(m_rust_arena->handle(), m_rust_slot, {}, false, false);
+}
+
+void Paintable::set_cached_overflow_data(CachedOverflowData data)
+{
+    Layout::RustFFI::layout_arena_paintable_set_cached_overflow_data(m_rust_arena->handle(), m_rust_slot, to_ffi_css_pixel_rect(data.rect_relative_to_padding_box), data.has_scrollable_overflow, true);
+}
+
+void Paintable::clear_cached_overflow_data()
+{
+    Layout::RustFFI::layout_arena_paintable_set_cached_overflow_data(m_rust_arena->handle(), m_rust_slot, {}, false, false);
+}
+
+void Paintable::set_sticky_insets(OwnPtr<StickyInsets> sticky_insets)
+{
+    Layout::RustFFI::FfiStickyInsets ffi_insets {};
+    if (sticky_insets) {
+        auto pack = [](Optional<CSSPixels> const& value, i32& raw, bool& present) {
+            present = value.has_value();
+            raw = value.has_value() ? value->raw_value() : 0;
+        };
+        pack(sticky_insets->top, ffi_insets.top, ffi_insets.has_top);
+        pack(sticky_insets->right, ffi_insets.right, ffi_insets.has_right);
+        pack(sticky_insets->bottom, ffi_insets.bottom, ffi_insets.has_bottom);
+        pack(sticky_insets->left, ffi_insets.left, ffi_insets.has_left);
+    }
+    Layout::RustFFI::layout_arena_paintable_set_sticky_insets(m_rust_arena->handle(), m_rust_slot, ffi_insets, !!sticky_insets);
 }
 
 bool Paintable::is_visible() const
@@ -1034,7 +1129,6 @@ Paintable::Paintable(Layout::NodeWithStyle const& layout_node)
     m_rust_slot = allocation.slot;
     m_rust_slot_generation = allocation.generation;
     m_rust_data = allocation.data;
-    m_display = layout_node.display();
 }
 
 Paintable::Paintable(Layout::Box const& layout_box)
@@ -1049,7 +1143,6 @@ Paintable::~Paintable()
 
 void Paintable::detach_from_layout_node(Badge<Layout::Node>)
 {
-    m_containing_block = nullptr;
     m_layout_node.clear();
     detach_chrome_widgets();
     Layout::RustFFI::layout_arena_paintable_detach_layout_node(m_rust_arena->handle(), m_rust_slot);
@@ -1161,18 +1254,7 @@ void Paintable::reset_for_relayout()
     // (e.g. scrollbars on a scroll container) is only known after the new layout is painted.
     detach_chrome_widgets();
 
-    m_containing_block = nullptr;
-
-    m_offset = {};
-    m_content_size = {};
-
-    m_box_model = {};
-
-    m_overflow_data.clear();
     m_collapsed_table_borders = nullptr;
-    m_uses_collapsing_borders_model = false;
-    m_containing_line_box_index.clear();
-    m_sticky_insets = nullptr;
 
     invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::No);
 
@@ -1207,16 +1289,17 @@ CSSPixelPoint Paintable::scroll_offset() const
 
 Optional<CSSPixelRect> Paintable::absolute_containing_line_box_rect() const
 {
-    if (!m_containing_line_box_index.has_value())
+    auto line_box_index = containing_line_box_index();
+    if (!line_box_index.has_value())
         return {};
 
     auto const* containing_block = as_if<PaintableWithLines>(this->containing_block().ptr());
     if (!containing_block)
         return {};
     auto const& lines = containing_block->lines();
-    if (*m_containing_line_box_index >= lines.size())
+    if (*line_box_index >= lines.size())
         return {};
-    return lines[*m_containing_line_box_index].rect.translated(containing_block->absolute_position());
+    return lines[*line_box_index].rect.translated(containing_block->absolute_position());
 }
 
 CSSPixelPoint Paintable::minimum_scroll_offset() const
@@ -1236,20 +1319,20 @@ bool Paintable::has_scrollable_overflow() const
 {
     if (auto const* box = as_if<Layout::Box>(layout_node()))
         document().ensure_scrollable_overflow_is_measured(*box);
-    if (m_overflow_data.has_value())
-        return m_overflow_data->has_scrollable_overflow;
-    return m_cached_overflow_data.has_value() && m_cached_overflow_data->has_scrollable_overflow;
+    if (rust_data().has_overflow)
+        return rust_data().overflow.has_scrollable_overflow;
+    return rust_data().has_cached_overflow && rust_data().cached_overflow.has_scrollable_overflow;
 }
 
 Optional<CSSPixelRect> Paintable::scrollable_overflow_rect() const
 {
     if (auto const* box = as_if<Layout::Box>(layout_node()))
         document().ensure_scrollable_overflow_is_measured(*box);
-    if (m_overflow_data.has_value())
-        return m_overflow_data->scrollable_overflow_rect;
-    if (!m_cached_overflow_data.has_value())
+    if (rust_data().has_overflow)
+        return from_ffi_css_pixel_rect(rust_data().overflow.rect);
+    if (!rust_data().has_cached_overflow)
         return {};
-    auto scrollable_overflow_rect = m_cached_overflow_data->rect_relative_to_padding_box;
+    auto scrollable_overflow_rect = from_ffi_css_pixel_rect(rust_data().cached_overflow.rect);
     scrollable_overflow_rect.translate_by(absolute_padding_box_rect().location());
     return scrollable_overflow_rect;
 }
@@ -1413,17 +1496,17 @@ void Paintable::scroll_into_view(CSSPixelRect rect)
 
 void Paintable::set_offset(CSSPixelPoint offset)
 {
-    if (m_offset == offset)
+    if (this->offset() == offset)
         return;
 
-    m_offset = offset;
+    rust_data().offset = { offset.x().raw_value(), offset.y().raw_value() };
     invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::Yes);
 }
 
 void Paintable::set_content_size(CSSPixelSize size)
 {
-    auto old_size = m_content_size;
-    m_content_size = size;
+    auto old_size = content_size();
+    rust_data().content_size = { size.width().raw_value(), size.height().raw_value() };
     invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::No);
     if (auto layout_box = as_if<Layout::Box>(layout_node()))
         layout_box->did_set_content_size();
@@ -1449,8 +1532,10 @@ void Paintable::translate_reused_subtree_absolute_geometry(CSSPixelPoint delta)
 {
     for_each_in_inclusive_subtree([&](Paintable& paintable) {
         paintable.invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::No);
-        if (paintable.m_overflow_data.has_value())
-            paintable.m_overflow_data->scrollable_overflow_rect.translate_by(delta);
+        if (auto overflow_data = paintable.overflow_data(); overflow_data.has_value()) {
+            overflow_data->scrollable_overflow_rect.translate_by(delta);
+            paintable.set_overflow_data(*overflow_data);
+        }
         // Recorded paint commands bake absolute coordinates.
         paintable.invalidate_paint_cache();
         return TraversalDecision::Continue;
@@ -1459,7 +1544,7 @@ void Paintable::translate_reused_subtree_absolute_geometry(CSSPixelPoint delta)
 
 CSSPixelPoint Paintable::offset() const
 {
-    return m_offset;
+    return { CSSPixels::from_raw(rust_data().offset.x), CSSPixels::from_raw(rust_data().offset.y) };
 }
 
 CSSPixelRect Paintable::compute_absolute_rect() const
