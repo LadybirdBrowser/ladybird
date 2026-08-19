@@ -5,3 +5,7 @@ function calculate() {
 }
 
 calculate();
+
+try {
+    throw new Error("handled");
+} catch {}

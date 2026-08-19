@@ -25,7 +25,7 @@ use crate::breakpoint::Breakpoint;
 use crate::compile::parse;
 use crate::console::{Console, ConsoleClient, ConsoleClientMethods, LogLevel, PrinterArguments};
 use crate::contrib::test262::global_object::Test262GlobalObject;
-use crate::debugger::{Debugger, PauseInfo, PauseReason, ResumeMode};
+use crate::debugger::{Debugger, PauseInfo, PauseOnExceptions, PauseReason, ResumeMode};
 use crate::gc::class::{GcCell, cast_ref, define_cell};
 use crate::gc::root::Root;
 use crate::hash_table::HashTable;
@@ -74,6 +74,7 @@ struct Options {
     disable_syntax_highlight: bool,
     disable_debug_printing: bool,
     debug: bool,
+    pause_on_exceptions: Option<String>,
     evaluate_script: String,
     use_test262_global: bool,
     expose_jit_testing: bool,
@@ -96,6 +97,7 @@ enum OptionTarget {
     DisableSyntaxHighlight,
     DisableDebugPrinting,
     Debug,
+    PauseOnExceptions,
     EvaluateScript,
     UseTest262Global,
     ExposeJitTesting,
@@ -190,6 +192,15 @@ const OPTIONS: &[OptionDescription] = &[
     ),
     option("Run with the JavaScript debugger", "debug", None, OptionTarget::Debug),
     OptionDescription {
+        value_name: Some("none|unhandled|all"),
+        ..option(
+            "Pause on JavaScript exceptions while debugging",
+            "pause-on-exceptions",
+            None,
+            OptionTarget::PauseOnExceptions,
+        )
+    },
+    OptionDescription {
         value_name: Some("script"),
         ..option(
             "Evaluate argument as a script",
@@ -237,6 +248,7 @@ impl OptionDescription {
             OptionTarget::DisableSyntaxHighlight => options.disable_syntax_highlight = true,
             OptionTarget::DisableDebugPrinting => options.disable_debug_printing = true,
             OptionTarget::Debug => options.debug = true,
+            OptionTarget::PauseOnExceptions => options.pause_on_exceptions = value.map(str::to_owned),
             OptionTarget::EvaluateScript => options.evaluate_script = value.unwrap_or_default().to_string(),
             OptionTarget::UseTest262Global => options.use_test262_global = true,
             OptionTarget::ExposeJitTesting => options.expose_jit_testing = true,
@@ -378,6 +390,12 @@ fn parse_arguments(arguments: &[String], output: &mut dyn Write) -> Result<Optio
     if options.show_help {
         let _ = print_usage(output, argv0);
         return Err(0);
+    }
+    if let Some(value) = &options.pause_on_exceptions
+        && parse_pause_on_exceptions(value.as_bytes()).is_none()
+    {
+        eprintln!("Invalid --pause-on-exceptions value '{value}'. Expected none, unhandled, or all.");
+        return Err(1);
     }
     Ok(options)
 }
@@ -724,6 +742,23 @@ fn print_breakpoint(debugger: &Debugger, breakpoint: &Breakpoint) {
     standard_output::outln(&line);
 }
 
+fn parse_pause_on_exceptions(value: &[u8]) -> Option<PauseOnExceptions> {
+    match value {
+        b"none" => Some(PauseOnExceptions::None),
+        b"unhandled" => Some(PauseOnExceptions::Uncaught),
+        b"all" => Some(PauseOnExceptions::All),
+        _ => None,
+    }
+}
+
+fn pause_on_exceptions_name(mode: PauseOnExceptions) -> &'static [u8] {
+    match mode {
+        PauseOnExceptions::None => b"none",
+        PauseOnExceptions::Uncaught => b"unhandled",
+        PauseOnExceptions::All => b"all",
+    }
+}
+
 fn print_debugger_help() {
     standard_output::outln(b"Debugger commands:");
     standard_output::outln(b"    break (b) [file:]<line>[:column]");
@@ -731,6 +766,8 @@ fn print_debugger_help() {
     standard_output::outln(b"    continue (c)");
     standard_output::outln(b"    delete <id>");
     standard_output::outln(b"    help");
+    standard_output::outln(b"    set pause-on-exceptions <none|unhandled|all>");
+    standard_output::outln(b"    show pause-on-exceptions");
 }
 
 /// warnln() of bytes that need not be UTF-8.
@@ -780,7 +817,12 @@ impl<'a> DebuggerCommandLexer<'a> {
     }
 }
 
-fn run_debugger_prompt(vm: &Vm, pause_info: &PauseInfo, line_editor: Option<&JSLineEditor>) {
+fn run_debugger_prompt(
+    vm: &Vm,
+    pause_info: &PauseInfo,
+    line_editor: Option<&JSLineEditor>,
+    pause_on_exceptions: &Cell<PauseOnExceptions>,
+) {
     let debugger = vm.debugger().expect("execution pauses in the attached debugger");
     let reason = debugger_pause_reason(pause_info.reason);
     if let Some(range) = &pause_info.source_range {
@@ -836,6 +878,31 @@ fn run_debugger_prompt(vm: &Vm, pause_info: &PauseInfo, line_editor: Option<&JSL
             for breakpoint in &breakpoints {
                 print_breakpoint(&debugger, breakpoint);
             }
+            continue;
+        }
+
+        if command_name == b"set" {
+            let setting = command.consume_command_name();
+            command.skip_whitespace();
+            let mode = parse_pause_on_exceptions(trim_whitespace(command.consume_remaining()));
+            if setting != b"pause-on-exceptions" || mode.is_none() {
+                eprintln!("Usage: set pause-on-exceptions <none|unhandled|all>");
+                continue;
+            }
+            let mode = mode.expect("mode was checked");
+            pause_on_exceptions.set(mode);
+            debugger.set_pause_on_exceptions(mode);
+            continue;
+        }
+
+        if command_name == b"show" {
+            if trim_whitespace(command.consume_remaining()) != b"pause-on-exceptions" {
+                eprintln!("Usage: show pause-on-exceptions");
+                continue;
+            }
+            let mut line = b"pause-on-exceptions: ".to_vec();
+            line.extend_from_slice(pause_on_exceptions_name(pause_on_exceptions.get()));
+            standard_output::outln(&line);
             continue;
         }
 
@@ -1873,10 +1940,18 @@ fn ladybird_main(arguments: &[String], line_editor: Option<JSLineEditor>) -> c_i
     vm.set_dynamic_imports_allowed(true);
 
     if options.debug {
+        let pause_on_exceptions = Cell::new(
+            options
+                .pause_on_exceptions
+                .as_deref()
+                .and_then(|value| parse_pause_on_exceptions(value.as_bytes()))
+                .unwrap_or(PauseOnExceptions::None),
+        );
         vm.enable_debugging();
         let debugger = vm.debugger().expect("debugging was just enabled");
+        debugger.set_pause_on_exceptions(pause_on_exceptions.get());
         debugger.set_pause_callback(move |vm, pause_info| {
-            run_debugger_prompt(vm, pause_info, line_editor.as_ref());
+            run_debugger_prompt(vm, pause_info, line_editor.as_ref(), &pause_on_exceptions);
         });
         debugger.request_pause_on_next_bytecode_execution();
     }
