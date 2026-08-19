@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Base64.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Find.h>
 #include <AK/HashMap.h>
@@ -17,17 +16,6 @@
 #include <LibWebView/URL.h>
 
 namespace WebView {
-
-// FIXME: This is temporary as favicons are transitioned to the history database. Remove once bookmarks are updated.
-static Optional<ByteBuffer> decode_favicon(Optional<String> const& favicon_base64_png)
-{
-    if (!favicon_base64_png.has_value())
-        return {};
-
-    if (auto favicon_png = decode_base64(*favicon_base64_png); !favicon_png.is_error())
-        return favicon_png.release_value();
-    return {};
-}
 
 static StringView url_without_scheme(StringView url)
 {
@@ -399,7 +387,7 @@ Vector<AutocompleteSuggestion> rank_bookmark_suggestions(StringView query, Vecto
             .text = bookmark.url,
             .title = bookmark.title,
             .subtitle = bookmark.folder,
-            .favicon_png = decode_favicon(bookmark.favicon_base64_png),
+            .favicon_png = bookmark.favicon_png,
             .highlight_input = {},
             .match_class = match_class,
             .relevance = adjusted_match_relevance + bookmark_relevance,

@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Base64.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
 
 #import <UI/AppKit/Utilities/Conversions.h>
@@ -64,14 +63,6 @@ NSImage* image_from_png(ReadonlyBytes bytes, NSSize size)
     auto* image = [[NSImage alloc] initWithData:data];
     [image setSize:size];
     return image;
-}
-
-NSImage* image_from_base64_png(StringView string, NSSize size)
-{
-    auto decoded = decode_base64(string);
-    if (decoded.is_error())
-        return nil;
-    return image_from_png(decoded.value().bytes(), size);
 }
 
 NSDictionary* deserialize_json_to_dictionary(StringView json)

@@ -365,7 +365,7 @@ static NonnullRefPtr<PromiseType> display_add_or_edit_bookmark_dialog(
     NSString* title,
     Optional<URL::URL const&> current_url,
     Optional<String const&> current_title,
-    Optional<String> current_favicon,
+    Optional<String> current_favicon_hash,
     ResolveCallback resolve_bookmark)
 {
     auto promise = PromiseType::construct();
@@ -398,7 +398,7 @@ static NonnullRefPtr<PromiseType> display_add_or_edit_bookmark_dialog(
                        WebView::BookmarkItem::Bookmark bookmark {
                            .url = url.release_value(),
                            .title = move(bookmark_title),
-                           .favicon_base64_png = current_favicon,
+                           .favicon_hash = current_favicon_hash,
                        };
                        resolve_bookmark(*promise, move(bookmark));
                    }];
@@ -412,19 +412,19 @@ NonnullRefPtr<Application::AddBookmarkPromise> Application::display_add_bookmark
 
     Optional<URL::URL> current_url;
     Optional<String> current_title;
-    Optional<String> current_favicon;
+    Optional<String> current_favicon_hash;
     Optional<String> copied_target_folder_id;
 
     if (auto view = active_web_view(); view.has_value()) {
         current_url = view->url();
         current_title = view->title().to_utf8();
-        current_favicon = view->favicon_base64_png();
+        current_favicon_hash = view->favicon_hash();
     }
     if (target_folder_id.has_value())
         copied_target_folder_id = *target_folder_id;
 
     return display_add_or_edit_bookmark_dialog<AddBookmarkPromise>(
-        [delegate activeTab], @"Add Bookmark", current_url, current_title, current_favicon,
+        [delegate activeTab], @"Add Bookmark", current_url, current_title, current_favicon_hash,
         [target_folder_id = move(copied_target_folder_id)](AddBookmarkPromise& promise, WebView::BookmarkItem::Bookmark bookmark) {
             promise.resolve(AddBookmarkDialogResult {
                 .bookmark = move(bookmark),
@@ -437,7 +437,7 @@ NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_d
 {
     ApplicationDelegate* delegate = [NSApp delegate];
     return display_add_or_edit_bookmark_dialog<BookmarkPromise>(
-        [delegate activeTab], @"Edit Bookmark", current_bookmark.url, current_bookmark.title, current_bookmark.favicon_base64_png,
+        [delegate activeTab], @"Edit Bookmark", current_bookmark.url, current_bookmark.title, current_bookmark.favicon_hash,
         [](BookmarkPromise& promise, WebView::BookmarkItem::Bookmark bookmark) {
             promise.resolve(move(bookmark));
         });

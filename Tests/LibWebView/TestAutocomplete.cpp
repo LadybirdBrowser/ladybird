@@ -108,7 +108,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         .url = "https://ladybird.test/"_string,
         .title = "Ladybird test bookmark"_string,
         .folder = {},
-        .favicon_base64_png = {},
+        .favicon_png = {},
     } });
 
     auto saw_bookmark = false;
@@ -133,7 +133,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                     .url = "https://ladybird-updated.test/"_string,
                     .title = "Updated test bookmark"_string,
                     .folder = {},
-                    .favicon_base64_png = {},
+                    .favicon_png = {},
                 } });
             }
 
@@ -220,7 +220,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         .url = "https://github.com/LadybirdBrowser/ladybird"_string,
         .title = "GH"_string,
         .folder = {},
-        .favicon_base64_png = {},
+        .favicon_png = {},
     } });
     auto short_bookmark_query_completed = false;
     {

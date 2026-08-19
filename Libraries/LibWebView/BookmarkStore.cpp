@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Base64.h>
 #include <AK/Enumerate.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
@@ -13,6 +14,7 @@
 #include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BookmarkStore.h>
+#include <LibWebView/FaviconStore.h>
 #include <LibWebView/Utilities.h>
 
 namespace WebView {
@@ -24,6 +26,7 @@ static constexpr auto ID_KEY = "id"sv;
 static constexpr auto URL_KEY = "url"sv;
 static constexpr auto TITLE_KEY = "title"sv;
 static constexpr auto FAVICON_KEY = "favicon"sv;
+static constexpr auto FAVICON_HASH_KEY = "faviconHash"sv;
 static constexpr auto CHILDREN_KEY = "children"sv;
 static constexpr auto DATE_ADDED_KEY = "dateAdded"sv;
 static constexpr auto LAST_MODIFIED_KEY = "lastModified"sv;
@@ -65,7 +68,7 @@ static Vector<BookmarkItem> parse_bookmark_items(JsonArray const& array)
             if (!url.has_value())
                 return;
 
-            auto favicon = object.get_string(FAVICON_KEY);
+            auto favicon_hash = object.get_string(FAVICON_HASH_KEY).map([](auto hash) { return hash; });
 
             items.empend(
                 id.release_value(),
@@ -74,7 +77,7 @@ static Vector<BookmarkItem> parse_bookmark_items(JsonArray const& array)
                 BookmarkItem::Bookmark {
                     .url = url.release_value(),
                     .title = title.map([](auto title) { return title; }),
-                    .favicon_base64_png = favicon.map([](auto favicon) { return favicon; }),
+                    .favicon_hash = move(favicon_hash),
                 });
         } else if (type == TYPE_FOLDER) {
             Vector<BookmarkItem> children;
@@ -95,7 +98,7 @@ static Vector<BookmarkItem> parse_bookmark_items(JsonArray const& array)
     return items;
 }
 
-static JsonObject serialize_bookmark_item(BookmarkItem const& item)
+static JsonObject serialize_bookmark_item(BookmarkItem const& item, Optional<FaviconStore&> favicon_store)
 {
     JsonObject object;
     object.set(ID_KEY, item.id);
@@ -110,8 +113,16 @@ static JsonObject serialize_bookmark_item(BookmarkItem const& item)
             if (bookmark.title.has_value())
                 object.set(TITLE_KEY, *bookmark.title);
 
-            if (bookmark.favicon_base64_png.has_value())
-                object.set(FAVICON_KEY, *bookmark.favicon_base64_png);
+            if (bookmark.favicon_hash.has_value()) {
+                object.set(FAVICON_HASH_KEY, *bookmark.favicon_hash);
+
+                if (favicon_store.has_value()) {
+                    if (auto favicon_png = favicon_store->favicon_png(*bookmark.favicon_hash); favicon_png.has_value()) {
+                        if (auto favicon_base64_png = encode_base64(favicon_png->bytes()); !favicon_base64_png.is_error())
+                            object.set(FAVICON_KEY, favicon_base64_png.release_value());
+                    }
+                }
+            }
         },
         [&](BookmarkItem::Folder const& folder) {
             object.set(TYPE_KEY, TYPE_FOLDER);
@@ -123,7 +134,7 @@ static JsonObject serialize_bookmark_item(BookmarkItem const& item)
             children.ensure_capacity(folder.children.size());
 
             for (auto const& child : folder.children)
-                children.must_append(serialize_bookmark_item(child));
+                children.must_append(serialize_bookmark_item(child, favicon_store));
 
             object.set(CHILDREN_KEY, move(children));
         });
@@ -143,7 +154,7 @@ static Vector<BookmarkItem> create_default_bookmarks()
             .data = BookmarkItem::Bookmark {
                 .url = URL::Parser::basic_parse("https://ladybird.org/"sv).release_value(),
                 .title = "Ladybird"_string,
-                .favicon_base64_png = {},
+                .favicon_hash = {},
             },
         },
         {
@@ -153,7 +164,7 @@ static Vector<BookmarkItem> create_default_bookmarks()
             .data = BookmarkItem::Bookmark {
                 .url = URL::Parser::basic_parse("https://github.com/LadybirdBrowser/ladybird"sv).release_value(),
                 .title = "Ladybird GitHub"_string,
-                .favicon_base64_png = {},
+                .favicon_hash = {},
             },
         },
         {
@@ -163,7 +174,7 @@ static Vector<BookmarkItem> create_default_bookmarks()
             .data = BookmarkItem::Bookmark {
                 .url = URL::Parser::basic_parse("https://discord.com/invite/nvfjVJ4Svh"sv).release_value(),
                 .title = "Ladybird Discord"_string,
-                .favicon_base64_png = {},
+                .favicon_hash = {},
             },
         },
     };
@@ -257,7 +268,7 @@ static Vector<BookmarkItem>& find_target_folder(Vector<BookmarkItem>& items, Opt
     return items;
 }
 
-void BookmarkStore::add_bookmark(URL::URL url, Optional<String> title, Optional<String> favicon_base64_png, Optional<String const&> target_folder_id)
+void BookmarkStore::add_bookmark(URL::URL url, Optional<String> title, Optional<String> favicon_hash, Optional<String const&> target_folder_id)
 {
     BookmarkItem item {
         .id = generate_random_uuid(),
@@ -266,7 +277,7 @@ void BookmarkStore::add_bookmark(URL::URL url, Optional<String> title, Optional<
         .data = BookmarkItem::Bookmark {
             .url = move(url),
             .title = move(title),
-            .favicon_base64_png = move(favicon_base64_png),
+            .favicon_hash = move(favicon_hash),
         },
     };
 
@@ -427,7 +438,7 @@ void BookmarkStore::move_item(StringView id, Optional<String const&> target_fold
     notify_observers();
 }
 
-void BookmarkStore::update_favicon(URL::URL const& url, String favicon_base64_png)
+void BookmarkStore::update_favicon(URL::URL const& url, String favicon_hash)
 {
     auto item = find_bookmark_by_url(url);
     if (!item.has_value() || !item->is_bookmark())
@@ -435,10 +446,10 @@ void BookmarkStore::update_favicon(URL::URL const& url, String favicon_base64_pn
 
     auto& bookmark = const_cast<BookmarkItem::Bookmark&>(item->bookmark());
 
-    if (bookmark.favicon_base64_png == favicon_base64_png)
+    if (bookmark.favicon_hash == favicon_hash)
         return;
 
-    bookmark.favicon_base64_png = move(favicon_base64_png);
+    bookmark.favicon_hash = move(favicon_hash);
     const_cast<BookmarkItem&>(*item).last_modified = UnixDateTime::now();
 
     persist_bookmarks();
@@ -474,13 +485,13 @@ Optional<Vector<BookmarkItem>&> BookmarkStore::find_containing_item_list(StringV
     return find_containing_item_list_impl(m_items, id);
 }
 
-JsonValue BookmarkStore::serialize_items() const
+JsonValue BookmarkStore::serialize_items(Optional<FaviconStore&> favicon_store) const
 {
     JsonArray items;
     items.ensure_capacity(m_items.size());
 
     for (auto const& item : m_items)
-        items.must_append(serialize_bookmark_item(item));
+        items.must_append(serialize_bookmark_item(item, favicon_store));
 
     return items;
 }
@@ -488,7 +499,7 @@ JsonValue BookmarkStore::serialize_items() const
 void BookmarkStore::persist_bookmarks()
 {
     JsonObject root;
-    root.set(VERSION_KEY, 1);
+    root.set(VERSION_KEY, 2);
     root.set(ITEMS_KEY, serialize_items());
 
     if (auto result = write_json_file(m_bookmarks_path, root); result.is_error())
