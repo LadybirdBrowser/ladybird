@@ -9642,14 +9642,14 @@ Utf16String Document::dump_display_list()
         [&](Painting::DisplayList const& list, int base_indent) {
             int indent = base_indent;
             list.for_each_command_header([&](Painting::DisplayListCommandHeader const& header, ReadonlyBytes payload) {
-                auto nesting_change = Painting::display_list_command_nesting_level_change(header.type);
+                auto nesting_change = Painting::display_list_command_nesting_level_change(header.command_type);
 
                 if (nesting_change < 0)
                     indent = max(base_indent, indent + nesting_change);
 
                 builder.append_repeated(' ', indent * 2);
                 Optional<Painting::DisplayListResourceId> nested_display_list_id;
-                Painting::visit_display_list_command(header.type, payload, [&]<typename Command>(Command const& command) {
+                Painting::visit_display_list_command(header.command_type, payload, [&]<typename Command>(Command const& command) {
                     builder.appendff("{}@{}", command.command_name, header.context_index.value());
                     command.dump(builder);
                     if constexpr (IsSame<Command, Painting::PaintNestedDisplayList>)

@@ -41,10 +41,10 @@ static Vector<String> dump_commands_for_cache_verification(ReadonlyBytes command
 {
     Vector<String> dumped_commands;
     DisplayList::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
-        if (display_list_command_is_compositor_metadata(header.type))
+        if (display_list_command_is_compositor_metadata(header.command_type))
             return;
         StringBuilder builder;
-        visit_display_list_command(header.type, payload, [&]<typename Command>(Command const& command) {
+        visit_display_list_command(header.command_type, payload, [&]<typename Command>(Command const& command) {
             builder.appendff("{} payload_size={}", Command::command_name, header.payload_size);
             command.dump(builder);
         });

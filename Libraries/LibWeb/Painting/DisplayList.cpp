@@ -68,7 +68,7 @@ bool DisplayList::append_bytes(
     auto trailing_padding = align_up_to(record_size, command_alignment) - record_size;
     VERIFY(trailing_padding <= NumericLimits<u32>::max() - payload_size);
     DisplayListCommandHeader header {
-        .type = type,
+        .command_type = type,
         .payload_size = static_cast<u32>(payload_size + trailing_padding),
         .context_index = context_index,
         .context_geometry_only = context_geometry_only,
@@ -405,7 +405,7 @@ void DisplayListPlayer::execute_impl(
     };
 
     DisplayList::for_each_command_header(commands, [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
-        if (display_list_command_is_compositor_metadata(header.type))
+        if (display_list_command_is_compositor_metadata(header.command_type))
             return;
 
         if (backface_culled[header.context_index.value()])
@@ -424,7 +424,7 @@ void DisplayListPlayer::execute_impl(
             // Any clip that's located outside of the visible region is equivalent to a simple clip-rect,
             // so replace it with one to avoid doing unnecessary work.
             if (header.is_clip) {
-                if (header.type == DisplayListCommandType::AddClipRect)
+                if (header.command_type == DisplayListCommandType::AddClipRect)
                     play_command(read_display_list_command_payload<AddClipRect>(payload));
                 else
                     play_command(AddClipRect { bounding_rect.release_value().to_type<float>() });
@@ -445,7 +445,7 @@ void DisplayListPlayer::execute_impl(
             callback(command);
         };
 
-        switch (header.type) {
+        switch (header.command_type) {
 #define DISPATCH_DISPLAY_LIST_COMMAND(command_type, player_method)                    \
     case DisplayListCommandType::command_type:                                        \
         dispatch_command.template operator()<command_type>([&](auto const& command) { \

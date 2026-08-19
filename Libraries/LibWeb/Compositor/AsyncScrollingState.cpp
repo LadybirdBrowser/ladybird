@@ -65,7 +65,7 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
             wheel_hit_test_target_document_ids.append(command.document_id);
         };
 
-        switch (header.type) {
+        switch (header.command_type) {
         case Painting::DisplayListCommandType::CompositorBlockingWheelEventRegion: {
             auto command = Painting::read_display_list_command_payload<Painting::CompositorBlockingWheelEventRegion>(payload);
             async_scrolling_state.has_blocking_wheel_event_listeners = true;

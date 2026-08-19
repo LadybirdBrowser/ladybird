@@ -36,14 +36,14 @@ static Vector<DisplayListCommandReference> collect_display_list_command_referenc
 
 static bool display_list_commands_are_equal(DisplayListCommandReference const& a, DisplayListCommandReference const& b)
 {
-    if (a.header.type != b.header.type
+    if (a.header.command_type != b.header.command_type
         || a.header.context_geometry_only != b.header.context_geometry_only
         || a.header.has_bounding_rect != b.header.has_bounding_rect
         || a.header.is_clip != b.header.is_clip
         || a.header.bounding_rect != b.header.bounding_rect)
         return false;
 
-    if (a.header.type == DisplayListCommandType::DrawScaledDecodedImageFrame) {
+    if (a.header.command_type == DisplayListCommandType::DrawScaledDecodedImageFrame) {
         auto first = read_display_list_object<DrawScaledDecodedImageFrame>(a.payload);
         auto second = read_display_list_object<DrawScaledDecodedImageFrame>(b.payload);
         return first.dst_rect == second.dst_rect
@@ -54,7 +54,7 @@ static bool display_list_commands_are_equal(DisplayListCommandReference const& a
             && first.isolated_backdrop_color == second.isolated_backdrop_color;
     }
 
-    if (a.header.type == DisplayListCommandType::DrawGlyphRun) {
+    if (a.header.command_type == DisplayListCommandType::DrawGlyphRun) {
         auto first = read_display_list_object<DrawGlyphRun>(a.payload);
         auto second = read_display_list_object<DrawGlyphRun>(b.payload);
         return first.font_id == second.font_id
@@ -68,7 +68,7 @@ static bool display_list_commands_are_equal(DisplayListCommandReference const& a
             && first.orientation == second.orientation;
     }
 
-    if (a.header.type == DisplayListCommandType::PaintTextShadow) {
+    if (a.header.command_type == DisplayListCommandType::PaintTextShadow) {
         auto first = read_display_list_object<PaintTextShadow>(a.payload);
         auto second = read_display_list_object<PaintTextShadow>(b.payload);
         return first.font_id == second.font_id
@@ -244,10 +244,10 @@ Optional<Gfx::IntRect> compute_display_list_damage(
     bool changed_unbounded_command = false;
     auto add_command_damage = [&](DisplayListCommandReference const& command, auto const& visual_context_tree, auto const& scroll_state) {
         if (!command.header.has_bounding_rect) {
-            if (display_list_command_is_compositor_metadata(command.header.type)
-                || command.header.type == DisplayListCommandType::Save
-                || command.header.type == DisplayListCommandType::SaveLayer
-                || command.header.type == DisplayListCommandType::Restore)
+            if (display_list_command_is_compositor_metadata(command.header.command_type)
+                || command.header.command_type == DisplayListCommandType::Save
+                || command.header.command_type == DisplayListCommandType::SaveLayer
+                || command.header.command_type == DisplayListCommandType::Restore)
                 return;
             changed_unbounded_command = true;
             return;
@@ -277,7 +277,7 @@ Optional<Gfx::IntRect> compute_display_list_damage(
         if (visual_context_chains_are_equal(old_command.header.context_index, old_visual_context_tree, old_scroll_state, new_command.header.context_index, new_visual_context_tree, new_scroll_state))
             return;
         if (!old_command.header.has_bounding_rect || !new_command.header.has_bounding_rect) {
-            if (old_command.header.type == DisplayListCommandType::CompositorViewportScrollbar || old_command.header.type == DisplayListCommandType::PaintScrollBar)
+            if (old_command.header.command_type == DisplayListCommandType::CompositorViewportScrollbar || old_command.header.command_type == DisplayListCommandType::PaintScrollBar)
                 changed_unbounded_command = true;
             return;
         }

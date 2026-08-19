@@ -215,13 +215,13 @@ static DisplayListPaintStyle to_display_list_paint_style(
     DisplayListPaintStyle display_list_paint_style;
     paint_style.visit(
         [&](LinearGradientPaintStyle const& linear_gradient) {
-            display_list_paint_style.type = DisplayListPaintStyleType::LinearGradient;
+            display_list_paint_style.paint_style_type = DisplayListPaintStyleType::LinearGradient;
             display_list_paint_style.gradient = to_display_list_gradient_paint_style(payload_builder, linear_gradient);
             display_list_paint_style.linear_gradient_start_point = linear_gradient.start_point();
             display_list_paint_style.linear_gradient_end_point = linear_gradient.end_point();
         },
         [&](RadialGradientPaintStyle const& radial_gradient) {
-            display_list_paint_style.type = DisplayListPaintStyleType::RadialGradient;
+            display_list_paint_style.paint_style_type = DisplayListPaintStyleType::RadialGradient;
             display_list_paint_style.gradient = to_display_list_gradient_paint_style(payload_builder, radial_gradient);
             display_list_paint_style.radial_gradient_start_center = radial_gradient.start_center();
             display_list_paint_style.radial_gradient_start_radius = radial_gradient.start_radius();
@@ -229,7 +229,7 @@ static DisplayListPaintStyle to_display_list_paint_style(
             display_list_paint_style.radial_gradient_end_radius = radial_gradient.end_radius();
         },
         [&](PatternPaintStyle const& pattern) {
-            display_list_paint_style.type = DisplayListPaintStyleType::Pattern;
+            display_list_paint_style.paint_style_type = DisplayListPaintStyleType::Pattern;
             auto const& tile_display_list = pattern.tile_display_list();
             display_list_paint_style.pattern_tile_display_list_id = resource_storage.add_display_list(tile_display_list.display_list, tile_display_list.visual_context_tree);
             display_list_paint_style.pattern_tile_rect = pattern.tile_rect();
