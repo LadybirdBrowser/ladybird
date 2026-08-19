@@ -787,7 +787,7 @@ static Color effective_scrollbar_background_color(Paintable const& paintable_box
 {
     auto background_color = paintable_box.document().canvas_background_color();
 
-    Vector<Layout::NodeWithStyle const*> ancestors;
+    Vector<Layout::NodeWithStyle const*, 32> ancestors;
     for (Layout::NodeWithStyle const* layout_node = &paintable_box.layout_node(); layout_node; layout_node = layout_node->parent())
         ancestors.append(layout_node);
 
