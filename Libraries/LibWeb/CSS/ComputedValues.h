@@ -2267,6 +2267,7 @@ public:
         BorderRadiusData border_top_right_radius_value() const;
         bool has_noninitial_border_radii_value() const;
         BorderImageData border_image_value() const;
+        RefPtr<AbstractImageStyleValue const> border_image_source_value() const;
 
         bool operator==(BorderValues const& other) const
         {
