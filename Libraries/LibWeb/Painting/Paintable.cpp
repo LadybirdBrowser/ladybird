@@ -439,9 +439,9 @@ Paintable::SelectionStyle Paintable::selection_style_for_node(Layout::Node const
 
 void Paintable::set_selection_state(SelectionState state)
 {
-    if (m_selection_state == state)
+    if (selection_state() == state)
         return;
-    m_selection_state = state;
+    Layout::RustFFI::layout_arena_paintable_set_selection_state(m_rust_arena->handle(), m_rust_slot, to_underlying(state));
     invalidate_paint_cache();
 }
 
@@ -1034,20 +1034,6 @@ Paintable::Paintable(Layout::NodeWithStyle const& layout_node)
     m_rust_slot = allocation.slot;
     m_rust_slot_generation = allocation.generation;
     m_rust_data = allocation.data;
-    if ((layout_node.is_flex_item() || layout_node.is_grid_item()) && layout_node.z_index().has_value()) {
-        // https://drafts.csswg.org/css-flexbox-1/#painting
-        // https://drafts.csswg.org/css-grid-2/#z-order
-        // Flex and grid items with z-index values other than "auto" behave as if position were "relative".
-        m_positioned = true;
-    } else {
-        m_positioned = layout_node.position() != CSS::Positioning::Static;
-    }
-
-    m_fixed_position = layout_node.position() == CSS::Positioning::Fixed;
-    m_sticky_position = layout_node.position() == CSS::Positioning::Sticky;
-    m_absolutely_positioned = layout_node.position() == CSS::Positioning::Absolute;
-    m_floating = layout_node.is_floating();
-    m_inline = layout_node.is_inline();
     m_display = layout_node.display();
 }
 
