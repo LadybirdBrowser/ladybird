@@ -103,36 +103,48 @@ enum class CompositorScrollNodeKind : u8 {
     PseudoElement,
 };
 
+constexpr int display_list_command_nesting_level_change(DisplayListCommandType command_type)
+{
+    switch (command_type) {
+    case DisplayListCommandType::Save:
+    case DisplayListCommandType::SaveLayer:
+    case DisplayListCommandType::ApplyEffects:
+        return 1;
+    case DisplayListCommandType::Restore:
+        return -1;
+    default:
+        return 0;
+    }
+}
+
 struct DisplayListDataSpan {
     // Offset into the command payload containing this span.
-    u32 offset { 0 };
-    u32 size { 0 };
-
-    [[nodiscard]] bool is_empty() const { return size == 0; }
+    u32 offset;
+    u32 size;
 };
 
 struct DisplayListGradientColorStops {
     DisplayListDataSpan colors;
     DisplayListDataSpan positions;
-    bool repeating { false };
+    bool repeating;
 };
 
 struct DisplayListCommandHeader {
     DisplayListCommandType command_type;
-    u32 payload_size { 0 };
-    VisualContextIndex context_index { VISUAL_VIEWPORT_NODE_INDEX };
+    u32 payload_size;
+    VisualContextIndex context_index;
     // Apply only the coordinate-affecting nodes of the context chain, skipping clips and effects. Used
     // by inspector overlays, which track the highlighted element's transforms and scroll offsets but
     // must not be clipped or faded by its ancestors.
-    bool context_geometry_only { false };
-    bool has_bounding_rect { false };
-    bool is_clip { false };
-    Gfx::IntRect bounding_rect {};
+    bool context_geometry_only;
+    bool has_bounding_rect;
+    bool is_clip;
+    Gfx::IntRect bounding_rect;
 };
 
 struct DisplayListGlyph {
     Gfx::FloatPoint position;
-    u32 glyph_id { 0 };
+    u32 glyph_id;
 };
 
 struct DrawGlyphRun {
@@ -144,11 +156,12 @@ struct DrawGlyphRun {
     Gfx::IntRect rect;
     Gfx::IntRect glyph_bounding_rect;
     Gfx::FloatPoint translation;
-    float scale { 1.0f };
+    float scale;
     Color color;
-    Gfx::Orientation orientation { Gfx::Orientation::Horizontal };
+    Gfx::Orientation orientation;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return glyph_bounding_rect; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
+
     void dump(StringBuilder&) const;
 };
 
@@ -159,7 +172,8 @@ struct FillRect {
     Gfx::IntRect rect;
     Color color;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
+
     void dump(StringBuilder&) const;
 };
 
@@ -171,16 +185,17 @@ struct DrawScaledDecodedImageFrame {
     Optional<Gfx::FloatRect> src_rect;
     ImageFrameResourceId frame_id;
     Gfx::ScalingMode scaling_mode;
-    Gfx::CompositingAndBlendingOperator compositing_and_blending_operator { Gfx::CompositingAndBlendingOperator::Normal };
+    Gfx::CompositingAndBlendingOperator compositing_and_blending_operator;
     Optional<Color> isolated_backdrop_color;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return Gfx::enclosing_int_rect(dst_rect); }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
+
     void dump(StringBuilder&) const;
 };
 
 struct Repeat {
-    bool x { false };
-    bool y { false };
+    bool x;
+    bool y;
 };
 
 struct DrawRepeatedDecodedImageFrame {
@@ -192,10 +207,11 @@ struct DrawRepeatedDecodedImageFrame {
     ImageFrameResourceId frame_id;
     Gfx::ScalingMode scaling_mode;
     Repeat repeat;
-    Gfx::CompositingAndBlendingOperator compositing_and_blending_operator { Gfx::CompositingAndBlendingOperator::Normal };
+    Gfx::CompositingAndBlendingOperator compositing_and_blending_operator;
     Optional<Color> isolated_backdrop_color;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return clip_rect; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
+
     void dump(StringBuilder&) const;
 };
 
@@ -209,7 +225,8 @@ struct DrawRepeatedDisplayList {
     Gfx::ScalingMode scaling_mode;
     Repeat repeat;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return clip_rect; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
+
     void dump(StringBuilder&) const;
 };
 
@@ -226,7 +243,8 @@ struct DrawTiledDecodedImageFrame {
     Optional<u32> tile_count_x;
     Optional<u32> tile_count_y;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return clip_rect; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
+
     void dump(StringBuilder&) const;
 };
 
@@ -238,7 +256,8 @@ struct DrawCompositedContext {
     Web::Compositor::CompositorContextId child_context_id;
     Gfx::ScalingMode scaling_mode;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
+
     void dump(StringBuilder&) const;
 };
 
@@ -251,10 +270,11 @@ struct DrawCanvas {
     // NB: The canvas pixels live in the compositor's canvas surface registry, so the command bytes don't
     //     change when the canvas content does. The content generation encodes content changes so that display
     //     list damage computation can tell that the canvas needs to be repainted.
-    u64 content_generation { 0 };
+    u64 content_generation;
     Gfx::ScalingMode scaling_mode;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
+
     void dump(StringBuilder&) const;
 };
 
@@ -266,16 +286,16 @@ struct DrawVideoFrame {
     VideoSinkResourceId video_sink_id;
     Gfx::ScalingMode scaling_mode;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
+
     void dump(StringBuilder&) const;
 };
 
 struct Save {
     static constexpr StringView command_name = "Save"sv;
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::Save;
-    static constexpr int nesting_level_change = 1;
 
-    u8 _empty { 0 };
+    u8 _empty;
 
     void dump(StringBuilder&) const;
 };
@@ -283,9 +303,8 @@ struct Save {
 struct SaveLayer {
     static constexpr StringView command_name = "SaveLayer"sv;
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::SaveLayer;
-    static constexpr int nesting_level_change = 1;
 
-    u8 _empty { 0 };
+    u8 _empty;
 
     void dump(StringBuilder&) const;
 };
@@ -293,9 +312,8 @@ struct SaveLayer {
 struct Restore {
     static constexpr StringView command_name = "Restore"sv;
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::Restore;
-    static constexpr int nesting_level_change = -1;
 
-    u8 _empty { 0 };
+    u8 _empty;
 
     void dump(StringBuilder&) const;
 };
@@ -306,8 +324,9 @@ struct AddClipRect {
 
     Gfx::FloatRect rect;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return Gfx::enclosing_int_rect(rect); }
-    bool is_clip() const { return true; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
+    bool is_clip() const;
+
     void dump(StringBuilder&) const;
 };
 
@@ -319,8 +338,9 @@ struct AddClipPath {
     DisplayListDataSpan path_data;
     Gfx::WindingRule winding_rule;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return path_bounding_rect; }
-    bool is_clip() const { return true; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
+    bool is_clip() const;
+
     void dump(StringBuilder&) const;
 };
 
@@ -329,13 +349,13 @@ struct PaintLinearGradient {
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::PaintLinearGradient;
 
     Gfx::IntRect gradient_rect;
-    float gradient_angle { 0.0f };
+    float gradient_angle;
     DisplayListGradientColorStops color_stops;
-    float first_stop_position { 0.0f };
-    float repeat_length { 1.0f };
+    float first_stop_position;
+    float repeat_length;
     Gfx::GradientInterpolationMethod interpolation_method;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return gradient_rect; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
 
     void dump(StringBuilder&) const;
 };
@@ -380,11 +400,12 @@ struct PaintTextShadow {
     Gfx::IntRect shadow_bounding_rect;
     Gfx::IntRect text_rect;
     Gfx::FloatPoint draw_location;
-    float scale { 1.0f };
+    float scale;
     int blur_radius;
     Color color;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return { draw_location.to_type<int>(), shadow_bounding_rect.size() }; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
+
     void dump(StringBuilder&) const;
 };
 
@@ -396,7 +417,8 @@ struct FillRectWithRoundedCorners {
     Color color;
     Gfx::CornerRadii corner_radii;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
+
     void dump(StringBuilder&) const;
 };
 
@@ -420,23 +442,23 @@ enum class DisplayListGradientSpreadMethod : u8 {
 
 struct DisplayListGradientPaintStyle {
     Optional<Gfx::AffineTransform> gradient_transform;
-    DisplayListGradientSpreadMethod spread_method { DisplayListGradientSpreadMethod::Pad };
-    Gfx::InterpolationColorSpace color_space { Gfx::InterpolationColorSpace::SRGB };
+    DisplayListGradientSpreadMethod spread_method;
+    Gfx::InterpolationColorSpace color_space;
     DisplayListGradientColorStops color_stops;
 };
 
 struct DisplayListPaintStyle {
-    DisplayListPaintStyleType paint_style_type { DisplayListPaintStyleType::None };
+    DisplayListPaintStyleType paint_style_type;
     DisplayListGradientPaintStyle gradient;
     Gfx::FloatPoint linear_gradient_start_point;
     Gfx::FloatPoint linear_gradient_end_point;
     Gfx::FloatPoint radial_gradient_start_center;
-    float radial_gradient_start_radius { 0.0f };
+    float radial_gradient_start_radius;
     Gfx::FloatPoint radial_gradient_end_center;
-    float radial_gradient_end_radius { 0.0f };
+    float radial_gradient_end_radius;
     DisplayListResourceId pattern_tile_display_list_id;
     Gfx::FloatRect pattern_tile_rect;
-    Gfx::FloatSize pattern_content_scale { 1, 1 };
+    Gfx::FloatSize pattern_content_scale;
     Optional<Gfx::AffineTransform> pattern_transform;
 };
 
@@ -446,14 +468,14 @@ struct FillPath {
 
     Gfx::FloatRect path_bounding_rect;
     DisplayListDataSpan path_data;
-    float opacity { 1.0f };
-    PathPaintKind paint_kind { PathPaintKind::Color };
+    float opacity;
+    PathPaintKind paint_kind;
     Color color;
     DisplayListPaintStyle paint_style;
     Gfx::WindingRule winding_rule;
-    Gfx::ShouldAntiAlias should_anti_alias { Gfx::ShouldAntiAlias::Yes };
+    Gfx::ShouldAntiAlias should_anti_alias;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return Gfx::enclosing_int_rect(path_bounding_rect); }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
 
     void dump(StringBuilder&) const;
 };
@@ -470,13 +492,13 @@ struct StrokePath {
     Gfx::FloatRect path_bounding_rect;
     DisplayListDataSpan path_data;
     float opacity;
-    PathPaintKind paint_kind { PathPaintKind::Color };
+    PathPaintKind paint_kind;
     Color color;
     DisplayListPaintStyle paint_style;
     float thickness;
-    Gfx::ShouldAntiAlias should_anti_alias { Gfx::ShouldAntiAlias::Yes };
+    Gfx::ShouldAntiAlias should_anti_alias;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return Gfx::enclosing_int_rect(path_bounding_rect); }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
 
     void dump(StringBuilder&) const;
 };
@@ -489,7 +511,7 @@ struct DrawEllipse {
     Color color;
     int thickness;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
 
     void dump(StringBuilder&) const;
 };
@@ -505,7 +527,8 @@ struct DrawLine {
     Gfx::LineStyle style;
     Color alternate_color;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return Gfx::IntRect::from_two_points(from, to).inflated(thickness, thickness); }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
+
     void dump(StringBuilder&) const;
 };
 
@@ -515,10 +538,10 @@ struct ApplyBackdropFilter {
 
     Gfx::IntRect backdrop_region;
     Gfx::CornerRadii corner_radii;
-    bool has_backdrop_filter { false };
+    bool has_backdrop_filter;
     DisplayListDataSpan backdrop_filter_data;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return backdrop_region; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
 
     void dump(StringBuilder&) const;
 };
@@ -531,7 +554,7 @@ struct DrawRect {
     Color color;
     bool rough;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
 
     void dump(StringBuilder&) const;
 };
@@ -546,7 +569,7 @@ struct PaintRadialGradient {
     Gfx::IntPoint center;
     Gfx::IntSize size;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
 
     void dump(StringBuilder&) const;
 };
@@ -556,12 +579,12 @@ struct PaintConicGradient {
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::PaintConicGradient;
 
     Gfx::IntRect rect;
-    float start_angle { 0.0f };
+    float start_angle;
     DisplayListGradientColorStops color_stops;
     Gfx::GradientInterpolationMethod interpolation_method;
     Gfx::IntPoint position;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
 
     void dump(StringBuilder&) const;
 };
@@ -574,8 +597,8 @@ struct AddRoundedRectClip {
     Gfx::IntRect border_rect;
     Gfx::CornerClip corner_clip;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return border_rect; }
-    bool is_clip() const { return true; }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
+    bool is_clip() const;
 
     void dump(StringBuilder&) const;
 };
@@ -589,7 +612,7 @@ struct PaintNestedDisplayList {
     // The size the nested list was recorded at; replay scales it into the destination rect.
     Gfx::IntSize list_size;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return Gfx::enclosing_int_rect(rect); }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const;
 
     void dump(StringBuilder&) const;
 };
@@ -605,11 +628,11 @@ struct CompositorScrollNode {
     Gfx::IntRect scrollport_rect;
     Gfx::FloatPoint min_scroll_offset;
     Gfx::FloatPoint max_scroll_offset;
-    CompositorScrollNodeKind scroll_node_kind { CompositorScrollNodeKind::Element };
-    u8 pseudo_element_type { 0 };
-    bool is_viewport { false };
-    bool can_be_wheel_scrolled_horizontally { false };
-    bool can_be_wheel_scrolled_vertically { false };
+    CompositorScrollNodeKind scroll_node_kind;
+    u8 pseudo_element_type;
+    bool is_viewport;
+    bool can_be_wheel_scrolled_horizontally;
+    bool can_be_wheel_scrolled_vertically;
 
     void dump(StringBuilder&) const;
 };
@@ -626,7 +649,7 @@ struct CompositorStickyArea {
     Gfx::FloatSize border_box_size;
     Gfx::FloatSize scrollport_size;
     Gfx::FloatRect containing_block_region;
-    bool needs_parent_offset_adjustment { false };
+    bool needs_parent_offset_adjustment;
     Optional<float> inset_top;
     Optional<float> inset_right;
     Optional<float> inset_bottom;
@@ -686,13 +709,13 @@ struct CompositorViewportScrollbar {
     Gfx::IntRect thumb_rect;
     Gfx::IntRect expanded_gutter_rect;
     Gfx::IntRect expanded_thumb_rect;
-    double scroll_size { 0 };
-    double expanded_scroll_size { 0 };
-    float min_scroll_offset { 0 };
-    float max_scroll_offset { 0 };
+    double scroll_size;
+    double expanded_scroll_size;
+    float min_scroll_offset;
+    float max_scroll_offset;
     Color thumb_color;
     Color track_color;
-    bool vertical { false };
+    bool vertical;
 
     void dump(StringBuilder&) const;
 };
@@ -715,17 +738,44 @@ struct PaintScrollBar {
 struct ApplyEffects {
     static constexpr StringView command_name = "ApplyEffects"sv;
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::ApplyEffects;
-    static constexpr int nesting_level_change = 1;
 
-    float opacity { 1.0f };
-    Gfx::CompositingAndBlendingOperator compositing_and_blending_operator { Gfx::CompositingAndBlendingOperator::Normal };
-    bool has_filter { false };
+    float opacity;
+    Gfx::CompositingAndBlendingOperator compositing_and_blending_operator;
+    bool has_filter;
     DisplayListDataSpan filter_data;
-    bool has_mask_kind { false };
-    Gfx::MaskKind mask_kind {};
+    bool has_mask_kind;
+    Gfx::MaskKind mask_kind;
 
     void dump(StringBuilder&) const;
 };
+
+inline Gfx::IntRect DrawGlyphRun::bounding_rect() const { return glyph_bounding_rect; }
+inline Gfx::IntRect FillRect::bounding_rect() const { return rect; }
+inline Gfx::IntRect DrawScaledDecodedImageFrame::bounding_rect() const { return Gfx::enclosing_int_rect(dst_rect); }
+inline Gfx::IntRect DrawRepeatedDecodedImageFrame::bounding_rect() const { return clip_rect; }
+inline Gfx::IntRect DrawRepeatedDisplayList::bounding_rect() const { return clip_rect; }
+inline Gfx::IntRect DrawTiledDecodedImageFrame::bounding_rect() const { return clip_rect; }
+inline Gfx::IntRect DrawCompositedContext::bounding_rect() const { return dst_rect; }
+inline Gfx::IntRect DrawCanvas::bounding_rect() const { return dst_rect; }
+inline Gfx::IntRect DrawVideoFrame::bounding_rect() const { return dst_rect; }
+inline Gfx::IntRect AddClipRect::bounding_rect() const { return Gfx::enclosing_int_rect(rect); }
+inline bool AddClipRect::is_clip() const { return true; }
+inline Gfx::IntRect AddClipPath::bounding_rect() const { return path_bounding_rect; }
+inline bool AddClipPath::is_clip() const { return true; }
+inline Gfx::IntRect PaintLinearGradient::bounding_rect() const { return gradient_rect; }
+inline Gfx::IntRect PaintTextShadow::bounding_rect() const { return { draw_location.to_type<int>(), shadow_bounding_rect.size() }; }
+inline Gfx::IntRect FillRectWithRoundedCorners::bounding_rect() const { return rect; }
+inline Gfx::IntRect FillPath::bounding_rect() const { return Gfx::enclosing_int_rect(path_bounding_rect); }
+inline Gfx::IntRect StrokePath::bounding_rect() const { return Gfx::enclosing_int_rect(path_bounding_rect); }
+inline Gfx::IntRect DrawEllipse::bounding_rect() const { return rect; }
+inline Gfx::IntRect DrawLine::bounding_rect() const { return Gfx::IntRect::from_two_points(from, to).inflated(thickness, thickness); }
+inline Gfx::IntRect ApplyBackdropFilter::bounding_rect() const { return backdrop_region; }
+inline Gfx::IntRect DrawRect::bounding_rect() const { return rect; }
+inline Gfx::IntRect PaintRadialGradient::bounding_rect() const { return rect; }
+inline Gfx::IntRect PaintConicGradient::bounding_rect() const { return rect; }
+inline Gfx::IntRect AddRoundedRectClip::bounding_rect() const { return border_rect; }
+inline bool AddRoundedRectClip::is_clip() const { return true; }
+inline Gfx::IntRect PaintNestedDisplayList::bounding_rect() const { return Gfx::enclosing_int_rect(rect); }
 
 template<typename Command>
 concept DisplayListCommand = requires {
@@ -784,21 +834,6 @@ decltype(auto) visit_display_list_command(
 {
     return visit_display_list_command_type(command_type, [&]<DisplayListCommand Command>() -> decltype(auto) {
         return callback(read_display_list_command_payload<Command>(payload));
-    });
-}
-
-template<DisplayListCommand Command>
-consteval int display_list_command_nesting_level_change()
-{
-    if constexpr (requires { Command::nesting_level_change; })
-        return Command::nesting_level_change;
-    return 0;
-}
-
-inline int display_list_command_nesting_level_change(DisplayListCommandType command_type)
-{
-    return visit_display_list_command_type(command_type, []<DisplayListCommand Command>() {
-        return display_list_command_nesting_level_change<Command>();
     });
 }
 
