@@ -102,9 +102,7 @@ jobs:
 
       - name: 'Build'
         working-directory: ${{ github.workspace }}/Build
-        run: |
-          cmake --build .
-          cmake --install . --strip --prefix "${GITHUB_WORKSPACE}/Install"
+        run: cmake --build .
 
       - name: 'Save Caches'
         uses: ./.github/actions/cache-save
@@ -124,9 +122,9 @@ jobs:
           python3 -m pip install -r requirements.txt
 
           if [ "${{ matrix.os_name }}" = "macOS" ]; then
-            executable="${GITHUB_WORKSPACE}/Install/bundle/Ladybird.app/Contents/MacOS/Ladybird"
+            executable="${GITHUB_WORKSPACE}/Build/bin/Ladybird.app/Contents/MacOS/Ladybird"
           else
-            executable="${GITHUB_WORKSPACE}/Install/bin/Ladybird"
+            executable="${GITHUB_WORKSPACE}/Build/bin/Ladybird"
           fi
 
           ./run.py --iterations=5 --executable="${executable}"
