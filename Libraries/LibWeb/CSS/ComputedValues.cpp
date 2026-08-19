@@ -1153,6 +1153,18 @@ static StyleValueVector animation_items(ComputedValuesFFI::ComputedStyleValueHan
     return style_value_items(handle, StyleValueList::Separator::Comma);
 }
 
+static ValueComparingNonnullRefPtr<StyleValue const> first_animation_item(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
+{
+    auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(handle.pointer);
+    VERIFY(value);
+    if (value->tag == StyleValueFFI::StyleValueData::Tag::ValueList
+        && value->value_list.separator == to_underlying(StyleValueList::Separator::Comma)) {
+        VERIFY(value->value_list.values.length > 0);
+        return StyleValue::wrap_rust_child(value->value_list.values.pointer[0]);
+    }
+    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(value));
+}
+
 static StyleValueVector component_items(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
 {
     return style_value_items(handle, {});
@@ -1477,7 +1489,7 @@ Vector<BackgroundLayerData> ComputedValues::BackgroundValues::background_layers_
 
 Optional<MaskReference> ComputedValues::MaskValues::mask_value() const
 {
-    auto image = animation_items(mask_image).first();
+    auto image = first_animation_item(mask_image);
     if (image->is_url())
         return MaskReference { image->as_url().url() };
     return {};
@@ -1490,7 +1502,7 @@ MaskType ComputedValues::MaskValues::mask_type_value() const
 
 RefPtr<AbstractImageStyleValue const> ComputedValues::MaskValues::mask_image_value() const
 {
-    auto image = animation_items(mask_image).first();
+    auto image = first_animation_item(mask_image);
     if (image->is_abstract_image())
         return image->as_abstract_image();
     return nullptr;
