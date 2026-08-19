@@ -1,5 +1,6 @@
 Paused at <ladybird>/Tests/LibJS/Debugger/input/basic.js:7:1 (entry)
 Debugger commands:
+    backtrace (bt)
     break (b) [file:]<line>[:column]
     breakpoints
     continue (c)
@@ -16,6 +17,9 @@ No breakpoints.
 Deleted breakpoint 1.
 2: <ladybird>/Tests/LibJS/Debugger/input/basic.js:4 (resolved)
 Paused at <ladybird>/Tests/LibJS/Debugger/input/basic.js:4:5 (breakpoint)
+#0 calculate at <ladybird>/Tests/LibJS/Debugger/input/basic.js:4:5
+#1 <global> at <ladybird>/Tests/LibJS/Debugger/input/basic.js:7:10
+#2 <native>
 Deleted breakpoint 2.
 Paused at <ladybird>/Tests/LibJS/Debugger/input/basic.js:10:5 (exception)
 pause-on-exceptions: none

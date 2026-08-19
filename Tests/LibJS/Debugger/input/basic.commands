@@ -10,6 +10,7 @@ breakpoints
 delete 1
 b 4
 c
+bt
 delete 2
 continue
 set pause-on-exceptions none

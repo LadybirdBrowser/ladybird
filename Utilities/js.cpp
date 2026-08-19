@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Enumerate.h>
 #include <AK/GenericLexer.h>
 #include <AK/LexicalPath.h>
 #include <AK/NeverDestroyed.h>
@@ -220,9 +221,30 @@ static StringView pause_on_exceptions_name(JS::Debugger::PauseOnExceptions mode)
     VERIFY_NOT_REACHED();
 }
 
+static void print_backtrace(JS::Debugger::PauseInfo const& pause_info)
+{
+    for (auto const& [index, frame] : enumerate(pause_info.stack_trace)) {
+        auto* executable = frame.execution_context->executable.ptr();
+        auto function_name = [&] {
+            if (!executable)
+                return "<native>"_utf16;
+            if (executable->name.is_empty())
+                return "<global>"_utf16;
+            return executable->name.to_utf16_string();
+        }();
+        if (frame.source_range.has_value()) {
+            auto const& position = frame.source_range->start;
+            outln("#{} {} at {}:{}:{}", index, function_name, frame.source_range->filename(), position.line, position.column);
+        } else {
+            outln("#{} {}", index, function_name);
+        }
+    }
+}
+
 static void print_debugger_help()
 {
     outln("Debugger commands:");
+    outln("    backtrace (bt)");
     outln("    break (b) [file:]<line>[:column]");
     outln("    breakpoints");
     outln("    continue (c)");
@@ -296,6 +318,11 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
             });
             for (auto const& breakpoint : breakpoints)
                 print_breakpoint(breakpoint);
+            continue;
+        }
+
+        if ((command_name == "backtrace"sv || command_name == "bt"sv) && command.is_eof()) {
+            print_backtrace(pause_info);
             continue;
         }
 
