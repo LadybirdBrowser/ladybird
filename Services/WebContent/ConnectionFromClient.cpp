@@ -1196,7 +1196,7 @@ static Optional<JsonObject> flex_layout_for_node(Web::DOM::Node const& node)
     if (!paintable_box)
         return {};
 
-    auto const* flex_layout_data = paintable_box->flex_layout_data();
+    auto flex_layout_data = paintable_box->flex_layout_data();
     if (!flex_layout_data)
         return {};
 
@@ -1220,7 +1220,7 @@ static Optional<JsonObject> grid_layout_for_node(Web::DOM::Node const& node)
     if (!paintable_box)
         return {};
 
-    auto const* grid_layout_data = paintable_box->grid_layout_data();
+    auto grid_layout_data = paintable_box->grid_layout_data();
     if (!grid_layout_data)
         return {};
 

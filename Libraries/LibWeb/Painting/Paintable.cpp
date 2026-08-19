@@ -41,6 +41,7 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/Layout/Box.h>
+#include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TextOffsetMapping.h>
@@ -1196,11 +1197,6 @@ void Paintable::reset_for_relayout()
     m_accumulated_visual_context_for_descendants_index = VISUAL_VIEWPORT_NODE_INDEX;
     m_fixed_background_visual_context = {};
 
-    m_used_values_for_grid_template_columns = {};
-    m_used_values_for_grid_template_rows = {};
-    m_grid_layout_data = nullptr;
-    m_flex_layout_data = nullptr;
-
     invalidate_paint_cache();
 
     invalidate_stacking_context();
@@ -2087,9 +2083,50 @@ void Paintable::paint_inspector_overlay_internal(DisplayListRecordingContext& co
     context.display_list_recorder().draw_text(size_text_device_rect, size_text, font->with_size(font->point_size() * context.device_pixels_per_css_pixel()), Gfx::TextAlignment::Center, context.palette().color(Gfx::ColorRole::TooltipText));
 }
 
+Optional<UsedGridTrackList> Paintable::used_values_for_grid_template_columns() const
+{
+    Optional<UsedGridTrackList> result;
+    Layout::RustFFI::layout_arena_paintable_used_grid_tracks(rust_arena().handle(), rust_slot(), &result,
+        [](void* context, Layout::RustFFI::FfiUsedGridTrackList const* columns, Layout::RustFFI::FfiUsedGridTrackList const*) {
+            *static_cast<Optional<UsedGridTrackList>*>(context) = Layout::build_used_grid_track_list(*columns);
+        });
+    return result;
+}
+
+Optional<UsedGridTrackList> Paintable::used_values_for_grid_template_rows() const
+{
+    Optional<UsedGridTrackList> result;
+    Layout::RustFFI::layout_arena_paintable_used_grid_tracks(rust_arena().handle(), rust_slot(), &result,
+        [](void* context, Layout::RustFFI::FfiUsedGridTrackList const*, Layout::RustFFI::FfiUsedGridTrackList const* rows) {
+            *static_cast<Optional<UsedGridTrackList>*>(context) = Layout::build_used_grid_track_list(*rows);
+        });
+    return result;
+}
+
+OwnPtr<Layout::GridLayoutData> Paintable::grid_layout_data() const
+{
+    OwnPtr<Layout::GridLayoutData> result;
+    Layout::RustFFI::layout_arena_paintable_grid_layout_data(rust_arena().handle(), rust_slot(), &result,
+        [](void* context, Layout::RustFFI::FfiGridLayoutData const* data) {
+            *static_cast<OwnPtr<Layout::GridLayoutData>*>(context) = Layout::build_grid_layout_data(*data);
+        });
+    return result;
+}
+
+OwnPtr<Layout::FlexLayoutData> Paintable::flex_layout_data() const
+{
+    OwnPtr<Layout::FlexLayoutData> result;
+    Layout::RustFFI::layout_arena_paintable_flex_layout_data(rust_arena().handle(), rust_slot(), &result,
+        [](void* context, Layout::RustFFI::FfiFlexLayoutData const* data) {
+            *static_cast<OwnPtr<Layout::FlexLayoutData>*>(context) = Layout::build_flex_layout_data(*data);
+        });
+    return result;
+}
+
 void Paintable::paint_grid_inspector_overlay(DisplayListRecordingContext& context, GridInspectorOverlayOptions const& options) const
 {
-    if (!m_grid_layout_data)
+    auto grid_layout_data = this->grid_layout_data();
+    if (!grid_layout_data)
         return;
 
     paint_with_inspector_overlay_context(context, [&] {
@@ -2143,7 +2180,7 @@ void Paintable::paint_grid_inspector_overlay(DisplayListRecordingContext& contex
         auto gap_color = color.with_alpha(45);
         auto line_thickness = CSSPixels(1);
 
-        for (auto const& fragment : m_grid_layout_data->fragments) {
+        for (auto const& fragment : grid_layout_data->fragments) {
             for (auto const& column_line : fragment.columns.lines) {
                 auto x = origin.x() + column_line.start;
                 auto line_top = options.show_infinite_lines ? viewport_rect.y() : content_rect.y();
@@ -2222,7 +2259,8 @@ void Paintable::paint_grid_inspector_overlay(DisplayListRecordingContext& contex
 
 void Paintable::paint_flexbox_inspector_overlay(DisplayListRecordingContext& context, FlexboxInspectorOverlayOptions const& options) const
 {
-    if (!m_flex_layout_data)
+    auto flex_layout_data = this->flex_layout_data();
+    if (!flex_layout_data)
         return;
 
     paint_with_inspector_overlay_context(context, [&] {
@@ -2235,8 +2273,8 @@ void Paintable::paint_flexbox_inspector_overlay(DisplayListRecordingContext& con
         auto line_fill_color = color.with_alpha(18);
         auto item_fill_color = color.with_alpha(32);
         auto line_thickness = CSSPixels(1);
-        auto main_axis_is_horizontal = m_flex_layout_data->flex_direction == CSS::FlexDirection::Row
-            || m_flex_layout_data->flex_direction == CSS::FlexDirection::RowReverse;
+        auto main_axis_is_horizontal = flex_layout_data->flex_direction == CSS::FlexDirection::Row
+            || flex_layout_data->flex_direction == CSS::FlexDirection::RowReverse;
 
         auto paint_rect = [&](CSSPixelRect const& rect, Gfx::Color rect_color) {
             auto visible_rect = rect.intersected(viewport_rect);
@@ -2255,7 +2293,7 @@ void Paintable::paint_flexbox_inspector_overlay(DisplayListRecordingContext& con
         paint_rect(content_rect, container_fill_color);
         paint_outline(content_rect, line_color);
 
-        for (auto const& line : m_flex_layout_data->lines) {
+        for (auto const& line : flex_layout_data->lines) {
             auto line_rect = main_axis_is_horizontal
                 ? CSSPixelRect { content_rect.x(), origin.y() + line.cross_start, content_rect.width(), line.cross_size }
                 : CSSPixelRect { origin.x() + line.cross_start, content_rect.y(), line.cross_size, content_rect.height() };
@@ -2274,13 +2312,13 @@ void Paintable::paint_flexbox_inspector_overlay(DisplayListRecordingContext& con
         paint_outline(content_rect, line_color);
 
         if (main_axis_is_horizontal) {
-            for (auto const& line : m_flex_layout_data->lines) {
+            for (auto const& line : flex_layout_data->lines) {
                 auto y = origin.y() + line.cross_start;
                 paint_rect({ content_rect.x(), y, content_rect.width(), line_thickness }, line_color);
                 paint_rect({ content_rect.x(), y + line.cross_size, content_rect.width(), line_thickness }, line_color);
             }
         } else {
-            for (auto const& line : m_flex_layout_data->lines) {
+            for (auto const& line : flex_layout_data->lines) {
                 auto x = origin.x() + line.cross_start;
                 paint_rect({ x, content_rect.y(), line_thickness, content_rect.height() }, line_color);
                 paint_rect({ x + line.cross_size, content_rect.y(), line_thickness, content_rect.height() }, line_color);
