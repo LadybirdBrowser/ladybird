@@ -145,7 +145,6 @@ public:
     void compositor_sticky_area(CompositorStickyArea const&);
     void compositor_wheel_hit_test_target(CompositorWheelHitTestTarget const&);
     void compositor_wheel_hit_test_target_with_corner_radii(CompositorWheelHitTestTargetWithCornerRadii const&);
-    void set_async_scrolling_metadata(DisplayList::AsyncScrollingMetadata);
     void compositor_main_thread_wheel_event_region(CompositorMainThreadWheelEventRegion const&);
     void compositor_viewport_scrollbar(CompositorViewportScrollbar const&);
     void compositor_blocking_wheel_event_region(CompositorBlockingWheelEventRegion const&);
