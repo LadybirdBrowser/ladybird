@@ -1633,6 +1633,19 @@ fn keyword_of(data: &StyleValueData) -> Option<u16> {
     }
 }
 
+fn border_radius_is_initial(data: &StyleValueData) -> bool {
+    let StyleValueData::BorderRadius {
+        horizontal_radius,
+        vertical_radius,
+        ..
+    } = data
+    else {
+        return false;
+    };
+    let is_zero_px = |radius: &crate::css::style_value::RetainedStyleValueData| matches!(radius.data(), StyleValueData::Length { value, unit } if *value == 0.0 && *unit == crate::css::style_compute::px_length_unit());
+    is_zero_px(horizontal_radius) && is_zero_px(vertical_radius)
+}
+
 /// Builds the background group from retained canonical computed values.
 unsafe fn build_background_group(
     values: &EffectiveValues,
@@ -1734,6 +1747,14 @@ unsafe fn build_border_group(
         return std::ptr::null();
     };
     let retained = |property| ComputedStyleValueHandle::retained(values.pointer(property).cast());
+    let has_noninitial_border_radii = [
+        property_id::BORDER_BOTTOM_LEFT_RADIUS,
+        property_id::BORDER_BOTTOM_RIGHT_RADIUS,
+        property_id::BORDER_TOP_LEFT_RADIUS,
+        property_id::BORDER_TOP_RIGHT_RADIUS,
+    ]
+    .into_iter()
+    .any(|property| !border_radius_is_initial(values.value(property).expect("a border radius has a computed value")));
     let side = |style_property: u16, width_property: u16, color_property: u16| {
         let style_keyword = values
             .value(style_property)
@@ -1819,6 +1840,7 @@ unsafe fn build_border_group(
                 payload.border_bottom_right_radius = retained(property_id::BORDER_BOTTOM_RIGHT_RADIUS);
                 payload.border_top_left_radius = retained(property_id::BORDER_TOP_LEFT_RADIUS);
                 payload.border_top_right_radius = retained(property_id::BORDER_TOP_RIGHT_RADIUS);
+                payload.has_noninitial_border_radii = has_noninitial_border_radii;
                 payload.border_image_source = retained(property_id::BORDER_IMAGE_SOURCE);
                 payload.border_image_slice = retained(property_id::BORDER_IMAGE_SLICE);
                 payload.border_image_width = retained(property_id::BORDER_IMAGE_WIDTH);

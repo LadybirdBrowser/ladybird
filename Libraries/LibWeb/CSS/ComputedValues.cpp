@@ -1322,21 +1322,6 @@ static BorderRadiusData border_radius_from_handle(ComputedValuesFFI::ComputedSty
     };
 }
 
-static bool border_radius_handle_is_initial(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
-{
-    auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(handle.pointer);
-    VERIFY(value);
-    VERIFY(value->tag == StyleValueFFI::StyleValueData::Tag::BorderRadius);
-    auto is_zero_px = [](StyleValueFFI::RetainedStyleValueData const& child) {
-        auto const* data = static_cast<StyleValueFFI::StyleValueData const*>(child.pointer);
-        return data->tag == StyleValueFFI::StyleValueData::Tag::Length
-            && data->length.value == 0
-            && data->length.unit == to_underlying(LengthUnit::Px);
-    };
-    return is_zero_px(value->border_radius.horizontal_radius)
-        && is_zero_px(value->border_radius.vertical_radius);
-}
-
 BorderRadiusData ComputedValues::BorderValues::border_bottom_left_radius_value() const
 {
     return border_radius_from_handle(border_bottom_left_radius);
@@ -1359,10 +1344,7 @@ BorderRadiusData ComputedValues::BorderValues::border_top_right_radius_value() c
 
 bool ComputedValues::BorderValues::has_noninitial_border_radii_value() const
 {
-    return !border_radius_handle_is_initial(border_bottom_left_radius)
-        || !border_radius_handle_is_initial(border_bottom_right_radius)
-        || !border_radius_handle_is_initial(border_top_left_radius)
-        || !border_radius_handle_is_initial(border_top_right_radius);
+    return has_noninitial_border_radii;
 }
 
 BorderImageData ComputedValues::BorderValues::border_image_value() const
