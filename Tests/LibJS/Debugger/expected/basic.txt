@@ -1,0 +1,14 @@
+Paused at <ladybird>/Tests/LibJS/Debugger/input/basic.js:7:1 (entry)
+Debugger commands:
+    break [file:]<line>[:column]
+    breakpoints
+    continue
+    delete <id>
+    help
+No breakpoints.
+1: <ladybird>/Tests/LibJS/Debugger/input/basic.js:4 (resolved)
+1: <ladybird>/Tests/LibJS/Debugger/input/basic.js:4 (resolved)
+Deleted breakpoint 1.
+2: <ladybird>/Tests/LibJS/Debugger/input/basic.js:4 (resolved)
+Paused at <ladybird>/Tests/LibJS/Debugger/input/basic.js:4:5 (breakpoint)
+Deleted breakpoint 2.
