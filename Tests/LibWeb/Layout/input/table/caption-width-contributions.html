@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<style>
+@font-face {
+    font-family: 'Ahem';
+    src: url('../../../Ref/data/fonts/Ahem.ttf');
+}
+table {
+    border-spacing: 0;
+    font: 10px/1 Ahem;
+}
+td {
+    padding: 0;
+}
+</style>
+<!-- A fit-content caption contributes its min-content size, so it does not widen the table -->
+<table>
+    <caption style="width: fit-content">AAAA BBBB CCCC</caption>
+    <tr><td style="width: 100px">x</td></tr>
+</table>
+<!-- A max-content caption contributes its max-content size -->
+<table>
+    <caption style="width: max-content">AAAA BBBB CCCC</caption>
+    <tr><td style="width: 100px">x</td></tr>
+</table>
+<!-- A border-box caption width contributes the specified width, not the width plus padding -->
+<table>
+    <caption style="width: 200px; box-sizing: border-box; padding: 0 20px">AAAA</caption>
+    <tr><td style="width: 100px">x</td></tr>
+</table>

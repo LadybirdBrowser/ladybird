@@ -2296,15 +2296,6 @@ impl SizingContext {
         }
     }
 
-    pub(crate) fn calculate_inner_inline_width(
-        &self,
-        node: Node,
-        available: AvailableSize,
-        constraints: ContainingBlockConstraints,
-    ) -> CssPixels {
-        self.calculate_inner_inline_size(node, available, self.style(node).width(), constraints)
-    }
-
     pub(crate) fn should_treat_size_as_auto(
         &self,
         node: Node,
