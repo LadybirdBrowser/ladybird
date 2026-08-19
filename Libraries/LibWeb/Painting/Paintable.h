@@ -53,6 +53,7 @@ class Scrollbar;
 
 WEB_API void set_paint_viewport_scrollbars(bool enabled);
 bool should_paint_viewport_scrollbars();
+CSS::ScrollbarColorData scrollbar_colors_for_paint(Paintable const&);
 ResolvedCSSFilter resolve_css_filter(CSS::ComputedFilterView computed_filter, Paintable const& paintable_box);
 
 // Walks layout ancestors so it also covers content of unconnected resource subtrees.
