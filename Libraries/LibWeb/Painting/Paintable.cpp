@@ -823,7 +823,7 @@ static CSS::ScrollbarColorData automatic_scrollbar_colors(Paintable const& paint
     };
 }
 
-static CSS::ScrollbarColorData scrollbar_colors_for_paint(Paintable const& paintable_box)
+CSS::ScrollbarColorData scrollbar_colors_for_paint(Paintable const& paintable_box)
 {
     auto scrollbar_colors = paintable_box.layout_node().scrollbar_color();
     if (!scrollbar_colors.is_auto)
