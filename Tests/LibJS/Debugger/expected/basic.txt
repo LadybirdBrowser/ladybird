@@ -6,6 +6,7 @@ Debugger commands:
     continue (c)
     delete <id>
     help
+    print (p) <expression>
     set pause-on-exceptions <none|unhandled|all>
     show pause-on-exceptions
 pause-on-exceptions: none
@@ -17,6 +18,9 @@ No breakpoints.
 Deleted breakpoint 1.
 2: <ladybird>/Tests/LibJS/Debugger/input/basic.js:4 (resolved)
 Paused at <ladybird>/Tests/LibJS/Debugger/input/basic.js:4:5 (breakpoint)
+42
+100
+20
 #0 calculate at <ladybird>/Tests/LibJS/Debugger/input/basic.js:4:5
 #1 <global> at <ladybird>/Tests/LibJS/Debugger/input/basic.js:7:10
 #2 <native>
