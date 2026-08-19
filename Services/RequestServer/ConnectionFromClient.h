@@ -104,6 +104,7 @@ private:
     HashMap<u64, RefPtr<WebSocket::WebSocket>> m_websockets;
 
     RefPtr<Core::Timer> m_timer;
+    Optional<MonotonicTime> m_curl_timer_due_at;
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_read_notifiers;
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_write_notifiers;
 
