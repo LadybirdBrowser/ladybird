@@ -7,9 +7,10 @@
 use crate::css::computed_value_types::{ComputedFilter, ComputedStyleValueHandle, MaskValues};
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_enums::{
-    backface_visibility, content_visibility, isolation, mix_blend_mode, overflow,
+    backface_visibility, content_visibility, isolation, line_style, mix_blend_mode, outline_style, overflow,
     positioning, transform_style,
 };
+use crate::css::css_pixels::CssPixels;
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::serialize::{StringUnits, with_fly_string_units};
 use crate::css::style_value::StyleValueData;
@@ -384,6 +385,86 @@ fn participates_in_a_3d_rendering_context(arena: &LayoutNodeArena, node: NodeSlo
     false
 }
 
+#[derive(Clone, Copy)]
+pub(crate) struct OutlineData {
+    pub color: u32,
+    pub line_style: u8,
+    pub width: CssPixels,
+}
+
+fn outline_style_to_line_style(style: u8) -> u8 {
+    match style {
+        outline_style::AUTO => line_style::SOLID,
+        outline_style::NONE => line_style::NONE,
+        outline_style::DOTTED => line_style::DOTTED,
+        outline_style::DASHED => line_style::DASHED,
+        outline_style::SOLID => line_style::SOLID,
+        outline_style::DOUBLE => line_style::DOUBLE,
+        outline_style::GROOVE => line_style::GROOVE,
+        outline_style::RIDGE => line_style::RIDGE,
+        outline_style::INSET => line_style::INSET,
+        outline_style::OUTSET => line_style::OUTSET,
+        _ => unreachable!("computed outline-style holds an unknown value"),
+    }
+}
+
+// Returns OptionalNone if there is no outline to paint.
+pub(crate) fn outline_data(
+    arena: &LayoutNodeArena,
+    node: NodeSlotId,
+    window_is_focused: bool,
+    auto_outline_color: u32,
+) -> Option<OutlineData> {
+    let style = arena.node_style_if_live(node)?;
+    let misc = style.misc_reset();
+    if misc.outline_style == outline_style::AUTO && !window_is_focused {
+        return None;
+    }
+    let (color, resolved_line_style, width) = if misc.outline_style == outline_style::AUTO {
+        // `auto` lets us do whatever we want for the outline. 2px of the accent
+        // colour seems reasonable.
+        (auto_outline_color, line_style::SOLID, CssPixels::from_integer(2))
+    } else {
+        let resolved = outline_style_to_line_style(misc.outline_style);
+        (misc.outline_color, resolved, misc.outline_width)
+    };
+    if color >> 24 == 0 || resolved_line_style == line_style::NONE || width.raw_value() == 0 {
+        return None;
+    }
+    Some(OutlineData {
+        color,
+        line_style: resolved_line_style,
+        width,
+    })
+}
+
+pub(crate) fn outline_offset(arena: &LayoutNodeArena, node: NodeSlotId) -> CssPixels {
+    arena
+        .node_style_if_live(node)
+        .map_or(CssPixels::from_raw(0), |style| style.misc_reset().outline_offset)
+}
+
+pub(crate) fn is_text_decoration_propagation_boundary(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+    let Some(kind) = arena.node_kind_if_live(node) else {
+        return false;
+    };
+    if has_flag(arena, node, NodeFlag::Anonymous)
+        && !arena.node_is_generated_for_pseudo_element(node)
+        && kind != NodeKind::TableWrapper
+    {
+        return false;
+    }
+    if arena.node_is_out_of_flow_if_live(node) {
+        return true;
+    }
+    if has_flag(arena, node, NodeFlag::IsReplacedElement) || kind == NodeKind::ListItemMarkerBox {
+        return true;
+    }
+    arena.node_style_if_live(node).is_some_and(|style| {
+        let display = style.display();
+        display.is_inline_outside() && !display.is_flow_inside()
+    })
+}
 
 pub(crate) fn z_index(arena: &LayoutNodeArena, node: NodeSlotId) -> Option<i32> {
     let style = arena.node_style_if_live(node)?;

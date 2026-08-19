@@ -549,6 +549,11 @@ impl<'a> ComputedValuesView<'a> {
     }
 
     #[inline]
+    pub(crate) fn image_rendering(self) -> u8 {
+        self.inherited_box().image_rendering
+    }
+
+    #[inline]
     #[allow(dead_code)]
     pub(crate) fn empty_cells(self) -> u8 {
         self.inherited_table().empty_cells

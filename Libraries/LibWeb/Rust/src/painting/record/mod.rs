@@ -1,0 +1,256 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+pub mod async_scroll_metadata;
+pub mod cache;
+pub mod hit_test_items;
+pub mod masks;
+pub mod paint;
+pub mod traversal;
+
+use crate::css::css_enums;
+use crate::layout::LayoutNodeArena;
+use crate::layout::node_data::NodeKind;
+use crate::painting::border_radii::BorderRadii;
+use crate::painting::display_list::device_pixels::DevicePixelConverter;
+use crate::painting::display_list::recorder::DisplayListRecorder;
+use crate::painting::hit_test::HitTestList;
+use crate::painting::host::{
+    FfiHitTestHostCallbacks, FfiHitTestPaintableFacts, FfiHitTestTextNodeFacts, FfiPaintHostCallbacks,
+    FfiRecordingInputs, FfiVisualContextHostCallbacks,
+};
+use crate::painting::paintable_arena::PaintableArena;
+use crate::painting::paintable_data::{InlineBoxPieceRecord, PaintableData, PaintableSlotId};
+use crate::painting::stacking_context::{NO_STACKING_CONTEXT, StackingContextTree};
+use crate::painting::visual_context::nested::NestedAssignments;
+use std::collections::HashMap;
+use std::rc::Rc;
+
+#[derive(Default)]
+pub struct RecordingOutput {
+    pub id: u64,
+    pub compatible_visual_context_tree_version: u64,
+    pub hit_test_list: HitTestList,
+    pub display_list_bytes: Vec<u8>,
+    pub has_blocking_wheel_event_listeners: bool,
+    pub mask_display_lists: Vec<(usize, crate::painting::display_list::commands::DisplayListResourceId)>,
+    pub spliced_capture_count: usize,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum PaintPhase {
+    Background,
+    Border,
+    TableCollapsedBorder,
+    Foreground,
+    Outline,
+    Overlay,
+}
+
+impl PaintPhase {
+    pub const COUNT: usize = 6;
+}
+pub(crate) struct NestedRecordingState {
+    pub(crate) assignments: NestedAssignments,
+}
+
+pub struct PaintRecorder<'a> {
+    pub(crate) layout_arena: &'a LayoutNodeArena,
+    pub(crate) paintables: &'a PaintableArena,
+    stacking_contexts: &'a StackingContextTree,
+    pub(crate) host: &'a FfiHitTestHostCallbacks,
+    pub(crate) paint_host: &'a FfiPaintHostCallbacks,
+    pub(crate) inputs: FfiRecordingInputs,
+    pub(crate) recorder: DisplayListRecorder,
+    pub(crate) converter: DevicePixelConverter,
+    pub(crate) draw_svg_geometry_for_clip_path: bool,
+    pub(crate) visual_context_host: &'a FfiVisualContextHostCallbacks,
+    pub(crate) nested: Option<NestedRecordingState>,
+    pub(crate) nested_tree: Option<crate::painting::visual_context::VisualContextTree>,
+    pub(crate) prerecorded: crate::painting::record::masks::PrerecordedNestedDisplayLists,
+    pub(crate) viewport: PaintableSlotId,
+    command_cache_source: Option<Rc<RecordingOutput>>,
+    item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
+    display_list_id: u64,
+    hit_test_list_generation: u64,
+    pub(crate) has_blocking_wheel_event_listeners: bool,
+    spliced_capture_count: usize,
+    list: HitTestList,
+    paintable_facts_cache: HashMap<u32, FfiHitTestPaintableFacts>,
+    text_node_facts_cache: HashMap<u32, FfiHitTestTextNodeFacts>,
+    pub(crate) wheel_hit_test_target_cache: HashMap<PaintableSlotId, usize>,
+}
+
+#[derive(Clone, Copy, Default)]
+pub(crate) struct BasePaintFacts {
+    pub is_visible: bool,
+    pub empty_cells_property_applies: bool,
+    pub has_backdrop_filter: bool,
+    pub paints_border_image: bool,
+}
+
+impl<'a> PaintRecorder<'a> {
+    pub(crate) fn data(&self, paintable: PaintableSlotId) -> PaintableData {
+        self.paintables.data_ref(paintable)
+    }
+
+    pub(crate) fn shell(&self, paintable: PaintableSlotId) -> *mut std::ffi::c_void {
+        self.data(paintable).shell
+    }
+
+    pub(crate) fn hit_test_facts(&mut self, paintable: PaintableSlotId) -> FfiHitTestPaintableFacts {
+        self.paintable_facts(paintable)
+    }
+
+    fn paintable_facts(&mut self, paintable: PaintableSlotId) -> FfiHitTestPaintableFacts {
+        let key = paintable.index;
+        if let Some(facts) = self.paintable_facts_cache.get(&key) {
+            return *facts;
+        }
+        let facts = self.host.paintable_facts(self.shell(paintable));
+        self.paintable_facts_cache.insert(key, facts);
+        facts
+    }
+
+    pub(crate) fn nested_recording_session(
+        &self,
+        recorder: DisplayListRecorder,
+        nested: Option<NestedRecordingState>,
+        nested_tree: Option<crate::painting::visual_context::VisualContextTree>,
+        draw_svg_geometry_for_clip_path: bool,
+    ) -> PaintRecorder<'a> {
+        PaintRecorder {
+            layout_arena: self.layout_arena,
+            paintables: self.paintables,
+            stacking_contexts: self.stacking_contexts,
+            host: self.host,
+            paint_host: self.paint_host,
+            inputs: self.inputs,
+            recorder,
+            converter: self.converter,
+            draw_svg_geometry_for_clip_path,
+            visual_context_host: self.visual_context_host,
+            nested,
+            nested_tree,
+            prerecorded: crate::painting::record::masks::PrerecordedNestedDisplayLists::default(),
+            viewport: self.viewport,
+            command_cache_source: None,
+            item_cache_source: None,
+            display_list_id: self.display_list_id,
+            hit_test_list_generation: self.hit_test_list_generation,
+            has_blocking_wheel_event_listeners: false,
+            spliced_capture_count: 0,
+            list: HitTestList::default(),
+            paintable_facts_cache: HashMap::new(),
+            text_node_facts_cache: HashMap::new(),
+            wheel_hit_test_target_cache: HashMap::new(),
+        }
+    }
+
+    pub(crate) fn piece_border_radii(
+        &mut self,
+        paintable: PaintableSlotId,
+        piece: &InlineBoxPieceRecord,
+    ) -> BorderRadii {
+        if !self.paintable_facts(paintable).has_noninitial_border_radii {
+            return BorderRadii::default();
+        }
+        BorderRadii::from_raw(self.host.piece_border_radii(
+            self.shell(paintable),
+            piece.border_box_rect.width.raw_value(),
+            piece.border_box_rect.height.raw_value(),
+            piece.present_edges,
+        ))
+    }
+
+    pub(crate) fn base_paint_facts(&mut self, paintable: PaintableSlotId) -> BasePaintFacts {
+        let data = self.data(paintable);
+        let Some(style) = self.layout_arena.node_style_if_live(data.layout_node) else {
+            return BasePaintFacts::default();
+        };
+        let effects = style.effects();
+        let is_visible = style.visibility() == crate::css::css_enums::visibility::VISIBLE && effects.opacity != 0.0;
+        let empty_cells_property_applies = style.display().is_internal_table()
+            && style.empty_cells() == crate::css::css_enums::empty_cells::HIDE
+            && self.paintables.first_child(paintable).is_none();
+        let has_backdrop_filter = effects.backdrop_filter.operations.length != 0;
+        let paints_border_image = crate::painting::style_queries::handle_value(&style.border().border_image_source)
+            .is_some_and(|source| matches!(source, crate::css::style_value::StyleValueData::Image { .. }));
+        BasePaintFacts {
+            is_visible,
+            empty_cells_property_applies,
+            has_backdrop_filter,
+            paints_border_image,
+        }
+    }
+
+    fn has_stacking_context(&self, paintable: PaintableSlotId) -> bool {
+        self.data(paintable).stacking_context != NO_STACKING_CONTEXT
+    }
+
+    fn layout_flags(&self, paintable: PaintableSlotId) -> u32 {
+        self.layout_arena.node_flags_if_live(self.data(paintable).layout_node)
+    }
+
+    fn layout_kind(&self, paintable: PaintableSlotId) -> Option<NodeKind> {
+        self.layout_arena.node_kind_if_live(self.data(paintable).layout_node)
+    }
+
+    fn display(&self, paintable: PaintableSlotId) -> Option<crate::css::display::FfiDisplay> {
+        self.layout_arena
+            .node_style_if_live(self.data(paintable).layout_node)
+            .map(|style| style.display())
+    }
+
+    fn visibility_is_visible(&self, paintable: PaintableSlotId) -> bool {
+        self.layout_arena
+            .node_style_if_live(self.data(paintable).layout_node)
+            .is_none_or(|style| style.visibility() == css_enums::visibility::VISIBLE)
+    }
+
+    pub(crate) fn is_visible(&mut self, paintable: PaintableSlotId) -> bool {
+        self.visibility_is_visible(paintable) && !self.paintable_facts(paintable).opacity_is_zero
+    }
+
+    pub(crate) fn visible_for_hit_testing(&mut self, paintable: PaintableSlotId) -> bool {
+        self.paintable_facts(paintable).visible_for_hit_testing
+    }
+
+    fn is_replaced_box(&self, paintable: PaintableSlotId) -> bool {
+        self.layout_kind(paintable)
+            .is_some_and(crate::layout::kind_is_replaced_box)
+    }
+
+    pub(crate) fn own_context_index(&self, paintable: PaintableSlotId) -> usize {
+        if let Some(nested) = &self.nested
+            && let Some((own, _)) = nested.assignments.paintable_indices.get(&paintable.index)
+        {
+            return *own;
+        }
+        self.data(paintable).accumulated_visual_context_index
+    }
+
+    pub(crate) fn accumulated_2d_scale_at(&self, index: usize) -> libgfx_rust::FloatSize {
+        self.paint_host.accumulated_2d_scale(self.nested_tree.as_ref(), index)
+    }
+
+    pub(crate) fn own_accumulated_2d_scale(&self, paintable: PaintableSlotId) -> libgfx_rust::FloatSize {
+        self.accumulated_2d_scale_at(self.own_context_index(paintable))
+    }
+
+    pub(crate) fn is_chrome_mirrored(&self, paintable: PaintableSlotId) -> bool {
+        self.layout_arena
+            .node_style_if_live(self.data(paintable).layout_node)
+            .is_some_and(|style| {
+                let writing_mode = style.writing_mode();
+                (writing_mode == css_enums::writing_mode::HORIZONTAL_TB
+                    && style.direction() == css_enums::direction::RTL)
+                    || writing_mode == css_enums::writing_mode::VERTICAL_RL
+                    || writing_mode == css_enums::writing_mode::SIDEWAYS_RL
+            })
+    }
+}

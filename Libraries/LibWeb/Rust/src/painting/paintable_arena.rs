@@ -9,6 +9,7 @@ use crate::layout::{FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize};
 use crate::painting::paintable_data::*;
 use std::cell::Cell;
 use std::ffi::c_void;
+use std::rc::Rc;
 
 pub(crate) const PAINTABLE_SLOTS_PER_CHUNK: usize = 64;
 
@@ -47,6 +48,12 @@ pub struct PaintableArena {
     paintable_of_node: Vec<PaintableSlotId>,
     pub(crate) stacking_context_tree: Option<crate::painting::stacking_context::StackingContextTree>,
     pub(crate) visual_context: crate::painting::visual_context::VisualContextState,
+    pub(crate) hit_test_list: Option<crate::painting::hit_test::HitTestList>,
+    pub(crate) hit_test_list_generation: u64,
+    pub(crate) last_recording: Option<Rc<crate::painting::record::RecordingOutput>>,
+    pub(crate) paint_command_cache_source: Option<Rc<crate::painting::record::RecordingOutput>>,
+    pub(crate) hit_test_item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
+    pub(crate) paint_caches: std::cell::RefCell<Vec<Option<Box<crate::painting::record::cache::PaintCache>>>>,
     absolute_rect_memo: std::cell::RefCell<std::collections::HashMap<u32, crate::css::css_pixels::CssPixelRect>>,
 }
 
@@ -85,6 +92,7 @@ impl PaintableArena {
             }
             self.slot_metadata.push(SlotMetadata::default());
             self.side_data.push(PaintableSideData::default());
+            self.paint_caches.get_mut().push(None);
             self.next_index = self
                 .next_index
                 .checked_add(1)
@@ -111,6 +119,7 @@ impl PaintableArena {
         data.layout_node = layout_node;
         data.shell = shell;
         self.side_data[index as usize] = PaintableSideData::default();
+        self.paint_caches.get_mut()[index as usize] = None;
 
         PaintableAllocation {
             slot: PaintableSlotId::new(index, generation),
@@ -152,6 +161,7 @@ impl PaintableArena {
 
         *self.data_mut_by_index(index) = PaintableData::default();
         self.side_data[index as usize] = PaintableSideData::default();
+        self.paint_caches.get_mut()[index as usize] = None;
         self.live_count = self
             .live_count
             .checked_sub(1)
@@ -225,6 +235,15 @@ impl PaintableArena {
             .get_mut(index / PAINTABLE_SLOTS_PER_CHUNK)
             .expect("invalid paintable arena slot ID");
         chunk.slots[index % PAINTABLE_SLOTS_PER_CHUNK].get_mut()
+    }
+
+    pub fn invalidate_paint_cache(&self, id: PaintableSlotId) {
+        if !self.is_live(id) {
+            return;
+        }
+        if let Some(entry) = self.paint_caches.borrow_mut().get_mut(id.slot_index() as usize) {
+            *entry = None;
+        }
     }
 
     pub fn side(&self, id: PaintableSlotId) -> &PaintableSideData {
@@ -366,7 +385,7 @@ impl PaintableArena {
             data.has_sticky_insets = false;
             data.local_padding_box_union = FfiCssPixelRect::default();
             data.local_border_box_union = FfiCssPixelRect::default();
-            data.stacking_context = NO_STACKING_CONTEXT;
+            data.stacking_context = crate::painting::stacking_context::NO_STACKING_CONTEXT;
             data.enclosing_scroll_node_index = 0;
             data.own_scroll_node_index = 0;
             data.has_accumulated_visual_context = false;
@@ -377,6 +396,7 @@ impl PaintableArena {
             data.svg_viewport_transform = crate::layout::FfiAffineTransform::default();
             data.has_svg_viewport_transform = false;
         });
+        self.paint_caches.get_mut()[id.slot_index() as usize] = None;
         self.side_mut(id).reset_for_relayout();
     }
 }

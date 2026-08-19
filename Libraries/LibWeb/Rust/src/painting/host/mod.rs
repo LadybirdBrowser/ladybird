@@ -4,8 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+pub mod hit_test;
+pub mod paint;
 pub mod visual_context;
 
+pub use hit_test::*;
+pub use paint::*;
 pub use visual_context::*;
 
 #[derive(Clone, Copy, Debug)]

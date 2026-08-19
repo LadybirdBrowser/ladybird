@@ -2996,6 +2996,18 @@ pub(crate) fn resolve_calculated_angle_without_context(
     numeric_type.matches_dimension(1, resolve_as).then_some(value)
 }
 
+pub(crate) fn resolve_calculated_angle_with_percentage_basis_without_context(
+    calculated: &crate::css::style_value::StyleValueData,
+    percentage_basis_degrees: f64,
+) -> Option<f64> {
+    let basis = CalcNumericValue::Angle {
+        value: percentage_basis_degrees,
+        unit: canonical_unit_code(&ANGLE_UNIT_CANONICAL_RATIOS),
+    };
+    let (value, numeric_type, resolve_as) = resolve_calculated_without_context(calculated, Some(basis))?;
+    (numeric_type.matches_dimension(1, resolve_as) || numeric_type.matches_percentage()).then_some(value)
+}
+
 /// Resolves a calculated value that must produce an angle using the immutable
 /// per-element length metrics supplied to animation evaluation.
 pub(crate) fn resolve_calculated_angle_with_context(
