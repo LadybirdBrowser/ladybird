@@ -105,7 +105,7 @@ public:
     [[nodiscard]] bool is_absolutely_positioned() const { return has_flag(Layout::RustFFI::PaintableFlag::AbsolutelyPositioned); }
     [[nodiscard]] bool is_floating() const { return has_flag(Layout::RustFFI::PaintableFlag::Floating); }
     [[nodiscard]] bool is_inline() const { return has_flag(Layout::RustFFI::PaintableFlag::Inline); }
-    [[nodiscard]] CSS::Display display() const { return m_display; }
+    [[nodiscard]] CSS::Display display() const;
 
     bool has_stacking_context() const;
     RefPtr<StackingContext> enclosing_stacking_context();
@@ -138,7 +138,7 @@ public:
     GC::Ptr<HTML::LocalNavigable> navigable() const;
 
     RefPtr<Paintable> containing_block() const;
-    Paintable const* containing_block_ptr() const { return m_containing_block; }
+    Paintable const* containing_block_ptr() const;
 
     template<typename T>
     bool fast_is() const = delete;
@@ -230,8 +230,7 @@ public:
 
     Vector<MaskLayerPresence, 3> mask_layer_presence(MaskLayerSet) const;
 
-    auto& box_model() { return m_box_model; }
-    auto const& box_model() const { return m_box_model; }
+    BoxModelMetrics box_model() const;
 
     struct OverflowData {
         CSSPixelRect scrollable_overflow_rect;
@@ -265,14 +264,14 @@ public:
     void set_offset(CSSPixelPoint);
     void set_offset(float x, float y) { set_offset({ x, y }); }
 
-    CSSPixelSize const& content_size() const { return m_content_size; }
+    CSSPixelSize content_size() const;
     void set_content_size(CSSPixelSize);
     void set_content_size(CSSPixels width, CSSPixels height) { set_content_size({ width, height }); }
 
     void set_content_width(CSSPixels width) { set_content_size(width, content_height()); }
     void set_content_height(CSSPixels height) { set_content_size(content_width(), height); }
-    CSSPixels content_width() const { return m_content_size.width(); }
-    CSSPixels content_height() const { return m_content_size.height(); }
+    CSSPixels content_width() const { return content_size().width(); }
+    CSSPixels content_height() const { return content_size().height(); }
 
     CSSPixelRect absolute_rect() const;
     CSSPixelRect absolute_padding_box_rect() const;
@@ -295,8 +294,12 @@ public:
     CSSPixels absolute_y() const { return absolute_rect().y(); }
     CSSPixelPoint absolute_position() const { return absolute_rect().location(); }
 
-    void set_containing_line_box_index(size_t line_box_index) { m_containing_line_box_index = line_box_index; }
-    Optional<size_t> containing_line_box_index() const { return m_containing_line_box_index; }
+    Optional<size_t> containing_line_box_index() const
+    {
+        if (!rust_data().has_containing_line_box_index)
+            return {};
+        return rust_data().containing_line_box_index;
+    }
     Optional<CSSPixelRect> absolute_containing_line_box_rect() const;
 
     CSSPixelPoint transform_to_local_coordinates(CSSPixelPoint position) const;
@@ -312,22 +315,13 @@ public:
 
     [[nodiscard]] Optional<CSSPixelRect> scrollable_overflow_rect() const;
 
-    [[nodiscard]] Optional<OverflowData> const& overflow_data() const { return m_overflow_data; }
-    void set_overflow_data(OverflowData data) { m_overflow_data = move(data); }
-    void clear_overflow_data() { m_overflow_data.clear(); }
+    [[nodiscard]] Optional<OverflowData> overflow_data() const;
+    void set_overflow_data(OverflowData);
+    void clear_overflow_data();
 
-    Optional<CachedOverflowData> const& cached_overflow_data() const { return m_cached_overflow_data; }
-    void set_cached_overflow_data(CachedOverflowData data) { m_cached_overflow_data = move(data); }
-    void clear_cached_overflow_data() { m_cached_overflow_data.clear(); }
-    void set_layout_fragment_identity(u64 identity)
-    {
-        VERIFY(identity);
-        if (m_layout_fragment_identity == identity)
-            return;
-        m_layout_fragment_identity = identity;
-        clear_cached_overflow_data();
-    }
-
+    Optional<CachedOverflowData> cached_overflow_data() const;
+    void set_cached_overflow_data(CachedOverflowData);
+    void clear_cached_overflow_data();
     virtual void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);
 
     virtual bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y);
@@ -357,8 +351,7 @@ public:
     RefPtr<Scrollbar> scrollbar(ScrollDirection) const;
     NonnullRefPtr<Scrollbar> ensure_scrollbar(ScrollDirection);
 
-    void set_uses_collapsing_borders_model(bool value) { m_uses_collapsing_borders_model = value; }
-    bool uses_collapsing_borders_model() const { return m_uses_collapsing_borders_model; }
+    bool uses_collapsing_borders_model() const { return rust_data().uses_collapsing_borders_model; }
 
     void set_collapsed_table_borders(OwnPtr<CollapsedTableBorders> collapsed_table_borders) { m_collapsed_table_borders = move(collapsed_table_borders); }
     CollapsedTableBorders const* collapsed_table_borders() const { return m_collapsed_table_borders.ptr(); }
@@ -403,9 +396,9 @@ public:
     RefPtr<Paintable const> nearest_scrollable_ancestor() const;
 
     using StickyInsets = Painting::StickyInsets;
-    bool has_sticky_insets() const { return !!m_sticky_insets; }
-    StickyInsets const& sticky_insets() const { return *m_sticky_insets; }
-    void set_sticky_insets(OwnPtr<StickyInsets> sticky_insets) { m_sticky_insets = move(sticky_insets); }
+    bool has_sticky_insets() const { return rust_data().has_sticky_insets; }
+    StickyInsets sticky_insets() const;
+    void set_sticky_insets(OwnPtr<StickyInsets>);
 
     [[nodiscard]] bool could_be_scrolled_by_wheel_event() const;
     [[nodiscard]] bool could_be_scrolled_by_wheel_event(ScrollDirection direction) const;
@@ -514,8 +507,8 @@ private:
     };
 
     void detach_from_layout_node(Badge<Layout::Node>);
+    Layout::RustFFI::PaintableData& rust_data() { return *m_rust_data; }
     void detach_chrome_widgets();
-    void set_containing_block(Paintable* containing_block);
     GC::Ptr<DOM::EventTarget> scroll_event_target();
 
     void paint_middle_button_scroll_indicator(DisplayListRecordingContext&) const;
@@ -527,20 +520,11 @@ private:
     NonnullRefPtr<Layout::NodeArena> m_rust_arena;
     Layout::RustFFI::PaintableSlotId m_rust_slot {};
     u32 m_rust_slot_generation { 0 };
-    Layout::RustFFI::PaintableData const* m_rust_data { nullptr };
-    Paintable* m_containing_block { nullptr };
+    Layout::RustFFI::PaintableData* m_rust_data { nullptr };
 
-    bool m_uses_collapsing_borders_model : 1 { false };
-    CSS::Display m_display;
 
     RefPtr<StackingContext> m_stacking_context;
 
-    Optional<OverflowData> m_overflow_data;
-    Optional<CachedOverflowData> m_cached_overflow_data;
-    u64 m_layout_fragment_identity { 0 };
-
-    CSSPixelPoint m_offset;
-    CSSPixelSize m_content_size;
 
     Optional<CSSPixelRect> mutable m_absolute_rect;
     Optional<CSSPixelRect> mutable m_absolute_padding_box_rect;
@@ -556,7 +540,6 @@ private:
     size_t m_visual_context_nodes_end { 0 };
 
     OwnPtr<CollapsedTableBorders> m_collapsed_table_borders;
-    Optional<size_t> m_containing_line_box_index;
 
     ResolvedCSSFilter m_filter;
 
@@ -572,9 +555,7 @@ private:
     RefPtr<ResizeHandle> m_resize_handle;
     bool m_has_non_invertible_css_transform { false };
 
-    OwnPtr<StickyInsets> m_sticky_insets;
 
-    BoxModelMetrics m_box_model;
 
     mutable OwnPtr<CachedPaintData> m_cached_paint_data;
 };

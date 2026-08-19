@@ -85,12 +85,12 @@ static BackgroundBox get_box(CSS::BackgroundBox box_clip, BackgroundBox border_b
     auto box = border_box;
     switch (box_clip) {
     case CSS::BackgroundBox::ContentBox: {
-        auto& padding = paintable_box.box_model().padding;
+        auto padding = paintable_box.box_model().padding;
         box.shrink(padding.top, padding.right, padding.bottom, padding.left);
         [[fallthrough]];
     }
     case CSS::BackgroundBox::PaddingBox: {
-        auto& border = paintable_box.box_model().border;
+        auto border = paintable_box.box_model().border;
         box.shrink(border.top, border.right, border.bottom, border.left);
         [[fallthrough]];
     }
