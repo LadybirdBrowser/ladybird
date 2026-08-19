@@ -759,8 +759,36 @@ fn pause_on_exceptions_name(mode: PauseOnExceptions) -> &'static [u8] {
     }
 }
 
+fn print_backtrace(pause_info: &PauseInfo) {
+    for (index, frame) in pause_info.stack_trace.iter().enumerate() {
+        let context = unsafe { frame.execution_context.as_ref() };
+        let executable = context
+            .executable
+            .get()
+            .map(crate::bytecode::executable::Executable::from_head);
+        let function_name = executable
+            .as_ref()
+            .map(|executable| executable.name());
+        let mut line = format!("#{index} ").into_bytes();
+        match function_name {
+            None => line.extend_from_slice(b"<native>"),
+            Some(name) if name.is_empty() => line.extend_from_slice(b"<global>"),
+            Some(name) => line.extend(Utf16View::of_fly_string(&name).to_wtf8()),
+        }
+        if let Some(source_range) = &frame.source_range {
+            line.extend_from_slice(b" at ");
+            line.extend(Utf16View::of_string(source_range.filename()).to_wtf8());
+            line.extend_from_slice(
+                format!(":{}:{}", source_range.start.line, source_range.start.column).as_bytes(),
+            );
+        }
+        standard_output::outln(&line);
+    }
+}
+
 fn print_debugger_help() {
     standard_output::outln(b"Debugger commands:");
+    standard_output::outln(b"    backtrace (bt)");
     standard_output::outln(b"    break (b) [file:]<line>[:column]");
     standard_output::outln(b"    breakpoints");
     standard_output::outln(b"    continue (c)");
@@ -878,6 +906,11 @@ fn run_debugger_prompt(
             for breakpoint in &breakpoints {
                 print_breakpoint(&debugger, breakpoint);
             }
+            continue;
+        }
+
+        if (command_name == b"backtrace" || command_name == b"bt") && command.is_eof() {
+            print_backtrace(pause_info);
             continue;
         }
 
