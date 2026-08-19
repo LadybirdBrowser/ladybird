@@ -1,0 +1,21 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const ws = new WebSocket(`ws://localhost:${internals.getEchoServerPort()}/`);
+
+        ws.onopen = () => {
+            ws.onmessage = async ev => {
+                println(`type="${ev.data.type}"`);
+                println(`text="${await ev.data.text()}"`);
+                ws.close();
+            };
+
+            ws.send(new Blob(["hello"], { type: "text/plain" }));
+        };
+
+        ws.onclose = () => {
+            done();
+        };
+    });
+</script>
