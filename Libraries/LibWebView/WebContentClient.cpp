@@ -1364,6 +1364,15 @@ Messages::WebContentClient::DidLoseRequestServerConnectionResponse WebContentCli
     return handle.release_value();
 }
 
+void WebContentClient::did_simulate_worker_request_server_connection_loss(u64 page_id)
+{
+    VERIFY(Application::web_content_options().is_test_mode == IsTestMode::Yes);
+    if (auto result = WorkerProcessManager::the().simulate_request_server_connection_loss_for_testing(*this, page_id); result.is_error()) {
+        warnln("Unable to reconnect WebWorker processes to RequestServer: {}", result.error());
+        VERIFY_NOT_REACHED();
+    }
+}
+
 Messages::WebContentClient::DidRequestStorageItemResponse WebContentClient::did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key)
 {
     return Application::storage_jar(m_is_private).get_item(storage_endpoint, storage_key, bottle_key);

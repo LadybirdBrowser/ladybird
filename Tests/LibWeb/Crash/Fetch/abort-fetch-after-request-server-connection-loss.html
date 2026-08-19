@@ -42,6 +42,9 @@
 
         internals.simulateRequestServerConnectionLoss();
 
+        // The disconnected client's deferred death callback must not clear the replacement connection.
+        await fetch(`${base}/echo`, { cache: "no-store", mode: "no-cors" });
+
         // Destroying the iframe's document aborts the stranded fetch, which used to dereference the freed client.
         iframe.remove();
 

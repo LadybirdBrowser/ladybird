@@ -983,6 +983,15 @@ void PageClient::page_did_lose_request_server_connection()
         client().on_request_server_connection(*handle);
 }
 
+void PageClient::page_did_simulate_worker_request_server_connection_loss()
+{
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidSimulateWorkerRequestServerConnectionLoss>(m_id);
+    if (!response) {
+        dbgln("WebContent client disconnected during DidSimulateWorkerRequestServerConnectionLoss. Exiting peacefully.");
+        Core::Process::terminate_immediately(0);
+    }
+}
+
 void PageClient::page_did_store_hsts_policy(String const& domain, HTTP::HSTS::ParsedHSTSPolicy const& policy)
 {
     client().async_did_store_hsts_policy(domain, policy);

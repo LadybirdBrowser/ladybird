@@ -59,22 +59,20 @@ ResourceLoader& ResourceLoader::the()
 
 ResourceLoader::ResourceLoader(GC::Heap& heap, NonnullRefPtr<Requests::RequestClient> request_client)
     : m_heap(heap)
-    , m_request_client(move(request_client))
     , m_user_agent(MUST(String::from_utf8(default_user_agent)))
     , m_platform(MUST(String::from_utf8(default_platform)))
     , m_preferred_languages({ "en-US"_string })
     , m_navigator_compatibility_mode(default_navigator_compatibility_mode)
 {
-    m_request_client->on_request_server_died = [this]() {
-        m_request_client = nullptr;
-    };
+    set_client(move(request_client));
 }
 
 void ResourceLoader::set_client(NonnullRefPtr<Requests::RequestClient> request_client)
 {
     m_request_client = move(request_client);
-    m_request_client->on_request_server_died = [this]() {
-        m_request_client = nullptr;
+    m_request_client->on_request_server_died = [this, disconnected_client = m_request_client->make_weak_ptr<Requests::RequestClient>()]() {
+        if (m_request_client.ptr() == disconnected_client.ptr())
+            m_request_client = nullptr;
     };
 }
 

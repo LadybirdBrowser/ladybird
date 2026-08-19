@@ -230,6 +230,50 @@ void WorkerProcessManager::broadcast_channel_message_from_web_content(Web::HTML:
     }
 }
 
+ErrorOr<void> WorkerProcessManager::reconnect_to_request_server()
+{
+    return reconnect_to_request_server([](auto const&) { return true; });
+}
+
+ErrorOr<void> WorkerProcessManager::reconnect_to_request_server(Function<bool(WorkerAgent const&)> should_reconnect)
+{
+    for (auto& entry : m_agents) {
+        auto& agent = entry.value;
+        if (!agent.client->is_open() || !should_reconnect(agent))
+            continue;
+
+        auto request_server_handle = TRY(connect_new_request_server_client(agent.is_private));
+        agent.client->async_connect_to_request_server(move(request_server_handle));
+    }
+    return {};
+}
+
+ErrorOr<void> WorkerProcessManager::simulate_request_server_connection_loss_for_testing(WebContentClient& owner, u64 page_id)
+{
+    auto is_owned_by_page = [&](WorkerAgent const& agent) {
+        return any_of(agent.owners, [&](Owner const& candidate) {
+            auto const* web_content_owner = candidate.client.get_pointer<WebContentOwner>();
+            return web_content_owner && web_content_owner->client.ptr() == &owner && web_content_owner->page_id == page_id;
+        });
+    };
+
+    Vector<NonnullRefPtr<WebWorkerClient>> clients;
+    for (auto& entry : m_agents) {
+        auto& agent = entry.value;
+        if (agent.client->is_open() && is_owned_by_page(agent))
+            clients.append(agent.client);
+    }
+
+    for (auto& client : clients) {
+        auto request_server_handle = TRY(connect_new_request_server_client(client->is_private()));
+        auto response = client->send_sync_but_allow_failure<Messages::WebWorkerServer::SimulateRequestServerConnectionLossAndReconnectForTesting>(move(request_server_handle));
+        if (!response)
+            return Error::from_string_literal("WebWorker disconnected while reconnecting to RequestServer");
+    }
+
+    return {};
+}
+
 void WorkerProcessManager::notify_worker_script_load_success(Owner const& owner)
 {
     owner.client.visit(
