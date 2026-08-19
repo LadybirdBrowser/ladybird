@@ -793,6 +793,9 @@ fn print_debugger_help() {
     standard_output::outln(b"    print (p) <expression>");
     standard_output::outln(b"    set pause-on-exceptions <none|unhandled|all>");
     standard_output::outln(b"    show pause-on-exceptions");
+    standard_output::outln(b"    step-into (step, s)");
+    standard_output::outln(b"    step-out (finish, fin)");
+    standard_output::outln(b"    step-over (next, n)");
 }
 
 /// warnln() of bytes that need not be UTF-8.
@@ -886,6 +889,19 @@ fn run_debugger_prompt(
         if (command_name == b"continue" || command_name == b"c") && command.is_eof() {
             debugger.continue_execution(ResumeMode::Continue);
             return;
+        }
+
+        if command.is_eof() {
+            let resume_mode = match command_name {
+                b"step-into" | b"step" | b"s" => Some(ResumeMode::StepInto),
+                b"step-out" | b"finish" | b"fin" => Some(ResumeMode::StepOut),
+                b"step-over" | b"next" | b"n" => Some(ResumeMode::StepOver),
+                _ => None,
+            };
+            if let Some(resume_mode) = resume_mode {
+                debugger.continue_execution(resume_mode);
+                return;
+            }
         }
 
         if command_name == b"help" && command.is_eof() {
