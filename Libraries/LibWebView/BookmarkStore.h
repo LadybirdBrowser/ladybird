@@ -21,7 +21,7 @@ struct WEBVIEW_API BookmarkItem {
     struct Bookmark {
         URL::URL url;
         Optional<String> title;
-        Optional<String> favicon_base64_png;
+        Optional<String> favicon_hash;
     };
 
     struct Folder {
@@ -65,7 +65,7 @@ public:
 
     void import_items(JsonArray const& items_array);
 
-    void add_bookmark(URL::URL url, Optional<String> title, Optional<String> favicon_base64, Optional<String const&> target_folder_id = {});
+    void add_bookmark(URL::URL url, Optional<String> title, Optional<String> favicon_hash, Optional<String const&> target_folder_id = {});
     String add_folder(Optional<String> title, Optional<String const&> target_folder_id = {});
 
     void edit_bookmark(StringView id, URL::URL url, Optional<String> title);
@@ -74,9 +74,9 @@ public:
     void move_item(StringView id, Optional<String const&> target_folder_id, size_t index);
     void remove_item(StringView id);
 
-    void update_favicon(URL::URL const& url, String favicon_base64);
+    void update_favicon(URL::URL const& url, String favicon_hash);
 
-    JsonValue serialize_items() const;
+    JsonValue serialize_items(Optional<FaviconStore&> favicon_store = {}) const;
 
     static void add_observer(Badge<BookmarkStoreObserver>, BookmarkStoreObserver&);
     static void remove_observer(Badge<BookmarkStoreObserver>, BookmarkStoreObserver&);

@@ -40,7 +40,7 @@ WebView::AutocompleteBookmark bookmark(StringView url, Optional<StringView> titl
         .url = MUST(String::from_utf8(url)),
         .title = title.map([](auto value) { return MUST(String::from_utf8(value)); }),
         .folder = folder.map([](auto value) { return MUST(String::from_utf8(value)); }),
-        .favicon_base64_png = {},
+        .favicon_png = {},
     };
 }
 

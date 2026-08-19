@@ -994,7 +994,7 @@ static NonnullRefPtr<PromiseType> display_add_or_edit_bookmark_dialog(
     QString const& dialog_title,
     Optional<URL::URL const&> current_url,
     Optional<String const&> current_title,
-    Optional<String> current_favicon,
+    Optional<String> current_favicon_hash,
     ResolveCallback resolve_bookmark,
     bool show_folder_picker,
     Optional<String const&> selected_folder_id = {})
@@ -1042,7 +1042,7 @@ static NonnullRefPtr<PromiseType> display_add_or_edit_bookmark_dialog(
         layout->addRow("Folder:", folder_combo);
     layout->addRow(buttons);
 
-    QObject::connect(dialog, &QDialog::finished, [promise, current_favicon = move(current_favicon), resolve_bookmark = move(resolve_bookmark), url_edit = QPointer { url_edit }, title_edit = QPointer { title_edit }, folder_combo = QPointer { folder_combo }](auto result) mutable {
+    QObject::connect(dialog, &QDialog::finished, [promise, current_favicon_hash = move(current_favicon_hash), resolve_bookmark = move(resolve_bookmark), url_edit = QPointer { url_edit }, title_edit = QPointer { title_edit }, folder_combo = QPointer { folder_combo }](auto result) mutable {
         if (result != QDialog::Accepted || !url_edit || !title_edit) {
             promise->reject(Error::from_errno(ECANCELED));
             return;
@@ -1068,7 +1068,7 @@ static NonnullRefPtr<PromiseType> display_add_or_edit_bookmark_dialog(
         WebView::BookmarkItem::Bookmark bookmark {
             .url = url.release_value(),
             .title = move(title),
-            .favicon_base64_png = move(current_favicon),
+            .favicon_hash = move(current_favicon_hash),
         };
         resolve_bookmark(*promise, move(bookmark), move(target_folder_id));
     });
@@ -1081,16 +1081,16 @@ NonnullRefPtr<Application::AddBookmarkPromise> Application::display_add_bookmark
 {
     Optional<URL::URL> current_url;
     Optional<String> current_title;
-    Optional<String> current_favicon;
+    Optional<String> current_favicon_hash;
 
     if (auto view = active_web_view(); view.has_value()) {
         current_url = view->url();
         current_title = view->title().to_utf8();
-        current_favicon = view->favicon_base64_png();
+        current_favicon_hash = view->favicon_hash();
     }
 
     return display_add_or_edit_bookmark_dialog<AddBookmarkPromise>(
-        active_tab(), "Add Bookmark", current_url, current_title, current_favicon,
+        active_tab(), "Add Bookmark", current_url, current_title, current_favicon_hash,
         [](AddBookmarkPromise& promise, WebView::BookmarkItem::Bookmark bookmark, Optional<String> target_folder_id) {
             promise.resolve(AddBookmarkDialogResult {
                 .bookmark = move(bookmark),
@@ -1103,7 +1103,7 @@ NonnullRefPtr<Application::AddBookmarkPromise> Application::display_add_bookmark
 NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_dialog(WebView::BookmarkItem::Bookmark const& current_bookmark) const
 {
     return display_add_or_edit_bookmark_dialog<BookmarkPromise>(
-        active_tab(), "Edit Bookmark", current_bookmark.url, current_bookmark.title, current_bookmark.favicon_base64_png,
+        active_tab(), "Edit Bookmark", current_bookmark.url, current_bookmark.title, current_bookmark.favicon_hash,
         [](BookmarkPromise& promise, WebView::BookmarkItem::Bookmark bookmark, Optional<String>) {
             promise.resolve(move(bookmark));
         },

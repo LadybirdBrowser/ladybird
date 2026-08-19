@@ -99,7 +99,6 @@ public:
     Utf16String const& title() const { return m_title; }
 
     void set_favicon(Badge<WebContentClient>, Optional<Gfx::Bitmap const&>);
-    Optional<String> const& favicon_base64_png() const { return m_favicon_base64_png; }
     Optional<String> const& favicon_hash() const { return m_favicon_hash; }
 
     String const& handle() const { return m_client_state.client_handle; }
@@ -602,7 +601,6 @@ protected:
 
     URL::URL m_url;
     Utf16String m_title;
-    Optional<String> m_favicon_base64_png;
     Optional<String> m_favicon_hash;
     bool m_is_showing_crash_page { false };
 

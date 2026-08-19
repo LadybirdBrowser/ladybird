@@ -217,8 +217,8 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
         qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_B));
         break;
     case WebView::ActionID::BookmarkItem:
-        if (auto icon = action.base64_png_icon(); icon.has_value())
-            qaction.setIcon(icon_from_base64_png(*icon, MENU_ICON_SIZE));
+        if (auto icon = action.png_icon(); icon.has_value())
+            qaction.setIcon(icon_from_png(icon->bytes(), MENU_ICON_SIZE));
         else
             qaction.setIcon(create_chrome_icon(ChromeIcon::Globe, palette));
         break;

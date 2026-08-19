@@ -132,7 +132,9 @@ static void append_autocomplete_bookmarks(Vector<AutocompleteBookmark>& bookmark
                 .url = bookmark.url.serialize(URL::ExcludeFragment::Yes),
                 .title = bookmark.title,
                 .folder = parent_folder,
-                .favicon_base64_png = bookmark.favicon_base64_png,
+                .favicon_png = bookmark.favicon_hash.has_value()
+                    ? Application::favicon_store(IsPrivate::No).favicon_png(*bookmark.favicon_hash)
+                    : OptionalNone {},
             });
             continue;
         }
@@ -2141,7 +2143,7 @@ void Application::initialize_actions()
             ->when_resolved([this, bookmarks = move(bookmarks)](BookmarkItem::Folder folder) mutable {
                 auto folder_id = m_bookmark_store->add_folder(move(folder.title));
                 for (auto& bookmark : bookmarks)
-                    m_bookmark_store->add_bookmark(move(bookmark.url), move(bookmark.title), move(bookmark.favicon_base64_png), folder_id);
+                    m_bookmark_store->add_bookmark(move(bookmark.url), move(bookmark.title), move(bookmark.favicon_hash), folder_id);
             });
     }));
 
@@ -2320,7 +2322,7 @@ void Application::toggle_bookmark_for_view(ViewImplementation& view)
 
     display_add_bookmark_dialog()
         ->when_resolved([this](AddBookmarkDialogResult result) {
-            m_bookmark_store->add_bookmark(move(result.bookmark.url), move(result.bookmark.title), move(result.bookmark.favicon_base64_png), move(result.target_folder_id));
+            m_bookmark_store->add_bookmark(move(result.bookmark.url), move(result.bookmark.title), move(result.bookmark.favicon_hash), move(result.target_folder_id));
         });
 }
 
@@ -2391,7 +2393,9 @@ void Application::create_bookmark_menu_items(Optional<MenuData> data)
                         open_url_in_new_tab(url, Web::HTML::ActivateTab::Yes);
                 });
 
-                action->set_base64_png_icon(bookmark.favicon_base64_png);
+                action->set_png_icon(bookmark.favicon_hash.has_value()
+                        ? favicon_store(IsPrivate::No).favicon_png(*bookmark.favicon_hash)
+                        : OptionalNone {});
                 action->set_tooltip(bookmark.url.serialize());
 
                 action->add_property("id"sv, item.id);
@@ -2430,7 +2434,7 @@ Vector<BookmarkItem::Bookmark> Application::bookmarks_for_all_tabs_in_current_wi
         bookmarks.append(WebView::BookmarkItem::Bookmark {
             .url = view.url(),
             .title = view.title().is_empty() ? Optional<String> {} : view.title().to_utf8(),
-            .favicon_base64_png = view.favicon_base64_png(),
+            .favicon_hash = view.favicon_hash(),
         });
     }
 

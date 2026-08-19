@@ -87,7 +87,7 @@ struct WEBVIEW_API AutocompleteBookmark {
     String url;
     Optional<String> title;
     Optional<String> folder;
-    Optional<String> favicon_base64_png;
+    Optional<ByteBuffer> favicon_png;
 };
 
 WEBVIEW_API ReadonlySpan<AutocompleteEngine> autocomplete_engines();

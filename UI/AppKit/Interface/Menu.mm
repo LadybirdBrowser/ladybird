@@ -329,8 +329,8 @@ static void initialize_native_icon(WebView::Action& action, id control)
         [control setKeyEquivalent:@"B"];
         break;
     case WebView::ActionID::BookmarkItem:
-        if (auto icon = action.base64_png_icon(); icon.has_value())
-            [control setImage:Ladybird::image_from_base64_png(*icon, NSMakeSize(MENU_ICON_SIZE, MENU_ICON_SIZE))];
+        if (auto icon = action.png_icon(); icon.has_value())
+            [control setImage:Ladybird::image_from_png(icon->bytes(), NSMakeSize(MENU_ICON_SIZE, MENU_ICON_SIZE))];
         else
             set_control_image(control, @"globe");
         break;

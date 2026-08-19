@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Base64.h>
 #include <LibCore/Resource.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
@@ -44,14 +43,6 @@ QIcon icon_from_png(ReadonlyBytes favicon_png, int logical_size)
         icon.addPixmap(scaled_pixmap);
     }
     return icon;
-}
-
-QIcon icon_from_base64_png(StringView favicon_base64_png, int logical_size)
-{
-    auto decoded = decode_base64(favicon_base64_png);
-    if (decoded.is_error())
-        return {};
-    return icon_from_png(decoded.value().bytes(), logical_size);
 }
 
 static QPen chrome_icon_pen(QColor const& color, qreal width)
