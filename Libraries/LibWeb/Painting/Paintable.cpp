@@ -2566,9 +2566,11 @@ static void paint_border_image_slice(DisplayListRecordingContext& context, Gfx::
 
 static bool paint_border_image(DisplayListRecordingContext& context, Paintable const& paintable_box, BordersData const& borders_data, CSSPixelRect const& border_box_rect)
 {
-    auto const& border_image = paintable_box.layout_node().border_image();
-    if (!border_image.source)
+    if (!paintable_box.layout_node().border_image_source())
         return false;
+
+    auto const& border_image = paintable_box.layout_node().border_image();
+    VERIFY(border_image.source);
 
     // FIXME: Support all abstract image sources here. NodeWithStyle loads and observes gradients and
     // image-set(), but this painting path currently only handles raster images.

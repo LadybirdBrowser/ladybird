@@ -1165,6 +1165,20 @@ static StyleValueFFI::StyleValueData const* first_animation_item_data(ComputedVa
     return value;
 }
 
+static RefPtr<AbstractImageStyleValue const> first_abstract_image_value(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
+{
+    auto const* image_data = first_animation_item_data(handle);
+    if (!AK::first_is_one_of(image_data->tag,
+            StyleValueFFI::StyleValueData::Tag::Image,
+            StyleValueFFI::StyleValueData::Tag::ImageSet,
+            StyleValueFFI::StyleValueData::Tag::LinearGradient,
+            StyleValueFFI::StyleValueData::Tag::ConicGradient,
+            StyleValueFFI::StyleValueData::Tag::RadialGradient))
+        return nullptr;
+    auto image = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(image_data));
+    return image->as_abstract_image();
+}
+
 static StyleValueVector component_items(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
 {
     return style_value_items(handle, {});
@@ -1415,6 +1429,11 @@ BorderImageData ComputedValues::BorderValues::border_image_value() const
     return result;
 }
 
+RefPtr<AbstractImageStyleValue const> ComputedValues::BorderValues::border_image_source_value() const
+{
+    return first_abstract_image_value(border_image_source);
+}
+
 Vector<BackgroundLayerData> ComputedValues::BackgroundValues::background_layers_value() const
 {
     auto image_items = animation_items(background_image);
@@ -1484,16 +1503,7 @@ MaskType ComputedValues::MaskValues::mask_type_value() const
 
 RefPtr<AbstractImageStyleValue const> ComputedValues::MaskValues::mask_image_value() const
 {
-    auto const* image_data = first_animation_item_data(mask_image);
-    if (!AK::first_is_one_of(image_data->tag,
-            StyleValueFFI::StyleValueData::Tag::Image,
-            StyleValueFFI::StyleValueData::Tag::ImageSet,
-            StyleValueFFI::StyleValueData::Tag::LinearGradient,
-            StyleValueFFI::StyleValueData::Tag::ConicGradient,
-            StyleValueFFI::StyleValueData::Tag::RadialGradient))
-        return nullptr;
-    auto image = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(image_data));
-    return image->as_abstract_image();
+    return first_abstract_image_value(mask_image);
 }
 
 Vector<Position> ComputedValues::MaskValues::mask_positions_value() const

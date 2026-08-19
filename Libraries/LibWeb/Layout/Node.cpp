@@ -927,8 +927,7 @@ void NodeWithStyle::rebuild_image_observers()
         if (cursor_style_value)
             add_observer_for(&cursor_style_value->image(), new_observers);
     }
-    if (auto const& border_image = this->border_image(); border_image.source)
-        add_observer_for(border_image.source.ptr(), new_observers);
+    add_observer_for(border_image_source(), new_observers);
     // TODO: Observe other <image> accepting properties once we support them.
 
     m_image_observers = move(new_observers);
@@ -976,8 +975,7 @@ void NodeWithStyle::attach_style_resources()
         load_image(layer.background_image.ptr());
     for (auto const& layer : mask_layers())
         load_image(layer.background_image.ptr());
-    if (auto const& border_image = this->border_image(); border_image.source)
-        load_image(border_image.source.ptr());
+    load_image(border_image_source());
     m_cursor_style_values.clear();
     m_cursor_style_values.ensure_capacity(cursor().size());
     for (auto const& cursor_data : cursor()) {
