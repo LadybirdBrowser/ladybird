@@ -21,6 +21,18 @@ add_subdirectory(LibWasm)
 add_subdirectory(LibXML)
 add_subdirectory(Meta)
 
+if (NOT WIN32)
+    # FIXME: Provide standalone implementations of the C++ FFI callbacks
+    #        required by Rust test binaries on Windows.
+    add_test(
+        NAME RustWorkspace
+        COMMAND "${CMAKE_COMMAND}" -E env
+            "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/cargo/build"
+            "${RUST_CARGO}" test --workspace --target "${RUST_TARGET_TRIPLE}"
+        WORKING_DIRECTORY "${LADYBIRD_SOURCE_DIR}"
+    )
+endif()
+
 if (ENABLE_GUI_TARGETS)
     add_subdirectory(Compositor)
     add_subdirectory(LibDevTools)
