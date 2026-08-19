@@ -64,19 +64,24 @@ private:
     mutable Vector<NonnullOwnPtr<IsolatedSelectorQueryCacheEntry>> m_isolated_engine_cache;
 };
 
-// Caches querySelectorAll element lists per (query root, selector query) so that repeated queries against an
-// unchanged document can skip the subtree walk. Entries are validated lazily against the document's mutation
-// version counters, so no notification on DOM mutation is needed: the whole cache is emptied on first use after
-// dom_tree_version has changed.
+// Caches querySelector first matches and querySelectorAll element lists per (query root, selector query), allowing
+// repeated queries against an unchanged document to skip the subtree walk. Entries are validated lazily against
+// the document's mutation version counters, so no notification on DOM mutation is needed: the whole cache is
+// emptied on first use after dom_tree_version changes.
 class QuerySelectorResultCache {
     AK_MAKE_NONCOPYABLE(QuerySelectorResultCache);
     AK_MAKE_NONMOVABLE(QuerySelectorResultCache);
 
 public:
+    enum class ResultType {
+        FirstOnly,
+        All,
+    };
+
     QuerySelectorResultCache() = default;
 
-    Vector<GC::RawPtr<Element>> const* get(Document const&, ParentNode const& root, SelectorQuery const&);
-    void set(Document const&, ParentNode const& root, SelectorQuery const&, Vector<GC::RawPtr<Element>>);
+    Vector<GC::RawPtr<Element>> const* get(Document const&, ParentNode const& root, SelectorQuery const&, ResultType);
+    void set(Document const&, ParentNode const& root, SelectorQuery const&, ResultType, Vector<GC::RawPtr<Element>>);
     void visit_edges(GC::Cell::Visitor&);
 
 private:
@@ -101,6 +106,7 @@ private:
         NonnullRefPtr<SelectorQuery const> query;
 
         u64 character_data_version { 0 };
+        ResultType result_type { ResultType::FirstOnly };
 
         // Raw pointers are safe here: the elements were descendants of root when cached, and with dom_tree_version
         // unchanged no node in this document has been inserted or removed since, so they are still descendants of

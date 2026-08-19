@@ -348,9 +348,19 @@ GC::Ptr<Element const> SelectorQuery::closest(Element const& element) const
 // stopping at the first match.
 GC::Ptr<Element> SelectorQuery::query_first(ParentNode& root) const
 {
+    auto cache_result = [&](GC::Ptr<Element> result) {
+        if (m_is_result_cacheable) {
+            Vector<GC::RawPtr<Element>> elements;
+            if (result)
+                elements.append(*result);
+            root.document().query_selector_result_cache().set(root.document(), root, *this, QuerySelectorResultCache::ResultType::FirstOnly, move(elements));
+        }
+        return result;
+    };
+
     if (m_is_result_cacheable) {
         auto& document = root.document();
-        if (auto const* cached_elements = document.query_selector_result_cache().get(document, root, *this))
+        if (auto const* cached_elements = document.query_selector_result_cache().get(document, root, *this, QuerySelectorResultCache::ResultType::FirstOnly))
             return cached_elements->is_empty() ? nullptr : cached_elements->first().ptr();
     }
 
@@ -358,14 +368,14 @@ GC::Ptr<Element> SelectorQuery::query_first(ParentNode& root) const
         auto& tree_root = as<ParentNode>(root.root());
         if (m_is_result_cacheable) {
             auto& engine = isolated_engine_for(tree_root);
-            return first_match(root, [&](auto& element) { return engine.matches(element, root); });
+            return cache_result(first_match(root, [&](auto& element) { return engine.matches(element, root); }));
         }
         IsolatedSelectorQueryEngine engine(tree_root, m_selectors);
         return first_match(root, [&](auto& element) { return engine.matches(element, root); });
     }
 
     settle_connected_selector_query(root.document());
-    return first_match(root, [&](auto& element) { return matches_in_style_engine(element, root); });
+    return cache_result(first_match(root, [&](auto& element) { return matches_in_style_engine(element, root); }));
 }
 
 static GC::Ref<NodeList> create_node_list(Vector<GC::RawPtr<Element>> const& elements)
@@ -384,7 +394,7 @@ GC::Ref<NodeList> SelectorQuery::query_all(ParentNode& root) const
     auto& document = root.document();
 
     if (m_is_result_cacheable) {
-        if (auto const* cached_elements = document.query_selector_result_cache().get(document, root, *this))
+        if (auto const* cached_elements = document.query_selector_result_cache().get(document, root, *this, QuerySelectorResultCache::ResultType::All))
             return create_node_list(*cached_elements);
     }
 
@@ -405,7 +415,7 @@ GC::Ref<NodeList> SelectorQuery::query_all(ParentNode& root) const
 
     auto node_list = create_node_list(elements);
     if (m_is_result_cacheable)
-        document.query_selector_result_cache().set(document, root, *this, move(elements));
+        document.query_selector_result_cache().set(document, root, *this, QuerySelectorResultCache::ResultType::All, move(elements));
     return node_list;
 }
 
@@ -417,7 +427,7 @@ void QuerySelectorResultCache::clear_if_dom_tree_changed(Document const& documen
     m_dom_tree_version = document.dom_tree_version();
 }
 
-Vector<GC::RawPtr<Element>> const* QuerySelectorResultCache::get(Document const& document, ParentNode const& root, SelectorQuery const& query)
+Vector<GC::RawPtr<Element>> const* QuerySelectorResultCache::get(Document const& document, ParentNode const& root, SelectorQuery const& query, ResultType result_type)
 {
     clear_if_dom_tree_changed(document);
 
@@ -431,20 +441,23 @@ Vector<GC::RawPtr<Element>> const* QuerySelectorResultCache::get(Document const&
         m_entries.remove(it);
         return nullptr;
     }
+    if (result_type == ResultType::All && entry.result_type != ResultType::All)
+        return nullptr;
 
     return &entry.elements;
 }
 
-void QuerySelectorResultCache::set(Document const& document, ParentNode const& root, SelectorQuery const& query, Vector<GC::RawPtr<Element>> elements)
+void QuerySelectorResultCache::set(Document const& document, ParentNode const& root, SelectorQuery const& query, ResultType result_type, Vector<GC::RawPtr<Element>> elements)
 {
     static constexpr size_t MAX_QUERY_SELECTOR_RESULT_CACHE_SIZE = 64;
 
     clear_if_dom_tree_changed(document);
 
-    if (m_entries.size() >= MAX_QUERY_SELECTOR_RESULT_CACHE_SIZE)
+    auto key = Key { &root, &query };
+    if (!m_entries.contains(key) && m_entries.size() >= MAX_QUERY_SELECTOR_RESULT_CACHE_SIZE)
         m_entries.remove(m_entries.begin());
 
-    m_entries.set(Key { &root, &query }, Entry { root, query, document.character_data_version(), move(elements) });
+    m_entries.set(key, Entry { root, query, document.character_data_version(), result_type, move(elements) });
 }
 
 void QuerySelectorResultCache::visit_edges(GC::Cell::Visitor&)

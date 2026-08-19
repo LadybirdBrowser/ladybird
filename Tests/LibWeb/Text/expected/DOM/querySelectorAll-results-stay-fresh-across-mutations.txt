@@ -35,6 +35,20 @@ traveler .y count: 1
 traveler .y count after adopt roundtrip: 2
 querySelector agrees with querySelectorAll[0]: true
 querySelector after remove: true
+connected querySelector found first match: true
+querySelectorAll after connected querySelector: 2
+disconnected querySelector found first match: true
+querySelectorAll after disconnected querySelector: 2
+shadow querySelector found first match: true
+querySelectorAll after shadow querySelector: 2
+fragment querySelector found first match: true
+querySelectorAll after fragment querySelector: 2
+querySelector before tree mutation found match: true
+querySelector after tree mutation found new first: true
+querySelectorAll after tree mutation: 2
+querySelector before character-data mutation found match: true
+querySelector after character-data mutation found new first: true
+querySelectorAll after character-data mutation: 1
 repeated query returns distinct objects: true
 repeated query returns identical non-empty results: true
 querySelector agrees with repeated querySelectorAll[0]: true
