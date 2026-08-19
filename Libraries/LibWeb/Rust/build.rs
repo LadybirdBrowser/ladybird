@@ -1772,6 +1772,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/layout/line_box_fragment.rs"),
             manifest_dir.join("src/painting/paintable_data.rs"),
             manifest_dir.join("src/painting/paintable_build.rs"),
+            manifest_dir.join("src/painting/host/mod.rs"),
+            manifest_dir.join("src/painting/host/visual_context.rs"),
             manifest_dir.join("src/painting/ffi.rs"),
         ],
         &out_dir,

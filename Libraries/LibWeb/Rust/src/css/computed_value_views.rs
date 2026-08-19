@@ -68,6 +68,12 @@ pub(crate) struct LengthPercentageRef<'a> {
     value: &'a StyleValueData,
 }
 
+impl<'a> LengthPercentageRef<'a> {
+    pub(crate) fn over(value: &'a StyleValueData) -> Self {
+        Self { value }
+    }
+}
+
 impl LengthPercentageRef<'_> {
     pub(crate) fn is_calculated(self) -> bool {
         matches!(self.value, StyleValueData::Calculated { .. })
