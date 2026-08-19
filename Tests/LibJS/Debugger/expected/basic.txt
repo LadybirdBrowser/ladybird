@@ -1,7 +1,7 @@
 Paused at <ladybird>/Tests/LibJS/Debugger/input/basic.js:7:1 (entry)
 Debugger commands:
     backtrace (bt)
-    break (b) [file:]<line>[:column]
+    break (b) [file:]<line>[:column] [condition]
     breakpoints
     continue (c)
     delete <id>

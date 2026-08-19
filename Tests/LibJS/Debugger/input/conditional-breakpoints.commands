@@ -1,0 +1,6 @@
+b 2 false
+b 4 true
+breakpoints
+continue
+delete 2
+continue
