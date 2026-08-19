@@ -1777,13 +1777,21 @@ impl TableFormattingContext {
                     + style.margin_right().to_px(basis)
             };
             let mut contribution = outer(self.calculate_min_content_inline_size(caption));
-            if !style.width().is_auto() && !style.width().contains_percentage() {
-                let preferred = self.sizing().calculate_inner_inline_width(
-                    caption,
-                    AvailableSize::definite(basis),
-                    self.participant_constraints,
-                );
+            let width = style.width();
+            if width.is_length_percentage() && !width.contains_percentage() {
+                let mut preferred = width.to_px(basis);
+                if style.box_sizing() == box_sizing::BORDER_BOX {
+                    preferred = subtract_border_box_adjustment(
+                        preferred,
+                        style.border_left_width(),
+                        style.padding_left().to_px(basis),
+                        style.border_right_width(),
+                        style.padding_right().to_px(basis),
+                    );
+                }
                 contribution = contribution.max(outer(preferred));
+            } else if width.is_max_content() {
+                contribution = contribution.max(outer(self.calculate_max_content_inline_size(caption)));
             }
             capmin = capmin.max(contribution);
         }

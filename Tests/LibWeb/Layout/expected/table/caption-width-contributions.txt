@@ -1,0 +1,83 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 89 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 73 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 100 0+0+684] [0+0+0 31 0+0+0] [BFC] children: not-inline
+        Box <table> at [8,28] table-box [0+0+0 100 0+0+0] [0+0+0 11 0+0+0] [TFC] children: not-inline
+          BlockContainer <caption> at [8,8] [0+0+0 100 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 9, rect: [13,8 90x10] baseline: 8
+                "AAAA BBBB"
+            frag 1 from TextNode start: 10, length: 4, rect: [38,18 40x10] baseline: 8
+                "CCCC"
+            TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> (not painted) children: inline
+            TextNode <#text> (not painted)
+          Box <tbody> at [8,28] table-row-group [0+0+0 100 0+0+0] [0+0+0 11 0+0+0] children: not-inline
+            Box <tr> at [8,28] table-row [0+0+0 100 0+0+0] [0+0+0 11 0+0+0] children: not-inline
+              BlockContainer <td> at [8,28] table-cell [0+0+0 100 0+0+0] [0+0+0 11 0+0+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 1, rect: [8,27 10x10] baseline: 8
+                    "x"
+                TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,39] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      TableWrapper <(anonymous)> at [8,39] [0+0+0 140 0+0+644] [0+0+0 21 0+0+0] [BFC] children: not-inline
+        Box <table> at [8,49] table-box [0+0+0 140 0+0+0] [0+0+0 11 0+0+0] [TFC] children: not-inline
+          BlockContainer <caption> at [8,39] [0+0+0 140 0+0+0] [0+0+0 10 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 14, rect: [8,39 140x10] baseline: 8
+                "AAAA BBBB CCCC"
+            TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> (not painted) children: inline
+            TextNode <#text> (not painted)
+          Box <tbody> at [8,49] table-row-group [0+0+0 140 0+0+0] [0+0+0 11 0+0+0] children: not-inline
+            Box <tr> at [8,49] table-row [0+0+0 140 0+0+0] [0+0+0 11 0+0+0] children: not-inline
+              BlockContainer <td> at [8,49] table-cell [0+0+0 140 0+0+0] [0+0+0 11 0+0+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 1, rect: [8,48 10x10] baseline: 8
+                    "x"
+                TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,60] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      TableWrapper <(anonymous)> at [8,60] [0+0+0 200 0+0+584] [0+0+0 21 0+0+0] [BFC] children: not-inline
+        Box <table> at [8,70] table-box [0+0+0 200 0+0+0] [0+0+0 11 0+0+0] [TFC] children: not-inline
+          BlockContainer <caption> at [28,60] [0+0+20 160 20+0+0] [0+0+0 10 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 4, rect: [88,60 40x10] baseline: 8
+                "AAAA"
+            TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> (not painted) children: inline
+            TextNode <#text> (not painted)
+          Box <tbody> at [8,70] table-row-group [0+0+0 200 0+0+0] [0+0+0 11 0+0+0] children: not-inline
+            Box <tr> at [8,70] table-row [0+0+0 200 0+0+0] [0+0+0 11 0+0+0] children: not-inline
+              BlockContainer <td> at [8,70] table-cell [0+0+0 200 0+0+0] [0+0+0 11 0+0+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 1, rect: [8,69 10x10] baseline: 8
+                    "x"
+                TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,81] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x89]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x73]
+      PaintableWithLines (TableWrapper(anonymous)) [8,8 100x31]
+        Paintable (Box<TABLE>) [8,28 100x11]
+          PaintableWithLines (BlockContainer<CAPTION>) [8,8 100x20]
+          Paintable (Box<TBODY>) [8,28 100x11]
+            Paintable (Box<TR>) [8,28 100x11]
+              PaintableWithLines (BlockContainer<TD>) [8,28 100x11]
+      PaintableWithLines (BlockContainer(anonymous)) [8,39 784x0]
+      PaintableWithLines (TableWrapper(anonymous)) [8,39 140x21]
+        Paintable (Box<TABLE>) [8,49 140x11]
+          PaintableWithLines (BlockContainer<CAPTION>) [8,39 140x10]
+          Paintable (Box<TBODY>) [8,49 140x11]
+            Paintable (Box<TR>) [8,49 140x11]
+              PaintableWithLines (BlockContainer<TD>) [8,49 140x11]
+      PaintableWithLines (BlockContainer(anonymous)) [8,60 784x0]
+      PaintableWithLines (TableWrapper(anonymous)) [8,60 200x21]
+        Paintable (Box<TABLE>) [8,70 200x11]
+          PaintableWithLines (BlockContainer<CAPTION>) [8,60 200x10]
+          Paintable (Box<TBODY>) [8,70 200x11]
+            Paintable (Box<TR>) [8,70 200x11]
+              PaintableWithLines (BlockContainer<TD>) [8,70 200x11]
+      PaintableWithLines (BlockContainer(anonymous)) [8,81 784x0]
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x89] (z-index: auto)
