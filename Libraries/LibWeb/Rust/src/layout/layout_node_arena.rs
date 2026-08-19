@@ -1799,6 +1799,8 @@ pub unsafe extern "C" fn layout_arena_set_raw_table_column_span(
 
 #[cfg(test)]
 mod tests {
+    use std::cell::Cell;
+
     use crate::layout::layout_node_arena::{
         Chunk, IntrinsicInlineSizeMeasurement, IntrinsicSizeCacheKey, IntrinsicSizeCacheKind, LayoutNodeArena,
         SLOTS_PER_CHUNK,
