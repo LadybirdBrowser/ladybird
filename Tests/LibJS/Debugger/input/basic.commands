@@ -3,7 +3,7 @@ breakpoints
 break 4
 breakpoints
 delete 1
-break 4
-continue
+b 4
+c
 delete 2
 continue

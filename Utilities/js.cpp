@@ -198,9 +198,9 @@ static void print_breakpoint(JS::Breakpoint const& breakpoint)
 static void print_debugger_help()
 {
     outln("Debugger commands:");
-    outln("    break [file:]<line>[:column]");
+    outln("    break (b) [file:]<line>[:column]");
     outln("    breakpoints");
-    outln("    continue");
+    outln("    continue (c)");
     outln("    delete <id>");
     outln("    help");
 }
@@ -248,7 +248,7 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
         });
         command.ignore_while(is_ascii_space);
 
-        if (command_name == "continue"sv && command.is_eof()) {
+        if ((command_name == "continue"sv || command_name == "c"sv) && command.is_eof()) {
             g_vm->debugger()->continue_execution();
             return;
         }
@@ -272,7 +272,7 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
             continue;
         }
 
-        if (command_name == "break"sv) {
+        if (command_name == "break"sv || command_name == "b"sv) {
             Utf16String current_filename;
             if (pause_info.source_range.has_value())
                 current_filename = pause_info.source_range->filename();

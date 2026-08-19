@@ -1,8 +1,8 @@
 Paused at <ladybird>/Tests/LibJS/Debugger/input/basic.js:7:1 (entry)
 Debugger commands:
-    break [file:]<line>[:column]
+    break (b) [file:]<line>[:column]
     breakpoints
-    continue
+    continue (c)
     delete <id>
     help
 No breakpoints.
