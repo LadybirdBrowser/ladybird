@@ -25,7 +25,7 @@ use crate::breakpoint::Breakpoint;
 use crate::compile::parse;
 use crate::console::{Console, ConsoleClient, ConsoleClientMethods, LogLevel, PrinterArguments};
 use crate::contrib::test262::global_object::Test262GlobalObject;
-use crate::debugger::{Debugger, PauseInfo, PauseOnExceptions, PauseReason, ResumeMode};
+use crate::debugger::{Debugger, PauseInfo, PauseOnExceptions, PauseReason, ResumeMode, UpdateOriginalBindings};
 use crate::gc::class::{GcCell, cast_ref, define_cell};
 use crate::gc::root::Root;
 use crate::hash_table::HashTable;
@@ -766,9 +766,7 @@ fn print_backtrace(pause_info: &PauseInfo) {
             .executable
             .get()
             .map(crate::bytecode::executable::Executable::from_head);
-        let function_name = executable
-            .as_ref()
-            .map(|executable| executable.name());
+        let function_name = executable.as_ref().map(|executable| executable.name());
         let mut line = format!("#{index} ").into_bytes();
         match function_name {
             None => line.extend_from_slice(b"<native>"),
@@ -778,9 +776,7 @@ fn print_backtrace(pause_info: &PauseInfo) {
         if let Some(source_range) = &frame.source_range {
             line.extend_from_slice(b" at ");
             line.extend(Utf16View::of_string(source_range.filename()).to_wtf8());
-            line.extend_from_slice(
-                format!(":{}:{}", source_range.start.line, source_range.start.column).as_bytes(),
-            );
+            line.extend_from_slice(format!(":{}:{}", source_range.start.line, source_range.start.column).as_bytes());
         }
         standard_output::outln(&line);
     }
@@ -794,6 +790,7 @@ fn print_debugger_help() {
     standard_output::outln(b"    continue (c)");
     standard_output::outln(b"    delete <id>");
     standard_output::outln(b"    help");
+    standard_output::outln(b"    print (p) <expression>");
     standard_output::outln(b"    set pause-on-exceptions <none|unhandled|all>");
     standard_output::outln(b"    show pause-on-exceptions");
 }
@@ -911,6 +908,29 @@ fn run_debugger_prompt(
 
         if (command_name == b"backtrace" || command_name == b"bt") && command.is_eof() {
             print_backtrace(pause_info);
+            continue;
+        }
+
+        if command_name == b"print" || command_name == b"p" {
+            let expression = trim_whitespace(command.consume_remaining());
+            if expression.is_empty() {
+                eprintln!("Usage: print <expression>");
+                continue;
+            }
+            let Some(expression) = utf16_from_wtf8(expression) else {
+                eprintln!("Expression is not valid UTF-8.");
+                continue;
+            };
+            let context = unsafe { pause_info.stack_trace[0].execution_context.as_ref() };
+            match debugger.evaluate_in_frame(vm, context, Utf16View::Utf16(&expression), UpdateOriginalBindings::No) {
+                Ok(value) => {
+                    let _ = print_value(vm, value, PrintTarget::StandardOutput, PrintEnd::Newline);
+                }
+                Err(throw) => {
+                    eprint!("Evaluation threw: ");
+                    let _ = print_value(vm, throw.value(), PrintTarget::StandardError, PrintEnd::Newline);
+                }
+            }
             continue;
         }
 
