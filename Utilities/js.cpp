@@ -255,6 +255,9 @@ static void print_debugger_help()
     outln("    print (p) <expression>");
     outln("    set pause-on-exceptions <none|unhandled|all>");
     outln("    show pause-on-exceptions");
+    outln("    step-into (step, s)");
+    outln("    step-out (finish, fin)");
+    outln("    step-over (next, n)");
 }
 
 static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
@@ -302,6 +305,21 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
 
         if ((command_name == "continue"sv || command_name == "c"sv) && command.is_eof()) {
             g_vm->debugger()->continue_execution();
+            return;
+        }
+
+        if ((command_name == "step-into"sv || command_name == "step"sv || command_name == "s"sv) && command.is_eof()) {
+            g_vm->debugger()->continue_execution(JS::Debugger::ResumeMode::StepInto);
+            return;
+        }
+
+        if ((command_name == "step-out"sv || command_name == "finish"sv || command_name == "fin"sv) && command.is_eof()) {
+            g_vm->debugger()->continue_execution(JS::Debugger::ResumeMode::StepOut);
+            return;
+        }
+
+        if ((command_name == "step-over"sv || command_name == "next"sv || command_name == "n"sv) && command.is_eof()) {
+            g_vm->debugger()->continue_execution(JS::Debugger::ResumeMode::StepOver);
             return;
         }
 
