@@ -23,11 +23,11 @@
 //! reference counted or freed.
 
 use std::alloc::{Layout, alloc, dealloc};
-#[cfg(feature = "style-recording")]
+#[cfg(feature = "style-replay")]
 use std::cell::RefCell;
 use std::ffi::c_void;
 use std::sync::OnceLock;
-#[cfg(feature = "style-recording")]
+#[cfg(feature = "style-replay")]
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -54,19 +54,19 @@ use crate::css::style_value::{retained_list_drop, retained_list_partial_eq};
 /// Reference count value marking an intentionally leaked payload.
 pub const STYLE_GROUP_STATIC_REFCOUNT: usize = usize::MAX;
 
-#[cfg(feature = "style-recording")]
+#[cfg(feature = "style-replay")]
 static REPLAY_STYLE_GROUPS: AtomicBool = AtomicBool::new(false);
-#[cfg(feature = "style-recording")]
+#[cfg(feature = "style-replay")]
 thread_local! {
     static REPLAY_STYLE_GROUP_SIZES: RefCell<Vec<Option<usize>>> = const { RefCell::new(Vec::new()) };
 }
 
-#[cfg(feature = "style-recording")]
+#[cfg(feature = "style-replay")]
 pub fn enable_style_group_replay() {
     REPLAY_STYLE_GROUPS.store(true, Ordering::Relaxed);
 }
 
-#[cfg(feature = "style-recording")]
+#[cfg(feature = "style-replay")]
 pub fn register_replay_style_group(identity: u32, retained_bytes: usize) -> *const c_void {
     let pointer = identity as usize + 1;
     REPLAY_STYLE_GROUP_SIZES.with(|sizes| {
@@ -83,11 +83,11 @@ pub fn register_replay_style_group(identity: u32, retained_bytes: usize) -> *con
 }
 
 fn replay_style_group_size(pointer: *const c_void) -> Option<usize> {
-    #[cfg(feature = "style-recording")]
+    #[cfg(feature = "style-replay")]
     return (pointer as usize)
         .checked_sub(1)
         .and_then(|identity| REPLAY_STYLE_GROUP_SIZES.with(|sizes| sizes.borrow().get(identity).copied().flatten()));
-    #[cfg(not(feature = "style-recording"))]
+    #[cfg(not(feature = "style-replay"))]
     {
         let _ = pointer;
         None
@@ -95,18 +95,18 @@ fn replay_style_group_size(pointer: *const c_void) -> Option<usize> {
 }
 
 pub(crate) fn replay_style_group_identity(pointer: *const c_void) -> Option<u32> {
-    #[cfg(feature = "style-recording")]
+    #[cfg(feature = "style-replay")]
     return u32::try_from((pointer as usize).checked_sub(1)?).ok();
-    #[cfg(not(feature = "style-recording"))]
+    #[cfg(not(feature = "style-replay"))]
     let _ = pointer;
-    #[cfg(not(feature = "style-recording"))]
+    #[cfg(not(feature = "style-replay"))]
     None
 }
 
 pub(crate) fn replaying_style_groups() -> bool {
-    #[cfg(feature = "style-recording")]
+    #[cfg(feature = "style-replay")]
     return REPLAY_STYLE_GROUPS.load(Ordering::Relaxed);
-    #[cfg(not(feature = "style-recording"))]
+    #[cfg(not(feature = "style-replay"))]
     false
 }
 
@@ -1608,7 +1608,7 @@ pub(crate) fn property_dependency_masks_snapshot() -> Option<(u16, &'static [u32
     Some((mapping.first_property, &mapping.masks, &mapping.output_masks))
 }
 
-#[cfg(feature = "style-recording")]
+#[cfg(feature = "style-replay")]
 pub fn register_replay_property_dependency_masks(first_property: u16, masks: &[u32], output_masks: &[u32]) {
     assert_eq!(masks.len(), output_masks.len());
     if let Some(existing) = PROPERTY_DEPENDENCY_MASKS.get() {
