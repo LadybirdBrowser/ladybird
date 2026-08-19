@@ -13,12 +13,12 @@
 //! before/after counts on deterministic workloads. Reading and resetting is
 //! exposed to C++ for the `internals.styleFfiCounters()` test surface.
 //!
-//! The counters are always compiled in: one relaxed atomic increment per
-//! crossing is negligible next to the crossing itself.
+//! The counters are always compiled in but disabled until first read. The
+//! disabled hot path is one relaxed atomic load per crossing.
 
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::ffi::c_void;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 macro_rules! define_ffi_ops {
     ($($variant:ident => $name:literal,)+) => {
@@ -68,8 +68,8 @@ define_ffi_ops! {
 }
 
 static COUNTERS: [AtomicU64; FFI_OP_COUNT] = [const { AtomicU64::new(0) }; FFI_OP_COUNT];
+static COUNTERS_ENABLED: AtomicBool = AtomicBool::new(false);
 thread_local! {
-    static COUNTERS_ENABLED: Cell<bool> = const { Cell::new(false) };
     static COMPLETE_STYLE_UPDATE_STATE: RefCell<CompleteStyleUpdateState> = const { RefCell::new(CompleteStyleUpdateState::new()) };
 }
 
@@ -124,7 +124,7 @@ unsafe extern "C" {
 
 #[inline]
 pub(crate) fn bump(op: FfiOp) {
-    if COUNTERS_ENABLED.with(Cell::get) {
+    if COUNTERS_ENABLED.load(Ordering::Relaxed) {
         COUNTERS[op as usize].fetch_add(1, Ordering::Relaxed);
     }
 }
@@ -269,7 +269,7 @@ pub extern "C" fn rust_style_ffi_counters_reset() {
     for counter in &COUNTERS {
         counter.store(0, Ordering::Relaxed);
     }
-    COUNTERS_ENABLED.with(|enabled| enabled.set(true));
+    COUNTERS_ENABLED.store(true, Ordering::Relaxed);
 }
 
 /// Notes the adoption of a Rust style value allocation by a C++ shell; called
