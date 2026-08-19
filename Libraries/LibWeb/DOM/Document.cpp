@@ -5130,18 +5130,6 @@ void Document::unregister_svg_use_element(Badge<SVG::SVGUseElement>, SVG::SVGUse
     m_svg_use_elements.remove(use_element);
 }
 
-void Document::register_svg_pattern_referencing_element(Element& referencing_element)
-{
-    m_svg_pattern_referencing_elements.remove_all_matching([](auto& weak_element) {
-        return !weak_element;
-    });
-    for (auto const& weak_element : m_svg_pattern_referencing_elements) {
-        if (weak_element == &referencing_element)
-            return;
-    }
-    m_svg_pattern_referencing_elements.append(referencing_element);
-}
-
 void Document::increment_number_of_things_delaying_the_load_event(Badge<DocumentLoadEventDelayer>)
 {
     ++m_number_of_things_delaying_the_load_event;
