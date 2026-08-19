@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .outer {
+        display: flex;
+        flex-direction: column;
+        height: 100px;
+        width: max-content;
+    }
+
+    .inner {
+        display: flex;
+        flex-direction: column;
+        flex-wrap: wrap;
+    }
+
+    .item {
+        flex: none;
+        height: 60px;
+    }
+
+    .first { width: 20px; }
+    .second { width: 30px; }
+    .third { width: 40px; }
+</style>
+<div class="outer">
+    <div class="inner">
+        <div class="item first"></div>
+        <div class="item second"></div>
+        <div class="item third"></div>
+    </div>
+</div>
+<script>
+    test(() => {
+        const inner = document.querySelector(".inner");
+        println(`width: ${inner.getBoundingClientRect().width}`);
+    });
+</script>

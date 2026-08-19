@@ -52,6 +52,58 @@ impl SizingContext {
         !self.callbacks.first_child(node).is_invalid()
     }
 
+    fn block_size_for_intrinsic_inline_measurement_cache_key(
+        &self,
+        root: Node,
+        block_size: Option<CssPixels>,
+    ) -> Option<CssPixels> {
+        let block_size = block_size?;
+        // OPTIMIZATION: A definite block size only distinguishes intrinsic inline measurements when a cross-axis
+        // dependency can transfer it back into the inline axis. Reuse the common horizontal-flow measurement across
+        // assigned block sizes, while preserving distinct entries for orthogonal flows and aspect-ratio transfers.
+        let depends_on_block_size =
+            self.callbacks
+                .arena()
+                .intrinsic_inline_size_depends_on_block_size(self.callbacks.node_data(root), || {
+                    let mut pending = vec![root];
+                    while let Some(node) = pending.pop() {
+                        let facts = self.facts(node);
+                        if !facts.is_text_node() {
+                            let style = self.style(node);
+                            if style.writing_mode() != writing_mode::HORIZONTAL_TB {
+                                return true;
+                            }
+                            if style.display().is_flex_inside()
+                                && matches!(
+                                    style.flex_direction(),
+                                    flex_direction::COLUMN | flex_direction::COLUMN_REVERSE
+                                )
+                                && style.flex_wrap() != flex_wrap::NOWRAP
+                            {
+                                return true;
+                            }
+                            if facts.has_preferred_aspect_ratio()
+                                && (style.height().contains_percentage()
+                                    || style.min_height().contains_percentage()
+                                    || style.max_height().contains_percentage()
+                                    || (style.height().is_auto()
+                                        && (has_flag(facts.data(), NodeFlag::IsFlexItem)
+                                            || has_flag(facts.data(), NodeFlag::IsGridItem))))
+                            {
+                                return true;
+                            }
+                        }
+                        let mut child = self.first_child(node);
+                        while !child.is_invalid() {
+                            pending.push(child);
+                            child = self.next_sibling(child);
+                        }
+                    }
+                    false
+                });
+        depends_on_block_size.then_some(block_size)
+    }
+
     fn content_block_size_from_aspect_ratio(&self, node: Node, content_inline_size: CssPixels) -> CssPixels {
         let style = self.style(node);
         let used = self.used(node);
@@ -1454,7 +1506,11 @@ impl SizingContext {
         if let Some(cached) = self.intrinsic_inline_measurement_cache_get(
             node,
             IntrinsicSizeCacheKind::MinContentInline,
-            cache_key(None, block_size, constraints),
+            cache_key(
+                None,
+                self.block_size_for_intrinsic_inline_measurement_cache_key(node, block_size),
+                constraints,
+            ),
         ) {
             return cached.automatic_content_inline_size;
         }
@@ -1473,7 +1529,11 @@ impl SizingContext {
         self.intrinsic_inline_measurement_cache_get(
             node,
             IntrinsicSizeCacheKind::MaxContentInline,
-            cache_key(None, block_size, constraints),
+            cache_key(
+                None,
+                self.block_size_for_intrinsic_inline_measurement_cache_key(node, block_size),
+                constraints,
+            ),
         )?
         .min_content_inline_size_from_max_content_layout
     }
@@ -1671,7 +1731,11 @@ impl SizingContext {
             IntrinsicSizeCacheKind::MaxContentInline => (SizeConstraint::MaxContent, AvailableSize::MaxContent),
             _ => unreachable!("inline measurement cache kind must use the inline axis"),
         };
-        let key = cache_key(None, block_size, constraints);
+        let key = cache_key(
+            None,
+            self.block_size_for_intrinsic_inline_measurement_cache_key(node, block_size),
+            constraints,
+        );
         if let Some(cached) = self.intrinsic_inline_measurement_cache_get(node, kind, key) {
             return cached.automatic_content_inline_size;
         }
