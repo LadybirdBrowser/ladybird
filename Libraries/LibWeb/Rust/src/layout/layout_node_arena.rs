@@ -75,6 +75,8 @@ pub(crate) struct IntrinsicInlineSizeMeasurement {
 
 #[derive(Default)]
 struct IntrinsicSizeMaps {
+    // This is a subtree fact and shares the intrinsic cache's epoch so descendant changes invalidate it.
+    inline_size_depends_on_block_size: Option<bool>,
     min_content_inline_size: HashMap<IntrinsicSizeCacheKey, IntrinsicInlineSizeMeasurement>,
     max_content_inline_size: HashMap<IntrinsicSizeCacheKey, IntrinsicInlineSizeMeasurement>,
     min_content_block_size: HashMap<IntrinsicSizeCacheKey, CssPixels>,
@@ -641,6 +643,37 @@ impl LayoutNodeArena {
             .expect("inline measurement cache kind must use the inline axis")
             .get(&key)
             .copied()
+    }
+
+    pub(crate) fn intrinsic_inline_size_depends_on_block_size(
+        &self,
+        data: &NodeData,
+        compute: impl FnOnce() -> bool,
+    ) -> bool {
+        if data.intrinsic_cache_epoch == u16::MAX {
+            return compute();
+        }
+
+        let (index, metadata) = self.slot_for_data(std::ptr::from_ref(data));
+        {
+            let caches = self.intrinsic_size_caches.borrow();
+            if let Some(slot) = caches.get(index as usize)
+                && slot.generation == metadata.generation
+                && slot.epoch == data.intrinsic_cache_epoch
+                && let Some(value) = slot
+                    .sizes
+                    .as_ref()
+                    .and_then(|sizes| sizes.inline_size_depends_on_block_size)
+            {
+                return value;
+            }
+        }
+
+        let value = compute();
+        self.with_intrinsic_size_maps_mut(data, |maps| {
+            maps.inline_size_depends_on_block_size = Some(value);
+        });
+        value
     }
 
     pub(crate) fn intrinsic_inline_size_measurement_cache_put(
@@ -1424,6 +1457,7 @@ mod tests {
             has_last_baseline: true,
             last_baseline: CssPixels::from_raw(128),
         };
+        let dependency_computations = Cell::new(0);
 
         // SAFETY: The allocation remains live until it is explicitly freed below.
         let first_data = unsafe { &mut *first.data };
@@ -1446,6 +1480,12 @@ mod tests {
             ),
             Some(inline_measurement)
         );
+        assert!(arena.intrinsic_inline_size_depends_on_block_size(first_data, || {
+            dependency_computations.set(dependency_computations.get() + 1);
+            true
+        }));
+        assert!(arena.intrinsic_inline_size_depends_on_block_size(first_data, || false));
+        assert_eq!(dependency_computations.get(), 1);
 
         first_data.intrinsic_cache_epoch += 1;
         assert_eq!(
@@ -1460,6 +1500,11 @@ mod tests {
             ),
             None
         );
+        assert!(!arena.intrinsic_inline_size_depends_on_block_size(first_data, || {
+            dependency_computations.set(dependency_computations.get() + 1);
+            false
+        }));
+        assert_eq!(dependency_computations.get(), 2);
         arena.free(first.slot, first.generation);
 
         let second = arena.allocate();
