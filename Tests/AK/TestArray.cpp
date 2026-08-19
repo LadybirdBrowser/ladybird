@@ -7,6 +7,7 @@
 #include <LibTest/TestCase.h>
 
 #include <AK/Array.h>
+#include <AK/Noncopyable.h>
 
 static constexpr int constexpr_sum(ReadonlySpan<int> const span)
 {
@@ -60,4 +61,29 @@ TEST_CASE(to_array)
     static_assert(array[0] == 0);
     static_assert(array[1] == 2);
     static_assert(array[2] == 1);
+}
+
+TEST_CASE(to_array_non_copyable)
+{
+    struct MoveOnlyType {
+        MoveOnlyType() = default;
+        AK_MAKE_NONCOPYABLE(MoveOnlyType);
+        AK_MAKE_DEFAULT_MOVABLE(MoveOnlyType);
+    };
+
+    struct MoveOnlyElement {
+        int value { 0 };
+        MoveOnlyType move_only {};
+    };
+
+    constexpr auto array = to_array<MoveOnlyElement>({
+        { .value = 1 },
+        { .value = 2 },
+        { .value = 3 },
+    });
+
+    static_assert(array.size() == 3uz);
+    static_assert(array[0].value == 1);
+    static_assert(array[1].value == 2);
+    static_assert(array[2].value == 3);
 }

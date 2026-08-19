@@ -171,7 +171,7 @@ namespace Detail {
 template<typename T, size_t N, size_t... Is>
 constexpr auto to_array_impl(T (&&a)[N], IndexSequence<Is...>) -> Array<T, sizeof...(Is)>
 {
-    return { { a[Is]... } };
+    return { { move(a[Is])... } };
 }
 
 }
