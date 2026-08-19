@@ -9,7 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
-#include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
+#include <LibGfx/GradientInterpolation.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
 
@@ -26,22 +26,20 @@ struct LinearGradientData {
     float first_stop_position { 0 };
     float repeat_length { 1 };
     ColorStopData color_stops;
-    CSS::ColorInterpolationMethodStyleValue::ColorInterpolationMethod interpolation_method;
+    Gfx::GradientInterpolationMethod interpolation_method;
 };
 
 struct ConicGradientData {
     float start_angle;
     ColorStopData color_stops;
-    CSS::ColorInterpolationMethodStyleValue::ColorInterpolationMethod interpolation_method;
+    Gfx::GradientInterpolationMethod interpolation_method;
 };
 
 struct RadialGradientData {
     ColorStopData color_stops;
-    CSS::ColorInterpolationMethodStyleValue::ColorInterpolationMethod interpolation_method;
+    Gfx::GradientInterpolationMethod interpolation_method;
 };
 
-// Size-dependent painting state resolved from a gradient style value for one
-// concrete gradient box size.
 struct ResolvedConicGradient {
     ConicGradientData data;
     CSSPixelPoint position;

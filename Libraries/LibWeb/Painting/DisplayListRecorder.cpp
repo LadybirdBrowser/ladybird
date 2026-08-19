@@ -63,84 +63,6 @@ private:
     Vector<u8> m_inline_payload;
 };
 
-static Gfx::RectangularColorSpace to_gfx_rectangular_color_space(CSS::RectangularColorSpace color_space)
-{
-    switch (color_space) {
-    case CSS::RectangularColorSpace::Srgb:
-        return Gfx::RectangularColorSpace::Srgb;
-    case CSS::RectangularColorSpace::SrgbLinear:
-        return Gfx::RectangularColorSpace::SrgbLinear;
-    case CSS::RectangularColorSpace::DisplayP3:
-        return Gfx::RectangularColorSpace::DisplayP3;
-    case CSS::RectangularColorSpace::DisplayP3Linear:
-        return Gfx::RectangularColorSpace::DisplayP3Linear;
-    case CSS::RectangularColorSpace::A98Rgb:
-        return Gfx::RectangularColorSpace::A98Rgb;
-    case CSS::RectangularColorSpace::ProphotoRgb:
-        return Gfx::RectangularColorSpace::ProphotoRgb;
-    case CSS::RectangularColorSpace::Rec2020:
-        return Gfx::RectangularColorSpace::Rec2020;
-    case CSS::RectangularColorSpace::Lab:
-        return Gfx::RectangularColorSpace::Lab;
-    case CSS::RectangularColorSpace::Oklab:
-        return Gfx::RectangularColorSpace::Oklab;
-    case CSS::RectangularColorSpace::Xyz:
-        return Gfx::RectangularColorSpace::Xyz;
-    case CSS::RectangularColorSpace::XyzD50:
-        return Gfx::RectangularColorSpace::XyzD50;
-    case CSS::RectangularColorSpace::XyzD65:
-        return Gfx::RectangularColorSpace::XyzD65;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-static Gfx::PolarColorSpace to_gfx_polar_color_space(CSS::PolarColorSpace color_space)
-{
-    switch (color_space) {
-    case CSS::PolarColorSpace::Hsl:
-        return Gfx::PolarColorSpace::Hsl;
-    case CSS::PolarColorSpace::Hwb:
-        return Gfx::PolarColorSpace::Hwb;
-    case CSS::PolarColorSpace::Lch:
-        return Gfx::PolarColorSpace::Lch;
-    case CSS::PolarColorSpace::Oklch:
-        return Gfx::PolarColorSpace::Oklch;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-static Gfx::HueInterpolationMethod to_gfx_hue_interpolation_method(CSS::HueInterpolationMethod hue_interpolation_method)
-{
-    switch (hue_interpolation_method) {
-    case CSS::HueInterpolationMethod::Shorter:
-        return Gfx::HueInterpolationMethod::Shorter;
-    case CSS::HueInterpolationMethod::Longer:
-        return Gfx::HueInterpolationMethod::Longer;
-    case CSS::HueInterpolationMethod::Increasing:
-        return Gfx::HueInterpolationMethod::Increasing;
-    case CSS::HueInterpolationMethod::Decreasing:
-        return Gfx::HueInterpolationMethod::Decreasing;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-static Gfx::GradientInterpolationMethod to_display_list_color_interpolation_method(
-    CSS::ColorInterpolationMethodStyleValue::ColorInterpolationMethod const& interpolation_method)
-{
-    Gfx::GradientInterpolationMethod result;
-    interpolation_method.visit(
-        [&](CSS::RectangularColorSpace color_space) {
-            result.type = Gfx::GradientInterpolationMethod::Type::Rectangular;
-            result.rectangular_color_space = to_gfx_rectangular_color_space(color_space);
-        },
-        [&](CSS::ColorInterpolationMethodStyleValue::PolarColorInterpolationMethod const& color_space) {
-            result.type = Gfx::GradientInterpolationMethod::Type::Polar;
-            result.polar_color_space = to_gfx_polar_color_space(color_space.color_space);
-            result.hue_interpolation_method = to_gfx_hue_interpolation_method(color_space.hue_interpolation_method);
-        });
-    return result;
-}
-
 template<DisplayListCommand Command>
 static DisplayListGradientColorStops append_color_stops(
     CommandPayloadBuilder<Command>& payload_builder,
@@ -398,7 +320,7 @@ void DisplayListRecorder::fill_rect_with_linear_gradient(Gfx::IntRect const& gra
         return;
     CommandPayloadBuilder<PaintLinearGradient> payload_builder(m_display_list);
     auto color_stops = append_color_stops(payload_builder, data.color_stops);
-    auto interpolation_method = to_display_list_color_interpolation_method(data.interpolation_method);
+    auto interpolation_method = data.interpolation_method;
     append_command(
         PaintLinearGradient {
             .gradient_rect = gradient_rect,
@@ -417,7 +339,7 @@ void DisplayListRecorder::fill_rect_with_conic_gradient(Gfx::IntRect const& rect
         return;
     CommandPayloadBuilder<PaintConicGradient> payload_builder(m_display_list);
     auto color_stops = append_color_stops(payload_builder, data.color_stops);
-    auto interpolation_method = to_display_list_color_interpolation_method(data.interpolation_method);
+    auto interpolation_method = data.interpolation_method;
     append_command(
         PaintConicGradient {
             .rect = rect,
@@ -435,7 +357,7 @@ void DisplayListRecorder::fill_rect_with_radial_gradient(Gfx::IntRect const& rec
         return;
     CommandPayloadBuilder<PaintRadialGradient> payload_builder(m_display_list);
     auto color_stops = append_color_stops(payload_builder, data.color_stops);
-    auto interpolation_method = to_display_list_color_interpolation_method(data.interpolation_method);
+    auto interpolation_method = data.interpolation_method;
     append_command(
         PaintRadialGradient {
             .rect = rect,
