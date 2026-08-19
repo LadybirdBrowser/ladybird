@@ -15,6 +15,7 @@
 #include <LibRequests/Forward.h>
 #include <LibRequests/WebSocket.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Bindings/WebSocket.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -56,8 +57,8 @@ public:
     Utf16String extensions() const;
     WebIDL::ExceptionOr<Utf16String> protocol() const;
 
-    Utf16String const& binary_type() { return m_binary_type; }
-    void set_binary_type(Utf16String const& type) { m_binary_type = type; }
+    Bindings::BinaryType binary_type() { return m_binary_type; }
+    void set_binary_type(Bindings::BinaryType binary_type) { m_binary_type = binary_type; }
 
     WebIDL::ExceptionOr<void> close(Optional<u16> code, Optional<Utf16String> reason);
     WebIDL::ExceptionOr<void> send(WebSocketSendData const& data);
@@ -85,7 +86,7 @@ private:
     void update_activity_root();
 
     URL::URL m_url;
-    Utf16String m_binary_type { "blob"_utf16 };
+    Bindings::BinaryType m_binary_type { Bindings::BinaryType::Blob };
     RefPtr<Requests::WebSocket> m_websocket;
     GC::Ref<DOM::EventTarget> m_global_object;
     GC::ActivityRoot m_activity_root;
