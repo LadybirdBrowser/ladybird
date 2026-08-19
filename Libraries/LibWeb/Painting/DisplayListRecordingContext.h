@@ -40,8 +40,13 @@ namespace Web {
 class WEB_API DisplayListRecordingContext {
 public:
     DisplayListRecordingContext(Painting::DisplayListRecorder& painter, Palette const& palette, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics, Painting::HitTestDisplayList* = nullptr);
+    DisplayListRecordingContext(Palette const& palette, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics);
 
-    Painting::DisplayListRecorder& display_list_recorder() const { return m_display_list_recorder; }
+    Painting::DisplayListRecorder& display_list_recorder() const
+    {
+        VERIFY(m_display_list_recorder);
+        return *m_display_list_recorder;
+    }
     Painting::HitTestDisplayList* hit_test_display_list() const { return m_hit_test_display_list; }
     Palette const& palette() const { return m_palette; }
 
@@ -109,6 +114,17 @@ public:
 
     void set_async_scrolling_metadata_context(
         UniqueNodeID document_id,
+        bool has_blocking_wheel_event_listeners,
+        bool has_blocking_wheel_event_region_covering_viewport)
+    {
+        m_async_scrolling_document_id = document_id;
+        m_is_recording_async_scrolling_metadata = true;
+        m_has_blocking_wheel_event_listeners = has_blocking_wheel_event_listeners;
+        m_has_blocking_wheel_event_region_covering_viewport = has_blocking_wheel_event_region_covering_viewport;
+    }
+
+    void set_async_scrolling_metadata_context(
+        UniqueNodeID document_id,
         Painting::AccumulatedVisualContextTree const& visual_context_tree,
         Painting::ScrollState const& scroll_state,
         bool has_blocking_wheel_event_listeners,
@@ -121,7 +137,7 @@ public:
         m_has_blocking_wheel_event_region_covering_viewport = has_blocking_wheel_event_region_covering_viewport;
     }
 
-    bool is_recording_async_scrolling_metadata() const { return m_async_scrolling_scroll_state != nullptr; }
+    bool is_recording_async_scrolling_metadata() const { return m_is_recording_async_scrolling_metadata || m_async_scrolling_scroll_state != nullptr; }
     UniqueNodeID async_scrolling_document_id() const { return m_async_scrolling_document_id; }
     Painting::AccumulatedVisualContextTree const& async_scrolling_visual_context_tree() const { return *m_async_scrolling_visual_context_tree; }
     Painting::ScrollState const& async_scrolling_scroll_state() const { return *m_async_scrolling_scroll_state; }
@@ -141,7 +157,7 @@ public:
     }
 
 private:
-    Painting::DisplayListRecorder& m_display_list_recorder;
+    Painting::DisplayListRecorder* m_display_list_recorder { nullptr };
     Painting::HitTestDisplayList* m_hit_test_display_list { nullptr };
     Palette m_palette;
     Painting::DevicePixelConverter m_device_pixel_converter;
@@ -159,6 +175,7 @@ private:
     UniqueNodeID m_async_scrolling_document_id {};
     Painting::AccumulatedVisualContextTree const* m_async_scrolling_visual_context_tree { nullptr };
     Painting::ScrollState const* m_async_scrolling_scroll_state { nullptr };
+    bool m_is_recording_async_scrolling_metadata { false };
     bool m_has_blocking_wheel_event_listeners { false };
     bool m_has_blocking_wheel_event_region_covering_viewport { false };
     bool m_should_record_wheel_hit_test_targets { false };

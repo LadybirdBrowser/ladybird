@@ -74,6 +74,4 @@ private:
 };
 
 
-WEB_API void dump_stacking_context_tree(StringBuilder&, ViewportPaintable const&);
-
 }

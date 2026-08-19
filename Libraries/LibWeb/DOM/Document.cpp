@@ -774,8 +774,6 @@ void Document::visit_edges(Cell::Visitor& visitor)
     if (m_hit_test_display_list)
         m_hit_test_display_list->visit_edges(visitor);
     // In the steady state the item cache source aliases the current list; avoid tracing it twice.
-    if (m_hit_test_display_list_used_as_item_cache_source && m_hit_test_display_list_used_as_item_cache_source != m_hit_test_display_list)
-        m_hit_test_display_list_used_as_item_cache_source->visit_edges(visitor);
     visitor.visit(m_editing_host_manager);
     visitor.visit(m_editing_history);
     visitor.visit(m_local_storage_holder);
@@ -1373,7 +1371,6 @@ void Document::tear_down_layout_tree()
     if (m_layout_root)
         m_layout_root->prepare_subtree_for_detach_from_layout_tree();
     m_hit_test_display_list = nullptr;
-    m_hit_test_display_list_used_as_item_cache_source = nullptr;
     m_layout_root = nullptr;
     m_paintable = nullptr;
     m_scrollable_overflow_contained_boxes_from_last_layout.clear();
@@ -8956,121 +8953,54 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
     if (line_box_border_overlays_replace_cacheable_content)
         cache_mode = Painting::PaintCommandCacheMode::ReadOnly;
 
-    auto display_list = Painting::DisplayList::create(paintable()->visual_context_tree());
-    Painting::DisplayListRecorder display_list_recorder(display_list, paintable()->visual_context_tree(), resource_storage);
+    auto& viewport_paintable = *paintable();
+    auto const& visual_context_tree = viewport_paintable.visual_context_tree();
+
+    auto placeholder_display_list = Painting::DisplayList::create(visual_context_tree);
 
     // https://drafts.csswg.org/css-color-adjust-1/#color-scheme-effect
     // On the root element, the used color scheme additionally must affect the surface color of the canvas, and the viewport’s scrollbars.
-    auto color_scheme = canvas_color_scheme();
-
-    // .. in the case of embedded documents typically rendered over a transparent canvas
-    // (such as provided via an HTML iframe element), if the used color scheme of the element
-    // and the used color scheme of the embedded document’s root element do not match,
-    // then the UA must use an opaque canvas of the Canvas color appropriate to the
-    // embedded document’s used color scheme instead of a transparent canvas.
-    bool opaque_canvas = false;
-    if (auto container_element = navigable()->container(); container_element && container_element->layout_node()) {
-        auto container_scheme = container_element->layout_node()->color_scheme();
-        if (container_scheme == CSS::PreferredColorScheme::Auto)
-            container_scheme = CSS::PreferredColorScheme::Light;
-
-        opaque_canvas = container_scheme != color_scheme;
-    }
-
-    if (config.canvas_fill_rect.has_value()) {
-        display_list_recorder.fill_rect(config.canvas_fill_rect.value(), CSS::SystemColor::canvas(color_scheme));
-    }
-
     auto viewport_rect = page().css_to_device_rect(this->viewport_rect());
-    Gfx::IntRect bitmap_rect { {}, viewport_rect.size().to_type<int>() };
-
-    if (opaque_canvas)
-        display_list_recorder.fill_rect(bitmap_rect, CSS::SystemColor::canvas(color_scheme));
-
-    auto background_color = this->background_color();
     if (navigable()->is_top_level_traversable()) {
         auto canvas_background_color = this->canvas_background_color();
-        display_list->set_surface_clear_color(canvas_background_color);
+        placeholder_display_list->set_surface_clear_color(canvas_background_color);
         page().client().page_did_change_background_color(canvas_background_color);
     }
 
-    display_list_recorder.fill_rect(bitmap_rect, background_color);
-
-    auto hit_test_display_list = Painting::HitTestDisplayList::create(paintable()->visual_context_tree().version());
-    Web::DisplayListRecordingContext context(display_list_recorder, page().palette(), page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), hit_test_display_list.ptr());
+    Web::DisplayListRecordingContext context(page().palette(), page().client().device_pixels_per_css_pixel(), page().chrome_metrics());
     context.set_device_viewport_rect(viewport_rect);
-    context.set_should_show_line_box_borders(config.should_show_line_box_borders);
-    context.set_should_paint_overlay(config.paint_overlay);
-
-    auto& viewport_paintable = *paintable();
     context.set_paint_command_cache_mode(cache_mode);
-    if (!line_box_border_overlays_replace_cacheable_content)
-        context.set_paint_command_cache_source_display_list(viewport_paintable.display_list_used_as_paint_command_cache_source());
-    // An incompatible visual context tree rebuild leaves the retained list's item context indices
-    // meaningless, but its item count remains useful as a capacity estimate.
-    if (auto const* previous_hit_test_display_list = m_hit_test_display_list_used_as_item_cache_source.ptr()) {
-        // The new recording ends up with roughly as many items as the previous one, even when a
-        // visual context tree rebuild prevents reusing the previous items.
-        hit_test_display_list->ensure_item_capacity(previous_hit_test_display_list->item_count());
-        if (previous_hit_test_display_list->visual_context_tree_version() == viewport_paintable.visual_context_tree().version())
-            context.set_hit_test_item_cache_source(previous_hit_test_display_list);
-    }
     viewport_paintable.build_stacking_context_tree_if_needed();
     viewport_paintable.refresh_scroll_state();
     viewport_paintable.initialize_async_scrolling_metadata_recording(context);
 
-    Painting::PrerecordedNestedDisplayLists prerecorded_nested_display_lists;
-    context.set_prerecorded_nested_display_lists(&prerecorded_nested_display_lists);
-    Painting::prerecord_nested_display_lists(context, viewport_paintable);
-
-    viewport_paintable.paint_all_phases(context);
-    viewport_paintable.finalize_async_scrolling_metadata_recording(context, *navigable(), viewport_rect.to_type<int>(), *display_list);
-
-    if (highlighted_node() && highlighted_node()->paintable()) {
-        highlighted_node()->paintable()->paint_inspector_overlay(context);
-    }
-
+    Painting::InspectorOverlayInputs overlay_inputs;
+    if (highlighted_node() && highlighted_node()->paintable())
+        overlay_inputs.highlighted_paintable = highlighted_node()->paintable().ptr();
+    overlay_inputs.tooltip_color = context.palette().color(Gfx::ColorRole::Tooltip);
+    overlay_inputs.tooltip_text_color = context.palette().color(Gfx::ColorRole::TooltipText);
+    overlay_inputs.tooltip_border_color = context.palette().threed_shadow1();
     for (auto const& flexbox_highlight : m_flexbox_highlights) {
-        if (!flexbox_highlight.node)
-            continue;
-        auto paintable = flexbox_highlight.node->paintable();
-        auto const* paintable_box = paintable.ptr();
-        if (!paintable_box)
-            continue;
-        paintable_box->paint_flexbox_inspector_overlay(context, flexbox_highlight.options);
+        if (flexbox_highlight.node && flexbox_highlight.node->paintable())
+            overlay_inputs.flex_highlights.append({ flexbox_highlight.node->paintable().ptr(), flexbox_highlight.options });
     }
-
     for (auto const& grid_highlight : m_grid_highlights) {
-        if (!grid_highlight.node)
-            continue;
-        auto paintable = grid_highlight.node->paintable();
-        auto const* paintable_box = paintable.ptr();
-        if (!paintable_box)
-            continue;
-        paintable_box->paint_grid_inspector_overlay(context, grid_highlight.options);
+        if (grid_highlight.node && grid_highlight.node->paintable())
+            overlay_inputs.grid_highlights.append({ grid_highlight.node->paintable().ptr(), grid_highlight.options });
     }
+    if (config.should_show_caret_hit_test_debug_overlay)
+        overlay_inputs.caret_debug_rect = m_caret_hit_test_debug_rect;
 
-    if (config.should_show_caret_hit_test_debug_overlay && m_caret_hit_test_debug_rect.has_value()) {
-        auto caret_rect = context.enclosing_device_rect(*m_caret_hit_test_debug_rect).to_type<int>();
-        auto caret_x = caret_rect.x();
-        auto caret_top = caret_rect.y();
-        auto caret_bottom = caret_rect.bottom();
-        auto marker_color = Color::Magenta;
-
-        display_list_recorder.draw_line({ caret_x, caret_top }, { caret_x, caret_bottom }, marker_color, 2);
-        display_list_recorder.draw_line({ caret_x - 4, caret_top }, { caret_x + 4, caret_top }, marker_color, 2);
-        display_list_recorder.draw_line({ caret_x - 4, caret_bottom }, { caret_x + 4, caret_bottom }, marker_color, 2);
-    }
+    auto display_list = Painting::record_rust_display_list(viewport_paintable, *placeholder_display_list, resource_storage, context, config, overlay_inputs);
+    if (!display_list)
+        return nullptr;
+    viewport_paintable.finalize_async_scrolling_metadata_recording(context, *navigable(), viewport_rect.to_type<int>(), *display_list);
+    m_hit_test_display_list = Painting::HitTestDisplayList::create_from_rust_recording(visual_context_tree.version(), viewport_paintable.rust_arena());
 
     if (cache_mode == Painting::PaintCommandCacheMode::ReadWrite) {
-        // Rotation can drop the last reference to the list the context's raw pointer still targets.
-        context.set_paint_command_cache_source_display_list(nullptr);
         viewport_paintable.set_display_list_used_as_paint_command_cache_source(display_list, resource_storage.collect_referenced_resources(*display_list));
-        context.set_hit_test_item_cache_source(nullptr);
-        m_hit_test_display_list_used_as_item_cache_source = hit_test_display_list;
     }
 
-    m_hit_test_display_list = move(hit_test_display_list);
     return display_list;
 }
 
@@ -9084,10 +9014,6 @@ void Document::set_caret_hit_test_debug_rect(Optional<CSSPixelRect> rect)
     page().client().request_frame();
 }
 
-void Document::clear_hit_test_item_cache_source()
-{
-    m_hit_test_display_list_used_as_item_cache_source = nullptr;
-}
 
 Painting::HitTestDisplayList const* Document::ensure_hit_test_display_list()
 {
@@ -9110,7 +9036,7 @@ Painting::HitTestDisplayList const* Document::ensure_hit_test_display_list()
         (void)record_display_list(paint_config, throwaway_resource_storage_for_hit_test_only_recording, Painting::PaintCommandCacheMode::ReadOnly);
     };
 
-    if (!m_hit_test_display_list || m_hit_test_display_list->visual_context_tree_version() != viewport_paintable->visual_context_tree().version())
+    if (!m_hit_test_display_list || !m_hit_test_display_list->is_current() || m_hit_test_display_list->visual_context_tree_version() != viewport_paintable->visual_context_tree().version())
         rebuild_hit_test_display_list();
 
     return m_hit_test_display_list.ptr();

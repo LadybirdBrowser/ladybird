@@ -11,9 +11,11 @@
 #include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLMapElement.h>
+#include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/PaintableFragment.h>
 #include <LibWeb/Painting/ResizeHandle.h>
 #include <LibWeb/Painting/Scrollbar.h>
@@ -168,6 +170,69 @@ static Optional<CSSPixelRect> absolute_margin_box_rect_for_containing_block(Pain
         containing_block->content_height() + margin_box.top + margin_box.bottom,
     };
 }
+
+static CSSPixelRect hit_test_rect_from_ffi(Layout::RustFFI::FfiCssPixelRect const& rect)
+{
+    return { CSSPixels::from_raw(rect.x), CSSPixels::from_raw(rect.y), CSSPixels::from_raw(rect.width), CSSPixels::from_raw(rect.height) };
+}
+
+NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording(u64 visual_context_tree_version, Layout::NodeArena& arena)
+{
+    auto* arena_handle = arena.handle();
+    auto list = create(visual_context_tree_version);
+    list->m_rust_arena = arena;
+    list->m_rust_generation = Layout::RustFFI::layout_arena_hit_test_list_generation(arena_handle);
+    auto item_count = Layout::RustFFI::layout_arena_hit_test_item_count(arena_handle);
+    list->m_items.ensure_capacity(item_count);
+    for (size_t index = 0; index < item_count; ++index) {
+        auto exported = Layout::RustFFI::layout_arena_hit_test_item(arena_handle, index);
+        VERIFY(exported.paintable_shell);
+        auto& paintable = *static_cast<Paintable*>(exported.paintable_shell);
+        switch (static_cast<ChromeWidgetKind>(exported.chrome_widget_kind)) {
+        case ChromeWidgetKind::None:
+            break;
+        case ChromeWidgetKind::ResizeHandle:
+            (void)paintable.ensure_resize_handle();
+            break;
+        case ChromeWidgetKind::HorizontalScrollbar:
+            (void)paintable.ensure_scrollbar(Paintable::ScrollDirection::Horizontal);
+            break;
+        case ChromeWidgetKind::VerticalScrollbar:
+            (void)paintable.ensure_scrollbar(Paintable::ScrollDirection::Vertical);
+            break;
+        }
+        BorderRadiiData border_radii {
+            { CSSPixels::from_raw(exported.border_radii[0]), CSSPixels::from_raw(exported.border_radii[1]) },
+            { CSSPixels::from_raw(exported.border_radii[2]), CSSPixels::from_raw(exported.border_radii[3]) },
+            { CSSPixels::from_raw(exported.border_radii[4]), CSSPixels::from_raw(exported.border_radii[5]) },
+            { CSSPixels::from_raw(exported.border_radii[6]), CSSPixels::from_raw(exported.border_radii[7]) },
+        };
+        list->m_items.unchecked_append(Item {
+            .kind = static_cast<ItemKind>(exported.kind),
+            .paintable = paintable,
+            .chrome_widget_kind = static_cast<ChromeWidgetKind>(exported.chrome_widget_kind),
+            .text_fragment_index = exported.has_text_fragment_index ? Optional<u32> { exported.text_fragment_index } : Optional<u32> {},
+            .caret_node = exported.caret_node_shell ? static_cast<Layout::Node const*>(exported.caret_node_shell)->dom_node() : nullptr,
+            .caret_offset = exported.caret_offset,
+            .rect = hit_test_rect_from_ffi(exported.rect),
+            .caret_rect = hit_test_rect_from_ffi(exported.caret_rect),
+            .caret_line_index = exported.has_caret_line_index ? Optional<size_t> { exported.caret_line_index } : Optional<size_t> {},
+            .caret_line_rect = exported.has_caret_line_rect ? Optional<CSSPixelRect> { hit_test_rect_from_ffi(exported.caret_line_rect) } : Optional<CSSPixelRect> {},
+            .block_container_margin_rect = exported.has_block_container_margin_rect ? Optional<CSSPixelRect> { hit_test_rect_from_ffi(exported.block_container_margin_rect) } : Optional<CSSPixelRect> {},
+            .visual_context_index = VisualContextIndex { exported.visual_context_index },
+            .border_radii = border_radii,
+            .path = exported.path ? Optional<Gfx::Path> { *static_cast<Gfx::Path const*>(exported.path) } : Optional<Gfx::Path> {},
+            .winding_rule = static_cast<Gfx::WindingRule>(exported.winding_rule),
+        });
+    }
+    return list;
+}
+
+bool HitTestDisplayList::is_current() const
+{
+    return m_rust_generation != 0 && m_rust_arena && Layout::RustFFI::layout_arena_hit_test_list_generation(m_rust_arena->handle()) == m_rust_generation;
+}
+
 
 NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create(u64 visual_context_tree_version)
 {
