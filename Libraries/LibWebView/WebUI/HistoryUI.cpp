@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Base64.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <LibURL/Parser.h>
@@ -36,10 +37,16 @@ static Optional<String> site_key_for_entry(HistoryEntry const& entry)
 
 static JsonObject serialize_history_entry(HistoryEntry const& entry)
 {
+    String favicon_base64_png;
+    if (entry.favicon_png.has_value()) {
+        if (auto encoded = encode_base64(entry.favicon_png->bytes()); !encoded.is_error())
+            favicon_base64_png = encoded.release_value();
+    }
+
     JsonObject serialized;
     serialized.set("url"sv, entry.url);
     serialized.set("title"sv, entry.title.value_or(String {}));
-    serialized.set("faviconBase64Png"sv, entry.favicon_base64_png.value_or(String {}));
+    serialized.set("faviconBase64Png"sv, move(favicon_base64_png));
     serialized.set("visitCount"sv, entry.visit_count);
     serialized.set("lastVisitedTime"sv, entry.last_visited_time.milliseconds_since_epoch());
     serialized.set("siteKey"sv, site_key_for_entry(entry).value_or(String {}));

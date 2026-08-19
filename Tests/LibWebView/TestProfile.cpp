@@ -20,6 +20,7 @@
 #include <LibURL/Parser.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/CookieJar.h>
+#include <LibWebView/FaviconStore.h>
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/Profile.h>
@@ -231,6 +232,7 @@ TEST_CASE(profile_databases_are_isolated)
 
     {
         auto database = TRY_OR_FAIL(Database::Database::create(first_profile.paths().data, "History"sv));
+        EXPECT_EQ(TRY_OR_FAIL(WebView::FaviconStore::migrate_schema(*database)), Database::MigrationOutcome::Success);
         EXPECT_EQ(TRY_OR_FAIL(WebView::HistoryStore::migrate_schema(*database)), Database::MigrationOutcome::Success);
         auto history_store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
         history_store->record_visit(url, "First profile"_string, UnixDateTime::from_seconds_since_epoch(1));
@@ -238,6 +240,7 @@ TEST_CASE(profile_databases_are_isolated)
 
     {
         auto database = TRY_OR_FAIL(Database::Database::create(second_profile.paths().data, "History"sv));
+        EXPECT_EQ(TRY_OR_FAIL(WebView::FaviconStore::migrate_schema(*database)), Database::MigrationOutcome::Success);
         EXPECT_EQ(TRY_OR_FAIL(WebView::HistoryStore::migrate_schema(*database)), Database::MigrationOutcome::Success);
         auto history_store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
         EXPECT(!history_store->entry_for_url(url).has_value());

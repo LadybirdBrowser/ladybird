@@ -21,7 +21,7 @@ WebView::AutocompleteSuggestion suggestion(
         .text = MUST(String::from_utf8(text)),
         .title = {},
         .subtitle = {},
-        .favicon_base64_png = {},
+        .favicon_png = {},
         .highlight_input = {},
         .relevance = relevance,
         .is_verbatim = is_verbatim,

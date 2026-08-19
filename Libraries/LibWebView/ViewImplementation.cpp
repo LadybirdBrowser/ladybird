@@ -25,6 +25,7 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/ErrorHTML.h>
+#include <LibWebView/FaviconStore.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryDebug.h>
 #include <LibWebView/HistoryStore.h>
@@ -171,19 +172,20 @@ void ViewImplementation::set_title(Badge<WebContentClient>, Utf16String title)
 void ViewImplementation::set_favicon(Badge<WebContentClient>, Optional<Gfx::Bitmap const&> favicon)
 {
     m_favicon_base64_png.clear();
+    m_favicon_hash.clear();
 
     if (favicon.has_value()) {
         if (auto favicon_png = Gfx::PNGWriter::encode(*favicon); !favicon_png.is_error()) {
             if (auto favicon_base64_png = encode_base64(favicon_png.value().bytes()); !favicon_base64_png.is_error())
                 m_favicon_base64_png = favicon_base64_png.release_value();
+
+            m_favicon_hash = Application::favicon_store(m_is_private).add_favicon(favicon_png.release_value());
         }
 
-        if (m_favicon_base64_png.has_value()) {
-            if (m_is_private == IsPrivate::No)
-                Application::bookmark_store().update_favicon(m_url, *m_favicon_base64_png);
-            if (!m_should_suppress_history_for_current_load)
-                Application::history_store(m_is_private).update_favicon(m_url, *m_favicon_base64_png);
-        }
+        if (m_favicon_base64_png.has_value() && m_is_private == IsPrivate::No)
+            Application::bookmark_store().update_favicon(m_url, *m_favicon_base64_png);
+        if (m_favicon_hash.has_value() && !m_should_suppress_history_for_current_load)
+            Application::history_store(m_is_private).update_favicon(m_url, *m_favicon_hash);
     }
 
     if (on_favicon_change)
@@ -593,7 +595,7 @@ Vector<ViewImplementation::SessionHistoryTraversalMenuItem> ViewImplementation::
             target_step,
             move(title),
             move(url),
-            history_entry.has_value() ? move(history_entry->favicon_base64_png) : Optional<String> {},
+            history_entry.has_value() ? move(history_entry->favicon_png) : OptionalNone {},
         });
     };
 

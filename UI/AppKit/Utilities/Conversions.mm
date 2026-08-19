@@ -57,17 +57,21 @@ NSData* string_to_ns_data(StringView string)
     return [NSData dataWithBytes:string.characters_without_null_termination() length:string.length()];
 }
 
+NSImage* image_from_png(ReadonlyBytes bytes, NSSize size)
+{
+    auto* data = [NSData dataWithBytes:bytes.data()
+                                length:bytes.size()];
+    auto* image = [[NSImage alloc] initWithData:data];
+    [image setSize:size];
+    return image;
+}
+
 NSImage* image_from_base64_png(StringView string, NSSize size)
 {
     auto decoded = decode_base64(string);
     if (decoded.is_error())
         return nil;
-
-    auto* data = [NSData dataWithBytes:decoded.value().data()
-                                length:decoded.value().size()];
-    auto* image = [[NSImage alloc] initWithData:data];
-    [image setSize:size];
-    return image;
+    return image_from_png(decoded.value().bytes(), size);
 }
 
 NSDictionary* deserialize_json_to_dictionary(StringView json)

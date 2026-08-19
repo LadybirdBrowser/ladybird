@@ -17,7 +17,7 @@ WebView::HistoryEntry entry(StringView url, Optional<StringView> title, i64 visi
     return {
         .url = MUST(String::from_utf8(url)),
         .title = title.map([](auto value) { return MUST(String::from_utf8(value)); }),
-        .favicon_base64_png = {},
+        .favicon_png = {},
         .visit_count = visit_count,
         .direct_visit_count = direct_visit_count,
         .last_visited_time = last_visited_time,
@@ -164,15 +164,63 @@ TEST_CASE(distinct_deep_pages_can_establish_origin_intent)
 TEST_CASE(aggregated_origin_uses_a_page_favicon)
 {
     auto deep_page = entry("https://example.com/page"sv, "Page"sv, 1);
-    deep_page.favicon_base64_png = "favicon"_string;
+    deep_page.favicon_png = MUST(ByteBuffer::copy("favicon"sv.bytes()));
     auto suggestions = rank("exa"sv, { move(deep_page) });
 
     auto origin = suggestions.find_if([](auto const& suggestion) {
         return suggestion.text == "https://example.com/"sv;
     });
     VERIFY(origin != suggestions.end());
-    VERIFY(origin->favicon_base64_png.has_value());
-    EXPECT_EQ(*origin->favicon_base64_png, "favicon"sv);
+    VERIFY(origin->favicon_png.has_value());
+    EXPECT(origin->favicon_png->bytes() == "favicon"sv.bytes());
+}
+
+TEST_CASE(aggregated_origin_keeps_a_page_favicon_when_the_origin_has_none)
+{
+    auto origin_entry = entry("https://example.com/"sv, "Origin"sv, 1);
+    auto deep_page = entry("https://example.com/page"sv, "Page"sv, 1);
+    deep_page.favicon_png = MUST(ByteBuffer::copy("page favicon"sv.bytes()));
+
+    auto suggestions = rank("exa"sv, { move(origin_entry), move(deep_page) });
+    auto origin = suggestions.find_if([](auto const& suggestion) {
+        return suggestion.text == "https://example.com/"sv;
+    });
+    VERIFY(origin != suggestions.end());
+    VERIFY(origin->favicon_png.has_value());
+    EXPECT(origin->favicon_png->bytes() == "page favicon"sv.bytes());
+}
+
+TEST_CASE(aggregated_origin_keeps_a_newer_page_favicon)
+{
+    auto origin_entry = entry("https://example.com/"sv, "Origin"sv, 1, 1);
+    origin_entry.favicon_png = MUST(ByteBuffer::copy("origin favicon"sv.bytes()));
+    auto deep_page = entry("https://example.com/page"sv, "Page"sv, 1);
+    deep_page.favicon_png = MUST(ByteBuffer::copy("page favicon"sv.bytes()));
+
+    auto suggestions = rank("exa"sv, { move(origin_entry), move(deep_page) });
+    auto origin = suggestions.find_if([](auto const& suggestion) {
+        return suggestion.text == "https://example.com/"sv;
+    });
+    VERIFY(origin != suggestions.end());
+    VERIFY(origin->favicon_png.has_value());
+    EXPECT(origin->favicon_png->bytes() == "page favicon"sv.bytes());
+}
+
+TEST_CASE(aggregated_origin_uses_the_newest_available_favicon)
+{
+    auto oldest_page = entry("https://example.com/oldest"sv, "Oldest"sv, 1, 2);
+    oldest_page.favicon_png = MUST(ByteBuffer::copy("oldest favicon"sv.bytes()));
+    auto newest_page = entry("https://example.com/newest"sv, "Newest"sv, 1);
+    auto middle_page = entry("https://example.com/middle"sv, "Middle"sv, 1, 1);
+    middle_page.favicon_png = MUST(ByteBuffer::copy("middle favicon"sv.bytes()));
+
+    auto suggestions = rank("exa"sv, { move(oldest_page), move(newest_page), move(middle_page) });
+    auto origin = suggestions.find_if([](auto const& suggestion) {
+        return suggestion.text == "https://example.com/"sv;
+    });
+    VERIFY(origin != suggestions.end());
+    VERIFY(origin->favicon_png.has_value());
+    EXPECT(origin->favicon_png->bytes() == "middle favicon"sv.bytes());
 }
 
 TEST_CASE(short_queries_return_origins_instead_of_deep_pages)

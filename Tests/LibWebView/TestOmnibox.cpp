@@ -21,7 +21,7 @@ AutocompleteSuggestion row(AutocompleteSuggestionSource source, StringView text)
         .text = MUST(String::from_utf8(text)),
         .title = {},
         .subtitle = {},
-        .favicon_base64_png = {},
+        .favicon_png = {},
         .highlight_input = {},
         .can_be_automatically_selected = true,
         .can_be_inline_completed = source == AutocompleteSuggestionSource::History || source == AutocompleteSuggestionSource::WebUI,
@@ -42,7 +42,7 @@ AutocompleteSuggestion non_automatic_history_row(StringView url, StringView titl
         .text = MUST(String::from_utf8(url)),
         .title = MUST(String::from_utf8(title)),
         .subtitle = {},
-        .favicon_base64_png = {},
+        .favicon_png = {},
         .highlight_input = {},
         .can_be_automatically_selected = false,
     };

@@ -46,8 +46,8 @@ static void merge_suggestion(AutocompleteSuggestion& existing, AutocompleteSugge
             existing.title = move(suggestion.title);
         if (!existing.subtitle.has_value() && suggestion.subtitle.has_value())
             existing.subtitle = move(suggestion.subtitle);
-        if (!existing.favicon_base64_png.has_value() && suggestion.favicon_base64_png.has_value())
-            existing.favicon_base64_png = move(suggestion.favicon_base64_png);
+        if (!existing.favicon_png.has_value() && suggestion.favicon_png.has_value())
+            existing.favicon_png = move(suggestion.favicon_png);
     }
 
     existing.is_verbatim = is_verbatim;

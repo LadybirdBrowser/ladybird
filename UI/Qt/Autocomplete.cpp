@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Base64.h>
 #include <AK/Platform.h>
 #include <LibWebView/Autocomplete.h>
 #include <UI/Qt/Autocomplete.h>
@@ -138,14 +137,10 @@ public:
 
         for (size_t index = 0; index < m_suggestions.size(); ++index) {
             auto const& suggestion = m_suggestions[index];
-            if (!suggestion.favicon_base64_png.has_value())
+            if (!suggestion.favicon_png.has_value())
                 continue;
-            auto decoded = decode_base64(*suggestion.favicon_base64_png);
-            if (decoded.is_error())
-                continue;
-            auto bytes = decoded.release_value();
             QPixmap pixmap;
-            if (!pixmap.loadFromData(reinterpret_cast<uchar const*>(bytes.data()), static_cast<uint>(bytes.size())))
+            if (!pixmap.loadFromData(suggestion.favicon_png->data(), static_cast<uint>(suggestion.favicon_png->size())))
                 continue;
             m_favicon_cache.append({ index, QIcon(pixmap) });
         }
