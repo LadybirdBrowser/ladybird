@@ -58,12 +58,4 @@ void record_image_paint(DisplayListRecordingContext& context, ImagePaint const& 
     record_image_paint_with_recorder(context.display_list_recorder(), context.device_pixel_converter(), image_paint, dest_rect, image_rendering);
 }
 
-NonnullRefPtr<DisplayList> record_image_paint_display_list(ImagePaint const& image_paint, Gfx::FloatRect dest_rect, CSS::ImageRendering image_rendering, double device_pixels_per_css_pixel, AccumulatedVisualContextTree const& visual_context_tree, DisplayListResourceStorage& resource_storage)
-{
-    auto display_list = DisplayList::create(visual_context_tree);
-    DisplayListRecorder recorder(display_list, visual_context_tree, resource_storage);
-    record_image_paint_with_recorder(recorder, DevicePixelConverter { device_pixels_per_css_pixel }, image_paint, dest_rect, image_rendering);
-    return display_list;
-}
-
 }

@@ -47,6 +47,5 @@ WEB_API ImagePaintRequest image_paint_request_for_recording(DisplayListRecording
 
 WEB_API void record_image_paint(DisplayListRecordingContext&, ImagePaint const&, Gfx::FloatRect dest_rect, CSS::ImageRendering);
 
-WEB_API NonnullRefPtr<DisplayList> record_image_paint_display_list(ImagePaint const&, Gfx::FloatRect dest_rect, CSS::ImageRendering, double device_pixels_per_css_pixel, AccumulatedVisualContextTree const&, DisplayListResourceStorage&);
 
 }

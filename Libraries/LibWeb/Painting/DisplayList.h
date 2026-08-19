@@ -106,6 +106,13 @@ public:
         return adopt_ref(*new DisplayList(visual_context_tree.version()));
     }
 
+    static NonnullRefPtr<DisplayList> create_from_command_bytes(AccumulatedVisualContextTree const& visual_context_tree, ByteBuffer&& command_bytes)
+    {
+        auto display_list = create(visual_context_tree);
+        display_list->m_command_bytes = move(command_bytes);
+        return display_list;
+    }
+
     template<DisplayListCommand Command>
     bool append(Command const& command, AccumulatedVisualContextTree const& visual_context_tree, VisualContextIndex context_index, bool context_geometry_only, ReadonlyBytes inline_data = {})
     {
