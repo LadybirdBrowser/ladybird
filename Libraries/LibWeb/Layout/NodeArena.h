@@ -12,7 +12,7 @@
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Layout/TreeBuilderRustFFI.h>
+#include <LibWeb/Layout/LayoutRustFFI.h>
 
 namespace Web::Layout {
 
@@ -34,6 +34,8 @@ public:
 
     RustFFI::NodeAllocation allocate();
     void free(RustFFI::NodeSlotId, u32 generation);
+    RustFFI::PaintableAllocation allocate_paintable(RustFFI::NodeSlotId layout_node, void* shell);
+    void free_paintable(RustFFI::PaintableSlotId, u32 generation);
     void* handle() const { return m_handle; }
     u64 formatting_context_run_cache_hit_count() const;
 

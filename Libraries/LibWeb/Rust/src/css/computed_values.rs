@@ -380,7 +380,7 @@ macro_rules! impl_retained_computed_list {
                 Self { pointer, length }
             }
 
-            fn as_slice(&self) -> &[$element] {
+            pub(crate) fn as_slice(&self) -> &[$element] {
                 if self.pointer.is_null() {
                     return &[];
                 }
@@ -715,7 +715,7 @@ impl RetainedComputedResolvedTransformList {
         Self { pointer, length }
     }
 
-    fn as_slice(&self) -> &[ComputedResolvedTransform] {
+    pub(crate) fn as_slice(&self) -> &[ComputedResolvedTransform] {
         if self.pointer.is_null() {
             return &[];
         }

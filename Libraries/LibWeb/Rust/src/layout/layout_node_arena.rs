@@ -150,6 +150,7 @@ pub(crate) struct TextContent {
     pub(crate) text: Vec<u16>,
     pub(crate) untransformed_text_is_ascii_whitespace: bool,
     pub(crate) may_require_bidi_processing: bool,
+    pub(crate) dom_start_offset: usize,
 }
 
 #[derive(Default)]
@@ -242,6 +243,7 @@ pub(crate) struct LayoutNodeArena {
     run_used_records: RefCell<Vec<RunRecordSlot>>,
     next_run_nonce: Cell<u64>,
     fc_run_cache_store: crate::layout::FcRunCacheArenaStore,
+    paintables: RefCell<crate::painting::paintable_arena::PaintableArena>,
     svg_pattern_referencing_nodes: RefCell<Vec<NodeSlotId>>,
     owner_thread: thread::ThreadId,
 }
@@ -265,6 +267,7 @@ impl LayoutNodeArena {
             run_used_records: RefCell::new(Vec::new()),
             next_run_nonce: Cell::new(1),
             fc_run_cache_store: crate::layout::FcRunCacheArenaStore::default(),
+            paintables: RefCell::new(crate::painting::paintable_arena::PaintableArena::new()),
             svg_pattern_referencing_nodes: RefCell::new(Vec::new()),
             owner_thread: thread::current().id(),
         }
@@ -400,6 +403,7 @@ impl LayoutNodeArena {
         }
         self.fc_run_cache_store.remove_entry(index);
         self.raw_table_column_spans.remove(&id);
+        self.paintables.get_mut().layout_node_freed(index);
         let data = self.data_mut(index);
         debug_assert!(
             data.parent.is_invalid()
@@ -826,6 +830,7 @@ impl LayoutNodeArena {
         text: Vec<u16>,
         untransformed_text_is_ascii_whitespace: bool,
         may_require_bidi_processing: bool,
+        dom_start_offset: usize,
     ) -> bool {
         self.assert_owner_thread();
         self.data(id);
@@ -840,6 +845,7 @@ impl LayoutNodeArena {
                     content.text != text
                         || content.untransformed_text_is_ascii_whitespace != untransformed_text_is_ascii_whitespace
                         || content.may_require_bidi_processing != may_require_bidi_processing
+                        || content.dom_start_offset != dom_start_offset
                 }
                 None => true,
             };
@@ -852,6 +858,7 @@ impl LayoutNodeArena {
                 text,
                 untransformed_text_is_ascii_whitespace,
                 may_require_bidi_processing,
+                dom_start_offset,
             })),
         };
         if let Some(slot) = self.text_chunk_caches.get_mut().get_mut(index) {
@@ -1187,6 +1194,10 @@ impl LayoutNodeArena {
         nodes.clone()
     }
 
+    pub(crate) fn paintables(&self) -> &RefCell<crate::painting::paintable_arena::PaintableArena> {
+        &self.paintables
+    }
+
     pub(crate) fn shell_if_live(&self, id: NodeSlotId) -> *mut c_void {
         if id.is_invalid() {
             return std::ptr::null_mut();
@@ -1272,6 +1283,11 @@ pub unsafe extern "C" fn layout_arena_destroy(arena: *mut c_void) {
         let arena = unsafe { Box::from_raw(arena.cast::<LayoutNodeArena>()) };
         arena.assert_owner_thread();
         assert_eq!(arena.live_count, 0, "layout node arena destroyed with live slots");
+        assert_eq!(
+            arena.paintables.borrow().live_count(),
+            0,
+            "layout node arena destroyed with live paintable slots"
+        );
     });
 }
 
@@ -1364,6 +1380,7 @@ pub unsafe extern "C" fn layout_arena_set_text_content(
     length_in_code_units: usize,
     untransformed_text_is_ascii_whitespace: bool,
     may_require_bidi_processing: bool,
+    dom_start_offset: usize,
 ) -> bool {
     abort_on_panic(|| {
         assert!(!arena.is_null(), "layout node arena handle is null");
@@ -1389,6 +1406,7 @@ pub unsafe extern "C" fn layout_arena_set_text_content(
             text,
             untransformed_text_is_ascii_whitespace,
             may_require_bidi_processing,
+            dom_start_offset,
         )
     })
 }

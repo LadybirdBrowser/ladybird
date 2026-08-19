@@ -33,7 +33,7 @@ const DISPLAY_OUTSIDE_INLINE: u8 = display_outside::INLINE;
 /// fields, with the unused fields zeroed so equality is field-wise. `tag` uses
 /// the same discriminants as Display::Type.
 #[repr(C)]
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FfiDisplay {
     /// 0 = outside-and-inside, 1 = internal, 2 = box.
     pub tag: u8,

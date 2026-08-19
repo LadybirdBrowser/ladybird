@@ -23,6 +23,7 @@
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/InvalidateDisplayList.h>
+#include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/FlexLayoutData.h>
 #include <LibWeb/Layout/GridLayoutData.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
@@ -112,6 +113,10 @@ public:
     void paint_inspector_overlay(DisplayListRecordingContext&) const;
 
     virtual bool forms_unconnected_subtree() const { return false; }
+
+    Layout::RustFFI::PaintableSlotId rust_slot() const { return m_rust_slot; }
+    Layout::NodeArena& rust_arena() const { return *m_rust_arena; }
+    Layout::RustFFI::PaintableData const& rust_data() const { return *m_rust_data; }
 
     bool has_layout_node() const { return m_layout_node; }
     Layout::NodeWithStyle const& layout_node() const
@@ -522,6 +527,10 @@ private:
 
     GC::Weak<DOM::Node> m_dom_node;
     WeakPtr<Layout::NodeWithStyle const> m_layout_node;
+    NonnullRefPtr<Layout::NodeArena> m_rust_arena;
+    Layout::RustFFI::PaintableSlotId m_rust_slot {};
+    u32 m_rust_slot_generation { 0 };
+    Layout::RustFFI::PaintableData const* m_rust_data { nullptr };
     Paintable* m_containing_block { nullptr };
 
     SelectionState m_selection_state { SelectionState::None };

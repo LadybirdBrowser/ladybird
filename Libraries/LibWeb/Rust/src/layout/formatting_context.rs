@@ -959,7 +959,7 @@ pub struct FfiLayoutFcCallbacks {
 }
 
 impl FfiLayoutFcCallbacks {
-    fn arena(&self) -> &LayoutNodeArena {
+    pub(crate) fn arena(&self) -> &LayoutNodeArena {
         // SAFETY: C++ borrows the document arena for the synchronous layout
         // pass represented by this callback table.
         unsafe { LayoutNodeArena::from_handle(self.arena) }

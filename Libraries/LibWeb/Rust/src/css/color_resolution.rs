@@ -1754,15 +1754,6 @@ pub(crate) fn to_color(value: &StyleValueData, input: &ColorResolutionInput) -> 
     }
 }
 
-// The standalone cargo test binary has no C++ side; this release callback is dragged in through
-// libgfx_rust's RetainedFont drop glue (used by layout::fc_run_cache) and is missing from the
-// ffi_test_stubs module in style_compute.rs, so it is stubbed here until it moves there.
-#[cfg(test)]
-mod ffi_test_stubs {
-    #[unsafe(no_mangle)]
-    extern "C" fn ladybird_gfx_font_unref(_raw: *const std::ffi::c_void) {}
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -45,6 +45,9 @@ pub struct FfiCommitNodeResult {
 pub struct FfiCommitPosition {
     pub parent_paintable: *mut c_void,
     pub insert_before_paintable: *mut c_void,
+    pub replaced_paintable_slot: crate::painting::paintable_data::PaintableSlotId,
+    pub parent_paintable_slot: crate::painting::paintable_data::PaintableSlotId,
+    pub insert_before_paintable_slot: crate::painting::paintable_data::PaintableSlotId,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -78,7 +81,7 @@ pub struct FfiCommitSink {
     pub context: *mut c_void,
     pub begin_commit: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiCommitPosition,
     pub finish_commit: unsafe extern "C" fn(*mut c_void),
-    pub prepare_node: unsafe extern "C" fn(*mut c_void, *mut c_void, bool, bool) -> *mut c_void,
+    pub prepare_node: unsafe extern "C" fn(*mut c_void, *mut c_void, bool, bool) -> crate::painting::paintable_build::FfiPreparedPaintable,
     pub set_box_metrics: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiCommittedBoxMetrics),
     pub begin_line_data: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub begin_line: unsafe extern "C" fn(*mut c_void, FfiLineRecord),
@@ -98,14 +101,28 @@ pub struct FfiCommitSink {
     pub assign_inline_box_geometry: unsafe extern "C" fn(*mut c_void, *mut c_void),
 }
 
-fn commit_subtree(
-    node: Node,
+#[derive(Clone, Copy)]
+struct CommitInsertion {
     parent_paintable: *mut c_void,
     insert_before_paintable: *mut c_void,
+    parent_paintable_slot: crate::painting::paintable_data::PaintableSlotId,
+    insert_before_paintable_slot: crate::painting::paintable_data::PaintableSlotId,
+}
+
+fn commit_subtree(
+    node: Node,
+    insertion: CommitInsertion,
     callbacks: &FfiLayoutFcCallbacks,
     sink: &FfiCommitSink,
+    paintables: &crate::painting::paintable_build::PaintableCommit<'_>,
     scopes: &mut crate::layout::CommitScopes<'_>,
 ) {
+    let CommitInsertion {
+        parent_paintable,
+        insert_before_paintable,
+        parent_paintable_slot,
+        insert_before_paintable_slot,
+    } = insertion;
     let slot_index = callbacks.slot_index(node);
     let entry = scopes.link_for_slot(slot_index);
     let reuses_committed_subtree = scopes.subtree_was_reused(slot_index);
@@ -150,7 +167,7 @@ fn commit_subtree(
     // SAFETY: The C++ sink owns paintables and copies every plain-data
     // input synchronously.
     let node_shell = callbacks.shell(node);
-    let paintable = unsafe {
+    let prepared = unsafe {
         (sink.prepare_node)(
             sink.context,
             node_shell,
@@ -158,46 +175,46 @@ fn commit_subtree(
             reuses_committed_subtree,
         )
     };
+    let paintable = prepared.paintable;
+    let paintable_slot = paintables.prepare_node(node, entry.is_some(), reuses_committed_subtree, prepared);
 
     let mut has_pending_inline_box_geometry = false;
     if let Some(link) = entry
         && !paintable.is_null()
     {
         let fragment = &link.fragment;
+        let box_metrics = FfiCommittedBoxMetrics {
+            fragment_identity: fragment.identity,
+            reuses_committed_subtree,
+            content_offset: link.committed_offset,
+            content_inline_size: fragment.content_inline_size,
+            content_block_size: fragment.content_block_size,
+            margin_left: fragment.margin_left,
+            margin_right: fragment.margin_right,
+            margin_top: fragment.margin_top,
+            margin_bottom: fragment.margin_bottom,
+            border_left: fragment.border_left,
+            border_right: fragment.border_right,
+            border_top: fragment.border_top,
+            border_bottom: fragment.border_bottom,
+            padding_left: fragment.padding_left,
+            padding_right: fragment.padding_right,
+            padding_top: fragment.padding_top,
+            padding_bottom: fragment.padding_bottom,
+            inset_left: link.inset_left,
+            inset_right: link.inset_right,
+            inset_top: link.inset_top,
+            inset_bottom: link.inset_bottom,
+            containing_line_box_index: link.containing_line_box_index.unwrap_or(0),
+            has_containing_line_box_index: link.containing_line_box_index.is_some(),
+            uses_collapsing_borders_model: fragment.uses_collapsing_borders_model,
+        };
         // SAFETY: Every callback below copies its plain-data argument or
         // consumes one retained handle synchronously.
         unsafe {
-            (sink.set_box_metrics)(
-                sink.context,
-                paintable,
-                FfiCommittedBoxMetrics {
-                    fragment_identity: fragment.identity,
-                    reuses_committed_subtree,
-                    content_offset: link.committed_offset,
-                    content_inline_size: fragment.content_inline_size,
-                    content_block_size: fragment.content_block_size,
-                    margin_left: fragment.margin_left,
-                    margin_right: fragment.margin_right,
-                    margin_top: fragment.margin_top,
-                    margin_bottom: fragment.margin_bottom,
-                    border_left: fragment.border_left,
-                    border_right: fragment.border_right,
-                    border_top: fragment.border_top,
-                    border_bottom: fragment.border_bottom,
-                    padding_left: fragment.padding_left,
-                    padding_right: fragment.padding_right,
-                    padding_top: fragment.padding_top,
-                    padding_bottom: fragment.padding_bottom,
-                    inset_left: link.inset_left,
-                    inset_right: link.inset_right,
-                    inset_top: link.inset_top,
-                    inset_bottom: link.inset_bottom,
-                    containing_line_box_index: link.containing_line_box_index.unwrap_or(0),
-                    has_containing_line_box_index: link.containing_line_box_index.is_some(),
-                    uses_collapsing_borders_model: fragment.uses_collapsing_borders_model,
-                },
-            );
+            (sink.set_box_metrics)(sink.context, paintable, box_metrics);
         }
+        paintables.set_box_metrics(paintable_slot, &box_metrics);
 
         if !reuses_committed_subtree && let Some(line_data) = &fragment.line_data {
             // SAFETY: The sink keeps one line accumulator live between
@@ -216,15 +233,19 @@ fn commit_subtree(
                 }
                 has_pending_inline_box_geometry = !line_data.inline_box_pieces.is_empty();
             }
+            let rust_has_pending_inline_box_geometry = paintables.set_line_data(paintable_slot, line_data, fragment.content_inline_size);
+            debug_assert_eq!(rust_has_pending_inline_box_geometry, has_pending_inline_box_geometry, "Rust and C++ disagree on which paintables take lines");
         }
 
         if !reuses_committed_subtree {
             unsafe {
             if let Some(transform) = fragment.svg_viewport_transform {
                 (sink.set_svg_viewport_transform)(sink.context, paintable, transform);
+                paintables.set_svg_viewport_transform(paintable_slot, transform);
             }
             if let Some(viewport_size) = fragment.svg_viewport_size {
                 (sink.set_svg_viewport_size)(sink.context, paintable, viewport_size);
+                paintables.set_svg_viewport_size(paintable_slot, viewport_size);
             }
             // The paintable keeps its committed path across relayout and only swaps it on an
             // identity change, which is sound only while every committed path-like fragment
@@ -239,6 +260,7 @@ fn commit_subtree(
             );
             if let Some(path) = &fragment.computed_svg_path {
                 (sink.set_computed_svg_path)(sink.context, paintable, path.as_raw(), path.identity());
+                paintables.set_computed_svg_path(paintable_slot, path);
             }
             }
         }
@@ -246,24 +268,29 @@ fn commit_subtree(
             data.with_ffi_view(|view| {
                 unsafe { (sink.set_grid_layout_data)(sink.context, paintable, view) };
             });
+            paintables.set_grid_layout_data(paintable_slot, data);
         }
         if !reuses_committed_subtree && let Some(data) = &fragment.flex_layout_data {
             data.with_ffi_view(|view| {
                 unsafe { (sink.set_flex_layout_data)(sink.context, paintable, view) };
             });
+            paintables.set_flex_layout_data(paintable_slot, data);
         }
         if !reuses_committed_subtree && let Some(tracks) = &fragment.used_grid_tracks {
             tracks.with_ffi_views(|columns, rows| {
                 unsafe { (sink.set_used_grid_tracks)(sink.context, paintable, columns, rows) };
             });
+            paintables.set_used_grid_tracks(paintable_slot, tracks);
         }
         if !reuses_committed_subtree && let Some(borders) = &fragment.collapsed_table_borders {
             borders.with_ffi_view(|view| {
                 unsafe { (sink.set_collapsed_table_borders)(sink.context, paintable, view) };
             });
+            paintables.set_collapsed_table_borders(paintable_slot, borders);
         }
     }
 
+    let paintable_slot_for_children = paintables.finish_node(node, paintable_slot, parent_paintable_slot, insert_before_paintable_slot);
     // SAFETY: Wiring uses only live layout and paintable pointers for this
     // synchronous commit.
     let result = unsafe {
@@ -287,7 +314,19 @@ fn commit_subtree(
     let mut child = callbacks.first_child(node);
     while !child.is_invalid() {
         let next = callbacks.next_sibling(child);
-        commit_subtree(child, result.paintable_for_children, null_mut(), callbacks, sink, scopes);
+        commit_subtree(
+            child,
+            CommitInsertion {
+                parent_paintable: result.paintable_for_children,
+                insert_before_paintable: null_mut(),
+                parent_paintable_slot: paintable_slot_for_children,
+                insert_before_paintable_slot: crate::painting::paintable_data::PaintableSlotId::INVALID,
+            },
+            callbacks,
+            sink,
+            paintables,
+            scopes,
+        );
         child = next;
     }
     if entry.is_some() {
@@ -299,6 +338,7 @@ fn commit_subtree(
         // models of its descendant inline paintables, which exist only now
         // that the whole subtree has committed.
         unsafe { (sink.assign_inline_box_geometry)(sink.context, paintable) };
+        paintables.assign_inline_box_geometry(paintable_slot);
     }
 }
 
@@ -309,16 +349,32 @@ pub(crate) fn commit_replacing(
     pass_fragments: &crate::layout::CompletedPassFragments,
 ) {
     let mut scopes = crate::layout::CommitScopes::for_pass(pass_fragments);
+    let paintables = crate::painting::paintable_build::PaintableCommit::new(callbacks);
     // SAFETY: The sink resolves and retains the paintable to replace from the
     // root, detaches it, and returns borrowed insertion pointers that stay
     // live until finish_commit().
     let position = unsafe { (sink.begin_commit)(sink.context, callbacks.shell(root)) };
+    let slot_position = paintables.begin_commit(
+        root,
+        crate::painting::paintable_build::FfiCommitSlotPosition {
+            replaced_paintable: position.replaced_paintable_slot,
+            parent_paintable: position.parent_paintable_slot,
+            insert_before_paintable: position.insert_before_paintable_slot,
+        },
+    );
+    debug_assert_eq!(slot_position.parent_paintable, position.parent_paintable_slot, "Rust and C++ disagree on the commit's parent paintable");
+    debug_assert_eq!(slot_position.insert_before_paintable, position.insert_before_paintable_slot, "Rust and C++ disagree on the commit's insertion point");
     commit_subtree(
         root,
-        position.parent_paintable,
-        position.insert_before_paintable,
+        CommitInsertion {
+            parent_paintable: position.parent_paintable,
+            insert_before_paintable: position.insert_before_paintable,
+            parent_paintable_slot: slot_position.parent_paintable,
+            insert_before_paintable_slot: slot_position.insert_before_paintable,
+        },
         callbacks,
         sink,
+        &paintables,
         &mut scopes,
     );
     unsafe {
