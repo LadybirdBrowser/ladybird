@@ -32,6 +32,6 @@ void prerecord_nested_display_lists(DisplayListRecordingContext&, ViewportPainta
 
 DisplayListResource record_nested_svg_display_list(DisplayListRecordingContext&, Paintable const&, TransformData root_transform, IncludeRootElementTransform, bool draw_svg_geometry_for_clip_path);
 
-Optional<PaintStyle> prerecorded_pattern_paint_style(DisplayListRecordingContext&, SVG::SVGPatternElement const&, Layout::Node const& target_layout_node);
+Optional<PaintStyle> prerecorded_pattern_paint_style(DisplayListRecordingContext&, Paintable const& pattern_paintable);
 
 }

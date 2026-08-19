@@ -77,19 +77,16 @@ static void record_pattern_paint_styles(DisplayListRecordingContext& context, Pr
         return;
 
     auto paint_context = path_paintable->svg_paint_context(context);
-    auto content_scale = context.display_list_recorder().visual_context_tree().accumulated_2d_scale(
-        context.accumulated_visual_context_index_of(*path_paintable),
-        ScrollStateSnapshot {},
-        AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
 
     for (auto const* pattern : { fill_pattern.ptr(), stroke_pattern.ptr() }) {
         if (!pattern)
             continue;
-        auto pattern_paintable = pattern->resolve_pattern_paintable(path_paintable->layout_node());
-        if (!pattern_paintable)
+        auto geometry = pattern->resolve_paint_geometry(paint_context, context.device_pixels_per_css_pixel(), path_paintable->layout_node());
+        if (!geometry.has_value())
             continue;
-        prerecorded.pattern_paint_styles.ensure(pattern_paintable.ptr(), [&] {
-            return pattern->record_pattern_paint_style(paint_context, context, *pattern_paintable, content_scale);
+        prerecorded.pattern_paint_styles.ensure(geometry->pattern_paintable, [&]() -> Optional<PaintStyle> {
+            auto tile_display_list = record_nested_svg_display_list(context, *geometry->pattern_paintable, geometry->tile_content_transform, IncludeRootElementTransform::No, false);
+            return PaintStyle { PatternPaintStyle { move(tile_display_list), geometry->tile_rect, geometry->content_scale, geometry->device_pattern_transform } };
         });
     }
 }
@@ -177,14 +174,11 @@ void prerecord_nested_display_lists(DisplayListRecordingContext& context, Viewpo
     }
 }
 
-Optional<PaintStyle> prerecorded_pattern_paint_style(DisplayListRecordingContext& context, SVG::SVGPatternElement const& pattern, Layout::Node const& target_layout_node)
+Optional<PaintStyle> prerecorded_pattern_paint_style(DisplayListRecordingContext& context, Paintable const& pattern_paintable)
 {
-    auto pattern_paintable = pattern.resolve_pattern_paintable(target_layout_node);
-    if (!pattern_paintable)
-        return {};
     auto const* prerecorded = context.prerecorded_nested_display_lists();
     VERIFY(prerecorded);
-    auto pattern_paint_style = prerecorded->pattern_paint_styles.get(pattern_paintable.ptr());
+    auto pattern_paint_style = prerecorded->pattern_paint_styles.get(&pattern_paintable);
     VERIFY(pattern_paint_style.has_value());
     return *pattern_paint_style;
 }

@@ -20,6 +20,7 @@ struct SVGPaintContext {
     Gfx::FloatRect viewport;
     Gfx::FloatRect path_bounding_box;
     Gfx::AffineTransform paint_transform;
+    Gfx::FloatSize content_scale;
 };
 
 inline Painting::GradientPaintStyle::SpreadMethod to_painting_spread_method(SpreadMethod spread_method)

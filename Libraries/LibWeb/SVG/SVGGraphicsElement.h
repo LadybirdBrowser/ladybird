@@ -10,6 +10,7 @@
 #include <LibGfx/PaintStyle.h>
 #include <LibWeb/CSS/URL.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGAnimatedTransformList.h>
 #include <LibWeb/SVG/SVGElement.h>
@@ -59,9 +60,6 @@ public:
         return 0;
     }
 
-    Optional<Painting::PaintStyle> fill_paint_style(SVGPaintContext const&, DisplayListRecordingContext* = nullptr) const;
-    Optional<Painting::PaintStyle> stroke_paint_style(SVGPaintContext const&, DisplayListRecordingContext* = nullptr) const;
-
     GC::Ptr<SVG::SVGMaskElement const> mask() const;
     GC::Ptr<SVG::SVGClipPathElement const> clip_path() const;
 
@@ -81,10 +79,21 @@ public:
         return {};
     }
 
+    struct PatternPaintServer {
+        Painting::Paintable const* pattern_paintable;
+        Gfx::FloatRect tile_rect;
+        Gfx::FloatSize content_scale;
+        Painting::TransformData tile_content_transform;
+        Optional<Gfx::AffineTransform> device_pattern_transform;
+    };
+    using PaintServer = Variant<Painting::PaintStyle, PatternPaintServer>;
+    Optional<PaintServer> fill_paint_server(SVGPaintContext const&, double device_pixels_per_css_pixel) const;
+    Optional<PaintServer> stroke_paint_server(SVGPaintContext const&, double device_pixels_per_css_pixel) const;
+
 protected:
     SVGGraphicsElement(DOM::Document&, DOM::QualifiedName);
 
-    Optional<Painting::PaintStyle> svg_paint_computed_value_to_gfx_paint_style(SVGPaintContext const& paint_context, Optional<CSS::SVGPaint> const& paint_value, DisplayListRecordingContext* = nullptr) const;
+    Optional<PaintServer> svg_paint_computed_value_to_paint_server(SVGPaintContext const& paint_context, Optional<CSS::SVGPaint> const& paint_value, double device_pixels_per_css_pixel) const;
 
     GC::Ptr<DOM::Element> resolve_url_to_element(CSS::URL const& url) const;
     GC::Ptr<DOM::Element> resolve_url_to_element(Utf16String const& url) const;
@@ -105,6 +114,9 @@ private:
     virtual bool is_svg_graphics_element() const final { return true; }
     GC::Ptr<DOM::Element> resolve_fragment_identifier_to_element(Utf16String const& fragment) const;
     float resolve_relative_to_viewport_size(CSS::LengthPercentage const& length_percentage) const;
+
+public:
+    CSSPixels viewport_percentage_basis() const;
 };
 
 Gfx::AffineTransform transform_from_transform_list(ReadonlySpan<Transform> transform_list);
