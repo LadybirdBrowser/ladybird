@@ -19,18 +19,21 @@ static constexpr u32 WEB_STORAGE_SCHEMA_BASELINE_VERSION = 2u;
 
 ErrorOr<Database::MigrationOutcome> StorageJar::migrate_schema(Database::Database& database, Database::MigrationMode mode)
 {
-    Array<Database::Migration, 1> migrations { {
-        { .version = WEB_STORAGE_SCHEMA_BASELINE_VERSION, .sql = R"#(
-            CREATE TABLE IF NOT EXISTS WebStorage (
-                storage_endpoint INTEGER,
-                storage_key TEXT,
-                bottle_key TEXT,
-                bottle_value TEXT,
-                last_access_time INTEGER,
-                PRIMARY KEY(storage_endpoint, storage_key, bottle_key)
-            );
-        )#"sv },
-    } };
+    auto migrations = to_array<Database::Migration>({
+        {
+            .version = WEB_STORAGE_SCHEMA_BASELINE_VERSION,
+            .sql = R"#(
+                CREATE TABLE IF NOT EXISTS WebStorage (
+                    storage_endpoint INTEGER,
+                    storage_key TEXT,
+                    bottle_key TEXT,
+                    bottle_value TEXT,
+                    last_access_time INTEGER,
+                    PRIMARY KEY(storage_endpoint, storage_key, bottle_key)
+                );
+            )#"sv,
+        },
+    });
 
     return database.migrate("WebStorage"sv, migrations, mode);
 }

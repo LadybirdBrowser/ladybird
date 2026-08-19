@@ -122,23 +122,26 @@ static_assert(CACHE_VERSION == 7, "Bumping CACHE_VERSION requires appending a Ca
 
 ErrorOr<Database::MigrationOutcome> CacheIndex::migrate_schema(Database::Database& database, Database::MigrationMode mode)
 {
-    Array<Database::Migration, 1> migrations { {
-        { .version = INDEX_SCHEMA_BASELINE_VERSION, .sql = R"#(
-            CREATE TABLE IF NOT EXISTS CacheIndex (
-                cache_key INTEGER,
-                vary_key INTEGER,
-                url TEXT,
-                request_headers BLOB,
-                response_headers BLOB,
-                data_size INTEGER,
-                associated_data_size INTEGER,
-                request_time INTEGER,
-                response_time INTEGER,
-                last_access_time INTEGER,
-                PRIMARY KEY(cache_key, vary_key)
-            );
-        )#"sv },
-    } };
+    auto migrations = to_array<Database::Migration>({
+        {
+            .version = INDEX_SCHEMA_BASELINE_VERSION,
+            .sql = R"#(
+                CREATE TABLE IF NOT EXISTS CacheIndex (
+                    cache_key INTEGER,
+                    vary_key INTEGER,
+                    url TEXT,
+                    request_headers BLOB,
+                    response_headers BLOB,
+                    data_size INTEGER,
+                    associated_data_size INTEGER,
+                    request_time INTEGER,
+                    response_time INTEGER,
+                    last_access_time INTEGER,
+                    PRIMARY KEY(cache_key, vary_key)
+                );
+            )#"sv,
+        },
+    });
 
     return database.migrate("CacheIndex"sv, migrations, mode);
 }

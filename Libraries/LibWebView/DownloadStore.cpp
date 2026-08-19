@@ -71,26 +71,32 @@ static Optional<Vector<DownloadSegmentRecord>> deserialize_segments(StringView s
 
 ErrorOr<Database::MigrationOutcome> DownloadStore::migrate_schema(Database::Database& database, Database::MigrationMode mode)
 {
-    Array<Database::Migration, 2> migrations { {
-        { .version = DOWNLOAD_SCHEMA_BASELINE_VERSION, .sql = R"#(
-            CREATE TABLE IF NOT EXISTS Downloads (
-                id INTEGER PRIMARY KEY,
-                url TEXT NOT NULL,
-                display_url TEXT NOT NULL,
-                destination TEXT NOT NULL,
-                temporary_destination TEXT NOT NULL,
-                total_size INTEGER NOT NULL,
-                etag TEXT NOT NULL,
-                last_modified TEXT NOT NULL,
-                segments TEXT NOT NULL,
-                created_time INTEGER NOT NULL,
-                updated_time INTEGER NOT NULL
-            );
-        )#"sv },
-        { .version = DOWNLOAD_SCHEMA_RESTARTABILITY_VERSION, .sql = R"#(
-            ALTER TABLE Downloads ADD COLUMN can_restart_from_zero INTEGER NOT NULL DEFAULT 0;
-        )#"sv },
-    } };
+    auto migrations = to_array<Database::Migration>({
+        {
+            .version = DOWNLOAD_SCHEMA_BASELINE_VERSION,
+            .sql = R"#(
+                CREATE TABLE IF NOT EXISTS Downloads (
+                    id INTEGER PRIMARY KEY,
+                    url TEXT NOT NULL,
+                    display_url TEXT NOT NULL,
+                    destination TEXT NOT NULL,
+                    temporary_destination TEXT NOT NULL,
+                    total_size INTEGER NOT NULL,
+                    etag TEXT NOT NULL,
+                    last_modified TEXT NOT NULL,
+                    segments TEXT NOT NULL,
+                    created_time INTEGER NOT NULL,
+                    updated_time INTEGER NOT NULL
+                );
+            )#"sv,
+        },
+        {
+            .version = DOWNLOAD_SCHEMA_RESTARTABILITY_VERSION,
+            .sql = R"#(
+                ALTER TABLE Downloads ADD COLUMN can_restart_from_zero INTEGER NOT NULL DEFAULT 0;
+            )#"sv,
+        },
+    });
 
     return database.migrate("Downloads"sv, migrations, mode);
 }

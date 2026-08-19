@@ -141,48 +141,57 @@ static void sort_matching_entries(Vector<HistoryEntry const*>& matches, StringVi
 
 ErrorOr<Database::MigrationOutcome> HistoryStore::migrate_schema(Database::Database& database, Database::MigrationMode mode)
 {
-    Array<Database::Migration, 3> migrations { {
-        { .version = HISTORY_SCHEMA_BASELINE_VERSION, .sql = R"#(
-            CREATE TABLE IF NOT EXISTS History (
-                url TEXT PRIMARY KEY,
-                title TEXT NOT NULL,
-                favicon TEXT,
-                visit_count INTEGER NOT NULL,
-                last_visited_time INTEGER NOT NULL
-            );
+    auto migrations = to_array<Database::Migration>({
+        {
+            .version = HISTORY_SCHEMA_BASELINE_VERSION,
+            .sql = R"#(
+                CREATE TABLE IF NOT EXISTS History (
+                    url TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    favicon TEXT,
+                    visit_count INTEGER NOT NULL,
+                    last_visited_time INTEGER NOT NULL
+                );
 
-            CREATE INDEX IF NOT EXISTS HistoryLastVisitedTimeIndex
-            ON History(last_visited_time DESC);
-        )#"sv },
-        { .version = HISTORY_SCHEMA_RANKING_SIGNALS_VERSION, .sql = R"#(
-            ALTER TABLE History ADD COLUMN direct_visit_count INTEGER NOT NULL DEFAULT 0;
-            ALTER TABLE History ADD COLUMN last_qualifying_visit_time INTEGER NOT NULL DEFAULT 0;
-            ALTER TABLE History ADD COLUMN last_direct_visit_time INTEGER NOT NULL DEFAULT 0;
-            ALTER TABLE History ADD COLUMN decayed_visit_score REAL NOT NULL DEFAULT 0;
-            ALTER TABLE History ADD COLUMN decayed_direct_score REAL NOT NULL DEFAULT 0;
-            ALTER TABLE History ADD COLUMN score_updated_at INTEGER NOT NULL DEFAULT 0;
+                CREATE INDEX IF NOT EXISTS HistoryLastVisitedTimeIndex
+                ON History(last_visited_time DESC);
+            )#"sv,
+        },
+        {
+            .version = HISTORY_SCHEMA_RANKING_SIGNALS_VERSION,
+            .sql = R"#(
+                ALTER TABLE History ADD COLUMN direct_visit_count INTEGER NOT NULL DEFAULT 0;
+                ALTER TABLE History ADD COLUMN last_qualifying_visit_time INTEGER NOT NULL DEFAULT 0;
+                ALTER TABLE History ADD COLUMN last_direct_visit_time INTEGER NOT NULL DEFAULT 0;
+                ALTER TABLE History ADD COLUMN decayed_visit_score REAL NOT NULL DEFAULT 0;
+                ALTER TABLE History ADD COLUMN decayed_direct_score REAL NOT NULL DEFAULT 0;
+                ALTER TABLE History ADD COLUMN score_updated_at INTEGER NOT NULL DEFAULT 0;
 
-            UPDATE History
-            SET last_qualifying_visit_time = last_visited_time,
-                decayed_visit_score = MIN(CAST(visit_count AS REAL), 8.0),
-                score_updated_at = last_visited_time;
-        )#"sv },
-        { .version = HISTORY_SCHEMA_OMNIBOX_ENGAGEMENTS_VERSION, .sql = R"#(
-            CREATE TABLE OmniboxEngagements (
-                normalized_input TEXT NOT NULL,
-                destination_kind INTEGER NOT NULL,
-                destination_key TEXT NOT NULL,
-                destination TEXT NOT NULL,
-                explicit_use_count INTEGER NOT NULL,
-                default_use_count INTEGER NOT NULL,
-                last_used_time INTEGER NOT NULL,
-                PRIMARY KEY (normalized_input, destination_kind, destination_key)
-            );
+                UPDATE History
+                SET last_qualifying_visit_time = last_visited_time,
+                    decayed_visit_score = MIN(CAST(visit_count AS REAL), 8.0),
+                    score_updated_at = last_visited_time;
+            )#"sv,
+        },
+        {
+            .version = HISTORY_SCHEMA_OMNIBOX_ENGAGEMENTS_VERSION,
+            .sql = R"#(
+                CREATE TABLE OmniboxEngagements (
+                    normalized_input TEXT NOT NULL,
+                    destination_kind INTEGER NOT NULL,
+                    destination_key TEXT NOT NULL,
+                    destination TEXT NOT NULL,
+                    explicit_use_count INTEGER NOT NULL,
+                    default_use_count INTEGER NOT NULL,
+                    last_used_time INTEGER NOT NULL,
+                    PRIMARY KEY (normalized_input, destination_kind, destination_key)
+                );
 
-            CREATE INDEX OmniboxEngagementsByInput
-            ON OmniboxEngagements(destination_kind, normalized_input);
-        )#"sv },
-    } };
+                CREATE INDEX OmniboxEngagementsByInput
+                ON OmniboxEngagements(destination_kind, normalized_input);
+            )#"sv,
+        },
+    });
 
     return database.migrate("History"sv, migrations, mode);
 }
