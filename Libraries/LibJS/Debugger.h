@@ -47,6 +47,11 @@ public:
         StepOver,
     };
 
+    enum class UpdateOriginalBindings : u8 {
+        No,
+        Yes,
+    };
+
     struct PauseInfo {
         GC::Ref<Bytecode::Executable> executable;
         u32 bytecode_offset { 0 };
@@ -77,7 +82,7 @@ public:
     void continue_execution_preserving_step_state();
     bool is_paused() const { return m_is_paused; }
     Vector<FrameBinding> bindings_for_frame(ExecutionContext const&) const;
-    ThrowCompletionOr<Value> evaluate_in_frame(ExecutionContext&, Utf16View source_text);
+    ThrowCompletionOr<Value> evaluate_in_frame(ExecutionContext&, Utf16View source_text, UpdateOriginalBindings = UpdateOriginalBindings::Yes);
 
     // Set before each instruction is executed, so that a `debugger` statement doesn't pause a
     // second time when we've already paused at a breakpoint on that same instruction.

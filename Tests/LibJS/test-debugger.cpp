@@ -131,6 +131,31 @@ answer();
     EXPECT_EQ(result.release_value().as_i32(), 50);
 }
 
+TEST_CASE(debugger_can_evaluate_without_updating_a_paused_frame)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto script_or_error = JS::Script::parse("function read() { let value = 41; debugger; return value; } read();"sv, realm, "evaluate-isolated.js"sv);
+    VERIFY(!script_or_error.is_error());
+
+    vm->enable_debugging();
+    vm->debugger()->set_pause_callback([&](JS::Debugger::PauseInfo const& pause_info) {
+        auto* frame = pause_info.stack_trace.first().execution_context;
+        VERIFY(frame);
+
+        auto result = vm->debugger()->evaluate_in_frame(*frame, "value = 50"sv, JS::Debugger::UpdateOriginalBindings::No);
+        VERIFY(!result.is_error());
+        EXPECT_EQ(result.release_value().as_i32(), 50);
+        vm->debugger()->continue_execution();
+    });
+
+    auto result = vm->run(*script_or_error.value());
+    VERIFY(!result.is_error());
+    EXPECT_EQ(result.release_value().as_i32(), 41);
+}
+
 TEST_CASE(debugger_frame_evaluation_exposes_and_updates_parameters)
 {
     auto vm = JS::VM::create();
