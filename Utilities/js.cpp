@@ -116,6 +116,8 @@ static String s_history_path = String {};
 static int s_exit_code = 0;
 static JS::Debugger::PauseOnExceptions s_pause_on_exceptions { JS::Debugger::PauseOnExceptions::None };
 
+static void print_debugger_evaluation_result(JS::ThrowCompletionOr<JS::Value>);
+
 static StringView debugger_pause_reason(JS::Debugger::PauseReason reason)
 {
     switch (reason) {
@@ -250,6 +252,7 @@ static void print_debugger_help()
     outln("    continue (c)");
     outln("    delete <id>");
     outln("    help");
+    outln("    print (p) <expression>");
     outln("    set pause-on-exceptions <none|unhandled|all>");
     outln("    show pause-on-exceptions");
 }
@@ -323,6 +326,18 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
 
         if ((command_name == "backtrace"sv || command_name == "bt"sv) && command.is_eof()) {
             print_backtrace(pause_info);
+            continue;
+        }
+
+        if (command_name == "print"sv || command_name == "p"sv) {
+            auto expression = command.consume_all().trim_whitespace();
+            if (expression.is_empty()) {
+                warnln("Usage: print <expression>");
+                continue;
+            }
+            auto* frame = pause_info.stack_trace.first().execution_context;
+            auto result = g_vm->debugger()->evaluate_in_frame(*frame, Utf16String::from_utf8(expression), JS::Debugger::UpdateOriginalBindings::No);
+            print_debugger_evaluation_result(move(result));
             continue;
         }
 
@@ -429,6 +444,18 @@ static ErrorOr<void> print(JS::Value value, PrintTarget target = PrintTarget::St
         TRY(stream->write_until_depleted("\n"sv));
 
     return {};
+}
+
+static void print_debugger_evaluation_result(JS::ThrowCompletionOr<JS::Value> result)
+{
+    if (result.is_error()) {
+        warn("Evaluation threw: ");
+        (void)print(result.throw_completion().value(), PrintTarget::StandardError);
+        return;
+    }
+
+    if (auto print_result = print(result.release_value()); print_result.is_error())
+        warnln("Unable to print evaluation result: {}", print_result.error());
 }
 
 static ErrorOr<void> print_all_arguments(JS::VM const& vm, PrintTarget target = PrintTarget::StandardOutput, PrintEnd end = PrintEnd::Newline)
