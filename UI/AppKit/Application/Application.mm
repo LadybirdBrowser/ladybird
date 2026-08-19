@@ -17,6 +17,7 @@
 
 #import <Application/Application.h>
 #import <Application/ApplicationDelegate.h>
+#import <Application/ClipboardTypes.h>
 #import <Interface/BookmarksBar.h>
 #import <Interface/LadybirdWebView.h>
 #import <Interface/LocationSearchField.h>
@@ -228,19 +229,12 @@ Vector<Web::Clipboard::SystemClipboardRepresentation> Application::clipboard_ent
     auto* paste_board = [NSPasteboard generalPasteboard];
 
     for (NSPasteboardType type : [paste_board types]) {
-        String mime_type;
-
-        if (type == NSPasteboardTypeString)
-            mime_type = "text/plain"_string;
-        else if (type == NSPasteboardTypeHTML)
-            mime_type = "text/html"_string;
-        else if (type == NSPasteboardTypePNG)
-            mime_type = "image/png"_string;
-        else
+        auto mime_type = Ladybird::mime_type_for_pasteboard_type(type);
+        if (!mime_type.has_value())
             continue;
 
         auto data = Ladybird::ns_data_to_string([paste_board dataForType:type]);
-        representations.empend(move(data), move(mime_type));
+        representations.empend(move(data), mime_type.release_value());
     }
 
     return representations;
@@ -252,16 +246,8 @@ void Application::insert_clipboard_item(Web::Clipboard::SystemClipboardItem item
     [paste_board clearContents];
 
     for (auto const& entry : item.system_clipboard_representations) {
-        NSPasteboardType pasteboard_type = nil;
-
-        // https://w3c.github.io/clipboard-apis/#os-specific-well-known-format
-        if (entry.mime_type == "text/plain"sv)
-            pasteboard_type = NSPasteboardTypeString;
-        else if (entry.mime_type == "text/html"sv)
-            pasteboard_type = NSPasteboardTypeHTML;
-        else if (entry.mime_type == "image/png"sv)
-            pasteboard_type = NSPasteboardTypePNG;
-        else
+        NSPasteboardType pasteboard_type = Ladybird::pasteboard_type_for_mime_type(entry.mime_type);
+        if (!pasteboard_type)
             continue;
 
         [paste_board setData:Ladybird::string_to_ns_data(entry.data)
