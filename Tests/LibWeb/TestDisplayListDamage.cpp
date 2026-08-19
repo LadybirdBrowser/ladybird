@@ -138,12 +138,16 @@ TEST_CASE(changed_unbounded_commands_require_full_repaint)
         .compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::Normal,
         .has_filter = false,
         .filter_data = {},
+        .has_mask_kind = false,
+        .mask_kind = {},
     });
     auto new_display_list = command_bytes(ApplyEffects {
         .opacity = 0.6f,
         .compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::Normal,
         .has_filter = false,
         .filter_data = {},
+        .has_mask_kind = false,
+        .mask_kind = {},
     });
     ScrollStateSnapshot scroll_state;
 

@@ -678,7 +678,8 @@ void DisplayListPlayerSkia::play_command(PaintTextShadow const& command)
         .glyph_bounding_rect = command.shadow_bounding_rect,
         .translation = command.draw_location + command.text_rect.location().to_type<float>(),
         .scale = command.scale,
-        .color = command.color.with_alpha(255) });
+        .color = command.color.with_alpha(255),
+        .orientation = Gfx::Orientation::Horizontal });
     canvas.restore();
 }
 

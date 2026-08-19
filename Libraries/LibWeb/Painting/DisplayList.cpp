@@ -369,6 +369,8 @@ void DisplayListPlayer::execute_impl(
                                  .compositing_and_blending_operator = effects->blend_mode,
                                  .has_filter = effects->gfx_filter.has_value(),
                                  .filter_data = {},
+                                 .has_mask_kind = false,
+                                 .mask_kind = {},
                              },
                     effects->gfx_filter.has_value() ? &effects->gfx_filter.value() : nullptr);
             } else {
