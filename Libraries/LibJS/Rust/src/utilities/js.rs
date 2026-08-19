@@ -740,6 +740,46 @@ fn warn_bytes_line(bytes: &[u8]) {
     let _ = io::stderr().write_all(&line);
 }
 
+struct DebuggerCommandLexer<'a> {
+    input: &'a [u8],
+    cursor: usize,
+}
+
+impl<'a> DebuggerCommandLexer<'a> {
+    fn new(input: &'a [u8]) -> Self {
+        Self { input, cursor: 0 }
+    }
+
+    fn skip_whitespace(&mut self) {
+        while self.input.get(self.cursor).is_some_and(u8::is_ascii_whitespace) {
+            self.cursor += 1;
+        }
+    }
+
+    fn consume_command_name(&mut self) -> &'a [u8] {
+        self.skip_whitespace();
+        let start = self.cursor;
+        while self
+            .input
+            .get(self.cursor)
+            .is_some_and(|byte| byte.is_ascii_alphanumeric() || *byte == b'-')
+        {
+            self.cursor += 1;
+        }
+        &self.input[start..self.cursor]
+    }
+
+    fn consume_remaining(&mut self) -> &'a [u8] {
+        let remaining = &self.input[self.cursor..];
+        self.cursor = self.input.len();
+        remaining
+    }
+
+    fn is_eof(&self) -> bool {
+        self.cursor == self.input.len()
+    }
+}
+
 fn run_debugger_prompt(vm: &Vm, pause_info: &PauseInfo, line_editor: Option<&JSLineEditor>) {
     let debugger = vm.debugger().expect("execution pauses in the attached debugger");
     let reason = debugger_pause_reason(pause_info.reason);
@@ -771,19 +811,22 @@ fn run_debugger_prompt(vm: &Vm, pause_info: &PauseInfo, line_editor: Option<&JSL
             debugger.continue_execution(ResumeMode::Continue);
             return;
         };
-        let command = trim_whitespace(&raw_line);
+        let command_line = trim_whitespace(&raw_line);
+        let mut command = DebuggerCommandLexer::new(command_line);
+        let command_name = command.consume_command_name();
+        command.skip_whitespace();
 
-        if command == b"continue" {
+        if command_name == b"continue" && command.is_eof() {
             debugger.continue_execution(ResumeMode::Continue);
             return;
         }
 
-        if command == b"help" {
+        if command_name == b"help" && command.is_eof() {
             print_debugger_help();
             continue;
         }
 
-        if command == b"breakpoints" {
+        if command_name == b"breakpoints" && command.is_eof() {
             let mut breakpoints = debugger.breakpoints();
             if breakpoints.is_empty() {
                 standard_output::outln(b"No breakpoints.");
@@ -796,7 +839,7 @@ fn run_debugger_prompt(vm: &Vm, pause_info: &PauseInfo, line_editor: Option<&JSL
             continue;
         }
 
-        if let Some(location) = command.strip_prefix(b"break ") {
+        if command_name == b"break" {
             let current_filename = pause_info
                 .source_range
                 .as_ref()
@@ -804,7 +847,7 @@ fn run_debugger_prompt(vm: &Vm, pause_info: &PauseInfo, line_editor: Option<&JSL
                     Utf16View::of_string(source_range.filename())
                 });
 
-            let location = parse_breakpoint_location(location, current_filename);
+            let location = parse_breakpoint_location(command.consume_remaining(), current_filename);
             let Some(location) = location.filter(|location| !Utf16View::of_string(&location.filename).is_empty())
             else {
                 eprintln!("Usage: break <line>[:column] or break <file>:<line>[:column]");
@@ -830,8 +873,8 @@ fn run_debugger_prompt(vm: &Vm, pause_info: &PauseInfo, line_editor: Option<&JSL
             continue;
         }
 
-        if let Some(breakpoint_id) = command.strip_prefix(b"delete ") {
-            let Some(breakpoint_id) = to_number(trim_whitespace(breakpoint_id)) else {
+        if command_name == b"delete" {
+            let Some(breakpoint_id) = to_number(trim_whitespace(command.consume_remaining())) else {
                 eprintln!("Usage: delete <id>");
                 continue;
             };
@@ -844,7 +887,7 @@ fn run_debugger_prompt(vm: &Vm, pause_info: &PauseInfo, line_editor: Option<&JSL
         }
 
         let mut message = b"Unknown debugger command '".to_vec();
-        message.extend_from_slice(command);
+        message.extend_from_slice(command_line);
         message.extend_from_slice(b"'. Enter help for a list of commands.");
         warn_bytes_line(&message);
     }
