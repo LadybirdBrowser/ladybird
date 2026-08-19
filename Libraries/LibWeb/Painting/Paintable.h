@@ -37,7 +37,7 @@
 #include <LibWeb/Painting/HitTestResult.h>
 #include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
-#include <LibWeb/Painting/ScrollNodeState.h>
+#include <LibWeb/Painting/ScrollState.h>
 #include <LibWeb/Painting/ShadowData.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/RefCountedTreeNode.h>
@@ -308,8 +308,8 @@ public:
 
     [[nodiscard]] bool has_css_transform() const;
 
-    [[nodiscard]] bool has_non_invertible_css_transform() const { return m_has_non_invertible_css_transform; }
-    void set_has_non_invertible_css_transform(bool value) { m_has_non_invertible_css_transform = value; }
+    [[nodiscard]] bool has_non_invertible_css_transform() const { return has_flag(Layout::RustFFI::PaintableFlag::HasNonInvertibleCssTransform); }
+
 
     [[nodiscard]] bool overflow_property_applies() const;
 
@@ -412,18 +412,10 @@ public:
     void paint_flexbox_inspector_overlay(DisplayListRecordingContext&, FlexboxInspectorOverlayOptions const&) const;
     void paint_grid_inspector_overlay(DisplayListRecordingContext&, GridInspectorOverlayOptions const&) const;
 
-    void set_enclosing_scroll_node_index(VisualContextIndex index) { m_enclosing_scroll_node_index = index; }
-    void set_own_scroll_node_index(VisualContextIndex index) { m_own_scroll_node_index = index; }
 
-    void set_accumulated_visual_context(VisualContextIndex index)
-    {
-        m_accumulated_visual_context_index = index;
-        m_has_accumulated_visual_context = true;
-    }
-    [[nodiscard]] bool has_accumulated_visual_context() const { return m_has_accumulated_visual_context; }
-    [[nodiscard]] VisualContextIndex accumulated_visual_context_index() const { return m_accumulated_visual_context_index; }
-    void set_accumulated_visual_context_for_descendants(VisualContextIndex index) { m_accumulated_visual_context_for_descendants_index = index; }
-    [[nodiscard]] VisualContextIndex accumulated_visual_context_for_descendants_index() const { return m_accumulated_visual_context_for_descendants_index; }
+    [[nodiscard]] bool has_accumulated_visual_context() const { return rust_data().has_accumulated_visual_context; }
+    [[nodiscard]] VisualContextIndex accumulated_visual_context_index() const { return VisualContextIndex { rust_data().accumulated_visual_context_index }; }
+    [[nodiscard]] VisualContextIndex accumulated_visual_context_for_descendants_index() const { return VisualContextIndex { rust_data().accumulated_visual_context_for_descendants_index }; }
 
     Optional<CSSPixelPoint> transform_point_to_local(CSSPixelPoint screen_position) const;
     Optional<CSSPixelPoint> transform_point_to_local_for_descendants(CSSPixelPoint screen_position) const;
@@ -455,21 +447,19 @@ public:
     Optional<HitTestItemRange> valid_cached_hit_test_items(PaintPhase, u64 source_hit_test_display_list_id) const;
     void set_cached_hit_test_items(PaintPhase, u64 hit_test_display_list_id, HitTestItemRange) const;
 
-    void set_fixed_background_visual_context(VisualContextIndex index) { m_fixed_background_visual_context = index; }
-    [[nodiscard]] Optional<VisualContextIndex> fixed_background_visual_context() const { return m_fixed_background_visual_context; }
-
-    // Range of visual context nodes this box appended during the last tree build, used for in-place value patching.
-    void set_visual_context_node_range(size_t begin, size_t end)
+    [[nodiscard]] Optional<VisualContextIndex> fixed_background_visual_context() const
     {
-        m_visual_context_nodes_begin = begin;
-        m_visual_context_nodes_end = end;
+        if (!rust_data().has_fixed_background_visual_context)
+            return {};
+        return VisualContextIndex { rust_data().fixed_background_visual_context };
     }
-    [[nodiscard]] size_t visual_context_nodes_begin() const { return m_visual_context_nodes_begin; }
-    [[nodiscard]] size_t visual_context_nodes_end() const { return m_visual_context_nodes_end; }
 
-    [[nodiscard]] VisualContextIndex enclosing_scroll_node_index() const { return m_enclosing_scroll_node_index; }
+    [[nodiscard]] size_t visual_context_nodes_begin() const { return rust_data().visual_context_nodes_begin; }
+    [[nodiscard]] size_t visual_context_nodes_end() const { return rust_data().visual_context_nodes_end; }
 
-    [[nodiscard]] VisualContextIndex own_scroll_node_index() const { return m_own_scroll_node_index; }
+    [[nodiscard]] VisualContextIndex enclosing_scroll_node_index() const { return VisualContextIndex { rust_data().enclosing_scroll_node_index }; }
+
+    [[nodiscard]] VisualContextIndex own_scroll_node_index() const { return VisualContextIndex { rust_data().own_scroll_node_index }; }
 
 protected:
     explicit Paintable(Layout::NodeWithStyle const&);
@@ -530,14 +520,6 @@ private:
     Optional<CSSPixelRect> mutable m_absolute_padding_box_rect;
     Optional<CSSPixelRect> mutable m_absolute_border_box_rect;
 
-    VisualContextIndex m_enclosing_scroll_node_index {};
-    VisualContextIndex m_own_scroll_node_index {};
-    bool m_has_accumulated_visual_context { false };
-    VisualContextIndex m_accumulated_visual_context_index { VISUAL_VIEWPORT_NODE_INDEX };
-    VisualContextIndex m_accumulated_visual_context_for_descendants_index { VISUAL_VIEWPORT_NODE_INDEX };
-    Optional<VisualContextIndex> m_fixed_background_visual_context;
-    size_t m_visual_context_nodes_begin { 0 };
-    size_t m_visual_context_nodes_end { 0 };
 
     OwnPtr<CollapsedTableBorders> m_collapsed_table_borders;
 
@@ -553,7 +535,6 @@ private:
     RefPtr<Scrollbar> m_horizontal_scrollbar;
     RefPtr<Scrollbar> m_vertical_scrollbar;
     RefPtr<ResizeHandle> m_resize_handle;
-    bool m_has_non_invertible_css_transform { false };
 
 
 

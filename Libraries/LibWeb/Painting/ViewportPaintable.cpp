@@ -17,18 +17,15 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
-#include <LibWeb/Painting/ScrollNodeState.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
+#include <LibWeb/Painting/ScrollState.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Selection/Selection.h>
 
 namespace Web::Painting {
-
-AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaintable&);
-bool update_accumulated_visual_context_values(ViewportPaintable&, Paintable&);
-void update_visual_viewport_accumulated_visual_context(ViewportPaintable&);
 
 NonnullRefPtr<ViewportPaintable> ViewportPaintable::create(Layout::Viewport const& layout_viewport)
 {
@@ -38,6 +35,7 @@ NonnullRefPtr<ViewportPaintable> ViewportPaintable::create(Layout::Viewport cons
 ViewportPaintable::ViewportPaintable(Layout::Viewport const& layout_viewport)
     : PaintableWithLines(layout_viewport)
 {
+    mirror_rust_reset_visual_context_state(*this);
 }
 
 ViewportPaintable::~ViewportPaintable() = default;
@@ -116,11 +114,11 @@ void ViewportPaintable::reset_for_relayout()
     clear_scroll_state();
     m_display_list_used_as_paint_command_cache_source = nullptr;
     m_paint_command_cache_source_referenced_resources = {};
-    document().clear_hit_test_item_cache_source();
     m_paintable_boxes_with_auto_content_visibility.clear();
     m_paintables_with_mask_nodes.clear();
     m_visual_context_tree.clear();
     m_visual_context_tree_needs_compositor_update = false;
+    mirror_rust_clear_visual_context_tree(*this);
 }
 
 void ViewportPaintable::build_stacking_context_tree_if_needed()
@@ -129,11 +127,6 @@ void ViewportPaintable::build_stacking_context_tree_if_needed()
         return;
     build_stacking_context_tree();
     m_stacking_context_tree_is_valid = true;
-}
-
-void ViewportPaintable::invalidate_stacking_context_tree()
-{
-    m_stacking_context_tree_is_valid = false;
 }
 
 void ViewportPaintable::build_stacking_context_tree()
@@ -177,100 +170,57 @@ void ViewportPaintable::paint_all_phases(DisplayListRecordingContext& context)
     context.display_list_recorder().restore();
 }
 
-void ViewportPaintable::precompute_sticky_constraints(ScrollStateSlot sticky_slot, Paintable const& paintable_box)
-{
-    auto nearest_scrolling_ancestor_slot = m_scroll_state.nearest_scrolling_ancestor_slot(sticky_slot);
-    if (nearest_scrolling_ancestor_slot == NO_SCROLL_STATE_SLOT)
-        return;
-
-    auto scroll_ancestor_paintable_ref = m_scroll_state.state_at_slot(nearest_scrolling_ancestor_slot).paintable_box_if_alive();
-    if (!scroll_ancestor_paintable_ref)
-        return;
-    auto const& scroll_ancestor_paintable = *scroll_ancestor_paintable_ref;
-    auto sticky_border_box_rect = paintable_box.absolute_border_box_rect();
-    RefPtr<Paintable const> containing_block_of_sticky = paintable_box.containing_block();
-
-    CSSPixelRect containing_block_region;
-    bool needs_parent_offset_adjustment = false;
-    if (containing_block_of_sticky == scroll_ancestor_paintable_ref) {
-        containing_block_region = { {}, containing_block_of_sticky->scrollable_overflow_rect()->size() };
-    } else {
-        containing_block_region = containing_block_of_sticky->absolute_border_box_rect()
-                                      .translated(-scroll_ancestor_paintable.absolute_rect().top_left());
-        needs_parent_offset_adjustment = true;
-    }
-
-    m_scroll_state.state_at_slot(sticky_slot).set_sticky_constraints({
-        .position_relative_to_scroll_ancestor = sticky_border_box_rect.top_left() - scroll_ancestor_paintable.absolute_rect().top_left(),
-        .border_box_size = sticky_border_box_rect.size(),
-        .scrollport_size = scroll_ancestor_paintable.absolute_rect().size(),
-        .containing_block_region = containing_block_region,
-        .needs_parent_offset_adjustment = needs_parent_offset_adjustment,
-        .insets = paintable_box.sticky_insets(),
-    });
-}
-
-void ViewportPaintable::refresh_sticky_constraints()
-{
-    m_scroll_state.for_each_sticky_node([&](ScrollStateSlot slot, ScrollNodeState& state) {
-        // Skip entries whose paintables a subtree relayout has replaced; the pending visual context
-        // tree rebuild recreates those entries before anything reads them.
-        if (auto paintable_box = state.paintable_box_if_alive())
-            precompute_sticky_constraints(slot, *paintable_box);
-    });
-    m_needs_to_refresh_scroll_state = true;
-}
-
-void ViewportPaintable::clear_scroll_state()
-{
-    m_scroll_state.clear();
-    m_scroll_state_snapshot = {};
-    m_needs_to_refresh_scroll_state = true;
-    m_has_non_viewport_wheel_scroll_target_candidate = false;
-}
-
-void ViewportPaintable::register_scroll_node(AccumulatedVisualContextTree& visual_context_tree_being_built, VisualContextIndex node_index, Paintable const& paintable_box, VisualContextIndex parent_index)
-{
-    if (!paintable_box.is_viewport_paintable()) {
-        auto overflow_x = paintable_box.layout_node().overflow_x();
-        auto overflow_y = paintable_box.layout_node().overflow_y();
-        if (overflow_x == CSS::Overflow::Auto || overflow_x == CSS::Overflow::Scroll
-            || overflow_y == CSS::Overflow::Auto || overflow_y == CSS::Overflow::Scroll)
-            m_has_non_viewport_wheel_scroll_target_candidate = true;
-    }
-
-    auto slot = m_scroll_state.register_scroll_node(node_index, paintable_box, visual_context_tree_being_built.scroll_state_slot_for_node(parent_index));
-    visual_context_tree_being_built.node_at(node_index).data.get<ScrollData>().state_slot = slot;
-}
-
 void ViewportPaintable::register_paintable_with_mask_nodes(Paintable const& paintable_box)
 {
     m_paintables_with_mask_nodes.append(paintable_box);
 }
 
-void ViewportPaintable::register_sticky_node(AccumulatedVisualContextTree& visual_context_tree_being_built, VisualContextIndex node_index, Paintable const& paintable_box, VisualContextIndex parent_index)
+void ViewportPaintable::invalidate_stacking_context_tree()
 {
-    auto slot = m_scroll_state.register_sticky_node(node_index, paintable_box, visual_context_tree_being_built.scroll_state_slot_for_node(parent_index));
-    visual_context_tree_being_built.node_at(node_index).data.get<ScrollData>().state_slot = slot;
-    precompute_sticky_constraints(slot, paintable_box);
+    m_stacking_context_tree_is_valid = false;
+}
+
+void ViewportPaintable::refresh_sticky_constraints()
+{
+    m_needs_to_refresh_scroll_state = true;
+    mirror_rust_refresh_sticky_constraints(*this);
+}
+
+void ViewportPaintable::set_needs_to_refresh_scroll_state(bool value)
+{
+    m_needs_to_refresh_scroll_state = value;
+    mirror_rust_set_needs_to_refresh_scroll_state(*this, value);
+}
+
+void ViewportPaintable::clear_scroll_state()
+{
+    m_scroll_state = {};
+    m_scroll_state_snapshot = {};
+    m_needs_to_refresh_scroll_state = true;
+    mirror_rust_clear_scroll_state(*this);
 }
 
 CSSPixelPoint ViewportPaintable::cumulative_scroll_offset_for_node(VisualContextIndex scroll_node_index) const
 {
-    return m_scroll_state.cumulative_offset(visual_context_tree().scroll_state_slot_for_node(scroll_node_index));
+    return rust_cumulative_scroll_offset_for_node(*this, scroll_node_index);
 }
 
 void ViewportPaintable::assign_accumulated_visual_contexts()
 {
     clear_scroll_state();
-    m_paintables_with_mask_nodes.clear_with_capacity();
-    auto visual_context_tree = build_accumulated_visual_context_tree(*this);
     ++m_accumulated_visual_context_tree_build_count;
-    auto is_compatible = m_visual_context_tree.has_value() && visual_context_tree.is_compatible_with(*m_visual_context_tree);
-    if (m_force_incompatible_visual_context_tree_rebuild_for_testing) {
-        m_force_incompatible_visual_context_tree_rebuild_for_testing = false;
-        is_compatible = false;
-    }
+    auto forced_incompatible_rebuild = m_force_incompatible_visual_context_tree_rebuild_for_testing;
+    m_force_incompatible_visual_context_tree_rebuild_for_testing = false;
+    auto is_compatible = rust_assign_accumulated_visual_contexts(*this, forced_incompatible_rebuild);
+    m_paintables_with_mask_nodes.clear();
+    Layout::RustFFI::layout_arena_visual_context_mask_node_shells(
+        rust_arena().handle(),
+        [](void* context, void* shell) {
+            auto& viewport_paintable = *static_cast<ViewportPaintable*>(context);
+            viewport_paintable.register_paintable_with_mask_nodes(*static_cast<Paintable*>(shell));
+        },
+        this);
+    auto visual_context_tree = materialize_rust_main_visual_context_tree(*this);
     if (is_compatible) {
         visual_context_tree.reuse_version_from(*m_visual_context_tree);
     } else {
@@ -286,8 +236,9 @@ bool ViewportPaintable::update_accumulated_visual_context_values(Paintable& pain
         return false;
     if (m_force_incompatible_visual_context_tree_rebuild_for_testing)
         return false;
-    if (!Painting::update_accumulated_visual_context_values(*this, paintable_box))
+    if (!rust_update_accumulated_visual_context_values(*this, paintable_box))
         return false;
+    patch_rust_visual_context_nodes(*this, *m_visual_context_tree, paintable_box.visual_context_nodes_begin(), paintable_box.visual_context_nodes_end());
     m_visual_context_tree_needs_compositor_update = true;
     return true;
 }
@@ -298,7 +249,8 @@ void ViewportPaintable::update_visual_viewport_accumulated_visual_context()
         assign_accumulated_visual_contexts();
         return;
     }
-    Painting::update_visual_viewport_accumulated_visual_context(*this);
+    rust_update_visual_viewport_transform(*this);
+    patch_rust_visual_context_nodes(*this, *m_visual_context_tree, VISUAL_VIEWPORT_NODE_INDEX.value(), VISUAL_VIEWPORT_NODE_INDEX.value() + 1);
     m_visual_context_tree_needs_compositor_update = true;
 }
 
@@ -321,67 +273,10 @@ void ViewportPaintable::refresh_scroll_state()
     if (!m_needs_to_refresh_scroll_state)
         return;
     m_needs_to_refresh_scroll_state = false;
-
     // https://drafts.csswg.org/css-position/#sticky-pos
-    // Sticky positioning is similar to relative positioning except the offsets are automatically calculated
-    // in reference to the nearest scrollport.
-    m_scroll_state.for_each_sticky_node([&](auto slot, auto& state) {
-        auto nearest_scrolling_ancestor_slot = m_scroll_state.nearest_scrolling_ancestor_slot(slot);
-        if (nearest_scrolling_ancestor_slot == NO_SCROLL_STATE_SLOT || !state.has_sticky_constraints())
-            return;
-
-        auto const& sticky_data = state.sticky_constraints();
-        auto const& sticky_insets = sticky_data.insets;
-        auto scroll_ancestor_paintable_ref = m_scroll_state.state_at_slot(nearest_scrolling_ancestor_slot).paintable_box_if_alive();
-        if (!scroll_ancestor_paintable_ref)
-            return;
-        auto const& scroll_ancestor_paintable = *scroll_ancestor_paintable_ref;
-
-        // NB: For nested sticky elements, work in the coordinate space where the sticky ancestors are
-        //     at their current positions. The scrolling ancestor's offset is already represented by
-        //     scrollport_rect and must not be applied to the sticky position a second time.
-        auto parent_sticky_offset = m_scroll_state.cumulative_sticky_offset(state.parent_slot());
-
-        auto sticky_position_in_ancestor = sticky_data.position_relative_to_scroll_ancestor + parent_sticky_offset;
-
-        auto containing_block_region = sticky_data.containing_block_region;
-        if (sticky_data.needs_parent_offset_adjustment)
-            containing_block_region.translate_by(parent_sticky_offset);
-        CSSPixelPoint min_offset_within_containing_block = containing_block_region.top_left();
-        CSSPixelPoint max_offset_within_containing_block = {
-            containing_block_region.right() - sticky_data.border_box_size.width(),
-            containing_block_region.bottom() - sticky_data.border_box_size.height()
-        };
-
-        CSSPixelRect scrollport_rect { scroll_ancestor_paintable.scroll_offset(), sticky_data.scrollport_size };
-        CSSPixelPoint sticky_offset;
-
-        if (sticky_insets.top.has_value()) {
-            if (scrollport_rect.top() > sticky_position_in_ancestor.y() - *sticky_insets.top)
-                sticky_offset.set_y(min(scrollport_rect.top() + *sticky_insets.top, max_offset_within_containing_block.y()) - sticky_position_in_ancestor.y());
-        }
-        if (sticky_insets.left.has_value()) {
-            if (scrollport_rect.left() > sticky_position_in_ancestor.x() - *sticky_insets.left)
-                sticky_offset.set_x(min(scrollport_rect.left() + *sticky_insets.left, max_offset_within_containing_block.x()) - sticky_position_in_ancestor.x());
-        }
-        if (sticky_insets.bottom.has_value()) {
-            if (scrollport_rect.bottom() < sticky_position_in_ancestor.y() + sticky_data.border_box_size.height() + *sticky_insets.bottom)
-                sticky_offset.set_y(max(scrollport_rect.bottom() - sticky_data.border_box_size.height() - *sticky_insets.bottom, min_offset_within_containing_block.y()) - sticky_position_in_ancestor.y());
-        }
-        if (sticky_insets.right.has_value()) {
-            if (scrollport_rect.right() < sticky_position_in_ancestor.x() + sticky_data.border_box_size.width() + *sticky_insets.right)
-                sticky_offset.set_x(max(scrollport_rect.right() - sticky_data.border_box_size.width() - *sticky_insets.right, min_offset_within_containing_block.x()) - sticky_position_in_ancestor.x());
-        }
-
-        state.set_own_offset(sticky_offset);
-    });
-
-    m_scroll_state.for_each_scroll_node([&](auto, auto& state) {
-        if (auto paintable_box = state.paintable_box_if_alive())
-            state.set_own_offset(-paintable_box->scroll_offset());
-    });
-
-    m_scroll_state_snapshot = m_scroll_state.snapshot(document().page().client().device_pixels_per_css_pixel());
+    rust_refresh_scroll_state(*this);
+    m_scroll_state_snapshot = rust_scroll_state_snapshot(*this);
+    m_scroll_state = materialize_rust_scroll_state(*this, m_has_non_viewport_wheel_scroll_target_candidate);
 }
 
 GC::Ptr<Selection::Selection> ViewportPaintable::selection() const

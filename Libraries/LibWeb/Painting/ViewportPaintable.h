@@ -23,16 +23,15 @@ public:
 
     virtual void reset_for_relayout() override;
 
-    void paint_all_phases(DisplayListRecordingContext&);
     void initialize_async_scrolling_metadata_recording(DisplayListRecordingContext&);
     void finalize_async_scrolling_metadata_recording(DisplayListRecordingContext const&, HTML::LocalNavigable&, Gfx::IntRect viewport_rect, DisplayList&);
     void build_stacking_context_tree_if_needed();
     void invalidate_stacking_context_tree();
+    void paint_all_phases(DisplayListRecordingContext&);
 
-    void register_scroll_node(AccumulatedVisualContextTree& visual_context_tree_being_built, VisualContextIndex node_index, Paintable const&, VisualContextIndex parent_index);
-    void register_sticky_node(AccumulatedVisualContextTree& visual_context_tree_being_built, VisualContextIndex node_index, Paintable const&, VisualContextIndex parent_index);
     void register_paintable_with_mask_nodes(Paintable const&);
     Vector<WeakPtr<Paintable>> const& paintables_with_mask_nodes() const { return m_paintables_with_mask_nodes; }
+
     void refresh_scroll_state();
     void refresh_sticky_constraints();
     CSSPixelPoint cumulative_scroll_offset_for_node(VisualContextIndex scroll_node_index) const;
@@ -56,10 +55,10 @@ public:
 
     bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, double wheel_delta_x, double wheel_delta_y) override;
 
-    void set_needs_to_refresh_scroll_state(bool value) { m_needs_to_refresh_scroll_state = value; }
+    void set_needs_to_refresh_scroll_state(bool value);
 
-    ScrollState const& scroll_state() const { return m_scroll_state; }
     ScrollStateSnapshot const& scroll_state_snapshot() const { return m_scroll_state_snapshot; }
+    ScrollState const& scroll_state() const { return m_scroll_state; }
 
     void set_paintable_boxes_with_auto_content_visibility(Vector<WeakPtr<Paintable>> paintable_boxes) { m_paintable_boxes_with_auto_content_visibility = move(paintable_boxes); }
     Vector<WeakPtr<Paintable>> const& paintable_boxes_with_auto_content_visibility() const { return m_paintable_boxes_with_auto_content_visibility; }
@@ -86,10 +85,8 @@ private:
 
     void ensure_visual_context_tree() const;
     void build_stacking_context_tree();
-
     bool m_stacking_context_tree_is_valid { false };
     void clear_scroll_state();
-    void precompute_sticky_constraints(ScrollStateSlot, Paintable const&);
 
     explicit ViewportPaintable(Layout::Viewport const&);
 
@@ -99,7 +96,6 @@ private:
     bool m_has_non_viewport_wheel_scroll_target_candidate { false };
 
     Vector<WeakPtr<Paintable>> m_paintable_boxes_with_auto_content_visibility;
-
     Vector<WeakPtr<Paintable>> m_paintables_with_mask_nodes;
 
     RefPtr<DisplayList const> m_display_list_used_as_paint_command_cache_source;
