@@ -1915,6 +1915,30 @@ pub(crate) fn layout_inside_child(
     }
     if !force_independent_context_run
         && layout_mode == LayoutMode::IntrinsicSizing
+        && matches!(input.participation, ParticipationInParentFormattingContext::AtomicInline)
+        && formatting_context_type_created_by_box(facts) == Some(FfiFormattingContextType::Block)
+        && run.callbacks.first_child(child).is_invalid()
+    {
+        // OPTIMIZATION: An empty atomic block has no formatting-context body output. Size it directly in the
+        // parent measurement instead of constructing a child run for both min-content and max-content layout.
+        let sizing = run.sizing();
+        sizing.dimension_atomic_root(
+            child,
+            input.available_space,
+            input.containing_block_constraints,
+            layout_mode,
+        );
+        sizing.resolve_used_block_size_if_treated_as_auto(
+            child,
+            input.available_space,
+            input.containing_block_constraints,
+            Some(CssPixels::default()),
+            || unreachable!("an empty atomic block has a zero automatic content block size"),
+        );
+        return ChildLayoutOutcome::Skipped;
+    }
+    if !force_independent_context_run
+        && layout_mode == LayoutMode::IntrinsicSizing
         && !facts.is_inline()
         && used.inline_size_constraint.get() == SizeConstraint::None
         && used.block_size_constraint.get() == SizeConstraint::None
