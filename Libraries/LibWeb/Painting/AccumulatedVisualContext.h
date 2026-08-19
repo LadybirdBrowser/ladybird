@@ -193,6 +193,8 @@ public:
         return m_nodes[index.value()].data.get<ScrollData>().state_slot;
     }
 
+    bool root_is_visual_viewport() const { return m_root_is_visual_viewport; }
+
 private:
     AccumulatedVisualContextTree(u64 version, Vector<AccumulatedVisualContextNode>&& nodes, bool root_is_visual_viewport)
         : m_version(version)

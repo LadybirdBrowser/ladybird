@@ -2298,6 +2298,8 @@ RefPtr<StackingContext const> Paintable::stacking_context() const
 void Paintable::invalidate_stacking_context()
 {
     m_stacking_context = nullptr;
+    if (auto viewport_paintable = document().unsafe_paintable())
+        viewport_paintable->invalidate_stacking_context_tree();
 }
 
 Optional<int> Paintable::effective_z_index() const
