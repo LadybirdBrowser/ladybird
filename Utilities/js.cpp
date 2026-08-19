@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericLexer.h>
 #include <AK/LexicalPath.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Platform.h>
@@ -227,7 +228,7 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
             g_vm->debugger()->continue_execution();
             return;
         }
-        auto command = StringView { raw_line, strlen(raw_line) }.trim_whitespace();
+        auto command_line = StringView { raw_line, strlen(raw_line) };
 #else
         auto* raw_line = readline("(debug) ");
         if (!raw_line) {
@@ -237,20 +238,27 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
         ArmedScopeGuard free_raw_line = [&] {
             free(raw_line);
         };
-        auto command = StringView { raw_line, strlen(raw_line) }.trim_whitespace();
+        auto command_line = StringView { raw_line, strlen(raw_line) };
 #endif
 
-        if (command == "continue"sv) {
+        GenericLexer command { command_line };
+        command.ignore_while(is_ascii_space);
+        auto command_name = command.consume_while([](char ch) {
+            return is_ascii_alphanumeric(ch) || ch == '-';
+        });
+        command.ignore_while(is_ascii_space);
+
+        if (command_name == "continue"sv && command.is_eof()) {
             g_vm->debugger()->continue_execution();
             return;
         }
 
-        if (command == "help"sv) {
+        if (command_name == "help"sv && command.is_eof()) {
             print_debugger_help();
             continue;
         }
 
-        if (command == "breakpoints"sv) {
+        if (command_name == "breakpoints"sv && command.is_eof()) {
             auto breakpoints = g_vm->debugger()->breakpoints();
             if (breakpoints.is_empty()) {
                 outln("No breakpoints.");
@@ -264,12 +272,12 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
             continue;
         }
 
-        if (command.starts_with("break "sv)) {
+        if (command_name == "break"sv) {
             Utf16String current_filename;
             if (pause_info.source_range.has_value())
                 current_filename = pause_info.source_range->filename();
 
-            auto location = parse_breakpoint_location(command.substring_view(6), current_filename);
+            auto location = parse_breakpoint_location(command.consume_all().trim_whitespace(), current_filename);
             if (!location.has_value() || location->filename.is_empty()) {
                 warnln("Usage: break <line>[:column] or break <file>:<line>[:column]");
                 continue;
@@ -289,8 +297,8 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
             continue;
         }
 
-        if (command.starts_with("delete "sv)) {
-            auto breakpoint_id = command.substring_view(7).trim_whitespace().to_number<JS::BreakpointID>();
+        if (command_name == "delete"sv) {
+            auto breakpoint_id = command.consume_all().trim_whitespace().to_number<JS::BreakpointID>();
             if (!breakpoint_id.has_value()) {
                 warnln("Usage: delete <id>");
                 continue;
@@ -303,7 +311,7 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
             continue;
         }
 
-        warnln("Unknown debugger command '{}'. Enter help for a list of commands.", command);
+        warnln("Unknown debugger command '{}'. Enter help for a list of commands.", command_line.trim_whitespace());
     }
 }
 
