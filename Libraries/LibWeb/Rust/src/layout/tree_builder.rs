@@ -967,6 +967,8 @@ fn update_svg_pattern(
                 (host.callbacks.register_svg_resource_reference)(pattern, graphics_element);
             }
         }
+        // SAFETY: The host arena outlives the tree build.
+        unsafe { &*host.arena }.register_svg_pattern_referencing_node(layout_node);
     }
 
     assert!(state.ancestor_stack.pop().is_some());

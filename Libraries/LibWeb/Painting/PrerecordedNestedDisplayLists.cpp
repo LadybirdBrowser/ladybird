@@ -6,7 +6,9 @@
 
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
@@ -154,24 +156,25 @@ void prerecord_nested_display_lists(DisplayListRecordingContext& context, Viewpo
         record_mask_entry(context, *prerecorded, *paintable, MaskLayerSet::CssAndSvg);
     }
 
-    auto& document = viewport_paintable.document();
-    auto& pattern_referencing_elements = document.svg_pattern_referencing_elements();
-    pattern_referencing_elements.remove_all_matching([](auto const& weak_element) {
-        return !weak_element;
-    });
-    for (auto const& weak_element : pattern_referencing_elements) {
-        auto element = weak_element.ptr();
-        if (!element || &element->document() != &document)
-            continue;
-        auto paintable = element->paintable();
-        if (!paintable)
-            continue;
-        if (layout_node_is_inside_svg_resource_box(paintable->layout_node()))
-            continue;
-        if (recorded_mask_entry_has_empty_svg_mask_layer_area(*prerecorded, *paintable))
-            continue;
-        record_pattern_paint_styles(context, *prerecorded, *paintable);
-    }
+    struct PatternRecordingInputs {
+        DisplayListRecordingContext& context;
+        PrerecordedNestedDisplayLists& prerecorded;
+    } pattern_recording_inputs { context, *prerecorded };
+    Layout::RustFFI::layout_arena_svg_pattern_referencing_node_shells(
+        viewport_paintable.document().layout_node_arena().handle(),
+        [](void* inputs_pointer, void* shell) {
+            auto& inputs = *static_cast<PatternRecordingInputs*>(inputs_pointer);
+            auto& layout_node = *static_cast<Layout::Node*>(shell);
+            auto paintable = layout_node.paintable();
+            if (!paintable)
+                return;
+            if (layout_node_is_inside_svg_resource_box(paintable->layout_node()))
+                return;
+            if (recorded_mask_entry_has_empty_svg_mask_layer_area(inputs.prerecorded, *paintable))
+                return;
+            record_pattern_paint_styles(inputs.context, inputs.prerecorded, *paintable);
+        },
+        &pattern_recording_inputs);
 }
 
 Optional<PaintStyle> prerecorded_pattern_paint_style(DisplayListRecordingContext& context, Paintable const& pattern_paintable)
