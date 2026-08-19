@@ -73,4 +73,7 @@ private:
     void paint_internal(DisplayListRecordingContext&) const;
 };
 
+
+WEB_API void dump_stacking_context_tree(StringBuilder&, ViewportPaintable const&);
+
 }
