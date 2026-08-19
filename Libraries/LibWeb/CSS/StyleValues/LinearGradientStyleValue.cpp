@@ -8,9 +8,8 @@
  */
 
 #include "LinearGradientStyleValue.h"
-#include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 
 namespace Web::CSS {
 
@@ -67,53 +66,9 @@ ValueComparingNonnullRefPtr<StyleValue const> LinearGradientStyleValue::absoluti
     return create(direction(), move(absolutized_color_stops), gradient_type(), (is_repeating() ? GradientRepeating::Yes : GradientRepeating::No), move(absolutized_color_interpolation_method));
 }
 
-float LinearGradientStyleValue::angle_degrees(CSSPixelSize gradient_size) const
-{
-    auto corner_angle_degrees = [&] {
-        return AK::to_degrees(atan2(gradient_size.height().to_double(), gradient_size.width().to_double()));
-    };
-    return direction().visit(
-        [&](SideOrCorner side_or_corner) {
-            auto angle = [&] {
-                switch (side_or_corner) {
-                case SideOrCorner::Top:
-                    return 0.0;
-                case SideOrCorner::Bottom:
-                    return 180.0;
-                case SideOrCorner::Left:
-                    return 270.0;
-                case SideOrCorner::Right:
-                    return 90.0;
-                case SideOrCorner::TopRight:
-                    return corner_angle_degrees();
-                case SideOrCorner::BottomLeft:
-                    return corner_angle_degrees() + 180.0;
-                case SideOrCorner::TopLeft:
-                    return -corner_angle_degrees();
-                case SideOrCorner::BottomRight:
-                    return -(corner_angle_degrees() + 180.0);
-                default:
-                    VERIFY_NOT_REACHED();
-                }
-            }();
-            // Note: For unknowable reasons the angles are opposite on the -webkit- version
-            if (gradient_type() == GradientType::WebKit)
-                return angle + 180.0;
-            return angle;
-        },
-        [&](NonnullRefPtr<StyleValue const> const& style_value) {
-            auto angle = Angle::from_style_value(style_value, {}).to_degrees();
-            // Note: With -webkit-linear-gradient, 0deg points to the right instead of top,
-            // and the direction is reversed (counter-clockwise instead of clockwise)
-            if (gradient_type() == GradientType::WebKit)
-                return 90.0 - angle;
-            return angle;
-        });
-}
-
 ResolvedImage LinearGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node, CSSPixelSize size) const
 {
-    return Painting::resolve_linear_gradient_data(node, size, *this);
+    return Painting::rust_resolve_gradient_for_size(*this, node, size);
 }
 
 }
