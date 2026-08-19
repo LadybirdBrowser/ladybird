@@ -5,6 +5,7 @@
  */
 
 #include <LibWebView/CookieJar.h>
+#include <LibWebView/FaviconStore.h>
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/PrivateBrowsing.h>

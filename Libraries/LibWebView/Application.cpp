@@ -35,6 +35,7 @@
 #include <LibWebView/AutocompleteService.h>
 #include <LibWebView/CompositorClient.h>
 #include <LibWebView/CookieJar.h>
+#include <LibWebView/FaviconStore.h>
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/HelperProcess.h>
@@ -177,6 +178,13 @@ Application::~Application()
     m_browser_process = nullptr;
 
     s_the = nullptr;
+}
+
+FaviconStore& Application::favicon_store(IsPrivate is_private)
+{
+    return is_private == IsPrivate::Yes
+        ? *the().ensure_private_browsing_session().favicon_store
+        : *the().m_favicon_store;
 }
 
 HistoryStore& Application::history_store(IsPrivate is_private)
@@ -789,6 +797,7 @@ PrivateBrowsingSession& Application::ensure_private_browsing_session()
             .cookie_jar = CookieJar::create(IsPrivate::Yes),
             .storage_jar = StorageJar::create(),
             .hsts_store = HSTSStore::create(),
+            .favicon_store = FaviconStore::create(),
             .history_store = HistoryStore::create_disabled(),
             .session_store = SessionStore::create(),
         });
@@ -1195,12 +1204,25 @@ ErrorOr<void> Application::launch_services()
         else
             m_download_store = DownloadStore::create_disabled();
 
-        auto history_outcome = TRY(HistoryStore::migrate_schema(*m_history_database));
-        if (history_outcome == Database::MigrationOutcome::Success) {
+        // The History database is shared by the favicon and history stores. Preflight both before applying either
+        // migration so a database that is too new remains untouched.
+        auto favicons_outcome = TRY(FaviconStore::migrate_schema(*m_history_database, Database::MigrationMode::CheckOnly));
+        auto history_outcome = TRY(HistoryStore::migrate_schema(*m_history_database, Database::MigrationMode::CheckOnly));
+
+        if (favicons_outcome == Database::MigrationOutcome::Success && history_outcome == Database::MigrationOutcome::Success) {
+            favicons_outcome = TRY(FaviconStore::migrate_schema(*m_history_database));
+            history_outcome = favicons_outcome == Database::MigrationOutcome::Success
+                ? TRY(HistoryStore::migrate_schema(*m_history_database))
+                : Database::MigrationOutcome::DatabaseTooNew;
+        }
+
+        if (favicons_outcome == Database::MigrationOutcome::Success && history_outcome == Database::MigrationOutcome::Success) {
+            m_favicon_store = TRY(FaviconStore::create(*m_history_database));
             m_history_store = TRY(HistoryStore::create(*m_history_database));
         } else {
-            dbgln("History database was created by a newer Ladybird version; history will not be persisted this session");
+            dbgln("History database was created by a newer Ladybird version; favicons and history will not be persisted this session");
             history_database_directory = {};
+            m_favicon_store = FaviconStore::create();
             m_history_store = HistoryStore::create();
         }
 
@@ -1221,6 +1243,7 @@ ErrorOr<void> Application::launch_services()
         dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] SQL history is disabled, disabling browsing history");
 
         m_cookie_jar = CookieJar::create();
+        m_favicon_store = FaviconStore::create();
         m_history_store = HistoryStore::create_disabled();
         m_hsts_store = HSTSStore::create();
         m_storage_jar = StorageJar::create();
