@@ -10,6 +10,7 @@ use core::cell::{Cell, RefCell};
 use core::ffi::{c_char, c_int};
 use core::ops::Deref;
 use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
+use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::io::{self, Read, Write};
 #[cfg(unix)]
@@ -21,7 +22,7 @@ use ak::{Utf16FlyString, Utf16String};
 use libjs_runtime_macros::Trace;
 
 use crate::ast::ProgramType;
-use crate::breakpoint::Breakpoint;
+use crate::breakpoint::{Breakpoint, BreakpointID};
 use crate::compile::parse;
 use crate::console::{Console, ConsoleClient, ConsoleClientMethods, LogLevel, PrinterArguments};
 use crate::contrib::test262::global_object::Test262GlobalObject;
@@ -727,7 +728,11 @@ fn parse_breakpoint_location(input: &[u8], current_filename: Utf16View<'_>) -> O
     })
 }
 
-fn print_breakpoint(debugger: &Debugger, breakpoint: &Breakpoint) {
+fn print_breakpoint(
+    debugger: &Debugger,
+    breakpoint: &Breakpoint,
+    breakpoint_conditions: &RefCell<HashMap<BreakpointID, Utf16String>>,
+) {
     let state = if debugger.is_breakpoint_resolved(breakpoint.id) {
         "resolved"
     } else {
@@ -736,9 +741,15 @@ fn print_breakpoint(debugger: &Debugger, breakpoint: &Breakpoint) {
     let mut line = format!("{}: ", breakpoint.id).into_bytes();
     line.extend(Utf16View::of_string(&breakpoint.filename).to_wtf8());
     match breakpoint.column {
-        Some(column) => line.extend_from_slice(format!(":{}:{column} ({state})", breakpoint.line).as_bytes()),
-        None => line.extend_from_slice(format!(":{} ({state})", breakpoint.line).as_bytes()),
+        Some(column) => line.extend_from_slice(format!(":{}:{column}", breakpoint.line).as_bytes()),
+        None => line.extend_from_slice(format!(":{}", breakpoint.line).as_bytes()),
     }
+    line.extend_from_slice(format!(" ({state}").as_bytes());
+    if let Some(condition) = breakpoint_conditions.borrow().get(&breakpoint.id) {
+        line.extend_from_slice(b", condition: ");
+        line.extend(Utf16View::of_string(condition).to_wtf8());
+    }
+    line.push(b')');
     standard_output::outln(&line);
 }
 
@@ -785,7 +796,7 @@ fn print_backtrace(pause_info: &PauseInfo) {
 fn print_debugger_help() {
     standard_output::outln(b"Debugger commands:");
     standard_output::outln(b"    backtrace (bt)");
-    standard_output::outln(b"    break (b) [file:]<line>[:column]");
+    standard_output::outln(b"    break (b) [file:]<line>[:column] [condition]");
     standard_output::outln(b"    breakpoints");
     standard_output::outln(b"    continue (c)");
     standard_output::outln(b"    delete <id>");
@@ -850,8 +861,38 @@ fn run_debugger_prompt(
     pause_info: &PauseInfo,
     line_editor: Option<&JSLineEditor>,
     pause_on_exceptions: &Cell<PauseOnExceptions>,
+    breakpoint_conditions: &RefCell<HashMap<BreakpointID, Utf16String>>,
 ) {
     let debugger = vm.debugger().expect("execution pauses in the attached debugger");
+    if pause_info.reason == PauseReason::Breakpoint {
+        let context = unsafe { pause_info.stack_trace[0].execution_context.as_ref() };
+        let conditions = breakpoint_conditions.borrow();
+        let mut should_pause = false;
+        for breakpoint_id in &pause_info.breakpoint_ids {
+            let Some(condition) = conditions.get(breakpoint_id) else {
+                should_pause = true;
+                break;
+            };
+            match debugger.evaluate_in_frame(vm, context, Utf16View::of_string(condition), UpdateOriginalBindings::No) {
+                Ok(value) if value.to_boolean() => {
+                    should_pause = true;
+                    break;
+                }
+                Ok(_) => {}
+                Err(throw) => {
+                    eprint!("Breakpoint condition threw: ");
+                    let _ = print_value(vm, throw.value(), PrintTarget::StandardError, PrintEnd::Newline);
+                    should_pause = true;
+                    break;
+                }
+            }
+        }
+        drop(conditions);
+        if !should_pause {
+            debugger.continue_execution_preserving_step_state();
+            return;
+        }
+    }
     let reason = debugger_pause_reason(pause_info.reason);
     if let Some(range) = &pause_info.source_range {
         let filename = Utf16View::of_string(range.filename()).to_wtf8();
@@ -917,7 +958,7 @@ fn run_debugger_prompt(
             }
             breakpoints.sort_by_key(|breakpoint| breakpoint.id);
             for breakpoint in &breakpoints {
-                print_breakpoint(&debugger, breakpoint);
+                print_breakpoint(&debugger, breakpoint, breakpoint_conditions);
             }
             continue;
         }
@@ -983,10 +1024,21 @@ fn run_debugger_prompt(
                     Utf16View::of_string(source_range.filename())
                 });
 
-            let location = parse_breakpoint_location(command.consume_remaining(), current_filename);
+            let arguments = command.consume_remaining();
+            let location_end = arguments
+                .iter()
+                .position(u8::is_ascii_whitespace)
+                .unwrap_or(arguments.len());
+            let location_text = &arguments[..location_end];
+            let condition_text = trim_whitespace(&arguments[location_end..]);
+            let location = parse_breakpoint_location(location_text, current_filename);
             let Some(location) = location.filter(|location| !Utf16View::of_string(&location.filename).is_empty())
             else {
-                eprintln!("Usage: break <line>[:column] or break <file>:<line>[:column]");
+                eprintln!("Usage: break <line>[:column] [condition] or break <file>:<line>[:column] [condition]");
+                continue;
+            };
+            let Some(condition) = utf16_from_wtf8(condition_text) else {
+                eprintln!("Breakpoint condition is not valid UTF-8.");
                 continue;
             };
 
@@ -1000,12 +1052,20 @@ fn run_debugger_prompt(
                     }
                 };
 
+            if condition.is_empty() {
+                breakpoint_conditions.borrow_mut().remove(&breakpoint_id);
+            } else {
+                breakpoint_conditions
+                    .borrow_mut()
+                    .insert(breakpoint_id, Utf16String::from_utf16(&condition));
+            }
+
             let breakpoints = debugger.breakpoints();
             let breakpoint = breakpoints
                 .iter()
                 .find(|breakpoint| breakpoint.id == breakpoint_id)
                 .expect("the debugger has the breakpoint it returned");
-            print_breakpoint(&debugger, breakpoint);
+            print_breakpoint(&debugger, breakpoint, breakpoint_conditions);
             continue;
         }
 
@@ -1018,6 +1078,7 @@ fn run_debugger_prompt(
                 eprintln!("No breakpoint with id {breakpoint_id}.");
                 continue;
             }
+            breakpoint_conditions.borrow_mut().remove(&breakpoint_id);
             standard_output::outln(format!("Deleted breakpoint {breakpoint_id}.").as_bytes());
             continue;
         }
@@ -2016,11 +2077,18 @@ fn ladybird_main(arguments: &[String], line_editor: Option<JSLineEditor>) -> c_i
                 .and_then(|value| parse_pause_on_exceptions(value.as_bytes()))
                 .unwrap_or(PauseOnExceptions::None),
         );
+        let breakpoint_conditions = RefCell::new(HashMap::new());
         vm.enable_debugging();
         let debugger = vm.debugger().expect("debugging was just enabled");
         debugger.set_pause_on_exceptions(pause_on_exceptions.get());
         debugger.set_pause_callback(move |vm, pause_info| {
-            run_debugger_prompt(vm, pause_info, line_editor.as_ref(), &pause_on_exceptions);
+            run_debugger_prompt(
+                vm,
+                pause_info,
+                line_editor.as_ref(),
+                &pause_on_exceptions,
+                &breakpoint_conditions,
+            );
         });
         debugger.request_pause_on_next_bytecode_execution();
     }

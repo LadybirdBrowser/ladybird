@@ -1,0 +1,7 @@
+Paused at <ladybird>/Tests/LibJS/Debugger/input/conditional-breakpoints.js:7:1 (entry)
+1: <ladybird>/Tests/LibJS/Debugger/input/conditional-breakpoints.js:2 (resolved, condition: false)
+2: <ladybird>/Tests/LibJS/Debugger/input/conditional-breakpoints.js:4 (resolved, condition: true)
+1: <ladybird>/Tests/LibJS/Debugger/input/conditional-breakpoints.js:2 (resolved, condition: false)
+2: <ladybird>/Tests/LibJS/Debugger/input/conditional-breakpoints.js:4 (resolved, condition: true)
+Paused at <ladybird>/Tests/LibJS/Debugger/input/conditional-breakpoints.js:4:5 (breakpoint)
+Deleted breakpoint 2.
