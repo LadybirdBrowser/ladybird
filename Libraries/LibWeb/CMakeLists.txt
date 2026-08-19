@@ -674,6 +674,7 @@ set(SOURCES
     HTML/SupportedImageTypes.cpp
     HTML/SyntaxHighlighter/SyntaxHighlighter.cpp
     HTML/TagNames.cpp
+    HTML/TextDirective.cpp
     HTML/TextMetrics.cpp
     HTML/TextTrack.cpp
     HTML/TextTrackCue.cpp
