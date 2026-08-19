@@ -6,16 +6,13 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
-#include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/Vector.h>
 #include <LibGC/Cell.h>
 #include <LibGC/Ptr.h>
-#include <LibGfx/Path.h>
-#include <LibGfx/WindingRule.h>
+#include <LibWeb/Layout/LayoutRustFFI.h>
+#include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/Painting/Paintable.h>
 
 namespace Web {
@@ -47,31 +44,13 @@ enum class CaretLineDirection : u8 {
 
 class WEB_API HitTestDisplayList : public RefCounted<HitTestDisplayList> {
 public:
-    static NonnullRefPtr<HitTestDisplayList> create(u64 visual_context_tree_version);
     static NonnullRefPtr<HitTestDisplayList> create_from_rust_recording(u64 visual_context_tree_version, Layout::NodeArena&);
-    [[nodiscard]] bool is_current() const;
-    u64 id() const { return m_id; }
+
     size_t item_count() const { return m_items.size(); }
-    void ensure_item_capacity(size_t capacity) { m_items.ensure_capacity(capacity); }
-
-    // Copies a validated range of items recorded by one (paintable, phase) from the retained previous
-    // list into this one, returning where it landed. Items are copied, never inspected: source ranges
-    // belonging to relaid-out paintables may hold dangling fragment pointers, but only ranges whose
-    // owners kept a valid cache entry (and therefore were not relaid out) are ever passed here.
-    Paintable::HitTestItemRange append_cached_items(HitTestDisplayList const& source, Paintable::HitTestItemRange);
-
-    void verify_cached_items_match_fresh_recording(Paintable::HitTestItemRange spliced_range, HitTestDisplayList const& fresh_recording, Paintable const&, PaintPhase) const;
-
-    void append_box(Paintable const&, Paintable& target, CSSPixelRect, VisualContextIndex, BorderRadiiData);
-    void append_svg_path(Paintable& target, Gfx::Path, Gfx::WindingRule, CSSPixelRect bounding_box, VisualContextIndex);
-    void append_text_fragment(PaintableFragment const&, VisualContextIndex);
-    void append_empty_line(PaintableFragment const& sibling_fragment, size_t caret_offset, size_t line_box_index, CSSPixelRect line_rect, VisualContextIndex);
-    void append_empty_line(PaintableWithLines const&, DOM::Node const&, size_t caret_offset, CSSPixelRect line_rect, VisualContextIndex);
-    void append_empty_editable(Paintable const&, CSSPixelRect, VisualContextIndex);
-    void append_chrome_widget(Paintable const&, ChromeWidgetKind, VisualContextIndex);
     void visit_edges(GC::Cell::Visitor&);
 
     u64 visual_context_tree_version() const { return m_visual_context_tree_version; }
+    [[nodiscard]] bool is_current() const;
     [[nodiscard]] Optional<HitTestResult> hit_test(CSSPixelPoint, HitTestType, ViewportPaintable const&, double device_pixels_per_css_pixel, ChromeMetrics const&) const;
     // When constraint_scope is given, the caret position is constrained to lines inside that node, and points
     // outside it resolve to the closest position within it.
@@ -86,7 +65,7 @@ public:
     TraversalDecision hit_test_all(CSSPixelPoint, ViewportPaintable const&, double device_pixels_per_css_pixel, ChromeMetrics const&, Function<TraversalDecision(HitTestResult)> const&) const;
 
 private:
-    explicit HitTestDisplayList(u64 visual_context_tree_version);
+    HitTestDisplayList(u64 visual_context_tree_version, Layout::NodeArena&, u64 rust_generation);
 
     enum class ItemKind : u8 {
         Box,
@@ -98,9 +77,6 @@ private:
         ChromeWidget,
     };
 
-    // Items reference the paintable's fragments and chrome widgets by index and kind rather than by
-    // pointer, so a retained list never dangles into paintable-owned storage: an index is resolved
-    // against the paintable's current fragment list on every query.
     struct Item {
         ItemKind kind;
         NonnullRefPtr<Paintable> paintable;
@@ -111,26 +87,11 @@ private:
         size_t caret_offset { 0 };
         CSSPixelRect rect;
         CSSPixelRect caret_rect;
-        Optional<size_t> caret_line_index;
-        Optional<CSSPixelRect> caret_line_rect;
-        Optional<CSSPixelRect> block_container_margin_rect;
         VisualContextIndex visual_context_index;
-        BorderRadiiData border_radii;
-        Optional<Gfx::Path> path {};
-        Gfx::WindingRule winding_rule { Gfx::WindingRule::Nonzero };
     };
 
-    struct SpatialIndex {
-        HashMap<u64, Vector<size_t>> cells;
-        Vector<size_t> unbucketed_items;
-    };
-
-    // A visual line assembled from consecutive caret-capable display-list items. Caret lines preserve painted
-    // topology independently of the spatial hit-test index so keyboard navigation can reason about lines that contain
-    // empty or zero-area caret targets.
     struct CaretLine {
         CSSPixelRect rect;
-        Optional<CSSPixelRect> block_container_margin_rect;
         VisualContextIndex visual_context_index;
         size_t first_caret_item_index { 0 };
         size_t last_caret_item_index { 0 };
@@ -142,21 +103,37 @@ private:
         After,
     };
 
-    void build_derived_structures_if_needed() const;
-    void verify_no_item_appended_after_derived_structures_are_built() const { VERIFY(!m_derived_structures_built); }
-    void add_item_to_spatial_index(size_t item_index) const;
-    void add_item_to_caret_items(size_t item_index) const;
-    SpatialIndex& spatial_index_for(VisualContextIndex) const;
+    struct TopmostItem {
+        size_t index { 0 };
+        CSSPixelPoint local_point;
+    };
 
-    [[nodiscard]] Optional<Gfx::FloatPoint> local_point_for_visual_context(VisualContextIndex, CSSPixelPoint, ViewportPaintable const&, double device_pixels_per_css_pixel, AccumulatedVisualContextTree::ClipBehavior = AccumulatedVisualContextTree::ClipBehavior::Respect) const;
-    [[nodiscard]] Optional<CSSPixelPoint> local_css_pixel_point_for_visual_context(VisualContextIndex index, CSSPixelPoint point, ViewportPaintable const& viewport_paintable, double device_pixels_per_css_pixel, AccumulatedVisualContextTree::ClipBehavior clip_behavior = AccumulatedVisualContextTree::ClipBehavior::Respect) const
-    {
-        return local_point_for_visual_context(index, point, viewport_paintable, device_pixels_per_css_pixel, clip_behavior)
-            .map([](auto float_point) { return float_point.template to_type<CSSPixels>(); });
-    }
-    [[nodiscard]] CSSPixelRect viewport_rect_for_item(Item const&, CSSPixelRect const&, ViewportPaintable const&, double device_pixels_per_css_pixel) const;
-    [[nodiscard]] CSSPixelRect caret_line_rect_for_item(Item const&) const;
-    [[nodiscard]] bool item_contains(Item const&, Gfx::FloatPoint local_float_point, ChromeMetrics const&) const;
+    struct CaretItemForLine {
+        size_t item_index { 0 };
+        CaretPositionType type { CaretPositionType::Closest };
+    };
+
+    struct ClosestLine {
+        Optional<size_t> index;
+        CSSPixelPoint local_point;
+        CSSPixels block_distance { CSSPixels::max() };
+    };
+
+    struct QueryContext;
+    static Optional<TopmostItem> topmost_item_from(Layout::RustFFI::FfiTopmostItem const&);
+    void ensure_caret_lines() const;
+    [[nodiscard]] Item const& caret_item(size_t caret_item_index) const { return m_items[m_caret_item_indices[caret_item_index]]; }
+
+    [[nodiscard]] Optional<TopmostItem> find_topmost_item(CSSPixelPoint, ViewportPaintable const&, double device_pixels_per_css_pixel, ChromeMetrics const&) const;
+    void find_topmost_items_for_caret(CSSPixelPoint, ViewportPaintable const&, double device_pixels_per_css_pixel, ChromeMetrics const&, Optional<TopmostItem>& caret_item, Optional<TopmostItem>& hit_item) const;
+    [[nodiscard]] Vector<size_t> hit_item_indices_topmost_first(CSSPixelPoint, ViewportPaintable const&, double device_pixels_per_css_pixel, ChromeMetrics const&) const;
+    [[nodiscard]] size_t item_index_at_line_edge(size_t line_index, CaretPositionType) const;
+    [[nodiscard]] Optional<CaretItemForLine> caret_item_for_line(size_t line_index, CSSPixelPoint local_point, CaretPositionMode) const;
+    [[nodiscard]] bool item_is_inline_adjacent_to_line(size_t item_index, size_t line_index) const;
+    [[nodiscard]] ClosestLine find_closest_line(CSSPixelPoint, ViewportPaintable const&, double device_pixels_per_css_pixel, CaretPositionMode, DOM::Node const* scope_dom_node, AccumulatedVisualContextTree::ClipBehavior) const;
+
+    [[nodiscard]] Optional<CSSPixelPoint> local_point_for_visual_context(VisualContextIndex, CSSPixelPoint, ViewportPaintable const&, double device_pixels_per_css_pixel) const;
+    [[nodiscard]] CSSPixelRect viewport_rect_for_context(VisualContextIndex, CSSPixelRect const&, ViewportPaintable const&, double device_pixels_per_css_pixel) const;
     [[nodiscard]] PaintableFragment const* text_fragment_for_item(Item const&) const;
     [[nodiscard]] RefPtr<ChromeWidget> chrome_widget_for_item(Item const&) const;
     [[nodiscard]] DOM::Node const* item_dom_node(Item const&) const;
@@ -166,29 +143,18 @@ private:
     [[nodiscard]] HitTestResult hit_test_result_for_item(Item const&, CSSPixelPoint local_point) const;
     [[nodiscard]] Optional<CaretPosition> caret_position_for_item(Item const&, CSSPixelPoint local_point, CaretPositionType = CaretPositionType::Closest) const;
     [[nodiscard]] Optional<CaretPosition> caret_position_for_hit_container(Item const&) const;
-    [[nodiscard]] Optional<CaretPosition> caret_position_for_line(CaretLine const&, CSSPixelPoint local_point, CaretPositionMode) const;
-    [[nodiscard]] Item const& item_at_line_edge(CaretLine const&, CaretPositionType) const;
+    [[nodiscard]] Optional<CaretPosition> caret_position_for_line(size_t line_index, CSSPixelPoint local_point, CaretPositionMode) const;
     [[nodiscard]] bool item_contains_caret_position(Item const&, DOM::Node const&, size_t offset, TextAffinity) const;
     [[nodiscard]] Optional<size_t> caret_line_index_for_position(DOM::Node const&, size_t offset, TextAffinity) const;
     [[nodiscard]] bool line_contains_descendant_of(CaretLine const&, DOM::Node const&) const;
-    [[nodiscard]] bool item_is_inline_adjacent_to_line(Item const&, CaretLine const&) const;
-    void find_topmost_item_in_list(Vector<size_t> const&, Gfx::FloatPoint local_float_point, ChromeMetrics const&, Optional<size_t>& topmost_item_index) const;
-    void find_topmost_caret_item_in_list(Vector<size_t> const&, Gfx::FloatPoint local_float_point, ChromeMetrics const&, Optional<size_t>& topmost_item_index) const;
-    void find_items_in_list(Vector<size_t> const&, Gfx::FloatPoint local_float_point, ChromeMetrics const&, Vector<size_t>& hit_item_indices) const;
-
-    static bool items_equal_for_cache_verification(Item const&, Item const&);
-    static String dump_item_for_cache_verification(Item const&);
 
     u64 m_visual_context_tree_version { 0 };
-    RefPtr<Layout::NodeArena> m_rust_arena;
+    NonnullRefPtr<Layout::NodeArena> m_arena;
     u64 m_rust_generation { 0 };
-    u64 m_id { 0 };
     Vector<Item> m_items;
-    mutable bool m_derived_structures_built { false };
+    mutable bool m_caret_lines_materialized { false };
     mutable Vector<size_t> m_caret_item_indices;
     mutable Vector<CaretLine> m_caret_lines;
-    mutable Vector<OwnPtr<SpatialIndex>> m_spatial_indexes;
-    mutable Vector<VisualContextIndex> m_used_visual_context_indices;
 };
 
 }

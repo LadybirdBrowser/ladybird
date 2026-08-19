@@ -8,8 +8,6 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Blending.h>
-#include <LibWeb/Painting/DisplayListRecordingContext.h>
-#include <LibWeb/Painting/PrerecordedNestedDisplayLists.h>
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
 #include <LibWeb/Painting/SVGClipPaintable.h>
 #include <LibWeb/Painting/SVGForeignObjectPaintable.h>
@@ -115,28 +113,6 @@ Optional<Gfx::MaskKind> SVGMaskable::get_svg_mask_type() const
     return {};
 }
 
-static Optional<DisplayListResource> paint_mask_or_clip_to_display_list(
-    DisplayListRecordingContext& context,
-    Gfx::AffineTransform const& content_units_transform,
-    Paintable const& paintable,
-    CSSPixelRect const& area,
-    bool is_clip_path)
-{
-    auto mask_rect = context.enclosing_device_rect(area);
-    auto device_scale = static_cast<float>(context.device_pixels_per_css_pixel());
-    // Content records in the resource's own units scaled by the device pixel ratio; the root maps
-    // it through the content-units transform into the target's user space and rebases onto the
-    // mask surface origin.
-    auto content_units_transform_in_recorded_space = content_units_transform;
-    content_units_transform_in_recorded_space.set_translation({ content_units_transform.translation().x() * device_scale, content_units_transform.translation().y() * device_scale });
-    auto surface_origin = mask_rect.location().to_type<int>().to_type<float>();
-    auto recorded_to_surface = Gfx::AffineTransform {}
-                                   .translate(-surface_origin)
-                                   .multiply(content_units_transform_in_recorded_space);
-    TransformData root_transform { recorded_to_surface.to_matrix(), {} };
-    return record_nested_svg_display_list(context, paintable, root_transform, IncludeRootElementTransform::Yes, is_clip_path);
-}
-
 Gfx::AffineTransform SVGMaskable::object_bounding_box_content_units_transform() const
 {
     auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
@@ -147,32 +123,6 @@ Gfx::AffineTransform SVGMaskable::object_bounding_box_content_units_transform() 
     return Gfx::AffineTransform {}
         .translate(bounding_box.location().to_type<float>())
         .scale({ bounding_box.width().to_float(), bounding_box.height().to_float() });
-}
-
-Optional<DisplayListResource> SVGMaskable::calculate_svg_mask_display_list(DisplayListRecordingContext& context, CSSPixelRect const& mask_area) const
-{
-    auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
-    auto* mask_box = get_mask_box(graphics_element);
-    if (!mask_box)
-        return {};
-    auto& mask_paintable = static_cast<Paintable const&>(*mask_box->paintable());
-    auto content_units_transform = Gfx::AffineTransform {};
-    if (as<SVG::SVGMaskElement>(*mask_box->dom_node()).mask_content_units() == SVG::SVGUnits::ObjectBoundingBox)
-        content_units_transform = object_bounding_box_content_units_transform();
-    return paint_mask_or_clip_to_display_list(context, content_units_transform, mask_paintable, mask_area, false);
-}
-
-Optional<DisplayListResource> SVGMaskable::calculate_svg_clip_display_list(DisplayListRecordingContext& context, CSSPixelRect const& clip_area) const
-{
-    auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
-    auto* clip_box = get_clip_box(graphics_element);
-    if (!clip_box)
-        return {};
-    auto& clip_paintable = static_cast<Paintable const&>(*clip_box->paintable());
-    auto content_units_transform = Gfx::AffineTransform {};
-    if (as<SVG::SVGClipPathElement>(*clip_box->dom_node()).clip_path_units() == SVG::SVGUnits::ObjectBoundingBox)
-        content_units_transform = object_bounding_box_content_units_transform();
-    return paint_mask_or_clip_to_display_list(context, content_units_transform, clip_paintable, clip_area, true);
 }
 
 }

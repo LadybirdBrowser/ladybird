@@ -6,7 +6,6 @@
 
 #include <LibWeb/Painting/SVGClipPaintable.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
-#include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 
 namespace Web::Painting {

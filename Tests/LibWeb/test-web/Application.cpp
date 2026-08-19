@@ -82,7 +82,6 @@ void Application::create_platform_options(WebView::BrowserOptions& browser_optio
         for (auto variable : verification_variables)
             MUST(Core::Environment::set(variable, "1"sv, Core::Environment::Overwrite::Yes));
     }
-
     browser_options.headless_mode = WebView::HeadlessMode::Test;
     browser_options.disable_sql_database = WebView::DisableSQLDatabase::Yes;
 

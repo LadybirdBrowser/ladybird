@@ -91,7 +91,6 @@ pub struct FfiCommitSink {
     pub set_svg_viewport_transform: unsafe extern "C" fn(*mut c_void, *mut c_void, crate::layout::FfiAffineTransform),
     pub set_svg_viewport_size: unsafe extern "C" fn(*mut c_void, *mut c_void, crate::layout::FfiCssPixelSize),
     pub set_computed_svg_path: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, u64),
-    pub set_collapsed_table_borders: unsafe extern "C" fn(*mut c_void, *mut c_void, *const FfiCollapsedTableBorders),
     pub finish_node:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, *mut c_void, *mut c_void) -> FfiCommitNodeResult,
     pub assign_inline_box_geometry: unsafe extern "C" fn(*mut c_void, *mut c_void),
@@ -270,9 +269,6 @@ fn commit_subtree(
             paintables.set_used_grid_tracks(paintable_slot, tracks);
         }
         if !reuses_committed_subtree && let Some(borders) = &fragment.collapsed_table_borders {
-            borders.with_ffi_view(|view| {
-                unsafe { (sink.set_collapsed_table_borders)(sink.context, paintable, view) };
-            });
             paintables.set_collapsed_table_borders(paintable_slot, borders);
         }
     }

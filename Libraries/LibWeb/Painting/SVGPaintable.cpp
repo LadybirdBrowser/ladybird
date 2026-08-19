@@ -5,7 +5,6 @@
  */
 
 #include <LibGfx/BoundingBox.h>
-#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/SVGPaintable.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
 

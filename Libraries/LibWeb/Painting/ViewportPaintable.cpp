@@ -19,9 +19,7 @@
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
-#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/ScrollState.h>
-#include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Selection/Selection.h>
 
@@ -113,7 +111,6 @@ void ViewportPaintable::reset_for_relayout()
     m_paint_command_cache_source_referenced_resources = {};
     mirror_rust_clear_paint_cache_sources(*this);
     m_paintable_boxes_with_auto_content_visibility.clear();
-    m_paintables_with_mask_nodes.clear();
     m_visual_context_tree.clear();
     m_visual_context_tree_needs_compositor_update = false;
     mirror_rust_clear_visual_context_tree(*this);
@@ -125,52 +122,6 @@ void ViewportPaintable::build_stacking_context_tree_if_needed()
         return;
     rust_build_stacking_context_tree(*this);
     m_stacking_context_tree_is_valid = true;
-}
-
-void ViewportPaintable::build_stacking_context_tree()
-{
-    set_stacking_context(StackingContext::create(*this, nullptr, 0));
-
-    Vector<PaintableWithLines*> blocks_with_inline_box_pieces;
-    size_t index_in_tree_order = 1;
-    for_each_in_subtree_of_type<Paintable>([&](auto& paintable_box) {
-        paintable_box.invalidate_stacking_context();
-        if (auto* paintable_with_lines = as_if<PaintableWithLines>(paintable_box); paintable_with_lines && !paintable_with_lines->inline_box_pieces().is_empty())
-            blocks_with_inline_box_pieces.append(paintable_with_lines);
-        auto parent_context = paintable_box.enclosing_stacking_context();
-        auto establishes_stacking_context = paintable_box.layout_node().establishes_stacking_context();
-        if ((paintable_box.is_positioned() || establishes_stacking_context) && paintable_box.effective_z_index().value_or(0) == 0)
-            parent_context->m_positioned_descendants_and_stacking_contexts_with_stack_level_0.append(paintable_box);
-        if (!paintable_box.is_positioned() && paintable_box.is_floating())
-            parent_context->m_non_positioned_floating_descendants.append(paintable_box);
-        if (!establishes_stacking_context && (paintable_box.is_inline() || paintable_box.layout_node().is_replaced_box()))
-            parent_context->m_contains_inline_or_replaced_descendants = true;
-        if (!establishes_stacking_context) {
-            VERIFY(!paintable_box.stacking_context());
-            return TraversalDecision::Continue;
-        }
-        VERIFY(parent_context);
-        paintable_box.set_stacking_context(StackingContext::create(paintable_box, parent_context, index_in_tree_order++));
-        return TraversalDecision::Continue;
-    });
-
-    stacking_context()->sort();
-
-    for (auto* block : blocks_with_inline_box_pieces)
-        block->assign_fragment_ownership();
-}
-
-void ViewportPaintable::paint_all_phases(DisplayListRecordingContext& context)
-{
-    build_stacking_context_tree_if_needed();
-    context.display_list_recorder().save_layer();
-    stacking_context()->paint(context);
-    context.display_list_recorder().restore();
-}
-
-void ViewportPaintable::register_paintable_with_mask_nodes(Paintable const& paintable_box)
-{
-    m_paintables_with_mask_nodes.append(paintable_box);
 }
 
 void ViewportPaintable::invalidate_stacking_context_tree()
@@ -192,7 +143,6 @@ void ViewportPaintable::set_needs_to_refresh_scroll_state(bool value)
 
 void ViewportPaintable::clear_scroll_state()
 {
-    m_scroll_state = {};
     m_scroll_state_snapshot = {};
     m_needs_to_refresh_scroll_state = true;
     mirror_rust_clear_scroll_state(*this);
@@ -210,14 +160,6 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
     auto forced_incompatible_rebuild = m_force_incompatible_visual_context_tree_rebuild_for_testing;
     m_force_incompatible_visual_context_tree_rebuild_for_testing = false;
     auto is_compatible = rust_assign_accumulated_visual_contexts(*this, forced_incompatible_rebuild);
-    m_paintables_with_mask_nodes.clear();
-    Layout::RustFFI::layout_arena_visual_context_mask_node_shells(
-        rust_arena().handle(),
-        [](void* context, void* shell) {
-            auto& viewport_paintable = *static_cast<ViewportPaintable*>(context);
-            viewport_paintable.register_paintable_with_mask_nodes(*static_cast<Paintable*>(shell));
-        },
-        this);
     auto visual_context_tree = materialize_rust_main_visual_context_tree(*this);
     if (is_compatible) {
         visual_context_tree.reuse_version_from(*m_visual_context_tree);

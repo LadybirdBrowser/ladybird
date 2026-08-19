@@ -16,6 +16,7 @@
 #include <AK/kmalloc.h>
 #include <LibGC/Ptr.h>
 #include <LibGfx/AffineTransform.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Display.h>
@@ -23,17 +24,16 @@
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/InvalidateDisplayList.h>
-#include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/FlexLayoutData.h>
 #include <LibWeb/Layout/GridLayoutData.h>
+#include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/Painting/BackgroundPainting.h>
+#include <LibWeb/Painting/BorderRadiiData.h>
+#include <LibWeb/Painting/BordersData.h>
 #include <LibWeb/Painting/BoxModelMetrics.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/ChromeWidget.h>
-#include <LibWeb/Painting/CollapsedTableBorders.h>
 #include <LibWeb/Painting/DisplayList.h>
-#include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/HitTestResult.h>
 #include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
@@ -74,19 +74,6 @@ struct UsedGridTrackList {
     Vector<CSSPixels> track_sizes;
 };
 
-struct MaskLayerPresence {
-    MaskLayerOrigin origin;
-    CSSPixelRect area;
-    Gfx::MaskKind kind { Gfx::MaskKind::Alpha };
-};
-
-enum class MaskLayerSet : u8 {
-    CssAndSvg,
-    SvgOnly,
-};
-
-bool register_mask_display_lists(DisplayListRecordingContext&, Paintable const&, MaskLayerSet);
-
 class WEB_API Paintable
     : public RefCounted<Paintable>
     , public Weakable<Paintable>
@@ -108,18 +95,9 @@ public:
     [[nodiscard]] CSS::Display display() const;
 
     bool has_stacking_context() const;
-    RefPtr<StackingContext> enclosing_stacking_context();
-
-    void paint_inspector_overlay(DisplayListRecordingContext&) const;
 
     virtual bool forms_unconnected_subtree() const { return false; }
 
-    Layout::RustFFI::PaintableSlotId rust_slot() const { return m_rust_slot; }
-    Layout::NodeArena& rust_arena() const { return *m_rust_arena; }
-    Layout::RustFFI::PaintableData const& rust_data() const { return *m_rust_data; }
-    bool has_flag(Layout::RustFFI::PaintableFlag flag) const { return (rust_data().flags & to_underlying(flag)) != 0; }
-
-    Optional<CSSPixelRect> absolute_resizer_rect(ChromeMetrics const& chrome_metrics) const;
     bool has_layout_node() const { return m_layout_node; }
     Layout::NodeWithStyle const& layout_node() const
     {
@@ -152,7 +130,6 @@ public:
 
     [[nodiscard]] virtual bool foreground_paints_descendant_content() const { return false; }
 
-    [[nodiscard]] bool has_css_borders() const;
     [[nodiscard]] virtual bool is_svg_svg_paintable() const { return false; }
     [[nodiscard]] virtual bool is_svg_path_paintable() const { return false; }
     [[nodiscard]] virtual bool is_svg_graphics_paintable() const { return false; }
@@ -201,35 +178,27 @@ public:
 
     virtual void reset_for_relayout();
 
+    Layout::RustFFI::PaintableSlotId rust_slot() const { return m_rust_slot; }
+    Layout::NodeArena& rust_arena() const { return *m_rust_arena; }
+    Layout::RustFFI::PaintableData const& rust_data() const { return *m_rust_data; }
+
     // The viewBox/preserveAspectRatio transform a viewport-establishing box applies to its
     // content, in content-box-local user coordinates. Presence marks the paintable as
     // viewport-establishing for the accumulated visual context tree.
     virtual Optional<Gfx::AffineTransform> svg_viewport_transform() const { return {}; }
     virtual void set_svg_viewport_transform(Gfx::AffineTransform) { VERIFY_NOT_REACHED(); }
 
-    virtual void paint(DisplayListRecordingContext&, PaintPhase) const;
-    virtual void record_hit_test_items(DisplayListRecordingContext&, PaintPhase) const;
-    void record_async_scrolling_metadata(DisplayListRecordingContext&) const;
-
     bool should_paint_cursor() const;
 
     // Callers are responsible for checking that the element is empty and visible.
-    void record_empty_editable_hit_test_item(HitTestDisplayList&) const;
 
-    RefPtr<StackingContext> stacking_context();
-    RefPtr<StackingContext const> stacking_context() const;
-    void set_stacking_context(NonnullRefPtr<StackingContext>);
     void invalidate_stacking_context();
     Optional<int> effective_z_index() const;
 
     virtual Optional<CSSPixelRect> get_mask_area() const { return {}; }
     virtual Optional<Gfx::MaskKind> get_mask_type() const { return {}; }
-    virtual Optional<DisplayListResource> calculate_mask(DisplayListRecordingContext&, CSSPixelRect const&) const { return {}; }
 
     virtual Optional<CSSPixelRect> get_clip_area() const { return {}; }
-    virtual Optional<DisplayListResource> calculate_clip(DisplayListRecordingContext&, CSSPixelRect const&) const { return {}; }
-
-    Vector<MaskLayerPresence, 3> mask_layer_presence(MaskLayerSet) const;
 
     BoxModelMetrics box_model() const;
 
@@ -277,7 +246,6 @@ public:
     CSSPixelRect absolute_rect() const;
     CSSPixelRect absolute_padding_box_rect() const;
     CSSPixelRect absolute_border_box_rect() const;
-    CSSPixelRect overflow_clip_edge_rect() const;
 
     CSSPixels border_box_width() const
     {
@@ -295,14 +263,6 @@ public:
     CSSPixels absolute_y() const { return absolute_rect().y(); }
     CSSPixelPoint absolute_position() const { return absolute_rect().location(); }
 
-    Optional<size_t> containing_line_box_index() const
-    {
-        if (!rust_data().has_containing_line_box_index)
-            return {};
-        return rust_data().containing_line_box_index;
-    }
-    Optional<CSSPixelRect> absolute_containing_line_box_rect() const;
-
     CSSPixelPoint transform_to_local_coordinates(CSSPixelPoint position) const;
 
     [[nodiscard]] bool has_scrollable_overflow() const;
@@ -310,9 +270,6 @@ public:
     [[nodiscard]] bool has_css_transform() const;
 
     [[nodiscard]] bool has_non_invertible_css_transform() const { return has_flag(Layout::RustFFI::PaintableFlag::HasNonInvertibleCssTransform); }
-
-
-    [[nodiscard]] bool overflow_property_applies() const;
 
     [[nodiscard]] Optional<CSSPixelRect> scrollable_overflow_rect() const;
 
@@ -323,6 +280,7 @@ public:
     Optional<CachedOverflowData> cached_overflow_data() const;
     void set_cached_overflow_data(CachedOverflowData);
     void clear_cached_overflow_data();
+
     virtual void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);
 
     virtual bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y);
@@ -354,16 +312,6 @@ public:
 
     bool uses_collapsing_borders_model() const { return rust_data().uses_collapsing_borders_model; }
 
-    void set_collapsed_table_borders(OwnPtr<CollapsedTableBorders> collapsed_table_borders) { m_collapsed_table_borders = move(collapsed_table_borders); }
-    CollapsedTableBorders const* collapsed_table_borders() const { return m_collapsed_table_borders.ptr(); }
-
-    enum class ShrinkRadiiForBorders {
-        Yes,
-        No
-    };
-
-    BorderRadiiData normalized_border_radii_data(ShrinkRadiiForBorders shrink = ShrinkRadiiForBorders::No) const;
-
     BorderRadiiData border_radii_data() const;
 
     Optional<BordersData> outline_data() const;
@@ -372,12 +320,6 @@ public:
 
     void set_filter(ResolvedCSSFilter filter) { m_filter = move(filter); }
     ResolvedCSSFilter const& filter() const { return m_filter; }
-
-    // Box-size-keyed memo of size-dependent image painting state (resolved gradient
-    // data), so image style values stay immutable shared data.
-    CSS::ResolvedImage const& resolved_image_for_size(CSS::AbstractImageStyleValue const&, CSSPixelSize) const;
-
-    Optional<CSSPixelRect> get_clip_rect() const;
 
     struct PhysicalResizeAxes {
         bool horizontal;
@@ -404,15 +346,10 @@ public:
     [[nodiscard]] bool could_be_scrolled_by_wheel_event() const;
     [[nodiscard]] bool could_be_scrolled_by_wheel_event(ScrollDirection direction) const;
 
-    // The used grid tracks and the devtools grid/flex payloads live in the Rust arena; these
-    // getters convert the committed views on demand.
     Optional<UsedGridTrackList> used_values_for_grid_template_columns() const;
     Optional<UsedGridTrackList> used_values_for_grid_template_rows() const;
     OwnPtr<Layout::GridLayoutData> grid_layout_data() const;
     OwnPtr<Layout::FlexLayoutData> flex_layout_data() const;
-    void paint_flexbox_inspector_overlay(DisplayListRecordingContext&, FlexboxInspectorOverlayOptions const&) const;
-    void paint_grid_inspector_overlay(DisplayListRecordingContext&, GridInspectorOverlayOptions const&) const;
-
 
     [[nodiscard]] bool has_accumulated_visual_context() const { return rust_data().has_accumulated_visual_context; }
     [[nodiscard]] VisualContextIndex accumulated_visual_context_index() const { return VisualContextIndex { rust_data().accumulated_visual_context_index }; }
@@ -423,30 +360,9 @@ public:
     CSSPixelRect transform_rect_to_viewport(CSSPixelRect const& rect, AccumulatedVisualContextTree::IncludeVisualViewportTransform = AccumulatedVisualContextTree::IncludeVisualViewportTransform::Yes) const;
     CSSPixelPoint inverse_transform_point(CSSPixelPoint screen_position) const;
 
-    static constexpr size_t paint_phase_count = to_underlying(PaintPhase::Overlay) + 1;
-
     void invalidate_paint_cache() const;
     void invalidate_propagated_text_decoration_caches() const;
     void repaint_after_style_change(CSS::RequiredInvalidationAfterStyleChange const&);
-
-    // Commands recorded under an empty effective clip are dropped at append time, so a cached range is
-    // usable only while the emptiness of the phase's effective clip matches what it was at capture time.
-    struct CachedCommandRange {
-        DisplayListCommandRange range;
-        VisualContextIndex recorded_context_index {};
-    };
-    Optional<CachedCommandRange> valid_cached_commands(PaintPhase, u64 source_display_list_id, bool phase_has_empty_effective_clip) const;
-    void set_cached_commands(PaintPhase, u64 display_list_id, DisplayListCommandRange, VisualContextIndex recorded_context_index, bool captured_under_empty_effective_clip) const;
-
-    // A capture may hold hit-test items recorded under both this paintable's own context index and its
-    // descendants' context index, so spliced items are not rewritten; instead a cached range is usable
-    // only while both indices still match what they were at capture time.
-    struct HitTestItemRange {
-        u32 start { 0 };
-        u32 count { 0 };
-    };
-    Optional<HitTestItemRange> valid_cached_hit_test_items(PaintPhase, u64 source_hit_test_display_list_id) const;
-    void set_cached_hit_test_items(PaintPhase, u64 hit_test_display_list_id, HitTestItemRange) const;
 
     [[nodiscard]] Optional<VisualContextIndex> fixed_background_visual_context() const
     {
@@ -466,79 +382,52 @@ protected:
     explicit Paintable(Layout::NodeWithStyle const&);
     explicit Paintable(Layout::Box const&);
 
-    void paint_with_inspector_overlay_context(DisplayListRecordingContext&, Function<void()> const&) const;
-
-    virtual void paint_border(DisplayListRecordingContext&) const;
-    virtual void paint_backdrop_filter(DisplayListRecordingContext&) const;
-    virtual void paint_background(DisplayListRecordingContext&) const;
-    virtual void paint_box_shadow(DisplayListRecordingContext&) const;
-
-    void paint_border(DisplayListRecordingContext&, CSSPixelRect const& border_box_rect, BordersData const&, BorderRadiiData const&) const;
-    void paint_background_within(DisplayListRecordingContext&, CSSPixelRect const& background_rect, BorderRadiiData const&) const;
-    void paint_box_shadow(DisplayListRecordingContext&, CSSPixelRect const& border_box_rect, CSSPixelRect const& padding_box_rect, BorderRadiiData const&) const;
-    void paint_outline(DisplayListRecordingContext&, CSSPixelRect const& border_box_rect, BorderRadiiData const&) const;
-    void paint_focused_area_outline(DisplayListRecordingContext&) const;
-
-    virtual void paint_inspector_overlay_internal(DisplayListRecordingContext&) const;
-
+public:
+protected:
     virtual CSSPixelRect compute_absolute_rect() const;
     virtual CSSPixelRect compute_absolute_padding_box_rect() const;
     virtual CSSPixelRect compute_absolute_border_box_rect() const;
 
     CSSPixels available_scrollbar_length(ScrollDirection direction, ChromeMetrics const& chrome_metrics) const;
 
+public:
+    Optional<CSSPixelRect> absolute_resizer_rect(ChromeMetrics const& chrome_metrics) const;
+
 private:
     friend class Layout::LayoutRustBridge;
 
-    struct CachedPaintData;
     enum class InvalidateDescendantGeometry {
         No,
         Yes,
     };
 
     void detach_from_layout_node(Badge<Layout::Node>);
-    Layout::RustFFI::PaintableData& rust_data() { return *m_rust_data; }
     void detach_chrome_widgets();
     GC::Ptr<DOM::EventTarget> scroll_event_target();
 
-    void paint_middle_button_scroll_indicator(DisplayListRecordingContext&) const;
     void invalidate_absolute_geometry_cache(InvalidateDescendantGeometry);
     void translate_reused_subtree_absolute_geometry(CSSPixelPoint);
 
+    bool has_flag(Layout::RustFFI::PaintableFlag flag) const { return (rust_data().flags & to_underlying(flag)) != 0; }
+    Layout::RustFFI::PaintableData& rust_data() { return *m_rust_data; }
+
     GC::Weak<DOM::Node> m_dom_node;
     WeakPtr<Layout::NodeWithStyle const> m_layout_node;
+
     NonnullRefPtr<Layout::NodeArena> m_rust_arena;
     Layout::RustFFI::PaintableSlotId m_rust_slot {};
     u32 m_rust_slot_generation { 0 };
     Layout::RustFFI::PaintableData* m_rust_data { nullptr };
 
-
-    RefPtr<StackingContext> m_stacking_context;
-
-
     Optional<CSSPixelRect> mutable m_absolute_rect;
     Optional<CSSPixelRect> mutable m_absolute_padding_box_rect;
     Optional<CSSPixelRect> mutable m_absolute_border_box_rect;
 
-
-    OwnPtr<CollapsedTableBorders> m_collapsed_table_borders;
-
     ResolvedCSSFilter m_filter;
-
-    struct ResolvedImageForSize {
-        RefPtr<CSS::AbstractImageStyleValue const> image;
-        CSSPixelSize size;
-        CSS::ResolvedImage resolved;
-    };
-    mutable Vector<ResolvedImageForSize> m_resolved_images_for_size;
 
     RefPtr<Scrollbar> m_horizontal_scrollbar;
     RefPtr<Scrollbar> m_vertical_scrollbar;
     RefPtr<ResizeHandle> m_resize_handle;
-
-
-
-    mutable OwnPtr<CachedPaintData> m_cached_paint_data;
 };
 
 template<>

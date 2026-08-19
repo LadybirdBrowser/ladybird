@@ -10,7 +10,6 @@
 #include <AK/Array.h>
 #include <AK/GenericShorthands.h>
 #include <AK/StdLibExtras.h>
-#include <AK/Utf16StringBuilder.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Font/Font.h>
 #include <LibWeb/CSS/ComputedValues.h>
@@ -48,29 +47,21 @@
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/MiddleButtonScrollHandler.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/BackgroundPainting.h>
-#include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
-#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/GridInspectorOverlay.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
-#include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
-#include <LibWeb/Painting/PrerecordedNestedDisplayLists.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ResizeHandle.h>
 #include <LibWeb/Painting/SVGForeignObjectPaintable.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/Painting/SVGPaintable.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/Painting/Scrollbar.h>
-#include <LibWeb/Painting/ShadowPainting.h>
-#include <LibWeb/Painting/StackingContext.h>
-#include <LibWeb/Painting/TableBordersPainting.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
-#include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
 #include <LibWeb/SVG/SVGFitToViewBox.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
@@ -80,32 +71,6 @@ namespace Web::Painting {
 static PixelBox pixel_box_from_ffi(Layout::RustFFI::FfiPixelBox const& box)
 {
     return { CSSPixels::from_raw(box.top), CSSPixels::from_raw(box.right), CSSPixels::from_raw(box.bottom), CSSPixels::from_raw(box.left) };
-}
-
-
-String Paintable::debug_description() const
-{
-    return MUST(String::formatted("{}({})", class_name(), layout_node().debug_description()));
-}
-
-DOM::Document const& Paintable::document() const
-{
-    return layout_node().document();
-}
-
-DOM::Document& Paintable::document()
-{
-    return layout_node().document();
-}
-
-RefPtr<Paintable> Paintable::containing_block() const
-{
-    return const_cast<Paintable*>(containing_block_ptr());
-}
-
-Paintable const* Paintable::containing_block_ptr() const
-{
-    return static_cast<Paintable const*>(Layout::RustFFI::layout_arena_paintable_shell(m_rust_arena->handle(), rust_data().containing_block));
 }
 
 BoxModelMetrics Paintable::box_model() const
@@ -154,40 +119,29 @@ Paintable::StickyInsets Paintable::sticky_insets() const
     return { side(insets.top, insets.has_top), side(insets.right, insets.has_right), side(insets.bottom, insets.has_bottom), side(insets.left, insets.has_left) };
 }
 
-void Paintable::set_overflow_data(OverflowData data)
+String Paintable::debug_description() const
 {
-    Layout::RustFFI::layout_arena_paintable_set_overflow_data(m_rust_arena->handle(), m_rust_slot, to_ffi_css_pixel_rect(data.scrollable_overflow_rect), data.has_scrollable_overflow, true);
+    return MUST(String::formatted("{}({})", class_name(), layout_node().debug_description()));
 }
 
-void Paintable::clear_overflow_data()
+DOM::Document const& Paintable::document() const
 {
-    Layout::RustFFI::layout_arena_paintable_set_overflow_data(m_rust_arena->handle(), m_rust_slot, {}, false, false);
+    return layout_node().document();
 }
 
-void Paintable::set_cached_overflow_data(CachedOverflowData data)
+DOM::Document& Paintable::document()
 {
-    Layout::RustFFI::layout_arena_paintable_set_cached_overflow_data(m_rust_arena->handle(), m_rust_slot, to_ffi_css_pixel_rect(data.rect_relative_to_padding_box), data.has_scrollable_overflow, true);
+    return layout_node().document();
 }
 
-void Paintable::clear_cached_overflow_data()
+RefPtr<Paintable> Paintable::containing_block() const
 {
-    Layout::RustFFI::layout_arena_paintable_set_cached_overflow_data(m_rust_arena->handle(), m_rust_slot, {}, false, false);
+    return const_cast<Paintable*>(containing_block_ptr());
 }
 
-void Paintable::set_sticky_insets(OwnPtr<StickyInsets> sticky_insets)
+Paintable const* Paintable::containing_block_ptr() const
 {
-    Layout::RustFFI::FfiStickyInsets ffi_insets {};
-    if (sticky_insets) {
-        auto pack = [](Optional<CSSPixels> const& value, i32& raw, bool& present) {
-            present = value.has_value();
-            raw = value.has_value() ? value->raw_value() : 0;
-        };
-        pack(sticky_insets->top, ffi_insets.top, ffi_insets.has_top);
-        pack(sticky_insets->right, ffi_insets.right, ffi_insets.has_right);
-        pack(sticky_insets->bottom, ffi_insets.bottom, ffi_insets.has_bottom);
-        pack(sticky_insets->left, ffi_insets.left, ffi_insets.has_left);
-    }
-    Layout::RustFFI::layout_arena_paintable_set_sticky_insets(m_rust_arena->handle(), m_rust_slot, ffi_insets, !!sticky_insets);
+    return static_cast<Paintable const*>(Layout::RustFFI::layout_arena_paintable_shell(m_rust_arena->handle(), rust_data().containing_block));
 }
 
 bool Paintable::is_visible() const
@@ -198,86 +152,6 @@ bool Paintable::is_visible() const
 CSS::StyleRecordID Paintable::style_record_identity() const
 {
     return layout_node().style_record_identity();
-}
-
-Vector<MaskLayerPresence, 3> Paintable::mask_layer_presence(MaskLayerSet mask_layer_set) const
-{
-    Vector<MaskLayerPresence, 3> presence;
-
-    if (mask_layer_set == MaskLayerSet::CssAndSvg
-        && any_of(layout_node().mask_layers(), [](auto const& layer) { return layer.background_image != nullptr; })
-        && is<Layout::Box>(layout_node())
-        && layout_node().establishes_stacking_context()) {
-        presence.append({
-            MaskLayerOrigin::CssMaskLayers,
-            absolute_border_box_rect(),
-            Gfx::MaskKind::Alpha,
-        });
-    }
-
-    if (auto mask_area = get_mask_area(); mask_area.has_value()) {
-        presence.append({
-            MaskLayerOrigin::SvgMask,
-            *mask_area,
-            get_mask_type().value_or(Gfx::MaskKind::Alpha),
-        });
-    }
-
-    if (auto clip_area = get_clip_area(); clip_area.has_value()) {
-        presence.append({
-            MaskLayerOrigin::SvgClip,
-            *clip_area,
-            Gfx::MaskKind::Alpha,
-        });
-    }
-
-    return presence;
-}
-
-bool register_mask_display_lists(DisplayListRecordingContext& context, Paintable const& paintable, MaskLayerSet mask_layer_set)
-{
-    auto const* prerecorded = context.prerecorded_nested_display_lists();
-    VERIFY(prerecorded);
-    auto mask_layers = prerecorded->mask_entries.get(&paintable);
-    if (!mask_layers.has_value()) {
-        VERIFY(paintable.mask_layer_presence(mask_layer_set).is_empty());
-        return false;
-    }
-
-    auto const& visual_context_tree = context.display_list_recorder().visual_context_tree();
-
-    Vector<VisualContextIndex, 9> mask_node_indices;
-    if (auto const& nested_assignments = context.nested_visual_context_assignments(); nested_assignments.has_value()) {
-        if (auto assignment = nested_assignments->mask_node_indices.find(&paintable); assignment != nested_assignments->mask_node_indices.end())
-            mask_node_indices.extend(assignment->value);
-    } else {
-        for (size_t index = paintable.visual_context_nodes_begin(); index < paintable.visual_context_nodes_end(); ++index) {
-            if (visual_context_tree.node_at(VisualContextIndex { index }).data.has<MaskData>())
-                mask_node_indices.append(VisualContextIndex { index });
-        }
-    }
-
-    bool any_svg_mask_layer_area_is_empty = false;
-    for (auto const& mask_layer : *mask_layers) {
-        if (mask_layer_set == MaskLayerSet::SvgOnly) {
-            if (mask_layer.origin == MaskLayerOrigin::CssMaskLayers)
-                continue;
-            if (mask_layer.mask_layer_area_is_empty) {
-                any_svg_mask_layer_area_is_empty = true;
-                continue;
-            }
-        }
-        if (!mask_layer.resource.has_value())
-            continue;
-        Vector<VisualContextIndex, 3> node_indices_for_origin;
-        for (auto node_index : mask_node_indices) {
-            if (visual_context_tree.node_at(node_index).data.get<MaskData>().origin == mask_layer.origin)
-                node_indices_for_origin.append(node_index);
-        }
-        VERIFY(!node_indices_for_origin.is_empty());
-        context.display_list_recorder().register_mask_display_list(node_indices_for_origin, *mask_layer.resource);
-    }
-    return any_svg_mask_layer_area_is_empty;
 }
 
 bool Paintable::visible_for_hit_testing() const
@@ -309,7 +183,7 @@ GC::Ptr<HTML::LocalNavigable> Paintable::navigable() const
 
 bool Paintable::has_stacking_context() const
 {
-    return stacking_context();
+    return rust_data().stacking_context != Layout::RustFFI::NO_STACKING_CONTEXT;
 }
 
 DOM::Node* HitTestResult::dom_node()
@@ -334,37 +208,6 @@ DOM::Node const* HitTestResult::dom_node() const
             return node.ptr();
     }
     return nullptr;
-}
-
-RefPtr<StackingContext> Paintable::enclosing_stacking_context()
-{
-    for (auto ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
-        if (auto stacking_context = ancestor->stacking_context())
-            return stacking_context;
-    }
-    // We should always reach the viewport's stacking context.
-    VERIFY_NOT_REACHED();
-}
-
-void Paintable::paint_inspector_overlay(DisplayListRecordingContext& context) const
-{
-    paint_with_inspector_overlay_context(context, [&] {
-        paint_inspector_overlay_internal(context);
-    });
-}
-
-void Paintable::paint_with_inspector_overlay_context(DisplayListRecordingContext& context, Function<void()> const& callback) const
-{
-    auto& display_list_recorder = context.display_list_recorder();
-    auto previous_visual_context_index = display_list_recorder.accumulated_visual_context();
-
-    // Overlays follow the highlighted element's transforms and scroll offsets, but must not be clipped
-    // or faded by its ancestors, so their commands apply the element's context in geometry-only mode.
-    display_list_recorder.set_accumulated_visual_context(accumulated_visual_context_index());
-    display_list_recorder.set_context_geometry_only(true);
-    callback();
-    display_list_recorder.set_context_geometry_only(false);
-    display_list_recorder.set_accumulated_visual_context(previous_visual_context_index);
 }
 
 CSSPixelPoint Paintable::box_type_agnostic_position() const
@@ -523,6 +366,42 @@ Paintable::SelectionStyle Paintable::selection_style_for_node(Layout::Node const
     return default_style;
 }
 
+void Paintable::set_overflow_data(OverflowData data)
+{
+    Layout::RustFFI::layout_arena_paintable_set_overflow_data(m_rust_arena->handle(), m_rust_slot, to_ffi_css_pixel_rect(data.scrollable_overflow_rect), data.has_scrollable_overflow, true);
+}
+
+void Paintable::clear_overflow_data()
+{
+    Layout::RustFFI::layout_arena_paintable_set_overflow_data(m_rust_arena->handle(), m_rust_slot, {}, false, false);
+}
+
+void Paintable::set_cached_overflow_data(CachedOverflowData data)
+{
+    Layout::RustFFI::layout_arena_paintable_set_cached_overflow_data(m_rust_arena->handle(), m_rust_slot, to_ffi_css_pixel_rect(data.rect_relative_to_padding_box), data.has_scrollable_overflow, true);
+}
+
+void Paintable::clear_cached_overflow_data()
+{
+    Layout::RustFFI::layout_arena_paintable_set_cached_overflow_data(m_rust_arena->handle(), m_rust_slot, {}, false, false);
+}
+
+void Paintable::set_sticky_insets(OwnPtr<StickyInsets> sticky_insets)
+{
+    Layout::RustFFI::FfiStickyInsets ffi_insets {};
+    if (sticky_insets) {
+        auto pack = [](Optional<CSSPixels> const& value, i32& raw, bool& present) {
+            present = value.has_value();
+            raw = value.has_value() ? value->raw_value() : 0;
+        };
+        pack(sticky_insets->top, ffi_insets.top, ffi_insets.has_top);
+        pack(sticky_insets->right, ffi_insets.right, ffi_insets.has_right);
+        pack(sticky_insets->bottom, ffi_insets.bottom, ffi_insets.has_bottom);
+        pack(sticky_insets->left, ffi_insets.left, ffi_insets.has_left);
+    }
+    Layout::RustFFI::layout_arena_paintable_set_sticky_insets(m_rust_arena->handle(), m_rust_slot, ffi_insets, !!sticky_insets);
+}
+
 void Paintable::set_selection_state(SelectionState state)
 {
     if (selection_state() == state)
@@ -549,14 +428,6 @@ bool Paintable::should_paint_cursor() const
     // contenteditable inline box), so editability is the cursor node's, not this box's.
     auto const* editable_node = cursor_position->node().ptr();
     return editable_node && editable_node->is_editable_or_editing_host();
-}
-
-void Paintable::record_empty_editable_hit_test_item(HitTestDisplayList& hit_test_display_list) const
-{
-    auto const* dom_node = layout_node().dom_node();
-    if (!dom_node || !dom_node->is_editable_or_editing_host())
-        return;
-    hit_test_display_list.append_empty_editable(*this, absolute_border_box_rect(), accumulated_visual_context_index());
 }
 
 void Paintable::scroll_text_offset_into_view(DOM::Text const& text, size_t offset, TextAffinity affinity, ScrollBlockDirection scroll_block_direction)
@@ -620,33 +491,6 @@ void Paintable::scroll_ancestor_to_offset_into_view(size_t offset)
 
 static bool g_paint_viewport_scrollbars = true;
 
-struct Paintable::CachedPaintData {
-    struct PaintCommands {
-        // Display list ids start at 1, so a default-constructed entry never matches a real source list.
-        u64 source_display_list_id { 0 };
-        DisplayListCommandRange range;
-        VisualContextIndex recorded_context_index {};
-        bool captured_under_empty_effective_clip { false };
-    };
-
-    struct HitTestItems {
-        // Hit-test display list ids start at 1, so a default-constructed entry never matches a real source list.
-        u64 source_hit_test_display_list_id { 0 };
-        HitTestItemRange range;
-        VisualContextIndex recorded_context_index {};
-        VisualContextIndex recorded_context_for_descendants_index {};
-    };
-
-    // Paint commands and hit-test items are stamped independently within a frame, so each setter
-    // must only ever assign its own sub-struct of the shared entry.
-    struct PhaseEntry {
-        PaintCommands paint_commands;
-        HitTestItems hit_test_items;
-    };
-
-    Array<PhaseEntry, paint_phase_count> phase_entries {};
-};
-
 static bool content_size_change_affects_container_queries(Paintable const& paintable_box, CSSPixelSize old_size, CSSPixelSize new_size)
 {
     auto container_type = paintable_box.layout_node().container_type();
@@ -679,181 +523,6 @@ void set_paint_viewport_scrollbars(bool const enabled)
 bool should_paint_viewport_scrollbars()
 {
     return g_paint_viewport_scrollbars;
-}
-
-static Gfx::FloatPoint css_point_to_device_point(CSSPixelPoint point, double device_pixels_per_css_pixel)
-{
-    auto scale = static_cast<float>(device_pixels_per_css_pixel);
-    return { point.x().to_float() * scale, point.y().to_float() * scale };
-}
-
-static Gfx::FloatSize css_size_to_device_size(CSSPixelSize size, double device_pixels_per_css_pixel)
-{
-    auto scale = static_cast<float>(device_pixels_per_css_pixel);
-    return { size.width().to_float() * scale, size.height().to_float() * scale };
-}
-
-static Gfx::FloatRect css_rect_to_device_rect(CSSPixelRect rect, double device_pixels_per_css_pixel)
-{
-    return { css_point_to_device_point(rect.location(), device_pixels_per_css_pixel), css_size_to_device_size(rect.size(), device_pixels_per_css_pixel) };
-}
-
-static Optional<float> css_inset_to_device_inset(Optional<CSSPixels> inset, double device_pixels_per_css_pixel)
-{
-    if (!inset.has_value())
-        return {};
-    return inset->to_float() * static_cast<float>(device_pixels_per_css_pixel);
-}
-
-static Optional<CompositorScrollNodeKind> scroll_node_kind_for(Paintable const& paintable_box)
-{
-    if (paintable_box.is_viewport_paintable())
-        return CompositorScrollNodeKind::Viewport;
-    if (paintable_box.layout_node().generated_for_pseudo_element().has_value())
-        return CompositorScrollNodeKind::PseudoElement;
-    if (paintable_box.dom_node() && is<DOM::Element>(*paintable_box.dom_node()))
-        return CompositorScrollNodeKind::Element;
-    return {};
-}
-
-static UniqueNodeID scrollable_node_id_for(Paintable const& paintable_box)
-{
-    if (paintable_box.is_viewport_paintable())
-        return paintable_box.document().unique_id();
-    if (paintable_box.layout_node().generated_for_pseudo_element().has_value())
-        return paintable_box.layout_node().pseudo_element_generator()->unique_id();
-    return paintable_box.dom_node()->unique_id();
-}
-
-static u8 pseudo_element_type_for(Paintable const& paintable_box)
-{
-    auto pseudo_element = paintable_box.layout_node().generated_for_pseudo_element();
-    if (!pseudo_element.has_value())
-        return 0;
-    return static_cast<u8>(to_underlying(*pseudo_element));
-}
-
-static bool is_nested_navigable_container(Paintable const& paintable_box)
-{
-    auto node = paintable_box.dom_node();
-    return node && node->is_navigable_container() && as<HTML::NavigableContainer const>(*node).content_navigable();
-}
-
-static void record_scroll_node(Paintable const& paintable_box, DisplayListRecordingContext& context)
-{
-    auto scroll_node_kind = scroll_node_kind_for(paintable_box);
-    if (!scroll_node_kind.has_value())
-        return;
-
-    auto parent_scroll_node_index = VisualContextIndex {};
-    if (auto scrollable_ancestor = paintable_box.nearest_scrollable_ancestor())
-        parent_scroll_node_index = scrollable_ancestor->own_scroll_node_index();
-
-    auto scrollport_rect = paintable_box.is_viewport_paintable()
-        ? Gfx::IntRect { {}, context.device_viewport_rect().size().to_type<int>() }
-        : context.rounded_device_rect(paintable_box.absolute_padding_box_rect()).to_type<int>();
-
-    auto& recorder = context.display_list_recorder();
-    recorder.compositor_scroll_node({
-        .document_id = paintable_box.document().unique_id(),
-        .scrollable_node_id = scrollable_node_id_for(paintable_box),
-        .scroll_node_index = paintable_box.own_scroll_node_index(),
-        .parent_scroll_node_index = parent_scroll_node_index,
-        .scrollport_rect = scrollport_rect,
-        .min_scroll_offset = css_point_to_device_point(paintable_box.minimum_scroll_offset(), context.device_pixels_per_css_pixel()),
-        .max_scroll_offset = css_point_to_device_point(paintable_box.maximum_scroll_offset(), context.device_pixels_per_css_pixel()),
-        .scroll_node_kind = *scroll_node_kind,
-        .pseudo_element_type = pseudo_element_type_for(paintable_box),
-        .is_viewport = paintable_box.is_viewport_paintable(),
-        .can_be_wheel_scrolled_horizontally = paintable_box.could_be_scrolled_by_wheel_event(Paintable::ScrollDirection::Horizontal),
-        .can_be_wheel_scrolled_vertically = paintable_box.could_be_scrolled_by_wheel_event(Paintable::ScrollDirection::Vertical),
-    });
-}
-
-static void record_main_thread_wheel_event_region(Paintable const& paintable_box, DisplayListRecordingContext& context)
-{
-    auto rect = css_rect_to_device_rect(paintable_box.absolute_border_box_rect(), context.device_pixels_per_css_pixel());
-    if (rect.is_empty())
-        return;
-
-    context.display_list_recorder().compositor_main_thread_wheel_event_region({
-        .rect = rect,
-    });
-}
-
-static VisualContextIndex wheel_hit_test_target_scroll_node_index_for(Paintable const& paintable_box, DisplayListRecordingContext& context)
-{
-    Vector<Paintable const*, 16> paintables_to_cache;
-    auto target = VisualContextIndex {};
-    auto const* current = &paintable_box;
-    while (true) {
-        if (auto cached_target = context.cached_wheel_hit_test_target_for(*current); cached_target.has_value()) {
-            target = *cached_target;
-            break;
-        }
-
-        paintables_to_cache.append(current);
-        if (current->own_scroll_node_index().value() && current->could_be_scrolled_by_wheel_event()) {
-            target = current->own_scroll_node_index();
-            break;
-        }
-
-        auto containing_block = current->containing_block();
-        if (containing_block && containing_block->is_fixed_position()) {
-            if (containing_block->own_scroll_node_index().value() && containing_block->could_be_scrolled_by_wheel_event())
-                target = containing_block->own_scroll_node_index();
-            if (target.value())
-                break;
-            containing_block = nullptr;
-        }
-
-        if (containing_block) {
-            current = containing_block.ptr();
-            continue;
-        }
-
-        auto viewport_paintable = current->document().paintable();
-        if (!viewport_paintable || viewport_paintable.ptr() == current)
-            break;
-        current = viewport_paintable.ptr();
-    }
-
-    for (auto const* paintable : paintables_to_cache)
-        context.cache_wheel_hit_test_target_for(*paintable, target);
-    return target;
-}
-
-static void record_wheel_hit_test_target(Paintable const& paintable_box, DisplayListRecordingContext& context)
-{
-    // OPTIMIZATION: The compositor falls back to the viewport when there are no explicit targets.
-    // Avoid generating redundant per-box targets when no non-viewport scroller could need one.
-    if (!context.should_record_wheel_hit_test_targets())
-        return;
-
-    if (!paintable_box.is_visible() || !paintable_box.visible_for_hit_testing())
-        return;
-
-    auto rect = css_rect_to_device_rect(paintable_box.absolute_border_box_rect(), context.device_pixels_per_css_pixel());
-    if (rect.is_empty())
-        return;
-
-    auto target_scroll_node_index = wheel_hit_test_target_scroll_node_index_for(paintable_box, context);
-    auto corner_radii = paintable_box.border_radii_data().as_corners(context.device_pixel_converter());
-    if (corner_radii.has_any_radius()) {
-        context.display_list_recorder().compositor_wheel_hit_test_target_with_corner_radii({
-            .document_id = paintable_box.document().unique_id(),
-            .target_scroll_node_index = target_scroll_node_index,
-            .rect = rect,
-            .corner_radii = corner_radii,
-        });
-        return;
-    }
-
-    context.display_list_recorder().compositor_wheel_hit_test_target({
-        .document_id = paintable_box.document().unique_id(),
-        .target_scroll_node_index = target_scroll_node_index,
-        .rect = rect,
-    });
 }
 
 bool body_background_is_propagated_to_root(Layout::NodeWithStyle const& layout_node)
@@ -917,70 +586,6 @@ CSS::ScrollbarColorData scrollbar_colors_for_paint(Paintable const& paintable_bo
         return scrollbar_colors;
 
     return automatic_scrollbar_colors(paintable_box);
-}
-
-static void record_viewport_scrollbar_state(Paintable const& paintable_box, DisplayListRecordingContext& context)
-{
-    if (!paintable_box.is_viewport_paintable())
-        return;
-    if (!paintable_box.document().page().async_scrolling_enabled())
-        return;
-    if (!should_paint_viewport_scrollbars())
-        return;
-    if (paintable_box.layout_node().scrollbar_width() == CSS::ScrollbarWidth::None)
-        return;
-
-    auto scrollbar_colors = scrollbar_colors_for_paint(paintable_box);
-    auto const& metrics = context.chrome_metrics();
-
-    for (auto direction : { Paintable::ScrollDirection::Vertical, Paintable::ScrollDirection::Horizontal }) {
-        auto scrollbar_data = paintable_box.compute_scrollbar_data(direction, metrics, nullptr, Paintable::ScrollbarSizing::Regular);
-        if (!scrollbar_data.has_value())
-            continue;
-        auto expanded_scrollbar_data = paintable_box.compute_scrollbar_data(direction, metrics, nullptr, Paintable::ScrollbarSizing::Enlarged);
-        VERIFY(expanded_scrollbar_data.has_value());
-
-        auto gutter_rect = context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>();
-        auto min_scroll_offset = css_point_to_device_point(paintable_box.minimum_scroll_offset(), context.device_pixels_per_css_pixel());
-        auto max_scroll_offset = css_point_to_device_point(paintable_box.maximum_scroll_offset(), context.device_pixels_per_css_pixel());
-        auto orientation = direction == Paintable::ScrollDirection::Horizontal ? Gfx::Orientation::Horizontal : Gfx::Orientation::Vertical;
-
-        context.display_list_recorder().compositor_viewport_scrollbar({
-            .document_id = paintable_box.document().unique_id(),
-            .scroll_node_index = paintable_box.own_scroll_node_index(),
-            .gutter_rect = gutter_rect,
-            .thumb_rect = context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>(),
-            .expanded_gutter_rect = context.rounded_device_rect(expanded_scrollbar_data->gutter_rect).to_type<int>(),
-            .expanded_thumb_rect = context.rounded_device_rect(expanded_scrollbar_data->thumb_rect).to_type<int>(),
-            .scroll_size = scrollbar_data->thumb_travel_to_scroll_ratio.to_double(),
-            .expanded_scroll_size = expanded_scrollbar_data->thumb_travel_to_scroll_ratio.to_double(),
-            .min_scroll_offset = min_scroll_offset.primary_offset_for_orientation(orientation),
-            .max_scroll_offset = max_scroll_offset.primary_offset_for_orientation(orientation),
-            .thumb_color = scrollbar_colors.thumb_color,
-            .track_color = scrollbar_colors.track_color,
-            .vertical = direction == Paintable::ScrollDirection::Vertical,
-        });
-    }
-}
-
-static void record_blocking_wheel_event_region(Paintable const& paintable_box, DisplayListRecordingContext& context)
-{
-    if (context.has_blocking_wheel_event_region_covering_viewport())
-        return;
-    if (!paintable_box.is_visible() || !paintable_box.visible_for_hit_testing())
-        return;
-    auto node = paintable_box.dom_node();
-    if (!node || !node->inside_blocking_wheel_event_handler())
-        return;
-
-    auto rect = css_rect_to_device_rect(paintable_box.absolute_border_box_rect(), context.device_pixels_per_css_pixel());
-    if (rect.is_empty())
-        return;
-
-    context.set_has_blocking_wheel_event_listeners(true);
-    context.display_list_recorder().compositor_blocking_wheel_event_region({
-        .rect = rect,
-    });
 }
 
 Paintable const* nearest_svg_viewport_paintable_of(Layout::Node const& layout_node)
@@ -1092,21 +697,6 @@ ResolvedCSSFilter resolve_css_filter(CSS::ComputedFilterView computed_filter, Pa
     return result;
 }
 
-CSS::ResolvedImage const& Paintable::resolved_image_for_size(CSS::AbstractImageStyleValue const& image, CSSPixelSize size) const
-{
-    for (auto& entry : m_resolved_images_for_size) {
-        if (entry.image.ptr() == &image) {
-            if (entry.size != size) {
-                entry.size = size;
-                entry.resolved = image.resolve_for_size(layout_node(), size);
-            }
-            return entry.resolved;
-        }
-    }
-    m_resolved_images_for_size.append({ &image, size, image.resolve_for_size(layout_node(), size) });
-    return m_resolved_images_for_size.last().resolved;
-}
-
 NonnullRefPtr<Paintable> Paintable::create(Layout::Box const& layout_box)
 {
     return adopt_ref(*new Paintable(layout_box));
@@ -1160,20 +750,8 @@ bool Paintable::has_css_transform() const
     return layout_node().has_css_transform();
 }
 
-Optional<Paintable::CachedCommandRange> Paintable::valid_cached_commands(PaintPhase phase, u64 source_display_list_id, bool phase_has_empty_effective_clip) const
-{
-    if (!m_cached_paint_data)
-        return {};
-    auto const& entry = m_cached_paint_data->phase_entries[to_underlying(phase)].paint_commands;
-    if (entry.source_display_list_id != source_display_list_id
-        || entry.captured_under_empty_effective_clip != phase_has_empty_effective_clip)
-        return {};
-    return CachedCommandRange { entry.range, entry.recorded_context_index };
-}
-
 void Paintable::invalidate_paint_cache() const
 {
-    m_cached_paint_data = nullptr;
     mirror_rust_invalidate_paint_cache(*this);
 }
 
@@ -1197,44 +775,6 @@ void Paintable::repaint_after_style_change(CSS::RequiredInvalidationAfterStyleCh
         invalidate_propagated_text_decoration_caches();
 }
 
-void Paintable::set_cached_commands(PaintPhase phase, u64 display_list_id, DisplayListCommandRange range, VisualContextIndex recorded_context_index, bool captured_under_empty_effective_clip) const
-{
-    if (!m_cached_paint_data)
-        m_cached_paint_data = make<CachedPaintData>();
-
-    m_cached_paint_data->phase_entries[to_underlying(phase)].paint_commands = {
-        .source_display_list_id = display_list_id,
-        .range = range,
-        .recorded_context_index = recorded_context_index,
-        .captured_under_empty_effective_clip = captured_under_empty_effective_clip,
-    };
-}
-
-Optional<Paintable::HitTestItemRange> Paintable::valid_cached_hit_test_items(PaintPhase phase, u64 source_hit_test_display_list_id) const
-{
-    if (!m_cached_paint_data)
-        return {};
-    auto const& entry = m_cached_paint_data->phase_entries[to_underlying(phase)].hit_test_items;
-    if (entry.source_hit_test_display_list_id != source_hit_test_display_list_id
-        || entry.recorded_context_index != accumulated_visual_context_index()
-        || entry.recorded_context_for_descendants_index != accumulated_visual_context_for_descendants_index())
-        return {};
-    return entry.range;
-}
-
-void Paintable::set_cached_hit_test_items(PaintPhase phase, u64 hit_test_display_list_id, HitTestItemRange range) const
-{
-    if (!m_cached_paint_data)
-        m_cached_paint_data = make<CachedPaintData>();
-
-    m_cached_paint_data->phase_entries[to_underlying(phase)].hit_test_items = {
-        .source_hit_test_display_list_id = hit_test_display_list_id,
-        .range = range,
-        .recorded_context_index = accumulated_visual_context_index(),
-        .recorded_context_for_descendants_index = accumulated_visual_context_for_descendants_index(),
-    };
-}
-
 void Paintable::reset_for_relayout()
 {
     if (parent())
@@ -1246,11 +786,7 @@ void Paintable::reset_for_relayout()
     // (e.g. scrollbars on a scroll container) is only known after the new layout is painted.
     detach_chrome_widgets();
 
-    m_collapsed_table_borders = nullptr;
-
     invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::No);
-
-    invalidate_paint_cache();
 
     invalidate_stacking_context();
 }
@@ -1270,21 +806,6 @@ CSSPixelPoint Paintable::scroll_offset() const
     if (auto const* element = as_if<DOM::Element>(dom_node().ptr()))
         return element->scroll_offset({});
     return {};
-}
-
-Optional<CSSPixelRect> Paintable::absolute_containing_line_box_rect() const
-{
-    auto line_box_index = containing_line_box_index();
-    if (!line_box_index.has_value())
-        return {};
-
-    auto const* containing_block = as_if<PaintableWithLines>(this->containing_block().ptr());
-    if (!containing_block)
-        return {};
-    auto const& lines = containing_block->lines();
-    if (*line_box_index >= lines.size())
-        return {};
-    return lines[*line_box_index].rect.translated(containing_block->absolute_position());
 }
 
 CSSPixelPoint Paintable::minimum_scroll_offset() const
@@ -1613,57 +1134,6 @@ CSSPixelRect Paintable::compute_absolute_border_box_rect() const
     return rect;
 }
 
-// https://drafts.csswg.org/css-overflow-4/#overflow-clip-edge
-CSSPixelRect Paintable::overflow_clip_edge_rect() const
-{
-    // https://drafts.csswg.org/css-overflow-4/#overflow-clip-margin
-    // Values are defined as follows:
-    // '<visual-box>'
-    //     Specifies the box edge to use as the overflow clip edge origin, i.e. when the specified offset is zero.
-    //     If omitted, defaults to 'padding-box' on non-replaced elements, or 'content-box' on replaced elements.
-    auto const& overflow_clip_margin = layout_node().overflow_clip_margin();
-    auto resolve_box_edge = [&](CSS::OverflowClipMarginSide const& side) -> CSSPixelRect {
-        auto box = side.visual_box;
-        if (!box.has_value()) {
-            if (layout_node().is_replaced_box())
-                box = CSS::BackgroundBox::ContentBox;
-            else
-                box = CSS::BackgroundBox::PaddingBox;
-        }
-        switch (*box) {
-        case CSS::BackgroundBox::ContentBox:
-            return absolute_rect();
-        case CSS::BackgroundBox::BorderBox:
-            return absolute_border_box_rect();
-        case CSS::BackgroundBox::PaddingBox:
-        default:
-            return absolute_padding_box_rect();
-        }
-    };
-
-    auto overflow_clip_edge = resolve_box_edge(overflow_clip_margin.top);
-
-    // '<length [0,∞]>'
-    //     The specified offset dictates how much the overflow clip edge is expanded from the specified box edge
-    //     Negative values are invalid. Defaults to zero if omitted.
-    overflow_clip_edge.inflate(
-        overflow_clip_margin.top.offset,
-        overflow_clip_margin.right.offset,
-        overflow_clip_margin.bottom.offset,
-        overflow_clip_margin.left.offset);
-    return overflow_clip_edge;
-}
-
-Optional<CSSPixelRect> Paintable::get_clip_rect() const
-{
-    auto clip = layout_node().clip();
-    if (clip.is_rect() && layout_node().is_absolutely_positioned()) {
-        auto border_box = absolute_border_box_rect();
-        return clip.to_rect().resolved(border_box);
-    }
-    return {};
-}
-
 RefPtr<Scrollbar> Paintable::scrollbar(ScrollDirection direction) const
 {
     return direction == ScrollDirection::Horizontal ? m_horizontal_scrollbar : m_vertical_scrollbar;
@@ -1737,24 +1207,6 @@ bool Paintable::could_be_scrolled_by_wheel_event(ScrollDirection direction) cons
 bool Paintable::could_be_scrolled_by_wheel_event() const
 {
     return could_be_scrolled_by_wheel_event(ScrollDirection::Horizontal) || could_be_scrolled_by_wheel_event(ScrollDirection::Vertical);
-}
-
-bool Paintable::overflow_property_applies() const
-{
-    // https://drafts.csswg.org/css-overflow-3/#overflow-control
-    // Overflow properties apply to block containers, flex containers and grid containers.
-    // FIXME: Ideally we would check whether overflow applies positively rather than listing exceptions. However,
-    //        not all elements that should support overflow are currently identifiable that way.
-    if (is<SVGPaintable>(*this))
-        return false;
-    auto display = layout_node().display();
-    if (layout_node().is_fragmented_inline())
-        return false;
-    if (display.is_ruby_inside())
-        return false;
-    if (display.is_internal() && !display.is_table_cell() && !display.is_table_caption())
-        return false;
-    return true;
 }
 
 CSSPixels Paintable::available_scrollbar_length(ScrollDirection direction, ChromeMetrics const& metrics) const
@@ -1884,261 +1336,6 @@ Optional<Paintable::ScrollbarData> Paintable::compute_scrollbar_data(ScrollDirec
     return scrollbar_data;
 }
 
-void Paintable::record_async_scrolling_metadata(DisplayListRecordingContext& context) const
-{
-    if (!context.is_recording_async_scrolling_metadata())
-        return;
-
-    auto device_pixels_per_css_pixel = context.device_pixels_per_css_pixel();
-    auto& recorder = context.display_list_recorder();
-
-    record_wheel_hit_test_target(*this, context);
-
-    record_blocking_wheel_event_region(*this, context);
-
-    if (is_nested_navigable_container(*this)) {
-        record_main_thread_wheel_event_region(*this, context);
-    } else if (own_scroll_node_index().value() && could_be_scrolled_by_wheel_event()) {
-        record_scroll_node(*this, context);
-    }
-    record_viewport_scrollbar_state(*this, context);
-
-    auto const& scroll_state = context.async_scrolling_scroll_state();
-    auto sticky_node_index = enclosing_scroll_node_index();
-    if (is_sticky_position() && sticky_node_index.value()) {
-        auto sticky_slot = context.async_scrolling_visual_context_tree().scroll_state_slot_for_node(sticky_node_index);
-        auto const& sticky_node_state = scroll_state.state_at_slot(sticky_slot);
-        if (sticky_node_state.is_sticky() && sticky_node_state.has_sticky_constraints()) {
-            auto const& constraints = sticky_node_state.sticky_constraints();
-            auto const& insets = constraints.insets;
-            recorder.compositor_sticky_area({
-                .document_id = context.async_scrolling_document_id(),
-                .scroll_node_index = sticky_node_index,
-                .parent_scroll_node_index = scroll_state.node_index_for_slot(sticky_node_state.parent_slot()),
-                .nearest_scrolling_ancestor_index = scroll_state.node_index_for_slot(scroll_state.nearest_scrolling_ancestor_slot(sticky_slot)),
-                .position_relative_to_scroll_ancestor = css_point_to_device_point(constraints.position_relative_to_scroll_ancestor, device_pixels_per_css_pixel),
-                .border_box_size = css_size_to_device_size(constraints.border_box_size, device_pixels_per_css_pixel),
-                .scrollport_size = css_size_to_device_size(constraints.scrollport_size, device_pixels_per_css_pixel),
-                .containing_block_region = css_rect_to_device_rect(constraints.containing_block_region, device_pixels_per_css_pixel),
-                .needs_parent_offset_adjustment = constraints.needs_parent_offset_adjustment,
-                .inset_top = css_inset_to_device_inset(insets.top, device_pixels_per_css_pixel),
-                .inset_right = css_inset_to_device_inset(insets.right, device_pixels_per_css_pixel),
-                .inset_bottom = css_inset_to_device_inset(insets.bottom, device_pixels_per_css_pixel),
-                .inset_left = css_inset_to_device_inset(insets.left, device_pixels_per_css_pixel),
-            });
-        }
-    }
-}
-
-void Paintable::record_hit_test_items(DisplayListRecordingContext& context, PaintPhase phase) const
-{
-    if (phase != PaintPhase::Background && phase != PaintPhase::Overlay)
-        return;
-
-    auto* hit_test_display_list = context.hit_test_display_list();
-    if (!hit_test_display_list)
-        return;
-
-    auto const is_visible = layout_node().visibility() == CSS::Visibility::Visible;
-    if (!is_visible || !visible_for_hit_testing())
-        return;
-
-    if (phase == PaintPhase::Background) {
-        Paintable* target = const_cast<Paintable*>(this);
-        if (layout_node().is_anonymous()
-            && !layout_node().is_generated_for_pseudo_element()) {
-            return;
-        }
-
-        hit_test_display_list->append_box(*this, *target, absolute_border_box_rect(), accumulated_visual_context_index(), border_radii_data());
-        return;
-    }
-
-    if (phase != PaintPhase::Overlay)
-        return;
-
-    // Widgets are resolved by kind at query time; creating them here keeps hover and drag state
-    // attached to the same object for the list's lifetime.
-    auto& box = const_cast<Paintable&>(*this);
-    if (has_resizer()) {
-        (void)box.ensure_resize_handle();
-        hit_test_display_list->append_chrome_widget(*this, ChromeWidgetKind::ResizeHandle, accumulated_visual_context_index());
-    }
-
-    if (could_be_scrolled_by_wheel_event(ScrollDirection::Horizontal)) {
-        (void)box.ensure_scrollbar(ScrollDirection::Horizontal);
-        hit_test_display_list->append_chrome_widget(*this, ChromeWidgetKind::HorizontalScrollbar, accumulated_visual_context_index());
-    }
-    if (could_be_scrolled_by_wheel_event(ScrollDirection::Vertical)) {
-        (void)box.ensure_scrollbar(ScrollDirection::Vertical);
-        hit_test_display_list->append_chrome_widget(*this, ChromeWidgetKind::VerticalScrollbar, accumulated_visual_context_index());
-    }
-}
-
-void Paintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
-{
-    if (!is_visible())
-        return;
-
-    auto empty_cells_property_applies = [this]() {
-        return display().is_internal_table() && layout_node().empty_cells() == CSS::EmptyCells::Hide && !has_children();
-    };
-
-    if (phase == PaintPhase::Background && !empty_cells_property_applies()) {
-        paint_backdrop_filter(context);
-        paint_background(context);
-        paint_box_shadow(context);
-    }
-
-    if (phase == PaintPhase::Border && !uses_collapsing_borders_model() && !empty_cells_property_applies()) {
-        paint_border(context);
-    }
-
-    if (phase == PaintPhase::TableCollapsedBorder && collapsed_table_borders()) {
-        paint_table_borders(context, *this);
-    }
-
-    if (phase == PaintPhase::Outline) {
-        paint_outline(context, absolute_border_box_rect(), normalized_border_radii_data(ShrinkRadiiForBorders::No));
-        paint_focused_area_outline(context);
-    }
-
-    if (phase == PaintPhase::Overlay) {
-        ChromeMetrics const& metrics = context.chrome_metrics();
-
-        if (((g_paint_viewport_scrollbars && !document().page().async_scrolling_enabled()) || !is_viewport_paintable())
-            && layout_node().scrollbar_width() != CSS::ScrollbarWidth::None) {
-            auto scrollbar_colors = scrollbar_colors_for_paint(*this);
-
-            for (auto direction : { ScrollDirection::Vertical, ScrollDirection::Horizontal }) {
-                auto scrollbar_data = compute_scrollbar_data(direction, metrics);
-                if (!scrollbar_data.has_value())
-                    continue;
-                auto gutter_rect = context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>();
-                context.display_list_recorder().paint_scrollbar(
-                    own_scroll_node_index(),
-                    gutter_rect,
-                    context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>(),
-                    scrollbar_data->thumb_travel_to_scroll_ratio.to_double(),
-                    scrollbar_colors.thumb_color,
-                    scrollbar_colors.track_color,
-                    direction == ScrollDirection::Vertical);
-            }
-        }
-
-        if (auto resizer_rect = absolute_resizer_rect(metrics); resizer_rect.has_value()) {
-            bool bottom_left_resizer = is_chrome_mirrored();
-            CSSPixels padding = metrics.resize_gripper_padding;
-            CSSPixelRect css_rect = resizer_rect.value()
-                                        .shrunken(padding, padding)
-                                        .translated(bottom_left_resizer ? padding / 2 : -padding / 2, -padding / 2);
-            Gfx::IntRect rect = context.rounded_device_rect(css_rect).to_type<int>();
-            Gfx::Color dark { 0, 0, 0, 100 };
-            Gfx::Color light { 255, 255, 255, 100 };
-            auto& recorder = context.display_list_recorder();
-            auto paint_resizer_line = [&](int step, Gfx::Color color) {
-                Gfx::IntPoint from = { bottom_left_resizer ? rect.left() + step : rect.right() - step, rect.bottom() };
-                Gfx::IntPoint to = { bottom_left_resizer ? rect.left() : rect.right(), rect.bottom() - step };
-                recorder.draw_line(from, to, color, 1, Gfx::LineStyle::Solid);
-            };
-            for (int step = (rect.width() / 3) - 1; step < rect.width(); step += rect.width() / 3) {
-                paint_resizer_line(step, light);
-                paint_resizer_line(step + 1, dark);
-            }
-        }
-
-        paint_middle_button_scroll_indicator(context);
-    }
-}
-
-void Paintable::paint_middle_button_scroll_indicator(DisplayListRecordingContext& context) const
-{
-    static constexpr Gfx::Color CIRCLE_COLOR = Gfx::Color { Gfx::Color::White }.with_alpha(220);
-    static constexpr Gfx::Color ARROW_COLOR = Gfx::Color::DarkGray;
-
-    static constexpr auto RADIUS = 16;
-    static constexpr auto ARROW_SIZE = 6;
-    static constexpr auto ARROW_OFFSET = 8;
-
-    if (!is_viewport_paintable())
-        return;
-
-    auto navigable = document().navigable();
-    if (!navigable)
-        return;
-
-    auto handler = navigable->event_handler().middle_button_scroll_handler();
-    if (!handler.has_value())
-        return;
-
-    auto& recorder = context.display_list_recorder();
-    auto device_origin = context.rounded_device_point(handler->origin()).to_type<int>();
-
-    Gfx::IntRect circle { device_origin.x() - RADIUS, device_origin.y() - RADIUS, RADIUS * 2, RADIUS * 2 };
-    recorder.fill_rect_with_rounded_corners(circle, CIRCLE_COLOR, RADIUS);
-    recorder.draw_ellipse(circle, ARROW_COLOR, 1);
-
-    auto paint_arrow = [&](Gfx::FloatPoint p1, Gfx::FloatPoint p2, Gfx::FloatPoint p3) {
-        Gfx::Path path;
-        path.move_to(p1);
-        path.line_to(p2);
-        path.line_to(p3);
-        path.close();
-
-        recorder.fill_path({ .path = move(path), .paint_style_or_color = ARROW_COLOR });
-    };
-
-    auto x = static_cast<float>(device_origin.x());
-    auto y = static_cast<float>(device_origin.y());
-
-    // FIXME: We could paint a subset of these arrows depending on which direction the container may be scrolled.
-    paint_arrow({ x, y - ARROW_OFFSET - ARROW_SIZE }, { x - ARROW_SIZE, y - ARROW_OFFSET }, { x + ARROW_SIZE, y - ARROW_OFFSET });
-    paint_arrow({ x, y + ARROW_OFFSET + ARROW_SIZE }, { x - ARROW_SIZE, y + ARROW_OFFSET }, { x + ARROW_SIZE, y + ARROW_OFFSET });
-    paint_arrow({ x - ARROW_OFFSET - ARROW_SIZE, y }, { x - ARROW_OFFSET, y - ARROW_SIZE }, { x - ARROW_OFFSET, y + ARROW_SIZE });
-    paint_arrow({ x + ARROW_OFFSET + ARROW_SIZE, y }, { x + ARROW_OFFSET, y - ARROW_SIZE }, { x + ARROW_OFFSET, y + ARROW_SIZE });
-}
-
-void Paintable::paint_inspector_overlay_internal(DisplayListRecordingContext& context) const
-{
-    auto content_rect = absolute_rect();
-    auto margin_box = box_model().margin_box();
-    CSSPixelRect margin_rect {
-        absolute_x() - margin_box.left,
-        absolute_y() - margin_box.top,
-        content_width() + margin_box.left + margin_box.right,
-        content_height() + margin_box.top + margin_box.bottom,
-    };
-    auto border_rect = absolute_border_box_rect();
-    auto padding_rect = absolute_padding_box_rect();
-
-    auto paint_inspector_rect = [&](CSSPixelRect const& rect, Color color) {
-        auto device_rect = context.enclosing_device_rect(rect).to_type<int>();
-        context.display_list_recorder().fill_rect(device_rect, color.with_alpha(100));
-        context.display_list_recorder().draw_rect(device_rect, color);
-    };
-
-    paint_inspector_rect(margin_rect, Color::Yellow);
-    paint_inspector_rect(padding_rect, Color::Cyan);
-    paint_inspector_rect(border_rect, Color::Green);
-    paint_inspector_rect(content_rect, Color::Magenta);
-
-    auto font = Platform::FontPlugin::the().default_font(12);
-
-    Utf16StringBuilder builder;
-    builder.appendff("{}", debug_description());
-    builder.appendff(" {}x{} @ {},{}", border_rect.width(), border_rect.height(), border_rect.x(), border_rect.y());
-    auto size_text = builder.to_string();
-    auto size_text_rect = border_rect;
-    size_text_rect.set_y(border_rect.y() + border_rect.height());
-    size_text_rect.set_top(size_text_rect.top());
-    size_text_rect.set_width(CSSPixels::nearest_value_for(font->width(size_text)) + 4);
-    size_text_rect.set_height(CSSPixels::nearest_value_for(font->pixel_size()) + 4);
-    auto size_text_device_rect = context.enclosing_device_rect(size_text_rect).to_type<int>();
-    context.display_list_recorder().fill_rect(size_text_device_rect, context.palette().color(Gfx::ColorRole::Tooltip));
-    context.display_list_recorder().draw_rect(size_text_device_rect, context.palette().threed_shadow1());
-    context.display_list_recorder().draw_text(size_text_device_rect, size_text, font->with_size(font->point_size() * context.device_pixels_per_css_pixel()), Gfx::TextAlignment::Center, context.palette().color(Gfx::ColorRole::TooltipText));
-}
-
 Optional<UsedGridTrackList> Paintable::used_values_for_grid_template_columns() const
 {
     Optional<UsedGridTrackList> result;
@@ -2179,230 +1376,8 @@ OwnPtr<Layout::FlexLayoutData> Paintable::flex_layout_data() const
     return result;
 }
 
-void Paintable::paint_grid_inspector_overlay(DisplayListRecordingContext& context, GridInspectorOverlayOptions const& options) const
-{
-    auto grid_layout_data = this->grid_layout_data();
-    if (!grid_layout_data)
-        return;
-
-    paint_with_inspector_overlay_context(context, [&] {
-        auto content_rect = absolute_rect();
-        auto const origin = content_rect.location();
-        auto const viewport_rect = document().viewport_rect();
-        auto const& color = options.color;
-        auto font = Platform::FontPlugin::the().default_font(10);
-        auto label_font = font->with_size(font->point_size() * context.device_pixels_per_css_pixel());
-        auto label_height = CSSPixels::nearest_value_for(font->pixel_size()) + 4;
-        auto label_padding = CSSPixels(4);
-
-        auto paint_rect = [&](CSSPixelRect const& rect, Gfx::Color rect_color) {
-            context.display_list_recorder().fill_rect(context.enclosing_device_rect(rect).to_type<int>(), rect_color);
-        };
-
-        auto paint_label = [&](CSSPixelPoint top_left, Utf16String const& text) {
-            auto label_width = CSSPixels::nearest_value_for(font->width(text)) + label_padding * 2;
-            auto label_rect = CSSPixelRect { top_left.x(), top_left.y(), label_width, label_height };
-            auto label_device_rect = context.enclosing_device_rect(label_rect).to_type<int>();
-            auto label_background = color.with_alpha(235);
-            context.display_list_recorder().fill_rect(label_device_rect, label_background);
-            context.display_list_recorder().draw_rect(label_device_rect, color.with_alpha(255));
-            context.display_list_recorder().draw_text(label_device_rect, text, label_font, Gfx::TextAlignment::Center, label_background.suggested_foreground_color());
-        };
-
-        auto paint_centered_label = [&](CSSPixelRect const& rect, Utf16String const& text) {
-            auto label_width = CSSPixels::nearest_value_for(font->width(text)) + label_padding * 2;
-            paint_label({ rect.center().x() - label_width / 2, rect.center().y() - label_height / 2 }, text);
-        };
-
-        auto line_start_for_number = [](Layout::GridLayoutDimension const& dimension, u32 number) -> Optional<CSSPixels> {
-            for (auto const& line : dimension.lines) {
-                if (line.number == number)
-                    return line.start;
-            }
-            return {};
-        };
-
-        auto line_number_label = [](Layout::GridLayoutLine const& line) {
-            if (line.negative_number < 0)
-                return MUST(String::formatted("{} / {}", line.number, line.negative_number));
-            return MUST(String::formatted("{}", line.number));
-        };
-
-        auto track_size_label = [](Layout::GridLayoutTrack const& track) {
-            return MUST(String::formatted("{:.2f}px", max(0.0, track.breadth.to_double())));
-        };
-
-        auto line_color = color.with_alpha(220);
-        auto gap_color = color.with_alpha(45);
-        auto line_thickness = CSSPixels(1);
-
-        for (auto const& fragment : grid_layout_data->fragments) {
-            for (auto const& column_line : fragment.columns.lines) {
-                auto x = origin.x() + column_line.start;
-                auto line_top = options.show_infinite_lines ? viewport_rect.y() : content_rect.y();
-                auto line_height = options.show_infinite_lines ? viewport_rect.height() : content_rect.height();
-
-                if (column_line.breadth > 0)
-                    paint_rect({ x, line_top, column_line.breadth, line_height }, gap_color);
-
-                paint_rect({ x, line_top, line_thickness, line_height }, line_color);
-
-                if (options.show_line_numbers)
-                    paint_label({ x + 2, line_top + 2 }, Utf16String::from_utf8(line_number_label(column_line)));
-            }
-
-            for (auto const& row_line : fragment.rows.lines) {
-                auto y = origin.y() + row_line.start;
-                auto line_left = options.show_infinite_lines ? viewport_rect.x() : content_rect.x();
-                auto line_width = options.show_infinite_lines ? viewport_rect.width() : content_rect.width();
-
-                if (row_line.breadth > 0)
-                    paint_rect({ line_left, y, line_width, row_line.breadth }, gap_color);
-
-                paint_rect({ line_left, y, line_width, line_thickness }, line_color);
-
-                if (options.show_line_numbers)
-                    paint_label({ line_left + 2, y + 2 }, Utf16String::from_utf8(line_number_label(row_line)));
-            }
-
-            if (options.show_track_sizes) {
-                for (auto const& column_track : fragment.columns.tracks) {
-                    auto track_rect = CSSPixelRect {
-                        origin.x() + column_track.start,
-                        content_rect.y(),
-                        column_track.breadth,
-                        min(content_rect.height(), label_height + 4),
-                    };
-                    paint_centered_label(track_rect, Utf16String::from_utf8(track_size_label(column_track)));
-                }
-
-                for (auto const& row_track : fragment.rows.tracks) {
-                    auto track_rect = CSSPixelRect {
-                        content_rect.x(),
-                        origin.y() + row_track.start,
-                        min(content_rect.width(), CSSPixels(72)),
-                        row_track.breadth,
-                    };
-                    paint_centered_label(track_rect, Utf16String::from_utf8(track_size_label(row_track)));
-                }
-            }
-
-            if (options.show_area_names) {
-                for (auto const& area : fragment.areas) {
-                    auto column_start = line_start_for_number(fragment.columns, area.column_start);
-                    auto column_end = line_start_for_number(fragment.columns, area.column_end);
-                    auto row_start = line_start_for_number(fragment.rows, area.row_start);
-                    auto row_end = line_start_for_number(fragment.rows, area.row_end);
-                    if (!column_start.has_value() || !column_end.has_value() || !row_start.has_value() || !row_end.has_value())
-                        continue;
-
-                    auto area_rect = CSSPixelRect {
-                        origin.x() + column_start.value(),
-                        origin.y() + row_start.value(),
-                        column_end.value() - column_start.value(),
-                        row_end.value() - row_start.value(),
-                    };
-                    paint_rect(area_rect, color.with_alpha(24));
-
-                    auto visible_area_rect = area_rect.intersected(viewport_rect);
-                    if (!visible_area_rect.is_empty())
-                        paint_centered_label(visible_area_rect, area.name.to_utf16_string());
-                }
-            }
-        }
-    });
-}
-
-void Paintable::paint_flexbox_inspector_overlay(DisplayListRecordingContext& context, FlexboxInspectorOverlayOptions const& options) const
-{
-    auto flex_layout_data = this->flex_layout_data();
-    if (!flex_layout_data)
-        return;
-
-    paint_with_inspector_overlay_context(context, [&] {
-        auto content_rect = absolute_rect();
-        auto const origin = content_rect.location();
-        auto const viewport_rect = document().viewport_rect();
-        auto const& color = options.color;
-        auto line_color = color.with_alpha(220);
-        auto container_fill_color = color.with_alpha(28);
-        auto line_fill_color = color.with_alpha(18);
-        auto item_fill_color = color.with_alpha(32);
-        auto line_thickness = CSSPixels(1);
-        auto main_axis_is_horizontal = flex_layout_data->flex_direction == CSS::FlexDirection::Row
-            || flex_layout_data->flex_direction == CSS::FlexDirection::RowReverse;
-
-        auto paint_rect = [&](CSSPixelRect const& rect, Gfx::Color rect_color) {
-            auto visible_rect = rect.intersected(viewport_rect);
-            if (visible_rect.is_empty())
-                return;
-            context.display_list_recorder().fill_rect(context.enclosing_device_rect(visible_rect).to_type<int>(), rect_color);
-        };
-
-        auto paint_outline = [&](CSSPixelRect const& rect, Gfx::Color rect_color) {
-            auto visible_rect = rect.intersected(viewport_rect);
-            if (visible_rect.is_empty())
-                return;
-            context.display_list_recorder().draw_rect(context.enclosing_device_rect(visible_rect).to_type<int>(), rect_color);
-        };
-
-        paint_rect(content_rect, container_fill_color);
-        paint_outline(content_rect, line_color);
-
-        for (auto const& line : flex_layout_data->lines) {
-            auto line_rect = main_axis_is_horizontal
-                ? CSSPixelRect { content_rect.x(), origin.y() + line.cross_start, content_rect.width(), line.cross_size }
-                : CSSPixelRect { origin.x() + line.cross_start, content_rect.y(), line.cross_size, content_rect.height() };
-
-            paint_rect(line_rect, line_fill_color);
-            paint_outline(line_rect, line_color);
-
-            for (auto const& item : line.items) {
-                auto item_rect = item.rect.translated(origin);
-                paint_rect(item_rect, item_fill_color);
-                paint_outline(item_rect, line_color);
-            }
-        }
-
-        // Repaint the container border last so adjacent flex lines and items do not obscure it.
-        paint_outline(content_rect, line_color);
-
-        if (main_axis_is_horizontal) {
-            for (auto const& line : flex_layout_data->lines) {
-                auto y = origin.y() + line.cross_start;
-                paint_rect({ content_rect.x(), y, content_rect.width(), line_thickness }, line_color);
-                paint_rect({ content_rect.x(), y + line.cross_size, content_rect.width(), line_thickness }, line_color);
-            }
-        } else {
-            for (auto const& line : flex_layout_data->lines) {
-                auto x = origin.x() + line.cross_start;
-                paint_rect({ x, content_rect.y(), line_thickness, content_rect.height() }, line_color);
-                paint_rect({ x + line.cross_size, content_rect.y(), line_thickness, content_rect.height() }, line_color);
-            }
-        }
-    });
-}
-
-void Paintable::set_stacking_context(NonnullRefPtr<StackingContext> stacking_context)
-{
-    m_stacking_context = move(stacking_context);
-}
-
-RefPtr<StackingContext> Paintable::stacking_context()
-{
-    return m_stacking_context;
-}
-
-RefPtr<StackingContext const> Paintable::stacking_context() const
-{
-    return m_stacking_context;
-}
-
 void Paintable::invalidate_stacking_context()
 {
-    m_stacking_context = nullptr;
-    if (!has_layout_node())
-        return;
     if (auto viewport_paintable = document().unsafe_paintable())
         viewport_paintable->invalidate_stacking_context_tree();
 }
@@ -2415,556 +1390,6 @@ Optional<int> Paintable::effective_z_index() const
         return layout_node().z_index();
 
     return {};
-}
-
-enum class BorderImageTrack {
-    Start,
-    Center,
-    End,
-};
-
-struct BorderImageAxis {
-    CSSPixels start;
-    CSSPixels center_start;
-    CSSPixels center_end;
-    CSSPixels end;
-
-    CSSPixels track_start(BorderImageTrack track) const
-    {
-        switch (track) {
-        case BorderImageTrack::Start:
-            return start;
-        case BorderImageTrack::Center:
-            return center_start;
-        case BorderImageTrack::End:
-            return center_end;
-        }
-        VERIFY_NOT_REACHED();
-    }
-
-    CSSPixels track_end(BorderImageTrack track) const
-    {
-        switch (track) {
-        case BorderImageTrack::Start:
-            return center_start;
-        case BorderImageTrack::Center:
-            return center_end;
-        case BorderImageTrack::End:
-            return end;
-        }
-        VERIFY_NOT_REACHED();
-    }
-
-    CSSPixels track_size(BorderImageTrack track) const
-    {
-        return track_end(track) - track_start(track);
-    }
-};
-
-struct BorderImageGrid {
-    BorderImageAxis columns;
-    BorderImageAxis rows;
-};
-
-struct ResolvedBorderImageGeometry {
-    BorderImageGrid source;
-    BorderImageGrid destination;
-    PixelBox source_slices;
-    PixelBox widths;
-};
-
-static Gfx::FloatRect source_rect_for_track(BorderImageGrid const& grid, BorderImageTrack column, BorderImageTrack row)
-{
-    return {
-        grid.columns.track_start(column).to_float(),
-        grid.rows.track_start(row).to_float(),
-        grid.columns.track_size(column).to_float(),
-        grid.rows.track_size(row).to_float(),
-    };
-}
-
-static CSSPixelRect destination_rect_for_track(BorderImageGrid const& grid, BorderImageTrack column, BorderImageTrack row)
-{
-    return {
-        grid.columns.track_start(column),
-        grid.rows.track_start(row),
-        grid.columns.track_size(column),
-        grid.rows.track_size(row),
-    };
-}
-
-static ResolvedBorderImageGeometry resolve_border_image_geometry(CSS::BorderImageData const& border_image, Gfx::IntSize source_size, CSSPixelRect border_box_rect, PixelBox border_width)
-{
-    // https://drafts.csswg.org/css-backgrounds-3/#border-image-slice
-    auto resolve_slice = [](CSS::BorderImageSliceValue const& value, CSSPixels reference_length) {
-        return value.visit(
-            [](double number) { return CSSPixels(number); },
-            [&](CSS::Percentage percentage) { return CSSPixels::nearest_value_for(reference_length * percentage.as_fraction()); },
-            [&](NonnullRefPtr<CSS::CalculatedStyleValue const> const& calculated) {
-                if (calculated->resolves_to_percentage())
-                    return CSSPixels::nearest_value_for(reference_length * calculated->resolve_percentage({}).value().as_fraction());
-                return CSSPixels(calculated->resolve_number({}).value());
-            });
-    };
-
-    auto resolve_outset = [](CSS::BorderImageOutsetValue const& value, CSSPixels border_width) {
-        return value.visit(
-            [&](double number) { return CSSPixels::nearest_value_for(border_width * number); },
-            [](CSS::Length const& length) { return length.absolute_length_to_px(); });
-    };
-
-    // https://drafts.csswg.org/css-backgrounds-3/#border-image-width
-    auto resolve_width = [](CSS::BorderImageWidthValue const& value, CSSPixels border_width, CSSPixels reference_length, CSSPixels auto_width) {
-        return value.visit(
-            [&](double number) { return CSSPixels::nearest_value_for(border_width * number); },
-            [&](CSS::LengthPercentage const& length_percentage) { return length_percentage.to_px(reference_length); },
-            [&](CSS::BorderImageWidthAuto) { return auto_width; });
-    };
-
-    auto shrink_opposite_sides_to_fit = [](CSSPixels& first, CSSPixels& second, CSSPixels available) {
-        auto total = first + second;
-        if (total <= available)
-            return;
-        auto factor = available / total;
-        first = first * factor;
-        second = second * factor;
-    };
-
-    PixelBox source_slices {
-        .top = resolve_slice(border_image.slice.top, source_size.height()),
-        .right = resolve_slice(border_image.slice.right, source_size.width()),
-        .bottom = resolve_slice(border_image.slice.bottom, source_size.height()),
-        .left = resolve_slice(border_image.slice.left, source_size.width()),
-    };
-    shrink_opposite_sides_to_fit(source_slices.left, source_slices.right, source_size.width());
-    shrink_opposite_sides_to_fit(source_slices.top, source_slices.bottom, source_size.height());
-
-    auto const& outset = border_image.outset;
-    PixelBox resolved_outset {
-        .top = resolve_outset(outset.top, border_width.top),
-        .right = resolve_outset(outset.right, border_width.right),
-        .bottom = resolve_outset(outset.bottom, border_width.bottom),
-        .left = resolve_outset(outset.left, border_width.left),
-    };
-
-    auto border_image_rect = border_box_rect;
-    border_image_rect.inflate(resolved_outset.top, resolved_outset.right, resolved_outset.bottom, resolved_outset.left);
-
-    // https://drafts.csswg.org/css-backgrounds-3/#border-image-process
-    auto const& border_image_width = border_image.width;
-    PixelBox widths {
-        .top = resolve_width(border_image_width.top, border_width.top, border_image_rect.height(), source_slices.top),
-        .right = resolve_width(border_image_width.right, border_width.right, border_image_rect.width(), source_slices.right),
-        .bottom = resolve_width(border_image_width.bottom, border_width.bottom, border_image_rect.height(), source_slices.bottom),
-        .left = resolve_width(border_image_width.left, border_width.left, border_image_rect.width(), source_slices.left),
-    };
-    shrink_opposite_sides_to_fit(widths.left, widths.right, border_image_rect.width());
-    shrink_opposite_sides_to_fit(widths.top, widths.bottom, border_image_rect.height());
-
-    return {
-        .source = {
-            .columns = { 0, source_slices.left, CSSPixels(source_size.width()) - source_slices.right, CSSPixels(source_size.width()) },
-            .rows = { 0, source_slices.top, CSSPixels(source_size.height()) - source_slices.bottom, CSSPixels(source_size.height()) },
-        },
-        .destination = {
-            .columns = { border_image_rect.left(), border_image_rect.left() + widths.left, border_image_rect.right() - widths.right, border_image_rect.right() },
-            .rows = { border_image_rect.top(), border_image_rect.top() + widths.top, border_image_rect.bottom() - widths.bottom, border_image_rect.bottom() },
-        },
-        .source_slices = source_slices,
-        .widths = widths,
-    };
-}
-
-static Gfx::FloatSize rounded_repeated_border_image_tile_size(Gfx::FloatSize tile_size, Gfx::IntRect const& dest_rect, CSS::BorderImageRepeat repeat_x, CSS::BorderImageRepeat repeat_y)
-{
-    if (repeat_x == CSS::BorderImageRepeat::Stretch) {
-        tile_size.set_width(dest_rect.width());
-    } else if (repeat_x == CSS::BorderImageRepeat::Round && tile_size.width() > 0) {
-        auto tile_count = max(1, round_to<int>(static_cast<double>(dest_rect.width()) / static_cast<double>(tile_size.width())));
-        tile_size.set_width(static_cast<float>(dest_rect.width()) / tile_count);
-    }
-
-    if (repeat_y == CSS::BorderImageRepeat::Stretch) {
-        tile_size.set_height(dest_rect.height());
-    } else if (repeat_y == CSS::BorderImageRepeat::Round && tile_size.height() > 0) {
-        auto tile_count = max(1, round_to<int>(static_cast<double>(dest_rect.height()) / static_cast<double>(tile_size.height())));
-        tile_size.set_height(static_cast<float>(dest_rect.height()) / tile_count);
-    }
-
-    return tile_size;
-}
-
-static CSSPixels scale_source_length_to_destination(CSSPixels source_length, CSSPixels source_reference, CSSPixels destination_reference)
-{
-    if (source_reference <= 0)
-        return source_length;
-    auto scaled_length = source_length * (destination_reference / source_reference);
-    return max(CSSPixels::smallest_positive_value(), scaled_length);
-}
-
-static void paint_border_image_slice(DisplayListRecordingContext& context, Gfx::DecodedImageFrame const& source_frame, Gfx::FloatRect const& source_rect, Gfx::IntRect const& dest_rect, Gfx::FloatSize device_tile_size, CSS::ImageRendering image_rendering, CSS::BorderImageRepeat repeat_x, CSS::BorderImageRepeat repeat_y)
-{
-    if (source_rect.is_empty() || dest_rect.is_empty())
-        return;
-
-    device_tile_size = rounded_repeated_border_image_tile_size(device_tile_size, dest_rect, repeat_x, repeat_y);
-    if (device_tile_size.is_empty())
-        return;
-
-    auto source_size = source_rect.size().to_rounded<int>();
-
-    auto start_x = static_cast<float>(dest_rect.x());
-    auto start_y = static_cast<float>(dest_rect.y());
-    auto tile_step = device_tile_size;
-    Optional<u32> tile_count_x;
-    Optional<u32> tile_count_y;
-
-    if (repeat_x == CSS::BorderImageRepeat::Stretch)
-        tile_count_x = 1;
-    if (repeat_y == CSS::BorderImageRepeat::Stretch)
-        tile_count_y = 1;
-
-    if (repeat_x == CSS::BorderImageRepeat::Space || repeat_y == CSS::BorderImageRepeat::Space) {
-        auto whole_tiles_x = repeat_x == CSS::BorderImageRepeat::Space ? static_cast<int>(floor(static_cast<float>(dest_rect.width()) / device_tile_size.width())) : 1;
-        auto whole_tiles_y = repeat_y == CSS::BorderImageRepeat::Space ? static_cast<int>(floor(static_cast<float>(dest_rect.height()) / device_tile_size.height())) : 1;
-        if (whole_tiles_x <= 0 || whole_tiles_y <= 0)
-            return;
-
-        auto gap_x = repeat_x == CSS::BorderImageRepeat::Space ? (static_cast<float>(dest_rect.width()) - whole_tiles_x * device_tile_size.width()) / (whole_tiles_x + 1) : 0;
-        auto gap_y = repeat_y == CSS::BorderImageRepeat::Space ? (static_cast<float>(dest_rect.height()) - whole_tiles_y * device_tile_size.height()) / (whole_tiles_y + 1) : 0;
-
-        if (repeat_x == CSS::BorderImageRepeat::Space) {
-            start_x = dest_rect.x() + gap_x;
-            tile_step.set_width(device_tile_size.width() + gap_x);
-            tile_count_x = static_cast<u32>(whole_tiles_x);
-        } else {
-            tile_count_x = 1;
-        }
-
-        if (repeat_y == CSS::BorderImageRepeat::Space) {
-            start_y = dest_rect.y() + gap_y;
-            tile_step.set_height(device_tile_size.height() + gap_y);
-            tile_count_y = static_cast<u32>(whole_tiles_y);
-        } else {
-            tile_count_y = 1;
-        }
-    } else {
-        if (repeat_x == CSS::BorderImageRepeat::Repeat) {
-            start_x += (static_cast<float>(dest_rect.width()) - device_tile_size.width()) / 2;
-            while (start_x > dest_rect.x())
-                start_x -= device_tile_size.width();
-        }
-
-        if (repeat_y == CSS::BorderImageRepeat::Repeat) {
-            start_y += (static_cast<float>(dest_rect.height()) - device_tile_size.height()) / 2;
-            while (start_y > dest_rect.y())
-                start_y -= device_tile_size.height();
-        }
-    }
-
-    Gfx::IntSize tile_size_for_scaling {
-        max(1, round_to<int>(device_tile_size.width())),
-        max(1, round_to<int>(device_tile_size.height())),
-    };
-    auto scaling_mode = CSS::to_gfx_scaling_mode(image_rendering, source_size, tile_size_for_scaling);
-    context.display_list_recorder().draw_tiled_decoded_image_frame({
-        .tile_rect = { start_x, start_y, device_tile_size.width(), device_tile_size.height() },
-        .clip_rect = dest_rect,
-        .src_rect = source_rect,
-        .tile_step = tile_step,
-        .frame = source_frame,
-        .scaling_mode = scaling_mode,
-        .tile_count_x = tile_count_x,
-        .tile_count_y = tile_count_y,
-    });
-}
-
-static bool paint_border_image(DisplayListRecordingContext& context, Paintable const& paintable_box, BordersData const& borders_data, CSSPixelRect const& border_box_rect)
-{
-    if (!paintable_box.layout_node().border_image_source())
-        return false;
-
-    auto const& border_image = paintable_box.layout_node().border_image();
-    VERIFY(border_image.source);
-
-    // FIXME: Support all abstract image sources here. NodeWithStyle loads and observes gradients and
-    // image-set(), but this painting path currently only handles raster images.
-    if (!border_image.source->is_image())
-        return false;
-
-    auto const& image = border_image.source->as_image();
-    auto const& document = paintable_box.document();
-    if (!image.is_paintable(document))
-        return false;
-
-    auto maybe_frame = image.current_frame(document);
-    if (!maybe_frame.has_value())
-        return false;
-
-    auto const& frame = *maybe_frame;
-    PixelBox border_width {
-        .top = borders_data.top.width,
-        .right = borders_data.right.width,
-        .bottom = borders_data.bottom.width,
-        .left = borders_data.left.width,
-    };
-    auto geometry = resolve_border_image_geometry(border_image, frame.size(), border_box_rect, border_width);
-
-    auto repeat_x = border_image.repeat_x;
-    auto repeat_y = border_image.repeat_y;
-
-    auto image_rendering = paintable_box.layout_node().image_rendering();
-
-    // A tile keeps the source region's aspect ratio at the scale forced by the border thickness.
-    auto natural_tile_size = [&](BorderImageTrack column, BorderImageTrack row, CSSPixelRect const& destination_rect) -> CSSPixelSize {
-        auto source_width = geometry.source.columns.track_size(column);
-        auto source_height = geometry.source.rows.track_size(row);
-        auto tile_width = destination_rect.width();
-        auto tile_height = destination_rect.height();
-
-        if (column == BorderImageTrack::Center && row != BorderImageTrack::Center) {
-            tile_width = scale_source_length_to_destination(source_width, source_height, destination_rect.height());
-        } else if (row == BorderImageTrack::Center && column != BorderImageTrack::Center) {
-            tile_height = scale_source_length_to_destination(source_height, source_width, destination_rect.width());
-        } else if (column == BorderImageTrack::Center && row == BorderImageTrack::Center) {
-            // The centre fill is scaled horizontally like the top edge and vertically like the left edge.
-            tile_width = scale_source_length_to_destination(source_width, geometry.source_slices.top, geometry.widths.top);
-            tile_height = scale_source_length_to_destination(source_height, geometry.source_slices.left, geometry.widths.left);
-        }
-        return { tile_width, tile_height };
-    };
-
-    // Only the centre track of an axis honours border-image-repeat; the edges always stretch.
-    auto paint_piece = [&](BorderImageTrack column, BorderImageTrack row) {
-        auto source_rect = source_rect_for_track(geometry.source, column, row);
-        auto destination_rect = destination_rect_for_track(geometry.destination, column, row);
-        auto destination_device_rect = context.rounded_device_rect(destination_rect).to_type<int>();
-        auto tile_device_size = css_size_to_device_size(natural_tile_size(column, row, destination_rect), context.device_pixels_per_css_pixel());
-        auto horizontal_repeat = column == BorderImageTrack::Center ? repeat_x : CSS::BorderImageRepeat::Stretch;
-        auto vertical_repeat = row == BorderImageTrack::Center ? repeat_y : CSS::BorderImageRepeat::Stretch;
-        paint_border_image_slice(context, frame, source_rect, destination_device_rect, tile_device_size, image_rendering, horizontal_repeat, vertical_repeat);
-    };
-
-    for (auto row : { BorderImageTrack::Start, BorderImageTrack::Center, BorderImageTrack::End }) {
-        for (auto column : { BorderImageTrack::Start, BorderImageTrack::Center, BorderImageTrack::End }) {
-            if (column == BorderImageTrack::Center && row == BorderImageTrack::Center && !border_image.fill)
-                continue; // The centre is only painted when the 'fill' keyword is present.
-            paint_piece(column, row);
-        }
-    }
-
-    return true;
-}
-
-void Paintable::paint_border(DisplayListRecordingContext& context) const
-{
-    BordersData borders_data {
-        .top = box_model().border.top == 0 ? CSS::BorderData() : layout_node().border_top(),
-        .right = box_model().border.right == 0 ? CSS::BorderData() : layout_node().border_right(),
-        .bottom = box_model().border.bottom == 0 ? CSS::BorderData() : layout_node().border_bottom(),
-        .left = box_model().border.left == 0 ? CSS::BorderData() : layout_node().border_left(),
-    };
-    paint_border(context, absolute_border_box_rect(), borders_data, normalized_border_radii_data());
-}
-
-void Paintable::paint_border(DisplayListRecordingContext& context, CSSPixelRect const& border_box_rect, BordersData const& borders_data, BorderRadiiData const& border_radii) const
-{
-    if (paint_border_image(context, *this, borders_data, border_box_rect))
-        return;
-    paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(border_box_rect), border_radii.as_corners(context.device_pixel_converter()), borders_data.to_device_pixels(context));
-}
-
-void Paintable::paint_outline(DisplayListRecordingContext& context, CSSPixelRect const& border_box_rect, BorderRadiiData const& border_radii) const
-{
-    auto const& outline_data = this->outline_data();
-    if (!outline_data.has_value())
-        return;
-
-    auto outline_offset = this->outline_offset();
-    auto border_radius_data = border_radii;
-    auto borders_rect = border_box_rect;
-
-    auto outline_offset_x = outline_offset;
-    auto outline_offset_y = outline_offset;
-    // "Both the height and the width of the outside of the shape drawn by the outline should not
-    // become smaller than twice the computed value of the outline-width property to make sure
-    // that an outline can be rendered even with large negative values."
-    // https://www.w3.org/TR/css-ui-4/#outline-offset
-    // So, if the horizontal outline offset is > half the borders_rect's width then we set it to that.
-    // (And the same for y)
-    if ((borders_rect.width() / 2) + outline_offset_x < 0)
-        outline_offset_x = -borders_rect.width() / 2;
-    if ((borders_rect.height() / 2) + outline_offset_y < 0)
-        outline_offset_y = -borders_rect.height() / 2;
-
-    border_radius_data.inflate(outline_data->top.width + outline_offset_y, outline_data->right.width + outline_offset_x, outline_data->bottom.width + outline_offset_y, outline_data->left.width + outline_offset_x);
-    borders_rect.inflate(outline_data->top.width + outline_offset_y, outline_data->right.width + outline_offset_x, outline_data->bottom.width + outline_offset_y, outline_data->left.width + outline_offset_x);
-
-    paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(borders_rect), border_radius_data.as_corners(context.device_pixel_converter()), outline_data->to_device_pixels(context));
-}
-
-void Paintable::paint_focused_area_outline(DisplayListRecordingContext& context) const
-{
-    // https://html.spec.whatwg.org/multipage/interaction.html#focusable-area
-    // The shapes of area elements in an image map associated with an img element that is being rendered and is not
-    // inert.
-    // NB: Focused area elements have no paintable of their own, so the image whose rendering makes the area's shape a
-    //     focusable area paints the focus outline along that shape.
-    auto const* area_element = as_if<HTML::HTMLAreaElement>(document().focused_area().ptr());
-    if (!area_element)
-        return;
-
-    auto const* map_element = area_element->first_ancestor_of_type<HTML::HTMLMapElement>();
-    if (!map_element)
-        return;
-
-    auto const* image_element = as_if<HTML::HTMLImageElement>(dom_node().ptr());
-    if (!image_element || map_element->first_painted_image_with_focusable_shapes().ptr() != image_element)
-        return;
-
-    auto area_computed_values = area_element->computed_style();
-    if (!area_computed_values)
-        return;
-
-    // AD-HOC: Only the user agent focus ring is painted. Other engines do not let author outline values style the
-    //         focus indicator of an image map area.
-    if (area_computed_values->outline_style() != CSS::OutlineStyle::Auto)
-        return;
-
-    auto outline_data = this->outline_data(*area_computed_values);
-    if (!outline_data.has_value())
-        return;
-
-    auto image_rect = absolute_rect();
-    auto path = area_element->shape_path(image_rect.size());
-    if (!path.has_value())
-        return;
-
-    auto scale = static_cast<float>(context.device_pixels_per_css_pixel());
-    auto device_origin = context.rounded_device_point(image_rect.location());
-    Gfx::AffineTransform transform;
-    transform.translate(device_origin.to_type<int>().to_type<float>());
-    transform.scale(scale, scale);
-
-    context.display_list_recorder().save();
-    context.display_list_recorder().add_clip_rect(context.enclosing_device_rect(image_rect).to_type<int>());
-    context.display_list_recorder().stroke_path({
-        .cap_style = Gfx::Path::CapStyle::Round,
-        .join_style = Gfx::Path::JoinStyle::Round,
-        .miter_limit = 4,
-        .dash_array = {},
-        .dash_offset = 0,
-        .path = path->copy_transformed(transform),
-        .paint_style_or_color = outline_data->top.color,
-        .thickness = static_cast<float>(outline_data->top.width.to_double()) * scale,
-    });
-    context.display_list_recorder().restore();
-}
-
-void Paintable::paint_backdrop_filter(DisplayListRecordingContext& context) const
-{
-    if (!layout_node().backdrop_filter().has_filters())
-        return;
-
-    auto resolved = resolve_css_filter(layout_node().backdrop_filter(), *this);
-    auto backdrop_region = context.rounded_device_rect(absolute_border_box_rect());
-    auto border_radii_data = normalized_border_radii_data();
-    ScopedCornerRadiusClip corner_clipper { context, backdrop_region, border_radii_data };
-    if (auto gfx_filter = to_gfx_filter(resolved, context.device_pixels_per_css_pixel()); gfx_filter.has_value())
-        context.display_list_recorder().apply_backdrop_filter(backdrop_region.to_type<int>(), border_radii_data.as_corners(context.device_pixel_converter()), *gfx_filter);
-}
-
-bool Paintable::has_css_borders() const
-{
-    return layout_node().border_top().width != 0 || layout_node().border_right().width != 0 || layout_node().border_bottom().width != 0 || layout_node().border_left().width != 0;
-}
-
-void Paintable::paint_background(DisplayListRecordingContext& context) const
-{
-    // If the body's background properties were propagated to the root element, do not re-paint the body's background.
-    if (body_background_is_propagated_to_root(layout_node()))
-        return;
-
-    // https://drafts.csswg.org/css-backgrounds/#root-background
-    if (layout_node().is_root_element()) {
-        auto background_rect = absolute_border_box_rect();
-        Color background_color = layout_node().background_color();
-        auto const* background_layers = &layout_node().background_layers();
-
-        auto& html_element = as<HTML::HTMLHtmlElement>(*layout_node().dom_node());
-        if (html_element.should_use_body_background_properties()) {
-            background_layers = document().background_layers();
-            background_color = document().background_color();
-        }
-
-        auto border_radii = normalized_border_radii_data();
-
-        ResolvedBackground resolved_background;
-        if (background_layers)
-            resolved_background = resolve_background_layers(*background_layers, *this, background_color, layout_node().background_color_clip(), background_rect, border_radii);
-
-        auto canvas_rect = navigable()->viewport_rect();
-        if (auto overflow_rect = scrollable_overflow_rect(); overflow_rect.has_value())
-            canvas_rect.unite(overflow_rect.value());
-        resolved_background.background_rect.unite(canvas_rect);
-        resolved_background.color_box.rect.unite(canvas_rect);
-
-        // If the body's background was propagated to the root element, use the body's image-rendering value.
-        auto image_rendering = layout_node().image_rendering();
-        if (html_element.should_use_body_background_properties())
-            image_rendering = document().background_image_rendering();
-
-        Painting::paint_background(context, *this, image_rendering, resolved_background, border_radii);
-        return;
-    }
-
-    // HACK: If the Box has a border, use the bordered_rect to paint the background.
-    //       This way if we have a border-radius there will be no gap between the filling and actual border.
-    auto background_rect = has_css_borders() ? absolute_border_box_rect() : absolute_padding_box_rect();
-    paint_background_within(context, background_rect, normalized_border_radii_data());
-}
-
-void Paintable::paint_background_within(DisplayListRecordingContext& context, CSSPixelRect const& background_rect, BorderRadiiData const& border_radii) const
-{
-    auto resolved_background = resolve_background_layers(layout_node().background_layers(), *this, layout_node().background_color(), layout_node().background_color_clip(), background_rect, border_radii);
-    Painting::paint_background(context, *this, layout_node().image_rendering(), resolved_background, border_radii);
-}
-
-void Paintable::paint_box_shadow(DisplayListRecordingContext& context) const
-{
-    paint_box_shadow(context, absolute_border_box_rect(), absolute_padding_box_rect(), normalized_border_radii_data());
-}
-
-void Paintable::paint_box_shadow(DisplayListRecordingContext& context, CSSPixelRect const& border_box_rect, CSSPixelRect const& padding_box_rect, BorderRadiiData const& border_radii) const
-{
-    auto box_shadow_layers = layout_node().box_shadow();
-    if (box_shadow_layers.is_empty())
-        return;
-    Vector<Painting::ShadowData> resolved_box_shadow_data;
-    resolved_box_shadow_data.ensure_capacity(box_shadow_layers.size());
-    for (auto const& layer : box_shadow_layers)
-        resolved_box_shadow_data.unchecked_append(ShadowData::from_css(layer));
-    auto borders_data = BordersData {
-        .top = layout_node().border_top(),
-        .right = layout_node().border_right(),
-        .bottom = layout_node().border_bottom(),
-        .left = layout_node().border_left(),
-    };
-    Painting::paint_box_shadow(context, border_box_rect, padding_box_rect,
-        borders_data, border_radii, resolved_box_shadow_data);
-}
-
-BorderRadiiData Paintable::normalized_border_radii_data(ShrinkRadiiForBorders shrink) const
-{
-    auto border_radii_data = this->border_radii_data();
-    if (shrink == ShrinkRadiiForBorders::Yes)
-        border_radii_data.shrink(
-            layout_node().border_top().width,
-            layout_node().border_right().width,
-            layout_node().border_bottom().width,
-            layout_node().border_left().width);
-
-    return border_radii_data;
 }
 
 Optional<CSSPixelPoint> Paintable::transform_point_to_local(CSSPixelPoint screen_position) const
@@ -3191,6 +1616,28 @@ BorderRadiiData Paintable::border_radii_data() const
     return normalize_border_radii_data(border_rect, border_rect,
         layout_node().border_top_left_radius(), layout_node().border_top_right_radius(),
         layout_node().border_bottom_right_radius(), layout_node().border_bottom_left_radius());
+}
+
+static Optional<BordersData> borders_data_for_outline(Layout::Node const& layout_node, Color outline_color, CSS::OutlineStyle outline_style, CSSPixels outline_width)
+{
+    CSS::LineStyle line_style;
+    if (outline_style == CSS::OutlineStyle::Auto) {
+        line_style = CSS::LineStyle::Solid;
+        outline_color = CSS::KeywordStyleValue::create(CSS::Keyword::Accentcolor)->to_color(CSS::ColorResolutionContext::for_layout_node_with_style(*static_cast<Layout::NodeWithStyle const*>(&layout_node))).value();
+        outline_width = 2;
+    } else {
+        line_style = CSS::keyword_to_line_style(CSS::to_keyword(outline_style)).value_or(CSS::LineStyle::None);
+    }
+
+    if (outline_color.alpha() == 0 || line_style == CSS::LineStyle::None || outline_width == 0)
+        return {};
+
+    CSS::BorderData border_data {
+        .color = outline_color,
+        .line_style = line_style,
+        .width = outline_width,
+    };
+    return BordersData { border_data, border_data, border_data, border_data };
 }
 
 Optional<BordersData> Paintable::outline_data() const

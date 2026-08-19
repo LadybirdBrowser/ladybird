@@ -17,8 +17,6 @@ public:
     static NonnullRefPtr<VideoPaintable> create(Layout::Box const&);
     virtual StringView class_name() const override { return "VideoPaintable"sv; }
 
-    virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
-
 private:
     VideoPaintable(Layout::Box const&);
 };

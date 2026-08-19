@@ -9,19 +9,6 @@
 #include <LibIPC/Encoder.h>
 #include <LibWeb/Painting/ScrollState.h>
 
-namespace Web::Painting {
-
-ScrollStateSnapshot ScrollState::snapshot(double device_pixels_per_css_pixel) const
-{
-    ScrollStateSnapshot snapshot;
-    auto scale = static_cast<float>(device_pixels_per_css_pixel);
-    for (auto const& state : m_states_by_slot)
-        snapshot.set_device_offset_for_index(state.node_index(), state.own_offset().to_type<float>() * scale);
-    return snapshot;
-}
-
-}
-
 namespace IPC {
 
 // The dense in-process vector spans the whole visual context index space, but only scroll and

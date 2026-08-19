@@ -26,8 +26,6 @@ public:
 
     void set_piece_indices(Vector<u32> piece_indices) { m_piece_indices = move(piece_indices); }
 
-    InlineBoxPiece const* piece_for_line(u32 line_index) const;
-
     template<typename Callback>
     void for_each_piece(Callback callback) const
     {
@@ -62,11 +60,6 @@ public:
     // containing block: it forms a group that content must be recorded inside.
     bool is_self_painting() const { return has_stacking_context() || is_positioned(); }
 
-    // Only meaningful while is_self_painting(); assigned by the containing block's
-    // PaintableWithLines::assign_fragment_ownership().
-    void set_fragment_ownership_filter(PaintableWithLines::FragmentOwnershipFilter filter) { m_fragment_ownership_filter = move(filter); }
-    PaintableWithLines::FragmentOwnershipFilter const& fragment_ownership_filter() const { return m_fragment_ownership_filter; }
-
     CSSPixelRect absolute_piece_border_box_rect(InlineBoxPiece const&) const;
     BorderRadiiData piece_border_radii_data(InlineBoxPiece const&) const;
     CSSPixelRect piece_padding_box_rect(InlineBoxPiece const&, CSSPixelRect const& border_box_rect) const;
@@ -75,8 +68,6 @@ public:
 
     bool has_content() const;
 
-    virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
-    virtual void record_hit_test_items(DisplayListRecordingContext&, PaintPhase) const override;
     virtual bool foreground_paints_descendant_content() const override { return true; }
     virtual void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes) override;
 
@@ -89,17 +80,14 @@ private:
     virtual CSSPixelRect compute_absolute_border_box_rect() const override;
 
     bool has_content_pieces() const;
-    void paint_empty_editable_cursor(DisplayListRecordingContext&) const;
 
 public:
     Optional<PaintableWithLines::CaretPaint> resolve_empty_editable_caret_paint() const;
 
 private:
-
     Vector<u32> m_piece_indices;
     CSSPixelRect m_local_padding_box_union;
     CSSPixelRect m_local_border_box_union;
-    PaintableWithLines::FragmentOwnershipFilter m_fragment_ownership_filter;
 };
 
 template<>

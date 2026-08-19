@@ -16,8 +16,6 @@ public:
     static NonnullRefPtr<SVGImagePaintable> create(Layout::Box const&);
     virtual StringView class_name() const override { return "SVGImagePaintable"sv; }
 
-    virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
-
 private:
     SVGImagePaintable(Layout::Box const&);
 };

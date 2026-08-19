@@ -19,8 +19,6 @@ public:
     static NonnullRefPtr<NavigableContainerViewportPaintable> create(Layout::Box const&);
     virtual StringView class_name() const override { return "NavigableContainerViewportPaintable"sv; }
 
-    virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
-
     auto const& navigable_container() const { return as<HTML::NavigableContainer>(*dom_node()); }
 
 private:

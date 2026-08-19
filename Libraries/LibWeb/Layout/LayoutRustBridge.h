@@ -67,8 +67,6 @@ private:
 [[nodiscard]] StringView formatting_context_type_name(RustFFI::FfiFormattingContextType);
 [[nodiscard]] bool can_replay_saved_abspos_layout_inputs_after_style_change(Box const&);
 
-// Converters from the arena's committed grid/flex views to the C++ structures the devtools
-// inspector and getComputedStyle consume; the paintable getters build them on demand.
 [[nodiscard]] Painting::UsedGridTrackList build_used_grid_track_list(RustFFI::FfiUsedGridTrackList const&);
 [[nodiscard]] OwnPtr<GridLayoutData> build_grid_layout_data(RustFFI::FfiGridLayoutData const&);
 [[nodiscard]] OwnPtr<FlexLayoutData> build_flex_layout_data(RustFFI::FfiFlexLayoutData const&);

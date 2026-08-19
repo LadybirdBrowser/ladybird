@@ -36,6 +36,7 @@ protected:
 
     virtual CSSPixelRect compute_absolute_rect() const override;
 
+public:
     Gfx::ShouldAntiAlias should_anti_alias() const;
 
 private:
