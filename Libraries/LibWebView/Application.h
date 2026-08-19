@@ -126,6 +126,7 @@ public:
     virtual NonnullRefPtr<BookmarkFolderPromise> display_add_bookmark_folder_dialog(Optional<String const&> default_title = {}) const;
     virtual NonnullRefPtr<BookmarkFolderPromise> display_edit_bookmark_folder_dialog([[maybe_unused]] BookmarkItem::Folder const& current_folder) const;
 
+    static FaviconStore& favicon_store(IsPrivate);
     static HistoryStore& history_store(IsPrivate);
     static CookieJar& cookie_jar(IsPrivate);
     static HSTSStore& hsts_store(IsPrivate);
@@ -444,6 +445,8 @@ private:
 
     OwnPtr<BookmarkStore> m_bookmark_store;
     OwnPtr<ApplicationBookmarkStoreObserver> m_bookmark_store_observer;
+
+    OwnPtr<FaviconStore> m_favicon_store;
     OwnPtr<HistoryStore> m_history_store;
     OwnPtr<AutocompleteService> m_autocomplete_service;
 

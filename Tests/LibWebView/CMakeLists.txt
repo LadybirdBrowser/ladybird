@@ -6,6 +6,7 @@ set(TEST_SOURCES
     TestDownloadSegmentation.cpp
     TestDownloadStore.cpp
     TestExternalURLHandler.cpp
+    TestFaviconStore.cpp
     TestHistoryStore.cpp
     TestHSTSStore.cpp
     TestOmnibox.cpp

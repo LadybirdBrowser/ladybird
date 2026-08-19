@@ -21,6 +21,7 @@ set(SOURCES
     DownloadSegmentation.cpp
     DownloadStore.cpp
     ExternalURLHandler.cpp
+    FaviconStore.cpp
     FileDownloader.cpp
     Geolocation.cpp
     HeadlessWebView.cpp

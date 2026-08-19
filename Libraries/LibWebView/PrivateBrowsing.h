@@ -23,6 +23,7 @@ struct PrivateBrowsingSession {
     NonnullOwnPtr<CookieJar> cookie_jar;
     NonnullOwnPtr<StorageJar> storage_jar;
     NonnullOwnPtr<HSTSStore> hsts_store;
+    NonnullOwnPtr<FaviconStore> favicon_store;
     NonnullOwnPtr<HistoryStore> history_store;
     NonnullOwnPtr<SessionStore> session_store;
 };
