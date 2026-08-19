@@ -9031,7 +9031,7 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
     Painting::prerecord_nested_display_lists(context, viewport_paintable);
 
     viewport_paintable.paint_all_phases(context);
-    viewport_paintable.finalize_async_scrolling_metadata_recording(context, *navigable(), viewport_rect.to_type<int>());
+    viewport_paintable.finalize_async_scrolling_metadata_recording(context, *navigable(), viewport_rect.to_type<int>(), *display_list);
 
     if (highlighted_node() && highlighted_node()->paintable()) {
         highlighted_node()->paintable()->paint_inspector_overlay(context);

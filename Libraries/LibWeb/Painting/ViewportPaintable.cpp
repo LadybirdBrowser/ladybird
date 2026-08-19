@@ -97,12 +97,12 @@ void ViewportPaintable::initialize_async_scrolling_metadata_recording(DisplayLis
     context.set_should_record_wheel_hit_test_targets(m_has_non_viewport_wheel_scroll_target_candidate);
 }
 
-void ViewportPaintable::finalize_async_scrolling_metadata_recording(DisplayListRecordingContext& context, HTML::LocalNavigable& navigable, Gfx::IntRect viewport_rect)
+void ViewportPaintable::finalize_async_scrolling_metadata_recording(DisplayListRecordingContext const& context, HTML::LocalNavigable& navigable, Gfx::IntRect viewport_rect, DisplayList& display_list)
 {
     if (!context.is_recording_async_scrolling_metadata())
         return;
 
-    context.display_list_recorder().set_async_scrolling_metadata({
+    display_list.set_async_scrolling_metadata({
         .viewport_rect = viewport_rect,
         .wheel_event_listener_state_generation = navigable.page().wheel_event_listener_state_generation(),
         .has_blocking_wheel_event_listeners = context.has_blocking_wheel_event_listeners(),
