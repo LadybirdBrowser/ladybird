@@ -1133,20 +1133,29 @@ WillChange ComputedValues::MiscResetValues::will_change_value() const
     return WillChange(move(entries));
 }
 
+static StyleValueVector style_value_items(ComputedValuesFFI::ComputedStyleValueHandle const& handle, Optional<StyleValueList::Separator> separator)
+{
+    auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(handle.pointer);
+    VERIFY(value);
+    if (value->tag == StyleValueFFI::StyleValueData::Tag::ValueList
+        && (!separator.has_value() || value->value_list.separator == to_underlying(*separator))) {
+        StyleValueVector items;
+        items.ensure_capacity(value->value_list.values.length);
+        for (size_t i = 0; i < value->value_list.values.length; ++i)
+            items.unchecked_append(StyleValue::wrap_rust_child(value->value_list.values.pointer[i]));
+        return items;
+    }
+    return { StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(value)) };
+}
+
 static StyleValueVector animation_items(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
 {
-    auto value = animation_style_value(handle);
-    if (value->is_value_list() && value->as_value_list().separator() == StyleValueList::Separator::Comma)
-        return value->as_value_list().values();
-    return { move(value) };
+    return style_value_items(handle, StyleValueList::Separator::Comma);
 }
 
 static StyleValueVector component_items(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
 {
-    auto value = animation_style_value(handle);
-    if (value->is_value_list())
-        return value->as_value_list().values();
-    return { move(value) };
+    return style_value_items(handle, {});
 }
 
 ListStyleType ComputedValues::InheritedListValues::list_style_type_value(StyleScope const& style_scope) const
