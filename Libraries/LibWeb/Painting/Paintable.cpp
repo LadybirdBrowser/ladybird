@@ -1027,7 +1027,12 @@ NonnullRefPtr<Paintable> Paintable::create(Layout::Box const& layout_box)
 
 Paintable::Paintable(Layout::NodeWithStyle const& layout_node)
     : m_layout_node(layout_node)
+    , m_rust_arena(layout_node.node_arena())
 {
+    auto allocation = m_rust_arena->allocate_paintable(Layout::Node::slot_id(&layout_node), this);
+    m_rust_slot = allocation.slot;
+    m_rust_slot_generation = allocation.generation;
+    m_rust_data = allocation.data;
     if ((layout_node.is_flex_item() || layout_node.is_grid_item()) && layout_node.z_index().has_value()) {
         // https://drafts.csswg.org/css-flexbox-1/#painting
         // https://drafts.csswg.org/css-grid-2/#z-order
@@ -1050,13 +1055,17 @@ Paintable::Paintable(Layout::Box const& layout_box)
 {
 }
 
-Paintable::~Paintable() = default;
+Paintable::~Paintable()
+{
+    m_rust_arena->free_paintable(m_rust_slot, m_rust_slot_generation);
+}
 
 void Paintable::detach_from_layout_node(Badge<Layout::Node>)
 {
     m_containing_block = nullptr;
     m_layout_node.clear();
     detach_chrome_widgets();
+    Layout::RustFFI::layout_arena_paintable_detach_layout_node(m_rust_arena->handle(), m_rust_slot);
 }
 
 void Paintable::detach_chrome_widgets()
@@ -2298,6 +2307,8 @@ RefPtr<StackingContext const> Paintable::stacking_context() const
 void Paintable::invalidate_stacking_context()
 {
     m_stacking_context = nullptr;
+    if (!has_layout_node())
+        return;
     if (auto viewport_paintable = document().unsafe_paintable())
         viewport_paintable->invalidate_stacking_context_tree();
 }

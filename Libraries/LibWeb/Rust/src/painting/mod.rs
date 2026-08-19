@@ -5,3 +5,7 @@
  */
 
 pub mod display_list;
+pub mod ffi;
+pub mod paintable_arena;
+pub mod paintable_build;
+pub mod paintable_data;

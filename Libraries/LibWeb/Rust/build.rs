@@ -1748,6 +1748,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiFormattingContextType".to_string(),
         "FfiFlexLayoutClampState".to_string(),
         "FfiFlexLayoutGrowthState".to_string(),
+        "PaintableFlag".to_string(),
     ];
     generate_ffi_header(
         layout_config,
@@ -1769,6 +1770,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/layout/line_builder.rs"),
             manifest_dir.join("src/layout/line_box.rs"),
             manifest_dir.join("src/layout/line_box_fragment.rs"),
+            manifest_dir.join("src/painting/paintable_data.rs"),
+            manifest_dir.join("src/painting/paintable_build.rs"),
+            manifest_dir.join("src/painting/ffi.rs"),
         ],
         &out_dir,
         Path::new("Layout/LayoutRustFFI.h"),

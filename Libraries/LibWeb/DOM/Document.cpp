@@ -5227,6 +5227,8 @@ void Document::invalidate_stacking_context_tree()
     // NB: Called during stacking context invalidation.
     if (auto paintable_box = this->unsafe_paintable_box())
         paintable_box->invalidate_stacking_context();
+    if (auto viewport_paintable = this->unsafe_paintable())
+        viewport_paintable->invalidate_stacking_context_tree();
 }
 
 void Document::check_favicon_after_loading_link_resource()

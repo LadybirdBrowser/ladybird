@@ -764,9 +764,15 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                     bridge.m_commit_parent_paintable->remove_child(*bridge.m_replaced_paintable);
             }
 
+            auto slot_of = [](Painting::Paintable const* paintable) {
+                return paintable ? paintable->rust_slot() : RustFFI::PaintableSlotId { RustFFI::INVALID_PAINTABLE_SLOT_INDEX };
+            };
             return RustFFI::FfiCommitPosition {
                 .parent_paintable = bridge.m_commit_parent_paintable.ptr(),
                 .insert_before_paintable = bridge.m_commit_insert_before_paintable.ptr(),
+                .replaced_paintable_slot = slot_of(bridge.m_replaced_paintable.ptr()),
+                .parent_paintable_slot = slot_of(bridge.m_commit_parent_paintable.ptr()),
+                .insert_before_paintable_slot = slot_of(bridge.m_commit_insert_before_paintable.ptr()),
             }; },
         .finish_commit = [](void* context) {
             auto& bridge = *static_cast<LayoutRustBridge*>(context);
@@ -779,11 +785,12 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
             bridge.m_commit_insert_before_paintable = nullptr;
             bridge.m_commit_parent_paintable = nullptr;
             bridge.m_replaced_paintable = nullptr; },
-        .prepare_node = [](void* context, void* node_pointer, bool has_used_values, bool reuses_committed_subtree) -> void* {
+        .prepare_node = [](void* context, void* node_pointer, bool has_used_values, bool reuses_committed_subtree) -> RustFFI::FfiPreparedPaintable {
             auto& bridge = *static_cast<LayoutRustBridge*>(context);
             auto& node = *static_cast<Node*>(node_pointer);
 
             RefPtr<Painting::Paintable> paintable;
+            bool reused = false;
             if (has_used_values || (node.is_fragmented_inline() && node.dom_node())) {
                 // Inline boxes that never went through inline layout (so they have no used values) still
                 // need a paintable so DOM geometry queries have something to answer from.
@@ -796,6 +803,7 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                     paintable->set_containing_block(nullptr);
                 } else if (paintable) {
                     paintable->reset_for_relayout();
+                    reused = true;
                 } else {
                     paintable = node.create_paintable();
                 }
@@ -805,7 +813,11 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                 // stale; drop it so the layout tree only points into the paint tree built by this commit.
                 node.clear_paintable();
             }
-            return paintable.ptr();
+            return RustFFI::FfiPreparedPaintable {
+                .paintable = paintable.ptr(),
+                .slot = paintable ? paintable->rust_slot() : RustFFI::PaintableSlotId { RustFFI::INVALID_PAINTABLE_SLOT_INDEX },
+                .reused = reused,
+            };
         },
         .set_box_metrics = [](void*, void* paintable_pointer, RustFFI::FfiCommittedBoxMetrics metrics) {
             auto& paintable = *static_cast<Painting::Paintable*>(paintable_pointer);

@@ -1542,15 +1542,6 @@ impl EllipsisFontProvider for InlineFormattingContext<'_> {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiCssPixelRect {
-    pub x: CssPixels,
-    pub y: CssPixels,
-    pub width: CssPixels,
-    pub height: CssPixels,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct SpaceUsedByFloats {
     pub left: CssPixels,
     pub right: CssPixels,
@@ -1624,7 +1615,7 @@ pub(crate) fn line_physical_horizontal_extent(line: &LineBoxData) -> CssPixels {
     right - left
 }
 
-fn line_rect(line: &LineBoxData, content_inline_size: CssPixels) -> FfiCssPixelRect {
+pub(crate) fn line_rect(line: &LineBoxData, content_inline_size: CssPixels) -> FfiCssPixelRect {
     let Some(first) = line.fragments.first() else {
         return FfiCssPixelRect {
             x: CssPixels::default(),

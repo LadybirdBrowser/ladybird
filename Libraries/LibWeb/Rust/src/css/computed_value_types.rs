@@ -903,13 +903,22 @@ pub struct InheritedSVGValues {
 // pinned to the C++ StyleGroupIndex enum by static_asserts in
 // LayoutRustBridge.cpp.
 pub const STYLE_GROUP_INDEX_INHERITED_TABLE: usize = 0;
-pub const STYLE_GROUP_INDEX_GRID: usize = 9;
+pub const STYLE_GROUP_INDEX_INHERITED_LIST: usize = 1;
+pub const STYLE_GROUP_INDEX_INHERITED_UI: usize = 2;
+pub const STYLE_GROUP_INDEX_INHERITED_SVG: usize = 3;
 pub const STYLE_GROUP_INDEX_INHERITED_TEXT: usize = 4;
 pub const STYLE_GROUP_INDEX_INHERITED_BOX: usize = 5;
 pub const STYLE_GROUP_INDEX_FONT: usize = 6;
 pub const STYLE_GROUP_INDEX_SVG_RESET: usize = 8;
+pub const STYLE_GROUP_INDEX_GRID: usize = 9;
+pub const STYLE_GROUP_INDEX_EFFECTS: usize = 11;
+pub const STYLE_GROUP_INDEX_MASK: usize = 12;
+pub const STYLE_GROUP_INDEX_TEXT_RESET: usize = 13;
+pub const STYLE_GROUP_INDEX_TRANSFORM: usize = 15;
+pub const STYLE_GROUP_INDEX_BACKGROUND: usize = 16;
 pub const STYLE_GROUP_INDEX_BORDER: usize = 17;
 pub const STYLE_GROUP_INDEX_ALIGNMENT: usize = 18;
+pub const STYLE_GROUP_INDEX_MISC_RESET: usize = 19;
 pub const STYLE_GROUP_INDEX_SIZING: usize = 20;
 pub const STYLE_GROUP_INDEX_SURROUND: usize = 21;
 pub const STYLE_GROUP_INDEX_BOX: usize = 22;
