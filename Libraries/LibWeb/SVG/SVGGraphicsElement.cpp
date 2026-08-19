@@ -19,7 +19,6 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/Painting/Paintable.h>
-#include <LibWeb/Painting/PrerecordedNestedDisplayLists.h>
 #include <LibWeb/Painting/SVGForeignObjectPaintable.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/Painting/SVGPathPaintable.h>
@@ -45,34 +44,44 @@ SVGGraphicsElement::SVGGraphicsElement(DOM::Document& document, DOM::QualifiedNa
 {
 }
 
-Optional<Painting::PaintStyle> SVGGraphicsElement::svg_paint_computed_value_to_gfx_paint_style(SVGPaintContext const& paint_context, Optional<CSS::SVGPaint> const& paint_value, DisplayListRecordingContext* recording_context) const
+Optional<SVGGraphicsElement::PaintServer> SVGGraphicsElement::svg_paint_computed_value_to_paint_server(SVGPaintContext const& paint_context, Optional<CSS::SVGPaint> const& paint_value, double device_pixels_per_css_pixel) const
 {
-    // FIXME: This entire function is an ad-hoc hack:
     if (!paint_value.has_value() || !paint_value->is_url())
         return {};
     if (auto gradient = try_resolve_url_to<SVG::SVGGradientElement const>(paint_value->as_url())) {
-        return gradient->to_gfx_paint_style(paint_context);
+        if (auto style = gradient->to_gfx_paint_style(paint_context); style.has_value())
+            return PaintServer { style.release_value() };
+        return {};
     }
     if (auto pattern = try_resolve_url_to<SVG::SVGPatternElement const>(paint_value->as_url())) {
-        if (recording_context && layout_node())
-            return Painting::prerecorded_pattern_paint_style(*recording_context, *pattern, *layout_node());
+        if (!layout_node())
+            return {};
+        auto geometry = pattern->resolve_paint_geometry(paint_context, device_pixels_per_css_pixel, *layout_node());
+        if (!geometry.has_value())
+            return {};
+        return PaintServer { PatternPaintServer {
+            .pattern_paintable = geometry->pattern_paintable,
+            .tile_rect = geometry->tile_rect,
+            .content_scale = geometry->content_scale,
+            .tile_content_transform = geometry->tile_content_transform,
+            .device_pattern_transform = geometry->device_pattern_transform,
+        } };
     }
     return {};
 }
 
-// NB: SVG property accessors below are called during painting.
-Optional<Painting::PaintStyle> SVGGraphicsElement::fill_paint_style(SVGPaintContext const& paint_context, DisplayListRecordingContext* recording_context) const
+Optional<SVGGraphicsElement::PaintServer> SVGGraphicsElement::fill_paint_server(SVGPaintContext const& paint_context, double device_pixels_per_css_pixel) const
 {
     if (!unsafe_layout_node())
         return {};
-    return svg_paint_computed_value_to_gfx_paint_style(paint_context, unsafe_layout_node()->fill(), recording_context);
+    return svg_paint_computed_value_to_paint_server(paint_context, unsafe_layout_node()->fill(), device_pixels_per_css_pixel);
 }
 
-Optional<Painting::PaintStyle> SVGGraphicsElement::stroke_paint_style(SVGPaintContext const& paint_context, DisplayListRecordingContext* recording_context) const
+Optional<SVGGraphicsElement::PaintServer> SVGGraphicsElement::stroke_paint_server(SVGPaintContext const& paint_context, double device_pixels_per_css_pixel) const
 {
     if (!unsafe_layout_node())
         return {};
-    return svg_paint_computed_value_to_gfx_paint_style(paint_context, unsafe_layout_node()->stroke(), recording_context);
+    return svg_paint_computed_value_to_paint_server(paint_context, unsafe_layout_node()->stroke(), device_pixels_per_css_pixel);
 }
 
 GC::Ptr<DOM::Element> SVGGraphicsElement::resolve_url_to_element(CSS::URL const& url) const
@@ -277,7 +286,7 @@ Optional<float> SVGGraphicsElement::stroke_opacity() const
     return unsafe_layout_node()->stroke_opacity();
 }
 
-float SVGGraphicsElement::resolve_relative_to_viewport_size(CSS::LengthPercentage const& length_percentage) const
+CSSPixels SVGGraphicsElement::viewport_percentage_basis() const
 {
     // Resolved relative to the "Scaled viewport size": https://www.w3.org/TR/2017/WD-fill-stroke-3-20170413/#scaled-viewport-size
     // FIXME: The spec formula is the normalized diagonal sqrt((width² + height²) / 2); this keeps
@@ -307,8 +316,12 @@ float SVGGraphicsElement::resolve_relative_to_viewport_size(CSS::LengthPercentag
             break;
         }
     }
-    auto scaled_viewport_size = (viewport_width + viewport_height) * CSSPixels(0.5);
-    return length_percentage.to_px(scaled_viewport_size).to_double();
+    return (viewport_width + viewport_height) * CSSPixels(0.5);
+}
+
+float SVGGraphicsElement::resolve_relative_to_viewport_size(CSS::LengthPercentage const& length_percentage) const
+{
+    return length_percentage.to_px(viewport_percentage_basis()).to_double();
 }
 
 Vector<float> SVGGraphicsElement::stroke_dasharray() const

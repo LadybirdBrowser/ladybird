@@ -8,6 +8,7 @@
 #include <LibGfx/Quad.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
+#include <LibWeb/Painting/PrerecordedNestedDisplayLists.h>
 #include <LibWeb/Painting/SVGPathPaintable.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/SVG/SVGGradientElement.h>
@@ -59,10 +60,15 @@ SVG::SVGPaintContext SVGPathPaintable::svg_paint_context(DisplayListRecordingCon
     Gfx::FloatRect viewport_rect {};
     if (auto const* viewport_paintable = nearest_svg_viewport_paintable_of(layout_node()))
         viewport_rect = svg_viewport_user_rect(*viewport_paintable);
+    auto content_scale = context.display_list_recorder().visual_context_tree().accumulated_2d_scale(
+        context.accumulated_visual_context_index_of(*this),
+        ScrollStateSnapshot {},
+        AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
     return SVG::SVGPaintContext {
         .viewport = viewport_rect,
         .path_bounding_box = computed_path()->bounding_box(),
         .paint_transform = Gfx::AffineTransform {}.scale(device_scale, device_scale),
+        .content_scale = content_scale,
     };
 }
 
@@ -105,10 +111,23 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
 
     auto paint_context = svg_paint_context(context);
 
+    auto paint_server_to_paint_style = [&](SVG::SVGGraphicsElement::PaintServer const& paint_server) -> Optional<PaintStyle> {
+        return paint_server.visit(
+            [](PaintStyle const& style) -> Optional<PaintStyle> { return style; },
+            [&](SVG::SVGGraphicsElement::PatternPaintServer const& pattern_server) -> Optional<PaintStyle> {
+                return prerecorded_pattern_paint_style(context, *pattern_server.pattern_paintable);
+            });
+    };
+    auto resolve_paint_style = [&](Optional<SVG::SVGGraphicsElement::PaintServer> const& paint_server) -> Optional<PaintStyle> {
+        if (!paint_server.has_value())
+            return {};
+        return paint_server_to_paint_style(*paint_server);
+    };
+
     auto paint_fill = [&] {
         auto fill_opacity = graphics_element.fill_opacity().value_or(1);
         auto winding_rule = to_gfx_winding_rule(graphics_element.fill_rule().value_or(SVG::FillRule::Nonzero));
-        if (auto paint_style = graphics_element.fill_paint_style(paint_context, &context); paint_style.has_value()) {
+        if (auto paint_style = resolve_paint_style(graphics_element.fill_paint_server(paint_context, context.device_pixels_per_css_pixel())); paint_style.has_value()) {
             context.display_list_recorder().fill_path({
                 .path = path,
                 .opacity = fill_opacity,
@@ -174,7 +193,7 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
             value *= stroke_scale;
         float stroke_dashoffset = graphics_element.stroke_dashoffset().value_or(0) * stroke_scale;
 
-        if (auto paint_style = graphics_element.stroke_paint_style(paint_context, &context); paint_style.has_value()) {
+        if (auto paint_style = resolve_paint_style(graphics_element.stroke_paint_server(paint_context, context.device_pixels_per_css_pixel())); paint_style.has_value()) {
             context.display_list_recorder().stroke_path({
                 .cap_style = cap_style,
                 .join_style = join_style,

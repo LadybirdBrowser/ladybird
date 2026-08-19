@@ -9,6 +9,7 @@
 #include <LibGC/RootHashTable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGElement.h>
@@ -52,8 +53,14 @@ public:
 
     GC::Ptr<SVGPatternElement const> pattern_content_element() const;
 
-    RefPtr<Painting::Paintable const> resolve_pattern_paintable(Layout::Node const& target_layout_node) const;
-    Optional<Painting::PaintStyle> record_pattern_paint_style(SVGPaintContext const&, DisplayListRecordingContext&, Painting::Paintable const& pattern_paintable, Gfx::FloatSize content_scale) const;
+    struct PaintGeometry {
+        Painting::Paintable const* pattern_paintable;
+        Gfx::FloatRect tile_rect;
+        Gfx::FloatSize content_scale;
+        Painting::TransformData tile_content_transform;
+        Optional<Gfx::AffineTransform> device_pattern_transform;
+    };
+    Optional<PaintGeometry> resolve_paint_geometry(SVGPaintContext const&, double device_pixels_per_css_pixel, Layout::Node const& target_layout_node) const;
 
     virtual RefPtr<Layout::Node> create_layout_node(CSS::LayoutStyle) override { return nullptr; }
 
