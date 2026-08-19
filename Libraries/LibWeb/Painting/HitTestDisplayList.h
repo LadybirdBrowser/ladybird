@@ -67,7 +67,7 @@ public:
     void append_empty_line(PaintableFragment const& sibling_fragment, size_t caret_offset, size_t line_box_index, CSSPixelRect line_rect, VisualContextIndex);
     void append_empty_line(PaintableWithLines const&, DOM::Node const&, size_t caret_offset, CSSPixelRect line_rect, VisualContextIndex);
     void append_empty_editable(Paintable const&, CSSPixelRect, VisualContextIndex);
-    void append_chrome_widget(Paintable const&, ChromeWidget&, VisualContextIndex);
+    void append_chrome_widget(Paintable const&, ChromeWidgetKind, VisualContextIndex);
     void visit_edges(GC::Cell::Visitor&);
 
     u64 visual_context_tree_version() const { return m_visual_context_tree_version; }
@@ -97,11 +97,14 @@ private:
         ChromeWidget,
     };
 
+    // Items reference the paintable's fragments and chrome widgets by index and kind rather than by
+    // pointer, so a retained list never dangles into paintable-owned storage: an index is resolved
+    // against the paintable's current fragment list on every query.
     struct Item {
         ItemKind kind;
         NonnullRefPtr<Paintable> paintable;
-        RefPtr<ChromeWidget> chrome_widget;
-        PaintableFragment const* text_fragment { nullptr };
+        ChromeWidgetKind chrome_widget_kind { ChromeWidgetKind::None };
+        Optional<u32> text_fragment_index;
         GC::Ptr<DOM::Node const> caret_node { nullptr };
         // For EmptyLine items: the caret offset in caret_node.
         size_t caret_offset { 0 };
@@ -153,6 +156,8 @@ private:
     [[nodiscard]] CSSPixelRect viewport_rect_for_item(Item const&, CSSPixelRect const&, ViewportPaintable const&, double device_pixels_per_css_pixel) const;
     [[nodiscard]] CSSPixelRect caret_line_rect_for_item(Item const&) const;
     [[nodiscard]] bool item_contains(Item const&, Gfx::FloatPoint local_float_point, ChromeMetrics const&) const;
+    [[nodiscard]] PaintableFragment const* text_fragment_for_item(Item const&) const;
+    [[nodiscard]] RefPtr<ChromeWidget> chrome_widget_for_item(Item const&) const;
     [[nodiscard]] DOM::Node const* item_dom_node(Item const&) const;
     [[nodiscard]] DOM::Node const* event_dispatch_dom_node_for_item(Item const&) const;
     [[nodiscard]] bool item_can_produce_caret_position(Item const&) const;

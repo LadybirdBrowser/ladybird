@@ -15,6 +15,8 @@
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/PaintableFragment.h>
+#include <LibWeb/Painting/ResizeHandle.h>
+#include <LibWeb/Painting/Scrollbar.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <math.h>
 
@@ -200,8 +202,8 @@ bool HitTestDisplayList::items_equal_for_cache_verification(Item const& a, Item 
 {
     return a.kind == b.kind
         && a.paintable.ptr() == b.paintable.ptr()
-        && a.chrome_widget.ptr() == b.chrome_widget.ptr()
-        && a.text_fragment == b.text_fragment
+        && a.chrome_widget_kind == b.chrome_widget_kind
+        && a.text_fragment_index == b.text_fragment_index
         && a.caret_node.ptr() == b.caret_node.ptr()
         && a.caret_offset == b.caret_offset
         && a.rect == b.rect
@@ -217,11 +219,11 @@ bool HitTestDisplayList::items_equal_for_cache_verification(Item const& a, Item 
 
 String HitTestDisplayList::dump_item_for_cache_verification(Item const& item)
 {
-    return MUST(String::formatted("kind={} paintable={} chrome_widget={} text_fragment={} caret_node={} caret_offset={} rect={} caret_rect={} caret_line_index={} caret_line_rect={} block_container_margin_rect={} context_index={} border_radii=[{} {} {} {} {} {} {} {}] winding_rule={} has_path={}",
+    return MUST(String::formatted("kind={} paintable={} chrome_widget_kind={} text_fragment_index={} caret_node={} caret_offset={} rect={} caret_rect={} caret_line_index={} caret_line_rect={} block_container_margin_rect={} context_index={} border_radii=[{} {} {} {} {} {} {} {}] winding_rule={} has_path={}",
         to_underlying(item.kind),
         static_cast<void const*>(item.paintable.ptr()),
-        static_cast<void const*>(item.chrome_widget.ptr()),
-        static_cast<void const*>(item.text_fragment),
+        to_underlying(item.chrome_widget_kind),
+        item.text_fragment_index,
         static_cast<void const*>(item.caret_node.ptr()),
         item.caret_offset,
         item.rect,
@@ -240,6 +242,31 @@ String HitTestDisplayList::dump_item_for_cache_verification(Item const& item)
         item.border_radii.bottom_left.vertical_radius,
         to_underlying(item.winding_rule),
         item.path.has_value()));
+}
+
+PaintableFragment const* HitTestDisplayList::text_fragment_for_item(Item const& item) const
+{
+    if (!item.text_fragment_index.has_value())
+        return nullptr;
+    auto const& fragments = as<PaintableWithLines>(*item.paintable).fragments();
+    if (*item.text_fragment_index >= fragments.size())
+        return nullptr;
+    return &fragments[*item.text_fragment_index];
+}
+
+RefPtr<ChromeWidget> HitTestDisplayList::chrome_widget_for_item(Item const& item) const
+{
+    switch (item.chrome_widget_kind) {
+    case ChromeWidgetKind::None:
+        return nullptr;
+    case ChromeWidgetKind::ResizeHandle:
+        return item.paintable->resize_handle();
+    case ChromeWidgetKind::HorizontalScrollbar:
+        return item.paintable->scrollbar(Paintable::ScrollDirection::Horizontal);
+    case ChromeWidgetKind::VerticalScrollbar:
+        return item.paintable->scrollbar(Paintable::ScrollDirection::Vertical);
+    }
+    VERIFY_NOT_REACHED();
 }
 
 void HitTestDisplayList::verify_cached_items_match_fresh_recording(Paintable::HitTestItemRange spliced_range, HitTestDisplayList const& fresh_recording, Paintable const& paintable, PaintPhase phase) const
@@ -298,8 +325,7 @@ void HitTestDisplayList::append_box(Paintable const& paintable_box, Paintable& t
     m_items.append({
         .kind = ItemKind::Box,
         .paintable = target,
-        .chrome_widget = {},
-        .text_fragment = nullptr,
+        .text_fragment_index = {},
         .rect = rect,
         .caret_rect = rect,
         .caret_line_index = caret_line_index,
@@ -316,8 +342,7 @@ void HitTestDisplayList::append_svg_path(Paintable& target, Gfx::Path path, Gfx:
     m_items.append({
         .kind = ItemKind::SvgPath,
         .paintable = target,
-        .chrome_widget = {},
-        .text_fragment = nullptr,
+        .text_fragment_index = {},
         .rect = bounding_box,
         .caret_rect = {},
         .caret_line_index = {},
@@ -353,11 +378,11 @@ void HitTestDisplayList::append_text_fragment(PaintableFragment const& fragment,
         return;
 
     auto& fragment_paintable = const_cast<PaintableWithLines&>(fragment.paintable_with_lines());
+    auto fragment_index = fragment_paintable.index_of_fragment(fragment);
     m_items.append({
         .kind = ItemKind::TextFragment,
         .paintable = fragment_paintable,
-        .chrome_widget = {},
-        .text_fragment = &fragment,
+        .text_fragment_index = fragment_index,
         .rect = fragment.absolute_rect(),
         .caret_rect = fragment.range_rect(Paintable::SelectionState::StartAndEnd, fragment.dom_start_offset_in_node(), fragment.dom_end_offset_in_node()),
         .caret_line_index = fragment.line_index(),
@@ -375,11 +400,11 @@ void HitTestDisplayList::append_empty_line(PaintableFragment const& sibling_frag
         return;
 
     auto& fragment_paintable = const_cast<PaintableWithLines&>(sibling_fragment.paintable_with_lines());
+    auto fragment_index = fragment_paintable.index_of_fragment(sibling_fragment);
     m_items.append({
         .kind = ItemKind::EmptyLine,
         .paintable = fragment_paintable,
-        .chrome_widget = {},
-        .text_fragment = &sibling_fragment,
+        .text_fragment_index = fragment_index,
         .caret_node = sibling_fragment.layout_node().dom_node(),
         .caret_offset = caret_offset,
         // NB: Empty lines are only reachable through caret lines, never through regular hit testing, so they are
@@ -400,8 +425,7 @@ void HitTestDisplayList::append_empty_line(PaintableWithLines const& paintable, 
     m_items.append({
         .kind = ItemKind::EmptyLine,
         .paintable = const_cast<PaintableWithLines&>(paintable),
-        .chrome_widget = {},
-        .text_fragment = nullptr,
+        .text_fragment_index = {},
         .caret_node = &caret_node,
         .caret_offset = caret_offset,
         .rect = {},
@@ -420,8 +444,7 @@ void HitTestDisplayList::append_empty_editable(Paintable const& paintable, CSSPi
     m_items.append({
         .kind = ItemKind::EmptyEditable,
         .paintable = const_cast<Paintable&>(paintable),
-        .chrome_widget = {},
-        .text_fragment = nullptr,
+        .text_fragment_index = {},
         .rect = rect,
         .caret_rect = rect,
         .caret_line_index = {},
@@ -432,14 +455,15 @@ void HitTestDisplayList::append_empty_editable(Paintable const& paintable, CSSPi
     });
 }
 
-void HitTestDisplayList::append_chrome_widget(Paintable const& paintable_box, ChromeWidget& chrome_widget, VisualContextIndex visual_context_index)
+void HitTestDisplayList::append_chrome_widget(Paintable const& paintable_box, ChromeWidgetKind chrome_widget_kind, VisualContextIndex visual_context_index)
 {
     verify_no_item_appended_after_derived_structures_are_built();
+    VERIFY(chrome_widget_kind != ChromeWidgetKind::None);
     m_items.append({
         .kind = ItemKind::ChromeWidget,
         .paintable = const_cast<Paintable&>(paintable_box),
-        .chrome_widget = chrome_widget,
-        .text_fragment = nullptr,
+        .chrome_widget_kind = chrome_widget_kind,
+        .text_fragment_index = {},
         .rect = {},
         .caret_rect = {},
         .caret_line_index = {},
@@ -512,7 +536,7 @@ bool HitTestDisplayList::item_can_produce_caret_position(Item const& item) const
 {
     switch (item.kind) {
     case ItemKind::TextFragment:
-        return item.text_fragment && !!item.text_fragment->layout_node().dom_node();
+        return text_fragment_for_item(item) && !!text_fragment_for_item(item)->layout_node().dom_node();
     case ItemKind::EmptyLine:
         return !!item.caret_node;
     case ItemKind::EmptyEditable:
@@ -554,9 +578,9 @@ void HitTestDisplayList::add_item_to_caret_items(size_t item_index) const
         auto same_inferred_line = !first_line_item.caret_line_index.has_value()
             && !item.caret_line_index.has_value()
             && rects_overlap_in_block_axis(line.rect, item.caret_rect, writing_mode);
-        auto containing_block_for_item = [](Item const& item) -> Layout::Box const* {
-            if ((item.kind == ItemKind::TextFragment || item.kind == ItemKind::EmptyLine) && item.text_fragment)
-                return item.text_fragment->layout_node().containing_block();
+        auto containing_block_for_item = [&](Item const& item) -> Layout::Box const* {
+            if ((item.kind == ItemKind::TextFragment || item.kind == ItemKind::EmptyLine) && text_fragment_for_item(item))
+                return text_fragment_for_item(item)->layout_node().containing_block();
             return item.paintable->layout_node().containing_block();
         };
         if (line.visual_context_index == item.visual_context_index
@@ -618,7 +642,8 @@ bool HitTestDisplayList::item_contains(Item const& item, Gfx::FloatPoint local_f
     case ItemKind::EmptyEditable:
         return item.rect.contains(local_point);
     case ItemKind::ChromeWidget:
-        return item.chrome_widget && item.chrome_widget->contains(local_point, chrome_metrics);
+        auto chrome_widget = chrome_widget_for_item(item);
+        return chrome_widget && chrome_widget->contains(local_point, chrome_metrics);
     }
     VERIFY_NOT_REACHED();
 }
@@ -632,7 +657,7 @@ DOM::Node const* HitTestDisplayList::item_dom_node(Item const& item) const
     case ItemKind::ChromeWidget:
         return item.paintable->dom_node().ptr();
     case ItemKind::TextFragment:
-        return item.text_fragment ? item.text_fragment->layout_node().dom_node() : nullptr;
+        return text_fragment_for_item(item) ? text_fragment_for_item(item)->layout_node().dom_node() : nullptr;
     case ItemKind::EmptyLine:
         return item.caret_node.ptr();
     }
@@ -642,8 +667,8 @@ DOM::Node const* HitTestDisplayList::item_dom_node(Item const& item) const
 DOM::Node const* HitTestDisplayList::event_dispatch_dom_node_for_item(Item const& item) const
 {
     if (item.kind == ItemKind::TextFragment) {
-        VERIFY(item.text_fragment);
-        auto const& layout_node = item.text_fragment->layout_node();
+        VERIFY(text_fragment_for_item(item));
+        auto const& layout_node = text_fragment_for_item(item)->layout_node();
         if (auto const* node = layout_node.dom_node())
             return node;
         if (layout_node.is_generated_for_pseudo_element())
@@ -695,11 +720,11 @@ HitTestResult HitTestDisplayList::hit_test_result_for_item(Item const& item, CSS
     case ItemKind::SvgPath:
         return HitTestResult { .paintable = item.paintable };
     case ItemKind::TextFragment:
-        VERIFY(item.text_fragment);
+        VERIFY(text_fragment_for_item(item));
         return HitTestResult {
             .paintable = item.paintable,
             .dom_node_override = const_cast<DOM::Node*>(event_dispatch_dom_node_for_item(item)),
-            .index_in_node = item.text_fragment->index_in_node_for_point(local_point),
+            .index_in_node = text_fragment_for_item(item)->index_in_node_for_point(local_point),
             .is_text_fragment = true,
         };
     case ItemKind::EmptyLine:
@@ -711,7 +736,7 @@ HitTestResult HitTestDisplayList::hit_test_result_for_item(Item const& item, CSS
             .index_in_node = 0,
         };
     case ItemKind::ChromeWidget:
-        return HitTestResult { .paintable = item.paintable, .chrome_widget = item.chrome_widget };
+        return HitTestResult { .paintable = item.paintable, .chrome_widget = chrome_widget_for_item(item) };
     }
     VERIFY_NOT_REACHED();
 }
@@ -720,8 +745,8 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_item(Item const& 
 {
     switch (item.kind) {
     case ItemKind::TextFragment: {
-        VERIFY(item.text_fragment);
-        auto const& fragment = *item.text_fragment;
+        VERIFY(text_fragment_for_item(item));
+        auto const& fragment = *text_fragment_for_item(item);
         auto const* fragment_dom_node = fragment.layout_node().dom_node();
         if (!fragment_dom_node)
             return {};
@@ -838,9 +863,9 @@ HitTestDisplayList::Item const& HitTestDisplayList::item_at_line_edge(CaretLine 
     auto best_item_index = m_caret_item_indices[line.first_caret_item_index];
     auto best_coordinate = coordinate_for_item(m_items[best_item_index]);
 
-    auto containing_block_for_item = [](Item const& item) -> Layout::Box const* {
-        if ((item.kind == ItemKind::TextFragment || item.kind == ItemKind::EmptyLine) && item.text_fragment)
-            return item.text_fragment->layout_node().containing_block();
+    auto containing_block_for_item = [&](Item const& item) -> Layout::Box const* {
+        if ((item.kind == ItemKind::TextFragment || item.kind == ItemKind::EmptyLine) && text_fragment_for_item(item))
+            return text_fragment_for_item(item)->layout_node().containing_block();
         return item.paintable->layout_node().containing_block();
     };
     auto item_is_on_line = [&](Item const& item) {
@@ -873,21 +898,21 @@ bool HitTestDisplayList::item_contains_caret_position(Item const& item, DOM::Nod
 {
     switch (item.kind) {
     case ItemKind::TextFragment: {
-        VERIFY(item.text_fragment);
-        auto const* fragment_dom_node = item.text_fragment->layout_node().dom_node();
+        VERIFY(text_fragment_for_item(item));
+        auto const* fragment_dom_node = text_fragment_for_item(item)->layout_node().dom_node();
         if (!fragment_dom_node)
             return false;
         if (fragment_dom_node == &node)
-            return item.text_fragment->caret_match(offset, affinity) != PaintableFragment::CaretMatch::None;
+            return text_fragment_for_item(item)->caret_match(offset, affinity) != PaintableFragment::CaretMatch::None;
 
         auto* node_after_boundary = node.child_at_index(offset);
         while (node_after_boundary && node_after_boundary != fragment_dom_node)
             node_after_boundary = node_after_boundary->first_child();
-        if (node_after_boundary == fragment_dom_node && item.text_fragment->dom_start_offset_in_node() == 0)
+        if (node_after_boundary == fragment_dom_node && text_fragment_for_item(item)->dom_start_offset_in_node() == 0)
             return true;
         return offset > 0
             && node.child_at_index(offset - 1) == fragment_dom_node
-            && item.text_fragment->dom_end_offset_with_trailing_whitespace() == fragment_dom_node->length();
+            && text_fragment_for_item(item)->dom_end_offset_with_trailing_whitespace() == fragment_dom_node->length();
     }
     case ItemKind::EmptyLine:
         return item_dom_node(item) == &node && item.caret_offset == offset;
@@ -927,9 +952,9 @@ Optional<size_t> HitTestDisplayList::caret_line_index_for_position(DOM::Node con
                 auto const& item = m_items[m_caret_item_indices[caret_item_index]];
                 if (!item_contains_caret_position(item, node, offset, affinity))
                     continue;
-                if (!allow_soft_wrap_fallback && item.kind == ItemKind::TextFragment && item.text_fragment
-                    && item.text_fragment->layout_node().dom_node() == &node
-                    && item.text_fragment->caret_match(offset, affinity) == PaintableFragment::CaretMatch::SoftWrapFallback)
+                if (!allow_soft_wrap_fallback && item.kind == ItemKind::TextFragment && text_fragment_for_item(item)
+                    && text_fragment_for_item(item)->layout_node().dom_node() == &node
+                    && text_fragment_for_item(item)->caret_match(offset, affinity) == PaintableFragment::CaretMatch::SoftWrapFallback)
                     continue;
                 return line_index;
             }
@@ -951,9 +976,9 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_on_adjacent_line(DOM:
     auto writing_mode = current_first_item.paintable->layout_node().writing_mode();
     auto block_axis_is_reverse = current_first_item.paintable->layout_node().block_axis_is_reverse();
     auto physically_after = (direction == CaretLineDirection::Next) != block_axis_is_reverse;
-    auto line_context_for_item = [](Item const& item) -> Paintable const* {
-        if (item.text_fragment)
-            return &item.text_fragment->paintable_with_lines();
+    auto line_context_for_item = [&](Item const& item) -> Paintable const* {
+        if (text_fragment_for_item(item))
+            return &text_fragment_for_item(item)->paintable_with_lines();
         return item.paintable.ptr();
     };
     auto* current_line_context = line_context_for_item(current_first_item);

@@ -1896,14 +1896,22 @@ void Paintable::record_hit_test_items(DisplayListRecordingContext& context, Pain
     if (phase != PaintPhase::Overlay)
         return;
 
+    // Widgets are resolved by kind at query time; creating them here keeps hover and drag state
+    // attached to the same object for the list's lifetime.
     auto& box = const_cast<Paintable&>(*this);
-    if (has_resizer())
-        hit_test_display_list->append_chrome_widget(*this, box.ensure_resize_handle(), accumulated_visual_context_index());
+    if (has_resizer()) {
+        (void)box.ensure_resize_handle();
+        hit_test_display_list->append_chrome_widget(*this, ChromeWidgetKind::ResizeHandle, accumulated_visual_context_index());
+    }
 
-    if (could_be_scrolled_by_wheel_event(ScrollDirection::Horizontal))
-        hit_test_display_list->append_chrome_widget(*this, box.ensure_scrollbar(ScrollDirection::Horizontal), accumulated_visual_context_index());
-    if (could_be_scrolled_by_wheel_event(ScrollDirection::Vertical))
-        hit_test_display_list->append_chrome_widget(*this, box.ensure_scrollbar(ScrollDirection::Vertical), accumulated_visual_context_index());
+    if (could_be_scrolled_by_wheel_event(ScrollDirection::Horizontal)) {
+        (void)box.ensure_scrollbar(ScrollDirection::Horizontal);
+        hit_test_display_list->append_chrome_widget(*this, ChromeWidgetKind::HorizontalScrollbar, accumulated_visual_context_index());
+    }
+    if (could_be_scrolled_by_wheel_event(ScrollDirection::Vertical)) {
+        (void)box.ensure_scrollbar(ScrollDirection::Vertical);
+        hit_test_display_list->append_chrome_widget(*this, ChromeWidgetKind::VerticalScrollbar, accumulated_visual_context_index());
+    }
 }
 
 void Paintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
