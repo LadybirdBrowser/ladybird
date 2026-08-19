@@ -986,8 +986,6 @@ void NodeWithStyle::attach_style_resources()
             load_image(&cursor_style_value->image());
         m_cursor_style_values.unchecked_append(move(cursor_style_value));
     }
-    load_image(mask_image());
-
     load_image(list_style_image());
 
     rebuild_image_observers();
