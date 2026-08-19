@@ -13,7 +13,6 @@
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Painting/GradientPainting.h>
 
 namespace Web::CSS {
 
@@ -39,19 +38,9 @@ public:
         return color_stops_from_rust_data(list.pointer, list.length);
     }
 
-    ColorInterpolationMethodStyleValue::ColorInterpolationMethod interpolation_method() const
-    {
-        if (auto interpolation_method_value = color_interpolation_method_value())
-            return interpolation_method_value->as_color_interpolation_method().color_interpolation_method();
-
-        return ColorInterpolationMethodStyleValue::default_color_interpolation_method(gradient_color_syntax());
-    }
-
     bool is_paintable(DOM::Document const&) const override { return true; }
 
     ResolvedImage resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const override;
-
-    CSSPixelSize resolve_size(CSSPixelPoint, CSSPixelRect const&) const;
 
     bool is_repeating() const { return m_value->radial_gradient.repeating; }
 

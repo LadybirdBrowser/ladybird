@@ -877,7 +877,6 @@ set(SOURCES
     Painting/DisplayListResourceTransaction.cpp
     Painting/DisplayListResourceStorage.cpp
     Painting/FieldSetPaintable.cpp
-    Painting/GradientPainting.cpp
     Painting/HitTestDisplayList.cpp
     Painting/ImagePaint.cpp
     Painting/ImagePaintable.cpp

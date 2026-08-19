@@ -13,7 +13,6 @@
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
-#include <LibWeb/Painting/GradientPainting.h>
 
 namespace Web::CSS {
 
@@ -62,20 +61,7 @@ public:
         return NonnullRefPtr<StyleValue const> { wrap_rust_child(gradient.direction_value) };
     }
 
-    // FIXME: This (and the any_non_legacy code in the constructor) is duplicated in the separate gradient classes,
-    // should this logic be pulled into some kind of GradientStyleValue superclass?
-    // It could also contain the "gradient related things" currently in AbstractImageStyleValue.h
-    ColorInterpolationMethodStyleValue::ColorInterpolationMethod interpolation_method() const
-    {
-        if (auto interpolation_method_value = color_interpolation_method_value())
-            return interpolation_method_value->as_color_interpolation_method().color_interpolation_method();
-
-        return ColorInterpolationMethodStyleValue::default_color_interpolation_method(gradient_color_syntax());
-    }
-
     bool is_repeating() const { return m_value->linear_gradient.repeating; }
-
-    float angle_degrees(CSSPixelSize gradient_size) const;
 
     ResolvedImage resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const override;
 

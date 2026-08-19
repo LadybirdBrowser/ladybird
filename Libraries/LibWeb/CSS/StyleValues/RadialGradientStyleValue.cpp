@@ -9,8 +9,8 @@
 
 #include "RadialGradientStyleValue.h"
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 
 namespace Web::CSS {
 
@@ -32,27 +32,9 @@ RadialGradientStyleValue::RadialGradientStyleValue(StyleValueFFI::StyleValueData
 {
 }
 
-CSSPixelSize RadialGradientStyleValue::resolve_size(CSSPixelPoint center, CSSPixelRect const& reference_box) const
+ResolvedImage RadialGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node, CSSPixelSize size) const
 {
-    if (ending_shape() == EndingShape::Circle) {
-        auto radius = size_value()->as_radial_size().resolve_circle_size(center, reference_box);
-        return CSSPixelSize { radius, radius };
-    }
-
-    return size_value()->as_radial_size().resolve_ellipse_size(center, reference_box);
-}
-
-ResolvedImage RadialGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node, CSSPixelSize paint_size) const
-{
-    CSSPixelRect gradient_box { { 0, 0 }, paint_size };
-    auto center = position_value()->resolved(gradient_box);
-    auto gradient_size = resolve_size(center, gradient_box);
-
-    return Painting::ResolvedRadialGradient {
-        Painting::resolve_radial_gradient_data(node, gradient_size, *this),
-        gradient_size,
-        center,
-    };
+    return Painting::rust_resolve_gradient_for_size(*this, node, size);
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> RadialGradientStyleValue::absolutized(ComputationContext const& context) const

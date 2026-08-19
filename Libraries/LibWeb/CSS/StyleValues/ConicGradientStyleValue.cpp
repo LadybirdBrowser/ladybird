@@ -8,9 +8,9 @@
  */
 
 #include "ConicGradientStyleValue.h"
-#include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 
 namespace Web::CSS {
 
@@ -33,10 +33,7 @@ ConicGradientStyleValue::ConicGradientStyleValue(StyleValueFFI::StyleValueData c
 
 ResolvedImage ConicGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node, CSSPixelSize size) const
 {
-    return Painting::ResolvedConicGradient {
-        Painting::resolve_conic_gradient_data(node, *this),
-        position_value()->resolved(CSSPixelRect { { 0, 0 }, size }),
-    };
+    return Painting::rust_resolve_gradient_for_size(*this, node, size);
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> ConicGradientStyleValue::absolutized(ComputationContext const& context) const
@@ -54,13 +51,6 @@ ValueComparingNonnullRefPtr<StyleValue const> ConicGradientStyleValue::absolutiz
     auto absolutized_color_interpolation_method = color_interpolation_method_value() ? ValueComparingRefPtr<StyleValue const> { color_interpolation_method_value()->absolutized(context) } : nullptr;
 
     return create(move(absolutized_from_angle), move(absolutized_position), move(absolutized_color_stops), (is_repeating() ? GradientRepeating::Yes : GradientRepeating::No), move(absolutized_color_interpolation_method), gradient_color_syntax());
-}
-
-float ConicGradientStyleValue::angle_degrees() const
-{
-    if (!from_angle_value())
-        return 0;
-    return Angle::from_style_value(*from_angle_value(), {}).to_degrees();
 }
 
 }
