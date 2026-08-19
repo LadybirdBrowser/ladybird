@@ -420,7 +420,7 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
     DisplayList::for_each_command_header(list_resource.display_list->command_bytes(), [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
         if (requires_direct_replay)
             return;
-        visit_display_list_command(header.type, payload, [&](auto const& command) {
+        visit_display_list_command(header.command_type, payload, [&](auto const& command) {
             using Command = RemoveCVReference<decltype(command)>;
             if constexpr (IsSame<Command, Save>) {
                 save_stack_entry_is_layer.append(false);
@@ -472,7 +472,7 @@ void DisplayListResourceStorage::collect_referenced_resources(
     };
 
     DisplayList::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
-        visit_display_list_command(header.type, payload, [&](auto const& command) {
+        visit_display_list_command(header.command_type, payload, [&](auto const& command) {
             if constexpr (requires { command.font_id; })
                 referenced_resources.fonts.set(command.font_id, AK::HashSetExistingEntryBehavior::Keep);
             if constexpr (requires { command.frame_id; })
@@ -481,7 +481,7 @@ void DisplayListResourceStorage::collect_referenced_resources(
                 referenced_resources.video_sinks.set(command.video_sink_id, AK::HashSetExistingEntryBehavior::Keep);
             if constexpr (requires { command.paint_style; command.paint_kind; }) {
                 if (command.paint_kind == decltype(command.paint_kind)::PaintStyle
-                    && command.paint_style.type == DisplayListPaintStyleType::Pattern)
+                    && command.paint_style.paint_style_type == DisplayListPaintStyleType::Pattern)
                     add_display_list_resource(command.paint_style.pattern_tile_display_list_id);
             }
             if constexpr (requires { command.backdrop_filter_data; }) {

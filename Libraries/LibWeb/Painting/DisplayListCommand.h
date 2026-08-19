@@ -118,7 +118,7 @@ struct DisplayListGradientColorStops {
 };
 
 struct DisplayListCommandHeader {
-    DisplayListCommandType type;
+    DisplayListCommandType command_type;
     u32 payload_size { 0 };
     VisualContextIndex context_index { VISUAL_VIEWPORT_NODE_INDEX };
     // Apply only the coordinate-affecting nodes of the context chain, skipping clips and effects. Used
@@ -178,14 +178,14 @@ struct DrawScaledDecodedImageFrame {
     void dump(StringBuilder&) const;
 };
 
+struct Repeat {
+    bool x { false };
+    bool y { false };
+};
+
 struct DrawRepeatedDecodedImageFrame {
     static constexpr StringView command_name = "DrawRepeatedDecodedImageFrame"sv;
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::DrawRepeatedDecodedImageFrame;
-
-    struct Repeat {
-        bool x { false };
-        bool y { false };
-    };
 
     Gfx::IntRect dst_rect;
     Gfx::IntRect clip_rect;
@@ -202,11 +202,6 @@ struct DrawRepeatedDecodedImageFrame {
 struct DrawRepeatedDisplayList {
     static constexpr StringView command_name = "DrawRepeatedDisplayList"sv;
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::DrawRepeatedDisplayList;
-
-    struct Repeat {
-        bool x { false };
-        bool y { false };
-    };
 
     Gfx::IntRect dst_rect;
     Gfx::IntRect clip_rect;
@@ -280,6 +275,8 @@ struct Save {
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::Save;
     static constexpr int nesting_level_change = 1;
 
+    u8 _empty { 0 };
+
     void dump(StringBuilder&) const;
 };
 
@@ -288,6 +285,8 @@ struct SaveLayer {
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::SaveLayer;
     static constexpr int nesting_level_change = 1;
 
+    u8 _empty { 0 };
+
     void dump(StringBuilder&) const;
 };
 
@@ -295,6 +294,8 @@ struct Restore {
     static constexpr StringView command_name = "Restore"sv;
     static constexpr DisplayListCommandType command_type = DisplayListCommandType::Restore;
     static constexpr int nesting_level_change = -1;
+
+    u8 _empty { 0 };
 
     void dump(StringBuilder&) const;
 };
@@ -425,7 +426,7 @@ struct DisplayListGradientPaintStyle {
 };
 
 struct DisplayListPaintStyle {
-    DisplayListPaintStyleType type { DisplayListPaintStyleType::None };
+    DisplayListPaintStyleType paint_style_type { DisplayListPaintStyleType::None };
     DisplayListGradientPaintStyle gradient;
     Gfx::FloatPoint linear_gradient_start_point;
     Gfx::FloatPoint linear_gradient_end_point;

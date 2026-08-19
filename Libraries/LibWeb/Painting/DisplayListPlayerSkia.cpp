@@ -757,7 +757,7 @@ SkPaint DisplayListPlayerSkia::paint_style_to_skia_paint(DisplayListPaintStyle c
             make_shader);
     };
 
-    switch (paint_style.type) {
+    switch (paint_style.paint_style_type) {
     case DisplayListPaintStyleType::None:
         return {};
     case DisplayListPaintStyleType::LinearGradient:
