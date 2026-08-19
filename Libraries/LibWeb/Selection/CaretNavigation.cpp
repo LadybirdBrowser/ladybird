@@ -7,9 +7,11 @@
 #include <AK/Platform.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
+#include <LibWeb/DOM/Comment.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/DOM/ProcessingInstruction.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
@@ -273,7 +275,15 @@ CaretLocation CaretNavigator::canonical_location_for_editing(CaretLocation const
         return (previous_sibling && Editing::is_prohibited_paragraph_child(const_cast<DOM::Node&>(*previous_sibling)))
             || (next_sibling && Editing::is_prohibited_paragraph_child(const_cast<DOM::Node&>(*next_sibling)));
     };
-    if (is_formatting_whitespace(*node)) {
+    if (is<DOM::Comment>(*node) || is<DOM::ProcessingInstruction>(*node)) {
+        // INTEROP: Comments and processing instructions cannot contain rendered carets, and DOM range insertion
+        //          rejects them. Normalize the caret to the parent boundary immediately before the node, matching the
+        //          insertParagraph command's comment handling and giving insertion commands a valid boundary.
+        if (!node->parent())
+            return location;
+        offset = node->index();
+        node = *node->parent();
+    } else if (is_formatting_whitespace(*node)) {
         // INTEROP: Source indentation between block children of an editing host is not a rendered caret position.
         //          Blink and WebKit associate it with the following paragraph, or the preceding paragraph when the
         //          whitespace trails the final block.

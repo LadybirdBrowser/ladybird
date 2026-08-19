@@ -64,6 +64,13 @@
         document.execCommand("undo");
         println(`undo restores canonical caret: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
 
+        // Comments have no rendered caret position. Chrome and Firefox insert text immediately before a comment when
+        // the script-provided caret is inside it, regardless of the comment offset.
+        newHost("a<!--xy-->b");
+        sel.collapse(host.childNodes[1], 1);
+        document.execCommand("insertText", false, "x");
+        println(`typing in a comment: ${JSON.stringify(host.innerHTML)} sel=${selectionString()}`);
+
         // Capturing the upstream equivalent for history must not move the live caret before the edit. Chromium
         // inserts at the text boundary selected by script, then restores the equivalent preceding text edge on undo.
         newHost("<div><strong>:</strong>) rest</div>");
