@@ -5,6 +5,7 @@ typing at host start before a list: "<ul><li>xone</li><li>two</li></ul>" sel=#te
 formatBlock at host start: "<h2>alpha</h2>" sel=#text@0->#text@0
 bold toggle at host start: "<b>bold</b>rest" sel=host@0->host@0
 undo restores canonical caret: "<div>alpha</div>" sel=#text@0->#text@0
+typing in a comment: "ax<!--xy-->b" sel=#text@2->#text@2
 paste at equivalent text edge: "<div><strong>:</strong>pasted) rest</div>" sel=#text@6->#text@6
 undo restores upstream caret: "<div><strong>:</strong>) rest</div>" sel=#text@1->#text@1
 typing after a real line break: "<div>one<br>xtwo</div>" sel=#text@1->#text@1

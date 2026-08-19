@@ -1,0 +1,6 @@
+<!DOCTYPE html>
+<div contenteditable><!----></div>
+<script>
+    getSelection().setPosition(document.querySelector("div").firstChild);
+    document.execCommand("insertImage", false, "x");
+</script>

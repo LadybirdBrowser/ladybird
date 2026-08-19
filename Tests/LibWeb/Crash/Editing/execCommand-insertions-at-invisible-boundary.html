@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<div contenteditable></div>
+<script>
+    const host = document.querySelector("div");
+    for (const [command, value, offset] of [
+        ["insertHorizontalRule", "", 1],
+        ["insertHTML", "x", 1],
+        ["insertLineBreak", "", 1],
+        ["insertText", "x", 1],
+    ]) {
+        host.innerHTML = "<!--xy-->";
+        getSelection().setPosition(host.firstChild, offset);
+        document.execCommand(command, false, value);
+    }
+
+    const processingInstruction = document.createProcessingInstruction("x", "y");
+    host.replaceChildren(processingInstruction);
+    getSelection().setPosition(processingInstruction);
+    document.execCommand("insertImage", false, "x");
+</script>
