@@ -7,12 +7,19 @@
 #pragma once
 
 #include <AK/Types.h>
+#include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
-#include <LibWeb/PixelUnits.h>
+#include <LibWeb/Painting/AccumulatedVisualContext.h>
+#include <LibWeb/Painting/DisplayListRecordingContext.h>
+#include <LibWeb/Painting/FlexboxInspectorOverlay.h>
+#include <LibWeb/Painting/GridInspectorOverlay.h>
 
 namespace Web::Painting {
+
+struct ImagePaint;
 
 inline Layout::RustFFI::FfiCssPixelRect to_ffi_css_pixel_rect(CSSPixelRect const& rect)
 {
@@ -23,5 +30,21 @@ inline CSSPixelRect from_ffi_css_pixel_rect(Layout::RustFFI::FfiCssPixelRect con
 {
     return { CSSPixels::from_raw(rect.x), CSSPixels::from_raw(rect.y), CSSPixels::from_raw(rect.width), CSSPixels::from_raw(rect.height) };
 }
+
+WEB_API bool rust_assign_accumulated_visual_contexts(ViewportPaintable&, bool forced_incompatible_rebuild);
+WEB_API AccumulatedVisualContextTree materialize_rust_main_visual_context_tree(ViewportPaintable&);
+WEB_API void patch_rust_visual_context_nodes(ViewportPaintable&, AccumulatedVisualContextTree&, size_t begin, size_t end);
+WEB_API bool rust_update_accumulated_visual_context_values(ViewportPaintable&, Paintable&);
+WEB_API Optional<TransformData> rust_compute_css_transform(Paintable const&, double pixel_ratio);
+WEB_API void rust_update_visual_viewport_transform(ViewportPaintable&);
+WEB_API void rust_refresh_scroll_state(ViewportPaintable&);
+WEB_API ScrollStateSnapshot rust_scroll_state_snapshot(ViewportPaintable&);
+WEB_API CSSPixelPoint rust_cumulative_scroll_offset_for_node(ViewportPaintable const&, VisualContextIndex scroll_node_index);
+WEB_API ScrollState materialize_rust_scroll_state(ViewportPaintable&, bool& has_non_viewport_wheel_scroll_target_candidate);
+WEB_API void mirror_rust_refresh_sticky_constraints(ViewportPaintable&);
+WEB_API void mirror_rust_clear_scroll_state(ViewportPaintable&);
+WEB_API void mirror_rust_set_needs_to_refresh_scroll_state(ViewportPaintable&, bool);
+WEB_API void mirror_rust_clear_visual_context_tree(ViewportPaintable&);
+WEB_API void mirror_rust_reset_visual_context_state(ViewportPaintable&);
 
 }

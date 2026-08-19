@@ -52,12 +52,11 @@ pub(crate) fn px_calc_resolution_context(percentage_basis: CssPixels) -> calc::F
 
 pub(crate) fn resolve_calc_to_px(calculated: *const c_void, percentage_basis: CssPixels) -> CssPixels {
     assert!(!calculated.is_null());
-    let context = px_calc_resolution_context(percentage_basis);
-    // SAFETY: The style value stays alive for the pass and the context
-    // carries no host callbacks.
-    let result = unsafe { calc::rust_calc_resolve(calculated, &raw const context, true) };
-    assert!(result.resolved);
-    CssPixels::nearest_value_for(result.value)
+    // SAFETY: The style value stays alive for the pass.
+    let value = unsafe { &*calculated.cast::<StyleValueData>() };
+    let resolved = crate::css::calc::resolve_calculated_length_without_context(value, percentage_basis.to_double())
+        .expect("computed length-percentage calc failed to resolve");
+    CssPixels::nearest_value_for(resolved)
 }
 
 /// A borrowed computed `<length-percentage>`: a retained length, percentage

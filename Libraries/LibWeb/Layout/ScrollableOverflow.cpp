@@ -12,6 +12,7 @@
 #include <LibWeb/Layout/ScrollableOverflow.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 
 namespace Web::Layout {
 
@@ -93,7 +94,7 @@ static CSSPixelRect apply_css_transform_to_overflow_rect(Box const& box, CSSPixe
     auto const& paintable_box = *box.paintable_box();
     if (!has_css_transform)
         return rect;
-    auto transform_data = Painting::compute_transform(paintable_box, 1.0);
+    auto transform_data = Painting::rust_compute_css_transform(paintable_box, 1.0);
     if (!transform_data.has_value())
         return rect;
 

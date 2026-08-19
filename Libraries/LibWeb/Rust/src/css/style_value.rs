@@ -654,6 +654,36 @@ pub struct RetainedColorStop {
     second_position: RetainedStyleValueData,
 }
 
+impl RetainedColorStop {
+
+
+
+
+    /// The stop's retained values, absent ones as null retained references.
+    pub(crate) fn values(&self) -> [&RetainedStyleValueData; 4] {
+        [
+            &self.transition_hint,
+            &self.color,
+            &self.position,
+            &self.second_position,
+        ]
+    }
+
+    pub(crate) fn from_retained_values(
+        transition_hint: RetainedStyleValueData,
+        color: RetainedStyleValueData,
+        position: RetainedStyleValueData,
+        second_position: RetainedStyleValueData,
+    ) -> Self {
+        Self {
+            transition_hint,
+            color,
+            position,
+            second_position,
+        }
+    }
+}
+
 /// A Rust-owned array of retained gradient color stops.
 #[repr(C)]
 pub struct RetainedColorStopList {
@@ -756,31 +786,6 @@ impl RetainedShapePointList {
     }
 }
 
-impl RetainedColorStop {
-    /// The stop's retained values, absent ones as null retained references.
-    pub(crate) fn values(&self) -> [&RetainedStyleValueData; 4] {
-        [
-            &self.transition_hint,
-            &self.color,
-            &self.position,
-            &self.second_position,
-        ]
-    }
-
-    pub(crate) fn from_retained_values(
-        transition_hint: RetainedStyleValueData,
-        color: RetainedStyleValueData,
-        position: RetainedStyleValueData,
-        second_position: RetainedStyleValueData,
-    ) -> Self {
-        Self {
-            transition_hint,
-            color,
-            position,
-            second_position,
-        }
-    }
-}
 
 impl RetainedColorStopList {
     pub(crate) fn as_slice(&self) -> &[RetainedColorStop] {

@@ -1258,13 +1258,6 @@ void Paintable::reset_for_relayout()
 
     invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::No);
 
-    m_enclosing_scroll_node_index = {};
-    m_own_scroll_node_index = {};
-    m_has_accumulated_visual_context = false;
-    m_accumulated_visual_context_index = VISUAL_VIEWPORT_NODE_INDEX;
-    m_accumulated_visual_context_for_descendants_index = VISUAL_VIEWPORT_NODE_INDEX;
-    m_fixed_background_visual_context = {};
-
     invalidate_paint_cache();
 
     invalidate_stacking_context();
@@ -1835,7 +1828,7 @@ Optional<Paintable::ScrollbarData> Paintable::compute_scrollbar_data(ScrollDirec
     if (overflow != CSS::Overflow::Scroll && !could_be_scrolled_by_wheel_event(direction))
         return {};
 
-    if (!m_own_scroll_node_index.value())
+    if (!own_scroll_node_index().value())
         return {};
 
     auto scrollable_overflow_rect = this->scrollable_overflow_rect();
@@ -1889,7 +1882,7 @@ Optional<Paintable::ScrollbarData> Paintable::compute_scrollbar_data(ScrollDirec
         scrollbar_data.gutter_rect = scrollbar_rect.value();
 
     if (scroll_state_snapshot) {
-        auto own_offset = scroll_state_snapshot->device_offset_for_index(m_own_scroll_node_index);
+        auto own_offset = scroll_state_snapshot->device_offset_for_index(own_scroll_node_index());
         auto device_scroll_offset = is_horizontal ? -own_offset.x() : -own_offset.y();
         auto device_pixels_per_css_pixel = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
         CSSPixels thumb_offset = CSSPixels::nearest_value_for(device_scroll_offset / device_pixels_per_css_pixel) * scrollbar_data.thumb_travel_to_scroll_ratio;
@@ -2031,7 +2024,7 @@ void Paintable::paint(DisplayListRecordingContext& context, PaintPhase phase) co
                     continue;
                 auto gutter_rect = context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>();
                 context.display_list_recorder().paint_scrollbar(
-                    m_own_scroll_node_index,
+                    own_scroll_node_index(),
                     gutter_rect,
                     context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>(),
                     scrollbar_data->thumb_travel_to_scroll_ratio.to_double(),
@@ -2990,7 +2983,7 @@ Optional<CSSPixelPoint> Paintable::transform_point_to_local(CSSPixelPoint screen
     auto pixel_ratio = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
     auto const& scroll_state = viewport_paintable->scroll_state_snapshot();
     auto const& visual_context_tree = viewport_paintable->visual_context_tree();
-    auto result = visual_context_tree.transform_point_for_hit_test(m_accumulated_visual_context_index, screen_position.to_type<float>() * pixel_ratio, scroll_state);
+    auto result = visual_context_tree.transform_point_for_hit_test(accumulated_visual_context_index(), screen_position.to_type<float>() * pixel_ratio, scroll_state);
     if (!result.has_value())
         return {};
     return (*result / pixel_ratio).to_type<CSSPixels>();
@@ -3004,7 +2997,7 @@ Optional<CSSPixelPoint> Paintable::transform_point_to_local_for_descendants(CSSP
     auto pixel_ratio = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
     auto const& scroll_state = viewport_paintable->scroll_state_snapshot();
     auto const& visual_context_tree = viewport_paintable->visual_context_tree();
-    auto result = visual_context_tree.transform_point_for_hit_test(m_accumulated_visual_context_for_descendants_index, screen_position.to_type<float>() * pixel_ratio, scroll_state);
+    auto result = visual_context_tree.transform_point_for_hit_test(accumulated_visual_context_for_descendants_index(), screen_position.to_type<float>() * pixel_ratio, scroll_state);
     if (!result.has_value())
         return {};
     return (*result / pixel_ratio).to_type<CSSPixels>();
@@ -3018,7 +3011,7 @@ CSSPixelRect Paintable::transform_rect_to_viewport(CSSPixelRect const& rect, Acc
     auto pixel_ratio = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
     auto const& scroll_state = viewport_paintable->scroll_state_snapshot();
     auto const& visual_context_tree = viewport_paintable->visual_context_tree();
-    auto result = visual_context_tree.transform_rect_to_viewport(m_accumulated_visual_context_index, rect.to_type<float>() * pixel_ratio, scroll_state, include_visual_viewport_transform);
+    auto result = visual_context_tree.transform_rect_to_viewport(accumulated_visual_context_index(), rect.to_type<float>() * pixel_ratio, scroll_state, include_visual_viewport_transform);
     return (result * (1.f / pixel_ratio)).to_type<CSSPixels>();
 }
 
@@ -3029,7 +3022,7 @@ CSSPixelPoint Paintable::inverse_transform_point(CSSPixelPoint screen_position) 
         return screen_position;
     auto pixel_ratio = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
     auto const& visual_context_tree = viewport_paintable->visual_context_tree();
-    auto result = visual_context_tree.inverse_transform_point(m_accumulated_visual_context_index, screen_position.to_type<float>() * pixel_ratio);
+    auto result = visual_context_tree.inverse_transform_point(accumulated_visual_context_index(), screen_position.to_type<float>() * pixel_ratio);
     return (result / pixel_ratio).to_type<CSSPixels>();
 }
 
