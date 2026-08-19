@@ -374,37 +374,42 @@ void WebSocket::on_open()
 // https://websockets.spec.whatwg.org/#feedback-from-the-protocol
 void WebSocket::on_message(ByteBuffer message, bool is_text)
 {
-    if (m_websocket->ready_state() != Requests::WebSocket::ReadyState::Open)
-        return;
-
     // When a WebSocket message has been received with type type and data data, the user agent must queue a task to follow these steps:
-    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this, message = move(message), is_text] {
+    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this, message = move(message), is_text] mutable {
+        // 1. If ready state is not OPEN (1), then return.
+        if (m_websocket->ready_state() != Requests::WebSocket::ReadyState::Open)
+            return;
+
         auto& realm = HTML::relevant_realm(relevant_global_object());
-        if (is_text) {
-            auto text_message = ByteString(ReadonlyBytes(message));
-            HTML::MessageEventInit event_init;
-            event_init.data = JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(StringView { text_message.bytes() }));
-            dispatch_event(HTML::MessageEvent::create(realm.global_object(), HTML::EventNames::message, event_init, m_url.origin()));
-            return;
-        }
 
-        if (m_binary_type == Bindings::BinaryType::Blob) {
-            // type indicates that the data is Binary and binaryType is "blob"
-            HTML::MessageEventInit event_init;
-            event_init.data = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, FileAPI::Blob::create(move(message), "text/plain;charset=utf-8"_string));
-            dispatch_event(HTML::MessageEvent::create(realm.global_object(), HTML::EventNames::message, event_init, m_url.origin()));
-            return;
-        }
+        // 2. Let dataForEvent be determined by switching on type and binary type:
+        auto data_for_event = [&]() -> JS::Value {
+            // -> type indicates that the data is Text
+            if (is_text) {
+                // a new DOMString containing data
+                return JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(message));
+            }
+            // -> type indicates that the data is Binary and binary type is "blob"
+            if (m_binary_type == Bindings::BinaryType::Blob) {
+                // a new Blob object, created in the relevant Realm of the WebSocket object, that represents data as its raw data [FILEAPI]
+                return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, FileAPI::Blob::create(move(message), "text/plain;charset=utf-8"_string));
+            }
+            // -> type indicates that the data is Binary and binary type is "arraybuffer"
+            if (m_binary_type == Bindings::BinaryType::Arraybuffer) {
+                // a new ArrayBuffer object, created in the relevant Realm of the WebSocket object, whose contents are data
+                return JS::ArrayBuffer::create(realm, move(message));
+            }
 
-        if (m_binary_type == Bindings::BinaryType::Arraybuffer) {
-            // type indicates that the data is Binary and binaryType is "arraybuffer"
-            HTML::MessageEventInit event_init;
-            event_init.data = JS::ArrayBuffer::create(realm, message);
-            dispatch_event(HTML::MessageEvent::create(realm.global_object(), HTML::EventNames::message, event_init, m_url.origin()));
-            return;
-        }
+            VERIFY_NOT_REACHED();
+        }();
 
-        VERIFY_NOT_REACHED();
+        // 3. Fire an event named message at the WebSocket object, using MessageEvent, with the origin attribute
+        //    initialized to the serialization of the WebSocket object’s url’s origin, and the data attribute
+        //    initialized to dataForEvent.
+        HTML::MessageEventInit event_init;
+        event_init.data = data_for_event;
+
+        dispatch_event(HTML::MessageEvent::create(realm.global_object(), HTML::EventNames::message, event_init, m_url.origin()));
     }));
 }
 
