@@ -733,8 +733,8 @@ void WebContentClient::did_finish_loading(u64 page_id, Optional<Utf16String> nav
             maybe_record_history_visit_for_current_load(page_id, url, title, "load finish"sv);
             if (title.has_value())
                 Application::history_store(m_is_private).update_title(url, *title);
-            if (view->favicon_base64_png().has_value())
-                Application::history_store(m_is_private).update_favicon(url, *view->favicon_base64_png());
+            if (view->favicon_hash().has_value())
+                Application::history_store(m_is_private).update_favicon(url, *view->favicon_hash());
         }
 
         view->did_finish_navigation(client_url);

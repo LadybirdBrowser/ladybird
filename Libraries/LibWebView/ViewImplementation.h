@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
 #include <AK/Forward.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
@@ -99,6 +100,7 @@ public:
 
     void set_favicon(Badge<WebContentClient>, Optional<Gfx::Bitmap const&>);
     Optional<String> const& favicon_base64_png() const { return m_favicon_base64_png; }
+    Optional<String> const& favicon_hash() const { return m_favicon_hash; }
 
     String const& handle() const { return m_client_state.client_handle; }
     Optional<URL::URL> const& top_level_process_site_url() const { return m_client_state.site_url; }
@@ -139,7 +141,7 @@ public:
         i32 step { 0 };
         String title;
         String url;
-        Optional<String> favicon_base64_png;
+        Optional<ByteBuffer> favicon_png;
     };
     static Web::UIEvents::KeyModifier history_traversal_key_modifier();
     void traverse_the_history_by_delta(
@@ -601,6 +603,7 @@ protected:
     URL::URL m_url;
     Utf16String m_title;
     Optional<String> m_favicon_base64_png;
+    Optional<String> m_favicon_hash;
     bool m_is_showing_crash_page { false };
 
     double m_zoom_level { 1.0 };

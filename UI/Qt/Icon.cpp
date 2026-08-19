@@ -30,14 +30,10 @@ QIcon load_icon_from_uri(StringView uri)
     return QIcon { path };
 }
 
-QIcon icon_from_base64_png(StringView favicon_base64_png, int logical_size)
+QIcon icon_from_png(ReadonlyBytes favicon_png, int logical_size)
 {
-    auto decoded = decode_base64(favicon_base64_png);
-    if (decoded.is_error())
-        return {};
-
     QPixmap pixmap;
-    if (!pixmap.loadFromData(decoded.value().data(), static_cast<uint>(decoded.value().size()), "PNG"))
+    if (!pixmap.loadFromData(favicon_png.data(), static_cast<uint>(favicon_png.size()), "PNG"))
         return {};
 
     QIcon icon;
@@ -48,6 +44,14 @@ QIcon icon_from_base64_png(StringView favicon_base64_png, int logical_size)
         icon.addPixmap(scaled_pixmap);
     }
     return icon;
+}
+
+QIcon icon_from_base64_png(StringView favicon_base64_png, int logical_size)
+{
+    auto decoded = decode_base64(favicon_base64_png);
+    if (decoded.is_error())
+        return {};
+    return icon_from_png(decoded.value().bytes(), logical_size);
 }
 
 static QPen chrome_icon_pen(QColor const& color, qreal width)

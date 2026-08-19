@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
 #include <AK/Error.h>
 #include <AK/Function.h>
 #include <AK/Optional.h>
@@ -64,7 +65,7 @@ struct WEBVIEW_API AutocompleteSuggestion {
     String text;
     Optional<String> title;
     Optional<String> subtitle;
-    Optional<String> favicon_base64_png;
+    Optional<ByteBuffer> favicon_png;
     String highlight_input;
     AutocompleteMatchClass match_class { AutocompleteMatchClass::None };
     i32 relevance { 0 };

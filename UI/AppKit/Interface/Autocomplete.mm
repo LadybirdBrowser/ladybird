@@ -354,9 +354,9 @@ static CGFloat autocomplete_visible_width(NSView* view)
     [self.suggestion_icons removeAllObjects];
 
     for (auto const& suggestion : m_suggestions) {
-        if (suggestion.favicon_base64_png.has_value()) {
+        if (suggestion.favicon_png.has_value()) {
             auto* suggestion_text = Ladybird::string_to_ns_string(suggestion.text);
-            if (auto* favicon = Ladybird::image_from_base64_png(*suggestion.favicon_base64_png, NSMakeSize(CELL_ICON_SIZE, CELL_ICON_SIZE)); favicon != nil)
+            if (auto* favicon = Ladybird::image_from_png(suggestion.favicon_png->bytes(), NSMakeSize(CELL_ICON_SIZE, CELL_ICON_SIZE)); favicon != nil)
                 [self.suggestion_icons setObject:favicon forKey:suggestion_text];
         }
     }

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Base64.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Find.h>
 #include <AK/HashMap.h>
@@ -16,6 +17,17 @@
 #include <LibWebView/URL.h>
 
 namespace WebView {
+
+// FIXME: This is temporary as favicons are transitioned to the history database. Remove once bookmarks are updated.
+static Optional<ByteBuffer> decode_favicon(Optional<String> const& favicon_base64_png)
+{
+    if (!favicon_base64_png.has_value())
+        return {};
+
+    if (auto favicon_png = decode_base64(*favicon_base64_png); !favicon_png.is_error())
+        return favicon_png.release_value();
+    return {};
+}
 
 static StringView url_without_scheme(StringView url)
 {
@@ -155,6 +167,7 @@ static Optional<String> origin_url_for_history_entry(HistoryEntry const& entry)
 static void add_aggregated_origin_entries(StringView folded_query, Vector<HistoryEntry>& history_entries, UnixDateTime now)
 {
     HashMap<String, HistoryEntry> origins;
+    HashMap<String, UnixDateTime> favicon_last_visited_times;
 
     for (auto const& entry : history_entries) {
         auto origin_url = origin_url_for_history_entry(entry);
@@ -170,7 +183,7 @@ static void add_aggregated_origin_entries(StringView folded_query, Vector<Histor
             return HistoryEntry {
                 .url = *origin_url,
                 .title = {},
-                .favicon_base64_png = {},
+                .favicon_png = {},
                 .visit_count = 0,
                 .direct_visit_count = 0,
                 .last_visited_time = entry.last_visited_time,
@@ -195,12 +208,18 @@ static void add_aggregated_origin_entries(StringView folded_query, Vector<Histor
         auto direct_score = decayed_score_at(entry.decayed_direct_score, entry.score_updated_at, now, 60.0);
         origin.decayed_visit_score = min(50.0, origin.decayed_visit_score + min(visit_score, is_origin_entry ? 8.0 : 2.0));
         origin.decayed_direct_score = min(12.0, origin.decayed_direct_score + min(direct_score, is_origin_entry ? 3.0 : 1.0));
-        if (entry.favicon_base64_png.has_value()
-            && (!origin.favicon_base64_png.has_value() || entry.last_visited_time >= origin.last_visited_time))
-            origin.favicon_base64_png = entry.favicon_base64_png;
         origin.last_visited_time = max(origin.last_visited_time, entry.last_visited_time);
         origin.last_qualifying_visit_time = max(origin.last_qualifying_visit_time, entry.last_qualifying_visit_time);
         origin.last_direct_visit_time = max(origin.last_direct_visit_time, entry.last_direct_visit_time);
+
+        if (entry.favicon_png.has_value()) {
+            auto favicon_last_visited_time = favicon_last_visited_times.get(*origin_url);
+
+            if (!favicon_last_visited_time.has_value() || entry.last_visited_time >= *favicon_last_visited_time) {
+                favicon_last_visited_times.set(*origin_url, entry.last_visited_time);
+                origin.favicon_png = entry.favicon_png;
+            }
+        }
     }
 
     for (auto& origin : origins) {
@@ -209,7 +228,6 @@ static void add_aggregated_origin_entries(StringView folded_query, Vector<Histor
         });
         if (existing_origin != history_entries.end()) {
             origin.value.title = move(existing_origin->title);
-            origin.value.favicon_base64_png = move(existing_origin->favicon_base64_png);
             *existing_origin = move(origin.value);
         } else {
             history_entries.append(move(origin.value));
@@ -285,7 +303,7 @@ Vector<AutocompleteSuggestion> rank_history_suggestions(StringView query, Vector
             .text = move(entry.url),
             .title = move(entry.title),
             .subtitle = {},
-            .favicon_base64_png = move(entry.favicon_base64_png),
+            .favicon_png = move(entry.favicon_png),
             .highlight_input = {},
             .match_class = match_class,
             .relevance = relevance,
@@ -381,7 +399,7 @@ Vector<AutocompleteSuggestion> rank_bookmark_suggestions(StringView query, Vecto
             .text = bookmark.url,
             .title = bookmark.title,
             .subtitle = bookmark.folder,
-            .favicon_base64_png = bookmark.favicon_base64_png,
+            .favicon_png = decode_favicon(bookmark.favicon_base64_png),
             .highlight_input = {},
             .match_class = match_class,
             .relevance = adjusted_match_relevance + bookmark_relevance,
@@ -493,7 +511,7 @@ Vector<AutocompleteSuggestion> rank_engagement_suggestions(StringView query, Vec
             .text = move(engagement.destination),
             .title = {},
             .subtitle = {},
-            .favicon_base64_png = {},
+            .favicon_png = {},
             .highlight_input = {},
             .match_class = match_class,
             .relevance = adjusted_match_relevance + adaptive_relevance,

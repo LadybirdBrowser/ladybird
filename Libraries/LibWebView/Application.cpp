@@ -1223,7 +1223,7 @@ ErrorOr<void> Application::launch_services()
             dbgln("History database was created by a newer Ladybird version; favicons and history will not be persisted this session");
             history_database_directory = {};
             m_favicon_store = FaviconStore::create();
-            m_history_store = HistoryStore::create();
+            m_history_store = HistoryStore::create(*m_favicon_store);
         }
 
         // Fall back without modifying the existing Sessions database.

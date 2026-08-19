@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Array.h>
+#include <AK/Span.h>
 #include <AK/StringView.h>
 
 #include <QIcon>
@@ -49,6 +50,7 @@ enum class ChromeIcon {
 constexpr inline auto ICON_DEVICE_PIXEL_RATIOS = to_array({ 1, 2, 3 });
 
 QIcon load_icon_from_uri(StringView);
+QIcon icon_from_png(ReadonlyBytes, int logical_size);
 QIcon icon_from_base64_png(StringView, int logical_size);
 QIcon create_chrome_icon(ChromeIcon, QPalette const&);
 QIcon loading_spinner_icon(QPalette const& palette, int frame);
