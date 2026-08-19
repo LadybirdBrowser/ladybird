@@ -311,7 +311,6 @@ extern "C" void* ladybird_web_svg_path_from_path_data_utf16(char16_t const* unit
     auto path_data = SVG::AttributeParser::parse_path_data(Utf16View { units, length });
     return new Gfx::Path(path_data.to_gfx_path());
 }
-
 static Layout::RustFFI::FfiRootBackgroundSource rust_root_background_source(DOM::Document const& document)
 {
     Layout::RustFFI::FfiRootBackgroundSource source {};
@@ -553,4 +552,75 @@ void mirror_rust_reset_visual_context_state(ViewportPaintable& viewport_paintabl
     Layout::RustFFI::layout_arena_reset_visual_context_state(viewport_paintable.rust_arena().handle());
 }
 
+
+NonnullRefPtr<DisplayList> record_image_paint_display_list(ImagePaint const& paint, Gfx::FloatRect dest_rect, CSS::ImageRendering image_rendering, double device_pixels_per_css_pixel, AccumulatedVisualContextTree const& visual_context_tree, DisplayListResourceStorage& resource_storage)
+{
+    Layout::RustFFI::FfiImagePaintRecordInputs inputs {};
+    inputs.dest_rect[0] = dest_rect.x();
+    inputs.dest_rect[1] = dest_rect.y();
+    inputs.dest_rect[2] = dest_rect.width();
+    inputs.dest_rect[3] = dest_rect.height();
+    Vector<u32> color_stop_colors;
+    auto write_color_stops = [&](ColorStopData const& color_stops) {
+        for (auto color : color_stops.colors)
+            color_stop_colors.append(color.value());
+        inputs.color_stop_colors = color_stop_colors.data();
+        inputs.color_stop_positions = color_stops.positions.data();
+        inputs.color_stop_count = color_stops.colors.size();
+        inputs.color_stops_repeating = color_stops.repeating;
+    };
+    auto write_interpolation_method = [&](Gfx::GradientInterpolationMethod const& method) {
+        inputs.interpolation_type = to_underlying(method.type);
+        inputs.rectangular_color_space = to_underlying(method.rectangular_color_space);
+        inputs.polar_color_space = to_underlying(method.polar_color_space);
+        inputs.hue_interpolation_method = to_underlying(method.hue_interpolation_method);
+    };
+    DevicePixelConverter device_pixel_converter { device_pixels_per_css_pixel };
+    paint.value.visit(
+        [&](ImagePaint::DecodedFrame const& decoded_frame) {
+            inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::DecodedFrame;
+            inputs.frame_id = resource_storage.add_image_frame(decoded_frame.frame).value();
+            inputs.scaling_mode = to_underlying(CSS::to_gfx_scaling_mode(image_rendering, decoded_frame.natural_size, dest_rect.to_rounded<int>().size()));
+        },
+        [&](ImagePaint::NestedDisplayList const& nested) {
+            inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::NestedDisplayList;
+            inputs.nested_display_list_id = resource_storage.add_display_list(nested.resource.display_list, nested.resource.visual_context_tree).value();
+            inputs.nested_display_list_size[0] = nested.list_size.width();
+            inputs.nested_display_list_size[1] = nested.list_size.height();
+        },
+        [&](LinearGradientData const& gradient) {
+            inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::LinearGradient;
+            inputs.gradient_angle = gradient.gradient_angle;
+            inputs.first_stop_position = gradient.first_stop_position;
+            inputs.repeat_length = gradient.repeat_length;
+            write_color_stops(gradient.color_stops);
+            write_interpolation_method(gradient.interpolation_method);
+        },
+        [&](ResolvedRadialGradient const& gradient) {
+            inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::RadialGradient;
+            auto center = device_pixel_converter.rounded_device_point(gradient.center).to_type<int>();
+            auto size = device_pixel_converter.rounded_device_size(gradient.gradient_size).to_type<int>();
+            inputs.center[0] = center.x();
+            inputs.center[1] = center.y();
+            inputs.size[0] = size.width();
+            inputs.size[1] = size.height();
+            write_color_stops(gradient.data.color_stops);
+            write_interpolation_method(gradient.data.interpolation_method);
+        },
+        [&](ResolvedConicGradient const& gradient) {
+            inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::ConicGradient;
+            inputs.gradient_angle = gradient.data.start_angle;
+            auto position = device_pixel_converter.rounded_device_point(gradient.position).to_type<int>();
+            inputs.position[0] = position.x();
+            inputs.position[1] = position.y();
+            write_color_stops(gradient.data.color_stops);
+            write_interpolation_method(gradient.data.interpolation_method);
+        });
+    ByteBuffer command_bytes;
+    Layout::RustFFI::ladybird_web_record_image_paint_display_list(&inputs, &command_bytes,
+        [](void* context, u8 const* bytes, size_t length) {
+            *static_cast<ByteBuffer*>(context) = MUST(ByteBuffer::copy(bytes, length));
+        });
+    return DisplayList::create_from_command_bytes(visual_context_tree, move(command_bytes));
+}
 }

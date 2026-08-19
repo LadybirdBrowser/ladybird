@@ -18,6 +18,7 @@
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/ImagePaint.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 
 namespace Web::CSS {
 

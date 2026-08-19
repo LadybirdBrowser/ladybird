@@ -119,6 +119,7 @@ public:
     Layout::RustFFI::PaintableData const& rust_data() const { return *m_rust_data; }
     bool has_flag(Layout::RustFFI::PaintableFlag flag) const { return (rust_data().flags & to_underlying(flag)) != 0; }
 
+    Optional<CSSPixelRect> absolute_resizer_rect(ChromeMetrics const& chrome_metrics) const;
     bool has_layout_node() const { return m_layout_node; }
     Layout::NodeWithStyle const& layout_node() const
     {
@@ -485,7 +486,6 @@ protected:
     virtual CSSPixelRect compute_absolute_border_box_rect() const;
 
     CSSPixels available_scrollbar_length(ScrollDirection direction, ChromeMetrics const& chrome_metrics) const;
-    Optional<CSSPixelRect> absolute_resizer_rect(ChromeMetrics const& chrome_metrics) const;
 
 private:
     friend class Layout::LayoutRustBridge;
