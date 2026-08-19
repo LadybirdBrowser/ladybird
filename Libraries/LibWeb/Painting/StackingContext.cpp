@@ -525,4 +525,12 @@ void StackingContext::dump(StringBuilder& builder, int indent) const
         child->dump(builder, indent + 1);
 }
 
+void dump_stacking_context_tree(StringBuilder& builder, ViewportPaintable const& viewport_paintable)
+{
+    auto stacking_context = viewport_paintable.stacking_context();
+    if (!stacking_context)
+        return;
+    stacking_context->dump(builder);
+}
+
 }

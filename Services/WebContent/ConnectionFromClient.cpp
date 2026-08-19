@@ -581,11 +581,9 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
             if (auto* viewport = doc->layout_node()) {
                 auto& viewport_paintable = static_cast<Web::Painting::ViewportPaintable&>(*viewport->paintable_box());
                 viewport_paintable.build_stacking_context_tree_if_needed();
-                if (auto stacking_context = viewport_paintable.stacking_context()) {
-                    StringBuilder builder;
-                    stacking_context->dump(builder);
-                    dbgln("{}", builder.string_view());
-                }
+                StringBuilder builder;
+                Web::Painting::dump_stacking_context_tree(builder, viewport_paintable);
+                dbgln("{}", builder.string_view());
             }
         }
         return;
@@ -2037,9 +2035,7 @@ static void append_stacking_context_tree(Web::Page& page, StringBuilder& builder
 
     auto& viewport_paintable = static_cast<Web::Painting::ViewportPaintable&>(*layout_root->paintable_box());
     viewport_paintable.build_stacking_context_tree_if_needed();
-    if (auto stacking_context = viewport_paintable.stacking_context()) {
-        stacking_context->dump(builder);
-    }
+    Web::Painting::dump_stacking_context_tree(builder, viewport_paintable);
 }
 
 static void append_gc_graph(StringBuilder& builder)

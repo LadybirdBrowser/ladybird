@@ -9681,12 +9681,10 @@ Utf16String Document::dump_stacking_context_tree()
 
     viewport_paintable->build_stacking_context_tree_if_needed();
 
-    auto stacking_context = viewport_paintable->stacking_context();
-    if (!stacking_context)
-        return "No stacking context"_utf16;
-
     StringBuilder builder;
-    stacking_context->dump(builder);
+    Painting::dump_stacking_context_tree(builder, *viewport_paintable);
+    if (builder.is_empty())
+        return "No stacking context"_utf16;
     return Utf16String::from_utf8_without_validation(builder.string_view());
 }
 
