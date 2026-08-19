@@ -857,11 +857,8 @@ set(SOURCES
     Page/Page.cpp
     Page/ScreenWakeLockHandle.cpp
     Painting/AccumulatedVisualContext.cpp
-    Painting/BackgroundPainting.cpp
     Painting/Blending.cpp
-    Painting/BorderPainting.cpp
     Painting/BorderRadiiData.cpp
-    Painting/BorderRadiusCornerClipper.cpp
     Painting/BordersData.cpp
     Painting/BoxModelMetrics.cpp
     Painting/Canvas2DCommandStream.cpp
@@ -872,13 +869,11 @@ set(SOURCES
     Painting/DisplayListCommand.cpp
     Painting/DisplayListDamage.cpp
     Painting/DisplayListPlayerSkia.cpp
-    Painting/DisplayListRecorder.cpp
     Painting/DisplayListRecordingContext.cpp
     Painting/DisplayListResourceTransaction.cpp
     Painting/DisplayListResourceStorage.cpp
     Painting/FieldSetPaintable.cpp
     Painting/HitTestDisplayList.cpp
-    Painting/ImagePaint.cpp
     Painting/ImagePaintable.cpp
     Painting/InlinePaintable.cpp
     Painting/NavigableContainerViewportPaintable.cpp
@@ -887,16 +882,11 @@ set(SOURCES
     Painting/PaintableFragment.cpp
     Painting/PaintableWithLines.cpp
     Painting/PaintingRustBridge.cpp
-    Painting/PrerecordedNestedDisplayLists.cpp
     Painting/RadioButtonPaintable.cpp
-    Painting/ReplacedElementCommon.cpp
     Painting/ResolvedCSSFilter.cpp
     Painting/ResizeHandle.cpp
     Painting/Scrollbar.cpp
-    Painting/ScrollNodeState.cpp
     Painting/ScrollState.cpp
-    Painting/ShadowPainting.cpp
-    Painting/StackingContext.cpp
     Painting/SVGClipPaintable.cpp
     Painting/SVGForeignObjectPaintable.cpp
     Painting/SVGGraphicsPaintable.cpp
@@ -907,7 +897,6 @@ set(SOURCES
     Painting/SVGPatternPaintable.cpp
     Painting/SVGPathPaintable.cpp
     Painting/SVGSVGPaintable.cpp
-    Painting/TableBordersPainting.cpp
     Painting/VideoPaintable.cpp
     Painting/ViewportPaintable.cpp
     PerformanceTimeline/EntryTypes.cpp

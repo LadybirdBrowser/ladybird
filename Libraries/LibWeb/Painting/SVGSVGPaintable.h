@@ -16,9 +16,6 @@ public:
     static NonnullRefPtr<SVGSVGPaintable> create(Layout::Box const&);
     virtual StringView class_name() const override { return "SVGSVGPaintable"sv; }
 
-    static void paint_svg_box(DisplayListRecordingContext& context, Paintable const& svg_box, PaintPhase phase);
-    static void paint_descendants(DisplayListRecordingContext& context, Paintable const& paintable, PaintPhase phase);
-
     void set_svg_viewport_size(CSSPixelSize viewport_size) { m_svg_viewport_size = viewport_size; }
     CSSPixelSize svg_viewport_size() const { return m_svg_viewport_size; }
 

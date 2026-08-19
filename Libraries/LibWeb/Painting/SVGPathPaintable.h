@@ -10,12 +10,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
-
-namespace Web::SVG {
-
-struct SVGPaintContext;
-
-}
+#include <LibWeb/SVG/SVGGraphicsElement.h>
 
 namespace Web::Painting {
 
@@ -26,13 +21,7 @@ public:
 
     virtual Optional<CSSPixelRect> clip_path_geometry_bounds(Gfx::AffineTransform const& additional_transform) const override;
 
-    virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
-    virtual void record_hit_test_items(DisplayListRecordingContext&, PaintPhase) const override;
-
     SVG::SVGGraphicsElement const& dom_node() const { return as<SVG::SVGGraphicsElement>(*Paintable::dom_node()); }
-
-    bool fill_and_stroke_paint_styles_are_resolved(DisplayListRecordingContext const&) const;
-    SVG::SVGPaintContext svg_paint_context(DisplayListRecordingContext const&) const;
 
     // The identity is process-unique per layout-side path allocation and never
     // reused, so a match proves the already-held path is byte-identical and the

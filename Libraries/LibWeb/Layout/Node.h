@@ -383,7 +383,6 @@ public:
     Box const* non_anonymous_containing_block() const;
 
     Gfx::Font const& first_available_font() const;
-    Gfx::Font const& font(DisplayListRecordingContext&) const;
     Gfx::Font const& font(float scale_factor) const;
 
     NodeWithStyle* parent();
@@ -878,11 +877,6 @@ inline Gfx::Font const& Node::first_available_font() const
     if (has_style())
         return static_cast<NodeWithStyle const*>(this)->first_available_font();
     return parent()->first_available_font();
-}
-
-inline Gfx::Font const& Node::font(DisplayListRecordingContext& context) const
-{
-    return font(context.device_pixels_per_css_pixel());
 }
 
 inline Gfx::Font const& Node::font(float scale_factor) const

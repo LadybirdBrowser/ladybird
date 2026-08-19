@@ -274,31 +274,6 @@ OwnPtr<GridLayoutData> build_grid_layout_data(RustFFI::FfiGridLayoutData const& 
     return data;
 }
 
-static CSS::BorderData from_ffi_border_data(RustFFI::FfiBorderData const&);
-
-static OwnPtr<Painting::CollapsedTableBorders> build_collapsed_table_borders(RustFFI::FfiCollapsedTableBorders const& ffi_borders)
-{
-    auto borders = make<Painting::CollapsedTableBorders>();
-    borders->row_offsets.ensure_capacity(ffi_borders.row_count + 1);
-    for (size_t i = 0; i <= ffi_borders.row_count; ++i)
-        borders->row_offsets.unchecked_append(CSSPixels::from_raw(ffi_borders.row_offsets[i]));
-    borders->column_offsets.ensure_capacity(ffi_borders.column_count + 1);
-    for (size_t i = 0; i <= ffi_borders.column_count; ++i)
-        borders->column_offsets.unchecked_append(CSSPixels::from_raw(ffi_borders.column_offsets[i]));
-    auto build_edges = [](Vector<Painting::CollapsedBorderEdge>& edges, RustFFI::FfiCollapsedBorderEdge const* ffi_edges, size_t count) {
-        edges.ensure_capacity(count);
-        for (size_t i = 0; i < count; ++i) {
-            edges.unchecked_append({
-                .border = from_ffi_border_data(ffi_edges[i].border_data),
-                .source_order = ffi_edges[i].source_order,
-            });
-        }
-    };
-    build_edges(borders->horizontal_edges, ffi_borders.horizontal_edges, (ffi_borders.row_count + 1) * ffi_borders.column_count);
-    build_edges(borders->vertical_edges, ffi_borders.vertical_edges, (ffi_borders.column_count + 1) * ffi_borders.row_count);
-    return borders;
-}
-
 static RustFFI::FfiAffineTransform to_ffi_affine_transform(Gfx::AffineTransform const& transform)
 {
     return {
@@ -939,9 +914,6 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
             auto const* path = static_cast<Gfx::Path const*>(path_pointer);
             if (auto* svg_path_paintable = as_if<Painting::SVGPathPaintable>(paintable))
                 svg_path_paintable->set_computed_path_if_identity_changed(*path, path_identity); },
-        .set_collapsed_table_borders = [](void*, void* paintable_pointer, RustFFI::FfiCollapsedTableBorders const* borders) {
-            VERIFY(borders);
-            static_cast<Painting::Paintable*>(paintable_pointer)->set_collapsed_table_borders(build_collapsed_table_borders(*borders)); },
         .finish_node = [](void*, void* node_pointer, void* paintable_pointer, void* parent_paintable_pointer, void* insert_before_paintable_pointer) {
             auto& node = *static_cast<Node*>(node_pointer);
             auto* paintable = static_cast<Painting::Paintable*>(paintable_pointer);
@@ -973,15 +945,6 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                 .paintable_for_children = paintable_for_children,
             }; },
         .assign_inline_box_geometry = [](void*, void* paintable_pointer) { as<Painting::PaintableWithLines>(*static_cast<Painting::Paintable*>(paintable_pointer)).assign_inline_box_geometry(); },
-    };
-}
-
-static CSS::BorderData from_ffi_border_data(RustFFI::FfiBorderData const& border)
-{
-    return {
-        .color = Gfx::Color::from_bgra(border.color),
-        .line_style = static_cast<CSS::LineStyle>(border.line_style),
-        .width = CSSPixels::from_raw(border.width),
     };
 }
 

@@ -18,7 +18,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/Painting/ScrollNodeState.h>
+#include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::Compositor {
 

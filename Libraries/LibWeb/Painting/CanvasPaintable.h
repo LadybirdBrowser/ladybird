@@ -16,8 +16,6 @@ public:
     static NonnullRefPtr<CanvasPaintable> create(Layout::Box const&);
     virtual StringView class_name() const override { return "CanvasPaintable"sv; }
 
-    virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
-
 private:
     CanvasPaintable(Layout::Box const&);
 };

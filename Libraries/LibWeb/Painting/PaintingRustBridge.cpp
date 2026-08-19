@@ -595,46 +595,6 @@ CSSPixelPoint rust_cumulative_scroll_offset_for_node(ViewportPaintable const& vi
     return { CSSPixels::from_raw(raw[0]), CSSPixels::from_raw(raw[1]) };
 }
 
-ScrollState materialize_rust_scroll_state(ViewportPaintable& viewport_paintable, bool& has_non_viewport_wheel_scroll_target_candidate)
-{
-    auto* arena = viewport_paintable.rust_arena().handle();
-    ScrollState scroll_state;
-    auto slot_count = Layout::RustFFI::layout_arena_scroll_state_slot_count(arena);
-    for (size_t slot = 0; slot < slot_count; ++slot) {
-        auto exported = Layout::RustFFI::layout_arena_scroll_state_slot_export(arena, slot);
-        auto* paintable = static_cast<Paintable*>(exported.paintable_shell);
-        VERIFY(paintable);
-        auto registered_slot = exported.is_sticky
-            ? scroll_state.register_sticky_node(VisualContextIndex { exported.node_index }, *paintable, ScrollStateSlot { exported.parent_slot })
-            : scroll_state.register_scroll_node(VisualContextIndex { exported.node_index }, *paintable, ScrollStateSlot { exported.parent_slot });
-        VERIFY(registered_slot.value() == slot);
-        auto& state = scroll_state.state_at_slot(registered_slot);
-        state.set_own_offset({ CSSPixels::from_raw(exported.own_offset.x), CSSPixels::from_raw(exported.own_offset.y) });
-        if (exported.has_sticky_constraints) {
-            auto side = [](i32 raw, bool present) -> Optional<CSSPixels> {
-                if (!present)
-                    return {};
-                return CSSPixels::from_raw(raw);
-            };
-            state.set_sticky_constraints({
-                .position_relative_to_scroll_ancestor = { CSSPixels::from_raw(exported.position_relative_to_scroll_ancestor.x), CSSPixels::from_raw(exported.position_relative_to_scroll_ancestor.y) },
-                .border_box_size = { CSSPixels::from_raw(exported.border_box_size.width), CSSPixels::from_raw(exported.border_box_size.height) },
-                .scrollport_size = { CSSPixels::from_raw(exported.scrollport_size.width), CSSPixels::from_raw(exported.scrollport_size.height) },
-                .containing_block_region = from_ffi_css_pixel_rect(exported.containing_block_region),
-                .needs_parent_offset_adjustment = exported.needs_parent_offset_adjustment,
-                .insets = {
-                    side(exported.sticky_insets.top, exported.sticky_insets.has_top),
-                    side(exported.sticky_insets.right, exported.sticky_insets.has_right),
-                    side(exported.sticky_insets.bottom, exported.sticky_insets.has_bottom),
-                    side(exported.sticky_insets.left, exported.sticky_insets.has_left),
-                },
-            });
-        }
-    }
-    has_non_viewport_wheel_scroll_target_candidate = Layout::RustFFI::layout_arena_scroll_state_has_non_viewport_wheel_scroll_target_candidate(arena);
-    return scroll_state;
-}
-
 void mirror_rust_refresh_sticky_constraints(ViewportPaintable& viewport_paintable)
 {
     Layout::RustFFI::layout_arena_refresh_sticky_constraints(viewport_paintable.rust_arena().handle());

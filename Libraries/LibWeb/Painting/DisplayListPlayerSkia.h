@@ -12,7 +12,6 @@
 #include <LibGfx/Forward.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
-#include <LibWeb/Painting/DisplayListRecorder.h>
 
 class GrDirectContext;
 class SkPaint;

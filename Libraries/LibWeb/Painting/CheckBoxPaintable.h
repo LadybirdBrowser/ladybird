@@ -16,8 +16,6 @@ public:
     static NonnullRefPtr<CheckBoxPaintable> create(Layout::Box const&);
     virtual StringView class_name() const override { return "CheckBoxPaintable"sv; }
 
-    virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
-
 private:
     CheckBoxPaintable(Layout::Box const&);
 };

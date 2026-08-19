@@ -17,6 +17,8 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/DevicePixelConverter.h>
+#include <LibWeb/Painting/DisplayListCommandRange.h>
+#include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Painting/VisualContextIndex.h>
 #include <LibWeb/PixelUnits.h>
 
@@ -24,9 +26,7 @@ namespace Web::Painting {
 
 class AccumulatedVisualContextTree;
 class DisplayList;
-class HitTestDisplayList;
 class ScrollState;
-struct PrerecordedNestedDisplayLists;
 
 enum class PaintCommandCacheMode : u8 {
     ReadOnly,
@@ -39,53 +39,15 @@ namespace Web {
 
 class WEB_API DisplayListRecordingContext {
 public:
-    DisplayListRecordingContext(Painting::DisplayListRecorder& painter, Palette const& palette, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics, Painting::HitTestDisplayList* = nullptr);
     DisplayListRecordingContext(Palette const& palette, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics);
 
-    Painting::DisplayListRecorder& display_list_recorder() const
-    {
-        VERIFY(m_display_list_recorder);
-        return *m_display_list_recorder;
-    }
-    Painting::HitTestDisplayList* hit_test_display_list() const { return m_hit_test_display_list; }
     Palette const& palette() const { return m_palette; }
-
-    bool should_show_line_box_borders() const { return m_should_show_line_box_borders; }
-    void set_should_show_line_box_borders(bool value) { m_should_show_line_box_borders = value; }
-
-    bool should_paint_overlay() const { return m_should_paint_overlay; }
-    void set_should_paint_overlay(bool should_paint_overlay) { m_should_paint_overlay = should_paint_overlay; }
 
     Painting::PaintCommandCacheMode paint_command_cache_mode() const { return m_paint_command_cache_mode; }
     void set_paint_command_cache_mode(Painting::PaintCommandCacheMode mode) { m_paint_command_cache_mode = mode; }
 
-    Painting::DisplayList const* paint_command_cache_source_display_list() const { return m_paint_command_cache_source_display_list; }
-    void set_paint_command_cache_source_display_list(Painting::DisplayList const* display_list) { m_paint_command_cache_source_display_list = display_list; }
-
-    Painting::HitTestDisplayList const* hit_test_item_cache_source() const { return m_hit_test_item_cache_source; }
-    void set_hit_test_item_cache_source(Painting::HitTestDisplayList const* hit_test_display_list) { m_hit_test_item_cache_source = hit_test_display_list; }
-
     DevicePixelRect device_viewport_rect() const { return m_device_viewport_rect; }
     void set_device_viewport_rect(DevicePixelRect const& rect) { m_device_viewport_rect = rect; }
-
-    bool draw_svg_geometry_for_clip_path() const
-    {
-        return m_draw_svg_geometry_for_clip_path;
-    }
-
-    void set_draw_svg_geometry_for_clip_path(bool draw_svg_geometry_for_clip_path)
-    {
-        m_draw_svg_geometry_for_clip_path = draw_svg_geometry_for_clip_path;
-    }
-
-    Optional<Painting::NestedVisualContextAssignments> const& nested_visual_context_assignments() const { return m_nested_visual_context_assignments; }
-    void set_nested_visual_context_assignments(Painting::NestedVisualContextAssignments assignments) { m_nested_visual_context_assignments = move(assignments); }
-
-    Painting::PrerecordedNestedDisplayLists* prerecorded_nested_display_lists() const { return m_prerecorded_nested_display_lists; }
-    void set_prerecorded_nested_display_lists(Painting::PrerecordedNestedDisplayLists* prerecorded) { m_prerecorded_nested_display_lists = prerecorded; }
-
-    Painting::VisualContextIndex accumulated_visual_context_index_of(Painting::Paintable const&) const;
-    Painting::VisualContextIndex accumulated_visual_context_for_descendants_index_of(Painting::Paintable const&) const;
 
     DevicePixels enclosing_device_pixels(CSSPixels css_pixels) const;
     DevicePixels floored_device_pixels(CSSPixels css_pixels) const;
@@ -96,16 +58,6 @@ public:
     DevicePixelRect rounded_device_rect(CSSPixelRect) const;
     DevicePixelSize enclosing_device_size(CSSPixelSize) const;
     DevicePixelSize rounded_device_size(CSSPixelSize) const;
-
-    DisplayListRecordingContext clone(Painting::DisplayListRecorder& painter, Painting::HitTestDisplayList* hit_test_display_list = nullptr) const
-    {
-        auto clone = DisplayListRecordingContext(painter, m_palette, m_device_pixel_converter.device_pixels_per_css_pixel(), m_chrome_metrics, hit_test_display_list);
-        clone.m_device_viewport_rect = m_device_viewport_rect;
-        clone.m_should_show_line_box_borders = m_should_show_line_box_borders;
-        clone.m_should_paint_overlay = m_should_paint_overlay;
-        clone.m_prerecorded_nested_display_lists = m_prerecorded_nested_display_lists;
-        return clone;
-    }
 
     Painting::DevicePixelConverter const& device_pixel_converter() const { return m_device_pixel_converter; }
     double device_pixels_per_css_pixel() const { return m_device_pixel_converter.device_pixels_per_css_pixel(); }
@@ -123,63 +75,23 @@ public:
         m_has_blocking_wheel_event_region_covering_viewport = has_blocking_wheel_event_region_covering_viewport;
     }
 
-    void set_async_scrolling_metadata_context(
-        UniqueNodeID document_id,
-        Painting::AccumulatedVisualContextTree const& visual_context_tree,
-        Painting::ScrollState const& scroll_state,
-        bool has_blocking_wheel_event_listeners,
-        bool has_blocking_wheel_event_region_covering_viewport)
-    {
-        m_async_scrolling_document_id = document_id;
-        m_async_scrolling_visual_context_tree = &visual_context_tree;
-        m_async_scrolling_scroll_state = &scroll_state;
-        m_has_blocking_wheel_event_listeners = has_blocking_wheel_event_listeners;
-        m_has_blocking_wheel_event_region_covering_viewport = has_blocking_wheel_event_region_covering_viewport;
-    }
-
-    bool is_recording_async_scrolling_metadata() const { return m_is_recording_async_scrolling_metadata || m_async_scrolling_scroll_state != nullptr; }
+    bool is_recording_async_scrolling_metadata() const { return m_is_recording_async_scrolling_metadata; }
     UniqueNodeID async_scrolling_document_id() const { return m_async_scrolling_document_id; }
-    Painting::AccumulatedVisualContextTree const& async_scrolling_visual_context_tree() const { return *m_async_scrolling_visual_context_tree; }
-    Painting::ScrollState const& async_scrolling_scroll_state() const { return *m_async_scrolling_scroll_state; }
     bool has_blocking_wheel_event_listeners() const { return m_has_blocking_wheel_event_listeners; }
     void set_has_blocking_wheel_event_listeners(bool value) { m_has_blocking_wheel_event_listeners = value; }
     bool has_blocking_wheel_event_region_covering_viewport() const { return m_has_blocking_wheel_event_region_covering_viewport; }
-    bool should_record_wheel_hit_test_targets() const { return m_should_record_wheel_hit_test_targets; }
-    void set_should_record_wheel_hit_test_targets(bool value) { m_should_record_wheel_hit_test_targets = value; }
-
-    Optional<Painting::VisualContextIndex> cached_wheel_hit_test_target_for(Painting::Paintable const& paintable) const
-    {
-        return m_wheel_hit_test_target_cache.get(&paintable);
-    }
-    void cache_wheel_hit_test_target_for(Painting::Paintable const& paintable, Painting::VisualContextIndex target)
-    {
-        m_wheel_hit_test_target_cache.set(&paintable, target);
-    }
 
 private:
-    Painting::DisplayListRecorder* m_display_list_recorder { nullptr };
-    Painting::HitTestDisplayList* m_hit_test_display_list { nullptr };
     Palette m_palette;
     Painting::DevicePixelConverter m_device_pixel_converter;
     ChromeMetrics m_chrome_metrics;
     DevicePixelRect m_device_viewport_rect;
     Painting::PaintCommandCacheMode m_paint_command_cache_mode { Painting::PaintCommandCacheMode::ReadOnly };
-    Painting::DisplayList const* m_paint_command_cache_source_display_list { nullptr };
-    Painting::HitTestDisplayList const* m_hit_test_item_cache_source { nullptr };
-    bool m_should_show_line_box_borders { false };
-    bool m_should_paint_overlay { true };
-    bool m_draw_svg_geometry_for_clip_path { false };
-    Optional<Painting::NestedVisualContextAssignments> m_nested_visual_context_assignments;
-    Painting::PrerecordedNestedDisplayLists* m_prerecorded_nested_display_lists { nullptr };
     u64 m_paint_generation_id { 0 };
     UniqueNodeID m_async_scrolling_document_id {};
-    Painting::AccumulatedVisualContextTree const* m_async_scrolling_visual_context_tree { nullptr };
-    Painting::ScrollState const* m_async_scrolling_scroll_state { nullptr };
     bool m_is_recording_async_scrolling_metadata { false };
     bool m_has_blocking_wheel_event_listeners { false };
     bool m_has_blocking_wheel_event_region_covering_viewport { false };
-    bool m_should_record_wheel_hit_test_targets { false };
-    HashMap<Painting::Paintable const*, Painting::VisualContextIndex> m_wheel_hit_test_target_cache;
 };
 
 }

@@ -117,37 +117,12 @@ pub struct FfiCollapsedBorderEdge {
     pub source_order: u32,
 }
 
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiCollapsedTableBorders {
-    pub row_count: usize,
-    pub column_count: usize,
-    pub row_offsets: *const CssPixels,
-    pub column_offsets: *const CssPixels,
-    pub horizontal_edges: *const FfiCollapsedBorderEdge,
-    pub vertical_edges: *const FfiCollapsedBorderEdge,
-}
-
 #[derive(PartialEq, Eq)]
 pub(crate) struct OwnedCollapsedTableBorders {
     pub(crate) row_offsets: Vec<CssPixels>,
     pub(crate) column_offsets: Vec<CssPixels>,
     pub(crate) horizontal_edges: Vec<FfiCollapsedBorderEdge>,
     pub(crate) vertical_edges: Vec<FfiCollapsedBorderEdge>,
-}
-
-impl OwnedCollapsedTableBorders {
-    pub(crate) fn with_ffi_view(&self, callback: impl FnOnce(&FfiCollapsedTableBorders)) {
-        let view = FfiCollapsedTableBorders {
-            row_count: self.row_offsets.len() - 1,
-            column_count: self.column_offsets.len() - 1,
-            row_offsets: self.row_offsets.as_ptr(),
-            column_offsets: self.column_offsets.as_ptr(),
-            horizontal_edges: self.horizontal_edges.as_ptr(),
-            vertical_edges: self.vertical_edges.as_ptr(),
-        };
-        callback(&view);
-    }
 }
 
 fn grid_line_offsets(sizes: impl ExactSizeIterator<Item = CssPixels>) -> Vec<CssPixels> {

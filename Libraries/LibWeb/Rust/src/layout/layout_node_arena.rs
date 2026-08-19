@@ -1332,25 +1332,6 @@ pub struct NodeAllocation {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_svg_pattern_referencing_node_shells(
-    arena: *mut c_void,
-    callback: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    context: *mut c_void,
-) {
-    abort_on_panic(|| {
-        // SAFETY: The caller passes a live arena handle.
-        let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-        for node in arena.svg_pattern_referencing_nodes() {
-            let shell = arena.shell_if_live(node);
-            if !shell.is_null() {
-                // SAFETY: shell_if_live returned a live layout node shell.
-                unsafe { callback(context, shell) };
-            }
-        }
-    })
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn layout_arena_create() -> *mut c_void {
     abort_on_panic(|| Box::into_raw(Box::new(LayoutNodeArena::new())).cast())
 }

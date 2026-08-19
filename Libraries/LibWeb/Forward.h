@@ -63,7 +63,6 @@ class CanvasSurfaceRegistry;
 class DevicePixelConverter;
 class DisplayList;
 class DisplayListPlayerSkia;
-class DisplayListRecorder;
 class DisplayListResourceStorage;
 struct DisplayListResourceSet;
 enum class PaintCommandCacheMode : u8;
@@ -1078,7 +1077,6 @@ class Paintable;
 class PaintableFragment;
 class PaintableWithLines;
 class ScrollStateSnapshot;
-class StackingContext;
 class VideoPaintable;
 class ViewportPaintable;
 

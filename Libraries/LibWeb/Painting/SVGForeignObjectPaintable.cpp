@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/Painting/SVGForeignObjectPaintable.h>
-#include <LibWeb/SVG/SVGSVGElement.h>
 
 namespace Web::Painting {
 
@@ -17,14 +16,6 @@ NonnullRefPtr<SVGForeignObjectPaintable> SVGForeignObjectPaintable::create(Layou
 SVGForeignObjectPaintable::SVGForeignObjectPaintable(Layout::BlockContainer const& layout_box)
     : PaintableWithLines(layout_box)
 {
-}
-
-void SVGForeignObjectPaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
-{
-    if (!is_visible())
-        return;
-
-    PaintableWithLines::paint(context, phase);
 }
 
 }

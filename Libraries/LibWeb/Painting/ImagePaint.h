@@ -43,9 +43,4 @@ struct ImagePaintRequest {
     DisplayListResourceStorage& resource_storage;
 };
 
-WEB_API ImagePaintRequest image_paint_request_for_recording(DisplayListRecordingContext&, DOM::Document const&, Gfx::FloatRect dest_rect, CSS::ImageRendering, CSS::PreferredColorScheme);
-
-WEB_API void record_image_paint(DisplayListRecordingContext&, ImagePaint const&, Gfx::FloatRect dest_rect, CSS::ImageRendering);
-
-
 }

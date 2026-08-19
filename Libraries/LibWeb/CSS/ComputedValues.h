@@ -1055,7 +1055,6 @@ inline Display display_from_ffi_display(ComputedValuesFFI::FfiDisplay const& dis
     }
     VERIFY_NOT_REACHED();
 }
-
 inline ComputedValuesFFI::FfiDisplay decode_ffi_display(u32 encoded)
 {
     ComputedValuesFFI::FfiDisplay display {};

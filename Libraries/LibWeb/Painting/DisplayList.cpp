@@ -16,19 +16,6 @@ namespace Web::Painting {
 
 static Atomic<u64> s_next_id { 1 };
 
-static void set_command_sequence_visual_context(Bytes command_bytes, VisualContextIndex context_index)
-{
-    for (size_t offset = 0; offset < command_bytes.size();) {
-        VERIFY(offset + sizeof(DisplayListCommandHeader) <= command_bytes.size());
-        auto* header_data = command_bytes.data() + offset;
-        auto header = read_display_list_object<DisplayListCommandHeader>({ header_data, command_bytes.size() - offset });
-        header.context_index = context_index;
-        write_display_list_object(Bytes { header_data, sizeof(header) }, header);
-        offset += sizeof(header) + header.payload_size;
-        VERIFY(offset <= command_bytes.size());
-    }
-}
-
 DisplayList::DisplayList(u64 compatible_visual_context_tree_version)
     : m_compatible_visual_context_tree_version(compatible_visual_context_tree_version)
     , m_id(s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
@@ -83,32 +70,6 @@ bool DisplayList::append_bytes(
         m_command_bytes.append(inline_data.data(), inline_data.size());
     m_command_bytes.resize(m_command_bytes.size() + trailing_padding, ByteBuffer::ZeroFillNewElements::Yes);
     return true;
-}
-
-u32 DisplayList::append_command_range_from(
-    DisplayList const& source_display_list,
-    DisplayListCommandRange source_range,
-    AccumulatedVisualContextTree const& visual_context_tree,
-    VisualContextIndex recorded_context_index,
-    VisualContextIndex current_context_index)
-{
-    VERIFY(&source_display_list != this);
-    VERIFY(visual_context_tree.version() == m_compatible_visual_context_tree_version);
-    VERIFY(m_command_bytes.size() % DisplayList::command_alignment == 0);
-    VERIFY(source_range.size % DisplayList::command_alignment == 0);
-    VERIFY(static_cast<size_t>(source_range.offset) + source_range.size <= source_display_list.m_command_bytes.size());
-
-    auto destination_offset = m_command_bytes.size();
-    VERIFY(destination_offset + source_range.size <= NumericLimits<u32>::max());
-    if (source_range.is_empty())
-        return static_cast<u32>(destination_offset);
-
-    m_command_bytes.append(source_display_list.m_command_bytes.data() + source_range.offset, source_range.size);
-    // The copied headers already carry the index the range was recorded under, so they only need rewriting
-    // when the paintable's context was assigned a different index since then.
-    if (recorded_context_index != current_context_index)
-        set_command_sequence_visual_context(m_command_bytes.span().slice(destination_offset, source_range.size), current_context_index);
-    return static_cast<u32>(destination_offset);
 }
 
 void DisplayListPlayer::execute(

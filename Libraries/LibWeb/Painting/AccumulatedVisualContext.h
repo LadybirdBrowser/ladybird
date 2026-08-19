@@ -25,6 +25,8 @@
 
 namespace Web::Painting {
 
+class DevicePixelConverter;
+
 class Paintable;
 class ScrollStateSnapshot;
 
@@ -89,13 +91,6 @@ struct EffectsData {
     float opacity { 1.0f };
     Gfx::CompositingAndBlendingOperator blend_mode { Gfx::CompositingAndBlendingOperator::Normal };
     Optional<Gfx::Filter> gfx_filter;
-
-    bool needs_layer() const
-    {
-        return opacity < 1.0f
-            || blend_mode != Gfx::CompositingAndBlendingOperator::Normal
-            || gfx_filter.has_value();
-    }
 };
 
 enum class MaskLayerOrigin : u8 {
@@ -128,8 +123,6 @@ struct AnchorScrollShift {
 };
 
 using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData, BackfaceVisibilityData, ClipPathData, EffectsData, ScrollCompensation, AnchorScrollShift, MaskData>;
-
-Optional<TransformData> compute_transform(Paintable const&, double pixel_ratio);
 
 struct AccumulatedVisualContextNode {
     VisualContextData data;
@@ -176,6 +169,7 @@ public:
     AccumulatedVisualContextNode const& node_at(VisualContextIndex index) const { return m_nodes[index.value()]; }
     AccumulatedVisualContextNode& node_at(VisualContextIndex index) { return m_nodes[index.value()]; }
     ReadonlySpan<AccumulatedVisualContextNode> nodes() const { return m_nodes.span(); }
+    bool root_is_visual_viewport() const { return m_root_is_visual_viewport; }
 
     Optional<Gfx::FloatPoint> transform_point_for_hit_test(VisualContextIndex, Gfx::FloatPoint, ScrollStateSnapshot const&, ClipBehavior = ClipBehavior::Respect) const;
     Gfx::FloatPoint inverse_transform_point(VisualContextIndex, Gfx::FloatPoint) const;
@@ -185,15 +179,6 @@ public:
     void dump(VisualContextIndex, StringBuilder&) const;
 
     bool has_empty_effective_clip(VisualContextIndex i) const { return m_nodes[i.value()].has_empty_effective_clip; }
-
-    ScrollStateSlot scroll_state_slot_for_node(VisualContextIndex index) const
-    {
-        if (!index.value())
-            return NO_SCROLL_STATE_SLOT;
-        return m_nodes[index.value()].data.get<ScrollData>().state_slot;
-    }
-
-    bool root_is_visual_viewport() const { return m_root_is_visual_viewport; }
 
 private:
     AccumulatedVisualContextTree(u64 version, Vector<AccumulatedVisualContextNode>&& nodes, bool root_is_visual_viewport)
@@ -215,15 +200,6 @@ private:
     template<typename T>
     friend ErrorOr<T> IPC::decode(IPC::Decoder&);
 };
-
-// Pattern tiles exclude the root's own transform: patternTransform reaches the replay-side tile
-// shader instead, so the tiling grid repeats under it rather than the content scaling twice.
-enum class IncludeRootElementTransform : u8 {
-    No,
-    Yes,
-};
-
-WEB_API AccumulatedVisualContextTree build_nested_svg_visual_context_tree(Paintable& root_paintable, TransformData root_transform, NestedVisualContextAssignments&, IncludeRootElementTransform = IncludeRootElementTransform::Yes);
 
 }
 

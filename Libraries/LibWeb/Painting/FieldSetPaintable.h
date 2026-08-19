@@ -16,9 +16,6 @@ public:
     static NonnullRefPtr<FieldSetPaintable> create(Layout::BlockContainer const&);
     virtual StringView class_name() const override { return "FieldSetPaintable"sv; }
 
-    virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
-    virtual void paint_background(DisplayListRecordingContext&) const override;
-
 private:
     explicit FieldSetPaintable(Layout::BlockContainer const&);
 

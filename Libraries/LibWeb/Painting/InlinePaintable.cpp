@@ -10,11 +10,9 @@
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/InlinePaintable.h>
-#include <LibWeb/Painting/StackingContext.h>
 
 namespace Web::Painting {
 
@@ -36,31 +34,11 @@ void InlinePaintable::reset_for_relayout()
     m_piece_indices.clear();
     m_local_padding_box_union = {};
     m_local_border_box_union = {};
-    m_fragment_ownership_filter = {};
 }
 
 PaintableWithLines const* InlinePaintable::inline_root() const
 {
     return as_if<PaintableWithLines>(containing_block().ptr());
-}
-
-InlineBoxPiece const* InlinePaintable::piece_for_line(u32 line_index) const
-{
-    auto const* root = inline_root();
-    if (!root)
-        return nullptr;
-    // This box has at most one piece per line, so its piece indices are ordered by line.
-    auto const& pieces = root->inline_box_pieces();
-    auto index = lower_bound_index(m_piece_indices, line_index, [&](u32 piece_index, u32 line) {
-        if (pieces[piece_index].line_index < line)
-            return -1;
-        if (pieces[piece_index].line_index > line)
-            return 1;
-        return 0;
-    });
-    if (index < m_piece_indices.size() && pieces[m_piece_indices[index]].line_index == line_index)
-        return &pieces[m_piece_indices[index]];
-    return nullptr;
 }
 
 CSSPixelRect InlinePaintable::absolute_piece_border_box_rect(InlineBoxPiece const& piece) const
@@ -133,68 +111,6 @@ CSSPixelRect InlinePaintable::compute_absolute_border_box_rect() const
     return m_local_border_box_union.translated(absolute_rect().location());
 }
 
-void InlinePaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
-{
-    auto const* root = inline_root();
-    if (!root)
-        return;
-
-    auto root_position = root->absolute_position();
-
-    if (phase == PaintPhase::Background && is_visible()) {
-        paint_backdrop_filter(context);
-        bool background_is_propagated_to_root = body_background_is_propagated_to_root(layout_node());
-        auto has_borders = has_css_borders();
-        for_each_piece([&](auto const& piece) {
-            if (piece.is_geometry_only_placeholder)
-                return;
-            auto border_box_rect = piece.border_box_rect.translated(root_position);
-            auto padding_box_rect = piece_padding_box_rect(piece, border_box_rect);
-            auto border_radii = piece_border_radii_data(piece);
-            if (!background_is_propagated_to_root)
-                paint_background_within(context, has_borders ? border_box_rect : padding_box_rect, border_radii);
-            paint_box_shadow(context, border_box_rect, padding_box_rect, border_radii);
-        });
-    }
-
-    if (phase == PaintPhase::Border && is_visible()) {
-        using Edge = InlineBoxPiece::Edge;
-        auto const& border = box_model().border;
-        for_each_piece([&](auto const& piece) {
-            if (piece.is_geometry_only_placeholder)
-                return;
-            auto borders_data = BordersData {
-                .top = border.top == 0 || !piece.has_edge(Edge::Top) ? CSS::BorderData() : layout_node().border_top(),
-                .right = border.right == 0 || !piece.has_edge(Edge::Right) ? CSS::BorderData() : layout_node().border_right(),
-                .bottom = border.bottom == 0 || !piece.has_edge(Edge::Bottom) ? CSS::BorderData() : layout_node().border_bottom(),
-                .left = border.left == 0 || !piece.has_edge(Edge::Left) ? CSS::BorderData() : layout_node().border_left(),
-            };
-            paint_border(context, piece.border_box_rect.translated(root_position), borders_data, piece_border_radii_data(piece));
-        });
-    }
-
-    if (phase == PaintPhase::Outline && is_visible()) {
-        for_each_piece([&](auto const& piece) {
-            if (piece.is_geometry_only_placeholder)
-                return;
-            paint_outline(context, piece.border_box_rect.translated(root_position), piece_border_radii_data(piece));
-        });
-    }
-
-    if (phase == PaintPhase::Foreground) {
-        // Fragments (and the caret between their glyphs) are not gated on this box being
-        // visible: descendants may set visibility: visible again under a hidden box, so each
-        // fragment is filtered by its own node's visibility.
-        if (is_self_painting()) {
-            root->paint_fragments_foreground(context, m_fragment_ownership_filter);
-            if (document().cursor_position())
-                root->paint_cursor(context, this);
-        }
-        if (is_visible() && document().cursor_position())
-            paint_empty_editable_cursor(context);
-    }
-}
-
 bool InlinePaintable::has_content() const
 {
     // Interrupting block-in-inline children produce only placeholder pieces, so any child
@@ -222,77 +138,6 @@ Optional<PaintableWithLines::CaretPaint> InlinePaintable::resolve_empty_editable
         .rect = { position.x(), position.y(), 1, layout_node().line_height() },
         .color = layout_node().caret_color(),
     };
-}
-
-void InlinePaintable::paint_empty_editable_cursor(DisplayListRecordingContext& context) const
-{
-    auto caret_paint = resolve_empty_editable_caret_paint();
-    if (!caret_paint.has_value() || caret_paint->color.alpha() == 0)
-        return;
-
-    context.display_list_recorder().fill_rect(context.rounded_device_rect(caret_paint->rect).to_type<int>(), caret_paint->color);
-}
-
-void InlinePaintable::record_hit_test_items(DisplayListRecordingContext& context, PaintPhase phase) const
-{
-    auto* hit_test_display_list = context.hit_test_display_list();
-    if (!hit_test_display_list)
-        return;
-
-    if (layout_node().is_anonymous() && !layout_node().is_generated_for_pseudo_element())
-        return;
-
-    // Only this box's own items are gated on its visibility; the fragments it owns may belong
-    // to descendants that override visibility or pointer-events, so they are filtered per
-    // fragment instead.
-    bool box_itself_is_hit_testable = is_visible() && visible_for_hit_testing();
-
-    auto append_piece_boxes = [&] {
-        for_each_piece([&](auto const& piece) {
-            if (piece.is_geometry_only_placeholder)
-                return;
-            hit_test_display_list->append_box(*this, const_cast<InlinePaintable&>(*this), absolute_piece_border_box_rect(piece), accumulated_visual_context_index(), piece_border_radii_data(piece));
-        });
-    };
-
-    if (phase == PaintPhase::Background) {
-        if (box_itself_is_hit_testable)
-            append_piece_boxes();
-        return;
-    }
-
-    if (phase != PaintPhase::Foreground)
-        return;
-
-    if (is_self_painting()) {
-        auto const* root = inline_root();
-        if (!root)
-            return;
-        auto const& fragments = root->fragments();
-
-        // Hit-test precedence follows paint order: this box's own text loses to the box
-        // itself (re-recorded so its z-order matches this box's paint order), while nested
-        // content (e.g. a link inside this box) wins over it.
-        Vector<size_t, 8> nested_content_indices;
-        m_fragment_ownership_filter.for_each_owned_fragment_index(fragments.size(), [&](size_t index) {
-            auto const& fragment = fragments[index];
-            if (fragment.is_block_level_box())
-                return;
-            if (fragment.layout_node().nearest_fragmented_inline_ancestor() == &layout_node())
-                hit_test_display_list->append_text_fragment(fragment, accumulated_visual_context_for_descendants_index());
-            else
-                nested_content_indices.append(index);
-        });
-        if (box_itself_is_hit_testable && stacking_context())
-            append_piece_boxes();
-        for (auto index : nested_content_indices)
-            hit_test_display_list->append_text_fragment(fragments[index], accumulated_visual_context_for_descendants_index());
-    }
-
-    // Clicks must be able to place the caret in an editable element with no content, so its
-    // target is recorded in foreground order, winning over earlier-painted overlapping content.
-    if (box_itself_is_hit_testable && !has_content())
-        record_empty_editable_hit_test_item(*hit_test_display_list);
 }
 
 void InlinePaintable::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)
