@@ -1373,32 +1373,54 @@ void WebContentClient::did_simulate_worker_request_server_connection_loss(u64 pa
     }
 }
 
-Messages::WebContentClient::DidRequestStorageItemResponse WebContentClient::did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key)
+StorageJar* WebContentClient::storage_jar_for_page(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint)
 {
-    return Application::storage_jar(m_is_private).get_item(storage_endpoint, storage_key, bottle_key);
+    if (storage_endpoint == Web::StorageAPI::StorageEndpointType::SessionStorage) {
+        if (auto* navigable = navigable_for_page(page_id))
+            return &navigable->top_level_traversable().session_storage();
+        return nullptr;
+    }
+
+    return &Application::storage_jar(m_is_private);
 }
 
-Messages::WebContentClient::DidSetStorageItemResponse WebContentClient::did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key, Utf16String value)
+Messages::WebContentClient::DidRequestStorageItemResponse WebContentClient::did_request_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key)
 {
-    return Application::storage_jar(m_is_private).set_item(storage_endpoint, storage_key, bottle_key, value);
+    auto* storage_jar = storage_jar_for_page(page_id, storage_endpoint);
+    if (!storage_jar)
+        return Optional<Utf16String> {};
+    return storage_jar->get_item(storage_endpoint, storage_key, bottle_key);
 }
 
-void WebContentClient::did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key)
+Messages::WebContentClient::DidSetStorageItemResponse WebContentClient::did_set_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key, Utf16String value)
 {
-    Application::storage_jar(m_is_private).remove_item(storage_endpoint, storage_key, bottle_key);
+    auto* storage_jar = storage_jar_for_page(page_id, storage_endpoint);
+    if (!storage_jar)
+        return WebView::StorageOperationError::QuotaExceededError;
+    return storage_jar->set_item(storage_endpoint, storage_key, bottle_key, value);
 }
 
-Messages::WebContentClient::DidRequestStorageKeysResponse WebContentClient::did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key)
+void WebContentClient::did_remove_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key)
 {
-    return Application::storage_jar(m_is_private).get_all_keys(storage_endpoint, storage_key);
+    if (auto* storage_jar = storage_jar_for_page(page_id, storage_endpoint))
+        storage_jar->remove_item(storage_endpoint, storage_key, bottle_key);
 }
 
-void WebContentClient::did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key)
+Messages::WebContentClient::DidRequestStorageKeysResponse WebContentClient::did_request_storage_keys(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key)
 {
-    Application::storage_jar(m_is_private).clear_storage_key(storage_endpoint, storage_key);
+    auto* storage_jar = storage_jar_for_page(page_id, storage_endpoint);
+    if (!storage_jar)
+        return Vector<Utf16String> {};
+    return storage_jar->get_all_keys(storage_endpoint, storage_key);
 }
 
-Messages::WebContentClient::DidRequestStorageUsageResponse WebContentClient::did_request_storage_usage(String storage_key)
+void WebContentClient::did_clear_storage(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key)
+{
+    if (auto* storage_jar = storage_jar_for_page(page_id, storage_endpoint))
+        storage_jar->clear_storage_key(storage_endpoint, storage_key);
+}
+
+Messages::WebContentClient::DidRequestStorageUsageResponse WebContentClient::did_request_storage_usage(u64, String storage_key)
 {
     return Application::storage_jar(m_is_private).usage(storage_key);
 }
@@ -1448,18 +1470,24 @@ void WebContentClient::did_post_broadcast_channel_message(u64, Web::HTML::Broadc
     WorkerProcessManager::the().broadcast_channel_message_from_web_content(message, m_is_private);
 }
 
-Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints)
+Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, bool clone_session_storage)
 {
     auto new_page_id = Application::the().allocate_page_id();
     String handle;
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_new_web_view)
-            handle = view->on_new_web_view(activate_tab, hints, new_page_id);
+    auto opener_view = owning_view_for_page_id(page_id);
+    if (opener_view.has_value()) {
+        if (opener_view->on_new_web_view)
+            handle = opener_view->on_new_web_view(activate_tab, hints, new_page_id);
     }
 
     auto view = view_for_page_id(new_page_id);
     if (!view.has_value())
         return { {}, {}, move(handle) };
+
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-traversable
+    // 10. If opener is non-null, then legacy-clone a traversable storage shed given opener's top-level traversable and traversable. [STORAGE]
+    if (clone_session_storage && opener_view.has_value())
+        view->traversable().clone_session_storage_from(opener_view->traversable());
 
     auto root_navigable_id = Application::the().allocate_ui_process_cross_process_id();
     view->traversable().set_id(root_navigable_id);

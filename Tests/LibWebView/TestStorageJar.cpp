@@ -7,6 +7,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <LibDatabase/Database.h>
 #include <LibTest/TestCase.h>
+#include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/StorageJar.h>
 
 TEST_CASE(storage_round_trips_on_fresh_database)
@@ -82,6 +83,22 @@ TEST_CASE(storage_usage_counts_utf8_bytes_not_code_units)
 
     jar->set_item(WebView::StorageEndpointType::LocalStorage, "https://example.com"_string, "k"_utf16, "\U0001f600"_utf16);
     EXPECT_EQ(jar->usage("https://example.com"_string), 5u);
+}
+
+TEST_CASE(legacy_cloning_a_canonical_traversable_creates_an_independent_copy)
+{
+    WebView::CanonicalTraversable source;
+    WebView::CanonicalTraversable clone;
+
+    source.session_storage().set_item(WebView::StorageEndpointType::SessionStorage, "https://a.example"_string, "key"_utf16, "source"_utf16);
+    source.session_storage().set_item(WebView::StorageEndpointType::SessionStorage, "https://b.example"_string, "other"_utf16, "preserved"_utf16);
+
+    clone.clone_session_storage_from(source);
+    clone.session_storage().set_item(WebView::StorageEndpointType::SessionStorage, "https://a.example"_string, "key"_utf16, "clone"_utf16);
+
+    EXPECT_EQ(source.session_storage().get_item(WebView::StorageEndpointType::SessionStorage, "https://a.example"_string, "key"_utf16), Optional<Utf16String> { "source"_utf16 });
+    EXPECT_EQ(clone.session_storage().get_item(WebView::StorageEndpointType::SessionStorage, "https://a.example"_string, "key"_utf16), Optional<Utf16String> { "clone"_utf16 });
+    EXPECT_EQ(clone.session_storage().get_item(WebView::StorageEndpointType::SessionStorage, "https://b.example"_string, "other"_utf16), Optional<Utf16String> { "preserved"_utf16 });
 }
 
 TEST_CASE(storage_quota_is_enforced_per_storage_key)

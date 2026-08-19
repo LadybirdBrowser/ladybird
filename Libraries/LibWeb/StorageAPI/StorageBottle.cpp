@@ -19,12 +19,6 @@ GC_DEFINE_ALLOCATOR(LocalStorageBottle);
 GC_DEFINE_ALLOCATOR(SessionStorageBottle);
 GC_DEFINE_ALLOCATOR(StorageBucket);
 
-static size_t storage_quota_size(Utf16View string)
-{
-    auto utf8_string = MUST(string.to_utf8());
-    return utf8_string.bytes().size();
-}
-
 void StorageBucket::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -102,7 +96,7 @@ GC::Ref<StorageBottle> StorageBottle::create(GC::Ref<Page> page, StorageType typ
 {
     if (type == StorageType::Local)
         return LocalStorageBottle::create(page, key, quota);
-    return SessionStorageBottle::create(quota);
+    return SessionStorageBottle::create(page, key, quota);
 }
 
 void LocalStorageBottle::visit_edges(GC::Cell::Visitor& visitor)
@@ -141,56 +135,51 @@ void LocalStorageBottle::remove(Utf16View key)
     m_page->client().page_did_remove_storage_item(m_endpoint_type, m_storage_key.to_string(), Utf16String::from_utf16(key));
 }
 
+void SessionStorageBottle::visit_edges(GC::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_page);
+}
+
 size_t SessionStorageBottle::size() const
 {
-    return m_map.size();
+    return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_storage_key.to_string()).size();
 }
 
 Vector<Utf16String> SessionStorageBottle::keys() const
 {
-    return m_map.keys();
+    return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_storage_key.to_string());
 }
 
 Optional<Utf16String> SessionStorageBottle::get(Utf16View key) const
 {
-    if (auto entry = m_map.get(key); entry.has_value())
-        return entry->value;
-    return OptionalNone {};
+    return m_page->client().page_did_request_storage_item(m_endpoint_type, m_storage_key.to_string(), Utf16String::from_utf16(key));
 }
 
 StorageSetResult SessionStorageBottle::set(Utf16View key, Utf16View value)
 {
-    auto old_value = get(key);
-
-    auto new_size = storage_quota_size(key) + storage_quota_size(value);
-
-    if (m_quota.has_value()) {
-        size_t current_size = 0;
-        for (auto const& [existing_key, existing_entry] : m_map) {
-            if (existing_key.utf16_view() != key)
-                current_size += existing_entry.quota_size;
-        }
-        if (current_size + new_size > m_quota.value())
-            return WebView::StorageOperationError::QuotaExceededError;
-    }
-
-    m_map.set(Utf16String::from_utf16(key), { Utf16String::from_utf16(value), new_size });
-    return old_value;
+    return m_page->client().page_did_set_storage_item(m_endpoint_type, m_storage_key.to_string(), Utf16String::from_utf16(key), Utf16String::from_utf16(value));
 }
 
 void SessionStorageBottle::clear()
 {
-    m_map.clear();
+    m_page->client().page_did_clear_storage(m_endpoint_type, m_storage_key.to_string());
 }
 
 void SessionStorageBottle::remove(Utf16View key)
 {
-    m_map.remove(key);
+    m_page->client().page_did_remove_storage_item(m_endpoint_type, m_storage_key.to_string(), Utf16String::from_utf16(key));
 }
 
 void SessionStorageBottle::copy_map_from(SessionStorageBottle const& other)
 {
-    m_map = other.m_map;
+    clear();
+    for (auto const& key : other.keys()) {
+        auto value = other.get(key);
+        VERIFY(value.has_value());
+        auto result = set(key, *value);
+        VERIFY(result.has<Optional<Utf16String>>());
+    }
 }
 
 }
