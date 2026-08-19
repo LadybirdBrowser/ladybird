@@ -726,9 +726,9 @@ fn print_breakpoint(debugger: &Debugger, breakpoint: &Breakpoint) {
 
 fn print_debugger_help() {
     standard_output::outln(b"Debugger commands:");
-    standard_output::outln(b"    break [file:]<line>[:column]");
+    standard_output::outln(b"    break (b) [file:]<line>[:column]");
     standard_output::outln(b"    breakpoints");
-    standard_output::outln(b"    continue");
+    standard_output::outln(b"    continue (c)");
     standard_output::outln(b"    delete <id>");
     standard_output::outln(b"    help");
 }
@@ -816,7 +816,7 @@ fn run_debugger_prompt(vm: &Vm, pause_info: &PauseInfo, line_editor: Option<&JSL
         let command_name = command.consume_command_name();
         command.skip_whitespace();
 
-        if command_name == b"continue" && command.is_eof() {
+        if (command_name == b"continue" || command_name == b"c") && command.is_eof() {
             debugger.continue_execution(ResumeMode::Continue);
             return;
         }
@@ -839,7 +839,7 @@ fn run_debugger_prompt(vm: &Vm, pause_info: &PauseInfo, line_editor: Option<&JSL
             continue;
         }
 
-        if command_name == b"break" {
+        if command_name == b"break" || command_name == b"b" {
             let current_filename = pause_info
                 .source_range
                 .as_ref()
