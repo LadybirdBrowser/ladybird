@@ -6,6 +6,7 @@
 
 #include <AK/Array.h>
 #include <AK/Hex.h>
+#include <AK/Vector.h>
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibDatabase/Database.h>
 #include <LibDatabase/ResultRow.h>
@@ -15,6 +16,7 @@ namespace WebView {
 
 static constexpr auto FAVICONS_SCHEMA_BASELINE_VERSION = 1u;
 static constexpr auto FAVICON_DATABASE_BUSY_TIMEOUT_MS = 250;
+static constexpr auto SHA256_HEX_DIGEST_LENGTH = 64uz;
 
 ErrorOr<Database::MigrationOutcome> FaviconStore::migrate_schema(Database::Database& database, Database::MigrationMode mode)
 {
@@ -46,6 +48,11 @@ ErrorOr<NonnullOwnPtr<FaviconStore>> FaviconStore::create(Database::Database& da
     statements.select_favicon = TRY(database.prepare_statement(R"#(
         SELECT png_data
         FROM Favicons
+        WHERE hash = :hash;
+    )#"sv));
+    statements.select_hashes = TRY(database.prepare_statement("SELECT hash FROM Favicons;"sv));
+    statements.delete_favicon = TRY(database.prepare_statement(R"#(
+        DELETE FROM Favicons
         WHERE hash = :hash;
     )#"sv));
 
@@ -88,11 +95,23 @@ bool FaviconStore::TransientStorage::add_favicon(String const& hash, ByteBuffer 
     return true;
 }
 
+void FaviconStore::remove_unreferenced_favicons(HashTable<String> const& referenced_hashes)
+{
+    m_storage->remove_unreferenced_favicons(referenced_hashes);
+}
+
 Optional<ByteBuffer> FaviconStore::TransientStorage::favicon_png(StringView hash)
 {
     if (auto favicon = m_favicons.get(hash); favicon.has_value())
         return favicon.release_value();
     return {};
+}
+
+void FaviconStore::TransientStorage::remove_unreferenced_favicons(HashTable<String> const& referenced_hashes)
+{
+    m_favicons.remove_all_matching([&](auto const& hash, auto const&) {
+        return !referenced_hashes.contains(hash);
+    });
 }
 
 FaviconStore::PersistedStorage::PersistedStorage(Database::Database& database, Statements statements)
@@ -136,6 +155,31 @@ Optional<ByteBuffer> FaviconStore::PersistedStorage::favicon_png(StringView hash
         return {};
 
     return favicon_png;
+}
+
+void FaviconStore::PersistedStorage::remove_unreferenced_favicons(HashTable<String> const& referenced_hashes)
+{
+    auto result = m_database.transaction([&]() -> ErrorOr<void> {
+        Vector<String> hashes;
+        TRY(m_database.try_execute_bound_statement(
+            m_statements.select_hashes,
+            [](auto&) -> ErrorOr<void> { return {}; },
+            [&](Database::ResultRow& row) -> ErrorOr<void> {
+                hashes.append(TRY(row.read_text("hash"sv, SHA256_HEX_DIGEST_LENGTH)));
+                return {};
+            }));
+
+        for (auto const& hash : hashes) {
+            if (referenced_hashes.contains(hash))
+                continue;
+            TRY(m_database.try_execute_bound_statement(m_statements.delete_favicon, [&](auto& bind) -> ErrorOr<void> {
+                return bind("hash"sv, hash);
+            }));
+        }
+        return {};
+    });
+    if (result.is_error())
+        warnln("Unable to remove unreferenced favicons: {}", result.error());
 }
 
 }

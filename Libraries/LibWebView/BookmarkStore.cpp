@@ -496,6 +496,25 @@ JsonValue BookmarkStore::serialize_items(Optional<FaviconStore&> favicon_store) 
     return items;
 }
 
+static void collect_favicon_hashes(ReadonlySpan<BookmarkItem> items, HashTable<String>& hashes)
+{
+    for (auto const& item : items) {
+        if (item.is_bookmark()) {
+            if (item.bookmark().favicon_hash.has_value())
+                hashes.set(*item.bookmark().favicon_hash);
+        } else if (item.is_folder()) {
+            collect_favicon_hashes(item.folder().children, hashes);
+        }
+    }
+}
+
+HashTable<String> BookmarkStore::favicon_hashes() const
+{
+    HashTable<String> hashes;
+    collect_favicon_hashes(m_items, hashes);
+    return hashes;
+}
+
 void BookmarkStore::persist_bookmarks()
 {
     JsonObject root;
