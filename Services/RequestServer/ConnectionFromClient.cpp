@@ -5,6 +5,7 @@
  */
 
 #include <AK/IDAllocator.h>
+#include <AK/Math.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/EventLoop.h>
@@ -108,9 +109,23 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
     set_option(CURLMOPT_TIMERFUNCTION, &on_timeout_callback);
     set_option(CURLMOPT_TIMERDATA, this);
 
+    // https://curl.se/libcurl/c/CURLMOPT_TIMERFUNCTION.html
+    // Your callback function timer_callback should install a single non-repeating timer with an expire time of
+    // timeout_ms milliseconds.
     m_timer = Core::Timer::create_single_shot(0, [this] {
+        auto now = MonotonicTime::now();
+        if (m_curl_timer_due_at.has_value() && now < *m_curl_timer_due_at) {
+            auto remaining_ms = (*m_curl_timer_due_at - now).to_milliseconds();
+            m_timer->restart(AK::clamp_to<int>(remaining_ms));
+            return;
+        }
+
+        m_curl_timer_due_at = {};
         note_event_tick("curl-timer-fired"sv);
         s_curl_timer_due_at = {};
+
+        // When that timer fires, call either curl_multi_socket_action or curl_multi_perform, depending on which
+        // interface you use.
         auto result = time_curl_call("multi_socket_action(timeout)"sv, [this] {
             return curl_multi_socket_action(m_curl_multi, CURL_SOCKET_TIMEOUT, 0, nullptr);
         });
@@ -398,14 +413,32 @@ int ConnectionFromClient::on_timeout_callback(void*, long timeout_ms, void* user
     if (!client->m_timer)
         return 0;
 
-    if (timeout_ms < 0) {
+    // https://curl.se/libcurl/c/CURLMOPT_TIMERFUNCTION.html
+    // A timeout_ms value of -1 passed to this callback means you should delete the timer.
+    if (timeout_ms == -1) {
         client->m_timer->stop();
+        client->m_curl_timer_due_at = {};
         s_curl_timer_due_at = {};
     } else {
-        client->m_timer->restart(timeout_ms);
-        s_curl_timer_due_at = MonotonicTime::now() + AK::Duration::from_milliseconds(timeout_ms);
+        // All other values are valid expire times in number of milliseconds - including zero milliseconds.
+        VERIFY(timeout_ms >= 0);
+        auto due_at = MonotonicTime::now() + AK::Duration::from_milliseconds(timeout_ms);
+        client->m_curl_timer_due_at = due_at;
+        s_curl_timer_due_at = due_at;
+
+        // If this callback is called when a timer is already running, this new expire time replaces the former timeout.
+        // The application should then effectively cancel the old timeout and set a new timeout using this new expire time.
+        //
+        // WARNING: do not call libcurl directly from within the callback itself when the timeout_ms value is zero, since
+        // it risks triggering an unpleasant recursive behavior that immediately calls another call to the callback with
+        // a zero timeout...
+        //
+        // Core::Timer intervals are ints, so wait for longer valid timeouts in chunks without calling libcurl before its
+        // requested expire time.
+        client->m_timer->restart(AK::clamp_to<int>(timeout_ms));
     }
 
+    // The timer callback should return 0 on success, and -1 on error.
     return 0;
 }
 
