@@ -1417,6 +1417,83 @@ fn expose_css_pixels_as_raw_i32(config: &mut cbindgen::Config) {
         .insert("CssPixels".to_string(), "int32_t".to_string());
 }
 
+fn public_type_names(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
+    println!("cargo:rerun-if-changed={}", path.display());
+    let mut names = Vec::new();
+    for line in std::fs::read_to_string(path)?.lines() {
+        for prefix in ["pub struct ", "pub enum "] {
+            if let Some(rest) = line.strip_prefix(prefix) {
+                let name: String = rest.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
+                if !name.is_empty() {
+                    names.push(name);
+                }
+            }
+        }
+    }
+    Ok(names)
+}
+
+struct DisplayListCommandImplFacts {
+    name: String,
+    has_bounding_rect: bool,
+    has_is_clip: bool,
+}
+
+fn display_list_command_impl_facts(path: &Path) -> Result<Vec<DisplayListCommandImplFacts>, Box<dyn Error>> {
+    let source = std::fs::read_to_string(path)?;
+    let mut facts = Vec::new();
+    let mut lines = source.lines();
+    while let Some(line) = lines.next() {
+        let Some(rest) = line.strip_prefix("impl DisplayListCommand for ") else {
+            continue;
+        };
+        let name: String = rest.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
+        if name.is_empty() {
+            return Err(format!("unparsable DisplayListCommand impl header: {line}").into());
+        }
+        let mut has_bounding_rect = false;
+        let mut has_is_clip = false;
+        let mut closed = false;
+        for body_line in lines.by_ref() {
+            if body_line == "}" {
+                closed = true;
+                break;
+            }
+            let body_line = body_line.trim_start();
+            has_bounding_rect |= body_line.starts_with("fn bounding_rect");
+            has_is_clip |= body_line.starts_with("fn is_clip");
+        }
+        if !closed {
+            return Err(format!("unterminated DisplayListCommand impl for {name}").into());
+        }
+        facts.push(DisplayListCommandImplFacts {
+            name,
+            has_bounding_rect,
+            has_is_clip,
+        });
+    }
+    if facts.is_empty() {
+        return Err("no DisplayListCommand impls found".into());
+    }
+    Ok(facts)
+}
+
+fn generate_ffi_header_strict(config: cbindgen::Config, sources: &[PathBuf], out_dir: &Path, header: &Path) {
+    let builder = sources
+        .iter()
+        .fold(cbindgen::Builder::new().with_config(config), |builder, source| {
+            builder.with_src(source)
+        });
+    builder.generate().map_or_else(
+        |error| panic!("{error}"),
+        |bindings| {
+            let output_header = out_dir.join(header);
+            std::fs::create_dir_all(output_header.parent().unwrap()).unwrap();
+            bindings.write_to_file(output_header);
+        },
+    );
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR")?);
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
@@ -1652,7 +1729,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Layout engine header - namespace Web::Layout::RustFFI, layered on the tree-builder
     // header.
-    let mut layout_config = base_config;
+    let mut layout_config = base_config.clone();
     layout_config.namespaces = Some(vec!["Web".to_string(), "Layout".to_string(), "RustFFI".to_string()]);
     layout_config.export.exclude = vec![
         "rust_calc_node_create_numeric_dimension".to_string(),
@@ -1695,6 +1772,169 @@ fn main() -> Result<(), Box<dyn Error>> {
         ],
         &out_dir,
         Path::new("Layout/LayoutRustFFI.h"),
+    );
+
+    let mut painting_config = base_config.clone();
+    painting_config.namespaces = Some(vec!["Web".to_string(), "Painting".to_string(), "RustFFI".to_string()]);
+    expose_css_pixels_as_raw_i32(&mut painting_config);
+    let libgfx_src_dir = manifest_dir.join("../../LibGfx/Rust/src");
+    let painting_sources = [
+        libgfx_src_dir.join("geometry.rs"),
+        libgfx_src_dir.join("matrix.rs"),
+        libgfx_src_dir.join("color.rs"),
+        libgfx_src_dir.join("corner_radii.rs"),
+        libgfx_src_dir.join("paint_enums.rs"),
+        manifest_dir.join("src/painting/display_list/commands.rs"),
+    ];
+    painting_config.export.include = Vec::new();
+    for libgfx_source in &painting_sources[..painting_sources.len() - 1] {
+        painting_config.export.include.extend(public_type_names(libgfx_source)?);
+    }
+    painting_config.export.include.extend(
+        [
+            "OptionalFloatRect",
+            "OptionalColor",
+            "OptionalU32",
+            "OptionalF32",
+            "OptionalAffineTransform",
+            "VisualContextIndex",
+            "FontResourceId",
+            "ImageFrameResourceId",
+            "VideoSinkResourceId",
+            "DisplayListResourceId",
+            "CanvasId",
+            "CompositorContextId",
+            "UniqueNodeId",
+        ]
+        .map(String::from),
+    );
+    generate_ffi_header_strict(
+        painting_config,
+        &painting_sources,
+        &out_dir,
+        Path::new("Painting/PaintingRustFFI.h"),
+    );
+
+    let mut display_list_commands_config = base_config;
+    display_list_commands_config.namespaces = Some(vec!["Web".to_string(), "Painting".to_string()]);
+    let commands_source = manifest_dir.join("src/painting/display_list/commands.rs");
+    let types_with_existing_cpp_definitions = [
+        "VisualContextIndex",
+        "FontResourceId",
+        "ImageFrameResourceId",
+        "VideoSinkResourceId",
+        "DisplayListResourceId",
+        "CanvasId",
+        "CompositorContextId",
+        "UniqueNodeId",
+        "OptionalFloatRect",
+        "OptionalColor",
+        "OptionalU32",
+        "OptionalF32",
+        "OptionalAffineTransform",
+        "VISUAL_VIEWPORT_NODE_INDEX",
+        "DISPLAY_LIST_COMMAND_TYPE_COUNT",
+    ];
+    display_list_commands_config.export.include = public_type_names(&commands_source)?
+        .into_iter()
+        .filter(|name| !types_with_existing_cpp_definitions.contains(&name.as_str()))
+        .collect();
+    display_list_commands_config.export.exclude = types_with_existing_cpp_definitions
+        .iter()
+        .map(|name| name.to_string())
+        .collect();
+    let references_renamed_to_real_types = [
+        ("IntPoint", "Gfx::IntPoint"),
+        ("FloatPoint", "Gfx::FloatPoint"),
+        ("IntSize", "Gfx::IntSize"),
+        ("FloatSize", "Gfx::FloatSize"),
+        ("IntRect", "Gfx::IntRect"),
+        ("FloatRect", "Gfx::FloatRect"),
+        ("Color", "Gfx::Color"),
+        ("AffineTransform", "Gfx::AffineTransform"),
+        ("CornerRadius", "Gfx::CornerRadius"),
+        ("CornerRadii", "Gfx::CornerRadii"),
+        ("GradientInterpolationMethod", "Gfx::GradientInterpolationMethod"),
+        ("WindingRule", "Gfx::WindingRule"),
+        ("LineStyle", "Gfx::LineStyle"),
+        ("ScalingMode", "Gfx::ScalingMode"),
+        ("CompositingAndBlendingOperator", "Gfx::CompositingAndBlendingOperator"),
+        ("MaskKind", "Gfx::MaskKind"),
+        ("Orientation", "Gfx::Orientation"),
+        ("ShouldAntiAlias", "Gfx::ShouldAntiAlias"),
+        ("CornerClip", "Gfx::CornerClip"),
+        ("InterpolationColorSpace", "Gfx::InterpolationColorSpace"),
+        ("CapStyle", "Gfx::Path::CapStyle"),
+        ("JoinStyle", "Gfx::Path::JoinStyle"),
+        ("OptionalFloatRect", "Optional<Gfx::FloatRect>"),
+        ("OptionalColor", "Optional<Gfx::Color>"),
+        ("OptionalU32", "Optional<u32>"),
+        ("OptionalF32", "Optional<float>"),
+        ("OptionalAffineTransform", "Optional<Gfx::AffineTransform>"),
+        ("CompositorContextId", "Web::Compositor::CompositorContextId"),
+        ("UniqueNodeId", "UniqueNodeID"),
+    ];
+    for (rust_name, cpp_name) in references_renamed_to_real_types {
+        display_list_commands_config
+            .export
+            .rename
+            .insert(rust_name.to_string(), cpp_name.to_string());
+    }
+    display_list_commands_config.includes = [
+        "AK/Forward.h",
+        "AK/Optional.h",
+        "AK/StringView.h",
+        "AK/Types.h",
+        "LibGfx/AffineTransform.h",
+        "LibGfx/AntiAliasing.h",
+        "LibGfx/Color.h",
+        "LibGfx/CompositingAndBlendingOperator.h",
+        "LibGfx/CornerRadii.h",
+        "LibGfx/Forward.h",
+        "LibGfx/GradientInterpolation.h",
+        "LibGfx/InterpolationColorSpace.h",
+        "LibGfx/LineStyle.h",
+        "LibGfx/Orientation.h",
+        "LibGfx/Path.h",
+        "LibGfx/Point.h",
+        "LibGfx/Rect.h",
+        "LibGfx/ScalingMode.h",
+        "LibGfx/Size.h",
+        "LibGfx/WindingRule.h",
+        "LibWeb/Compositor/Types.h",
+        "LibWeb/Forward.h",
+        "LibWeb/Painting/DisplayListResourceIds.h",
+        "LibWeb/Painting/VisualContextIndex.h",
+    ]
+    .into_iter()
+    .map(String::from)
+    .collect();
+    for command in display_list_command_impl_facts(&commands_source)? {
+        let name = &command.name;
+        display_list_commands_config.export.pre_body.insert(
+            name.clone(),
+            format!(
+                "    static constexpr StringView command_name = \"{name}\"sv;\n    static constexpr DisplayListCommandType command_type = DisplayListCommandType::{name};"
+            ),
+        );
+        let mut member_declarations = String::new();
+        if command.has_bounding_rect {
+            member_declarations.push_str("    [[nodiscard]] Gfx::IntRect bounding_rect() const;\n");
+        }
+        if command.has_is_clip {
+            member_declarations.push_str("    bool is_clip() const;\n");
+        }
+        member_declarations.push_str("    void dump(StringBuilder&) const;");
+        display_list_commands_config
+            .export
+            .body
+            .insert(name.clone(), member_declarations);
+    }
+    generate_ffi_header_strict(
+        display_list_commands_config,
+        &[commands_source],
+        &out_dir,
+        Path::new("Painting/DisplayListCommandsGenerated.h"),
     );
 
     Ok(())
