@@ -1315,6 +1315,8 @@ import_rust_crate(
         StyleEngineStateFactsGenerated.inc
         Layout/TreeBuilderRustFFI.h
         Layout/LayoutRustFFI.h
+        Painting/PaintingRustFFI.h
+        Painting/DisplayListCommandsGenerated.h
 )
 build_rust_binary(
     MANIFEST_PATH Rust/Cargo.toml
