@@ -108,13 +108,29 @@ public:
 
     void paint_fragments_foreground(DisplayListRecordingContext&, FragmentOwnershipFilter const&) const;
 
+    Vector<PaintableFragment::FragmentSpan, 4> render_spans_for_paint(u64 paint_generation_id, ReadonlySpan<u32> owned_fragment_indices) const;
+
     // Paints the caret when it sits in a fragment owned by `owner`; the block itself
     // (owner == nullptr) also handles blank lines and empty editable elements.
     void paint_cursor(DisplayListRecordingContext&, InlinePaintable const* owner) const;
 
+    struct CaretPaint {
+        CSSPixelRect rect;
+        Color color;
+    };
+    Optional<CaretPaint> resolve_caret_paint(InlinePaintable const* owner) const;
+
     // Caret rect for a cursor parked on this paintable's DOM node at the given child offset, e.g. on an empty line
     // rendered by a <br> child or in an empty editable element.
     CSSPixelRect caret_rect_for_child_offset(size_t offset) const;
+
+    struct EmptyLineCaretItem {
+        bool is_line_break_boundary { false };
+        size_t caret_offset { 0 };
+        size_t line_index { 0 };
+        CSSPixelRect rect;
+    };
+    void for_each_empty_line_caret_item(Function<void(EmptyLineCaretItem const&)> const&) const;
 
 protected:
     PaintableWithLines(Layout::BlockContainer const&);

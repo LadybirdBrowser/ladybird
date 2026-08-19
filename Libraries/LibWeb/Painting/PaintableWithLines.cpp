@@ -311,10 +311,10 @@ Optional<CSSPixelRect> PaintableWithLines::empty_line_caret_rect(DOM::Position c
     return {};
 }
 
-void PaintableWithLines::record_empty_line_caret_items(HitTestDisplayList& hit_test_display_list, VisualContextIndex visual_context_index) const
+void PaintableWithLines::for_each_empty_line_caret_item(Function<void(EmptyLineCaretItem const&)> const& callback) const
 {
     for (auto const& target : empty_line_caret_targets())
-        hit_test_display_list.append_empty_line(m_fragments.first(), target.offset, target.line_index, target.rect, visual_context_index);
+        callback({ .is_line_break_boundary = false, .caret_offset = target.offset, .line_index = target.line_index, .rect = target.rect });
 
     auto* dom_node = layout_node().dom_node();
     if (!dom_node || m_fragments.is_empty())
@@ -325,8 +325,18 @@ void PaintableWithLines::record_empty_line_caret_items(HitTestDisplayList& hit_t
         auto* br = as_if<HTML::HTMLBRElement>(*child);
         if (!br || !br->represents_empty_line())
             continue;
-        hit_test_display_list.append_empty_line(*this, *dom_node, br->index(), caret_rect_for_child_offset(br->index()), visual_context_index);
+        callback({ .is_line_break_boundary = true, .caret_offset = br->index(), .line_index = 0, .rect = caret_rect_for_child_offset(br->index()) });
     }
+}
+
+void PaintableWithLines::record_empty_line_caret_items(HitTestDisplayList& hit_test_display_list, VisualContextIndex visual_context_index) const
+{
+    for_each_empty_line_caret_item([&](EmptyLineCaretItem const& item) {
+        if (item.is_line_break_boundary)
+            hit_test_display_list.append_empty_line(*this, *layout_node().dom_node(), item.caret_offset, item.rect, visual_context_index);
+        else
+            hit_test_display_list.append_empty_line(m_fragments.first(), item.caret_offset, item.line_index, item.rect, visual_context_index);
+    });
 }
 
 static CSSPixels resolve_text_decoration_thickness(CSS::TextDecorationThickness const& thickness, CSSPixels glyph_height, Layout::NodeWithStyle const& decorating_node)
@@ -385,20 +395,31 @@ void PaintableWithLines::paint(DisplayListRecordingContext& context, PaintPhase 
     }
 }
 
-void PaintableWithLines::paint_fragments_foreground(DisplayListRecordingContext& context, FragmentOwnershipFilter const& filter) const
+Vector<PaintableFragment::FragmentSpan, 4> PaintableWithLines::render_spans_for_paint(u64 paint_generation_id, ReadonlySpan<u32> owned_fragment_indices) const
 {
     // The resolved properties are shared by all owners painting fragments of this block,
     // so resolving once per display list build is enough.
-    if (m_text_fragment_properties_paint_generation_id != context.paint_generation_id()) {
+    if (m_text_fragment_properties_paint_generation_id != paint_generation_id) {
         resolve_text_fragment_properties(*this);
-        resolve_propagated_text_decorations();
-        m_text_fragment_properties_paint_generation_id = context.paint_generation_id();
+        m_text_fragment_properties_paint_generation_id = paint_generation_id;
     }
 
     Vector<PaintableFragment::FragmentSpan, 4> spans;
-    filter.for_each_owned_fragment_index(m_fragments.size(), [&](size_t index) {
+    for (auto index : owned_fragment_indices)
         compute_render_spans(m_fragments[index], spans);
+    return spans;
+}
+
+void PaintableWithLines::paint_fragments_foreground(DisplayListRecordingContext& context, FragmentOwnershipFilter const& filter) const
+{
+    if (m_text_fragment_properties_paint_generation_id != context.paint_generation_id())
+        resolve_propagated_text_decorations();
+
+    Vector<u32> owned_fragment_indices;
+    filter.for_each_owned_fragment_index(m_fragments.size(), [&](size_t index) {
+        owned_fragment_indices.append(static_cast<u32>(index));
     });
+    auto spans = render_spans_for_paint(context.paint_generation_id(), owned_fragment_indices);
 
     for (auto const& span : spans) {
         if (span.background_color.alpha() > 0) {
@@ -641,10 +662,10 @@ CSSPixelRect PaintableWithLines::caret_rect_for_child_offset(size_t offset) cons
     return rect;
 }
 
-void PaintableWithLines::paint_cursor(DisplayListRecordingContext& context, InlinePaintable const* owner) const
+Optional<PaintableWithLines::CaretPaint> PaintableWithLines::resolve_caret_paint(InlinePaintable const* owner) const
 {
     if (!should_paint_cursor())
-        return;
+        return {};
 
     auto cursor_position = document().cursor_position();
     VERIFY(cursor_position);
@@ -660,37 +681,43 @@ void PaintableWithLines::paint_cursor(DisplayListRecordingContext& context, Inli
         // The caret paints where its fragment's foreground paints: inside the nearest
         // self-painting inline box, or in the block itself.
         if (nearest_self_painting_inline_box(fragment->layout_node()) != owner)
-            return;
+            return {};
         // Like the glyphs around it, the caret follows the text's own visibility, which may
         // differ from this box's.
         if (!layout_node_is_visible(fragment->style_source()))
-            return;
+            return {};
         caret_color = fragment->style_source().caret_color();
         cursor_rect = fragment->range_rect(SelectionState::StartAndEnd, cursor_position->offset(), cursor_position->offset());
     } else if (owner) {
         // Blank lines and empty editable elements are handled by the block / the box itself.
-        return;
+        return {};
     } else if (!is_visible()) {
         // Blank-line and empty-element carets belong to this block itself.
-        return;
+        return {};
     } else if (auto empty_line_rect = empty_line_caret_rect(*cursor_position); empty_line_rect.has_value()) {
         caret_color = m_fragments.first().style_source().caret_color();
         cursor_rect = { empty_line_rect->x(), empty_line_rect->y(), 1, empty_line_rect->height() };
     } else {
         // Empty editable elements have no fragments, but should still draw a cursor.
         if (cursor_position->node() != GC::Ptr { dom_node })
-            return;
+            return {};
 
         caret_color = layout_node().caret_color();
         cursor_rect = caret_rect_for_child_offset(cursor_position->offset());
     }
 
-    if (caret_color.alpha() == 0)
+    return CaretPaint { cursor_rect, caret_color };
+}
+
+void PaintableWithLines::paint_cursor(DisplayListRecordingContext& context, InlinePaintable const* owner) const
+{
+    auto caret_paint = resolve_caret_paint(owner);
+    if (!caret_paint.has_value() || caret_paint->color.alpha() == 0)
         return;
 
-    auto cursor_device_rect = context.rounded_device_rect(cursor_rect).to_type<int>();
+    auto cursor_device_rect = context.rounded_device_rect(caret_paint->rect).to_type<int>();
 
-    context.display_list_recorder().fill_rect(cursor_device_rect, caret_color);
+    context.display_list_recorder().fill_rect(cursor_device_rect, caret_paint->color);
 }
 
 struct DecorationSegment {

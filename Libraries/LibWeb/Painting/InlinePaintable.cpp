@@ -202,28 +202,35 @@ bool InlinePaintable::has_content() const
     return has_content_pieces() || has_children();
 }
 
-void InlinePaintable::paint_empty_editable_cursor(DisplayListRecordingContext& context) const
+Optional<PaintableWithLines::CaretPaint> InlinePaintable::resolve_empty_editable_caret_paint() const
 {
     if (has_content())
-        return;
+        return {};
 
     if (!should_paint_cursor())
-        return;
+        return {};
 
     auto cursor_position = document().cursor_position();
     VERIFY(cursor_position);
 
     auto const* dom_node = layout_node().dom_node();
     if (!dom_node || cursor_position->node() != GC::Ptr { dom_node })
-        return;
-
-    auto caret_color = layout_node().caret_color();
-    if (caret_color.alpha() == 0)
-        return;
+        return {};
 
     auto position = box_type_agnostic_position();
-    CSSPixelRect cursor_rect { position.x(), position.y(), 1, layout_node().line_height() };
-    context.display_list_recorder().fill_rect(context.rounded_device_rect(cursor_rect).to_type<int>(), caret_color);
+    return PaintableWithLines::CaretPaint {
+        .rect = { position.x(), position.y(), 1, layout_node().line_height() },
+        .color = layout_node().caret_color(),
+    };
+}
+
+void InlinePaintable::paint_empty_editable_cursor(DisplayListRecordingContext& context) const
+{
+    auto caret_paint = resolve_empty_editable_caret_paint();
+    if (!caret_paint.has_value() || caret_paint->color.alpha() == 0)
+        return;
+
+    context.display_list_recorder().fill_rect(context.rounded_device_rect(caret_paint->rect).to_type<int>(), caret_paint->color);
 }
 
 void InlinePaintable::record_hit_test_items(DisplayListRecordingContext& context, PaintPhase phase) const
