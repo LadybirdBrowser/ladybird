@@ -1464,6 +1464,11 @@ ErrorOr<void> Application::launch_request_server()
             client.async_connect_to_request_server(handles.take_last());
             return IterationDecision::Continue;
         });
+
+        if (auto result = WorkerProcessManager::the().reconnect_to_request_server(); result.is_error()) {
+            warnln("Unable to reconnect WebWorker processes to RequestServer: {}", result.error());
+            VERIFY_NOT_REACHED();
+        }
     };
 
     if (m_browser_options.dns_settings.has_value())

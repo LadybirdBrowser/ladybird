@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/Error.h>
+#include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
@@ -42,6 +44,8 @@ public:
     void remove_web_worker_owner(WebWorkerClient&);
 
     void broadcast_channel_message_from_web_content(Web::HTML::BroadcastChannelMessage const&, IsPrivate);
+    ErrorOr<void> reconnect_to_request_server();
+    ErrorOr<void> simulate_request_server_connection_loss_for_testing(WebContentClient&, u64 page_id);
 
     size_t client_count() const { return m_agents.size(); }
 
@@ -104,6 +108,8 @@ private:
         Optional<SharedWorkerKey> shared_worker_key;
         Vector<Owner> owners;
     };
+
+    ErrorOr<void> reconnect_to_request_server(Function<bool(WorkerAgent const&)> should_reconnect);
 
     Web::HTML::WorkerAgentId m_next_agent_id { 0 };
     HashMap<Web::HTML::WorkerAgentId, WorkerAgent> m_agents;

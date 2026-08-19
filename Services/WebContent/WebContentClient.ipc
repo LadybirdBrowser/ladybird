@@ -134,6 +134,7 @@ endpoint WebContentClient
     did_is_known_hsts_host(String domain) => (bool result)
 
     did_lose_request_server_connection() => (Optional<IPC::TransportHandle> handle)
+    did_simulate_worker_request_server_connection_loss(u64 page_id) => ()
 
     did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key) => (Optional<Utf16String> value)
     did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key, Utf16String value) => (WebView::StorageSetResult result)

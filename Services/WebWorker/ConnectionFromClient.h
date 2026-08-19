@@ -55,6 +55,7 @@ private:
     Web::Page const& page() const;
 
     virtual void connect_to_request_server(IPC::TransportHandle handle) override;
+    virtual void simulate_request_server_connection_loss_and_reconnect_for_testing(IPC::TransportHandle replacement_handle) override;
     virtual void connect_to_image_decoder(IPC::TransportHandle handle) override;
     virtual void connect_to_wasm_compiler(IPC::TransportHandle handle) override;
     virtual void connect_to_compositor(IPC::TransportHandle handle) override;
@@ -78,6 +79,7 @@ private:
     int last_id { 0 };
 
     RefPtr<WorkerHost> m_worker_host;
+    Function<void()> m_request_server_died_callback_for_testing;
 };
 
 }

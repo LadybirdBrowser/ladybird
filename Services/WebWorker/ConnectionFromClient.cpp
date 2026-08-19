@@ -29,6 +29,20 @@ void ConnectionFromClient::connect_to_request_server(IPC::TransportHandle handle
 {
     if (on_request_server_connection)
         on_request_server_connection(handle);
+
+    // A real connection loss defers this callback. Exercise the case where the replacement connection arrives before
+    // that deferred callback runs.
+    if (auto request_server_died_callback = move(m_request_server_died_callback_for_testing))
+        request_server_died_callback();
+}
+
+void ConnectionFromClient::simulate_request_server_connection_loss_and_reconnect_for_testing(IPC::TransportHandle replacement_handle)
+{
+    auto disconnected_client = move(Web::ResourceLoader::the().request_client());
+    m_request_server_died_callback_for_testing = move(disconnected_client->on_request_server_died);
+    disconnected_client = nullptr;
+
+    connect_to_request_server(move(replacement_handle));
 }
 
 void ConnectionFromClient::connect_to_image_decoder(IPC::TransportHandle handle)

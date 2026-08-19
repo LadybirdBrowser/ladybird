@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const fetchURL = await httpTestServer().createEcho("GET", "/worker-request-server-reconnect", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "no-store",
+            },
+            body: "PASS",
+        });
+
+        const workerScript = `
+            onmessage = async event => {
+                for (let attempt = 0; attempt < 100; ++attempt) {
+                    try {
+                        const response = await fetch(event.data, { cache: "no-store" });
+                        if (response.ok) {
+                            postMessage(await response.text());
+                            return;
+                        }
+                    } catch (error) {
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }
+                postMessage("FAIL: Worker did not reconnect to RequestServer");
+            };
+            postMessage("ready");
+        `;
+        const worker = new Worker(URL.createObjectURL(new Blob([workerScript], { type: "text/javascript" })));
+
+        worker.onmessage = event => {
+            if (event.data === "ready") {
+                internals.simulateWorkerRequestServerConnectionLoss();
+                worker.postMessage(fetchURL);
+                return;
+            }
+
+            worker.terminate();
+            println(event.data);
+            done();
+        };
+    });
+</script>

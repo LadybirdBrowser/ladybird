@@ -632,11 +632,23 @@ bool Internals::set_http_memory_cache_enabled(bool enabled)
 
 void Internals::simulate_request_server_connection_loss()
 {
-    ResourceLoader::the().request_client() = nullptr;
+    auto disconnected_client = move(ResourceLoader::the().request_client());
+    auto request_server_died_callback = move(disconnected_client->on_request_server_died);
+    disconnected_client = nullptr;
 
     // Synchronously obtain a replacement connection from the UI process, so that this process is not left unable to
     // load resources.
     page().client().page_did_lose_request_server_connection();
+
+    // A real connection loss defers this callback. Exercise the case where the replacement connection arrives before
+    // that deferred callback runs.
+    if (request_server_died_callback)
+        request_server_died_callback();
+}
+
+void Internals::simulate_worker_request_server_connection_loss()
+{
+    page().client().page_did_simulate_worker_request_server_connection_loss();
 }
 
 WebIDL::ExceptionOr<void> Internals::set_content_blockers(Utf16String const& patterns_source)
