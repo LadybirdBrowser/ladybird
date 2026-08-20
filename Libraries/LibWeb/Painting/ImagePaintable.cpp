@@ -10,15 +10,19 @@
 
 namespace Web::Painting {
 
-NonnullRefPtr<ImagePaintable> ImagePaintable::create(Layout::Box const& layout_box, Layout::ImageProvider const& image_provider)
+NonnullRefPtr<ImagePaintable> ImagePaintable::create(Layout::Box const& layout_box)
 {
-    return adopt_ref(*new ImagePaintable(layout_box, image_provider));
+    return adopt_ref(*new ImagePaintable(layout_box));
 }
 
-ImagePaintable::ImagePaintable(Layout::Box const& layout_box, Layout::ImageProvider const& image_provider)
+ImagePaintable::ImagePaintable(Layout::Box const& layout_box)
     : Paintable(layout_box)
-    , m_image_provider(image_provider)
 {
+}
+
+Layout::ImageProvider const& ImagePaintable::image_provider() const
+{
+    return static_cast<Layout::Box const&>(layout_node()).image_provider();
 }
 
 }
