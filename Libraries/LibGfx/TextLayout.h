@@ -10,7 +10,6 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/Forward.h>
-#include <AK/OwnPtr.h>
 #include <AK/Vector.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/FontCascadeList.h>
@@ -18,8 +17,6 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ShapeFeature.h>
-
-class SkTextBlob;
 
 namespace Gfx {
 
@@ -63,11 +60,14 @@ public:
 
     [[nodiscard]] NonnullRefPtr<GlyphRun> slice(size_t start, size_t length) const;
 
-    void ensure_text_blob(float scale) const;
+    // Conservative bounds of the painted glyphs in device pixels, relative to the run's baseline origin (glyph
+    // positions scaled by `scale`, with the font ascent added to y). The bounding box of the glyph origins is
+    // expanded by the font's overall glyph bounding box, falling back to tight per-glyph extents when the font
+    // doesn't record one.
+    [[nodiscard]] FloatRect bounding_box(float scale) const;
 
-    FloatRect cached_blob_bounds() const;
-    SkTextBlob* cached_skia_text_blob() const;
-
+    // Pairs of [start, end] device-pixel x values, relative to the run's baseline origin, where glyph ink intersects
+    // the horizontal band [y_top, y_bottom]. One pair per painted glyph that has ink inside the band, in run order.
     [[nodiscard]] Vector<float> get_glyph_intercepts(float scale, float y_top, float y_bottom) const;
 
 private:
@@ -75,9 +75,6 @@ private:
     NonnullRefPtr<Font const> m_font;
     TextType m_text_type;
     float m_width { 0 };
-
-    struct CachedTextBlob;
-    mutable OwnPtr<CachedTextBlob> m_cached_text_blob;
 };
 
 NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, float word_spacing, Utf16View const&, Gfx::Font const& font, GlyphRun::TextType, TrailingWhitespace* = nullptr);

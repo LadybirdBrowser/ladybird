@@ -966,8 +966,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             auto glyph_run = fragment.glyph_run();
             if (!glyph_run)
                 return facts;
-            glyph_run->ensure_text_blob(scale);
-            auto bounds = glyph_run->cached_blob_bounds();
+            auto bounds = glyph_run->bounding_box(static_cast<float>(scale));
             facts.blob_bounds[0] = bounds.x();
             facts.blob_bounds[1] = bounds.y();
             facts.blob_bounds[2] = bounds.width();
@@ -1353,10 +1352,9 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             auto font = Platform::FontPlugin::the().default_font(css_font_size);
             auto label_font = font->with_size(font->point_size() * context.device_pixels_per_css_pixel);
             auto glyph_run = Gfx::shape_text({}, 0, 0, text.utf16_view(), label_font, Gfx::GlyphRun::TextType::Ltr);
-            glyph_run->ensure_text_blob(1.0);
             for (auto const& glyph : glyph_run->glyphs())
                 Layout::RustFFI::layout_arena_paint_push_overlay_glyph(sink, glyph.glyph_id, glyph.position.x(), glyph.position.y());
-            auto bounds = glyph_run->cached_blob_bounds();
+            auto bounds = glyph_run->bounding_box(1.0f);
             auto metrics = label_font->pixel_metrics();
             return Layout::RustFFI::FfiOverlayLabelFacts {
                 .font_id = context.resource_storage.add_font(glyph_run->font()).value(),
