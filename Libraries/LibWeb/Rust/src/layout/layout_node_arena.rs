@@ -523,6 +523,206 @@ impl LayoutNodeArena {
         }
     }
 
+    fn node_is_capable_of_forming_a_containing_block(&self, id: NodeSlotId) -> bool {
+        // SAFETY: data() validated that id names a live slot.
+        let data = unsafe { &*self.data(id) };
+        if crate::layout::kind_is_block_container(data.kind)
+            && !crate::painting::fragment_ownership::node_is_fragmented_inline(self, id)
+        {
+            return true;
+        }
+        if let Some(style) = self.node_style_if_live(id) {
+            let display = style.display();
+            if display.is_flex_inside() || display.is_grid_inside() {
+                return true;
+            }
+        }
+        crate::layout::kind_is_replaced_box(data.kind) && crate::layout::node_can_have_children(data)
+    }
+
+    fn nearest_ancestor_capable_of_forming_a_containing_block(&self, node: NodeSlotId) -> NodeSlotId {
+        // SAFETY: Callers pass a node validated by the subtree walk, and parent
+        // links from a live tree node name live slots.
+        let mut ancestor = unsafe { (&raw const (*self.data(node)).parent).read() };
+        while !ancestor.is_invalid() {
+            if self.node_is_capable_of_forming_a_containing_block(ancestor) {
+                return ancestor;
+            }
+            // SAFETY: As above.
+            ancestor = unsafe { (&raw const (*self.data(ancestor)).parent).read() };
+        }
+        NodeSlotId::INVALID
+    }
+
+    fn recompute_containing_block_for_node(
+        &self,
+        node: NodeSlotId,
+        inline_cb_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
+    ) {
+        use crate::css::css_enums::positioning;
+        use crate::painting::style_queries::establishes_positioning_containing_blocks;
+
+        let data = self.data(node);
+        // Reset the inline containing block - we'll set it below if applicable.
+        // SAFETY: data() validated that node names a live slot, and layout
+        // serializes arena mutation on the owner thread.
+        unsafe { (&raw mut (*data).inline_containing_block).write(NodeSlotId::INVALID) };
+
+        // SAFETY: As above.
+        let kind = unsafe { (&raw const (*data).kind).read() };
+        if crate::layout::kind_is_text(kind) {
+            let containing_block = self.nearest_ancestor_capable_of_forming_a_containing_block(node);
+            // SAFETY: As above.
+            unsafe { (&raw mut (*data).containing_block).write(containing_block) };
+            return;
+        }
+
+        let position = self
+            .node_style_if_live(node)
+            .map_or(positioning::STATIC, |style| style.box_values().position);
+
+        // https://drafts.csswg.org/css-position-3/#absolute-cb
+        if position == positioning::ABSOLUTE {
+            // SAFETY: As above; parent links from a live tree name live slots.
+            let mut ancestor = unsafe { (&raw const (*data).parent).read() };
+            while !ancestor.is_invalid() && !establishes_positioning_containing_blocks(self, ancestor).0 {
+                // SAFETY: As above.
+                ancestor = unsafe { (&raw const (*self.data(ancestor)).parent).read() };
+            }
+            // SAFETY: As above.
+            unsafe { (&raw mut (*data).containing_block).write(ancestor) };
+            if !ancestor.is_invalid() {
+                // SAFETY: Both slots are live; the callback only reads DOM ancestry
+                // and per-node facts through the shells and does not mutate the tree.
+                let inline_containing_block = unsafe {
+                    let node_shell = (&raw const (*data).shell).read();
+                    let ancestor_shell = (&raw const (*self.data(ancestor)).shell).read();
+                    inline_cb_lookup(node_shell, ancestor_shell)
+                };
+                // SAFETY: As above.
+                unsafe { (&raw mut (*data).inline_containing_block).write(inline_containing_block) };
+            }
+            return;
+        }
+
+        // https://drafts.csswg.org/css-position-3/#fixed-cb
+        if position == positioning::FIXED {
+            // The containing block is established by the nearest ancestor box that establishes an fixed positioning
+            // containing block, with the bounds of the containing block determined identically to the absolute positioning
+            // containing block.
+            let mut last_visited = node;
+            // SAFETY: As above.
+            let mut ancestor = unsafe { (&raw const (*data).parent).read() };
+            while !ancestor.is_invalid() && !establishes_positioning_containing_blocks(self, ancestor).1 {
+                last_visited = ancestor;
+                // SAFETY: As above.
+                ancestor = unsafe { (&raw const (*self.data(ancestor)).parent).read() };
+            }
+            // If no ancestor establishes one, the box's fixed positioning containing block is the initial fixed containing
+            // block:
+            //  - in continuous media, the layout viewport (whose size matches the dynamic viewport size); as a result,
+            //    fixed boxes do not move when the document is scrolled.
+            // FIXME: - in paged media, the page area of each page; fixed positioned boxes are thus replicated on every
+            //   page. (They are fixed with respect to the page box only, and are not affected by being seen through a
+            //   viewport; as in the case of print preview, for example.)
+            let containing_block = if ancestor.is_invalid() { last_visited } else { ancestor };
+            // SAFETY: As above.
+            unsafe { (&raw mut (*data).containing_block).write(containing_block) };
+            return;
+        }
+
+        let containing_block = self.nearest_ancestor_capable_of_forming_a_containing_block(node);
+        // SAFETY: As above.
+        unsafe { (&raw mut (*data).containing_block).write(containing_block) };
+    }
+
+    fn derive_abspos_escape_flags_for_node(&self, node: NodeSlotId) {
+        let data = self.data(node);
+        // SAFETY: data() validated that node names a live slot.
+        let kind = unsafe { (&raw const (*data).kind).read() };
+        if !crate::layout::kind_is_box(kind) {
+            return;
+        }
+        self.set_node_flag(node, NodeFlag::AbsposDescendantEscapes, false);
+        if !self
+            .node_style_if_live(node)
+            .is_some_and(|style| style.is_absolutely_positioned())
+        {
+            return;
+        }
+        // SAFETY: As above; parent links from a live tree name live slots.
+        let containing_block = unsafe { (&raw const (*data).containing_block).read() };
+        let mut ancestor = unsafe { (&raw const (*data).parent).read() };
+        while !ancestor.is_invalid() && ancestor != containing_block {
+            // SAFETY: As above.
+            let ancestor_kind = unsafe { (&raw const (*self.data(ancestor)).kind).read() };
+            if crate::layout::kind_is_box(ancestor_kind) {
+                self.set_node_flag(ancestor, NodeFlag::AbsposDescendantEscapes, true);
+            }
+            // SAFETY: As above.
+            ancestor = unsafe { (&raw const (*self.data(ancestor)).parent).read() };
+        }
+    }
+
+    /// Recomputes `containing_block` and `inline_containing_block` and derives
+    /// the `AbsposDescendantEscapes` flag for every node in the inclusive
+    /// subtree of `root`. The pre-order traversal visits ancestors before the
+    /// descendants that mark them, so clearing the flag on visit and marking
+    /// upwards compose within one walk; the marking follows plain parent links
+    /// and so reaches ancestors above `root` when the containing block lies
+    /// outside the subtree.
+    pub(crate) fn recompute_containing_blocks_in_subtree(
+        &self,
+        root: NodeSlotId,
+        inline_cb_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
+    ) {
+        self.assert_owner_thread();
+        let mut current = root;
+        loop {
+            self.recompute_containing_block_for_node(current, inline_cb_lookup);
+            self.derive_abspos_escape_flags_for_node(current);
+
+            let data = self.data(current);
+            // SAFETY: data() validated that current names a live slot, and the
+            // topology is stable during this call.
+            let (parent, first_child, next_sibling) = unsafe {
+                (
+                    (&raw const (*data).parent).read(),
+                    (&raw const (*data).first_child).read(),
+                    (&raw const (*data).next_sibling).read(),
+                )
+            };
+
+            if !first_child.is_invalid() {
+                current = first_child;
+                continue;
+            }
+            if current == root {
+                break;
+            }
+            if !next_sibling.is_invalid() {
+                current = next_sibling;
+                continue;
+            }
+
+            current = parent;
+            while current != root {
+                // SAFETY: Parent links from a live subtree node name live slots in the same tree.
+                let data = self.data(current);
+                let next_sibling = unsafe { (&raw const (*data).next_sibling).read() };
+                if !next_sibling.is_invalid() {
+                    current = next_sibling;
+                    break;
+                }
+                // SAFETY: data() validated current and the topology is stable during this call.
+                current = unsafe { (&raw const (*data).parent).read() };
+            }
+            if current == root {
+                break;
+            }
+        }
+    }
+
     fn slot_for_data(&self, data: *const NodeData) -> (u32, SlotMetadata) {
         assert!(!data.is_null(), "layout node arena data pointer is null");
         let data_address = data as usize;
@@ -1455,6 +1655,38 @@ pub unsafe extern "C" fn layout_arena_reset_layout_update_flags_in_subtree(arena
         // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
         unsafe { LayoutNodeArena::from_handle(arena) }.reset_layout_update_flags_in_subtree(root);
     });
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call, and `root` must
+/// name the root of a live subtree in this arena. `inline_cb_lookup` is invoked
+/// for each absolutely positioned node with a resolved containing block; it
+/// receives the two nodes' shell pointers, must not mutate the layout tree or
+/// its styles, and must return the slot of the intervening inline containing
+/// block or the invalid slot id.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_recompute_containing_blocks(
+    arena: *mut c_void,
+    root: NodeSlotId,
+    inline_cb_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
+) {
+    abort_on_panic(|| {
+        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+        unsafe { LayoutNodeArena::from_handle(arena) }.recompute_containing_blocks_in_subtree(root, inline_cb_lookup);
+    });
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call. `id` may be
+/// invalid or stale; null is returned in that case.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_node_shell_if_live(arena: *mut c_void, id: NodeSlotId) -> *mut c_void {
+    abort_on_panic(|| {
+        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+        unsafe { LayoutNodeArena::from_handle(arena) }.shell_if_live(id)
+    })
 }
 
 /// # Safety

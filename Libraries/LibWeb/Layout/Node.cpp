@@ -243,16 +243,14 @@ void Node::remove()
     parent->remove_child(*this);
 }
 
-void Node::set_containing_block(Box* containing_block)
+Box const* Node::containing_block() const
 {
-    m_containing_block = containing_block;
-    m_data->containing_block = slot_id(containing_block);
+    return static_cast<Box const*>(tree_node_from_slot_if_live(m_data->containing_block));
 }
 
-void Node::set_inline_containing_block(NodeWithStyle const* containing_block)
+Box* Node::containing_block()
 {
-    m_inline_containing_block_if_applicable = containing_block;
-    m_data->inline_containing_block = slot_id(containing_block);
+    return static_cast<Box*>(tree_node_from_slot_if_live(m_data->containing_block));
 }
 
 static void invalidate_paint_caches(Node& node)
@@ -463,136 +461,65 @@ NodeWithStyle::PositioningContainingBlockEstablishment NodeWithStyle::establishe
     return {};
 }
 
-static Box* nearest_ancestor_capable_of_forming_a_containing_block(Node& node)
+// FIXME: Containing block handling for absolutely positioned elements needs architectural improvements.
+//
+//        The CSS specification defines the containing block as a *rectangle*, not a box. For most cases,
+//        this rectangle is derived from the padding box of the nearest positioned ancestor Box. However,
+//        when the positioned ancestor is an *inline* element (e.g., a <span> with position: relative),
+//        the containing block rectangle should be the bounding box of that inline's fragments.
+//
+//        Currently, the stored containing block can only name a Box, which cannot represent inline
+//        elements. The proper fix would be to:
+//        1. Separate the concept of "the node that establishes the containing block" from "the containing
+//           block rectangle".
+//        2. Store a reference to the establishing node (which could be InlineNode or Box).
+//        3. Compute the containing block rectangle on demand based on the establishing node's type.
+//
+//        For now, we use a workaround: check if there's an inline element with position:relative (or
+//        other containing-block-establishing properties) between this node and its containing block
+//        in the DOM tree. If found, it is stored in the arena's inline_containing_block slot.
+//
+//        We check the DOM tree here (rather than the layout tree) because when a block element is inside
+//        an inline element, the layout tree restructures so the block becomes a sibling of the inline.
+//        But the CSS containing block relationship is based on the DOM structure.
+NodeWithStyle const* Node::find_inline_containing_block(Box const& containing_block) const
 {
-    for (auto* ancestor = node.parent(); ancestor; ancestor = ancestor->parent()) {
-        if ((ancestor->is_block_container() && !ancestor->is_fragmented_inline())
-            || ancestor->display().is_flex_inside()
-            || ancestor->display().is_grid_inside()
-            || ancestor->is_replaced_box_with_children()) {
-            return static_cast<Box*>(ancestor);
-        }
+    auto const* containing_block_dom_node = containing_block.dom_node();
+
+    // For pseudo-elements, we need to start from the generating element itself, since it may
+    // be the inline containing block. For regular elements, start from parent_element().
+    GC::Ptr<DOM::Element const> first_ancestor_to_check;
+    if (is_generated_for_pseudo_element()) {
+        first_ancestor_to_check = m_pseudo_element_generator.ptr();
+    } else if (auto const* this_dom_node = dom_node()) {
+        first_ancestor_to_check = this_dom_node->parent_element();
+    }
+
+    for (auto dom_ancestor = first_ancestor_to_check; dom_ancestor; dom_ancestor = dom_ancestor->parent_element()) {
+        // Stop if we reach the DOM node of the containing block.
+        if (dom_ancestor.ptr() == containing_block_dom_node)
+            break;
+
+        // NB: Called during containing block recomputation as part of layout.
+        // Check if this DOM element has an InlineNode in the layout tree.
+        auto layout_node = dom_ancestor->unsafe_layout_node();
+        if (!layout_node || !layout_node->is_inline_node())
+            continue;
+
+        // Restrict the per-property trigger set to those that actually apply to
+        // non-atomic inlines: `position` and filter/backdrop-filter. transform,
+        // contain, perspective and friends from
+        // style_establishes_absolute_positioning_containing_block()
+        // explicitly do not apply to non-atomic inlines per their respective specs.
+        auto const& will_change = layout_node->will_change();
+        bool const inline_establishes_cb = layout_node->is_positioned()
+            || will_change.has_property(CSS::PropertyID::Position)
+            || layout_node->filter().has_filters() || will_change.has_property(CSS::PropertyID::Filter)
+            || layout_node->backdrop_filter().has_filters() || will_change.has_property(CSS::PropertyID::BackdropFilter);
+        if (inline_establishes_cb)
+            return static_cast<NodeWithStyle const*>(layout_node);
     }
     return nullptr;
-}
-
-void Node::recompute_containing_block(Badge<DOM::Document>)
-{
-    // Reset the inline containing block - we'll set it below if applicable.
-    set_inline_containing_block(nullptr);
-
-    if (is<TextNode>(*this)) {
-        set_containing_block(nearest_ancestor_capable_of_forming_a_containing_block(*this));
-        return;
-    }
-
-    auto position = as<NodeWithStyle>(*this).position();
-
-    // https://drafts.csswg.org/css-position-3/#absolute-cb
-    if (position == CSS::Positioning::Absolute) {
-        auto* ancestor = parent();
-        while (ancestor && !ancestor->establishes_an_absolute_positioning_containing_block())
-            ancestor = ancestor->parent();
-        set_containing_block(static_cast<Box*>(ancestor));
-
-        // FIXME: Containing block handling for absolutely positioned elements needs architectural improvements.
-        //
-        //        The CSS specification defines the containing block as a *rectangle*, not a box. For most cases,
-        //        this rectangle is derived from the padding box of the nearest positioned ancestor Box. However,
-        //        when the positioned ancestor is an *inline* element (e.g., a <span> with position: relative),
-        //        the containing block rectangle should be the bounding box of that inline's fragments.
-        //
-        //        Currently, m_containing_block is typed as Box*, which cannot represent inline elements.
-        //        The proper fix would be to:
-        //        1. Separate the concept of "the node that establishes the containing block" from "the containing
-        //           block rectangle".
-        //        2. Store a reference to the establishing node (which could be InlineNode or Box).
-        //        3. Compute the containing block rectangle on demand based on the establishing node's type.
-        //
-        //        For now, we use a workaround: check if there's an inline element with position:relative (or
-        //        other containing-block-establishing properties) between this node and its containing_block()
-        //        in the DOM tree. If found, store it in m_inline_containing_block_if_applicable.
-        //
-        //        We check the DOM tree here (rather than the layout tree) because when a block element is inside
-        //        an inline element, the layout tree restructures so the block becomes a sibling of the inline.
-        //        But the CSS containing block relationship is based on the DOM structure.
-        if (m_containing_block) {
-            auto const* containing_block_dom_node = m_containing_block->dom_node();
-
-            // For pseudo-elements, we need to start from the generating element itself, since it may
-            // be the inline containing block. For regular elements, start from parent_element().
-            GC::Ptr<DOM::Element const> first_ancestor_to_check;
-            if (is_generated_for_pseudo_element()) {
-                first_ancestor_to_check = m_pseudo_element_generator.ptr();
-            } else if (auto const* this_dom_node = dom_node()) {
-                first_ancestor_to_check = this_dom_node->parent_element();
-            }
-
-            for (auto dom_ancestor = first_ancestor_to_check; dom_ancestor; dom_ancestor = dom_ancestor->parent_element()) {
-                // Stop if we reach the DOM node of the containing block.
-                if (dom_ancestor.ptr() == containing_block_dom_node)
-                    break;
-
-                // NB: Called during containing block recomputation as part of layout.
-                // Check if this DOM element has an InlineNode in the layout tree.
-                auto layout_node = dom_ancestor->unsafe_layout_node();
-                if (!layout_node || !layout_node->is_inline_node())
-                    continue;
-
-                // Restrict the per-property trigger set to those that actually apply to
-                // non-atomic inlines: `position` and filter/backdrop-filter. transform,
-                // contain, perspective and friends from
-                // style_establishes_absolute_positioning_containing_block()
-                // explicitly do not apply to non-atomic inlines per their respective specs.
-                auto const& will_change = layout_node->will_change();
-                bool const inline_establishes_cb = layout_node->is_positioned()
-                    || will_change.has_property(CSS::PropertyID::Position)
-                    || layout_node->filter().has_filters() || will_change.has_property(CSS::PropertyID::Filter)
-                    || layout_node->backdrop_filter().has_filters() || will_change.has_property(CSS::PropertyID::BackdropFilter);
-                if (inline_establishes_cb) {
-                    set_inline_containing_block(static_cast<NodeWithStyle const*>(layout_node));
-                    break;
-                }
-            }
-        }
-
-        return;
-    }
-
-    // https://drafts.csswg.org/css-position-3/#fixed-cb
-    if (position == CSS::Positioning::Fixed) {
-        // The containing block is established by the nearest ancestor box that establishes an fixed positioning
-        // containing block, with the bounds of the containing block determined identically to the absolute positioning
-        // containing block.
-        auto* ancestor = parent();
-        while (ancestor && !ancestor->establishes_a_fixed_positioning_containing_block())
-            ancestor = ancestor->parent();
-        // If no ancestor establishes one, the box’s fixed positioning containing block is the initial fixed containing
-        // block:
-        if (!ancestor) {
-            //  - in continuous media, the layout viewport (whose size matches the dynamic viewport size); as a result,
-            //    fixed boxes do not move when the document is scrolled.
-            ancestor = &root();
-            // FIXME: - in paged media, the page area of each page; fixed positioned boxes are thus replicated on every
-            //   page. (They are fixed with respect to the page box only, and are not affected by being seen through a
-            //   viewport; as in the case of print preview, for example.)
-        }
-        set_containing_block(static_cast<Box*>(ancestor));
-        return;
-    }
-
-    set_containing_block(nearest_ancestor_capable_of_forming_a_containing_block(*this));
-}
-
-Box const* Node::non_anonymous_containing_block() const
-{
-    auto nearest_ancestor_box = containing_block();
-    VERIFY(nearest_ancestor_box);
-    while (nearest_ancestor_box->is_anonymous()) {
-        nearest_ancestor_box = nearest_ancestor_box->containing_block();
-        VERIFY(nearest_ancestor_box);
-    }
-    return nearest_ancestor_box;
 }
 
 // https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Positioning/Understanding_z_index/The_stacking_context
