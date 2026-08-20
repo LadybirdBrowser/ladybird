@@ -192,11 +192,7 @@ impl<'a> PaintableCommit<'a> {
         let wants_paintable = (has_used_values || (facts.is_fragmented_inline() && facts.has_dom_node()))
             && expected_kind != PaintableKind::None;
         if !wants_paintable {
-            let stale = arena.paintable_of_node(node);
-            if !stale.is_invalid() {
-                arena.remove_from_tree(stale);
-                arena.set_paintable_of_node(node, PaintableSlotId::INVALID);
-            }
+            debug_assert!(arena.paintable_of_node(node).is_invalid());
             debug_assert!(
                 prepared.slot.is_invalid(),
                 "C++ prepared a paintable for a node Rust gives none"
@@ -272,7 +268,6 @@ impl<'a> PaintableCommit<'a> {
             });
         }
         arena.update_data(slot, |data| data.set_flag(PaintableFlag::PreparedByCommit, true));
-        arena.set_paintable_of_node(node, slot);
         slot
     }
 
