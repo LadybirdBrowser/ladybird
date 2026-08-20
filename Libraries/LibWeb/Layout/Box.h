@@ -69,12 +69,7 @@ public:
     bool abspos_descendant_escapes() const { return has_flag(RustFFI::NodeFlag::AbsposDescendantEscapes); }
     void set_abspos_descendant_escapes(bool value) { set_flag(RustFFI::NodeFlag::AbsposDescendantEscapes, value); }
 
-    void set_default_scroll_shift(WeakPtr<Node> anchor, bool compensates_for_horizontal_scroll, bool compensates_for_vertical_scroll)
-    {
-        m_default_scroll_shift_anchor = move(anchor);
-        set_flag(RustFFI::NodeFlag::CompensatesForHorizontalScroll, compensates_for_horizontal_scroll);
-        set_flag(RustFFI::NodeFlag::CompensatesForVerticalScroll, compensates_for_vertical_scroll);
-    }
+    void set_default_scroll_shift(WeakPtr<Node> anchor, bool compensates_for_horizontal_scroll, bool compensates_for_vertical_scroll);
     Node* default_scroll_shift_anchor() const { return m_default_scroll_shift_anchor.ptr(); }
     bool compensates_for_horizontal_scroll() const { return has_flag(RustFFI::NodeFlag::CompensatesForHorizontalScroll); }
     bool compensates_for_vertical_scroll() const { return has_flag(RustFFI::NodeFlag::CompensatesForVerticalScroll); }

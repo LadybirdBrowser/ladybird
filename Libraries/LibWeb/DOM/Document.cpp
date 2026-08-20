@@ -2669,8 +2669,10 @@ bool Document::can_compute_client_rects_without_accumulated_visual_contexts_upda
             continue;
         if (node_with_style->has_css_transform() || node_with_style->perspective().has_value() || node_with_style->is_sticky_position())
             return false;
-        if (auto const* box = as_if<Layout::Box>(*node); box && box->default_scroll_shift_anchor())
-            return false;
+        if (m_may_have_default_scroll_shift_anchor) {
+            if (auto const* box = as_if<Layout::Box>(*node); box && box->default_scroll_shift_anchor())
+                return false;
+        }
         // A scroll container's contents move, but its own border box does not.
         if (node != &layout_node) {
             if (auto paintable = node->paintable(); paintable && !paintable->scroll_offset().is_zero())
