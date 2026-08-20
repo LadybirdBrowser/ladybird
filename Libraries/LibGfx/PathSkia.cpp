@@ -291,6 +291,47 @@ NonnullOwnPtr<PathImpl> PathImplSkia::place_text_along(Utf16View const& text, Fo
     });
 }
 
+NonnullOwnPtr<PathImpl> PathImplSkia::place_glyph_runs_along(ReadonlySpan<NonnullRefPtr<GlyphRun>> glyph_runs, float offset) const
+{
+    SkPathMeasure path_measure(sk_path(), false);
+    SkScalar path_length = path_measure.getLength();
+
+    auto output_path = PathImplSkia::create();
+
+    bool reached_end_of_path = false;
+    for (auto const& glyph_run : glyph_runs) {
+        auto sk_font = glyph_run->font().skia_font(1);
+        for (auto const& glyph : glyph_run->glyphs()) {
+            SkScalar glyph_distance = offset + glyph.position.x();
+
+            SkPoint position;
+            SkVector tangent;
+            if (!path_measure.getPosTan(glyph_distance, &position, &tangent))
+                continue;
+
+            SkScalar midpoint_distance = glyph_distance + (glyph.glyph_width / 2.0f);
+            if (midpoint_distance > path_length) {
+                reached_end_of_path = true;
+                break;
+            }
+
+            auto glyph_path = sk_font.getPath(static_cast<SkGlyphID>(glyph.glyph_id));
+            if (!glyph_path.has_value())
+                continue;
+
+            SkMatrix matrix;
+            matrix.setTranslate(position.x(), position.y());
+            matrix.preRotate(SkRadiansToDegrees(std::atan2(tangent.y(), tangent.x())));
+            output_path->sk_path_builder().addPath(*glyph_path, matrix);
+        }
+        if (reached_end_of_path)
+            break;
+    }
+    output_path->update_state_from_builder();
+
+    return output_path;
+}
+
 void PathImplSkia::append_path(Gfx::Path const& other)
 {
     auto const& other_impl = static_cast<PathImplSkia const&>(other.impl());
