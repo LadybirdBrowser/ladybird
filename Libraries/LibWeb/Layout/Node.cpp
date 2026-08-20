@@ -1569,10 +1569,8 @@ RefPtr<Painting::Paintable> Node::create_paintable() const
         return Painting::CheckBoxPaintable::create(static_cast<Box const&>(*this));
     case RustFFI::NodeKind::FieldSetBox:
         return Painting::FieldSetPaintable::create(static_cast<BlockContainer const&>(*this));
-    case RustFFI::NodeKind::ImageBox: {
-        auto const& image_box = static_cast<Box const&>(*this);
-        return Painting::ImagePaintable::create(image_box, image_box.image_provider());
-    }
+    case RustFFI::NodeKind::ImageBox:
+        return Painting::ImagePaintable::create(static_cast<Box const&>(*this));
     case RustFFI::NodeKind::NavigableContainerViewport:
         return Painting::NavigableContainerViewportPaintable::create(static_cast<Box const&>(*this));
     case RustFFI::NodeKind::RadioButton:
