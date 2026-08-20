@@ -403,6 +403,7 @@ public:
     Function<void(Utf16String const& message)> on_request_confirm;
     Function<void(Utf16String const& message, Utf16String const& default_)> on_request_prompt;
     Function<void(Utf16String const& message)> on_request_set_prompt_text;
+    Function<void()> on_before_browser_initiated_navigation;
     Function<void(URL::URL const&, URL::Origin const&, ExternalURLHandler const&, Function<void(bool)>)> on_request_external_url_confirmation;
     Function<void()> on_request_accept_dialog;
     Function<void()> on_request_dismiss_dialog;
