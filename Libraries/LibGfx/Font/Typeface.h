@@ -71,6 +71,19 @@ public:
 
     hb_face_t* harfbuzz_typeface() const;
 
+    // Union of all glyph bounding boxes as recorded in the `head` table, in font units with y pointing up.
+    // is_empty() when the face has no usable `head` table (e.g. bitmap-only fonts).
+    struct BoundingBoxInFontUnits {
+        i16 x_min { 0 };
+        i16 y_min { 0 };
+        i16 x_max { 0 };
+        i16 y_max { 0 };
+        u16 units_per_em { 0 };
+
+        bool is_empty() const { return x_min >= x_max || y_min >= y_max || units_per_em == 0; }
+    };
+    BoundingBoxInFontUnits bounding_box_in_font_units() const;
+
     template<typename T>
     bool fast_is() const = delete;
 
@@ -108,6 +121,7 @@ private:
     mutable HashMap<FontCacheKey, NonnullRefPtr<Font>> m_fonts;
     mutable hb_blob_t* m_harfbuzz_blob { nullptr };
     mutable hb_face_t* m_harfbuzz_face { nullptr };
+    mutable Optional<BoundingBoxInFontUnits> m_bounding_box_in_font_units;
 };
 
 }

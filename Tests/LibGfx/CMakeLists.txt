@@ -19,6 +19,7 @@ endforeach()
 target_link_libraries(BenchmarkJPEGLoader PRIVATE LibImageDecoders)
 target_link_libraries(TestImageDecoder PRIVATE LibImageDecoders)
 target_link_libraries(TestImageWriter PRIVATE LibImageDecoders)
+target_link_libraries(TestFont PRIVATE harfbuzz)
 
 ladybird_test(TestBitmapSequence.cpp LibGfx LIBS LibGfx LibIPC)
 ladybird_test(TestShareableBitmap.cpp LibGfx LIBS LibGfx LibIPC)
