@@ -43,7 +43,7 @@ pub struct PaintableArena {
     pub(crate) paint_command_cache_source: Option<Rc<crate::painting::record::RecordingOutput>>,
     pub(crate) hit_test_item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
     pub(crate) paint_caches: std::cell::RefCell<Vec<Option<Box<crate::painting::record::cache::PaintCache>>>>,
-    absolute_rect_memo: std::cell::RefCell<std::collections::HashMap<u32, crate::css::css_pixels::CssPixelRect>>,
+    absolute_rect_memo: std::cell::RefCell<Vec<Option<(PaintableSlotId, crate::css::css_pixels::CssPixelRect)>>>,
     pub(crate) scrollable_overflow_contained_boxes: std::collections::HashMap<NodeSlotId, Vec<NodeSlotId>>,
 }
 
@@ -53,15 +53,25 @@ impl PaintableArena {
     }
 
     pub fn memoized_absolute_rect(&self, id: PaintableSlotId) -> Option<crate::css::css_pixels::CssPixelRect> {
-        self.absolute_rect_memo.borrow().get(&id.index).copied()
+        let (memoized_id, rect) = self
+            .absolute_rect_memo
+            .borrow()
+            .get(id.slot_index() as usize)
+            .copied()
+            .flatten()?;
+        (memoized_id == id).then_some(rect)
     }
 
     pub fn memoize_absolute_rect(&self, id: PaintableSlotId, rect: crate::css::css_pixels::CssPixelRect) {
-        self.absolute_rect_memo.borrow_mut().insert(id.index, rect);
+        self.absolute_rect_memo.borrow_mut()[id.slot_index() as usize] = Some((id, rect));
     }
 
     pub fn clear_absolute_rect_memo(&self) {
-        self.absolute_rect_memo.borrow_mut().clear();
+        self.absolute_rect_memo.borrow_mut().fill(None);
+    }
+
+    pub(crate) fn slot_count(&self) -> usize {
+        self.side_data.len()
     }
 
     pub fn row_for_node(&mut self, layout_node: NodeSlotId, shell: *mut c_void) -> PaintableAllocation {
@@ -76,6 +86,7 @@ impl PaintableArena {
             }
             self.side_data.push(PaintableSideData::default());
             self.paint_caches.get_mut().push(None);
+            self.absolute_rect_memo.get_mut().push(None);
         }
 
         let generation = layout_node.generation();
@@ -86,6 +97,7 @@ impl PaintableArena {
         data.shell = shell;
         self.side_data[index as usize] = PaintableSideData::default();
         self.paint_caches.get_mut()[index as usize] = None;
+        self.absolute_rect_memo.get_mut()[index as usize] = None;
 
         PaintableAllocation {
             slot: PaintableSlotId::new(index, generation),
@@ -108,7 +120,7 @@ impl PaintableArena {
     }
 
     fn reset_row(&mut self, id: PaintableSlotId) {
-        self.absolute_rect_memo.get_mut().clear();
+        self.absolute_rect_memo.get_mut().fill(None);
         self.remove_from_tree(id);
         while let Some(child) = self.first_child(id) {
             self.remove_from_tree(child);
@@ -354,7 +366,7 @@ impl PaintableArena {
     }
 
     pub fn reset_for_relayout(&mut self, id: PaintableSlotId) {
-        self.absolute_rect_memo.get_mut().clear();
+        self.absolute_rect_memo.get_mut().fill(None);
         self.remove_from_tree(id);
         while let Some(child) = self.first_child(id) {
             self.remove_from_tree(child);
