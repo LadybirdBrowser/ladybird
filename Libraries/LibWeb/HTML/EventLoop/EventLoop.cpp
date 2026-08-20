@@ -575,8 +575,12 @@ void EventLoop::update_the_rendering()
         // - the document is still loading
         // - the document has pending stylesheet requests
         // FIXME: - the document has pending layout operations which might cause the user agent to request a font, or which depend on recently-loaded fonts
+        // AD-HOC: The specification is not clear with regard to what "still loading" means. We take it to mean that the
+        //         current ready state is not "complete". This means that the ready promise cannot resolve before the
+        //         load event.
+        //         Spec issue: https://github.com/w3c/csswg-drafts/issues/1081
         TemporaryExecutionContext context(document->relevant_settings_object(), TemporaryExecutionContext::CallbacksEnabled::Yes);
-        document->fonts()->set_is_pending_on_the_environment(document->readiness() == DocumentReadyState::Loading);
+        document->fonts()->set_is_pending_on_the_environment(document->readiness() != DocumentReadyState::Complete);
     }
 }
 

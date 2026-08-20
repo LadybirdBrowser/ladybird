@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+    @font-face {
+        font-family: 'HashSans';
+        src: url('../../../Assets/HashSans.woff');
+    }
+</style>
+</head>
+<body>
+<iframe id="load-blocker"></iframe>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        // Keep the load event from firing, so the document stays at readiness "interactive".
+        const blockerDocument = document.getElementById("load-blocker").contentDocument;
+        blockerDocument.open();
+
+        // Let a full rendering update run before any content uses the font.
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        const div = document.createElement("div");
+        div.style.fontFamily = "HashSans";
+        div.textContent = "X";
+        document.body.appendChild(div);
+
+        const readyPromise = document.fonts.ready.then(() => {
+            const fontFace = [...document.fonts][0];
+            println(`font status: ${fontFace.status}`);
+            println(`readyState: ${document.readyState}`);
+        });
+
+        blockerDocument.close();
+        await readyPromise;
+    });
+</script>
+</body>
+</html>
