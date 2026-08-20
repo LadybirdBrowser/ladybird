@@ -82,8 +82,10 @@ NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording
     auto list = adopt_ref(*new HitTestDisplayList(visual_context_tree_version, arena, Layout::RustFFI::layout_arena_hit_test_list_generation(arena_handle)));
     auto item_count = Layout::RustFFI::layout_arena_hit_test_item_count(arena_handle);
     list->m_items.ensure_capacity(item_count);
-    for (size_t index = 0; index < item_count; ++index) {
-        auto exported = Layout::RustFFI::layout_arena_hit_test_item(arena_handle, index);
+    Vector<Layout::RustFFI::FfiHitTestItemExport> exported_items;
+    exported_items.resize(item_count);
+    Layout::RustFFI::layout_arena_export_hit_test_items(arena_handle, exported_items.data(), exported_items.size());
+    for (auto const& exported : exported_items) {
         VERIFY(exported.paintable_shell);
         auto& paintable = *static_cast<Paintable*>(exported.paintable_shell);
         switch (static_cast<ChromeWidgetKind>(exported.chrome_widget_kind)) {
