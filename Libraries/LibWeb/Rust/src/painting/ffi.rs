@@ -628,29 +628,23 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
 ///
 /// `sink` must be the pointer handed to the callback, used synchronously.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paint_push_text_span(
+pub unsafe extern "C" fn layout_arena_paint_push_selection_shadow(
     sink: *mut c_void,
-    span: crate::painting::host::FfiTextSpan,
+    color: u32,
+    offset_x: CssPixels,
+    offset_y: CssPixels,
+    blur_radius: CssPixels,
 ) {
     abort_on_panic(|| {
-        // SAFETY: `sink` is the TextSpanSink pointer handed out by FfiPaintHostCallbacks::text_spans.
-        let sink = unsafe { &mut *sink.cast::<crate::painting::host::TextSpanSink>() };
-        sink.spans.push(span);
-    });
-}
-
-/// # Safety
-///
-/// `sink` must be the pointer handed to the callback, used synchronously.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paint_push_text_shadow(
-    sink: *mut c_void,
-    layer: crate::painting::host::FfiTextShadowLayer,
-) {
-    abort_on_panic(|| {
-        // SAFETY: as above.
-        let sink = unsafe { &mut *sink.cast::<crate::painting::host::TextSpanSink>() };
-        sink.shadows.push(layer);
+        // SAFETY: `sink` is the Vec pointer handed out by
+        // FfiPaintHostCallbacks::selection_style_facts.
+        let shadows = unsafe { &mut *sink.cast::<Vec<crate::painting::record::paint::text::ShadowLayer>>() };
+        shadows.push(crate::painting::record::paint::text::ShadowLayer {
+            color,
+            offset_x,
+            offset_y,
+            blur_radius,
+        });
     });
 }
 

@@ -282,30 +282,24 @@ pub struct FfiOutlineFacts {
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct FfiTextSpan {
-    pub fragment_index: u32,
-    pub start_code_unit: usize,
-    pub end_code_unit: usize,
-    pub text_color: u32,
-    pub background_color: u32,
-    pub shadow_layer_count: u32,
-    pub has_selection_offsets: bool,
-    pub selection_start: usize,
-    pub selection_end: usize,
-    pub has_selection_text_decoration: bool,
-    pub selection_text_decoration_lines: [u8; 8],
-    pub selection_text_decoration_line_count: u32,
-    pub selection_text_decoration_style: u8,
-    pub selection_text_decoration_color: u32,
+pub struct FfiTextControlSelection {
+    pub has_selection: bool,
+    pub start: usize,
+    pub end: usize,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct FfiTextShadowLayer {
-    pub color: u32,
-    pub offset_x: crate::css::css_pixels::CssPixels,
-    pub offset_y: crate::css::css_pixels::CssPixels,
-    pub blur_radius: crate::css::css_pixels::CssPixels,
+pub struct FfiSelectionStyleFacts {
+    pub background_color: u32,
+    pub has_text_color: bool,
+    pub text_color: u32,
+    pub has_text_shadow: bool,
+    pub has_text_decoration: bool,
+    pub text_decoration_lines: [u8; 8],
+    pub text_decoration_line_count: u32,
+    pub text_decoration_style: u8,
+    pub text_decoration_color: u32,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -389,7 +383,8 @@ pub struct FfiPaintHostCallbacks {
     pub image_intrinsic_facts:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiLayerImageList, u32) -> FfiImageIntrinsicFacts,
     pub root_background_source: unsafe extern "C" fn(*mut c_void) -> FfiRootBackgroundSource,
-    pub text_spans: unsafe extern "C" fn(*mut c_void, *mut c_void, *const u32, usize, *mut c_void),
+    pub text_control_selection: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiTextControlSelection,
+    pub selection_style_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiSelectionStyleFacts,
     pub register_font: unsafe extern "C" fn(*mut c_void, *const c_void) -> u64,
     pub cursor_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiCursorFacts,
     pub layer_image_prepare:
@@ -447,12 +442,6 @@ pub struct ColorStopSink {
     pub positions: Vec<f32>,
 }
 
-#[derive(Default)]
-pub struct TextSpanSink {
-    pub spans: Vec<FfiTextSpan>,
-    pub shadows: Vec<FfiTextShadowLayer>,
-}
-
 impl FfiPaintHostCallbacks {
     pub(crate) fn outline_facts(&self, paintable_shell: *mut c_void) -> FfiOutlineFacts {
         // SAFETY: The C++ host answers synchronously from a live paintable shell.
@@ -491,19 +480,22 @@ impl FfiPaintHostCallbacks {
         };
         (facts, glyphs)
     }
-    pub(crate) fn text_spans(&self, paintable_shell: *mut c_void, owned_fragment_indices: &[u32]) -> TextSpanSink {
-        let mut sink = TextSpanSink::default();
-        // SAFETY: The C++ host pushes into the sink through the exported functions, synchronously.
-        unsafe {
-            (self.text_spans)(
-                self.context,
-                paintable_shell,
-                owned_fragment_indices.as_ptr(),
-                owned_fragment_indices.len(),
-                (&raw mut sink).cast(),
-            );
-        };
-        sink
+    pub(crate) fn text_control_selection(&self, layout_node_shell: *mut c_void) -> FfiTextControlSelection {
+        // SAFETY: The C++ host answers synchronously from a live layout node shell.
+        unsafe { (self.text_control_selection)(self.context, layout_node_shell) }
+    }
+    pub(crate) fn selection_style_facts(
+        &self,
+        layout_node_shell: *mut c_void,
+    ) -> (
+        FfiSelectionStyleFacts,
+        Vec<crate::painting::record::paint::text::ShadowLayer>,
+    ) {
+        let mut shadows: Vec<crate::painting::record::paint::text::ShadowLayer> = Vec::new();
+        // SAFETY: The C++ host answers synchronously, pushing shadow layers into
+        // the sink through the exported function.
+        let facts = unsafe { (self.selection_style_facts)(self.context, layout_node_shell, (&raw mut shadows).cast()) };
+        (facts, shadows)
     }
     pub(crate) fn register_font(&self, font: *const c_void) -> u64 {
         // SAFETY: The C++ host registers the live font in the recording's

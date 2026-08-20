@@ -85,6 +85,8 @@ pub struct PaintRecorder<'a> {
     paintable_facts_cache: Vec<Option<(PaintableSlotId, FfiHitTestPaintableFacts)>>,
     text_node_facts_cache: HashMap<u32, FfiHitTestTextNodeFacts>,
     font_resource_id_cache: HashMap<usize, u64>,
+    text_control_selection_cache: HashMap<u32, crate::painting::host::FfiTextControlSelection>,
+    selection_style_cache: HashMap<u32, Rc<paint::text::SelectionStyleAnswer>>,
     pub(crate) wheel_hit_test_target_cache: HashMap<PaintableSlotId, usize>,
 }
 
@@ -138,6 +140,37 @@ impl<'a> PaintRecorder<'a> {
         font_id
     }
 
+    pub(crate) fn text_control_selection(
+        &mut self,
+        node: crate::layout::node_data::NodeSlotId,
+    ) -> crate::painting::host::FfiTextControlSelection {
+        let key = node.index;
+        if let Some(facts) = self.text_control_selection_cache.get(&key) {
+            return *facts;
+        }
+        let facts = self
+            .paint_host
+            .text_control_selection(self.layout_arena.shell_if_live(node));
+        self.text_control_selection_cache.insert(key, facts);
+        facts
+    }
+
+    pub(crate) fn selection_style(
+        &mut self,
+        node: crate::layout::node_data::NodeSlotId,
+    ) -> Rc<paint::text::SelectionStyleAnswer> {
+        let key = node.index;
+        if let Some(answer) = self.selection_style_cache.get(&key) {
+            return answer.clone();
+        }
+        let (facts, shadows) = self
+            .paint_host
+            .selection_style_facts(self.layout_arena.shell_if_live(node));
+        let answer = Rc::new(paint::text::SelectionStyleAnswer { facts, shadows });
+        self.selection_style_cache.insert(key, answer.clone());
+        answer
+    }
+
     pub(crate) fn nested_recording_session(
         &self,
         recorder: DisplayListRecorder,
@@ -172,6 +205,8 @@ impl<'a> PaintRecorder<'a> {
             paintable_facts_cache: vec![None; self.paintables.slot_count()],
             text_node_facts_cache: HashMap::new(),
             font_resource_id_cache: HashMap::new(),
+            text_control_selection_cache: HashMap::new(),
+            selection_style_cache: HashMap::new(),
             wheel_hit_test_target_cache: HashMap::new(),
         }
     }

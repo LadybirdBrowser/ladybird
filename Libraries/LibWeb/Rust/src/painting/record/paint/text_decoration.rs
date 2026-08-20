@@ -118,7 +118,7 @@ fn anchor_for_decorating_box(
 pub(crate) fn decoration_sets_for_span(
     recorder: &PaintRecorder<'_>,
     block: PaintableSlotId,
-    span: &crate::painting::host::FfiTextSpan,
+    span: &crate::painting::record::paint::text::RenderSpan,
 ) -> Vec<TextDecorationSet> {
     let mut sets: Vec<TextDecorationSet> = Vec::new();
     if span.start_code_unit == span.end_code_unit {
@@ -183,16 +183,16 @@ pub(crate) fn decoration_sets_for_span(
 
     // A span with an explicit text decoration (from ::selection) replaces the decorations this text would
     // otherwise be painted with.
-    if span.has_selection_text_decoration {
+    if let Some(selection_text_decoration) = &span.selection_text_decoration {
         let glyph_height = first_available_font(arena, text_parent).map_or(CssPixels::from_raw(0), |font| {
             CssPixels::nearest_value_for_f32(font.pixel_size())
         });
         let thickness = resolve_text_decoration_thickness(arena, text_parent, text_parent, glyph_height);
         push_set(
             text_parent,
-            &span.selection_text_decoration_lines[..span.selection_text_decoration_line_count as usize],
-            span.selection_text_decoration_style,
-            span.selection_text_decoration_color,
+            &selection_text_decoration.lines[..selection_text_decoration.line_count as usize],
+            selection_text_decoration.style,
+            selection_text_decoration.color,
             thickness,
         );
         return sets;

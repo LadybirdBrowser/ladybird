@@ -69,11 +69,6 @@ Layout::NodeWithStyle const& PaintableFragment::style_source() const
     return *layout_node().parent();
 }
 
-void PaintableFragment::set_selection_state(Paintable::SelectionState state)
-{
-    m_selection_state = state;
-}
-
 CSSPixelRect const PaintableFragment::absolute_rect() const
 {
     CSSPixelRect rect { offset(), size() };
@@ -319,55 +314,6 @@ Gfx::Orientation PaintableFragment::orientation() const
     default:
         VERIFY_NOT_REACHED();
     }
-}
-
-Optional<PaintableFragment::SelectionOffsets> PaintableFragment::selection_range_for_text_control() const
-{
-    // For focused text controls (input/textarea), determine selection from the control's internal state.
-    auto const* text_control = as_if<HTML::FormAssociatedTextControlElement>(layout_node().document().focused_area().ptr());
-    if (!text_control)
-        return {};
-    if (GC::Ptr { layout_node().dom_node() } != text_control->form_associated_element_to_text_node())
-        return {};
-
-    auto selection_start = text_control->selection_start();
-    auto selection_end = text_control->selection_end();
-    if (selection_start == selection_end)
-        return {};
-
-    return SelectionOffsets { selection_start, selection_end };
-}
-
-Optional<PaintableFragment::SelectionOffsets> PaintableFragment::selection_offsets() const
-{
-    auto drop_degenerate_offsets = [](Optional<SelectionOffsets> offsets) -> Optional<SelectionOffsets> {
-        // A selection that only touches this fragment's boundary selects nothing within it.
-        if (offsets.has_value() && offsets->start == offsets->end)
-            return {};
-        return offsets;
-    };
-
-    if (auto offsets = selection_range_for_text_control(); offsets.has_value())
-        return drop_degenerate_offsets(compute_selection_offsets(Paintable::SelectionState::StartAndEnd, offsets->start, offsets->end));
-
-    if (m_selection_state == Paintable::SelectionState::None)
-        return {};
-
-    auto selection = layout_node().document().get_selection();
-    if (!selection)
-        return {};
-    auto range = selection->range();
-    if (!range)
-        return {};
-
-    return drop_degenerate_offsets(compute_selection_offsets(m_selection_state, range->start_offset(), range->end_offset()));
-}
-
-CSSPixelRect PaintableFragment::selection_rect() const
-{
-    if (auto offsets = selection_offsets(); offsets.has_value())
-        return rect_for_selection_offsets(*offsets);
-    return {};
 }
 
 Utf16View PaintableFragment::text() const

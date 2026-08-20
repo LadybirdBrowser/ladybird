@@ -218,33 +218,17 @@ GC::Ptr<Selection::Selection> ViewportPaintable::selection() const
     return document().get_selection();
 }
 
-static void reset_mirror_fragment_selection_states(ViewportPaintable& viewport)
-{
-    viewport.for_each_in_inclusive_subtree([](auto& paintable) {
-        if (auto* paintable_with_lines = as_if<PaintableWithLines>(paintable))
-            paintable_with_lines->reset_fragment_selection_states();
-        return TraversalDecision::Continue;
-    });
-}
-
 void ViewportPaintable::reset_selection_states()
 {
-    reset_mirror_fragment_selection_states(*this);
     Layout::RustFFI::layout_arena_selection_clear(rust_arena().handle(), rust_slot());
 }
 
 void ViewportPaintable::recompute_selection_states(DOM::Range& range)
 {
-    reset_mirror_fragment_selection_states(*this);
-
     Vector<Layout::RustFFI::FfiSelectionEntry> entries;
     auto set_selection_state_on_all_slices = [&](DOM::Node& container, SelectionState state) {
         if (auto* text = as_if<DOM::Text>(container)) {
             Layout::TextOffsetMapping mapping { *text };
-            mapping.for_each_paintable_fragment([&](PaintableFragment& fragment) {
-                fragment.set_selection_state(state);
-                return TraversalDecision::Continue;
-            });
             mapping.for_each_fragment([&](Layout::TextNode const& slice) {
                 entries.append({
                     .is_text_node_entry = true,
