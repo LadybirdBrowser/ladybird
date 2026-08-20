@@ -19,6 +19,12 @@
         lines.push(`bounding rect width: ${target.getBoundingClientRect().width}`);
         lines.push(`builds after identity transform read: ${internals.accumulatedVisualContextTreeBuildCount() - initialBuildCount}`);
 
+        const transformedChild = document.createElement('div');
+        transformedChild.style.transform = 'translateX(10px)';
+        target.appendChild(transformedChild);
+        lines.push(`bounding rect with transformed child: ${target.getBoundingClientRect().width}`);
+        lines.push(`builds after unrelated transform read: ${internals.accumulatedVisualContextTreeBuildCount() - initialBuildCount}`);
+
         target.style.transform = 'translateX(10px)';
         lines.push(`transformed rect x: ${target.getBoundingClientRect().x}`);
         lines.push(`builds after non-identity transform read: ${internals.accumulatedVisualContextTreeBuildCount() - initialBuildCount}`);

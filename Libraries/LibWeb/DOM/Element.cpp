@@ -2609,7 +2609,7 @@ Vector<CSSPixelRect> Element::get_client_rects() const
     if (!layout_node())
         return {};
 
-    if (document().can_compute_client_rects_without_accumulated_visual_contexts_update())
+    if (document().can_compute_client_rects_without_accumulated_visual_contexts_update(*layout_node()))
         return compute_client_rects_assuming_layout_clean(*this, VisualContextTransform::Identity);
 
     // NOTE: Make sure CSS transforms are resolved before they are used to calculate the rect position.
