@@ -6,9 +6,9 @@
 
 use crate::abort_on_panic;
 use crate::css::css_pixels::CssPixels;
+use crate::layout::FfiCssPixelPoint;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
-use crate::layout::FfiCssPixelPoint;
 use crate::painting::paintable_data::*;
 use std::ffi::c_void;
 
@@ -270,10 +270,17 @@ pub unsafe extern "C" fn layout_arena_rebuild_scrollable_overflow_contained_boxe
 ) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let contained_boxes_by_containing_block = {
+        let mut contained_boxes_by_containing_block =
+            std::mem::take(&mut arena.paintables().borrow_mut().scrollable_overflow_contained_boxes);
+        {
             let paintables = arena.paintables().borrow();
-            crate::painting::scrollable_overflow::rebuild_contained_boxes_index(arena, &paintables, root)
-        };
+            crate::painting::scrollable_overflow::refill_contained_boxes_index(
+                arena,
+                &paintables,
+                root,
+                &mut contained_boxes_by_containing_block,
+            );
+        }
         arena.paintables().borrow_mut().scrollable_overflow_contained_boxes = contained_boxes_by_containing_block;
     });
 }
