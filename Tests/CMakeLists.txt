@@ -31,6 +31,16 @@ if (NOT WIN32)
             "${RUST_CARGO}" test --workspace --target "${RUST_TARGET_TRIPLE}"
         WORKING_DIRECTORY "${LADYBIRD_SOURCE_DIR}"
     )
+
+    add_test(
+        NAME Flap
+        COMMAND "${CMAKE_COMMAND}" -E env
+            "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/cargo/flap-tests"
+            "${RUST_CARGO}" test
+                --manifest-path "${LADYBIRD_SOURCE_DIR}/Libraries/LibJS/Flap/Cargo.toml"
+                --target "${RUST_TARGET_TRIPLE}"
+                --all-targets
+    )
 endif()
 
 if (ENABLE_GUI_TARGETS)

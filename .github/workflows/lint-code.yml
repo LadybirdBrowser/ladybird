@@ -50,8 +50,6 @@ jobs:
           cargo fmt --manifest-path Libraries/LibJS/Flap/Cargo.toml -- --check
           cargo clippy --manifest-path Libraries/LibJS/Flap/Cargo.toml \
             --all-targets -- -D clippy::all
-          cargo test --manifest-path Libraries/LibJS/Flap/Cargo.toml \
-            --all-targets
 
       - name: Generate and assemble the Flap interpreter
         run: |
