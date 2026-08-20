@@ -760,7 +760,7 @@ impl<'a> SelectorCompiler<'a> {
             // A simple selector nothing can satisfy makes its whole compound unsatisfiable. Compiling
             // it to nothing left the compound with no constraint at all, which matches every element
             // in the document rather than none of them.
-            SimpleSelector::Invalid => {
+            SimpleSelector::Invalid(_) => {
                 marker.get_or_insert(CompilationMarker::KnownNeverMatches(CompilationMarkerReason::Malformed));
                 Some(self.builder.push_never())
             }

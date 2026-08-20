@@ -26,6 +26,8 @@ pub mod ffi_support;
 pub mod property_metadata;
 pub(crate) mod retained_fly_string;
 pub(crate) mod selector;
+#[allow(dead_code)]
+pub(crate) mod selector_parser;
 pub(crate) mod serialize;
 pub mod style;
 pub mod style_compute;

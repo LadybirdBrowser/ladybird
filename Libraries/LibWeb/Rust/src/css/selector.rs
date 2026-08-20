@@ -48,9 +48,9 @@ pub struct QualifiedName {
     pub namespace: SelectorString,
     pub name: SelectorString,
     pub lowercase_name: SelectorString,
-    interned_name: Option<usize>,
-    interned_lowercase_name: Option<usize>,
-    interned_namespace: Option<usize>,
+    pub(crate) interned_name: Option<usize>,
+    pub(crate) interned_lowercase_name: Option<usize>,
+    pub(crate) interned_namespace: Option<usize>,
 }
 
 impl QualifiedName {
@@ -78,10 +78,10 @@ pub struct NameSelector {
     /// The one-word identity of the C++ `Utf16FlyString` backing `name`. This is present for
     /// selectors compiled from C++ and allows the live DOM wrapper to compare interned names
     /// without crossing the FFI.
-    interned_name: Option<usize>,
+    pub(crate) interned_name: Option<usize>,
     /// The identity of that name's ASCII-lowercase folding. A quirks-mode document matches id and
     /// class selectors case-insensitively, so it is the identity such a document keys them by.
-    interned_lowercase_name: Option<usize>,
+    pub(crate) interned_lowercase_name: Option<usize>,
 }
 
 impl NameSelector {
@@ -156,6 +156,56 @@ pub enum Direction {
     Other,
 }
 
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PseudoClassParameterType {
+    None,
+    AnPlusB,
+    AnPlusBOf,
+    CompoundSelector,
+    ForgivingSelectorList,
+    ForgivingRelativeSelectorList,
+    Ident,
+    LanguageRanges,
+    LevelList,
+    RelativeSelectorList,
+    SelectorList,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct PseudoClassMetadata {
+    pub parameter_type: PseudoClassParameterType,
+    pub is_valid_as_function: bool,
+    pub is_valid_as_identifier: bool,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PseudoElementParameterType {
+    None,
+    CompoundSelector,
+    IdentList,
+    PTNameSelector,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct PseudoElementMetadata {
+    pub parameter_type: PseudoElementParameterType,
+    pub is_valid_as_function: bool,
+    pub is_valid_as_identifier: bool,
+}
+
+#[allow(dead_code)]
+fn equals_ascii_case_insensitive(value: &[u16], expected: &[u8]) -> bool {
+    value.len() == expected.len()
+        && value
+            .iter()
+            .zip(expected)
+            .all(|(&unit, &byte)| ascii_lowercase(unit) == u16::from(byte.to_ascii_lowercase()))
+}
+
 include!(concat!(env!("OUT_DIR"), "/selector_pseudo_generated.rs"));
 
 /// Crate-visible access to the generated pseudo-element code mapping, for the
@@ -175,6 +225,7 @@ pub struct PseudoClassSelector {
     pub identifier_identity: Option<usize>,
     pub identifier_lowercase_identity: Option<usize>,
     pub levels: Box<[i64]>,
+    pub is_forgiving: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -188,6 +239,7 @@ pub enum PseudoElementValue {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PseudoElementSelector {
     pub pseudo_element: PseudoElementType,
+    pub serialized_name: Option<SelectorString>,
     pub value: PseudoElementValue,
     /// The interned identity of each name in `value`, when it holds identifiers, keyed by the same
     /// word the DOM side compares against.
@@ -204,7 +256,7 @@ pub enum SimpleSelector {
     PseudoClass(PseudoClassSelector),
     PseudoElement(PseudoElementSelector),
     Nesting,
-    Invalid,
+    Invalid(SelectorString),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -212,6 +264,7 @@ pub struct CompoundSelector {
     /// The combinator relating this compound to the compound immediately to its left. The
     /// leftmost compound therefore has `Combinator::None`.
     pub combinator: Combinator,
+    pub is_implicit_universal_anchor: bool,
     pub simple_selectors: Box<[SimpleSelector]>,
 }
 
@@ -266,7 +319,7 @@ impl PartialEq for CompiledSelector {
 impl Eq for CompiledSelector {}
 
 impl CompiledSelector {
-    fn new(compound_selectors: Box<[CompoundSelector]>) -> Rc<Self> {
+    pub(crate) fn new(compound_selectors: Box<[CompoundSelector]>) -> Rc<Self> {
         let id = NEXT_SELECTOR_ID.fetch_add(1, Ordering::Relaxed);
         assert_ne!(id, 0, "selector IDs must not wrap");
 
@@ -381,7 +434,7 @@ impl CompiledSelector {
                             }
                         }
                     }
-                    SimpleSelector::Universal(_) | SimpleSelector::Nesting | SimpleSelector::Invalid => {
+                    SimpleSelector::Universal(_) | SimpleSelector::Nesting | SimpleSelector::Invalid(_) => {
                         Specificity::default()
                     }
                 };
@@ -829,6 +882,7 @@ unsafe fn simple_selector_from_ffi(selector: &FfiSimpleSelector) -> SimpleSelect
                 identifier_identity,
                 identifier_lowercase_identity,
                 levels,
+                is_forgiving: false,
             })
         }
         FfiSimpleSelectorType::PseudoElement => {
@@ -875,12 +929,13 @@ unsafe fn simple_selector_from_ffi(selector: &FfiSimpleSelector) -> SimpleSelect
             };
             SimpleSelector::PseudoElement(PseudoElementSelector {
                 pseudo_element: pseudo_element_from_ffi(selector.pseudo_element),
+                serialized_name: None,
                 value,
                 identifier_identities,
             })
         }
         FfiSimpleSelectorType::Nesting => SimpleSelector::Nesting,
-        FfiSimpleSelectorType::Invalid => SimpleSelector::Invalid,
+        FfiSimpleSelectorType::Invalid => SimpleSelector::Invalid(Box::new([])),
     }
 }
 
@@ -891,6 +946,7 @@ unsafe fn compiled_selector_from_ffi(selector: &FfiSelector) -> Rc<CompiledSelec
             .iter()
             .map(|compound| CompoundSelector {
                 combinator: compound.combinator,
+                is_implicit_universal_anchor: false,
                 // SAFETY: The caller guarantees that every simple selector array is valid.
                 simple_selectors: unsafe {
                     borrow_ffi_slice(compound.simple_selectors, compound.simple_selector_count, compound)
@@ -991,6 +1047,6 @@ fn can_simple_selector_use_fast_matches(simple_selector: &SimpleSelector) -> boo
                 | PseudoClassType::Unchecked
                 | PseudoClassType::Visited
         ),
-        SimpleSelector::PseudoElement(_) | SimpleSelector::Nesting | SimpleSelector::Invalid => false,
+        SimpleSelector::PseudoElement(_) | SimpleSelector::Nesting | SimpleSelector::Invalid(_) => false,
     }
 }
