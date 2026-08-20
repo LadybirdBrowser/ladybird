@@ -80,6 +80,7 @@ pub struct PaintRecorder<'a> {
     pub(crate) has_blocking_wheel_event_listeners: bool,
     spliced_capture_count: usize,
     list: HitTestList,
+    base_paint_facts_cache: Vec<Option<(PaintableSlotId, BasePaintFacts)>>,
     paintable_facts_cache: Vec<Option<(PaintableSlotId, FfiHitTestPaintableFacts)>>,
     text_node_facts_cache: HashMap<u32, FfiHitTestTextNodeFacts>,
     pub(crate) wheel_hit_test_target_cache: HashMap<PaintableSlotId, usize>,
@@ -147,6 +148,7 @@ impl<'a> PaintRecorder<'a> {
             has_blocking_wheel_event_listeners: false,
             spliced_capture_count: 0,
             list: HitTestList::default(),
+            base_paint_facts_cache: vec![None; self.paintables.slot_count()],
             paintable_facts_cache: vec![None; self.paintables.slot_count()],
             text_node_facts_cache: HashMap::new(),
             wheel_hit_test_target_cache: HashMap::new(),
@@ -170,24 +172,34 @@ impl<'a> PaintRecorder<'a> {
     }
 
     pub(crate) fn base_paint_facts(&mut self, paintable: PaintableSlotId) -> BasePaintFacts {
+        let index = paintable.slot_index() as usize;
+        if let Some((memoized_id, facts)) = self.base_paint_facts_cache[index]
+            && memoized_id == paintable
+        {
+            return facts;
+        }
         let data = self.data(paintable);
         let Some(style) = self.layout_arena.node_style_if_live(data.layout_node) else {
-            return BasePaintFacts::default();
+            let facts = BasePaintFacts::default();
+            self.base_paint_facts_cache[index] = Some((paintable, facts));
+            return facts;
         };
         let effects = style.effects();
         let is_visible = style.visibility() == crate::css::css_enums::visibility::VISIBLE && effects.opacity != 0.0;
-        let empty_cells_property_applies = style.display().is_internal_table()
+        let empty_cells_property_applies = self.display(paintable).is_internal_table()
             && style.empty_cells() == crate::css::css_enums::empty_cells::HIDE
             && self.paintables.first_child(paintable).is_none();
         let has_backdrop_filter = effects.backdrop_filter.operations.length != 0;
         let paints_border_image = crate::painting::style_queries::handle_value(&style.border().border_image_source)
             .is_some_and(|source| matches!(source, crate::css::style_value::StyleValueData::Image { .. }));
-        BasePaintFacts {
+        let facts = BasePaintFacts {
             is_visible,
             empty_cells_property_applies,
             has_backdrop_filter,
             paints_border_image,
-        }
+        };
+        self.base_paint_facts_cache[index] = Some((paintable, facts));
+        facts
     }
 
     fn has_stacking_context(&self, paintable: PaintableSlotId) -> bool {
