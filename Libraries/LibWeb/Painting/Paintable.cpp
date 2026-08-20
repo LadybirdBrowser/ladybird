@@ -755,6 +755,14 @@ bool Paintable::has_css_transform() const
     return layout_node().has_css_transform();
 }
 
+Optional<Gfx::AffineTransform> Paintable::svg_viewport_transform() const
+{
+    if (!rust_data().has_svg_viewport_transform)
+        return {};
+    auto const& transform = rust_data().svg_viewport_transform;
+    return Gfx::AffineTransform { transform.a, transform.b, transform.c, transform.d, transform.e, transform.f };
+}
+
 void Paintable::invalidate_paint_cache() const
 {
     mirror_rust_invalidate_paint_cache(*this);

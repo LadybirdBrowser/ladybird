@@ -16,16 +16,12 @@ public:
     static NonnullRefPtr<SVGSVGPaintable> create(Layout::Box const&);
     virtual StringView class_name() const override { return "SVGSVGPaintable"sv; }
 
-    void set_svg_viewport_size(CSSPixelSize viewport_size) { m_svg_viewport_size = viewport_size; }
-    CSSPixelSize svg_viewport_size() const { return m_svg_viewport_size; }
-
-    virtual Optional<Gfx::AffineTransform> svg_viewport_transform() const override { return m_svg_viewport_transform; }
-    virtual void set_svg_viewport_transform(Gfx::AffineTransform transform) override { m_svg_viewport_transform = transform; }
-
-    virtual void reset_for_relayout() override
+    CSSPixelSize svg_viewport_size() const
     {
-        Paintable::reset_for_relayout();
-        m_svg_viewport_transform = {};
+        return {
+            CSSPixels::from_raw(rust_data().svg_viewport_size.width),
+            CSSPixels::from_raw(rust_data().svg_viewport_size.height),
+        };
     }
 
 protected:
@@ -33,9 +29,6 @@ protected:
 
 private:
     virtual bool is_svg_svg_paintable() const final { return true; }
-
-    CSSPixelSize m_svg_viewport_size;
-    Optional<Gfx::AffineTransform> m_svg_viewport_transform;
 };
 
 template<>

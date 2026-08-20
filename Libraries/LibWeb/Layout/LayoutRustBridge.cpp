@@ -286,18 +286,6 @@ static RustFFI::FfiAffineTransform to_ffi_affine_transform(Gfx::AffineTransform 
     };
 }
 
-static Gfx::AffineTransform from_ffi_affine_transform(RustFFI::FfiAffineTransform const& transform)
-{
-    return {
-        transform.a,
-        transform.b,
-        transform.c,
-        transform.d,
-        transform.e,
-        transform.f,
-    };
-}
-
 static RustFFI::FfiSvgViewBox to_ffi_svg_view_box(SVG::ViewBox const& view_box)
 {
     return {
@@ -853,17 +841,6 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
             // consumers read out of bounds.
             for (auto const& piece : line_context->paintable.inline_box_pieces())
                 VERIFY(piece.first_fragment_index + piece.fragment_count <= line_context->paintable.fragments().size()); },
-        .set_svg_viewport_transform = [](void*, void* paintable_pointer, RustFFI::FfiAffineTransform transform) {
-            auto& paintable = *static_cast<Painting::Paintable*>(paintable_pointer);
-            paintable.set_svg_viewport_transform(from_ffi_affine_transform(transform)); },
-        .set_svg_viewport_size = [](void*, void* paintable_pointer, RustFFI::FfiCssPixelSize viewport_size) {
-            auto& paintable = *static_cast<Painting::Paintable*>(paintable_pointer);
-            if (auto* svg_svg_paintable = as_if<Painting::SVGSVGPaintable>(paintable)) {
-                svg_svg_paintable->set_svg_viewport_size({
-                    CSSPixels::from_raw(viewport_size.width),
-                    CSSPixels::from_raw(viewport_size.height),
-                });
-            } },
         .set_computed_svg_path = [](void*, void* paintable_pointer, void* path_pointer, u64 path_identity) {
             VERIFY(path_pointer);
             auto& paintable = *static_cast<Painting::Paintable*>(paintable_pointer);
