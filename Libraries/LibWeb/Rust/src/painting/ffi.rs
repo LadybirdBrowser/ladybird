@@ -7,6 +7,7 @@
 use crate::abort_on_panic;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::FfiCssPixelPoint;
+use crate::layout::FfiCssPixelRect;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paintable_data::*;
@@ -942,6 +943,204 @@ pub unsafe extern "C" fn layout_arena_paintable_computed_svg_path(
     })
 }
 
+#[repr(C)]
+pub struct FfiCaretRectResult {
+    pub found: bool,
+    pub rect: FfiCssPixelRect,
+    pub style_source: *mut c_void,
+    pub owner_paintable: *mut c_void,
+    pub nearest_self_painting_inline: *mut c_void,
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document
+/// thread. `node_slots` must point at `node_slot_count` valid slots.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_text_caret_rect_for_position(
+    arena: *mut c_void,
+    node_slots: *const NodeSlotId,
+    node_slot_count: usize,
+    offset: usize,
+    affinity_is_downstream: bool,
+) -> FfiCaretRectResult {
+    abort_on_panic(|| {
+        let mut result = FfiCaretRectResult {
+            found: false,
+            rect: FfiCssPixelRect::default(),
+            style_source: std::ptr::null_mut(),
+            owner_paintable: std::ptr::null_mut(),
+            nearest_self_painting_inline: std::ptr::null_mut(),
+        };
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        // SAFETY: The caller guarantees the slot span is valid for this synchronous call.
+        let node_slots = unsafe { ffi_slice(node_slots, node_slot_count) };
+        let Some(answer) = crate::painting::caret::caret_rect_for_position(
+            arena,
+            &paintables,
+            node_slots,
+            offset,
+            affinity_is_downstream,
+        ) else {
+            return result;
+        };
+        result.found = true;
+        result.rect = answer.rect.into();
+        result.style_source = arena.shell_if_live(answer.style_source);
+        result.owner_paintable = paintables.data_ref(answer.owner).shell;
+        result.nearest_self_painting_inline =
+            crate::painting::fragment_ownership::nearest_self_painting_inline_box(arena, &paintables, answer.node)
+                .map_or(std::ptr::null_mut(), |inline_box| paintables.data_ref(inline_box).shell);
+        result
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document
+/// thread. `node_slots` must point at `node_slot_count` valid slots.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_text_caret_rect_in_dom_range(
+    arena: *mut c_void,
+    node_slots: *const NodeSlotId,
+    node_slot_count: usize,
+    offset: usize,
+) -> FfiOptionalCssPixelRect {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        // SAFETY: The caller guarantees the slot span is valid for this synchronous call.
+        let node_slots = unsafe { ffi_slice(node_slots, node_slot_count) };
+        match crate::painting::caret::caret_rect_in_dom_range(arena, &paintables, node_slots, offset) {
+            Some(rect) => FfiOptionalCssPixelRect {
+                has_value: true,
+                rect: rect.into(),
+            },
+            None => FfiOptionalCssPixelRect {
+                has_value: false,
+                rect: FfiCssPixelRect::default(),
+            },
+        }
+    })
+}
+
+#[repr(C)]
+pub struct FfiEmptyLineCaretRect {
+    pub has_value: bool,
+    pub rect: FfiCssPixelRect,
+    pub style_source: *mut c_void,
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document
+/// thread. `node_slots` must point at `node_slot_count` valid slots.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_empty_line_caret_rect(
+    arena: *mut c_void,
+    block: PaintableSlotId,
+    node_slots: *const NodeSlotId,
+    node_slot_count: usize,
+    offset: usize,
+) -> FfiEmptyLineCaretRect {
+    abort_on_panic(|| {
+        let mut result = FfiEmptyLineCaretRect {
+            has_value: false,
+            rect: FfiCssPixelRect::default(),
+            style_source: std::ptr::null_mut(),
+        };
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if !paintables.is_live(block) {
+            return result;
+        }
+        // SAFETY: The caller guarantees the slot span is valid for this synchronous call.
+        let node_slots = unsafe { ffi_slice(node_slots, node_slot_count) };
+        let side = paintables.side(block);
+        let Some(first_fragment) = side.fragments.first() else {
+            return result;
+        };
+        if !node_slots.contains(&first_fragment.layout_node) {
+            return result;
+        }
+        for target in crate::painting::visual_lines::empty_line_caret_targets(arena, &paintables, block) {
+            if target.offset == offset {
+                result.has_value = true;
+                result.rect = target.rect.into();
+                result.style_source =
+                    arena.shell_if_live(crate::painting::text_fragment::style_source(arena, first_fragment));
+                break;
+            }
+        }
+        result
+    })
+}
+
+#[repr(C)]
+pub struct FfiOptionalCssPixelRect {
+    pub has_value: bool,
+    pub rect: FfiCssPixelRect,
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_first_fragment_rect_for_node(
+    arena: *mut c_void,
+    block: PaintableSlotId,
+    node: NodeSlotId,
+) -> FfiOptionalCssPixelRect {
+    abort_on_panic(|| {
+        let mut result = FfiOptionalCssPixelRect {
+            has_value: false,
+            rect: FfiCssPixelRect::default(),
+        };
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if !paintables.is_live(block) {
+            return result;
+        }
+        for fragment in &paintables.side(block).fragments {
+            if fragment.layout_node != node {
+                continue;
+            }
+            result.has_value = true;
+            result.rect = crate::painting::text_fragment::absolute_rect(arena, &paintables, fragment).into();
+            break;
+        }
+        result
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_for_each_subtree_fragment_rect(
+    arena: *mut c_void,
+    root: PaintableSlotId,
+    context: *mut c_void,
+    consume: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiCssPixelRect),
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if !paintables.is_live(root) {
+            return;
+        }
+        paintables.for_each_in_subtree(root, |current| {
+            for fragment in &paintables.side(current).fragments {
+                let shell = arena.shell_if_live(fragment.layout_node);
+                let rect = crate::painting::text_fragment::absolute_rect(arena, &paintables, fragment).into();
+                // SAFETY: The consumer copies its plain-data arguments synchronously.
+                unsafe { consume(context, shell, rect) };
+            }
+        });
+    });
+}
+
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
@@ -1661,13 +1860,13 @@ pub unsafe extern "C" fn layout_arena_hit_test_adjacent_line(
 ///
 /// `sink` must be the pointer handed to the callback, used synchronously.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_hit_test_push_empty_line_caret_target(
+pub unsafe extern "C" fn layout_arena_hit_test_push_line_break_caret_target(
     sink: *mut c_void,
-    target: crate::painting::host::FfiEmptyLineCaretTarget,
+    target: crate::painting::host::FfiLineBreakCaretTarget,
 ) {
     abort_on_panic(|| {
-        // SAFETY: `sink` is the Vec pointer handed out by FfiHitTestHostCallbacks::empty_line_caret_targets.
-        let targets = unsafe { &mut *sink.cast::<Vec<crate::painting::host::FfiEmptyLineCaretTarget>>() };
+        // SAFETY: `sink` is the Vec pointer handed out by FfiHitTestHostCallbacks::line_break_caret_targets.
+        let targets = unsafe { &mut *sink.cast::<Vec<crate::painting::host::FfiLineBreakCaretTarget>>() };
         targets.push(target);
     });
 }

@@ -130,21 +130,16 @@ impl<'a> PaintRecorder<'a> {
     }
 
     fn record_empty_line_caret_items(&mut self, paintable: PaintableSlotId, context: usize) {
-        let targets = self.host.empty_line_caret_targets(self.shell(paintable));
+        let targets =
+            crate::painting::visual_lines::empty_line_caret_targets(self.layout_arena, self.paintables, paintable);
         for target in targets {
-            let rect = CssPixelRect::from(target.rect);
-            if target.is_line_break_boundary {
+            self.append_empty_line_for_fragment(paintable, 0, target.offset, target.line_index, target.rect, context);
+        }
+        if !self.paintables.side(paintable).fragments.is_empty() {
+            for target in self.host.line_break_caret_targets(self.shell(paintable)) {
+                let rect = CssPixelRect::from(target.rect);
                 let caret_node = self.data(paintable).layout_node;
                 self.append_empty_line_for_node(paintable, caret_node, target.caret_offset, rect, context);
-            } else {
-                self.append_empty_line_for_fragment(
-                    paintable,
-                    0,
-                    target.caret_offset,
-                    target.line_index,
-                    rect,
-                    context,
-                );
             }
         }
     }

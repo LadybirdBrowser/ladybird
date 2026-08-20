@@ -8775,17 +8775,13 @@ Optional<CSSPixelRect> Document::current_caret_rect()
     };
 
     if (auto* text = as_if<DOM::Text>(dom_node)) {
-        Optional<CSSPixelRect> caret_rect;
-        auto const offset = position->offset();
-        Layout::TextOffsetMapping mapping { *text };
-        mapping.for_each_paintable_fragment([&](Painting::PaintableFragment const& fragment) {
-            if (offset < fragment.dom_start_offset_in_node() || offset > fragment.dom_end_offset_in_node())
-                return TraversalDecision::Continue;
-            caret_rect = fragment.range_rect(Painting::Paintable::SelectionState::StartAndEnd, offset, offset);
-            return TraversalDecision::Break;
-        });
-        if (caret_rect.has_value())
-            return to_viewport_rect(*caret_rect);
+        auto text_slots = Layout::TextOffsetMapping { *text }.slot_ids();
+        if (!text_slots.is_empty()) {
+            auto result = Layout::RustFFI::layout_arena_text_caret_rect_in_dom_range(
+                layout_node->arena_handle(), text_slots.data(), text_slots.size(), position->offset());
+            if (result.has_value)
+                return to_viewport_rect(Painting::from_ffi_css_pixel_rect(result.rect));
+        }
     }
 
     // Empty editable elements have no fragments; fall back to the caret position for the cursor's child offset

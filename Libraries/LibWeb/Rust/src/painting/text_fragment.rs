@@ -145,6 +145,47 @@ pub(crate) fn compute_selection_offsets(
     }
 }
 
+pub(crate) fn for_each_fragment_of_nodes(
+    layout_arena: &LayoutNodeArena,
+    paintables: &PaintableArena,
+    node_slots: &[NodeSlotId],
+    mut callback: impl FnMut(PaintableSlotId, u32, &FragmentRecord) -> bool,
+) {
+    for &node in node_slots {
+        let Some(block) = containing_block_paintable_of_node(layout_arena, paintables, node) else {
+            continue;
+        };
+        for (index, fragment) in paintables.side(block).fragments.iter().enumerate() {
+            if fragment.layout_node != node {
+                continue;
+            }
+            if !callback(block, index as u32, fragment) {
+                return;
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CaretMatch {
+    None,
+    Direct,
+    SoftWrapFallback,
+}
+
+pub(crate) fn caret_match(fragment: &FragmentRecord, offset: usize, affinity_is_downstream: bool) -> CaretMatch {
+    let dom_start = fragment.dom_start_offset_in_node;
+    let dom_end_with_trailing_whitespace =
+        dom_start + fragment.length_in_code_units + fragment.trailing_whitespace_length_in_code_units;
+    if offset < dom_start || offset > dom_end_with_trailing_whitespace {
+        return CaretMatch::None;
+    }
+    if affinity_is_downstream && offset == dom_end_with_trailing_whitespace {
+        return CaretMatch::SoftWrapFallback;
+    }
+    CaretMatch::Direct
+}
+
 pub(crate) fn selection_offsets_for_dom_range(
     fragment: &FragmentRecord,
     start_offset_in_code_units: usize,

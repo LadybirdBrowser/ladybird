@@ -18,11 +18,12 @@
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>
+#include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
-#include <LibWeb/VisualLines.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 
 namespace Web::Painting {
 
@@ -126,131 +127,6 @@ void PaintableWithLines::assign_inline_box_geometry()
     }
 }
 
-Vector<PaintableWithLines::EmptyLineCaretTarget> PaintableWithLines::empty_line_caret_targets() const
-{
-    if (m_fragments.is_empty() || m_lines.is_empty())
-        return {};
-
-    // Line boxes without fragments (e.g. the blank line between two consecutive newlines in a textarea) produce no
-    // fragments to hit test or paint a caret in. When all fragments belong to a single text node with preserved
-    // newlines, we can derive the caret offset of each empty line and compute caret targets for them.
-    auto const* text_layout_node = as_if<Layout::TextNode>(m_fragments.first().layout_node());
-    if (!text_layout_node)
-        return {};
-    if (!white_space_preserves_newlines(*text_layout_node))
-        return {};
-
-    // FIXME: Support vertical writing modes.
-    if (layout_node().writing_mode() != CSS::WritingMode::HorizontalTb)
-        return {};
-
-    auto const* dom_text = text_layout_node->dom_text();
-    if (!dom_text)
-        return {};
-    if (!text_contains_empty_visual_line_positions(dom_text->data().utf16_view()))
-        return {};
-
-    for (auto const& fragment : m_fragments) {
-        if (&fragment.layout_node() != text_layout_node)
-            return {};
-    }
-
-    auto lines = collect_visual_lines(*dom_text);
-
-    // The mapping below requires visual lines to correspond 1:1 to this block's line boxes. Trailing blank lines are
-    // the exception: layout does not retain a line box for a blank line at the very end, so visual lines may extend
-    // past m_lines and get extrapolated rects below the last line box.
-    if (lines.size() < m_lines.size())
-        return {};
-    for (size_t i = 0; i < lines.size(); ++i) {
-        if (i >= m_lines.size()) {
-            if (!lines[i].fragments.is_empty())
-                return {};
-            continue;
-        }
-        if (lines[i].fragments.is_empty() != (m_lines[i].fragment_count == 0))
-            return {};
-        if (!lines[i].fragments.is_empty() && lines[i].fragments.first()->line_index() != i)
-            return {};
-    }
-
-    Vector<EmptyLineCaretTarget> targets;
-    auto content_rect = absolute_rect();
-    for (size_t i = 0; i < lines.size(); ++i) {
-        if (!lines[i].fragments.is_empty())
-            continue;
-
-        CSSPixelRect line_rect;
-        if (i < m_lines.size()) {
-            line_rect = m_lines[i].rect.translated(content_rect.location());
-        } else {
-            auto last_rect = m_lines.last().rect.translated(content_rect.location());
-            auto steps = static_cast<int>(i - (m_lines.size() - 1));
-            line_rect = { content_rect.x(), last_rect.bottom() + last_rect.height() * (steps - 1), content_rect.width(), last_rect.height() };
-        }
-
-        targets.append({ lines[i].start_offset, i, line_rect });
-    }
-    return targets;
-}
-
-// A cursor on a line box with no fragments (e.g. a blank line in a textarea) has no fragment to position itself in;
-// it is placed at the start of the empty line.
-Optional<CSSPixelRect> PaintableWithLines::empty_line_caret_rect(DOM::Position const& position) const
-{
-    if (m_fragments.is_empty())
-        return {};
-    auto const* text_layout_node = as_if<Layout::TextNode>(m_fragments.first().layout_node());
-    if (!text_layout_node || position.node() != GC::Ptr { text_layout_node->dom_text() })
-        return {};
-    for (auto const& target : empty_line_caret_targets()) {
-        if (target.offset == position.offset())
-            return target.rect;
-    }
-    return {};
-}
-
-void PaintableWithLines::for_each_empty_line_caret_item(Function<void(EmptyLineCaretItem const&)> const& callback) const
-{
-    for (auto const& target : empty_line_caret_targets())
-        callback({ .is_line_break_boundary = false, .caret_offset = target.offset, .line_index = target.line_index, .rect = target.rect });
-
-    auto* dom_node = layout_node().dom_node();
-    if (!dom_node || m_fragments.is_empty())
-        return;
-    // A <br> between fragment-backed lines does not produce a fragment of its own, so record its parent boundary as
-    // a caret target. This covers leading and consecutive editable line breaks.
-    for (auto* child = dom_node->first_child(); child; child = child->next_sibling()) {
-        auto* br = as_if<HTML::HTMLBRElement>(*child);
-        if (!br || !br->represents_empty_line())
-            continue;
-        callback({ .is_line_break_boundary = true, .caret_offset = br->index(), .line_index = 0, .rect = caret_rect_for_child_offset(br->index()) });
-    }
-}
-
-Optional<PaintableFragment const&> PaintableWithLines::fragment_at_position(DOM::Position const& position) const
-{
-    PaintableFragment const* fallback_fragment = nullptr;
-    for (auto const& fragment : m_fragments) {
-        auto const* text_node = as_if<Layout::TextNode>(fragment.layout_node());
-        if (!text_node || position.node() != GC::Ptr { text_node->dom_text() })
-            continue;
-        switch (fragment.caret_match(position.offset(), position.affinity())) {
-        case PaintableFragment::CaretMatch::None:
-            continue;
-        case PaintableFragment::CaretMatch::SoftWrapFallback:
-            if (!fallback_fragment)
-                fallback_fragment = &fragment;
-            continue;
-        case PaintableFragment::CaretMatch::Direct:
-            return fragment;
-        }
-    }
-    if (fallback_fragment)
-        return *fallback_fragment;
-    return {};
-}
-
 CSSPixelRect PaintableWithLines::caret_rect_for_child_offset(size_t offset) const
 {
     auto content_box = absolute_padding_box_rect();
@@ -262,16 +138,13 @@ CSSPixelRect PaintableWithLines::caret_rect_for_child_offset(size_t offset) cons
         return rect;
 
     // A boundary immediately after an atomic inline element paints after that element. Atomic inline elements have
-    // no text offset for fragment_at_position() to resolve, so use their inline edge directly.
     if (offset > 0) {
         auto* previous_child = dom_node->child_at_index(offset - 1);
-        if (previous_child) {
-            for (auto const& fragment : m_fragments) {
-                auto* fragment_dom_node = fragment.layout_node().dom_node();
-                if (fragment_dom_node != previous_child || !fragment.layout_node().is_atomic_inline())
-                    continue;
-
-                auto fragment_rect = fragment.absolute_rect();
+        auto const* previous_layout_node = previous_child ? previous_child->unsafe_layout_node() : nullptr;
+        if (previous_layout_node && previous_layout_node->is_atomic_inline()) {
+            auto result = Layout::RustFFI::layout_arena_paintable_first_fragment_rect_for_node(rust_arena().handle(), rust_slot(), Layout::Node::slot_id(previous_layout_node));
+            if (result.has_value) {
+                auto fragment_rect = from_ffi_css_pixel_rect(result.rect);
                 if (layout_node().writing_mode() == CSS::WritingMode::HorizontalTb)
                     rect.set_x(layout_node().inline_axis_is_reverse() ? fragment_rect.left() : fragment_rect.right());
                 else
@@ -288,18 +161,23 @@ CSSPixelRect PaintableWithLines::caret_rect_for_child_offset(size_t offset) cons
     // A caret parked before a <br> sits on the line below the content preceding the <br>. Layout produces no
     // fragments for <br>, so start below the fragments of any preceding content, and add one line height for each
     // empty line rendered by earlier <br>s.
-    Optional<CSSPixels> preceding_content_bottom;
-    for_each_in_inclusive_subtree_of_type<PaintableWithLines>([&](auto const& paintable_with_lines) {
-        for (auto const& fragment : paintable_with_lines.fragments()) {
-            auto* fragment_dom_node = const_cast<DOM::Node*>(fragment.layout_node().dom_node());
-            if (!fragment_dom_node || !(const_cast<DOM::Node&>(*child).compare_document_position(fragment_dom_node) & DOM::Node::DOCUMENT_POSITION_PRECEDING))
-                continue;
-            auto bottom = fragment.absolute_rect().bottom();
-            if (!preceding_content_bottom.has_value() || bottom > *preceding_content_bottom)
-                preceding_content_bottom = bottom;
-        }
-        return TraversalDecision::Continue;
-    });
+    struct PrecedingContentContext {
+        GC::Ref<DOM::Node> child;
+        Optional<CSSPixels> preceding_content_bottom;
+    } preceding_context { const_cast<DOM::Node&>(*child), {} };
+    Layout::RustFFI::layout_arena_for_each_subtree_fragment_rect(
+        rust_arena().handle(), rust_slot(), &preceding_context,
+        [](void* context_pointer, void* fragment_layout_node_shell, Layout::RustFFI::FfiCssPixelRect rect) {
+            auto& context = *static_cast<PrecedingContentContext*>(context_pointer);
+            auto const* fragment_layout_node = static_cast<Layout::Node const*>(fragment_layout_node_shell);
+            auto* fragment_dom_node = fragment_layout_node ? const_cast<DOM::Node*>(fragment_layout_node->dom_node()) : nullptr;
+            if (!fragment_dom_node || !(context.child->compare_document_position(fragment_dom_node) & DOM::Node::DOCUMENT_POSITION_PRECEDING))
+                return;
+            auto bottom = CSSPixels::from_raw(rect.y) + CSSPixels::from_raw(rect.height);
+            if (!context.preceding_content_bottom.has_value() || bottom > *context.preceding_content_bottom)
+                context.preceding_content_bottom = bottom;
+        });
+    auto& preceding_content_bottom = preceding_context.preceding_content_bottom;
 
     size_t preceding_empty_lines = 0;
     dom_node->for_each_in_subtree_of_type<HTML::HTMLBRElement>([&](auto& br) {
@@ -324,41 +202,53 @@ Optional<PaintableWithLines::CaretPaint> PaintableWithLines::resolve_caret_paint
 
     auto const* dom_node = layout_node().dom_node();
 
-    auto fragment = fragment_at_position(*cursor_position);
+    Vector<Layout::RustFFI::NodeSlotId, 2> text_slots;
+    if (auto const* text = as_if<DOM::Text>(cursor_position->node().ptr()))
+        text_slots = Layout::TextOffsetMapping { *text }.slot_ids();
 
-    CSSPixelRect cursor_rect;
-    Color caret_color;
-
-    if (fragment.has_value()) {
-        // The caret paints where its fragment's foreground paints: inside the nearest
-        // self-painting inline box, or in the block itself.
-        if (nearest_self_painting_inline_box(fragment->layout_node()) != owner)
+    if (!text_slots.is_empty()) {
+        auto result = Layout::RustFFI::layout_arena_text_caret_rect_for_position(
+            rust_arena().handle(), text_slots.data(), text_slots.size(), cursor_position->offset(),
+            cursor_position->affinity() == TextAffinity::Downstream);
+        if (result.found && result.owner_paintable == static_cast<void const*>(static_cast<Paintable const*>(this))) {
+            if (result.nearest_self_painting_inline != static_cast<void const*>(static_cast<Paintable const*>(owner)))
+                return {};
+            auto const* style_source = static_cast<Layout::NodeWithStyle const*>(result.style_source);
+            if (!style_source || !layout_node_is_visible(*style_source))
+                return {};
+            return CaretPaint { from_ffi_css_pixel_rect(result.rect), style_source->caret_color() };
+        }
+        if (result.found) {
             return {};
-        // Like the glyphs around it, the caret follows the text's own visibility, which may
-        // differ from this box's.
-        if (!layout_node_is_visible(fragment->style_source()))
-            return {};
-        caret_color = fragment->style_source().caret_color();
-        cursor_rect = fragment->range_rect(SelectionState::StartAndEnd, cursor_position->offset(), cursor_position->offset());
-    } else if (owner) {
-        // Blank lines and empty editable elements are handled by the block / the box itself.
-        return {};
-    } else if (!is_visible()) {
-        // Blank-line and empty-element carets belong to this block itself.
-        return {};
-    } else if (auto empty_line_rect = empty_line_caret_rect(*cursor_position); empty_line_rect.has_value()) {
-        caret_color = m_fragments.first().style_source().caret_color();
-        cursor_rect = { empty_line_rect->x(), empty_line_rect->y(), 1, empty_line_rect->height() };
-    } else {
-        // Empty editable elements have no fragments, but should still draw a cursor.
-        if (cursor_position->node() != GC::Ptr { dom_node })
-            return {};
-
-        caret_color = layout_node().caret_color();
-        cursor_rect = caret_rect_for_child_offset(cursor_position->offset());
+        }
     }
 
-    return CaretPaint { cursor_rect, caret_color };
+    if (owner) {
+        // Blank lines and empty editable elements are handled by the block / the box itself.
+        return {};
+    }
+    if (!is_visible()) {
+        // Blank-line and empty-element carets belong to this block itself.
+        return {};
+    }
+
+    if (!text_slots.is_empty()) {
+        auto empty_line = Layout::RustFFI::layout_arena_paintable_empty_line_caret_rect(
+            rust_arena().handle(), rust_slot(), text_slots.data(), text_slots.size(), cursor_position->offset());
+        if (empty_line.has_value) {
+            auto const* style_source = static_cast<Layout::NodeWithStyle const*>(empty_line.style_source);
+            if (!style_source)
+                return {};
+            auto empty_line_rect = from_ffi_css_pixel_rect(empty_line.rect);
+            CSSPixelRect cursor_rect { empty_line_rect.x(), empty_line_rect.y(), 1, empty_line_rect.height() };
+            return CaretPaint { cursor_rect, style_source->caret_color() };
+        }
+    }
+
+    if (cursor_position->node() != GC::Ptr { dom_node })
+        return {};
+
+    return CaretPaint { caret_rect_for_child_offset(cursor_position->offset()), layout_node().caret_color() };
 }
 
 } // namespace Web::Painting
