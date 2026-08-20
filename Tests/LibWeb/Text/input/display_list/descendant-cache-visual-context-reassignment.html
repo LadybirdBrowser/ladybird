@@ -1,0 +1,45 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .box {
+        width: 40px;
+        height: 40px;
+    }
+    .content {
+        width: 80px;
+        height: 80px;
+    }
+    #before {
+        overflow: hidden;
+    }
+    #cached {
+        pointer-events: none;
+    }
+    #target {
+        overflow: hidden;
+    }
+    #before-content { background: red; }
+    #target-content { background: lime; pointer-events: auto; }
+    #after-content { background: blue; }
+</style>
+<div id="before" class="box"><div id="before-content" class="content"></div></div>
+<div id="cached" class="box"><div id="target" class="box"><div id="target-content" class="content"></div></div></div>
+<div id="after" class="box"><div id="after-content" class="content"></div></div>
+<script>
+    test(() => {
+        const targetContent = document.getElementById("target-content");
+        internals.asyncScrollingState();
+
+        // Keep the visual-context tree compatible while assigning its two sibling
+        // clip nodes to different paintables. The unchanged middle subtree
+        // must not replay commands or hit-test items with its old context index.
+        before.style.overflow = "visible";
+        after.style.overflow = "hidden";
+        const displayList = internals.dumpDisplayList();
+        const targetCommandContext = displayList.match(/FillRect@(\d+).*rgb\(0, 255, 0\)/)[1];
+        const afterCommandContext = displayList.match(/FillRect@(\d+).*rgb\(0, 0, 255\)/)[1];
+        println(`target command uses target context: ${targetCommandContext !== afterCommandContext}`);
+        println(`target hit test uses target context: ${document.elementFromPoint(10, 50) === targetContent}`);
+    });
+</script>
