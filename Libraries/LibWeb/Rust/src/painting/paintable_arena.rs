@@ -42,7 +42,7 @@ pub struct PaintableArena {
     pub(crate) last_recording: Option<Rc<crate::painting::record::RecordingOutput>>,
     pub(crate) paint_command_cache_source: Option<Rc<crate::painting::record::RecordingOutput>>,
     pub(crate) hit_test_item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
-    pub(crate) paint_caches: std::cell::RefCell<Vec<Option<Box<crate::painting::record::cache::PaintCache>>>>,
+    pub(crate) paint_caches: Vec<crate::painting::record::cache::PaintCache>,
     absolute_rect_memo: std::cell::RefCell<Vec<Option<(PaintableSlotId, u64, crate::css::css_pixels::CssPixelRect)>>>,
     absolute_rect_memo_epoch: Cell<u64>,
     pub(crate) scrollable_overflow_contained_boxes: std::collections::HashMap<NodeSlotId, Vec<NodeSlotId>>,
@@ -92,7 +92,8 @@ impl PaintableArena {
                 self.chunks.push(new_chunk());
             }
             self.side_data.push(PaintableSideData::default());
-            self.paint_caches.get_mut().push(None);
+            self.paint_caches
+                .push(crate::painting::record::cache::PaintCache::default());
             self.absolute_rect_memo.get_mut().push(None);
         }
 
@@ -103,7 +104,7 @@ impl PaintableArena {
         data.layout_node = layout_node;
         data.shell = shell;
         self.side_data[index as usize] = PaintableSideData::default();
-        self.paint_caches.get_mut()[index as usize] = None;
+        self.paint_caches[index as usize].clear();
         self.absolute_rect_memo.get_mut()[index as usize] = None;
 
         PaintableAllocation {
@@ -135,7 +136,7 @@ impl PaintableArena {
         let index = id.slot_index();
         *self.data_mut_by_index(index) = PaintableData::default();
         self.side_data[index as usize] = PaintableSideData::default();
-        self.paint_caches.get_mut()[index as usize] = None;
+        self.paint_caches[index as usize].clear();
     }
 
     pub fn layout_node_freed(&mut self, layout_slot_index: u32) {
@@ -222,9 +223,7 @@ impl PaintableArena {
         if !self.is_live(id) {
             return;
         }
-        if let Some(entry) = self.paint_caches.borrow_mut().get_mut(id.slot_index() as usize) {
-            *entry = None;
-        }
+        self.paint_caches[id.slot_index() as usize].clear();
     }
 
     pub(crate) fn invalidate_propagated_text_decoration_caches(
@@ -240,7 +239,6 @@ impl PaintableArena {
         if let Some(first_child) = self.first_child(root) {
             stack.push(first_child);
         }
-        let mut caches = self.paint_caches.borrow_mut();
         while let Some(current) = stack.pop() {
             if let Some(next_sibling) = self.next_sibling(current) {
                 stack.push(next_sibling);
@@ -251,10 +249,8 @@ impl PaintableArena {
                 continue;
             }
             // Only fragment-painting paintables record propagated decorations.
-            if (data.kind.has_lines() || data.kind == PaintableKind::InlinePaintable)
-                && let Some(entry) = caches.get_mut(current.slot_index() as usize)
-            {
-                *entry = None;
+            if data.kind.has_lines() || data.kind == PaintableKind::InlinePaintable {
+                self.paint_caches[current.slot_index() as usize].clear();
             }
             if let Some(first_child) = self.first_child(current) {
                 stack.push(first_child);
@@ -406,7 +402,7 @@ impl PaintableArena {
             data.svg_viewport_transform = crate::layout::FfiAffineTransform::default();
             data.has_svg_viewport_transform = false;
         });
-        self.paint_caches.get_mut()[id.slot_index() as usize] = None;
+        self.paint_caches[id.slot_index() as usize].clear();
         self.side_mut(id).reset_for_relayout();
     }
 }

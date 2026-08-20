@@ -632,9 +632,8 @@ impl PaintRecorder<'_> {
         phase_has_empty_effective_clip: bool,
     ) -> Option<(Rc<RecordingOutput>, crate::painting::record::cache::CachedCommands)> {
         let source = self.command_cache_source.as_ref()?;
-        let caches = self.paintables.paint_caches.borrow();
-        let cache = caches.get(paintable.slot_index() as usize)?.as_ref()?;
-        let entry = cache.entry(phase).commands?;
+        let cache = self.paintables.paint_caches.get(paintable.slot_index() as usize)?;
+        let entry = cache.commands(phase)?;
         if entry.source_display_list_id != source.id
             || entry.captured_under_empty_effective_clip != phase_has_empty_effective_clip
         {
@@ -651,9 +650,8 @@ impl PaintRecorder<'_> {
         for_descendants_index: usize,
     ) -> Option<(Rc<Vec<HitTestItem>>, usize, usize)> {
         let source = self.item_cache_source.as_ref()?;
-        let caches = self.paintables.paint_caches.borrow();
-        let cache = caches.get(paintable.slot_index() as usize)?.as_ref()?;
-        let entry = cache.entry(phase).hit_test_items?;
+        let cache = self.paintables.paint_caches.get(paintable.slot_index() as usize)?;
+        let entry = cache.hit_test_items(phase)?;
         if entry.source_hit_test_display_list_id != source.id
             || entry.recorded_context_index != own_index
             || entry.recorded_context_for_descendants_index != for_descendants_index
@@ -671,14 +669,16 @@ impl PaintRecorder<'_> {
         recorded_context_index: usize,
         captured_under_empty_effective_clip: bool,
     ) {
-        let mut caches = self.paintables.paint_caches.borrow_mut();
-        let cache = caches[paintable.slot_index() as usize].get_or_insert_with(Default::default);
-        cache.entry_mut(phase).commands = Some(crate::painting::record::cache::CachedCommands {
-            source_display_list_id: self.display_list_id,
-            range,
-            recorded_context_index,
-            captured_under_empty_effective_clip,
-        });
+        let cache = &self.paintables.paint_caches[paintable.slot_index() as usize];
+        cache.set_commands(
+            phase,
+            crate::painting::record::cache::CachedCommands {
+                source_display_list_id: self.display_list_id,
+                range,
+                recorded_context_index,
+                captured_under_empty_effective_clip,
+            },
+        );
     }
 
     fn set_cached_hit_test_items(
@@ -690,15 +690,17 @@ impl PaintRecorder<'_> {
         recorded_context_index: usize,
         recorded_context_for_descendants_index: usize,
     ) {
-        let mut caches = self.paintables.paint_caches.borrow_mut();
-        let cache = caches[paintable.slot_index() as usize].get_or_insert_with(Default::default);
-        cache.entry_mut(phase).hit_test_items = Some(crate::painting::record::cache::CachedHitTestItems {
-            source_hit_test_display_list_id: self.hit_test_list_generation,
-            start: start as u32,
-            count: count as u32,
-            recorded_context_index,
-            recorded_context_for_descendants_index,
-        });
+        let cache = &self.paintables.paint_caches[paintable.slot_index() as usize];
+        cache.set_hit_test_items(
+            phase,
+            crate::painting::record::cache::CachedHitTestItems {
+                source_hit_test_display_list_id: self.hit_test_list_generation,
+                start: start as u32,
+                count: count as u32,
+                recorded_context_index,
+                recorded_context_for_descendants_index,
+            },
+        );
     }
 
     fn paint(&mut self, paintable: PaintableSlotId, phase: PaintPhase) {
