@@ -55,6 +55,7 @@ public:
     virtual NonnullOwnPtr<PathImpl> copy_transformed(Gfx::AffineTransform const&) const = 0;
     virtual NonnullOwnPtr<PathImpl> place_text_along(Utf8View const& text, Font const&, float offset = 0) const = 0;
     virtual NonnullOwnPtr<PathImpl> place_text_along(Utf16View const& text, Font const&, float offset = 0) const = 0;
+    virtual NonnullOwnPtr<PathImpl> place_glyph_runs_along(ReadonlySpan<NonnullRefPtr<GlyphRun>>, float offset = 0) const = 0;
 
     virtual String to_svg_string() const = 0;
 };
@@ -125,6 +126,7 @@ public:
     Gfx::Path copy_transformed(Gfx::AffineTransform const& transform) const { return Gfx::Path { impl().copy_transformed(transform) }; }
     Gfx::Path place_text_along(Utf8View const& text, Font const& font, float offset = 0) const { return Gfx::Path { impl().place_text_along(text, font, offset) }; }
     Gfx::Path place_text_along(Utf16View const& text, Font const& font, float offset = 0) const { return Gfx::Path { impl().place_text_along(text, font, offset) }; }
+    Gfx::Path place_glyph_runs_along(ReadonlySpan<NonnullRefPtr<GlyphRun>> glyph_runs, float offset = 0) const { return Gfx::Path { impl().place_glyph_runs_along(glyph_runs, offset) }; }
 
     String to_svg_string() const { return impl().to_svg_string(); }
 

@@ -192,8 +192,11 @@ static Utf16String rendered_svg_text_contents(SVG::SVGTextContentElement const& 
 // The advance of the text run rendered by the given box; that is, of its direct child text content.
 static float svg_text_run_advance(Box const& text_box)
 {
-    // FIXME: Use per-code-point fonts.
-    return text_box.first_available_font().width(static_cast<SVG::SVGTextContentElement const&>(*text_box.dom_node()).text_contents());
+    auto text_contents = static_cast<SVG::SVGTextContentElement const&>(*text_box.dom_node()).text_contents();
+    float advance = 0;
+    for (auto const& glyph_run : Gfx::shape_text({}, text_contents, text_box.font_list()))
+        advance += glyph_run->width();
+    return advance;
 }
 
 // https://svgwg.org/svg2-draft/text.html#TermTextChunk
@@ -255,17 +258,17 @@ static SvgTextChunkMeasurement measure_svg_text_chunk(Box const& chunk_start_box
 static Gfx::Path compute_path_for_svg_text(Box const& text_box, Gfx::FloatPoint current_text_position)
 {
     auto const& text_element = static_cast<SVG::SVGTextContentElement const&>(*text_box.dom_node());
-    // FIXME: Use per-code-point fonts.
-    auto& font = text_box.first_available_font();
     auto text_contents = text_element.text_contents();
 
     auto text_offset = current_text_position;
     auto baseline_metric = resolve_dominant_baseline_metric(text_box);
-    text_offset.translate_by(0, dominant_baseline_offset(baseline_metric, font.pixel_metrics()));
+    // NB: The dominant-baseline offset is resolved against the metrics of the first available font — while each glyph
+    //     is rendered with the first font in the cascade that contains its code point.
+    text_offset.translate_by(0, dominant_baseline_offset(baseline_metric, text_box.first_available_font().pixel_metrics()));
 
     Gfx::Path path;
-    path.move_to(text_offset);
-    path.text(text_contents, font);
+    for (auto const& glyph_run : Gfx::shape_text(text_offset, text_contents, text_box.font_list()))
+        path.glyph_run(glyph_run);
     return path;
 }
 
@@ -276,16 +279,17 @@ static Gfx::Path compute_path_for_svg_text_path(Box const& text_path_box, CSSPix
     if (!path_or_shape)
         return {};
 
-    // FIXME: Use per-code-point fonts.
-    auto& font = text_path_box.first_available_font();
     auto text_contents = rendered_svg_text_contents(text_path_element);
+    auto glyph_runs = Gfx::shape_text({}, text_contents, text_path_box.font_list());
 
     auto& shape_element = const_cast<SVG::SVGGeometryElement&>(*path_or_shape);
     auto shape_path = shape_element.get_path(viewport_size, *shape_element.computed_style());
     auto start_offset = text_path_element.start_offset_for_path_length(shape_path.length());
 
     // FIXME: Take writing mode and text direction into account.
-    auto total_advance = font.width(text_contents);
+    float total_advance = 0;
+    for (auto const& glyph_run : glyph_runs)
+        total_advance += glyph_run->width();
     switch (text_path_element.text_anchor().value_or(SVG::TextAnchor::Start)) {
     case SVG::TextAnchor::Start:
         break;
@@ -299,7 +303,7 @@ static Gfx::Path compute_path_for_svg_text_path(Box const& text_path_box, CSSPix
         VERIFY_NOT_REACHED();
     }
 
-    return shape_path.place_text_along(text_contents, font, start_offset);
+    return shape_path.place_glyph_runs_along(glyph_runs, start_offset);
 }
 
 static RustFFI::FfiSvgPathResult compute_svg_path(NodeWithStyle const& node, RustFFI::FfiSvgPathRequest const& request)
