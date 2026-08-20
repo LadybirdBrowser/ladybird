@@ -84,7 +84,7 @@ pub(crate) fn caret_rect_in_dom_range(
     let mut rect = None;
     text_fragment::for_each_fragment_of_nodes(layout_arena, paintables, node_slots, |_, _, fragment| {
         let dom_start = fragment.dom_start_offset_in_node;
-        let dom_end = dom_start + fragment.length_in_code_units;
+        let dom_end = fragment.dom_end_offset_in_node;
         if offset < dom_start || offset > dom_end {
             return true;
         }

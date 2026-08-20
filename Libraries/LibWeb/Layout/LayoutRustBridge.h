@@ -73,3 +73,5 @@ extern "C" WEB_API bool ladybird_layout_code_point_has_break_all_line_break_clas
 extern "C" WEB_API bool ladybird_layout_code_point_has_keep_all_line_break_class(u32);
 extern "C" WEB_API bool ladybird_layout_code_point_has_combining_mark_line_break_class(u32);
 extern "C" WEB_API bool ladybird_layout_code_point_has_emoji_property(u32);
+extern "C" WEB_API size_t ladybird_layout_text_node_dom_offset_for_rendered_text_offset(void*, size_t, bool use_end_boundary);
+extern "C" WEB_API size_t ladybird_layout_text_node_rendered_text_offset_for_dom_offset(void*, size_t, bool use_end_boundary);

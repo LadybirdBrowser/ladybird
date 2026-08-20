@@ -49,7 +49,7 @@ include!("used_values.rs");
 use crate::layout::layout_node_arena::IntrinsicInlineSizeMeasurement;
 use crate::layout::layout_node_arena::IntrinsicSizeCacheKey;
 use crate::layout::layout_node_arena::IntrinsicSizeCacheKind;
-pub(crate) use crate::layout::layout_node_arena::LayoutNodeArena;
+pub(crate) use crate::layout::layout_node_arena::{LayoutNodeArena, RenderedTextBoundary};
 pub use crate::layout::node_data::FfiReplacedContentFacts;
 pub use crate::layout::node_data::FfiStylePayloads;
 use crate::layout::node_data::NodeData;

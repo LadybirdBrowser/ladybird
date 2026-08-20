@@ -15,6 +15,25 @@ use std::cell::Cell;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::c_void;
+
+unsafe extern "C" {
+    fn ladybird_layout_text_node_dom_offset_for_rendered_text_offset(
+        node: *mut c_void,
+        offset: usize,
+        use_end_boundary: bool,
+    ) -> usize;
+    fn ladybird_layout_text_node_rendered_text_offset_for_dom_offset(
+        node: *mut c_void,
+        offset: usize,
+        use_end_boundary: bool,
+    ) -> usize;
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum RenderedTextBoundary {
+    Start,
+    End,
+}
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::thread;
@@ -1549,6 +1568,46 @@ impl LayoutNodeArena {
         }
         // SAFETY: The metadata check established a live slot of this generation.
         unsafe { (*self.data(id)).shell }
+    }
+
+    pub(crate) fn dom_offset_for_rendered_text_offset(
+        &self,
+        id: NodeSlotId,
+        offset: usize,
+        boundary: RenderedTextBoundary,
+    ) -> usize {
+        let shell = self.shell_if_live(id);
+        if shell.is_null() || !self.node_kind_if_live(id).is_some_and(crate::layout::kind_is_text) {
+            return offset;
+        }
+        // SAFETY: shell_if_live() returned the live C++ TextNode corresponding to this text layout node.
+        unsafe {
+            ladybird_layout_text_node_dom_offset_for_rendered_text_offset(
+                shell,
+                offset,
+                matches!(boundary, RenderedTextBoundary::End),
+            )
+        }
+    }
+
+    pub(crate) fn rendered_text_offset_for_dom_offset(
+        &self,
+        id: NodeSlotId,
+        offset: usize,
+        boundary: RenderedTextBoundary,
+    ) -> usize {
+        let shell = self.shell_if_live(id);
+        if shell.is_null() || !self.node_kind_if_live(id).is_some_and(crate::layout::kind_is_text) {
+            return offset;
+        }
+        // SAFETY: shell_if_live() returned the live C++ TextNode corresponding to this text layout node.
+        unsafe {
+            ladybird_layout_text_node_rendered_text_offset_for_dom_offset(
+                shell,
+                offset,
+                matches!(boundary, RenderedTextBoundary::End),
+            )
+        }
     }
 
     pub(crate) unsafe fn from_handle<'a>(arena: *mut c_void) -> &'a Self {
