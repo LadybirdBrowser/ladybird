@@ -7,6 +7,7 @@
 pub mod border_radii;
 mod devtools_layout;
 pub mod display_list;
+mod dump;
 pub mod ffi;
 pub mod fragment_ownership;
 pub mod hit_test;

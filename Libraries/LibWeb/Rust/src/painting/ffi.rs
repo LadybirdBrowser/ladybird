@@ -933,6 +933,67 @@ pub unsafe extern "C" fn layout_arena_paintable_computed_svg_path(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_dump_block_fragments(
+    arena: *mut c_void,
+    paintable: PaintableSlotId,
+    indent: usize,
+    interactive: bool,
+    context: *mut c_void,
+    consume: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if !paintables.is_live(paintable) {
+            return;
+        }
+        let mut out = Vec::new();
+        crate::painting::dump::dump_block_fragments(&mut out, arena, &paintables, paintable, indent, interactive);
+        if !out.is_empty() {
+            // SAFETY: The consumer copies the byte span synchronously.
+            unsafe { consume(context, out.as_ptr(), out.len()) };
+        }
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_dump_inline_piece_fragments(
+    arena: *mut c_void,
+    inline_paintable: PaintableSlotId,
+    indent: usize,
+    interactive: bool,
+    context: *mut c_void,
+    consume: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if !paintables.is_live(inline_paintable) {
+            return;
+        }
+        let mut out = Vec::new();
+        crate::painting::dump::dump_inline_piece_fragments(
+            &mut out,
+            arena,
+            &paintables,
+            inline_paintable,
+            indent,
+            interactive,
+        );
+        if !out.is_empty() {
+            // SAFETY: The consumer copies the byte span synchronously.
+            unsafe { consume(context, out.as_ptr(), out.len()) };
+        }
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_grid_layout_json(
     arena: *mut c_void,
     paintable: PaintableSlotId,
