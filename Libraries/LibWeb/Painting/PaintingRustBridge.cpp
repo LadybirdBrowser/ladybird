@@ -964,21 +964,9 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                     Layout::RustFFI::layout_arena_paint_push_text_shadow(sink, ffi_layer);
                 }
             } },
-        .glyph_run_facts = [](void* context_pointer, void* paintable_shell, u32 fragment_index, double scale) -> Layout::RustFFI::FfiGlyphRunFacts {
+        .register_font = [](void* context_pointer, void const* font) -> u64 {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
-            auto const& block = as<PaintableWithLines>(*static_cast<Paintable const*>(paintable_shell));
-            Layout::RustFFI::FfiGlyphRunFacts facts {};
-            auto const& fragment = block.fragments()[fragment_index];
-            auto glyph_run = fragment.glyph_run();
-            if (!glyph_run)
-                return facts;
-            auto bounds = glyph_run->bounding_box(static_cast<float>(scale));
-            facts.blob_bounds[0] = bounds.x();
-            facts.blob_bounds[1] = bounds.y();
-            facts.blob_bounds[2] = bounds.width();
-            facts.blob_bounds[3] = bounds.height();
-            facts.font_id = context.resource_storage.add_font(glyph_run->font()).value();
-            return facts;
+            return context.resource_storage.add_font(*static_cast<Gfx::Font const*>(font)).value();
         },
         .cursor_facts = [](void*, void* paintable_shell, void* owner_shell) -> Layout::RustFFI::FfiCursorFacts {
             auto const& paintable = *static_cast<Paintable const*>(paintable_shell);
@@ -995,13 +983,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             facts.color = caret->color.value();
             return facts;
         },
-        .glyph_intercepts = [](void*, void* paintable_shell, u32 fragment_index, double scale, float y_top, float y_bottom, void* sink) {
-            auto const& block = as<PaintableWithLines>(*static_cast<Paintable const*>(paintable_shell));
-            auto glyph_run = block.fragments()[fragment_index].glyph_run();
-            if (!glyph_run)
-                return;
-            for (auto value : glyph_run->get_glyph_intercepts(static_cast<float>(scale), y_top, y_bottom))
-                Layout::RustFFI::layout_arena_paint_push_glyph_intercept(sink, value); },
         .layer_image_prepare = [](void*, void* paintable_shell, Layout::RustFFI::FfiLayerImageList list, u32 computed_index) -> Layout::RustFFI::FfiLayerImagePrepareFacts {
             auto const& paintable = *static_cast<Paintable const*>(paintable_shell);
             Layout::RustFFI::FfiLayerImagePrepareFacts facts {};

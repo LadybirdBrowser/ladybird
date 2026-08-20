@@ -186,6 +186,7 @@ fn commit_subtree(
         paintables.set_box_metrics(paintable_slot, &box_metrics);
 
         if !reuses_committed_subtree && let Some(line_data) = &fragment.line_data {
+            let rust_has_pending_inline_box_geometry = paintables.set_line_data(paintable_slot, line_data, fragment.content_inline_size);
             // SAFETY: The sink keeps one line accumulator live between
             // begin_line_data() and finish_line_data().
             let accepts_lines = unsafe { (sink.begin_line_data)(sink.context, paintable) };
@@ -196,13 +197,12 @@ fn commit_subtree(
                     emit_fragment: sink.emit_fragment,
                     emit_inline_box_piece: sink.emit_inline_box_piece,
                 };
-                push_line_data(line_data, fragment.content_inline_size, callbacks, line_sink);
+                paintables.push_committed_line_data(paintable_slot, line_sink);
                 unsafe {
                     (sink.finish_line_data)(sink.context);
                 }
                 has_pending_inline_box_geometry = !line_data.inline_box_pieces.is_empty();
             }
-            let rust_has_pending_inline_box_geometry = paintables.set_line_data(paintable_slot, line_data, fragment.content_inline_size);
             debug_assert_eq!(rust_has_pending_inline_box_geometry, has_pending_inline_box_geometry, "Rust and C++ disagree on which paintables take lines");
         }
 

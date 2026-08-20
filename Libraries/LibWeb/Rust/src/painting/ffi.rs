@@ -820,18 +820,6 @@ pub unsafe extern "C" fn layout_arena_paint_push_overlay_glyph(sink: *mut c_void
 
 /// # Safety
 ///
-/// `sink` must be the pointer handed to the callback, used synchronously.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paint_push_glyph_intercept(sink: *mut c_void, value: f32) {
-    abort_on_panic(|| {
-        // SAFETY: `sink` is the Vec pointer handed out by FfiPaintHostCallbacks::glyph_intercepts.
-        let intercepts = unsafe { &mut *sink.cast::<Vec<f32>>() };
-        intercepts.push(value);
-    });
-}
-
-/// # Safety
-///
 /// `tree` must be the pointer handed to the callback, used synchronously.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_visual_context_tree_node_count(tree: *const c_void) -> usize {

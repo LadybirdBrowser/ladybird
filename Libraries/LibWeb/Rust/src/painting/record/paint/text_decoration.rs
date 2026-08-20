@@ -289,12 +289,12 @@ fn compute_skip_ink_segments(
     font_size: f32,
 ) -> Vec<DecorationSegment> {
     let fragment = &recorder.paintables.side(block).fragments[fragment_index as usize];
-    if fragment.glyph_run.is_none() {
+    let Some(run) = &fragment.glyph_run else {
         return vec![DecorationSegment {
             start_x: span_start_x,
             end_x: span_end_x,
         }];
-    }
+    };
     // The text blob is drawn at baseline_start on the canvas. Compute that same origin so we can convert between
     // device-pixel coordinates and blob-local coordinates.
     let scale = recorder.inputs.device_pixels_per_css_pixel;
@@ -308,9 +308,7 @@ fn compute_skip_ink_segments(
     let y_top = line_y as f32 - half_thickness - blob_origin_y;
     let y_bottom = line_y as f32 + half_thickness - blob_origin_y;
 
-    let intervals = recorder
-        .paint_host
-        .glyph_intercepts(recorder.shell(block), fragment_index, scale, y_top, y_bottom);
+    let intervals = run.retained.glyph_intercepts(scale as f32, y_top, y_bottom);
     if intervals.is_empty() {
         return vec![DecorationSegment {
             start_x: span_start_x,

@@ -114,6 +114,7 @@ pub(crate) fn record_display_list(
         base_paint_facts_cache: vec![None; paintables.slot_count()],
         paintable_facts_cache: vec![None; paintables.slot_count()],
         text_node_facts_cache: HashMap::new(),
+        font_resource_id_cache: HashMap::new(),
         wheel_hit_test_target_cache: HashMap::new(),
     };
     let int_rect = |values: [i32; 4]| libgfx_rust::IntRect::new(values[0], values[1], values[2], values[3]);

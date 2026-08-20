@@ -30,11 +30,12 @@ public:
         u32 line_index;
         size_t start_offset;
         size_t length_in_code_units;
+        size_t dom_start_offset_in_node;
+        size_t trailing_whitespace_length_in_code_units;
         RefPtr<Gfx::GlyphRun> glyph_run;
         CSSPixels baseline;
         CSSPixels accumulated_vertical_shift;
         CSS::WritingMode writing_mode;
-        bool has_trailing_whitespace;
     };
     PaintableFragment(PaintableWithLines const&, Fields);
 

@@ -797,20 +797,13 @@ fn append_text_clip_paths(recorder: &mut PaintRecorder<'_>, paintable: Paintable
         let fragment_absolute_rect =
             crate::painting::text_fragment::absolute_rect(recorder.layout_arena, recorder.paintables, fragment);
         let fragment_absolute_device_rect = converter.enclosing_device_rect(fragment_absolute_rect);
-        let facts = recorder
-            .paint_host
-            .glyph_run_facts(recorder.shell(owner), fragment_index as u32, scale);
-        let emission = crate::painting::record::paint::text::glyph_run_emission(
-            fragment,
-            run,
-            &facts,
-            fragment_absolute_rect,
-            scale,
-        );
+        let font_id = recorder.register_font(run.font.as_raw());
+        let emission =
+            crate::painting::record::paint::text::glyph_run_emission(fragment, run, fragment_absolute_rect, scale);
         recorder.recorder.draw_glyph_run(
             emission.baseline_start,
             crate::painting::display_list::recorder::GlyphRunForRecording {
-                font_id: crate::painting::display_list::commands::FontResourceId(facts.font_id),
+                font_id: crate::painting::display_list::commands::FontResourceId(font_id),
                 glyphs: &emission.glyphs,
             },
             libgfx_rust::Color::from_rgb(0, 0, 0),
