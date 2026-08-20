@@ -4,37 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/QuickSort.h>
 #include <AK/Utf16View.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/GraphemeEdgeTracker.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TextOffsetMapping.h>
-#include <LibWeb/Painting/PaintableFragment.h>
-#include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/VisualLines.h>
 
 namespace Web {
-
-bool white_space_preserves_newlines(Layout::TextNode const& layout_node)
-{
-    return first_is_one_of(layout_node.parent()->white_space_collapse(),
-        CSS::WhiteSpaceCollapse::Preserve, CSS::WhiteSpaceCollapse::PreserveBreaks);
-}
-
-bool text_contains_empty_visual_line_positions(Utf16View const& text)
-{
-    auto length = text.length_in_code_units();
-    for (size_t i = 0; i < length; ++i) {
-        if (text.code_unit_at(i) != '\n')
-            continue;
-        auto position = i + 1;
-        if (position == length || text.code_unit_at(position) == '\n')
-            return true;
-    }
-    return false;
-}
 
 Vector<VisualLine> collect_visual_lines(DOM::Text const& dom_node)
 {
@@ -44,38 +22,18 @@ Vector<VisualLine> collect_visual_lines(DOM::Text const& dom_node)
     if (!layout_node)
         return lines;
 
-    Layout::TextOffsetMapping mapping { dom_node };
-    mapping.for_each_paintable_fragment([&](Painting::PaintableFragment const& fragment) {
-        if (!lines.is_empty()
-            && !lines.last().fragments.is_empty()
-            && &lines.last().fragments.last()->paintable_with_lines() == &fragment.paintable_with_lines()
-            && lines.last().fragments.last()->line_index() == fragment.line_index()) {
-            auto& line = lines.last();
-            line.start_offset = min(line.start_offset, fragment.dom_start_offset_in_node());
-            line.end_offset = max(line.end_offset, fragment.dom_end_offset_in_node());
-            line.end_offset_with_trailing_whitespace = max(line.end_offset_with_trailing_whitespace, fragment.dom_end_offset_with_trailing_whitespace());
-            line.fragments.append(&fragment);
-        } else {
-            lines.append({ fragment.dom_start_offset_in_node(), fragment.dom_end_offset_in_node(), fragment.dom_end_offset_with_trailing_whitespace(), { &fragment } });
-        }
-        return TraversalDecision::Continue;
-    });
-
-    // Positions that render as empty lines (between two consecutive preserved newlines, or after a preserved newline
-    // at the very end of the text) have no fragments; add caret-only lines for them.
-    if (white_space_preserves_newlines(*layout_node)) {
-        auto text = dom_node.data().utf16_view();
-        auto length = text.length_in_code_units();
-        for (size_t i = 0; i < length; ++i) {
-            if (text.code_unit_at(i) != '\n')
-                continue;
-            auto position = i + 1;
-            if (position == length || text.code_unit_at(position) == '\n')
-                lines.append({ position, position, position, {} });
-        }
-    }
-
-    quick_sort(lines, [](auto const& a, auto const& b) { return a.start_offset < b.start_offset; });
+    auto slots = Layout::TextOffsetMapping { dom_node }.slot_ids();
+    Layout::RustFFI::layout_arena_text_visual_lines(layout_node->arena_handle(), slots.data(), slots.size(), &lines,
+        [](void* context, Layout::RustFFI::FfiVisualLine line) {
+            static_cast<Vector<VisualLine>*>(context)->append({
+                .start_offset = line.start_offset,
+                .end_offset = line.end_offset,
+                .end_offset_with_trailing_whitespace = line.end_offset_with_trailing_whitespace,
+                .has_fragments = line.has_fragments,
+                .owner_paintable = line.owner_paintable,
+                .line_index = line.line_index,
+            });
+        });
     return lines;
 }
 
@@ -152,44 +110,32 @@ static TextAffinity affinity_for_moving_right(Vector<VisualLine> const& lines, s
 
 // Returns the absolute inline-axis coordinate of the caret at the given offset, which must be on the given line.
 // Returns nothing for lines without rendered text, whose caret sits at the line's inline start.
-static Optional<CSSPixels> caret_inline_coordinate(VisualLine const& line, size_t offset)
+static Optional<CSSPixels> caret_inline_coordinate(DOM::Text const& dom_node, VisualLine const& line, size_t offset)
 {
-    if (line.fragments.is_empty())
+    if (!line.has_fragments)
         return {};
-
-    auto const* fragment = line.fragments.first();
-    for (auto const* candidate : line.fragments) {
-        if (offset >= candidate->dom_start_offset_in_node() && offset <= candidate->dom_end_offset_with_trailing_whitespace()) {
-            fragment = candidate;
-            break;
-        }
-        if (candidate->dom_start_offset_in_node() <= offset)
-            fragment = candidate;
-    }
-
-    auto clamped_offset = clamp(offset, fragment->dom_start_offset_in_node(), fragment->dom_end_offset_with_trailing_whitespace());
-    auto rect = fragment->range_rect(Painting::Paintable::SelectionState::StartAndEnd, clamped_offset, clamped_offset);
-    return rect.primary_offset_for_orientation(fragment->orientation());
+    auto const* layout_node = dom_node.unsafe_layout_node();
+    if (!layout_node)
+        return {};
+    auto slots = Layout::TextOffsetMapping { dom_node }.slot_ids();
+    auto result = Layout::RustFFI::layout_arena_visual_line_caret_inline_coordinate(
+        layout_node->arena_handle(), line.owner_paintable, line.line_index, slots.data(), slots.size(), offset);
+    if (!result.has_value)
+        return {};
+    return CSSPixels::from_raw(result.value);
 }
 
-static size_t offset_in_visual_line_closest_to_inline_coordinate(VisualLine const& line, Optional<CSSPixels> inline_coordinate)
+static size_t offset_in_visual_line_closest_to_inline_coordinate(DOM::Text const& dom_node, VisualLine const& line, Optional<CSSPixels> inline_coordinate)
 {
-    if (line.fragments.is_empty() || !inline_coordinate.has_value())
+    if (!line.has_fragments || !inline_coordinate.has_value())
         return line.start_offset;
-
-    // Pick the last fragment that starts at or before the coordinate; for coordinates before all fragments, the
-    // first fragment applies.
-    auto const* fragment = line.fragments.first();
-    for (auto const* candidate : line.fragments) {
-        auto inline_start = candidate->absolute_rect().primary_offset_for_orientation(candidate->orientation());
-        if (inline_start <= *inline_coordinate)
-            fragment = candidate;
-    }
-
-    auto rect = fragment->absolute_rect();
-    auto point = rect.center();
-    point.set_primary_offset_for_orientation(fragment->orientation(), max(rect.primary_offset_for_orientation(fragment->orientation()), *inline_coordinate));
-    return fragment->index_in_node_for_point(point);
+    auto const* layout_node = dom_node.unsafe_layout_node();
+    if (!layout_node)
+        return line.start_offset;
+    auto slots = Layout::TextOffsetMapping { dom_node }.slot_ids();
+    return Layout::RustFFI::layout_arena_visual_line_offset_closest_to_inline_coordinate(
+        layout_node->arena_handle(), line.owner_paintable, line.line_index, slots.data(), slots.size(),
+        inline_coordinate->raw_value(), line.start_offset);
 }
 
 Optional<CursorLinePosition> compute_cursor_position_on_next_line(DOM::Text const& dom_node, size_t current_offset, TextAffinity affinity)
@@ -205,8 +151,8 @@ Optional<CursorLinePosition> compute_cursor_position_on_next_line(DOM::Text cons
     if (!line_index.has_value() || *line_index + 1 >= lines.size())
         return CursorLinePosition { dom_node.data().length_in_code_units(), TextAffinity::Downstream };
 
-    auto inline_coordinate = caret_inline_coordinate(lines[*line_index], current_offset);
-    auto new_offset = offset_in_visual_line_closest_to_inline_coordinate(lines[*line_index + 1], inline_coordinate);
+    auto inline_coordinate = caret_inline_coordinate(dom_node, lines[*line_index], current_offset);
+    auto new_offset = offset_in_visual_line_closest_to_inline_coordinate(dom_node, lines[*line_index + 1], inline_coordinate);
     return CursorLinePosition { new_offset, affinity_for_offset_on_line(lines, *line_index + 1, new_offset) };
 }
 
@@ -223,8 +169,8 @@ Optional<CursorLinePosition> compute_cursor_position_on_previous_line(DOM::Text 
     if (!line_index.has_value() || *line_index == 0)
         return CursorLinePosition { 0, TextAffinity::Downstream };
 
-    auto inline_coordinate = caret_inline_coordinate(lines[*line_index], current_offset);
-    auto new_offset = offset_in_visual_line_closest_to_inline_coordinate(lines[*line_index - 1], inline_coordinate);
+    auto inline_coordinate = caret_inline_coordinate(dom_node, lines[*line_index], current_offset);
+    auto new_offset = offset_in_visual_line_closest_to_inline_coordinate(dom_node, lines[*line_index - 1], inline_coordinate);
     return CursorLinePosition { new_offset, affinity_for_offset_on_line(lines, *line_index - 1, new_offset) };
 }
 
@@ -256,27 +202,13 @@ Optional<CursorLinePosition> compute_cursor_position_on_previous_character(DOM::
     return CursorLinePosition { *previous_offset, TextAffinity::Downstream };
 }
 
-bool offset_is_on_first_visual_line(DOM::Text const& dom_node, size_t offset, TextAffinity affinity)
-{
-    auto lines = visual_lines_with_up_to_date_layout(dom_node);
-    auto line_index = visual_line_index_for_offset(lines, offset, affinity);
-    return !line_index.has_value() || *line_index == 0;
-}
-
-bool offset_is_on_last_visual_line(DOM::Text const& dom_node, size_t offset, TextAffinity affinity)
-{
-    auto lines = visual_lines_with_up_to_date_layout(dom_node);
-    auto line_index = visual_line_index_for_offset(lines, offset, affinity);
-    return !line_index.has_value() || *line_index + 1 >= lines.size();
-}
-
 Optional<CSSPixels> cursor_inline_coordinate(DOM::Text const& dom_node, size_t offset, TextAffinity affinity)
 {
     auto lines = visual_lines_with_up_to_date_layout(dom_node);
     auto line_index = visual_line_index_for_offset(lines, offset, affinity);
     if (!line_index.has_value())
         return {};
-    return caret_inline_coordinate(lines[*line_index], offset);
+    return caret_inline_coordinate(dom_node, lines[*line_index], offset);
 }
 
 Optional<CursorLinePosition> cursor_position_at_visual_start(DOM::Text const& dom_node)
@@ -302,7 +234,7 @@ Optional<CursorLinePosition> cursor_position_on_first_line_closest_to(DOM::Text 
     auto lines = visual_lines_with_up_to_date_layout(dom_node);
     if (lines.is_empty())
         return {};
-    auto offset = offset_in_visual_line_closest_to_inline_coordinate(lines.first(), inline_coordinate);
+    auto offset = offset_in_visual_line_closest_to_inline_coordinate(dom_node, lines.first(), inline_coordinate);
     return CursorLinePosition { offset, affinity_for_offset_on_line(lines, 0, offset) };
 }
 
@@ -311,7 +243,7 @@ Optional<CursorLinePosition> cursor_position_on_last_line_closest_to(DOM::Text c
     auto lines = visual_lines_with_up_to_date_layout(dom_node);
     if (lines.is_empty())
         return {};
-    auto offset = offset_in_visual_line_closest_to_inline_coordinate(lines.last(), inline_coordinate);
+    auto offset = offset_in_visual_line_closest_to_inline_coordinate(dom_node, lines.last(), inline_coordinate);
     return CursorLinePosition { offset, affinity_for_offset_on_line(lines, lines.size() - 1, offset) };
 }
 

@@ -23,7 +23,9 @@ struct VisualLine {
     size_t start_offset { 0 };
     size_t end_offset { 0 };
     size_t end_offset_with_trailing_whitespace { 0 };
-    Vector<Painting::PaintableFragment const*, 1> fragments;
+    bool has_fragments { false };
+    u32 owner_paintable { 0 };
+    u32 line_index { 0 };
 };
 
 // NB: Layout must be up to date when calling this.
@@ -48,11 +50,6 @@ size_t find_visual_line_start(DOM::Text const&, size_t offset, TextAffinity);
 CursorLinePosition find_visual_line_end(DOM::Text const&, size_t offset, TextAffinity);
 
 // Helpers for caret navigation across node boundaries.
-
-// Whether the offset renders on the first/last visual line of the text.
-bool offset_is_on_first_visual_line(DOM::Text const&, size_t offset, TextAffinity);
-bool offset_is_on_last_visual_line(DOM::Text const&, size_t offset, TextAffinity);
-
 // The absolute inline-axis coordinate of the caret at the given offset, used to keep the caret column when moving
 // between lines. Returns nothing for positions on lines without rendered text.
 Optional<CSSPixels> cursor_inline_coordinate(DOM::Text const&, size_t offset, TextAffinity);
@@ -66,10 +63,6 @@ Optional<CursorLinePosition> cursor_position_at_visual_end(DOM::Text const&);
 Optional<CursorLinePosition> cursor_position_on_first_line_closest_to(DOM::Text const&, Optional<CSSPixels> inline_coordinate);
 Optional<CursorLinePosition> cursor_position_on_last_line_closest_to(DOM::Text const&, Optional<CSSPixels> inline_coordinate);
 
-bool white_space_preserves_newlines(Layout::TextNode const&);
-
 // Whether any position in the text renders as an empty visual line (between two consecutive newlines, or after a
-// newline at the very end of the text), assuming newlines are preserved.
-bool text_contains_empty_visual_line_positions(Utf16View const&);
 
 }

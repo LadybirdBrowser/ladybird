@@ -45,7 +45,7 @@ static WordSegmentKind word_segment_kind(Utf16View const& segment)
 static bool text_node_has_rendered_text(DOM::Text const& text)
 {
     for (auto const& line : collect_visual_lines(text)) {
-        if (!line.fragments.is_empty())
+        if (line.has_fragments)
             return true;
     }
     return false;
@@ -100,25 +100,21 @@ static bool boundary_visual_lines_share_line(DOM::Text const& before, DOM::Text 
 {
     auto before_lines = collect_visual_lines(before);
     auto after_lines = collect_visual_lines(after);
-    if (before_lines.is_empty() || before_lines.last().fragments.is_empty() || after_lines.is_empty() || after_lines.first().fragments.is_empty())
+    if (before_lines.is_empty() || !before_lines.last().has_fragments || after_lines.is_empty() || !after_lines.first().has_fragments)
         return false;
 
-    auto const& before_fragment = *before_lines.last().fragments.last();
-    auto const& after_fragment = *after_lines.first().fragments.first();
-    return &before_fragment.paintable_with_lines() == &after_fragment.paintable_with_lines()
-        && before_fragment.line_index() == after_fragment.line_index();
+    return before_lines.last().owner_paintable == after_lines.first().owner_paintable
+        && before_lines.last().line_index == after_lines.first().line_index;
 }
 
 static bool boundary_visual_lines_share_inline_context(DOM::Text const& before, DOM::Text const& after)
 {
     auto before_lines = collect_visual_lines(before);
     auto after_lines = collect_visual_lines(after);
-    if (before_lines.is_empty() || before_lines.last().fragments.is_empty() || after_lines.is_empty() || after_lines.first().fragments.is_empty())
+    if (before_lines.is_empty() || !before_lines.last().has_fragments || after_lines.is_empty() || !after_lines.first().has_fragments)
         return false;
 
-    auto const& before_fragment = *before_lines.last().fragments.last();
-    auto const& after_fragment = *after_lines.first().fragments.first();
-    return &before_fragment.paintable_with_lines() == &after_fragment.paintable_with_lines();
+    return before_lines.last().owner_paintable == after_lines.first().owner_paintable;
 }
 
 // Convert a text-edge destination to the equivalent boundary in its block. Chromium exposes this form when a vertical
