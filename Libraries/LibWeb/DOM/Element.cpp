@@ -2536,13 +2536,21 @@ CSSPixelRect Element::get_bounding_client_rect() const
     return bounding_rect_from_client_rects(get_client_rects());
 }
 
-static void append_transformed_border_box_rect(Vector<CSSPixelRect>& rects, Painting::Paintable const& paintable_box)
+enum class VisualContextTransform {
+    Apply,
+    Identity,
+};
+
+static void append_border_box_rect(Vector<CSSPixelRect>& rects, Painting::Paintable const& paintable_box, VisualContextTransform visual_context_transform)
 {
     auto absolute_rect = paintable_box.absolute_border_box_rect();
-    rects.append(paintable_box.transform_rect_to_viewport(absolute_rect, Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No));
+    if (visual_context_transform == VisualContextTransform::Identity)
+        rects.append(absolute_rect);
+    else
+        rects.append(paintable_box.transform_rect_to_viewport(absolute_rect, Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No));
 }
 
-static Vector<CSSPixelRect> compute_client_rects_assuming_layout_clean(Element const& element)
+static Vector<CSSPixelRect> compute_client_rects_assuming_layout_clean(Element const& element, VisualContextTransform visual_context_transform = VisualContextTransform::Apply)
 {
     // 1. If the element on which it was invoked does not have an associated layout box return an empty DOMRectList
     //    object and stop this algorithm.
@@ -2567,17 +2575,20 @@ static Vector<CSSPixelRect> compute_client_rects_assuming_layout_clean(Element c
             if (piece.is_geometry_only_placeholder)
                 return;
             auto absolute_rect = inline_paintable->absolute_piece_border_box_rect(piece);
-            rects.append(inline_paintable->transform_rect_to_viewport(absolute_rect, Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No));
+            if (visual_context_transform == VisualContextTransform::Identity)
+                rects.append(absolute_rect);
+            else
+                rects.append(inline_paintable->transform_rect_to_viewport(absolute_rect, Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No));
         });
         // An inline element whose content is only interrupting blocks generates no line fragments, but per CSSOM
         // we still report its (zero-sized) border area instead of an empty list.
         if (rects.is_empty())
-            append_transformed_border_box_rect(rects, *inline_paintable);
+            append_border_box_rect(rects, *inline_paintable, visual_context_transform);
         return rects;
     }
 
     if (auto paintable_box = element.paintable_box()) {
-        append_transformed_border_box_rect(rects, *paintable_box);
+        append_border_box_rect(rects, *paintable_box, visual_context_transform);
     } else if (element.paintable()) {
         dbgln("FIXME: Failed to get client rects for element ({})", element.debug_description());
     }
@@ -2597,6 +2608,9 @@ Vector<CSSPixelRect> Element::get_client_rects() const
 
     if (!layout_node())
         return {};
+
+    if (document().can_compute_client_rects_without_accumulated_visual_contexts_update())
+        return compute_client_rects_assuming_layout_clean(*this, VisualContextTransform::Identity);
 
     // NOTE: Make sure CSS transforms are resolved before they are used to calculate the rect position.
     const_cast<Document&>(document()).update_paint_and_hit_testing_properties_if_needed();
