@@ -1,2 +1,8 @@
 :is(hello, !?) -> :is(hello, !?)
 :is(what, :fake(:imaginary), really) -> :is(what, :fake(:imaginary), really)
+spaces -> ":is(:fake(:imaginary), .x)"
+tabs -> ":is(:fake(:imaginary), .x)"
+newlines -> ":is(:fake(:imaginary), .x)"
+comments -> ":is(:fake(:imaginary), .x)"
+mixed whitespace -> ":where(!?, .x)"
+only whitespace and comments -> ":is(, .x)"

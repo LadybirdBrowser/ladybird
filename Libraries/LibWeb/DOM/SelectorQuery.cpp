@@ -15,6 +15,7 @@
 #include <LibWeb/DOM/SelectorQuery.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/StaticNodeList.h>
+#include <LibWeb/SelectorRustFFI.h>
 
 namespace Web::DOM {
 
@@ -157,6 +158,8 @@ SelectorQuery::SelectorQuery(Document& document, CSS::SelectorList&& selectors)
     for (auto const& selector : m_selectors)
         selector_handles.unchecked_append(&selector->rust_selector());
     m_engine_query = document.style_computer().style_engine().compile_selector_query(selector_handles);
+    m_can_match_in_dom = m_selectors.size() == 1
+        && CSS::SelectorFFI::rust_selector_supports_simple_dom_matching(&m_selectors.first()->rust_selector());
 
     m_is_result_cacheable = true;
     for (auto const& selector : m_selectors) {
@@ -187,64 +190,48 @@ SelectorQuery::~SelectorQuery()
     CSS::StyleEngine::destroy_selector_query(m_engine_query);
 }
 
-bool SelectorQuery::can_match_simple_selector_in_dom() const
+static uintptr_t interned_name_identity(Utf16FlyString const& name)
 {
-    if (m_selectors.size() != 1)
-        return false;
-    auto const& compounds = m_selectors.first()->compound_selectors();
-    if (compounds.size() != 1 || compounds.first().simple_selectors.is_empty())
-        return false;
-    for (auto const& simple_selector : compounds.first().simple_selectors) {
-        if (simple_selector.type == CSS::Selector::SimpleSelector::Type::TagName) {
-            auto namespace_type = simple_selector.qualified_name().namespace_type;
-            if (namespace_type != CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Default
-                && namespace_type != CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Any)
-                return false;
-            continue;
-        }
-        if (simple_selector.type != CSS::Selector::SimpleSelector::Type::Id
-            && simple_selector.type != CSS::Selector::SimpleSelector::Type::Class)
-            return false;
-    }
-    return true;
+    return name.raw_identity();
 }
 
 bool SelectorQuery::matches_simple_selector_in_dom(Element const& element) const
 {
-    auto const& simple_selectors = m_selectors.first()->compound_selectors().first().simple_selectors;
-    auto case_sensitivity = element.document().in_quirks_mode() ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive;
-    for (auto const& simple_selector : simple_selectors) {
-        if (simple_selector.type == CSS::Selector::SimpleSelector::Type::Class) {
-            if (!element.has_class(simple_selector.class_name(), case_sensitivity))
-                return false;
-            continue;
-        }
-        if (simple_selector.type == CSS::Selector::SimpleSelector::Type::TagName) {
-            auto const& name = simple_selector.qualified_name().name.name;
-            if (element.is_html_element() && element.document().is_html_document()) {
-                if (!element.local_name().view().equals_ignoring_ascii_case(name.view()))
-                    return false;
-            } else if (element.local_name() != name) {
-                return false;
-            }
-            continue;
-        }
-        auto const& id = element.id();
-        if (!id.has_value())
-            return false;
-        if (case_sensitivity == CaseSensitivity::CaseInsensitive) {
-            if (!id->view().equals_ignoring_ascii_case(simple_selector.id_name().view()))
-                return false;
-        } else if (*id != simple_selector.id_name()) {
-            return false;
-        }
+    auto const& classes = element.class_names();
+    Vector<uintptr_t, 8> class_identities;
+    Vector<Utf16FlyString, 8> lowercase_classes;
+    Vector<uintptr_t, 8> lowercase_class_identities;
+    class_identities.ensure_capacity(classes.size());
+    for (auto const& class_name : classes)
+        class_identities.unchecked_append(interned_name_identity(class_name));
+    if (element.document().in_quirks_mode()) {
+        lowercase_classes.ensure_capacity(classes.size());
+        lowercase_class_identities.ensure_capacity(classes.size());
+        for (auto const& class_name : classes)
+            lowercase_classes.unchecked_append(class_name.to_ascii_lowercase());
+        for (auto const& class_name : lowercase_classes)
+            lowercase_class_identities.unchecked_append(interned_name_identity(class_name));
     }
-    return true;
+
+    auto id = element.id().value_or({});
+    auto result = CSS::SelectorFFI::rust_selector_matches_simple_dom(
+        &m_selectors.first()->rust_selector(),
+        interned_name_identity(element.local_name()),
+        interned_name_identity(element.lowercased_local_name()),
+        interned_name_identity(id),
+        interned_name_identity(id.to_ascii_lowercase()),
+        class_identities.data(),
+        lowercase_class_identities.data(),
+        class_identities.size(),
+        element.is_html_element() && element.document().is_html_document(),
+        element.document().in_quirks_mode());
+    VERIFY(result != NumericLimits<u8>::max());
+    return result != 0;
 }
 
 bool SelectorQuery::matches(Element const& element, ParentNode const& scope) const
 {
-    if (can_match_simple_selector_in_dom())
+    if (m_can_match_in_dom)
         return matches_simple_selector_in_dom(element);
 
     auto& document = const_cast<Document&>(element.document());
@@ -308,8 +295,10 @@ IsolatedSelectorQueryEngine& SelectorQuery::isolated_engine_for(ParentNode& root
 
 GC::Ptr<Element const> SelectorQuery::closest(Element const& element) const
 {
-    if (can_match_simple_selector_in_dom()) {
-        for (GC::Ptr<Element const> ancestor = &element; ancestor; ancestor = ancestor->parent_element()) {
+    if (m_can_match_in_dom) {
+        if (matches_simple_selector_in_dom(element))
+            return &element;
+        for (auto ancestor = element.parent_element(); ancestor; ancestor = ancestor->parent_element()) {
             if (matches_simple_selector_in_dom(*ancestor))
                 return ancestor;
         }

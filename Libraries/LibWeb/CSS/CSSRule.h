@@ -13,7 +13,7 @@
 #include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
-#include <LibWeb/CSS/Selector.h>
+#include <LibWeb/CSS/Parser/SourcePosition.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/Types.h>
 

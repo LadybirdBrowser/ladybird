@@ -9,6 +9,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::abort_on_panic;
 use crate::css::ffi_support::ascii_lowercase;
+use crate::css::retained_fly_string::RetainedUtf16FlyString;
 
 static NEXT_SELECTOR_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -33,7 +34,7 @@ pub enum Combinator {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
-// NB: Constructed by C++ through the FFI.
+// NB: The numeric values are part of the C++ FFI.
 #[allow(dead_code)]
 pub enum NamespaceType {
     Default,
@@ -48,27 +49,30 @@ pub struct QualifiedName {
     pub namespace: SelectorString,
     pub name: SelectorString,
     pub lowercase_name: SelectorString,
-    pub(crate) interned_name: Option<usize>,
-    pub(crate) interned_lowercase_name: Option<usize>,
-    pub(crate) interned_namespace: Option<usize>,
+    pub(crate) interned_name: Option<RetainedUtf16FlyString>,
+    pub(crate) interned_lowercase_name: Option<RetainedUtf16FlyString>,
+    pub(crate) interned_namespace: Option<RetainedUtf16FlyString>,
 }
 
 impl QualifiedName {
     #[must_use]
     pub fn interned_name_identity(&self) -> Option<usize> {
-        self.interned_name
+        self.interned_name.as_ref().map(RetainedUtf16FlyString::raw)
     }
 
     /// HTML elements in HTML documents match tag names case-insensitively, so the lowercase form is
     /// the identity a tag atom is keyed by.
     #[must_use]
     pub fn interned_lowercase_name_identity(&self) -> Option<usize> {
-        self.interned_lowercase_name.or(self.interned_name)
+        self.interned_lowercase_name
+            .as_ref()
+            .or(self.interned_name.as_ref())
+            .map(RetainedUtf16FlyString::raw)
     }
 
     #[must_use]
     pub fn interned_namespace_identity(&self) -> Option<usize> {
-        self.interned_namespace
+        self.interned_namespace.as_ref().map(RetainedUtf16FlyString::raw)
     }
 }
 
@@ -76,12 +80,12 @@ impl QualifiedName {
 pub struct NameSelector {
     pub name: SelectorString,
     /// The one-word identity of the C++ `Utf16FlyString` backing `name`. This is present for
-    /// selectors compiled from C++ and allows the live DOM wrapper to compare interned names
+    /// parsed selectors and allows the live DOM wrapper to compare interned names
     /// without crossing the FFI.
-    pub(crate) interned_name: Option<usize>,
+    pub(crate) interned_name: Option<RetainedUtf16FlyString>,
     /// The identity of that name's ASCII-lowercase folding. A quirks-mode document matches id and
     /// class selectors case-insensitively, so it is the identity such a document keys them by.
-    pub(crate) interned_lowercase_name: Option<usize>,
+    pub(crate) interned_lowercase_name: Option<RetainedUtf16FlyString>,
 }
 
 impl NameSelector {
@@ -89,19 +93,21 @@ impl NameSelector {
     /// compares against.
     #[must_use]
     pub fn interned_name_identity(&self) -> Option<usize> {
-        self.interned_name
+        self.interned_name.as_ref().map(RetainedUtf16FlyString::raw)
     }
 
     /// The interned identity of this name's ASCII-lowercase folding.
     #[must_use]
     pub fn interned_lowercase_name_identity(&self) -> Option<usize> {
-        self.interned_lowercase_name.or(self.interned_name)
+        self.interned_lowercase_name
+            .as_ref()
+            .or(self.interned_name.as_ref())
+            .map(RetainedUtf16FlyString::raw)
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
-// NB: Constructed by C++ through the FFI.
 #[allow(dead_code)]
 pub enum AttributeMatchType {
     HasAttribute,
@@ -115,7 +121,6 @@ pub enum AttributeMatchType {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
-// NB: Constructed by C++ through the FFI.
 #[allow(dead_code)]
 pub enum AttributeCaseType {
     Default,
@@ -128,7 +133,7 @@ pub struct AttributeSelector {
     pub match_type: AttributeMatchType,
     pub qualified_name: QualifiedName,
     pub value: SelectorString,
-    pub value_identity: Option<usize>,
+    pub value_identity: Option<RetainedUtf16FlyString>,
     pub case_type: AttributeCaseType,
 }
 
@@ -215,15 +220,21 @@ pub(crate) fn pseudo_element_type_from_code(value: u8) -> PseudoElementType {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LanguageRange {
+    pub value: SelectorString,
+    pub is_string: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PseudoClassSelector {
     pub pseudo_class: PseudoClassType,
     pub an_plus_b_pattern: AnPlusBPattern,
     pub argument_selector_list: SelectorList,
-    pub languages: Box<[SelectorString]>,
+    pub languages: Box<[LanguageRange]>,
     pub direction: Option<Direction>,
     pub identifier: Option<SelectorString>,
-    pub identifier_identity: Option<usize>,
-    pub identifier_lowercase_identity: Option<usize>,
+    pub identifier_identity: Option<RetainedUtf16FlyString>,
+    pub identifier_lowercase_identity: Option<RetainedUtf16FlyString>,
     pub levels: Box<[i64]>,
     pub is_forgiving: bool,
 }
@@ -243,7 +254,7 @@ pub struct PseudoElementSelector {
     pub value: PseudoElementValue,
     /// The interned identity of each name in `value`, when it holds identifiers, keyed by the same
     /// word the DOM side compares against.
-    pub identifier_identities: Box<[usize]>,
+    pub identifier_identities: Box<[RetainedUtf16FlyString]>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -446,103 +457,14 @@ impl CompiledSelector {
 }
 
 #[derive(Clone, Copy)]
-#[repr(u8)]
-// NB: Constructed by C++ through the FFI.
-#[allow(dead_code)]
-pub enum FfiSimpleSelectorType {
-    Universal,
-    TagName,
-    Id,
-    Class,
-    Attribute,
-    PseudoClass,
-    PseudoElement,
-    Nesting,
-    Invalid,
-}
-
-#[derive(Clone, Copy)]
-#[repr(u8)]
-// NB: Some variants are only constructed by C++ through the FFI.
-#[allow(dead_code)]
-pub enum FfiDirection {
-    None,
-    LeftToRight,
-    RightToLeft,
-    Other,
-}
-
-#[derive(Clone, Copy)]
-#[repr(u8)]
-// NB: Constructed by C++ through the FFI.
-#[allow(dead_code)]
-pub enum FfiPseudoElementValueType {
-    None,
-    CompoundSelector,
-    Identifiers,
-    TransitionName,
-}
-
-#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiStringView {
     pub data: *const u16,
     pub length: usize,
 }
 
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiSimpleSelector {
-    pub selector_type: FfiSimpleSelectorType,
-    pub interned_name: *const usize,
-    pub interned_lowercase_name: *const usize,
-    pub interned_namespace: *const usize,
-    pub namespace_type: NamespaceType,
-    pub namespace: FfiStringView,
-    pub name: FfiStringView,
-    pub lowercase_name: FfiStringView,
-    pub attribute_match_type: AttributeMatchType,
-    pub attribute_case_type: AttributeCaseType,
-    pub attribute_value: FfiStringView,
-    pub attribute_value_identity: *const usize,
-    pub pseudo_class: u8,
-    pub an_plus_b_step_size: i32,
-    pub an_plus_b_offset: i32,
-    pub argument_selectors: *const *const RustSelector,
-    pub argument_selector_count: usize,
-    pub languages: *const FfiStringView,
-    pub language_count: usize,
-    pub direction: FfiDirection,
-    pub identifier: FfiStringView,
-    pub levels: *const i64,
-    pub level_count: usize,
-    pub pseudo_element: u8,
-    pub pseudo_element_value_type: FfiPseudoElementValueType,
-    pub pseudo_element_selector: *const RustSelector,
-    pub pseudo_element_identifiers: *const FfiStringView,
-    /// The one-word identities of those same names, so a part name compares as an integer.
-    pub pseudo_element_identifier_identities: *const usize,
-    pub pseudo_element_identifier_count: usize,
-    pub transition_name_is_universal: bool,
-    pub transition_name: FfiStringView,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiCompoundSelector {
-    pub combinator: Combinator,
-    pub simple_selectors: *const FfiSimpleSelector,
-    pub simple_selector_count: usize,
-}
-
-#[repr(C)]
-pub struct FfiSelector {
-    pub compound_selectors: *const FfiCompoundSelector,
-    pub compound_selector_count: usize,
-}
-
 pub struct RustSelector {
-    selector: Rc<CompiledSelector>,
+    pub(crate) selector: Rc<CompiledSelector>,
 }
 
 impl RustSelector {
@@ -739,260 +661,21 @@ pub fn is_ascii_case_insensitive_html_attribute(name: &[u16]) -> bool {
     NAMES.iter().any(|candidate| utf16_equals_ascii(name, candidate))
 }
 
-unsafe fn copy_ffi_slice<T: Copy>(data: *const T, length: usize) -> Box<[T]> {
-    if length == 0 {
-        return Box::new([]);
-    }
-    assert!(!data.is_null());
-    // SAFETY: The caller guarantees that `data` points to `length` initialized values.
-    unsafe { std::slice::from_raw_parts(data, length) }.into()
-}
-
-unsafe fn borrow_ffi_slice<T, Owner: ?Sized>(data: *const T, length: usize, _owner: &Owner) -> &[T] {
-    if length == 0 {
-        return &[];
-    }
-    assert!(!data.is_null());
-    // SAFETY: The caller guarantees that `data` points to `length` initialized values that remain
-    // valid while `owner` is borrowed.
-    unsafe { std::slice::from_raw_parts(data, length) }
-}
-
-unsafe fn string_from_ffi(value: FfiStringView) -> SelectorString {
-    // SAFETY: The caller guarantees that the string view is valid.
-    unsafe { copy_ffi_slice(value.data, value.length) }
-}
-
-unsafe fn interned_name_from_ffi(selector: &FfiSimpleSelector) -> Option<usize> {
-    // SAFETY: The caller guarantees that a non-null pointer identifies the one-word storage of a
-    // live C++ `Utf16FlyString` for the duration of selector compilation.
-    unsafe { selector.interned_name.as_ref().copied() }
-}
-
-unsafe fn qualified_name_from_ffi(selector: &FfiSimpleSelector) -> QualifiedName {
-    QualifiedName {
-        namespace_type: selector.namespace_type,
-        // SAFETY: The caller guarantees that every string view in `selector` is valid.
-        namespace: unsafe { string_from_ffi(selector.namespace) },
-        // SAFETY: The caller guarantees that every string view in `selector` is valid.
-        name: unsafe { string_from_ffi(selector.name) },
-        // SAFETY: The caller guarantees that every string view in `selector` is valid.
-        lowercase_name: unsafe { string_from_ffi(selector.lowercase_name) },
-        // SAFETY: The caller guarantees that all retained C++ selector data is valid.
-        interned_name: unsafe { interned_name_from_ffi(selector) },
-        // SAFETY: The caller guarantees that a non-null pointer identifies retained C++ selector
-        // data for the duration of selector compilation.
-        interned_lowercase_name: unsafe { selector.interned_lowercase_name.as_ref().copied() },
-        // SAFETY: The caller guarantees that all retained C++ selector data is valid.
-        interned_namespace: unsafe { selector.interned_namespace.as_ref().map(|identity| *identity) },
-    }
-}
-
-unsafe fn selector_from_handle(handle: *const RustSelector) -> Rc<CompiledSelector> {
-    assert!(!handle.is_null());
-    // SAFETY: The caller guarantees that `handle` points to a live `RustSelector`.
-    unsafe { (*handle).selector.clone() }
-}
-
-unsafe fn simple_selector_from_ffi(selector: &FfiSimpleSelector) -> SimpleSelector {
-    match selector.selector_type {
-        FfiSimpleSelectorType::Universal => {
-            // SAFETY: The caller guarantees that every string view in `selector` is valid.
-            SimpleSelector::Universal(unsafe { qualified_name_from_ffi(selector) })
-        }
-        FfiSimpleSelectorType::TagName => {
-            // SAFETY: The caller guarantees that every string view in `selector` is valid.
-            SimpleSelector::TagName(unsafe { qualified_name_from_ffi(selector) })
-        }
-        FfiSimpleSelectorType::Id => SimpleSelector::Id(NameSelector {
-            // SAFETY: The caller guarantees that every string view in `selector` is valid.
-            name: unsafe { string_from_ffi(selector.name) },
-            // SAFETY: The caller guarantees that all retained C++ selector data is valid.
-            interned_name: unsafe { interned_name_from_ffi(selector) },
-            // SAFETY: The caller guarantees that all retained C++ selector data is valid.
-            interned_lowercase_name: unsafe { selector.interned_lowercase_name.as_ref().copied() },
-        }),
-        FfiSimpleSelectorType::Class => SimpleSelector::Class(NameSelector {
-            // SAFETY: The caller guarantees that every string view in `selector` is valid.
-            name: unsafe { string_from_ffi(selector.name) },
-            // SAFETY: The caller guarantees that all retained C++ selector data is valid.
-            interned_name: unsafe { interned_name_from_ffi(selector) },
-            // SAFETY: The caller guarantees that all retained C++ selector data is valid.
-            interned_lowercase_name: unsafe { selector.interned_lowercase_name.as_ref().copied() },
-        }),
-        FfiSimpleSelectorType::Attribute => SimpleSelector::Attribute(AttributeSelector {
-            match_type: selector.attribute_match_type,
-            // SAFETY: The caller guarantees that every string view in `selector` is valid.
-            qualified_name: unsafe { qualified_name_from_ffi(selector) },
-            // SAFETY: The caller guarantees that every string view in `selector` is valid.
-            value: unsafe { string_from_ffi(selector.attribute_value) },
-            // SAFETY: The caller guarantees that all retained C++ selector data is valid.
-            value_identity: unsafe { selector.attribute_value_identity.as_ref().map(|identity| *identity) },
-            case_type: selector.attribute_case_type,
-        }),
-        FfiSimpleSelectorType::PseudoClass => {
-            // SAFETY: The caller guarantees that the argument selector array and all handles in it
-            // are valid.
-            let argument_selector_list = unsafe {
-                borrow_ffi_slice(selector.argument_selectors, selector.argument_selector_count, selector)
-                    .iter()
-                    .map(|handle| selector_from_handle(*handle))
-                    .collect::<Vec<_>>()
-                    .into_boxed_slice()
-            };
-            // SAFETY: The caller guarantees that the language array and every string view in it
-            // are valid.
-            let languages = unsafe {
-                borrow_ffi_slice(selector.languages, selector.language_count, selector)
-                    .iter()
-                    .map(|language| string_from_ffi(*language))
-                    .collect::<Vec<_>>()
-                    .into_boxed_slice()
-            };
-            let direction = match selector.direction {
-                FfiDirection::None => None,
-                FfiDirection::LeftToRight => Some(Direction::LeftToRight),
-                FfiDirection::RightToLeft => Some(Direction::RightToLeft),
-                FfiDirection::Other => Some(Direction::Other),
-            };
-            let identifier = (selector.identifier.length != 0).then(|| {
-                // SAFETY: The caller guarantees that every string view in `selector` is valid.
-                unsafe { string_from_ffi(selector.identifier) }
-            });
-            // SAFETY: The caller guarantees that a non-null pointer identifies a live C++
-            // `Utf16FlyString` for the duration of selector compilation.
-            let identifier_identity = unsafe { interned_name_from_ffi(selector) };
-            // SAFETY: The caller guarantees that a non-null pointer identifies retained C++
-            // selector data for the duration of selector compilation.
-            let identifier_lowercase_identity =
-                unsafe { selector.interned_lowercase_name.as_ref().map(|identity| *identity) };
-            // SAFETY: The caller guarantees that the levels array is valid.
-            let levels = unsafe { copy_ffi_slice(selector.levels, selector.level_count) };
-
-            SimpleSelector::PseudoClass(PseudoClassSelector {
-                pseudo_class: pseudo_class_from_ffi(selector.pseudo_class),
-                an_plus_b_pattern: AnPlusBPattern {
-                    step_size: selector.an_plus_b_step_size,
-                    offset: selector.an_plus_b_offset,
-                },
-                argument_selector_list,
-                languages,
-                direction,
-                identifier,
-                identifier_identity,
-                identifier_lowercase_identity,
-                levels,
-                is_forgiving: false,
-            })
-        }
-        FfiSimpleSelectorType::PseudoElement => {
-            let value = match selector.pseudo_element_value_type {
-                FfiPseudoElementValueType::None => PseudoElementValue::None,
-                FfiPseudoElementValueType::CompoundSelector => {
-                    // SAFETY: The caller guarantees that the nested selector handle is valid.
-                    PseudoElementValue::CompoundSelector(unsafe {
-                        selector_from_handle(selector.pseudo_element_selector)
-                    })
-                }
-                FfiPseudoElementValueType::Identifiers => {
-                    // SAFETY: The caller guarantees that the identifier array and every string
-                    // view in it are valid.
-                    PseudoElementValue::Identifiers(unsafe {
-                        borrow_ffi_slice(
-                            selector.pseudo_element_identifiers,
-                            selector.pseudo_element_identifier_count,
-                            selector,
-                        )
-                        .iter()
-                        .map(|identifier| string_from_ffi(*identifier))
-                        .collect::<Vec<_>>()
-                        .into_boxed_slice()
-                    })
-                }
-                FfiPseudoElementValueType::TransitionName => PseudoElementValue::TransitionName {
-                    is_universal: selector.transition_name_is_universal,
-                    // SAFETY: The caller guarantees that every string view in `selector` is valid.
-                    value: unsafe { string_from_ffi(selector.transition_name) },
-                },
-            };
-            // SAFETY: The caller guarantees the identity array matches the identifier count.
-            let identifier_identities = match selector.pseudo_element_identifier_identities.is_null() {
-                true => Box::new([]) as Box<[usize]>,
-                false => unsafe {
-                    std::slice::from_raw_parts(
-                        selector.pseudo_element_identifier_identities,
-                        selector.pseudo_element_identifier_count,
-                    )
-                }
-                .to_vec()
-                .into_boxed_slice(),
-            };
-            SimpleSelector::PseudoElement(PseudoElementSelector {
-                pseudo_element: pseudo_element_from_ffi(selector.pseudo_element),
-                serialized_name: None,
-                value,
-                identifier_identities,
-            })
-        }
-        FfiSimpleSelectorType::Nesting => SimpleSelector::Nesting,
-        FfiSimpleSelectorType::Invalid => SimpleSelector::Invalid(Box::new([])),
-    }
-}
-
-unsafe fn compiled_selector_from_ffi(selector: &FfiSelector) -> Rc<CompiledSelector> {
-    // SAFETY: The caller guarantees that the compound selector array is valid.
-    let compound_selectors =
-        unsafe { borrow_ffi_slice(selector.compound_selectors, selector.compound_selector_count, selector) }
-            .iter()
-            .map(|compound| CompoundSelector {
-                combinator: compound.combinator,
-                is_implicit_universal_anchor: false,
-                // SAFETY: The caller guarantees that every simple selector array is valid.
-                simple_selectors: unsafe {
-                    borrow_ffi_slice(compound.simple_selectors, compound.simple_selector_count, compound)
-                }
-                .iter()
-                .map(|simple| unsafe { simple_selector_from_ffi(simple) })
-                .collect::<Vec<_>>()
-                .into_boxed_slice(),
-            })
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
-    CompiledSelector::new(compound_selectors)
-}
-
 /// # Safety
-///
-/// `selector`, every transitively referenced array, string, and `RustSelector` handle must be
-/// properly aligned and valid for reads for the duration of this call. Every enum field must
-/// contain a valid discriminant.
-///
-/// The returned handle must be destroyed exactly once.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_selector_create(selector: *const FfiSelector) -> *mut RustSelector {
-    abort_on_panic(|| {
-        assert!(!selector.is_null());
-        // SAFETY: The caller guarantees that the complete FFI selector graph is valid.
-        let selector = unsafe { compiled_selector_from_ffi(&*selector) };
-        Box::into_raw(Box::new(RustSelector { selector }))
-    })
-}
-
-/// # Safety
-/// `selector` must be a pointer returned by `rust_selector_create` that has not already been destroyed.
+/// `selector` must be an owned selector handle that has not already been destroyed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_destroy(selector: *mut RustSelector) {
     abort_on_panic(|| {
         if !selector.is_null() {
             // SAFETY: The caller guarantees that this is an owned handle returned by
-            // `rust_selector_create` and that it has not already been destroyed.
+            // a selector-producing FFI function and that it has not already been destroyed.
             drop(unsafe { Box::from_raw(selector) });
         }
     });
 }
 
 /// # Safety
-/// `selector` must point to a live handle returned by `rust_selector_create`.
+/// `selector` must point to a live selector handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_target_pseudo_element(selector: *const RustSelector) -> u8 {
     abort_on_panic(|| {
@@ -1007,7 +690,7 @@ pub unsafe extern "C" fn rust_selector_target_pseudo_element(selector: *const Ru
 /// Returns the selector's specificity in the packed representation used by the DevTools protocol.
 ///
 /// # Safety
-/// `selector` must point to a live handle returned by `rust_selector_create`.
+/// `selector` must point to a live selector handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_specificity(selector: *const RustSelector) -> u32 {
     abort_on_panic(|| {

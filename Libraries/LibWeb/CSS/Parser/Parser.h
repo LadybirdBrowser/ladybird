@@ -272,8 +272,6 @@ private:
     template<typename T>
     RefPtr<Supports> parse_a_supports(TokenStream<T>&);
 
-    Optional<Selector::SimpleSelector::ANPlusBPattern> parse_a_n_plus_b_pattern(TokenStream<ComponentValue>&);
-
     template<typename T>
     [[nodiscard]] Vector<Rule> consume_a_stylesheets_contents(TokenStream<T>&);
     template<typename T>
@@ -618,19 +616,6 @@ private:
 
     Optional<CalcNodeRef> convert_to_calculation_node(CalcParsing::Node const&, CalculationContext const&);
     Optional<CalcNodeRef> parse_a_calculation(TokenStream<ComponentValue>&, CalculationContext const&);
-
-    ParseErrorOr<NonnullRefPtr<Selector>> parse_complex_selector(TokenStream<ComponentValue>&, SelectorType);
-    ParseErrorOr<Selector::CompoundSelector> parse_compound_selector(TokenStream<ComponentValue>&);
-    Optional<Selector::Combinator> parse_selector_combinator(TokenStream<ComponentValue>&);
-    enum class AllowWildcardName {
-        No,
-        Yes,
-    };
-    Optional<Selector::SimpleSelector::QualifiedName> parse_selector_qualified_name(TokenStream<ComponentValue>&, AllowWildcardName);
-    ParseErrorOr<Selector::SimpleSelector> parse_attribute_simple_selector(ComponentValue const&);
-    ParseErrorOr<Selector::SimpleSelector> parse_pseudo_class_simple_selector(TokenStream<ComponentValue>&);
-    ParseErrorOr<Selector::SimpleSelector> parse_pseudo_element_simple_selector(TokenStream<ComponentValue>&);
-    ParseErrorOr<Optional<Selector::SimpleSelector>> parse_simple_selector(TokenStream<ComponentValue>&);
 
     NonnullRefPtr<MediaQuery> parse_media_query(TokenStream<ComponentValue>&);
     OwnPtr<BooleanExpression> parse_media_condition(TokenStream<ComponentValue>&);

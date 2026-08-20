@@ -1,0 +1,20 @@
+<!doctype html>
+<div>
+    <style>
+        div:has(.trigger) {
+            @scope (&:has(&)) {
+                .target {
+                    --scope-match: unexpected;
+                }
+            }
+        }
+    </style>
+    <span class="trigger"></span>
+    <span class="target"></span>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(JSON.stringify(getComputedStyle(document.querySelector(".target")).getPropertyValue("--scope-match")));
+    });
+</script>

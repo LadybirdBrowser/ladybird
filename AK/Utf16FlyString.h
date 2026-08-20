@@ -41,6 +41,8 @@ public:
         return m_data.raw({});
     }
 
+    [[nodiscard]] FlatPtr raw_identity() const { return m_data.raw({}); }
+
     [[nodiscard]] static Utf16FlyString from_raw(FlatPtr raw)
     {
         auto base = Detail::Utf16StringBase::adopt_raw({}, raw);

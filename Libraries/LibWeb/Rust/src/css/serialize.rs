@@ -162,6 +162,14 @@ impl TextSink {
         self.utf16.push(unit);
     }
 
+    pub(crate) fn into_utf16(self) -> Vec<u16> {
+        if self.is_ascii {
+            self.ascii.into_iter().map(u16::from).collect()
+        } else {
+            self.utf16
+        }
+    }
+
     /// Appends one code point, encoding non-BMP code points as surrogate pairs. Values in the
     /// surrogate range append as a single (unpaired) code unit, matching AK's builders.
     pub(crate) fn push_code_point(&mut self, code_point: u32) {

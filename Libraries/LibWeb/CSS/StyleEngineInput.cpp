@@ -1296,11 +1296,11 @@ static void append_scope_level(CSSRule const& owner, Optional<SelectorList> cons
             ++limits_here;
         }
     }
-    // Each `@scope` is one level, even when it names neither a start nor an end: what it
-    // contributes is a boundary, and a level with nothing in it constrains nothing.
+    // Each `@scope` is one level. An omitted start uses its implicit root, while an explicit start
+    // that transforms to an empty list remains a level that matches no roots.
     scope_levels.root_counts.append(roots_here);
     scope_levels.limit_counts.append(limits_here);
-    scope_levels.implicit_roots.append(roots_here == 0 ? implicit_scope_root_of(owner) : no_style_node);
+    scope_levels.implicit_roots.append(!start.has_value() ? implicit_scope_root_of(owner) : no_style_node);
 }
 
 struct RuleCompilationContext {

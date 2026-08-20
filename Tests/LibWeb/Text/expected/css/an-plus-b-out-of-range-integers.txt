@@ -1,0 +1,27 @@
+maximum integer: :nth-child(2147483647)
+integer above maximum: :nth-child(2147483647)
+minimum integer: :nth-child(-2147483648)
+integer below minimum: :nth-child(-2147483648)
+integer overflowing double: :nth-child(2147483647)
+negative integer overflowing double: :nth-child(-2147483648)
+maximum dimension: :nth-child(2147483647n+1)
+dimension above maximum: :nth-child(2147483647n+1)
+minimum dimension: :nth-child(-2147483648n+2)
+dimension below minimum: :nth-child(-2147483648n+2)
+dimension overflowing double: :nth-child(2147483647n+1)
+negative dimension overflowing double: :nth-child(-2147483648n+2)
+positive signed offset: :nth-child(n+2147483647)
+negative signed offset: :nth-child(n-2147483648)
+separate positive sign: :nth-child(n+2147483647)
+separate negative sign: :nth-child(n-2147483647)
+compact dimension offset below minimum: :nth-child(2n-2147483648)
+compact negative unit offset below minimum: :nth-child(-n-2147483648)
+compact unit offset below minimum: :nth-child(n-2147483648)
+compact dimension offset overflowing double: :nth-child(2n-2147483648)
+compact negative unit offset overflowing double: :nth-child(-n-2147483648)
+compact unit offset overflowing double: :nth-child(n-2147483648)
+clamped positive coefficient matches first: true
+clamped positive coefficient matches second: false
+clamped negative coefficient matches first: false
+clamped negative coefficient matches second: true
+all indexed pseudo-classes accepted clamped coefficients

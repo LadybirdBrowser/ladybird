@@ -10,6 +10,7 @@ set(TEST_SOURCES
     TestCSSTokenStream.cpp
     TestDisplayListDamage.cpp
     TestDownloadReader.cpp
+    TestDump.cpp
     TestFetchResponse.cpp
     TestFetchURL.cpp
     TestHTMLTokenizer.cpp

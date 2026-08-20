@@ -35,4 +35,10 @@ inline void dump_indent(StringBuilder& builder, int indent_levels)
     builder.append_repeated("  "sv, indent_levels);
 }
 
+inline void dump_serialized_selector(StringBuilder& builder, StringView selector, int indent_levels)
+{
+    dump_indent(builder, indent_levels);
+    builder.appendff("CSS::Selector: {}\n", selector);
+}
+
 }

@@ -1,0 +1,13 @@
+<!doctype html>
+<style></style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const stylesheet = document.styleSheets[0];
+        for (const selector of [':lang(en, "*-Latn", "a\\"b")', "::view-transition-group(foo\\ bar)", ":nth-child(2n+1 of .foo, #bar)"]) {
+            stylesheet.insertRule(`${selector} {}`);
+            println(stylesheet.cssRules[0].selectorText);
+            stylesheet.deleteRule(0);
+        }
+    });
+</script>

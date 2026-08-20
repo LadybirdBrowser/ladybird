@@ -5,7 +5,7 @@ style: * :dir(ltr)
 body: * :dir(ltr)
 div#target.box: * div [data-kind] [data-kind="wide"] [data-kind~="wide"] [data-kind^="wi"] [data-kind$="de"] [data-kind*="id"] [data-kind="WIDE" i] :lang(en) :dir(ltr) .box:has(.item) .box:has(> .item) .box:has(.alpha, .missing) .box:has(.item.excluded) #target
 div.item.alpha: .item * div .item :where(.box, .panel) .item .alpha, .beta :lang(en) :dir(ltr) .box *, .panel * .item .item .item .box .item .box > .item :is(.box, .panel) .item .item:not(.excluded) .item:not(.excluded, .other) .box > :first-child .box > :nth-child(2n+1) .box > :first-of-type .item:has(+ .item) .item:has(~ .marked)
-div.item.excluded: .item * div .item :where(.box, .panel) .item :lang(en) :dir(ltr) .box *, .panel * .item .item .item .box .item .box > .item .item + .item .item ~ .item :is(.box, .panel) .item .box > :nth-child(2) .box > :nth-of-type(2) .item:has(+ .item) .item:has(~ .marked) .box > :nth-child(2)
+div.item.excluded: .item * div .item :where(.box, .panel) .item :lang(en) :dir(ltr) .box *, .panel * .item .item .item .box .item .box > .item .item + .item .item ~ .item :is(.box, .panel) .item .box > :nth-child(2) .box > :nth-of-type(2) .item:has(+ .item) .item:has(~ .marked) .box > :nth-child(2 of .item)
 span.item.marked: .item * .item :where(.box, .panel) .item :lang(en) :dir(ltr) .box *, .panel * .item .item .item .box .item .box > .item .item + .item .item ~ .item :is(.box, .panel) .item .item:not(.excluded) .item:not(.excluded, .other) .box > :nth-child(2n+1) .box > :first-of-type
 p.empty: * :lang(en) :dir(ltr) .box *, .panel * .box > :first-of-type .empty:empty
 p.texted: * :lang(en) :dir(ltr) .box *, .panel * .box > :nth-child(2n+1) .box > :nth-of-type(2)

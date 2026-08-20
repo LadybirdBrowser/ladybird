@@ -1,0 +1,13 @@
+<!doctype html>
+<style></style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const stylesheet = document.styleSheets[0];
+        for (const selector of ["[data-value]", '[data-value=""]', '[data-value="" i]', '[data-value="" s]']) {
+            stylesheet.insertRule(`${selector} {}`);
+            println(stylesheet.cssRules[0].selectorText);
+            stylesheet.deleteRule(0);
+        }
+    });
+</script>

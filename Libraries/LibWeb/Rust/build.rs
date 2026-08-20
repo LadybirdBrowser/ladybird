@@ -83,7 +83,7 @@ fn write_enum_and_from_ffi(output: &mut String, enum_name: &str, variants: &[Str
     } else {
         "pseudo_element_from_ffi"
     };
-    writeln!(output, "fn {fn_name}(value: u8) -> {enum_name} {{").unwrap();
+    writeln!(output, "pub(crate) fn {fn_name}(value: u8) -> {enum_name} {{").unwrap();
     writeln!(output, "    match value {{").unwrap();
     for (index, variant) in variants.iter().enumerate() {
         writeln!(output, "        {index} => {enum_name}::{variant},").unwrap();
@@ -688,7 +688,11 @@ fn generate_selector_pseudo_types(manifest_dir: &Path, out_dir: &Path) -> Result
         }
         let is_valid_as_function = object.get("type").and_then(serde_json::Value::as_str) == Some("function");
         let is_valid_as_identifier = !is_valid_as_function;
-        let parameter_type = match object.get("function-syntax").and_then(serde_json::Value::as_str) {
+        let function_syntax = object.get("function-syntax").and_then(serde_json::Value::as_str);
+        if is_valid_as_function != function_syntax.is_some() {
+            return Err(format!("pseudo-element {name} has inconsistent type and function-syntax").into());
+        }
+        let parameter_type = match function_syntax {
             None => "None",
             Some("<compound-selector>") => "CompoundSelector",
             Some("<ident>+") => "IdentList",
@@ -1664,13 +1668,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut selector_config = base_config.clone();
     selector_config.namespaces = Some(vec!["Web".to_string(), "CSS".to_string(), "SelectorFFI".to_string()]);
     for (rust_name, cxx_name) in [
-        ("FfiSimpleSelectorType", "SimpleSelectorType"),
-        ("FfiDirection", "Direction"),
-        ("FfiPseudoElementValueType", "PseudoElementValueType"),
         ("FfiStringView", "StringView"),
-        ("FfiSimpleSelector", "SimpleSelector"),
-        ("FfiCompoundSelector", "CompoundSelector"),
-        ("FfiSelector", "Selector"),
+        ("FfiParsedPseudoElement", "ParsedPseudoElement"),
+        ("FfiSelectorSerializedText", "SerializedText"),
         ("FfiElement", "Element"),
         ("FfiElementQualifiedName", "ElementQualifiedName"),
         ("FfiInternedStringList", "InternedStringList"),
@@ -1690,6 +1690,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         selector_config,
         &[
             manifest_dir.join("src/css/selector.rs"),
+            manifest_dir.join("src/css/selector_parser.rs"),
+            manifest_dir.join("src/css/selector_operations.rs"),
+            manifest_dir.join("src/css/selector_serialization.rs"),
             manifest_dir.join("src/css/ffi_support.rs"),
         ],
         &out_dir,

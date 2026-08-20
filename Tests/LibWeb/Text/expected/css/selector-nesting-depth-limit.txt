@@ -1,0 +1,2 @@
+component values: SyntaxError
+selector functions: SyntaxError

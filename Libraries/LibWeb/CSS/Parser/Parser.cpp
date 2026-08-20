@@ -398,12 +398,13 @@ OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentVa
             item.serialize_to(builder);
         transaction.commit();
         TokenStream selector_tokens { first_token.function().value };
-        auto maybe_selector = parse_complex_selector(selector_tokens, SelectorType::Standalone);
+        auto maybe_selectors = parse_a_selector_list(selector_tokens, SelectorType::Standalone);
         // A CSS processor is considered to support a CSS selector if it accepts that all aspects of that selector,
         // recursively, (rather than considering any of its syntax to be unknown or invalid) and that selector doesn’t
         // contain unknown -webkit- pseudo-elements.
         // https://drafts.csswg.org/css-conditional-4/#dfn-support-selector
-        bool matches = !maybe_selector.is_error() && !maybe_selector.value()->contains_unknown_webkit_pseudo_element();
+        bool matches = !maybe_selectors.is_error() && maybe_selectors.value().size() == 1
+            && !maybe_selectors.value().first()->contains_unknown_webkit_pseudo_element();
         return Supports::Selector::create(builder.to_string(), matches);
     }
 

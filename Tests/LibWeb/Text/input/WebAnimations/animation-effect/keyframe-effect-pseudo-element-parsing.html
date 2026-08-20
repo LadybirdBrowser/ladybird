@@ -1,0 +1,94 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        const effect = new KeyframeEffect(target, { opacity: [0, 1] }, 1000);
+        const validPseudoElements = [
+            ["::after", "::after"],
+            ["::backdrop", "::backdrop"],
+            ["::before", "::before"],
+            ["::details-content", "::details-content"],
+            ["::file-selector-button", "::file-selector-button"],
+            ["::first-letter", "::first-letter"],
+            ["::first-line", "::first-line"],
+            ["::marker", "::marker"],
+            ["::placeholder", "::placeholder"],
+            ["::selection", "::selection"],
+            ["::slider-fill", "::slider-fill"],
+            ["::slider-thumb", "::slider-thumb"],
+            ["::slider-track", "::slider-track"],
+            ["::view-transition", "::view-transition"],
+            ["::part(foo bar)", "::part(foo bar)"],
+            ["::slotted(.item)", "::slotted(.item)"],
+            ["::view-transition-group(name)", "::view-transition-group(name)"],
+            ["::view-transition-image-pair(*)", "::view-transition-image-pair(*)"],
+            ["::view-transition-new(name)", "::view-transition-new(name)"],
+            ["::view-transition-old(*)", "::view-transition-old(*)"],
+            ["::-moz-meter-bar", "::-moz-meter-bar"],
+            ["::-moz-placeholder", "::-moz-placeholder"],
+            ["::-moz-progress-bar", "::-moz-progress-bar"],
+            ["::-moz-range-progress", "::-moz-range-progress"],
+            ["::-moz-range-track", "::-moz-range-track"],
+            ["::-moz-range-thumb", "::-moz-range-thumb"],
+            ["::-webkit-input-placeholder", "::-webkit-input-placeholder"],
+            ["::-webkit-meter-bar", "::-webkit-meter-bar"],
+            ["::-webkit-progress-bar", "::-webkit-progress-bar"],
+            ["::-webkit-progress-value", "::-webkit-progress-value"],
+            ["::-webkit-slider-runnable-track", "::-webkit-slider-runnable-track"],
+            ["::-webkit-slider-thumb", "::-webkit-slider-thumb"],
+            ["::-webkit-unknown-pseudo", "::-webkit-unknown-pseudo"],
+            [":before", "::before"],
+            [":after", "::after"],
+            [":first-letter", "::first-letter"],
+            [":first-line", "::first-line"],
+            ["::PaRt( foo BAR )", "::part(foo BAR)"],
+            ["::SlOtTeD( .ITEM )", "::slotted(.ITEM)"],
+        ];
+
+        for (const [input, expected] of validPseudoElements) {
+            effect.pseudoElement = input;
+            if (effect.pseudoElement !== expected)
+                throw new Error(`${input} serialized as ${effect.pseudoElement}, expected ${expected}`);
+        }
+
+        // These element-reference pseudo-elements are also accepted by the CSSOM API.
+        getComputedStyle(target, "::part(foo)");
+        getComputedStyle(target, "::slotted(.item)");
+        for (const pseudoElement of ["::part(foo)", "::slotted(.item)"]) {
+            const constructedEffect = new KeyframeEffect(target, {}, { duration: 1, pseudoElement });
+            if (constructedEffect.pseudoElement !== pseudoElement)
+                throw new Error(`Constructor did not preserve ${pseudoElement}`);
+        }
+
+        const invalidPseudoElements = [
+            "",
+            "::",
+            "::unknown",
+            ":part(foo)",
+            "::part",
+            "::part()",
+            "::part(foo, bar)",
+            "::slotted",
+            "::slotted()",
+            "::slotted(.a > .b)",
+            "::before()",
+            "::view-transition-group()",
+            "::-webkit-unknown-pseudo()",
+            "::before.extra",
+        ];
+
+        for (const input of invalidPseudoElements) {
+            let exception;
+            try {
+                effect.pseudoElement = input;
+            } catch (error) {
+                exception = error;
+            }
+            if (exception?.name !== "SyntaxError")
+                throw new Error(`${input} did not throw SyntaxError`);
+        }
+
+        println("PASS");
+    });
+</script>
