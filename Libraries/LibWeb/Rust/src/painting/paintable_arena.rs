@@ -31,21 +31,10 @@ fn new_chunk() -> Box<Chunk> {
     }
 }
 
-#[derive(Clone, Copy, Default)]
-struct SlotMetadata {
-    generation: u8,
-    occupied: bool,
-}
-
 #[derive(Default)]
 pub struct PaintableArena {
     chunks: Vec<Box<Chunk>>,
-    slot_metadata: Vec<SlotMetadata>,
     side_data: Vec<PaintableSideData>,
-    free_list: Vec<u32>,
-    next_index: u32,
-    live_count: u32,
-    paintable_of_node: Vec<PaintableSlotId>,
     pub(crate) stacking_context_tree: Option<crate::painting::stacking_context::StackingContextTree>,
     pub(crate) visual_context: crate::painting::visual_context::VisualContextState,
     pub(crate) hit_test_list: Option<crate::painting::hit_test::HitTestList>,
@@ -62,10 +51,6 @@ impl PaintableArena {
         Self::default()
     }
 
-    pub fn live_count(&self) -> u32 {
-        self.live_count
-    }
-
     pub fn memoized_absolute_rect(&self, id: PaintableSlotId) -> Option<crate::css::css_pixels::CssPixelRect> {
         self.absolute_rect_memo.borrow().get(&id.index).copied()
     }
@@ -78,41 +63,21 @@ impl PaintableArena {
         self.absolute_rect_memo.borrow_mut().clear();
     }
 
-    pub fn allocate(&mut self, layout_node: NodeSlotId, shell: *mut c_void) -> PaintableAllocation {
-        let index = if let Some(index) = self.free_list.pop() {
-            index
-        } else {
-            let index = self.next_index;
-            assert!(
-                index < MAX_PAINTABLE_SLOT_COUNT,
-                "paintable arena exhausted its 24-bit slot index space"
-            );
-            if (index as usize).is_multiple_of(PAINTABLE_SLOTS_PER_CHUNK) {
+    pub fn row_for_node(&mut self, layout_node: NodeSlotId, shell: *mut c_void) -> PaintableAllocation {
+        let index = layout_node.slot_index();
+        assert!(
+            index < MAX_PAINTABLE_SLOT_COUNT,
+            "paintable arena exhausted its 24-bit slot index space"
+        );
+        while self.side_data.len() <= index as usize {
+            if self.side_data.len().is_multiple_of(PAINTABLE_SLOTS_PER_CHUNK) {
                 self.chunks.push(new_chunk());
             }
-            self.slot_metadata.push(SlotMetadata::default());
             self.side_data.push(PaintableSideData::default());
             self.paint_caches.get_mut().push(None);
-            self.next_index = self
-                .next_index
-                .checked_add(1)
-                .expect("paintable arena exhausted its slot ID space");
-            index
-        };
-        self.live_count = self
-            .live_count
-            .checked_add(1)
-            .expect("paintable arena live count overflowed");
+        }
 
-        let metadata = &mut self.slot_metadata[index as usize];
-        assert!(!metadata.occupied, "paintable arena allocated a live slot");
-        metadata.generation = metadata
-            .generation
-            .checked_add(1)
-            .expect("retired paintable arena slot was reused");
-        metadata.occupied = true;
-        let generation = metadata.generation;
-
+        let generation = layout_node.generation();
         let data = self.data_mut_by_index(index);
         *data = PaintableData::default();
         data.slot_generation = generation;
@@ -128,62 +93,47 @@ impl PaintableArena {
         }
     }
 
-    pub fn free(&mut self, id: PaintableSlotId, generation: u32) {
+    pub fn shell_destroyed(&mut self, id: PaintableSlotId, generation: u32, shell: *mut c_void) {
         assert!(!id.is_invalid(), "invalid paintable arena slot ID");
-        let index = id.slot_index();
         assert_eq!(
             u32::from(id.generation()),
             generation,
             "paintable arena slot ID and allocation generation disagree"
         );
-        let metadata = &mut self.slot_metadata[index as usize];
-        assert!(metadata.occupied, "paintable arena freed an unused slot");
-        assert_eq!(
-            metadata.generation,
-            id.generation(),
-            "paintable arena freed a stale slot generation"
-        );
-        metadata.occupied = false;
-        let should_reuse = metadata.generation != u8::MAX;
-        self.absolute_rect_memo.get_mut().clear();
+        if !self.is_live(id) || self.data_ref(id).shell != shell {
+            return;
+        }
+        self.reset_row(id);
+    }
 
+    fn reset_row(&mut self, id: PaintableSlotId) {
+        self.absolute_rect_memo.get_mut().clear();
         self.remove_from_tree(id);
         while let Some(child) = self.first_child(id) {
             self.remove_from_tree(child);
         }
-        let layout_node = self.data_ref(id).layout_node;
-        if !layout_node.is_invalid()
-            && let Some(entry) = self.paintable_of_node.get_mut(layout_node.slot_index() as usize)
-            && *entry == id
-        {
-            *entry = PaintableSlotId::INVALID;
-        }
-
+        let index = id.slot_index();
         *self.data_mut_by_index(index) = PaintableData::default();
         self.side_data[index as usize] = PaintableSideData::default();
         self.paint_caches.get_mut()[index as usize] = None;
-        self.live_count = self
-            .live_count
-            .checked_sub(1)
-            .expect("paintable arena live count underflowed");
-        if should_reuse {
-            self.free_list.push(index);
-        }
     }
 
     pub fn layout_node_freed(&mut self, layout_slot_index: u32) {
-        let Some(entry) = self.paintable_of_node.get_mut(layout_slot_index as usize) else {
+        if layout_slot_index as usize >= self.side_data.len() {
             return;
-        };
-        let paintable = std::mem::replace(entry, PaintableSlotId::INVALID);
-        if !paintable.is_invalid() && self.is_live(paintable) {
-            self.remove_from_tree(paintable);
-            self.update_data(paintable, |data| {
-                data.layout_node = NodeSlotId::INVALID;
-                data.containing_block = PaintableSlotId::INVALID;
-            });
-            self.absolute_rect_memo.get_mut().clear();
         }
+        let generation = self.data_by_index(layout_slot_index).slot_generation;
+        if generation == 0 {
+            return;
+        }
+        self.reset_row(PaintableSlotId::new(layout_slot_index, generation));
+    }
+
+    pub fn node_cleared(&mut self, layout_node: NodeSlotId, id: PaintableSlotId) {
+        if self.paintable_of_node(layout_node) != id {
+            return;
+        }
+        self.reset_row(id);
     }
 
     pub fn is_live(&self, id: PaintableSlotId) -> bool {
@@ -191,9 +141,19 @@ impl PaintableArena {
             return false;
         }
         let index = id.slot_index() as usize;
-        self.slot_metadata
-            .get(index)
-            .is_some_and(|metadata| metadata.occupied && metadata.generation == id.generation())
+        if index >= self.side_data.len() {
+            return false;
+        }
+        let generation = self.data_by_index(index as u32).slot_generation;
+        generation != 0 && generation == id.generation()
+    }
+
+    fn data_by_index(&self, index: u32) -> PaintableData {
+        let chunk = self
+            .chunks
+            .get(index as usize / PAINTABLE_SLOTS_PER_CHUNK)
+            .expect("invalid paintable arena slot index");
+        chunk.slots[index as usize % PAINTABLE_SLOTS_PER_CHUNK].get()
     }
 
     fn data_cell(&self, id: PaintableSlotId) -> &Cell<PaintableData> {
@@ -261,19 +221,13 @@ impl PaintableArena {
         if layout_node.is_invalid() {
             return PaintableSlotId::INVALID;
         }
-        self.paintable_of_node
-            .get(layout_node.slot_index() as usize)
-            .copied()
-            .filter(|paintable| self.is_live(*paintable))
-            .unwrap_or(PaintableSlotId::INVALID)
-    }
-
-    pub fn set_paintable_of_node(&mut self, layout_node: NodeSlotId, paintable: PaintableSlotId) {
-        let index = layout_node.slot_index() as usize;
-        if self.paintable_of_node.len() <= index {
-            self.paintable_of_node.resize(index + 1, PaintableSlotId::INVALID);
+        let paintable = PaintableSlotId {
+            index: layout_node.index,
+        };
+        if !self.is_live(paintable) {
+            return PaintableSlotId::INVALID;
         }
-        self.paintable_of_node[index] = paintable;
+        paintable
     }
 
     pub fn parent(&self, id: PaintableSlotId) -> Option<PaintableSlotId> {

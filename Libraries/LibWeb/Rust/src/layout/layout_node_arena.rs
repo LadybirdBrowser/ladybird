@@ -1345,11 +1345,6 @@ pub unsafe extern "C" fn layout_arena_destroy(arena: *mut c_void) {
         let arena = unsafe { Box::from_raw(arena.cast::<LayoutNodeArena>()) };
         arena.assert_owner_thread();
         assert_eq!(arena.live_count, 0, "layout node arena destroyed with live slots");
-        assert_eq!(
-            arena.paintables.borrow().live_count(),
-            0,
-            "layout node arena destroyed with live paintable slots"
-        );
     });
 }
 

@@ -34,8 +34,8 @@ public:
 
     RustFFI::NodeAllocation allocate();
     void free(RustFFI::NodeSlotId, u32 generation);
-    RustFFI::PaintableAllocation allocate_paintable(RustFFI::NodeSlotId layout_node, void* shell);
-    void free_paintable(RustFFI::PaintableSlotId, u32 generation);
+    RustFFI::PaintableAllocation paintable_row_for_node(RustFFI::NodeSlotId layout_node, void* shell);
+    void paintable_shell_destroyed(RustFFI::PaintableSlotId, u32 generation, void* shell);
     void* handle() const { return m_handle; }
     u64 formatting_context_run_cache_hit_count() const;
 

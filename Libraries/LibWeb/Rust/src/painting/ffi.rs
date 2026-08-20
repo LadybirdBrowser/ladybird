@@ -22,14 +22,14 @@ unsafe fn arena_from_handle<'a>(arena: *mut c_void) -> &'a LayoutNodeArena {
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_allocate_paintable(
+pub unsafe extern "C" fn layout_arena_paintable_row_for_node(
     arena: *mut c_void,
     layout_node: NodeSlotId,
     shell: *mut c_void,
 ) -> PaintableAllocation {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        arena.paintables().borrow_mut().allocate(layout_node, shell)
+        arena.paintables().borrow_mut().row_for_node(layout_node, shell)
     })
 }
 
@@ -37,10 +37,15 @@ pub unsafe extern "C" fn layout_arena_allocate_paintable(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_free_paintable(arena: *mut c_void, slot: PaintableSlotId, generation: u32) {
+pub unsafe extern "C" fn layout_arena_paintable_shell_destroyed(
+    arena: *mut c_void,
+    slot: PaintableSlotId,
+    generation: u32,
+    shell: *mut c_void,
+) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        arena.paintables().borrow_mut().free(slot, generation);
+        arena.paintables().borrow_mut().shell_destroyed(slot, generation, shell);
     });
 }
 
@@ -55,13 +60,7 @@ pub unsafe extern "C" fn layout_arena_paintable_cleared_from_node(
 ) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let mut paintables = arena.paintables().borrow_mut();
-        if paintables.is_live(slot) {
-            paintables.remove_from_tree(slot);
-        }
-        if paintables.paintable_of_node(layout_node) == slot {
-            paintables.set_paintable_of_node(layout_node, PaintableSlotId::INVALID);
-        }
+        arena.paintables().borrow_mut().node_cleared(layout_node, slot);
     });
 }
 
@@ -92,25 +91,6 @@ pub unsafe extern "C" fn layout_arena_paintable_transfer_fragments_to_replacemen
                 piece.node = new_node;
             }
         }
-    });
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_detach_layout_node(arena: *mut c_void, slot: PaintableSlotId) {
-    abort_on_panic(|| {
-        let arena = unsafe { arena_from_handle(arena) };
-        let paintables = arena.paintables().borrow();
-        if !paintables.is_live(slot) {
-            return;
-        }
-        paintables.update_data(slot, |data| {
-            data.layout_node = NodeSlotId::INVALID;
-            data.containing_block = PaintableSlotId::INVALID;
-        });
-        paintables.clear_absolute_rect_memo();
     });
 }
 

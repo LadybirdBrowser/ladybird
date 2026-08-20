@@ -707,7 +707,7 @@ Paintable::Paintable(Layout::NodeWithStyle const& layout_node)
     : m_layout_node(layout_node)
     , m_rust_arena(layout_node.node_arena())
 {
-    auto allocation = m_rust_arena->allocate_paintable(Layout::Node::slot_id(&layout_node), this);
+    auto allocation = m_rust_arena->paintable_row_for_node(Layout::Node::slot_id(&layout_node), this);
     m_rust_slot = allocation.slot;
     m_rust_slot_generation = allocation.generation;
     m_rust_data = allocation.data;
@@ -720,14 +720,13 @@ Paintable::Paintable(Layout::Box const& layout_box)
 
 Paintable::~Paintable()
 {
-    m_rust_arena->free_paintable(m_rust_slot, m_rust_slot_generation);
+    m_rust_arena->paintable_shell_destroyed(m_rust_slot, m_rust_slot_generation, this);
 }
 
 void Paintable::detach_from_layout_node(Badge<Layout::Node>)
 {
     m_layout_node.clear();
     detach_chrome_widgets();
-    Layout::RustFFI::layout_arena_paintable_detach_layout_node(m_rust_arena->handle(), m_rust_slot);
 }
 
 void Paintable::detach_chrome_widgets()
