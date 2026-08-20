@@ -63,26 +63,6 @@ CSSPixelPoint InlinePaintable::box_type_agnostic_position() const
     return { CSSPixels::from_raw(result.x), CSSPixels::from_raw(result.y) };
 }
 
-static CSSPixelRect from_ffi_css_pixel_rect(Layout::RustFFI::FfiCssPixelRect const& rect)
-{
-    return {
-        CSSPixels::from_raw(rect.x),
-        CSSPixels::from_raw(rect.y),
-        CSSPixels::from_raw(rect.width),
-        CSSPixels::from_raw(rect.height),
-    };
-}
-
-CSSPixelRect InlinePaintable::compute_absolute_padding_box_rect() const
-{
-    return from_ffi_css_pixel_rect(rust_data().local_padding_box_union).translated(absolute_rect().location());
-}
-
-CSSPixelRect InlinePaintable::compute_absolute_border_box_rect() const
-{
-    return from_ffi_css_pixel_rect(rust_data().local_border_box_union).translated(absolute_rect().location());
-}
-
 bool InlinePaintable::has_content() const
 {
     // Interrupting block-in-inline children produce only placeholder pieces, so any child

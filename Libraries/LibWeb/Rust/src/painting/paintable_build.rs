@@ -87,6 +87,10 @@ impl<'a> PaintableCommit<'a> {
         }
     }
 
+    pub(crate) fn discard_absolute_rects_memoized_during_commit(&self) {
+        self.arena.borrow().clear_absolute_rect_memo();
+    }
+
     pub(crate) fn begin_commit(&self, root: Node) -> CommitAnchors {
         let arena = self.arena.borrow();
         arena.clear_absolute_rect_memo();

@@ -284,6 +284,7 @@ pub(crate) fn commit_replacing(
         &paintables,
         &mut scopes,
     );
+    paintables.discard_absolute_rects_memoized_during_commit();
     unsafe {
         (sink.finish_commit)(sink.context);
     }
