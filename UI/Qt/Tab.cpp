@@ -865,6 +865,10 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         }
     };
 
+    view().on_before_browser_initiated_navigation = [this] {
+        m_javascript_dialog->dismiss();
+    };
+
     view().on_request_external_url_confirmation = [this](auto const& url, auto const& initiator_origin, auto const& handler, auto on_complete) {
         if (m_javascript_dialog->is_open() || m_color_picker_dialog || m_external_url_confirmation_dialog) {
             on_complete(false);
