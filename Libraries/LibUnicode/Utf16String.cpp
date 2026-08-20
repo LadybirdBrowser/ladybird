@@ -76,7 +76,7 @@ Utf16String Utf16String::to_fullwidth() const
     UErrorCode status = U_ZERO_ERROR;
 
     auto const transliterator = adopt_own_if_nonnull(icu::Transliterator::createInstance("Halfwidth-Fullwidth", UTRANS_FORWARD, status));
-    VERIFY(Unicode::icu_success(status));
+    Unicode::verify_icu_success(status);
 
     auto icu_string = Unicode::icu_string(*this);
     transliterator->transliterate(icu_string);
