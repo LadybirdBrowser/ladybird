@@ -8,11 +8,18 @@ use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::painting::display_list::commands::VisualContextIndex;
 use crate::painting::display_list::recorder::{FillPathParams, PaintStyleOrColor};
-use crate::painting::paintable_data::PaintableSlotId;
+use crate::painting::paintable_data::{PaintableKind, PaintableSlotId};
 use crate::painting::record::PaintRecorder;
 use libgfx_rust::{Color, FloatPoint, IntRect, LineStyle, ShouldAntiAlias, WindingRule};
 
 pub(crate) fn paint_overlay(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlotId) {
+    let data = recorder.data(paintable);
+    if data.kind != PaintableKind::ViewportPaintable
+        && data.own_scroll_node_index == 0
+        && !recorder.hit_test_facts(paintable).has_resizer
+    {
+        return;
+    }
     let facts = recorder.paint_host.overlay_facts(recorder.shell(paintable));
     let converter = recorder.converter;
 
