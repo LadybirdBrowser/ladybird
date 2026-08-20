@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use std::cell::Cell;
 use std::rc::Rc;
 
 use crate::painting::display_list::builder::CommandRange;
@@ -34,25 +35,44 @@ pub struct CachedHitTestItems {
     pub recorded_context_for_descendants_index: usize,
 }
 
-// Paint commands and hit-test items are stamped independently within a frame, so each setter
-// must only ever assign its own sub-struct of the shared entry.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct PhaseCacheEntry {
-    pub commands: Option<CachedCommands>,
-    pub hit_test_items: Option<CachedHitTestItems>,
+pub struct PaintCache {
+    commands: [Cell<Option<CachedCommands>>; PaintPhase::COUNT],
+    hit_test_items: [Cell<Option<CachedHitTestItems>>; PaintPhase::COUNT],
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct PaintCache {
-    pub phases: [PhaseCacheEntry; PaintPhase::COUNT],
+impl Default for PaintCache {
+    fn default() -> Self {
+        Self {
+            commands: std::array::from_fn(|_| Cell::new(None)),
+            hit_test_items: std::array::from_fn(|_| Cell::new(None)),
+        }
+    }
 }
 
 impl PaintCache {
-    pub fn entry(&self, phase: PaintPhase) -> &PhaseCacheEntry {
-        &self.phases[phase as usize]
+    pub fn commands(&self, phase: PaintPhase) -> Option<CachedCommands> {
+        self.commands[phase as usize].get()
     }
-    pub fn entry_mut(&mut self, phase: PaintPhase) -> &mut PhaseCacheEntry {
-        &mut self.phases[phase as usize]
+
+    pub fn hit_test_items(&self, phase: PaintPhase) -> Option<CachedHitTestItems> {
+        self.hit_test_items[phase as usize].get()
+    }
+
+    pub fn set_commands(&self, phase: PaintPhase, commands: CachedCommands) {
+        self.commands[phase as usize].set(Some(commands));
+    }
+
+    pub fn set_hit_test_items(&self, phase: PaintPhase, hit_test_items: CachedHitTestItems) {
+        self.hit_test_items[phase as usize].set(Some(hit_test_items));
+    }
+
+    pub fn clear(&self) {
+        for commands in &self.commands {
+            commands.set(None);
+        }
+        for hit_test_items in &self.hit_test_items {
+            hit_test_items.set(None);
+        }
     }
 }
 
