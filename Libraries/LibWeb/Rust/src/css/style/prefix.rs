@@ -2202,13 +2202,18 @@ impl PrefixStates {
             expiring.extend_from_slice(self.expiring_in(source_state));
         }
         let delta = arena.delta(delta);
-        additions
-            .retain(|&step| arena.sign_in_spans(delta.persisting_additions, delta.persisting_removals, step) != -1);
+        let removals = arena.get(delta.persisting_removals);
+        if !removals.is_empty() {
+            additions.retain(|step| removals.binary_search(step).is_err());
+        }
         additions.extend_from_slice(arena.get(delta.persisting_additions));
         additions.retain(|&step| !self.persisting_state_contains_step(new_base_state, step));
         additions.sort_unstable();
         additions.dedup();
-        expiring.retain(|&step| arena.sign_in_spans(delta.expiring_additions, delta.expiring_removals, step) != -1);
+        let removals = arena.get(delta.expiring_removals);
+        if !removals.is_empty() {
+            expiring.retain(|step| removals.binary_search(step).is_err());
+        }
         expiring.extend_from_slice(arena.get(delta.expiring_additions));
         expiring.sort_unstable();
         expiring.dedup();
