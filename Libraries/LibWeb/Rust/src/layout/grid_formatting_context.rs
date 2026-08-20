@@ -244,78 +244,16 @@ fn grid_track_breadth_view(breadth: &'static ComputedGridTrackBreadth) -> GridTr
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiGridTrackType {
+pub(crate) enum GridTrackType {
     Explicit,
     Implicit,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiGridTrackState {
+pub(crate) enum GridTrackState {
     Static,
     Repeat,
     Removed,
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiGridLayoutLine {
-    pub names: *const usize,
-    pub name_count: usize,
-    pub start: crate::layout::CssPixels,
-    pub breadth: crate::layout::CssPixels,
-    pub type_: FfiGridTrackType,
-    pub number: u32,
-    pub negative_number: i32,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiGridLayoutTrack {
-    pub start: crate::layout::CssPixels,
-    pub breadth: crate::layout::CssPixels,
-    pub type_: FfiGridTrackType,
-    pub state: FfiGridTrackState,
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiGridLayoutDimension {
-    pub lines: *const FfiGridLayoutLine,
-    pub line_count: usize,
-    pub tracks: *const FfiGridLayoutTrack,
-    pub track_count: usize,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiGridLayoutArea {
-    pub name: usize,
-    pub type_: FfiGridTrackType,
-    pub row_start: u32,
-    pub row_end: u32,
-    pub column_start: u32,
-    pub column_end: u32,
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiGridLayoutFragment {
-    pub areas: *const FfiGridLayoutArea,
-    pub area_count: usize,
-    pub columns: FfiGridLayoutDimension,
-    pub rows: FfiGridLayoutDimension,
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiGridLayoutData {
-    pub direction: u8,
-    pub writing_mode: u8,
-    pub is_subgrid: bool,
-    pub fragments: *const FfiGridLayoutFragment,
-    pub fragment_count: usize,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -336,107 +274,52 @@ pub struct FfiUsedGridTrackList {
 }
 
 #[derive(PartialEq, Eq)]
-pub(crate) struct OwnedGridLayoutLine {
-    pub(crate) names: Vec<usize>,
+pub(crate) struct GridLayoutLine {
+    pub(crate) names: Vec<String>,
     pub(crate) start: crate::layout::CssPixels,
     pub(crate) breadth: crate::layout::CssPixels,
-    pub(crate) type_: FfiGridTrackType,
+    pub(crate) type_: GridTrackType,
     pub(crate) number: u32,
     pub(crate) negative_number: i32,
 }
 
-impl OwnedGridLayoutLine {
-    fn ffi_view(&self) -> FfiGridLayoutLine {
-        FfiGridLayoutLine {
-            names: self.names.as_ptr(),
-            name_count: self.names.len(),
-            start: self.start,
-            breadth: self.breadth,
-            type_: self.type_,
-            number: self.number,
-            negative_number: self.negative_number,
-        }
-    }
+#[derive(PartialEq, Eq)]
+pub(crate) struct GridLayoutTrack {
+    pub(crate) start: crate::layout::CssPixels,
+    pub(crate) breadth: crate::layout::CssPixels,
+    pub(crate) type_: GridTrackType,
+    pub(crate) state: GridTrackState,
 }
 
 #[derive(PartialEq, Eq)]
-pub(crate) struct OwnedGridLayoutDimension {
-    pub(crate) lines: Vec<OwnedGridLayoutLine>,
-    pub(crate) tracks: Vec<FfiGridLayoutTrack>,
+pub(crate) struct GridLayoutArea {
+    pub(crate) name: String,
+    pub(crate) type_: GridTrackType,
+    pub(crate) row_start: u32,
+    pub(crate) row_end: u32,
+    pub(crate) column_start: u32,
+    pub(crate) column_end: u32,
 }
 
 #[derive(PartialEq, Eq)]
-pub(crate) struct OwnedGridLayoutFragment {
-    pub(crate) areas: Vec<FfiGridLayoutArea>,
-    pub(crate) columns: OwnedGridLayoutDimension,
-    pub(crate) rows: OwnedGridLayoutDimension,
+pub(crate) struct GridLayoutDimension {
+    pub(crate) lines: Vec<GridLayoutLine>,
+    pub(crate) tracks: Vec<GridLayoutTrack>,
 }
 
 #[derive(PartialEq, Eq)]
-pub(crate) struct OwnedGridLayoutData {
+pub(crate) struct GridLayoutFragment {
+    pub(crate) areas: Vec<GridLayoutArea>,
+    pub(crate) columns: GridLayoutDimension,
+    pub(crate) rows: GridLayoutDimension,
+}
+
+#[derive(PartialEq, Eq)]
+pub(crate) struct GridLayoutData {
     pub(crate) direction: u8,
     pub(crate) writing_mode: u8,
     pub(crate) is_subgrid: bool,
-    pub(crate) fragments: Vec<OwnedGridLayoutFragment>,
-}
-
-impl OwnedGridLayoutData {
-    pub(crate) fn with_ffi_view(&self, callback: impl FnOnce(&FfiGridLayoutData)) {
-        let column_lines = self
-            .fragments
-            .iter()
-            .map(|fragment| {
-                fragment
-                    .columns
-                    .lines
-                    .iter()
-                    .map(OwnedGridLayoutLine::ffi_view)
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        let row_lines = self
-            .fragments
-            .iter()
-            .map(|fragment| {
-                fragment
-                    .rows
-                    .lines
-                    .iter()
-                    .map(OwnedGridLayoutLine::ffi_view)
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        let fragments = self
-            .fragments
-            .iter()
-            .zip(&column_lines)
-            .zip(&row_lines)
-            .map(|((fragment, column_lines), row_lines)| FfiGridLayoutFragment {
-                areas: fragment.areas.as_ptr(),
-                area_count: fragment.areas.len(),
-                columns: FfiGridLayoutDimension {
-                    lines: column_lines.as_ptr(),
-                    line_count: column_lines.len(),
-                    tracks: fragment.columns.tracks.as_ptr(),
-                    track_count: fragment.columns.tracks.len(),
-                },
-                rows: FfiGridLayoutDimension {
-                    lines: row_lines.as_ptr(),
-                    line_count: row_lines.len(),
-                    tracks: fragment.rows.tracks.as_ptr(),
-                    track_count: fragment.rows.tracks.len(),
-                },
-            })
-            .collect::<Vec<_>>();
-        let view = FfiGridLayoutData {
-            direction: self.direction,
-            writing_mode: self.writing_mode,
-            is_subgrid: self.is_subgrid,
-            fragments: fragments.as_ptr(),
-            fragment_count: fragments.len(),
-        };
-        callback(&view);
-    }
+    pub(crate) fragments: Vec<GridLayoutFragment>,
 }
 
 #[derive(PartialEq, Eq)]
@@ -3335,7 +3218,11 @@ impl GridFormattingContext {
             );
             let mut name_storage = Vec::with_capacity(lines.len());
             for line in lines {
-                name_storage.push(line.iter().map(|name| name.raw).collect::<Vec<_>>());
+                name_storage.push(
+                    line.iter()
+                        .map(|name| crate::css::serialize::fly_string_raw_to_string(name.raw))
+                        .collect::<Vec<_>>(),
+                );
             }
             let mut serialized_lines = Vec::with_capacity(lines.len());
             let mut serialized_tracks = Vec::with_capacity(tracks.len());
@@ -3344,14 +3231,14 @@ impl GridFormattingContext {
                     .checked_sub(1)
                     .and_then(|gap| gaps.get(gap))
                     .map_or(CssPixels::default(), |gap| gap.base_size);
-                serialized_lines.push(OwnedGridLayoutLine {
+                serialized_lines.push(GridLayoutLine {
                     names,
                     start,
                     breadth,
                     type_: if index < explicit_start || index >= explicit_start + explicit_count {
-                        FfiGridTrackType::Implicit
+                        GridTrackType::Implicit
                     } else {
-                        FfiGridTrackType::Explicit
+                        GridTrackType::Explicit
                     },
                     number: if index < explicit_start {
                         0
@@ -3365,28 +3252,28 @@ impl GridFormattingContext {
                     },
                 });
                 if let Some(track) = tracks.get(index) {
-                    serialized_tracks.push(FfiGridLayoutTrack {
+                    serialized_tracks.push(GridLayoutTrack {
                         start: start + breadth,
                         breadth: track.base_size,
                         type_: if index < explicit_start || index >= explicit_start + explicit_count.saturating_sub(1) {
-                            FfiGridTrackType::Implicit
+                            GridTrackType::Implicit
                         } else {
-                            FfiGridTrackType::Explicit
+                            GridTrackType::Explicit
                         },
                         state: if track.is_auto_repeat {
                             if track.is_auto_fit && track.is_collapsed {
-                                FfiGridTrackState::Removed
+                                GridTrackState::Removed
                             } else {
-                                FfiGridTrackState::Repeat
+                                GridTrackState::Repeat
                             }
                         } else {
-                            FfiGridTrackState::Static
+                            GridTrackState::Static
                         },
                     });
                     start += breadth + track.base_size;
                 }
             }
-            OwnedGridLayoutDimension {
+            GridLayoutDimension {
                 lines: serialized_lines,
                 tracks: serialized_tracks,
             }
@@ -3398,22 +3285,22 @@ impl GridFormattingContext {
             .areas
             .as_slice()
             .iter()
-            .map(|area| FfiGridLayoutArea {
-                name: name_raws[area.name_index as usize],
-                type_: FfiGridTrackType::Explicit,
+            .map(|area| GridLayoutArea {
+                name: crate::css::serialize::fly_string_raw_to_string(name_raws[area.name_index as usize]),
+                type_: GridTrackType::Explicit,
                 row_start: area.row_start as u32 + 1,
                 row_end: area.row_end as u32 + 1,
                 column_start: area.column_start as u32 + 1,
                 column_end: area.column_end as u32 + 1,
             })
             .collect::<Vec<_>>();
-        let fragment = OwnedGridLayoutFragment {
+        let fragment = GridLayoutFragment {
             areas,
             columns,
             rows,
         };
         let style = self.style(self.grid_container);
-        let data = OwnedGridLayoutData {
+        let data = GridLayoutData {
             direction: style.direction(),
             writing_mode: style.writing_mode(),
             is_subgrid: self.is_subgridded(Axis::Column, grid_style) || self.is_subgridded(Axis::Row, grid_style),

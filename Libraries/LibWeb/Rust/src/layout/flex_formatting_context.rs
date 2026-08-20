@@ -146,7 +146,7 @@ struct FlexLine {
     has_baseline_aligned_items: bool,
     remaining_free_space: Option<CssPixels>,
     chosen_flex_fraction: f64,
-    growth_state: FfiFlexLayoutGrowthState,
+    growth_state: FlexLayoutGrowthState,
 }
 
 impl Default for FlexLine {
@@ -157,7 +157,7 @@ impl Default for FlexLine {
             has_baseline_aligned_items: false,
             remaining_free_space: None,
             chosen_flex_fraction: 0.0,
-            growth_state: FfiFlexLayoutGrowthState::Growing,
+            growth_state: FlexLayoutGrowthState::Growing,
         }
     }
 }
@@ -1381,9 +1381,9 @@ impl<'pass> FlexFormattingContext<'pass> {
             FlexFactor::Shrink
         };
         self.flex_lines[line_index].growth_state = if factor == FlexFactor::Grow {
-            FfiFlexLayoutGrowthState::Growing
+            FlexLayoutGrowthState::Growing
         } else {
-            FfiFlexLayoutGrowthState::Shrinking
+            FlexLayoutGrowthState::Shrinking
         };
 
         // 2. Each item in the flex line has a target main size, initially set to its flex base size.
@@ -2513,10 +2513,15 @@ impl<'pass> FlexFormattingContext<'pass> {
                 let writing_mode = self.style(self.flex_container).writing_mode();
                 let (x, y) = to_physical(writing_mode, logical_inline_offset, logical_block_offset);
                 let (width, height) = to_physical(writing_mode, logical_inline_size, logical_block_size);
-                let rect = FfiFlexLayoutItemRect { x, y, width, height };
+                let rect = FlexLayoutItemRect { x, y, width, height };
                 let node = item.box_;
-                items.push(FfiFlexLayoutItem {
-                    node: self.callbacks.shell(node),
+                let style = self.style(node);
+                let main_size_property = self.select_main(style.width(), style.height());
+                let main_min_size_property = self.select_main(style.min_width(), style.min_height());
+                let main_max_size_property = self.select_main(style.max_width(), style.max_height());
+                let node_id = unsafe { (self.callbacks.node_unique_id)(self.callbacks.shell(node)) };
+                items.push(FlexLayoutItem {
+                    node_id: (node_id >= 0).then_some(node_id),
                     rect,
                     main_base_size: item.flex_base_size,
                     main_delta_size: item.target_main_size - item.flex_base_size,
@@ -2541,13 +2546,21 @@ impl<'pass> FlexFormattingContext<'pass> {
                         item.cross_size.unwrap_or(item.hypothetical_cross_size)
                     },
                     clamp_state: if item.is_min_violation {
-                        FfiFlexLayoutClampState::ClampedToMin
+                        FlexLayoutClampState::ClampedToMin
                     } else if item.is_max_violation {
-                        FfiFlexLayoutClampState::ClampedToMax
+                        FlexLayoutClampState::ClampedToMax
                     } else {
-                        FfiFlexLayoutClampState::Unclamped
+                        FlexLayoutClampState::Unclamped
                     },
-                    flex_grow: self.style(node).flex_grow(),
+                    flex_basis: if style.flex_basis_is_content() {
+                        "content".to_string()
+                    } else {
+                        crate::css::serialize::serialize_computed_size(style.flex_basis())
+                    },
+                    main_size_property: crate::css::serialize::serialize_computed_size(main_size_property),
+                    main_min_size_property: crate::css::serialize::serialize_computed_size(main_min_size_property),
+                    main_max_size_property: crate::css::serialize::serialize_computed_size(main_max_size_property),
+                    flex_grow: style.flex_grow(),
                     flex_shrink: self.flex_shrink_factor(node),
                 });
             }
@@ -2558,7 +2571,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                 .map(|index| self.flex_items[index].cross_offset)
                 .min()
                 .unwrap_or_default();
-            lines.push(OwnedFlexLayoutLine {
+            lines.push(FlexLayoutLine {
                 growth_state: line.growth_state,
                 cross_start,
                 cross_size: line.cross_size,
@@ -2566,7 +2579,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             });
         }
         let style = self.style(self.flex_container);
-        let data = OwnedFlexLayoutData {
+        let data = FlexLayoutData {
             align_content: style.align_content(),
             align_items: style.align_items(),
             flex_direction: style.flex_direction(),

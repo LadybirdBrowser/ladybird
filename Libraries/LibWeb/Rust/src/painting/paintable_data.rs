@@ -7,8 +7,8 @@
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::{
-    FfiAffineTransform, FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, FfiDrawGlyph, OwnedFlexLayoutData,
-    OwnedGridLayoutData, OwnedUsedGridTracks,
+    FfiAffineTransform, FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, FfiDrawGlyph, FlexLayoutData,
+    GridLayoutData, OwnedUsedGridTracks,
 };
 use std::ffi::c_void;
 use std::rc::Rc;
@@ -377,8 +377,8 @@ pub struct PaintableSideData {
     // Only meaningful while is_self_painting(); assigned by the containing block's
     // assign_fragment_ownership().
     pub(crate) fragment_ownership: Option<crate::painting::fragment_ownership::FragmentOwnershipFilter>,
-    pub(crate) grid_layout_data: Option<Rc<OwnedGridLayoutData>>,
-    pub(crate) flex_layout_data: Option<Rc<OwnedFlexLayoutData>>,
+    pub(crate) grid_layout_data: Option<Rc<GridLayoutData>>,
+    pub(crate) flex_layout_data: Option<Rc<FlexLayoutData>>,
     pub(crate) used_grid_tracks: Option<Rc<OwnedUsedGridTracks>>,
     pub(crate) collapsed_table_borders: Option<Rc<crate::layout::OwnedCollapsedTableBorders>>,
 }

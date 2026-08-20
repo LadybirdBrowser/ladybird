@@ -206,6 +206,66 @@ impl TextSink {
             (false, true) => other.content_equals(self),
         }
     }
+
+    fn into_string(self) -> String {
+        if self.is_ascii {
+            // SAFETY: The ASCII representation contains only valid UTF-8.
+            unsafe { String::from_utf8_unchecked(self.ascii) }
+        } else {
+            String::from_utf16_lossy(&self.utf16)
+        }
+    }
+}
+
+pub(crate) fn serialize_computed_size(size: &crate::css::computed_value_types::ComputedSize) -> String {
+    use crate::css::computed_value_types::ComputedSizeKind;
+
+    let mut sink = TextSink::new();
+    match size.kind {
+        ComputedSizeKind::Auto => sink.push_ascii("auto"),
+        ComputedSizeKind::Calculated | ComputedSizeKind::Length | ComputedSizeKind::Percentage => {
+            // SAFETY: These computed size kinds retain a live style value.
+            let value = unsafe { &*size.value.pointer.cast::<StyleValueData>() };
+            assert!(serialize_style_value(&mut sink, value, SerializationMode::Normal));
+        }
+        ComputedSizeKind::MinContent => sink.push_ascii("min-content"),
+        ComputedSizeKind::MaxContent => sink.push_ascii("max-content"),
+        ComputedSizeKind::FitContent => {
+            if size.value.pointer.is_null() {
+                sink.push_ascii("fit-content");
+            } else {
+                sink.push_ascii("fit-content(");
+                // SAFETY: A non-keyword fit-content size retains its live argument value.
+                let value = unsafe { &*size.value.pointer.cast::<StyleValueData>() };
+                assert!(serialize_style_value(&mut sink, value, SerializationMode::Normal));
+                sink.push_ascii(")");
+            }
+        }
+        ComputedSizeKind::None => sink.push_ascii("none"),
+    }
+    sink.into_string()
+}
+
+pub(crate) fn fly_string_raw_to_string(raw: usize) -> String {
+    if raw == 0 {
+        return String::new();
+    }
+    let mut short_buffer = [0u8; 16];
+    // SAFETY: Callers hold a retained fly-string owner while converting the raw value.
+    let view = unsafe { ladybird_utf16_fly_string_view(raw, short_buffer.as_mut_ptr()) };
+    if view.length == 0 {
+        return String::new();
+    }
+    if view.is_ascii {
+        // SAFETY: The view points to ASCII bytes that remain live for this call.
+        let bytes = unsafe { std::slice::from_raw_parts(view.data.cast::<u8>(), view.length) };
+        // SAFETY: ASCII is valid UTF-8.
+        unsafe { String::from_utf8_unchecked(bytes.to_vec()) }
+    } else {
+        // SAFETY: The view points to UTF-16 units that remain live for this call.
+        let units = unsafe { std::slice::from_raw_parts(view.data.cast::<u16>(), view.length) };
+        String::from_utf16_lossy(units)
+    }
 }
 
 /// https://www.w3.org/TR/cssom-1/#escape-a-character

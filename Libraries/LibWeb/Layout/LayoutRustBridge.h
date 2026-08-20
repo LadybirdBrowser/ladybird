@@ -34,9 +34,6 @@ struct UsedGridTrackList;
 
 namespace Web::Layout {
 
-struct FlexLayoutData;
-struct GridLayoutData;
-
 class LayoutRustBridge {
 public:
     LayoutRustBridge();
@@ -65,8 +62,6 @@ private:
 [[nodiscard]] bool can_replay_saved_abspos_layout_inputs_after_style_change(Box const&);
 
 [[nodiscard]] Painting::UsedGridTrackList build_used_grid_track_list(RustFFI::FfiUsedGridTrackList const&);
-[[nodiscard]] OwnPtr<GridLayoutData> build_grid_layout_data(RustFFI::FfiGridLayoutData const&);
-[[nodiscard]] OwnPtr<FlexLayoutData> build_flex_layout_data(RustFFI::FfiFlexLayoutData const&);
 
 // True while a synchronous Rust layout pass (including its commit) is on the
 // stack. Computed values must never be replaced in that window: the pass

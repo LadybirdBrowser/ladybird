@@ -888,17 +888,19 @@ pub unsafe extern "C" fn layout_arena_paintable_computed_svg_path(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_grid_layout_data(
+pub unsafe extern "C" fn layout_arena_paintable_grid_layout_json(
     arena: *mut c_void,
     paintable: PaintableSlotId,
+    container_node_id: i64,
     context: *mut c_void,
-    consume: unsafe extern "C" fn(*mut c_void, *const crate::layout::FfiGridLayoutData),
+    consume: unsafe extern "C" fn(*mut c_void, *const u8, usize),
 ) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
         if let Some(data) = &paintables.side(paintable).grid_layout_data {
-            data.with_ffi_view(|view| unsafe { consume(context, view) });
+            let json = crate::painting::devtools_layout::serialize_grid_layout(data, container_node_id);
+            unsafe { consume(context, json.as_ptr(), json.len()) };
         }
     });
 }
@@ -907,17 +909,19 @@ pub unsafe extern "C" fn layout_arena_paintable_grid_layout_data(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_flex_layout_data(
+pub unsafe extern "C" fn layout_arena_paintable_flex_layout_json(
     arena: *mut c_void,
     paintable: PaintableSlotId,
+    container_node_id: i64,
     context: *mut c_void,
-    consume: unsafe extern "C" fn(*mut c_void, *const crate::layout::FfiFlexLayoutData),
+    consume: unsafe extern "C" fn(*mut c_void, *const u8, usize),
 ) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
         if let Some(data) = &paintables.side(paintable).flex_layout_data {
-            data.with_ffi_view(|view| unsafe { consume(context, view) });
+            let json = crate::painting::devtools_layout::serialize_flex_layout(data, container_node_id);
+            unsafe { consume(context, json.as_ptr(), json.len()) };
         }
     });
 }
