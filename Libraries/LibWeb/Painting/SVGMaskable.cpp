@@ -49,8 +49,8 @@ static Layout::Box const* get_clip_box(SVG::SVGGraphicsElement const& graphics_e
 //         box for it — so its border box still stands in there.
 static CSSPixelRect target_user_space_object_bounding_box(Paintable const& target_paintable)
 {
-    if (auto const* path_paintable = as_if<SVGPathPaintable>(target_paintable); path_paintable && path_paintable->computed_path().has_value())
-        return path_paintable->computed_path()->bounding_box().to_type<CSSPixels>();
+    if (auto const* committed_path = target_paintable.committed_svg_path())
+        return committed_path->bounding_box().to_type<CSSPixels>();
     return target_paintable.absolute_border_box_rect();
 }
 

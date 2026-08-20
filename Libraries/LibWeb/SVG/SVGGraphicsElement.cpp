@@ -423,8 +423,8 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Bi
 
     // A path-like element's bounding box covers its geometry alone; the committed content rect is
     // inflated by the visible stroke width, so take the unstroked path bounds directly.
-    if (auto const* path_paintable = as_if<Painting::SVGPathPaintable>(*self_paintable); path_paintable && path_paintable->computed_path().has_value())
-        return Geometry::DOMRect::create(path_paintable->computed_path()->bounding_box());
+    if (auto const* committed_path = self_paintable->committed_svg_path())
+        return Geometry::DOMRect::create(committed_path->bounding_box());
 
     auto rect = self_paintable->absolute_rect().to_type<float>();
     // An element with a non-positive geometry dimension is not rendered and

@@ -763,6 +763,11 @@ Optional<Gfx::AffineTransform> Paintable::svg_viewport_transform() const
     return Gfx::AffineTransform { transform.a, transform.b, transform.c, transform.d, transform.e, transform.f };
 }
 
+Gfx::Path const* Paintable::committed_svg_path() const
+{
+    return static_cast<Gfx::Path const*>(Layout::RustFFI::layout_arena_paintable_computed_svg_path(m_rust_arena->handle(), m_rust_slot));
+}
+
 void Paintable::invalidate_paint_cache() const
 {
     mirror_rust_invalidate_paint_cache(*this);

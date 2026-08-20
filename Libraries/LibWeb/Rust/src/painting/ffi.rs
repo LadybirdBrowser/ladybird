@@ -886,6 +886,28 @@ pub unsafe extern "C" fn layout_arena_clear_paint_cache_sources(arena: *mut c_vo
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_computed_svg_path(
+    arena: *mut c_void,
+    paintable: PaintableSlotId,
+) -> *const c_void {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if !paintables.is_live(paintable) {
+            return std::ptr::null();
+        }
+        paintables
+            .side(paintable)
+            .computed_svg_path
+            .as_ref()
+            .map_or(std::ptr::null(), |path| path.as_raw())
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_grid_layout_data(
     arena: *mut c_void,
     paintable: PaintableSlotId,

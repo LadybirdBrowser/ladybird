@@ -70,7 +70,6 @@ pub struct FfiCommitSink {
     pub emit_fragment: unsafe extern "C" fn(*mut c_void, FfiCommittedFragment),
     pub emit_inline_box_piece: unsafe extern "C" fn(*mut c_void, FfiInlineBoxPiece),
     pub finish_line_data: unsafe extern "C" fn(*mut c_void),
-    pub set_computed_svg_path: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, u64),
     pub finish_node: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
     pub assign_inline_box_geometry: unsafe extern "C" fn(*mut c_void, *mut c_void),
 }
@@ -226,9 +225,6 @@ fn commit_subtree(
                 "committed path-like fragment carries no computed SVG path"
             );
             if let Some(path) = &fragment.computed_svg_path {
-                unsafe {
-                    (sink.set_computed_svg_path)(sink.context, paintable, path.as_raw(), path.identity());
-                }
                 paintables.set_computed_svg_path(paintable_slot, path);
             }
         }
