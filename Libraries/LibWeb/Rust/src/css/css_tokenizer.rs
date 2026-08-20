@@ -225,6 +225,7 @@ pub(crate) fn tokenize_for_parser(input: &[u8]) -> Vec<ParserToken> {
             TokenType::Colon => ParserTokenKind::Colon,
             TokenType::Comma => ParserTokenKind::Comma,
             TokenType::OpenSquare => ParserTokenKind::OpenSquare,
+            TokenType::CloseSquare => ParserTokenKind::CloseSquare,
             TokenType::OpenParen => ParserTokenKind::OpenParen,
             TokenType::CloseParen => ParserTokenKind::CloseParen,
             TokenType::OpenCurly => ParserTokenKind::OpenCurly,

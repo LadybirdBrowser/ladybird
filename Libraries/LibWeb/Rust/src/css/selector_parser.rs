@@ -10,12 +10,17 @@ use std::rc::Rc;
 
 use super::css_tokenizer::{CssNumberType, ParserToken, ParserTokenKind, tokenize_for_parser};
 use super::ffi_support::ascii_lowercase;
+use super::retained_fly_string::RetainedUtf16FlyString;
 use super::selector::{
     AnPlusBPattern, AttributeCaseType, AttributeMatchType, AttributeSelector, Combinator, CompiledSelector,
-    CompoundSelector, Direction, NameSelector, NamespaceType, PseudoClassParameterType, PseudoClassSelector,
-    PseudoClassType, PseudoElementParameterType, PseudoElementSelector, PseudoElementType, PseudoElementValue,
-    QualifiedName, SelectorList, SelectorString, SimpleSelector,
+    CompoundSelector, Direction, LanguageRange, NameSelector, NamespaceType, PseudoClassParameterType,
+    PseudoClassSelector, PseudoClassType, PseudoElementParameterType, PseudoElementSelector, PseudoElementType,
+    PseudoElementValue, QualifiedName, SelectorList, SelectorString, SimpleSelector,
 };
+use super::selector::{FfiStringView, RustSelector};
+
+const MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH: usize = 256;
+const MAXIMUM_SELECTOR_NESTING_DEPTH: usize = 128;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum SelectorType {
@@ -163,6 +168,10 @@ fn is_css_wide_keyword(value: &[u16]) -> bool {
         .any(|keyword| ascii_eq(value, keyword))
 }
 
+fn clamp_integer(value: f64) -> i32 {
+    value.clamp(f64::from(i32::MIN), f64::from(i32::MAX)) as i32
+}
+
 fn integer(value: &ComponentValue) -> Option<(i32, bool)> {
     let ComponentKind::Token(ParserTokenKind::Number { value, number_type }) = value.kind else {
         return None;
@@ -170,14 +179,13 @@ fn integer(value: &ComponentValue) -> Option<(i32, bool)> {
     if !matches!(
         number_type,
         CssNumberType::Integer | CssNumberType::IntegerWithExplicitSign
-    ) || !value.is_finite()
-        || value.fract() != 0.0
-        || value < f64::from(i32::MIN)
-        || value > f64::from(i32::MAX)
-    {
+    ) {
         return None;
     }
-    Some((value as i32, number_type == CssNumberType::IntegerWithExplicitSign))
+    Some((
+        clamp_integer(value),
+        number_type == CssNumberType::IntegerWithExplicitSign,
+    ))
 }
 
 fn dimension(value: &ComponentValue) -> Option<(i32, &[u16])> {
@@ -192,22 +200,32 @@ fn dimension(value: &ComponentValue) -> Option<(i32, &[u16])> {
     if !matches!(
         number_type,
         CssNumberType::Integer | CssNumberType::IntegerWithExplicitSign
-    ) || !value.is_finite()
-        || value.fract() != 0.0
-        || *value < f64::from(i32::MIN)
-        || *value > f64::from(i32::MAX)
-    {
+    ) {
         return None;
     }
-    Some((*value as i32, unit))
+    Some((clamp_integer(*value), unit))
 }
 
-fn ascii_i32(value: &[u16]) -> Option<i32> {
-    let bytes = value
-        .iter()
-        .map(|&unit| u8::try_from(unit).ok())
-        .collect::<Option<Vec<_>>>()?;
-    std::str::from_utf8(&bytes).ok()?.parse().ok()
+fn ascii_i32_saturating(value: &[u16]) -> Option<i32> {
+    let (negative, digits) = match value {
+        [sign, digits @ ..] if *sign == b'-' as u16 => (true, digits),
+        [sign, digits @ ..] if *sign == b'+' as u16 => (false, digits),
+        _ => (false, value),
+    };
+    if digits.is_empty() {
+        return None;
+    }
+    digits.iter().try_fold(0i32, |result, &unit| {
+        let digit = i32::from(u8::try_from(unit).ok()?.checked_sub(b'0')?);
+        if digit > 9 {
+            return None;
+        }
+        Some(if negative {
+            result.saturating_mul(10).saturating_sub(digit)
+        } else {
+            result.saturating_mul(10).saturating_add(digit)
+        })
+    })
 }
 
 fn digits(value: &[u16]) -> bool {
@@ -221,7 +239,6 @@ fn parse_an_plus_b_tail(stream: &mut Stream<'_>, step_size: i32) -> AnPlusBPatte
         stream.position += 1;
         return AnPlusBPattern { step_size, offset };
     }
-    let child = stream.position;
     let sign = if stream.peek().is_some_and(|value| value.is_delim(b'+')) {
         1
     } else if stream.peek().is_some_and(|value| value.is_delim(b'-')) {
@@ -239,7 +256,6 @@ fn parse_an_plus_b_tail(stream: &mut Stream<'_>, step_size: i32) -> AnPlusBPatte
             offset: offset.saturating_mul(sign),
         };
     }
-    stream.position = child;
     stream.position = after_step;
     AnPlusBPattern { step_size, offset: 0 }
 }
@@ -292,14 +308,14 @@ fn parse_an_plus_b(stream: &mut Stream<'_>) -> Option<AnPlusBPattern> {
             return None;
         }
         if unit.len() > 2 && ascii_starts_with(unit, "n-") && digits(&unit[2..]) {
-            let offset = ascii_i32(&unit[1..])?;
+            let offset = ascii_i32_saturating(&unit[1..])?;
             stream.position += 1;
             return Some(AnPlusBPattern { step_size, offset });
         }
     }
     if let Some(ident) = stream.peek().and_then(ComponentValue::ident) {
         if ident.len() > 3 && ascii_starts_with(ident, "-n-") && digits(&ident[3..]) {
-            let offset = ascii_i32(&ident[2..])?;
+            let offset = ascii_i32_saturating(&ident[2..])?;
             stream.position += 1;
             return Some(AnPlusBPattern { step_size: -1, offset });
         }
@@ -344,7 +360,7 @@ fn parse_an_plus_b(stream: &mut Stream<'_>) -> Option<AnPlusBPattern> {
         && ascii_starts_with(ident, "n-")
         && digits(&ident[2..])
     {
-        let offset = ascii_i32(&ident[1..])?;
+        let offset = ascii_i32_saturating(&ident[1..])?;
         return Some(AnPlusBPattern { step_size: 1, offset });
     }
     stream.position = original;
@@ -359,7 +375,11 @@ fn consume_component_values(
     tokens: &[ParserToken],
     position: &mut usize,
     ending: Option<&ParserTokenKind>,
-) -> Vec<ComponentValue> {
+    depth: usize,
+) -> Result<Vec<ComponentValue>, ()> {
+    if depth > MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH {
+        return Err(());
+    }
     let mut values = Vec::new();
     while let Some(token) = tokens.get(*position) {
         let closes_current = matches!(
@@ -376,7 +396,7 @@ fn consume_component_values(
         let mut source = token.source.to_vec();
         let kind = match &token.kind {
             ParserTokenKind::Function(name) => {
-                let value = consume_component_values(tokens, position, Some(&ParserTokenKind::CloseParen));
+                let value = consume_component_values(tokens, position, Some(&ParserTokenKind::CloseParen), depth + 1)?;
                 for component in &value {
                     append_source(&mut source, &component.source);
                 }
@@ -398,7 +418,7 @@ fn consume_component_values(
                     ParserTokenKind::OpenCurly => ParserTokenKind::CloseCurly,
                     _ => unreachable!(),
                 };
-                let value = consume_component_values(tokens, position, Some(&ending));
+                let value = consume_component_values(tokens, position, Some(&ending), depth + 1)?;
                 for component in &value {
                     append_source(&mut source, &component.source);
                 }
@@ -420,7 +440,7 @@ fn consume_component_values(
             source: source.into_boxed_slice(),
         });
     }
-    values
+    Ok(values)
 }
 
 #[derive(Clone)]
@@ -462,6 +482,7 @@ impl<'a> Stream<'a> {
 struct SelectorParser<'a> {
     declared_namespaces: &'a [&'a [u16]],
     pseudo_class_context: Vec<PseudoClassType>,
+    nesting_limit_exceeded: bool,
 }
 
 impl<'a> SelectorParser<'a> {
@@ -469,6 +490,7 @@ impl<'a> SelectorParser<'a> {
         Self {
             declared_namespaces,
             pseudo_class_context: Vec::new(),
+            nesting_limit_exceeded: false,
         }
     }
 
@@ -478,6 +500,10 @@ impl<'a> SelectorParser<'a> {
         selector_type: SelectorType,
         parsing_mode: SelectorParsingMode,
     ) -> Result<SelectorList, ()> {
+        if self.pseudo_class_context.len() > MAXIMUM_SELECTOR_NESTING_DEPTH {
+            self.nesting_limit_exceeded = true;
+            return Err(());
+        }
         let mut selectors = Vec::new();
         let mut start = 0;
         loop {
@@ -486,19 +512,24 @@ impl<'a> SelectorParser<'a> {
                 .position(ComponentValue::is_comma)
                 .map_or(values.len(), |offset| start + offset);
             let selector_values = &values[start..end];
-            match self.parse_complex_selector(selector_values, selector_type) {
+            let selector = self.parse_complex_selector(selector_values, selector_type);
+            if self.nesting_limit_exceeded {
+                return Err(());
+            }
+            match selector {
                 Ok(selector) => selectors.push(selector),
                 Err(()) if parsing_mode == SelectorParsingMode::Forgiving => {
-                    let mut source = selector_values
+                    let mut invalid_values = selector_values;
+                    while invalid_values.first().is_some_and(ComponentValue::is_whitespace) {
+                        invalid_values = &invalid_values[1..];
+                    }
+                    while invalid_values.last().is_some_and(ComponentValue::is_whitespace) {
+                        invalid_values = &invalid_values[..invalid_values.len() - 1];
+                    }
+                    let source = invalid_values
                         .iter()
                         .flat_map(|value| value.source.iter().copied())
                         .collect::<Vec<_>>();
-                    while source.first() == Some(&(b' ' as u16)) {
-                        source.remove(0);
-                    }
-                    while source.last() == Some(&(b' ' as u16)) {
-                        source.pop();
-                    }
                     selectors.push(CompiledSelector::new(
                         vec![CompoundSelector {
                             combinator: if selector_type == SelectorType::Standalone {
@@ -823,6 +854,10 @@ impl<'a> SelectorParser<'a> {
         if pseudo_class == PseudoClassType::Has && self.pseudo_class_context.contains(&PseudoClassType::Has) {
             return Err(());
         }
+        if self.pseudo_class_context.len() >= MAXIMUM_SELECTOR_NESTING_DEPTH {
+            self.nesting_limit_exceeded = true;
+            return Err(());
+        }
 
         self.pseudo_class_context.push(pseudo_class);
         let result = self.parse_pseudo_class_function(pseudo_class, metadata.parameter_type, function_values);
@@ -836,6 +871,10 @@ impl<'a> SelectorParser<'a> {
         parameter_type: PseudoClassParameterType,
         values: &[ComponentValue],
     ) -> Result<PseudoClassSelector, ()> {
+        if self.pseudo_class_context.len() > MAXIMUM_SELECTOR_NESTING_DEPTH {
+            self.nesting_limit_exceeded = true;
+            return Err(());
+        }
         let mut selector = pseudo_class_selector(pseudo_class);
         match parameter_type {
             PseudoClassParameterType::AnPlusB | PseudoClassParameterType::AnPlusBOf => {
@@ -903,15 +942,16 @@ impl<'a> SelectorParser<'a> {
                 for values in split_on_commas(values) {
                     let mut stream = Stream::new(values);
                     stream.discard_whitespace();
-                    let language = stream
-                        .next()
-                        .and_then(|value| value.ident().or_else(|| value.string()))
-                        .ok_or(())?;
+                    let (value, is_string) = match &stream.next().ok_or(())?.kind {
+                        ComponentKind::Token(ParserTokenKind::Ident(value)) => (value.clone(), false),
+                        ComponentKind::Token(ParserTokenKind::String(value)) => (value.clone(), true),
+                        _ => return Err(()),
+                    };
                     stream.discard_whitespace();
                     if !stream.is_empty() {
                         return Err(());
                     }
-                    languages.push(language.into());
+                    languages.push(LanguageRange { value, is_string });
                 }
                 selector.languages = languages.into_boxed_slice();
             }
@@ -1061,6 +1101,9 @@ impl<'a> SelectorParser<'a> {
                     identifiers.push(stream.next().and_then(ComponentValue::ident).ok_or(())?.into());
                     stream.discard_whitespace();
                 }
+                if identifiers.is_empty() {
+                    return Err(());
+                }
                 Ok(PseudoElementValue::Identifiers(identifiers.into_boxed_slice()))
             }
             PseudoElementParameterType::PTNameSelector => {
@@ -1190,6 +1233,354 @@ pub(crate) fn parse_selector_list(
 ) -> Result<SelectorList, ()> {
     let tokens = tokenize_for_parser(input);
     let mut position = 0;
-    let values = consume_component_values(&tokens, &mut position, None);
+    let values = consume_component_values(&tokens, &mut position, None, 0)?;
     SelectorParser::new(declared_namespaces).parse_selector_list(&values, selector_type, parsing_mode)
+}
+
+fn parse_pseudo_element_selector(input: &[u8]) -> Result<(Rc<CompiledSelector>, PseudoElementType), ()> {
+    let tokens = tokenize_for_parser(input);
+    let mut position = 0;
+    let values = consume_component_values(&tokens, &mut position, None, 0)?;
+    let mut stream = Stream::new(&values);
+    let simple = SelectorParser::new(&[]).parse_pseudo_element(&mut stream)?;
+    if !stream.is_empty() {
+        return Err(());
+    }
+    let SimpleSelector::PseudoElement(pseudo_element) = &simple else {
+        unreachable!();
+    };
+    let pseudo_element_type = pseudo_element.pseudo_element;
+    Ok((
+        CompiledSelector::new(
+            normalize_pseudo_element_transitions(vec![CompoundSelector {
+                combinator: Combinator::None,
+                is_implicit_universal_anchor: false,
+                simple_selectors: Box::new([simple]),
+            }])
+            .into_boxed_slice(),
+        ),
+        pseudo_element_type,
+    ))
+}
+
+fn append_unique(names: &mut Vec<SelectorString>, name: &[u16]) {
+    if !names.iter().any(|existing| existing.as_ref() == name) {
+        names.push(name.into());
+    }
+}
+
+fn collect_qualified_name(names: &mut Vec<SelectorString>, qualified_name: &QualifiedName) {
+    append_unique(names, &qualified_name.name);
+    append_unique(names, &qualified_name.lowercase_name);
+    if qualified_name.namespace_type == NamespaceType::Named {
+        append_unique(names, &qualified_name.namespace);
+    }
+}
+
+fn collect_interned_names_from_selector(names: &mut Vec<SelectorString>, selector: &CompiledSelector) {
+    for compound in &selector.compound_selectors {
+        for simple in &compound.simple_selectors {
+            match simple {
+                SimpleSelector::Universal(qualified_name) | SimpleSelector::TagName(qualified_name) => {
+                    collect_qualified_name(names, qualified_name);
+                }
+                SimpleSelector::Id(name) | SimpleSelector::Class(name) => {
+                    append_unique(names, &name.name);
+                    append_unique(names, &lowercase(&name.name));
+                }
+                SimpleSelector::Attribute(attribute) => {
+                    collect_qualified_name(names, &attribute.qualified_name);
+                    append_unique(names, &attribute.value);
+                }
+                SimpleSelector::PseudoClass(pseudo_class) => {
+                    if let Some(identifier) = &pseudo_class.identifier {
+                        append_unique(names, identifier);
+                        append_unique(names, &lowercase(identifier));
+                    }
+                    for selector in &pseudo_class.argument_selector_list {
+                        collect_interned_names_from_selector(names, selector);
+                    }
+                }
+                SimpleSelector::PseudoElement(pseudo_element) => match &pseudo_element.value {
+                    PseudoElementValue::CompoundSelector(selector) => {
+                        collect_interned_names_from_selector(names, selector);
+                    }
+                    PseudoElementValue::Identifiers(identifiers) => {
+                        for identifier in identifiers {
+                            append_unique(names, identifier);
+                        }
+                    }
+                    PseudoElementValue::None | PseudoElementValue::TransitionName { .. } => {}
+                },
+                SimpleSelector::Nesting | SimpleSelector::Invalid(_) => {}
+            }
+        }
+    }
+}
+
+fn identity_for(
+    names: &[SelectorString],
+    identities: &[RetainedUtf16FlyString],
+    name: &[u16],
+) -> Option<RetainedUtf16FlyString> {
+    let index = names.iter().position(|candidate| candidate.as_ref() == name)?;
+    Some(identities[index].clone())
+}
+
+fn bind_qualified_name(
+    qualified_name: &mut QualifiedName,
+    names: &[SelectorString],
+    identities: &[RetainedUtf16FlyString],
+) {
+    qualified_name.interned_name = identity_for(names, identities, &qualified_name.name);
+    qualified_name.interned_lowercase_name = identity_for(names, identities, &qualified_name.lowercase_name);
+    qualified_name.interned_namespace = (qualified_name.namespace_type == NamespaceType::Named)
+        .then(|| identity_for(names, identities, &qualified_name.namespace))
+        .flatten();
+}
+
+fn bind_interned_names_in_selector(
+    selector: &mut Rc<CompiledSelector>,
+    names: &[SelectorString],
+    identities: &[RetainedUtf16FlyString],
+) {
+    let selector = Rc::get_mut(selector).expect("parsed selector must not be shared before atom binding");
+    for compound in &mut selector.compound_selectors {
+        for simple in &mut compound.simple_selectors {
+            match simple {
+                SimpleSelector::Universal(qualified_name) | SimpleSelector::TagName(qualified_name) => {
+                    bind_qualified_name(qualified_name, names, identities);
+                }
+                SimpleSelector::Id(name) | SimpleSelector::Class(name) => {
+                    name.interned_name = identity_for(names, identities, &name.name);
+                    name.interned_lowercase_name = identity_for(names, identities, &lowercase(&name.name));
+                }
+                SimpleSelector::Attribute(attribute) => {
+                    bind_qualified_name(&mut attribute.qualified_name, names, identities);
+                    attribute.value_identity = identity_for(names, identities, &attribute.value);
+                }
+                SimpleSelector::PseudoClass(pseudo_class) => {
+                    if let Some(identifier) = &pseudo_class.identifier {
+                        pseudo_class.identifier_identity = identity_for(names, identities, identifier);
+                        pseudo_class.identifier_lowercase_identity =
+                            identity_for(names, identities, &lowercase(identifier));
+                    }
+                    for selector in &mut pseudo_class.argument_selector_list {
+                        bind_interned_names_in_selector(selector, names, identities);
+                    }
+                }
+                SimpleSelector::PseudoElement(pseudo_element) => match &mut pseudo_element.value {
+                    PseudoElementValue::CompoundSelector(selector) => {
+                        bind_interned_names_in_selector(selector, names, identities);
+                    }
+                    PseudoElementValue::Identifiers(identifiers) => {
+                        pseudo_element.identifier_identities = identifiers
+                            .iter()
+                            .map(|identifier| identity_for(names, identities, identifier).unwrap())
+                            .collect::<Vec<_>>()
+                            .into_boxed_slice();
+                    }
+                    PseudoElementValue::None | PseudoElementValue::TransitionName { .. } => {}
+                },
+                SimpleSelector::Nesting | SimpleSelector::Invalid(_) => {}
+            }
+        }
+    }
+}
+
+pub struct RustParsedSelectorList {
+    selectors: SelectorList,
+    interned_names: Box<[SelectorString]>,
+}
+
+/// # Safety
+/// `input` and each namespace view must point to readable storage for the duration of this call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_selector_parse(
+    input: *const u8,
+    input_length: usize,
+    namespaces: *const FfiStringView,
+    namespace_count: usize,
+    is_relative: bool,
+    is_forgiving: bool,
+) -> *mut RustParsedSelectorList {
+    unsafe {
+        crate::abort_on_panic(|| {
+            let Some(input) = crate::bytes_from_raw(input, input_length) else {
+                return std::ptr::null_mut();
+            };
+            let namespace_views = if namespace_count == 0 {
+                &[]
+            } else {
+                assert!(!namespaces.is_null());
+                std::slice::from_raw_parts(namespaces, namespace_count)
+            };
+            let namespace_storage = namespace_views
+                .iter()
+                .map(|namespace| {
+                    if namespace.length == 0 {
+                        &[][..]
+                    } else {
+                        assert!(!namespace.data.is_null());
+                        std::slice::from_raw_parts(namespace.data, namespace.length)
+                    }
+                })
+                .collect::<Vec<_>>();
+            let Ok(selectors) = parse_selector_list(
+                input,
+                &namespace_storage,
+                if is_relative {
+                    SelectorType::Relative
+                } else {
+                    SelectorType::Standalone
+                },
+                if is_forgiving {
+                    SelectorParsingMode::Forgiving
+                } else {
+                    SelectorParsingMode::Standard
+                },
+            ) else {
+                return std::ptr::null_mut();
+            };
+            let mut interned_names = Vec::new();
+            for selector in &selectors {
+                collect_interned_names_from_selector(&mut interned_names, selector);
+            }
+            Box::into_raw(Box::new(RustParsedSelectorList {
+                selectors,
+                interned_names: interned_names.into_boxed_slice(),
+            }))
+        })
+    }
+}
+
+#[repr(C)]
+pub struct FfiParsedPseudoElement {
+    pub selector: *mut RustSelector,
+    pub pseudo_element: u8,
+}
+
+/// Parses the restricted pseudo-element syntax accepted by `getComputedStyle()` and animation APIs.
+///
+/// # Safety
+/// `input` must point to readable storage for the duration of this call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_selector_parse_pseudo_element(
+    input: *const u8,
+    input_length: usize,
+) -> FfiParsedPseudoElement {
+    unsafe {
+        crate::abort_on_panic(|| {
+            let Some(input) = crate::bytes_from_raw(input, input_length) else {
+                return FfiParsedPseudoElement {
+                    selector: std::ptr::null_mut(),
+                    pseudo_element: u8::MAX,
+                };
+            };
+            let Ok((selector, pseudo_element)) = parse_pseudo_element_selector(input) else {
+                return FfiParsedPseudoElement {
+                    selector: std::ptr::null_mut(),
+                    pseudo_element: u8::MAX,
+                };
+            };
+            FfiParsedPseudoElement {
+                selector: Box::into_raw(Box::new(RustSelector { selector })),
+                pseudo_element: pseudo_element as u8,
+            }
+        })
+    }
+}
+
+/// # Safety
+/// `list` must be null or a pointer returned by `rust_selector_parse` that has not been destroyed.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parsed_selector_list_destroy(list: *mut RustParsedSelectorList) {
+    unsafe {
+        crate::abort_on_panic(|| {
+            if !list.is_null() {
+                drop(Box::from_raw(list));
+            }
+        });
+    }
+}
+
+/// # Safety
+/// `list` must point to a live parsed selector list.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parsed_selector_list_length(list: *const RustParsedSelectorList) -> usize {
+    unsafe { crate::abort_on_panic(|| (&*list).selectors.len()) }
+}
+
+/// # Safety
+/// `list` must point to a live parsed selector list and `index` must be in bounds. Interned names
+/// must be bound with `rust_parsed_selector_list_bind_interned_names` before extracting selectors.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parsed_selector_list_selector(
+    list: *const RustParsedSelectorList,
+    index: usize,
+) -> *mut RustSelector {
+    unsafe {
+        crate::abort_on_panic(|| {
+            Box::into_raw(Box::new(RustSelector {
+                selector: (&(*list).selectors)[index].clone(),
+            }))
+        })
+    }
+}
+
+/// # Safety
+/// `list` must point to a live parsed selector list.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parsed_selector_list_interned_name_count(list: *const RustParsedSelectorList) -> usize {
+    unsafe { crate::abort_on_panic(|| (&*list).interned_names.len()) }
+}
+
+/// # Safety
+/// `list` must point to a live parsed selector list and `index` must be in bounds.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parsed_selector_list_interned_name(
+    list: *const RustParsedSelectorList,
+    index: usize,
+) -> FfiStringView {
+    unsafe {
+        crate::abort_on_panic(|| {
+            let name = &(&(*list).interned_names)[index];
+            FfiStringView {
+                data: name.as_ptr(),
+                length: name.len(),
+            }
+        })
+    }
+}
+
+/// # Safety
+/// `list` must point to a live parsed selector list. `leaked_name_raws` must contain one leaked
+/// `Utf16FlyString` raw value for every name returned by
+/// `rust_parsed_selector_list_interned_name`. This function assumes ownership of those references.
+/// It must be called before extracting any selector with `rust_parsed_selector_list_selector`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_parsed_selector_list_bind_interned_names(
+    list: *mut RustParsedSelectorList,
+    leaked_name_raws: *const usize,
+    name_count: usize,
+) {
+    unsafe {
+        crate::abort_on_panic(|| {
+            let list = &mut *list;
+            assert_eq!(name_count, list.interned_names.len());
+            let leaked_name_raws = if name_count == 0 {
+                &[]
+            } else {
+                assert!(!leaked_name_raws.is_null());
+                std::slice::from_raw_parts(leaked_name_raws, name_count)
+            };
+            let retained_names = leaked_name_raws
+                .iter()
+                .map(|&raw| RetainedUtf16FlyString::from_leaked_raw(raw))
+                .collect::<Vec<_>>();
+            for selector in &mut list.selectors {
+                bind_interned_names_in_selector(selector, &list.interned_names, &retained_names);
+            }
+        });
+    }
 }

@@ -269,7 +269,11 @@ impl<'a> SelectorCompiler<'a> {
     pub fn compile_in_scope(&mut self, selector: &CompiledSelector, scope: &ScopeChain<'_>) -> CompiledEntry {
         let (scope_roots, scope_limits, scope_levels) = (scope.roots, scope.limits, scope.levels);
         let implicit_root_of = |level: usize| scope.implicit_roots.get(level).copied().flatten();
-        if scope_roots.is_empty() && scope_limits.is_empty() && scope.implicit_roots.iter().all(Option::is_none) {
+        if scope_levels.is_empty()
+            && scope_roots.is_empty()
+            && scope_limits.is_empty()
+            && scope.implicit_roots.is_empty()
+        {
             return self.compile(selector);
         }
         let mut marker = None;
@@ -327,10 +331,12 @@ impl<'a> SelectorCompiler<'a> {
                 roots.push(self.compile_chain(compounds, compounds.len() - 1, &mut marker));
                 self.scope_root_is_bound = bound;
             }
-            // A level with a limit and no root bounds nothing: which elements a limit excludes
-            // depends on where the root it belongs to is, and there is none.
+            // An explicit `<scope-start>` whose selectors all failed parent substitution matches
+            // no roots. An omitted start is represented by an implicit root above.
             if roots.is_empty() {
-                continue;
+                marker.get_or_insert(CompilationMarker::KnownNeverMatches(CompilationMarkerReason::Malformed));
+                inner = self.builder.push_never();
+                break;
             }
             let root = self.builder.push_any_of(&roots);
 
@@ -643,8 +649,8 @@ impl<'a> SelectorCompiler<'a> {
             let names: Vec<SelectorNodeID> = part
                 .identifier_identities
                 .iter()
-                .map(|raw| {
-                    let atom = (self.intern)(*raw, None);
+                .map(|identity| {
+                    let atom = (self.intern)(identity.raw(), None);
                     self.builder.push(SelectorOp::Part(atom))
                 })
                 .collect();
@@ -900,8 +906,8 @@ impl<'a> SelectorCompiler<'a> {
         // and the dispatch can reject a rule whose value the element does not hold without
         // evaluating anything. Any other operator or case reads the literal.
         let value_atom = match (operator, case) {
-            (AttributeOperator::Exact, AttributeCase::Sensitive) => match attribute.value_identity {
-                Some(raw) => (self.intern)(raw, None),
+            (AttributeOperator::Exact, AttributeCase::Sensitive) => match &attribute.value_identity {
+                Some(identity) => (self.intern)(identity.raw(), None),
                 None => self.intern_text(&attribute.value),
             },
             _ => StyleAtomID::NONE,
@@ -1061,8 +1067,8 @@ impl<'a> SelectorCompiler<'a> {
                     Direction::RightToLeft => &[b'r' as u16, b't' as u16, b'l' as u16],
                     Direction::Other => &[b'a' as u16, b'u' as u16, b't' as u16, b'o' as u16],
                 };
-                let value = match pseudo_class.identifier_lowercase_identity {
-                    Some(raw) => (self.intern)(raw, None),
+                let value = match &pseudo_class.identifier_lowercase_identity {
+                    Some(identity) => (self.intern)(identity.raw(), None),
                     None => self.intern_ascii_lowercase_text(keyword),
                 };
                 Some(self.builder.push(SelectorOp::ValueState {
@@ -1080,15 +1086,19 @@ impl<'a> SelectorCompiler<'a> {
                 match pseudo_class.languages.is_empty() {
                     true => Some(self.builder.push_never()),
                     false => {
-                        let ranges: Vec<&[u16]> = pseudo_class.languages.iter().map(|range| range.as_ref()).collect();
+                        let ranges: Vec<&[u16]> = pseudo_class
+                            .languages
+                            .iter()
+                            .map(|range| range.value.as_ref())
+                            .collect();
                         let (first, count) = self.builder.push_language_ranges(&ranges);
                         Some(self.builder.push(SelectorOp::Language { first, count }))
                     }
                 }
             }
             Pc::State => {
-                let value = match pseudo_class.identifier_identity {
-                    Some(raw) => (self.intern)(raw, None),
+                let value = match &pseudo_class.identifier_identity {
+                    Some(identity) => (self.intern)(identity.raw(), None),
                     None => match pseudo_class.identifier.as_ref() {
                         Some(identifier) => self.intern_text(identifier),
                         None => StyleAtomID::NONE,

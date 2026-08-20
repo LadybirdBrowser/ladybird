@@ -2,15 +2,14 @@ Harness status: OK
 
 Found 23 tests
 
-22 Pass
-1 Fail
+23 Pass
 Pass	:nth-child serialization produces canonical form
 Pass	single universal selector shows '*' when serialized.
 Pass	single type (simple) selector in the sequence of simple selectors that is not a universal selector
 Pass	single class (simple) selector in the sequence of simple selectors that is not a universal selector
 Pass	single id (simple) selector in the sequence of simple selectors that is not a universal selector
 Pass	single pseudo (simple) selector which does not accept arguments in the sequence of simple selectors that is not a universal selector
-Fail	single pseudo (simple) selector "lang" which accepts arguments in the sequence of simple selectors that is not a universal selector
+Pass	single pseudo (simple) selector "lang" which accepts arguments in the sequence of simple selectors that is not a universal selector
 Pass	single pseudo (simple) selector "nth-child" which accepts arguments in the sequence of simple selectors that is not a universal selector
 Pass	single pseudo (simple) selector "nth-last-child" which accepts arguments in the sequence of simple selectors that is not a universal selector
 Pass	single pseudo (simple) selector "nth-of-child" which accepts arguments in the sequence of simple selectors that is not a universal selector

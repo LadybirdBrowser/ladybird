@@ -58,36 +58,6 @@ Optional<SelectorList> const& CSSScopeRule::start_selectors_for_matching() const
     return m_cached_start_selectors_for_matching;
 }
 
-SelectorList adapt_scope_end_selectors_for_matching(SelectorList const& selectors)
-{
-    // NB: This is a modified version of adapt_nested_relative_selector_list().
-    // End selectors are implicitly prepended with `:scope` if that doesn't already appear.
-    // We also prepend it if the selector is relative.
-
-    SelectorList new_list;
-    new_list.ensure_capacity(selectors.size());
-    for (auto const& selector : selectors) {
-        auto first_combinator = selector->compound_selectors().first().combinator;
-
-        if (!first_is_one_of(first_combinator, Selector::Combinator::None, Selector::Combinator::Descendant)
-            || (!selector->contains_the_nesting_selector() && !selector->contains_pseudo_class(PseudoClass::Scope))) {
-            new_list.append(selector->relative_to(Selector::SimpleSelector {
-                .type = Selector::SimpleSelector::Type::PseudoClass,
-                .value = Selector::SimpleSelector::PseudoClassSelector {
-                    .type = PseudoClass::Scope,
-                } }));
-        } else if (first_combinator == Selector::Combinator::Descendant) {
-            // Replace leading descendant combinator (whitespace) with none, because we're not actually relative.
-            auto copied_compound_selectors = selector->compound_selectors();
-            copied_compound_selectors.first().combinator = Selector::Combinator::None;
-            new_list.append(Selector::create(move(copied_compound_selectors)));
-        } else {
-            new_list.append(selector);
-        }
-    }
-    return new_list;
-}
-
 Optional<SelectorList> const& CSSScopeRule::end_selectors_for_matching() const
 {
     if (!m_end_selectors.has_value())

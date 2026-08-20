@@ -45,36 +45,10 @@ void CSSNestedDeclarations::visit_edges(GC::Cell::Visitor& visitor)
 
 static SelectorList absolutize_parent_selectors(CSSNestedDeclarations const& nested_declarations)
 {
-    static NeverDestroyed<SelectorList> where_scope_selector_list { SelectorList {
-        Selector::create({
-            Selector::CompoundSelector {
-                .combinator = Selector::Combinator::None,
-                .simple_selectors = {
-                    Selector::SimpleSelector {
-                        .type = Selector::SimpleSelector::Type::PseudoClass,
-                        .value = Selector::SimpleSelector::PseudoClassSelector {
-                            .type = PseudoClass::Where,
-                            .argument_selector_list = {
-                                Selector::create({
-                                    Selector::CompoundSelector {
-                                        .combinator = Selector::Combinator::None,
-                                        .simple_selectors = {
-                                            Selector::SimpleSelector {
-                                                .type = Selector::SimpleSelector::Type::PseudoClass,
-                                                .value = Selector::SimpleSelector::PseudoClassSelector {
-                                                    .type = PseudoClass::Scope,
-                                                },
-                                            },
-                                        },
-                                    },
-                                }),
-                            },
-                        },
-                    },
-                },
-            },
-        }),
-    } };
+    static NeverDestroyed<SelectorList> where_scope_selector_list = [] {
+        HashTable<Utf16FlyString> namespaces;
+        return parse_selector_list_in_rust(":where(:scope)"sv, namespaces, false, false).release_value();
+    }();
 
     for (auto const* parent_rule = nested_declarations.parent_rule(); parent_rule; parent_rule = parent_rule->parent_rule()) {
         if (auto const* parent_style_rule = as_if<CSSStyleRule>(parent_rule))

@@ -13,5 +13,19 @@
             println(`${selector} -> ${stylesheet.cssRules[0].selectorText}`);
             stylesheet.deleteRule(0);
         }
+
+        const whitespaceCases = [
+            ["spaces", ":is(  :fake(:imaginary)  ,.x)"],
+            ["tabs", ":is(\t:fake(:imaginary)\t,.x)"],
+            ["newlines", ":is(\n:fake(:imaginary)\n,.x)"],
+            ["comments", ":is(/* leading */:fake(:imaginary)/* trailing */,.x)"],
+            ["mixed whitespace", ":where( \t/* before */\n!?/* after */\t , .x)"],
+            ["only whitespace and comments", ":is( \t/* only */\n, .x)"],
+        ];
+        for (const [description, selector] of whitespaceCases) {
+            stylesheet.insertRule(`${selector} { }`);
+            println(`${description} -> ${JSON.stringify(stylesheet.cssRules[0].selectorText)}`);
+            stylesheet.deleteRule(0);
+        }
     });
 </script>

@@ -1,0 +1,54 @@
+<!doctype html>
+<style id="style"></style>
+<div id="container"><span id="first"></span><span id="second"></span></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const hugeInteger = "9".repeat(400);
+        const testCases = [
+            ["maximum integer", "2147483647", "2147483647"],
+            ["integer above maximum", "2147483648", "2147483647"],
+            ["minimum integer", "-2147483648", "-2147483648"],
+            ["integer below minimum", "-2147483649", "-2147483648"],
+            ["integer overflowing double", hugeInteger, "2147483647"],
+            ["negative integer overflowing double", `-${hugeInteger}`, "-2147483648"],
+            ["maximum dimension", "2147483647n+1", "2147483647n+1"],
+            ["dimension above maximum", "2147483648n+1", "2147483647n+1"],
+            ["minimum dimension", "-2147483648n+2", "-2147483648n+2"],
+            ["dimension below minimum", "-2147483649n+2", "-2147483648n+2"],
+            ["dimension overflowing double", `${hugeInteger}n+1`, "2147483647n+1"],
+            ["negative dimension overflowing double", `-${hugeInteger}n+2`, "-2147483648n+2"],
+            ["positive signed offset", "n+2147483648", "n+2147483647"],
+            ["negative signed offset", "n -2147483649", "n-2147483648"],
+            ["separate positive sign", "n + 2147483648", "n+2147483647"],
+            ["separate negative sign", "n - 2147483649", "n-2147483647"],
+            ["compact dimension offset below minimum", "2n-2147483649", "2n-2147483648"],
+            ["compact negative unit offset below minimum", "-n-2147483649", "-n-2147483648"],
+            ["compact unit offset below minimum", "n-2147483649", "n-2147483648"],
+            ["compact dimension offset overflowing double", `2n-${hugeInteger}`, "2n-2147483648"],
+            ["compact negative unit offset overflowing double", `-n-${hugeInteger}`, "-n-2147483648"],
+            ["compact unit offset overflowing double", `n-${hugeInteger}`, "n-2147483648"],
+        ];
+
+        const stylesheet = document.getElementById("style").sheet;
+        for (const [description, input, expected] of testCases) {
+            stylesheet.insertRule(`:nth-child(${input}) {}`);
+            println(`${description}: ${stylesheet.cssRules[0].selectorText}`);
+            if (stylesheet.cssRules[0].selectorText !== `:nth-child(${expected})`)
+                throw new Error(`Unexpected serialization for ${description}`);
+            document.querySelector(`:nth-child(${input})`);
+            stylesheet.deleteRule(0);
+        }
+
+        const first = document.getElementById("first");
+        const second = document.getElementById("second");
+        println(`clamped positive coefficient matches first: ${first.matches(":nth-child(2147483648n + 1)")}`);
+        println(`clamped positive coefficient matches second: ${second.matches(":nth-child(2147483648n + 1)")}`);
+        println(`clamped negative coefficient matches first: ${first.matches(":nth-child(-2147483649n + 2)")}`);
+        println(`clamped negative coefficient matches second: ${second.matches(":nth-child(-2147483649n + 2)")}`);
+
+        for (const pseudoClass of ["nth-last-child", "nth-of-type", "nth-last-of-type"])
+            document.querySelector(`:${pseudoClass}(2147483648n + 1)`);
+        println("all indexed pseudo-classes accepted clamped coefficients");
+    });
+</script>

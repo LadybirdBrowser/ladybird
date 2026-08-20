@@ -8,7 +8,8 @@
 
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
-#include <LibWeb/CSS/Parser/Types.h>
+#include <LibWeb/CSS/Parser/ComponentValue.h>
+#include <LibWeb/CSS/Selector.h>
 
 namespace Web::CSS {
 

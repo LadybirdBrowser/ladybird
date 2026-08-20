@@ -9973,22 +9973,7 @@ void Document::exit_pointer_lock()
 
 static bool contains_named_namespace(CSS::SelectorList const& selectors)
 {
-    for (auto const& selector : selectors) {
-        for (auto const& compound_selector : selector->compound_selectors()) {
-            for (auto const& simple_selector : compound_selector.simple_selectors) {
-                if (simple_selector.value.has<CSS::Selector::SimpleSelector::QualifiedName>()) {
-                    if (simple_selector.qualified_name().namespace_type == CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Named)
-                        return true;
-                }
-
-                if (simple_selector.value.has<CSS::Selector::SimpleSelector::PseudoClassSelector>()) {
-                    if (contains_named_namespace(simple_selector.pseudo_class().argument_selector_list))
-                        return true;
-                }
-            }
-        }
-    }
-    return false;
+    return selectors.contains([](auto const& selector) { return selector->contains_named_namespace(); });
 }
 
 RefPtr<SelectorQuery const> Document::selector_query_for(Utf16View selector_text) const

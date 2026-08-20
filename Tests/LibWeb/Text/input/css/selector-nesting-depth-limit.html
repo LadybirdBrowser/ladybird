@@ -1,0 +1,18 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const cases = [
+            ["component values", "(".repeat(257) + ")".repeat(257)],
+            ["selector functions", ":is(".repeat(129) + "*" + ")".repeat(129)],
+        ];
+        for (const [description, selector] of cases) {
+            try {
+                document.querySelector(selector);
+                println(`${description}: did not throw`);
+            } catch (error) {
+                println(`${description}: ${error.name}`);
+            }
+        }
+    });
+</script>

@@ -90,6 +90,17 @@ impl PartialEq for RetainedUtf16FlyString {
     }
 }
 
+impl Eq for RetainedUtf16FlyString {}
+
+impl std::fmt::Debug for RetainedUtf16FlyString {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_tuple("RetainedUtf16FlyString")
+            .field(&self.raw)
+            .finish()
+    }
+}
+
 /// A Rust-owned array of retained AK::Utf16FlyString values.
 #[repr(C)]
 pub struct RetainedUtf16FlyStringList {

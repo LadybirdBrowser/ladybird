@@ -1,0 +1,3 @@
+:lang(en, "*-Latn", "a\"b")
+::view-transition-group(foo\ bar)
+:nth-child(2n+1 of .foo, #bar)

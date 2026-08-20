@@ -45,13 +45,13 @@ public:
 private:
     SelectorQuery(Document&, CSS::SelectorList&&);
 
-    bool can_match_simple_selector_in_dom() const;
     bool matches_simple_selector_in_dom(Element const&) const;
     bool matches_in_style_engine(Element const&, ParentNode const& scope) const;
     IsolatedSelectorQueryEngine& isolated_engine_for(ParentNode&) const;
 
     CSS::SelectorList m_selectors;
     void* m_engine_query { nullptr };
+    bool m_can_match_in_dom { false };
 
     // Whether matching can only change when the document's dom_tree_version (plus character_data_version, see below)
     // changes. Queries with selectors that depend on other state (:hover, :checked, :target, etc) are not cacheable.
