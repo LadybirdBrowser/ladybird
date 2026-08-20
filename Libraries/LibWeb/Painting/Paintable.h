@@ -128,8 +128,6 @@ public:
     [[nodiscard]] virtual bool is_inline_paintable() const { return false; }
     [[nodiscard]] virtual bool is_svg_paintable() const { return false; }
 
-    [[nodiscard]] virtual bool foreground_paints_descendant_content() const { return false; }
-
     [[nodiscard]] virtual bool is_svg_svg_paintable() const { return false; }
     [[nodiscard]] virtual bool is_svg_path_paintable() const { return false; }
     [[nodiscard]] virtual bool is_svg_graphics_paintable() const { return false; }

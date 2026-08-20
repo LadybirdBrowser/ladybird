@@ -52,8 +52,6 @@ public:
             fragment.set_selection_state(SelectionState::None);
     }
 
-    virtual bool foreground_paints_descendant_content() const override { return true; }
-
     void assign_inline_box_geometry();
 
     Vector<PaintableFragment::FragmentSpan, 4> render_spans_for_paint(u64 paint_generation_id, ReadonlySpan<u32> owned_fragment_indices) const;

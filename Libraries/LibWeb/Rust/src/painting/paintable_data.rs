@@ -212,8 +212,6 @@ pub struct PaintableData {
     pub sticky_insets: FfiStickyInsets,
     pub has_sticky_insets: bool,
 
-    pub scroll_offset: FfiCssPixelPoint,
-
     pub stacking_context: u32,
 
     pub enclosing_scroll_node_index: usize,
@@ -266,7 +264,6 @@ impl Default for PaintableData {
             has_cached_overflow: false,
             sticky_insets: FfiStickyInsets::default(),
             has_sticky_insets: false,
-            scroll_offset: FfiCssPixelPoint::default(),
             stacking_context: u32::MAX,
             enclosing_scroll_node_index: 0,
             own_scroll_node_index: 0,
