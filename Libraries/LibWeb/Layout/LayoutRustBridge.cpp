@@ -536,7 +536,10 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                     reused_subtree_root->translate_reused_subtree_absolute_geometry(delta);
             }
             bridge.m_reused_subtree_roots.clear();
-            bridge.m_content_offsets_before_commit.clear(); },
+            bridge.m_content_offsets_before_commit.clear();
+            for (auto& navigable_container_viewport : bridge.m_committed_navigable_container_viewports)
+                as<Box>(navigable_container_viewport->layout_node()).notify_content_navigable_of_committed_viewport();
+            bridge.m_committed_navigable_container_viewports.clear(); },
         .prepare_node = [](void* context, void* node_pointer, bool has_used_values, bool reuses_committed_subtree) -> RustFFI::FfiPreparedPaintable {
             auto& bridge = *static_cast<LayoutRustBridge*>(context);
             auto& node = *static_cast<Node*>(node_pointer);
@@ -559,6 +562,8 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                     paintable = node.create_paintable();
                 }
                 node.set_paintable(paintable);
+                if (node.kind() == RustFFI::NodeKind::NavigableContainerViewport && paintable)
+                    bridge.m_committed_navigable_container_viewports.append(*paintable);
             } else if (node.paintable_ptr()) {
                 // A paintable surviving from a previous layout on a node this pass did not lay out is
                 // stale; drop it so the layout tree only points into the paint tree built by this commit.
@@ -570,20 +575,12 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                 .reused = reused,
             };
         },
-        .set_box_metrics = [](void*, void* paintable_pointer, RustFFI::FfiCommittedBoxMetrics metrics) {
+        .content_size_changed = [](void*, void* paintable_pointer, RustFFI::FfiCssPixelSize old_size, RustFFI::FfiCssPixelSize new_size) {
             auto& paintable = *static_cast<Painting::Paintable*>(paintable_pointer);
-            paintable.set_offset({
-                CSSPixels::from_raw(metrics.content_offset.x),
-                CSSPixels::from_raw(metrics.content_offset.y),
-            });
-            CSSPixelSize content_size {
-                CSSPixels::from_raw(metrics.content_inline_size),
-                CSSPixels::from_raw(metrics.content_block_size)
-            };
-            if (metrics.reuses_committed_subtree)
-                VERIFY(paintable.content_size() == content_size);
-            else
-                paintable.set_content_size(content_size); },
+            Painting::invalidate_descendant_styles_for_container_query_size_change(
+                paintable,
+                { CSSPixels::from_raw(old_size.width), CSSPixels::from_raw(old_size.height) },
+                { CSSPixels::from_raw(new_size.width), CSSPixels::from_raw(new_size.height) }); },
         .finish_node = [](void*, void* node_pointer, void* paintable_pointer) {
             auto& node = *static_cast<Node*>(node_pointer);
             auto* paintable = static_cast<Painting::Paintable*>(paintable_pointer);

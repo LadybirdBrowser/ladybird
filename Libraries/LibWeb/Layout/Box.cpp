@@ -304,11 +304,8 @@ RustFFI::FfiReplacedContentFacts Box::build_replaced_content_facts_for_arena() c
     return facts;
 }
 
-void Box::did_set_content_size()
+void Box::notify_content_navigable_of_committed_viewport()
 {
-    if (kind() != RustFFI::NodeKind::NavigableContainerViewport)
-        return;
-
     if (auto content_navigable = as<HTML::NavigableContainer>(*dom_node()).content_navigable()) {
         auto content_size = paintable_box()->content_size();
         as<HTML::LocalNavigable>(*content_navigable).set_viewport_size(content_size);
