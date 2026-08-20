@@ -15,15 +15,9 @@ pub(crate) struct RecordVisualLine {
     pub start_offset: usize,
     pub end_offset: usize,
     pub end_offset_with_trailing_whitespace: usize,
+    pub has_fragments: bool,
     pub owner: PaintableSlotId,
     pub line_index: u32,
-    pub fragments: Vec<(PaintableSlotId, u32)>,
-}
-
-impl RecordVisualLine {
-    pub(crate) fn has_fragments(&self) -> bool {
-        !self.fragments.is_empty()
-    }
 }
 
 pub(crate) fn text_preserves_newlines(layout_arena: &LayoutNodeArena, text_node: NodeSlotId) -> bool {
@@ -89,40 +83,32 @@ pub(crate) fn collect_visual_lines(
     node_slots: &[NodeSlotId],
 ) -> Vec<RecordVisualLine> {
     let mut lines: Vec<RecordVisualLine> = Vec::new();
-    for &node in node_slots {
-        let Some(block) = text_fragment::containing_block_paintable_of_node(layout_arena, paintables, node) else {
-            continue;
-        };
-        for (index, fragment) in paintables.side(block).fragments.iter().enumerate() {
-            if fragment.layout_node != node {
-                continue;
-            }
-            let dom_start = fragment.dom_start_offset_in_node;
-            let dom_end = dom_start + fragment.length_in_code_units;
-            let dom_end_with_trailing_whitespace = dom_end + fragment.trailing_whitespace_length_in_code_units;
-            if let Some(line) = lines.last_mut()
-                && line.has_fragments()
-                && line.owner == block
-                && line.line_index == fragment.line_index
-            {
-                line.start_offset = line.start_offset.min(dom_start);
-                line.end_offset = line.end_offset.max(dom_end);
-                line.end_offset_with_trailing_whitespace = line
-                    .end_offset_with_trailing_whitespace
-                    .max(dom_end_with_trailing_whitespace);
-                line.fragments.push((block, index as u32));
-            } else {
-                lines.push(RecordVisualLine {
-                    start_offset: dom_start,
-                    end_offset: dom_end,
-                    end_offset_with_trailing_whitespace: dom_end_with_trailing_whitespace,
-                    owner: block,
-                    line_index: fragment.line_index,
-                    fragments: vec![(block, index as u32)],
-                });
-            }
+    text_fragment::for_each_fragment_of_nodes(layout_arena, paintables, node_slots, |block, _, fragment| {
+        let dom_start = fragment.dom_start_offset_in_node;
+        let dom_end = dom_start + fragment.length_in_code_units;
+        let dom_end_with_trailing_whitespace = dom_end + fragment.trailing_whitespace_length_in_code_units;
+        if let Some(line) = lines.last_mut()
+            && line.has_fragments
+            && line.owner == block
+            && line.line_index == fragment.line_index
+        {
+            line.start_offset = line.start_offset.min(dom_start);
+            line.end_offset = line.end_offset.max(dom_end);
+            line.end_offset_with_trailing_whitespace = line
+                .end_offset_with_trailing_whitespace
+                .max(dom_end_with_trailing_whitespace);
+        } else {
+            lines.push(RecordVisualLine {
+                start_offset: dom_start,
+                end_offset: dom_end,
+                end_offset_with_trailing_whitespace: dom_end_with_trailing_whitespace,
+                has_fragments: true,
+                owner: block,
+                line_index: fragment.line_index,
+            });
         }
-    }
+        true
+    });
     if let Some(&primary) = node_slots.last()
         && text_preserves_newlines(layout_arena, primary)
     {
@@ -131,9 +117,9 @@ pub(crate) fn collect_visual_lines(
                 start_offset: position,
                 end_offset: position,
                 end_offset_with_trailing_whitespace: position,
+                has_fragments: false,
                 owner: PaintableSlotId::INVALID,
                 line_index: 0,
-                fragments: Vec::new(),
             });
             true
         });
@@ -190,15 +176,15 @@ pub(crate) fn empty_line_caret_targets(
     }
     for (i, line) in lines.iter().enumerate() {
         if i >= side.lines.len() {
-            if line.has_fragments() {
+            if line.has_fragments {
                 return Vec::new();
             }
             continue;
         }
-        if line.has_fragments() != (side.lines[i].fragment_count != 0) {
+        if line.has_fragments != (side.lines[i].fragment_count != 0) {
             return Vec::new();
         }
-        if line.has_fragments() && line.line_index as usize != i {
+        if line.has_fragments && line.line_index as usize != i {
             return Vec::new();
         }
     }
@@ -207,7 +193,7 @@ pub(crate) fn empty_line_caret_targets(
     let content_width = paintables.data_ref(block).content_size.width;
     let mut targets = Vec::new();
     for (i, line) in lines.iter().enumerate() {
-        if line.has_fragments() {
+        if line.has_fragments {
             continue;
         }
         let rect = if i < side.lines.len() {
@@ -229,4 +215,107 @@ pub(crate) fn empty_line_caret_targets(
         });
     }
     targets
+}
+
+fn fragments_of_line(
+    layout_arena: &LayoutNodeArena,
+    paintables: &PaintableArena,
+    owner_paintable: u32,
+    line_index: u32,
+    node_slots: &[NodeSlotId],
+) -> Vec<(PaintableSlotId, u32)> {
+    let mut fragments = Vec::new();
+    text_fragment::for_each_fragment_of_nodes(layout_arena, paintables, node_slots, |block, index, fragment| {
+        if block.index == owner_paintable && fragment.line_index == line_index {
+            fragments.push((block, index));
+        }
+        true
+    });
+    fragments
+}
+
+pub(crate) fn caret_inline_coordinate(
+    layout_arena: &LayoutNodeArena,
+    paintables: &PaintableArena,
+    owner_paintable: u32,
+    line_index: u32,
+    node_slots: &[NodeSlotId],
+    offset: usize,
+) -> Option<CssPixels> {
+    let fragments = fragments_of_line(layout_arena, paintables, owner_paintable, line_index, node_slots);
+    let mut chosen = *fragments.first()?;
+    for &(block, index) in &fragments {
+        let fragment = &paintables.side(block).fragments[index as usize];
+        let dom_start = fragment.dom_start_offset_in_node;
+        let dom_end_with_trailing_whitespace =
+            dom_start + fragment.length_in_code_units + fragment.trailing_whitespace_length_in_code_units;
+        if offset >= dom_start && offset <= dom_end_with_trailing_whitespace {
+            chosen = (block, index);
+            break;
+        }
+        if dom_start <= offset {
+            chosen = (block, index);
+        }
+    }
+    let (block, index) = chosen;
+    let fragment = &paintables.side(block).fragments[index as usize];
+    let dom_start = fragment.dom_start_offset_in_node;
+    let dom_end_with_trailing_whitespace =
+        dom_start + fragment.length_in_code_units + fragment.trailing_whitespace_length_in_code_units;
+    let clamped_offset = offset.clamp(dom_start, dom_end_with_trailing_whitespace);
+    let rect = text_fragment::range_rect(
+        layout_arena,
+        paintables,
+        fragment,
+        crate::painting::paintable_data::SELECTION_STATE_START_AND_END,
+        clamped_offset,
+        clamped_offset,
+    );
+    Some(if text_fragment::fragment_is_horizontal(fragment) {
+        rect.x
+    } else {
+        rect.y
+    })
+}
+
+pub(crate) fn offset_closest_to_inline_coordinate(
+    layout_arena: &LayoutNodeArena,
+    paintables: &PaintableArena,
+    owner_paintable: u32,
+    line_index: u32,
+    node_slots: &[NodeSlotId],
+    inline_coordinate: CssPixels,
+) -> Option<usize> {
+    let fragments = fragments_of_line(layout_arena, paintables, owner_paintable, line_index, node_slots);
+    let mut chosen = *fragments.first()?;
+    for &(block, index) in &fragments {
+        let fragment = &paintables.side(block).fragments[index as usize];
+        let rect = text_fragment::absolute_rect(layout_arena, paintables, fragment);
+        let inline_start = if text_fragment::fragment_is_horizontal(fragment) {
+            rect.x
+        } else {
+            rect.y
+        };
+        if inline_start <= inline_coordinate {
+            chosen = (block, index);
+        }
+    }
+    let (block, index) = chosen;
+    let fragment = &paintables.side(block).fragments[index as usize];
+    let rect = text_fragment::absolute_rect(layout_arena, paintables, fragment);
+    let mut point = crate::css::css_pixels::CssPixelPoint {
+        x: rect.x + CssPixels::from_raw(rect.width.raw_value() / 2),
+        y: rect.y + CssPixels::from_raw(rect.height.raw_value() / 2),
+    };
+    if text_fragment::fragment_is_horizontal(fragment) {
+        point.x = rect.x.max(inline_coordinate);
+    } else {
+        point.y = rect.y.max(inline_coordinate);
+    }
+    Some(text_fragment::index_in_node_for_point(
+        layout_arena,
+        paintables,
+        fragment,
+        point,
+    ))
 }

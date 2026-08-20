@@ -69,6 +69,10 @@ fn is_horizontal(fragment: &FragmentRecord) -> bool {
     fragment.writing_mode == crate::css::css_enums::writing_mode::HORIZONTAL_TB
 }
 
+pub(crate) fn fragment_is_horizontal(fragment: &FragmentRecord) -> bool {
+    is_horizontal(fragment)
+}
+
 fn primary_size(rect: CssPixelRect, horizontal: bool) -> CssPixels {
     if horizontal { rect.width } else { rect.height }
 }

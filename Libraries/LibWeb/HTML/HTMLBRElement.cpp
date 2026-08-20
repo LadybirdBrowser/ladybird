@@ -59,7 +59,7 @@ static bool is_rendered_inline_content(DOM::Node const& node)
 {
     if (auto const* text = as_if<DOM::Text>(node)) {
         for (auto const& line : collect_visual_lines(*text)) {
-            if (!line.fragments.is_empty())
+            if (line.has_fragments)
                 return true;
         }
         return false;
