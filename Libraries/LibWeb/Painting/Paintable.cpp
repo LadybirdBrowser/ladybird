@@ -56,10 +56,6 @@
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ResizeHandle.h>
-#include <LibWeb/Painting/SVGForeignObjectPaintable.h>
-#include <LibWeb/Painting/SVGGraphicsPaintable.h>
-#include <LibWeb/Painting/SVGPaintable.h>
-#include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/Painting/Scrollbar.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
@@ -608,7 +604,7 @@ static Gfx::FloatRect svg_svg_box_view_box_or_viewport_rect(Layout::Box const& s
 {
     if (auto view_box = as<SVG::SVGSVGElement>(*svg_svg_box.dom_node()).active_view_box(); view_box.has_value())
         return { view_box->min_x, view_box->min_y, view_box->width, view_box->height };
-    if (auto const* paintable = as_if<SVGSVGPaintable>(svg_svg_box.paintable_box().ptr()))
+    if (auto const* paintable = svg_svg_box.paintable_box().ptr())
         return { {}, { paintable->svg_viewport_size().width().to_float(), paintable->svg_viewport_size().height().to_float() } };
     return {};
 }
@@ -1115,15 +1111,24 @@ CSSPixelPoint Paintable::offset() const
 
 CSSPixelRect Paintable::compute_absolute_rect() const
 {
+    if (is_svg_paintable()) {
+        // SVG content geometry lives in the user space of the nearest ancestor viewport, and layout
+        // places every box viewport-relative already, so no ancestor offsets accumulate.
+        for (auto const* ancestor = layout_node().parent(); ancestor; ancestor = ancestor->parent()) {
+            if (ancestor->is_svg_svg_box())
+                return { offset(), content_size() };
+        }
+    }
+
     CSSPixelRect rect { offset(), content_size() };
     for (auto block = containing_block(); block; block = block->containing_block()) {
         // SVG content offsets are viewport-relative: accumulation never crosses into an enclosing
         // SVG coordinate space, and a foreignObject's own offset is the last one that applies to
         // the CSS content inside it.
-        if (is<SVGSVGPaintable>(*block) || is<SVGPaintable>(*block))
+        if (block->is_svg_svg_paintable() || block->is_svg_paintable())
             break;
         rect.translate_by(block->offset());
-        if (is<SVGForeignObjectPaintable>(*block))
+        if (block->is_svg_foreign_object_paintable())
             break;
     }
     return rect;
@@ -1611,7 +1616,7 @@ CSSPixelRect Paintable::transform_reference_box() const
     // border-box is stroke-box.
     // FIXME: This currently detects any SVG element except the <svg> one. Is that correct?
     //        And is it correct to use `else` below?
-    if (is<Painting::SVGPaintable>(*this)) {
+    if (is_svg_paintable()) {
         switch (transform_box) {
         case CSS::TransformBox::ContentBox:
             transform_box = CSS::TransformBox::FillBox;

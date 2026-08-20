@@ -10,7 +10,6 @@
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/PaintStyle.h>
-#include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/FragmentIdentifier.h>
