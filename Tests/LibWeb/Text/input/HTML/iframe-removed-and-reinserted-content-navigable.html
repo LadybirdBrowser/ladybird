@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<iframe id="frame"></iframe>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const frame = document.getElementById("frame");
+        const originalContentWindow = frame.contentWindow;
+
+        frame.remove();
+        document.body.appendChild(frame);
+
+        println(`after re-insertion: contentWindow is null: ${frame.contentWindow === null}`);
+        println(`after re-insertion: contentWindow is a new window: ${frame.contentWindow !== originalContentWindow}`);
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        println(`after pending tasks: contentWindow is null: ${frame.contentWindow === null}`);
+    });
+</script>
