@@ -8,7 +8,7 @@ use crate::abort_on_panic;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
-use crate::layout::{FfiCssPixelPoint, FfiCssPixelRect};
+use crate::layout::FfiCssPixelPoint;
 use crate::painting::paintable_data::*;
 use std::ffi::c_void;
 
@@ -175,23 +175,14 @@ pub unsafe extern "C" fn layout_arena_paintable_set_sticky_insets(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_set_overflow_data(
-    arena: *mut c_void,
-    slot: PaintableSlotId,
-    rect: FfiCssPixelRect,
-    has_scrollable_overflow: bool,
-    present: bool,
-) {
+pub unsafe extern "C" fn layout_arena_paintable_clear_overflow_data(arena: *mut c_void, slot: PaintableSlotId) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
         if paintables.is_live(slot) {
             paintables.update_data(slot, |data| {
-                data.overflow = FfiOverflowData {
-                    rect,
-                    has_scrollable_overflow,
-                };
-                data.has_overflow = present;
+                data.overflow = FfiOverflowData::default();
+                data.has_overflow = false;
             });
         }
     });
@@ -201,23 +192,14 @@ pub unsafe extern "C" fn layout_arena_paintable_set_overflow_data(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_set_cached_overflow_data(
-    arena: *mut c_void,
-    slot: PaintableSlotId,
-    rect: FfiCssPixelRect,
-    has_scrollable_overflow: bool,
-    present: bool,
-) {
+pub unsafe extern "C" fn layout_arena_paintable_clear_cached_overflow_data(arena: *mut c_void, slot: PaintableSlotId) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
         if paintables.is_live(slot) {
             paintables.update_data(slot, |data| {
-                data.cached_overflow = FfiOverflowData {
-                    rect,
-                    has_scrollable_overflow,
-                };
-                data.has_cached_overflow = present;
+                data.cached_overflow = FfiOverflowData::default();
+                data.has_cached_overflow = false;
             });
         }
     });
@@ -398,47 +380,6 @@ pub unsafe extern "C" fn layout_arena_assign_accumulated_visual_contexts(
         state.scroll_state_snapshot.clear();
         state.needs_to_refresh_scroll_state = true;
         is_compatible
-    })
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the
-/// document thread; `out_matrix` and `out_origin` must hold 16 and 2 floats.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_compute_css_transform(
-    arena: *mut c_void,
-    paintable: PaintableSlotId,
-    callbacks: FfiVisualContextHostCallbacks,
-    pixel_ratio: f64,
-    out_matrix: *mut f32,
-    out_origin: *mut f32,
-) -> bool {
-    abort_on_panic(|| {
-        let arena = unsafe { arena_from_handle(arena) };
-        let paintables = arena.paintables().borrow();
-        if !paintables.is_live(paintable) {
-            return false;
-        }
-        let Some((transform, _is_invertible)) = crate::painting::visual_context::node_values::compute_transform(
-            arena,
-            &paintables,
-            &callbacks,
-            paintable,
-            pixel_ratio,
-        ) else {
-            return false;
-        };
-        for (index, value) in transform.matrix.elements.into_iter().flatten().enumerate() {
-            // SAFETY: the caller warrants 16 floats behind out_matrix.
-            unsafe { out_matrix.add(index).write(value) };
-        }
-        // SAFETY: the caller warrants 2 floats behind out_origin.
-        unsafe {
-            out_origin.write(transform.origin.x);
-            out_origin.add(1).write(transform.origin.y);
-        }
-        true
     })
 }
 
