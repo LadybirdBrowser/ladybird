@@ -624,11 +624,11 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         warnln("    Configured lists: {}", m_browser_options.content_blocker_list_paths);
     }
 
-    initialize_actions();
-
     if (!m_event_loop)
         m_event_loop = &create_platform_event_loop();
     TRY(launch_services());
+
+    initialize_actions();
 
     return {};
 }
