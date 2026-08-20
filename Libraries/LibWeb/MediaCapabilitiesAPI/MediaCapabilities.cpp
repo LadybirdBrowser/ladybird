@@ -7,6 +7,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibMedia/CodecParameters.h>
 #include <LibMedia/MediaSupport.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -63,6 +64,54 @@ bool is_valid_media_decoding_configuration(MediaDecodingConfiguration const& con
     return true;
 }
 
+// https://w3c.github.io/media-capabilities/#check-mime-type-validity
+static bool check_mime_type_validity(MimeSniff::MimeType const& mime_type, Media::TrackType media)
+{
+    // 1. If the type of mimeType per [RFC9110] is neither media nor application, return false.
+    auto media_name = media == Media::TrackType::Audio ? "audio"sv : "video"sv;
+    if (mime_type.type() != media_name && mime_type.type() != "application"sv)
+        return false;
+
+    auto container = Media::container_mime_type_from_mime_type(mime_type.type(), mime_type.subtype());
+    if (!container.has_value())
+        return true;
+
+    auto implied_codec = Media::codec_implied_by_file_container(*container);
+
+    // 2. If the combined type and subtype members of mimeType allow a single media codec and the parameters
+    //    member of mimeType is not empty, return false.
+    if (implied_codec.has_value() && !mime_type.parameters().is_empty())
+        return false;
+
+    // 3. If the combined type and subtype members of mimeType allow multiple media codecs, run the following
+    //    steps:
+    if (!implied_codec.has_value()) {
+        //     1. If the parameters member of mimeType does not contain a single key named "codecs", return false.
+        if (mime_type.parameters().size() != 1)
+            return false;
+        auto codecs = mime_type.parameters().find("codecs"sv);
+        if (codecs == mime_type.parameters().end())
+            return false;
+
+        //     2. If the value of mimeType.parameters["codecs"] does not describe a single media codec, return
+        //        false.
+        auto codec_strings = codecs->value.bytes_as_string_view().split_view(',', SplitBehavior::KeepEmpty);
+        if (codec_strings.size() != 1)
+            return false;
+        auto codec = Media::parse_codec_parameters_string(codec_strings[0].trim_whitespace());
+        if (!codec.has_value())
+            return false;
+
+        // AD-HOC: The algorithm takes media but consults it only in step 1, so nothing rejects a codec of the
+        //         wrong kind. See https://github.com/w3c/media-capabilities/issues/261.
+        if (Media::track_type_from_codec_id(codec->codec_id()) != media)
+            return false;
+    }
+
+    // 4. Return true.
+    return true;
+}
+
 // https://w3c.github.io/media-capabilities/#valid-audio-mime-type
 bool is_valid_audio_mime_type(Utf16View string)
 {
@@ -73,8 +122,8 @@ bool is_valid_audio_mime_type(Utf16View string)
     if (!mime_type.has_value())
         return false;
 
-    // FIXME: 3. Return the result of running check MIME type validity with mimeType and audio.
-    return mime_type->type() == "audio"sv || mime_type->type() == "application"sv;
+    // 3. Return the result of running check MIME type validity with mimeType and audio.
+    return check_mime_type_validity(*mime_type, Media::TrackType::Audio);
 }
 
 // https://w3c.github.io/media-capabilities/#valid-video-mime-type
@@ -87,8 +136,8 @@ bool is_valid_video_mime_type(Utf16View string)
     if (!mime_type.has_value())
         return false;
 
-    // FIXME: 3. Return the result of running check MIME type validity with mimeType and video.
-    return mime_type->type() == "video"sv || mime_type->type() == "application"sv;
+    // 3. Return the result of running check MIME type validity with mimeType and video.
+    return check_mime_type_validity(*mime_type, Media::TrackType::Video);
 }
 
 // https://w3c.github.io/media-capabilities/#valid-video-configuration
