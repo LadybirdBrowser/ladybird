@@ -32,7 +32,7 @@
 #include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/PaintableFragment.h>
-#include <LibWeb/Painting/PaintableWithLines.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
@@ -1270,10 +1270,14 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
             case Painting::Paintable::SelectionState::None:
                 VERIFY_NOT_REACHED();
             }
-            mapping.for_each_paintable_fragment_in_dom_range(filter_dom_start, filter_dom_end, [&](Painting::PaintableFragment const& fragment) {
-                auto rect = fragment.range_rect(selection_state, start_offset(), end_offset());
-                rects.append(Geometry::DOMRect::create(rect.to_type<float>()));
-            });
+            auto text_slots = mapping.slot_ids();
+            Layout::RustFFI::layout_arena_text_range_rects(
+                mapping.primary()->arena_handle(), text_slots.data(), text_slots.size(),
+                to_underlying(selection_state), start_offset(), end_offset(), filter_dom_start, filter_dom_end,
+                &rects, [](void* context, Layout::RustFFI::FfiCssPixelRect ffi_rect) {
+                    auto rect = Painting::from_ffi_css_pixel_rect(ffi_rect);
+                    static_cast<Vector<GC::Root<Geometry::DOMRect>>*>(context)->append(Geometry::DOMRect::create(rect.to_type<float>()));
+                });
         }
     }
     return Geometry::DOMRectList::create(move(rects));

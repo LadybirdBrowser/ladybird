@@ -1077,6 +1077,49 @@ pub unsafe extern "C" fn layout_arena_paintable_empty_line_caret_rect(
     })
 }
 
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document
+/// thread. `node_slots` must point at `node_slot_count` valid slots.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_text_range_rects(
+    arena: *mut c_void,
+    node_slots: *const NodeSlotId,
+    node_slot_count: usize,
+    selection_state: u8,
+    range_start_offset: usize,
+    range_end_offset: usize,
+    filter_dom_start: usize,
+    filter_dom_end: usize,
+    context: *mut c_void,
+    push_rect: unsafe extern "C" fn(*mut c_void, FfiCssPixelRect),
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        // SAFETY: The caller guarantees the slot span is valid for this synchronous call.
+        let node_slots = unsafe { ffi_slice(node_slots, node_slot_count) };
+        crate::painting::text_fragment::for_each_fragment_of_nodes(arena, &paintables, node_slots, |_, _, fragment| {
+            let fragment_dom_start = fragment.dom_start_offset_in_node;
+            let fragment_dom_end = fragment_dom_start + fragment.length_in_code_units;
+            if fragment_dom_end <= filter_dom_start || fragment_dom_start >= filter_dom_end {
+                return true;
+            }
+            let rect = crate::painting::text_fragment::range_rect(
+                arena,
+                &paintables,
+                fragment,
+                selection_state,
+                range_start_offset,
+                range_end_offset,
+            );
+            // SAFETY: The consumer copies the plain-data rect synchronously.
+            unsafe { push_rect(context, rect.into()) };
+            true
+        });
+    });
+}
+
 #[repr(C)]
 pub struct FfiOptionalCssPixelRect {
     pub has_value: bool,
