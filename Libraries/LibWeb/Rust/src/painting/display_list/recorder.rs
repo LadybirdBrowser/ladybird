@@ -323,6 +323,18 @@ impl DisplayListRecorder {
         }
     }
 
+    /// Copies a cached command range without rewriting visual-context indices. The caller must
+    /// establish that the recorded indices are still valid for the current visual context tree.
+    pub fn append_cached_command_range_verbatim(&mut self, source: &[u8], range: CommandRange) -> CommandRange {
+        let offset = self
+            .builder
+            .append_command_range(source, range, VisualContextIndex(0), VisualContextIndex(0));
+        CommandRange {
+            offset,
+            size: range.size,
+        }
+    }
+
     pub fn fill_rect(&mut self, rect: IntRect, color: Color) {
         if rect.is_empty() || color.alpha() == 0 {
             return;

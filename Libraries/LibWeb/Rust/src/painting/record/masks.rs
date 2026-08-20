@@ -158,6 +158,7 @@ impl PaintRecorder<'_> {
                 .map(|(index, _)| *index)
                 .collect();
             assert!(!indices.is_empty(), "a mask display list without a mask node");
+            self.prevent_descendant_subtree_caching();
             self.recorder.register_mask_display_list(&indices, display_list_id);
         }
         any_svg_mask_layer_area_is_empty

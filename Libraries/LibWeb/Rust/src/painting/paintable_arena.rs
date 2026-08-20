@@ -81,6 +81,28 @@ impl PaintableArena {
         self.side_data.len()
     }
 
+    pub(crate) fn visual_context_assignments(&self) -> Vec<(u32, bool, usize, usize, usize, usize)> {
+        (0..self.slot_count())
+            .map(|index| {
+                let data = self.data_by_index(index as u32);
+                (
+                    u32::from(data.slot_generation),
+                    data.has_accumulated_visual_context,
+                    data.accumulated_visual_context_index,
+                    data.accumulated_visual_context_for_descendants_index,
+                    data.visual_context_nodes_begin,
+                    data.visual_context_nodes_end,
+                )
+            })
+            .collect()
+    }
+
+    pub(crate) fn clear_descendant_subtree_caches(&self) {
+        for cache in &self.paint_caches {
+            cache.clear_descendant_subtrees();
+        }
+    }
+
     pub fn row_for_node(&mut self, layout_node: NodeSlotId, shell: *mut c_void) -> PaintableAllocation {
         let index = layout_node.slot_index();
         assert!(
@@ -224,6 +246,11 @@ impl PaintableArena {
             return;
         }
         self.paint_caches[id.slot_index() as usize].clear();
+        let mut ancestor = self.data_ref(id).parent;
+        while !ancestor.is_invalid() {
+            self.paint_caches[ancestor.slot_index() as usize].clear_descendant_subtrees();
+            ancestor = self.data_ref(ancestor).parent;
+        }
     }
 
     pub(crate) fn invalidate_propagated_text_decoration_caches(
@@ -255,6 +282,11 @@ impl PaintableArena {
             if let Some(first_child) = self.first_child(current) {
                 stack.push(first_child);
             }
+        }
+        let mut ancestor = root;
+        while !ancestor.is_invalid() {
+            self.paint_caches[ancestor.slot_index() as usize].clear_descendant_subtrees();
+            ancestor = self.data_ref(ancestor).parent;
         }
     }
 
@@ -305,6 +337,8 @@ impl PaintableArena {
             self.append_child(parent, child);
             return;
         }
+        self.clear_descendant_subtree_caches_inclusive(child);
+        self.clear_descendant_subtree_caches_inclusive(parent);
         assert_eq!(
             self.data_ref(before).parent,
             parent,
@@ -329,6 +363,8 @@ impl PaintableArena {
             self.data_ref(child).parent.is_invalid(),
             "paintable appended while still parented"
         );
+        self.clear_descendant_subtree_caches_inclusive(child);
+        self.clear_descendant_subtree_caches_inclusive(parent);
         let last = self.data_ref(parent).last_child;
         self.update_data(child, |child_data| {
             child_data.parent = parent;
@@ -351,6 +387,7 @@ impl PaintableArena {
         if parent.is_invalid() {
             return;
         }
+        self.clear_descendant_subtree_caches_inclusive(id);
         if prev.is_invalid() {
             self.update_data(parent, |data| data.first_child = next);
         } else {
@@ -366,6 +403,14 @@ impl PaintableArena {
             data.prev_sibling = PaintableSlotId::INVALID;
             data.next_sibling = PaintableSlotId::INVALID;
         });
+    }
+
+    fn clear_descendant_subtree_caches_inclusive(&self, id: PaintableSlotId) {
+        let mut current = id;
+        while !current.is_invalid() {
+            self.paint_caches[current.slot_index() as usize].clear_descendant_subtrees();
+            current = self.data_ref(current).parent;
+        }
     }
 
     pub fn reset_for_relayout(&mut self, id: PaintableSlotId) {

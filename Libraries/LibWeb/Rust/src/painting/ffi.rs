@@ -360,14 +360,23 @@ pub unsafe extern "C" fn layout_arena_assign_accumulated_visual_contexts(
 ) -> bool {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let (mut tree, scroll_state, paintables_with_mask_nodes) = {
+        let (mut tree, scroll_state, paintables_with_mask_nodes, previous_assignments) = {
             let paintables = arena.paintables().borrow();
             if !paintables.is_live(viewport) {
                 return false;
             }
-            crate::painting::visual_context::build::build_visual_context_tree(arena, &paintables, &callbacks, viewport)
+            let previous_assignments = paintables.visual_context_assignments();
+            let (tree, scroll_state, paintables_with_mask_nodes) =
+                crate::painting::visual_context::build::build_visual_context_tree(
+                    arena,
+                    &paintables,
+                    &callbacks,
+                    viewport,
+                );
+            (tree, scroll_state, paintables_with_mask_nodes, previous_assignments)
         };
         let mut paintables = arena.paintables().borrow_mut();
+        let assignments_changed = previous_assignments != paintables.visual_context_assignments();
         let state = &mut paintables.visual_context;
         state.build_count += 1;
         let is_compatible = !force_incompatible_rebuild
@@ -386,6 +395,9 @@ pub unsafe extern "C" fn layout_arena_assign_accumulated_visual_contexts(
         state.scroll_state = scroll_state;
         state.scroll_state_snapshot.clear();
         state.needs_to_refresh_scroll_state = true;
+        if assignments_changed {
+            paintables.clear_descendant_subtree_caches();
+        }
         is_compatible
     })
 }

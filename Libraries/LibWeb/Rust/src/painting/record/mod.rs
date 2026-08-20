@@ -79,6 +79,7 @@ pub struct PaintRecorder<'a> {
     hit_test_list_generation: u64,
     pub(crate) has_blocking_wheel_event_listeners: bool,
     spliced_capture_count: usize,
+    uncacheable_paint_generation: u64,
     list: HitTestList,
     base_paint_facts_cache: Vec<Option<(PaintableSlotId, BasePaintFacts)>>,
     paintable_facts_cache: Vec<Option<(PaintableSlotId, FfiHitTestPaintableFacts)>>,
@@ -95,6 +96,13 @@ pub(crate) struct BasePaintFacts {
 }
 
 impl<'a> PaintRecorder<'a> {
+    pub(crate) fn prevent_descendant_subtree_caching(&mut self) {
+        self.uncacheable_paint_generation = self
+            .uncacheable_paint_generation
+            .checked_add(1)
+            .expect("uncacheable paint generation overflowed");
+    }
+
     pub(crate) fn data(&self, paintable: PaintableSlotId) -> PaintableData {
         self.paintables.data_ref(paintable)
     }
@@ -147,6 +155,7 @@ impl<'a> PaintRecorder<'a> {
             hit_test_list_generation: self.hit_test_list_generation,
             has_blocking_wheel_event_listeners: false,
             spliced_capture_count: 0,
+            uncacheable_paint_generation: 0,
             list: HitTestList::default(),
             base_paint_facts_cache: vec![None; self.paintables.slot_count()],
             paintable_facts_cache: vec![None; self.paintables.slot_count()],

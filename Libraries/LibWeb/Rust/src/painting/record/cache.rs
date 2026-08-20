@@ -10,6 +10,7 @@ use std::rc::Rc;
 use crate::painting::display_list::builder::CommandRange;
 use crate::painting::hit_test::HitTestItem;
 use crate::painting::record::PaintPhase;
+use crate::painting::record::traversal::StackingContextPaintPhase;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CachedCommands {
@@ -35,9 +36,19 @@ pub struct CachedHitTestItems {
     pub recorded_context_for_descendants_index: usize,
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+pub struct CachedDescendantSubtree {
+    pub source_display_list_id: u64,
+    pub command_range: CommandRange,
+    pub source_hit_test_display_list_id: u64,
+    pub hit_test_start: u32,
+    pub hit_test_count: u32,
+}
+
 pub struct PaintCache {
     commands: [Cell<Option<CachedCommands>>; PaintPhase::COUNT],
     hit_test_items: [Cell<Option<CachedHitTestItems>>; PaintPhase::COUNT],
+    descendant_subtrees: [Cell<Option<CachedDescendantSubtree>>; StackingContextPaintPhase::COUNT],
 }
 
 impl Default for PaintCache {
@@ -45,6 +56,7 @@ impl Default for PaintCache {
         Self {
             commands: std::array::from_fn(|_| Cell::new(None)),
             hit_test_items: std::array::from_fn(|_| Cell::new(None)),
+            descendant_subtrees: std::array::from_fn(|_| Cell::new(None)),
         }
     }
 }
@@ -66,6 +78,20 @@ impl PaintCache {
         self.hit_test_items[phase as usize].set(Some(hit_test_items));
     }
 
+    pub(crate) fn descendant_subtree(&self, phase: StackingContextPaintPhase) -> Option<CachedDescendantSubtree> {
+        self.descendant_subtrees[phase as usize].get()
+    }
+
+    pub(crate) fn set_descendant_subtree(&self, phase: StackingContextPaintPhase, subtree: CachedDescendantSubtree) {
+        self.descendant_subtrees[phase as usize].set(Some(subtree));
+    }
+
+    pub fn clear_descendant_subtrees(&self) {
+        for subtree in &self.descendant_subtrees {
+            subtree.set(None);
+        }
+    }
+
     pub fn clear(&self) {
         for commands in &self.commands {
             commands.set(None);
@@ -73,6 +99,7 @@ impl PaintCache {
         for hit_test_items in &self.hit_test_items {
             hit_test_items.set(None);
         }
+        self.clear_descendant_subtrees();
     }
 }
 

@@ -25,12 +25,25 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum StackingContextPaintPhase {
-    BackgroundAndBorders,
-    Floats,
-    BackgroundAndBordersForInlineLevelAndReplaced,
-    Foreground,
+#[repr(u8)]
+pub(crate) enum StackingContextPaintPhase {
+    BackgroundAndBorders = 0,
+    Floats = 1,
+    BackgroundAndBordersForInlineLevelAndReplaced = 2,
+    Foreground = 3,
 }
+
+impl StackingContextPaintPhase {
+    pub(crate) const COUNT: usize = Self::Foreground as usize + 1;
+}
+
+const _: () = assert!(
+    StackingContextPaintPhase::Floats as usize == StackingContextPaintPhase::BackgroundAndBorders as usize + 1
+        && StackingContextPaintPhase::BackgroundAndBordersForInlineLevelAndReplaced as usize
+            == StackingContextPaintPhase::Floats as usize + 1
+        && StackingContextPaintPhase::Foreground as usize
+            == StackingContextPaintPhase::BackgroundAndBordersForInlineLevelAndReplaced as usize + 1
+);
 
 fn to_paint_phase(phase: StackingContextPaintPhase) -> PaintPhase {
     // There are not a fully correct mapping since some stacking context phases are combined.
@@ -96,6 +109,7 @@ pub(crate) fn record_display_list(
             .map_or(PaintableSlotId::INVALID, |root| root.paintable),
         has_blocking_wheel_event_listeners: false,
         spliced_capture_count: 0,
+        uncacheable_paint_generation: 0,
         list: HitTestList::default(),
         base_paint_facts_cache: vec![None; paintables.slot_count()],
         paintable_facts_cache: vec![None; paintables.slot_count()],
@@ -351,6 +365,9 @@ impl PaintRecorder<'_> {
         if phase != PaintPhase::Foreground {
             return;
         }
+        // SVG paint servers and filters are resolved while recording and can change without invalidating the
+        // paintable that references them. Do not cache an enclosing descendant subtree.
+        self.prevent_descendant_subtree_caching();
         self.paint_node(paintable, PaintPhase::Background);
         self.paint_node(paintable, PaintPhase::Border);
         self.paint_svg_box(paintable, phase);
@@ -361,83 +378,183 @@ impl PaintRecorder<'_> {
         let mut next_child = paintables.first_child(paintable);
         while let Some(child) = next_child {
             next_child = paintables.next_sibling(child);
-            let this = &mut *self;
-            if this.has_stacking_context(child) {
+            if self.append_cached_descendant_subtree(child, phase) {
                 continue;
             }
-            let child_data = this.data(child);
-            let positioned = child_data.has_flag(PaintableFlag::Positioned);
-            let floating = child_data.has_flag(PaintableFlag::Floating);
-            let inline = child_data.has_flag(PaintableFlag::Inline);
-            let child_kind = child_data.kind;
-
-            // Positioned descendants at stack level 0 are painted in a separate pass.
-            if positioned && this.z_index(child).unwrap_or(0) == 0 {
-                continue;
-            }
-
-            if child_kind == PaintableKind::SVGSVGPaintable {
-                this.paint_svg(child, to_paint_phase(phase));
-                continue;
-            }
-
-            let is_item = child_data.has_flag(PaintableFlag::FlexOrGridItem);
-            // NOTE: Flex and grid items should be treated the same way as CSS2 defines for inline-blocks:
-            //       - https://drafts.csswg.org/css-flexbox-1/#painting
-            //       - https://www.w3.org/TR/css-grid-2/#z-order
-            //       "For each one of these, treat the element as if it created a new stacking context, but any positioned
-            //       descendants and descendants which actually create a new stacking context should be considered part of
-            //       the parent stacking context, not this new one."
-            if is_item && this.z_index(child).is_none() {
-                // FIXME: This may not be fully correct with respect to the paint phases.
-                if phase == StackingContextPaintPhase::Foreground {
-                    this.paint_node_as_stacking_context(child);
-                }
-                continue;
-            }
-
-            // All non-positioned floating descendants, in tree order.
-            if floating && !positioned && this.z_index(child).is_none() {
-                if phase == StackingContextPaintPhase::Floats {
-                    this.paint_node_as_stacking_context(child);
-                }
-                continue;
-            }
-
-            let child_is_inline_or_replaced = inline || this.is_replaced_box(child);
-            let child_has_inline_level_painting_context = this.establishes_inline_level_painting_context(child);
-            match phase {
-                StackingContextPaintPhase::BackgroundAndBorders => {
-                    if !child_is_inline_or_replaced && !floating {
-                        this.paint_subtree_backgrounds_and_borders(child);
-                    } else if this.is_pure_inline_box(child) {
-                        this.paint_descendants(child, phase);
-                    }
-                }
-                StackingContextPaintPhase::Floats => {
-                    if floating {
-                        this.paint_subtree_backgrounds_and_borders(child);
-                    }
-                    // Atomic inline-level descendants participate in the parent's inline-level
-                    // painting step, so their internal floats are not painted early.
-                    if !child_has_inline_level_painting_context {
-                        this.paint_descendants(child, phase);
-                    }
-                }
-                StackingContextPaintPhase::BackgroundAndBordersForInlineLevelAndReplaced => {
-                    if child_is_inline_or_replaced {
-                        this.paint_inline_level_non_positioned_descendant(child);
-                    }
-                    this.paint_descendants(child, phase);
-                }
-                StackingContextPaintPhase::Foreground => {
-                    this.paint_node(child, PaintPhase::Foreground);
-                    this.paint_descendants(child, phase);
-                    this.paint_node(child, PaintPhase::Outline);
-                    this.paint_node(child, PaintPhase::Overlay);
-                }
+            let command_start = self.recorder.byte_size();
+            let hit_test_start = self.list.items.len();
+            let uncacheable_paint_generation = self.uncacheable_paint_generation;
+            self.paint_descendant(child, phase);
+            if self.uncacheable_paint_generation == uncacheable_paint_generation {
+                self.cache_descendant_subtree(child, phase, command_start, hit_test_start);
             }
         }
+    }
+
+    fn paint_descendant(&mut self, child: PaintableSlotId, phase: StackingContextPaintPhase) {
+        if self.has_stacking_context(child) {
+            return;
+        }
+        let child_data = self.data(child);
+        let positioned = child_data.has_flag(PaintableFlag::Positioned);
+        let floating = child_data.has_flag(PaintableFlag::Floating);
+        let inline = child_data.has_flag(PaintableFlag::Inline);
+        let child_kind = child_data.kind;
+
+        // Positioned descendants at stack level 0 are painted in a separate pass.
+        if positioned && self.z_index(child).unwrap_or(0) == 0 {
+            return;
+        }
+
+        if child_kind == PaintableKind::SVGSVGPaintable {
+            self.paint_svg(child, to_paint_phase(phase));
+            return;
+        }
+
+        let is_item = child_data.has_flag(PaintableFlag::FlexOrGridItem);
+        // NOTE: Flex and grid items should be treated the same way as CSS2 defines for inline-blocks:
+        //       - https://drafts.csswg.org/css-flexbox-1/#painting
+        //       - https://www.w3.org/TR/css-grid-2/#z-order
+        //       "For each one of these, treat the element as if it created a new stacking context, but any positioned
+        //       descendants and descendants which actually create a new stacking context should be considered part of
+        //       the parent stacking context, not this new one."
+        if is_item && self.z_index(child).is_none() {
+            // FIXME: This may not be fully correct with respect to the paint phases.
+            if phase == StackingContextPaintPhase::Foreground {
+                self.paint_node_as_stacking_context(child);
+            }
+            return;
+        }
+
+        // All non-positioned floating descendants, in tree order.
+        if floating && !positioned && self.z_index(child).is_none() {
+            if phase == StackingContextPaintPhase::Floats {
+                self.paint_node_as_stacking_context(child);
+            }
+            return;
+        }
+
+        let child_is_inline_or_replaced = inline || self.is_replaced_box(child);
+        let child_has_inline_level_painting_context = self.establishes_inline_level_painting_context(child);
+        match phase {
+            StackingContextPaintPhase::BackgroundAndBorders => {
+                if !child_is_inline_or_replaced && !floating {
+                    self.paint_subtree_backgrounds_and_borders(child);
+                } else if self.is_pure_inline_box(child) {
+                    self.paint_descendants(child, phase);
+                }
+            }
+            StackingContextPaintPhase::Floats => {
+                if floating {
+                    self.paint_subtree_backgrounds_and_borders(child);
+                }
+                // Atomic inline-level descendants participate in the parent's inline-level
+                // painting step, so their internal floats are not painted early.
+                if !child_has_inline_level_painting_context {
+                    self.paint_descendants(child, phase);
+                }
+            }
+            StackingContextPaintPhase::BackgroundAndBordersForInlineLevelAndReplaced => {
+                if child_is_inline_or_replaced {
+                    self.paint_inline_level_non_positioned_descendant(child);
+                }
+                self.paint_descendants(child, phase);
+            }
+            StackingContextPaintPhase::Foreground => {
+                self.paint_node(child, PaintPhase::Foreground);
+                self.paint_descendants(child, phase);
+                self.paint_node(child, PaintPhase::Outline);
+                self.paint_node(child, PaintPhase::Overlay);
+            }
+        }
+    }
+
+    fn append_cached_descendant_subtree(
+        &mut self,
+        paintable: PaintableSlotId,
+        phase: StackingContextPaintPhase,
+    ) -> bool {
+        if self.nested.is_some() {
+            return false;
+        }
+        let Some(command_source) = self.command_cache_source.as_ref() else {
+            return false;
+        };
+        let Some(item_source) = self.item_cache_source.as_ref() else {
+            return false;
+        };
+        let Some(cached) = self.paintables.paint_caches[paintable.slot_index() as usize].descendant_subtree(phase)
+        else {
+            return false;
+        };
+        if cached.source_display_list_id != command_source.id
+            || cached.source_hit_test_display_list_id != item_source.id
+        {
+            return false;
+        }
+
+        let command_range = self
+            .recorder
+            .append_cached_command_range_verbatim(&command_source.display_list_bytes, cached.command_range);
+        let hit_test_start = self.list.items.len();
+        let source_start = cached.hit_test_start as usize;
+        let source_end = source_start + cached.hit_test_count as usize;
+        for item in &item_source.items[source_start..source_end] {
+            self.list.append(item.clone());
+        }
+        if self.inputs.paint_command_cache_read_write {
+            self.set_cached_descendant_subtree(
+                paintable,
+                phase,
+                command_range,
+                hit_test_start,
+                cached.hit_test_count as usize,
+            );
+        }
+        self.spliced_capture_count += 1;
+        true
+    }
+
+    fn cache_descendant_subtree(
+        &self,
+        paintable: PaintableSlotId,
+        phase: StackingContextPaintPhase,
+        command_start: usize,
+        hit_test_start: usize,
+    ) {
+        if !self.inputs.paint_command_cache_read_write || self.nested.is_some() {
+            return;
+        }
+        self.set_cached_descendant_subtree(
+            paintable,
+            phase,
+            CommandRange {
+                offset: command_start as u32,
+                size: (self.recorder.byte_size() - command_start) as u32,
+            },
+            hit_test_start,
+            self.list.items.len() - hit_test_start,
+        );
+    }
+
+    fn set_cached_descendant_subtree(
+        &self,
+        paintable: PaintableSlotId,
+        phase: StackingContextPaintPhase,
+        command_range: CommandRange,
+        hit_test_start: usize,
+        hit_test_count: usize,
+    ) {
+        self.paintables.paint_caches[paintable.slot_index() as usize].set_descendant_subtree(
+            phase,
+            crate::painting::record::cache::CachedDescendantSubtree {
+                source_display_list_id: self.display_list_id,
+                command_range,
+                source_hit_test_display_list_id: self.hit_test_list_generation,
+                hit_test_start: hit_test_start as u32,
+                hit_test_count: hit_test_count as u32,
+            },
+        );
     }
 
     fn paint_svg_box(&mut self, svg_box: PaintableSlotId, phase: PaintPhase) {
@@ -525,6 +642,9 @@ impl PaintRecorder<'_> {
         let data = self.data(paintable);
         let skip_cache = data.has_fixed_background_visual_context
             || (data.kind.foreground_is_never_cached() && phase == PaintPhase::Foreground);
+        if skip_cache {
+            self.prevent_descendant_subtree_caching();
+        }
         let cache_writes_enabled = self.inputs.paint_command_cache_read_write && !is_nested;
 
         if phase_can_record_hit_test_items && !is_nested {

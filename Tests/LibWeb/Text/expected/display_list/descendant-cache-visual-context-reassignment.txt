@@ -1,0 +1,2 @@
+target command uses target context: true
+target hit test uses target context: true
