@@ -1,0 +1,4 @@
+childNodes before adoption: 1
+childNodes after adoption: 2
+children before adoption: 1
+children after adoption: 2

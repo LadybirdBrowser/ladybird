@@ -8,13 +8,17 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <LibGC/Weak.h>
+#include <LibGC/WeakContainer.h>
 #include <LibWeb/DOM/NodeList.h>
 
 namespace Web::DOM {
 
-// FIXME: Just like HTMLCollection, LiveNodeList currently does no caching.
+class Document;
 
-class LiveNodeList : public NodeList {
+class LiveNodeList
+    : public NodeList
+    , public GC::WeakContainer {
     WEB_NON_IDL_WRAPPABLE(LiveNodeList, NodeList);
     GC_DECLARE_ALLOCATOR(LiveNodeList);
 
@@ -37,8 +41,14 @@ protected:
 
 private:
     virtual void visit_edges(GC::Cell::Visitor&) override;
+    virtual void remove_dead_cells(Badge<GC::Heap>) override;
+    virtual GC::Cell const& owner_cell(Badge<GC::Heap>) const override;
 
-    GC::RootVector<Node*> collection() const;
+    void update_cache_if_needed() const;
+
+    mutable GC::Weak<Document const> m_cached_document;
+    mutable u64 m_cached_dom_tree_version { 0 };
+    mutable Vector<GC::RawPtr<Node>> m_cached_nodes;
 
     GC::Ref<Node const> m_root;
     Function<bool(Node const&)> m_filter;
