@@ -43,7 +43,8 @@ pub struct PaintableArena {
     pub(crate) paint_command_cache_source: Option<Rc<crate::painting::record::RecordingOutput>>,
     pub(crate) hit_test_item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
     pub(crate) paint_caches: std::cell::RefCell<Vec<Option<Box<crate::painting::record::cache::PaintCache>>>>,
-    absolute_rect_memo: std::cell::RefCell<Vec<Option<(PaintableSlotId, crate::css::css_pixels::CssPixelRect)>>>,
+    absolute_rect_memo: std::cell::RefCell<Vec<Option<(PaintableSlotId, u64, crate::css::css_pixels::CssPixelRect)>>>,
+    absolute_rect_memo_epoch: Cell<u64>,
     pub(crate) scrollable_overflow_contained_boxes: std::collections::HashMap<NodeSlotId, Vec<NodeSlotId>>,
 }
 
@@ -53,21 +54,27 @@ impl PaintableArena {
     }
 
     pub fn memoized_absolute_rect(&self, id: PaintableSlotId) -> Option<crate::css::css_pixels::CssPixelRect> {
-        let (memoized_id, rect) = self
+        let (memoized_id, memoized_epoch, rect) = self
             .absolute_rect_memo
             .borrow()
             .get(id.slot_index() as usize)
             .copied()
             .flatten()?;
-        (memoized_id == id).then_some(rect)
+        (memoized_id == id && memoized_epoch == self.absolute_rect_memo_epoch.get()).then_some(rect)
     }
 
     pub fn memoize_absolute_rect(&self, id: PaintableSlotId, rect: crate::css::css_pixels::CssPixelRect) {
-        self.absolute_rect_memo.borrow_mut()[id.slot_index() as usize] = Some((id, rect));
+        self.absolute_rect_memo.borrow_mut()[id.slot_index() as usize] =
+            Some((id, self.absolute_rect_memo_epoch.get(), rect));
     }
 
     pub fn clear_absolute_rect_memo(&self) {
-        self.absolute_rect_memo.borrow_mut().fill(None);
+        self.absolute_rect_memo_epoch.set(
+            self.absolute_rect_memo_epoch
+                .get()
+                .checked_add(1)
+                .expect("absolute rect memo epoch overflowed"),
+        );
     }
 
     pub(crate) fn slot_count(&self) -> usize {
@@ -120,7 +127,7 @@ impl PaintableArena {
     }
 
     fn reset_row(&mut self, id: PaintableSlotId) {
-        self.absolute_rect_memo.get_mut().fill(None);
+        self.clear_absolute_rect_memo();
         self.remove_from_tree(id);
         while let Some(child) = self.first_child(id) {
             self.remove_from_tree(child);
@@ -366,7 +373,7 @@ impl PaintableArena {
     }
 
     pub fn reset_for_relayout(&mut self, id: PaintableSlotId) {
-        self.absolute_rect_memo.get_mut().fill(None);
+        self.clear_absolute_rect_memo();
         self.remove_from_tree(id);
         while let Some(child) = self.first_child(id) {
             self.remove_from_tree(child);
