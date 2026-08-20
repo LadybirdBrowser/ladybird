@@ -93,7 +93,7 @@ pub(crate) fn nearest_fragmented_inline_ancestor(
     None
 }
 
-fn nearest_self_painting_inline_box(
+pub(crate) fn nearest_self_painting_inline_box(
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
     node: NodeSlotId,

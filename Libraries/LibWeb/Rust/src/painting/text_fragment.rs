@@ -13,19 +13,27 @@ use crate::painting::paintable_data::FragmentRecord;
 use crate::painting::paintable_data::PaintableSlotId;
 use crate::painting::paintable_geometry;
 
+pub(crate) fn containing_block_paintable_of_node(
+    layout_arena: &LayoutNodeArena,
+    paintables: &PaintableArena,
+    node: NodeSlotId,
+) -> Option<PaintableSlotId> {
+    let own = paintables.paintable_of_node(node);
+    if !own.is_invalid() && paintables.is_live(own) {
+        let block = paintables.data_ref(own).containing_block;
+        return (!block.is_invalid() && paintables.is_live(block)).then_some(block);
+    }
+    let block = layout_arena.node_containing_block_if_live(node)?;
+    let block_paintable = paintables.paintable_of_node(block);
+    (!block_paintable.is_invalid() && paintables.is_live(block_paintable)).then_some(block_paintable)
+}
+
 pub(crate) fn containing_block_paintable(
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
     fragment: &FragmentRecord,
 ) -> Option<PaintableSlotId> {
-    let own = paintables.paintable_of_node(fragment.layout_node);
-    if !own.is_invalid() && paintables.is_live(own) {
-        let block = paintables.data_ref(own).containing_block;
-        return (!block.is_invalid() && paintables.is_live(block)).then_some(block);
-    }
-    let block = layout_arena.node_containing_block_if_live(fragment.layout_node)?;
-    let block_paintable = paintables.paintable_of_node(block);
-    (!block_paintable.is_invalid() && paintables.is_live(block_paintable)).then_some(block_paintable)
+    containing_block_paintable_of_node(layout_arena, paintables, fragment.layout_node)
 }
 
 pub(crate) fn absolute_rect(
@@ -73,6 +81,51 @@ fn secondary_size(rect: CssPixelRect, horizontal: bool) -> CssPixels {
 pub struct SelectionOffsets {
     pub start: usize,
     pub end: usize,
+}
+
+#[expect(
+    dead_code,
+    reason = "render-span computation dispatches on selection state once span building moves into Rust"
+)]
+pub(crate) fn compute_selection_offsets(
+    fragment: &FragmentRecord,
+    selection_state: u8,
+    start_offset_in_code_units: usize,
+    end_offset_in_code_units: usize,
+) -> Option<SelectionOffsets> {
+    let length_with_trailing_whitespace =
+        fragment.length_in_code_units + fragment.trailing_whitespace_length_in_code_units;
+    let dom_start = fragment.dom_start_offset_in_node;
+    let dom_end = dom_start + length_with_trailing_whitespace;
+    match selection_state {
+        crate::painting::paintable_data::SELECTION_STATE_NONE => None,
+        crate::painting::paintable_data::SELECTION_STATE_FULL => Some(SelectionOffsets {
+            start: 0,
+            end: length_with_trailing_whitespace,
+        }),
+        crate::painting::paintable_data::SELECTION_STATE_START_AND_END => {
+            selection_offsets_for_dom_range(fragment, start_offset_in_code_units, end_offset_in_code_units)
+        }
+        crate::painting::paintable_data::SELECTION_STATE_START => {
+            if dom_end < start_offset_in_code_units {
+                return None;
+            }
+            Some(SelectionOffsets {
+                start: start_offset_in_code_units - start_offset_in_code_units.min(dom_start),
+                end: length_with_trailing_whitespace,
+            })
+        }
+        crate::painting::paintable_data::SELECTION_STATE_END => {
+            if dom_start > end_offset_in_code_units {
+                return None;
+            }
+            Some(SelectionOffsets {
+                start: 0,
+                end: (end_offset_in_code_units - dom_start).min(length_with_trailing_whitespace),
+            })
+        }
+        _ => unreachable!("invalid selection state"),
+    }
 }
 
 pub(crate) fn selection_offsets_for_dom_range(

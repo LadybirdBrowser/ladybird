@@ -218,34 +218,56 @@ GC::Ptr<Selection::Selection> ViewportPaintable::selection() const
     return document().get_selection();
 }
 
-void ViewportPaintable::reset_selection_states()
+static void reset_mirror_fragment_selection_states(ViewportPaintable& viewport)
 {
-    for_each_in_inclusive_subtree([](auto& paintable) {
-        paintable.set_selection_state(SelectionState::None);
+    viewport.for_each_in_inclusive_subtree([](auto& paintable) {
         if (auto* paintable_with_lines = as_if<PaintableWithLines>(paintable))
             paintable_with_lines->reset_fragment_selection_states();
         return TraversalDecision::Continue;
     });
 }
 
+void ViewportPaintable::reset_selection_states()
+{
+    reset_mirror_fragment_selection_states(*this);
+    Layout::RustFFI::layout_arena_selection_clear(rust_arena().handle(), rust_slot());
+}
+
 void ViewportPaintable::recompute_selection_states(DOM::Range& range)
 {
-    // 1. Start by resetting the selection state of all layout nodes to None.
-    reset_selection_states();
+    reset_mirror_fragment_selection_states(*this);
 
-    auto set_selection_state_on_all_slices = [](DOM::Node& container, SelectionState state) {
+    Vector<Layout::RustFFI::FfiSelectionEntry> entries;
+    auto set_selection_state_on_all_slices = [&](DOM::Node& container, SelectionState state) {
         if (auto* text = as_if<DOM::Text>(container)) {
             Layout::TextOffsetMapping mapping { *text };
             mapping.for_each_paintable_fragment([&](PaintableFragment& fragment) {
                 fragment.set_selection_state(state);
                 return TraversalDecision::Continue;
             });
+            mapping.for_each_fragment([&](Layout::TextNode const& slice) {
+                entries.append({
+                    .is_text_node_entry = true,
+                    .layout_node = Layout::Node::slot_id(&slice),
+                    .paintable = {},
+                    .state = to_underlying(state),
+                });
+            });
             return;
         }
         if (auto* layout_node = container.unsafe_layout_node()) {
-            if (auto paintable = layout_node->paintable())
-                paintable->set_selection_state(state);
+            if (auto paintable = layout_node->paintable()) {
+                entries.append({
+                    .is_text_node_entry = false,
+                    .layout_node = {},
+                    .paintable = paintable->rust_slot(),
+                    .state = to_underlying(state),
+                });
+            }
         }
+    };
+    auto apply_entries = [&] {
+        Layout::RustFFI::layout_arena_selection_apply(rust_arena().handle(), rust_slot(), entries.data(), entries.size(), range.start_offset(), range.end_offset());
     };
 
     // https://drafts.csswg.org/css-ui/#valdef-user-select-none
@@ -267,12 +289,14 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
         // 1. If the selection starts and ends at the same offset, return.
         if (range.start_offset() == range.end_offset()) {
             // NOTE: A zero-length selection should not be visible.
+            apply_entries();
             return;
         }
 
         // 2. If it's a text node, mark it as StartAndEnd and return.
         if (is<DOM::Text>(*start_container) && !is_excluded_from_selection(*start_container)) {
             set_selection_state_on_all_slices(*start_container, SelectionState::StartAndEnd);
+            apply_entries();
             return;
         }
     }
@@ -308,6 +332,8 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
     if (!is_excluded_from_selection(*end_container) && is<DOM::Text>(*end_container) && end_container->unsafe_layout_node()) {
         set_selection_state_on_all_slices(*end_container, SelectionState::End);
     }
+
+    apply_entries();
 }
 
 bool ViewportPaintable::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, double, double)

@@ -305,6 +305,21 @@ pub struct PaintableAllocation {
     pub generation: u32,
 }
 
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiSelectionEntry {
+    pub is_text_node_entry: bool,
+    pub layout_node: NodeSlotId,
+    pub paintable: PaintableSlotId,
+    pub state: u8,
+}
+
+pub const SELECTION_STATE_NONE: u8 = 0;
+pub const SELECTION_STATE_START: u8 = 1;
+pub const SELECTION_STATE_END: u8 = 2;
+pub const SELECTION_STATE_START_AND_END: u8 = 3;
+pub const SELECTION_STATE_FULL: u8 = 4;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct LineRecord {
     pub rect: FfiCssPixelRect,

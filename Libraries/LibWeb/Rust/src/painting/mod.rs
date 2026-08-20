@@ -18,6 +18,7 @@ pub mod paintable_data;
 pub mod paintable_geometry;
 pub mod record;
 pub mod scrollable_overflow;
+pub mod selection;
 pub mod stacking_context;
 pub mod style_queries;
 pub mod text_fragment;

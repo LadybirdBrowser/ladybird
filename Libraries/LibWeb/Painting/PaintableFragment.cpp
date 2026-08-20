@@ -71,21 +71,7 @@ Layout::NodeWithStyle const& PaintableFragment::style_source() const
 
 void PaintableFragment::set_selection_state(Paintable::SelectionState state)
 {
-    if (m_selection_state == state)
-        return;
-
     m_selection_state = state;
-
-    auto& paintable_with_lines = const_cast<PaintableWithLines&>(this->paintable_with_lines());
-    Layout::RustFFI::layout_arena_paintable_set_fragment_selection_state(paintable_with_lines.rust_arena().handle(), paintable_with_lines.rust_slot(), paintable_with_lines.index_of_fragment(*this), to_underlying(state));
-    paintable_with_lines.invalidate_paint_cache();
-    for (auto ancestor = paintable_with_lines.parent(); ancestor; ancestor = ancestor->parent()) {
-        if (auto* ancestor_box = ancestor.ptr())
-            ancestor_box->invalidate_paint_cache();
-    }
-
-    if (auto const* self_painting_ancestor = nearest_self_painting_inline_box(layout_node()))
-        self_painting_ancestor->invalidate_paint_cache();
 }
 
 CSSPixelRect const PaintableFragment::absolute_rect() const

@@ -109,21 +109,47 @@ pub unsafe extern "C" fn layout_arena_paintable_shell(arena: *mut c_void, slot: 
     })
 }
 
+unsafe fn ffi_slice<'a, T>(data: *const T, length: usize) -> &'a [T] {
+    assert!(!data.is_null() || length == 0);
+    if length == 0 {
+        return &[];
+    }
+    // SAFETY: The caller guarantees `data` points at `length` valid values for
+    // the duration of the borrow.
+    unsafe { std::slice::from_raw_parts(data, length) }
+}
+
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+/// `arena` must be a live handle from `layout_arena_create`, used on the
+/// document thread. `entries` must point at `entry_count` valid entries.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_set_selection_state(
+pub unsafe extern "C" fn layout_arena_selection_apply(
     arena: *mut c_void,
-    slot: PaintableSlotId,
-    state: u8,
+    viewport: PaintableSlotId,
+    entries: *const FfiSelectionEntry,
+    entry_count: usize,
+    range_start_offset: usize,
+    range_end_offset: usize,
 ) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        let paintables = arena.paintables().borrow();
-        if paintables.is_live(slot) {
-            paintables.update_data(slot, |data| data.selection_state = state);
+        let mut paintables = arena.paintables().borrow_mut();
+        if !paintables.is_live(viewport) {
+            return;
         }
+        // SAFETY: The caller guarantees the entry span is valid for this synchronous call.
+        let entries = unsafe { ffi_slice(entries, entry_count) };
+        crate::painting::selection::apply(
+            arena,
+            &mut paintables,
+            viewport,
+            entries,
+            crate::painting::selection::SelectionRange {
+                start_offset: range_start_offset,
+                end_offset: range_end_offset,
+            },
+        );
     });
 }
 
@@ -131,21 +157,14 @@ pub unsafe extern "C" fn layout_arena_paintable_set_selection_state(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_set_fragment_selection_state(
-    arena: *mut c_void,
-    slot: PaintableSlotId,
-    fragment_index: u32,
-    state: u8,
-) {
+pub unsafe extern "C" fn layout_arena_selection_clear(arena: *mut c_void, viewport: PaintableSlotId) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let mut paintables = arena.paintables().borrow_mut();
-        if !paintables.is_live(slot) {
+        if !paintables.is_live(viewport) {
             return;
         }
-        if let Some(fragment) = paintables.side_mut(slot).fragments.get_mut(fragment_index as usize) {
-            fragment.selection_state = state;
-        }
+        crate::painting::selection::clear(arena, &mut paintables, viewport);
     });
 }
 

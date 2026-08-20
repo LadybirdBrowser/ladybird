@@ -46,6 +46,7 @@ pub struct PaintableArena {
     absolute_rect_memo: std::cell::RefCell<Vec<Option<(PaintableSlotId, u64, crate::css::css_pixels::CssPixelRect)>>>,
     absolute_rect_memo_epoch: Cell<u64>,
     pub(crate) scrollable_overflow_contained_boxes: std::collections::HashMap<NodeSlotId, Vec<NodeSlotId>>,
+    pub(crate) selection: Option<crate::painting::selection::SelectionRange>,
 }
 
 impl PaintableArena {
@@ -100,6 +101,21 @@ impl PaintableArena {
     pub(crate) fn clear_descendant_subtree_caches(&self) {
         for cache in &self.paint_caches {
             cache.clear_descendant_subtrees();
+        }
+    }
+
+    pub(crate) fn for_each_in_subtree(&self, root: PaintableSlotId, mut callback: impl FnMut(PaintableSlotId)) {
+        let mut stack = vec![root];
+        while let Some(current) = stack.pop() {
+            if let Some(next) = self.next_sibling(current)
+                && current != root
+            {
+                stack.push(next);
+            }
+            if let Some(first_child) = self.first_child(current) {
+                stack.push(first_child);
+            }
+            callback(current);
         }
     }
 
