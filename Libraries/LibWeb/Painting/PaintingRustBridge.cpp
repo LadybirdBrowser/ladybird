@@ -24,6 +24,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
+#include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
@@ -735,16 +736,20 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
             piece.border_box_rect = { 0, 0, CSSPixels::from_raw(width_raw), CSSPixels::from_raw(height_raw) };
             piece.present_edges = present_edges;
             write_border_radii(inline_paintable.piece_border_radii_data(piece), out); },
-        .empty_line_caret_targets = [](void*, void* paintable_shell, void* sink) {
+        .line_break_caret_targets = [](void*, void* paintable_shell, void* sink) {
             auto const& paintable = as<PaintableWithLines>(*static_cast<Paintable const*>(paintable_shell));
-            paintable.for_each_empty_line_caret_item([&](PaintableWithLines::EmptyLineCaretItem const& item) {
-                Layout::RustFFI::FfiEmptyLineCaretTarget target {};
-                target.is_line_break_boundary = item.is_line_break_boundary;
-                target.caret_offset = item.caret_offset;
-                target.line_index = item.line_index;
-                target.rect = to_ffi_css_pixel_rect(item.rect);
-                Layout::RustFFI::layout_arena_hit_test_push_empty_line_caret_target(sink, target);
-            }); },
+            auto* dom_node = paintable.layout_node().dom_node();
+            if (!dom_node)
+                return;
+            for (auto* child = dom_node->first_child(); child; child = child->next_sibling()) {
+                auto* br = as_if<HTML::HTMLBRElement>(*child);
+                if (!br || !br->represents_empty_line())
+                    continue;
+                Layout::RustFFI::FfiLineBreakCaretTarget target {};
+                target.caret_offset = br->index();
+                target.rect = to_ffi_css_pixel_rect(paintable.caret_rect_for_child_offset(br->index()));
+                Layout::RustFFI::layout_arena_hit_test_push_line_break_caret_target(sink, target);
+            } },
     };
 }
 

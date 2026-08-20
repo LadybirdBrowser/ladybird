@@ -41,6 +41,15 @@ public:
             callback(const_cast<TextNode&>(*m_primary));
     }
 
+    Vector<RustFFI::NodeSlotId, 2> slot_ids() const
+    {
+        Vector<RustFFI::NodeSlotId, 2> slots;
+        for_each_fragment([&](TextNode const& slice) {
+            slots.append(Node::slot_id(&slice));
+        });
+        return slots;
+    }
+
     TextNode const* fragment_containing(size_t dom_offset) const;
 
     template<typename Callback>

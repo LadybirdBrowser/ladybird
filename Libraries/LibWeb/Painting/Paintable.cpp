@@ -415,55 +415,47 @@ bool Paintable::should_paint_cursor() const
 
 void Paintable::scroll_text_offset_into_view(DOM::Text const& text, size_t offset, TextAffinity affinity, ScrollBlockDirection scroll_block_direction)
 {
-    auto scroll_to_cursor = [&](PaintableFragment const& fragment) {
-        auto cursor_rect = fragment.range_rect(SelectionState::StartAndEnd, offset, offset);
-        auto const& style_source = fragment.style_source();
-        if (style_source.writing_mode() == CSS::WritingMode::HorizontalTb) {
-            if (style_source.inline_axis_is_reverse())
-                cursor_rect.set_x(cursor_rect.x() - 1);
-            cursor_rect.set_width(1);
-        } else {
-            if (style_source.inline_axis_is_reverse())
-                cursor_rect.set_y(cursor_rect.y() - 1);
-            cursor_rect.set_height(1);
-        }
-        for (auto ancestor = fragment.containing_block_paintable(); ancestor; ancestor = ancestor->containing_block()) {
-            if (ancestor->has_scrollable_overflow()) {
-                if (scroll_block_direction == ScrollBlockDirection::No) {
-                    auto snapport = ancestor->scroll_snapport_rect();
-                    if (style_source.writing_mode() == CSS::WritingMode::HorizontalTb) {
-                        cursor_rect.set_y(snapport.y() + ancestor->scroll_offset().y());
-                        cursor_rect.set_height(snapport.height());
-                    } else {
-                        cursor_rect.set_x(snapport.x() + ancestor->scroll_offset().x());
-                        cursor_rect.set_width(snapport.width());
-                    }
-                }
-                ancestor->scroll_into_view(cursor_rect);
-                return;
-            }
-        }
-    };
+    auto text_slots = Layout::TextOffsetMapping { text }.slot_ids();
+    if (text_slots.is_empty())
+        return;
 
-    PaintableFragment const* fallback_fragment = nullptr;
-    Layout::TextOffsetMapping mapping { text };
-    mapping.for_each_paintable_fragment([&](PaintableFragment const& fragment) {
-        switch (fragment.caret_match(offset, affinity)) {
-        case PaintableFragment::CaretMatch::None:
-            return TraversalDecision::Continue;
-        case PaintableFragment::CaretMatch::SoftWrapFallback:
-            if (!fallback_fragment)
-                fallback_fragment = &fragment;
-            return TraversalDecision::Continue;
-        case PaintableFragment::CaretMatch::Direct:
-            fallback_fragment = nullptr;
-            scroll_to_cursor(fragment);
-            return TraversalDecision::Break;
+    auto const* layout_node = text.unsafe_layout_node();
+    auto result = Layout::RustFFI::layout_arena_text_caret_rect_for_position(
+        layout_node->arena_handle(), text_slots.data(), text_slots.size(), offset,
+        affinity == TextAffinity::Downstream);
+    if (!result.found)
+        return;
+    auto const* style_source_pointer = static_cast<Layout::NodeWithStyle const*>(result.style_source);
+    if (!style_source_pointer)
+        return;
+    auto const& style_source = *style_source_pointer;
+
+    auto cursor_rect = from_ffi_css_pixel_rect(result.rect);
+    if (style_source.writing_mode() == CSS::WritingMode::HorizontalTb) {
+        if (style_source.inline_axis_is_reverse())
+            cursor_rect.set_x(cursor_rect.x() - 1);
+        cursor_rect.set_width(1);
+    } else {
+        if (style_source.inline_axis_is_reverse())
+            cursor_rect.set_y(cursor_rect.y() - 1);
+        cursor_rect.set_height(1);
+    }
+    for (auto* ancestor = static_cast<Paintable*>(result.owner_paintable); ancestor; ancestor = ancestor->containing_block().ptr()) {
+        if (ancestor->has_scrollable_overflow()) {
+            if (scroll_block_direction == ScrollBlockDirection::No) {
+                auto snapport = ancestor->scroll_snapport_rect();
+                if (style_source.writing_mode() == CSS::WritingMode::HorizontalTb) {
+                    cursor_rect.set_y(snapport.y() + ancestor->scroll_offset().y());
+                    cursor_rect.set_height(snapport.height());
+                } else {
+                    cursor_rect.set_x(snapport.x() + ancestor->scroll_offset().x());
+                    cursor_rect.set_width(snapport.width());
+                }
+            }
+            ancestor->scroll_into_view(cursor_rect);
+            return;
         }
-        VERIFY_NOT_REACHED();
-    });
-    if (fallback_fragment)
-        scroll_to_cursor(*fallback_fragment);
+    }
 }
 
 void Paintable::scroll_ancestor_to_offset_into_view(size_t offset)

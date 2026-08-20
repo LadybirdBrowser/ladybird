@@ -5,6 +5,7 @@
  */
 
 pub mod border_radii;
+mod caret;
 mod devtools_layout;
 pub mod display_list;
 mod dump;
@@ -23,3 +24,4 @@ pub mod stacking_context;
 pub mod style_queries;
 pub mod text_fragment;
 pub mod visual_context;
+pub(crate) mod visual_lines;

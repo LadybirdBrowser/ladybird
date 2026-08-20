@@ -57,29 +57,10 @@ public:
     // rendered by a <br> child or in an empty editable element.
     CSSPixelRect caret_rect_for_child_offset(size_t offset) const;
 
-    struct EmptyLineCaretItem {
-        bool is_line_break_boundary { false };
-        size_t caret_offset { 0 };
-        size_t line_index { 0 };
-        CSSPixelRect rect;
-    };
-    void for_each_empty_line_caret_item(Function<void(EmptyLineCaretItem const&)> const&) const;
-
 protected:
     PaintableWithLines(Layout::BlockContainer const&);
 
 private:
-    Optional<PaintableFragment const&> fragment_at_position(DOM::Position const&) const;
-    Optional<CSSPixelRect> empty_line_caret_rect(DOM::Position const&) const;
-
-    // A caret target for a line box with no fragments (e.g. a blank line in a textarea).
-    struct EmptyLineCaretTarget {
-        size_t offset { 0 };
-        size_t line_index { 0 };
-        CSSPixelRect rect;
-    };
-    Vector<EmptyLineCaretTarget> empty_line_caret_targets() const;
-
     Vector<PaintableFragment> m_fragments;
     Vector<LineRecord> m_lines;
     Vector<InlineBoxPiece> m_inline_box_pieces;
