@@ -17,7 +17,6 @@ namespace Web::Painting {
 class WEB_API SVGPathPaintable final : public SVGGraphicsPaintable {
 public:
     static NonnullRefPtr<SVGPathPaintable> create(Layout::Box const&);
-    virtual StringView class_name() const override { return "SVGPathPaintable"sv; }
 
     virtual Optional<CSSPixelRect> clip_path_geometry_bounds(Gfx::AffineTransform const& additional_transform) const override;
 

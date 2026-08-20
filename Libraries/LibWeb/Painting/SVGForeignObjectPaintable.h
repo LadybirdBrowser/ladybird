@@ -16,7 +16,6 @@ class SVGForeignObjectPaintable final : public PaintableWithLines
     , public SVGMaskable {
 public:
     static NonnullRefPtr<SVGForeignObjectPaintable> create(Layout::BlockContainer const&);
-    virtual StringView class_name() const override { return "SVGForeignObjectPaintable"sv; }
 
     virtual GC::Ptr<DOM::Node const> dom_node_of_svg() const override { return dom_node(); }
     virtual Optional<CSSPixelRect> get_mask_area() const override { return get_svg_mask_area(); }

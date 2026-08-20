@@ -60,7 +60,6 @@
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
-#include <LibWeb/Painting/NavigableContainerViewportPaintable.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Selection/Selection.h>
@@ -240,8 +239,8 @@ static Optional<EventResult> dispatch_event_to_nested_navigable(Painting::Painta
     if (!node)
         return {};
 
-    if (auto* navigable_paintable = as_if<Painting::NavigableContainerViewportPaintable>(paintable)) {
-        auto position = navigable_paintable->transform_to_local_coordinates(viewport_position) - navigable_paintable->absolute_rect().location();
+    if (paintable.is_navigable_container_viewport_paintable()) {
+        auto position = paintable.transform_to_local_coordinates(viewport_position) - paintable.absolute_rect().location();
         if (auto content_navigable = as_if<HTML::NavigableContainer>(*node)->content_navigable()) {
             return dispatch(as<HTML::LocalNavigable>(*content_navigable).event_handler(), position);
         }

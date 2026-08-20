@@ -1069,15 +1069,12 @@ class Notification;
 namespace Web::Painting {
 
 class AudioPaintable;
-class CheckBoxPaintable;
-class FieldSetPaintable;
 class MediaPaintable;
 class Paintable;
 class Paintable;
 class PaintableFragment;
 class PaintableWithLines;
 class ScrollStateSnapshot;
-class VideoPaintable;
 class ViewportPaintable;
 
 enum class PaintPhase;

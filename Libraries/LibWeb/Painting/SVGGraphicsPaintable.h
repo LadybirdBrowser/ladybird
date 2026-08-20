@@ -16,7 +16,6 @@ class SVGGraphicsPaintable : public SVGPaintable
     , public SVGMaskable {
 public:
     static NonnullRefPtr<SVGGraphicsPaintable> create(Layout::Box const&);
-    virtual StringView class_name() const override { return "SVGGraphicsPaintable"sv; }
 
     virtual GC::Ptr<DOM::Node const> dom_node_of_svg() const override { return dom_node(); }
     virtual Optional<CSSPixelRect> get_mask_area() const override { return get_svg_mask_area(); }

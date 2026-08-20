@@ -14,7 +14,6 @@ namespace Web::Painting {
 class SVGSVGPaintable final : public Paintable {
 public:
     static NonnullRefPtr<SVGSVGPaintable> create(Layout::Box const&);
-    virtual StringView class_name() const override { return "SVGSVGPaintable"sv; }
 
     CSSPixelSize svg_viewport_size() const
     {

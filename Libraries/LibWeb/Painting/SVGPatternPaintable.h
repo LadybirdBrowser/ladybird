@@ -14,7 +14,6 @@ namespace Web::Painting {
 class SVGPatternPaintable : public SVGPaintable {
 public:
     static NonnullRefPtr<SVGPatternPaintable> create(Layout::Box const&);
-    virtual StringView class_name() const override { return "SVGPatternPaintable"sv; }
 
     bool forms_unconnected_subtree() const override
     {
