@@ -513,7 +513,12 @@ impl<'a> PaintableCommit<'a> {
                         retained,
                     }
                 });
-                let (dom_start_offset_in_node, trailing_whitespace_length_in_code_units) = self.fragment_dom_offsets(
+                let (
+                    dom_start_offset_in_node,
+                    dom_end_offset_in_node,
+                    dom_end_offset_with_trailing_whitespace,
+                    trailing_whitespace_length_in_code_units,
+                ) = self.fragment_dom_offsets(
                     fragment.layout_node,
                     fragment.start,
                     fragment.length_in_code_units,
@@ -527,6 +532,8 @@ impl<'a> PaintableCommit<'a> {
                     start_offset: fragment.start,
                     length_in_code_units: fragment.length_in_code_units,
                     dom_start_offset_in_node,
+                    dom_end_offset_in_node,
+                    dom_end_offset_with_trailing_whitespace,
                     trailing_whitespace_length_in_code_units,
                     baseline: fragment.baseline,
                     accumulated_vertical_shift: fragment.accumulated_vertical_shift,
@@ -565,13 +572,17 @@ impl<'a> PaintableCommit<'a> {
         start_offset: usize,
         length_in_code_units: usize,
         has_trailing_whitespace: bool,
-    ) -> (usize, usize) {
+    ) -> (usize, usize, usize, usize) {
         let data = self.callbacks.node_data(layout_node);
         if !crate::layout::kind_is_text(data.kind) {
-            return (start_offset, 0);
+            return (
+                start_offset,
+                start_offset + length_in_code_units,
+                start_offset + length_in_code_units,
+                0,
+            );
         }
         let content = self.callbacks.text_content(layout_node);
-        let dom_start_offset_in_node = content.dom_start_offset + start_offset;
         let mut trailing_whitespace_length = 0;
         if has_trailing_whitespace {
             let position = start_offset + length_in_code_units;
@@ -582,7 +593,36 @@ impl<'a> PaintableCommit<'a> {
                 trailing_whitespace_length += 1;
             }
         }
-        (dom_start_offset_in_node, trailing_whitespace_length)
+        let arena = self.callbacks.arena();
+        let dom_start_offset_in_node = arena.dom_offset_for_rendered_text_offset(
+            layout_node,
+            start_offset,
+            crate::layout::RenderedTextBoundary::Start,
+        );
+        let dom_end_offset_in_node = if length_in_code_units == 0 {
+            dom_start_offset_in_node
+        } else {
+            arena.dom_offset_for_rendered_text_offset(
+                layout_node,
+                start_offset + length_in_code_units,
+                crate::layout::RenderedTextBoundary::End,
+            )
+        };
+        let dom_end_offset_with_trailing_whitespace = if trailing_whitespace_length == 0 {
+            dom_end_offset_in_node
+        } else {
+            arena.dom_offset_for_rendered_text_offset(
+                layout_node,
+                start_offset + length_in_code_units + trailing_whitespace_length,
+                crate::layout::RenderedTextBoundary::End,
+            )
+        };
+        (
+            dom_start_offset_in_node,
+            dom_end_offset_in_node,
+            dom_end_offset_with_trailing_whitespace,
+            trailing_whitespace_length,
+        )
     }
 
     pub(crate) fn set_svg_viewport_transform(

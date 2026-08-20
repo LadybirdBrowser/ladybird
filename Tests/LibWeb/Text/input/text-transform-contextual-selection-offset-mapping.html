@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #selection-target {
+        display: block;
+        width: 70px;
+        text-transform: lowercase;
+    }
+
+    ::selection {
+        background-color: rgb(1, 2, 3);
+    }
+</style>
+<p id="selection-target" lang="lt">I&#x301; alpha beta gamma</p>
+<script>
+    test(() => {
+        const anchor = document.querySelector("#selection-target").firstChild;
+        document.getSelection().setBaseAndExtent(anchor, 14, anchor, 19);
+        println(internals.dumpDisplayList());
+    });
+</script>

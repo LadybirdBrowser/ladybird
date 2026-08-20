@@ -11,7 +11,9 @@
 #include <AK/UnicodeUtils.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibUnicode/Bidi.h>
+#include <LibUnicode/CaseMapping.h>
 #include <LibUnicode/CharacterTypes.h>
+#include <LibUnicode/FullwidthMapping.h>
 #include <LibUnicode/Locale.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -107,7 +109,8 @@ TextSliceNode::TextSliceNode(DOM::Document& document, DOM::Text& text, AttachToD
 TextSliceNode::~TextSliceNode() = default;
 
 // https://w3c.github.io/mathml-core/#new-text-transform-values
-static Utf16String apply_math_auto_text_transform(Utf16String const& string)
+template<typename Callback>
+static Utf16String apply_math_auto_text_transform(Utf16String const& string, Callback&& callback)
 {
     // https://w3c.github.io/mathml-core/#italic-mappings
     auto map_code_point_to_italic = [](u32 code_point) -> u32 {
@@ -343,30 +346,82 @@ static Utf16String apply_math_auto_text_transform(Utf16String const& string)
 
     Utf16StringBuilder builder { string.length_in_code_units() };
 
-    for (auto code_point : string)
-        builder.append_code_point(map_code_point_to_italic(code_point));
+    for (auto source_code_point : string) {
+        auto const rendered_code_point = map_code_point_to_italic(source_code_point);
+        callback(source_code_point, rendered_code_point);
+        builder.append_code_point(rendered_code_point);
+    }
 
     return builder.to_string();
 }
 
-static Utf16String apply_text_transform(Utf16String const& string, CSS::TextTransform text_transform, Optional<Utf16View> const& locale)
+TextNode::TextForRendering TextNode::apply_text_transform(Utf16String const& string, CSS::TextTransform text_transform, Optional<Utf16View> const& locale)
 {
+    Vector<RenderedTextEdit> edits;
+    auto append_edit = [&](size_t dom_start_offset, size_t dom_length_in_code_units, size_t rendered_start_offset, size_t rendered_length_in_code_units) {
+        if (dom_length_in_code_units == rendered_length_in_code_units)
+            return;
+        if (!edits.is_empty() && rendered_length_in_code_units == 0) {
+            auto& previous_edit = edits.last();
+            if (previous_edit.rendered_length_in_code_units == 0
+                && previous_edit.dom_start_offset + previous_edit.dom_length_in_code_units == dom_start_offset
+                && previous_edit.rendered_start_offset == rendered_start_offset) {
+                previous_edit.dom_length_in_code_units += dom_length_in_code_units;
+                return;
+            }
+        }
+        edits.append({ dom_start_offset, dom_length_in_code_units, rendered_start_offset, rendered_length_in_code_units });
+    };
+
     switch (text_transform) {
-    case CSS::TextTransform::Uppercase:
-        return string.to_uppercase(locale);
-    case CSS::TextTransform::Lowercase:
-        return string.to_lowercase(locale);
+    case CSS::TextTransform::Uppercase: {
+        auto result = Unicode::apply_case_mapping(string, Unicode::CaseMapping::Uppercase, locale);
+        for (auto const& edit : result.edits)
+            append_edit(edit.source_start, edit.source_length, edit.destination_start, edit.destination_length);
+        return { move(result.text), move(edits) };
+    }
+    case CSS::TextTransform::Lowercase: {
+        auto result = Unicode::apply_case_mapping(string, Unicode::CaseMapping::Lowercase, locale);
+        for (auto const& edit : result.edits)
+            append_edit(edit.source_start, edit.source_length, edit.destination_start, edit.destination_length);
+        return { move(result.text), move(edits) };
+    }
+    case CSS::TextTransform::Capitalize: {
+        auto result = Unicode::apply_case_mapping(string, Unicode::CaseMapping::Titlecase, locale, TrailingCodePointTransformation::PreserveExisting);
+        for (auto const& edit : result.edits)
+            append_edit(edit.source_start, edit.source_length, edit.destination_start, edit.destination_length);
+        return { move(result.text), move(edits) };
+    }
     case CSS::TextTransform::None:
-        return string;
-    case CSS::TextTransform::MathAuto:
-        return apply_math_auto_text_transform(string);
-    case CSS::TextTransform::Capitalize:
-        return string.to_titlecase(locale, TrailingCodePointTransformation::PreserveExisting);
+        return { string, {} };
+    case CSS::TextTransform::MathAuto: {
+        size_t dom_offset = 0;
+        size_t rendered_offset = 0;
+        auto text = apply_math_auto_text_transform(string, [&](u32 source_code_point, u32 rendered_code_point) {
+            auto const source_length = AK::UnicodeUtils::code_unit_length_for_code_point(source_code_point);
+            auto const rendered_length = AK::UnicodeUtils::code_unit_length_for_code_point(rendered_code_point);
+            append_edit(dom_offset, source_length, rendered_offset, rendered_length);
+            dom_offset += source_length;
+            rendered_offset += rendered_length;
+        });
+        return { move(text), move(edits) };
+    }
     case CSS::TextTransform::FullSizeKana:
         dbgln("FIXME: Implement text-transform full-size-kana");
-        return string;
-    case CSS::TextTransform::FullWidth:
-        return string.to_fullwidth();
+        return { string, {} };
+    case CSS::TextTransform::FullWidth: {
+        auto text = string.to_fullwidth();
+        if (text.length_in_code_units() == string.length_in_code_units())
+            return { move(text), {} };
+
+        // Full-width conversion can combine code points within a grapheme, such as a half-width
+        // katakana base and voiced sound mark. Transforming complete graphemes preserves that context
+        // while identifying each length-changing source span.
+        auto result = Unicode::apply_fullwidth_mapping(string);
+        for (auto const& edit : result.edits)
+            append_edit(edit.source_start, edit.source_length, edit.destination_start, edit.destination_length);
+        return { move(result.text), move(edits) };
+    }
     }
 
     VERIFY_NOT_REACHED();
@@ -403,6 +458,70 @@ Utf16String const& TextNode::text_for_rendering() const
     return ensure_text_dependent_cache().text_for_rendering;
 }
 
+size_t TextNode::rendered_text_offset_for_dom_offset(ReadonlySpan<RenderedTextEdit> edits, size_t dom_base_offset, size_t dom_offset, RenderedTextBoundary boundary)
+{
+    size_t previous_dom_end = dom_base_offset;
+    size_t previous_rendered_end = 0;
+    for (auto const& edit : edits) {
+        if (dom_offset < edit.dom_start_offset)
+            return previous_rendered_end + dom_offset - previous_dom_end;
+
+        auto const dom_end = edit.dom_start_offset + edit.dom_length_in_code_units;
+        auto const rendered_end = edit.rendered_start_offset + edit.rendered_length_in_code_units;
+        if (dom_offset <= dom_end) {
+            if (dom_offset == edit.dom_start_offset)
+                return edit.rendered_start_offset;
+            if (dom_offset == dom_end)
+                return rendered_end;
+            return boundary == RenderedTextBoundary::Start ? edit.rendered_start_offset : rendered_end;
+        }
+
+        previous_dom_end = dom_end;
+        previous_rendered_end = rendered_end;
+    }
+
+    return previous_rendered_end + dom_offset - previous_dom_end;
+}
+
+size_t TextNode::dom_offset_for_rendered_text_offset(size_t rendered_text_offset, RenderedTextBoundary boundary) const
+{
+    auto const& cache = ensure_text_dependent_cache();
+    rendered_text_offset = min(rendered_text_offset, cache.text_for_rendering.length_in_code_units());
+
+    size_t previous_dom_end = dom_start_offset();
+    size_t previous_rendered_end = 0;
+    for (auto const& edit : cache.text_for_rendering_edits) {
+        if (rendered_text_offset < edit.rendered_start_offset)
+            return previous_dom_end + rendered_text_offset - previous_rendered_end;
+
+        auto const dom_end = edit.dom_start_offset + edit.dom_length_in_code_units;
+        auto const rendered_end = edit.rendered_start_offset + edit.rendered_length_in_code_units;
+        if (rendered_text_offset == edit.rendered_start_offset) {
+            if (edit.rendered_length_in_code_units > 0)
+                return edit.dom_start_offset;
+            if (boundary == RenderedTextBoundary::End)
+                return edit.dom_start_offset;
+        } else if (rendered_text_offset < rendered_end) {
+            return boundary == RenderedTextBoundary::Start ? edit.dom_start_offset : dom_end;
+        } else if (rendered_text_offset == rendered_end && boundary == RenderedTextBoundary::End) {
+            return dom_end;
+        }
+
+        previous_dom_end = dom_end;
+        previous_rendered_end = rendered_end;
+    }
+
+    return previous_dom_end + rendered_text_offset - previous_rendered_end;
+}
+
+size_t TextNode::rendered_text_offset_for_dom_offset(size_t dom_offset, RenderedTextBoundary boundary) const
+{
+    auto const& cache = ensure_text_dependent_cache();
+    dom_offset = clamp(dom_offset, dom_start_offset(), dom_start_offset() + dom_length());
+    auto const rendered_offset = rendered_text_offset_for_dom_offset(cache.text_for_rendering_edits, dom_start_offset(), dom_offset, boundary);
+    return min(rendered_offset, cache.text_for_rendering.length_in_code_units());
+}
+
 TextNode::TextDependentCache const& TextNode::ensure_text_dependent_cache() const
 {
     auto key = create_text_for_rendering_cache_key();
@@ -410,7 +529,8 @@ TextNode::TextDependentCache const& TextNode::ensure_text_dependent_cache() cons
         auto text_for_rendering = compute_text_for_rendering(key);
         m_text_dependent_cache = TextDependentCache {
             .key = move(key),
-            .text_for_rendering = move(text_for_rendering),
+            .text_for_rendering = move(text_for_rendering.text),
+            .text_for_rendering_edits = move(text_for_rendering.edits),
             .grapheme_segmenter = {},
         };
         m_arena_text_content_in_sync = false;
@@ -447,25 +567,70 @@ bool TextNode::sync_text_content_to_arena() const
     return arena_text_content_changed;
 }
 
-Utf16String TextNode::compute_text_for_rendering(TextForRenderingCacheKey const& cache_key) const
+TextNode::TextForRendering TextNode::compute_text_for_rendering(TextForRenderingCacheKey const& cache_key) const
 {
-    auto const& text_data = text();
+    auto const& source_text = text();
+
+    Utf16String text;
+    Vector<RenderedTextEdit> edits;
     if (cache_key.is_password_input) {
-        return Utf16String::repeated(u'●', text_data.length_in_code_points());
+        auto append_edit = [&](size_t dom_start_offset, size_t dom_length_in_code_units, size_t rendered_start_offset, size_t rendered_length_in_code_units) {
+            if (dom_length_in_code_units != rendered_length_in_code_units)
+                edits.append({ dom_start_offset, dom_length_in_code_units, rendered_start_offset, rendered_length_in_code_units });
+        };
+        text = Utf16String::repeated(u'●', source_text.length_in_code_points());
+        size_t dom_offset = 0;
+        size_t rendered_offset = 0;
+        for (auto iterator = source_text.begin(); iterator != source_text.end(); ++iterator) {
+            auto const code_unit_length = iterator.length_in_code_units();
+            append_edit(dom_offset, code_unit_length, rendered_offset, 1);
+            dom_offset += code_unit_length;
+            ++rendered_offset;
+        }
+    } else {
+        // Apply text-transform
+        auto const lang = cache_key.lang.has_value() ? Optional<Utf16View> { cache_key.lang->utf16_view() } : Optional<Utf16View> {};
+        auto transformed_text = apply_text_transform(source_text, cache_key.text_transform, lang);
+        text = move(transformed_text.text);
+        edits = move(transformed_text.edits);
     }
 
-    // Apply text-transform
-    // FIXME: This can generate more code points than there were before; we need to find a better way to map the
-    //        resulting paintable fragments' offsets into the original text node data.
-    //        See: https://github.com/LadybirdBrowser/ladybird/issues/6177
-    auto const lang = cache_key.lang.has_value() ? Optional<Utf16View> { cache_key.lang->utf16_view() } : Optional<Utf16View> {};
-    auto text = apply_text_transform(text_data, cache_key.text_transform, lang);
-    if (cache_key.dom_start_offset > 0 || cache_key.dom_length < text_data.length_in_code_units())
-        text = Utf16String::from_utf16(text.utf16_view().substring_view(cache_key.dom_start_offset, cache_key.dom_length));
+    // TextSliceNode is used to split ::first-letter from the remainder of a DOM text node. Transform
+    // the complete DOM text before extracting the rendered slice so contextual transforms, such as
+    // capitalize, see the same surrounding text for both slices.
+    if (cache_key.dom_start_offset > 0 || cache_key.dom_length < source_text.length_in_code_units()) {
+        auto const dom_end_offset = cache_key.dom_start_offset + cache_key.dom_length;
+        auto const rendered_start_offset = rendered_text_offset_for_dom_offset(edits, 0, cache_key.dom_start_offset, RenderedTextBoundary::Start);
+        auto const rendered_end_offset = rendered_text_offset_for_dom_offset(edits, 0, dom_end_offset, RenderedTextBoundary::End);
+        text = Utf16String::from_utf16(text.utf16_view().substring_view(rendered_start_offset, rendered_end_offset - rendered_start_offset));
+
+        Vector<RenderedTextEdit> sliced_edits;
+        for (auto const& edit : edits) {
+            auto const edit_dom_end = edit.dom_start_offset + edit.dom_length_in_code_units;
+            if (edit_dom_end <= cache_key.dom_start_offset || edit.dom_start_offset >= dom_end_offset)
+                continue;
+
+            auto const edit_rendered_end = edit.rendered_start_offset + edit.rendered_length_in_code_units;
+            auto const sliced_dom_start = max(edit.dom_start_offset, cache_key.dom_start_offset);
+            auto const sliced_dom_end = min(edit_dom_end, dom_end_offset);
+            auto const sliced_rendered_start = max(edit.rendered_start_offset, rendered_start_offset);
+            auto const sliced_rendered_end = min(edit_rendered_end, rendered_end_offset);
+            if (sliced_dom_end - sliced_dom_start == sliced_rendered_end - sliced_rendered_start)
+                continue;
+
+            sliced_edits.append({
+                sliced_dom_start,
+                sliced_dom_end - sliced_dom_start,
+                sliced_rendered_start - rendered_start_offset,
+                sliced_rendered_end - sliced_rendered_start,
+            });
+        }
+        edits = move(sliced_edits);
+    }
 
     // The logic below deals with converting whitespace characters. If we don't have them, return early.
     if (text.is_empty() || !any_of(text, is_ascii_space)) {
-        return text;
+        return { move(text), move(edits) };
     }
 
     // https://drafts.csswg.org/css-text-4/#white-space-phase-1
@@ -515,7 +680,7 @@ Utf16String TextNode::compute_text_for_rendering(TextForRenderingCacheKey const&
 
     // AD-HOC: Prevent allocating a StringBuilder for a single space/newline/tab.
     if (text == " "sv || (convert_tabs && text == "\t"sv) || (convert_newlines && text == "\n"sv)) {
-        return " "_utf16;
+        return { " "_utf16, move(edits) };
     }
 
     // AD-HOC: It's important to not change the amount of code units in the resulting transformed text, so the text
@@ -530,7 +695,7 @@ Utf16String TextNode::compute_text_for_rendering(TextForRenderingCacheKey const&
         text = text_builder.to_string();
     }
 
-    return text;
+    return { move(text), move(edits) };
 }
 
 Unicode::Segmenter& TextNode::grapheme_segmenter() const

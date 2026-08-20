@@ -53,6 +53,7 @@ fn selection_offsets_for_fragment(
     let control = recorder.text_control_selection(fragment.layout_node);
     if control.has_selection {
         return drop_degenerate(text_fragment::compute_selection_offsets(
+            recorder.layout_arena,
             fragment,
             SELECTION_STATE_START_AND_END,
             control.start,
@@ -64,6 +65,7 @@ fn selection_offsets_for_fragment(
     }
     let range = recorder.paintables.selection?;
     drop_degenerate(text_fragment::compute_selection_offsets(
+        recorder.layout_arena,
         fragment,
         fragment.selection_state,
         range.start_offset,
@@ -433,13 +435,15 @@ fn paint_text_fragment(
             glyph_bounding_rect,
         );
     } else {
-        let range_rect = text_fragment::range_rect(
+        let range_rect = text_fragment::rect_for_selection_offsets(
             recorder.layout_arena,
             recorder.paintables,
             fragment,
-            SELECTION_STATE_START_AND_END,
-            fragment.dom_start_offset_in_node + span.start_code_unit,
-            fragment.dom_start_offset_in_node + span.end_code_unit,
+            SelectionOffsets {
+                start: span.start_code_unit,
+                end: span.end_code_unit,
+            },
+            || text_fragment::first_available_font(recorder.layout_arena, fragment),
         );
         let span_rect = converter.rounded_device_rect(range_rect);
         recorder.recorder.save();

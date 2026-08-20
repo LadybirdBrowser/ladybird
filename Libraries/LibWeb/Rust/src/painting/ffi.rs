@@ -1319,9 +1319,7 @@ pub unsafe extern "C" fn layout_arena_text_has_rendered_text_after(
         let arena = unsafe { arena_from_handle(arena) };
         // SAFETY: The caller guarantees the slot span is valid for this synchronous call.
         let node_slots = unsafe { ffi_slice(node_slots, node_slot_count) };
-        has_rendered_text_matching(arena, node_slots, |fragment| {
-            fragment.dom_start_offset_in_node + fragment.length_in_code_units > offset
-        })
+        has_rendered_text_matching(arena, node_slots, |fragment| fragment.dom_end_offset_in_node > offset)
     })
 }
 
@@ -1432,9 +1430,8 @@ pub unsafe extern "C" fn layout_arena_paintable_fragment_text_facts(
         };
         facts.layout_node = arena.shell_if_live(fragment.layout_node);
         facts.dom_start_offset_in_node = fragment.dom_start_offset_in_node;
-        facts.dom_end_offset_in_node = fragment.dom_start_offset_in_node + fragment.length_in_code_units;
-        facts.dom_end_offset_with_trailing_whitespace =
-            facts.dom_end_offset_in_node + fragment.trailing_whitespace_length_in_code_units;
+        facts.dom_end_offset_in_node = fragment.dom_end_offset_in_node;
+        facts.dom_end_offset_with_trailing_whitespace = fragment.dom_end_offset_with_trailing_whitespace;
         facts
     })
 }
@@ -1524,6 +1521,7 @@ pub unsafe extern "C" fn layout_arena_paintable_fragment_caret_range_rect(
             return FfiCssPixelRect::default();
         };
         let offsets = crate::painting::text_fragment::compute_selection_offsets(
+            arena,
             fragment,
             SELECTION_STATE_START_AND_END,
             offset,
@@ -1567,7 +1565,7 @@ pub unsafe extern "C" fn layout_arena_text_range_rects(
         let node_slots = unsafe { ffi_slice(node_slots, node_slot_count) };
         crate::painting::text_fragment::for_each_fragment_of_nodes(arena, &paintables, node_slots, |_, _, fragment| {
             let fragment_dom_start = fragment.dom_start_offset_in_node;
-            let fragment_dom_end = fragment_dom_start + fragment.length_in_code_units;
+            let fragment_dom_end = fragment.dom_end_offset_in_node;
             if fragment_dom_end <= filter_dom_start || fragment_dom_start >= filter_dom_end {
                 return true;
             }

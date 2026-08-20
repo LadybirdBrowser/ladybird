@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #selection-target {
+        display: inline-block;
+        margin: 0;
+        text-transform: uppercase;
+    }
+
+    #capitalized {
+        text-transform: capitalize;
+    }
+
+    #capitalized::first-letter {
+        color: rgb(4, 5, 6);
+    }
+
+    ::selection {
+        background-color: rgb(1, 2, 3);
+    }
+</style>
+<p id="selection-target">ß</p>
+<p id="capitalized">ßello</p>
+<script>
+    test(() => {
+        const anchor = document.querySelector("#selection-target").firstChild;
+        document.getSelection().setBaseAndExtent(anchor, 0, anchor, 1);
+        const uppercaseDump = internals.dumpDisplayList();
+
+        const capitalized = document.querySelector("#capitalized").firstChild;
+        document.getSelection().setBaseAndExtent(capitalized, 0, capitalized, 2);
+        const capitalizedDump = internals.dumpDisplayList();
+
+        println(uppercaseDump);
+        println(capitalizedDump);
+    });
+</script>

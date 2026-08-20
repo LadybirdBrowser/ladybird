@@ -96,6 +96,7 @@ pub(crate) fn range_rect(
     end_offset_in_code_units: usize,
 ) -> CssPixelRect {
     match compute_selection_offsets(
+        layout_arena,
         fragment,
         selection_state,
         start_offset_in_code_units,
@@ -109,6 +110,7 @@ pub(crate) fn range_rect(
 }
 
 pub(crate) fn compute_selection_offsets(
+    layout_arena: &LayoutNodeArena,
     fragment: &FragmentRecord,
     selection_state: u8,
     start_offset_in_code_units: usize,
@@ -117,22 +119,36 @@ pub(crate) fn compute_selection_offsets(
     let length_with_trailing_whitespace =
         fragment.length_in_code_units + fragment.trailing_whitespace_length_in_code_units;
     let dom_start = fragment.dom_start_offset_in_node;
-    let dom_end = dom_start + length_with_trailing_whitespace;
+    let dom_end = fragment.dom_end_offset_with_trailing_whitespace;
+    let rendered_offset_for_dom_offset = |dom_offset, boundary| {
+        let rendered_offset =
+            layout_arena.rendered_text_offset_for_dom_offset(fragment.layout_node, dom_offset, boundary);
+        rendered_offset.clamp(
+            fragment.start_offset,
+            fragment.start_offset + length_with_trailing_whitespace,
+        ) - fragment.start_offset
+    };
     match selection_state {
         crate::painting::paintable_data::SELECTION_STATE_NONE => None,
         crate::painting::paintable_data::SELECTION_STATE_FULL => Some(SelectionOffsets {
             start: 0,
             end: length_with_trailing_whitespace,
         }),
-        crate::painting::paintable_data::SELECTION_STATE_START_AND_END => {
-            selection_offsets_for_dom_range(fragment, start_offset_in_code_units, end_offset_in_code_units)
-        }
+        crate::painting::paintable_data::SELECTION_STATE_START_AND_END => selection_offsets_for_dom_range(
+            layout_arena,
+            fragment,
+            start_offset_in_code_units,
+            end_offset_in_code_units,
+        ),
         crate::painting::paintable_data::SELECTION_STATE_START => {
             if dom_end < start_offset_in_code_units {
                 return None;
             }
             Some(SelectionOffsets {
-                start: start_offset_in_code_units - start_offset_in_code_units.min(dom_start),
+                start: rendered_offset_for_dom_offset(
+                    start_offset_in_code_units,
+                    crate::layout::RenderedTextBoundary::Start,
+                ),
                 end: length_with_trailing_whitespace,
             })
         }
@@ -142,7 +158,7 @@ pub(crate) fn compute_selection_offsets(
             }
             Some(SelectionOffsets {
                 start: 0,
-                end: (end_offset_in_code_units - dom_start).min(length_with_trailing_whitespace),
+                end: rendered_offset_for_dom_offset(end_offset_in_code_units, crate::layout::RenderedTextBoundary::End),
             })
         }
         _ => unreachable!("invalid selection state"),
@@ -179,8 +195,7 @@ pub(crate) enum CaretMatch {
 
 pub(crate) fn caret_match(fragment: &FragmentRecord, offset: usize, affinity_is_downstream: bool) -> CaretMatch {
     let dom_start = fragment.dom_start_offset_in_node;
-    let dom_end_with_trailing_whitespace =
-        dom_start + fragment.length_in_code_units + fragment.trailing_whitespace_length_in_code_units;
+    let dom_end_with_trailing_whitespace = fragment.dom_end_offset_with_trailing_whitespace;
     if offset < dom_start || offset > dom_end_with_trailing_whitespace {
         return CaretMatch::None;
     }
@@ -191,6 +206,7 @@ pub(crate) fn caret_match(fragment: &FragmentRecord, offset: usize, affinity_is_
 }
 
 pub(crate) fn selection_offsets_for_dom_range(
+    layout_arena: &LayoutNodeArena,
     fragment: &FragmentRecord,
     start_offset_in_code_units: usize,
     end_offset_in_code_units: usize,
@@ -198,13 +214,29 @@ pub(crate) fn selection_offsets_for_dom_range(
     let length_with_trailing_whitespace =
         fragment.length_in_code_units + fragment.trailing_whitespace_length_in_code_units;
     let dom_start = fragment.dom_start_offset_in_node;
-    let dom_end = dom_start + length_with_trailing_whitespace;
+    let dom_end = fragment.dom_end_offset_with_trailing_whitespace;
     if dom_start > end_offset_in_code_units || dom_end < start_offset_in_code_units {
         return None;
     }
+    let rendered_start = layout_arena.rendered_text_offset_for_dom_offset(
+        fragment.layout_node,
+        start_offset_in_code_units,
+        crate::layout::RenderedTextBoundary::Start,
+    );
+    let rendered_end = layout_arena.rendered_text_offset_for_dom_offset(
+        fragment.layout_node,
+        end_offset_in_code_units,
+        crate::layout::RenderedTextBoundary::End,
+    );
     Some(SelectionOffsets {
-        start: start_offset_in_code_units - start_offset_in_code_units.min(dom_start),
-        end: (end_offset_in_code_units - dom_start).min(length_with_trailing_whitespace),
+        start: rendered_start.clamp(
+            fragment.start_offset,
+            fragment.start_offset + length_with_trailing_whitespace,
+        ) - fragment.start_offset,
+        end: rendered_end.clamp(
+            fragment.start_offset,
+            fragment.start_offset + length_with_trailing_whitespace,
+        ) - fragment.start_offset,
     })
 }
 
@@ -480,5 +512,9 @@ pub(crate) fn index_in_node_for_point(
         }
     }
 
-    fragment.dom_start_offset_in_node + tracker.resolve()
+    layout_arena.dom_offset_for_rendered_text_offset(
+        fragment.layout_node,
+        fragment.start_offset + tracker.resolve(),
+        crate::layout::RenderedTextBoundary::End,
+    )
 }

@@ -341,6 +341,8 @@ pub struct FragmentRecord {
     pub start_offset: usize,
     pub length_in_code_units: usize,
     pub dom_start_offset_in_node: usize,
+    pub dom_end_offset_in_node: usize,
+    pub dom_end_offset_with_trailing_whitespace: usize,
     pub trailing_whitespace_length_in_code_units: usize,
     pub baseline: CssPixels,
     pub accumulated_vertical_shift: CssPixels,

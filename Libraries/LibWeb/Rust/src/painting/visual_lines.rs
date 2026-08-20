@@ -39,31 +39,32 @@ fn for_each_empty_visual_line_position(
     node_slots: &[NodeSlotId],
     mut callback: impl FnMut(usize) -> bool,
 ) {
-    let mut segments: Vec<(usize, &[u16])> = Vec::new();
+    let mut segments: Vec<(NodeSlotId, &[u16])> = Vec::new();
     for &node in node_slots {
         if let Some(content) = layout_arena.text_content(node) {
-            segments.push((content.dom_start_offset, &content.text));
+            segments.push((node, &content.text));
         }
     }
-    let Some(&(last_start, last_text)) = segments.last() else {
-        return;
-    };
-    let total_length = last_start + last_text.len();
-    let code_unit_at = |offset: usize| -> Option<u16> {
-        for &(start, text) in &segments {
-            if offset >= start && offset < start + text.len() {
-                return Some(text[offset - start]);
+    for (segment_index, &(node, text)) in segments.iter().enumerate() {
+        for (rendered_offset, code_unit) in text.iter().enumerate() {
+            if *code_unit != u16::from(b'\n') {
+                continue;
             }
-        }
-        None
-    };
-    for i in 0..total_length {
-        if code_unit_at(i) != Some(u16::from(b'\n')) {
-            continue;
-        }
-        let position = i + 1;
-        if (position == total_length || code_unit_at(position) == Some(u16::from(b'\n'))) && !callback(position) {
-            return;
+            let next_code_unit = text.get(rendered_offset + 1).copied().or_else(|| {
+                segments[segment_index + 1..]
+                    .iter()
+                    .find_map(|(_, following_text)| following_text.first().copied())
+            });
+            if next_code_unit.is_none() || next_code_unit == Some(u16::from(b'\n')) {
+                let dom_offset = layout_arena.dom_offset_for_rendered_text_offset(
+                    node,
+                    rendered_offset + 1,
+                    crate::layout::RenderedTextBoundary::End,
+                );
+                if !callback(dom_offset) {
+                    return;
+                }
+            }
         }
     }
 }
@@ -85,8 +86,8 @@ pub(crate) fn collect_visual_lines(
     let mut lines: Vec<RecordVisualLine> = Vec::new();
     text_fragment::for_each_fragment_of_nodes(layout_arena, paintables, node_slots, |block, _, fragment| {
         let dom_start = fragment.dom_start_offset_in_node;
-        let dom_end = dom_start + fragment.length_in_code_units;
-        let dom_end_with_trailing_whitespace = dom_end + fragment.trailing_whitespace_length_in_code_units;
+        let dom_end = fragment.dom_end_offset_in_node;
+        let dom_end_with_trailing_whitespace = fragment.dom_end_offset_with_trailing_whitespace;
         if let Some(line) = lines.last_mut()
             && line.has_fragments
             && line.owner == block
@@ -247,8 +248,7 @@ pub(crate) fn caret_inline_coordinate(
     for &(block, index) in &fragments {
         let fragment = &paintables.side(block).fragments[index as usize];
         let dom_start = fragment.dom_start_offset_in_node;
-        let dom_end_with_trailing_whitespace =
-            dom_start + fragment.length_in_code_units + fragment.trailing_whitespace_length_in_code_units;
+        let dom_end_with_trailing_whitespace = fragment.dom_end_offset_with_trailing_whitespace;
         if offset >= dom_start && offset <= dom_end_with_trailing_whitespace {
             chosen = (block, index);
             break;
@@ -260,8 +260,7 @@ pub(crate) fn caret_inline_coordinate(
     let (block, index) = chosen;
     let fragment = &paintables.side(block).fragments[index as usize];
     let dom_start = fragment.dom_start_offset_in_node;
-    let dom_end_with_trailing_whitespace =
-        dom_start + fragment.length_in_code_units + fragment.trailing_whitespace_length_in_code_units;
+    let dom_end_with_trailing_whitespace = fragment.dom_end_offset_with_trailing_whitespace;
     let clamped_offset = offset.clamp(dom_start, dom_end_with_trailing_whitespace);
     let rect = text_fragment::range_rect(
         layout_arena,
