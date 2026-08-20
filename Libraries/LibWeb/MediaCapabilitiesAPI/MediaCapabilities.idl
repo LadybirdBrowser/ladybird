@@ -95,8 +95,9 @@ dictionary MediaCapabilitiesInfo {
     required boolean powerEfficient;
 };
 
+[GenerateToValue]
 dictionary MediaCapabilitiesDecodingInfo : MediaCapabilitiesInfo {
-    [FIXME] required MediaKeySystemAccess? keySystemAccess;
+    required MediaKeySystemAccess? keySystemAccess;
     required MediaDecodingConfiguration configuration;
 };
 
