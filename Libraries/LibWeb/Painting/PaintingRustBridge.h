@@ -52,6 +52,7 @@ WEB_API void mirror_rust_clear_visual_context_tree(ViewportPaintable&);
 WEB_API void mirror_rust_reset_visual_context_state(ViewportPaintable&);
 WEB_API void mirror_rust_clear_paint_cache_sources(ViewportPaintable&);
 WEB_API void mirror_rust_invalidate_paint_cache(Paintable const&);
+WEB_API void rust_invalidate_propagated_text_decoration_caches(Paintable const&);
 struct InspectorOverlayInputs {
     Paintable const* highlighted_paintable { nullptr };
     Color tooltip_color;

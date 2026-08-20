@@ -489,7 +489,6 @@ public:
     CSSPixelPoint inverse_transform_point(CSSPixelPoint screen_position) const;
 
     void invalidate_paint_cache() const;
-    void invalidate_propagated_text_decoration_caches() const;
     void repaint_after_style_change(CSS::RequiredInvalidationAfterStyleChange const&);
 
     [[nodiscard]] Optional<VisualContextIndex> fixed_background_visual_context() const

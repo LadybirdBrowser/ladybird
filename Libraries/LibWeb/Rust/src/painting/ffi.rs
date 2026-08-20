@@ -904,10 +904,19 @@ pub unsafe extern "C" fn layout_arena_last_recording_has_blocking_wheel_event_li
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_invalidate_paint_cache(arena: *mut c_void, paintable: PaintableSlotId) {
+pub unsafe extern "C" fn layout_arena_paintable_invalidate_paint_cache(
+    arena: *mut c_void,
+    paintable: PaintableSlotId,
+    propagated_text_decorations: bool,
+) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        arena.paintables().borrow().invalidate_paint_cache(paintable);
+        let paintables = arena.paintables().borrow();
+        if propagated_text_decorations {
+            paintables.invalidate_propagated_text_decoration_caches(arena, paintable);
+        } else {
+            paintables.invalidate_paint_cache(paintable);
+        }
     });
 }
 

@@ -5,7 +5,7 @@
  */
 
 use crate::layout::node_data::NodeSlotId;
-use crate::layout::{FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize};
+use crate::layout::{FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, LayoutNodeArena};
 use crate::painting::paintable_data::*;
 use std::cell::Cell;
 use std::ffi::c_void;
@@ -205,6 +205,41 @@ impl PaintableArena {
         }
         if let Some(entry) = self.paint_caches.borrow_mut().get_mut(id.slot_index() as usize) {
             *entry = None;
+        }
+    }
+
+    pub(crate) fn invalidate_propagated_text_decoration_caches(
+        &self,
+        layout_arena: &LayoutNodeArena,
+        root: PaintableSlotId,
+    ) {
+        if !self.is_live(root) {
+            return;
+        }
+
+        let mut stack = Vec::new();
+        if let Some(first_child) = self.first_child(root) {
+            stack.push(first_child);
+        }
+        let mut caches = self.paint_caches.borrow_mut();
+        while let Some(current) = stack.pop() {
+            if let Some(next_sibling) = self.next_sibling(current) {
+                stack.push(next_sibling);
+            }
+
+            let data = self.data_ref(current);
+            if crate::painting::style_queries::is_text_decoration_propagation_boundary(layout_arena, data.layout_node) {
+                continue;
+            }
+            // Only fragment-painting paintables record propagated decorations.
+            if (data.kind.has_lines() || data.kind == PaintableKind::InlinePaintable)
+                && let Some(entry) = caches.get_mut(current.slot_index() as usize)
+            {
+                *entry = None;
+            }
+            if let Some(first_child) = self.first_child(current) {
+                stack.push(first_child);
+            }
         }
     }
 

@@ -783,21 +783,6 @@ bool NodeWithStyle::is_sticky_position() const
     return position == CSS::Positioning::Sticky;
 }
 
-bool NodeWithStyle::is_text_decoration_propagation_boundary() const
-{
-    // NB: Anonymous wrappers must stay transparent to propagation so an element's own decorations still reach
-    //     its text. The principal box of a pseudo-element is not a wrapper and must be checked like any other
-    //     element, and a table wrapper carries the float and position of the table it wraps, so it is the only
-    //     box where an out-of-flow table is observable.
-    if (is_anonymous() && !is_pseudo_element_principal_box() && !is_table_wrapper())
-        return false;
-
-    // https://drafts.csswg.org/css-text-decor-4/#decorating-box
-    // NOTE: Note that text decorations are not propagated to any out-of-flow descendants, nor to the contents
-    //       of atomic inline-level descendants such as inline blocks and inline tables.
-    return is_out_of_flow() || is_atomic_inline();
-}
-
 NodeWithStyle::NodeWithStyle(DOM::Document& document, GC::Ptr<DOM::Node> node, CSS::LayoutStyle style, RustFFI::NodeKind kind)
     : Node(document, node)
 {

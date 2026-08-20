@@ -778,8 +778,6 @@ public:
     bool is_fixed_position() const;
     bool is_sticky_position() const;
 
-    bool is_text_decoration_propagation_boundary() const;
-
     // An element is called out of flow if it is floated, absolutely positioned, or is the root element.
     // https://www.w3.org/TR/CSS22/visuren.html#positioning-scheme
     bool is_out_of_flow() const { return is_floating() || is_absolutely_positioned(); }
