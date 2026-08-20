@@ -3215,10 +3215,8 @@ pub unsafe extern "C" fn rust_build_group_payloads_from_table(
         let out = unsafe { std::slice::from_raw_parts_mut(out_payloads, group_count) };
         let values = EffectiveValues {
             table,
-            override_properties: unsafe {
-                std::slice::from_raw_parts(inputs.override_properties, inputs.override_count)
-            },
-            override_values: unsafe { std::slice::from_raw_parts(inputs.override_values, inputs.override_count) },
+            override_properties: unsafe { crate::slice_from_raw(inputs.override_properties, inputs.override_count) },
+            override_values: unsafe { crate::slice_from_raw(inputs.override_values, inputs.override_count) },
         };
         let color_input = unsafe { &*inputs.color_input.cast::<FfiColorResolutionInput>() };
         let channels = relative_color_context_from_ffi(color_input);
