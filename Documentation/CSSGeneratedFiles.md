@@ -236,7 +236,7 @@ The generated code provides these for each enum, using "foo" as an example:
 ## PseudoClasses.json
 
 This is a single JSON object, with selector pseudo-class names as keys and the values being objects with fields for the pseudo-class.
-This generates `PseudoClass.h` and `PseudoClass.cpp`.
+This generates `PseudoClass.h`.
 
 Each entry has the following properties:
 
@@ -247,10 +247,6 @@ Each entry has the following properties:
 
 The generated code provides:
 - A `PseudoClass` enum listing every pseudo-class name
-- `Optional<PseudoClass> pseudo_class_from_string(StringView)` to parse a string as a `PseudoClass` name
-- `StringView pseudo_class_name(PseudoClass)` to convert a `PseudoClass` back into a string
-- The `PseudoClassMetadata` struct which holds a representation of the data from the JSON file
-- `PseudoClassMetadata pseudo_class_metadata(PseudoClass)` to retrieve that data
 
 ## PseudoElements.json
 
@@ -274,11 +270,7 @@ Each entry has the following properties:
 
 The generated code provides:
 - A `PseudoElement` enum listing every pseudo-element name
-- `Optional<PseudoElement> pseudo_element_from_string(StringView)` to parse a string as a `PseudoElement` name
-- `Optional<PseudoElement> aliased_pseudo_element_from_string(StringView)` is similar, but returns the `PseudoElement` this name is an alias for
 - `StringView pseudo_element_name(PseudoElement)` to convert a `PseudoElement` back into a string
-- `bool is_has_allowed_pseudo_element(PseudoElement)` returns whether the pseudo-element is valid inside `:has()`
-- `bool is_element_backed_pseudo_element(PseudoElement)` returns whether the pseudo-element is element-backed
 - `bool is_tree_abiding_pseudo_element(PseudoElement)` returns whether the pseudo-element is tree-abiding
 - `bool is_pseudo_element_root(PseudoElement)` returns whether the pseudo-element is a [pseudo-element root](https://drafts.csswg.org/css-view-transitions/#pseudo-element-root)
 

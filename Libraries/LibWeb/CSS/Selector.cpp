@@ -191,11 +191,6 @@ Utf16String Selector::PseudoElementSelector::serialize() const
     return Utf16String::formatted("::{}", pseudo_element_name(m_type));
 }
 
-void Selector::PseudoElementSelector::serialize_to(Utf16StringBuilder& builder) const
-{
-    builder.append(serialize());
-}
-
 static Vector<SelectorFFI::RustSelector const*> selector_handles(SelectorList const& selectors)
 {
     Vector<SelectorFFI::RustSelector const*> handles;

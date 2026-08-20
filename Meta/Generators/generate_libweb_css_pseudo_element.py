@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # Copyright (c) 2022-2026, Sam Atkins <sam@ladybird.org>
 # Copyright (c) 2026-present, the Ladybird developers.
 #
@@ -16,12 +14,6 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from Utils.utils import title_casify
 from Utils.utils import underlying_type_for_enum
-
-PARAMETER_TYPES = {
-    "<compound-selector>": "CompoundSelector",
-    "<ident>+": "IdentList",
-    "<pt-name-selector>": "PTNameSelector",
-}
 
 
 def is_alias(pseudo_element: dict) -> bool:
@@ -56,9 +48,7 @@ def write_header_file(out: TextIO, pseudo_elements_data: dict) -> None:
     out.write(f"""
 #pragma once
 
-#include <AK/Optional.h>
 #include <AK/StringView.h>
-#include <AK/Utf16View.h>
 #include <LibWeb/Export.h>
 
 namespace Web::CSS {{
@@ -81,28 +71,12 @@ constexpr PseudoElement last_synthetic_pseudo_element = PseudoElement::{title_ca
 constexpr PseudoElement first_element_reference_pseudo_element = PseudoElement::{title_casify(element_reference_pseudo_elements[0])};
 constexpr PseudoElement last_element_reference_pseudo_element = PseudoElement::{title_casify(element_reference_pseudo_elements[-1])};
 
-Optional<PseudoElement> pseudo_element_from_string(Utf16View);
-Optional<PseudoElement> aliased_pseudo_element_from_string(Utf16View);
 WEB_API StringView pseudo_element_name(PseudoElement);
 
-bool is_has_allowed_pseudo_element(PseudoElement);
 bool is_tree_abiding_pseudo_element(PseudoElement);
-bool is_element_backed_pseudo_element(PseudoElement);
 bool is_pseudo_element_root(PseudoElement);
 inline bool is_synthetic_pseudo_element(PseudoElement pseudo_element) {{ return pseudo_element >= first_synthetic_pseudo_element && pseudo_element <= last_synthetic_pseudo_element; }}
 inline bool is_element_reference_pseudo_element(PseudoElement pseudo_element) {{ return pseudo_element >= first_element_reference_pseudo_element && pseudo_element <= last_element_reference_pseudo_element; }}
-
-struct PseudoElementMetadata {{
-    enum class ParameterType {{
-        None,
-        CompoundSelector,
-        IdentList,
-        PTNameSelector,
-    }} parameter_type;
-    bool is_valid_as_function;
-    bool is_valid_as_identifier;
-}};
-PseudoElementMetadata pseudo_element_metadata(PseudoElement);
 
 }}
 """)
@@ -113,41 +87,6 @@ def write_implementation_file(out: TextIO, pseudo_elements_data: dict) -> None:
 #include <LibWeb/CSS/PseudoElement.h>
 
 namespace Web::CSS {
-
-Optional<PseudoElement> pseudo_element_from_string(Utf16View string)
-{
-""")
-
-    for name, pseudo_element in pseudo_elements_data.items():
-        if is_alias(pseudo_element):
-            continue
-        out.write(f"""
-    if (string.equals_ignoring_ascii_case("{name}"sv))
-        return PseudoElement::{title_casify(name)};
-""")
-
-    out.write("""
-
-    return {};
-}
-
-Optional<PseudoElement> aliased_pseudo_element_from_string(Utf16View string)
-{
-""")
-
-    for name, pseudo_element in pseudo_elements_data.items():
-        alias_for = pseudo_element.get("alias-for")
-        if alias_for is None:
-            continue
-        out.write(f"""
-    if (string.equals_ignoring_ascii_case("{name}"sv))
-        return PseudoElement::{title_casify(alias_for)};
-""")
-
-    out.write("""
-
-    return {};
-}
 
 StringView pseudo_element_name(PseudoElement pseudo_element)
 {
@@ -170,62 +109,15 @@ StringView pseudo_element_name(PseudoElement pseudo_element)
     VERIFY_NOT_REACHED();
 }
 
-bool is_has_allowed_pseudo_element(PseudoElement pseudo_element)
-{
-    switch (pseudo_element) {
-""")
-
-    for name, pseudo_element in pseudo_elements_data.items():
-        if is_alias(pseudo_element):
-            continue
-        if not pseudo_element.get("is-allowed-in-has", False):
-            continue
-        out.write(f"""
-    case PseudoElement::{title_casify(name)}:
-        return true;
-""")
-
-    out.write("""
-    default:
-        return false;
-    }
-}
-
 bool is_tree_abiding_pseudo_element(PseudoElement pseudo_element)
 {
-    // Element-backed pseudo-elements are always tree-abiding.
-    // https://drafts.csswg.org/css-pseudo-4/#element-backed
-    if (is_element_backed_pseudo_element(pseudo_element))
-        return true;
-
     switch (pseudo_element) {
 """)
 
     for name, pseudo_element in pseudo_elements_data.items():
         if is_alias(pseudo_element):
             continue
-        if not pseudo_element.get("is-tree-abiding", False):
-            continue
-        out.write(f"""
-    case PseudoElement::{title_casify(name)}:
-        return true;
-""")
-
-    out.write("""
-    default:
-        return false;
-    }
-}
-
-bool is_element_backed_pseudo_element(PseudoElement pseudo_element)
-{
-    switch (pseudo_element) {
-""")
-
-    for name, pseudo_element in pseudo_elements_data.items():
-        if is_alias(pseudo_element):
-            continue
-        if not pseudo_element.get("is-element-backed", False):
+        if not pseudo_element.get("is-tree-abiding", False) and not pseudo_element.get("is-element-backed", False):
             continue
         out.write(f"""
     case PseudoElement::{title_casify(name)}:
@@ -257,62 +149,6 @@ bool is_pseudo_element_root(PseudoElement pseudo_element)
     default:
         return false;
     }
-}
-
-PseudoElementMetadata pseudo_element_metadata(PseudoElement pseudo_element)
-{
-    switch (pseudo_element) {
-""")
-
-    for name, pseudo_element in pseudo_elements_data.items():
-        if is_alias(pseudo_element):
-            continue
-
-        pe_type = pseudo_element.get("type")
-        if pe_type == "function":
-            is_valid_as_function = True
-            is_valid_as_identifier = False
-        elif pe_type == "both":
-            is_valid_as_function = True
-            is_valid_as_identifier = True
-        else:
-            is_valid_as_function = False
-            is_valid_as_identifier = True
-
-        parameter_type = "None"
-        if is_valid_as_function:
-            function_syntax = pseudo_element["function-syntax"]
-            if function_syntax not in PARAMETER_TYPES:
-                print(f"Unrecognized pseudo-element parameter type: `{function_syntax}`", file=sys.stderr)
-                sys.exit(1)
-            parameter_type = PARAMETER_TYPES[function_syntax]
-        elif "function-syntax" in pseudo_element:
-            print(f"Pseudo-element `::{name}` has `function-syntax` but is not a function type.", file=sys.stderr)
-            sys.exit(1)
-
-        is_valid_as_function_str = "true" if is_valid_as_function else "false"
-        is_valid_as_identifier_str = "true" if is_valid_as_identifier else "false"
-
-        out.write(f"""
-    case PseudoElement::{title_casify(name)}:
-        return {{
-            .parameter_type = PseudoElementMetadata::ParameterType::{parameter_type},
-            .is_valid_as_function = {is_valid_as_function_str},
-            .is_valid_as_identifier = {is_valid_as_identifier_str},
-        }};
-""")
-
-    out.write("""
-    case PseudoElement::UnknownWebKit:
-        return {
-            .parameter_type = PseudoElementMetadata::ParameterType::None,
-            .is_valid_as_function = false,
-            .is_valid_as_identifier = true,
-        };
-    case PseudoElement::KnownPseudoElementCount:
-        break;
-    }
-    VERIFY_NOT_REACHED();
 }
 
 }

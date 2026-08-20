@@ -696,8 +696,6 @@ private:
 
     Vector<RuleContext> m_rule_context;
     HashTable<Utf16FlyString> m_declared_namespaces;
-
-    Vector<PseudoClass> m_pseudo_class_context; // Stack of pseudo-class functions we're currently inside
 };
 
 GC::Ptr<CSSKeyframeRule> parse_keyframe_rule(ParsingParams const&, Utf16View);

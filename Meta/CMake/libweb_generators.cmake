@@ -60,12 +60,11 @@ function (generate_css_implementation)
                      "${LADYBIRD_SOURCE_DIR}/Meta/Utils/utils.py"
     )
 
-    invoke_py_generator(
-        "PseudoClass.cpp"
+    invoke_py_header_generator(
+        "PseudoClass.h"
         "generate_libweb_css_pseudo_class.py"
         "${LIBWEB_INPUT_FOLDER}/CSS/PseudoClasses.json"
         "CSS/PseudoClass.h"
-        "CSS/PseudoClass.cpp"
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/PseudoClasses.json"
     )
 

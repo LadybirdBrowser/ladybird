@@ -21,9 +21,6 @@ String serialize_parsing_error(ParsingError const& error)
         [](UnknownMediaFeatureError const& error) {
             return MUST(String::formatted("Unknown media feature '{}'.", error.media_feature_name));
         },
-        [](UnknownPseudoClassOrElementError const& error) {
-            return MUST(String::formatted("Unknown pseudo class or element '{}' in {} selector.", error.name, error.rule_name));
-        },
         [](InvalidPropertyError const& error) {
             return MUST(String::formatted("Property '{}' in {} rule has invalid value `{}`.", error.property_name, error.rule_name, error.value_string));
         },
@@ -35,12 +32,6 @@ String serialize_parsing_error(ParsingError const& error)
         },
         [](InvalidQueryError const& error) {
             return MUST(String::formatted("'{}' query `{}` is invalid: {}", error.query_type, error.value_string, error.description));
-        },
-        [](InvalidSelectorError const& error) {
-            return MUST(String::formatted("{} selector `{}` is invalid: {}", error.rule_name, error.value_string, error.description));
-        },
-        [](InvalidPseudoClassOrElementError const& error) {
-            return MUST(String::formatted("Pseudo '{}' value `{}` is invalid: {}", error.name, error.value_string, error.description));
         },
         [](InvalidRuleLocationError const& error) {
             return MUST(String::formatted("'{}' rule is invalid inside {}", error.inner_rule_name, error.outer_rule_name));
