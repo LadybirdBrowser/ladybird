@@ -10,11 +10,9 @@
 #include <AK/Function.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/Paintable.h>
-#include <LibWeb/Painting/PaintableFragment.h>
 
 namespace Web::Painting {
 
-class HitTestDisplayList;
 class InlinePaintable;
 
 InlinePaintable const* nearest_self_painting_inline_box(Layout::Node const&);
@@ -23,29 +21,6 @@ class PaintableWithLines : public Paintable {
 public:
     static NonnullRefPtr<PaintableWithLines> create(Layout::BlockContainer const&);
     virtual ~PaintableWithLines() override;
-
-    virtual void reset_for_relayout() override;
-
-    Vector<PaintableFragment> const& fragments() const { return m_fragments; }
-    u32 index_of_fragment(PaintableFragment const& fragment) const
-    {
-        VERIFY(&fragment >= m_fragments.data() && &fragment < m_fragments.data() + m_fragments.size());
-        return static_cast<u32>(&fragment - m_fragments.data());
-    }
-    Vector<PaintableFragment>& fragments() { return m_fragments; }
-
-    Vector<LineRecord> const& lines() const { return m_lines; }
-    void set_lines(Vector<LineRecord> lines) { m_lines = move(lines); }
-
-    Vector<InlineBoxPiece> const& inline_box_pieces() const { return m_inline_box_pieces; }
-    Vector<InlineBoxPiece>& inline_box_pieces() { return m_inline_box_pieces; }
-    void set_inline_box_pieces(Vector<InlineBoxPiece> pieces) { m_inline_box_pieces = move(pieces); }
-
-    void add_fragment(PaintableFragment::Fields fields)
-    {
-        m_fragments.empend(*this, move(fields));
-    }
-    void assign_inline_box_geometry();
 
     struct CaretPaint {
         CSSPixelRect rect;
@@ -59,11 +34,6 @@ public:
 
 protected:
     PaintableWithLines(Layout::BlockContainer const&);
-
-private:
-    Vector<PaintableFragment> m_fragments;
-    Vector<LineRecord> m_lines;
-    Vector<InlineBoxPiece> m_inline_box_pieces;
 };
 
 }

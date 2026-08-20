@@ -31,7 +31,6 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Namespace.h>
-#include <LibWeb/Painting/PaintableFragment.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>

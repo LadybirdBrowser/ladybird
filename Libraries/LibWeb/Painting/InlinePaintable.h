@@ -19,50 +19,11 @@ public:
     static NonnullRefPtr<InlinePaintable> create(Layout::NodeWithStyle const&);
     virtual ~InlinePaintable() override;
 
-    virtual void reset_for_relayout() override;
-
-    PaintableWithLines const* inline_root() const;
-
-    void set_piece_indices(Vector<u32> piece_indices) { m_piece_indices = move(piece_indices); }
-
-    template<typename Callback>
-    void for_each_piece(Callback callback) const
-    {
-        auto const* root = inline_root();
-        if (!root)
-            return;
-        auto const& pieces = root->inline_box_pieces();
-        for (auto piece_index : m_piece_indices)
-            callback(pieces[piece_index]);
-    }
-
-    template<typename Callback>
-    void for_each_piece_fragment(Callback callback) const
-    {
-        auto const* root = inline_root();
-        if (!root)
-            return;
-        auto const& fragments = root->fragments();
-        for_each_piece([&](InlineBoxPiece const& piece) {
-            for (u32 fragment_index = piece.first_fragment_index; fragment_index < piece.first_fragment_index + piece.fragment_count; ++fragment_index)
-                callback(piece, fragments[fragment_index]);
-        });
-    }
-
-    void set_local_box_unions(CSSPixelRect padding_box_union, CSSPixelRect border_box_union)
-    {
-        m_local_padding_box_union = padding_box_union;
-        m_local_border_box_union = border_box_union;
-    }
-
     // Whether this box paints its own foreground (fragments and caret) instead of the
     // containing block: it forms a group that content must be recorded inside.
     bool is_self_painting() const { return has_stacking_context() || is_positioned(); }
 
-    CSSPixelRect absolute_piece_border_box_rect(InlineBoxPiece const&) const;
-    BorderRadiiData piece_border_radii_data(InlineBoxPiece const&) const;
-    CSSPixelRect piece_padding_box_rect(InlineBoxPiece const&, CSSPixelRect const& border_box_rect) const;
-    CSSPixelRect piece_content_box_rect(InlineBoxPiece const&, CSSPixelRect const& border_box_rect) const;
+    BorderRadiiData piece_border_radii_data(CSSPixelSize border_box_size, u8 present_edges) const;
     virtual CSSPixelPoint box_type_agnostic_position() const override;
 
     bool has_content() const;
@@ -79,11 +40,6 @@ private:
 
 public:
     Optional<PaintableWithLines::CaretPaint> resolve_empty_editable_caret_paint() const;
-
-private:
-    Vector<u32> m_piece_indices;
-    CSSPixelRect m_local_padding_box_union;
-    CSSPixelRect m_local_border_box_union;
 };
 
 template<>

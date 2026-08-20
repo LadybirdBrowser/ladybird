@@ -7,20 +7,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/HashMap.h>
-#include <LibGfx/Font/Font.h>
-#include <LibGfx/TextLayout.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Position.h>
-#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
-#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TextOffsetMapping.h>
-#include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
@@ -45,14 +38,6 @@ PaintableWithLines::~PaintableWithLines()
 {
 }
 
-void PaintableWithLines::reset_for_relayout()
-{
-    Paintable::reset_for_relayout();
-    m_fragments.clear();
-    m_lines.clear();
-    m_inline_box_pieces.clear();
-}
-
 InlinePaintable const* nearest_self_painting_inline_box(Layout::Node const& node)
 {
     for (auto const* ancestor = node.nearest_fragmented_inline_ancestor(); ancestor; ancestor = ancestor->nearest_fragmented_inline_ancestor()) {
@@ -61,70 +46,6 @@ InlinePaintable const* nearest_self_painting_inline_box(Layout::Node const& node
             return proxy;
     }
     return nullptr;
-}
-
-void PaintableWithLines::assign_inline_box_geometry()
-{
-    HashMap<Layout::Node const*, Vector<u32>> piece_indices_by_node;
-    for (u32 piece_index = 0; piece_index < m_inline_box_pieces.size(); ++piece_index) {
-        if (auto const* piece_node = m_inline_box_pieces[piece_index].node.ptr())
-            piece_indices_by_node.ensure(piece_node).append(piece_index);
-    }
-
-    for (auto& [piece_node, piece_indices] : piece_indices_by_node) {
-        auto* inline_paintable = as_if<InlinePaintable>(const_cast<Layout::Node*>(piece_node)->paintable().ptr());
-        if (!inline_paintable)
-            continue;
-
-        auto const& box_model = inline_paintable->box_model();
-
-        Optional<CSSPixelRect> content_union;
-        Optional<CSSPixelRect> padding_union;
-        Optional<CSSPixelRect> border_union;
-        auto unite = [](Optional<CSSPixelRect>& target, CSSPixelRect const& rect) {
-            if (!target.has_value()) {
-                target = rect;
-                return;
-            }
-            // Degenerate rects (from placeholder pieces) only establish a position; the
-            // first one wins, and any real rect takes precedence over them.
-            if (rect.is_empty())
-                return;
-            if (target->is_empty())
-                target = rect;
-            else
-                target->unite(rect);
-        };
-
-        for (auto piece_index : piece_indices) {
-            auto const& piece = m_inline_box_pieces[piece_index];
-            if (piece.is_geometry_only_placeholder) {
-                // Placeholder pieces carry the (degenerate) content rect directly.
-                auto content_rect = piece.border_box_rect;
-                auto padding_rect = content_rect.inflated(box_model.padding.top, box_model.padding.right, box_model.padding.bottom, box_model.padding.left);
-                auto border_rect = padding_rect.inflated(box_model.border.top, box_model.border.right, box_model.border.bottom, box_model.border.left);
-                unite(content_union, content_rect);
-                unite(padding_union, padding_rect);
-                unite(border_union, border_rect);
-                continue;
-            }
-            auto border_rect = piece.border_box_rect;
-            auto padding_rect = inline_paintable->piece_padding_box_rect(piece, border_rect);
-            auto content_rect = inline_paintable->piece_content_box_rect(piece, border_rect);
-            unite(content_union, content_rect);
-            unite(padding_union, padding_rect);
-            unite(border_union, border_rect);
-        }
-
-        if (!content_union.has_value())
-            continue;
-        inline_paintable->set_offset(content_union->location());
-        inline_paintable->set_content_size(content_union->size());
-        inline_paintable->set_local_box_unions(
-            padding_union->translated(-content_union->x(), -content_union->y()),
-            border_union->translated(-content_union->x(), -content_union->y()));
-        inline_paintable->set_piece_indices(move(piece_indices));
-    }
 }
 
 CSSPixelRect PaintableWithLines::caret_rect_for_child_offset(size_t offset) const

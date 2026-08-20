@@ -725,17 +725,8 @@ static bool is_svg_resource_box(Node const& layout_node)
 static void transfer_saved_layout_state_to_replacement_box(Layout::Node& old_layout_node, Layout::Node& new_layout_node)
 {
     if (auto* containing_block = old_layout_node.containing_block()) {
-        if (auto* paintable_with_lines = as_if<Painting::PaintableWithLines>(containing_block->paintable().ptr())) {
+        if (auto* paintable_with_lines = as_if<Painting::PaintableWithLines>(containing_block->paintable().ptr()))
             RustFFI::layout_arena_paintable_transfer_fragments_to_replacement_node(paintable_with_lines->rust_arena().handle(), paintable_with_lines->rust_slot(), Node::slot_id(&old_layout_node), Node::slot_id(&new_layout_node));
-            for (auto& fragment : paintable_with_lines->fragments()) {
-                if (fragment.has_layout_node() && &fragment.layout_node() == &old_layout_node)
-                    fragment.set_layout_node(new_layout_node);
-            }
-            for (auto& piece : paintable_with_lines->inline_box_pieces()) {
-                if (piece.node.ptr() == &old_layout_node)
-                    piece.node = &new_layout_node;
-            }
-        }
     }
 }
 

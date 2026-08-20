@@ -17,6 +17,7 @@
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableWithLines.h>

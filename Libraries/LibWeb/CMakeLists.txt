@@ -874,7 +874,6 @@ set(SOURCES
     Painting/InlinePaintable.cpp
     Painting/Paintable.cpp
     Painting/PaintStyle.cpp
-    Painting/PaintableFragment.cpp
     Painting/PaintableWithLines.cpp
     Painting/PaintingRustBridge.cpp
     Painting/ResolvedCSSFilter.cpp
