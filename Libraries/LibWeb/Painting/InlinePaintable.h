@@ -33,9 +33,6 @@ public:
 private:
     explicit InlinePaintable(Layout::NodeWithStyle const&);
 
-    virtual CSSPixelRect compute_absolute_padding_box_rect() const override;
-    virtual CSSPixelRect compute_absolute_border_box_rect() const override;
-
     bool has_content_pieces() const;
 
 public:

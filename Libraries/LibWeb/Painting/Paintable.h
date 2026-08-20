@@ -503,10 +503,6 @@ protected:
 
 public:
 protected:
-    CSSPixelRect compute_absolute_rect() const;
-    virtual CSSPixelRect compute_absolute_padding_box_rect() const;
-    virtual CSSPixelRect compute_absolute_border_box_rect() const;
-
     CSSPixels available_scrollbar_length(ScrollDirection direction, ChromeMetrics const& chrome_metrics) const;
 
 public:
@@ -515,16 +511,10 @@ public:
 private:
     friend class Layout::LayoutRustBridge;
 
-    enum class InvalidateDescendantGeometry {
-        No,
-        Yes,
-    };
-
     void detach_from_layout_node(Badge<Layout::Node>);
     void detach_chrome_widgets();
     GC::Ptr<DOM::EventTarget> scroll_event_target();
 
-    void invalidate_absolute_geometry_cache(InvalidateDescendantGeometry);
     void translate_reused_subtree_absolute_geometry(CSSPixelPoint);
 
     bool has_flag(Layout::RustFFI::PaintableFlag flag) const { return (rust_data().flags & to_underlying(flag)) != 0; }
@@ -538,10 +528,6 @@ private:
     Layout::RustFFI::PaintableSlotId m_rust_slot {};
     u32 m_rust_slot_generation { 0 };
     Layout::RustFFI::PaintableData* m_rust_data { nullptr };
-
-    Optional<CSSPixelRect> mutable m_absolute_rect;
-    Optional<CSSPixelRect> mutable m_absolute_padding_box_rect;
-    Optional<CSSPixelRect> mutable m_absolute_border_box_rect;
 
     ResolvedCSSFilter m_filter;
 

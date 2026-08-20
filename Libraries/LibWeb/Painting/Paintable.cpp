@@ -803,8 +803,6 @@ void Paintable::reset_for_relayout()
     // (e.g. scrollbars on a scroll container) is only known after the new layout is painted.
     detach_chrome_widgets();
 
-    invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::No);
-
     invalidate_stacking_context();
 }
 
@@ -1017,25 +1015,9 @@ void Paintable::scroll_into_view(CSSPixelRect rect)
     set_scroll_offset(new_offset);
 }
 
-void Paintable::invalidate_absolute_geometry_cache(InvalidateDescendantGeometry invalidate_descendants)
-{
-    m_absolute_rect.clear();
-    m_absolute_padding_box_rect.clear();
-    m_absolute_border_box_rect.clear();
-
-    if (invalidate_descendants == InvalidateDescendantGeometry::No)
-        return;
-
-    for_each_child_of_type<Paintable>([](auto& child) {
-        child.invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::Yes);
-        return IterationDecision::Continue;
-    });
-}
-
 void Paintable::translate_reused_subtree_absolute_geometry(CSSPixelPoint delta)
 {
     for_each_in_inclusive_subtree([&](Paintable& paintable) {
-        paintable.invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::No);
         Layout::RustFFI::layout_arena_paintable_translate_scrollable_overflow(paintable.m_rust_arena->handle(), paintable.m_rust_slot, { delta.x().raw_value(), delta.y().raw_value() });
         // Recorded paint commands bake absolute coordinates.
         paintable.invalidate_paint_cache();
@@ -1048,54 +1030,14 @@ CSSPixelPoint Paintable::offset() const
     return { CSSPixels::from_raw(rust_data().offset.x), CSSPixels::from_raw(rust_data().offset.y) };
 }
 
-CSSPixelRect Paintable::compute_absolute_rect() const
-{
-    if (is_svg_paintable()) {
-        // SVG content geometry lives in the user space of the nearest ancestor viewport, and layout
-        // places every box viewport-relative already, so no ancestor offsets accumulate.
-        for (auto const* ancestor = layout_node().parent(); ancestor; ancestor = ancestor->parent()) {
-            if (ancestor->is_svg_svg_box())
-                return { offset(), content_size() };
-        }
-    }
-
-    CSSPixelRect rect { offset(), content_size() };
-    for (auto block = containing_block(); block; block = block->containing_block()) {
-        // SVG content offsets are viewport-relative: accumulation never crosses into an enclosing
-        // SVG coordinate space, and a foreignObject's own offset is the last one that applies to
-        // the CSS content inside it.
-        if (block->is_svg_svg_paintable() || block->is_svg_paintable())
-            break;
-        rect.translate_by(block->offset());
-        if (block->is_svg_foreign_object_paintable())
-            break;
-    }
-    return rect;
-}
-
 CSSPixelRect Paintable::absolute_rect() const
 {
-    if (!m_absolute_rect.has_value())
-        m_absolute_rect = compute_absolute_rect();
-    return *m_absolute_rect;
+    return from_ffi_css_pixel_rect(Layout::RustFFI::layout_arena_paintable_absolute_rect(m_rust_arena->handle(), m_rust_slot));
 }
 
 CSSPixelRect Paintable::absolute_padding_box_rect() const
 {
-    if (!m_absolute_padding_box_rect.has_value())
-        m_absolute_padding_box_rect = compute_absolute_padding_box_rect();
-    return *m_absolute_padding_box_rect;
-}
-
-CSSPixelRect Paintable::compute_absolute_padding_box_rect() const
-{
-    auto absolute_rect = this->absolute_rect();
-    CSSPixelRect rect;
-    rect.set_x(absolute_rect.x() - box_model().padding.left);
-    rect.set_width(content_width() + box_model().padding.left + box_model().padding.right);
-    rect.set_y(absolute_rect.y() - box_model().padding.top);
-    rect.set_height(content_height() + box_model().padding.top + box_model().padding.bottom);
-    return rect;
+    return from_ffi_css_pixel_rect(Layout::RustFFI::layout_arena_paintable_absolute_padding_box_rect(m_rust_arena->handle(), m_rust_slot));
 }
 
 Optional<CSSPixelRect> Paintable::absolute_resizer_rect(ChromeMetrics const& metrics) const
@@ -1110,32 +1052,7 @@ Optional<CSSPixelRect> Paintable::absolute_resizer_rect(ChromeMetrics const& met
 
 CSSPixelRect Paintable::absolute_border_box_rect() const
 {
-    if (!m_absolute_border_box_rect.has_value())
-        m_absolute_border_box_rect = compute_absolute_border_box_rect();
-    return *m_absolute_border_box_rect;
-}
-
-CSSPixelRect Paintable::compute_absolute_border_box_rect() const
-{
-    auto padded_rect = this->absolute_padding_box_rect();
-    CSSPixelRect rect;
-    auto use_collapsing_borders_model = uses_collapsing_borders_model();
-    // Implement the collapsing border model https://www.w3.org/TR/CSS22/tables.html#collapsing-borders.
-    auto border_top = box_model().border.top;
-    auto border_bottom = box_model().border.bottom;
-    auto border_left = box_model().border.left;
-    auto border_right = box_model().border.right;
-    if (use_collapsing_borders_model) {
-        border_top = round(border_top / 2);
-        border_bottom = round(border_bottom / 2);
-        border_left = round(border_left / 2);
-        border_right = round(border_right / 2);
-    }
-    rect.set_x(padded_rect.x() - border_left);
-    rect.set_width(padded_rect.width() + border_left + border_right);
-    rect.set_y(padded_rect.y() - border_top);
-    rect.set_height(padded_rect.height() + border_top + border_bottom);
-    return rect;
+    return from_ffi_css_pixel_rect(Layout::RustFFI::layout_arena_paintable_absolute_border_box_rect(m_rust_arena->handle(), m_rust_slot));
 }
 
 RefPtr<Scrollbar> Paintable::scrollbar(ScrollDirection direction) const

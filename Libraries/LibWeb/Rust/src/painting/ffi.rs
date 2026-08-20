@@ -284,6 +284,60 @@ pub unsafe extern "C" fn layout_arena_paintable_translate_scrollable_overflow(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_absolute_rect(
+    arena: *mut c_void,
+    slot: PaintableSlotId,
+) -> FfiCssPixelRect {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if !paintables.is_live(slot) {
+            return FfiCssPixelRect::default();
+        }
+        crate::painting::paintable_geometry::absolute_rect(&paintables, slot).into()
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_absolute_padding_box_rect(
+    arena: *mut c_void,
+    slot: PaintableSlotId,
+) -> FfiCssPixelRect {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if !paintables.is_live(slot) {
+            return FfiCssPixelRect::default();
+        }
+        crate::painting::paintable_geometry::absolute_padding_box_rect(&paintables, slot).into()
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_absolute_border_box_rect(
+    arena: *mut c_void,
+    slot: PaintableSlotId,
+) -> FfiCssPixelRect {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if !paintables.is_live(slot) {
+            return FfiCssPixelRect::default();
+        }
+        crate::painting::paintable_geometry::absolute_border_box_rect(&paintables, slot).into()
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_rebuild_scrollable_overflow_contained_boxes(
     arena: *mut c_void,
     root: NodeSlotId,

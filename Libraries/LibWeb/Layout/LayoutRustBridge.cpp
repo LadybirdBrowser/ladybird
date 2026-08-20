@@ -589,7 +589,6 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                 paintable->set_dom_node(dom_node);
                 if (dom_node)
                     dom_node->set_paintable(paintable);
-                paintable->invalidate_absolute_geometry_cache(Painting::Paintable::InvalidateDescendantGeometry::No);
             } else if (dom_node) {
                 dom_node->clear_paintable();
             } },
