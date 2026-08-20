@@ -390,6 +390,9 @@ fn used_transform_style_is_preserve_3d(arena: &LayoutNodeArena, node: NodeSlotId
 }
 
 pub(crate) fn establishes_or_extends_a_3d_rendering_context(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+    if !has_flag(arena, node, NodeFlag::HasPreserve3dTransformStyle) {
+        return false;
+    }
     used_transform_style_is_preserve_3d(arena, node) && is_transformable(arena, node)
 }
 
