@@ -28,7 +28,7 @@ struct PhysicalOverflowDirections {
 
 [[nodiscard]] PhysicalOverflowDirections physical_overflow_directions(Box const&);
 
-[[nodiscard]] ContainedBoxesMap collect_scrollable_overflow_contained_boxes(Node const& root, Function<void(Box const&)> box_visitor = {});
+void collect_scrollable_overflow_contained_boxes(Node const& root, ContainedBoxesMap& contained_boxes_map, Function<void(Box const&)> box_visitor = {});
 
 // https://drafts.csswg.org/css-overflow-3/#scrollable-overflow-region
 // Measures the scrollable overflow of the given box and stores it on the box's paintable.

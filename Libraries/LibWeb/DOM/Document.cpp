@@ -1811,7 +1811,7 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed, Layout
     // contained-boxes map; refresh it before overflow measurement follows them. A pending full
     // recalculation rebuilds the map inside its own measurement traversal instead.
     if (layout_tree_changed == LayoutTreeChanged::Yes && !m_needs_full_scrollable_overflow_recalculation)
-        m_scrollable_overflow_contained_boxes_from_last_layout = Layout::collect_scrollable_overflow_contained_boxes(*m_layout_root);
+        Layout::collect_scrollable_overflow_contained_boxes(*m_layout_root, m_scrollable_overflow_contained_boxes_from_last_layout);
     if (layout_commit_scope == LayoutCommitScope::Full)
         update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates::HandledByFullLayoutCommit, boxes_needing_eager_overflow_measurement);
     else
@@ -2211,8 +2211,8 @@ void Document::update_layout(UpdateLayoutReason reason)
             viewport_rect.width(),
             viewport_rect.height(),
             should_collect_devtools_layout_data);
-        m_scrollable_overflow_contained_boxes_from_last_layout = Layout::collect_scrollable_overflow_contained_boxes(
-            *m_layout_root, [&](Layout::Box const& box) {
+        Layout::collect_scrollable_overflow_contained_boxes(
+            *m_layout_root, m_scrollable_overflow_contained_boxes_from_last_layout, [&](Layout::Box const& box) {
                 auto paintable = box.paintable_box();
                 if (&box == m_layout_root.ptr() || box.is_scroll_container() || (paintable && !paintable->scroll_offset().is_zero()))
                     boxes_needing_eager_overflow_measurement.append(&box);
@@ -2522,8 +2522,8 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
     };
 
     if (needs_full_recalculation) {
-        m_scrollable_overflow_contained_boxes_from_last_layout = Layout::collect_scrollable_overflow_contained_boxes(
-            *m_layout_root, [&](Layout::Box const& box) { record_and_clear_overflow_data(box); });
+        Layout::collect_scrollable_overflow_contained_boxes(
+            *m_layout_root, m_scrollable_overflow_contained_boxes_from_last_layout, [&](Layout::Box const& box) { record_and_clear_overflow_data(box); });
     } else {
         for (auto const& weak_paintable : pending_paintables) {
             auto paintable = weak_paintable.strong_ref();
