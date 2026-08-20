@@ -393,14 +393,6 @@ void Paintable::set_sticky_insets(OwnPtr<StickyInsets> sticky_insets)
     Layout::RustFFI::layout_arena_paintable_set_sticky_insets(m_rust_arena->handle(), m_rust_slot, ffi_insets, !!sticky_insets);
 }
 
-void Paintable::set_selection_state(SelectionState state)
-{
-    if (selection_state() == state)
-        return;
-    Layout::RustFFI::layout_arena_paintable_set_selection_state(m_rust_arena->handle(), m_rust_slot, to_underlying(state));
-    invalidate_paint_cache();
-}
-
 bool Paintable::should_paint_cursor() const
 {
     if (!document().cursor_blink_state() || !document().navigable()->is_focused())

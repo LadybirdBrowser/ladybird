@@ -270,9 +270,7 @@ public:
     void scroll_ancestor_to_offset_into_view(size_t offset);
 
     using SelectionState = Painting::SelectionState;
-
     SelectionState selection_state() const { return static_cast<SelectionState>(rust_data().selection_state); }
-    void set_selection_state(SelectionState state);
 
     struct TextDecorationStyle {
         Vector<CSS::TextDecorationLine> line;
