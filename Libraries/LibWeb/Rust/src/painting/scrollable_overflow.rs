@@ -7,6 +7,43 @@
 use crate::css::css_enums::{flex_direction, flex_wrap, writing_mode};
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
+use crate::painting::paintable_arena::PaintableArena;
+use std::collections::HashMap;
+
+pub(crate) fn rebuild_contained_boxes_index(
+    layout_arena: &LayoutNodeArena,
+    paintables: &PaintableArena,
+    root: NodeSlotId,
+) -> HashMap<NodeSlotId, Vec<NodeSlotId>> {
+    let mut contained_boxes_by_containing_block: HashMap<NodeSlotId, Vec<NodeSlotId>> = HashMap::new();
+    if layout_arena.shell_if_live(root).is_null() {
+        return contained_boxes_by_containing_block;
+    }
+    let mut stack = vec![root];
+    while let Some(node) = stack.pop() {
+        if node != root
+            && let Some(sibling) = layout_arena.node_next_sibling_if_live(node)
+        {
+            stack.push(sibling);
+        }
+        if let Some(first_child) = layout_arena.node_first_child_if_live(node) {
+            stack.push(first_child);
+        }
+        let node_is_box_kind = layout_arena
+            .node_kind_if_live(node)
+            .is_some_and(crate::layout::kind_is_box);
+        if !node_is_box_kind || paintables.paintable_of_node(node).is_invalid() {
+            continue;
+        }
+        if let Some(containing_block) = layout_arena.node_containing_block_if_live(node) {
+            contained_boxes_by_containing_block
+                .entry(containing_block)
+                .or_default()
+                .push(node);
+        }
+    }
+    contained_boxes_by_containing_block
+}
 
 pub(crate) struct PhysicalOverflowDirections {
     pub(crate) horizontal_axis_is_positive: bool,

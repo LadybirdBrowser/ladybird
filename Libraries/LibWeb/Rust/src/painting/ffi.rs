@@ -233,6 +233,39 @@ pub struct FfiPhysicalOverflowDirections {
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_rebuild_scrollable_overflow_contained_boxes(
+    arena: *mut c_void,
+    root: NodeSlotId,
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let contained_boxes_by_containing_block = {
+            let paintables = arena.paintables().borrow();
+            crate::painting::scrollable_overflow::rebuild_contained_boxes_index(arena, &paintables, root)
+        };
+        arena.paintables().borrow_mut().scrollable_overflow_contained_boxes = contained_boxes_by_containing_block;
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_clear_scrollable_overflow_contained_boxes(arena: *mut c_void) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        arena
+            .paintables()
+            .borrow_mut()
+            .scrollable_overflow_contained_boxes
+            .clear();
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_physical_overflow_directions(
     arena: *mut c_void,
     paintable: PaintableSlotId,
