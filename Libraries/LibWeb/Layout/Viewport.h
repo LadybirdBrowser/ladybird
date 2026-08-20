@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/Layout/Box.h>
+#include <LibWeb/Layout/SearchableText.h>
 
 namespace Web::Layout {
 
@@ -16,9 +17,12 @@ public:
     virtual ~Viewport() override;
 
     DOM::Document const& dom_node() const;
+    SearchableText const& searchable_text() { return m_searchable_text_cache.get(); }
+    void invalidate_searchable_text_cache() { m_searchable_text_cache.invalidate(); }
 
 private:
     virtual bool is_viewport() const override { return true; }
+    SearchableTextCache m_searchable_text_cache;
 };
 
 template<>

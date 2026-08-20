@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Layout/SearchableText.h>
 #include <LibWeb/Layout/Viewport.h>
 
 namespace Web::Layout {
@@ -13,6 +14,7 @@ namespace Web::Layout {
 // layout node for the row.
 Viewport::Viewport(DOM::Document& document, BindToPreparedArenaSlot bind, Compositing::RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
     : Box(document, bind, slot, kind)
+    , m_searchable_text_cache(*this)
 {
 }
 

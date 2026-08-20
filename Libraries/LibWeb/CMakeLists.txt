@@ -741,6 +741,7 @@ set(SOURCES
     Layout/Node.cpp
     Layout/NodeArena.cpp
     Layout/RenderDocument.cpp
+    Layout/SearchableText.cpp
     Layout/TextNode.cpp
     Layout/TreeBuilder.cpp
     Layout/UpdateLayout.cpp
