@@ -51,6 +51,7 @@ private:
 
     Box const* m_commit_root { nullptr };
     Vector<NonnullRefPtr<Painting::Paintable>> m_reused_subtree_roots;
+    Vector<NonnullRefPtr<Painting::Paintable>> m_committed_navigable_container_viewports;
     // Content offsets of the paintables surviving into this commit, captured before the
     // commit overwrites them; finish_commit derives each reused subtree's absolute movement
     // from these instead of reading absolute rects mid-commit, when ancestor offsets are

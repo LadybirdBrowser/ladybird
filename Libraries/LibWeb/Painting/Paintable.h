@@ -64,6 +64,8 @@ WEB_API Gfx::FloatRect svg_viewport_user_rect(Paintable const& viewport_paintabl
 
 bool body_background_is_propagated_to_root(Layout::NodeWithStyle const&);
 
+void invalidate_descendant_styles_for_container_query_size_change(Paintable&, CSSPixelSize old_content_size, CSSPixelSize new_content_size);
+
 // Used grid track data captured at layout time as plain values; getComputedStyle
 // reflection mints style values from it on demand.
 struct UsedGridTrackList {
@@ -358,15 +360,7 @@ public:
     ScrollHandled scroll_by(double delta_x, double delta_y);
     void scroll_into_view(CSSPixelRect);
 
-    void set_offset(CSSPixelPoint);
-    void set_offset(float x, float y) { set_offset({ x, y }); }
-
     CSSPixelSize content_size() const;
-    void set_content_size(CSSPixelSize);
-    void set_content_size(CSSPixels width, CSSPixels height) { set_content_size({ width, height }); }
-
-    void set_content_width(CSSPixels width) { set_content_size(width, content_height()); }
-    void set_content_height(CSSPixels height) { set_content_size(content_width(), height); }
     CSSPixels content_width() const { return content_size().width(); }
     CSSPixels content_height() const { return content_size().height(); }
 

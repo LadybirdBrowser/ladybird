@@ -481,7 +481,7 @@ static bool content_size_change_affects_container_queries(Paintable const& paint
     return old_size.height() != new_size.height();
 }
 
-static void invalidate_descendant_styles_for_container_query_size_change(Paintable& paintable_box, CSSPixelSize old_size, CSSPixelSize new_size)
+void invalidate_descendant_styles_for_container_query_size_change(Paintable& paintable_box, CSSPixelSize old_size, CSSPixelSize new_size)
 {
     if (!content_size_change_affects_container_queries(paintable_box, old_size, new_size))
         return;
@@ -1015,25 +1015,6 @@ void Paintable::scroll_into_view(CSSPixelRect rect)
         new_offset.set_y(content_rect.top());
 
     set_scroll_offset(new_offset);
-}
-
-void Paintable::set_offset(CSSPixelPoint offset)
-{
-    if (this->offset() == offset)
-        return;
-
-    rust_data().offset = { offset.x().raw_value(), offset.y().raw_value() };
-    invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::Yes);
-}
-
-void Paintable::set_content_size(CSSPixelSize size)
-{
-    auto old_size = content_size();
-    rust_data().content_size = { size.width().raw_value(), size.height().raw_value() };
-    invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::No);
-    if (auto layout_box = as_if<Layout::Box>(layout_node()))
-        layout_box->did_set_content_size();
-    invalidate_descendant_styles_for_container_query_size_change(*this, old_size, size);
 }
 
 void Paintable::invalidate_absolute_geometry_cache(InvalidateDescendantGeometry invalidate_descendants)

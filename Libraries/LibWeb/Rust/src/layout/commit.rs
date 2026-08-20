@@ -64,7 +64,8 @@ pub struct FfiCommitSink {
     pub context: *mut c_void,
     pub finish_commit: unsafe extern "C" fn(*mut c_void),
     pub prepare_node: unsafe extern "C" fn(*mut c_void, *mut c_void, bool, bool) -> crate::painting::paintable_build::FfiPreparedPaintable,
-    pub set_box_metrics: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiCommittedBoxMetrics),
+    pub content_size_changed:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, crate::layout::FfiCssPixelSize, crate::layout::FfiCssPixelSize),
     pub finish_node: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
 }
 
@@ -172,12 +173,14 @@ fn commit_subtree(
             has_containing_line_box_index: link.containing_line_box_index.is_some(),
             uses_collapsing_borders_model: fragment.uses_collapsing_borders_model,
         };
-        // SAFETY: Every callback below copies its plain-data argument or
-        // consumes one retained handle synchronously.
-        unsafe {
-            (sink.set_box_metrics)(sink.context, paintable, box_metrics);
+        let content_size_change = paintables.set_box_metrics(paintable_slot, &box_metrics);
+        if let Some((old_content_size, new_content_size)) = content_size_change {
+            // SAFETY: Every callback below copies its plain-data argument or
+            // consumes one retained handle synchronously.
+            unsafe {
+                (sink.content_size_changed)(sink.context, paintable, old_content_size, new_content_size);
+            }
         }
-        paintables.set_box_metrics(paintable_slot, &box_metrics);
 
         if !reuses_committed_subtree && let Some(line_data) = &fragment.line_data {
             has_pending_inline_box_geometry = paintables.set_line_data(paintable_slot, line_data, fragment.content_inline_size);
