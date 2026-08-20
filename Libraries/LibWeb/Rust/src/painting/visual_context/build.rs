@@ -88,6 +88,7 @@ impl BoxFacts {
         callbacks: &FfiVisualContextHostCallbacks,
         slot: PaintableSlotId,
         pixel_ratio: f64,
+        may_have_default_scroll_shift_anchor: bool,
     ) -> Self {
         let mut facts = Self {
             transform: None,
@@ -103,7 +104,11 @@ impl BoxFacts {
             backface_hidden: false,
             establishes_or_extends_3d_rendering_context: false,
             may_have_clip: false,
-            default_scroll_shift_anchor: callbacks.default_scroll_shift_anchor(paintables.data_ref(slot).shell),
+            default_scroll_shift_anchor: if may_have_default_scroll_shift_anchor {
+                callbacks.default_scroll_shift_anchor(paintables.data_ref(slot).shell)
+            } else {
+                NodeSlotId::INVALID
+            },
         };
         if let Some((transform, transform_is_invertible)) =
             super::node_values::compute_transform(layout_arena, paintables, callbacks, slot, pixel_ratio)
@@ -221,10 +226,14 @@ struct Builder<'a> {
     paintables_with_mask_nodes: Vec<PaintableSlotId>,
     pixel_ratio: f64,
     root_background_source: crate::painting::host::FfiRootBackgroundSource,
+    may_have_default_scroll_shift_anchor: bool,
 }
 
 impl Builder<'_> {
     fn default_scroll_shift_anchor(&self, slot: PaintableSlotId) -> NodeSlotId {
+        if !self.may_have_default_scroll_shift_anchor {
+            return NodeSlotId::INVALID;
+        }
         self.callbacks
             .default_scroll_shift_anchor(self.paintables.data_ref(slot).shell)
     }
@@ -275,6 +284,7 @@ impl Builder<'_> {
             self.callbacks,
             slot,
             self.pixel_ratio,
+            self.may_have_default_scroll_shift_anchor,
         );
         let (is_fixed, is_absolute, is_sticky, has_sticky_insets, layout_node) = {
             let data = self.paintables.data_ref(slot);
@@ -724,6 +734,7 @@ pub(crate) fn build_visual_context_tree(
         paintables_with_mask_nodes: Vec::new(),
         pixel_ratio: inputs.device_pixels_per_css_pixel,
         root_background_source: callbacks.root_background_source(),
+        may_have_default_scroll_shift_anchor: inputs.may_have_default_scroll_shift_anchor,
     };
 
     paintables.update_data(viewport, |data| data.enclosing_scroll_node_index = 0);
