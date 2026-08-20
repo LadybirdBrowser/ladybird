@@ -2226,10 +2226,8 @@ void Document::update_layout(UpdateLayoutReason reason)
 
         after_layout_commit(LayoutTreeChanged::Yes, LayoutCommitScope::Full, boxes_needing_eager_overflow_measurement);
 
-        m_layout_root->for_each_in_inclusive_subtree([](auto& node) {
-            node.reset_needs_layout_update();
-            return TraversalDecision::Continue;
-        });
+        Layout::RustFFI::layout_arena_reset_layout_update_flags_in_subtree(
+            layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root.ptr()));
 
         if constexpr (UPDATE_LAYOUT_DEBUG) {
             dbgln("LAYOUT {} {} µs", to_string(reason), timer.elapsed_time().to_microseconds());

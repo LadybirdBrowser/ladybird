@@ -15,6 +15,9 @@
         }
 
         lines.push(`builds after layout-only reads: ${internals.accumulatedVisualContextTreeBuildCount() - initialBuildCount}`);
+        const fullLayoutCount = internals.fullLayoutCount();
+        target.offsetWidth;
+        lines.push(`extra layouts after clean read: ${internals.fullLayoutCount() - fullLayoutCount}`);
 
         lines.push(`bounding rect width: ${target.getBoundingClientRect().width}`);
         lines.push(`builds after identity transform read: ${internals.accumulatedVisualContextTreeBuildCount() - initialBuildCount}`);

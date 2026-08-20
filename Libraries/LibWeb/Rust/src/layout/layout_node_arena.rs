@@ -475,6 +475,54 @@ impl LayoutNodeArena {
         }
     }
 
+    pub(crate) fn reset_layout_update_flags_in_subtree(&self, root: NodeSlotId) {
+        self.assert_owner_thread();
+        let flags_to_clear = NodeFlag::NeedsLayoutUpdate as u32 | NodeFlag::NeedsOwnGeometryUpdate as u32;
+        let mut current = root;
+        loop {
+            let data = self.data(current);
+            // SAFETY: data() validated that current names a live slot, and layout tree mutation
+            // is serialized on the arena's owner thread.
+            let (parent, first_child, next_sibling) = unsafe {
+                let flags = &raw mut (*data).flags;
+                flags.write(flags.read() & !flags_to_clear);
+                (
+                    (&raw const (*data).parent).read(),
+                    (&raw const (*data).first_child).read(),
+                    (&raw const (*data).next_sibling).read(),
+                )
+            };
+
+            if !first_child.is_invalid() {
+                current = first_child;
+                continue;
+            }
+            if current == root {
+                break;
+            }
+            if !next_sibling.is_invalid() {
+                current = next_sibling;
+                continue;
+            }
+
+            current = parent;
+            while current != root {
+                // SAFETY: Parent links from a live subtree node name live slots in the same tree.
+                let data = self.data(current);
+                let next_sibling = unsafe { (&raw const (*data).next_sibling).read() };
+                if !next_sibling.is_invalid() {
+                    current = next_sibling;
+                    break;
+                }
+                // SAFETY: data() validated current and the topology is stable during this call.
+                current = unsafe { (&raw const (*data).parent).read() };
+            }
+            if current == root {
+                break;
+            }
+        }
+    }
+
     fn slot_for_data(&self, data: *const NodeData) -> (u32, SlotMetadata) {
         assert!(!data.is_null(), "layout node arena data pointer is null");
         let data_address = data as usize;
@@ -1399,6 +1447,18 @@ pub unsafe extern "C" fn layout_arena_node_data(arena: *mut c_void, id: NodeSlot
 
 /// # Safety
 ///
+/// The arena must remain valid for the duration of the call, and `root` must
+/// name the root of a live subtree in this arena.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_reset_layout_update_flags_in_subtree(arena: *mut c_void, root: NodeSlotId) {
+    abort_on_panic(|| {
+        // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+        unsafe { LayoutNodeArena::from_handle(arena) }.reset_layout_update_flags_in_subtree(root);
+    });
+}
+
+/// # Safety
+///
 /// The arena must remain valid for the duration of the call, and `parent`,
 /// `child`, and a valid `before` must name live nodes in this arena.
 #[unsafe(no_mangle)]
@@ -1502,6 +1562,7 @@ mod tests {
         Chunk, IntrinsicInlineSizeMeasurement, IntrinsicSizeCacheKey, IntrinsicSizeCacheKind, LayoutNodeArena,
         SLOTS_PER_CHUNK,
     };
+    use crate::layout::node_data::{NodeFlag, NodeSlotId};
     use crate::layout::{AvailableSize, CssPixels};
 
     #[test]
@@ -1548,6 +1609,35 @@ mod tests {
         assert_ne!(second.slot, first.slot);
         assert_ne!(second.generation, first.generation);
         arena.free(second.slot, second.generation);
+    }
+
+    #[test]
+    fn layout_update_flags_are_reset_only_in_the_requested_subtree() {
+        let mut arena = LayoutNodeArena::new();
+        let root = arena.allocate();
+        let child = arena.allocate();
+        let detached = arena.allocate();
+        arena.insert_child(root.slot, child.slot, NodeSlotId::INVALID);
+        let update_flags = NodeFlag::NeedsLayoutUpdate as u32 | NodeFlag::NeedsOwnGeometryUpdate as u32;
+        // SAFETY: All three allocations remain live for the duration of the test.
+        unsafe {
+            (*root.data).flags |= update_flags;
+            (*child.data).flags |= update_flags;
+            (*detached.data).flags |= update_flags;
+        }
+
+        arena.reset_layout_update_flags_in_subtree(root.slot);
+
+        // SAFETY: The allocations remain live and the arena keeps their addresses stable.
+        unsafe {
+            assert_eq!((*root.data).flags & update_flags, 0);
+            assert_eq!((*child.data).flags & update_flags, 0);
+            assert_eq!((*detached.data).flags & update_flags, update_flags);
+        }
+        arena.remove_child(root.slot, child.slot);
+        arena.free(root.slot, root.generation);
+        arena.free(child.slot, child.generation);
+        arena.free(detached.slot, detached.generation);
     }
 
     #[test]
