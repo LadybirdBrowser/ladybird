@@ -2136,6 +2136,8 @@ void Document::after_layout_commit(Layout::BegunRead const& read, LayoutTreeChan
     bool const collects_boxes_with_auto_content_visibility = layout_tree_changed == LayoutTreeChanged::Yes
         && Layout::RustFFI::render_state_may_have_auto_content_visibility(layout_node_arena().host(), &read);
     Layout::RustFFI::render_state_invalidate_searchable_text(layout_node_arena().host());
+    if (auto* viewport = layout_node(read))
+        viewport->invalidate_searchable_text_cache();
 
     set_needs_to_record_display_list();
 
