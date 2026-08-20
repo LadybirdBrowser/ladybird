@@ -394,15 +394,7 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn inline_axis_is_reverse(&self) -> bool {
-        let style = self.style();
-        match style.writing_mode() {
-            writing_mode::HORIZONTAL_TB
-            | writing_mode::VERTICAL_RL
-            | writing_mode::VERTICAL_LR
-            | writing_mode::SIDEWAYS_RL => style.direction() == 1,
-            writing_mode::SIDEWAYS_LR => style.direction() == 0,
-            _ => unreachable!("invalid writing mode"),
-        }
+        self.style().inline_axis_is_reverse()
     }
 
     pub(crate) fn has_dom_node(&self) -> bool {

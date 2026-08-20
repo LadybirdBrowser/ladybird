@@ -332,22 +332,11 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn inline_axis_is_reverse(&self, node: Node) -> bool {
-        let style = self.style(node);
-        match style.writing_mode() {
-            writing_mode::HORIZONTAL_TB
-            | writing_mode::VERTICAL_RL
-            | writing_mode::VERTICAL_LR
-            | writing_mode::SIDEWAYS_RL => style.direction() == 1,
-            writing_mode::SIDEWAYS_LR => style.direction() == 0,
-            _ => unreachable!("invalid writing mode"),
-        }
+        self.style(node).inline_axis_is_reverse()
     }
 
     fn block_axis_is_reverse(&self, node: Node) -> bool {
-        matches!(
-            self.style(node).writing_mode(),
-            writing_mode::VERTICAL_RL | writing_mode::SIDEWAYS_RL
-        )
+        self.style(node).block_axis_is_reverse()
     }
 
     fn cross_axis_is_reverse(&self) -> bool {
