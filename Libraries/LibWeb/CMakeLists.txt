@@ -1240,7 +1240,7 @@ set(GENERATED_SOURCES
     CSS/MediaFeatureID.cpp
     CSS/Parser/GeneratedValueTypesParsing.cpp
     CSS/PropertyID.cpp
-    CSS/PseudoClass.cpp
+    CSS/PseudoClass.h
     CSS/PseudoElement.cpp
     CSS/QuirksModeStyleSheetSource.cpp
     CSS/TransformFunctions.cpp

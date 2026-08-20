@@ -17,8 +17,6 @@ static WebIDL::ExceptionOr<Optional<CSS::Selector::PseudoElementSelector>> pseud
         if (!pseudo_element.has_value())
             return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid pseudo-element selector: \"{}\"", value.value()));
     }
-    if (value.has_value() && value->is_one_of(":before"sv, ":after"sv, ":first-letter"sv, ":first-line"sv))
-        return CSS::pseudo_element_from_string(value->substring_view(1));
     return pseudo_element;
 }
 

@@ -26,5 +26,9 @@
         effect.pseudoElement = "::after";
 
         println(getComputedStyle(target, "::after").opacity === "0.1" ? "PASS" : "FAIL");
+        for (const pseudoElement of [":before", ":after", ":first-letter", ":first-line"]) {
+            effect.pseudoElement = pseudoElement;
+            println(effect.pseudoElement);
+        }
     });
 </script>

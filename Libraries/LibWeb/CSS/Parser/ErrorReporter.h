@@ -35,16 +35,6 @@ struct UnknownMediaFeatureError {
     unsigned hash() const { return media_feature_name.hash(); }
 };
 
-struct UnknownPseudoClassOrElementError {
-    Utf16FlyString rule_name { "style"_utf16_fly_string };
-    Utf16FlyString name;
-    bool operator==(UnknownPseudoClassOrElementError const&) const = default;
-    unsigned hash() const
-    {
-        return pair_int_hash(rule_name.hash(), name.hash());
-    }
-};
-
 struct InvalidPropertyError {
     Utf16FlyString rule_name { "style"_utf16_fly_string };
     Utf16FlyString property_name;
@@ -90,28 +80,6 @@ struct InvalidQueryError {
     }
 };
 
-struct InvalidSelectorError {
-    Utf16FlyString rule_name { "style"_utf16_fly_string };
-    String value_string;
-    String description;
-    bool operator==(InvalidSelectorError const&) const = default;
-    unsigned hash() const
-    {
-        return pair_int_hash(rule_name.hash(), pair_int_hash(value_string.hash(), description.hash()));
-    }
-};
-
-struct InvalidPseudoClassOrElementError {
-    Utf16FlyString name;
-    String value_string;
-    String description;
-    bool operator==(InvalidPseudoClassOrElementError const&) const = default;
-    unsigned hash() const
-    {
-        return pair_int_hash(name.hash(), pair_int_hash(value_string.hash(), description.hash()));
-    }
-};
-
 struct InvalidRuleLocationError {
     Utf16FlyString outer_rule_name;
     Utf16FlyString inner_rule_name;
@@ -122,7 +90,7 @@ struct InvalidRuleLocationError {
     }
 };
 
-using ParsingError = Variant<UnknownPropertyError, UnknownRuleError, UnknownMediaFeatureError, UnknownPseudoClassOrElementError, InvalidPropertyError, InvalidValueError, InvalidRuleError, InvalidQueryError, InvalidSelectorError, InvalidPseudoClassOrElementError, InvalidRuleLocationError>;
+using ParsingError = Variant<UnknownPropertyError, UnknownRuleError, UnknownMediaFeatureError, InvalidPropertyError, InvalidValueError, InvalidRuleError, InvalidQueryError, InvalidRuleLocationError>;
 
 String serialize_parsing_error(ParsingError const&);
 

@@ -6,7 +6,6 @@
 
 #include <AK/Bitmap.h>
 #include <AK/QuickSort.h>
-#include <AK/Utf16StringBuilder.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibWeb/Animations/Animation.h>
@@ -851,9 +850,7 @@ Optional<Utf16String> KeyframeEffect::pseudo_element() const
 {
     if (!m_target_pseudo_selector.has_value())
         return {};
-    Utf16StringBuilder builder;
-    m_target_pseudo_selector->serialize_to(builder);
-    return builder.to_string();
+    return m_target_pseudo_selector->serialize();
 }
 
 // https://drafts.csswg.org/web-animations-1/#dom-keyframeeffect-pseudoelement

@@ -62,7 +62,6 @@ public:
         }
 
         Utf16String serialize() const;
-        void serialize_to(Utf16StringBuilder&) const;
         PseudoElement type() const { return m_type; }
 
     private:
