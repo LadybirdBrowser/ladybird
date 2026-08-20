@@ -21,6 +21,8 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
@@ -510,6 +512,28 @@ Optional<TransformData> rust_compute_css_transform(Paintable const& paintable_bo
 Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Paintable const& paintable_box)
 {
     return Layout::RustFFI::layout_arena_physical_overflow_directions(paintable_box.rust_arena().handle(), paintable_box.rust_slot());
+}
+
+void rust_measure_scrollable_overflow(Paintable const& box_paintable)
+{
+    auto viewport_paintable = const_cast<DOM::Document&>(box_paintable.document()).unsafe_paintable();
+    if (!viewport_paintable)
+        return;
+    Layout::RustFFI::FfiScrollableOverflowHostCallbacks overflow_callbacks {
+        .context = nullptr,
+        .layout_node_is_in_focused_text_control = [](void*, void* layout_node_shell) -> bool {
+            auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
+            auto const* dom_node = layout_node.dom_node();
+            if (!dom_node)
+                return false;
+            auto shadow_root = dom_node->containing_shadow_root();
+            return shadow_root
+                && shadow_root->is_user_agent_internal()
+                && is<HTML::FormAssociatedTextControlElement>(shadow_root->host())
+                && shadow_root->host()->is_focused();
+        },
+    };
+    Layout::RustFFI::layout_arena_measure_scrollable_overflow(box_paintable.rust_arena().handle(), box_paintable.rust_slot(), visual_context_host_callbacks(*viewport_paintable), overflow_callbacks);
 }
 
 CSS::ResolvedImage rust_resolve_gradient_for_size(CSS::StyleValue const& gradient_style_value, Layout::NodeWithStyle const& layout_node, CSSPixelSize size)
