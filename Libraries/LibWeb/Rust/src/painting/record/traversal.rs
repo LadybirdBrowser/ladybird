@@ -97,6 +97,7 @@ pub(crate) fn record_display_list(
         has_blocking_wheel_event_listeners: false,
         spliced_capture_count: 0,
         list: HitTestList::default(),
+        base_paint_facts_cache: vec![None; paintables.slot_count()],
         paintable_facts_cache: vec![None; paintables.slot_count()],
         text_node_facts_cache: HashMap::new(),
         wheel_hit_test_target_cache: HashMap::new(),

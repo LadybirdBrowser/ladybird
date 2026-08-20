@@ -141,6 +141,9 @@ pub(crate) fn paint_base_with(
     phase: PaintPhase,
     paint_background: fn(&mut PaintRecorder<'_>, PaintableSlotId),
 ) {
+    if phase == PaintPhase::Foreground {
+        return;
+    }
     let facts = recorder.base_paint_facts(paintable);
     if !facts.is_visible {
         return;
