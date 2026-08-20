@@ -190,7 +190,6 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
     StringView positioned_color_on = ""sv;
     StringView floating_color_on = ""sv;
     StringView inline_color_on = ""sv;
-    StringView fragment_color_on = ""sv;
     StringView flex_color_on = ""sv;
     StringView table_color_on = ""sv;
     StringView formatting_context_color_on = ""sv;
@@ -203,7 +202,6 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         positioned_color_on = "\033[31;1m"sv;
         floating_color_on = "\033[32;1m"sv;
         inline_color_on = "\033[36;1m"sv;
-        fragment_color_on = "\033[35;1m"sv;
         flex_color_on = "\033[34;1m"sv;
         table_color_on = "\033[91;1m"sv;
         formatting_context_color_on = "\033[37;1m"sv;
@@ -369,56 +367,30 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         }
     }
 
-    auto dump_fragment = [&](auto& fragment, size_t fragment_index) {
-        builder.append_repeated("  "sv, indent);
-        if (!fragment.has_layout_node()) {
-            builder.appendff("  {}frag {}{} with detached layout node\n",
-                fragment_color_on,
-                fragment_index,
-                color_off);
-            return;
-        }
-        builder.appendff("  {}frag {}{} from {} ",
-            fragment_color_on,
-            fragment_index,
-            color_off,
-            fragment.layout_node().class_name());
-        builder.appendff("start: {}, length: {}, rect: {} baseline: {}\n",
-            fragment.start_offset(),
-            fragment.length_in_code_units(),
-            fragment.absolute_rect(),
-            fragment.baseline());
-        if (fragment.length_in_code_units() > 0) {
-            builder.append_repeated("  "sv, indent);
-            builder.appendff("      \"{}\"\n", fragment.text());
-        }
+    auto append_dumped_fragments = [](void* context, u8 const* bytes, size_t length) {
+        static_cast<StringBuilder*>(context)->append(StringView { bytes, length });
     };
 
     if (auto const* block_container = as_if<Layout::BlockContainer>(layout_node);
         block_container && block_container->children_are_inline() && block_container->paintable_with_lines()) {
-        size_t fragment_index = 0;
         auto paintable_with_lines = block_container->paintable_with_lines();
-        for (auto const& fragment : paintable_with_lines->fragments()) {
-            // Fragments inside inline boxes are dumped under their box's layout node below.
-            if (fragment.has_layout_node() && fragment.layout_node().nearest_fragmented_inline_ancestor())
-                continue;
-            dump_fragment(fragment, fragment_index++);
-        }
+        Layout::RustFFI::layout_arena_paintable_dump_block_fragments(
+            paintable_with_lines->rust_arena().handle(),
+            paintable_with_lines->rust_slot(),
+            indent,
+            interactive,
+            &builder,
+            append_dumped_fragments);
     }
 
     if (auto const* inline_paintable = as_if<Painting::InlinePaintable>(layout_node.paintable().ptr())) {
-        Painting::InlineBoxPiece const* current_piece = nullptr;
-        size_t fragment_index_within_piece = 0;
-        inline_paintable->for_each_piece_fragment([&](Painting::InlineBoxPiece const& piece, Painting::PaintableFragment const& fragment) {
-            if (&piece != current_piece) {
-                current_piece = &piece;
-                fragment_index_within_piece = 0;
-            }
-            // Fragments of nested inline boxes are dumped under their own box.
-            if (fragment.has_layout_node() && fragment.layout_node().nearest_fragmented_inline_ancestor() != &layout_node)
-                return;
-            dump_fragment(fragment, fragment_index_within_piece++);
-        });
+        Layout::RustFFI::layout_arena_paintable_dump_inline_piece_fragments(
+            inline_paintable->rust_arena().handle(),
+            inline_paintable->rust_slot(),
+            indent,
+            interactive,
+            &builder,
+            append_dumped_fragments);
     }
 
     if (show_computed_properties && layout_node.dom_node() && layout_node.dom_node()->is_element() && as<DOM::Element>(layout_node.dom_node())->computed_style()) {

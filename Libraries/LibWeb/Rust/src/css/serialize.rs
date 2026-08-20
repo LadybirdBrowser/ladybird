@@ -92,7 +92,7 @@ pub(crate) fn with_fly_string_units<R>(string: &RetainedUtf16FlyString, f: impl 
 
 /// Iterates the code points of UTF-16 units the way AK::Utf16View does: surrogate pairs decode
 /// to their code point, and unpaired surrogates yield their own code unit value.
-fn for_each_code_point_utf16(units: &[u16], mut f: impl FnMut(u32)) {
+pub(crate) fn for_each_code_point_utf16(units: &[u16], mut f: impl FnMut(u32)) {
     let mut index = 0;
     while index < units.len() {
         let unit = units[index];
