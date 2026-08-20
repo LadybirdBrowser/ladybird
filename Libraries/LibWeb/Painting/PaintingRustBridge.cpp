@@ -615,19 +615,9 @@ void mirror_rust_set_needs_to_refresh_scroll_state(ViewportPaintable& viewport_p
     Layout::RustFFI::layout_arena_set_needs_to_refresh_scroll_state(viewport_paintable.rust_arena().handle(), value);
 }
 
-void mirror_rust_clear_visual_context_tree(ViewportPaintable& viewport_paintable)
-{
-    Layout::RustFFI::layout_arena_clear_visual_context_tree(viewport_paintable.rust_arena().handle());
-}
-
 void mirror_rust_reset_visual_context_state(ViewportPaintable& viewport_paintable)
 {
     Layout::RustFFI::layout_arena_reset_visual_context_state(viewport_paintable.rust_arena().handle());
-}
-
-void mirror_rust_clear_paint_cache_sources(ViewportPaintable& viewport_paintable)
-{
-    Layout::RustFFI::layout_arena_clear_paint_cache_sources(viewport_paintable.rust_arena().handle());
 }
 
 void mirror_rust_invalidate_paint_cache(Paintable const& paintable)

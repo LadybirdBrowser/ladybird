@@ -107,13 +107,8 @@ void ViewportPaintable::reset_for_relayout()
 {
     PaintableWithLines::reset_for_relayout();
     clear_scroll_state();
-    m_display_list_used_as_paint_command_cache_source = nullptr;
-    m_paint_command_cache_source_referenced_resources = {};
-    mirror_rust_clear_paint_cache_sources(*this);
     m_paintable_boxes_with_auto_content_visibility.clear();
-    m_visual_context_tree.clear();
     m_visual_context_tree_needs_compositor_update = false;
-    mirror_rust_clear_visual_context_tree(*this);
 }
 
 void ViewportPaintable::build_stacking_context_tree_if_needed()

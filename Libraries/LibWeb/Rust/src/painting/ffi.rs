@@ -533,19 +533,6 @@ pub unsafe extern "C" fn layout_arena_reset_visual_context_state(arena: *mut c_v
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_clear_visual_context_tree(arena: *mut c_void) {
-    abort_on_panic(|| {
-        let arena = unsafe { arena_from_handle(arena) };
-        let mut paintables = arena.paintables().borrow_mut();
-        paintables.visual_context.tree = None;
-        paintables.visual_context.paintables_with_mask_nodes.clear();
-    });
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_record_display_list(
     arena: *mut c_void,
     viewport: PaintableSlotId,
@@ -917,19 +904,6 @@ pub unsafe extern "C" fn layout_arena_paintable_invalidate_paint_cache(
         } else {
             paintables.invalidate_paint_cache(paintable);
         }
-    });
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_clear_paint_cache_sources(arena: *mut c_void) {
-    abort_on_panic(|| {
-        let arena = unsafe { arena_from_handle(arena) };
-        let mut paintables = arena.paintables().borrow_mut();
-        paintables.paint_command_cache_source = None;
-        paintables.hit_test_item_cache_source = None;
     });
 }
 
