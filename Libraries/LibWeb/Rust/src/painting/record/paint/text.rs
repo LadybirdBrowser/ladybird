@@ -4,14 +4,195 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::css_pixels::CssPixelRect;
+use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::painting::display_list::commands::{DisplayListGlyph, FontResourceId};
 use crate::painting::display_list::recorder::GlyphRunForRecording;
-use crate::painting::host::{FfiTextShadowLayer, FfiTextSpan};
-use crate::painting::paintable_data::PaintableSlotId;
+use crate::painting::paintable_data::{
+    FragmentRecord, PaintableSlotId, SELECTION_STATE_NONE, SELECTION_STATE_START_AND_END,
+};
 use crate::painting::record::PaintRecorder;
 use crate::painting::text_fragment::{self, SelectionOffsets};
 use libgfx_rust::{Color, FloatPoint, IntRect, Orientation};
+
+#[derive(Clone, Copy)]
+pub(crate) struct ShadowLayer {
+    pub color: u32,
+    pub offset_x: CssPixels,
+    pub offset_y: CssPixels,
+    pub blur_radius: CssPixels,
+}
+
+pub(crate) struct SpanTextDecoration {
+    pub lines: [u8; 8],
+    pub line_count: u32,
+    pub style: u8,
+    pub color: u32,
+}
+
+pub(crate) struct RenderSpan {
+    pub fragment_index: u32,
+    pub start_code_unit: usize,
+    pub end_code_unit: usize,
+    pub text_color: u32,
+    pub background_color: u32,
+    pub shadow_layers: Vec<ShadowLayer>,
+    pub selection_offsets: Option<SelectionOffsets>,
+    pub selection_text_decoration: Option<SpanTextDecoration>,
+}
+
+pub(crate) struct SelectionStyleAnswer {
+    pub facts: crate::painting::host::FfiSelectionStyleFacts,
+    pub shadows: Vec<ShadowLayer>,
+}
+
+fn selection_offsets_for_fragment(
+    recorder: &mut PaintRecorder<'_>,
+    fragment: &FragmentRecord,
+) -> Option<SelectionOffsets> {
+    let drop_degenerate = |offsets: Option<SelectionOffsets>| offsets.filter(|offsets| offsets.start != offsets.end);
+    let control = recorder.text_control_selection(fragment.layout_node);
+    if control.has_selection {
+        return drop_degenerate(text_fragment::compute_selection_offsets(
+            fragment,
+            SELECTION_STATE_START_AND_END,
+            control.start,
+            control.end,
+        ));
+    }
+    if fragment.selection_state == SELECTION_STATE_NONE {
+        return None;
+    }
+    let range = recorder.paintables.selection?;
+    drop_degenerate(text_fragment::compute_selection_offsets(
+        fragment,
+        fragment.selection_state,
+        range.start_offset,
+        range.end_offset,
+    ))
+}
+
+fn compute_render_spans(
+    recorder: &mut PaintRecorder<'_>,
+    block: PaintableSlotId,
+    owned_fragment_indices: &[u32],
+) -> Vec<RenderSpan> {
+    let arena = recorder.layout_arena;
+    let paintables = recorder.paintables;
+    let mut spans: Vec<RenderSpan> = Vec::new();
+    for &fragment_index in owned_fragment_indices {
+        let fragment = &paintables.side(block).fragments[fragment_index as usize];
+        if text_fragment::is_block_level_box(arena, fragment) {
+            continue;
+        }
+        if !arena
+            .node_kind_if_live(fragment.layout_node)
+            .is_some_and(crate::layout::kind_is_text)
+        {
+            continue;
+        }
+        let Some(parent) = arena.node_parent_if_live(fragment.layout_node) else {
+            continue;
+        };
+        let Some(parent_style) = arena.node_style_if_live(parent) else {
+            continue;
+        };
+        if parent_style.visibility() != crate::css::css_enums::visibility::VISIBLE
+            || parent_style.effects().opacity == 0.0
+        {
+            continue;
+        }
+        let inherited_text = parent_style.inherited_text();
+        let text_color = inherited_text.webkit_text_fill_color;
+        let base_shadows = || -> Vec<ShadowLayer> {
+            inherited_text
+                .text_shadow
+                .as_slice()
+                .iter()
+                .map(|shadow| ShadowLayer {
+                    color: shadow.color,
+                    offset_x: CssPixels::from_raw(shadow.offset_x),
+                    offset_y: CssPixels::from_raw(shadow.offset_y),
+                    blur_radius: CssPixels::from_raw(shadow.blur_radius),
+                })
+                .collect()
+        };
+
+        let Some(selection_offsets) = selection_offsets_for_fragment(recorder, fragment) else {
+            spans.push(RenderSpan {
+                fragment_index,
+                start_code_unit: 0,
+                end_code_unit: fragment.length_in_code_units,
+                text_color,
+                background_color: 0,
+                shadow_layers: base_shadows(),
+                selection_offsets: None,
+                selection_text_decoration: None,
+            });
+            continue;
+        };
+
+        let SelectionOffsets {
+            start: selection_start,
+            end: selection_end,
+        } = selection_offsets;
+        let answer = recorder.selection_style(fragment.layout_node);
+        let facts = &answer.facts;
+        let selection_text_color = if facts.has_text_color {
+            facts.text_color
+        } else {
+            text_color
+        };
+
+        if selection_start > 0 {
+            spans.push(RenderSpan {
+                fragment_index,
+                start_code_unit: 0,
+                end_code_unit: selection_start,
+                text_color,
+                background_color: 0,
+                shadow_layers: base_shadows(),
+                selection_offsets: Some(selection_offsets),
+                selection_text_decoration: None,
+            });
+        }
+
+        if selection_start < selection_end {
+            spans.push(RenderSpan {
+                fragment_index,
+                start_code_unit: selection_start,
+                end_code_unit: selection_end,
+                text_color: selection_text_color,
+                background_color: facts.background_color,
+                shadow_layers: if facts.has_text_shadow {
+                    answer.shadows.clone()
+                } else {
+                    base_shadows()
+                },
+                selection_offsets: Some(selection_offsets),
+                selection_text_decoration: facts.has_text_decoration.then_some(SpanTextDecoration {
+                    lines: facts.text_decoration_lines,
+                    line_count: facts.text_decoration_line_count,
+                    style: facts.text_decoration_style,
+                    color: facts.text_decoration_color,
+                }),
+            });
+        }
+
+        if selection_end < fragment.length_in_code_units {
+            spans.push(RenderSpan {
+                fragment_index,
+                start_code_unit: selection_end,
+                end_code_unit: fragment.length_in_code_units,
+                text_color,
+                background_color: 0,
+                shadow_layers: base_shadows(),
+                selection_offsets: Some(selection_offsets),
+                selection_text_decoration: None,
+            });
+        }
+    }
+    spans
+}
 
 fn glyphs_of(run: &crate::painting::paintable_data::GlyphRunRecord) -> Vec<DisplayListGlyph> {
     run.glyphs
@@ -69,20 +250,9 @@ pub(crate) fn paint_fragments_foreground(
     let fragment_count = recorder.paintables.side(block).fragments.len();
     let mut owned_fragment_indices = Vec::with_capacity(fragment_count);
     filter.for_each_owned_fragment_index(fragment_count, |index| owned_fragment_indices.push(index as u32));
-    let sink = recorder
-        .paint_host
-        .text_spans(recorder.shell(block), &owned_fragment_indices);
+    let spans = compute_render_spans(recorder, block, &owned_fragment_indices);
 
-    let mut shadow_cursor = 0usize;
-    let mut spans_with_shadows: Vec<(FfiTextSpan, Vec<FfiTextShadowLayer>)> = Vec::with_capacity(sink.spans.len());
-    for span in &sink.spans {
-        let count = span.shadow_layer_count as usize;
-        let layers = sink.shadows[shadow_cursor..shadow_cursor + count].to_vec();
-        shadow_cursor += count;
-        spans_with_shadows.push((*span, layers));
-    }
-
-    for (span, _) in &spans_with_shadows {
+    for span in &spans {
         if Color(span.background_color).alpha() > 0 {
             let selection_rect = selection_rect(recorder, block, span);
             let converter = recorder.converter;
@@ -93,37 +263,28 @@ pub(crate) fn paint_fragments_foreground(
         }
     }
 
-    for (span, layers) in &spans_with_shadows {
-        paint_text_shadow(recorder, block, span, layers);
+    for span in &spans {
+        paint_text_shadow(recorder, block, span);
     }
 
-    for (span, _) in &spans_with_shadows {
+    for span in &spans {
         let sets = crate::painting::record::paint::text_decoration::decoration_sets_for_span(recorder, block, span);
         paint_text_fragment(recorder, block, span, &sets);
     }
 }
 
-fn selection_rect(recorder: &PaintRecorder<'_>, block: PaintableSlotId, span: &FfiTextSpan) -> CssPixelRect {
-    if !span.has_selection_offsets {
+fn selection_rect(recorder: &PaintRecorder<'_>, block: PaintableSlotId, span: &RenderSpan) -> CssPixelRect {
+    let Some(offsets) = span.selection_offsets else {
         return CssPixelRect::default();
-    }
-    let fragment = &recorder.paintables.side(block).fragments[span.fragment_index as usize];
-    let offsets = SelectionOffsets {
-        start: span.selection_start,
-        end: span.selection_end,
     };
+    let fragment = &recorder.paintables.side(block).fragments[span.fragment_index as usize];
     text_fragment::rect_for_selection_offsets(recorder.layout_arena, recorder.paintables, fragment, offsets, || {
         text_fragment::first_available_font(recorder.layout_arena, fragment)
     })
 }
 
-fn paint_text_shadow(
-    recorder: &mut PaintRecorder<'_>,
-    block: PaintableSlotId,
-    span: &FfiTextSpan,
-    shadow_layers: &[FfiTextShadowLayer],
-) {
-    if shadow_layers.is_empty() {
+fn paint_text_shadow(recorder: &mut PaintRecorder<'_>, block: PaintableSlotId, span: &RenderSpan) {
+    if span.shadow_layers.is_empty() {
         return;
     }
     let fragment = &recorder.paintables.side(block).fragments[span.fragment_index as usize];
@@ -165,7 +326,7 @@ fn paint_text_shadow(
     let font_id = recorder.register_font(run.font.as_raw());
 
     // Shadow layers are ordered front-to-back, so we paint them in reverse.
-    for layer in shadow_layers.iter().rev() {
+    for layer in span.shadow_layers.iter().rev() {
         let blur_radius = converter.rounded_device_pixels(layer.blur_radius);
         // Space around the painted text to allow it to blur.
         let margin = blur_radius * 2;
@@ -206,10 +367,9 @@ fn paint_text_shadow(
 fn paint_text_fragment(
     recorder: &mut PaintRecorder<'_>,
     block: PaintableSlotId,
-    span: &FfiTextSpan,
+    span: &RenderSpan,
     decoration_sets: &[crate::painting::record::paint::text_decoration::TextDecorationSet],
 ) {
-    // Skip non-text spans (they're only for shadow painting).
     if span.start_code_unit == span.end_code_unit {
         return;
     }
@@ -273,21 +433,14 @@ fn paint_text_fragment(
             glyph_bounding_rect,
         );
     } else {
-        let offsets = text_fragment::selection_offsets_for_dom_range(
+        let range_rect = text_fragment::range_rect(
+            recorder.layout_arena,
+            recorder.paintables,
             fragment,
+            SELECTION_STATE_START_AND_END,
             fragment.dom_start_offset_in_node + span.start_code_unit,
             fragment.dom_start_offset_in_node + span.end_code_unit,
         );
-        let range_rect = match offsets {
-            Some(offsets) => text_fragment::rect_for_selection_offsets(
-                recorder.layout_arena,
-                recorder.paintables,
-                fragment,
-                offsets,
-                || text_fragment::first_available_font(recorder.layout_arena, fragment),
-            ),
-            None => CssPixelRect::default(),
-        };
         let span_rect = converter.rounded_device_rect(range_rect);
         recorder.recorder.save();
         recorder.recorder.add_clip_rect_int(span_rect);

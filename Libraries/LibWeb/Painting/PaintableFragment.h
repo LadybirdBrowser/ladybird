@@ -88,41 +88,17 @@ public:
     CSSPixelSize size() const { return m_size; }
     u32 line_index() const { return m_line_index; }
 
-    Vector<ShadowData> const& shadows() const { return m_shadows; }
-    void set_shadows(Vector<ShadowData>&& shadows) { m_shadows = shadows; }
-
     CSSPixelRect const absolute_rect() const;
     CSSPixelRect const absolute_line_box_rect() const;
 
     RefPtr<Gfx::GlyphRun> glyph_run() const { return m_glyph_run; }
     Gfx::Orientation orientation() const;
 
-    CSSPixelRect selection_rect() const;
     CSSPixelRect range_rect(SelectionState selection_state, size_t start_offset_in_code_units, size_t end_offset_in_code_units) const;
 
     struct SelectionOffsets {
         size_t start;
         size_t end;
-    };
-    Optional<SelectionOffsets> selection_offsets() const;
-    Optional<SelectionOffsets> selection_range_for_text_control() const;
-    SelectionState selection_state() const { return m_selection_state; }
-    void set_selection_state(SelectionState);
-
-    struct TextDecorationData {
-        Vector<CSS::TextDecorationLine> line;
-        CSS::TextDecorationStyle style;
-        Color color;
-    };
-
-    struct FragmentSpan {
-        PaintableFragment const& fragment;
-        size_t start_code_unit;
-        size_t end_code_unit;
-        Color text_color;
-        Color background_color;
-        Optional<Vector<ShadowData>> shadow_layers;
-        Optional<TextDecorationData> text_decoration;
     };
 
     CSSPixels width() const { return m_size.width(); }
@@ -145,11 +121,9 @@ private:
     size_t m_length_in_code_units { 0 };
     size_t m_dom_start_offset_in_node { 0 };
     RefPtr<Gfx::GlyphRun> m_glyph_run;
-    Vector<ShadowData> m_shadows;
     CSSPixels m_baseline;
     CSSPixels m_accumulated_vertical_shift;
     CSS::WritingMode m_writing_mode;
-    SelectionState m_selection_state { SelectionState::None };
     u32 m_trailing_whitespace_length_in_code_units { 0 };
 };
 

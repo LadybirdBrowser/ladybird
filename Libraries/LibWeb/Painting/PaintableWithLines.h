@@ -45,15 +45,7 @@ public:
     {
         m_fragments.empend(*this, move(fields));
     }
-    void reset_fragment_selection_states()
-    {
-        for (auto& fragment : m_fragments)
-            fragment.set_selection_state(SelectionState::None);
-    }
-
     void assign_inline_box_geometry();
-
-    Vector<PaintableFragment::FragmentSpan, 4> render_spans_for_paint(u64 paint_generation_id, ReadonlySpan<u32> owned_fragment_indices) const;
 
     struct CaretPaint {
         CSSPixelRect rect;
@@ -91,8 +83,6 @@ private:
     Vector<PaintableFragment> m_fragments;
     Vector<LineRecord> m_lines;
     Vector<InlineBoxPiece> m_inline_box_pieces;
-
-    mutable Optional<u64> m_text_fragment_properties_paint_generation_id;
 };
 
 }

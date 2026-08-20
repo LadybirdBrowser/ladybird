@@ -927,43 +927,51 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
             return rust_root_background_source(context.viewport_paintable.document());
         },
-        .text_spans = [](void* context_pointer, void* paintable_shell, u32 const* owned_fragment_indices, size_t owned_fragment_index_count, void* sink) {
-            auto& context = *static_cast<PaintHostContext*>(context_pointer);
-            auto const& block = as<PaintableWithLines>(*static_cast<Paintable const*>(paintable_shell));
-            auto spans = block.render_spans_for_paint(context.paint_generation_id, { owned_fragment_indices, owned_fragment_index_count });
-            for (auto const& span : spans) {
-                auto const& fragment = span.fragment;
-                Layout::RustFFI::FfiTextSpan ffi_span {};
-                ffi_span.fragment_index = block.index_of_fragment(fragment);
-                ffi_span.start_code_unit = span.start_code_unit;
-                ffi_span.end_code_unit = span.end_code_unit;
-                ffi_span.text_color = span.text_color.value();
-                ffi_span.background_color = span.background_color.value();
-                auto const& shadow_layers = span.shadow_layers.has_value() ? *span.shadow_layers : fragment.shadows();
-                ffi_span.shadow_layer_count = shadow_layers.size();
-                if (auto offsets = fragment.selection_offsets(); offsets.has_value()) {
-                    ffi_span.has_selection_offsets = true;
-                    ffi_span.selection_start = offsets->start;
-                    ffi_span.selection_end = offsets->end;
-                }
-                if (span.text_decoration.has_value()) {
-                    ffi_span.has_selection_text_decoration = true;
-                    ffi_span.selection_text_decoration_line_count = min(span.text_decoration->line.size(), array_size(ffi_span.selection_text_decoration_lines));
-                    for (size_t i = 0; i < ffi_span.selection_text_decoration_line_count; ++i)
-                        ffi_span.selection_text_decoration_lines[i] = to_underlying(span.text_decoration->line[i]);
-                    ffi_span.selection_text_decoration_style = to_underlying(span.text_decoration->style);
-                    ffi_span.selection_text_decoration_color = span.text_decoration->color.value();
-                }
-                Layout::RustFFI::layout_arena_paint_push_text_span(sink, ffi_span);
-                for (auto const& layer : shadow_layers) {
-                    Layout::RustFFI::FfiTextShadowLayer ffi_layer {};
-                    ffi_layer.color = layer.color.value();
-                    ffi_layer.offset_x = layer.offset_x.raw_value();
-                    ffi_layer.offset_y = layer.offset_y.raw_value();
-                    ffi_layer.blur_radius = layer.blur_radius.raw_value();
-                    Layout::RustFFI::layout_arena_paint_push_text_shadow(sink, ffi_layer);
-                }
-            } },
+        .text_control_selection = [](void*, void* layout_node_shell) -> Layout::RustFFI::FfiTextControlSelection {
+            Layout::RustFFI::FfiTextControlSelection result {};
+            auto const* layout_node = static_cast<Layout::Node const*>(layout_node_shell);
+            if (!layout_node)
+                return result;
+            auto const* text_control = as_if<HTML::FormAssociatedTextControlElement>(layout_node->document().focused_area().ptr());
+            if (!text_control)
+                return result;
+            if (GC::Ptr { layout_node->dom_node() } != text_control->form_associated_element_to_text_node())
+                return result;
+            auto selection_start = text_control->selection_start();
+            auto selection_end = text_control->selection_end();
+            if (selection_start == selection_end)
+                return result;
+            result.has_selection = true;
+            result.start = selection_start;
+            result.end = selection_end;
+            return result;
+        },
+        .selection_style_facts = [](void*, void* layout_node_shell, void* shadow_sink) -> Layout::RustFFI::FfiSelectionStyleFacts {
+            Layout::RustFFI::FfiSelectionStyleFacts facts {};
+            auto const* text_node = as_if<Layout::TextNode>(static_cast<Layout::Node const*>(layout_node_shell));
+            if (!text_node)
+                return facts;
+            auto style = Paintable::selection_style_for_node(*text_node, text_node->dom_text());
+            facts.background_color = style.background_color.value();
+            if (style.text_color.has_value()) {
+                facts.has_text_color = true;
+                facts.text_color = style.text_color->value();
+            }
+            if (style.text_shadow.has_value()) {
+                facts.has_text_shadow = true;
+                for (auto const& layer : *style.text_shadow)
+                    Layout::RustFFI::layout_arena_paint_push_selection_shadow(shadow_sink, layer.color.value(), layer.offset_x.raw_value(), layer.offset_y.raw_value(), layer.blur_radius.raw_value());
+            }
+            if (style.text_decoration.has_value()) {
+                facts.has_text_decoration = true;
+                facts.text_decoration_line_count = min(style.text_decoration->line.size(), array_size(facts.text_decoration_lines));
+                for (size_t i = 0; i < facts.text_decoration_line_count; ++i)
+                    facts.text_decoration_lines[i] = to_underlying(style.text_decoration->line[i]);
+                facts.text_decoration_style = to_underlying(style.text_decoration->style);
+                facts.text_decoration_color = style.text_decoration->color.value();
+            }
+            return facts;
+        },
         .register_font = [](void* context_pointer, void const* font) -> u64 {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
             return context.resource_storage.add_font(*static_cast<Gfx::Font const*>(font)).value();

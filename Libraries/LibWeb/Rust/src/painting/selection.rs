@@ -13,15 +13,7 @@ use crate::painting::text_fragment;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct SelectionRange {
-    #[expect(
-        dead_code,
-        reason = "render-span computation reads the stored endpoints once span building moves into Rust"
-    )]
     pub start_offset: usize,
-    #[expect(
-        dead_code,
-        reason = "render-span computation reads the stored endpoints once span building moves into Rust"
-    )]
     pub end_offset: usize,
 }
 

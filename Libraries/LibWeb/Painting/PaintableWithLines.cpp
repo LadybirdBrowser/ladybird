@@ -26,8 +26,6 @@
 
 namespace Web::Painting {
 
-static void compute_render_spans(PaintableFragment const&, Vector<PaintableFragment::FragmentSpan, 4>&);
-
 static bool layout_node_is_visible(Layout::NodeWithStyle const& layout_node)
 {
     return layout_node.visibility() == CSS::Visibility::Visible && layout_node.opacity() != 0;
@@ -52,7 +50,6 @@ void PaintableWithLines::reset_for_relayout()
     m_fragments.clear();
     m_lines.clear();
     m_inline_box_pieces.clear();
-    m_text_fragment_properties_paint_generation_id.clear();
 }
 
 InlinePaintable const* nearest_self_painting_inline_box(Layout::Node const& node)
@@ -228,133 +225,6 @@ void PaintableWithLines::for_each_empty_line_caret_item(Function<void(EmptyLineC
         if (!br || !br->represents_empty_line())
             continue;
         callback({ .is_line_break_boundary = true, .caret_offset = br->index(), .line_index = 0, .rect = caret_rect_for_child_offset(br->index()) });
-    }
-}
-
-static void resolve_text_fragment_properties(PaintableWithLines const& paintable_with_lines)
-{
-    for (auto& fragment : const_cast<PaintableWithLines&>(paintable_with_lines).fragments()) {
-        auto const* text_node = as_if<Layout::TextNode>(fragment.layout_node());
-        if (!text_node)
-            continue;
-
-        auto const& text_shadow = text_node->parent()->text_shadow();
-        Vector<ShadowData> resolved_shadow_data;
-        if (!text_shadow.is_empty()) {
-            resolved_shadow_data.ensure_capacity(text_shadow.size());
-            for (auto const& layer : text_shadow)
-                resolved_shadow_data.append(ShadowData::from_css(layer));
-        }
-        fragment.set_shadows(move(resolved_shadow_data));
-    }
-}
-
-Vector<PaintableFragment::FragmentSpan, 4> PaintableWithLines::render_spans_for_paint(u64 paint_generation_id, ReadonlySpan<u32> owned_fragment_indices) const
-{
-    // The resolved properties are shared by all owners painting fragments of this block,
-    // so resolving once per display list build is enough.
-    if (m_text_fragment_properties_paint_generation_id != paint_generation_id) {
-        resolve_text_fragment_properties(*this);
-        m_text_fragment_properties_paint_generation_id = paint_generation_id;
-    }
-
-    Vector<PaintableFragment::FragmentSpan, 4> spans;
-    for (auto index : owned_fragment_indices)
-        compute_render_spans(m_fragments[index], spans);
-    return spans;
-}
-
-void compute_render_spans(PaintableFragment const& fragment, Vector<PaintableFragment::FragmentSpan, 4>& spans)
-{
-    if (fragment.is_block_level_box())
-        return;
-
-    auto const* text_node = as_if<Layout::TextNode>(fragment.layout_node());
-    if (!text_node) {
-        // Non-text fragments still need shadow painting.
-        spans.append({
-            .fragment = fragment,
-            .start_code_unit = 0,
-            .end_code_unit = 0,
-            .text_color = Color::Transparent,
-            .background_color = Color::Transparent,
-            .shadow_layers = {},
-            .text_decoration = {},
-        });
-        return;
-    }
-
-    if (!layout_node_is_visible(*text_node->parent()))
-        return;
-
-    auto text_color = text_node->parent()->webkit_text_fill_color();
-    auto selection_offsets = fragment.selection_offsets();
-
-    // No selection: single span with base styling.
-    if (!selection_offsets.has_value()) {
-        spans.append({
-            .fragment = fragment,
-            .start_code_unit = 0,
-            .end_code_unit = fragment.length_in_code_units(),
-            .text_color = text_color,
-            .background_color = Color::Transparent,
-            .shadow_layers = {},
-            .text_decoration = {},
-        });
-        return;
-    }
-
-    auto [selection_start, selection_end] = *selection_offsets;
-    auto selection_style = Paintable::selection_style_for_node(*text_node, text_node->dom_text());
-    auto selection_text_color = selection_style.text_color.value_or(text_color);
-
-    // Convert selection text decoration to fragment text decoration data.
-    Optional<PaintableFragment::TextDecorationData> selection_text_decoration;
-    if (selection_style.text_decoration.has_value()) {
-        selection_text_decoration = PaintableFragment::TextDecorationData {
-            .line = move(selection_style.text_decoration->line),
-            .style = selection_style.text_decoration->style,
-            .color = selection_style.text_decoration->color,
-        };
-    }
-
-    // Before selection.
-    if (selection_start > 0) {
-        spans.append({
-            .fragment = fragment,
-            .start_code_unit = 0,
-            .end_code_unit = selection_start,
-            .text_color = text_color,
-            .background_color = Color::Transparent,
-            .shadow_layers = {},
-            .text_decoration = {},
-        });
-    }
-
-    // Selected portion.
-    if (selection_start < selection_end) {
-        spans.append({
-            .fragment = fragment,
-            .start_code_unit = selection_start,
-            .end_code_unit = selection_end,
-            .text_color = selection_text_color,
-            .background_color = selection_style.background_color,
-            .shadow_layers = move(selection_style.text_shadow),
-            .text_decoration = move(selection_text_decoration),
-        });
-    }
-
-    // After selection.
-    if (selection_end < fragment.length_in_code_units()) {
-        spans.append({
-            .fragment = fragment,
-            .start_code_unit = selection_end,
-            .end_code_unit = fragment.length_in_code_units(),
-            .text_color = text_color,
-            .background_color = Color::Transparent,
-            .shadow_layers = {},
-            .text_decoration = {},
-        });
     }
 }
 

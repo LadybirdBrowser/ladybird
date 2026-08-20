@@ -83,10 +83,27 @@ pub struct SelectionOffsets {
     pub end: usize,
 }
 
-#[expect(
-    dead_code,
-    reason = "render-span computation dispatches on selection state once span building moves into Rust"
-)]
+pub(crate) fn range_rect(
+    layout_arena: &LayoutNodeArena,
+    paintables: &PaintableArena,
+    fragment: &FragmentRecord,
+    selection_state: u8,
+    start_offset_in_code_units: usize,
+    end_offset_in_code_units: usize,
+) -> CssPixelRect {
+    match compute_selection_offsets(
+        fragment,
+        selection_state,
+        start_offset_in_code_units,
+        end_offset_in_code_units,
+    ) {
+        Some(offsets) => rect_for_selection_offsets(layout_arena, paintables, fragment, offsets, || {
+            first_available_font(layout_arena, fragment)
+        }),
+        None => CssPixelRect::default(),
+    }
+}
+
 pub(crate) fn compute_selection_offsets(
     fragment: &FragmentRecord,
     selection_state: u8,
