@@ -84,15 +84,14 @@ void HTMLOptionElement::set_selected(bool selected)
 
 void HTMLOptionElement::set_selected_internal(bool selected)
 {
-    if (m_selected != selected)
+    if (m_selected != selected) {
         CSS::Invalidation::invalidate_style_after_option_selected_state_change(*this, selected);
+        document().bump_option_selectedness_version();
+    }
 
     m_selected = selected;
     if (selected)
         m_selectedness_update_index = m_next_selectedness_update_index++;
-
-    // this is here to invalidate the cache on the HTMLCollection in HTMLSelectElement::selected_options
-    document().bump_dom_tree_version();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-value

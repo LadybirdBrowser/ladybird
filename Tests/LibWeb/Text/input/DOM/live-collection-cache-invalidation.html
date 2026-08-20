@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        {
+            const label = document.createElement("label");
+            const customElement = document.createElement("cache-label-control");
+            const input = document.createElement("input");
+            label.append(customElement, input);
+            document.body.append(label);
+
+            const labels = input.labels;
+            println(`labels before upgrade: ${labels.length}`);
+
+            customElements.define("cache-label-control", class extends HTMLElement {
+                static formAssociated = true;
+            });
+
+            println(`labels after upgrade: ${labels.length}`);
+        }
+        println("");
+
+        {
+            const form = document.createElement("form");
+            const fieldset = document.createElement("fieldset");
+            const firstInput = document.createElement("input");
+            const secondInput = document.createElement("input");
+            const customElement = document.createElement("cache-form-control");
+            firstInput.name = "control";
+            secondInput.name = "control";
+            customElement.setAttribute("name", "control");
+            fieldset.append(firstInput, secondInput, customElement);
+            form.append(fieldset);
+            document.body.append(form);
+
+            const formElements = form.elements;
+            const fieldsetElements = fieldset.elements;
+            const namedControls = form.control;
+            const namedCollectionControls = formElements.control;
+            println(`controls before upgrade: ${formElements.length}, ${fieldsetElements.length}, ${namedControls.length}, ${namedCollectionControls.length}`);
+
+            customElements.define("cache-form-control", class extends HTMLElement {
+                static formAssociated = true;
+            });
+
+            println(`controls after upgrade: ${formElements.length}, ${fieldsetElements.length}, ${namedControls.length}, ${namedCollectionControls.length}`);
+        }
+        println("");
+
+        {
+            const label = document.createElement("label");
+            const customElement = document.createElement("cache-failed-control");
+            const input = document.createElement("input");
+            label.append(customElement, input);
+            document.body.append(label);
+
+            const labels = input.labels;
+            let labelsLengthDuringUpgrade;
+            removeTestErrorHandler();
+            window.addEventListener("error", event => event.preventDefault(), { once: true });
+
+            customElements.define("cache-failed-control", class extends HTMLElement {
+                static formAssociated = true;
+
+                constructor() {
+                    super();
+                    labelsLengthDuringUpgrade = labels.length;
+                    throw new Error("Expected upgrade failure");
+                }
+            });
+
+            println(`labels during failed upgrade: ${labelsLengthDuringUpgrade}`);
+            println(`labels after failed upgrade: ${labels.length}`);
+        }
+        println("");
+
+        {
+            const select = document.createElement("select");
+            const firstOption = document.createElement("option");
+            const secondOption = document.createElement("option");
+            select.append(firstOption, secondOption);
+
+            const selectedOptions = select.selectedOptions;
+            println(`selected options before change: ${selectedOptions.length}`);
+            secondOption.selected = true;
+            println(`selected options after change: ${selectedOptions.length}, ${selectedOptions[0] === secondOption}`);
+        }
+    });
+</script>

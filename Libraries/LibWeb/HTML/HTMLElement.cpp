@@ -1016,10 +1016,11 @@ GC::Ptr<DOM::NodeList> HTMLElement::labels()
 
     auto& labels = ensure_html_element_rare_data().labels;
     if (!labels) {
-        labels = DOM::LiveNodeList::create(root(), DOM::LiveNodeList::Scope::Descendants, [&](DOM::Node const& node) {
+        auto filter = [&](DOM::Node const& node) {
             auto const* label_element = as_if<HTMLLabelElement>(node);
             return label_element && label_element->control().ptr() == this;
-        });
+        };
+        labels = DOM::LiveNodeList::create(root(), DOM::LiveNodeList::Scope::Descendants, move(filter), DOM::LiveNodeList::Kind::Labels);
     }
 
     return labels;

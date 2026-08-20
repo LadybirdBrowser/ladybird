@@ -4377,12 +4377,19 @@ GC::Ptr<HTML::CustomElementDefinition> Element::custom_element_definition() cons
 
 void Element::set_custom_element_definition(GC::Ptr<HTML::CustomElementDefinition> definition)
 {
+    auto old_definition = custom_element_definition();
+    bool was_form_associated = old_definition && old_definition->form_associated();
+    bool is_form_associated = definition && definition->form_associated();
+
     if (!definition) {
         if (auto* rare_data = element_rare_data())
             rare_data->custom_element_definition = nullptr;
-        return;
+    } else {
+        ensure_element_rare_data().custom_element_definition = definition;
     }
-    ensure_element_rare_data().custom_element_definition = definition;
+
+    if (was_form_associated != is_form_associated)
+        document().bump_form_associated_custom_element_version();
 }
 
 GC::Ptr<HTML::CustomElementRegistry> Element::custom_element_registry() const

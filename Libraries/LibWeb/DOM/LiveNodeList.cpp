@@ -16,17 +16,18 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(LiveNodeList);
 
-GC::Ref<NodeList> LiveNodeList::create(Node const& root, Scope scope, Function<bool(Node const&)> filter)
+GC::Ref<NodeList> LiveNodeList::create(Node const& root, Scope scope, Function<bool(Node const&)> filter, Kind kind)
 {
-    return GC::Heap::the().allocate<LiveNodeList>(root, scope, move(filter));
+    return GC::Heap::the().allocate<LiveNodeList>(root, scope, move(filter), kind);
 }
 
-LiveNodeList::LiveNodeList(Node const& root, Scope scope, Function<bool(Node const&)> filter)
+LiveNodeList::LiveNodeList(Node const& root, Scope scope, Function<bool(Node const&)> filter, Kind kind)
     : NodeList()
     , GC::WeakContainer(heap())
     , m_root(root)
     , m_filter(move(filter))
     , m_scope(scope)
+    , m_kind(kind)
 {
 }
 
@@ -55,8 +56,12 @@ void LiveNodeList::remove_dead_cells(Badge<GC::Heap>)
 void LiveNodeList::update_cache_if_needed() const
 {
     auto& document = m_root->document();
-    if (m_cached_document.ptr().ptr() == &document && m_cached_dom_tree_version == document.dom_tree_version())
+    auto invalidation_version = this->invalidation_version(document);
+    if (m_cached_document.ptr().ptr() == &document
+        && m_cached_dom_tree_version == document.dom_tree_version()
+        && m_cached_invalidation_version == invalidation_version) {
         return;
+    }
 
     m_cached_nodes.clear();
     if (m_scope == Scope::Descendants) {
@@ -75,6 +80,19 @@ void LiveNodeList::update_cache_if_needed() const
 
     m_cached_document = document;
     m_cached_dom_tree_version = document.dom_tree_version();
+    m_cached_invalidation_version = invalidation_version;
+}
+
+u64 LiveNodeList::invalidation_version(Document const& document) const
+{
+    switch (m_kind) {
+    case Kind::Generic:
+        return 0;
+    case Kind::Labels:
+    case Kind::FormControls:
+        return document.form_associated_custom_element_version();
+    }
+    VERIFY_NOT_REACHED();
 }
 
 Node* LiveNodeList::first_matching(Function<bool(Node const&)> const& filter) const

@@ -277,6 +277,12 @@ public:
     u64 dom_tree_version() const { return m_dom_tree_version; }
     void bump_dom_tree_version() { ++m_dom_tree_version; }
 
+    u64 form_associated_custom_element_version() const { return m_form_associated_custom_element_version; }
+    void bump_form_associated_custom_element_version() { ++m_form_associated_custom_element_version; }
+
+    u64 option_selectedness_version() const { return m_option_selectedness_version; }
+    void bump_option_selectedness_version() { ++m_option_selectedness_version; }
+
     // Everything a style input record cannot name by an identity of its own: a stylesheet rule's
     // declarations changing under a block that has not moved, a font finishing loading, the
     // viewport moving, a registration or counter style arriving. A record taken under one version
@@ -1831,6 +1837,8 @@ private:
     Optional<AK::UnixDateTime> m_last_modified;
 
     u64 m_dom_tree_version { 0 };
+    u64 m_form_associated_custom_element_version { 0 };
+    u64 m_option_selectedness_version { 0 };
     u64 m_style_environment_version { 0 };
     u64 m_next_counter_style_environment_identity { 1 };
     u64 m_character_data_version { 0 };
