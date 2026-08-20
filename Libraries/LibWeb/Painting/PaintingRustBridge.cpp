@@ -388,6 +388,7 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(Vie
             inputs.visual_viewport_offset_x = offset.x();
             inputs.visual_viewport_offset_y = offset.y();
             inputs.visual_viewport_scale = visual_viewport.scale();
+            inputs.may_have_default_scroll_shift_anchor = viewport_paintable.document().may_have_default_scroll_shift_anchor();
             return inputs;
         },
         .scroll_offset = [](void*, void* paintable_shell) -> Layout::RustFFI::FfiCssPixelPoint {
