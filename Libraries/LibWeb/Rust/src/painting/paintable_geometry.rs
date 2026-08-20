@@ -31,6 +31,10 @@ pub fn absolute_rect(arena: &PaintableArena, slot: PaintableSlotId) -> CssPixelR
     }
     let data = arena.data_ref(slot);
     let mut rect = CssPixelRect::from_location_and_size(data.offset.into(), data.content_size.into());
+    if is_svg_paintable(data.kind) {
+        arena.memoize_absolute_rect(slot, rect);
+        return rect;
+    }
     let mut block = data.containing_block;
     while !block.is_invalid() && arena.is_live(block) {
         let block_data = arena.data_ref(block);
