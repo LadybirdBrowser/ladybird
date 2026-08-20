@@ -417,15 +417,12 @@ impl<'a> PaintRecorder<'a> {
         } else {
             (None, None)
         };
-        let can_produce_caret_position = {
+        let can_produce_caret_position = (self.is_atomic_inline(target) || self.is_replaced_box(target)) && {
             let negative_z = crate::painting::style_queries::effective_z_index(self.layout_arena, &self.data(target))
                 .unwrap_or(0)
                 < 0;
             let target_node = self.data(target).layout_node;
-            !negative_z
-                && self.node_has_dom_node(target_node)
-                && self.paintable_facts(target).dom_node_has_parent
-                && (self.is_atomic_inline(target) || self.is_replaced_box(target))
+            !negative_z && self.node_has_dom_node(target_node) && self.paintable_facts(target).dom_node_has_parent
         };
         let item = HitTestItem {
             rect,
