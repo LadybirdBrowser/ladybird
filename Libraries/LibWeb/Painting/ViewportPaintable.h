@@ -19,7 +19,6 @@ class WEB_API ViewportPaintable final : public PaintableWithLines {
 public:
     static NonnullRefPtr<ViewportPaintable> create(Layout::Viewport const&);
     virtual ~ViewportPaintable() override;
-    virtual StringView class_name() const override { return "ViewportPaintable"sv; }
 
     virtual void reset_for_relayout() override;
 
@@ -75,8 +74,6 @@ public:
 
 private:
     friend void update_visual_viewport_accumulated_visual_context(ViewportPaintable&);
-
-    virtual bool is_viewport_paintable() const override { return true; }
 
     void ensure_visual_context_tree() const;
     bool m_stacking_context_tree_is_valid { false };

@@ -18,7 +18,6 @@ class InlinePaintable final : public Paintable {
 public:
     static NonnullRefPtr<InlinePaintable> create(Layout::NodeWithStyle const&);
     virtual ~InlinePaintable() override;
-    virtual StringView class_name() const override { return "InlinePaintable"sv; }
 
     virtual void reset_for_relayout() override;
 
@@ -72,8 +71,6 @@ public:
 
 private:
     explicit InlinePaintable(Layout::NodeWithStyle const&);
-
-    [[nodiscard]] virtual bool is_inline_paintable() const final { return true; }
 
     virtual CSSPixelRect compute_absolute_padding_box_rect() const override;
     virtual CSSPixelRect compute_absolute_border_box_rect() const override;

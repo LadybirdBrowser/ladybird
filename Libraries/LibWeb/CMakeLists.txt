@@ -862,8 +862,6 @@ set(SOURCES
     Painting/BordersData.cpp
     Painting/BoxModelMetrics.cpp
     Painting/Canvas2DCommandStream.cpp
-    Painting/CanvasPaintable.cpp
-    Painting/CheckBoxPaintable.cpp
     Painting/ChromeWidget.cpp
     Painting/DisplayList.cpp
     Painting/DisplayListCommand.cpp
@@ -872,17 +870,13 @@ set(SOURCES
     Painting/DisplayListRecordingContext.cpp
     Painting/DisplayListResourceTransaction.cpp
     Painting/DisplayListResourceStorage.cpp
-    Painting/FieldSetPaintable.cpp
     Painting/HitTestDisplayList.cpp
-    Painting/ImagePaintable.cpp
     Painting/InlinePaintable.cpp
-    Painting/NavigableContainerViewportPaintable.cpp
     Painting/Paintable.cpp
     Painting/PaintStyle.cpp
     Painting/PaintableFragment.cpp
     Painting/PaintableWithLines.cpp
     Painting/PaintingRustBridge.cpp
-    Painting/RadioButtonPaintable.cpp
     Painting/ResolvedCSSFilter.cpp
     Painting/ResizeHandle.cpp
     Painting/Scrollbar.cpp
@@ -897,7 +891,6 @@ set(SOURCES
     Painting/SVGPatternPaintable.cpp
     Painting/SVGPathPaintable.cpp
     Painting/SVGSVGPaintable.cpp
-    Painting/VideoPaintable.cpp
     Painting/ViewportPaintable.cpp
     PerformanceTimeline/EntryTypes.cpp
     PerformanceTimeline/EventNames.cpp

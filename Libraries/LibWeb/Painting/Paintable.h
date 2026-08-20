@@ -84,7 +84,9 @@ public:
 
     static NonnullRefPtr<Paintable> create(Layout::Box const&);
     virtual ~Paintable();
-    virtual StringView class_name() const { return "Paintable"sv; }
+
+    Layout::RustFFI::PaintableKind kind() const { return rust_data().kind; }
+    StringView class_name() const;
 
     [[nodiscard]] bool is_visible() const;
     [[nodiscard]] bool is_positioned() const { return has_flag(Layout::RustFFI::PaintableFlag::Positioned); }
@@ -230,10 +232,16 @@ public:
     template<typename T>
     bool fast_is() const = delete;
 
-    [[nodiscard]] virtual bool is_navigable_container_viewport_paintable() const { return false; }
-    [[nodiscard]] virtual bool is_viewport_paintable() const { return false; }
-    [[nodiscard]] virtual bool is_paintable_with_lines() const { return false; }
-    [[nodiscard]] virtual bool is_inline_paintable() const { return false; }
+    [[nodiscard]] bool is_navigable_container_viewport_paintable() const { return kind() == Layout::RustFFI::PaintableKind::NavigableContainerViewportPaintable; }
+    [[nodiscard]] bool is_viewport_paintable() const { return kind() == Layout::RustFFI::PaintableKind::ViewportPaintable; }
+    [[nodiscard]] bool is_paintable_with_lines() const
+    {
+        auto kind = this->kind();
+        return kind == Layout::RustFFI::PaintableKind::PaintableWithLines
+            || kind == Layout::RustFFI::PaintableKind::ViewportPaintable
+            || kind == Layout::RustFFI::PaintableKind::SVGForeignObjectPaintable;
+    }
+    [[nodiscard]] bool is_inline_paintable() const { return kind() == Layout::RustFFI::PaintableKind::InlinePaintable; }
     [[nodiscard]] virtual bool is_svg_paintable() const { return false; }
 
     [[nodiscard]] virtual bool is_svg_svg_paintable() const { return false; }

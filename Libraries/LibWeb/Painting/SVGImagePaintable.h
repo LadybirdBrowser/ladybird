@@ -14,7 +14,6 @@ namespace Web::Painting {
 class SVGImagePaintable final : public SVGGraphicsPaintable {
 public:
     static NonnullRefPtr<SVGImagePaintable> create(Layout::Box const&);
-    virtual StringView class_name() const override { return "SVGImagePaintable"sv; }
 
 private:
     SVGImagePaintable(Layout::Box const&);
