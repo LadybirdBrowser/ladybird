@@ -717,8 +717,6 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
             auto& bridge = *static_cast<LayoutRustBridge*>(context);
             auto& root = *static_cast<Box*>(root_pointer);
             VERIFY(!bridge.m_replaced_paintable);
-            VERIFY(!bridge.m_commit_parent_paintable);
-            VERIFY(!bridge.m_commit_insert_before_paintable);
             VERIFY(bridge.m_reused_paintables.is_empty());
 
             if (!root.is_viewport()) {
@@ -731,23 +729,14 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
             }
 
             if (bridge.m_replaced_paintable) {
-                // Keep the old subtree alive while its replacement is spliced
-                // into the exact same paint-order position.
-                bridge.m_commit_parent_paintable = bridge.m_replaced_paintable->parent();
-                bridge.m_commit_insert_before_paintable = bridge.m_replaced_paintable->next_sibling();
-                if (bridge.m_commit_parent_paintable)
-                    bridge.m_commit_parent_paintable->remove_child(*bridge.m_replaced_paintable);
+                if (auto parent = bridge.m_replaced_paintable->parent())
+                    parent->remove_child(*bridge.m_replaced_paintable);
             }
 
-            auto slot_of = [](Painting::Paintable const* paintable) {
-                return paintable ? paintable->rust_slot() : RustFFI::PaintableSlotId { RustFFI::INVALID_PAINTABLE_SLOT_INDEX };
-            };
             return RustFFI::FfiCommitPosition {
-                .parent_paintable = bridge.m_commit_parent_paintable.ptr(),
-                .insert_before_paintable = bridge.m_commit_insert_before_paintable.ptr(),
-                .replaced_paintable_slot = slot_of(bridge.m_replaced_paintable.ptr()),
-                .parent_paintable_slot = slot_of(bridge.m_commit_parent_paintable.ptr()),
-                .insert_before_paintable_slot = slot_of(bridge.m_commit_insert_before_paintable.ptr()),
+                .replaced_paintable_slot = bridge.m_replaced_paintable
+                    ? bridge.m_replaced_paintable->rust_slot()
+                    : RustFFI::PaintableSlotId { RustFFI::INVALID_PAINTABLE_SLOT_INDEX },
             }; },
         .finish_commit = [](void* context) {
             auto& bridge = *static_cast<LayoutRustBridge*>(context);
@@ -757,8 +746,6 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                     reused.paintable->translate_reused_subtree_absolute_geometry(new_absolute_position - reused.old_absolute_position);
             }
             bridge.m_reused_paintables.clear();
-            bridge.m_commit_insert_before_paintable = nullptr;
-            bridge.m_commit_parent_paintable = nullptr;
             bridge.m_replaced_paintable = nullptr; },
         .prepare_node = [](void* context, void* node_pointer, bool has_used_values, bool reuses_committed_subtree) -> RustFFI::FfiPreparedPaintable {
             auto& bridge = *static_cast<LayoutRustBridge*>(context);
