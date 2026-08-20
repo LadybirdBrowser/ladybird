@@ -113,6 +113,91 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     VERIFY(!observed_state.is_enabled);
     VERIFY(observed_state.text_before_cursor.is_empty());
 
+    // Editing hosts must report IME state too: The Qt UI refuses to start composition at all when ImEnabled is false —
+    // which drops input from dead keys and IMEs into contenteditable editors entirely (#11182). The state values are
+    // derived from the DOM selection; the surrounding text is the content of the Text node holding the selection focus.
+    view->load_html("<!DOCTYPE html><div contenteditable>abc</div>"sv);
+    Core::EventLoop::current().spin_until([&]() { return loads_finished >= 3; });
+
+    view->run_javascript("document.querySelector('div').focus(); getSelection().collapse(document.querySelector('div').firstChild, 2)"_string);
+
+    // Unmarking with no composition in progress leaves the page alone, but still pushes fresh IME state.
+    view->unmark_text_from_input_method();
+    Core::EventLoop::current().spin_until([&]() { return state_changes >= 4; });
+    VERIFY(observed_state.is_enabled);
+    VERIFY(observed_state.cursor_position == 2);
+    VERIFY(observed_state.anchor_position == 2);
+    VERIFY(observed_state.text_before_cursor == "ab"_utf16);
+    VERIFY(observed_state.text_after_cursor == "c"_utf16);
+
+    // Committing composes into the editing host; the pushed state reflects the mutated Text node.
+    view->commit_text_from_input_method("ü"_utf16);
+    Core::EventLoop::current().spin_until([&]() { return state_changes >= 5; });
+    VERIFY(observed_state.is_enabled);
+    VERIFY(observed_state.cursor_position == 3);
+    VERIFY(observed_state.text_before_cursor == "abü"_utf16);
+    VERIFY(observed_state.text_after_cursor == "c"_utf16);
+
+    // A range selection within one Text node reports the focus as the cursor and the anchor separately.
+    view->run_javascript("getSelection().setBaseAndExtent(document.querySelector('div').firstChild, 1, document.querySelector('div').firstChild, 3)"_string);
+    view->unmark_text_from_input_method();
+    Core::EventLoop::current().spin_until([&]() { return state_changes >= 6; });
+    VERIFY(observed_state.cursor_position == 3);
+    VERIFY(observed_state.anchor_position == 1);
+    VERIFY(observed_state.text_before_cursor == "abü"_utf16);
+    VERIFY(observed_state.text_after_cursor == "c"_utf16);
+
+    // A selection whose anchor lies in a different node is reported as collapsed at the cursor.
+    view->load_html("<!DOCTYPE html><div contenteditable><b>xy</b>zw</div>"sv);
+    Core::EventLoop::current().spin_until([&]() { return loads_finished >= 4; });
+    view->run_javascript("document.querySelector('div').focus(); getSelection().setBaseAndExtent(document.querySelector('b').firstChild, 1, document.querySelector('div').lastChild, 1)"_string);
+    view->unmark_text_from_input_method();
+    Core::EventLoop::current().spin_until([&]() { return state_changes >= 7; });
+    VERIFY(observed_state.is_enabled);
+    VERIFY(observed_state.cursor_position == 1);
+    VERIFY(observed_state.anchor_position == 1);
+    VERIFY(observed_state.text_before_cursor == "z"_utf16);
+    VERIFY(observed_state.text_after_cursor == "w"_utf16);
+
+    // An empty editing host is still IME-enabled, with no surrounding text to draw context from.
+    view->load_html("<!DOCTYPE html><div contenteditable></div>"sv);
+    Core::EventLoop::current().spin_until([&]() { return loads_finished >= 5; });
+    view->run_javascript("document.querySelector('div').focus()"_string);
+    view->unmark_text_from_input_method();
+    Core::EventLoop::current().spin_until([&]() { return state_changes >= 8; });
+    VERIFY(observed_state.is_enabled);
+    VERIFY(observed_state.cursor_position == 0);
+    VERIFY(observed_state.anchor_position == 0);
+    VERIFY(observed_state.text_before_cursor.is_empty());
+    VERIFY(observed_state.text_after_cursor.is_empty());
+
+    // Composing into it creates the Text node; the pushed state reflects it.
+    view->commit_text_from_input_method("あ"_utf16);
+    Core::EventLoop::current().spin_until([&]() { return state_changes >= 9; });
+    VERIFY(observed_state.is_enabled);
+    VERIFY(observed_state.cursor_position == 1);
+    VERIFY(observed_state.text_before_cursor == "あ"_utf16);
+
+    // designMode makes the document an editing host.
+    view->load_html("<!DOCTYPE html><p>hi</p>"sv);
+    Core::EventLoop::current().spin_until([&]() { return loads_finished >= 6; });
+    view->run_javascript("document.designMode = 'on'; getSelection().collapse(document.querySelector('p').firstChild, 2)"_string);
+    view->unmark_text_from_input_method();
+    Core::EventLoop::current().spin_until([&]() { return state_changes >= 10; });
+    VERIFY(observed_state.is_enabled);
+    VERIFY(observed_state.cursor_position == 2);
+    VERIFY(observed_state.text_before_cursor == "hi"_utf16);
+    VERIFY(observed_state.text_after_cursor.is_empty());
+
+    // A focused element that's not editable must not enable the IME.
+    view->load_html("<!DOCTYPE html><div tabindex=\"0\">plain</div>"sv);
+    Core::EventLoop::current().spin_until([&]() { return loads_finished >= 7; });
+    view->run_javascript("document.querySelector('div').focus()"_string);
+    view->unmark_text_from_input_method();
+    Core::EventLoop::current().spin_until([&]() { return state_changes >= 11; });
+    VERIFY(!observed_state.is_enabled);
+    VERIFY(observed_state.text_before_cursor.is_empty());
+
     outln("PASS: every input-method state change notified the view");
     return 0;
 }
