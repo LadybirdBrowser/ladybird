@@ -1015,16 +1015,6 @@ void Paintable::scroll_into_view(CSSPixelRect rect)
     set_scroll_offset(new_offset);
 }
 
-void Paintable::translate_reused_subtree_absolute_geometry(CSSPixelPoint delta)
-{
-    for_each_in_inclusive_subtree([&](Paintable& paintable) {
-        Layout::RustFFI::layout_arena_paintable_translate_scrollable_overflow(paintable.m_rust_arena->handle(), paintable.m_rust_slot, { delta.x().raw_value(), delta.y().raw_value() });
-        // Recorded paint commands bake absolute coordinates.
-        paintable.invalidate_paint_cache();
-        return TraversalDecision::Continue;
-    });
-}
-
 CSSPixelPoint Paintable::offset() const
 {
     return { CSSPixels::from_raw(rust_data().offset.x), CSSPixels::from_raw(rust_data().offset.y) };

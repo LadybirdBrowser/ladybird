@@ -261,29 +261,6 @@ pub unsafe extern "C" fn layout_arena_measure_scrollable_overflow(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_translate_scrollable_overflow(
-    arena: *mut c_void,
-    slot: PaintableSlotId,
-    delta: FfiCssPixelPoint,
-) {
-    abort_on_panic(|| {
-        let arena = unsafe { arena_from_handle(arena) };
-        let paintables = arena.paintables().borrow();
-        if paintables.is_live(slot) {
-            paintables.update_data(slot, |data| {
-                if data.has_overflow {
-                    data.overflow.rect.x += delta.x;
-                    data.overflow.rect.y += delta.y;
-                }
-            });
-        }
-    });
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_absolute_rect(
     arena: *mut c_void,
     slot: PaintableSlotId,
