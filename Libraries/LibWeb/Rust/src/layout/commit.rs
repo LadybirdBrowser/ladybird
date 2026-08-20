@@ -43,11 +43,7 @@ pub struct FfiCommitNodeResult {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
 pub struct FfiCommitPosition {
-    pub parent_paintable: *mut c_void,
-    pub insert_before_paintable: *mut c_void,
     pub replaced_paintable_slot: crate::painting::paintable_data::PaintableSlotId,
-    pub parent_paintable_slot: crate::painting::paintable_data::PaintableSlotId,
-    pub insert_before_paintable_slot: crate::painting::paintable_data::PaintableSlotId,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -333,27 +329,16 @@ pub(crate) fn commit_replacing(
 ) {
     let mut scopes = crate::layout::CommitScopes::for_pass(pass_fragments);
     let paintables = crate::painting::paintable_build::PaintableCommit::new(callbacks);
-    // SAFETY: The sink resolves and retains the paintable to replace from the
-    // root, detaches it, and returns borrowed insertion pointers that stay
-    // live until finish_commit().
+    // SAFETY: The sink resolves and retains the paintable to replace from the root.
     let position = unsafe { (sink.begin_commit)(sink.context, callbacks.shell(root)) };
-    let slot_position = paintables.begin_commit(
-        root,
-        crate::painting::paintable_build::FfiCommitSlotPosition {
-            replaced_paintable: position.replaced_paintable_slot,
-            parent_paintable: position.parent_paintable_slot,
-            insert_before_paintable: position.insert_before_paintable_slot,
-        },
-    );
-    debug_assert_eq!(slot_position.parent_paintable, position.parent_paintable_slot, "Rust and C++ disagree on the commit's parent paintable");
-    debug_assert_eq!(slot_position.insert_before_paintable, position.insert_before_paintable_slot, "Rust and C++ disagree on the commit's insertion point");
+    let anchors = paintables.begin_commit(root, position.replaced_paintable_slot);
     commit_subtree(
         root,
         CommitInsertion {
-            parent_paintable: position.parent_paintable,
-            insert_before_paintable: position.insert_before_paintable,
-            parent_paintable_slot: slot_position.parent_paintable,
-            insert_before_paintable_slot: slot_position.insert_before_paintable,
+            parent_paintable: paintables.shell_of(anchors.parent_paintable),
+            insert_before_paintable: paintables.shell_of(anchors.insert_before_paintable),
+            parent_paintable_slot: anchors.parent_paintable,
+            insert_before_paintable_slot: anchors.insert_before_paintable,
         },
         callbacks,
         sink,
