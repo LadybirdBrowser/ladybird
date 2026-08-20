@@ -510,18 +510,49 @@ struct LayoutRustBridge::LineCommitContext {
     Vector<Painting::InlineBoxPiece> pieces;
 };
 
+static CSSPixelPoint committed_content_offset_delta(HashMap<Painting::Paintable const*, CSSPixelPoint> const& content_offsets_before_commit, Painting::Paintable const& paintable)
+{
+    auto content_offset_before_commit = content_offsets_before_commit.get(&paintable);
+    if (!content_offset_before_commit.has_value())
+        return {};
+    return paintable.offset() - *content_offset_before_commit;
+}
+
+// The absolute movement of a reused subtree, accumulated over the same containing-block chain
+// (with the same SVG coordinate-space breaks) that Paintable::compute_absolute_rect walks.
+static CSSPixelPoint committed_absolute_position_delta(HashMap<Painting::Paintable const*, CSSPixelPoint> const& content_offsets_before_commit, Painting::Paintable const& reused_subtree_root)
+{
+    if (reused_subtree_root.is_svg_paintable()) {
+        for (auto const* ancestor = reused_subtree_root.layout_node().parent(); ancestor; ancestor = ancestor->parent()) {
+            if (ancestor->is_svg_svg_box())
+                return committed_content_offset_delta(content_offsets_before_commit, reused_subtree_root);
+        }
+    }
+
+    auto delta = committed_content_offset_delta(content_offsets_before_commit, reused_subtree_root);
+    for (auto block = reused_subtree_root.containing_block(); block; block = block->containing_block()) {
+        if (block->is_svg_svg_paintable() || block->is_svg_paintable())
+            break;
+        delta += committed_content_offset_delta(content_offsets_before_commit, *block);
+        if (block->is_svg_foreign_object_paintable())
+            break;
+    }
+    return delta;
+}
+
 RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
 {
     return {
         .context = this,
         .finish_commit = [](void* context) {
             auto& bridge = *static_cast<LayoutRustBridge*>(context);
-            for (auto& reused : bridge.m_reused_paintables) {
-                auto new_absolute_position = reused.paintable->absolute_position();
-                if (new_absolute_position != reused.old_absolute_position)
-                    reused.paintable->translate_reused_subtree_absolute_geometry(new_absolute_position - reused.old_absolute_position);
+            for (auto& reused_subtree_root : bridge.m_reused_subtree_roots) {
+                auto delta = committed_absolute_position_delta(bridge.m_content_offsets_before_commit, *reused_subtree_root);
+                if (!delta.is_zero())
+                    reused_subtree_root->translate_reused_subtree_absolute_geometry(delta);
             }
-            bridge.m_reused_paintables.clear(); },
+            bridge.m_reused_subtree_roots.clear();
+            bridge.m_content_offsets_before_commit.clear(); },
         .prepare_node = [](void* context, void* node_pointer, bool has_used_values, bool reuses_committed_subtree) -> RustFFI::FfiPreparedPaintable {
             auto& bridge = *static_cast<LayoutRustBridge*>(context);
             auto& node = *static_cast<Node*>(node_pointer);
@@ -532,9 +563,11 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                 // Inline boxes that never went through inline layout (so they have no used values) still
                 // need a paintable so DOM geometry queries have something to answer from.
                 paintable = node.paintable();
+                if (paintable)
+                    bridge.m_content_offsets_before_commit.set(paintable.ptr(), paintable->offset());
                 if (reuses_committed_subtree) {
                     VERIFY(paintable);
-                    bridge.m_reused_paintables.append({ *paintable, paintable->absolute_position() });
+                    bridge.m_reused_subtree_roots.append(*paintable);
                 } else if (paintable) {
                     paintable->reset_for_relayout();
                     reused = true;
