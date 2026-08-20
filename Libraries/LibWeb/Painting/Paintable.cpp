@@ -1378,6 +1378,8 @@ OwnPtr<Layout::FlexLayoutData> Paintable::flex_layout_data() const
 
 void Paintable::invalidate_stacking_context()
 {
+    if (!has_layout_node())
+        return;
     if (auto viewport_paintable = document().unsafe_paintable())
         viewport_paintable->invalidate_stacking_context_tree();
 }
