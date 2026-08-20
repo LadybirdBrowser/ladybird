@@ -1077,6 +1077,120 @@ pub unsafe extern "C" fn layout_arena_paintable_empty_line_caret_rect(
     })
 }
 
+fn with_inline_pieces(
+    paintables: &crate::painting::paintable_arena::PaintableArena,
+    inline_paintable: PaintableSlotId,
+    mut callback: impl FnMut(&InlineBoxPieceRecord, &PaintableData) -> bool,
+) {
+    let Some(root) = paintables.inline_pieces_root(inline_paintable) else {
+        return;
+    };
+    let data = paintables.data_ref(inline_paintable);
+    let root_side = paintables.side(root);
+    for piece_index in &paintables.side(inline_paintable).piece_indices {
+        let piece = &root_side.inline_box_pieces[*piece_index as usize];
+        if !callback(piece, &data) {
+            return;
+        }
+    }
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_inline_paintable_piece_border_box_rects(
+    arena: *mut c_void,
+    inline_paintable: PaintableSlotId,
+    context: *mut c_void,
+    push_rect: unsafe extern "C" fn(*mut c_void, FfiCssPixelRect),
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        let Some(root) = paintables.inline_pieces_root(inline_paintable) else {
+            return;
+        };
+        let root_position = crate::painting::paintable_geometry::absolute_position(&paintables, root);
+        with_inline_pieces(&paintables, inline_paintable, |piece, _| {
+            if piece.is_geometry_only_placeholder {
+                return true;
+            }
+            let rect = crate::css::css_pixels::CssPixelRect::from(piece.border_box_rect).translated_by(root_position);
+            // SAFETY: The consumer copies the plain-data rect synchronously.
+            unsafe { push_rect(context, rect.into()) };
+            true
+        });
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_inline_paintable_has_content_pieces(
+    arena: *mut c_void,
+    inline_paintable: PaintableSlotId,
+) -> bool {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        let mut has_content = false;
+        with_inline_pieces(&paintables, inline_paintable, |piece, _| {
+            if !piece.is_geometry_only_placeholder {
+                has_content = true;
+                return false;
+            }
+            true
+        });
+        has_content
+    })
+}
+
+#[repr(C)]
+pub struct FfiOptionalCssPixelPoint {
+    pub has_value: bool,
+    pub x: CssPixels,
+    pub y: CssPixels,
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_inline_paintable_first_piece_position(
+    arena: *mut c_void,
+    inline_paintable: PaintableSlotId,
+) -> FfiOptionalCssPixelPoint {
+    abort_on_panic(|| {
+        let mut result = FfiOptionalCssPixelPoint {
+            has_value: false,
+            x: CssPixels::from_raw(0),
+            y: CssPixels::from_raw(0),
+        };
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        let Some(root) = paintables.inline_pieces_root(inline_paintable) else {
+            return result;
+        };
+        let root_position = crate::painting::paintable_geometry::absolute_position(&paintables, root);
+        with_inline_pieces(&paintables, inline_paintable, |piece, data| {
+            let border_rect = crate::css::css_pixels::CssPixelRect::from(piece.border_box_rect);
+            let rect = if piece.is_geometry_only_placeholder {
+                border_rect
+            } else {
+                let padding_rect = piece.shrunken_by_present_edges(border_rect, data.border);
+                piece.shrunken_by_present_edges(padding_rect, data.padding)
+            };
+            result.has_value = true;
+            result.x = rect.x + root_position.x;
+            result.y = rect.y + root_position.y;
+            false
+        });
+        result
+    })
+}
+
 #[repr(C)]
 pub struct FfiVisualLine {
     pub start_offset: usize,

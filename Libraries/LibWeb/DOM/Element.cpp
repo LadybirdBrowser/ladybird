@@ -2571,15 +2571,23 @@ static Vector<CSSPixelRect> compute_client_rects_assuming_layout_clean(Element c
 
     Vector<CSSPixelRect> rects;
     if (auto const* inline_paintable = as_if<Painting::InlinePaintable>(element.layout_node()->paintable().ptr())) {
-        inline_paintable->for_each_piece([&](Painting::InlineBoxPiece const& piece) {
-            if (piece.is_geometry_only_placeholder)
-                return;
-            auto absolute_rect = inline_paintable->absolute_piece_border_box_rect(piece);
+        Vector<CSSPixelRect> piece_border_box_rects;
+        Layout::RustFFI::layout_arena_inline_paintable_piece_border_box_rects(
+            inline_paintable->rust_arena().handle(), inline_paintable->rust_slot(), &piece_border_box_rects,
+            [](void* context, Layout::RustFFI::FfiCssPixelRect rect) {
+                static_cast<Vector<CSSPixelRect>*>(context)->append({
+                    CSSPixels::from_raw(rect.x),
+                    CSSPixels::from_raw(rect.y),
+                    CSSPixels::from_raw(rect.width),
+                    CSSPixels::from_raw(rect.height),
+                });
+            });
+        for (auto const& absolute_rect : piece_border_box_rects) {
             if (visual_context_transform == VisualContextTransform::Identity)
                 rects.append(absolute_rect);
             else
                 rects.append(inline_paintable->transform_rect_to_viewport(absolute_rect, Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No));
-        });
+        }
         // An inline element whose content is only interrupting blocks generates no line fragments, but per CSSOM
         // we still report its (zero-sized) border area instead of an empty list.
         if (rects.is_empty())

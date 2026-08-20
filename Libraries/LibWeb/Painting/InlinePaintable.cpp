@@ -28,49 +28,21 @@ InlinePaintable::InlinePaintable(Layout::NodeWithStyle const& layout_node)
 
 InlinePaintable::~InlinePaintable() = default;
 
-void InlinePaintable::reset_for_relayout()
+BorderRadiiData InlinePaintable::piece_border_radii_data(CSSPixelSize border_box_size, u8 present_edges) const
 {
-    Paintable::reset_for_relayout();
-    m_piece_indices.clear();
-    m_local_padding_box_union = {};
-    m_local_border_box_union = {};
-}
-
-PaintableWithLines const* InlinePaintable::inline_root() const
-{
-    return as_if<PaintableWithLines>(containing_block().ptr());
-}
-
-CSSPixelRect InlinePaintable::absolute_piece_border_box_rect(InlineBoxPiece const& piece) const
-{
-    auto rect = piece.border_box_rect;
-    if (auto const* root = inline_root())
-        rect.translate_by(root->absolute_position());
-    return rect;
-}
-
-CSSPixelRect InlinePaintable::piece_padding_box_rect(InlineBoxPiece const& piece, CSSPixelRect const& border_box_rect) const
-{
-    return piece.shrunken_by_present_edges(border_box_rect, box_model().border);
-}
-
-CSSPixelRect InlinePaintable::piece_content_box_rect(InlineBoxPiece const& piece, CSSPixelRect const& border_box_rect) const
-{
-    return piece.shrunken_by_present_edges(piece_padding_box_rect(piece, border_box_rect), box_model().padding);
-}
-
-BorderRadiiData InlinePaintable::piece_border_radii_data(InlineBoxPiece const& piece) const
-{
-    using Edge = InlineBoxPiece::Edge;
     if (!layout_node().has_noninitial_border_radii())
         return {};
 
-    auto top_edge_is_cut = !piece.has_edge(Edge::Top);
-    auto bottom_edge_is_cut = !piece.has_edge(Edge::Bottom);
-    auto left_edge_is_cut = !piece.has_edge(Edge::Left);
-    auto right_edge_is_cut = !piece.has_edge(Edge::Right);
+    constexpr u8 top_edge_bit = 1 << 0;
+    constexpr u8 right_edge_bit = 1 << 1;
+    constexpr u8 bottom_edge_bit = 1 << 2;
+    constexpr u8 left_edge_bit = 1 << 3;
+    auto top_edge_is_cut = !(present_edges & top_edge_bit);
+    auto right_edge_is_cut = !(present_edges & right_edge_bit);
+    auto bottom_edge_is_cut = !(present_edges & bottom_edge_bit);
+    auto left_edge_is_cut = !(present_edges & left_edge_bit);
 
-    CSSPixelRect const border_rect { 0, 0, piece.border_box_rect.width(), piece.border_box_rect.height() };
+    CSSPixelRect const border_rect { 0, 0, border_box_size.width(), border_box_size.height() };
     auto top_left = top_edge_is_cut || left_edge_is_cut ? CSS::BorderRadiusData {} : layout_node().border_top_left_radius();
     auto top_right = top_edge_is_cut || right_edge_is_cut ? CSS::BorderRadiusData {} : layout_node().border_top_right_radius();
     auto bottom_right = bottom_edge_is_cut || right_edge_is_cut ? CSS::BorderRadiusData {} : layout_node().border_bottom_right_radius();
@@ -80,35 +52,35 @@ BorderRadiiData InlinePaintable::piece_border_radii_data(InlineBoxPiece const& p
 
 bool InlinePaintable::has_content_pieces() const
 {
-    auto const* root = inline_root();
-    if (!root)
-        return false;
-    auto const& pieces = root->inline_box_pieces();
-    for (auto piece_index : m_piece_indices) {
-        if (!pieces[piece_index].is_geometry_only_placeholder)
-            return true;
-    }
-    return false;
+    return Layout::RustFFI::layout_arena_inline_paintable_has_content_pieces(rust_arena().handle(), rust_slot());
 }
 
 CSSPixelPoint InlinePaintable::box_type_agnostic_position() const
 {
-    auto const* root = inline_root();
-    if (!root || m_piece_indices.is_empty())
+    auto result = Layout::RustFFI::layout_arena_inline_paintable_first_piece_position(rust_arena().handle(), rust_slot());
+    if (!result.has_value)
         return absolute_position();
-    auto const& piece = root->inline_box_pieces()[m_piece_indices.first()];
-    auto rect = piece.is_geometry_only_placeholder ? piece.border_box_rect : piece_content_box_rect(piece, piece.border_box_rect);
-    return rect.location().translated(root->absolute_position());
+    return { CSSPixels::from_raw(result.x), CSSPixels::from_raw(result.y) };
+}
+
+static CSSPixelRect from_ffi_css_pixel_rect(Layout::RustFFI::FfiCssPixelRect const& rect)
+{
+    return {
+        CSSPixels::from_raw(rect.x),
+        CSSPixels::from_raw(rect.y),
+        CSSPixels::from_raw(rect.width),
+        CSSPixels::from_raw(rect.height),
+    };
 }
 
 CSSPixelRect InlinePaintable::compute_absolute_padding_box_rect() const
 {
-    return m_local_padding_box_union.translated(absolute_rect().location());
+    return from_ffi_css_pixel_rect(rust_data().local_padding_box_union).translated(absolute_rect().location());
 }
 
 CSSPixelRect InlinePaintable::compute_absolute_border_box_rect() const
 {
-    return m_local_border_box_union.translated(absolute_rect().location());
+    return from_ffi_css_pixel_rect(rust_data().local_border_box_union).translated(absolute_rect().location());
 }
 
 bool InlinePaintable::has_content() const

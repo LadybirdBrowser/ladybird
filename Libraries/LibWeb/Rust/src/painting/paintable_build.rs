@@ -9,8 +9,8 @@ use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::{
-    FfiCommittedBoxMetrics, FfiCommittedFragment, FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize,
-    FfiInlineBoxPiece, FfiLayoutFcCallbacks, FfiLineRecord, FfiLineSinkCallbacks, LineData, Node, NodeFacts,
+    FfiCommittedBoxMetrics, FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, FfiLayoutFcCallbacks, LineData, Node,
+    NodeFacts,
 };
 use crate::painting::paintable_arena::PaintableArena;
 use crate::painting::paintable_data::*;
@@ -355,78 +355,6 @@ impl<'a> PaintableCommit<'a> {
             );
         }
         has_pieces
-    }
-
-    pub(crate) fn push_committed_line_data(&self, slot: PaintableSlotId, sink: FfiLineSinkCallbacks) {
-        let arena = self.arena.borrow();
-        let side = arena.side(slot);
-        let mut fragment_cursor = 0usize;
-        for (line_index, line) in side.lines.iter().enumerate() {
-            // SAFETY: Sink callbacks consume each POD record synchronously.
-            unsafe {
-                (sink.begin_line)(
-                    sink.context,
-                    FfiLineRecord {
-                        rect: line.rect,
-                        baseline: line.baseline,
-                        committed_fragment_count: line.fragment_count,
-                    },
-                );
-            }
-            for _ in 0..line.fragment_count {
-                let fragment = &side.fragments[fragment_cursor];
-                fragment_cursor += 1;
-                debug_assert_eq!(fragment.line_index as usize, line_index);
-                let glyph_run = fragment
-                    .glyph_run
-                    .as_ref()
-                    .map_or(std::ptr::null(), |run| run.retained.as_raw().cast_const());
-                // SAFETY: The retained glyph run stays live in the stored record
-                // while the sink copies the fragment synchronously.
-                unsafe {
-                    (sink.emit_fragment)(
-                        sink.context,
-                        FfiCommittedFragment {
-                            layout_node: self.callbacks.shell(fragment.layout_node),
-                            offset: fragment.offset,
-                            size: FfiCssPixelPoint {
-                                x: fragment.size.width,
-                                y: fragment.size.height,
-                            },
-                            start: fragment.start_offset,
-                            length_in_code_units: fragment.length_in_code_units,
-                            dom_start_offset_in_node: fragment.dom_start_offset_in_node,
-                            trailing_whitespace_length_in_code_units: fragment.trailing_whitespace_length_in_code_units,
-                            baseline: fragment.baseline,
-                            accumulated_vertical_shift: fragment.accumulated_vertical_shift,
-                            writing_mode: fragment.writing_mode,
-                            has_glyph_run: fragment.glyph_run.is_some(),
-                            glyph_run,
-                        },
-                    );
-                }
-            }
-        }
-        debug_assert_eq!(fragment_cursor, side.fragments.len());
-        for piece in &side.inline_box_pieces {
-            // SAFETY: The sink copies the POD piece synchronously.
-            unsafe {
-                (sink.emit_inline_box_piece)(
-                    sink.context,
-                    FfiInlineBoxPiece {
-                        node: self.callbacks.shell(piece.node),
-                        first_fragment_index: piece.first_fragment_index,
-                        fragment_count: piece.fragment_count,
-                        line_index: piece.line_index,
-                        border_box_rect: piece.border_box_rect,
-                        baseline: piece.baseline,
-                        accumulated_vertical_shift: piece.accumulated_vertical_shift,
-                        present_edges: piece.present_edges,
-                        is_geometry_only_placeholder: piece.is_geometry_only_placeholder,
-                    },
-                );
-            }
-        }
     }
 
     fn build_line_records(

@@ -1547,54 +1547,6 @@ pub(crate) struct SpaceUsedByFloats {
     pub right: CssPixels,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiLineRecord {
-    pub rect: FfiCssPixelRect,
-    pub baseline: CssPixels,
-    pub committed_fragment_count: u32,
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiCommittedFragment {
-    pub layout_node: *mut c_void,
-    pub offset: FfiCssPixelPoint,
-    pub size: FfiCssPixelPoint,
-    pub start: usize,
-    pub length_in_code_units: usize,
-    pub dom_start_offset_in_node: usize,
-    pub trailing_whitespace_length_in_code_units: usize,
-    pub baseline: CssPixels,
-    pub accumulated_vertical_shift: CssPixels,
-    pub writing_mode: u8,
-    pub has_glyph_run: bool,
-    pub glyph_run: *const c_void,
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiInlineBoxPiece {
-    pub node: *mut c_void,
-    pub first_fragment_index: u32,
-    pub fragment_count: u32,
-    pub line_index: u32,
-    pub border_box_rect: FfiCssPixelRect,
-    pub baseline: CssPixels,
-    pub accumulated_vertical_shift: CssPixels,
-    pub present_edges: u8,
-    pub is_geometry_only_placeholder: bool,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiLineSinkCallbacks {
-    pub context: *mut c_void,
-    pub begin_line: unsafe extern "C" fn(*mut c_void, FfiLineRecord),
-    pub emit_fragment: unsafe extern "C" fn(*mut c_void, FfiCommittedFragment),
-    pub emit_inline_box_piece: unsafe extern "C" fn(*mut c_void, FfiInlineBoxPiece),
-}
-
 pub(crate) fn line_physical_horizontal_extent(line: &LineBoxData) -> CssPixels {
     if line.has_block_level_box || line.writing_mode == writing_mode::HORIZONTAL_TB {
         return line.inline_length;
@@ -1658,4 +1610,3 @@ pub(crate) fn line_rect(line: &LineBoxData, content_inline_size: CssPixels) -> F
         height: bottom - top,
     }
 }
-

@@ -162,11 +162,9 @@ pub(crate) fn dump_inline_piece_fragments(
     indent: usize,
     interactive: bool,
 ) {
-    let data = paintables.data_ref(inline_paintable);
-    let root = data.containing_block;
-    if root.is_invalid() || !paintables.is_live(root) || !paintables.data_ref(root).kind.has_lines() {
+    let Some(root) = paintables.inline_pieces_root(inline_paintable) else {
         return;
-    }
+    };
     let root_side = paintables.side(root);
     for piece_index in &paintables.side(inline_paintable).piece_indices {
         let piece = &root_side.inline_box_pieces[*piece_index as usize];

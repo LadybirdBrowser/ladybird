@@ -49,9 +49,7 @@ private:
     [[nodiscard]] RustFFI::FfiLayoutFcCallbacks formatting_context_callbacks();
     [[nodiscard]] RustFFI::FfiCommitSink commit_sink();
 
-    struct LineCommitContext;
     Box const* m_commit_root { nullptr };
-    OwnPtr<LineCommitContext> m_line_commit_context;
     Vector<NonnullRefPtr<Painting::Paintable>> m_reused_subtree_roots;
     // Content offsets of the paintables surviving into this commit, captured before the
     // commit overwrites them; finish_commit derives each reused subtree's absolute movement

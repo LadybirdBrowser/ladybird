@@ -104,6 +104,14 @@ impl PaintableArena {
         }
     }
 
+    pub(crate) fn inline_pieces_root(&self, inline_paintable: PaintableSlotId) -> Option<PaintableSlotId> {
+        if !self.is_live(inline_paintable) {
+            return None;
+        }
+        let root = self.data_ref(inline_paintable).containing_block;
+        (!root.is_invalid() && self.is_live(root) && self.data_ref(root).kind.has_lines()).then_some(root)
+    }
+
     pub(crate) fn for_each_in_subtree(&self, root: PaintableSlotId, mut callback: impl FnMut(PaintableSlotId)) {
         let mut stack = vec![root];
         while let Some(current) = stack.pop() {

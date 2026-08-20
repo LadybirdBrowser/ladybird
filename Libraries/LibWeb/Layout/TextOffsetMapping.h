@@ -9,9 +9,6 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/TextNode.h>
-#include <LibWeb/Painting/Paintable.h>
-#include <LibWeb/Painting/PaintableFragment.h>
-#include <LibWeb/Painting/PaintableWithLines.h>
 
 namespace Web::Layout {
 
@@ -51,86 +48,6 @@ public:
     }
 
     TextNode const* fragment_containing(size_t dom_offset) const;
-
-    template<typename Callback>
-    TraversalDecision for_each_paintable_fragment(Callback&& callback) const
-    {
-        auto decision = TraversalDecision::Continue;
-        for_each_fragment([&](TextNode const& fragment) {
-            if (decision == TraversalDecision::Break)
-                return;
-
-            auto const* containing_block = fragment.containing_block();
-            if (!containing_block)
-                return;
-            auto const* paintable_with_lines = as_if<Painting::PaintableWithLines>(containing_block->paintable_box().ptr());
-            if (!paintable_with_lines)
-                return;
-
-            for (auto const& paintable_fragment : paintable_with_lines->fragments()) {
-                if (!paintable_fragment.has_layout_node() || &paintable_fragment.layout_node() != &fragment)
-                    continue;
-                if (callback(paintable_fragment) == TraversalDecision::Break) {
-                    decision = TraversalDecision::Break;
-                    return;
-                }
-            }
-        });
-        return decision;
-    }
-
-    template<typename Callback>
-    TraversalDecision for_each_paintable_fragment(Callback&& callback)
-    {
-        auto decision = TraversalDecision::Continue;
-        for_each_fragment([&](TextNode& fragment) {
-            if (decision == TraversalDecision::Break)
-                return;
-
-            auto* containing_block = fragment.containing_block();
-            if (!containing_block)
-                return;
-            auto* paintable_with_lines = as_if<Painting::PaintableWithLines>(containing_block->paintable_box().ptr());
-            if (!paintable_with_lines)
-                return;
-
-            for (auto& paintable_fragment : paintable_with_lines->fragments()) {
-                if (!paintable_fragment.has_layout_node() || &paintable_fragment.layout_node() != &fragment)
-                    continue;
-                if (callback(paintable_fragment) == TraversalDecision::Break) {
-                    decision = TraversalDecision::Break;
-                    return;
-                }
-            }
-        });
-        return decision;
-    }
-
-    template<typename Callback>
-    void for_each_paintable_fragment_in_dom_range(size_t dom_start, size_t dom_end, Callback&& callback) const
-    {
-        for_each_paintable_fragment([&](auto const& paintable_fragment) {
-            auto const fragment_dom_start = paintable_fragment.dom_start_offset_in_node();
-            auto const fragment_dom_end = paintable_fragment.dom_end_offset_in_node();
-            if (fragment_dom_end <= dom_start || fragment_dom_start >= dom_end)
-                return TraversalDecision::Continue;
-            callback(paintable_fragment);
-            return TraversalDecision::Continue;
-        });
-    }
-
-    template<typename Callback>
-    void for_each_paintable_fragment_in_dom_range(size_t dom_start, size_t dom_end, Callback&& callback)
-    {
-        for_each_paintable_fragment([&](auto& paintable_fragment) {
-            auto const fragment_dom_start = paintable_fragment.dom_start_offset_in_node();
-            auto const fragment_dom_end = paintable_fragment.dom_end_offset_in_node();
-            if (fragment_dom_end <= dom_start || fragment_dom_start >= dom_end)
-                return TraversalDecision::Continue;
-            callback(paintable_fragment);
-            return TraversalDecision::Continue;
-        });
-    }
 
 private:
     // TextOffsetMapping is a short-lived stack object, and the layout nodes are kept alive by the document's layout

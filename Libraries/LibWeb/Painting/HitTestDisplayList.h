@@ -21,8 +21,6 @@ struct ChromeMetrics;
 
 namespace Painting {
 
-class PaintableFragment;
-class PaintableWithLines;
 class ViewportPaintable;
 
 enum class CaretPositionMode : u8 {

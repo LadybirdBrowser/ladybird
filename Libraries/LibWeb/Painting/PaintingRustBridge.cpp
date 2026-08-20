@@ -732,10 +732,7 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
         },
         .piece_border_radii = [](void*, void* paintable_shell, i32 width_raw, i32 height_raw, u8 present_edges, i32* out) {
             auto const& inline_paintable = as<InlinePaintable>(*static_cast<Paintable const*>(paintable_shell));
-            InlineBoxPiece piece {};
-            piece.border_box_rect = { 0, 0, CSSPixels::from_raw(width_raw), CSSPixels::from_raw(height_raw) };
-            piece.present_edges = present_edges;
-            write_border_radii(inline_paintable.piece_border_radii_data(piece), out); },
+            write_border_radii(inline_paintable.piece_border_radii_data({ CSSPixels::from_raw(width_raw), CSSPixels::from_raw(height_raw) }, present_edges), out); },
         .line_break_caret_targets = [](void*, void* paintable_shell, void* sink) {
             auto const& paintable = as<PaintableWithLines>(*static_cast<Paintable const*>(paintable_shell));
             auto* dom_node = paintable.layout_node().dom_node();

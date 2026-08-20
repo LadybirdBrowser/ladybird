@@ -1071,8 +1071,6 @@ namespace Web::Painting {
 class AudioPaintable;
 class MediaPaintable;
 class Paintable;
-class Paintable;
-class PaintableFragment;
 class PaintableWithLines;
 class ScrollStateSnapshot;
 class ViewportPaintable;

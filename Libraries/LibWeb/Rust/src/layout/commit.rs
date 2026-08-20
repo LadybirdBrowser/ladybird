@@ -65,13 +65,7 @@ pub struct FfiCommitSink {
     pub finish_commit: unsafe extern "C" fn(*mut c_void),
     pub prepare_node: unsafe extern "C" fn(*mut c_void, *mut c_void, bool, bool) -> crate::painting::paintable_build::FfiPreparedPaintable,
     pub set_box_metrics: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiCommittedBoxMetrics),
-    pub begin_line_data: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
-    pub begin_line: unsafe extern "C" fn(*mut c_void, FfiLineRecord),
-    pub emit_fragment: unsafe extern "C" fn(*mut c_void, FfiCommittedFragment),
-    pub emit_inline_box_piece: unsafe extern "C" fn(*mut c_void, FfiInlineBoxPiece),
-    pub finish_line_data: unsafe extern "C" fn(*mut c_void),
     pub finish_node: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
-    pub assign_inline_box_geometry: unsafe extern "C" fn(*mut c_void, *mut c_void),
 }
 
 #[derive(Clone, Copy)]
@@ -186,24 +180,7 @@ fn commit_subtree(
         paintables.set_box_metrics(paintable_slot, &box_metrics);
 
         if !reuses_committed_subtree && let Some(line_data) = &fragment.line_data {
-            let rust_has_pending_inline_box_geometry = paintables.set_line_data(paintable_slot, line_data, fragment.content_inline_size);
-            // SAFETY: The sink keeps one line accumulator live between
-            // begin_line_data() and finish_line_data().
-            let accepts_lines = unsafe { (sink.begin_line_data)(sink.context, paintable) };
-            if accepts_lines {
-                let line_sink = FfiLineSinkCallbacks {
-                    context: sink.context,
-                    begin_line: sink.begin_line,
-                    emit_fragment: sink.emit_fragment,
-                    emit_inline_box_piece: sink.emit_inline_box_piece,
-                };
-                paintables.push_committed_line_data(paintable_slot, line_sink);
-                unsafe {
-                    (sink.finish_line_data)(sink.context);
-                }
-                has_pending_inline_box_geometry = !line_data.inline_box_pieces.is_empty();
-            }
-            debug_assert_eq!(rust_has_pending_inline_box_geometry, has_pending_inline_box_geometry, "Rust and C++ disagree on which paintables take lines");
+            has_pending_inline_box_geometry = paintables.set_line_data(paintable_slot, line_data, fragment.content_inline_size);
         }
 
         if !reuses_committed_subtree {
@@ -280,7 +257,6 @@ fn commit_subtree(
         // Inline box geometry unites this block's piece rects with the box
         // models of its descendant inline paintables, which exist only now
         // that the whole subtree has committed.
-        unsafe { (sink.assign_inline_box_geometry)(sink.context, paintable) };
         paintables.assign_inline_box_geometry(paintable_slot);
     }
 }
