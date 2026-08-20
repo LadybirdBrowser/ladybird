@@ -7,6 +7,7 @@
 
 #include <AK/InsertionSort.h>
 #include <LibGC/Heap.h>
+#include <LibGC/WeakInlines.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -85,8 +86,10 @@ void HTMLCollection::update_name_to_element_mappings_if_needed() const
 
 void HTMLCollection::update_cache_if_needed() const
 {
+    auto& document = root()->document();
+
     // Nothing to do, the DOM hasn't updated since we last built the cache.
-    if (m_cached_dom_tree_version == root()->document().dom_tree_version())
+    if (m_cached_document.ptr().ptr() == &document && m_cached_dom_tree_version == document.dom_tree_version())
         return;
 
     m_cached_elements.clear();
@@ -111,7 +114,8 @@ void HTMLCollection::update_cache_if_needed() const
         });
     }
 
-    m_cached_dom_tree_version = root()->document().dom_tree_version();
+    m_cached_document = document;
+    m_cached_dom_tree_version = document.dom_tree_version();
 }
 
 GC::RootVector<GC::Ref<Element>> HTMLCollection::collect_matching_elements() const

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const oldDocument = document.implementation.createHTMLDocument("");
+        const newDocument = document.implementation.createHTMLDocument("");
+        const root = oldDocument.createElement("div");
+        root.append(oldDocument.createElement("span"));
+        const childNodes = root.childNodes;
+
+        println(`childNodes before adoption: ${childNodes.length}`);
+        newDocument.adoptNode(root);
+        root.append(newDocument.createTextNode("text"));
+        println(`childNodes after adoption: ${childNodes.length}`);
+
+        const oldDocument2 = document.implementation.createHTMLDocument("");
+        const newDocument2 = document.implementation.createHTMLDocument("");
+        const root2 = oldDocument2.createElement("div");
+        root2.append(oldDocument2.createElement("span"));
+        const children = root2.children;
+
+        println(`children before adoption: ${children.length}`);
+        newDocument2.adoptNode(root2);
+        root2.append(newDocument2.createElement("span"));
+        println(`children after adoption: ${children.length}`);
+    });
+</script>

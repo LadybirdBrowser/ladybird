@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const root = document.createElement("div");
+        root.append("first", document.createElement("span"));
+        const childNodes = root.childNodes;
+
+        println(`${childNodes.length}: ${childNodes[0].data}, ${childNodes[1].localName}`);
+
+        const last = document.createComment("last");
+        root.append(last);
+        println(`${childNodes.length}: ${childNodes[2].data}`);
+
+        root.firstChild.remove();
+        println(`${childNodes.length}: ${childNodes[0].localName}, ${childNodes[1].data}`);
+
+        root.prepend(last);
+        println(`${childNodes.length}: ${childNodes[0].data}, ${childNodes[1].localName}`);
+
+        const input = document.createElement("input");
+        document.documentElement.append(input);
+        const namedNodes = document.getElementsByName("target");
+
+        println(`before name: ${namedNodes.length}`);
+        input.name = "target";
+        println(`with name: ${namedNodes.length}, ${namedNodes[0] === input}`);
+        input.name = "other";
+        println(`after name: ${namedNodes.length}`);
+    });
+</script>

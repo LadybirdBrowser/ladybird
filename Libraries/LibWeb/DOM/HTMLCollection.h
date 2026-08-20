@@ -9,6 +9,7 @@
 
 #include <AK/Function.h>
 #include <LibGC/Ptr.h>
+#include <LibGC/Weak.h>
 #include <LibGC/WeakContainer.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
@@ -61,6 +62,7 @@ private:
     void update_cache_if_needed() const;
     void update_name_to_element_mappings_if_needed() const;
 
+    mutable GC::Weak<Document const> m_cached_document;
     mutable u64 m_cached_dom_tree_version { 0 };
     mutable Vector<GC::RawPtr<Element>> m_cached_elements;
     mutable OwnPtr<OrderedHashMap<Utf16FlyString, GC::RawPtr<Element>>> m_cached_name_to_element_mappings;
