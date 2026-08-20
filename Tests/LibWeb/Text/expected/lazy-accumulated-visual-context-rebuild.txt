@@ -4,5 +4,7 @@ offset width: 130
 builds after layout-only reads: 0
 bounding rect width: 130
 builds after identity transform read: 0
+bounding rect with transformed child: 130
+builds after unrelated transform read: 0
 transformed rect x: 18
 builds after non-identity transform read: 1

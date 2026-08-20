@@ -2655,25 +2655,24 @@ void Document::update_paint_and_hit_testing_properties_if_needed()
         paintable->refresh_scroll_state();
 }
 
-bool Document::can_compute_client_rects_without_accumulated_visual_contexts_update() const
+bool Document::can_compute_client_rects_without_accumulated_visual_contexts_update(Layout::Node const& layout_node) const
 {
     if (!m_needs_accumulated_visual_contexts_update || !m_layout_root)
         return false;
 
-    auto decision = m_layout_root->for_each_in_inclusive_subtree([](Layout::Node const& node) {
-        if (node.is_svg_box() || node.is_svg_svg_box() || node.is_svg_foreign_object_box())
-            return TraversalDecision::Break;
+    for (auto const* node = &layout_node; node; node = node->parent()) {
+        if (node->is_svg_box() || node->is_svg_svg_box() || node->is_svg_foreign_object_box())
+            return false;
 
-        auto const* node_with_style = as_if<Layout::NodeWithStyle>(node);
+        auto const* node_with_style = as_if<Layout::NodeWithStyle>(*node);
         if (!node_with_style)
-            return TraversalDecision::Continue;
+            continue;
         if (node_with_style->has_css_transform() || node_with_style->perspective().has_value() || node_with_style->is_sticky_position())
-            return TraversalDecision::Break;
-        if (auto paintable = node.paintable(); paintable && !paintable->scroll_offset().is_zero())
-            return TraversalDecision::Break;
-        return TraversalDecision::Continue;
-    });
-    return decision != TraversalDecision::Break;
+            return false;
+        if (auto paintable = node->paintable(); paintable && !paintable->scroll_offset().is_zero())
+            return false;
+    }
+    return true;
 }
 
 void Document::set_normal_link_color(Optional<Color> color)
