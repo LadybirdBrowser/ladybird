@@ -1117,6 +1117,7 @@ public:
     void record_layout_tree_build(u64 rebuilt_subtree_root_count, bool escaped_rebuild_roots);
 
     void set_needs_accumulated_visual_contexts_update(bool);
+    bool can_compute_client_rects_without_accumulated_visual_contexts_update() const;
     void schedule_accumulated_visual_context_value_update(Element&);
     void schedule_accumulated_visual_context_value_update(Layout::Node const&);
     void schedule_scrollable_overflow_recalculation(Element&);
