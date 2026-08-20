@@ -1825,9 +1825,10 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed, Layout
 
     if (layout_tree_changed == LayoutTreeChanged::Yes) {
         // Broadcast the current viewport rect to any new paintables, so they know whether
-        // they're visible or not, and re-collect the content-visibility:auto set.
+        // they're visible or not. If necessary, re-collect the content-visibility:auto set.
         inform_all_viewport_clients_about_the_current_viewport_rect();
-        collect_paintable_boxes_with_auto_content_visibility();
+        if (m_may_have_content_visibility_auto_style)
+            collect_paintable_boxes_with_auto_content_visibility();
     }
 
     m_document->set_needs_repaint();

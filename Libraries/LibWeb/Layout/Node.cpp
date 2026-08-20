@@ -1365,6 +1365,8 @@ void NodeWithStyle::publish_style_record_to_node_data()
     auto const* payloads = document().style_computer().style_engine().style_record_payloads(m_style_record_identity);
     VERIFY(payloads);
     node_data().style = payloads;
+    if (content_visibility() == CSS::ContentVisibility::Auto)
+        document().note_content_visibility_auto_style();
 }
 
 bool NodeWithStyle::synchronize_table_span_data()

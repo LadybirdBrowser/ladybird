@@ -464,6 +464,7 @@ public:
     bool update_style_for_element(AbstractElement const&);
     bool update_style_for_element(AbstractElement const&, StyleUpdateMode);
     void update_layout(UpdateLayoutReason);
+    void note_content_visibility_auto_style() { m_may_have_content_visibility_auto_style = true; }
     enum class PartialRelayoutResult : u8 {
         NotEligible,
         Done,
@@ -1493,6 +1494,7 @@ private:
 
     RefPtr<Layout::NodeArena> m_layout_node_arena;
     RefPtr<Layout::Viewport> m_layout_root;
+    bool m_may_have_content_visibility_auto_style { false };
 
     GC::Ptr<Node> m_hovered_node;
     GC::Ptr<Node> m_inspected_node;
