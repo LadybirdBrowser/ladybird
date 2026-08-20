@@ -84,6 +84,7 @@ pub struct PaintRecorder<'a> {
     base_paint_facts_cache: Vec<Option<(PaintableSlotId, BasePaintFacts)>>,
     paintable_facts_cache: Vec<Option<(PaintableSlotId, FfiHitTestPaintableFacts)>>,
     text_node_facts_cache: HashMap<u32, FfiHitTestTextNodeFacts>,
+    font_resource_id_cache: HashMap<usize, u64>,
     pub(crate) wheel_hit_test_target_cache: HashMap<PaintableSlotId, usize>,
 }
 
@@ -127,6 +128,16 @@ impl<'a> PaintRecorder<'a> {
         facts
     }
 
+    pub(crate) fn register_font(&mut self, font: *const std::ffi::c_void) -> u64 {
+        let key = font as usize;
+        if let Some(font_id) = self.font_resource_id_cache.get(&key) {
+            return *font_id;
+        }
+        let font_id = self.paint_host.register_font(font);
+        self.font_resource_id_cache.insert(key, font_id);
+        font_id
+    }
+
     pub(crate) fn nested_recording_session(
         &self,
         recorder: DisplayListRecorder,
@@ -160,6 +171,7 @@ impl<'a> PaintRecorder<'a> {
             base_paint_facts_cache: vec![None; self.paintables.slot_count()],
             paintable_facts_cache: vec![None; self.paintables.slot_count()],
             text_node_facts_cache: HashMap::new(),
+            font_resource_id_cache: HashMap::new(),
             wheel_hit_test_target_cache: HashMap::new(),
         }
     }

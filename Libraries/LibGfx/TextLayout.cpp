@@ -663,6 +663,9 @@ static_assert(offsetof(Gfx::FFI::DrawGlyph, should_paint) == offsetof(Gfx::DrawG
 extern "C" {
 Gfx::FFI::ShapedRunView ladybird_gfx_shape_text(void const*, u16 const*, size_t, Gfx::FFI::TextType, float, float, float);
 void ladybird_gfx_glyph_run_unref(void*);
+void* ladybird_gfx_glyph_run_create(void const*, Gfx::FFI::DrawGlyph const*, size_t, Gfx::FFI::TextType, float);
+void ladybird_gfx_glyph_run_bounding_box(void const*, float, float*);
+void ladybird_gfx_glyph_run_glyph_intercepts(void const*, float, float, float, void*, void (*)(void*, float));
 }
 
 extern "C" Gfx::FFI::ShapedRunView ladybird_gfx_shape_text(
@@ -703,4 +706,49 @@ extern "C" void ladybird_gfx_glyph_run_unref(void* retained)
 {
     VERIFY(retained);
     static_cast<Gfx::GlyphRun*>(retained)->unref();
+}
+
+extern "C" void* ladybird_gfx_glyph_run_create(
+    void const* font,
+    Gfx::FFI::DrawGlyph const* glyphs,
+    size_t glyph_count,
+    Gfx::FFI::TextType text_type,
+    float width)
+{
+    VERIFY(font);
+    VERIFY(glyphs || glyph_count == 0);
+    Vector<Gfx::DrawGlyph> copied_glyphs;
+    copied_glyphs.ensure_capacity(glyph_count);
+    copied_glyphs.unchecked_append(reinterpret_cast<Gfx::DrawGlyph const*>(glyphs), glyph_count);
+    auto run = adopt_ref(*new Gfx::GlyphRun(
+        move(copied_glyphs),
+        *static_cast<Gfx::Font const*>(font),
+        static_cast<Gfx::GlyphRun::TextType>(text_type),
+        width));
+    return &run.leak_ref();
+}
+
+extern "C" void ladybird_gfx_glyph_run_bounding_box(void const* retained, float scale, float* out_rect)
+{
+    VERIFY(retained);
+    VERIFY(out_rect);
+    auto bounds = static_cast<Gfx::GlyphRun const*>(retained)->bounding_box(scale);
+    out_rect[0] = bounds.x();
+    out_rect[1] = bounds.y();
+    out_rect[2] = bounds.width();
+    out_rect[3] = bounds.height();
+}
+
+extern "C" void ladybird_gfx_glyph_run_glyph_intercepts(
+    void const* retained,
+    float scale,
+    float y_top,
+    float y_bottom,
+    void* sink,
+    void (*push)(void*, float))
+{
+    VERIFY(retained);
+    VERIFY(push);
+    for (auto value : static_cast<Gfx::GlyphRun const*>(retained)->get_glyph_intercepts(scale, y_top, y_bottom))
+        push(sink, value);
 }

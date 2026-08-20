@@ -315,8 +315,7 @@ pub struct LineRecord {
 pub struct GlyphRunRecord {
     pub glyphs: Vec<FfiDrawGlyph>,
     pub font: libgfx_rust::font::RetainedFont,
-    pub text_type: u8,
-    pub width: f32,
+    pub retained: libgfx_rust::text_layout::RetainedGlyphRun,
 }
 
 pub struct FragmentRecord {

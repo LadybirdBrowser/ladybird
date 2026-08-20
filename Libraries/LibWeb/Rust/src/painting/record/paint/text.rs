@@ -33,10 +33,10 @@ pub(crate) struct GlyphRunEmission {
 pub(crate) fn glyph_run_emission(
     fragment: &crate::painting::paintable_data::FragmentRecord,
     run: &crate::painting::paintable_data::GlyphRunRecord,
-    facts: &crate::painting::host::FfiGlyphRunFacts,
     fragment_absolute_rect: CssPixelRect,
     scale: f64,
 ) -> GlyphRunEmission {
+    let blob_bounds = run.retained.bounding_box(scale as f32);
     let baseline_start = FloatPoint {
         x: (fragment_absolute_rect.x.to_float() as f64 * scale) as f32,
         y: ((fragment_absolute_rect.y.to_float() + fragment.baseline.to_float()) as f64 * scale) as f32,
@@ -47,10 +47,10 @@ pub(crate) fn glyph_run_emission(
         Orientation::Vertical
     };
     let glyph_bounding_rect = IntRect::new(
-        (facts.blob_bounds[0] + baseline_start.x).round_ties_even() as i32,
-        (facts.blob_bounds[1] + baseline_start.y).round_ties_even() as i32,
-        facts.blob_bounds[2].round_ties_even() as i32,
-        facts.blob_bounds[3].round_ties_even() as i32,
+        (blob_bounds[0] + baseline_start.x).round_ties_even() as i32,
+        (blob_bounds[1] + baseline_start.y).round_ties_even() as i32,
+        blob_bounds[2].round_ties_even() as i32,
+        blob_bounds[3].round_ties_even() as i32,
     );
     GlyphRunEmission {
         glyphs: glyphs_of(run),
@@ -162,9 +162,7 @@ fn paint_text_shadow(
     let fragment_height = converter.enclosing_device_pixels(fragment.size.height);
     let fragment_baseline = converter.rounded_device_pixels(fragment.baseline);
     let fragment_absolute_rect = text_fragment::absolute_rect(recorder.layout_arena, recorder.paintables, fragment);
-    let facts = recorder
-        .paint_host
-        .glyph_run_facts(recorder.shell(block), span.fragment_index, scale);
+    let font_id = recorder.register_font(run.font.as_raw());
 
     // Shadow layers are ordered front-to-back, so we paint them in reverse.
     for layer in shadow_layers.iter().rev() {
@@ -195,7 +193,7 @@ fn paint_text_shadow(
                 text_rect.height,
             ),
             GlyphRunForRecording {
-                font_id: FontResourceId(facts.font_id),
+                font_id: FontResourceId(font_id),
                 glyphs: span_glyphs,
             },
             scale,
@@ -249,17 +247,15 @@ fn paint_text_fragment(
     let scale = recorder.inputs.device_pixels_per_css_pixel;
     let fragment_absolute_rect = text_fragment::absolute_rect(recorder.layout_arena, recorder.paintables, fragment);
     let fragment_device_rect = converter.enclosing_device_rect(fragment_absolute_rect);
-    let facts = recorder
-        .paint_host
-        .glyph_run_facts(recorder.shell(block), span.fragment_index, scale);
+    let font_id = recorder.register_font(run.font.as_raw());
     let GlyphRunEmission {
         glyphs,
         baseline_start,
         orientation,
         glyph_bounding_rect,
-    } = glyph_run_emission(fragment, run, &facts, fragment_absolute_rect, scale);
+    } = glyph_run_emission(fragment, run, fragment_absolute_rect, scale);
     let run_for_recording = GlyphRunForRecording {
-        font_id: FontResourceId(facts.font_id),
+        font_id: FontResourceId(font_id),
         glyphs: &glyphs,
     };
 

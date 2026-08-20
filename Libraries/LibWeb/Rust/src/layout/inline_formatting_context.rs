@@ -1563,16 +1563,13 @@ pub struct FfiCommittedFragment {
     pub size: FfiCssPixelPoint,
     pub start: usize,
     pub length_in_code_units: usize,
+    pub dom_start_offset_in_node: usize,
+    pub trailing_whitespace_length_in_code_units: usize,
     pub baseline: CssPixels,
     pub accumulated_vertical_shift: CssPixels,
     pub writing_mode: u8,
-    pub has_trailing_whitespace: bool,
     pub has_glyph_run: bool,
-    pub glyphs: *const FfiDrawGlyph,
-    pub glyph_count: usize,
-    pub glyph_font: *const c_void,
-    pub glyph_text_type: u8,
-    pub glyph_run_width: f32,
+    pub glyph_run: *const c_void,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -1662,95 +1659,3 @@ pub(crate) fn line_rect(line: &LineBoxData, content_inline_size: CssPixels) -> F
     }
 }
 
-pub(crate) fn push_line_data(
-    data: &LineData,
-    content_inline_size: CssPixels,
-    callbacks: &FfiLayoutFcCallbacks,
-    sink: FfiLineSinkCallbacks,
-) {
-    for line in &data.line_boxes {
-        let committed_fragment_count = line
-            .fragments
-            .iter()
-            .filter(|fragment| !fragment.is_fully_truncated)
-            .count() as u32;
-        // SAFETY: Sink callbacks consume each POD record synchronously.
-        unsafe {
-            (sink.begin_line)(
-                sink.context,
-                FfiLineRecord {
-                    rect: line_rect(line, content_inline_size),
-                    baseline: line.block_start + line.baseline,
-                    committed_fragment_count,
-                },
-            );
-        }
-        for fragment in &line.fragments {
-            if fragment.is_fully_truncated {
-                continue;
-            }
-            let (x, y) = fragment.offset();
-            let (x, y) = (x + fragment.relpos_delta.x, y + fragment.relpos_delta.y);
-            let (width, height) = fragment.size();
-            let (glyph_pointer, glyph_count, glyph_font, glyph_text_type, glyph_run_width) =
-                if let Some(glyph_data) = fragment.glyphs.as_ref() {
-                    (
-                        glyph_data.glyphs.as_ptr(),
-                        glyph_data.glyphs.len(),
-                        glyph_data.font,
-                        glyph_data.text_type,
-                        glyph_data.width,
-                    )
-                } else {
-                    (std::ptr::null(), 0, std::ptr::null(), 0, 0.0)
-                };
-            // SAFETY: Glyph storage stays live through this callback.
-            unsafe {
-                (sink.emit_fragment)(
-                    sink.context,
-                    FfiCommittedFragment {
-                        layout_node: callbacks.shell(fragment.layout_node),
-                        offset: FfiCssPixelPoint { x, y },
-                        size: FfiCssPixelPoint { x: width, y: height },
-                        start: fragment.start,
-                        length_in_code_units: fragment.length_in_code_units,
-                        baseline: fragment.baseline,
-                        accumulated_vertical_shift: fragment.accumulated_vertical_shift,
-                        writing_mode: fragment.writing_mode,
-                        has_trailing_whitespace: fragment.has_trailing_whitespace,
-                        has_glyph_run: fragment.glyphs.is_some(),
-                        glyphs: glyph_pointer,
-                        glyph_count,
-                        glyph_font,
-                        glyph_text_type,
-                        glyph_run_width,
-                    },
-                );
-            }
-        }
-    }
-    for piece in &data.inline_box_pieces {
-        // SAFETY: The sink copies the POD piece synchronously.
-        unsafe {
-            (sink.emit_inline_box_piece)(
-                sink.context,
-                FfiInlineBoxPiece {
-                    node: callbacks.shell(piece.node),
-                    first_fragment_index: piece.first_fragment_index,
-                    fragment_count: piece.fragment_count,
-                    line_index: piece.line_index,
-                    border_box_rect: FfiCssPixelRect {
-                        x: piece.border_box_rect.x + piece.relpos_delta.x,
-                        y: piece.border_box_rect.y + piece.relpos_delta.y,
-                        width: piece.border_box_rect.width,
-                        height: piece.border_box_rect.height,
-                    },
-                    baseline: piece.baseline + piece.relpos_delta.y,
-                    accumulated_vertical_shift: piece.accumulated_vertical_shift,
-                    present_edges: piece.present_edges,
-                    is_geometry_only_placeholder: piece.is_geometry_only_placeholder,
-                },
-            );
-        }
-    }
-}

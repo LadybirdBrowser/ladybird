@@ -310,13 +310,6 @@ pub struct FfiTextShadowLayer {
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct FfiGlyphRunFacts {
-    pub font_id: u64,
-    pub blob_bounds: [f32; 4],
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
 pub struct FfiCursorFacts {
     pub paints: bool,
     pub rect: crate::layout::FfiCssPixelRect,
@@ -397,9 +390,8 @@ pub struct FfiPaintHostCallbacks {
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiLayerImageList, u32) -> FfiImageIntrinsicFacts,
     pub root_background_source: unsafe extern "C" fn(*mut c_void) -> FfiRootBackgroundSource,
     pub text_spans: unsafe extern "C" fn(*mut c_void, *mut c_void, *const u32, usize, *mut c_void),
-    pub glyph_run_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, u32, f64) -> FfiGlyphRunFacts,
+    pub register_font: unsafe extern "C" fn(*mut c_void, *const c_void) -> u64,
     pub cursor_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiCursorFacts,
-    pub glyph_intercepts: unsafe extern "C" fn(*mut c_void, *mut c_void, u32, f64, f32, f32, *mut c_void),
     pub layer_image_prepare:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiLayerImageList, u32) -> FfiLayerImagePrepareFacts,
     pub layer_image_nested_display_list: unsafe extern "C" fn(
@@ -513,41 +505,14 @@ impl FfiPaintHostCallbacks {
         };
         sink
     }
-    pub(crate) fn glyph_run_facts(
-        &self,
-        paintable_shell: *mut c_void,
-        fragment_index: u32,
-        scale: f64,
-    ) -> FfiGlyphRunFacts {
-        // SAFETY: The C++ host answers synchronously from a live paintable shell.
-        unsafe { (self.glyph_run_facts)(self.context, paintable_shell, fragment_index, scale) }
+    pub(crate) fn register_font(&self, font: *const c_void) -> u64 {
+        // SAFETY: The C++ host registers the live font in the recording's
+        // resource table synchronously.
+        unsafe { (self.register_font)(self.context, font) }
     }
     pub(crate) fn cursor_facts(&self, paintable_shell: *mut c_void, owner_shell: *mut c_void) -> FfiCursorFacts {
         // SAFETY: The C++ host answers synchronously from live paintable shells.
         unsafe { (self.cursor_facts)(self.context, paintable_shell, owner_shell) }
-    }
-    pub(crate) fn glyph_intercepts(
-        &self,
-        paintable_shell: *mut c_void,
-        fragment_index: u32,
-        scale: f64,
-        y_top: f32,
-        y_bottom: f32,
-    ) -> Vec<f32> {
-        let mut intercepts: Vec<f32> = Vec::new();
-        // SAFETY: The C++ host pushes into the Vec through the exported function, synchronously.
-        unsafe {
-            (self.glyph_intercepts)(
-                self.context,
-                paintable_shell,
-                fragment_index,
-                scale,
-                y_top,
-                y_bottom,
-                (&raw mut intercepts).cast(),
-            );
-        };
-        intercepts
     }
     pub(crate) fn layer_image_prepare(
         &self,

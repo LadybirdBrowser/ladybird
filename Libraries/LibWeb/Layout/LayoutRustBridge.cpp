@@ -625,17 +625,8 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
             VERIFY(fragment.layout_node);
             RefPtr<Gfx::GlyphRun> glyph_run;
             if (fragment.has_glyph_run) {
-                VERIFY(fragment.glyph_font);
-                VERIFY(fragment.glyphs || fragment.glyph_count == 0);
-                Vector<Gfx::DrawGlyph> glyphs;
-                glyphs.ensure_capacity(fragment.glyph_count);
-                auto const* draw_glyphs = reinterpret_cast<Gfx::DrawGlyph const*>(fragment.glyphs);
-                glyphs.unchecked_append(draw_glyphs, fragment.glyph_count);
-                glyph_run = adopt_ref(*new Gfx::GlyphRun(
-                    move(glyphs),
-                    *static_cast<Gfx::Font const*>(fragment.glyph_font),
-                    static_cast<Gfx::GlyphRun::TextType>(fragment.glyph_text_type),
-                    fragment.glyph_run_width));
+                VERIFY(fragment.glyph_run);
+                glyph_run = static_cast<Gfx::GlyphRun*>(const_cast<void*>(fragment.glyph_run));
             }
             line_context.paintable.add_fragment({
                 .layout_node = *static_cast<Node const*>(fragment.layout_node),
@@ -650,11 +641,12 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                 .line_index = static_cast<u32>(line_context.lines.size() - 1),
                 .start_offset = fragment.start,
                 .length_in_code_units = fragment.length_in_code_units,
+                .dom_start_offset_in_node = fragment.dom_start_offset_in_node,
+                .trailing_whitespace_length_in_code_units = fragment.trailing_whitespace_length_in_code_units,
                 .glyph_run = move(glyph_run),
                 .baseline = CSSPixels::from_raw(fragment.baseline),
                 .accumulated_vertical_shift = CSSPixels::from_raw(fragment.accumulated_vertical_shift),
                 .writing_mode = static_cast<CSS::WritingMode>(fragment.writing_mode),
-                .has_trailing_whitespace = fragment.has_trailing_whitespace,
             }); },
         .emit_inline_box_piece = [](void* context, RustFFI::FfiInlineBoxPiece piece) {
             auto& line_context = *static_cast<LayoutRustBridge*>(context)->m_line_commit_context;
@@ -748,23 +740,6 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
     static_assert(to_underlying(SVG::PreserveAspectRatio::MeetOrSlice::Slice) == 1);
     static_assert(to_underlying(SVG::SVGUnits::ObjectBoundingBox) == 0);
     static_assert(to_underlying(SVG::SVGUnits::UserSpaceOnUse) == 1);
-    static_assert(to_underlying(Gfx::GlyphRun::TextType::Common) == 0);
-    static_assert(to_underlying(Gfx::GlyphRun::TextType::ContextDependent) == 1);
-    static_assert(to_underlying(Gfx::GlyphRun::TextType::EndPadding) == 2);
-    static_assert(to_underlying(Gfx::GlyphRun::TextType::Ltr) == 3);
-    static_assert(to_underlying(Gfx::GlyphRun::TextType::Rtl) == 4);
-    static_assert(sizeof(RustFFI::FfiDrawGlyph) == sizeof(Gfx::DrawGlyph));
-    static_assert(alignof(RustFFI::FfiDrawGlyph) == alignof(Gfx::DrawGlyph));
-    static_assert(IsTriviallyCopyable<RustFFI::FfiDrawGlyph>);
-    static_assert(IsTriviallyCopyable<Gfx::DrawGlyph>);
-    static_assert(sizeof(Gfx::FloatPoint) == 2 * sizeof(float));
-    static_assert(offsetof(RustFFI::FfiDrawGlyph, x) == offsetof(Gfx::DrawGlyph, position));
-    static_assert(offsetof(RustFFI::FfiDrawGlyph, y) == offsetof(Gfx::DrawGlyph, position) + sizeof(float));
-    static_assert(offsetof(RustFFI::FfiDrawGlyph, length_in_code_units) == offsetof(Gfx::DrawGlyph, length_in_code_units));
-    static_assert(offsetof(RustFFI::FfiDrawGlyph, glyph_width) == offsetof(Gfx::DrawGlyph, glyph_width));
-    static_assert(offsetof(RustFFI::FfiDrawGlyph, glyph_id) == offsetof(Gfx::DrawGlyph, glyph_id));
-    static_assert(offsetof(RustFFI::FfiDrawGlyph, should_paint) == offsetof(Gfx::DrawGlyph, should_paint));
-
     return {
         .context = this,
         .arena = m_commit_root->arena_handle(),
