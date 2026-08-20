@@ -33,6 +33,7 @@ target_sources(ladybird PRIVATE
     FindInPageWidget.cpp
     Icon.cpp
     InputMethodUtils.cpp
+    JavaScriptDialog.cpp
     LocationEdit.cpp
     Menu.cpp
     NativeWindowContainer.cpp
