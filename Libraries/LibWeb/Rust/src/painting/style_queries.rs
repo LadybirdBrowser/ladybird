@@ -468,12 +468,20 @@ pub(crate) fn is_text_decoration_propagation_boundary(arena: &LayoutNodeArena, n
     let Some(kind) = arena.node_kind_if_live(node) else {
         return false;
     };
+    // NB: Anonymous wrappers must stay transparent to propagation so an element's own decorations still reach
+    //     its text. The principal box of a pseudo-element is not a wrapper and must be checked like any other
+    //     element, and a table wrapper carries the float and position of the table it wraps, so it is the only
+    //     box where an out-of-flow table is observable.
     if has_flag(arena, node, NodeFlag::Anonymous)
         && !arena.node_is_generated_for_pseudo_element(node)
         && kind != NodeKind::TableWrapper
     {
         return false;
     }
+
+    // https://drafts.csswg.org/css-text-decor-4/#decorating-box
+    // NOTE: Note that text decorations are not propagated to any out-of-flow descendants, nor to the contents
+    //       of atomic inline-level descendants such as inline blocks and inline tables.
     if arena.node_is_out_of_flow_if_live(node) {
         return true;
     }

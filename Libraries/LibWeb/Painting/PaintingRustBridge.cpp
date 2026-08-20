@@ -632,7 +632,12 @@ void mirror_rust_clear_paint_cache_sources(ViewportPaintable& viewport_paintable
 
 void mirror_rust_invalidate_paint_cache(Paintable const& paintable)
 {
-    Layout::RustFFI::layout_arena_paintable_invalidate_paint_cache(paintable.rust_arena().handle(), paintable.rust_slot());
+    Layout::RustFFI::layout_arena_paintable_invalidate_paint_cache(paintable.rust_arena().handle(), paintable.rust_slot(), false);
+}
+
+void rust_invalidate_propagated_text_decoration_caches(Paintable const& paintable)
+{
+    Layout::RustFFI::layout_arena_paintable_invalidate_paint_cache(paintable.rust_arena().handle(), paintable.rust_slot(), true);
 }
 
 void rust_build_stacking_context_tree(ViewportPaintable& viewport_paintable)
