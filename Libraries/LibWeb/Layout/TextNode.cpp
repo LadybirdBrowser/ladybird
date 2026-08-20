@@ -521,6 +521,39 @@ size_t TextNode::rendered_text_offset_for_dom_offset(size_t dom_offset, Rendered
     return min(rendered_offset, cache.text_for_rendering.length_in_code_units());
 }
 
+void TextNode::for_each_rendered_text_code_unit_dom_range(RenderedTextCodeUnitCallback const& callback) const
+{
+    auto const& cache = ensure_text_dependent_cache();
+    auto const rendered_text_length = cache.text_for_rendering.length_in_code_units();
+
+    size_t rendered_offset = 0;
+    size_t previous_dom_end = dom_start_offset();
+    size_t previous_rendered_end = 0;
+    for (auto const& edit : cache.text_for_rendering_edits) {
+        while (rendered_offset < edit.rendered_start_offset) {
+            auto const dom_start = previous_dom_end + rendered_offset - previous_rendered_end;
+            callback(dom_start, dom_start + 1);
+            ++rendered_offset;
+        }
+
+        auto const dom_end = edit.dom_start_offset + edit.dom_length_in_code_units;
+        auto const rendered_end = edit.rendered_start_offset + edit.rendered_length_in_code_units;
+        while (rendered_offset < rendered_end) {
+            callback(edit.dom_start_offset, dom_end);
+            ++rendered_offset;
+        }
+
+        previous_dom_end = dom_end;
+        previous_rendered_end = rendered_end;
+    }
+
+    while (rendered_offset < rendered_text_length) {
+        auto const dom_start = previous_dom_end + rendered_offset - previous_rendered_end;
+        callback(dom_start, dom_start + 1);
+        ++rendered_offset;
+    }
+}
+
 TextNode::TextDependentCache const& TextNode::ensure_text_dependent_cache() const
 {
     auto key = create_text_for_rendering_cache_key();

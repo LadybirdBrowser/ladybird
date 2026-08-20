@@ -1898,7 +1898,7 @@ static void recompute_containing_blocks_in_inclusive_subtree(Layout::NodeArena& 
 void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed, LayoutCommitScope layout_commit_scope, ReadonlySpan<Layout::Box const*> boxes_needing_eager_overflow_measurement)
 {
     // NB: Called during layout update.
-    m_layout_root->invalidate_text_blocks_cache();
+    m_layout_root->invalidate_searchable_text_cache();
 
     invalidate_stacking_context_tree();
     set_needs_to_record_display_list();
@@ -8455,16 +8455,15 @@ Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensit
     if (!layout_node())
         return {};
 
-    auto const& text_blocks = layout_node()->text_blocks();
+    auto const& searchable_text = layout_node()->searchable_text();
+    auto const& text_blocks = searchable_text.find_in_page_blocks();
     if (text_blocks.is_empty())
         return {};
 
     Vector<GC::Root<Range>> matches;
     for (auto const& text_block : text_blocks) {
         size_t offset = 0;
-        size_t i = 0;
         Utf16View text_view { text_block.text };
-        auto* match_start_position = text_block.positions.data();
         while (true) {
             auto match_index = case_sensitivity == CaseSensitivity::CaseInsensitive
                 ? text_view.find_code_unit_offset_ignoring_case(query, offset)
@@ -8472,34 +8471,15 @@ Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensit
             if (!match_index.has_value())
                 break;
 
-            for (; i < text_block.positions.size() - 1 && match_index.value() > text_block.positions[i + 1].start_offset; ++i)
-                match_start_position = &text_block.positions[i + 1];
-
-            auto start_position = match_index.value() - match_start_position->start_offset + match_start_position->dom_offset_within_node;
-            auto start_dom_node = match_start_position->dom_node.ptr();
-            VERIFY(start_dom_node);
-
-            auto* match_end_position = match_start_position;
-            for (; i < text_block.positions.size() - 1 && (match_index.value() + query.length_in_code_units() > text_block.positions[i + 1].start_offset); ++i)
-                match_end_position = &text_block.positions[i + 1];
-
-            auto end_dom_node = match_end_position->dom_node.ptr();
-            VERIFY(end_dom_node);
-            auto end_position = match_index.value() + query.length_in_code_units() - match_end_position->start_offset + match_end_position->dom_offset_within_node;
-
-            if (&start_dom_node->root() != &end_dom_node->root()
-                || !start_dom_node->is_connected()
-                || !end_dom_node->is_connected()
-                || start_position > start_dom_node->length()
-                || end_position > end_dom_node->length()) {
+            auto range = searchable_text.range_from_offsets(text_block, *match_index, *match_index + query.length_in_code_units());
+            if (!range.has_value()) {
                 offset = match_index.value() + query.length_in_code_units() + 1;
                 if (offset >= text_view.length_in_code_units())
                     break;
                 continue;
             }
 
-            matches.append(Range::create(*start_dom_node, start_position, *end_dom_node, end_position));
-            match_start_position = match_end_position;
+            matches.append(*range);
             offset = match_index.value() + query.length_in_code_units() + 1;
             if (offset >= text_view.length_in_code_units())
                 break;

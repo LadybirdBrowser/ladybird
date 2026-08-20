@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <AK/Span.h>
 #include <AK/String.h>
 #include <AK/Utf16String.h>
@@ -47,6 +48,8 @@ public:
     size_t dom_offset_for_rendered_text_offset(size_t, RenderedTextBoundary) const;
     // When an offset falls inside a length-changing span, the boundary selects its rendered start or end.
     size_t rendered_text_offset_for_dom_offset(size_t, RenderedTextBoundary) const;
+    using RenderedTextCodeUnitCallback = Function<void(size_t dom_start_offset, size_t dom_end_offset)>;
+    void for_each_rendered_text_code_unit_dom_range(RenderedTextCodeUnitCallback const&) const;
 
     void invalidate_text_for_rendering();
 
