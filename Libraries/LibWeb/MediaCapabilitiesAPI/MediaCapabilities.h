@@ -23,19 +23,12 @@ using HdrMetadataType = Bindings::HdrMetadataType;
 using AudioConfiguration = Bindings::AudioConfiguration;
 using KeySystemTrackConfiguration = Bindings::KeySystemTrackConfiguration;
 using MediaCapabilitiesKeySystemConfiguration = Bindings::MediaCapabilitiesKeySystemConfiguration;
+using MediaCapabilitiesDecodingInfo = Bindings::MediaCapabilitiesDecodingInfo;
 using MediaDecodingConfiguration = Bindings::MediaDecodingConfiguration;
 using MediaDecodingType = Bindings::MediaDecodingType;
 using MediaKeysRequirement = Bindings::MediaKeysRequirement;
 using TransferFunction = Bindings::TransferFunction;
 using VideoConfiguration = Bindings::VideoConfiguration;
-
-struct MediaCapabilitiesDecodingInfo {
-    Optional<MediaDecodingConfiguration> configuration;
-    GC::Ptr<EncryptedMediaExtensions::MediaKeySystemAccess> key_system_access;
-    bool power_efficient {};
-    bool smooth {};
-    bool supported {};
-};
 
 bool is_valid_video_configuration(VideoConfiguration const&);
 

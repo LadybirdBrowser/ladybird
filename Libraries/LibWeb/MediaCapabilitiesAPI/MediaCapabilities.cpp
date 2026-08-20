@@ -6,7 +6,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/BooleanObject.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -17,20 +16,6 @@
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::MediaCapabilitiesAPI {
-
-static GC::Ref<JS::Object> media_capabilities_decoding_info_to_object(JS::Object& global_object, MediaCapabilitiesDecodingInfo const& info)
-{
-    auto& realm = global_object.shape().realm();
-    auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
-
-    // FIXME: Also include configuration in this object.
-
-    MUST(object->create_data_property("supported"_utf16_fly_string, JS::BooleanObject::create(realm, info.supported)));
-    MUST(object->create_data_property("smooth"_utf16_fly_string, JS::BooleanObject::create(realm, info.smooth)));
-    MUST(object->create_data_property("powerEfficient"_utf16_fly_string, JS::BooleanObject::create(realm, info.power_efficient)));
-
-    return object;
-}
 
 // https://w3c.github.io/media-capabilities/#queue-a-media-capabilities-task
 static void queue_a_media_capabilities_task(JS::Object& global_object, Function<void()> steps)
@@ -165,13 +150,13 @@ void MediaCapabilities::decoding_info(MediaDecodingConfiguration const& configur
         auto& realm = WebIDL::promise_realm(promise);
         HTML::TemporaryExecutionContext context(realm);
         // 1. Run the Create a MediaCapabilitiesDecodingInfo algorithm with configuration.
-        auto result = media_capabilities_decoding_info_to_object(realm.global_object(), create_a_media_capabilities_decoding_info(configuration));
+        auto result = Bindings::media_capabilities_decoding_info_to_value(realm, create_a_media_capabilities_decoding_info(configuration));
 
         // Queue a Media Capabilities task to resolve p with its result.
         queue_a_media_capabilities_task(realm.global_object(), [promise, result] {
             auto& realm = WebIDL::promise_realm(promise);
             HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-            WebIDL::resolve_promise(promise, JS::Value(result));
+            WebIDL::resolve_promise(promise, result);
         });
     }));
 }
@@ -199,7 +184,7 @@ MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_info(MediaDec
     // 4. Otherwise, run the following steps:
     else {
         // 1. Set keySystemAccess to null.
-        // FIXME: Implement this.
+        // NB: info is value-initialized above, so key_system_access is already null.
 
         // 2. If the user agent is able to decode the media represented by configuration, set supported to true.
         // 3. Otherwise, set it to false.
