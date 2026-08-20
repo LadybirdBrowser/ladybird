@@ -20,15 +20,6 @@ public:
     virtual Optional<CSSPixelRect> clip_path_geometry_bounds(Gfx::AffineTransform const& additional_transform) const;
     bool contributes_to_clip_path() const;
 
-    virtual Optional<Gfx::AffineTransform> svg_viewport_transform() const override { return m_svg_viewport_transform; }
-    virtual void set_svg_viewport_transform(Gfx::AffineTransform transform) override { m_svg_viewport_transform = transform; }
-
-    virtual void reset_for_relayout() override
-    {
-        Paintable::reset_for_relayout();
-        m_svg_viewport_transform = {};
-    }
-
 protected:
     virtual bool is_svg_paintable() const override { return true; }
 
@@ -38,9 +29,6 @@ protected:
 
 public:
     Gfx::ShouldAntiAlias should_anti_alias() const;
-
-private:
-    Optional<Gfx::AffineTransform> m_svg_viewport_transform;
 };
 
 template<>

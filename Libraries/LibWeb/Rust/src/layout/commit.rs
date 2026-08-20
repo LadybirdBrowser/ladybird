@@ -70,8 +70,6 @@ pub struct FfiCommitSink {
     pub emit_fragment: unsafe extern "C" fn(*mut c_void, FfiCommittedFragment),
     pub emit_inline_box_piece: unsafe extern "C" fn(*mut c_void, FfiInlineBoxPiece),
     pub finish_line_data: unsafe extern "C" fn(*mut c_void),
-    pub set_svg_viewport_transform: unsafe extern "C" fn(*mut c_void, *mut c_void, crate::layout::FfiAffineTransform),
-    pub set_svg_viewport_size: unsafe extern "C" fn(*mut c_void, *mut c_void, crate::layout::FfiCssPixelSize),
     pub set_computed_svg_path: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, u64),
     pub finish_node: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
     pub assign_inline_box_geometry: unsafe extern "C" fn(*mut c_void, *mut c_void),
@@ -210,13 +208,10 @@ fn commit_subtree(
         }
 
         if !reuses_committed_subtree {
-            unsafe {
             if let Some(transform) = fragment.svg_viewport_transform {
-                (sink.set_svg_viewport_transform)(sink.context, paintable, transform);
                 paintables.set_svg_viewport_transform(paintable_slot, transform);
             }
             if let Some(viewport_size) = fragment.svg_viewport_size {
-                (sink.set_svg_viewport_size)(sink.context, paintable, viewport_size);
                 paintables.set_svg_viewport_size(paintable_slot, viewport_size);
             }
             // The paintable keeps its committed path across relayout and only swaps it on an
@@ -231,9 +226,10 @@ fn commit_subtree(
                 "committed path-like fragment carries no computed SVG path"
             );
             if let Some(path) = &fragment.computed_svg_path {
-                (sink.set_computed_svg_path)(sink.context, paintable, path.as_raw(), path.identity());
+                unsafe {
+                    (sink.set_computed_svg_path)(sink.context, paintable, path.as_raw(), path.identity());
+                }
                 paintables.set_computed_svg_path(paintable_slot, path);
-            }
             }
         }
         if !reuses_committed_subtree && let Some(data) = &fragment.grid_layout_data {

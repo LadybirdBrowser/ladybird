@@ -291,8 +291,7 @@ public:
     // The viewBox/preserveAspectRatio transform a viewport-establishing box applies to its
     // content, in content-box-local user coordinates. Presence marks the paintable as
     // viewport-establishing for the accumulated visual context tree.
-    virtual Optional<Gfx::AffineTransform> svg_viewport_transform() const { return {}; }
-    virtual void set_svg_viewport_transform(Gfx::AffineTransform) { VERIFY_NOT_REACHED(); }
+    Optional<Gfx::AffineTransform> svg_viewport_transform() const;
 
     bool should_paint_cursor() const;
 
