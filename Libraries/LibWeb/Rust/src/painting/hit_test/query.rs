@@ -97,13 +97,13 @@ impl HitTestList {
     }
 
     fn find_topmost(
-        &mut self,
+        &self,
         paintables: &PaintableArena,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
         with_caret_item: bool,
     ) -> (Option<TopmostItem>, Option<TopmostItem>) {
-        self.build_derived_structures_if_needed();
+        debug_assert!(self.derived_structures_built);
         let mut topmost_hit: Option<TopmostItem> = None;
         let mut topmost_caret: Option<TopmostItem> = None;
         let mut topmost_hit_index: Option<usize> = None;
@@ -210,7 +210,7 @@ impl HitTestList {
     }
 
     pub fn find_topmost_item(
-        &mut self,
+        &self,
         paintables: &PaintableArena,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
@@ -223,7 +223,7 @@ impl HitTestList {
     }
 
     pub fn find_topmost_items_for_caret(
-        &mut self,
+        &self,
         paintables: &PaintableArena,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
@@ -233,12 +233,12 @@ impl HitTestList {
     }
 
     pub fn hit_test_all(
-        &mut self,
+        &self,
         paintables: &PaintableArena,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
     ) -> Vec<usize> {
-        self.build_derived_structures_if_needed();
+        debug_assert!(self.derived_structures_built);
         let mut hit_item_indices: Vec<usize> = Vec::new();
         for context_position in 0..self.used_visual_context_indices.len() {
             let visual_context_index = self.used_visual_context_indices[context_position];

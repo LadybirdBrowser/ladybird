@@ -135,7 +135,6 @@ private:
 
     [[nodiscard]] Optional<CSSPixelPoint> local_point_for_visual_context(VisualContextIndex, CSSPixelPoint, ViewportPaintable const&, double device_pixels_per_css_pixel) const;
     [[nodiscard]] CSSPixelRect viewport_rect_for_context(VisualContextIndex, CSSPixelRect const&, ViewportPaintable const&, double device_pixels_per_css_pixel) const;
-    [[nodiscard]] PaintableFragment const* text_fragment_for_item(Item const&) const;
     [[nodiscard]] RefPtr<ChromeWidget> chrome_widget_for_item(Item const&) const;
     [[nodiscard]] DOM::Node const* item_dom_node(Item const&) const;
     [[nodiscard]] DOM::Node const* event_dispatch_dom_node_for_item(Item const&) const;

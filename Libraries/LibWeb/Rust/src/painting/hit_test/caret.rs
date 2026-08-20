@@ -141,11 +141,11 @@ impl HitTestList {
         &self.items[self.caret_item_indices[line.first_caret_item_index]]
     }
 
-    pub fn item_at_line_edge(&mut self, line_index: usize, position_type: CaretPositionType) -> usize {
+    pub fn item_at_line_edge(&self, line_index: usize, position_type: CaretPositionType) -> usize {
         // INTEROP: Home and End operate on visual lines in other engines. Choose the furthest caret-capable painted
         // item along the logical inline axis instead of assuming that display-list order or DOM order describes that
         // edge.
-        self.build_derived_structures_if_needed();
+        debug_assert!(self.derived_structures_built);
         let line = self.caret_lines[line_index].clone();
         let first_item = self.first_item_of_line(&line);
         let writing_mode = first_item.writing_mode;
@@ -212,12 +212,12 @@ impl HitTestList {
     }
 
     pub fn caret_item_for_line(
-        &mut self,
+        &self,
         line_index: usize,
         local_point: CssPixelPoint,
         mode: CaretPositionMode,
     ) -> Option<(usize, CaretPositionType)> {
-        self.build_derived_structures_if_needed();
+        debug_assert!(self.derived_structures_built);
         let line = self.caret_lines[line_index].clone();
         let first_item = self.first_item_of_line(&line);
         let writing_mode = first_item.writing_mode;
@@ -300,15 +300,15 @@ impl HitTestList {
         closest_item_index.map(|index| (index, CaretPositionType::Closest))
     }
 
-    pub fn line_block_coordinate(&mut self, line_index: usize) -> CssPixels {
-        self.build_derived_structures_if_needed();
+    pub fn line_block_coordinate(&self, line_index: usize) -> CssPixels {
+        debug_assert!(self.derived_structures_built);
         let line = &self.caret_lines[line_index];
         let writing_mode = self.first_item_of_line(line).writing_mode;
         line_block_middle(line.rect, writing_mode)
     }
 
-    pub fn item_is_inline_adjacent_to_line(&mut self, item_index: usize, line_index: usize) -> bool {
-        self.build_derived_structures_if_needed();
+    pub fn item_is_inline_adjacent_to_line(&self, item_index: usize, line_index: usize) -> bool {
+        debug_assert!(self.derived_structures_built);
         let item = &self.items[item_index];
         let line = &self.caret_lines[line_index];
         if item.visual_context_index != line.visual_context_index || item.rect.is_empty() {
@@ -323,14 +323,14 @@ impl HitTestList {
     }
 
     pub fn find_closest_line(
-        &mut self,
+        &self,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
         mode: CaretPositionMode,
         scoped: bool,
         respect_clip: bool,
     ) -> ClosestLine {
-        self.build_derived_structures_if_needed();
+        debug_assert!(self.derived_structures_built);
         let mut closest_line = ClosestLine::default();
         let mut closest_line_after_point = ClosestLine::default();
         let mut closest_line_before_point = ClosestLine::default();
@@ -475,7 +475,7 @@ impl HitTestList {
     }
 
     pub fn adjacent_line(
-        &mut self,
+        &self,
         callbacks: &FfiHitTestQueryCallbacks,
         current_line_index: usize,
         direction: CaretLineDirection,
@@ -487,7 +487,7 @@ impl HitTestList {
 
         // Keep these coordinates fractional. Rounding line geometry before comparison can reorder candidates when
         // layout positions or device scaling produce subpixel line centers.
-        self.build_derived_structures_if_needed();
+        debug_assert!(self.derived_structures_built);
         let current_line = self.caret_lines[current_line_index].clone();
         let current_first_item = self.first_item_of_line(&current_line);
         let writing_mode = current_first_item.writing_mode;

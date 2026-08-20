@@ -151,6 +151,14 @@ pub(crate) struct TextContent {
     pub(crate) untransformed_text_is_ascii_whitespace: bool,
     pub(crate) may_require_bidi_processing: bool,
     pub(crate) dom_start_offset: usize,
+    grapheme_segmenter: std::cell::OnceCell<crate::layout::GraphemeSegmenter>,
+}
+
+impl TextContent {
+    pub(crate) fn grapheme_segmenter(&self) -> &crate::layout::GraphemeSegmenter {
+        self.grapheme_segmenter
+            .get_or_init(|| crate::layout::GraphemeSegmenter::new(&self.text))
+    }
 }
 
 #[derive(Default)]
@@ -1122,6 +1130,7 @@ impl LayoutNodeArena {
                 untransformed_text_is_ascii_whitespace,
                 may_require_bidi_processing,
                 dom_start_offset,
+                grapheme_segmenter: std::cell::OnceCell::new(),
             })),
         };
         if let Some(slot) = self.text_chunk_caches.get_mut().get_mut(index) {
