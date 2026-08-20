@@ -173,24 +173,6 @@ pub unsafe extern "C" fn layout_arena_paintable_set_fragment_selection_state(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_set_scroll_offset(
-    arena: *mut c_void,
-    slot: PaintableSlotId,
-    offset: FfiCssPixelPoint,
-) {
-    abort_on_panic(|| {
-        let arena = unsafe { arena_from_handle(arena) };
-        let paintables = arena.paintables().borrow();
-        if paintables.is_live(slot) {
-            paintables.update_data(slot, |data| data.scroll_offset = offset);
-        }
-    });
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_set_sticky_insets(
     arena: *mut c_void,
     slot: PaintableSlotId,

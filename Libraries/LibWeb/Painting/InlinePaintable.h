@@ -68,7 +68,6 @@ public:
 
     bool has_content() const;
 
-    virtual bool foreground_paints_descendant_content() const override { return true; }
     virtual void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes) override;
 
 private:
