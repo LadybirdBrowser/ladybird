@@ -227,16 +227,7 @@ pub struct FfiHitTestItemExport {
     pub caret_offset: usize,
     pub rect: crate::layout::FfiCssPixelRect,
     pub caret_rect: crate::layout::FfiCssPixelRect,
-    pub has_caret_line_index: bool,
-    pub caret_line_index: usize,
-    pub has_caret_line_rect: bool,
-    pub caret_line_rect: crate::layout::FfiCssPixelRect,
-    pub has_block_container_margin_rect: bool,
-    pub block_container_margin_rect: crate::layout::FfiCssPixelRect,
     pub visual_context_index: usize,
-    pub border_radii: [i32; 8],
-    pub path: *const c_void,
-    pub winding_rule: i32,
 }
 
 #[derive(Clone, Copy, Debug, Default)]

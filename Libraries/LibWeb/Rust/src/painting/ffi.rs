@@ -1146,48 +1146,46 @@ pub unsafe extern "C" fn layout_arena_hit_test_item_count(arena: *mut c_void) ->
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`; `index` in range. The returned
-/// path pointer borrows the item's path and is only valid until the next recording.
+/// `arena` must be a live handle from `layout_arena_create`; `output` must point to writable
+/// storage for exactly `output_length` items, matching the current hit-test item count.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_hit_test_item(
+pub unsafe extern "C" fn layout_arena_export_hit_test_items(
     arena: *mut c_void,
-    index: usize,
-) -> crate::painting::host::FfiHitTestItemExport {
+    output: *mut crate::painting::host::FfiHitTestItemExport,
+    output_length: usize,
+) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        let item = &paintables.hit_test_list.as_ref().expect("no hit-test list").items[index];
-        let rect = |rect: crate::css::css_pixels::CssPixelRect| crate::layout::FfiCssPixelRect::from(rect);
-        let paintable_shell = if paintables.is_live(item.paintable) {
-            paintables.data_ref(item.paintable).shell
-        } else {
-            std::ptr::null_mut()
-        };
-        crate::painting::host::FfiHitTestItemExport {
-            kind: item.kind as u8,
-            paintable_shell,
-            chrome_widget_kind: item.chrome_widget_kind,
-            has_text_fragment_index: item.text_fragment_index.is_some(),
-            text_fragment_index: item.text_fragment_index.unwrap_or(0),
-            caret_node_shell: arena.shell_if_live(item.caret_node),
-            caret_offset: item.caret_offset,
-            rect: rect(item.rect),
-            caret_rect: rect(item.caret_rect),
-            has_caret_line_index: item.caret_line_index.is_some(),
-            caret_line_index: item.caret_line_index.unwrap_or(0),
-            has_caret_line_rect: item.caret_line_rect.is_some(),
-            caret_line_rect: rect(item.caret_line_rect.unwrap_or_default()),
-            has_block_container_margin_rect: item.block_container_margin_rect.is_some(),
-            block_container_margin_rect: rect(item.block_container_margin_rect.unwrap_or_default()),
-            visual_context_index: item.visual_context_index,
-            border_radii: item.border_radii.values.map(|value| value.raw_value()),
-            path: item
-                .path
-                .as_ref()
-                .map_or(std::ptr::null(), |path| path.as_raw().cast_const()),
-            winding_rule: item.winding_rule,
+        let items = &paintables.hit_test_list.as_ref().expect("no hit-test list").items;
+        assert_eq!(items.len(), output_length);
+        if items.is_empty() {
+            return;
         }
-    })
+        assert!(!output.is_null());
+        // SAFETY: The caller provides writable storage for exactly `output_length` exports.
+        let output = unsafe { std::slice::from_raw_parts_mut(output, output_length) };
+        for (output, item) in output.iter_mut().zip(items.iter()) {
+            let rect = |rect: crate::css::css_pixels::CssPixelRect| crate::layout::FfiCssPixelRect::from(rect);
+            assert!(
+                paintables.is_live(item.paintable),
+                "exporting a hit-test item for a non-live paintable"
+            );
+            let paintable_shell = paintables.data_ref(item.paintable).shell;
+            *output = crate::painting::host::FfiHitTestItemExport {
+                kind: item.kind as u8,
+                paintable_shell,
+                chrome_widget_kind: item.chrome_widget_kind,
+                has_text_fragment_index: item.text_fragment_index.is_some(),
+                text_fragment_index: item.text_fragment_index.unwrap_or(0),
+                caret_node_shell: arena.shell_if_live(item.caret_node),
+                caret_offset: item.caret_offset,
+                rect: rect(item.rect),
+                caret_rect: rect(item.caret_rect),
+                visual_context_index: item.visual_context_index,
+            };
+        }
+    });
 }
 
 /// # Safety
