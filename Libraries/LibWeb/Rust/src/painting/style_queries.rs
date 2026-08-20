@@ -370,7 +370,7 @@ fn used_transform_style_is_preserve_3d(arena: &LayoutNodeArena, node: NodeSlotId
 }
 
 pub(crate) fn establishes_or_extends_a_3d_rendering_context(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
-    is_transformable(arena, node) && used_transform_style_is_preserve_3d(arena, node)
+    used_transform_style_is_preserve_3d(arena, node) && is_transformable(arena, node)
 }
 
 fn participates_in_a_3d_rendering_context(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {

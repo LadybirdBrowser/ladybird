@@ -217,24 +217,13 @@ struct Builder<'a> {
     scroll_state: ScrollState,
     paintables_with_mask_nodes: Vec<PaintableSlotId>,
     pixel_ratio: f64,
-    facts_cache: std::collections::HashMap<PaintableSlotId, std::rc::Rc<BoxFacts>>,
     root_background_source: crate::painting::host::FfiRootBackgroundSource,
 }
 
 impl Builder<'_> {
-    fn facts(&mut self, slot: PaintableSlotId) -> std::rc::Rc<BoxFacts> {
-        if let Some(facts) = self.facts_cache.get(&slot) {
-            return facts.clone();
-        }
-        let facts = std::rc::Rc::new(BoxFacts::gather(
-            self.layout_arena,
-            self.paintables,
-            self.callbacks,
-            slot,
-            self.pixel_ratio,
-        ));
-        self.facts_cache.insert(slot, facts.clone());
-        facts
+    fn default_scroll_shift_anchor(&self, slot: PaintableSlotId) -> NodeSlotId {
+        self.callbacks
+            .default_scroll_shift_anchor(self.paintables.data_ref(slot).shell)
     }
 
     fn register_scroll_node(&mut self, node_index: usize, paintable: PaintableSlotId, parent_index: usize) {
@@ -277,7 +266,13 @@ impl Builder<'_> {
         may_be_root_element: bool,
     ) -> DescendantVisualContexts {
         let first_visual_context_node_index = self.tree.nodes.len();
-        let facts = self.facts(slot);
+        let facts = BoxFacts::gather(
+            self.layout_arena,
+            self.paintables,
+            self.callbacks,
+            slot,
+            self.pixel_ratio,
+        );
         let (is_fixed, is_absolute, is_sticky, has_sticky_insets, layout_node) = {
             let data = self.paintables.data_ref(slot);
             (
@@ -343,9 +338,8 @@ impl Builder<'_> {
             let mut compensate_vertical_scroll = true;
             let mut visited: Vec<NodeSlotId> = Vec::new();
             const MAX_ANCHOR_CHAIN_DEPTH: usize = 32;
-            let mut box_facts = std::rc::Rc::clone(&facts);
+            let mut anchor_node = facts.default_scroll_shift_anchor;
             while !box_node.is_invalid() && !visited.contains(&box_node) && visited.len() < MAX_ANCHOR_CHAIN_DEPTH {
-                let anchor_node = box_facts.default_scroll_shift_anchor;
                 if anchor_node.is_invalid() {
                     break;
                 }
@@ -398,7 +392,7 @@ impl Builder<'_> {
                     s = self.scroll_state.state_at_slot(s).parent_slot;
                 }
                 box_node = anchor_node;
-                box_facts = self.facts(anchor_paintable);
+                anchor_node = self.default_scroll_shift_anchor(anchor_paintable);
             }
         }
 
@@ -665,8 +659,8 @@ impl Builder<'_> {
         }
     }
 
-    fn has_default_scroll_shift_anchor(&mut self, slot: PaintableSlotId) -> bool {
-        !self.facts(slot).default_scroll_shift_anchor.is_invalid()
+    fn has_default_scroll_shift_anchor(&self, slot: PaintableSlotId) -> bool {
+        !self.default_scroll_shift_anchor(slot).is_invalid()
     }
 }
 
@@ -692,7 +686,6 @@ pub(crate) fn build_visual_context_tree(
         scroll_state: ScrollState::default(),
         paintables_with_mask_nodes: Vec::new(),
         pixel_ratio: inputs.device_pixels_per_css_pixel,
-        facts_cache: std::collections::HashMap::new(),
         root_background_source: callbacks.root_background_source(),
     };
 
@@ -781,8 +774,8 @@ pub(crate) fn build_visual_context_tree(
     );
 
     let anchor_is_awaiting_build =
-        |builder: &mut Builder<'_>, slot: PaintableSlotId, awaiting: &HashSet<PaintableSlotId>| {
-            let anchor_node = builder.facts(slot).default_scroll_shift_anchor;
+        |builder: &Builder<'_>, slot: PaintableSlotId, awaiting: &HashSet<PaintableSlotId>| {
+            let anchor_node = builder.default_scroll_shift_anchor(slot);
             let mut paintable = builder.paintables.paintable_of_node(anchor_node);
             while !paintable.is_invalid() {
                 if awaiting.contains(&paintable) {
