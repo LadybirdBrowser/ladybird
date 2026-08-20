@@ -152,6 +152,96 @@ pub(crate) struct OwnedToken {
     pub source: Vec<u8>,
 }
 
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum ParserTokenKind {
+    Ident(Box<[u16]>),
+    Function(Box<[u16]>),
+    Hash {
+        value: Box<[u16]>,
+        is_id: bool,
+    },
+    String(Box<[u16]>),
+    BadString,
+    Delim(u32),
+    Number {
+        value: f64,
+        number_type: CssNumberType,
+    },
+    Percentage,
+    Dimension {
+        value: f64,
+        number_type: CssNumberType,
+        unit: Box<[u16]>,
+    },
+    Whitespace,
+    Colon,
+    Comma,
+    OpenSquare,
+    CloseSquare,
+    OpenParen,
+    CloseParen,
+    OpenCurly,
+    CloseCurly,
+    Other,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct ParserToken {
+    pub kind: ParserTokenKind,
+    pub source: Box<[u16]>,
+}
+
+#[allow(dead_code)]
+pub(crate) fn tokenize_for_parser(input: &[u8]) -> Vec<ParserToken> {
+    let mut tokens = Vec::new();
+    tokenize(input, |token, filtered_input| {
+        if matches!(token.token_type, TokenType::EndOfFile) {
+            return;
+        }
+        let string = |value: &str| value.encode_utf16().collect::<Vec<_>>().into_boxed_slice();
+        let kind = match &token.token_type {
+            TokenType::Ident { value } => ParserTokenKind::Ident(string(value)),
+            TokenType::Function { name } => ParserTokenKind::Function(string(name)),
+            TokenType::Hash { hash_type, value } => ParserTokenKind::Hash {
+                value: string(value),
+                is_id: *hash_type == CssHashType::Id,
+            },
+            TokenType::String { value } => ParserTokenKind::String(string(value)),
+            TokenType::BadString => ParserTokenKind::BadString,
+            TokenType::Delim { value } => ParserTokenKind::Delim(*value),
+            TokenType::Number { number } => ParserTokenKind::Number {
+                value: number.value,
+                number_type: number.number_type,
+            },
+            TokenType::Percentage { .. } => ParserTokenKind::Percentage,
+            TokenType::Dimension { number, unit } => ParserTokenKind::Dimension {
+                value: number.value,
+                number_type: number.number_type,
+                unit: string(unit),
+            },
+            TokenType::Whitespace => ParserTokenKind::Whitespace,
+            TokenType::Colon => ParserTokenKind::Colon,
+            TokenType::Comma => ParserTokenKind::Comma,
+            TokenType::OpenSquare => ParserTokenKind::OpenSquare,
+            TokenType::OpenParen => ParserTokenKind::OpenParen,
+            TokenType::CloseParen => ParserTokenKind::CloseParen,
+            TokenType::OpenCurly => ParserTokenKind::OpenCurly,
+            TokenType::CloseCurly => ParserTokenKind::CloseCurly,
+            _ => ParserTokenKind::Other,
+        };
+        let source = filtered_input.as_bytes()[token.original_source_range.clone()].to_vec();
+        let source = String::from_utf8(source)
+            .expect("token source must be UTF-8")
+            .encode_utf16()
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+        tokens.push(ParserToken { kind, source });
+    });
+    tokens
+}
+
 pub(crate) fn tokenize_owned(input: &[u8]) -> Vec<OwnedToken> {
     let mut tokens = Vec::new();
     tokenize(input, |token, filtered_input| {

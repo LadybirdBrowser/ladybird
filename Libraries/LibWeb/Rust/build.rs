@@ -582,6 +582,130 @@ fn generate_selector_pseudo_types(manifest_dir: &Path, out_dir: &Path) -> Result
     write_enum_and_from_ffi(&mut output, "PseudoClassType", &pseudo_class_names);
     write_enum_and_from_ffi(&mut output, "PseudoElementType", &pseudo_element_names);
 
+    writeln!(output, "#[allow(dead_code)]")?;
+    writeln!(output, "impl PseudoClassType {{")?;
+    writeln!(output, "    pub(crate) fn from_name(name: &[u16]) -> Option<Self> {{")?;
+    for (name, value) in &pseudo_classes {
+        let target = value
+            .get("legacy-alias-for")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or(name);
+        writeln!(
+            output,
+            "        if equals_ascii_case_insensitive(name, b\"{name}\") {{ return Some(Self::{}); }}",
+            title_casify(target)
+        )?;
+    }
+    writeln!(output, "        None")?;
+    writeln!(output, "    }}")?;
+    writeln!(output, "    #[allow(dead_code)]")?;
+    writeln!(output, "    pub(crate) fn name(self) -> &'static str {{")?;
+    writeln!(output, "        match self {{")?;
+    for (name, value) in &pseudo_classes {
+        if value.as_object().unwrap().contains_key("legacy-alias-for") {
+            continue;
+        }
+        writeln!(output, "            Self::{} => \"{name}\",", title_casify(name))?;
+    }
+    writeln!(output, "        }}")?;
+    writeln!(output, "    }}")?;
+    writeln!(output, "    pub(crate) fn metadata(self) -> PseudoClassMetadata {{")?;
+    writeln!(output, "        match self {{")?;
+    for (name, value) in &pseudo_classes {
+        let object = value.as_object().unwrap();
+        if object.contains_key("legacy-alias-for") {
+            continue;
+        }
+        let mut argument = object["argument"].as_str().unwrap();
+        let mut is_valid_as_identifier = argument.is_empty();
+        let is_valid_as_function = !argument.is_empty();
+        if argument.ends_with('?') {
+            is_valid_as_identifier = true;
+            argument = &argument[..argument.len() - 1];
+        }
+        let parameter_type = match argument {
+            "" => "None",
+            "<an+b>" => "AnPlusB",
+            "<an+b-of>" => "AnPlusBOf",
+            "<compound-selector>" => "CompoundSelector",
+            "<forgiving-selector-list>" => "ForgivingSelectorList",
+            "<forgiving-relative-selector-list>" => "ForgivingRelativeSelectorList",
+            "<ident>" => "Ident",
+            "<language-ranges>" => "LanguageRanges",
+            "<level>#" => "LevelList",
+            "<relative-selector-list>" => "RelativeSelectorList",
+            "<selector-list>" => "SelectorList",
+            _ => return Err(format!("unsupported pseudo-class parameter type {argument}").into()),
+        };
+        writeln!(
+            output,
+            "            Self::{} => PseudoClassMetadata {{ parameter_type: PseudoClassParameterType::{parameter_type}, is_valid_as_function: {is_valid_as_function}, is_valid_as_identifier: {is_valid_as_identifier} }},",
+            title_casify(name)
+        )?;
+    }
+    writeln!(output, "        }}")?;
+    writeln!(output, "    }}")?;
+    writeln!(output, "}}")?;
+
+    writeln!(output, "#[allow(dead_code)]")?;
+    writeln!(output, "impl PseudoElementType {{")?;
+    writeln!(
+        output,
+        "    pub(crate) fn from_name(name: &[u16]) -> Option<(Self, Option<&'static str>)> {{"
+    )?;
+    for (name, value) in &pseudo_elements {
+        let object = value.as_object().unwrap();
+        let (target, serialized_alias) = match object.get("alias-for").and_then(serde_json::Value::as_str) {
+            Some(target) => (target, format!("Some(\"{name}\")")),
+            None => (name.as_str(), "None".to_string()),
+        };
+        writeln!(
+            output,
+            "        if equals_ascii_case_insensitive(name, b\"{name}\") {{ return Some((Self::{}, {serialized_alias})); }}",
+            title_casify(target)
+        )?;
+    }
+    writeln!(output, "        None")?;
+    writeln!(output, "    }}")?;
+    writeln!(output, "    #[allow(dead_code)]")?;
+    writeln!(output, "    pub(crate) fn name(self) -> &'static str {{")?;
+    writeln!(output, "        match self {{")?;
+    for (name, value) in &pseudo_elements {
+        if value.as_object().unwrap().contains_key("alias-for") {
+            continue;
+        }
+        writeln!(output, "            Self::{} => \"{name}\",", title_casify(name))?;
+    }
+    writeln!(output, "            Self::UnknownWebKit => unreachable!(),")?;
+    writeln!(output, "        }}")?;
+    writeln!(output, "    }}")?;
+    writeln!(output, "    pub(crate) fn metadata(self) -> PseudoElementMetadata {{")?;
+    writeln!(output, "        match self {{")?;
+    for (name, value) in &pseudo_elements {
+        let object = value.as_object().unwrap();
+        if object.contains_key("alias-for") {
+            continue;
+        }
+        let is_valid_as_function = object.get("type").and_then(serde_json::Value::as_str) == Some("function");
+        let is_valid_as_identifier = !is_valid_as_function;
+        let parameter_type = match object.get("function-syntax").and_then(serde_json::Value::as_str) {
+            None => "None",
+            Some("<compound-selector>") => "CompoundSelector",
+            Some("<ident>+") => "IdentList",
+            Some("<pt-name-selector>") => "PTNameSelector",
+            Some(argument) => return Err(format!("unsupported pseudo-element parameter type {argument}").into()),
+        };
+        writeln!(
+            output,
+            "            Self::{} => PseudoElementMetadata {{ parameter_type: PseudoElementParameterType::{parameter_type}, is_valid_as_function: {is_valid_as_function}, is_valid_as_identifier: {is_valid_as_identifier} }},",
+            title_casify(name)
+        )?;
+    }
+    writeln!(output, "            Self::UnknownWebKit => unreachable!(),")?;
+    writeln!(output, "        }}")?;
+    writeln!(output, "    }}")?;
+    writeln!(output, "}}")?;
+
     std::fs::write(out_dir.join("selector_pseudo_generated.rs"), output)?;
 
     let mut state_facts = String::from(
