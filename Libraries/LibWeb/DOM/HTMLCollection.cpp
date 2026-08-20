@@ -19,17 +19,18 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(HTMLCollection);
 
-GC::Ref<HTMLCollection> HTMLCollection::create(ParentNode& root, Scope scope, Function<bool(Element const&)> filter, Function<bool(Element const&, Element const&)> sort)
+GC::Ref<HTMLCollection> HTMLCollection::create(ParentNode& root, Scope scope, Function<bool(Element const&)> filter, Function<bool(Element const&, Element const&)> sort, Kind kind)
 {
-    return GC::Heap::the().allocate<HTMLCollection>(root, scope, move(filter), move(sort));
+    return GC::Heap::the().allocate<HTMLCollection>(root, scope, move(filter), move(sort), kind);
 }
 
-HTMLCollection::HTMLCollection(ParentNode& root, Scope scope, Function<bool(Element const&)> filter, Function<bool(Element const&, Element const&)> sort)
+HTMLCollection::HTMLCollection(ParentNode& root, Scope scope, Function<bool(Element const&)> filter, Function<bool(Element const&, Element const&)> sort, Kind kind)
     : GC::WeakContainer(heap())
     , m_root(root)
     , m_filter(move(filter))
     , m_sort(move(sort))
     , m_scope(scope)
+    , m_kind(kind)
 {
 }
 
@@ -87,10 +88,14 @@ void HTMLCollection::update_name_to_element_mappings_if_needed() const
 void HTMLCollection::update_cache_if_needed() const
 {
     auto& document = root()->document();
+    auto invalidation_version = this->invalidation_version(document);
 
     // Nothing to do, the DOM hasn't updated since we last built the cache.
-    if (m_cached_document.ptr().ptr() == &document && m_cached_dom_tree_version == document.dom_tree_version())
+    if (m_cached_document.ptr().ptr() == &document
+        && m_cached_dom_tree_version == document.dom_tree_version()
+        && m_cached_invalidation_version == invalidation_version) {
         return;
+    }
 
     m_cached_elements.clear();
     m_cached_name_to_element_mappings = nullptr;
@@ -116,6 +121,20 @@ void HTMLCollection::update_cache_if_needed() const
 
     m_cached_document = document;
     m_cached_dom_tree_version = document.dom_tree_version();
+    m_cached_invalidation_version = invalidation_version;
+}
+
+u64 HTMLCollection::invalidation_version(Document const& document) const
+{
+    switch (m_kind) {
+    case Kind::Generic:
+        return 0;
+    case Kind::FormControls:
+        return document.form_associated_custom_element_version();
+    case Kind::SelectedOptions:
+        return document.option_selectedness_version();
+    }
+    VERIFY_NOT_REACHED();
 }
 
 GC::RootVector<GC::Ref<Element>> HTMLCollection::collect_matching_elements() const

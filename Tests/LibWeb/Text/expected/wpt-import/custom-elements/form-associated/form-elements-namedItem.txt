@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-1 Pass
-2 Fail
-Fail	Form associated custom elements should work with document.forms.elements.namedItem()
-Fail	Form associated custom elements should work with document.forms.elements.namedItem() after upgrading
+3 Pass
+Pass	Form associated custom elements should work with document.forms.elements.namedItem()
+Pass	Form associated custom elements should work with document.forms.elements.namedItem() after upgrading
 Pass	Form associated custom elements should work with document.forms.elements.namedItem() after updating the name attribute

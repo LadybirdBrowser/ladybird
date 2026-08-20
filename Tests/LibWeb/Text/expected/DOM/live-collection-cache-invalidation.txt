@@ -1,0 +1,11 @@
+labels before upgrade: 1
+labels after upgrade: 0
+
+controls before upgrade: 3, 2, 2, 2
+controls after upgrade: 4, 3, 3, 3
+
+labels during failed upgrade: 0
+labels after failed upgrade: 1
+
+selected options before change: 1
+selected options after change: 1, true

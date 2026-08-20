@@ -197,13 +197,14 @@ GC::Ref<DOM::HTMLCollection> HTMLSelectElement::selected_options()
     // The selectedOptions IDL attribute must return an HTMLCollection rooted at the select node,
     // whose filter matches the elements in the list of options that have their selectedness set to true.
     if (!m_selected_options) {
-        m_selected_options = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Descendants, [this](Element const& element) {
+        auto filter = [this](Element const& element) {
             auto const* maybe_option = as_if<HTML::HTMLOptionElement>(element);
             if (maybe_option && maybe_option->nearest_select_element().ptr() == this) {
                 return maybe_option->selected();
             }
             return false;
-        });
+        };
+        m_selected_options = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Descendants, move(filter), nullptr, DOM::HTMLCollection::Kind::SelectedOptions);
     }
     return *m_selected_options;
 }

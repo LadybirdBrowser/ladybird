@@ -1151,7 +1151,7 @@ Variant<Empty, GC::Ref<DOM::Node>, GC::Ref<RadioNodeList>> HTMLFormElement::name
     // 1. Let candidates be a live RadioNodeList object containing all the listed elements, whose form owner is the form
     //    element, that have either an id attribute or a name attribute equal to name, with the exception of input
     //    elements whose type attribute is in the Image Button state, in tree order.
-    auto candidates = RadioNodeList::create(root, DOM::LiveNodeList::Scope::Descendants, [this, name](auto& node) -> bool {
+    auto filter = [this, name](auto& node) -> bool {
         if (!is<DOM::Element>(node))
             return false;
         auto const& element = static_cast<DOM::Element const&>(node);
@@ -1162,7 +1162,8 @@ Variant<Empty, GC::Ref<DOM::Node>, GC::Ref<RadioNodeList>> HTMLFormElement::name
             return false;
 
         return name == element.id() || name == element.name();
-    });
+    };
+    auto candidates = RadioNodeList::create(root, DOM::LiveNodeList::Scope::Descendants, move(filter), DOM::LiveNodeList::Kind::FormControls);
 
     // 2. If candidates is empty, let candidates be a live RadioNodeList object containing all the img elements,
     //    whose form owner is the form element, that have either an id attribute or a name attribute equal to name,

@@ -34,7 +34,14 @@ public:
         Children,
         Descendants,
     };
-    [[nodiscard]] static GC::Ref<HTMLCollection> create(ParentNode& root, Scope, ESCAPING Function<bool(Element const&)> filter, ESCAPING Function<bool(Element const&, Element const&)> sort = nullptr);
+
+    enum class Kind {
+        Generic,
+        FormControls,
+        SelectedOptions,
+    };
+
+    [[nodiscard]] static GC::Ref<HTMLCollection> create(ParentNode& root, Scope, ESCAPING Function<bool(Element const&)> filter, ESCAPING Function<bool(Element const&, Element const&)> sort = nullptr, Kind = Kind::Generic);
 
     virtual ~HTMLCollection() override;
 
@@ -48,10 +55,11 @@ public:
     virtual bool is_supported_property_name(Utf16FlyString const&) const override;
 
 protected:
-    HTMLCollection(ParentNode& root, Scope, ESCAPING Function<bool(Element const&)> filter, ESCAPING Function<bool(Element const&, Element const&)> sort = nullptr);
+    HTMLCollection(ParentNode& root, Scope, ESCAPING Function<bool(Element const&)> filter, ESCAPING Function<bool(Element const&, Element const&)> sort = nullptr, Kind = Kind::Generic);
 
     GC::Ref<ParentNode> root() { return *m_root; }
     GC::Ref<ParentNode const> root() const { return *m_root; }
+    bool element_matches_filter(Element const& element) const { return m_filter(element); }
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
@@ -61,9 +69,11 @@ private:
 
     void update_cache_if_needed() const;
     void update_name_to_element_mappings_if_needed() const;
+    u64 invalidation_version(Document const&) const;
 
     mutable GC::Weak<Document const> m_cached_document;
     mutable u64 m_cached_dom_tree_version { 0 };
+    mutable u64 m_cached_invalidation_version { 0 };
     mutable Vector<GC::RawPtr<Element>> m_cached_elements;
     mutable OwnPtr<OrderedHashMap<Utf16FlyString, GC::RawPtr<Element>>> m_cached_name_to_element_mappings;
 
@@ -72,6 +82,7 @@ private:
     Function<bool(Element const&, Element const&)> m_sort;
 
     Scope m_scope { Scope::Descendants };
+    Kind m_kind { Kind::Generic };
 };
 
 }
