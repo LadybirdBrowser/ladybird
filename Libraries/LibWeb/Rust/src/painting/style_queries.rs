@@ -58,6 +58,13 @@ pub(crate) fn is_abstract_image(value: &StyleValueData) -> bool {
     )
 }
 
+pub(crate) fn background_layers_have_image(style: ComputedValuesView<'_>) -> bool {
+    let Some(value) = handle_value(&style.background().background_image) else {
+        return false;
+    };
+    for_each_comma_item(value, is_abstract_image)
+}
+
 fn fly_string_equals_ascii(string: &RetainedUtf16FlyString, expected: &[u8]) -> bool {
     with_fly_string_units(string, |units| match units {
         StringUnits::Ascii(bytes) => bytes == expected,

@@ -651,6 +651,12 @@ pub(crate) fn resolve_background_for_paint<'a>(
         });
     }
 
+    if libgfx_rust::Color(style.background().background_color).alpha() == 0
+        && !style_queries::background_layers_have_image(style)
+    {
+        return None;
+    }
+
     // HACK: If the Box has a border, use the bordered_rect to paint the background.
     //       This way if we have a border-radius there will be no gap between the filling and actual border.
     let zero = CssPixels::from_raw(0);
