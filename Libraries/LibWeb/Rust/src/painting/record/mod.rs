@@ -80,7 +80,7 @@ pub struct PaintRecorder<'a> {
     pub(crate) has_blocking_wheel_event_listeners: bool,
     spliced_capture_count: usize,
     list: HitTestList,
-    paintable_facts_cache: HashMap<u32, FfiHitTestPaintableFacts>,
+    paintable_facts_cache: Vec<Option<(PaintableSlotId, FfiHitTestPaintableFacts)>>,
     text_node_facts_cache: HashMap<u32, FfiHitTestTextNodeFacts>,
     pub(crate) wheel_hit_test_target_cache: HashMap<PaintableSlotId, usize>,
 }
@@ -107,12 +107,14 @@ impl<'a> PaintRecorder<'a> {
     }
 
     fn paintable_facts(&mut self, paintable: PaintableSlotId) -> FfiHitTestPaintableFacts {
-        let key = paintable.index;
-        if let Some(facts) = self.paintable_facts_cache.get(&key) {
-            return *facts;
+        let index = paintable.slot_index() as usize;
+        if let Some((memoized_id, facts)) = self.paintable_facts_cache[index]
+            && memoized_id == paintable
+        {
+            return facts;
         }
         let facts = self.host.paintable_facts(self.shell(paintable));
-        self.paintable_facts_cache.insert(key, facts);
+        self.paintable_facts_cache[index] = Some((paintable, facts));
         facts
     }
 
@@ -145,7 +147,7 @@ impl<'a> PaintRecorder<'a> {
             has_blocking_wheel_event_listeners: false,
             spliced_capture_count: 0,
             list: HitTestList::default(),
-            paintable_facts_cache: HashMap::new(),
+            paintable_facts_cache: vec![None; self.paintables.slot_count()],
             text_node_facts_cache: HashMap::new(),
             wheel_hit_test_target_cache: HashMap::new(),
         }
