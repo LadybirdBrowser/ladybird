@@ -17,39 +17,41 @@ use crate::painting::{paintable_geometry, style_queries, text_fragment};
 use libgfx_rust::matrix::{AffineTransform, FloatMatrix4x4};
 use std::collections::HashMap;
 
-pub(crate) fn rebuild_contained_boxes_index(
+pub(crate) fn refill_contained_boxes_index(
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,
     root: NodeSlotId,
-) -> HashMap<NodeSlotId, Vec<NodeSlotId>> {
-    let mut contained_boxes_by_containing_block: HashMap<NodeSlotId, Vec<NodeSlotId>> = HashMap::new();
-    if layout_arena.shell_if_live(root).is_null() {
-        return contained_boxes_by_containing_block;
+    contained_boxes_by_containing_block: &mut HashMap<NodeSlotId, Vec<NodeSlotId>>,
+) {
+    for contained_boxes in contained_boxes_by_containing_block.values_mut() {
+        contained_boxes.clear();
     }
-    let mut stack = vec![root];
-    while let Some(node) = stack.pop() {
-        if node != root
-            && let Some(sibling) = layout_arena.node_next_sibling_if_live(node)
-        {
-            stack.push(sibling);
-        }
-        if let Some(first_child) = layout_arena.node_first_child_if_live(node) {
-            stack.push(first_child);
-        }
-        let node_is_box_kind = layout_arena
-            .node_kind_if_live(node)
-            .is_some_and(crate::layout::kind_is_box);
-        if !node_is_box_kind || paintables.paintable_of_node(node).is_invalid() {
-            continue;
-        }
-        if let Some(containing_block) = layout_arena.node_containing_block_if_live(node) {
-            contained_boxes_by_containing_block
-                .entry(containing_block)
-                .or_default()
-                .push(node);
+    if !layout_arena.shell_if_live(root).is_null() {
+        let mut stack = vec![root];
+        while let Some(node) = stack.pop() {
+            if node != root
+                && let Some(sibling) = layout_arena.node_next_sibling_if_live(node)
+            {
+                stack.push(sibling);
+            }
+            if let Some(first_child) = layout_arena.node_first_child_if_live(node) {
+                stack.push(first_child);
+            }
+            let node_is_box_kind = layout_arena
+                .node_kind_if_live(node)
+                .is_some_and(crate::layout::kind_is_box);
+            if !node_is_box_kind || paintables.paintable_of_node(node).is_invalid() {
+                continue;
+            }
+            if let Some(containing_block) = layout_arena.node_containing_block_if_live(node) {
+                contained_boxes_by_containing_block
+                    .entry(containing_block)
+                    .or_default()
+                    .push(node);
+            }
         }
     }
-    contained_boxes_by_containing_block
+    contained_boxes_by_containing_block.retain(|_, contained_boxes| !contained_boxes.is_empty());
 }
 
 pub(crate) struct PhysicalOverflowDirections {
@@ -294,10 +296,8 @@ pub(crate) fn measure_scrollable_overflow(
     let paintable_absolute_content_box = paintable_geometry::absolute_rect(paintables, box_paintable);
 
     let store_overflow_data = |scrollable_overflow_rect: CssPixelRect, has_scrollable_overflow: bool| {
-        let rect_relative_to_padding_box = scrollable_overflow_rect.translated(
-            -paintable_absolute_padding_box.x,
-            -paintable_absolute_padding_box.y,
-        );
+        let rect_relative_to_padding_box =
+            scrollable_overflow_rect.translated(-paintable_absolute_padding_box.x, -paintable_absolute_padding_box.y);
         paintables.update_data(box_paintable, |data| {
             data.overflow = FfiOverflowData {
                 rect: scrollable_overflow_rect.into(),
@@ -375,8 +375,7 @@ pub(crate) fn measure_scrollable_overflow(
     if let Some(contained_boxes) = paintables.scrollable_overflow_contained_boxes.get(&box_node) {
         for &child_node in contained_boxes {
             let child_paintable = paintables.paintable_of_node(child_node);
-            if child_paintable.is_invalid()
-                || layout_arena.node_containing_block_if_live(child_node) != Some(box_node)
+            if child_paintable.is_invalid() || layout_arena.node_containing_block_if_live(child_node) != Some(box_node)
             {
                 continue;
             }
@@ -393,8 +392,8 @@ pub(crate) fn measure_scrollable_overflow(
             }
 
             let child_data = paintables.data_ref(child_paintable);
-            let child_has_css_transform = child_style
-                .is_some_and(|style| style_queries::has_css_transform(layout_arena, child_node, style));
+            let child_has_css_transform =
+                child_style.is_some_and(|style| style_queries::has_css_transform(layout_arena, child_node, style));
             let child_is_flex_item = layout_arena.node_flags_if_live(child_node) & NodeFlag::IsFlexItem as u32 != 0;
             let child_is_floating = !child_is_flex_item && child_style.is_some_and(|style| style.is_floating());
             let child_display = child_style.map_or_else(FfiDisplay::block, |style| style.display());
@@ -425,7 +424,8 @@ pub(crate) fn measure_scrollable_overflow(
                 }
             }
 
-            let untransformed_child_border_box = paintable_geometry::absolute_border_box_rect(paintables, child_paintable);
+            let untransformed_child_border_box =
+                paintable_geometry::absolute_border_box_rect(paintables, child_paintable);
             let child_border_box = apply_css_transform_to_scrollable_overflow_rect(
                 layout_arena,
                 paintables,
@@ -548,12 +548,16 @@ pub(crate) fn measure_scrollable_overflow(
     let right = if overflow_directions.horizontal_axis_is_positive {
         scrollable_overflow_rect.right()
     } else {
-        scrollable_overflow_rect.right().min(paintable_absolute_padding_box.right())
+        scrollable_overflow_rect
+            .right()
+            .min(paintable_absolute_padding_box.right())
     };
     let bottom = if overflow_directions.vertical_axis_is_positive {
         scrollable_overflow_rect.bottom()
     } else {
-        scrollable_overflow_rect.bottom().min(paintable_absolute_padding_box.bottom())
+        scrollable_overflow_rect
+            .bottom()
+            .min(paintable_absolute_padding_box.bottom())
     };
     if left != scrollable_overflow_rect.x
         || top != scrollable_overflow_rect.y
