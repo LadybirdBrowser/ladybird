@@ -18,7 +18,8 @@ namespace Web::Layout {
 
 void collect_scrollable_overflow_contained_boxes(Node const& root, ContainedBoxesMap& contained_boxes_map, Function<void(Box const&)> box_visitor)
 {
-    contained_boxes_map.clear_with_capacity();
+    for (auto& entry : contained_boxes_map)
+        entry.value.clear_with_capacity();
     root.for_each_in_inclusive_subtree_of_type<Box>([&](auto& box) {
         if (!box.paintable_box())
             return TraversalDecision::Continue;
@@ -28,6 +29,7 @@ void collect_scrollable_overflow_contained_boxes(Node const& root, ContainedBoxe
             contained_boxes_map.ensure(containing_block).append(box.template make_weak_ptr<Box const>());
         return TraversalDecision::Continue;
     });
+    contained_boxes_map.remove_all_matching([](auto const&, auto const& boxes) { return boxes.is_empty(); });
 }
 
 struct AxisDirection {
