@@ -2130,6 +2130,31 @@ void ConnectionFromClient::update_input_method_state(u64 page_id)
                 text_before_cursor = Utf16String::from_utf16(value.substring_view(text_before_start, cursor - text_before_start));
                 text_after_cursor = Utf16String::from_utf16(value.substring_view(cursor, text_after_length));
             }
+        } else if (auto focused_area = document->focused_area(); focused_area && focused_area->is_editable_or_editing_host()) {
+            // The focused area is contenteditable, or a document with designMode enabled. Qt answers Qt::ImEnabled from
+            // this. While it's false, no composition begins: A dead key would be dropped before the engine ever saw it.
+            is_enabled = true;
+
+            // Approximate the surrounding text as the contents of the Text node containing the selection focus. This
+            // reports exactly the text a replacement request can reach. With the caret between elements, an empty
+            // context is reported: Composition still works — but the input method just gets no surrounding text.
+            if (auto selection = document->get_selection()) {
+                if (auto const* text_node = as_if<Web::DOM::Text>(selection->focus_node().ptr())) {
+                    auto const& data = text_node->data();
+                    auto data_length = data.length_in_code_units();
+                    auto cursor = min(static_cast<size_t>(selection->focus_offset()), data_length);
+                    auto anchor = selection->anchor_node() == selection->focus_node()
+                        ? min(static_cast<size_t>(selection->anchor_offset()), data_length)
+                        : cursor;
+                    auto text_before_start = cursor > maximum_input_method_surrounding_text_length ? cursor - maximum_input_method_surrounding_text_length : 0;
+                    auto text_after_length = min(data_length - cursor, maximum_input_method_surrounding_text_length);
+
+                    cursor_position = AK::clamp_to<i32>(cursor);
+                    anchor_position = AK::clamp_to<i32>(anchor);
+                    text_before_cursor = Utf16String::from_utf16(data.substring_view(text_before_start, cursor - text_before_start));
+                    text_after_cursor = Utf16String::from_utf16(data.substring_view(cursor, text_after_length));
+                }
+            }
         }
     }
 
