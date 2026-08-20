@@ -1742,14 +1742,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     layout_config
         .includes
         .push("LibWeb/Layout/TreeBuilderRustFFI.h".to_string());
-    layout_config.export.include = vec![
-        "FfiGridTrackType".to_string(),
-        "FfiGridTrackState".to_string(),
-        "FfiFormattingContextType".to_string(),
-        "FfiFlexLayoutClampState".to_string(),
-        "FfiFlexLayoutGrowthState".to_string(),
-        "PaintableFlag".to_string(),
-    ];
+    layout_config.export.include = vec!["FfiFormattingContextType".to_string(), "PaintableFlag".to_string()];
     generate_ffi_header(
         layout_config,
         &[

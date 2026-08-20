@@ -495,7 +495,7 @@ impl<'a> PaintableCommit<'a> {
     pub(crate) fn set_grid_layout_data(
         &self,
         slot: PaintableSlotId,
-        data: &std::rc::Rc<crate::layout::OwnedGridLayoutData>,
+        data: &std::rc::Rc<crate::layout::GridLayoutData>,
     ) {
         self.arena.borrow_mut().side_mut(slot).grid_layout_data = Some(data.clone());
     }
@@ -503,7 +503,7 @@ impl<'a> PaintableCommit<'a> {
     pub(crate) fn set_flex_layout_data(
         &self,
         slot: PaintableSlotId,
-        data: &std::rc::Rc<crate::layout::OwnedFlexLayoutData>,
+        data: &std::rc::Rc<crate::layout::FlexLayoutData>,
     ) {
         self.arena.borrow_mut().side_mut(slot).flex_layout_data = Some(data.clone());
     }

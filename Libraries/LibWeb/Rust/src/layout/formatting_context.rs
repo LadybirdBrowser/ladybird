@@ -832,79 +832,55 @@ pub(crate) enum SizingProperty {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiFlexLayoutItemRect {
-    pub x: CssPixels,
-    pub y: CssPixels,
-    pub width: CssPixels,
-    pub height: CssPixels,
+pub(crate) struct FlexLayoutItemRect {
+    pub(crate) x: CssPixels,
+    pub(crate) y: CssPixels,
+    pub(crate) width: CssPixels,
+    pub(crate) height: CssPixels,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiFlexLayoutClampState {
+pub(crate) enum FlexLayoutClampState {
     Unclamped,
     ClampedToMin,
     ClampedToMax,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiFlexLayoutGrowthState {
+pub(crate) enum FlexLayoutGrowthState {
     Growing,
     Shrinking,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[repr(C)]
-pub struct FfiFlexLayoutItem {
-    pub node: *mut c_void,
-    pub rect: FfiFlexLayoutItemRect,
-    pub main_base_size: CssPixels,
-    pub main_delta_size: CssPixels,
-    pub main_min_size: CssPixels,
-    pub main_max_size: CssPixels,
-    pub cross_min_size: CssPixels,
-    pub cross_max_size: CssPixels,
-    pub clamp_state: FfiFlexLayoutClampState,
-    pub flex_grow: f64,
-    pub flex_shrink: f64,
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiFlexLayoutLine {
-    pub growth_state: FfiFlexLayoutGrowthState,
-    pub cross_start: CssPixels,
-    pub cross_size: CssPixels,
-    pub items: *const FfiFlexLayoutItem,
-    pub item_count: usize,
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiFlexLayoutData {
-    pub align_content: u8,
-    pub align_items: u8,
-    pub flex_direction: u8,
-    pub flex_wrap: u8,
-    pub justify_content: u8,
-    pub main_axis_direction: u8,
-    pub cross_axis_direction: u8,
-    pub lines: *const FfiFlexLayoutLine,
-    pub line_count: usize,
+#[derive(Debug, PartialEq)]
+pub(crate) struct FlexLayoutItem {
+    pub(crate) node_id: Option<i64>,
+    pub(crate) rect: FlexLayoutItemRect,
+    pub(crate) main_base_size: CssPixels,
+    pub(crate) main_delta_size: CssPixels,
+    pub(crate) main_min_size: CssPixels,
+    pub(crate) main_max_size: CssPixels,
+    pub(crate) cross_min_size: CssPixels,
+    pub(crate) cross_max_size: CssPixels,
+    pub(crate) clamp_state: FlexLayoutClampState,
+    pub(crate) flex_basis: String,
+    pub(crate) main_size_property: String,
+    pub(crate) main_min_size_property: String,
+    pub(crate) main_max_size_property: String,
+    pub(crate) flex_grow: f64,
+    pub(crate) flex_shrink: f64,
 }
 
 #[derive(PartialEq)]
-pub(crate) struct OwnedFlexLayoutLine {
-    pub(crate) growth_state: FfiFlexLayoutGrowthState,
+pub(crate) struct FlexLayoutLine {
+    pub(crate) growth_state: FlexLayoutGrowthState,
     pub(crate) cross_start: CssPixels,
     pub(crate) cross_size: CssPixels,
-    pub(crate) items: Vec<FfiFlexLayoutItem>,
+    pub(crate) items: Vec<FlexLayoutItem>,
 }
 
 #[derive(PartialEq)]
-pub(crate) struct OwnedFlexLayoutData {
+pub(crate) struct FlexLayoutData {
     pub(crate) align_content: u8,
     pub(crate) align_items: u8,
     pub(crate) flex_direction: u8,
@@ -912,35 +888,7 @@ pub(crate) struct OwnedFlexLayoutData {
     pub(crate) justify_content: u8,
     pub(crate) main_axis_direction: u8,
     pub(crate) cross_axis_direction: u8,
-    pub(crate) lines: Vec<OwnedFlexLayoutLine>,
-}
-
-impl OwnedFlexLayoutData {
-    pub(crate) fn with_ffi_view(&self, callback: impl FnOnce(&FfiFlexLayoutData)) {
-        let lines = self
-            .lines
-            .iter()
-            .map(|line| FfiFlexLayoutLine {
-                growth_state: line.growth_state,
-                cross_start: line.cross_start,
-                cross_size: line.cross_size,
-                items: line.items.as_ptr(),
-                item_count: line.items.len(),
-            })
-            .collect::<Vec<_>>();
-        let view = FfiFlexLayoutData {
-            align_content: self.align_content,
-            align_items: self.align_items,
-            flex_direction: self.flex_direction,
-            flex_wrap: self.flex_wrap,
-            justify_content: self.justify_content,
-            main_axis_direction: self.main_axis_direction,
-            cross_axis_direction: self.cross_axis_direction,
-            lines: lines.as_ptr(),
-            line_count: lines.len(),
-        };
-        callback(&view);
-    }
+    pub(crate) lines: Vec<FlexLayoutLine>,
 }
 
 #[derive(Clone, Copy)]
@@ -955,6 +903,7 @@ pub struct FfiLayoutFcCallbacks {
     pub compute_svg_path: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiSvgPathRequest) -> FfiSvgPathResult,
     pub svg_image_bounding_box: unsafe extern "C" fn(*mut c_void, *mut c_void, CssPixels, CssPixels) -> FfiFloatRect,
     pub anchor_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void, usize, *const *mut c_void, usize) -> NodeSlotId,
+    pub node_unique_id: unsafe extern "C" fn(*mut c_void) -> i64,
     pub set_default_scroll_shift: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, bool, bool),
 }
 

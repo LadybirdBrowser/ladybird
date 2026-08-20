@@ -301,10 +301,10 @@ fn paint_grid_overlay(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlot
             paint_label(recorder, top_left, text, fly_string_raw);
         };
 
-    let line_start_for_number = |lines: &[crate::layout::OwnedGridLayoutLine], number: u32| -> Option<CssPixels> {
+    let line_start_for_number = |lines: &[crate::layout::GridLayoutLine], number: u32| -> Option<CssPixels> {
         lines.iter().find(|line| line.number == number).map(|line| line.start)
     };
-    let line_number_label = |line: &crate::layout::OwnedGridLayoutLine| -> Vec<u16> {
+    let line_number_label = |line: &crate::layout::GridLayoutLine| -> Vec<u16> {
         let text = if line.negative_number < 0 {
             format!("{} / {}", line.number, line.negative_number)
         } else {
@@ -312,7 +312,7 @@ fn paint_grid_overlay(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlot
         };
         text.encode_utf16().collect()
     };
-    let track_size_label = |track: &crate::layout::FfiGridLayoutTrack| -> Vec<u16> {
+    let track_size_label = |track: &crate::layout::GridLayoutTrack| -> Vec<u16> {
         format!("{:.2}px", track.breadth.to_double().max(0.0))
             .encode_utf16()
             .collect()
@@ -448,7 +448,8 @@ fn paint_grid_overlay(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlot
 
                 let visible_area_rect = area_rect.intersected(viewport_rect);
                 if !visible_area_rect.is_empty() {
-                    paint_centered_label(recorder, visible_area_rect, &[], area.name);
+                    let name = area.name.encode_utf16().collect::<Vec<_>>();
+                    paint_centered_label(recorder, visible_area_rect, &name, 0);
                 }
             }
         }

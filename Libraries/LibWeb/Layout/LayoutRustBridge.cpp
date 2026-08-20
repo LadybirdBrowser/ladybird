@@ -22,7 +22,6 @@
 #include <LibWeb/CSS/GridTrackPlacement.h>
 #include <LibWeb/CSS/GridTrackSize.h>
 #include <LibWeb/CSS/LengthBox.h>
-#include <LibWeb/CSS/Size.h>
 #include <LibWeb/CSS/StyleValues/AnchorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/ValueType.h>
@@ -36,8 +35,6 @@
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/DominantBaseline.h>
-#include <LibWeb/Layout/FlexLayoutData.h>
-#include <LibWeb/Layout/GridLayoutData.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
@@ -88,186 +85,6 @@ Painting::UsedGridTrackList build_used_grid_track_list(RustFFI::FfiUsedGridTrack
             result.track_sizes.unchecked_append(CSSPixels::from_raw(list.track_sizes[line_index]));
     }
     return result;
-}
-
-OwnPtr<FlexLayoutData> build_flex_layout_data(RustFFI::FfiFlexLayoutData const& ffi_data)
-{
-    auto growth_state = [](RustFFI::FfiFlexLayoutGrowthState state) {
-        switch (state) {
-        case RustFFI::FfiFlexLayoutGrowthState::Growing:
-            return FlexLayoutGrowthState::Growing;
-        case RustFFI::FfiFlexLayoutGrowthState::Shrinking:
-            return FlexLayoutGrowthState::Shrinking;
-        }
-        VERIFY_NOT_REACHED();
-    };
-    auto clamp_state = [](RustFFI::FfiFlexLayoutClampState state) {
-        switch (state) {
-        case RustFFI::FfiFlexLayoutClampState::Unclamped:
-            return FlexLayoutClampState::Unclamped;
-        case RustFFI::FfiFlexLayoutClampState::ClampedToMin:
-            return FlexLayoutClampState::ClampedToMin;
-        case RustFFI::FfiFlexLayoutClampState::ClampedToMax:
-            return FlexLayoutClampState::ClampedToMax;
-        }
-        VERIFY_NOT_REACHED();
-    };
-
-    auto data = make<FlexLayoutData>();
-    data->align_content = static_cast<CSS::AlignContent>(ffi_data.align_content);
-    data->align_items = static_cast<CSS::AlignItems>(ffi_data.align_items);
-    data->flex_direction = static_cast<CSS::FlexDirection>(ffi_data.flex_direction);
-    data->flex_wrap = static_cast<CSS::FlexWrap>(ffi_data.flex_wrap);
-    data->justify_content = static_cast<CSS::JustifyContent>(ffi_data.justify_content);
-
-    auto axis_direction = [](u8 direction) -> String {
-        switch (direction) {
-        case 0:
-            return "horizontal-lr"_string;
-        case 1:
-            return "horizontal-rl"_string;
-        case 2:
-            return "vertical-tb"_string;
-        case 3:
-            return "vertical-bt"_string;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    };
-    auto main_axis_direction = axis_direction(ffi_data.main_axis_direction);
-    auto cross_axis_direction = axis_direction(ffi_data.cross_axis_direction);
-    bool main_axis_is_horizontal = ffi_data.main_axis_direction <= 1;
-
-    for (size_t line_index = 0; line_index < ffi_data.line_count; ++line_index) {
-        auto const& ffi_line = ffi_data.lines[line_index];
-        FlexLayoutLine line;
-        line.growth_state = growth_state(ffi_line.growth_state);
-        line.cross_start = CSSPixels::from_raw(ffi_line.cross_start);
-        line.cross_size = CSSPixels::from_raw(ffi_line.cross_size);
-        for (size_t item_index = 0; item_index < ffi_line.item_count; ++item_index) {
-            auto const& ffi_item = ffi_line.items[item_index];
-            auto const& item_box = *static_cast<Box const*>(ffi_item.node);
-            auto flex_basis = item_box.flex_basis();
-            auto const& main_size = main_axis_is_horizontal ? item_box.width() : item_box.height();
-            auto const& main_min_size = main_axis_is_horizontal ? item_box.min_width() : item_box.min_height();
-            auto const& main_max_size = main_axis_is_horizontal ? item_box.max_width() : item_box.max_height();
-
-            FlexLayoutItem item;
-            if (auto* dom_node = item_box.dom_node())
-                item.node_id = dom_node->unique_id();
-            item.main_axis_direction = main_axis_direction;
-            item.cross_axis_direction = cross_axis_direction;
-            item.rect = {
-                CSSPixels::from_raw(ffi_item.rect.x),
-                CSSPixels::from_raw(ffi_item.rect.y),
-                CSSPixels::from_raw(ffi_item.rect.width),
-                CSSPixels::from_raw(ffi_item.rect.height),
-            };
-            item.main_base_size = CSSPixels::from_raw(ffi_item.main_base_size);
-            item.main_delta_size = CSSPixels::from_raw(ffi_item.main_delta_size);
-            item.main_min_size = CSSPixels::from_raw(ffi_item.main_min_size);
-            item.main_max_size = CSSPixels::from_raw(ffi_item.main_max_size);
-            item.cross_min_size = CSSPixels::from_raw(ffi_item.cross_min_size);
-            item.cross_max_size = CSSPixels::from_raw(ffi_item.cross_max_size);
-            item.clamp_state = clamp_state(ffi_item.clamp_state);
-            item.flex_basis = flex_basis.has<CSS::FlexBasisContent>()
-                ? "content"_string
-                : MUST(String::formatted("{}", flex_basis.get<CSS::Size>()));
-            item.main_size_property = MUST(String::formatted("{}", main_size));
-            item.main_min_size_property = MUST(String::formatted("{}", main_min_size));
-            item.main_max_size_property = MUST(String::formatted("{}", main_max_size));
-            item.flex_grow = ffi_item.flex_grow;
-            item.flex_shrink = ffi_item.flex_shrink;
-            line.items.append(move(item));
-        }
-        data->lines.append(move(line));
-    }
-    return data;
-}
-
-OwnPtr<GridLayoutData> build_grid_layout_data(RustFFI::FfiGridLayoutData const& ffi_data)
-{
-    auto track_type = [](RustFFI::FfiGridTrackType type) {
-        switch (type) {
-        case RustFFI::FfiGridTrackType::Explicit:
-            return GridTrackType::Explicit;
-        case RustFFI::FfiGridTrackType::Implicit:
-            return GridTrackType::Implicit;
-        }
-        VERIFY_NOT_REACHED();
-    };
-    auto track_state = [](RustFFI::FfiGridTrackState state) {
-        switch (state) {
-        case RustFFI::FfiGridTrackState::Static:
-            return GridTrackState::Static;
-        case RustFFI::FfiGridTrackState::Repeat:
-            return GridTrackState::Repeat;
-        case RustFFI::FfiGridTrackState::Removed:
-            return GridTrackState::Removed;
-        }
-        VERIFY_NOT_REACHED();
-    };
-
-    auto data = make<GridLayoutData>();
-    data->direction = static_cast<CSS::Direction>(ffi_data.direction);
-    data->writing_mode = static_cast<CSS::WritingMode>(ffi_data.writing_mode);
-    data->is_subgrid = ffi_data.is_subgrid;
-
-    auto build_dimension = [track_type, track_state](RustFFI::FfiGridLayoutDimension const& ffi_dimension) {
-        GridLayoutDimension dimension;
-        dimension.lines.ensure_capacity(ffi_dimension.line_count);
-        for (size_t line_index = 0; line_index < ffi_dimension.line_count; ++line_index) {
-            auto const& ffi_line = ffi_dimension.lines[line_index];
-            GridLayoutLine line {
-                .names = {},
-                .start = CSSPixels::from_raw(ffi_line.start),
-                .breadth = CSSPixels::from_raw(ffi_line.breadth),
-                .type = track_type(ffi_line.type_),
-                .number = ffi_line.number,
-                .negative_number = ffi_line.negative_number,
-            };
-            line.names.ensure_capacity(ffi_line.name_count);
-            for (size_t name_index = 0; name_index < ffi_line.name_count; ++name_index)
-                line.names.unchecked_append(Utf16FlyString::from_raw(ffi_line.names[name_index]));
-            dimension.lines.unchecked_append(move(line));
-        }
-
-        dimension.tracks.ensure_capacity(ffi_dimension.track_count);
-        for (size_t track_index = 0; track_index < ffi_dimension.track_count; ++track_index) {
-            auto const& ffi_track = ffi_dimension.tracks[track_index];
-            dimension.tracks.unchecked_append({
-                .start = CSSPixels::from_raw(ffi_track.start),
-                .breadth = CSSPixels::from_raw(ffi_track.breadth),
-                .type = track_type(ffi_track.type_),
-                .state = track_state(ffi_track.state),
-            });
-        }
-        return dimension;
-    };
-
-    data->fragments.ensure_capacity(ffi_data.fragment_count);
-    for (size_t fragment_index = 0; fragment_index < ffi_data.fragment_count; ++fragment_index) {
-        auto const& ffi_fragment = ffi_data.fragments[fragment_index];
-        GridLayoutFragment fragment {
-            .areas = {},
-            .columns = build_dimension(ffi_fragment.columns),
-            .rows = build_dimension(ffi_fragment.rows),
-        };
-        fragment.areas.ensure_capacity(ffi_fragment.area_count);
-        for (size_t area_index = 0; area_index < ffi_fragment.area_count; ++area_index) {
-            auto const& ffi_area = ffi_fragment.areas[area_index];
-            fragment.areas.unchecked_append({
-                .name = Utf16FlyString::from_raw(ffi_area.name),
-                .type = track_type(ffi_area.type_),
-                .row_start = ffi_area.row_start,
-                .row_end = ffi_area.row_end,
-                .column_start = ffi_area.column_start,
-                .column_end = ffi_area.column_end,
-            });
-        }
-        data->fragments.unchecked_append(move(fragment));
-    }
-    return data;
 }
 
 static RustFFI::FfiAffineTransform to_ffi_affine_transform(Gfx::AffineTransform const& transform)
@@ -881,11 +698,6 @@ bool can_replay_saved_abspos_layout_inputs_after_style_change(Box const& box)
 
 RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
 {
-    static_assert(to_underlying(FlexLayoutGrowthState::Growing) == 0);
-    static_assert(to_underlying(FlexLayoutGrowthState::Shrinking) == 1);
-    static_assert(to_underlying(FlexLayoutClampState::Unclamped) == 0);
-    static_assert(to_underlying(FlexLayoutClampState::ClampedToMin) == 1);
-    static_assert(to_underlying(FlexLayoutClampState::ClampedToMax) == 2);
     static_assert(to_underlying(CSS::GridRepeatType::AutoFit) == 0);
     static_assert(to_underlying(CSS::GridRepeatType::AutoFill) == 1);
     static_assert(to_underlying(CSS::GridRepeatType::Fixed) == 2);
@@ -986,6 +798,10 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
             if (!anchor_box)
                 return RustFFI::NodeSlotId_INVALID;
             return Node::slot_id(anchor_box); },
+        .node_unique_id = [](void* node) -> i64 {
+            auto const* dom_node = static_cast<Box const*>(node)->dom_node();
+            return dom_node ? dom_node->unique_id().value() : -1;
+        },
         .set_default_scroll_shift = [](void*, void* node, void* anchor, bool horizontal, bool vertical) {
             auto& box = *static_cast<Box*>(node);
             if (!anchor) {
