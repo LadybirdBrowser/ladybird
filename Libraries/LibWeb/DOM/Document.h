@@ -1424,7 +1424,6 @@ private:
     bool needs_style_update_after_layout();
     bool any_anchor_names_are_registered() const;
     PartialRelayoutResult try_partial_relayout(HashTable<WeakPtr<Layout::Box>> registered_partial_relayout_roots, bool& needs_layout_tree_rebuild, bool should_collect_devtools_layout_data);
-    static void recompute_containing_block_and_derive_abspos_escape_flags(Layout::Node&);
     enum class LayoutTreeChanged : u8 {
         No,
         Yes,

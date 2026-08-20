@@ -365,22 +365,17 @@ public:
         return true;
     }
 
-    [[nodiscard]] Box const* containing_block() const { return m_containing_block; }
-    [[nodiscard]] Box* containing_block() { return m_containing_block; }
+    // The containing block is computed inside the Rust arena
+    // (layout_arena_recompute_containing_blocks); the stored slot is always a Box or invalid.
+    // The tolerant resolution yields null when the containing block's slot has been freed.
+    [[nodiscard]] Box const* containing_block() const;
+    [[nodiscard]] Box* containing_block();
 
-    // Returns the inline node that actually establishes the containing block for this absolutely
-    // positioned element, if applicable. This is needed because m_containing_block can only hold
-    // a Box*, but CSS allows inline elements (like a <span> with position:relative) to establish
-    // containing blocks for their absolutely positioned descendants.
-    [[nodiscard]] NodeWithStyle const* inline_containing_block_if_applicable() const { return m_inline_containing_block_if_applicable; }
-
-    void recompute_containing_block(Badge<DOM::Document>);
-
-    // Closest non-anonymous ancestor box, to be used when resolving percentage values.
-    // Anonymous block boxes are ignored when resolving percentage values that would refer to it:
-    // the closest non-anonymous ancestor box is used instead.
-    // https://www.w3.org/TR/CSS22/visuren.html#anonymous-block-level
-    Box const* non_anonymous_containing_block() const;
+    // For an absolutely positioned node, finds a containing-block-establishing *inline* element
+    // (e.g. a <span> with position:relative) between this node and its containing block by
+    // walking the DOM tree. Invoked from the Rust containing-block recomputation, which owns
+    // the layout-tree half of the walk but cannot see DOM ancestry.
+    [[nodiscard]] NodeWithStyle const* find_inline_containing_block(Box const& containing_block) const;
 
     Gfx::Font const& first_available_font() const;
     Gfx::Font const& font(float scale_factor) const;
@@ -435,14 +430,17 @@ private:
         return static_cast<u8>(pseudo_element) + 1;
     }
 
-    void set_containing_block(Box*);
-    void set_inline_containing_block(NodeWithStyle const*);
-
     Node* tree_node_from_slot(RustFFI::NodeSlotId id) const
     {
         if (id.index == RustFFI::NodeSlotId_INVALID.index)
             return nullptr;
         return static_cast<Node*>(RustFFI::layout_arena_node_data(m_arena->handle(), id)->shell);
+    }
+
+    // Unlike tree_node_from_slot, tolerates freed and stale slots by resolving them to null.
+    Node* tree_node_from_slot_if_live(RustFFI::NodeSlotId id) const
+    {
+        return static_cast<Node*>(RustFFI::layout_arena_node_shell_if_live(m_arena->handle(), id));
     }
 
 protected:
@@ -454,15 +452,6 @@ private:
     // layout node is destroyed so detach hooks never observe a collected image provider or other element state.
     GC::Root<DOM::Node> m_dom_node;
     RefPtr<Painting::Paintable> m_paintable;
-
-    Box* m_containing_block { nullptr };
-
-    // For absolutely positioned elements, if there's an inline element (like a <span> with
-    // position:relative) that should be the containing block but can't be stored in m_containing_block
-    // (because it's not a Box), we store it here. This happens when a block element is inside an
-    // inline element - the layout tree restructures so the block becomes a sibling of the inline,
-    // but the CSS containing block relationship is based on the DOM structure.
-    NodeWithStyle const* m_inline_containing_block_if_applicable { nullptr };
 
     GC::Weak<DOM::Element> m_pseudo_element_generator;
 

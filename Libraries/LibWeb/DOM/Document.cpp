@@ -1777,24 +1777,18 @@ static void relayout_subtree(Layout::Box& subtree_root)
     });
 }
 
-// The pre-order traversal visits ancestors before the descendants that mark them, so clearing
-// the flag on visit and marking upwards compose within one walk.
-void Document::recompute_containing_block_and_derive_abspos_escape_flags(Layout::Node& layout_node)
+// Recomputes containing blocks and derives the abspos escape flags for the inclusive subtree
+// inside the Rust arena; the DOM-ancestry half of the inline containing-block workaround stays
+// on the C++ side as the callback.
+static void recompute_containing_blocks_in_inclusive_subtree(Layout::NodeArena& arena, Layout::Node& subtree_root)
 {
-    layout_node.recompute_containing_block({});
-
-    auto* box = as_if<Layout::Box>(layout_node);
-    if (!box)
-        return;
-    box->set_abspos_descendant_escapes(false);
-
-    if (!box->is_absolutely_positioned())
-        return;
-    auto const* containing_block = box->containing_block();
-    for (auto* ancestor = box->parent(); ancestor && ancestor != containing_block; ancestor = ancestor->parent()) {
-        if (auto* ancestor_box = as_if<Layout::Box>(*ancestor))
-            ancestor_box->set_abspos_descendant_escapes(true);
-    }
+    Layout::RustFFI::layout_arena_recompute_containing_blocks(
+        arena.handle(), Layout::Node::slot_id(&subtree_root),
+        [](void* node_shell, void* containing_block_shell) -> Layout::RustFFI::NodeSlotId {
+            auto const& node = *static_cast<Layout::Node const*>(node_shell);
+            auto const& containing_block = *static_cast<Layout::Box const*>(containing_block_shell);
+            return Layout::Node::slot_id(node.find_inline_containing_block(containing_block));
+        });
 }
 
 // Refreshes every structure derived from committed layout results, shared by the partial and
@@ -2028,12 +2022,8 @@ Document::PartialRelayoutResult Document::try_partial_relayout(HashTable<WeakPtr
     // Nodes created by the incremental build have no containing blocks assigned yet, and the
     // mutation may have moved where existing out-of-flow descendants belong; recompute both so
     // boundary qualification below reads facts matching the just-built tree.
-    for (auto* rebuilt_root : rebuilt_subtree_roots) {
-        rebuilt_root->for_each_in_inclusive_subtree([](Layout::Node& node) {
-            recompute_containing_block_and_derive_abspos_escape_flags(node);
-            return TraversalDecision::Continue;
-        });
-    }
+    for (auto* rebuilt_root : rebuilt_subtree_roots)
+        recompute_containing_blocks_in_inclusive_subtree(layout_node_arena(), *rebuilt_root);
 
     // Collect the live boundary set from the post-build tree: registered boundaries that
     // survived the build, plus the nearest boundary containing each rebuilt subtree - which
@@ -2195,11 +2185,7 @@ void Document::update_layout(UpdateLayoutReason reason)
             });
         }
 
-        m_layout_root->for_each_in_inclusive_subtree([&](auto& layout_node) {
-            recompute_containing_block_and_derive_abspos_escape_flags(layout_node);
-
-            return TraversalDecision::Continue;
-        });
+        recompute_containing_blocks_in_inclusive_subtree(layout_node_arena(), *m_layout_root);
 
         // The walk above re-derived every fact partial relayout boundary qualification depends
         // on, so pending changes that escaped classification are accounted for from here on.
