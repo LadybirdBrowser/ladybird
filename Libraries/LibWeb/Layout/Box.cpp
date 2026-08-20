@@ -37,6 +37,15 @@ Box::~Box()
 {
 }
 
+void Box::set_default_scroll_shift(WeakPtr<Node> anchor, bool compensates_for_horizontal_scroll, bool compensates_for_vertical_scroll)
+{
+    m_default_scroll_shift_anchor = move(anchor);
+    set_flag(RustFFI::NodeFlag::CompensatesForHorizontalScroll, compensates_for_horizontal_scroll);
+    set_flag(RustFFI::NodeFlag::CompensatesForVerticalScroll, compensates_for_vertical_scroll);
+    if (m_default_scroll_shift_anchor)
+        document().note_default_scroll_shift_anchor();
+}
+
 static ImageProvider const& image_provider_for_element(DOM::Element const& element)
 {
     if (auto const* image = as_if<HTML::HTMLImageElement>(element))
