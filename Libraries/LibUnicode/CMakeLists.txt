@@ -3,6 +3,7 @@ set(SOURCES
     Calendar.cpp
     Calendars/AdjustedEraCalendar.cpp
     Calendars/ChineseDangiCalendar.cpp
+    CaseMapping.cpp
     CharacterTypes.cpp
     Collator.cpp
     CurrencyCode.cpp
