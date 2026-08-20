@@ -38,7 +38,7 @@ Optional<CSSPixelRect> SVGPaintable::clip_path_geometry_bounds(Gfx::AffineTransf
     // which paint can be applied. Thus, a point is inside the clipping path if it is inside any of the
     // children of the clipPath.
     Gfx::BoundingBox<CSSPixels> bounding_box;
-    for_each_child_of_type<Paintable>([&](Paintable& child) {
+    for_each_child_of_type<Paintable>([&](Paintable const& child) {
         auto const* svg_paintable = as_if<SVGPaintable>(child);
         if (!svg_paintable)
             return IterationDecision::Continue;

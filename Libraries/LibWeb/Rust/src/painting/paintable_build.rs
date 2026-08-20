@@ -87,7 +87,7 @@ impl<'a> PaintableCommit<'a> {
         }
     }
 
-    pub(crate) fn begin_commit(&self, root: Node, replaced_fallback: PaintableSlotId) -> CommitAnchors {
+    pub(crate) fn begin_commit(&self, root: Node) -> CommitAnchors {
         let arena = self.arena.borrow();
         arena.clear_absolute_rect_memo();
         if self.callbacks.node_data(root).kind == NodeKind::Viewport {
@@ -95,10 +95,7 @@ impl<'a> PaintableCommit<'a> {
         }
         let parent = self.derived_commit_parent(&arena, root);
         let insert_before = self.derived_commit_insert_before(&arena, root, parent);
-        let mut replaced = arena.paintable_of_node(root);
-        if replaced.is_invalid() {
-            replaced = replaced_fallback;
-        }
+        let replaced = arena.paintable_of_node(root);
         if !replaced.is_invalid() && arena.is_live(replaced) {
             if let Some(replaced_parent) = arena.parent(replaced) {
                 assert_eq!(
@@ -179,13 +176,6 @@ impl<'a> PaintableCommit<'a> {
                 descend = NodeFacts::new(self.callbacks, current).is_fragmented_inline();
             }
         }
-    }
-
-    pub(crate) fn shell_of(&self, slot: PaintableSlotId) -> *mut std::ffi::c_void {
-        if slot.is_invalid() {
-            return std::ptr::null_mut();
-        }
-        self.arena.borrow().data_ref(slot).shell
     }
 
     pub(crate) fn prepare_node(

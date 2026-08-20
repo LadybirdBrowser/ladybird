@@ -35,19 +35,6 @@ pub struct FfiCommittedBoxMetrics {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
-pub struct FfiCommitNodeResult {
-    pub paintable: *mut c_void,
-    pub paintable_for_children: *mut c_void,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiCommitPosition {
-    pub replaced_paintable_slot: crate::painting::paintable_data::PaintableSlotId,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
 pub struct FfiPaintableGeometry {
     pub content_inline_size: crate::layout::CssPixels,
     pub content_block_size: crate::layout::CssPixels,
@@ -75,7 +62,6 @@ pub struct FfiPaintableGeometry {
 #[repr(C)]
 pub struct FfiCommitSink {
     pub context: *mut c_void,
-    pub begin_commit: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiCommitPosition,
     pub finish_commit: unsafe extern "C" fn(*mut c_void),
     pub prepare_node: unsafe extern "C" fn(*mut c_void, *mut c_void, bool, bool) -> crate::painting::paintable_build::FfiPreparedPaintable,
     pub set_box_metrics: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiCommittedBoxMetrics),
@@ -87,15 +73,12 @@ pub struct FfiCommitSink {
     pub set_svg_viewport_transform: unsafe extern "C" fn(*mut c_void, *mut c_void, crate::layout::FfiAffineTransform),
     pub set_svg_viewport_size: unsafe extern "C" fn(*mut c_void, *mut c_void, crate::layout::FfiCssPixelSize),
     pub set_computed_svg_path: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, u64),
-    pub finish_node:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, *mut c_void, *mut c_void) -> FfiCommitNodeResult,
+    pub finish_node: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
     pub assign_inline_box_geometry: unsafe extern "C" fn(*mut c_void, *mut c_void),
 }
 
 #[derive(Clone, Copy)]
 struct CommitInsertion {
-    parent_paintable: *mut c_void,
-    insert_before_paintable: *mut c_void,
     parent_paintable_slot: crate::painting::paintable_data::PaintableSlotId,
     insert_before_paintable_slot: crate::painting::paintable_data::PaintableSlotId,
 }
@@ -109,8 +92,6 @@ fn commit_subtree(
     scopes: &mut crate::layout::CommitScopes<'_>,
 ) {
     let CommitInsertion {
-        parent_paintable,
-        insert_before_paintable,
         parent_paintable_slot,
         insert_before_paintable_slot,
     } = insertion;
@@ -272,16 +253,9 @@ fn commit_subtree(
     let paintable_slot_for_children = paintables.finish_node(node, paintable_slot, parent_paintable_slot, insert_before_paintable_slot);
     // SAFETY: Wiring uses only live layout and paintable pointers for this
     // synchronous commit.
-    let result = unsafe {
-        (sink.finish_node)(
-            sink.context,
-            node_shell,
-            paintable,
-            parent_paintable,
-            insert_before_paintable,
-        )
-    };
-    assert_eq!(result.paintable, paintable);
+    unsafe {
+        (sink.finish_node)(sink.context, node_shell, paintable);
+    }
 
     if reuses_committed_subtree {
         return;
@@ -296,8 +270,6 @@ fn commit_subtree(
         commit_subtree(
             child,
             CommitInsertion {
-                parent_paintable: result.paintable_for_children,
-                insert_before_paintable: null_mut(),
                 parent_paintable_slot: paintable_slot_for_children,
                 insert_before_paintable_slot: crate::painting::paintable_data::PaintableSlotId::INVALID,
             },
@@ -329,14 +301,10 @@ pub(crate) fn commit_replacing(
 ) {
     let mut scopes = crate::layout::CommitScopes::for_pass(pass_fragments);
     let paintables = crate::painting::paintable_build::PaintableCommit::new(callbacks);
-    // SAFETY: The sink resolves and retains the paintable to replace from the root.
-    let position = unsafe { (sink.begin_commit)(sink.context, callbacks.shell(root)) };
-    let anchors = paintables.begin_commit(root, position.replaced_paintable_slot);
+    let anchors = paintables.begin_commit(root);
     commit_subtree(
         root,
         CommitInsertion {
-            parent_paintable: paintables.shell_of(anchors.parent_paintable),
-            insert_before_paintable: paintables.shell_of(anchors.insert_before_paintable),
             parent_paintable_slot: anchors.parent_paintable,
             insert_before_paintable_slot: anchors.insert_before_paintable,
         },

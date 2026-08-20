@@ -57,7 +57,6 @@ private:
     };
     Box const* m_commit_root { nullptr };
     OwnPtr<LineCommitContext> m_line_commit_context;
-    RefPtr<Painting::Paintable> m_replaced_paintable;
     Vector<ReusedPaintable> m_reused_paintables;
 };
 

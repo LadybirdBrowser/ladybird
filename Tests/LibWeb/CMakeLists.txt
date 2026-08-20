@@ -19,7 +19,6 @@ set(TEST_SOURCES
     TestMimeSniff.cpp
     TestNumbers.cpp
     TestNumericTypeParity.cpp
-    TestRefCountedTreeNode.cpp
     TestSecureContexts.cpp
     TestSessionHistoryEntry.cpp
     TestSimpleRealm.cpp

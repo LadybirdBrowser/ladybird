@@ -24,7 +24,7 @@
 #include <LibWeb/Layout/TreeBuilderRustFFI.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/Paintable.h>
-#include <LibWeb/RefCountedTreeNode.h>
+#include <LibWeb/TreeTraversal.h>
 
 namespace Web::Layout {
 

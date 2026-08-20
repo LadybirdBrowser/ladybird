@@ -65,4 +65,3 @@ use std::cell::RefMut;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::ffi::c_void;
-use std::ptr::null_mut;
