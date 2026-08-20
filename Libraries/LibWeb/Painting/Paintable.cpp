@@ -369,12 +369,12 @@ Paintable::SelectionStyle Paintable::selection_style_for_node(Layout::Node const
 
 void Paintable::clear_overflow_data()
 {
-    Layout::RustFFI::layout_arena_paintable_set_overflow_data(m_rust_arena->handle(), m_rust_slot, {}, false, false);
+    Layout::RustFFI::layout_arena_paintable_clear_overflow_data(m_rust_arena->handle(), m_rust_slot);
 }
 
 void Paintable::clear_cached_overflow_data()
 {
-    Layout::RustFFI::layout_arena_paintable_set_cached_overflow_data(m_rust_arena->handle(), m_rust_slot, {}, false, false);
+    Layout::RustFFI::layout_arena_paintable_clear_cached_overflow_data(m_rust_arena->handle(), m_rust_slot);
 }
 
 void Paintable::set_sticky_insets(OwnPtr<StickyInsets> sticky_insets)
