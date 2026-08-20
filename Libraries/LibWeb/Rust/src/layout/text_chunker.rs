@@ -50,7 +50,7 @@ pub(crate) fn chunk_text(inputs: TextChunkInputs<'_>) -> Vec<TextChunk> {
     chunks
 }
 
-struct IcuSegmenterHandle {
+pub(crate) struct IcuSegmenterHandle {
     raw: *mut c_void,
 }
 
@@ -71,13 +71,13 @@ impl Drop for IcuSegmenterHandle {
     }
 }
 
-enum GraphemeSegmenter {
+pub(crate) enum GraphemeSegmenter {
     Ascii { length_in_code_units: usize },
     Icu(IcuSegmenterHandle),
 }
 
 impl GraphemeSegmenter {
-    fn new(text: &[u16]) -> Self {
+    pub(crate) fn new(text: &[u16]) -> Self {
         if text.iter().all(|unit| *unit <= 0x7f) {
             return Self::Ascii {
                 length_in_code_units: text.len(),
@@ -92,7 +92,7 @@ impl GraphemeSegmenter {
 
     /// Mirrors Unicode::AsciiGraphemeSegmenter for the ASCII case: every code
     /// unit index is a boundary.
-    fn next_boundary(&self, index: usize, inclusive: bool) -> Option<usize> {
+    pub(crate) fn next_boundary(&self, index: usize, inclusive: bool) -> Option<usize> {
         match self {
             Self::Ascii { length_in_code_units } => {
                 if inclusive && index <= *length_in_code_units {

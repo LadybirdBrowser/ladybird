@@ -207,7 +207,7 @@ pub(crate) fn selection_offsets_for_dom_range(
 fn for_each_cluster_in_glyph_run(
     glyphs: &[crate::layout::FfiDrawGlyph],
     fragment_length_in_code_units: usize,
-    mut callback: impl FnMut(usize, usize, f32),
+    mut callback: impl FnMut(usize, usize, f32) -> bool,
 ) {
     let mut cursor = 0usize;
     for glyph in glyphs {
@@ -220,7 +220,9 @@ fn for_each_cluster_in_glyph_run(
         if cluster_end <= cluster_start {
             continue;
         }
-        callback(cluster_start, cluster_end, glyph.glyph_width);
+        if !callback(cluster_start, cluster_end, glyph.glyph_width) {
+            return;
+        }
     }
 }
 
@@ -255,10 +257,10 @@ pub(crate) fn rect_for_selection_offsets(
             for_each_cluster_in_glyph_run(&run.glyphs, length, |cluster_start, cluster_end, cluster_width| {
                 if cluster_end <= start_in_text {
                     offset_accumulator += cluster_width;
-                    return;
+                    return true;
                 }
                 if cluster_start >= end_in_text {
-                    return;
+                    return true;
                 }
                 let per_unit_advance = cluster_width / (cluster_end - cluster_start) as f32;
                 if cluster_start < start_in_text {
@@ -267,6 +269,7 @@ pub(crate) fn rect_for_selection_offsets(
                 let in_sel_start = cluster_start.max(start_in_text);
                 let in_sel_end = cluster_end.min(end_in_text);
                 width_accumulator += per_unit_advance * (in_sel_end - in_sel_start) as f32;
+                true
             });
         }
         pixel_offset = CssPixels::nearest_value_for_f32(offset_accumulator);
@@ -356,4 +359,122 @@ pub(crate) fn first_available_font(
     layout_arena
         .node_style_if_live(source)
         .map(|style| style.first_available_font())
+}
+
+struct GraphemeEdgeTracker {
+    target_width: f32,
+    left_edge: usize,
+    right_edge: usize,
+    width_to_left_edge: f32,
+    width_to_right_edge: f32,
+}
+
+impl GraphemeEdgeTracker {
+    fn new(target_width: f32) -> Self {
+        Self {
+            target_width,
+            left_edge: 0,
+            right_edge: 0,
+            width_to_left_edge: 0.0,
+            width_to_right_edge: 0.0,
+        }
+    }
+
+    fn update(&mut self, grapheme_length_in_code_units: usize, grapheme_width: f32) -> bool {
+        if grapheme_width == 0.0 {
+            return true;
+        }
+        self.right_edge += grapheme_length_in_code_units;
+        self.width_to_right_edge += grapheme_width;
+        if self.width_to_right_edge >= self.target_width {
+            return false;
+        }
+        self.left_edge = self.right_edge;
+        self.width_to_left_edge = self.width_to_right_edge;
+        true
+    }
+
+    fn resolve(&self) -> usize {
+        if (self.target_width - self.width_to_left_edge) < (self.width_to_right_edge - self.target_width) {
+            return self.left_edge;
+        }
+        self.right_edge
+    }
+}
+
+pub(crate) fn index_in_node_for_point(
+    layout_arena: &LayoutNodeArena,
+    paintables: &PaintableArena,
+    fragment: &FragmentRecord,
+    position: crate::css::css_pixels::CssPixelPoint,
+) -> usize {
+    if !layout_arena
+        .node_kind_if_live(fragment.layout_node)
+        .is_some_and(crate::layout::kind_is_text)
+    {
+        return 0;
+    }
+
+    let rect = absolute_rect(layout_arena, paintables, fragment);
+    let relative_inline_offset = if is_horizontal(fragment) {
+        (position.x - rect.x).to_float()
+    } else {
+        (position.y - rect.y).to_float()
+    };
+    if relative_inline_offset < 0.0 {
+        return 0;
+    }
+
+    let mut tracker = GraphemeEdgeTracker::new(relative_inline_offset);
+    let mut reached_target = false;
+
+    if let Some(run) = &fragment.glyph_run
+        && let Some(content) = layout_arena.text_content(fragment.layout_node)
+    {
+        let segmenter = content.grapheme_segmenter();
+        for_each_cluster_in_glyph_run(
+            &run.glyphs,
+            fragment.length_in_code_units,
+            |cluster_start, cluster_end, cluster_width| {
+                let per_unit_advance = cluster_width / (cluster_end - cluster_start) as f32;
+                let mut grapheme_start = fragment.start_offset + cluster_start;
+                let cluster_absolute_end = fragment.start_offset + cluster_end;
+                while grapheme_start < cluster_absolute_end {
+                    let grapheme_end = segmenter
+                        .next_boundary(grapheme_start, false)
+                        .unwrap_or(cluster_absolute_end)
+                        .min(cluster_absolute_end);
+                    if grapheme_end <= grapheme_start {
+                        break;
+                    }
+                    let grapheme_units = grapheme_end - grapheme_start;
+                    let grapheme_width = per_unit_advance * grapheme_units as f32;
+                    if !tracker.update(grapheme_units, grapheme_width) {
+                        reached_target = true;
+                        return false;
+                    }
+                    grapheme_start = grapheme_end;
+                }
+                true
+            },
+        );
+    }
+
+    if !reached_target && fragment.trailing_whitespace_length_in_code_units > 0 {
+        let font_raw = match &fragment.glyph_run {
+            Some(run) => Some(run.font.as_raw()),
+            None => first_available_font(layout_arena, fragment),
+        };
+        if let Some(raw) = font_raw {
+            // SAFETY: The font is retained by the glyph run or by the node's style for the call.
+            let space_width = unsafe { libgfx_rust::font::FontRef::from_raw(raw) }.glyph_width(' ' as u32);
+            for _ in 0..fragment.trailing_whitespace_length_in_code_units {
+                if !tracker.update(1, space_width) {
+                    break;
+                }
+            }
+        }
+    }
+
+    fragment.dom_start_offset_in_node + tracker.resolve()
 }

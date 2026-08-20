@@ -10,7 +10,7 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLMapElement.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
-#include <LibWeb/Layout/TextNode.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/PaintableFragment.h>
@@ -335,14 +335,17 @@ HitTestDisplayList::ClosestLine HitTestDisplayList::find_closest_line(CSSPixelPo
     return closest_line;
 }
 
-PaintableFragment const* HitTestDisplayList::text_fragment_for_item(Item const& item) const
+static Layout::RustFFI::FfiFragmentTextFacts fragment_text_facts(Paintable const& paintable, Optional<u32> const& text_fragment_index)
 {
-    if (!item.text_fragment_index.has_value())
-        return nullptr;
-    auto const& fragments = as<PaintableWithLines>(*item.paintable).fragments();
-    if (*item.text_fragment_index >= fragments.size())
-        return nullptr;
-    return &fragments[*item.text_fragment_index];
+    if (!text_fragment_index.has_value())
+        return {};
+    return Layout::RustFFI::layout_arena_paintable_fragment_text_facts(
+        paintable.rust_arena().handle(), paintable.rust_slot(), *text_fragment_index);
+}
+
+static Layout::Node const* fragment_layout_node(Layout::RustFFI::FfiFragmentTextFacts const& facts)
+{
+    return static_cast<Layout::Node const*>(facts.layout_node);
 }
 
 RefPtr<ChromeWidget> HitTestDisplayList::chrome_widget_for_item(Item const& item) const
@@ -363,8 +366,10 @@ RefPtr<ChromeWidget> HitTestDisplayList::chrome_widget_for_item(Item const& item
 bool HitTestDisplayList::item_can_produce_caret_position(Item const& item) const
 {
     switch (item.kind) {
-    case ItemKind::TextFragment:
-        return text_fragment_for_item(item) && !!text_fragment_for_item(item)->layout_node().dom_node();
+    case ItemKind::TextFragment: {
+        auto const* layout_node = fragment_layout_node(fragment_text_facts(*item.paintable, item.text_fragment_index));
+        return layout_node && layout_node->dom_node();
+    }
     case ItemKind::EmptyLine:
         return !!item.caret_node;
     case ItemKind::EmptyEditable:
@@ -392,8 +397,10 @@ DOM::Node const* HitTestDisplayList::item_dom_node(Item const& item) const
     case ItemKind::EmptyEditable:
     case ItemKind::ChromeWidget:
         return item.paintable->dom_node().ptr();
-    case ItemKind::TextFragment:
-        return text_fragment_for_item(item) ? text_fragment_for_item(item)->layout_node().dom_node() : nullptr;
+    case ItemKind::TextFragment: {
+        auto const* layout_node = fragment_layout_node(fragment_text_facts(*item.paintable, item.text_fragment_index));
+        return layout_node ? layout_node->dom_node() : nullptr;
+    }
     case ItemKind::EmptyLine:
         return item.caret_node.ptr();
     }
@@ -403,12 +410,13 @@ DOM::Node const* HitTestDisplayList::item_dom_node(Item const& item) const
 DOM::Node const* HitTestDisplayList::event_dispatch_dom_node_for_item(Item const& item) const
 {
     if (item.kind == ItemKind::TextFragment) {
-        VERIFY(text_fragment_for_item(item));
-        auto const& layout_node = text_fragment_for_item(item)->layout_node();
-        if (auto const* node = layout_node.dom_node())
+        auto const* layout_node = fragment_layout_node(fragment_text_facts(*item.paintable, item.text_fragment_index));
+        if (!layout_node)
+            return nullptr;
+        if (auto const* node = layout_node->dom_node())
             return node;
-        if (layout_node.is_generated_for_pseudo_element())
-            return layout_node.pseudo_element_generator().ptr();
+        if (layout_node->is_generated_for_pseudo_element())
+            return layout_node->pseudo_element_generator().ptr();
         return nullptr;
     }
 
@@ -456,11 +464,13 @@ HitTestResult HitTestDisplayList::hit_test_result_for_item(Item const& item, CSS
     case ItemKind::SvgPath:
         return HitTestResult { .paintable = item.paintable };
     case ItemKind::TextFragment:
-        VERIFY(text_fragment_for_item(item));
+        VERIFY(item.text_fragment_index.has_value());
         return HitTestResult {
             .paintable = item.paintable,
             .dom_node_override = const_cast<DOM::Node*>(event_dispatch_dom_node_for_item(item)),
-            .index_in_node = text_fragment_for_item(item)->index_in_node_for_point(local_point),
+            .index_in_node = Layout::RustFFI::layout_arena_paintable_fragment_index_in_node_for_point(
+                item.paintable->rust_arena().handle(), item.paintable->rust_slot(), *item.text_fragment_index,
+                local_point.x().raw_value(), local_point.y().raw_value()),
             .is_text_fragment = true,
         };
     case ItemKind::EmptyLine:
@@ -481,35 +491,40 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_item(Item const& 
 {
     switch (item.kind) {
     case ItemKind::TextFragment: {
-        VERIFY(text_fragment_for_item(item));
-        auto const& fragment = *text_fragment_for_item(item);
-        auto const* fragment_dom_node = fragment.layout_node().dom_node();
+        VERIFY(item.text_fragment_index.has_value());
+        auto facts = fragment_text_facts(*item.paintable, item.text_fragment_index);
+        auto const* fragment_layout = fragment_layout_node(facts);
+        auto const* fragment_dom_node = fragment_layout ? fragment_layout->dom_node() : nullptr;
         if (!fragment_dom_node)
             return {};
 
-        auto index_in_node = [&] {
+        auto index_in_node = [&]() -> size_t {
             switch (type) {
             case CaretPositionType::Before:
-                return fragment.dom_start_offset_in_node();
+                return facts.dom_start_offset_in_node;
             case CaretPositionType::After:
-                return fragment.dom_end_offset_with_trailing_whitespace();
+                return facts.dom_end_offset_with_trailing_whitespace;
             case CaretPositionType::Closest:
-                return fragment.index_in_node_for_point(local_point);
+                return Layout::RustFFI::layout_arena_paintable_fragment_index_in_node_for_point(
+                    item.paintable->rust_arena().handle(), item.paintable->rust_slot(), *item.text_fragment_index,
+                    local_point.x().raw_value(), local_point.y().raw_value());
             }
             VERIFY_NOT_REACHED();
         }();
 
         // A position at the fragment's whitespace-extended end may coincide with the start of the next fragment;
         // Upstream affinity keeps it rendering on this fragment's line.
-        auto affinity = index_in_node >= fragment.dom_end_offset_in_node() && index_in_node == fragment.dom_end_offset_with_trailing_whitespace()
+        auto affinity = index_in_node >= facts.dom_end_offset_in_node && index_in_node == facts.dom_end_offset_with_trailing_whitespace
             ? TextAffinity::Upstream
             : TextAffinity::Downstream;
 
+        auto debug_rect = Layout::RustFFI::layout_arena_paintable_fragment_caret_range_rect(
+            item.paintable->rust_arena().handle(), item.paintable->rust_slot(), *item.text_fragment_index, index_in_node);
         return CaretPosition {
             .paintable = item.paintable,
             .boundary = { const_cast<DOM::Node&>(*fragment_dom_node), static_cast<WebIDL::UnsignedLong>(index_in_node) },
             .affinity = affinity,
-            .debug_rect = fragment.range_rect(Paintable::SelectionState::StartAndEnd, index_in_node, index_in_node),
+            .debug_rect = from_ffi_css_pixel_rect(debug_rect),
         };
     }
     case ItemKind::EmptyLine: {
@@ -582,21 +597,27 @@ bool HitTestDisplayList::item_contains_caret_position(Item const& item, DOM::Nod
 {
     switch (item.kind) {
     case ItemKind::TextFragment: {
-        VERIFY(text_fragment_for_item(item));
-        auto const* fragment_dom_node = text_fragment_for_item(item)->layout_node().dom_node();
+        VERIFY(item.text_fragment_index.has_value());
+        auto facts = fragment_text_facts(*item.paintable, item.text_fragment_index);
+        auto const* fragment_layout = fragment_layout_node(facts);
+        auto const* fragment_dom_node = fragment_layout ? fragment_layout->dom_node() : nullptr;
         if (!fragment_dom_node)
             return false;
-        if (fragment_dom_node == &node)
-            return text_fragment_for_item(item)->caret_match(offset, affinity) != PaintableFragment::CaretMatch::None;
+        if (fragment_dom_node == &node) {
+            return Layout::RustFFI::layout_arena_paintable_fragment_caret_match(
+                       item.paintable->rust_arena().handle(), item.paintable->rust_slot(), *item.text_fragment_index,
+                       offset, affinity == TextAffinity::Downstream)
+                != Layout::RustFFI::FfiCaretMatch::None;
+        }
 
         auto* node_after_boundary = node.child_at_index(offset);
         while (node_after_boundary && node_after_boundary != fragment_dom_node)
             node_after_boundary = node_after_boundary->first_child();
-        if (node_after_boundary == fragment_dom_node && text_fragment_for_item(item)->dom_start_offset_in_node() == 0)
+        if (node_after_boundary == fragment_dom_node && facts.dom_start_offset_in_node == 0)
             return true;
         return offset > 0
             && node.child_at_index(offset - 1) == fragment_dom_node
-            && text_fragment_for_item(item)->dom_end_offset_with_trailing_whitespace() == fragment_dom_node->length();
+            && facts.dom_end_offset_with_trailing_whitespace == fragment_dom_node->length();
     }
     case ItemKind::EmptyLine:
         return item_dom_node(item) == &node && item.caret_offset == offset;
@@ -637,10 +658,15 @@ Optional<size_t> HitTestDisplayList::caret_line_index_for_position(DOM::Node con
                 auto const& item = caret_item(caret_item_index);
                 if (!item_contains_caret_position(item, node, offset, affinity))
                     continue;
-                if (!allow_soft_wrap_fallback && item.kind == ItemKind::TextFragment && text_fragment_for_item(item)
-                    && text_fragment_for_item(item)->layout_node().dom_node() == &node
-                    && text_fragment_for_item(item)->caret_match(offset, affinity) == PaintableFragment::CaretMatch::SoftWrapFallback)
-                    continue;
+                if (!allow_soft_wrap_fallback && item.kind == ItemKind::TextFragment && item.text_fragment_index.has_value()) {
+                    auto const* fragment_layout = fragment_layout_node(fragment_text_facts(*item.paintable, item.text_fragment_index));
+                    if (fragment_layout && fragment_layout->dom_node() == &node
+                        && Layout::RustFFI::layout_arena_paintable_fragment_caret_match(
+                               item.paintable->rust_arena().handle(), item.paintable->rust_slot(), *item.text_fragment_index,
+                               offset, affinity == TextAffinity::Downstream)
+                            == Layout::RustFFI::FfiCaretMatch::SoftWrapFallback)
+                        continue;
+                }
                 return line_index;
             }
         }
