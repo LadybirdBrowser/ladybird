@@ -805,7 +805,6 @@ set(SOURCES
     Layout/LayoutRustBridge.cpp
     Layout/Node.cpp
     Layout/NodeArena.cpp
-    Layout/ScrollableOverflow.cpp
     Layout/TextNode.cpp
     Layout/TextOffsetMapping.cpp
     Layout/TreeBuilder.cpp

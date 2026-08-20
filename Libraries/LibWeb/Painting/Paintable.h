@@ -403,11 +403,9 @@ public:
     [[nodiscard]] Optional<CSSPixelRect> scrollable_overflow_rect() const;
 
     [[nodiscard]] Optional<OverflowData> overflow_data() const;
-    void set_overflow_data(OverflowData);
     void clear_overflow_data();
 
     Optional<CachedOverflowData> cached_overflow_data() const;
-    void set_cached_overflow_data(CachedOverflowData);
     void clear_cached_overflow_data();
 
     virtual void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);

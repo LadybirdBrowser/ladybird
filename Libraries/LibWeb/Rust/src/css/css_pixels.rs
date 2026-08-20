@@ -385,18 +385,18 @@ impl CssPixelRect {
     pub fn translated_by(self, offset: CssPixelPoint) -> Self {
         self.translated(offset.x, offset.y)
     }
-    fn set_left(&mut self, left: CssPixels) {
+    pub(crate) fn set_left(&mut self, left: CssPixels) {
         self.width = self.right() - left;
         self.x = left;
     }
-    fn set_top(&mut self, top: CssPixels) {
+    pub(crate) fn set_top(&mut self, top: CssPixels) {
         self.height = self.bottom() - top;
         self.y = top;
     }
-    fn set_right(&mut self, right: CssPixels) {
+    pub(crate) fn set_right(&mut self, right: CssPixels) {
         self.width = right - self.x;
     }
-    fn set_bottom(&mut self, bottom: CssPixels) {
+    pub(crate) fn set_bottom(&mut self, bottom: CssPixels) {
         self.height = bottom - self.y;
     }
     pub fn unite_horizontally(&mut self, other: Self) {

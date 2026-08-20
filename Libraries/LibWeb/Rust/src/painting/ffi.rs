@@ -233,6 +233,55 @@ pub struct FfiPhysicalOverflowDirections {
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_measure_scrollable_overflow(
+    arena: *mut c_void,
+    box_paintable: PaintableSlotId,
+    visual_context_callbacks: crate::painting::host::FfiVisualContextHostCallbacks,
+    overflow_callbacks: crate::painting::host::FfiScrollableOverflowHostCallbacks,
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if !paintables.is_live(box_paintable) {
+            return;
+        }
+        crate::painting::scrollable_overflow::measure_scrollable_overflow(
+            arena,
+            &paintables,
+            &visual_context_callbacks,
+            &overflow_callbacks,
+            box_paintable,
+        );
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_translate_scrollable_overflow(
+    arena: *mut c_void,
+    slot: PaintableSlotId,
+    delta: FfiCssPixelPoint,
+) {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if paintables.is_live(slot) {
+            paintables.update_data(slot, |data| {
+                if data.has_overflow {
+                    data.overflow.rect.x += delta.x;
+                    data.overflow.rect.y += delta.y;
+                }
+            });
+        }
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_rebuild_scrollable_overflow_contained_boxes(
     arena: *mut c_void,
     root: NodeSlotId,

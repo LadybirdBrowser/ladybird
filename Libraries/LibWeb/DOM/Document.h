@@ -55,7 +55,6 @@
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/InvalidateDisplayList.h>
-#include <LibWeb/Layout/ScrollableOverflow.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/Forward.h>
 #include <LibWeb/Painting/GridInspectorOverlay.h>
@@ -1809,10 +1808,6 @@ private:
 
     bool m_needs_full_scrollable_overflow_recalculation { false };
     Vector<WeakPtr<Painting::Paintable>> m_paintable_boxes_needing_scrollable_overflow_recalculation;
-    // NB: Holds raw layout node pointers that are only safe to read while m_layout_root still owns
-    //     the tree they came from: every full layout rebuilds the map, layout tree teardown clears
-    //     it, and overflow measurement only reads it while that root remains current.
-    Layout::ContainedBoxesMap m_scrollable_overflow_contained_boxes_from_last_layout;
     CSS::SheetSetStyleCacheRegistry m_sheet_set_style_cache_registry;
     RefPtr<Painting::HitTestDisplayList> m_hit_test_display_list;
     // The previous recording's list, retained so cached per-paintable item ranges can be spliced into

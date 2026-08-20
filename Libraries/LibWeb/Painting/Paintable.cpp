@@ -367,19 +367,9 @@ Paintable::SelectionStyle Paintable::selection_style_for_node(Layout::Node const
     return default_style;
 }
 
-void Paintable::set_overflow_data(OverflowData data)
-{
-    Layout::RustFFI::layout_arena_paintable_set_overflow_data(m_rust_arena->handle(), m_rust_slot, to_ffi_css_pixel_rect(data.scrollable_overflow_rect), data.has_scrollable_overflow, true);
-}
-
 void Paintable::clear_overflow_data()
 {
     Layout::RustFFI::layout_arena_paintable_set_overflow_data(m_rust_arena->handle(), m_rust_slot, {}, false, false);
-}
-
-void Paintable::set_cached_overflow_data(CachedOverflowData data)
-{
-    Layout::RustFFI::layout_arena_paintable_set_cached_overflow_data(m_rust_arena->handle(), m_rust_slot, to_ffi_css_pixel_rect(data.rect_relative_to_padding_box), data.has_scrollable_overflow, true);
 }
 
 void Paintable::clear_cached_overflow_data()
@@ -1093,10 +1083,7 @@ void Paintable::translate_reused_subtree_absolute_geometry(CSSPixelPoint delta)
 {
     for_each_in_inclusive_subtree([&](Paintable& paintable) {
         paintable.invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::No);
-        if (auto overflow_data = paintable.overflow_data(); overflow_data.has_value()) {
-            overflow_data->scrollable_overflow_rect.translate_by(delta);
-            paintable.set_overflow_data(*overflow_data);
-        }
+        Layout::RustFFI::layout_arena_paintable_translate_scrollable_overflow(paintable.m_rust_arena->handle(), paintable.m_rust_slot, { delta.x().raw_value(), delta.y().raw_value() });
         // Recorded paint commands bake absolute coordinates.
         paintable.invalidate_paint_cache();
         return TraversalDecision::Continue;
