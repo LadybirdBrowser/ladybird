@@ -23,6 +23,7 @@ use crate::css::computed_value_types::{
     SVGResetValues, SizingValues, SurroundValues, TextResetValues, TransformValues,
 };
 use crate::css::computed_values::{InheritedBoxValues, InheritedTableValues};
+use crate::css::css_enums::{direction, writing_mode};
 use crate::css::css_pixels::CssPixels;
 use crate::css::display::FfiDisplay;
 use crate::css::style_value::StyleValueData;
@@ -643,6 +644,24 @@ impl<'a> ComputedValuesView<'a> {
 
     pub(crate) fn is_floating(self) -> bool {
         self.box_values().float_ != crate::css::css_enums::float::NONE
+    }
+
+    pub(crate) fn inline_axis_is_reverse(self) -> bool {
+        match self.writing_mode() {
+            writing_mode::HORIZONTAL_TB
+            | writing_mode::VERTICAL_RL
+            | writing_mode::VERTICAL_LR
+            | writing_mode::SIDEWAYS_RL => self.direction() == direction::RTL,
+            writing_mode::SIDEWAYS_LR => self.direction() == direction::LTR,
+            _ => unreachable!("invalid writing mode"),
+        }
+    }
+
+    pub(crate) fn block_axis_is_reverse(self) -> bool {
+        matches!(
+            self.writing_mode(),
+            writing_mode::VERTICAL_RL | writing_mode::SIDEWAYS_RL
+        )
     }
 
     pub(crate) fn is_absolutely_positioned(self) -> bool {

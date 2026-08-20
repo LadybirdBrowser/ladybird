@@ -367,25 +367,13 @@ impl<'a> PaintRecorder<'a> {
     fn inline_axis_is_reverse_of(&self, paintable: PaintableSlotId) -> bool {
         self.layout_arena
             .node_style_if_live(self.data(paintable).layout_node)
-            .is_some_and(|style| {
-                let rtl = style.direction() == 1;
-                if style.writing_mode() == css_enums::writing_mode::SIDEWAYS_LR {
-                    !rtl
-                } else {
-                    rtl
-                }
-            })
+            .is_some_and(|style| style.inline_axis_is_reverse())
     }
 
     fn block_axis_is_reverse_of(&self, paintable: PaintableSlotId) -> bool {
         self.layout_arena
             .node_style_if_live(self.data(paintable).layout_node)
-            .is_some_and(|style| {
-                matches!(
-                    style.writing_mode(),
-                    css_enums::writing_mode::VERTICAL_RL | css_enums::writing_mode::SIDEWAYS_RL
-                )
-            })
+            .is_some_and(|style| style.block_axis_is_reverse())
     }
 
     fn layout_containing_block_of(&self, paintable: PaintableSlotId) -> NodeSlotId {
