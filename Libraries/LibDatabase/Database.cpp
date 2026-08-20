@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
 #include <AK/String.h>
 #include <AK/Time.h>
@@ -44,6 +45,7 @@ static constexpr StringView sql_error(int error_code)
     __ENUMERATE_TYPE(String)       \
     __ENUMERATE_TYPE(Utf16String)  \
     __ENUMERATE_TYPE(ByteString)   \
+    __ENUMERATE_TYPE(ByteBuffer)   \
     __ENUMERATE_TYPE(UnixDateTime) \
     __ENUMERATE_TYPE(i8)           \
     __ENUMERATE_TYPE(i16)          \
@@ -242,7 +244,7 @@ ErrorOr<void> Database::try_apply_placeholder(StatementID statement_id, int inde
         TRY(try_apply_placeholder(statement_id, index, value.to_utf8()));
     } else if constexpr (IsSame<ValueType, ByteString>) {
         TRY(bind_blob_bytes(statement, index, value.bytes()));
-    } else if constexpr (IsOneOf<ValueType, Bytes, ReadonlyBytes>) {
+    } else if constexpr (IsOneOf<ValueType, ByteBuffer, Bytes, ReadonlyBytes>) {
         TRY(bind_blob_bytes(statement, index, value));
     } else if constexpr (IsSame<ValueType, UnixDateTime>) {
         TRY(try_apply_placeholder(statement_id, index, value.offset_to_epoch().to_milliseconds()));
@@ -284,6 +286,10 @@ ValueType Database::result_column(StatementID statement_id, int column)
         auto const* blob = sqlite3_column_blob(statement, column);
         auto length = sqlite3_column_bytes(statement, column);
         return ByteString { reinterpret_cast<char const*>(blob), static_cast<size_t>(length) };
+    } else if constexpr (IsSame<ValueType, ByteBuffer>) {
+        auto const* blob = sqlite3_column_blob(statement, column);
+        auto length = sqlite3_column_bytes(statement, column);
+        return MUST(ByteBuffer::copy(blob, static_cast<size_t>(length)));
     } else if constexpr (IsSame<ValueType, UnixDateTime>) {
         auto milliseconds = result_column<sqlite3_int64>(statement_id, column);
         return UnixDateTime::from_milliseconds_since_epoch(milliseconds);
