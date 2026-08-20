@@ -177,6 +177,7 @@ impl PaintableArena {
         };
         let paintable = std::mem::replace(entry, PaintableSlotId::INVALID);
         if !paintable.is_invalid() && self.is_live(paintable) {
+            self.remove_from_tree(paintable);
             self.update_data(paintable, |data| {
                 data.layout_node = NodeSlotId::INVALID;
                 data.containing_block = PaintableSlotId::INVALID;

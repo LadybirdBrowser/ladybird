@@ -141,7 +141,12 @@ RefPtr<Paintable> Paintable::containing_block() const
 
 Paintable const* Paintable::containing_block_ptr() const
 {
-    return static_cast<Paintable const*>(Layout::RustFFI::layout_arena_paintable_shell(m_rust_arena->handle(), rust_data().containing_block));
+    return shell_from_slot(rust_data().containing_block);
+}
+
+Paintable* Paintable::shell_from_slot(Layout::RustFFI::PaintableSlotId slot) const
+{
+    return static_cast<Paintable*>(Layout::RustFFI::layout_arena_paintable_shell(m_rust_arena->handle(), slot));
 }
 
 bool Paintable::is_visible() const
@@ -777,11 +782,6 @@ void Paintable::repaint_after_style_change(CSS::RequiredInvalidationAfterStyleCh
 
 void Paintable::reset_for_relayout()
 {
-    if (parent())
-        remove();
-    while (first_child())
-        first_child()->remove();
-
     // A reused paintable must shed its chrome widgets: whether the box still warrants them
     // (e.g. scrollbars on a scroll container) is only known after the new layout is painted.
     detach_chrome_widgets();

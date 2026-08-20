@@ -1523,8 +1523,6 @@ void Node::clear_paintable()
 
     invalidate_paint_caches(*this);
     if (m_paintable) {
-        if (m_paintable->parent())
-            m_paintable->remove();
         RustFFI::layout_arena_paintable_cleared_from_node(arena_handle(), slot_id(this), m_paintable->rust_slot());
         // NB: Layout state may retain this paintable after it stops being the node's current paintable, but its
         //     chrome widgets must no longer use it for input handling.
