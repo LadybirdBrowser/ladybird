@@ -24,6 +24,7 @@
 #include <QPixmap>
 #include <QTimer>
 #include <QUrl>
+#include <QVariant>
 
 #ifdef AK_OS_MACOS
 #    define LADYBIRD_QT_USE_METAL_RHI_WIDGET 1
@@ -62,6 +63,8 @@ using WebContentViewBase = QRhiWidget;
 #else
 using WebContentViewBase = QWidget;
 #endif
+
+QVariant input_method_query_for_state(WebView::ViewImplementation::InputMethodState const& state, Qt::InputMethodQuery query, double device_pixel_ratio);
 
 struct WebContentViewInitialState {
     WebView::IsPrivate is_private { WebView::IsPrivate::No };

@@ -599,18 +599,16 @@ static Optional<QRectF> input_method_rect_for_caret(Optional<Web::DevicePixelRec
     };
 }
 
-QVariant WebContentView::inputMethodQuery(Qt::InputMethodQuery query) const
+QVariant input_method_query_for_state(WebView::ViewImplementation::InputMethodState const& state, Qt::InputMethodQuery query, double device_pixel_ratio)
 {
-    auto const& state = input_method_state();
-
     switch (query) {
     case Qt::ImEnabled:
         return state.is_enabled;
     case Qt::ImCursorRectangle:
     case Qt::ImAnchorRectangle:
-        if (auto rect = input_method_rect_for_caret(state.caret_rect, device_pixel_ratio()); rect.has_value())
+        if (auto rect = input_method_rect_for_caret(state.caret_rect, device_pixel_ratio); rect.has_value())
             return *rect;
-        return WebContentViewBase::inputMethodQuery(query);
+        return {};
     case Qt::ImAbsolutePosition:
     case Qt::ImCursorPosition:
         return state.cursor_position;
@@ -625,8 +623,15 @@ QVariant WebContentView::inputMethodQuery(Qt::InputMethodQuery query) const
     case Qt::ImReadOnly:
         return !state.is_enabled;
     default:
-        return WebContentViewBase::inputMethodQuery(query);
+        return {};
     }
+}
+
+QVariant WebContentView::inputMethodQuery(Qt::InputMethodQuery query) const
+{
+    if (auto result = input_method_query_for_state(input_method_state(), query, device_pixel_ratio()); result.isValid())
+        return result;
+    return WebContentViewBase::inputMethodQuery(query);
 }
 
 void WebContentView::leaveEvent(QEvent* event)
