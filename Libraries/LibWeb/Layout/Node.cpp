@@ -33,14 +33,6 @@
 #include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
-#include <LibWeb/Painting/SVGClipPaintable.h>
-#include <LibWeb/Painting/SVGForeignObjectPaintable.h>
-#include <LibWeb/Painting/SVGGraphicsPaintable.h>
-#include <LibWeb/Painting/SVGImagePaintable.h>
-#include <LibWeb/Painting/SVGMaskPaintable.h>
-#include <LibWeb/Painting/SVGPathPaintable.h>
-#include <LibWeb/Painting/SVGPatternPaintable.h>
-#include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
@@ -1563,23 +1555,17 @@ RefPtr<Painting::Paintable> Node::create_paintable() const
             return Painting::InlinePaintable::create(static_cast<NodeWithStyle const&>(*this));
         return Painting::PaintableWithLines::create(static_cast<BlockContainer const&>(*this));
     case RustFFI::NodeKind::SVGSVGBox:
-        return Painting::SVGSVGPaintable::create(static_cast<Box const&>(*this));
     case RustFFI::NodeKind::SVGGraphicsBox:
-        return Painting::SVGGraphicsPaintable::create(static_cast<Box const&>(*this));
     case RustFFI::NodeKind::SVGGeometryBox:
     case RustFFI::NodeKind::SVGTextBox:
     case RustFFI::NodeKind::SVGTextPathBox:
-        return Painting::SVGPathPaintable::create(static_cast<Box const&>(*this));
     case RustFFI::NodeKind::SVGImageBox:
-        return Painting::SVGImagePaintable::create(static_cast<Box const&>(*this));
     case RustFFI::NodeKind::SVGMaskBox:
-        return Painting::SVGMaskPaintable::create(static_cast<Box const&>(*this));
     case RustFFI::NodeKind::SVGClipBox:
-        return Painting::SVGClipPaintable::create(static_cast<Box const&>(*this));
     case RustFFI::NodeKind::SVGPatternBox:
-        return Painting::SVGPatternPaintable::create(static_cast<Box const&>(*this));
+        return Painting::Paintable::create(static_cast<Box const&>(*this));
     case RustFFI::NodeKind::SVGForeignObjectBox:
-        return Painting::SVGForeignObjectPaintable::create(static_cast<BlockContainer const&>(*this));
+        return Painting::PaintableWithLines::create(static_cast<BlockContainer const&>(*this));
     case RustFFI::NodeKind::Viewport:
         return Painting::ViewportPaintable::create(static_cast<Viewport const&>(*this));
     }

@@ -54,8 +54,6 @@
 #include <LibWeb/Painting/PaintingRustFFI.h>
 #include <LibWeb/Painting/ResizeHandle.h>
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
-#include <LibWeb/Painting/SVGImagePaintable.h>
-#include <LibWeb/Painting/SVGPathPaintable.h>
 #include <LibWeb/Painting/Scrollbar.h>
 #include <LibWeb/Painting/ShadowData.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -690,8 +688,8 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
             facts.has_resizer = paintable.has_resizer();
             facts.could_be_scrolled_horizontally = paintable.could_be_scrolled_by_wheel_event(Paintable::ScrollDirection::Horizontal);
             facts.could_be_scrolled_vertically = paintable.could_be_scrolled_by_wheel_event(Paintable::ScrollDirection::Vertical);
-            if (auto const* path_paintable = as_if<SVGPathPaintable>(paintable)) {
-                auto const& graphics_element = path_paintable->dom_node();
+            if (paintable.is_svg_path_paintable()) {
+                auto const& graphics_element = as<SVG::SVGGraphicsElement>(*paintable.dom_node());
                 facts.svg_path_has_fill = graphics_element.fill_color().has_value();
                 facts.svg_path_winding_rule = graphics_element.fill_rule().value_or(SVG::FillRule::Nonzero) == SVG::FillRule::Evenodd
                     ? to_underlying(Gfx::WindingRule::EvenOdd)
@@ -1166,8 +1164,8 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             GC::Ptr<HTML::DecodedImageData> decoded_image_data;
             if (paintable.kind() == Layout::RustFFI::PaintableKind::ImagePaintable)
                 decoded_image_data = static_cast<Layout::Box const&>(layout_node).image_provider().decoded_image_data();
-            else if (auto const* svg_image_paintable = as_if<SVGImagePaintable>(paintable)) {
-                auto const& image_provider = as<SVG::SVGImageElement>(*svg_image_paintable->layout_box().dom_node());
+            else if (paintable.kind() == Layout::RustFFI::PaintableKind::SVGImagePaintable) {
+                auto const& image_provider = as<SVG::SVGImageElement>(*paintable.layout_node().dom_node());
                 decoded_image_data = image_provider.decoded_image_data();
             }
             if (!decoded_image_data)
@@ -1213,8 +1211,8 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
         .svg_host_facts = [](void*, void* paintable_shell) -> Layout::RustFFI::FfiSvgHostFacts {
             auto const& paintable = *static_cast<Paintable const*>(paintable_shell);
             Layout::RustFFI::FfiSvgHostFacts facts {};
-            if (auto const* path_paintable = as_if<SVGPathPaintable>(paintable)) {
-                facts.percentage_basis = path_paintable->dom_node().viewport_percentage_basis().raw_value();
+            if (paintable.is_svg_path_paintable()) {
+                facts.percentage_basis = as<SVG::SVGGraphicsElement>(*paintable.dom_node()).viewport_percentage_basis().raw_value();
                 if (auto const* viewport_paintable = nearest_svg_viewport_paintable_of(paintable.layout_node())) {
                     facts.has_viewport = true;
                     auto viewport = svg_viewport_user_rect(*viewport_paintable);
@@ -1224,8 +1222,8 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                     facts.viewport[3] = viewport.height();
                 }
             }
-            if (auto const* image_paintable = as_if<SVGImagePaintable>(paintable)) {
-                auto const& image_provider = as<SVG::SVGImageElement>(*image_paintable->layout_box().dom_node());
+            if (paintable.kind() == Layout::RustFFI::PaintableKind::SVGImagePaintable) {
+                auto const& image_provider = as<SVG::SVGImageElement>(*paintable.layout_node().dom_node());
                 facts.has_decoded_image_data = image_provider.decoded_image_data() != nullptr;
                 if (auto natural_size = image_provider.intrinsic_size(); natural_size.has_value()) {
                     facts.has_natural_size = true;
@@ -1237,7 +1235,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
         },
         .svg_paint_style = [](void* context_pointer, void* paintable_shell, bool is_stroke, Layout::RustFFI::FfiSvgPaintContext const* ffi_paint_context, void* sink) -> Layout::RustFFI::FfiSvgPaintStyle {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
-            auto const& paintable = *static_cast<SVGPathPaintable const*>(paintable_shell);
+            auto const& paintable = *static_cast<Paintable const*>(paintable_shell);
             Layout::RustFFI::FfiSvgPaintStyle style {};
             auto const& viewport = ffi_paint_context->viewport;
             auto const& path_bounding_box = ffi_paint_context->path_bounding_box;
@@ -1249,7 +1247,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 .paint_transform = Gfx::AffineTransform { paint_transform[0], paint_transform[1], paint_transform[2], paint_transform[3], paint_transform[4], paint_transform[5] },
                 .content_scale = { content_scale[0], content_scale[1] },
             };
-            auto const& graphics_element = paintable.dom_node();
+            auto const& graphics_element = as<SVG::SVGGraphicsElement>(*paintable.dom_node());
             auto paint_server = is_stroke ? graphics_element.stroke_paint_server(paint_context, context.device_pixels_per_css_pixel) : graphics_element.fill_paint_server(paint_context, context.device_pixels_per_css_pixel);
             if (!paint_server.has_value())
                 return style;

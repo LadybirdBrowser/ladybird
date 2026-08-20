@@ -99,8 +99,6 @@ public:
 
     bool has_stacking_context() const;
 
-    virtual bool forms_unconnected_subtree() const { return false; }
-
     Paintable* parent_ptr() { return shell_from_slot(rust_data().parent); }
     Paintable const* parent_ptr() const { return shell_from_slot(rust_data().parent); }
     RefPtr<Paintable> parent() { return parent_ptr(); }
@@ -242,12 +240,23 @@ public:
             || kind == Layout::RustFFI::PaintableKind::SVGForeignObjectPaintable;
     }
     [[nodiscard]] bool is_inline_paintable() const { return kind() == Layout::RustFFI::PaintableKind::InlinePaintable; }
-    [[nodiscard]] virtual bool is_svg_paintable() const { return false; }
-
-    [[nodiscard]] virtual bool is_svg_svg_paintable() const { return false; }
-    [[nodiscard]] virtual bool is_svg_path_paintable() const { return false; }
-    [[nodiscard]] virtual bool is_svg_graphics_paintable() const { return false; }
-    [[nodiscard]] virtual bool is_svg_foreign_object_paintable() const { return false; }
+    [[nodiscard]] bool is_svg_paintable() const
+    {
+        switch (kind()) {
+        case Layout::RustFFI::PaintableKind::SVGGraphicsPaintable:
+        case Layout::RustFFI::PaintableKind::SVGPathPaintable:
+        case Layout::RustFFI::PaintableKind::SVGImagePaintable:
+        case Layout::RustFFI::PaintableKind::SVGMaskPaintable:
+        case Layout::RustFFI::PaintableKind::SVGClipPaintable:
+        case Layout::RustFFI::PaintableKind::SVGPatternPaintable:
+            return true;
+        default:
+            return false;
+        }
+    }
+    [[nodiscard]] bool is_svg_svg_paintable() const { return kind() == Layout::RustFFI::PaintableKind::SVGSVGPaintable; }
+    [[nodiscard]] bool is_svg_path_paintable() const { return kind() == Layout::RustFFI::PaintableKind::SVGPathPaintable; }
+    [[nodiscard]] bool is_svg_foreign_object_paintable() const { return kind() == Layout::RustFFI::PaintableKind::SVGForeignObjectPaintable; }
 
     DOM::Document const& document() const;
     DOM::Document& document();
@@ -310,10 +319,17 @@ public:
     void invalidate_stacking_context();
     Optional<int> effective_z_index() const;
 
-    virtual Optional<CSSPixelRect> get_mask_area() const { return {}; }
-    virtual Optional<Gfx::MaskKind> get_mask_type() const { return {}; }
+    Optional<CSSPixelRect> get_mask_area() const;
+    Optional<Gfx::MaskKind> get_mask_type() const;
+    Optional<CSSPixelRect> get_clip_area() const;
 
-    virtual Optional<CSSPixelRect> get_clip_area() const { return {}; }
+    CSSPixelSize svg_viewport_size() const
+    {
+        return {
+            CSSPixels::from_raw(rust_data().svg_viewport_size.width),
+            CSSPixels::from_raw(rust_data().svg_viewport_size.height),
+        };
+    }
 
     BoxModelMetrics box_model() const;
 
@@ -499,7 +515,7 @@ protected:
 
 public:
 protected:
-    virtual CSSPixelRect compute_absolute_rect() const;
+    CSSPixelRect compute_absolute_rect() const;
     virtual CSSPixelRect compute_absolute_padding_box_rect() const;
     virtual CSSPixelRect compute_absolute_border_box_rect() const;
 

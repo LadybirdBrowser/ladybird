@@ -53,8 +53,6 @@
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
-#include <LibWeb/Painting/SVGGraphicsPaintable.h>
-#include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 
 namespace Web {
