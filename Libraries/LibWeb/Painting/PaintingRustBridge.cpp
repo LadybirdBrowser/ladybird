@@ -507,6 +507,11 @@ Optional<TransformData> rust_compute_css_transform(Paintable const& paintable_bo
     };
 }
 
+Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Paintable const& paintable_box)
+{
+    return Layout::RustFFI::layout_arena_physical_overflow_directions(paintable_box.rust_arena().handle(), paintable_box.rust_slot());
+}
+
 CSS::ResolvedImage rust_resolve_gradient_for_size(CSS::StyleValue const& gradient_style_value, Layout::NodeWithStyle const& layout_node, CSSPixelSize size)
 {
     void const* current_color_value = nullptr;
