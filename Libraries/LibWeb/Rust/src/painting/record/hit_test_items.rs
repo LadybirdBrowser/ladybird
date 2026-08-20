@@ -28,7 +28,7 @@ impl<'a> PaintRecorder<'a> {
     }
 
     fn is_anonymous(&self, paintable: PaintableSlotId) -> bool {
-        self.layout_flags(paintable) & NodeFlag::Anonymous as u32 != 0
+        self.data(paintable).has_flag(PaintableFlag::Anonymous)
     }
 
     fn is_generated_for_pseudo_element(&self, paintable: PaintableSlotId) -> bool {
@@ -37,14 +37,14 @@ impl<'a> PaintRecorder<'a> {
     }
 
     fn is_atomic_inline(&self, paintable: PaintableSlotId) -> bool {
-        if self.layout_flags(paintable) & NodeFlag::IsReplacedElement as u32 != 0 {
+        if self.data(paintable).has_flag(PaintableFlag::Replaced) {
             return true;
         }
         if self.layout_kind(paintable) == Some(NodeKind::ListItemMarkerBox) {
             return true;
         }
-        self.display(paintable)
-            .is_some_and(|display| display.is_inline_outside() && !display.is_flow_inside())
+        let display = self.display(paintable);
+        display.is_inline_outside() && !display.is_flow_inside()
     }
 
     pub(crate) fn record_foreign_object_descendant_hit_test_items(&mut self, paintable: PaintableSlotId) {

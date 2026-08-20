@@ -192,18 +192,12 @@ impl<'a> PaintRecorder<'a> {
         self.data(paintable).stacking_context != NO_STACKING_CONTEXT
     }
 
-    fn layout_flags(&self, paintable: PaintableSlotId) -> u32 {
-        self.layout_arena.node_flags_if_live(self.data(paintable).layout_node)
-    }
-
     fn layout_kind(&self, paintable: PaintableSlotId) -> Option<NodeKind> {
         self.layout_arena.node_kind_if_live(self.data(paintable).layout_node)
     }
 
-    fn display(&self, paintable: PaintableSlotId) -> Option<crate::css::display::FfiDisplay> {
-        self.layout_arena
-            .node_style_if_live(self.data(paintable).layout_node)
-            .map(|style| style.display())
+    fn display(&self, paintable: PaintableSlotId) -> crate::css::display::FfiDisplay {
+        crate::css::display::FfiDisplay::from_raw(self.data(paintable).display)
     }
 
     fn visibility_is_visible(&self, paintable: PaintableSlotId) -> bool {
@@ -221,8 +215,8 @@ impl<'a> PaintRecorder<'a> {
     }
 
     fn is_replaced_box(&self, paintable: PaintableSlotId) -> bool {
-        self.layout_kind(paintable)
-            .is_some_and(crate::layout::kind_is_replaced_box)
+        self.data(paintable)
+            .has_flag(crate::painting::paintable_data::PaintableFlag::ReplacedBox)
     }
 
     pub(crate) fn own_context_index(&self, paintable: PaintableSlotId) -> usize {

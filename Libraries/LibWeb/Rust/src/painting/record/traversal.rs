@@ -6,7 +6,7 @@
 
 use super::{PaintPhase, PaintRecorder};
 use crate::layout::LayoutNodeArena;
-use crate::layout::node_data::{NodeFlag, NodeKind};
+use crate::layout::node_data::NodeKind;
 use crate::painting::display_list::builder::CommandRange;
 use crate::painting::display_list::commands::VisualContextIndex;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
@@ -158,9 +158,8 @@ impl PaintRecorder<'_> {
         // actual child stacking contexts in the parent stacking context:
         // https://drafts.csswg.org/css2/#painting-order
         // https://drafts.csswg.org/css2/#elaborate-stacking-contexts
-        self.display(paintable).is_some_and(|display| {
-            display.is_inline_outside() && (display.is_flow_root_inside() || display.is_table_inside())
-        })
+        let display = self.display(paintable);
+        display.is_inline_outside() && (display.is_flow_root_inside() || display.is_table_inside())
     }
 
     fn is_pure_inline_box(&self, paintable: PaintableSlotId) -> bool {
@@ -381,7 +380,7 @@ impl PaintRecorder<'_> {
                 continue;
             }
 
-            let is_item = this.layout_flags(child) & (NodeFlag::IsFlexItem as u32 | NodeFlag::IsGridItem as u32) != 0;
+            let is_item = child_data.has_flag(PaintableFlag::FlexOrGridItem);
             // NOTE: Flex and grid items should be treated the same way as CSS2 defines for inline-blocks:
             //       - https://drafts.csswg.org/css-flexbox-1/#painting
             //       - https://www.w3.org/TR/css-grid-2/#z-order
