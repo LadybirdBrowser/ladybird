@@ -293,6 +293,8 @@ public:
     // viewport-establishing for the accumulated visual context tree.
     Optional<Gfx::AffineTransform> svg_viewport_transform() const;
 
+    Gfx::Path const* committed_svg_path() const;
+
     bool should_paint_cursor() const;
 
     // Callers are responsible for checking that the element is empty and visible.

@@ -841,15 +841,6 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
             // consumers read out of bounds.
             for (auto const& piece : line_context->paintable.inline_box_pieces())
                 VERIFY(piece.first_fragment_index + piece.fragment_count <= line_context->paintable.fragments().size()); },
-        .set_computed_svg_path = [](void*, void* paintable_pointer, void* path_pointer, u64 path_identity) {
-            VERIFY(path_pointer);
-            auto& paintable = *static_cast<Painting::Paintable*>(paintable_pointer);
-            // The path stays owned by the Rust fragment tree, which may emit it again on a
-            // later commit; the identity is process-unique per path allocation, so a match
-            // means the preserved copy is already this exact path and the copy can be skipped.
-            auto const* path = static_cast<Gfx::Path const*>(path_pointer);
-            if (auto* svg_path_paintable = as_if<Painting::SVGPathPaintable>(paintable))
-                svg_path_paintable->set_computed_path_if_identity_changed(*path, path_identity); },
         .finish_node = [](void*, void* node_pointer, void* paintable_pointer) {
             auto& node = *static_cast<Node*>(node_pointer);
             auto* paintable = static_cast<Painting::Paintable*>(paintable_pointer);

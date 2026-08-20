@@ -26,10 +26,11 @@ SVGPathPaintable::SVGPathPaintable(Layout::Box const& layout_box)
 
 Optional<CSSPixelRect> SVGPathPaintable::clip_path_geometry_bounds(Gfx::AffineTransform const& additional_transform) const
 {
-    if (!contributes_to_clip_path() || !computed_path().has_value())
+    auto const* committed_path = committed_svg_path();
+    if (!contributes_to_clip_path() || !committed_path)
         return {};
 
-    auto path = computed_path()->copy_transformed(additional_transform);
+    auto path = committed_path->copy_transformed(additional_transform);
     return path.bounding_box().to_type<CSSPixels>();
 }
 
