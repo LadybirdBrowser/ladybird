@@ -1347,15 +1347,17 @@ fn with_hit_test_list<R>(
 ) -> R {
     // SAFETY: The caller passes a live arena handle (documented on every entry point below).
     let arena = unsafe { arena_from_handle(arena) };
-    let mut paintables = arena.paintables().borrow_mut();
-    let crate::painting::paintable_arena::PaintableArena { hit_test_list, .. } = &mut *paintables;
-    let Some(list) = hit_test_list.as_mut() else {
+    // Query callbacks can reenter through C++ paintable geometry helpers, so keep only a shared
+    // arena borrow while the query is running.
+    let Some(mut list) = arena.paintables().borrow_mut().hit_test_list.take() else {
         return default;
     };
-    let list_ptr: *mut crate::painting::hit_test::HitTestList = list;
-    // SAFETY: `list` lives inside `paintables` and is disjoint from the arena data the queries
-    // read; nothing else touches it during the call.
-    query(unsafe { &mut *list_ptr }, &paintables)
+    let result = {
+        let paintables = arena.paintables().borrow();
+        query(&mut list, &paintables)
+    };
+    arena.paintables().borrow_mut().hit_test_list = Some(list);
+    result
 }
 
 fn css_point(x_raw: i32, y_raw: i32) -> crate::css::css_pixels::CssPixelPoint {
