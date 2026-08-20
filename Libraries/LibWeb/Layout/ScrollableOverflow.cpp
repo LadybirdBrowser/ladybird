@@ -32,11 +32,6 @@ void collect_scrollable_overflow_contained_boxes(Node const& root, ContainedBoxe
     contained_boxes_map.remove_all_matching([](auto const&, auto const& boxes) { return boxes.is_empty(); });
 }
 
-struct AxisDirection {
-    bool is_horizontal { false };
-    bool is_reverse { false };
-};
-
 static bool inline_axis_is_horizontal(CSS::WritingMode writing_mode)
 {
     return writing_mode == CSS::WritingMode::HorizontalTb;
@@ -54,39 +49,10 @@ static bool node_is_in_focused_text_control(DOM::Node const& node)
 // https://drafts.csswg.org/cssom-view/#overflow-directions
 PhysicalOverflowDirections physical_overflow_directions(Box const& box)
 {
-    // A scrolling box of a viewport or element has two overflow directions, which are the block-end and inline-end
-    // directions for that viewport or element.
-
-    AxisDirection inline_axis {
-        .is_horizontal = inline_axis_is_horizontal(box.writing_mode()),
-        .is_reverse = box.inline_axis_is_reverse(),
-    };
-    AxisDirection block_axis {
-        .is_horizontal = !inline_axis.is_horizontal,
-        .is_reverse = box.block_axis_is_reverse(),
-    };
-
-    if (box.display().is_flex_inside()) {
-        auto is_row_layout = box.flex_direction() == CSS::FlexDirection::Row
-            || box.flex_direction() == CSS::FlexDirection::RowReverse;
-        auto& main_axis = is_row_layout ? inline_axis : block_axis;
-        auto& cross_axis = is_row_layout ? block_axis : inline_axis;
-
-        if (box.flex_direction() == CSS::FlexDirection::RowReverse
-            || box.flex_direction() == CSS::FlexDirection::ColumnReverse) {
-            main_axis.is_reverse = !main_axis.is_reverse;
-        }
-
-        // AD-HOC: A legacy webkit box ignores `flex-wrap`, matching other engines.
-        if (!box.display().is_webkit_box_inside() && box.flex_wrap() == CSS::FlexWrap::WrapReverse)
-            cross_axis.is_reverse = !cross_axis.is_reverse;
-    }
-
-    auto horizontal_axis = inline_axis.is_horizontal ? inline_axis : block_axis;
-    auto vertical_axis = inline_axis.is_horizontal ? block_axis : inline_axis;
+    auto directions = Painting::rust_physical_overflow_directions(*box.paintable_box());
     return {
-        .horizontal_axis_is_positive = !horizontal_axis.is_reverse,
-        .vertical_axis_is_positive = !vertical_axis.is_reverse,
+        .horizontal_axis_is_positive = directions.horizontal_axis_is_positive,
+        .vertical_axis_is_positive = directions.vertical_axis_is_positive,
     };
 }
 

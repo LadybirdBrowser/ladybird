@@ -223,6 +223,38 @@ pub unsafe extern "C" fn layout_arena_paintable_set_cached_overflow_data(
     });
 }
 
+#[repr(C)]
+pub struct FfiPhysicalOverflowDirections {
+    pub horizontal_axis_is_positive: bool,
+    pub vertical_axis_is_positive: bool,
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_physical_overflow_directions(
+    arena: *mut c_void,
+    paintable: PaintableSlotId,
+) -> FfiPhysicalOverflowDirections {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        let directions = if paintables.is_live(paintable) {
+            crate::painting::scrollable_overflow::physical_overflow_directions(
+                arena,
+                paintables.data_ref(paintable).layout_node,
+            )
+        } else {
+            crate::painting::scrollable_overflow::PhysicalOverflowDirections::default()
+        };
+        FfiPhysicalOverflowDirections {
+            horizontal_axis_is_positive: directions.horizontal_axis_is_positive,
+            vertical_axis_is_positive: directions.vertical_axis_is_positive,
+        }
+    })
+}
+
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.

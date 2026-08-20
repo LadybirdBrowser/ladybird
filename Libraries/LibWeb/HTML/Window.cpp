@@ -81,10 +81,10 @@
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Internals/Internals.h>
-#include <LibWeb/Layout/ScrollableOverflow.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/RequestIdleCallback/IdleDeadline.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/Speech/SpeechSynthesis.h>
@@ -1780,7 +1780,7 @@ void Window::scroll(ScrollToOptions const& options, GC::Ptr<WebIDL::Promise> pro
 
         VERIFY(document->paintable_box());
         auto scrolling_area = document->paintable_box()->scrollable_overflow_rect()->to_type<float>();
-        auto overflow_directions = Layout::physical_overflow_directions(*document->layout_node());
+        auto overflow_directions = Painting::rust_physical_overflow_directions(*document->paintable_box());
 
         // 7. -> If the viewport has rightward overflow direction
         //       Let x be max(0, min(x, viewport scrolling area width - viewport width)).
