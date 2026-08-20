@@ -50,6 +50,7 @@ public:
     virtual NonnullOwnPtr<PathImpl> copy_transformed(Gfx::AffineTransform const&) const override;
     virtual NonnullOwnPtr<PathImpl> place_text_along(Utf8View const& text, Font const&, float offset = 0) const override;
     virtual NonnullOwnPtr<PathImpl> place_text_along(Utf16View const& text, Font const&, float offset = 0) const override;
+    virtual NonnullOwnPtr<PathImpl> place_glyph_runs_along(ReadonlySpan<NonnullRefPtr<GlyphRun>>, float offset = 0) const override;
 
     virtual String to_svg_string() const override;
 
