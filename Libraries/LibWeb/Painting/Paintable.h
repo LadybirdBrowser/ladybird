@@ -509,13 +509,9 @@ public:
     Optional<CSSPixelRect> absolute_resizer_rect(ChromeMetrics const& chrome_metrics) const;
 
 private:
-    friend class Layout::LayoutRustBridge;
-
     void detach_from_layout_node(Badge<Layout::Node>);
     void detach_chrome_widgets();
     GC::Ptr<DOM::EventTarget> scroll_event_target();
-
-    void translate_reused_subtree_absolute_geometry(CSSPixelPoint);
 
     bool has_flag(Layout::RustFFI::PaintableFlag flag) const { return (rust_data().flags & to_underlying(flag)) != 0; }
     Layout::RustFFI::PaintableData& rust_data() { return *m_rust_data; }

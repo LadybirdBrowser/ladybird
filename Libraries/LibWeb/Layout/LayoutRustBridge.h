@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
@@ -50,13 +49,7 @@ private:
     [[nodiscard]] RustFFI::FfiCommitSink commit_sink();
 
     Box const* m_commit_root { nullptr };
-    Vector<NonnullRefPtr<Painting::Paintable>> m_reused_subtree_roots;
     Vector<NonnullRefPtr<Painting::Paintable>> m_committed_navigable_container_viewports;
-    // Content offsets of the paintables surviving into this commit, captured before the
-    // commit overwrites them; finish_commit derives each reused subtree's absolute movement
-    // from these instead of reading absolute rects mid-commit, when ancestor offsets are
-    // already new and any cached absolute position may be stale or missing.
-    HashMap<Painting::Paintable const*, CSSPixelPoint> m_content_offsets_before_commit;
 };
 
 [[nodiscard]] Optional<RustFFI::FfiFormattingContextType> formatting_context_type_created_by_box(Box const&);

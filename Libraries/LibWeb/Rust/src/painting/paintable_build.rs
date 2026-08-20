@@ -74,9 +74,54 @@ pub(crate) fn paintable_kind_for_node(facts: &NodeFacts<'_>, kind: NodeKind) -> 
     }
 }
 
+fn committed_offset_delta(
+    arena: &PaintableArena,
+    offsets_before_commit: &std::collections::HashMap<PaintableSlotId, FfiCssPixelPoint>,
+    slot: PaintableSlotId,
+) -> FfiCssPixelPoint {
+    let Some(offset_before_commit) = offsets_before_commit.get(&slot) else {
+        return FfiCssPixelPoint::default();
+    };
+    let offset = arena.data_ref(slot).offset;
+    FfiCssPixelPoint {
+        x: offset.x - offset_before_commit.x,
+        y: offset.y - offset_before_commit.y,
+    }
+}
+
+fn reused_subtree_absolute_position_delta(
+    arena: &PaintableArena,
+    offsets_before_commit: &std::collections::HashMap<PaintableSlotId, FfiCssPixelPoint>,
+    root: PaintableSlotId,
+) -> FfiCssPixelPoint {
+    let mut delta = committed_offset_delta(arena, offsets_before_commit, root);
+    if crate::painting::paintable_geometry::is_svg_paintable(arena.data_ref(root).kind) {
+        return delta;
+    }
+    let mut block = arena.data_ref(root).containing_block;
+    while !block.is_invalid() && arena.is_live(block) {
+        let block_data = arena.data_ref(block);
+        if block_data.kind == PaintableKind::SVGSVGPaintable
+            || crate::painting::paintable_geometry::is_svg_paintable(block_data.kind)
+        {
+            break;
+        }
+        let block_delta = committed_offset_delta(arena, offsets_before_commit, block);
+        delta.x += block_delta.x;
+        delta.y += block_delta.y;
+        if block_data.kind == PaintableKind::SVGForeignObjectPaintable {
+            break;
+        }
+        block = block_data.containing_block;
+    }
+    delta
+}
+
 pub(crate) struct PaintableCommit<'a> {
     callbacks: &'a FfiLayoutFcCallbacks,
     arena: &'a RefCell<PaintableArena>,
+    offsets_before_commit: RefCell<std::collections::HashMap<PaintableSlotId, FfiCssPixelPoint>>,
+    reused_subtree_roots: RefCell<Vec<PaintableSlotId>>,
 }
 
 impl<'a> PaintableCommit<'a> {
@@ -84,11 +129,37 @@ impl<'a> PaintableCommit<'a> {
         Self {
             callbacks,
             arena: callbacks.arena().paintables(),
+            offsets_before_commit: RefCell::new(std::collections::HashMap::new()),
+            reused_subtree_roots: RefCell::new(Vec::new()),
         }
     }
 
     pub(crate) fn discard_absolute_rects_memoized_during_commit(&self) {
         self.arena.borrow().clear_absolute_rect_memo();
+    }
+
+    pub(crate) fn translate_reused_subtrees(&self) {
+        let roots = self.reused_subtree_roots.borrow();
+        if roots.is_empty() {
+            return;
+        }
+        let arena = self.arena.borrow();
+        let offsets_before_commit = self.offsets_before_commit.borrow();
+        for &root in roots.iter() {
+            let delta = reused_subtree_absolute_position_delta(&arena, &offsets_before_commit, root);
+            if delta == FfiCssPixelPoint::default() {
+                continue;
+            }
+            arena.for_each_in_subtree(root, |slot| {
+                arena.update_data(slot, |data| {
+                    if data.has_overflow {
+                        data.overflow.rect.x += delta.x;
+                        data.overflow.rect.y += delta.y;
+                    }
+                });
+                arena.invalidate_paint_cache(slot);
+            });
+        }
     }
 
     pub(crate) fn begin_commit(&self, root: Node) -> CommitAnchors {
@@ -216,6 +287,10 @@ impl<'a> PaintableCommit<'a> {
                 "reused subtree root is not the node's own paintable"
             );
             debug_assert!(!prepared.reused, "a kept subtree's shell must not have been reset");
+            self.offsets_before_commit
+                .borrow_mut()
+                .insert(slot, arena.data_ref(slot).offset);
+            self.reused_subtree_roots.borrow_mut().push(slot);
             arena.remove_from_tree(slot);
             return slot;
         }
@@ -244,6 +319,9 @@ impl<'a> PaintableCommit<'a> {
                 slot,
                 "reused paintable is not the node's own"
             );
+            self.offsets_before_commit
+                .borrow_mut()
+                .insert(slot, arena.data_ref(slot).offset);
             arena.reset_for_relayout(slot);
         } else {
             arena.update_data(slot, |paintable| {
