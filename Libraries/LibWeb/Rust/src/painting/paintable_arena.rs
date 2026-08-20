@@ -44,6 +44,7 @@ pub struct PaintableArena {
     pub(crate) hit_test_item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
     pub(crate) paint_caches: std::cell::RefCell<Vec<Option<Box<crate::painting::record::cache::PaintCache>>>>,
     absolute_rect_memo: std::cell::RefCell<std::collections::HashMap<u32, crate::css::css_pixels::CssPixelRect>>,
+    pub(crate) scrollable_overflow_contained_boxes: std::collections::HashMap<NodeSlotId, Vec<NodeSlotId>>,
 }
 
 impl PaintableArena {

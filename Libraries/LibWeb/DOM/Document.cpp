@@ -1372,6 +1372,8 @@ void Document::tear_down_layout_tree()
     m_layout_root = nullptr;
     m_paintable = nullptr;
     m_scrollable_overflow_contained_boxes_from_last_layout.clear();
+    if (m_layout_node_arena)
+        Layout::RustFFI::layout_arena_clear_scrollable_overflow_contained_boxes(m_layout_node_arena->handle());
     m_needs_full_layout_tree_update = true;
 }
 
@@ -1811,8 +1813,10 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed, Layout
     // A commit that changed the tree can have replaced boxes referenced by the cached
     // contained-boxes map; refresh it before overflow measurement follows them. A pending full
     // recalculation rebuilds the map inside its own measurement traversal instead.
-    if (layout_tree_changed == LayoutTreeChanged::Yes && !m_needs_full_scrollable_overflow_recalculation)
+    if (layout_tree_changed == LayoutTreeChanged::Yes && !m_needs_full_scrollable_overflow_recalculation) {
         Layout::collect_scrollable_overflow_contained_boxes(*m_layout_root, m_scrollable_overflow_contained_boxes_from_last_layout);
+        Layout::RustFFI::layout_arena_rebuild_scrollable_overflow_contained_boxes(layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root.ptr()));
+    }
     if (layout_commit_scope == LayoutCommitScope::Full)
         update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates::HandledByFullLayoutCommit, boxes_needing_eager_overflow_measurement);
     else
@@ -2219,6 +2223,7 @@ void Document::update_layout(UpdateLayoutReason reason)
                 if (&box == m_layout_root.ptr() || box.is_scroll_container() || (paintable && !paintable->scroll_offset().is_zero()))
                     boxes_needing_eager_overflow_measurement.append(&box);
             });
+        Layout::RustFFI::layout_arena_rebuild_scrollable_overflow_contained_boxes(layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root.ptr()));
 
         style_invalidation_counters().relayouts_performed++;
 
@@ -2526,6 +2531,7 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
     if (needs_full_recalculation) {
         Layout::collect_scrollable_overflow_contained_boxes(
             *m_layout_root, m_scrollable_overflow_contained_boxes_from_last_layout, [&](Layout::Box const& box) { record_and_clear_overflow_data(box); });
+        Layout::RustFFI::layout_arena_rebuild_scrollable_overflow_contained_boxes(layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root.ptr()));
     } else {
         for (auto const& weak_paintable : pending_paintables) {
             auto paintable = weak_paintable.strong_ref();
