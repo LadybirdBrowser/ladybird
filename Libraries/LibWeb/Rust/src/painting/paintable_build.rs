@@ -610,7 +610,7 @@ impl<'a> PaintableCommit<'a> {
         self.arena.borrow_mut().side_mut(slot).collapsed_table_borders = Some(borders.clone());
     }
 
-    pub(crate) fn finish_node(&self, node: Node, slot: PaintableSlotId) {
+    pub(crate) fn stamp_containing_block(&self, node: Node, slot: PaintableSlotId) {
         let arena = self.arena.borrow();
         if slot.is_invalid() {
             return;

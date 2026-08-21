@@ -211,9 +211,9 @@ fn commit_subtree(
         }
     }
 
-    paintables.finish_node(node, paintable_slot);
-    // SAFETY: Wiring uses only live layout and paintable pointers for this
-    // synchronous commit.
+    paintables.stamp_containing_block(node, paintable_slot);
+    // SAFETY: The C++ sink receives live layout and paintable pointers for
+    // this synchronous callback.
     unsafe {
         (sink.finish_node)(sink.context, node_shell, paintable);
     }
