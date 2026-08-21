@@ -7,22 +7,10 @@
 #include <AK/Utf16String.h>
 #include <LibTest/TestCase.h>
 #include <LibWeb/PixelUnits.h>
-#include <UI/Qt/WebContentView.h>
+#include <UI/Qt/InputMethodUtils.h>
 
 #include <QRectF>
 #include <QString>
-
-namespace Ladybird {
-
-// WebContentView.cpp references this to pick the initial page background color; it's defined in UI/Qt/main.cpp, which
-// this test doesn't link (LibTest provides main). The value is irrelevant here.
-bool is_using_dark_system_theme(QWidget&);
-bool is_using_dark_system_theme(QWidget&)
-{
-    return false;
-}
-
-}
 
 // The platform input method decides whether to compose from inputMethodQuery(Qt::ImEnabled). WebContent pushes
 // InputMethodState to the UI (did_update_input_method_state), and the Qt view answers inputMethodQuery from the

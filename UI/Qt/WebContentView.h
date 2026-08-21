@@ -64,8 +64,6 @@ using WebContentViewBase = QRhiWidget;
 using WebContentViewBase = QWidget;
 #endif
 
-QVariant input_method_query_for_state(WebView::ViewImplementation::InputMethodState const& state, Qt::InputMethodQuery query, double device_pixel_ratio);
-
 struct WebContentViewInitialState {
     WebView::IsPrivate is_private { WebView::IsPrivate::No };
     double maximum_frames_per_second { 60.0 };
