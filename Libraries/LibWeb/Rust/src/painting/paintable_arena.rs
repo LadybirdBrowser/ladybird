@@ -82,6 +82,11 @@ impl PaintableArena {
         self.side_data.len()
     }
 
+    pub(crate) fn live_slot_at_index(&self, index: usize) -> Option<PaintableSlotId> {
+        let generation = self.data_by_index(index as u32).slot_generation;
+        (generation != 0).then(|| PaintableSlotId::new(index as u32, generation))
+    }
+
     pub(crate) fn visual_context_assignments(&self) -> Vec<(u32, bool, usize, usize, usize, usize)> {
         (0..self.slot_count())
             .map(|index| {
