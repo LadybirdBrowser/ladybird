@@ -134,7 +134,6 @@ def write_overload_arbiter(
     includes.add("AK/Vector.h")
     includes.add("LibWeb/WebIDL/OverloadTypes.h")
     includes.add("LibWeb/WebIDL/OverloadResolution.h")
-    includes.add("LibWeb/WebIDL/Tracing.h")
 
     operation = operations[0]
 
@@ -159,7 +158,6 @@ def write_overload_arbiter(
     out.write(
         f"""JS_DEFINE_NATIVE_FUNCTION({receiver_class}::{idl_identifier_cpp_name(operation)})
 {{
-    WebIDL::log_trace(vm, "{receiver_class}::{idl_identifier_cpp_name(operation)}");
 
 """
     )

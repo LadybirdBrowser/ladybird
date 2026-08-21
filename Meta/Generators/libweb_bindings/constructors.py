@@ -42,7 +42,6 @@ def write_constructor_function(
     out.write(
         f"""JS::ThrowCompletionOr<GC::Ref<JS::Object>> {interface.constructor_class}::construct{overload_index}([[maybe_unused]] InterfaceConstructor& constructor, [[maybe_unused]] JS::FunctionObject& new_target)
 {{
-    WebIDL::log_trace(constructor.vm(), "{interface.constructor_class}::construct{overload_index}");
 """
     )
     write_constructor_steps(out, context, includes, interface, constructor)

@@ -192,7 +192,6 @@ def write_pair_iterable_declaration_functions(
 
     out.write(f"""JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::entries)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::entries");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, this_value);
@@ -208,7 +207,6 @@ def write_pair_iterable_declaration_functions(
 
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::keys)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::keys");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, this_value);
@@ -224,7 +222,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::keys)
 
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::values)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::values");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, this_value);
@@ -240,7 +237,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::values)
 
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::for_each)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::for_each");
     [[maybe_unused]] auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     if (this_value.is_nullish())
@@ -318,7 +314,6 @@ static JS::ThrowCompletionOr<{fully_qualified_name_for_interface(interface)}Iter
 
 JS_DEFINE_NATIVE_FUNCTION({interface.name}IteratorPrototype::next)
 {{
-    WebIDL::log_trace(vm, "{interface.name}IteratorPrototype::next");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, this_value);
@@ -350,7 +345,6 @@ def write_async_iterable_declaration_functions(
     out.write(
         f"""JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::values)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::values");
     [[maybe_unused]] auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, this_value);
@@ -417,7 +411,6 @@ void {interface.name}AsyncIteratorPrototype::initialize(JS::Realm& realm)
 
 JS_DEFINE_NATIVE_FUNCTION({interface.name}AsyncIteratorPrototype::next)
 {{
-    WebIDL::log_trace(vm, "{interface.name}AsyncIteratorPrototype::next");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, this_value);
@@ -433,7 +426,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.name}AsyncIteratorPrototype::next)
         out.write(f"""
 JS_DEFINE_NATIVE_FUNCTION({interface.name}AsyncIteratorPrototype::return_)
 {{
-    WebIDL::log_trace(vm, "{interface.name}AsyncIteratorPrototype::return");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, this_value);
@@ -478,7 +470,6 @@ def write_maplike_declaration_functions(
     out.write(f"""// https://webidl.spec.whatwg.org/#js-map-size
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::get_size)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::get_size");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     if (this_value.is_nullish())
@@ -498,7 +489,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::get_size)
 // https://webidl.spec.whatwg.org/#js-map-entries
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::entries)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::entries");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     if (this_value.is_nullish())
@@ -518,7 +508,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::entries)
 // https://webidl.spec.whatwg.org/#js-map-keys
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::keys)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::keys");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     if (this_value.is_nullish())
@@ -538,7 +527,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::keys)
 // https://webidl.spec.whatwg.org/#js-map-values
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::values)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::values");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     if (this_value.is_nullish())
@@ -558,7 +546,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::values)
 // https://webidl.spec.whatwg.org/#js-map-forEach
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::for_each)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::for_each");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     if (this_value.is_nullish())
@@ -595,7 +582,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::for_each)
 // https://webidl.spec.whatwg.org/#js-map-get
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::get)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::get");
     [[maybe_unused]] auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     if (this_value.is_nullish())
@@ -624,7 +610,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::get)
 // https://webidl.spec.whatwg.org/#js-map-has
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::has)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::has");
     [[maybe_unused]] auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     if (this_value.is_nullish())
@@ -655,7 +640,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::has)
         out.write(f"""// https://webidl.spec.whatwg.org/#js-map-set
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::set)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::set");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     if (this_value.is_nullish())
@@ -696,7 +680,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::set)
         out.write(f"""// https://webidl.spec.whatwg.org/#js-map-delete
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::delete_)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::delete_");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     if (this_value.is_nullish())
@@ -732,7 +715,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::delete_)
         out.write(f"""// https://webidl.spec.whatwg.org/#js-map-delete
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::clear)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::clear");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     if (this_value.is_nullish())
@@ -773,7 +755,6 @@ def write_setlike_declaration_functions(
     out.write(f"""// https://webidl.spec.whatwg.org/#js-set-size
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::get_size)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::size");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     if (this_value.is_nullish())
@@ -794,7 +775,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::get_size)
 // https://webidl.spec.whatwg.org/#js-set-entries
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::entries)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::values");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     if (this_value.is_nullish())
@@ -815,7 +795,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::entries)
 // https://webidl.spec.whatwg.org/#js-set-values
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::values)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::values");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     if (this_value.is_nullish())
@@ -836,7 +815,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::values)
 // https://webidl.spec.whatwg.org/#js-set-forEach
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::for_each)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::for_each");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     if (this_value.is_nullish())
@@ -874,7 +852,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::for_each)
 // https://webidl.spec.whatwg.org/#js-set-has
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::has)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::has");
 
     // 1. Let O be the this value, implementation-checked against A with identifier "has" and type "method".
     auto* this_impl = TRY(impl_from(vm));
@@ -898,7 +875,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::has)
         out.write(f"""// https://webidl.spec.whatwg.org/#js-set-add
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::add)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::add");
 
     // 1. Let O be the this value, implementation-checked against A with identifier "add" and type "method".
     auto* this_impl = TRY(impl_from(vm));
@@ -925,7 +901,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::add)
         out.write(f"""// https://webidl.spec.whatwg.org/#js-set-delete
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::delete_)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::delete_");
 
     // 1. Let O be the this value, implementation-checked against A with identifier "delete" and type "method".
     auto* this_impl = TRY(impl_from(vm));
@@ -954,7 +929,6 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::delete_)
         out.write(f"""// https://webidl.spec.whatwg.org/#js-set-clear
 JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::clear)
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::clear");
 
     // 1. Let O be the this value, implementation-checked against A with identifier "clear" and type "method".
     auto* this_impl = TRY(impl_from(vm));

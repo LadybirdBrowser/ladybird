@@ -760,7 +760,6 @@ def write_indexed_property_getter(
     out.write(
         f"""JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::{idl_identifier_cpp_name(operation)})
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::{idl_identifier_cpp_name(operation)}");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     [[maybe_unused]] auto* idl_object = TRY(impl_from(vm, this_value));
@@ -809,7 +808,6 @@ def write_named_property_getter(
     out.write(
         f"""JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::{idl_identifier_cpp_name(operation)})
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::{idl_identifier_cpp_name(operation)}");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     [[maybe_unused]] auto* idl_object = TRY(impl_from(vm, this_value));
@@ -883,7 +881,6 @@ def write_named_property_operation(
     out.write(
         f"""JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::{idl_identifier_cpp_name(operation)})
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::{idl_identifier_cpp_name(operation)}");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     [[maybe_unused]] auto* idl_object = TRY(impl_from(vm, this_value));

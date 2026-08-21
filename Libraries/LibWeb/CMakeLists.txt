@@ -1179,7 +1179,6 @@ set(SOURCES
     WebIDL/OverloadTypes.cpp
     WebIDL/Promise.cpp
     WebIDL/QuotaExceededError.cpp
-    WebIDL/Tracing.cpp
     WebSockets/WebSocket.cpp
     WebVTT/VTTCue.cpp
     WebVTT/VTTRegion.cpp
