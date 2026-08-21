@@ -10,6 +10,7 @@ set(SOURCES
     DateTimeFormat.cpp
     DisplayNames.cpp
     DurationFormat.cpp
+    FullwidthMapping.cpp
     ICU.cpp
     IDNA.cpp
     ListFormat.cpp
