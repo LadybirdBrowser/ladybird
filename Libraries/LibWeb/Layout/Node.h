@@ -22,7 +22,6 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TreeBuilderRustFFI.h>
-#include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/TreeTraversal.h>
 

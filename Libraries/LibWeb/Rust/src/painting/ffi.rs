@@ -707,6 +707,7 @@ pub enum FfiImagePaintRecordKind {
 #[repr(C)]
 pub struct FfiImagePaintRecordInputs {
     pub kind: FfiImagePaintRecordKind,
+    pub device_pixels_per_css_pixel: f64,
     pub dest_rect: [f32; 4],
     pub frame_id: u64,
     pub scaling_mode: i32,
@@ -719,9 +720,9 @@ pub struct FfiImagePaintRecordInputs {
     pub rectangular_color_space: u8,
     pub polar_color_space: u8,
     pub hue_interpolation_method: u8,
-    pub center: [i32; 2],
-    pub size: [i32; 2],
-    pub position: [i32; 2],
+    pub center: crate::layout::FfiCssPixelPoint,
+    pub size: crate::layout::FfiCssPixelSize,
+    pub position: crate::layout::FfiCssPixelPoint,
     pub color_stop_colors: *const u32,
     pub color_stop_positions: *const f32,
     pub color_stop_count: usize,
@@ -743,7 +744,7 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
     };
     use libgfx_rust::{
         CompositingAndBlendingOperator, FloatRect, GradientInterpolationMethod, GradientInterpolationType,
-        HueInterpolationMethod, IntPoint, IntRect, IntSize, PolarColorSpace, RectangularColorSpace, ScalingMode,
+        HueInterpolationMethod, IntRect, IntSize, PolarColorSpace, RectangularColorSpace, ScalingMode,
     };
     abort_on_panic(|| {
         let inputs = unsafe { &*inputs };
@@ -815,33 +816,34 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
                     interpolation_method,
                 },
             ),
-            FfiImagePaintRecordKind::RadialGradient => recorder.fill_rect_with_radial_gradient(
-                dest_int_rect,
-                &RadialGradientData {
-                    color_stops: color_stops(),
-                    interpolation_method,
-                },
-                IntPoint {
-                    x: inputs.center[0],
-                    y: inputs.center[1],
-                },
-                IntSize {
-                    width: inputs.size[0],
-                    height: inputs.size[1],
-                },
-            ),
-            FfiImagePaintRecordKind::ConicGradient => recorder.fill_rect_with_conic_gradient(
-                dest_int_rect,
-                &ConicGradientData {
-                    start_angle: inputs.gradient_angle,
-                    color_stops: color_stops(),
-                    interpolation_method,
-                },
-                IntPoint {
-                    x: inputs.position[0],
-                    y: inputs.position[1],
-                },
-            ),
+            FfiImagePaintRecordKind::RadialGradient => {
+                let converter = crate::painting::display_list::device_pixels::DevicePixelConverter::new(
+                    inputs.device_pixels_per_css_pixel,
+                );
+                recorder.fill_rect_with_radial_gradient(
+                    dest_int_rect,
+                    &RadialGradientData {
+                        color_stops: color_stops(),
+                        interpolation_method,
+                    },
+                    converter.rounded_device_point(inputs.center.into()),
+                    converter.rounded_device_size(inputs.size.into()),
+                );
+            }
+            FfiImagePaintRecordKind::ConicGradient => {
+                let converter = crate::painting::display_list::device_pixels::DevicePixelConverter::new(
+                    inputs.device_pixels_per_css_pixel,
+                );
+                recorder.fill_rect_with_conic_gradient(
+                    dest_int_rect,
+                    &ConicGradientData {
+                        start_angle: inputs.gradient_angle,
+                        color_stops: color_stops(),
+                        interpolation_method,
+                    },
+                    converter.rounded_device_point(inputs.position.into()),
+                );
+            }
         }
         let bytes = recorder.into_builder().into_bytes();
         unsafe { consume(context, bytes.as_ptr(), bytes.len()) };

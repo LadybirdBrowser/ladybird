@@ -17,7 +17,6 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ScrollState.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -57,13 +56,9 @@ AccumulatedVisualContextTree& ViewportPaintable::visual_context_tree()
     return *m_visual_context_tree;
 }
 
-struct BlockingWheelEventRegionState {
-    bool has_blocking_wheel_event_listeners { false };
-    bool has_blocking_wheel_event_region_covering_viewport { false };
-};
-
-static BlockingWheelEventRegionState collect_root_blocking_wheel_event_regions(DOM::Document& document)
+BlockingWheelEventRegionState ViewportPaintable::collect_root_blocking_wheel_event_regions()
 {
+    auto& document = this->document();
     GC::Ptr<DOM::EventTarget> roots[] = {
         document.navigable() ? document.navigable()->active_window() : nullptr,
         &document,
@@ -79,28 +74,6 @@ static BlockingWheelEventRegionState collect_root_blocking_wheel_event_regions(D
         }
     }
     return {};
-}
-
-void ViewportPaintable::initialize_async_scrolling_metadata_recording(DisplayListRecordingContext& context)
-{
-    auto blocking_wheel_event_region_state = collect_root_blocking_wheel_event_regions(document());
-    context.set_async_scrolling_metadata_context(
-        document().unique_id(),
-        blocking_wheel_event_region_state.has_blocking_wheel_event_listeners,
-        blocking_wheel_event_region_state.has_blocking_wheel_event_region_covering_viewport);
-}
-
-void ViewportPaintable::finalize_async_scrolling_metadata_recording(DisplayListRecordingContext const& context, HTML::LocalNavigable& navigable, Gfx::IntRect viewport_rect, DisplayList& display_list)
-{
-    if (!context.is_recording_async_scrolling_metadata())
-        return;
-
-    display_list.set_async_scrolling_metadata({
-        .viewport_rect = viewport_rect,
-        .wheel_event_listener_state_generation = navigable.page().wheel_event_listener_state_generation(),
-        .has_blocking_wheel_event_listeners = context.has_blocking_wheel_event_listeners(),
-        .has_blocking_wheel_event_region_covering_viewport = context.has_blocking_wheel_event_region_covering_viewport(),
-    });
 }
 
 void ViewportPaintable::reset_for_relayout()

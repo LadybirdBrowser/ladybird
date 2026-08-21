@@ -48,7 +48,6 @@
 #include <LibWeb/Page/MiddleButtonScrollHandler.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
-#include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/GridInspectorOverlay.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>

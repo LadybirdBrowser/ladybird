@@ -45,10 +45,6 @@ fn css_inset_to_device_inset(inset: Option<CssPixels>, device_pixels_per_css_pix
     OptionalF32::from(inset.map(|inset| inset.to_float() * device_pixels_per_css_pixel as f32))
 }
 
-fn int_rect(values: [i32; 4]) -> IntRect {
-    IntRect::new(values[0], values[1], values[2], values[3])
-}
-
 impl PaintRecorder<'_> {
     fn could_be_scrolled_by_wheel_event(&mut self, paintable: PaintableSlotId) -> bool {
         let facts = self.hit_test_facts(paintable);
@@ -295,10 +291,18 @@ impl PaintRecorder<'_> {
                 .compositor_viewport_scrollbar(CompositorViewportScrollbar {
                     document_id: UniqueNodeId(self.inputs.document_id),
                     scroll_node_index,
-                    gutter_rect: int_rect(scrollbar.gutter_rect),
-                    thumb_rect: int_rect(scrollbar.thumb_rect),
-                    expanded_gutter_rect: int_rect(scrollbar.expanded_gutter_rect),
-                    expanded_thumb_rect: int_rect(scrollbar.expanded_thumb_rect),
+                    gutter_rect: self
+                        .converter
+                        .rounded_device_rect(CssPixelRect::from(scrollbar.gutter_rect)),
+                    thumb_rect: self
+                        .converter
+                        .rounded_device_rect(CssPixelRect::from(scrollbar.thumb_rect)),
+                    expanded_gutter_rect: self
+                        .converter
+                        .rounded_device_rect(CssPixelRect::from(scrollbar.expanded_gutter_rect)),
+                    expanded_thumb_rect: self
+                        .converter
+                        .rounded_device_rect(CssPixelRect::from(scrollbar.expanded_thumb_rect)),
                     scroll_size: scrollbar.scroll_size,
                     expanded_scroll_size: scrollbar.expanded_scroll_size,
                     min_scroll_offset: if vertical {

@@ -27,8 +27,6 @@
 
 namespace Web::Painting {
 
-class DevicePixelConverter;
-
 class Paintable;
 class ScrollStateSnapshot;
 

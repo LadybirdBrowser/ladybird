@@ -10,6 +10,11 @@
 
 namespace Web::Painting {
 
+enum class PaintCommandCacheMode : u8 {
+    ReadOnly,
+    ReadWrite,
+};
+
 enum class PaintPhase {
     Background,
     Border,

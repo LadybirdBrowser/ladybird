@@ -13,9 +13,9 @@
 #include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/GridInspectorOverlay.h>
+#include <LibWeb/Painting/PaintableTypes.h>
 
 namespace Web::Painting {
 
@@ -69,7 +69,7 @@ struct InspectorOverlayInputs {
     Optional<CSSPixelRect> caret_debug_rect;
 };
 
-WEB_API RefPtr<DisplayList> record_rust_display_list(ViewportPaintable&, DisplayList const& placeholder_display_list, DisplayListResourceStorage&, DisplayListRecordingContext&, HTML::PaintConfig const&, InspectorOverlayInputs const&);
+WEB_API RefPtr<DisplayList> record_rust_display_list(ViewportPaintable&, DisplayList const& placeholder_display_list, DisplayListResourceStorage&, PaintCommandCacheMode, HTML::PaintConfig const&, InspectorOverlayInputs const&);
 
 WEB_API NonnullRefPtr<DisplayList> record_image_paint_display_list(ImagePaint const&, Gfx::FloatRect dest_rect, CSS::ImageRendering, double device_pixels_per_css_pixel, AccumulatedVisualContextTree const&, DisplayListResourceStorage&);
 
