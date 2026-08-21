@@ -1324,8 +1324,8 @@ void FormAssociatedTextControlElement::scroll_cursor_into_view()
     // https://drafts.csswg.org/css-ui-4/#input-rules
     // * The content is clipped in the block direction to the padding edge
     auto scroll_block_direction = is<HTMLInputElement>(element)
-        ? Painting::Paintable::ScrollBlockDirection::No
-        : Painting::Paintable::ScrollBlockDirection::Yes;
+        ? Painting::ScrollBlockDirection::No
+        : Painting::ScrollBlockDirection::Yes;
     Painting::Paintable::scroll_text_offset_into_view(*text_node, m_selection_end, m_selection_end_affinity, scroll_block_direction);
 }
 

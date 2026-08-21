@@ -498,7 +498,7 @@ CSSPixelPoint Paintable::clamp_scroll_offset(CSSPixelPoint offset) const
     };
 }
 
-Paintable::ScrollHandled Paintable::set_scroll_offset(CSSPixelPoint offset)
+ScrollHandled Paintable::set_scroll_offset(CSSPixelPoint offset)
 {
     if (!Painting::scrollable_overflow_rect(layout_node()).has_value())
         return ScrollHandled::No;
@@ -550,12 +550,12 @@ Paintable::ScrollHandled Paintable::set_scroll_offset(CSSPixelPoint offset)
     return ScrollHandled::Yes;
 }
 
-Paintable::ScrollHandled Paintable::scroll_by(double delta_x, double delta_y)
+ScrollHandled Paintable::scroll_by(double delta_x, double delta_y)
 {
     return set_scroll_offset_from_user_input(scroll_offset().translated(CSSPixels::nearest_value_for(delta_x), CSSPixels::nearest_value_for(delta_y)));
 }
 
-Paintable::ScrollHandled Paintable::set_scroll_offset_from_user_input(CSSPixelPoint offset)
+ScrollHandled Paintable::set_scroll_offset_from_user_input(CSSPixelPoint offset)
 {
     auto scroll_handled = set_scroll_offset(offset);
     auto navigable = document().navigable();
@@ -652,10 +652,10 @@ NonnullRefPtr<Scrollbar> Paintable::ensure_scrollbar(ScrollDirection direction)
     return *slot;
 }
 
-static CSS::Overflow overflow_value_applied_to_viewport_for_wheel_scrolling(DOM::Document const& document, Paintable::ScrollDirection direction)
+static CSS::Overflow overflow_value_applied_to_viewport_for_wheel_scrolling(DOM::Document const& document, ScrollDirection direction)
 {
     auto overflow_for_direction = [direction](CSS::ComputedValues::BoxValues const& style) {
-        return direction == Paintable::ScrollDirection::Horizontal
+        return direction == ScrollDirection::Horizontal
             ? static_cast<CSS::Overflow>(style.overflow_x)
             : static_cast<CSS::Overflow>(style.overflow_y);
     };

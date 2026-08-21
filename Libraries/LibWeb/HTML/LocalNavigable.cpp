@@ -3929,7 +3929,7 @@ bool LocalNavigable::set_scroll_offset_for(Compositor::AsyncScrollNodeStableID s
     }
     if (!paintable)
         return false;
-    return paintable->set_scroll_offset(scroll_offset) == Painting::Paintable::ScrollHandled::Yes;
+    return paintable->set_scroll_offset(scroll_offset) == Painting::ScrollHandled::Yes;
 }
 
 static GC::Ptr<DOM::EventTarget> scroll_event_target_for_async_scroll_node(DOM::Document& document, Compositor::AsyncScrollNodeStableID stable_node_id)

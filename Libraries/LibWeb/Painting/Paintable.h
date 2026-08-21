@@ -35,6 +35,7 @@
 #include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
 #include <LibWeb/Painting/ScrollState.h>
+#include <LibWeb/Painting/Scrolling.h>
 #include <LibWeb/Painting/ShadowData.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/TextAffinity.h>
@@ -163,11 +164,6 @@ public:
     DOM::Document const& document() const;
     DOM::Document& document();
 
-    enum class ScrollBlockDirection {
-        No,
-        Yes,
-    };
-
     static void scroll_text_offset_into_view(DOM::Text const&, size_t offset, TextAffinity = TextAffinity::Downstream, ScrollBlockDirection = ScrollBlockDirection::Yes);
     void scroll_ancestor_to_offset_into_view(size_t offset);
 
@@ -182,11 +178,6 @@ public:
     Optional<CSSPixelRect> get_mask_area() const;
     Optional<Gfx::MaskKind> get_mask_type() const;
     Optional<CSSPixelRect> get_clip_area() const;
-
-    enum class ScrollHandled {
-        No,
-        Yes,
-    };
 
     CSSPixelPoint scroll_offset() const;
     CSSPixelPoint minimum_scroll_offset() const;
@@ -206,10 +197,6 @@ public:
         CSSPixelRect thumb_rect;
         CSSPixelRect track_rect;
         CSSPixelFraction thumb_travel_to_scroll_ratio { 0 };
-    };
-    enum class ScrollDirection {
-        Horizontal,
-        Vertical,
     };
     enum class ScrollbarSizing {
         Current,

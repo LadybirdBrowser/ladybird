@@ -819,8 +819,8 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
                 || (wheel_delta_x > 0 && visual_viewport->offset_left() < visual_viewport_max_x);
             auto visual_viewport_can_scroll_vertically = (wheel_delta_y < 0 && visual_viewport->offset_top() > 0)
                 || (wheel_delta_y > 0 && visual_viewport->offset_top() < visual_viewport_max_y);
-            auto viewport_wheel_delta_x = document->paintable_box()->could_be_scrolled_by_wheel_event(Painting::Paintable::ScrollDirection::Horizontal) || visual_viewport_can_scroll_horizontally ? wheel_delta_x : 0;
-            auto viewport_wheel_delta_y = document->paintable_box()->could_be_scrolled_by_wheel_event(Painting::Paintable::ScrollDirection::Vertical) || visual_viewport_can_scroll_vertically ? wheel_delta_y : 0;
+            auto viewport_wheel_delta_x = document->paintable_box()->could_be_scrolled_by_wheel_event(Painting::ScrollDirection::Horizontal) || visual_viewport_can_scroll_horizontally ? wheel_delta_x : 0;
+            auto viewport_wheel_delta_y = document->paintable_box()->could_be_scrolled_by_wheel_event(Painting::ScrollDirection::Vertical) || visual_viewport_can_scroll_vertically ? wheel_delta_y : 0;
 
             if (viewport_wheel_delta_x != 0 || viewport_wheel_delta_y != 0) {
                 auto viewport_scroll_position_before = CSSPixelPoint { CSSPixels(document->visual_viewport()->page_left()), CSSPixels(document->visual_viewport()->page_top()) };
