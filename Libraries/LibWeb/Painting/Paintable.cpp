@@ -187,20 +187,9 @@ RefPtr<Paintable> paintable_for_slot(void* arena_handle, Layout::RustFFI::Painta
     return static_cast<Layout::Node*>(layout_node_shell)->paintable();
 }
 
-DOM::Node* HitTestResult::dom_node()
+RefPtr<Paintable> HitTestResult::paintable() const
 {
-    if (dom_node_override)
-        return dom_node_override.ptr();
-
-    return event_dispatch_dom_node_for(*paintable).ptr();
-}
-
-DOM::Node const* HitTestResult::dom_node() const
-{
-    if (dom_node_override)
-        return dom_node_override.ptr();
-
-    return event_dispatch_dom_node_for(*paintable).ptr();
+    return paintable_for_slot(arena->handle(), box);
 }
 
 CSSPixelPoint Paintable::box_type_agnostic_position() const

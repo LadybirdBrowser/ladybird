@@ -9100,13 +9100,21 @@ Optional<Painting::HitTestResult> Document::hit_test(CSSPixelPoint position)
         return {};
     viewport_paintable->refresh_scroll_state();
     auto result = hit_test_display_list->hit_test(position, *viewport_paintable, page().client().device_pixels_per_css_pixel(), page().chrome_metrics());
-    if (result.has_value() && (result->chrome_widget || Painting::event_dispatch_dom_node_for(result->paintable)))
+    if (result.has_value() && (result->chrome_widget || result->node))
         return result;
 
     if (auto* body_element = body(); body_element && body_element->paintable())
-        return Painting::HitTestResult { .paintable = *body_element->paintable() };
+        return Painting::HitTestResult {
+            .node = body_element,
+            .box = body_element->paintable()->rust_slot(),
+            .arena = body_element->paintable()->rust_arena(),
+        };
     if (auto* root_element = document_element(); root_element && root_element->paintable())
-        return Painting::HitTestResult { .paintable = *root_element->paintable() };
+        return Painting::HitTestResult {
+            .node = root_element,
+            .box = root_element->paintable()->rust_slot(),
+            .arena = root_element->paintable()->rust_arena(),
+        };
     return {};
 }
 
