@@ -43,15 +43,14 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/Blending.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/ImagePaint.h>
-#include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/Painting/Paintable.h>
-#include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/PaintingRustFFI.h>
 #include <LibWeb/Painting/ResizeHandle.h>
@@ -716,8 +715,9 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
             };
         },
         .line_break_caret_targets = [](void*, void* paintable_shell, void* sink) {
-            auto const& paintable = as<PaintableWithLines>(*static_cast<Paintable const*>(paintable_shell));
-            auto* dom_node = paintable.layout_node().dom_node();
+            auto const& layout_node = static_cast<Paintable const*>(paintable_shell)->layout_node();
+            VERIFY(is_paintable_with_lines(layout_node));
+            auto* dom_node = layout_node.dom_node();
             if (!dom_node)
                 return;
             for (auto* child = dom_node->first_child(); child; child = child->next_sibling()) {
@@ -726,7 +726,7 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
                     continue;
                 Layout::RustFFI::FfiLineBreakCaretTarget target {};
                 target.caret_offset = br->index();
-                target.rect = to_ffi_css_pixel_rect(paintable.caret_rect_for_child_offset(br->index()));
+                target.rect = to_ffi_css_pixel_rect(caret_rect_for_child_offset(layout_node, br->index()));
                 Layout::RustFFI::layout_arena_hit_test_push_line_break_caret_target(sink, target);
             } },
     };
@@ -960,13 +960,18 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             return context.resource_storage.add_font(*static_cast<Gfx::Font const*>(font)).value();
         },
         .cursor_facts = [](void*, void* paintable_shell, void* owner_shell) -> Layout::RustFFI::FfiCursorFacts {
-            auto const& paintable = *static_cast<Paintable const*>(paintable_shell);
+            auto const& layout_node = static_cast<Paintable const*>(paintable_shell)->layout_node();
             Layout::RustFFI::FfiCursorFacts facts {};
-            if (!paintable.document().cursor_position())
+            if (!layout_node.document().cursor_position())
                 return facts;
-            auto caret = is<InlinePaintable>(paintable)
-                ? static_cast<InlinePaintable const&>(paintable).resolve_empty_editable_caret_paint()
-                : as<PaintableWithLines>(paintable).resolve_caret_paint(static_cast<InlinePaintable const*>(owner_shell));
+            auto const* owner_layout_node = owner_shell ? &static_cast<Paintable const*>(owner_shell)->layout_node() : nullptr;
+            Optional<CaretPaint> caret;
+            if (is_inline_paintable(layout_node)) {
+                caret = resolve_empty_editable_caret_paint(layout_node);
+            } else {
+                VERIFY(is_paintable_with_lines(layout_node));
+                caret = resolve_caret_paint(layout_node, owner_layout_node);
+            }
             if (!caret.has_value())
                 return facts;
             facts.paints = true;

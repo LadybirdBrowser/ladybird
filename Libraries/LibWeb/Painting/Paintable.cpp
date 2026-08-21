@@ -31,7 +31,6 @@
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
-#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
@@ -323,26 +322,6 @@ void Paintable::set_sticky_insets(OwnPtr<StickyInsets> sticky_insets)
         pack(sticky_insets->left, ffi_insets.left, ffi_insets.has_left);
     }
     Layout::RustFFI::layout_arena_paintable_set_sticky_insets(m_rust_arena->handle(), m_rust_slot, ffi_insets, !!sticky_insets);
-}
-
-bool Paintable::should_paint_cursor() const
-{
-    if (!document().cursor_blink_state() || !document().navigable()->is_focused())
-        return false;
-
-    auto cursor_position = document().cursor_position();
-    if (!cursor_position)
-        return false;
-
-    if (auto const* text_control = as_if<HTML::FormAssociatedTextControlElement>(document().focused_area().ptr());
-        text_control && text_control->text_control_to_html_element().is_mutable()) {
-        return true;
-    }
-
-    // The editable element may sit anywhere between the cursor and this box (e.g. a
-    // contenteditable inline box), so editability is the cursor node's, not this box's.
-    auto const* editable_node = cursor_position->node().ptr();
-    return editable_node && editable_node->is_editable_or_editing_host();
 }
 
 void Paintable::scroll_text_offset_into_view(DOM::Text const& text, size_t offset, TextAffinity affinity, ScrollBlockDirection scroll_block_direction)
