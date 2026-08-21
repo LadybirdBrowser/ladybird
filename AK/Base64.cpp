@@ -37,9 +37,9 @@ static constexpr simdutf::last_chunk_handling_options to_simdutf_last_chunk_hand
     VERIFY_NOT_REACHED();
 }
 
-static Optional<InvalidBase64> base64_error_from_result(simdutf::result result)
+static Optional<InvalidBase64> base64_error_from_result(simdutf::error_code error_code, size_t valid_input_bytes)
 {
-    if (result.error == simdutf::SUCCESS || result.error == simdutf::OUTPUT_BUFFER_TOO_SMALL)
+    if (error_code == simdutf::SUCCESS || error_code == simdutf::OUTPUT_BUFFER_TOO_SMALL)
         return {};
 
     struct DecodeError {
@@ -48,7 +48,7 @@ static Optional<InvalidBase64> base64_error_from_result(simdutf::result result)
     };
 
     auto [decode_error, error] = [&]() -> DecodeError {
-        switch (result.error) {
+        switch (error_code) {
         case simdutf::BASE64_EXTRA_BITS:
             return { Base64DecodeError::ExtraBits, Error::from_string_literal("Extra bits found at end of chunk") };
         case simdutf::BASE64_INPUT_REMAINDER:
@@ -60,7 +60,7 @@ static Optional<InvalidBase64> base64_error_from_result(simdutf::result result)
         }
     }();
 
-    return InvalidBase64 { .decode_error = decode_error, .error = move(error), .valid_input_bytes = result.count };
+    return InvalidBase64 { .decode_error = decode_error, .error = move(error), .valid_input_bytes = valid_input_bytes };
 }
 
 template<typename CodeUnit>
@@ -81,7 +81,7 @@ static ErrorOr<size_t, InvalidBase64> decode_base64_into_span(ReadonlySpan<CodeU
     VERIFY(output_length <= output.size());
     output.resize(output_length);
 
-    if (auto error = base64_error_from_result(result); error.has_value())
+    if (auto error = base64_error_from_result(result.error, result.count); error.has_value())
         return error.release_value();
 
     return result.count;
@@ -104,8 +104,18 @@ static ErrorOr<ByteBuffer> decode_base64_impl(StringView input, LastChunkHandlin
     ByteBuffer output;
     TRY(output.try_resize(size_required_to_decode_base64(input)));
 
-    if (auto result = decode_base64_into_impl(input, output, last_chunk_handling, options); result.is_error())
-        return result.release_error().error;
+    auto result = simdutf::base64_to_binary_details(
+        input.characters_without_null_termination(),
+        input.length(),
+        reinterpret_cast<char*>(output.data()),
+        options,
+        to_simdutf_last_chunk_handling(last_chunk_handling));
+
+    if (auto error = base64_error_from_result(result.error, result.input_count); error.has_value())
+        return error.release_value().error;
+
+    VERIFY(result.output_count <= output.size());
+    output.resize(result.output_count);
 
     return output;
 }
