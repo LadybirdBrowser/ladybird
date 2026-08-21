@@ -38,7 +38,6 @@
 #include <LibWeb/Painting/Scrolling.h>
 #include <LibWeb/Painting/ShadowData.h>
 #include <LibWeb/PixelUnits.h>
-#include <LibWeb/TextAffinity.h>
 
 namespace Web::Painting {
 
@@ -231,7 +230,6 @@ public:
 private:
     void detach_from_layout_node(Badge<Layout::Node>);
     void detach_chrome_widgets();
-    GC::Ptr<DOM::EventTarget> scroll_event_target();
 
     bool has_flag(Layout::RustFFI::PaintableFlag flag) const { return (rust_data().flags & to_underlying(flag)) != 0; }
     Layout::RustFFI::PaintableData& rust_data() { return *m_rust_data; }
