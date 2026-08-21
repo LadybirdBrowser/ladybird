@@ -9,6 +9,11 @@
 #if defined(LADYBIRD_AUDIO_BACKEND_PULSE)
 #    include <LibMedia/Audio/PulseAudioWrappers.h>
 #    include <pulse/pulseaudio.h>
+#elif defined(LADYBIRD_AUDIO_BACKEND_AUDIO_UNIT)
+#    include <AK/ScopeGuard.h>
+#    include <AK/kmalloc.h>
+#    include <CoreAudio/CoreAudio.h>
+#    include <CoreFoundation/CoreFoundation.h>
 #endif
 
 namespace Media {
@@ -102,6 +107,119 @@ static void enumerate_devices_via_pulseaudio(Vector<AudioDeviceInfo>& inputs, Ve
     outputs = move(state.outputs);
 }
 
+#elif defined(LADYBIRD_AUDIO_BACKEND_AUDIO_UNIT)
+
+static ByteString core_foundation_string_to_byte_string(CFStringRef string)
+{
+    if (string == nullptr)
+        return {};
+    if (auto const* fast_path = CFStringGetCStringPtr(string, kCFStringEncodingUTF8); fast_path != nullptr)
+        return fast_path;
+    auto maximum_size = CFStringGetMaximumSizeForEncoding(CFStringGetLength(string), kCFStringEncodingUTF8) + 1;
+    Vector<char> buffer;
+    buffer.resize(maximum_size);
+    if (!CFStringGetCString(string, buffer.data(), maximum_size, kCFStringEncodingUTF8))
+        return {};
+    return ByteString { buffer.data() };
+}
+
+static ByteString device_string_property(AudioDeviceID device, AudioObjectPropertySelector selector)
+{
+    AudioObjectPropertyAddress address { selector, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain };
+    CFStringRef value = nullptr;
+    UInt32 size = sizeof(value);
+    if (AudioObjectGetPropertyData(device, &address, 0, nullptr, &size, &value) != noErr || value == nullptr)
+        return {};
+    ScopeGuard release_value { [&] { CFRelease(value); } };
+    return core_foundation_string_to_byte_string(value);
+}
+
+static u32 device_channel_count(AudioDeviceID device, AudioObjectPropertyScope scope)
+{
+    AudioObjectPropertyAddress address { kAudioDevicePropertyStreamConfiguration, scope, kAudioObjectPropertyElementMain };
+    UInt32 size = 0;
+    if (AudioObjectGetPropertyDataSize(device, &address, 0, nullptr, &size) != noErr || size < sizeof(AudioBufferList))
+        return 0;
+    auto* buffer_list = static_cast<AudioBufferList*>(kmalloc(size));
+    if (buffer_list == nullptr)
+        return 0;
+    ScopeGuard free_buffer_list { [&] { kfree(buffer_list); } };
+    if (AudioObjectGetPropertyData(device, &address, 0, nullptr, &size, buffer_list) != noErr)
+        return 0;
+    u32 channel_count = 0;
+    for (UInt32 i = 0; i < buffer_list->mNumberBuffers; ++i)
+        channel_count += buffer_list->mBuffers[i].mNumberChannels;
+    return channel_count;
+}
+
+static u32 device_nominal_sample_rate(AudioDeviceID device)
+{
+    AudioObjectPropertyAddress address { kAudioDevicePropertyNominalSampleRate, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain };
+    Float64 sample_rate = 0;
+    UInt32 size = sizeof(sample_rate);
+    if (AudioObjectGetPropertyData(device, &address, 0, nullptr, &size, &sample_rate) != noErr)
+        return 0;
+    return static_cast<u32>(sample_rate);
+}
+
+static AudioDeviceID default_device(AudioObjectPropertySelector selector)
+{
+    AudioObjectPropertyAddress address { selector, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain };
+    AudioDeviceID device = kAudioObjectUnknown;
+    UInt32 size = sizeof(device);
+    if (AudioObjectGetPropertyData(kAudioObjectSystemObject, &address, 0, nullptr, &size, &device) != noErr)
+        return kAudioObjectUnknown;
+    return device;
+}
+
+static void enumerate_devices_via_core_audio(Vector<AudioDeviceInfo>& inputs, Vector<AudioDeviceInfo>& outputs)
+{
+    AudioObjectPropertyAddress devices_address { kAudioHardwarePropertyDevices, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain };
+    UInt32 size = 0;
+    if (AudioObjectGetPropertyDataSize(kAudioObjectSystemObject, &devices_address, 0, nullptr, &size) != noErr || size == 0)
+        return;
+
+    Vector<AudioDeviceID> devices;
+    devices.resize(size / sizeof(AudioDeviceID));
+    if (AudioObjectGetPropertyData(kAudioObjectSystemObject, &devices_address, 0, nullptr, &size, devices.data()) != noErr)
+        return;
+    devices.resize(size / sizeof(AudioDeviceID));
+
+    auto default_input = default_device(kAudioHardwarePropertyDefaultInputDevice);
+    auto default_output = default_device(kAudioHardwarePropertyDefaultOutputDevice);
+
+    for (auto device : devices) {
+        auto uid = device_string_property(device, kAudioDevicePropertyDeviceUID);
+        if (uid.is_empty())
+            continue;
+        auto label = device_string_property(device, kAudioObjectPropertyName);
+        if (label.is_empty())
+            label = uid;
+        auto sample_rate = device_nominal_sample_rate(device);
+
+        if (auto input_channels = device_channel_count(device, kAudioObjectPropertyScopeInput); input_channels > 0) {
+            inputs.append({
+                .dom_device_id = ByteString::formatted("coreaudio:input:{}", uid),
+                .label = label,
+                .group_id = {},
+                .sample_rate_hz = sample_rate,
+                .channel_count = input_channels,
+                .is_default = device == default_input,
+            });
+        }
+        if (auto output_channels = device_channel_count(device, kAudioObjectPropertyScopeOutput); output_channels > 0) {
+            outputs.append({
+                .dom_device_id = ByteString::formatted("coreaudio:output:{}", uid),
+                .label = label,
+                .group_id = {},
+                .sample_rate_hz = sample_rate,
+                .channel_count = output_channels,
+                .is_default = device == default_output,
+            });
+        }
+    }
+}
+
 #endif
 
 AudioDevices& AudioDevices::the()
@@ -124,9 +242,10 @@ void AudioDevices::refresh()
 
 #if defined(LADYBIRD_AUDIO_BACKEND_PULSE)
     enumerate_devices_via_pulseaudio(inputs, outputs);
+#elif defined(LADYBIRD_AUDIO_BACKEND_AUDIO_UNIT)
+    enumerate_devices_via_core_audio(inputs, outputs);
 #else
-    // FIXME: Implement device enumeration for the AudioUnit (macOS) and WASAPI (Windows)
-    //        backends.
+    // FIXME: Implement device enumeration for the WASAPI (Windows) backend.
 #endif
 
     m_cached_input_devices = move(inputs);
