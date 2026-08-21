@@ -6450,9 +6450,15 @@ static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect t
     // 2. Let container be the containing block of target.
     // 3. While container is not root:
     if (auto target_paintable = target->paintable_box()) {
-        for (auto container = target_paintable->containing_block(); container; container = container->containing_block()) {
+        Layout::Box* root_layout_box = nullptr;
+        if (root_paintable && root_paintable->has_layout_node())
+            root_layout_box = as<Layout::Box>(&root_paintable->layout_node());
+        for (auto* container_box = target_paintable->layout_node().containing_block(); container_box; container_box = container_box->containing_block()) {
             // Stop when we reach the intersection root.
-            if (container == root_paintable)
+            if (container_box == root_layout_box)
+                break;
+            auto container = container_box->paintable();
+            if (!container)
                 break;
 
             // FIXME: 3.1. If container is the document of a nested browsing context, update
