@@ -496,7 +496,6 @@ def write_attribute_getter(
         out.write(
             f"""JS_DEFINE_NATIVE_FUNCTION({receiver_class}::{attribute_getter_callback_name(attribute)})
 {{
-    WebIDL::log_trace(vm, "{receiver_class}::{attribute_getter_callback_name(attribute)}");
     [[maybe_unused]] auto& realm = *vm.current_realm();
     {promise_realm_setup}
 
@@ -530,7 +529,6 @@ def write_attribute_getter(
     out.write(
         f"""JS_DEFINE_NATIVE_FUNCTION({receiver_class}::{attribute_getter_callback_name(attribute)})
 {{
-    WebIDL::log_trace(vm, "{receiver_class}::{attribute_getter_callback_name(attribute)}");
     [[maybe_unused]] auto& realm = *vm.current_realm();
 
     [[maybe_unused]] {fully_qualified_name_for_interface(interface)}* idl_object = nullptr;
@@ -575,11 +573,9 @@ def write_attribute_setter(
         receiver_class = interface.prototype_class
 
     includes.add("LibJS/Runtime/Value.h")
-    includes.add("LibWeb/WebIDL/Tracing.h")
     out.write(
         f"""JS_DEFINE_NATIVE_FUNCTION({receiver_class}::{attribute_setter_callback_name(attribute)})
 {{
-    WebIDL::log_trace(vm, "{receiver_class}::{attribute_setter_callback_name(attribute)}");
     [[maybe_unused]] auto& realm = *vm.current_realm();
 
     auto V = JS::js_undefined();
@@ -813,7 +809,6 @@ def write_static_attribute_getter(
 
     out.write(f"""JS_DEFINE_NATIVE_FUNCTION({interface.constructor_class}::{attribute_getter_callback_name(attribute)})
 {{
-    WebIDL::log_trace(vm, "{interface.constructor_class}::{attribute_getter_callback_name(attribute)}");
     [[maybe_unused]] auto& realm = *vm.current_realm();
 
     // Let R be the result of running the getter steps of attribute.

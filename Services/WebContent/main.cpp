@@ -31,7 +31,6 @@
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
-#include <LibWeb/WebIDL/Tracing.h>
 #include <LibWebView/Plugins/ImageCodecPlugin.h>
 #include <LibWebView/SiteIsolation.h>
 #include <LibWebView/Utilities.h>
@@ -144,7 +143,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool wait_for_debugger = false;
     bool log_all_js_exceptions = false;
     auto site_isolation_mode = WebView::SiteIsolationMode::TopLevel;
-    bool enable_idl_tracing = false;
     bool enable_http_memory_cache = false;
     bool force_fontconfig = false;
     bool collect_garbage_on_every_allocation = false;
@@ -180,7 +178,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             return true;
         },
     });
-    args_parser.add_option(enable_idl_tracing, "Enable IDL tracing", "enable-idl-tracing");
     args_parser.add_option(enable_http_memory_cache, "Enable HTTP cache", "enable-http-memory-cache");
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
     args_parser.add_option(collect_garbage_on_every_allocation, "Collect garbage after every JS heap allocation", "collect-garbage-on-every-allocation");
@@ -245,10 +242,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     if (log_all_js_exceptions) {
         JS::set_log_all_js_exceptions(true);
-    }
-
-    if (enable_idl_tracing) {
-        Web::WebIDL::set_enable_idl_tracing(true);
     }
 
     if (!disable_sandbox)

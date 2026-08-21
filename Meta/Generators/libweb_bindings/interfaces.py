@@ -350,7 +350,6 @@ def write_implementation(
     includes.add("LibJS/Runtime/ValueInlines.h")
     includes.add("LibWeb/Bindings/Intrinsics.h")
     includes.add("LibWeb/WebIDL/Types.h")
-    includes.add("LibWeb/WebIDL/Tracing.h")
     includes.add_binding(interface.implemented_name)
     if interface_needs_wrapper(interface):
         includes.add("AK/StdLibExtras.h")
@@ -442,7 +441,6 @@ namespace Web::Bindings {{
 
 JS::ThrowCompletionOr<GC::Ref<JS::Object>> {interface.constructor_class}::construct([[maybe_unused]] InterfaceConstructor& constructor, [[maybe_unused]] JS::FunctionObject& new_target)
 {{
-    WebIDL::log_trace(constructor.vm(), "{interface.constructor_class}::construct");
 """
     )
     if interface.constructors:

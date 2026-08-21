@@ -120,11 +120,6 @@ enum class LogAllJSExceptions {
     Yes,
 };
 
-enum class EnableIDLTracing {
-    No,
-    Yes,
-};
-
 enum class EnableMemoryHTTPCache {
     No,
     Yes,
@@ -177,7 +172,6 @@ struct WebContentOptions {
     IsTestMode is_test_mode { IsTestMode::No };
     LogAllJSExceptions log_all_js_exceptions { LogAllJSExceptions::No };
     SiteIsolationMode site_isolation_mode { SiteIsolationMode::TopLevel };
-    EnableIDLTracing enable_idl_tracing { EnableIDLTracing::No };
     EnableMemoryHTTPCache enable_http_memory_cache { EnableMemoryHTTPCache::No };
     ExposeExperimentalInterfaces expose_experimental_interfaces { ExposeExperimentalInterfaces::No };
     ExposeInternalsObject expose_internals_object { ExposeInternalsObject::No };

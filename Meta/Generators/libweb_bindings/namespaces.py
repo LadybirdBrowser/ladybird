@@ -69,7 +69,6 @@ def write_namespace_implementation(
     out: TextIO, context: GenerationContext, includes: GeneratedIncludes, interface: Interface
 ) -> None:
     includes.add("LibJS/Runtime/ValueInlines.h")
-    includes.add("LibWeb/WebIDL/Tracing.h")
     includes.add_binding(interface.implemented_name)
     includes.add(implementation_header_for_interface(interface))
 

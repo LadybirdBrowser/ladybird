@@ -286,7 +286,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool validate_dnssec_locally = false;
     bool log_all_js_exceptions = false;
     auto site_isolation_mode = SiteIsolationMode::TopLevel;
-    bool enable_idl_tracing = false;
     bool disable_http_memory_cache = false;
     bool disable_http_disk_cache = false;
     bool disable_content_blocker = false;
@@ -379,7 +378,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
             return true;
         },
     });
-    args_parser.add_option(enable_idl_tracing, "Enable IDL tracing", "enable-idl-tracing");
     args_parser.add_option(disable_http_memory_cache, "Disable HTTP memory cache", "disable-http-memory-cache");
     args_parser.add_option(disable_http_disk_cache, "Disable HTTP disk cache", "disable-http-disk-cache");
     args_parser.add_option(disable_content_blocker, "Disable content blocker", "disable-content-blocker");
@@ -601,7 +599,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .is_test_mode = enable_test_mode ? IsTestMode::Yes : IsTestMode::No,
         .log_all_js_exceptions = log_all_js_exceptions ? LogAllJSExceptions::Yes : LogAllJSExceptions::No,
         .site_isolation_mode = site_isolation_mode,
-        .enable_idl_tracing = enable_idl_tracing ? EnableIDLTracing::Yes : EnableIDLTracing::No,
         .enable_http_memory_cache = disable_http_memory_cache ? EnableMemoryHTTPCache::No : EnableMemoryHTTPCache::Yes,
         .expose_experimental_interfaces = expose_experimental_interfaces ? ExposeExperimentalInterfaces::Yes : ExposeExperimentalInterfaces::No,
         .expose_internals_object = expose_internals_object ? ExposeInternalsObject::Yes : ExposeInternalsObject::No,

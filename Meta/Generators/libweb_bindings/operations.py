@@ -355,7 +355,6 @@ def write_stringifier(
     out.write(
         f"""JS_DEFINE_NATIVE_FUNCTION({receiver_class}::to_string)
 {{
-    WebIDL::log_trace(vm, "{receiver_class}::to_string");
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
     auto* idl_object = TRY(impl_from(vm, this_value));
@@ -404,7 +403,6 @@ def write_operation(
     out.write(
         f"""JS_DEFINE_NATIVE_FUNCTION({receiver_class}::{callback_name})
 {{
-    WebIDL::log_trace(vm, "{receiver_class}::{callback_name}");
     [[maybe_unused]] auto& realm = *vm.current_realm();
 """
     )
@@ -710,7 +708,6 @@ def write_default_to_json_operation(
     operation: Operation,
 ) -> None:
     includes.add("LibJS/Runtime/Object.h")
-    includes.add("LibWeb/WebIDL/Tracing.h")
 
     # 1. Let map be a new ordered map.
 
@@ -724,7 +721,6 @@ def write_default_to_json_operation(
     out.write(
         f"""JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::{idl_identifier_cpp_name(operation)})
 {{
-    WebIDL::log_trace(vm, "{interface.prototype_class}::{idl_identifier_cpp_name(operation)}");
     auto& realm = *vm.current_realm();
 
     auto this_value = vm.this_value();
