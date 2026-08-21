@@ -161,7 +161,7 @@ Gfx::FloatPoint AsyncScrollTree::apply_scroll_delta_to_node(AsyncScrollNode cons
 
 void AsyncScrollTree::update_sticky_offsets(Painting::ScrollStateSnapshot& scroll_state_snapshot) const
 {
-    // This mirrors ViewportPaintable::refresh_scroll_state(), but consumes the compositor's mutated
+    // This mirrors DocumentPaintState::refresh_scroll_state(), but consumes the compositor's mutated
     // ScrollStateSnapshot instead of live layout objects.
     for (auto const& sticky_area : m_sticky_areas) {
         if (!sticky_area.nearest_scrolling_ancestor_index.value())

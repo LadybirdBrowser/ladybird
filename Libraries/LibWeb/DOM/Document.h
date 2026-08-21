@@ -510,12 +510,6 @@ public:
     Layout::Viewport const* unsafe_layout_node() const;
     Layout::Viewport* unsafe_layout_node();
 
-    RefPtr<Painting::ViewportPaintable const> paintable() const;
-    RefPtr<Painting::ViewportPaintable> paintable();
-
-    RefPtr<Painting::ViewportPaintable const> unsafe_paintable() const;
-    RefPtr<Painting::ViewportPaintable> unsafe_paintable();
-
     Painting::DocumentPaintState& paint_state();
     Painting::DocumentPaintState const& paint_state() const;
     Painting::AccumulatedVisualContextTree const& visual_context_tree() const;
