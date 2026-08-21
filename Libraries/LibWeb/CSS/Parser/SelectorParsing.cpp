@@ -14,10 +14,10 @@ namespace Web::CSS::Parser {
 template<typename T>
 Parser::ParseErrorOr<SelectorList> Parser::parse_a_selector_list(TokenStream<T>& tokens, SelectorType type, SelectorParsingMode mode)
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     while (tokens.has_next_token())
         builder.append(tokens.consume_a_token().original_source_text());
-    auto input = builder.to_string_without_validation();
+    auto input = builder.to_string();
     auto selectors = parse_selector_list_in_rust(input, m_declared_namespaces,
         type == SelectorType::Relative, mode == SelectorParsingMode::Forgiving);
     if (!selectors.has_value())

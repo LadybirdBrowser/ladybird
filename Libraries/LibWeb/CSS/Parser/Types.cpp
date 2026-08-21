@@ -109,15 +109,15 @@ Utf16String SimpleBlock::to_string() const
     return builder.to_string();
 }
 
-String SimpleBlock::original_source_text() const
+Utf16String SimpleBlock::original_source_text() const
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     builder.append(token.original_source_text());
     for (auto const& component_value : value) {
         builder.append(component_value.original_source_text());
     }
     builder.append(end_token.original_source_text());
-    return builder.to_string_without_validation();
+    return builder.to_string();
 }
 
 void Function::serialize_to(Utf16StringBuilder& builder) const
@@ -135,15 +135,15 @@ Utf16String Function::to_string() const
     return builder.to_string();
 }
 
-String Function::original_source_text() const
+Utf16String Function::original_source_text() const
 {
-    StringBuilder builder;
+    Utf16StringBuilder builder;
     builder.append(name_token.original_source_text());
     for (auto const& component_value : value) {
         builder.append(component_value.original_source_text());
     }
     builder.append(end_token.original_source_text());
-    return builder.to_string_without_validation();
+    return builder.to_string();
 }
 
 void AtRule::for_each(AtRuleVisitor&& visit_at_rule, QualifiedRuleVisitor&& visit_qualified_rule, DeclarationVisitor&& visit_declaration) const

@@ -87,7 +87,7 @@ String ComponentValue::to_debug_string() const
         });
 }
 
-String ComponentValue::original_source_text() const
+Utf16String ComponentValue::original_source_text() const
 {
     return m_value.visit([](auto const& it) { return it.original_source_text(); });
 }

@@ -99,7 +99,7 @@ static Vector<u16> to_code_units(Utf16View view)
     return result;
 }
 
-Optional<SelectorList> parse_selector_list_in_rust(StringView input, HashTable<Utf16FlyString> const& namespaces, bool is_relative, bool is_forgiving)
+Optional<SelectorList> parse_selector_list_in_rust(Utf16View input, HashTable<Utf16FlyString> const& namespaces, bool is_relative, bool is_forgiving)
 {
     Vector<Vector<u16>> namespace_storage;
     Vector<SelectorFFI::StringView> namespace_views;
@@ -111,7 +111,12 @@ Optional<SelectorList> parse_selector_list_in_rust(StringView input, HashTable<U
         namespace_views.append({ namespace_.data(), namespace_.size() });
 
     auto* parsed = SelectorFFI::rust_selector_parse(
-        input.bytes().data(), input.bytes().size(), namespace_views.data(), namespace_views.size(), is_relative, is_forgiving);
+        {
+            .ascii = input.has_ascii_storage() ? reinterpret_cast<u8 const*>(input.ascii_span().data()) : nullptr,
+            .utf16 = input.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(input.utf16_span().data()),
+            .length = input.length_in_code_units(),
+        },
+        namespace_views.data(), namespace_views.size(), is_relative, is_forgiving);
     if (!parsed)
         return {};
 

@@ -51,7 +51,7 @@ public:
     Utf16String to_string() const;
     void serialize_to(Utf16StringBuilder&) const;
     String to_debug_string() const;
-    String original_source_text() const;
+    Utf16String original_source_text() const;
 
     Optional<SourcePosition> start_position() const;
 

@@ -11,7 +11,7 @@
 
 namespace Web::CSS::Parser {
 
-Token Token::create(Type type, String original_source_text)
+Token Token::create(Type type, Utf16String original_source_text)
 {
     VERIFY(first_is_one_of(type,
         Type::Invalid,
@@ -36,7 +36,7 @@ Token Token::create(Type type, String original_source_text)
     return token;
 }
 
-Token Token::create_ident(Utf16FlyString ident, String original_source_text)
+Token Token::create_ident(Utf16FlyString ident, Utf16String original_source_text)
 {
     Token token;
     token.m_type = Type::Ident;
@@ -45,7 +45,7 @@ Token Token::create_ident(Utf16FlyString ident, String original_source_text)
     return token;
 }
 
-Token Token::create_function(Utf16FlyString name, String original_source_text)
+Token Token::create_function(Utf16FlyString name, Utf16String original_source_text)
 {
     Token token;
     token.m_type = Type::Function;
@@ -54,7 +54,7 @@ Token Token::create_function(Utf16FlyString name, String original_source_text)
     return token;
 }
 
-Token Token::create_at_keyword(Utf16FlyString name, String original_source_text)
+Token Token::create_at_keyword(Utf16FlyString name, Utf16String original_source_text)
 {
     Token token;
     token.m_type = Type::AtKeyword;
@@ -63,7 +63,7 @@ Token Token::create_at_keyword(Utf16FlyString name, String original_source_text)
     return token;
 }
 
-Token Token::create_hash(Utf16FlyString value, HashType hash_type, String original_source_text)
+Token Token::create_hash(Utf16FlyString value, HashType hash_type, Utf16String original_source_text)
 {
     Token token;
     token.m_type = Type::Hash;
@@ -72,7 +72,7 @@ Token Token::create_hash(Utf16FlyString value, HashType hash_type, String origin
     return token;
 }
 
-Token Token::create_string(Utf16FlyString value, String original_source_text)
+Token Token::create_string(Utf16FlyString value, Utf16String original_source_text)
 {
     Token token;
     token.m_type = Type::String;
@@ -81,7 +81,7 @@ Token Token::create_string(Utf16FlyString value, String original_source_text)
     return token;
 }
 
-Token Token::create_url(Utf16FlyString url, String original_source_text)
+Token Token::create_url(Utf16FlyString url, Utf16String original_source_text)
 {
     Token token;
     token.m_type = Type::Url;
@@ -90,7 +90,7 @@ Token Token::create_url(Utf16FlyString url, String original_source_text)
     return token;
 }
 
-Token Token::create_delim(u32 delim, String original_source_text)
+Token Token::create_delim(u32 delim, Utf16String original_source_text)
 {
     Token token;
     token.m_type = Type::Delim;
@@ -99,7 +99,7 @@ Token Token::create_delim(u32 delim, String original_source_text)
     return token;
 }
 
-Token Token::create_number(Number value, String original_source_text)
+Token Token::create_number(Number value, Utf16String original_source_text)
 {
     Token token;
     token.m_type = Type::Number;
@@ -108,7 +108,7 @@ Token Token::create_number(Number value, String original_source_text)
     return token;
 }
 
-Token Token::create_percentage(Number value, String original_source_text)
+Token Token::create_percentage(Number value, Utf16String original_source_text)
 {
     Token token;
     token.m_type = Type::Percentage;
@@ -117,7 +117,7 @@ Token Token::create_percentage(Number value, String original_source_text)
     return token;
 }
 
-Token Token::create_dimension(Number value, Utf16FlyString unit, String original_source_text)
+Token Token::create_dimension(Number value, Utf16FlyString unit, Utf16String original_source_text)
 {
     Token token;
     token.m_type = Type::Dimension;
@@ -126,7 +126,7 @@ Token Token::create_dimension(Number value, Utf16FlyString unit, String original
     return token;
 }
 
-Token Token::create_whitespace(String original_source_text)
+Token Token::create_whitespace(Utf16String original_source_text)
 {
     Token token;
     token.m_type = Type::Whitespace;
@@ -371,7 +371,7 @@ String Token::to_debug_string() const
     }
 
     builder.append(has_type_specific_fields ? ", source="sv : "source="sv);
-    append_quoted_string(builder, m_original_source_text.bytes_as_string_view());
+    append_quoted_string(builder, m_original_source_text.to_utf8());
     builder.appendff(", start={}:{}, end={}:{})", m_start_position.line, m_start_position.column, m_end_position.line, m_end_position.column);
     return builder.to_string_without_validation();
 }

@@ -866,7 +866,7 @@ pub struct FfiCascadeResolutionRequest {
     pub property_id: u16,
     pub parse_substituted: bool,
     pub unresolved_data: *const c_void,
-    pub source: *const u8,
+    pub source: *const u16,
     pub source_length: usize,
 }
 
@@ -1082,7 +1082,7 @@ pub unsafe extern "C" fn rust_cascaded_custom_properties_destroy(storage: *mut c
 
 struct CascadeResolutionBatch {
     requests: Vec<FfiCascadeResolutionRequest>,
-    _sources: Vec<Vec<u8>>,
+    _sources: Vec<Vec<u16>>,
 }
 
 /// Collects every parser-dependent value resolution in cascade application order. C++ resolves

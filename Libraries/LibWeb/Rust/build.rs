@@ -1678,11 +1678,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         "CssNumberType".to_string(),
         "CssToken".to_string(),
         "CssTokenType".to_string(),
+        "FfiUtf16View".to_string(),
     ];
 
     generate_ffi_header(
         css_config,
-        &[manifest_dir.join("src/css/css_tokenizer.rs")],
+        &[
+            manifest_dir.join("src/css/css_tokenizer.rs"),
+            manifest_dir.join("src/css/ffi_support.rs"),
+        ],
         &out_dir,
         Path::new("RustFFI.h"),
     );
@@ -1810,6 +1814,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "AnchorValues".to_string(),
         "FfiTableInheritanceDependentValue".to_string(),
         "FfiEffectiveLonghandValue".to_string(),
+        "FfiUtf16View".to_string(),
         "EFFECTIVE_LONGHAND_SOURCE_TABLE".to_string(),
         "EFFECTIVE_LONGHAND_SOURCE_OVERLAY".to_string(),
         "EFFECTIVE_LONGHAND_SOURCE_SPECIFIED".to_string(),
@@ -1829,6 +1834,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/css/cascaded_properties.rs"),
             manifest_dir.join("src/css/computed_longhand_table.rs"),
             manifest_dir.join("src/css/custom_properties.rs"),
+            manifest_dir.join("src/css/ffi_support.rs"),
             manifest_dir.join("src/css/table_group_builder.rs"),
         ],
         &out_dir,
