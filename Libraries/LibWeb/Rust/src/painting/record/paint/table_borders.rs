@@ -5,7 +5,7 @@
  */
 
 use crate::css::css_enums::line_style;
-use crate::layout::FfiCollapsedBorderEdge;
+use crate::layout::CollapsedBorderEdge;
 use crate::painting::paintable_data::PaintableSlotId;
 use crate::painting::record::PaintRecorder;
 use libgfx_rust::{Color, IntPoint, IntRect, LineStyle};
@@ -143,7 +143,7 @@ fn paint_edge(recorder: &mut PaintRecorder<'_>, rect: IntRect, edge: DeviceEdge,
     recorder.recorder.fill_rect(rect, edge.data.color);
 }
 
-fn to_device_edge(recorder: &PaintRecorder<'_>, edge: FfiCollapsedBorderEdge) -> DeviceEdge {
+fn to_device_edge(recorder: &PaintRecorder<'_>, edge: CollapsedBorderEdge) -> DeviceEdge {
     DeviceEdge {
         data: DeviceBorderData {
             color: Color(edge.border_data.color),
