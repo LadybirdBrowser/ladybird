@@ -123,6 +123,24 @@ pub unsafe extern "C" fn layout_arena_paintable_event_dispatch_node_shell(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_layout_node_shell(
+    arena: *mut c_void,
+    slot: PaintableSlotId,
+) -> *mut c_void {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        if !paintables.is_live(slot) {
+            return std::ptr::null_mut();
+        }
+        arena.shell_if_live(paintables.data_ref(slot).layout_node)
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_has_child_paintables(
     arena: *mut c_void,
     slot: PaintableSlotId,
@@ -1030,8 +1048,8 @@ pub struct FfiCaretRectResult {
     pub found: bool,
     pub rect: FfiCssPixelRect,
     pub style_source: *mut c_void,
-    pub owner_paintable: *mut c_void,
-    pub nearest_self_painting_inline: *mut c_void,
+    pub owner_paintable: PaintableSlotId,
+    pub nearest_self_painting_inline: PaintableSlotId,
 }
 
 /// # Safety
@@ -1051,8 +1069,8 @@ pub unsafe extern "C" fn layout_arena_text_caret_rect_for_position(
             found: false,
             rect: FfiCssPixelRect::default(),
             style_source: std::ptr::null_mut(),
-            owner_paintable: std::ptr::null_mut(),
-            nearest_self_painting_inline: std::ptr::null_mut(),
+            owner_paintable: PaintableSlotId::INVALID,
+            nearest_self_painting_inline: PaintableSlotId::INVALID,
         };
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
@@ -1070,10 +1088,10 @@ pub unsafe extern "C" fn layout_arena_text_caret_rect_for_position(
         result.found = true;
         result.rect = answer.rect.into();
         result.style_source = arena.shell_if_live(answer.style_source);
-        result.owner_paintable = paintables.data_ref(answer.owner).shell;
+        result.owner_paintable = answer.owner;
         result.nearest_self_painting_inline =
             crate::painting::fragment_ownership::nearest_self_painting_inline_box(arena, &paintables, answer.node)
-                .map_or(std::ptr::null_mut(), |inline_box| paintables.data_ref(inline_box).shell);
+                .unwrap_or(PaintableSlotId::INVALID);
         result
     })
 }

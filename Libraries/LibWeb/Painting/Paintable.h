@@ -59,6 +59,7 @@ WEB_API Paintable const* nearest_svg_viewport_paintable_of(Layout::Node const&);
 WEB_API Gfx::FloatRect svg_viewport_user_rect(Paintable const& viewport_paintable);
 
 GC::Ptr<DOM::Node> event_dispatch_dom_node_for(Paintable const&);
+RefPtr<Paintable> paintable_for_slot(void* arena_handle, Layout::RustFFI::PaintableSlotId);
 
 bool body_background_is_propagated_to_root(Layout::NodeWithStyle const&);
 
