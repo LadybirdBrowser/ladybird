@@ -237,6 +237,8 @@ void WebDriverConnection::driver_execution_complete(Web::WebDriver::Response res
     if (!m_current_command_id.has_value())
         return;
 
+    m_pending_window_rect_requests.clear();
+
     auto command_id = m_current_command_id.release_value();
     m_page_client->webdriver_command_complete(command_id, move(response));
 }
@@ -783,18 +785,18 @@ Web::WebDriver::Response WebDriverConnection::set_window_rect(JsonValue payload)
             if (width.has_value() && height.has_value()) {
                 // a. Set the width, in CSS pixels, of the operating system window containing the current top-level browsing context, including any browser chrome and externally drawn window decorations to a value that is as close as possible to width.
                 // b. Set the height, in CSS pixels, of the operating system window containing the current top-level browsing context, including any browser chrome and externally drawn window decorations to a value that is as close as possible to height.
-                page.client().page_did_request_resize_window({ *width, *height });
-                ++m_pending_window_rect_requests;
+                auto request_id = register_window_rect_request();
+                page.client().page_did_request_resize_window({ *width, *height }, request_id);
             }
 
             // 12. If x and y are not null:
             if (x.has_value() && y.has_value()) {
                 // a. Run the implementation-specific steps to set the position of the operating system level window containing the current top-level browsing context to the position given by the x and y coordinates.
-                page.client().page_did_request_reposition_window({ *x, *y });
-                ++m_pending_window_rect_requests;
+                auto request_id = register_window_rect_request();
+                page.client().page_did_request_reposition_window({ *x, *y }, request_id);
             }
 
-            if (m_pending_window_rect_requests == 0)
+            if (m_pending_window_rect_requests.is_empty())
                 driver_execution_complete(serialize_rect(compute_window_rect(page)));
         }));
     });
@@ -874,11 +876,15 @@ Web::WebDriver::Response WebDriverConnection::fullscreen_window()
             auto& realm = document->relevant_settings_object().realm();
             auto promise = Web::WebIDL::create_promise(realm);
             document->document_element()->request_fullscreen(promise, Web::DOM::Element::FullscreenRequester::WebDriver);
-            ++m_pending_window_rect_requests;
+
+            Web::WebIDL::upon_fulfillment(promise, GC::create_function(GC::Heap::the(), [this, document](JS::Value) -> Web::WebIDL::ExceptionOr<JS::Value> {
+                driver_execution_complete(serialize_rect(compute_window_rect(document->page())));
+
+                return JS::js_undefined();
+            }));
 
             Web::WebIDL::upon_rejection(promise, GC::create_function(GC::Heap::the(), [this, document](JS::Value) -> Web::WebIDL::ExceptionOr<JS::Value> {
                 driver_execution_complete(serialize_rect(compute_window_rect(document->page())));
-                --m_pending_window_rect_requests;
 
                 return JS::js_undefined();
             }));
@@ -2584,8 +2590,8 @@ void WebDriverConnection::set_current_top_level_browsing_context(Web::HTML::Brow
     m_current_top_level_browsing_context = browsing_context;
 
     if (m_current_top_level_browsing_context) {
-        m_current_top_level_browsing_context->page().set_window_rect_observer(GC::create_function(GC::Heap::the(), [this](Web::DevicePixelRect rect) {
-            if (m_pending_window_rect_requests > 0 && --m_pending_window_rect_requests == 0)
+        m_current_top_level_browsing_context->page().set_window_rect_observer(GC::create_function(GC::Heap::the(), [this](Web::DevicePixelRect rect, u64 request_id) {
+            if (m_pending_window_rect_requests.remove(request_id) && m_pending_window_rect_requests.is_empty())
                 driver_execution_complete(serialize_rect(rect.to_type<int>()));
         }));
     }
@@ -2738,8 +2744,15 @@ void WebDriverConnection::maximize_the_window()
     // To maximize the window, given an operating system level window with an associated top-level browsing context, run
     // the implementation-specific steps to transition the operating system level window into the maximized window state.
     // Return when the window has completed the transition, or within an implementation-defined timeout.
-    current_top_level_browsing_context()->page().client().page_did_request_maximize_window();
-    ++m_pending_window_rect_requests;
+    auto request_id = register_window_rect_request();
+    current_top_level_browsing_context()->page().client().page_did_request_maximize_window(request_id);
+}
+
+u64 WebDriverConnection::register_window_rect_request()
+{
+    auto request_id = m_next_window_rect_request_id++;
+    m_pending_window_rect_requests.set(request_id);
+    return request_id;
 }
 
 // https://w3c.github.io/webdriver/#dfn-iconify-the-window

@@ -223,9 +223,9 @@ private:
     virtual void webdriver_command_complete(u64 page_id, u64 command_id, Web::WebDriver::Response response) override;
     virtual void did_update_resource_count(u64 page_id, i32 count_waiting) override;
     virtual void did_request_restore_window(u64 page_id) override;
-    virtual void did_request_reposition_window(u64 page_id, Gfx::IntPoint) override;
-    virtual void did_request_resize_window(u64 page_id, Gfx::IntSize) override;
-    virtual void did_request_maximize_window(u64 page_id) override;
+    virtual void did_request_reposition_window(u64 page_id, Gfx::IntPoint, u64 completion_id) override;
+    virtual void did_request_resize_window(u64 page_id, Gfx::IntSize, u64 completion_id) override;
+    virtual void did_request_maximize_window(u64 page_id, u64 completion_id) override;
     virtual void did_request_minimize_window(u64 page_id) override;
     virtual void did_request_fullscreen_window(u64 page_id) override;
     virtual void did_request_exit_fullscreen(u64 page_id) override;

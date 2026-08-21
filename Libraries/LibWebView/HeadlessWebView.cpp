@@ -52,8 +52,6 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
     on_reposition_window = [this](auto position) {
         m_previous_dimensions.set_location(position.template to_type<Web::DevicePixels>());
         client().async_set_window_position(m_client_state.page_index, position.template to_type<Web::DevicePixels>());
-
-        client().async_did_update_window_rect(m_client_state.page_index);
     };
 
     on_resize_window = [this](auto size) {
@@ -61,8 +59,6 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
 
         client().async_set_window_size(m_client_state.page_index, m_viewport_size);
         handle_resize();
-
-        client().async_did_update_window_rect(m_client_state.page_index);
     };
 
     on_restore_window = [this]() {
@@ -80,8 +76,6 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
         client().async_set_window_position(m_client_state.page_index, screen_rect.location());
         client().async_set_window_size(m_client_state.page_index, screen_rect.size());
         handle_resize();
-
-        client().async_did_update_window_rect(m_client_state.page_index);
     };
 
     on_fullscreen_window = [this]() {
@@ -92,8 +86,6 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
         client().async_set_window_position(m_client_state.page_index, screen_rect.location());
         client().async_set_window_size(m_client_state.page_index, screen_rect.size());
         handle_resize();
-
-        client().async_did_update_window_rect(m_client_state.page_index);
     };
 
     on_exit_fullscreen_window = [this]() {
@@ -103,8 +95,6 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
         client().async_set_window_position(m_client_state.page_index, m_previous_dimensions.location());
         client().async_set_window_size(m_client_state.page_index, m_previous_dimensions.size());
         handle_resize();
-
-        client().async_did_update_window_rect(m_client_state.page_index);
     };
 
     on_request_alert = [this](auto const&) {
@@ -182,8 +172,6 @@ void HeadlessWebView::reset_viewport_size(Web::DevicePixelSize size)
 
     client().async_set_window_size(m_client_state.page_index, m_viewport_size);
     handle_resize();
-
-    client().async_did_update_window_rect(m_client_state.page_index);
 }
 
 void HeadlessWebView::update_zoom()

@@ -180,7 +180,7 @@ private:
     virtual void set_maximum_frames_per_second(u64 page_id, double) override;
     virtual void set_window_position(u64 page_id, Web::DevicePixelPoint) override;
     virtual void set_window_size(u64 page_id, Web::DevicePixelSize) override;
-    virtual void did_update_window_rect(u64 page_id) override;
+    virtual void did_complete_window_rect_request(u64 page_id, u64 completion_id) override;
     virtual void handle_file_return(u64 page_id, i32 error, Optional<IPC::File> file, i32 request_id) override;
     virtual void did_delete_all_cookies(u64 page_id, u64 request_id) override;
     virtual void set_system_visibility_state(u64 page_id, Web::HTML::VisibilityState) override;

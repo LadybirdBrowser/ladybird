@@ -153,9 +153,9 @@ endpoint WebContentClient
     webdriver_user_prompt_handling_complete(u64 page_id, u64 request_id, Web::WebDriver::Response response) =|
     webdriver_command_complete(u64 page_id, u64 command_id, Web::WebDriver::Response response) =|
     did_request_restore_window(u64 page_id) =|
-    did_request_reposition_window(u64 page_id, Gfx::IntPoint position) =|
-    did_request_resize_window(u64 page_id, Gfx::IntSize size) =|
-    did_request_maximize_window(u64 page_id) =|
+    did_request_reposition_window(u64 page_id, Gfx::IntPoint position, u64 completion_id) =|
+    did_request_resize_window(u64 page_id, Gfx::IntSize size, u64 completion_id) =|
+    did_request_maximize_window(u64 page_id, u64 completion_id) =|
     did_request_minimize_window(u64 page_id) =|
     did_request_fullscreen_window(u64 page_id) =|
     did_request_exit_fullscreen(u64 page_id) =|

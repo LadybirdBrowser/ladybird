@@ -313,11 +313,6 @@ void ViewImplementation::set_window_size(Gfx::IntSize size)
     client().async_set_window_size(m_client_state.page_index, size.to_type<Web::DevicePixels>());
 }
 
-void ViewImplementation::did_update_window_rect()
-{
-    client().async_did_update_window_rect(m_client_state.page_index);
-}
-
 void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState visibility_state)
 {
     if (m_top_level_traversable.system_visibility_state() == visibility_state)
@@ -1518,7 +1513,6 @@ void ViewImplementation::set_is_fullscreen(Web::ViewportIsFullscreen is_fullscre
     m_is_fullscreen = is_fullscreen;
 
     handle_resize();
-    did_update_window_rect();
 }
 
 void ViewImplementation::alert_closed()

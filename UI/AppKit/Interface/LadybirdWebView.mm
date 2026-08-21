@@ -972,8 +972,6 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
 
         position = Ladybird::compute_origin_relative_to_window([self window], position);
         [[self window] setFrameOrigin:Ladybird::gfx_point_to_ns_point(position)];
-
-        m_web_view_bridge->did_update_window_rect();
     };
 
     m_web_view_bridge->on_resize_window = [weak_self](auto size) {
@@ -985,8 +983,6 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         auto frame = [[self window] frame];
         frame.size = Ladybird::gfx_size_to_ns_size(size);
         [[self window] setFrame:frame display:YES];
-
-        m_web_view_bridge->did_update_window_rect();
     };
 
     m_web_view_bridge->on_maximize_window = [weak_self]() {
@@ -997,8 +993,6 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
 
         auto frame = [[[self window] screen] frame];
         [[self window] setFrame:frame display:YES];
-
-        m_web_view_bridge->did_update_window_rect();
     };
 
     m_web_view_bridge->on_minimize_window = [weak_self]() {

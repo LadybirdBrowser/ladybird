@@ -484,10 +484,10 @@ GC::Ref<HTML::LocalTraversableNavigable> Page::top_level_traversable() const
     return *m_top_level_traversable;
 }
 
-void Page::did_update_window_rect()
+void Page::did_complete_window_rect_request(u64 completion_id)
 {
     if (m_window_rect_observer)
-        m_window_rect_observer->function()({ window_position(), window_size() });
+        m_window_rect_observer->function()({ window_position(), window_size() }, completion_id);
 }
 
 template<typename ResponseType>

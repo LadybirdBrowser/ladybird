@@ -203,8 +203,8 @@ public:
     DevicePixelSize window_size() const { return m_window_size; }
     void set_window_size(DevicePixelSize size) { m_window_size = size; }
 
-    void did_update_window_rect();
-    void set_window_rect_observer(GC::Ptr<GC::Function<void(DevicePixelRect)>> window_rect_observer) { m_window_rect_observer = window_rect_observer; }
+    void did_complete_window_rect_request(u64 completion_id);
+    void set_window_rect_observer(GC::Ptr<GC::Function<void(DevicePixelRect, u64)>> window_rect_observer) { m_window_rect_observer = window_rect_observer; }
 
     void did_request_alert(Utf16String const& message);
     void alert_closed();
@@ -384,7 +384,7 @@ private:
 
     DevicePixelPoint m_window_position {};
     DevicePixelSize m_window_size {};
-    GC::Ptr<GC::Function<void(DevicePixelRect)>> m_window_rect_observer;
+    GC::Ptr<GC::Function<void(DevicePixelRect, u64)>> m_window_rect_observer;
 
     PendingDialog m_pending_dialog { PendingDialog::None };
     Optional<Utf16String> m_pending_dialog_text;
@@ -521,10 +521,10 @@ public:
     virtual void page_did_change_title(Utf16String const&) { }
     virtual void page_did_update_editing_history_state(bool, bool) { }
     virtual void page_did_request_refresh() { }
-    virtual void page_did_request_resize_window(Gfx::IntSize) { }
-    virtual void page_did_request_reposition_window(Gfx::IntPoint) { }
+    virtual void page_did_request_resize_window(Gfx::IntSize, u64) { }
+    virtual void page_did_request_reposition_window(Gfx::IntPoint, u64) { }
     virtual void page_did_request_restore_window() { }
-    virtual void page_did_request_maximize_window() { }
+    virtual void page_did_request_maximize_window(u64) { }
     virtual void page_did_request_minimize_window() { }
     virtual void page_did_request_fullscreen_window() { }
     virtual void page_did_request_exit_fullscreen() { }
