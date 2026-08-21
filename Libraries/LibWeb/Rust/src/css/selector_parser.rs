@@ -8,8 +8,11 @@
 
 use std::rc::Rc;
 
-use super::css_tokenizer::{CssNumberType, ParserToken, ParserTokenKind, tokenize_for_parser};
+use super::css_tokenizer::{CssNumberType, ParserTokenKind, TokenizerInput, tokenize_for_parser};
+use super::ffi_support::FfiUtf16View;
 use super::ffi_support::ascii_lowercase;
+use super::parser::component_value::{ComponentKind, ComponentValue, consume_a_list_of_component_values};
+use super::parser::token_stream::TokenStream as Stream;
 use super::retained_fly_string::RetainedUtf16FlyString;
 use super::selector::{
     AnPlusBPattern, AttributeCaseType, AttributeMatchType, AttributeSelector, Combinator, CompiledSelector,
@@ -19,7 +22,6 @@ use super::selector::{
 };
 use super::selector::{FfiStringView, RustSelector};
 
-const MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH: usize = 256;
 const MAXIMUM_SELECTOR_NESTING_DEPTH: usize = 128;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -32,74 +34,6 @@ pub(crate) enum SelectorType {
 pub(crate) enum SelectorParsingMode {
     Standard,
     Forgiving,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-enum ComponentKind {
-    Token(ParserTokenKind),
-    Function {
-        name: SelectorString,
-        value: Box<[ComponentValue]>,
-    },
-    SimpleBlock {
-        opening: ParserTokenKind,
-        value: Box<[ComponentValue]>,
-    },
-}
-
-#[derive(Clone, Debug, PartialEq)]
-struct ComponentValue {
-    kind: ComponentKind,
-    source: SelectorString,
-}
-
-impl ComponentValue {
-    fn is_whitespace(&self) -> bool {
-        matches!(self.kind, ComponentKind::Token(ParserTokenKind::Whitespace))
-    }
-
-    fn is_comma(&self) -> bool {
-        matches!(self.kind, ComponentKind::Token(ParserTokenKind::Comma))
-    }
-
-    fn is_colon(&self) -> bool {
-        matches!(self.kind, ComponentKind::Token(ParserTokenKind::Colon))
-    }
-
-    fn is_delim(&self, expected: u8) -> bool {
-        matches!(self.kind, ComponentKind::Token(ParserTokenKind::Delim(value)) if value == u32::from(expected))
-    }
-
-    fn ident(&self) -> Option<&[u16]> {
-        match &self.kind {
-            ComponentKind::Token(ParserTokenKind::Ident(value)) => Some(value),
-            _ => None,
-        }
-    }
-
-    fn string(&self) -> Option<&[u16]> {
-        match &self.kind {
-            ComponentKind::Token(ParserTokenKind::String(value)) => Some(value),
-            _ => None,
-        }
-    }
-
-    fn function(&self) -> Option<(&[u16], &[ComponentValue])> {
-        match &self.kind {
-            ComponentKind::Function { name, value } => Some((name, value)),
-            _ => None,
-        }
-    }
-
-    fn square_block(&self) -> Option<&[ComponentValue]> {
-        match &self.kind {
-            ComponentKind::SimpleBlock {
-                opening: ParserTokenKind::OpenSquare,
-                value,
-            } => Some(value),
-            _ => None,
-        }
-    }
 }
 
 fn ascii_eq(value: &[u16], expected: &str) -> bool {
@@ -367,118 +301,6 @@ fn parse_an_plus_b(stream: &mut Stream<'_>) -> Option<AnPlusBPattern> {
     None
 }
 
-fn append_source(target: &mut Vec<u16>, source: &[u16]) {
-    target.extend_from_slice(source);
-}
-
-fn consume_component_values(
-    tokens: &[ParserToken],
-    position: &mut usize,
-    ending: Option<&ParserTokenKind>,
-    depth: usize,
-) -> Result<Vec<ComponentValue>, ()> {
-    if depth > MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH {
-        return Err(());
-    }
-    let mut values = Vec::new();
-    while let Some(token) = tokens.get(*position) {
-        let closes_current = matches!(
-            (&token.kind, ending),
-            (ParserTokenKind::CloseParen, Some(ParserTokenKind::CloseParen))
-                | (ParserTokenKind::CloseSquare, Some(ParserTokenKind::CloseSquare))
-                | (ParserTokenKind::CloseCurly, Some(ParserTokenKind::CloseCurly))
-        );
-        if closes_current {
-            break;
-        }
-
-        *position += 1;
-        let mut source = token.source.to_vec();
-        let kind = match &token.kind {
-            ParserTokenKind::Function(name) => {
-                let value = consume_component_values(tokens, position, Some(&ParserTokenKind::CloseParen), depth + 1)?;
-                for component in &value {
-                    append_source(&mut source, &component.source);
-                }
-                if let Some(closing) = tokens.get(*position)
-                    && matches!(closing.kind, ParserTokenKind::CloseParen)
-                {
-                    append_source(&mut source, &closing.source);
-                    *position += 1;
-                }
-                ComponentKind::Function {
-                    name: name.clone(),
-                    value: value.into_boxed_slice(),
-                }
-            }
-            ParserTokenKind::OpenSquare | ParserTokenKind::OpenParen | ParserTokenKind::OpenCurly => {
-                let ending = match token.kind {
-                    ParserTokenKind::OpenSquare => ParserTokenKind::CloseSquare,
-                    ParserTokenKind::OpenParen => ParserTokenKind::CloseParen,
-                    ParserTokenKind::OpenCurly => ParserTokenKind::CloseCurly,
-                    _ => unreachable!(),
-                };
-                let value = consume_component_values(tokens, position, Some(&ending), depth + 1)?;
-                for component in &value {
-                    append_source(&mut source, &component.source);
-                }
-                if let Some(closing) = tokens.get(*position)
-                    && std::mem::discriminant(&closing.kind) == std::mem::discriminant(&ending)
-                {
-                    append_source(&mut source, &closing.source);
-                    *position += 1;
-                }
-                ComponentKind::SimpleBlock {
-                    opening: token.kind.clone(),
-                    value: value.into_boxed_slice(),
-                }
-            }
-            _ => ComponentKind::Token(token.kind.clone()),
-        };
-        values.push(ComponentValue {
-            kind,
-            source: source.into_boxed_slice(),
-        });
-    }
-    Ok(values)
-}
-
-#[derive(Clone)]
-struct Stream<'a> {
-    values: &'a [ComponentValue],
-    position: usize,
-}
-
-impl<'a> Stream<'a> {
-    fn new(values: &'a [ComponentValue]) -> Self {
-        Self { values, position: 0 }
-    }
-
-    fn peek(&self) -> Option<&'a ComponentValue> {
-        self.values.get(self.position)
-    }
-
-    fn peek_n(&self, offset: usize) -> Option<&'a ComponentValue> {
-        self.values.get(self.position + offset)
-    }
-
-    fn next(&mut self) -> Option<&'a ComponentValue> {
-        let value = self.peek()?;
-        self.position += 1;
-        Some(value)
-    }
-
-    fn is_empty(&self) -> bool {
-        self.position == self.values.len()
-    }
-
-    fn discard_whitespace(&mut self) {
-        while self.peek().is_some_and(ComponentValue::is_whitespace) {
-            self.position += 1;
-        }
-    }
-}
-
 struct SelectorParser<'a> {
     declared_namespaces: &'a [&'a [u16]],
     pseudo_class_context: Vec<PseudoClassType>,
@@ -528,7 +350,7 @@ impl<'a> SelectorParser<'a> {
                     }
                     let source = invalid_values
                         .iter()
-                        .flat_map(|value| value.source.iter().copied())
+                        .flat_map(|value| value.original_source_text.iter())
                         .collect::<Vec<_>>();
                     selectors.push(CompiledSelector::new(
                         vec![CompoundSelector {
@@ -538,8 +360,10 @@ impl<'a> SelectorParser<'a> {
                                 Combinator::Descendant
                             },
                             is_implicit_universal_anchor: false,
-                            simple_selectors: vec![SimpleSelector::Invalid(source.into_boxed_slice())]
-                                .into_boxed_slice(),
+                            simple_selectors: vec![SimpleSelector::Invalid(
+                                source.into_iter().copied().collect::<Vec<_>>().into_boxed_slice(),
+                            )]
+                            .into_boxed_slice(),
                         }]
                         .into_boxed_slice(),
                     ));
@@ -951,7 +775,10 @@ impl<'a> SelectorParser<'a> {
                     if !stream.is_empty() {
                         return Err(());
                     }
-                    languages.push(LanguageRange { value, is_string });
+                    languages.push(LanguageRange {
+                        value: value.as_ref().to_vec().into_boxed_slice(),
+                        is_string,
+                    });
                 }
                 selector.languages = languages.into_boxed_slice();
             }
@@ -1225,22 +1052,20 @@ fn normalize_pseudo_element_transitions(compounds: Vec<CompoundSelector>) -> Vec
     normalized
 }
 
-pub(crate) fn parse_selector_list(
-    input: &[u8],
+pub(crate) fn parse_selector_list<'a>(
+    input: impl Into<TokenizerInput<'a>>,
     declared_namespaces: &[&[u16]],
     selector_type: SelectorType,
     parsing_mode: SelectorParsingMode,
 ) -> Result<SelectorList, ()> {
     let tokens = tokenize_for_parser(input);
-    let mut position = 0;
-    let values = consume_component_values(&tokens, &mut position, None, 0)?;
+    let values = consume_a_list_of_component_values(&tokens)?;
     SelectorParser::new(declared_namespaces).parse_selector_list(&values, selector_type, parsing_mode)
 }
 
-fn parse_pseudo_element_selector(input: &[u8]) -> Result<(Rc<CompiledSelector>, PseudoElementType), ()> {
+fn parse_pseudo_element_selector(input: TokenizerInput<'_>) -> Result<(Rc<CompiledSelector>, PseudoElementType), ()> {
     let tokens = tokenize_for_parser(input);
-    let mut position = 0;
-    let values = consume_component_values(&tokens, &mut position, None, 0)?;
+    let values = consume_a_list_of_component_values(&tokens)?;
     let mut stream = Stream::new(&values);
     let simple = SelectorParser::new(&[]).parse_pseudo_element(&mut stream)?;
     if !stream.is_empty() {
@@ -1397,8 +1222,7 @@ pub struct RustParsedSelectorList {
 /// `input` and each namespace view must point to readable storage for the duration of this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_parse(
-    input: *const u8,
-    input_length: usize,
+    input: FfiUtf16View,
     namespaces: *const FfiStringView,
     namespace_count: usize,
     is_relative: bool,
@@ -1406,7 +1230,7 @@ pub unsafe extern "C" fn rust_selector_parse(
 ) -> *mut RustParsedSelectorList {
     unsafe {
         crate::abort_on_panic(|| {
-            let Some(input) = crate::bytes_from_raw(input, input_length) else {
+            let Some(input) = input.units() else {
                 return std::ptr::null_mut();
             };
             let namespace_views = if namespace_count == 0 {
@@ -1463,15 +1287,12 @@ pub struct FfiParsedPseudoElement {
 /// Parses the restricted pseudo-element syntax accepted by `getComputedStyle()` and animation APIs.
 ///
 /// # Safety
-/// `input` must point to readable storage for the duration of this call.
+/// `input` must contain readable storage for the duration of this call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_selector_parse_pseudo_element(
-    input: *const u8,
-    input_length: usize,
-) -> FfiParsedPseudoElement {
+pub unsafe extern "C" fn rust_selector_parse_pseudo_element(input: FfiUtf16View) -> FfiParsedPseudoElement {
     unsafe {
         crate::abort_on_panic(|| {
-            let Some(input) = crate::bytes_from_raw(input, input_length) else {
+            let Some(input) = input.units() else {
                 return FfiParsedPseudoElement {
                     selector: std::ptr::null_mut(),
                     pseudo_element: u8::MAX,

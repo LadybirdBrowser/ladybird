@@ -47,7 +47,7 @@ static SelectorList absolutize_parent_selectors(CSSNestedDeclarations const& nes
 {
     static NeverDestroyed<SelectorList> where_scope_selector_list = [] {
         HashTable<Utf16FlyString> namespaces;
-        return parse_selector_list_in_rust(":where(:scope)"sv, namespaces, false, false).release_value();
+        return parse_selector_list_in_rust(":where(:scope)"_utf16, namespaces, false, false).release_value();
     }();
 
     for (auto const* parent_rule = nested_declarations.parent_rule(); parent_rule; parent_rule = parent_rule->parent_rule()) {

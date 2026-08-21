@@ -23,6 +23,7 @@ namespace Web::CSS::Parser {
 class WEB_API RustTokenizer {
 public:
     static Vector<Token> tokenize(StringView input, StringView encoding, TokenizerInput = TokenizerInput::DecodedText);
+    static Vector<Token> tokenize(Utf16View);
 
 private:
     static Token token_from_ffi(FFI::CssToken const&);

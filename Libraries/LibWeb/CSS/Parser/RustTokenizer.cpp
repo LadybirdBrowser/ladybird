@@ -40,42 +40,47 @@ static String decode_and_filter_code_points(StringView input, StringView encodin
         return MUST(decoder->to_utf8(input, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement));
     }();
 
-    // OPTIMIZATION: If the input doesn't contain any filterable characters, we can skip the filtering
+    return normalize_input(Utf16String::from_utf8_without_validation(decoded_input));
+}
+
+Utf16String RustTokenizer::normalize_input(Utf16View input)
+{
+    // OPTIMIZATION: If the input doesn't contain any filterable characters, we can skip the filtering.
     bool const contains_filterable = [&] {
-        for (auto code_point : decoded_input.code_points()) {
+        for (auto code_point : input) {
             if (code_point == '\r' || code_point == '\f' || code_point == 0x00 || is_unicode_surrogate(code_point))
                 return true;
         }
         return false;
     }();
     if (!contains_filterable)
-        return decoded_input;
+        return Utf16String::from_utf16(input);
 
-    StringBuilder builder { input.length() };
+    Utf16StringBuilder builder { input.length_in_code_units() };
     bool last_was_carriage_return = false;
 
     // To filter code points from a stream of (unfiltered) code points input:
-    for (auto code_point : decoded_input.code_points()) {
+    for (auto code_point : input) {
         // Replace any U+000D CARRIAGE RETURN (CR) code points,
         // U+000C FORM FEED (FF) code points,
         // or pairs of U+000D CARRIAGE RETURN (CR) followed by U+000A LINE FEED (LF)
         // in input by a single U+000A LINE FEED (LF) code point.
         if (code_point == '\r') {
             if (last_was_carriage_return) {
-                builder.append('\n');
+                builder.append_code_point('\n');
             } else {
                 last_was_carriage_return = true;
             }
         } else {
             if (last_was_carriage_return)
-                builder.append('\n');
+                builder.append_code_point('\n');
 
             if (code_point == '\n') {
                 if (!last_was_carriage_return)
-                    builder.append('\n');
+                    builder.append_code_point('\n');
 
             } else if (code_point == '\f') {
-                builder.append('\n');
+                builder.append_code_point('\n');
                 // Replace any U+0000 NULL or surrogate code points in input with U+FFFD REPLACEMENT CHARACTER (�).
             } else if (code_point == 0x00 || is_unicode_surrogate(code_point)) {
                 builder.append_code_point(REPLACEMENT_CHARACTER);
@@ -87,7 +92,7 @@ static String decode_and_filter_code_points(StringView input, StringView encodin
         }
     }
 
-    return builder.to_string_without_validation();
+    return builder.to_string();
 }
 
 static Number::Type css_number_type_from_ffi(FFI::CssNumberType number_type)
@@ -112,7 +117,13 @@ static SourcePosition position_from_ffi(size_t line, size_t column)
 
 Token RustTokenizer::token_from_ffi(FFI::CssToken const& ffi_token)
 {
-    auto original_source_text = ffi_string(ffi_token.original_source_ptr, ffi_token.original_source_len);
+    auto original_source_text = [&] {
+        if (ffi_token.original_source_len == 0)
+            return Utf16String {};
+        if (ffi_token.original_source_ascii_ptr)
+            return Utf16String::from_utf8_without_validation(StringView { ffi_token.original_source_ascii_ptr, ffi_token.original_source_len });
+        return Utf16String::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(ffi_token.original_source_utf16_ptr), ffi_token.original_source_len });
+    }();
     auto payload = ffi_token.value_len == 0
         ? Utf16FlyString {}
         : Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(ffi_token.value_ptr), ffi_token.value_len });
@@ -242,6 +253,12 @@ static_assert(static_cast<u8>(FFI::CssNumberType::Integer) == static_cast<u8>(Nu
 
 Vector<Token> RustTokenizer::tokenize(StringView input, StringView encoding, TokenizerInput tokenizer_input)
 {
+    auto filtered_input = normalize_input(input, encoding, tokenizer_input);
+    return tokenize(filtered_input);
+}
+
+Vector<Token> RustTokenizer::tokenize(Utf16View filtered_input)
+{
     struct CallbackContext {
         Vector<Token> tokens;
     };
@@ -249,10 +266,11 @@ Vector<Token> RustTokenizer::tokenize(StringView input, StringView encoding, Tok
     auto filtered_input = decode_and_filter_code_points(input, encoding, tokenizer_input);
     auto filtered_input_bytes = filtered_input.bytes();
     CallbackContext context;
-    context.tokens.ensure_capacity((filtered_input_bytes.size() / 2) + 1);
+    context.tokens.ensure_capacity((filtered_input.length_in_code_units() / 2) + 1);
     FFI::rust_css_tokenize(
-        filtered_input_bytes.data(),
-        filtered_input_bytes.size(),
+        filtered_input.has_ascii_storage() ? reinterpret_cast<u8 const*>(filtered_input.ascii_span().data()) : nullptr,
+        filtered_input.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(filtered_input.utf16_span().data()),
+        filtered_input.length_in_code_units(),
         &context,
         [](void* raw_context, FFI::CssToken const* ffi_token) {
             auto& context = *static_cast<CallbackContext*>(raw_context);

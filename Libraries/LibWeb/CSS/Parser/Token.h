@@ -64,23 +64,23 @@ public:
     };
 
     // Use this only to create types that don't have their own create_foo() methods below.
-    static Token create(Type, String original_source_text = {});
+    static Token create(Type, Utf16String original_source_text = {});
 
-    static Token create_ident(Utf16FlyString ident, String original_source_text = {});
-    static Token create_function(Utf16FlyString name, String original_source_text = {});
-    static Token create_at_keyword(Utf16FlyString name, String original_source_text = {});
-    static Token create_hash(Utf16FlyString value, HashType hash_type, String original_source_text = {});
-    static Token create_string(Utf16FlyString value, String original_source_text = {});
-    static Token create_url(Utf16FlyString url, String original_source_text = {});
-    static Token create_delim(u32 delim, String original_source_text = {});
-    static Token create_number(Number value, String original_source_text = {});
-    static Token create_percentage(Number value, String original_source_text = {});
-    static Token create_dimension(Number value, Utf16FlyString unit, String original_source_text = {});
-    static Token create_dimension(double value, Utf16FlyString unit, String original_source_text = {})
+    static Token create_ident(Utf16FlyString ident, Utf16String original_source_text = {});
+    static Token create_function(Utf16FlyString name, Utf16String original_source_text = {});
+    static Token create_at_keyword(Utf16FlyString name, Utf16String original_source_text = {});
+    static Token create_hash(Utf16FlyString value, HashType hash_type, Utf16String original_source_text = {});
+    static Token create_string(Utf16FlyString value, Utf16String original_source_text = {});
+    static Token create_url(Utf16FlyString url, Utf16String original_source_text = {});
+    static Token create_delim(u32 delim, Utf16String original_source_text = {});
+    static Token create_number(Number value, Utf16String original_source_text = {});
+    static Token create_percentage(Number value, Utf16String original_source_text = {});
+    static Token create_dimension(Number value, Utf16FlyString unit, Utf16String original_source_text = {});
+    static Token create_dimension(double value, Utf16FlyString unit, Utf16String original_source_text = {})
     {
         return create_dimension(Number { Number::Type::Number, value }, move(unit), move(original_source_text));
     }
-    static Token create_whitespace(String original_source_text = {});
+    static Token create_whitespace(Utf16String original_source_text = {});
 
     Type type() const { return m_type; }
     bool is(Type type) const { return m_type == type; }
@@ -181,7 +181,7 @@ public:
     void serialize_to(Utf16StringBuilder&) const;
     String to_debug_string() const;
 
-    String const& original_source_text() const { return m_original_source_text; }
+    Utf16String const& original_source_text() const { return m_original_source_text; }
     SourcePosition const& start_position() const { return m_start_position; }
     SourcePosition const& end_position() const { return m_end_position; }
     void set_position_range(Badge<Tokenizer, RustTokenizer>, SourcePosition start, SourcePosition end);
@@ -213,7 +213,7 @@ private:
 
     Variant<Empty, Utf16FlyString, u32, Number, HashValue, DimensionValue> m_value;
 
-    String m_original_source_text;
+    Utf16String m_original_source_text;
     SourcePosition m_start_position;
     SourcePosition m_end_position;
 };

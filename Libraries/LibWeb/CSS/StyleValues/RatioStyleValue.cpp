@@ -33,9 +33,9 @@ Vector<Parser::ComponentValue> RatioStyleValue::tokenize() const
     Vector<Parser::ComponentValue> component_values;
 
     component_values.extend(numerator()->tokenize());
-    component_values.empend(Parser::Token::create_whitespace(" "_string));
+    component_values.empend(Parser::Token::create_whitespace(" "_utf16));
     component_values.empend(Parser::Token::create_delim('/'));
-    component_values.empend(Parser::Token::create_whitespace(" "_string));
+    component_values.empend(Parser::Token::create_whitespace(" "_utf16));
     component_values.extend(denominator()->tokenize());
 
     return component_values;

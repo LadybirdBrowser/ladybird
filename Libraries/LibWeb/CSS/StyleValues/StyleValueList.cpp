@@ -92,7 +92,7 @@ Vector<Parser::ComponentValue> StyleValueList::tokenize() const
         } else {
             if (separator() == Separator::Comma)
                 component_values.empend(Parser::Token::create(Parser::Token::Type::Comma));
-            component_values.empend(Parser::Token::create_whitespace(" "_string));
+            component_values.empend(Parser::Token::create_whitespace(" "_utf16));
         }
         component_values.extend(value->tokenize());
     }

@@ -90,7 +90,7 @@ private:
     SelectorFFI::RustSelector* m_rust_selector { nullptr };
 };
 
-Optional<SelectorList> parse_selector_list_in_rust(StringView, HashTable<Utf16FlyString> const&, bool is_relative, bool is_forgiving);
+Optional<SelectorList> parse_selector_list_in_rust(Utf16View, HashTable<Utf16FlyString> const&, bool is_relative, bool is_forgiving);
 Utf16String serialize_a_group_of_selectors(SelectorList const&, GC::Ptr<CSSStyleSheet const> = nullptr);
 u8 pseudo_element_to_ffi(Optional<PseudoElement>);
 Optional<PseudoElement> pseudo_element_from_ffi(u8);

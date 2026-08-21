@@ -23,6 +23,7 @@ pub mod custom_properties;
 pub mod display;
 pub mod ffi_stats;
 pub mod ffi_support;
+pub(crate) mod parser;
 pub mod property_metadata;
 pub(crate) mod retained_fly_string;
 pub(crate) mod selector;

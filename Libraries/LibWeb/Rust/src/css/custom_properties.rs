@@ -16,15 +16,38 @@ use crate::abort_on_panic;
 use crate::css::css_tokenizer::OwnedToken;
 use crate::css::css_tokenizer::OwnedTokenKind;
 use crate::css::css_tokenizer::tokenize_owned;
+use crate::css::ffi_support::FfiUtf16View;
 use crate::css::style_value::RetainedStyleValueData;
 use crate::css::style_value::RetainedUtf16FlyString;
 use crate::css::style_value::StyleValueData;
 
+trait Utf16SliceExt {
+    fn eq_ignore_ascii_case(&self, expected: &str) -> bool;
+    fn starts_with_ascii(&self, expected: &str) -> bool;
+}
+
+impl Utf16SliceExt for [u16] {
+    fn eq_ignore_ascii_case(&self, expected: &str) -> bool {
+        self.len() == expected.len()
+            && self
+                .iter()
+                .zip(expected.bytes())
+                .all(|(&left, right)| left <= 0x7f && (left as u8).eq_ignore_ascii_case(&right))
+    }
+
+    fn starts_with_ascii(&self, expected: &str) -> bool {
+        self.len() >= expected.len()
+            && self[..expected.len()]
+                .iter()
+                .zip(expected.bytes())
+                .all(|(&left, right)| left == u16::from(right))
+    }
+}
+
 #[repr(C)]
 pub struct FfiCustomPropertyStoreEntry {
     pub name_raw: usize,
-    pub name_utf8: *const u8,
-    pub name_utf8_length: usize,
+    pub name: FfiUtf16View,
     pub important: bool,
     pub data: *const c_void,
 }
@@ -37,29 +60,27 @@ struct CustomPropertyEntry {
 
 pub struct CustomPropertyStore {
     own_values: HashMap<usize, CustomPropertyEntry>,
-    own_names: HashMap<String, usize>,
+    own_names: HashMap<Vec<u16>, usize>,
     parent: Option<Rc<CustomPropertyStore>>,
 }
 
 pub struct CustomPropertyRegistry {
-    registrations: HashMap<String, RegisteredCustomProperty>,
+    registrations: HashMap<Vec<u16>, RegisteredCustomProperty>,
 }
 
 struct RegisteredCustomProperty {
     syntax_is_universal: bool,
     _inherits: bool,
-    initial_source: Option<Vec<u8>>,
+    initial_source: Option<Vec<u16>>,
 }
 
 #[repr(C)]
 pub struct FfiCustomPropertyRegistration {
-    pub name: *const u8,
-    pub name_length: usize,
+    pub name: FfiUtf16View,
     pub syntax_is_universal: bool,
     pub inherits: bool,
     pub has_initial_value: bool,
-    pub initial_value: *const u8,
-    pub initial_value_length: usize,
+    pub initial_value: FfiUtf16View,
 }
 
 impl CustomPropertyStore {
@@ -69,7 +90,7 @@ impl CustomPropertyStore {
             .or_else(|| self.parent.as_ref()?.get(name_raw))
     }
 
-    fn get_by_name(&self, name: &str) -> Option<&CustomPropertyEntry> {
+    fn get_by_name(&self, name: &[u16]) -> Option<&CustomPropertyEntry> {
         self.own_names
             .get(name)
             .and_then(|name_raw| self.own_values.get(name_raw))
@@ -81,7 +102,7 @@ const MAX_SUBSTITUTED_TOKEN_COUNT: usize = 16384;
 const MAX_SUBSTITUTION_RECURSION_DEPTH: u32 = 64;
 
 pub(crate) enum NativeVarResolution {
-    Resolved(Vec<u8>),
+    Resolved(Vec<u16>),
     Invalid,
     NotHandled,
 }
@@ -95,8 +116,8 @@ enum TokenResolution {
 
 #[derive(Default)]
 struct VarResolutionContext {
-    active_names: Vec<String>,
-    cyclic_names: HashSet<String>,
+    active_names: Vec<Vec<u16>>,
+    cyclic_names: HashSet<Vec<u16>>,
 }
 
 fn matching_close(kind: &OwnedTokenKind) -> Option<OwnedTokenKind> {
@@ -173,7 +194,7 @@ fn is_single_css_wide_keyword(tokens: &[OwnedToken]) -> bool {
 fn resolve_custom_property(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
-    name: &str,
+    name: &[u16],
     context: &mut VarResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
@@ -212,7 +233,7 @@ fn resolve_custom_property(
             .extend(context.active_names[cycle_start..].iter().cloned());
         return TokenResolution::Cyclic;
     }
-    context.active_names.push(name.to_owned());
+    context.active_names.push(name.to_vec());
     let result = substitute_tokens(store, registry, &tokenize_owned(source), context, recursion_depth + 1);
     let active_name = context.active_names.pop().expect("active custom property");
     debug_assert_eq!(active_name, name);
@@ -248,7 +269,7 @@ fn replace_var_function(
     else {
         return TokenResolution::NotHandled;
     };
-    if !name.starts_with("--") {
+    if !name.starts_with_ascii("--") {
         return TokenResolution::Invalid;
     }
 
@@ -369,14 +390,14 @@ fn needs_comment_between(first: &OwnedTokenKind, second: &OwnedTokenKind) -> boo
     }
 }
 
-fn serialize_tokens(tokens: &[OwnedToken]) -> Vec<u8> {
+fn serialize_tokens(tokens: &[OwnedToken]) -> Vec<u16> {
     let mut output = Vec::new();
     for (index, token) in tokens.iter().enumerate() {
-        output.extend_from_slice(&token.source);
+        token.source.append_to(&mut output);
         if let Some(next) = tokens.get(index + 1)
             && needs_comment_between(&token.kind, &next.kind)
         {
-            output.extend_from_slice(b"/**/");
+            output.extend(b"/**/".iter().copied().map(u16::from));
         }
     }
     output
@@ -421,6 +442,10 @@ pub(crate) unsafe fn resolve_vars(
 mod tests {
     use super::*;
 
+    fn utf16(value: &str) -> Vec<u16> {
+        value.encode_utf16().collect()
+    }
+
     fn substitute_without_custom_properties(source: &str) -> TokenResolution {
         substitute_tokens(
             None,
@@ -437,7 +462,7 @@ mod tests {
         else {
             panic!("expected fallback substitution");
         };
-        assert_eq!(serialize_tokens(&tokens), b"calc( 1px + 2px)");
+        assert_eq!(serialize_tokens(&tokens), utf16("calc( 1px + 2px)"));
     }
 
     #[test]
@@ -461,7 +486,7 @@ mod tests {
         let TokenResolution::Resolved(tokens) = substitute_without_custom_properties("var(--missing, 1)px") else {
             panic!("expected fallback substitution");
         };
-        assert_eq!(serialize_tokens(&tokens), b" 1/**/px");
+        assert_eq!(serialize_tokens(&tokens), utf16(" 1/**/px"));
     }
 
     #[test]
@@ -516,20 +541,17 @@ pub unsafe extern "C" fn rust_custom_property_registry_update(
         registry.registrations.clear();
         registry.registrations.reserve(registrations.len());
         for registration in registrations {
-            let name = unsafe { crate::bytes_from_raw(registration.name, registration.name_length) }
-                .and_then(|name| std::str::from_utf8(name).ok())
-                .expect("invalid registered custom property name");
+            let name = unsafe { registration.name.to_utf16() }.expect("invalid registered custom property name");
             let initial_source = if registration.has_initial_value {
                 Some(
-                    unsafe { crate::bytes_from_raw(registration.initial_value, registration.initial_value_length) }
-                        .expect("invalid registered custom property initial value")
-                        .to_vec(),
+                    unsafe { registration.initial_value.to_utf16() }
+                        .expect("invalid registered custom property initial value"),
                 )
             } else {
                 None
             };
             registry.registrations.insert(
-                name.to_owned(),
+                name,
                 RegisteredCustomProperty {
                     syntax_is_universal: registration.syntax_is_universal,
                     _inherits: registration.inherits,
@@ -578,10 +600,8 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
         let own_values = entries
             .iter()
             .map(|entry| {
-                let name = unsafe { crate::bytes_from_raw(entry.name_utf8, entry.name_utf8_length) }
-                    .and_then(|name| std::str::from_utf8(name).ok())
-                    .expect("invalid custom property name");
-                own_names.insert(name.to_owned(), entry.name_raw);
+                let name = unsafe { entry.name.to_utf16() }.expect("invalid custom property name");
+                own_names.insert(name, entry.name_raw);
                 (
                     entry.name_raw,
                     CustomPropertyEntry {

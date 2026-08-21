@@ -45,12 +45,9 @@ fn contains_nesting(selector: &CompiledSelector) -> bool {
                 .argument_selector_list
                 .iter()
                 .any(|selector| contains_nesting(selector)),
-            SimpleSelector::Invalid(source) => {
-                let source = String::from_utf16_lossy(source);
-                tokenize_for_parser(source.as_bytes())
-                    .iter()
-                    .any(|token| matches!(token.kind, ParserTokenKind::Delim(value) if value == u32::from(b'&')))
-            }
+            SimpleSelector::Invalid(source) => tokenize_for_parser(source.as_ref())
+                .iter()
+                .any(|token| matches!(token.kind, ParserTokenKind::Delim(value) if value == u32::from(b'&'))),
             _ => false,
         })
     })
