@@ -7,7 +7,10 @@
 // Parsed values use the thread-confined shared graph owned by the C++ style objects.
 #![allow(clippy::arc_with_non_send_sync)]
 
-use crate::css::css_enums::{keyword, keyword_from_ascii_case_insensitive};
+use crate::css::css_enums::{
+    keyword, keyword_from_ascii_case_insensitive, keyword_to_cross_origin_modifier_value,
+    keyword_to_referrer_policy_modifier_value,
+};
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_tokenizer::{CssNumberType, ParserTokenKind, tokenize_for_parser};
 use crate::css::display::FfiDisplay;
@@ -15,12 +18,16 @@ use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume_a_list_of_component_values};
 use crate::css::property_metadata::{
     FIRST_SHORTHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, property_accepted_keywords, property_accepted_value_types,
-    property_accepts_only_keywords, property_has_coordinating_list_multiplicity, property_has_unitless_length_quirk,
-    property_id, property_is_shorthand, property_numeric_ranges, property_percentages_resolve_to,
-    property_resolve_legacy_value_alias,
+    property_accepts_only_keywords, property_custom_ident_blacklist, property_has_coordinating_list_multiplicity,
+    property_has_unitless_length_quirk, property_id, property_is_shorthand, property_numeric_ranges,
+    property_percentages_resolve_to, property_resolve_legacy_value_alias,
 };
+use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style_compute::{LENGTH_UNIT_NAMES, px_length_unit};
-use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
+use crate::css::style_value::{
+    RetainedRequestUrlModifier, RetainedRequestUrlModifierList, RetainedString, RetainedStyleValueData,
+    RetainedStyleValueDataList, StyleValueData,
+};
 use std::collections::BTreeMap;
 use std::ffi::c_void;
 use std::sync::{Arc, Mutex, OnceLock};
@@ -54,8 +61,11 @@ const FUNCTION_NOT_PORTED: NotHandledReason = NotHandledReason {
 
 // NB: Keep these in the order of the C++ ValueType enum.
 const VALUE_TYPE_ANGLE: u8 = 2;
+const VALUE_TYPE_CUSTOM_IDENT: u8 = 10;
+const VALUE_TYPE_DASHED_IDENT: u8 = 11;
 const VALUE_TYPE_FLEX: u8 = 15;
 const VALUE_TYPE_FREQUENCY: u8 = 21;
+const VALUE_TYPE_IMAGE: u8 = 23;
 const VALUE_TYPE_INTEGER: u8 = 24;
 const VALUE_TYPE_LENGTH: u8 = 25;
 const VALUE_TYPE_NUMBER: u8 = 27;
@@ -63,7 +73,16 @@ const VALUE_TYPE_OPACITY_VALUE: u8 = 28;
 const VALUE_TYPE_PERCENTAGE: u8 = 31;
 const VALUE_TYPE_RATIO: u8 = 33;
 const VALUE_TYPE_RESOLUTION: u8 = 35;
+const VALUE_TYPE_STRING: u8 = 37;
 const VALUE_TYPE_TIME: u8 = 38;
+const VALUE_TYPE_URL: u8 = 42;
+
+const PORTED_TEXT_VALUE_TYPES: [u8; 4] = [
+    VALUE_TYPE_CUSTOM_IDENT,
+    VALUE_TYPE_DASHED_IDENT,
+    VALUE_TYPE_STRING,
+    VALUE_TYPE_URL,
+];
 
 const PORTED_NUMERIC_VALUE_TYPES: [u8; 11] = [
     VALUE_TYPE_ANGLE,
@@ -121,6 +140,7 @@ pub struct ParseContext {
     pub document_url_length: usize,
     pub document_base_url: *const u8,
     pub document_base_url_length: usize,
+    pub intern_utf16_fly_string: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
 }
 
 pub(crate) enum ParseOutcome {
@@ -182,6 +202,7 @@ fn property_uses_special_keyword_parser(property: u16) -> bool {
             | property_id::DISPLAY
             | property_id::FILTER
             | property_id::FLEX
+            | property_id::FONT_FAMILY
             | property_id::FONT_FEATURE_SETTINGS
             | property_id::FONT_LANGUAGE_OVERRIDE
             | property_id::FONT_VARIATION_SETTINGS
@@ -286,6 +307,128 @@ fn equals_ascii_case_insensitive(value: &[u16], expected: &[u8]) -> bool {
             .iter()
             .zip(expected)
             .all(|(&left, &right)| u8::try_from(left).is_ok_and(|left| left.eq_ignore_ascii_case(&right)))
+}
+
+fn is_css_wide_keyword(keyword: u16) -> bool {
+    matches!(
+        keyword,
+        keyword::INHERIT | keyword::INITIAL | keyword::UNSET | keyword::REVERT | keyword::REVERT_LAYER
+    )
+}
+
+fn is_valid_custom_ident(identifier: &[u16], blacklist: &[&str]) -> bool {
+    if keyword_from_ascii_case_insensitive(identifier).is_some_and(is_css_wide_keyword)
+        || equals_ascii_case_insensitive(identifier, b"default")
+    {
+        return false;
+    }
+    !blacklist
+        .iter()
+        .any(|blocked| equals_ascii_case_insensitive(identifier, blocked.as_bytes()))
+}
+
+fn retain_fly_string(context: &ParseContext, string: &[u16]) -> Option<RetainedUtf16FlyString> {
+    let callback = context.intern_utf16_fly_string?;
+    let raw = unsafe { callback(string.as_ptr(), string.len()) };
+    Some(unsafe { RetainedUtf16FlyString::from_leaked_raw(raw) })
+}
+
+fn string_style_value(context: &ParseContext, string: &[u16]) -> Option<StyleValueData> {
+    Some(StyleValueData::String {
+        string: retain_fly_string(context, string)?,
+        is_valid_animation_name_custom_ident: is_valid_custom_ident(string, &["none"]),
+    })
+}
+
+fn parse_string_value(context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
+    string_style_value(context, value.string()?)
+}
+
+fn parse_custom_ident_value(
+    context: &ParseContext,
+    value: &ComponentValue,
+    blacklist: &[&str],
+) -> Option<StyleValueData> {
+    let identifier = value.ident()?;
+    if !is_valid_custom_ident(identifier, blacklist) {
+        return None;
+    }
+    Some(StyleValueData::CustomIdent {
+        custom_ident: retain_fly_string(context, identifier)?,
+    })
+}
+
+fn parse_dashed_ident_value(context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
+    let identifier = value.ident()?;
+    if !identifier.starts_with(&[u16::from(b'-'), u16::from(b'-')]) || !is_valid_custom_ident(identifier, &[]) {
+        return None;
+    }
+    Some(StyleValueData::CustomIdent {
+        custom_ident: retain_fly_string(context, identifier)?,
+    })
+}
+
+fn single_modifier_argument(values: &[ComponentValue]) -> Option<&ComponentValue> {
+    single_non_whitespace_value(values)
+}
+
+fn parse_url_value(context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
+    let (url, url_type, modifiers) = match &value.kind {
+        ComponentKind::Token(ParserTokenKind::Url(url)) => (url.as_ref(), 0, Vec::new()),
+        ComponentKind::Function { name, values }
+            if equals_ascii_case_insensitive(name, b"url") || equals_ascii_case_insensitive(name, b"src") =>
+        {
+            let url_type = u8::from(equals_ascii_case_insensitive(name, b"src"));
+            let mut values = values.iter().filter(|value| !value.is_whitespace());
+            let url = values.next()?.string()?;
+            let mut modifiers = Vec::new();
+            let mut seen_modifier_types = 0u8;
+            for modifier in values {
+                let (name, arguments) = modifier.function()?;
+                let (modifier_type, modifier) = if equals_ascii_case_insensitive(name, b"cross-origin") {
+                    let keyword = keyword_from_ascii_case_insensitive(single_modifier_argument(arguments)?.ident()?)?;
+                    let value = keyword_to_cross_origin_modifier_value(keyword)?;
+                    (0, RetainedRequestUrlModifier::from_enum(0, value))
+                } else if equals_ascii_case_insensitive(name, b"integrity") {
+                    let string = single_modifier_argument(arguments)?.string()?;
+                    (
+                        1,
+                        RetainedRequestUrlModifier::from_string(1, retain_fly_string(context, string)?),
+                    )
+                } else if equals_ascii_case_insensitive(name, b"referrer-policy") {
+                    let keyword = keyword_from_ascii_case_insensitive(single_modifier_argument(arguments)?.ident()?)?;
+                    let value = keyword_to_referrer_policy_modifier_value(keyword)?;
+                    (2, RetainedRequestUrlModifier::from_enum(2, value))
+                } else {
+                    return None;
+                };
+                let modifier_bit = 1 << modifier_type;
+                if seen_modifier_types & modifier_bit != 0 {
+                    return None;
+                }
+                seen_modifier_types |= modifier_bit;
+                modifiers.push(modifier);
+            }
+            modifiers.sort_by_key(RetainedRequestUrlModifier::modifier_type);
+            (url, url_type, modifiers)
+        }
+        _ => return None,
+    };
+    Some(StyleValueData::Url {
+        url: RetainedString::from_utf16(url)?,
+        url_type,
+        modifiers: RetainedRequestUrlModifierList::from_retained_modifiers(modifiers),
+    })
+}
+
+fn value_list(values: Vec<StyleValueData>, separator: u8, collapsible: bool) -> StyleValueData {
+    StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(
+            values.into_iter().map(RetainedStyleValueData::from_owned).collect(),
+        ),
+        separator,
+        collapsible,
+    }
 }
 
 fn unit_index(unit: &[u16], names: &[&str]) -> Option<u8> {
@@ -548,6 +691,14 @@ fn property_numeric_grammar_is_fully_ported(property: u16) -> bool {
             .all(|value_type| PORTED_NUMERIC_VALUE_TYPES.contains(value_type))
 }
 
+fn property_leaf_grammar_is_fully_ported(property: u16) -> bool {
+    let accepted_types = property_accepted_value_types(property);
+    !accepted_types.is_empty()
+        && accepted_types.iter().all(|value_type| {
+            PORTED_NUMERIC_VALUE_TYPES.contains(value_type) || PORTED_TEXT_VALUE_TYPES.contains(value_type)
+        })
+}
+
 fn parse_single_numeric_value_type(
     context: &ParseContext,
     property: u16,
@@ -610,6 +761,259 @@ fn parse_single_numeric_value_type(
         VALUE_TYPE_PERCENTAGE => parse_percentage_value(value, accepted_range(property, VALUE_TYPE_PERCENTAGE)),
         _ => None,
     }
+}
+
+fn parse_single_text_value_type(
+    context: &ParseContext,
+    property: u16,
+    value_type: u8,
+    value: &ComponentValue,
+) -> Option<StyleValueData> {
+    match value_type {
+        VALUE_TYPE_CUSTOM_IDENT => parse_custom_ident_value(context, value, property_custom_ident_blacklist(property)),
+        VALUE_TYPE_DASHED_IDENT => parse_dashed_ident_value(context, value),
+        VALUE_TYPE_STRING => parse_string_value(context, value),
+        // NB: C++ tries <image> before <url>. A non-fragment url() accepted as
+        //     an image captures the stylesheet base URL in ImageStyleValue.
+        VALUE_TYPE_URL if !property_accepted_value_types(property).contains(&VALUE_TYPE_IMAGE) => {
+            parse_url_value(context, value)
+        }
+        _ => None,
+    }
+}
+
+fn parse_property_keyword_data(property: u16, value: &ComponentValue) -> Option<StyleValueData> {
+    let keyword = keyword_from_ascii_case_insensitive(value.ident()?)?;
+    property_accepted_keywords(property)
+        .binary_search(&keyword)
+        .is_ok()
+        .then(|| StyleValueData::Keyword {
+            keyword: property_resolve_legacy_value_alias(property, keyword),
+        })
+}
+
+fn parse_single_property_leaf(context: &ParseContext, property: u16, value: &ComponentValue) -> Option<StyleValueData> {
+    if let Some(keyword) = parse_property_keyword_data(property, value) {
+        return Some(keyword);
+    }
+
+    let accepted_types = property_accepted_value_types(property);
+    if accepted_types.contains(&VALUE_TYPE_CUSTOM_IDENT)
+        && let Some(parsed) = parse_single_text_value_type(context, property, VALUE_TYPE_CUSTOM_IDENT, value)
+    {
+        return Some(parsed);
+    }
+    for value_type in [VALUE_TYPE_DASHED_IDENT, VALUE_TYPE_STRING, VALUE_TYPE_URL] {
+        if accepted_types.contains(&value_type)
+            && let Some(parsed) = parse_single_text_value_type(context, property, value_type, value)
+        {
+            return Some(parsed);
+        }
+    }
+    for value_type in [
+        VALUE_TYPE_OPACITY_VALUE,
+        VALUE_TYPE_INTEGER,
+        VALUE_TYPE_NUMBER,
+        VALUE_TYPE_ANGLE,
+        VALUE_TYPE_FLEX,
+        VALUE_TYPE_FREQUENCY,
+        VALUE_TYPE_LENGTH,
+        VALUE_TYPE_RESOLUTION,
+        VALUE_TYPE_TIME,
+        VALUE_TYPE_PERCENTAGE,
+    ] {
+        if accepted_types.contains(&value_type)
+            && let Some(parsed) = parse_single_numeric_value_type(context, property, value_type, value)
+        {
+            return Some(parsed);
+        }
+    }
+    None
+}
+
+fn parse_specific_keyword(value: &ComponentValue, accepted: &[u16]) -> Option<StyleValueData> {
+    let keyword = keyword_from_ascii_case_insensitive(value.ident()?)?;
+    accepted
+        .contains(&keyword)
+        .then_some(StyleValueData::Keyword { keyword })
+}
+
+fn parse_comma_separated_dashed_ident_list(
+    context: &ParseContext,
+    values: &[ComponentValue],
+) -> Option<StyleValueData> {
+    let values = values
+        .split(ComponentValue::is_comma)
+        .map(|item| parse_dashed_ident_value(context, single_non_whitespace_value(item)?))
+        .collect::<Option<Vec<_>>>()?;
+    Some(value_list(values, 1, true))
+}
+
+fn parse_special_text_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    if !matches!(
+        property,
+        property_id::ANCHOR_NAME
+            | property_id::ANCHOR_SCOPE
+            | property_id::CONTAINER_NAME
+            | property_id::FONT_LANGUAGE_OVERRIDE
+            | property_id::POSITION_ANCHOR
+            | property_id::TIMELINE_SCOPE
+            | property_id::TRANSITION_PROPERTY
+            | property_id::WILL_CHANGE
+    ) {
+        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+    }
+    if let Some(reason) = unported_function_reason(values) {
+        return ParseOutcome::NotHandled(reason);
+    }
+
+    let single_value = single_non_whitespace_value(values);
+    let parsed = match property {
+        property_id::ANCHOR_NAME => single_value
+            .and_then(|value| parse_specific_keyword(value, &[keyword::NONE]))
+            .or_else(|| parse_comma_separated_dashed_ident_list(context, values)),
+        property_id::ANCHOR_SCOPE | property_id::TIMELINE_SCOPE => single_value
+            .and_then(|value| parse_specific_keyword(value, &[keyword::NONE, keyword::ALL]))
+            .or_else(|| parse_comma_separated_dashed_ident_list(context, values)),
+        property_id::POSITION_ANCHOR => single_value.and_then(|value| {
+            parse_specific_keyword(value, &[keyword::NORMAL, keyword::NONE, keyword::AUTO])
+                .or_else(|| parse_dashed_ident_value(context, value))
+        }),
+        property_id::CONTAINER_NAME => single_value
+            .and_then(|value| parse_specific_keyword(value, &[keyword::NONE]))
+            .or_else(|| {
+                let names = values
+                    .iter()
+                    .filter(|value| !value.is_whitespace())
+                    .map(|value| parse_custom_ident_value(context, value, &["none", "and", "not", "or"]))
+                    .collect::<Option<Vec<_>>>()?;
+                match names.as_slice() {
+                    [] => None,
+                    [_] => names.into_iter().next(),
+                    _ => Some(value_list(names, 0, false)),
+                }
+            }),
+        property_id::FONT_LANGUAGE_OVERRIDE => single_value.and_then(|value| {
+            if let Some(normal) = parse_specific_keyword(value, &[keyword::NORMAL]) {
+                return Some(normal);
+            }
+            let string = value.string()?;
+            if string.is_empty() || string.len() > 4 || !string.iter().all(|&code_unit| code_unit <= 0x7f) {
+                return None;
+            }
+            let trimmed_length = string
+                .iter()
+                .rposition(|code_unit| !matches!(*code_unit, 0x09..=0x0d | 0x20))
+                .map(|index| index + 1)?;
+            string_style_value(context, &string[..trimmed_length])
+        }),
+        property_id::TRANSITION_PROPERTY => {
+            if let Some(none) = single_value.and_then(|value| parse_specific_keyword(value, &[keyword::NONE])) {
+                Some(value_list(vec![none], 1, true))
+            } else {
+                (|| {
+                    let properties = values
+                        .split(ComponentValue::is_comma)
+                        .map(|item| parse_custom_ident_value(context, single_non_whitespace_value(item)?, &["none"]))
+                        .collect::<Option<Vec<_>>>()?;
+                    Some(value_list(properties, 1, true))
+                })()
+            }
+        }
+        property_id::WILL_CHANGE => {
+            if let Some(auto) = single_value.and_then(|value| parse_specific_keyword(value, &[keyword::AUTO])) {
+                Some(auto)
+            } else {
+                (|| {
+                    let features = values
+                        .split(ComponentValue::is_comma)
+                        .map(|item| {
+                            let value = single_non_whitespace_value(item)?;
+                            parse_specific_keyword(value, &[keyword::SCROLL_POSITION, keyword::CONTENTS]).or_else(
+                                || {
+                                    parse_custom_ident_value(
+                                        context,
+                                        value,
+                                        &["all", "auto", "contents", "none", "scroll-position", "will-change"],
+                                    )
+                                },
+                            )
+                        })
+                        .collect::<Option<Vec<_>>>()?;
+                    Some(value_list(features, 1, true))
+                })()
+            }
+        }
+        _ => unreachable!(),
+    };
+    parsed.map_or(ParseOutcome::Invalid, |parsed| ParseOutcome::Parsed(Arc::new(parsed)))
+}
+
+fn parse_coordinating_value_list(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    if !(FIRST_SHORTHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property)
+        || property_is_shorthand(property)
+        || !property_has_coordinating_list_multiplicity(property)
+        || property_uses_special_keyword_parser(property)
+    {
+        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+    }
+    if let Some(reason) = unported_function_reason(values) {
+        return ParseOutcome::NotHandled(reason);
+    }
+
+    let fully_ported = property_leaf_grammar_is_fully_ported(property);
+    let mut parsed_values = Vec::new();
+    for item in values.split(ComponentValue::is_comma) {
+        let mut item_values = item.iter().filter(|value| !value.is_whitespace());
+        let Some(value) = item_values.next() else {
+            return if fully_ported {
+                ParseOutcome::Invalid
+            } else {
+                ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED)
+            };
+        };
+        if item_values.next().is_some() {
+            // NB: C++ numeric leaves can reach the calculation parser for
+            //     operator expressions without an explicit calc() wrapper.
+            return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        }
+        let Some(parsed) = parse_single_property_leaf(context, property, value) else {
+            return if fully_ported {
+                ParseOutcome::Invalid
+            } else {
+                ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED)
+            };
+        };
+        parsed_values.push(parsed);
+    }
+    ParseOutcome::Parsed(Arc::new(value_list(parsed_values, 1, true)))
+}
+
+fn parse_generic_text_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    if !(FIRST_SHORTHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property)
+        || property_is_shorthand(property)
+        || property_has_coordinating_list_multiplicity(property)
+        || property_uses_special_keyword_parser(property)
+        || !property_accepted_value_types(property)
+            .iter()
+            .any(|value_type| PORTED_TEXT_VALUE_TYPES.contains(value_type))
+    {
+        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+    }
+    if let Some(reason) = unported_function_reason(values) {
+        return ParseOutcome::NotHandled(reason);
+    }
+
+    let Some(value) = single_non_whitespace_value(values) else {
+        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+    };
+    if let Some(parsed) = parse_single_property_leaf(context, property, value) {
+        return ParseOutcome::Parsed(Arc::new(parsed));
+    }
+    if property_leaf_grammar_is_fully_ported(property) {
+        return ParseOutcome::Invalid;
+    }
+    ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED)
 }
 
 fn parse_generic_numeric_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
@@ -711,12 +1115,27 @@ pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: 
     if let Some(value) = parse_builtin_value(values) {
         return ParseOutcome::Parsed(Arc::new(value));
     }
+    if let Some(reason) = unported_function_reason(values) {
+        return ParseOutcome::NotHandled(reason);
+    }
     if property_id == property_id::DISPLAY {
         return parse_display_keyword(values);
+    }
+    let special_text_outcome = parse_special_text_property(context, property_id, values);
+    if !matches!(special_text_outcome, ParseOutcome::NotHandled(_)) {
+        return special_text_outcome;
+    }
+    let coordinating_list_outcome = parse_coordinating_value_list(context, property_id, values);
+    if !matches!(coordinating_list_outcome, ParseOutcome::NotHandled(_)) {
+        return coordinating_list_outcome;
     }
     let keyword_outcome = parse_generic_property_keyword(property_id, values);
     if !matches!(keyword_outcome, ParseOutcome::NotHandled(_)) {
         return keyword_outcome;
+    }
+    let text_outcome = parse_generic_text_property(context, property_id, values);
+    if !matches!(text_outcome, ParseOutcome::NotHandled(_)) {
+        return text_outcome;
     }
     parse_generic_numeric_property(context, property_id, values)
 }
@@ -854,6 +1273,10 @@ mod tests {
     use super::*;
     use crate::css::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, property_initial_value, property_name};
 
+    unsafe extern "C" fn discard_interned_string(_: *const u16, _: usize) -> usize {
+        0
+    }
+
     fn context() -> ParseContext {
         ParseContext {
             in_quirks_mode: false,
@@ -864,6 +1287,7 @@ mod tests {
             document_url_length: 0,
             document_base_url: std::ptr::null(),
             document_base_url_length: 0,
+            intern_utf16_fly_string: Some(discard_interned_string),
         }
     }
 
@@ -922,9 +1346,175 @@ mod tests {
             ParseOutcome::NotHandled(_)
         ));
         assert!(matches!(
-            parse(property_id::ANIMATION_DIRECTION, "reverse"),
+            parse(property_id::FONT_FAMILY, "\"Ladybird Sans\""),
             ParseOutcome::NotHandled(_)
         ));
+    }
+
+    #[test]
+    fn parses_string_and_identifier_leaves() {
+        assert!(matches!(
+            &*match parse(property_id::LIST_STYLE_TYPE, "\"stars\"") {
+                ParseOutcome::Parsed(value) => value,
+                _ => panic!("string should parse"),
+            },
+            StyleValueData::String { .. }
+        ));
+        assert!(matches!(
+            &*match parse(property_id::VIEW_TRANSITION_NAME, "card") {
+                ParseOutcome::Parsed(value) => value,
+                _ => panic!("custom-ident should parse"),
+            },
+            StyleValueData::CustomIdent { .. }
+        ));
+        assert!(matches!(
+            parse(property_id::VIEW_TRANSITION_NAME, "auto"),
+            ParseOutcome::Invalid
+        ));
+        assert!(!is_valid_custom_ident(
+            &"inherit".encode_utf16().collect::<Vec<_>>(),
+            &[]
+        ));
+        assert!(!is_valid_custom_ident(
+            &"DeFaUlT".encode_utf16().collect::<Vec<_>>(),
+            &[]
+        ));
+    }
+
+    #[test]
+    fn parses_comma_separated_leaf_lists() {
+        for (property, source) in [
+            (property_id::ANIMATION_NAME, "fade, \"123fade\""),
+            (property_id::SCROLL_TIMELINE_NAME, "--main, none"),
+            (property_id::ANIMATION_DIRECTION, "normal, reverse"),
+        ] {
+            let ParseOutcome::Parsed(value) = parse(property, source) else {
+                panic!("coordinating list should parse: {source}");
+            };
+            let StyleValueData::ValueList { values, separator, .. } = &*value else {
+                panic!("coordinating values should use a list");
+            };
+            assert_eq!(values.as_slice().len(), 2);
+            assert_eq!(*separator, 1);
+        }
+        assert!(matches!(
+            parse(property_id::ANIMATION_NAME, "fade,"),
+            ParseOutcome::Invalid
+        ));
+        assert!(matches!(
+            parse(property_id::SCROLL_TIMELINE_NAME, "ordinary-name"),
+            ParseOutcome::Invalid
+        ));
+        assert!(matches!(
+            parse(property_id::TRANSITION_DURATION, "10s + 20s"),
+            ParseOutcome::NotHandled(_)
+        ));
+    }
+
+    #[test]
+    fn parses_url_tokens_functions_and_modifiers() {
+        let ParseOutcome::Parsed(value) = parse(property_id::CLIP_PATH, "url(images/mask.svg#shape)") else {
+            panic!("URL token should parse");
+        };
+        assert!(
+            matches!(&*value, StyleValueData::Url { url, url_type: 0, .. } if url.as_bytes() == b"images/mask.svg#shape")
+        );
+
+        let value = component(
+            "src(\"font.woff2\" referrer-policy(no-referrer) integrity(\"sha256-value\") cross-origin(anonymous))",
+        );
+        let StyleValueData::Url {
+            url,
+            url_type,
+            modifiers,
+        } = parse_url_value(&context(), &value).expect("src() should parse")
+        else {
+            panic!("src() should produce a URL");
+        };
+        assert_eq!(url.as_bytes(), b"font.woff2");
+        assert_eq!(url_type, 1);
+        assert_eq!(
+            modifiers
+                .as_slice()
+                .iter()
+                .map(RetainedRequestUrlModifier::modifier_type)
+                .collect::<Vec<_>>(),
+            [0, 1, 2]
+        );
+
+        let duplicate = component("url(\"a\" integrity(\"one\") integrity(\"two\"))");
+        assert!(parse_url_value(&context(), &duplicate).is_none());
+        assert!(matches!(
+            parse(property_id::MASK_IMAGE, "url(mask.png)"),
+            ParseOutcome::NotHandled(_)
+        ));
+    }
+
+    #[test]
+    fn parses_special_identifier_lists() {
+        for (property, source, expected_length, expected_separator) in [
+            (property_id::ANCHOR_NAME, "--main, --fallback", 2, 1),
+            (property_id::ANCHOR_SCOPE, "--main", 1, 1),
+            (property_id::TIMELINE_SCOPE, "--scroll, --view", 2, 1),
+            (property_id::CONTAINER_NAME, "card inline-card", 2, 0),
+            (property_id::TRANSITION_PROPERTY, "opacity, transform", 2, 1),
+            (property_id::WILL_CHANGE, "scroll-position, opacity", 2, 1),
+        ] {
+            let ParseOutcome::Parsed(value) = parse(property, source) else {
+                panic!("identifier list should parse: {source}");
+            };
+            let StyleValueData::ValueList { values, separator, .. } = &*value else {
+                panic!("multiple identifiers should produce a list: {source}");
+            };
+            assert_eq!(values.as_slice().len(), expected_length);
+            assert_eq!(*separator, expected_separator);
+        }
+
+        assert!(matches!(
+            parse(property_id::ANCHOR_SCOPE, "all"),
+            ParseOutcome::Parsed(_)
+        ));
+        assert!(matches!(
+            parse(property_id::POSITION_ANCHOR, "--main"),
+            ParseOutcome::Parsed(_)
+        ));
+        assert!(matches!(
+            parse(property_id::CONTAINER_NAME, "single"),
+            ParseOutcome::Parsed(_)
+        ));
+        assert!(matches!(
+            parse(property_id::WILL_CHANGE, "auto"),
+            ParseOutcome::Parsed(_)
+        ));
+
+        for (property, source) in [
+            (property_id::ANCHOR_NAME, "ordinary"),
+            (property_id::CONTAINER_NAME, "card and"),
+            (property_id::TRANSITION_PROPERTY, "opacity,"),
+            (property_id::WILL_CHANGE, "all"),
+        ] {
+            assert!(matches!(parse(property, source), ParseOutcome::Invalid), "{source}");
+        }
+        let ParseOutcome::NotHandled(reason) = parse(property_id::ANCHOR_NAME, "var(--anchor)") else {
+            panic!("substitution should remain with C++");
+        };
+        assert_eq!(reason.label, "substitution");
+    }
+
+    #[test]
+    fn parses_font_language_override_strings() {
+        for source in ["normal", "\"ENG\"", "\"ENG \""] {
+            assert!(matches!(
+                parse(property_id::FONT_LANGUAGE_OVERRIDE, source),
+                ParseOutcome::Parsed(_)
+            ));
+        }
+        for source in ["\"\"", "\"     \"", "\"abcde\"", "\"é\""] {
+            assert!(matches!(
+                parse(property_id::FONT_LANGUAGE_OVERRIDE, source),
+                ParseOutcome::Invalid
+            ));
+        }
     }
 
     #[test]

@@ -103,6 +103,11 @@ static bool verify_rust_value_parser_enabled()
     return enabled;
 }
 
+static size_t retain_utf16_fly_string(u16 const* code_units, size_t length)
+{
+    return Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(code_units), length }).to_raw_leaked();
+}
+
 static void dump_parse_fallback_statistics()
 {
     if (parse_fallback_statistics_enabled())
@@ -506,6 +511,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         .document_url_length = document_url.size(),
         .document_base_url = document_base_url.data(),
         .document_base_url_length = document_base_url.size(),
+        .intern_utf16_fly_string = retain_utf16_fly_string,
     };
     ValueParserFFI::FfiParseStatus status { ValueParserFFI::FfiParseStatus::NotHandled };
     u8 const* reason { nullptr };
