@@ -144,20 +144,21 @@ impl<'a> PaintableCommit<'a> {
             return;
         }
         let arena = self.arena.borrow();
+        let layout_arena = self.callbacks.arena();
         let offsets_before_commit = self.offsets_before_commit.borrow();
         for &root in roots.iter() {
             let delta = reused_subtree_absolute_position_delta(&arena, &offsets_before_commit, root);
             if delta == FfiCssPixelPoint::default() {
                 continue;
             }
-            arena.for_each_in_subtree(root, |slot| {
+            crate::painting::paint_order::for_each_in_paint_subtree(layout_arena, &arena, root, |slot| {
                 arena.update_data(slot, |data| {
                     if data.has_overflow {
                         data.overflow.rect.x += delta.x;
                         data.overflow.rect.y += delta.y;
                     }
                 });
-                arena.invalidate_paint_cache(slot);
+                arena.invalidate_paint_cache(layout_arena, slot);
             });
         }
     }

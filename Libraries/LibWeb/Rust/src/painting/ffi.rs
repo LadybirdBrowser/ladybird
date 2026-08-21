@@ -106,14 +106,14 @@ pub unsafe extern "C" fn layout_arena_paintable_event_dispatch_node_shell(
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        let mut current = slot;
-        while !current.is_invalid() && paintables.is_live(current) {
-            let layout_node = paintables.data_ref(current).layout_node;
+        let mut current = paintables.is_live(slot).then_some(slot);
+        while let Some(paintable) = current {
+            let layout_node = paintables.data_ref(paintable).layout_node;
             let flags = arena.node_flags_if_live(layout_node);
             if flags & crate::layout::node_data::NodeFlag::Anonymous as u32 == 0 {
                 return arena.shell_if_live(layout_node);
             }
-            current = paintables.data_ref(current).parent;
+            current = crate::painting::paint_order::paint_parent(arena, &paintables, paintable);
         }
         std::ptr::null_mut()
     })
@@ -148,7 +148,7 @@ pub unsafe extern "C" fn layout_arena_paintable_has_child_paintables(
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let paintables = arena.paintables().borrow();
-        paintables.is_live(slot) && !paintables.data_ref(slot).first_child.is_invalid()
+        crate::painting::paint_order::first_paint_child(arena, &paintables, slot).is_some()
     })
 }
 
@@ -991,7 +991,7 @@ pub unsafe extern "C" fn layout_arena_paintable_invalidate_paint_cache(
         if propagated_text_decorations {
             paintables.invalidate_propagated_text_decoration_caches(arena, paintable);
         } else {
-            paintables.invalidate_paint_cache(paintable);
+            paintables.invalidate_paint_cache(arena, paintable);
         }
     });
 }
@@ -1706,7 +1706,7 @@ pub unsafe extern "C" fn layout_arena_for_each_subtree_fragment_rect(
         if !paintables.is_live(root) {
             return;
         }
-        paintables.for_each_in_subtree(root, |current| {
+        crate::painting::paint_order::for_each_in_paint_subtree(arena, &paintables, root, |current| {
             for fragment in &paintables.side(current).fragments {
                 let shell = arena.shell_if_live(fragment.layout_node);
                 let rect = crate::painting::text_fragment::absolute_rect(arena, &paintables, fragment).into();
@@ -2052,11 +2052,9 @@ fn paint_tree_dump_entries(
             layout_node_shell: arena.shell_if_live(paintables.data_ref(slot).layout_node),
             depth,
         });
-        let mut child = paintables.first_child(slot);
-        while let Some(current) = child {
+        crate::painting::paint_order::for_each_paint_child(arena, paintables, slot, |current| {
             visit(arena, paintables, current, depth + 1, entries);
-            child = paintables.next_sibling(current);
-        }
+        });
     }
 
     if !paintables.is_live(root) {

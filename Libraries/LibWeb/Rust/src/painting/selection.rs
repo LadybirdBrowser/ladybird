@@ -17,27 +17,29 @@ pub(crate) struct SelectionRange {
     pub end_offset: usize,
 }
 
-fn invalidate_block_and_ancestors(paintables: &PaintableArena, block: PaintableSlotId) {
+fn invalidate_block_and_ancestors(layout_arena: &LayoutNodeArena, paintables: &PaintableArena, block: PaintableSlotId) {
     let mut current = Some(block);
     while let Some(slot) = current {
-        paintables.invalidate_paint_cache(slot);
-        current = paintables.parent(slot);
+        paintables.invalidate_paint_cache(layout_arena, slot);
+        current = crate::painting::paint_order::paint_parent(layout_arena, paintables, slot);
     }
 }
 
 fn invalidate_self_painting_inline_box(layout_arena: &LayoutNodeArena, paintables: &PaintableArena, node: NodeSlotId) {
     if let Some(inline_box) = fragment_ownership::nearest_self_painting_inline_box(layout_arena, paintables, node) {
-        paintables.invalidate_paint_cache(inline_box);
+        paintables.invalidate_paint_cache(layout_arena, inline_box);
     }
 }
 
 fn reset_states(layout_arena: &LayoutNodeArena, paintables: &mut PaintableArena, viewport: PaintableSlotId) {
     let mut slots = Vec::new();
-    paintables.for_each_in_subtree(viewport, |slot| slots.push(slot));
+    crate::painting::paint_order::for_each_in_paint_subtree(layout_arena, paintables, viewport, |slot| {
+        slots.push(slot);
+    });
     for current in slots {
         if paintables.data_ref(current).selection_state != SELECTION_STATE_NONE {
             paintables.update_data(current, |data| data.selection_state = SELECTION_STATE_NONE);
-            paintables.invalidate_paint_cache(current);
+            paintables.invalidate_paint_cache(layout_arena, current);
         }
         let mut changed_fragment_nodes: Vec<NodeSlotId> = Vec::new();
         for fragment in &mut paintables.side_mut(current).fragments {
@@ -47,7 +49,7 @@ fn reset_states(layout_arena: &LayoutNodeArena, paintables: &mut PaintableArena,
             }
         }
         if !changed_fragment_nodes.is_empty() {
-            invalidate_block_and_ancestors(paintables, current);
+            invalidate_block_and_ancestors(layout_arena, paintables, current);
             for node in changed_fragment_nodes {
                 invalidate_self_painting_inline_box(layout_arena, paintables, node);
             }
@@ -78,7 +80,7 @@ pub(crate) fn apply(
                 }
             }
             if changed {
-                invalidate_block_and_ancestors(paintables, block);
+                invalidate_block_and_ancestors(layout_arena, paintables, block);
                 invalidate_self_painting_inline_box(layout_arena, paintables, entry.layout_node);
             }
         } else {
@@ -88,7 +90,7 @@ pub(crate) fn apply(
             }
             if paintables.data_ref(slot).selection_state != entry.state {
                 paintables.update_data(slot, |data| data.selection_state = entry.state);
-                paintables.invalidate_paint_cache(slot);
+                paintables.invalidate_paint_cache(layout_arena, slot);
             }
         }
     }
