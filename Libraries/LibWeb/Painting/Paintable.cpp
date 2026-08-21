@@ -440,7 +440,7 @@ void Paintable::scroll_text_offset_into_view(DOM::Text const& text, size_t offse
             cursor_rect.set_y(cursor_rect.y() - 1);
         cursor_rect.set_height(1);
     }
-    for (auto* ancestor = static_cast<Paintable*>(result.owner_paintable); ancestor; ancestor = ancestor->containing_block().ptr()) {
+    for (auto* ancestor = static_cast<Paintable*>(result.owner_paintable); ancestor;) {
         if (ancestor->has_scrollable_overflow()) {
             if (scroll_block_direction == ScrollBlockDirection::No) {
                 auto snapport = ancestor->scroll_snapport_rect();
@@ -455,6 +455,8 @@ void Paintable::scroll_text_offset_into_view(DOM::Text const& text, size_t offse
             ancestor->scroll_into_view(cursor_rect);
             return;
         }
+        auto* containing_block_box = ancestor->layout_node().containing_block();
+        ancestor = containing_block_box ? containing_block_box->paintable_ptr() : nullptr;
     }
 }
 
@@ -1571,13 +1573,16 @@ CSSPixels Paintable::outline_offset() const
 
 RefPtr<Paintable const> Paintable::nearest_scrollable_ancestor() const
 {
-    auto paintable = this->containing_block();
-    while (paintable) {
+    if (!has_layout_node())
+        return nullptr;
+    for (auto const* box = layout_node().containing_block(); box; box = box->containing_block()) {
+        auto const* paintable = box->paintable_ptr();
+        if (!paintable)
+            return nullptr;
         if (paintable->could_be_scrolled_by_wheel_event())
             return paintable;
         if (paintable->is_fixed_position())
             return nullptr;
-        paintable = paintable->containing_block();
     }
     return nullptr;
 }
