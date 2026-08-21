@@ -234,7 +234,11 @@ impl<'a> PaintableCommit<'a> {
             self.offsets_before_commit
                 .borrow_mut()
                 .insert(slot, arena.data_ref(slot).offset);
-            arena.reset_for_relayout(slot);
+            let reset = arena.prepare_reset_for_relayout(slot);
+            drop(arena);
+            reset.invoke_callback();
+            arena = self.arena.borrow_mut();
+            arena.reset_for_relayout(reset);
         } else {
             arena.update_data(slot, |paintable| {
                 paintable.layout_node = node;
