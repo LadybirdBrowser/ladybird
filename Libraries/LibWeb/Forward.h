@@ -1074,8 +1074,6 @@ class ScrollStateSnapshot;
 class ViewportPaintable;
 
 enum class PaintPhase;
-struct BorderRadiiData;
-struct BorderRadiusData;
 struct LinearGradientData;
 
 }

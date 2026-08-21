@@ -15,12 +15,22 @@ pub(crate) fn normalize_border_radii_data(
     reference_rect: CssPixelRect,
     corner_radius_pairs: [(LengthPercentageRef<'_>, LengthPercentageRef<'_>); 4],
 ) -> BorderRadii {
+    scale_radii_to_fit(border_rect, resolve_corner_radii(reference_rect, corner_radius_pairs))
+}
+
+pub(crate) fn resolve_corner_radii(
+    reference_rect: CssPixelRect,
+    corner_radius_pairs: [(LengthPercentageRef<'_>, LengthPercentageRef<'_>); 4],
+) -> BorderRadii {
     let mut radii = BorderRadii::default();
     for (corner, (horizontal, vertical)) in corner_radius_pairs.into_iter().enumerate() {
         radii.values[corner * 2] = horizontal.to_px(reference_rect.width);
         radii.values[corner * 2 + 1] = vertical.to_px(reference_rect.height);
     }
+    radii
+}
 
+pub(crate) fn scale_radii_to_fit(border_rect: CssPixelRect, mut radii: BorderRadii) -> BorderRadii {
     let zero = CssPixels::from_raw(0);
     let border_width = border_rect.width.max(zero);
     let border_height = border_rect.height.max(zero);
@@ -61,12 +71,6 @@ pub struct BorderRadii {
 }
 
 impl BorderRadii {
-    pub fn from_raw(raw: [i32; 8]) -> Self {
-        Self {
-            values: raw.map(CssPixels::from_raw),
-        }
-    }
-
     fn corner_present(horizontal: CssPixels, vertical: CssPixels) -> bool {
         horizontal > CssPixels::from_raw(0) && vertical > CssPixels::from_raw(0)
     }

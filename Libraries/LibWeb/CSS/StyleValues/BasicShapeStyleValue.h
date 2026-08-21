@@ -16,8 +16,6 @@
 namespace Web::CSS {
 
 struct Inset {
-    Gfx::Path to_path(CSSPixelRect reference_box) const;
-
     bool operator==(Inset const&) const = default;
 
     ValueComparingNonnullRefPtr<StyleValue const> top;
@@ -53,8 +51,6 @@ struct Rect {
 };
 
 struct Circle {
-    Gfx::Path to_path(CSSPixelRect reference_box) const;
-
     bool operator==(Circle const&) const = default;
 
     ValueComparingNonnullRefPtr<StyleValue const> radius;
@@ -62,8 +58,6 @@ struct Circle {
 };
 
 struct Ellipse {
-    Gfx::Path to_path(CSSPixelRect reference_box) const;
-
     bool operator==(Ellipse const&) const = default;
 
     ValueComparingNonnullRefPtr<StyleValue const> radius;
@@ -76,8 +70,6 @@ struct Polygon {
         ValueComparingNonnullRefPtr<StyleValue const> x;
         ValueComparingNonnullRefPtr<StyleValue const> y;
     };
-
-    Gfx::Path to_path(CSSPixelRect reference_box) const;
 
     bool operator==(Polygon const&) const = default;
 
@@ -109,8 +101,6 @@ public:
     BasicShape const& basic_shape() const;
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-
-    Gfx::Path to_path(CSSPixelRect reference_box) const;
 
 private:
     friend class StyleValue;

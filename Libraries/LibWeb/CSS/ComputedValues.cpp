@@ -1325,42 +1325,6 @@ Vector<CounterData, 0> ComputedValues::ContentValues::counter_set_value() const
     return counter_data_from_handle(counter_set);
 }
 
-static BorderRadiusData border_radius_from_handle(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
-{
-    auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(handle.pointer);
-    VERIFY(value);
-    VERIFY(value->tag == StyleValueFFI::StyleValueData::Tag::BorderRadius);
-    return {
-        LengthPercentage::view(value->border_radius.horizontal_radius),
-        LengthPercentage::view(value->border_radius.vertical_radius),
-    };
-}
-
-BorderRadiusData ComputedValues::BorderValues::border_bottom_left_radius_value() const
-{
-    return border_radius_from_handle(border_bottom_left_radius);
-}
-
-BorderRadiusData ComputedValues::BorderValues::border_bottom_right_radius_value() const
-{
-    return border_radius_from_handle(border_bottom_right_radius);
-}
-
-BorderRadiusData ComputedValues::BorderValues::border_top_left_radius_value() const
-{
-    return border_radius_from_handle(border_top_left_radius);
-}
-
-BorderRadiusData ComputedValues::BorderValues::border_top_right_radius_value() const
-{
-    return border_radius_from_handle(border_top_right_radius);
-}
-
-bool ComputedValues::BorderValues::has_noninitial_border_radii_value() const
-{
-    return has_noninitial_border_radii;
-}
-
 BorderImageData ComputedValues::BorderValues::border_image_value() const
 {
     BorderImageData result;

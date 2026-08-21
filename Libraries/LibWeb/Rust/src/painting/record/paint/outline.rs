@@ -23,7 +23,7 @@ pub(crate) fn paint_outline_phase(recorder: &mut PaintRecorder<'_>, paintable: P
     );
     let outline_offset = crate::painting::style_queries::outline_offset(recorder.layout_arena, node);
     let border_box_rect = paintable_geometry::absolute_border_box_rect(recorder.paintables, paintable);
-    let border_radii = BorderRadii::from_raw(recorder.hit_test_facts(paintable).border_radii);
+    let border_radii = recorder.border_radii(paintable);
     paint_outline(recorder, outline, outline_offset, border_box_rect, border_radii);
     let facts = recorder.paint_host.outline_facts(recorder.shell(paintable));
     paint_focused_area_outline(recorder, paintable, &facts);

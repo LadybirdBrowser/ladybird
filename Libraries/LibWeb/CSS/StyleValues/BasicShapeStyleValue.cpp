@@ -13,7 +13,6 @@
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
 #include <LibWeb/CSS/ValueType.h>
-#include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/Path.h>
@@ -106,175 +105,6 @@ BasicShape const& BasicShapeStyleValue::basic_shape() const
     return m_shape;
 }
 
-static Gfx::Path path_from_resolved_rect(float top, float right, float bottom, float left)
-{
-    Gfx::Path path;
-    path.move_to(Gfx::FloatPoint { left, top });
-    path.line_to(Gfx::FloatPoint { right, top });
-    path.line_to(Gfx::FloatPoint { right, bottom });
-    path.line_to(Gfx::FloatPoint { left, bottom });
-    path.close();
-    return path;
-}
-
-// https://drafts.csswg.org/css-shapes/#funcdef-basic-shape-inset
-Gfx::Path Inset::to_path(CSSPixelRect reference_box) const
-{
-    auto resolved_top = LengthPercentageOrAuto::from_style_value(top).to_px_or_zero(reference_box.height()).to_float();
-    auto resolved_right = LengthPercentageOrAuto::from_style_value(right).to_px_or_zero(reference_box.width()).to_float();
-    auto resolved_bottom = LengthPercentageOrAuto::from_style_value(bottom).to_px_or_zero(reference_box.height()).to_float();
-    auto resolved_left = LengthPercentageOrAuto::from_style_value(left).to_px_or_zero(reference_box.width()).to_float();
-
-    // A pair of insets in either dimension that add up to more than the used dimension
-    // (such as left and right insets of 75% apiece) use the CSS Backgrounds 3 § 4.5 Overlapping Curves rules
-    // to proportionally reduce the inset effect to 100%.
-    if (resolved_top + resolved_bottom > reference_box.height().to_float() || resolved_left + resolved_right > reference_box.width().to_float()) {
-        // https://drafts.csswg.org/css-backgrounds-3/#corner-overlap
-        // Let f = min(Li/Si), where i ∈ {top, right, bottom, left}, Si is the sum of the two corresponding radii of the
-        // corners on side i, and Ltop = Lbottom = the width of the box, and Lleft = Lright = the height of the box. If
-        // f < 1, then all corner radii are reduced by multiplying them by f.
-
-        // NB: We only care about vertical and horizontal here as top = bottom and left = right
-        auto s_vertical = resolved_top + resolved_bottom;
-        auto s_horizontal = resolved_left + resolved_right;
-
-        auto f = min(reference_box.height() / s_vertical, reference_box.width() / s_horizontal);
-
-        resolved_top *= f;
-        resolved_right *= f;
-        resolved_bottom *= f;
-        resolved_left *= f;
-    }
-
-    float left_edge = resolved_left;
-    float top_edge = resolved_top;
-    float right_edge = reference_box.width().to_float() - resolved_right;
-    float bottom_edge = reference_box.height().to_float() - resolved_bottom;
-
-    CSSPixelRect inset_rect {
-        CSSPixels(left_edge), CSSPixels(top_edge),
-        CSSPixels(right_edge - left_edge), CSSPixels(bottom_edge - top_edge)
-    };
-
-    auto const& border_radius_rect = border_radius->as_border_radius_rect();
-
-    auto to_border_radius_data = [](StyleValue const& corner) -> CSS::BorderRadiusData {
-        auto const& br = corner.as_border_radius();
-        return CSS::BorderRadiusData {
-            LengthPercentage::from_style_value(br.horizontal_radius()),
-            LengthPercentage::from_style_value(br.vertical_radius())
-        };
-    };
-
-    auto radii = Painting::normalize_border_radii_data(
-        inset_rect,
-        reference_box,
-        to_border_radius_data(*border_radius_rect.top_left()),
-        to_border_radius_data(*border_radius_rect.top_right()),
-        to_border_radius_data(*border_radius_rect.bottom_right()),
-        to_border_radius_data(*border_radius_rect.bottom_left()));
-
-    if (!radii.has_any_radius())
-        return path_from_resolved_rect(top_edge, right_edge, bottom_edge, left_edge);
-
-    auto top_left_horizontal_radius = radii.top_left.horizontal_radius.to_float();
-    auto top_left_vertical_radius = radii.top_left.vertical_radius.to_float();
-
-    auto top_right_horizontal_radius = radii.top_right.horizontal_radius.to_float();
-    auto top_right_vertical_radius = radii.top_right.vertical_radius.to_float();
-
-    auto bottom_right_horizontal_radius = radii.bottom_right.horizontal_radius.to_float();
-    auto bottom_right_vertical_radius = radii.bottom_right.vertical_radius.to_float();
-
-    auto bottom_left_horizontal_radius = radii.bottom_left.horizontal_radius.to_float();
-    auto bottom_left_vertical_radius = radii.bottom_left.vertical_radius.to_float();
-
-    Gfx::Path path;
-    path.move_to({ left_edge + top_left_horizontal_radius, top_edge });
-    path.line_to({ right_edge - top_right_horizontal_radius, top_edge });
-
-    if (top_right_horizontal_radius > 0 && top_right_vertical_radius > 0)
-        path.elliptical_arc_to({ right_edge, top_edge + top_right_vertical_radius }, { top_right_horizontal_radius, top_right_vertical_radius }, 0, false, true);
-
-    path.line_to({ right_edge, bottom_edge - bottom_right_vertical_radius });
-    if (bottom_right_horizontal_radius > 0 && bottom_right_vertical_radius > 0)
-        path.elliptical_arc_to({ right_edge - bottom_right_horizontal_radius, bottom_edge }, { bottom_right_horizontal_radius, bottom_right_vertical_radius }, 0, false, true);
-
-    path.line_to({ left_edge + bottom_left_horizontal_radius, bottom_edge });
-    if (bottom_left_horizontal_radius > 0 && bottom_left_vertical_radius > 0)
-        path.elliptical_arc_to({ left_edge, bottom_edge - bottom_left_vertical_radius }, { bottom_left_horizontal_radius, bottom_left_vertical_radius }, 0, false, true);
-
-    path.line_to({ left_edge, top_edge + top_left_vertical_radius });
-    if (top_left_horizontal_radius > 0 && top_left_vertical_radius > 0)
-        path.elliptical_arc_to({ left_edge + top_left_horizontal_radius, top_edge }, { top_left_horizontal_radius, top_left_vertical_radius }, 0, false, true);
-
-    path.close();
-    return path;
-}
-
-Gfx::Path Circle::to_path(CSSPixelRect reference_box) const
-{
-    // Translating the reference box because PositionStyleValues are resolved to an absolute position.
-    auto translated_reference_box = reference_box.translated(-reference_box.x(), -reference_box.y());
-
-    // https://www.w3.org/TR/css-shapes/#funcdef-basic-shape-circle
-    // The <position> argument defines the center of the circle. Unless otherwise specified, this defaults to center if omitted.
-    RefPtr<PositionStyleValue const> resolved_position = PositionStyleValue::create_computed_center();
-    if (position)
-        resolved_position = position->as_position();
-
-    auto center = resolved_position->resolved(translated_reference_box);
-
-    auto radius_px = radius->as_radial_size().resolve_circle_size(center, translated_reference_box).to_float();
-
-    Gfx::Path path;
-    path.move_to(Gfx::FloatPoint { center.x().to_float(), center.y().to_float() + radius_px });
-    path.arc_to(Gfx::FloatPoint { center.x().to_float(), center.y().to_float() - radius_px }, radius_px, true, true);
-    path.arc_to(Gfx::FloatPoint { center.x().to_float(), center.y().to_float() + radius_px }, radius_px, true, true);
-    return path;
-}
-
-Gfx::Path Ellipse::to_path(CSSPixelRect reference_box) const
-{
-    // Translating the reference box because PositionStyleValues are resolved to an absolute position.
-    auto translated_reference_box = reference_box.translated(-reference_box.x(), -reference_box.y());
-
-    // https://www.w3.org/TR/css-shapes/#funcdef-basic-shape-circle
-    // The <position> argument defines the center of the ellipse. Unless otherwise specified, this defaults to center if omitted.
-    RefPtr<PositionStyleValue const> resolved_position = PositionStyleValue::create_computed_center();
-    if (position)
-        resolved_position = position->as_position();
-
-    auto center = resolved_position->resolved(translated_reference_box);
-    auto size = radius->as_radial_size().resolve_ellipse_size(center, translated_reference_box);
-
-    Gfx::Path path;
-    path.move_to(Gfx::FloatPoint { center.x().to_float(), center.y().to_float() + size.height().to_float() });
-    path.elliptical_arc_to(Gfx::FloatPoint { center.x().to_float(), center.y().to_float() - size.height().to_float() }, Gfx::FloatSize { size.width().to_float(), size.height().to_float() }, 0, true, true);
-    path.elliptical_arc_to(Gfx::FloatPoint { center.x().to_float(), center.y().to_float() + size.height().to_float() }, Gfx::FloatSize { size.width().to_float(), size.height().to_float() }, 0, true, true);
-    return path;
-}
-
-Gfx::Path Polygon::to_path(CSSPixelRect reference_box) const
-{
-    Gfx::Path path;
-    path.set_fill_type(fill_rule);
-    bool first = true;
-    for (auto const& point : points) {
-        Gfx::FloatPoint resolved_point {
-            LengthPercentage::from_style_value(point.x).to_px(reference_box.width()).to_float(),
-            LengthPercentage::from_style_value(point.y).to_px(reference_box.height()).to_float()
-        };
-        if (first)
-            path.move_to(resolved_point);
-        else
-            path.line_to(resolved_point);
-        first = false;
-    }
-    path.close();
-    return path;
-}
-
 Gfx::Path Path::to_path(CSSPixelRect) const
 {
     auto result = path_instructions.to_gfx_path();
@@ -283,19 +113,6 @@ Gfx::Path Path::to_path(CSSPixelRect) const
 }
 
 BasicShapeStyleValue::~BasicShapeStyleValue() = default;
-
-Gfx::Path BasicShapeStyleValue::to_path(CSSPixelRect reference_box) const
-{
-    return basic_shape().visit([&](auto const& shape) -> Gfx::Path {
-        // NB: Xywh and Rect don't require to_path functions as we should have already converted them to their
-        //     respective Inset equivalents during absolutization
-        if constexpr (requires { shape.to_path(reference_box); }) {
-            return shape.to_path(reference_box);
-        }
-
-        VERIFY_NOT_REACHED();
-    });
-}
 
 // https://www.w3.org/TR/css-shapes-1/#basic-shape-computed-values
 ValueComparingNonnullRefPtr<StyleValue const> BasicShapeStyleValue::absolutized(ComputationContext const& computation_context) const

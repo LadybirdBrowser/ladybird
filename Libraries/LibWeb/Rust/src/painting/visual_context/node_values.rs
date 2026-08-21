@@ -369,6 +369,57 @@ pub(crate) fn border_radii_data(
     )
 }
 
+pub(crate) fn piece_border_radii_data(
+    style: ComputedValuesView<'_>,
+    piece_width: CssPixels,
+    piece_height: CssPixels,
+    present_edges: u8,
+) -> BorderRadii {
+    let border = style.border();
+    let has_noninitial_radii = !border_radius_is_initial(&border.border_bottom_left_radius)
+        || !border_radius_is_initial(&border.border_bottom_right_radius)
+        || !border_radius_is_initial(&border.border_top_left_radius)
+        || !border_radius_is_initial(&border.border_top_right_radius);
+    if !has_noninitial_radii {
+        return BorderRadii::default();
+    }
+    let border_rect = CssPixelRect::new(
+        CssPixels::from_raw(0),
+        CssPixels::from_raw(0),
+        piece_width,
+        piece_height,
+    );
+    let mut radii = crate::painting::border_radii::resolve_corner_radii(
+        border_rect,
+        [
+            border_radius_pair(&border.border_top_left_radius),
+            border_radius_pair(&border.border_top_right_radius),
+            border_radius_pair(&border.border_bottom_right_radius),
+            border_radius_pair(&border.border_bottom_left_radius),
+        ],
+    );
+    // A corner only keeps its radius when the fragment piece retains both of the box's edges
+    // meeting there; corners cut by fragmentation are square.
+    const TOP_EDGE: u8 = 1 << 0;
+    const RIGHT_EDGE: u8 = 1 << 1;
+    const BOTTOM_EDGE: u8 = 1 << 2;
+    const LEFT_EDGE: u8 = 1 << 3;
+    let zero = CssPixels::from_raw(0);
+    let corner_edges = [
+        TOP_EDGE | LEFT_EDGE,
+        TOP_EDGE | RIGHT_EDGE,
+        BOTTOM_EDGE | RIGHT_EDGE,
+        BOTTOM_EDGE | LEFT_EDGE,
+    ];
+    for (corner, edges) in corner_edges.into_iter().enumerate() {
+        if present_edges & edges != edges {
+            radii.values[corner * 2] = zero;
+            radii.values[corner * 2 + 1] = zero;
+        }
+    }
+    crate::painting::border_radii::scale_radii_to_fit(border_rect, radii)
+}
+
 fn overflow_property_applies(
     layout_arena: &LayoutNodeArena,
     paintables: &PaintableArena,

@@ -88,7 +88,7 @@ impl<'a> PaintRecorder<'a> {
                 return;
             }
             let rect = paintable_geometry::absolute_border_box_rect(self.paintables, paintable);
-            let radii = BorderRadii::from_raw(self.paintable_facts(paintable).border_radii);
+            let radii = self.border_radii(paintable);
             let context = self.data(paintable).accumulated_visual_context_index;
             self.append_box(paintable, paintable, rect, context, radii);
             return;

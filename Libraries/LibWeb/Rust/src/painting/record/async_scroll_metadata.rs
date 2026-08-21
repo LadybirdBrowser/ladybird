@@ -6,7 +6,6 @@
 
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
-use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::commands::*;
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_geometry;
@@ -165,8 +164,7 @@ impl PaintRecorder<'_> {
             return;
         }
         let target_scroll_node_index = self.wheel_hit_test_target_scroll_node_index_for(paintable);
-        let corner_radii =
-            BorderRadii::from_raw(self.hit_test_facts(paintable).border_radii).as_corners(&self.converter);
+        let corner_radii = self.border_radii(paintable).as_corners(&self.converter);
         let document_id = UniqueNodeId(self.inputs.document_id);
         if corner_radii.has_any_radius() {
             self.recorder.compositor_wheel_hit_test_target_with_corner_radii(

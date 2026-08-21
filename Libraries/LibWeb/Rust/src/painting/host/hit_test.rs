@@ -18,8 +18,6 @@ pub struct FfiHitTestPaintableFacts {
     pub could_be_scrolled_vertically: bool,
     pub svg_path_has_fill: bool,
     pub svg_path_winding_rule: i32,
-    pub border_radii: [i32; 8],
-    pub has_noninitial_border_radii: bool,
     pub has_svg_filter_bounds: bool,
     pub svg_filter_bounds: crate::layout::FfiCssPixelRect,
     pub svg_mask_content_units_object_bbox: bool,
@@ -47,7 +45,6 @@ pub struct FfiHitTestHostCallbacks {
     pub context: *mut c_void,
     pub paintable_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiHitTestPaintableFacts,
     pub text_node_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiHitTestTextNodeFacts,
-    pub piece_border_radii: unsafe extern "C" fn(*mut c_void, *mut c_void, i32, i32, u8, *mut i32),
     pub line_break_caret_targets: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
 }
 
@@ -59,27 +56,6 @@ impl FfiHitTestHostCallbacks {
     pub(crate) fn text_node_facts(&self, node_shell: *mut c_void) -> FfiHitTestTextNodeFacts {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
         unsafe { (self.text_node_facts)(self.context, node_shell) }
-    }
-    pub(crate) fn piece_border_radii(
-        &self,
-        paintable_shell: *mut c_void,
-        width_raw: i32,
-        height_raw: i32,
-        present_edges: u8,
-    ) -> [i32; 8] {
-        let mut radii = [0i32; 8];
-        // SAFETY: The C++ host writes eight values into the array synchronously.
-        unsafe {
-            (self.piece_border_radii)(
-                self.context,
-                paintable_shell,
-                width_raw,
-                height_raw,
-                present_edges,
-                radii.as_mut_ptr(),
-            );
-        };
-        radii
     }
     pub(crate) fn line_break_caret_targets(&self, paintable_shell: *mut c_void) -> Vec<FfiLineBreakCaretTarget> {
         let mut targets: Vec<FfiLineBreakCaretTarget> = Vec::new();
