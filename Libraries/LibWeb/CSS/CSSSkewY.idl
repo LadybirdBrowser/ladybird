@@ -2,5 +2,5 @@
 [Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
 interface CSSSkewY : CSSTransformComponent {
     constructor(CSSNumericValue ay);
-    attribute CSSNumericValue ay;
+    [DirectGetter] attribute CSSNumericValue ay;
 };

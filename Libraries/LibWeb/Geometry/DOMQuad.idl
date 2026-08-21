@@ -7,10 +7,10 @@ interface DOMQuad {
     [ImplementedAs=dom_quad_from_rect, NewObject] static DOMQuad fromRect(optional DOMRectInit other = {});
     [ImplementedAs=dom_quad_from_quad, NewObject] static DOMQuad fromQuad(optional DOMQuadInit other = {});
 
-    [SameObject] readonly attribute DOMPoint p1;
-    [SameObject] readonly attribute DOMPoint p2;
-    [SameObject] readonly attribute DOMPoint p3;
-    [SameObject] readonly attribute DOMPoint p4;
+    [DirectGetter, SameObject] readonly attribute DOMPoint p1;
+    [DirectGetter, SameObject] readonly attribute DOMPoint p2;
+    [DirectGetter, SameObject] readonly attribute DOMPoint p3;
+    [DirectGetter, SameObject] readonly attribute DOMPoint p4;
     [NewObject] DOMRect getBounds();
 
     [Default] object toJSON();

@@ -62,6 +62,7 @@ public:
 
     // https://w3c.github.io/FileAPI/#dom-filereader-error
     GC::Ptr<WebIDL::DOMException> error() const { return m_error; }
+    static constexpr size_t error_offset() { return offsetof(FileReader, m_error); }
 
     // event handler attributes
     void set_onloadstart(WebIDL::CallbackType*);

@@ -27,7 +27,7 @@ interface MouseEvent : UIEvent {
     readonly attribute short button;
     readonly attribute unsigned short buttons;
 
-    readonly attribute EventTarget? relatedTarget;
+    [DirectGetter] readonly attribute EventTarget? relatedTarget;
 
     boolean getModifierState([Utf16FlyString] Utf16DOMString keyArg);
 

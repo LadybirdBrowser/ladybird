@@ -23,6 +23,8 @@ class TransformStream final
     GC_DECLARE_ALLOCATOR(TransformStream);
 
 public:
+    static constexpr size_t readable_offset() { return offsetof(TransformStream, m_readable); }
+    static constexpr size_t writable_offset() { return offsetof(TransformStream, m_writable); }
     virtual ~TransformStream() override;
 
     static WebIDL::ExceptionOr<GC::Ref<TransformStream>> create_for_constructor(JS::Object&, GC::Ptr<JS::Object> transformer_object, QueuingStrategy const& writable_strategy = {}, QueuingStrategy const& readable_strategy = {});

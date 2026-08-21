@@ -18,6 +18,7 @@ class GeolocationPosition : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(GeolocationPosition);
 
 public:
+    static constexpr size_t coords_offset() { return offsetof(GeolocationPosition, m_coords); }
     GC::Ref<GeolocationCoordinates const> coords() const { return m_coords; }
     HighResolutionTime::EpochTimeStamp timestamp() const { return m_timestamp; }
     bool is_high_accuracy() const { return m_is_high_accuracy; }

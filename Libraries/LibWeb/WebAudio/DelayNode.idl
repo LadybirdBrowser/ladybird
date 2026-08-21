@@ -8,5 +8,5 @@ dictionary DelayOptions : AudioNodeOptions {
 [Exposed=Window]
 interface DelayNode : AudioNode {
     constructor (BaseAudioContext context, optional DelayOptions options = {});
-    readonly attribute AudioParam delayTime;
+    [DirectGetter] readonly attribute AudioParam delayTime;
 };

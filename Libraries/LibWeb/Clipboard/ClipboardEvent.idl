@@ -6,5 +6,5 @@ dictionary ClipboardEventInit : EventInit {
 [Exposed=Window]
 interface ClipboardEvent : Event {
     constructor(DOMString type, optional ClipboardEventInit eventInitDict = {});
-    readonly attribute DataTransfer? clipboardData;
+    [DirectGetter] readonly attribute DataTransfer? clipboardData;
 };

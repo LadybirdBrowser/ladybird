@@ -26,6 +26,7 @@ class VTTCue final : public HTML::TextTrackCue {
     GC_DECLARE_ALLOCATOR(VTTCue);
 
 public:
+    static constexpr size_t region_offset() { return offsetof(VTTCue, m_region); }
     enum class WritingDirection : u8 {
         // https://w3c.github.io/webvtt/#webvtt-cue-horizontal-writing-direction
         Horizontal,

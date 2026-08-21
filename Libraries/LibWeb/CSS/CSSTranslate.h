@@ -16,6 +16,9 @@ class CSSTranslate final : public CSSTransformComponent {
     GC_DECLARE_ALLOCATOR(CSSTranslate);
 
 public:
+    static constexpr size_t x_offset() { return offsetof(CSSTranslate, m_x); }
+    static constexpr size_t y_offset() { return offsetof(CSSTranslate, m_y); }
+    static constexpr size_t z_offset() { return offsetof(CSSTranslate, m_z); }
     [[nodiscard]] static GC::Ref<CSSTranslate> create(Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z);
     static WebIDL::ExceptionOr<GC::Ref<CSSTranslate>> create_for_constructor(GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ptr<CSSNumericValue> z = {});
 

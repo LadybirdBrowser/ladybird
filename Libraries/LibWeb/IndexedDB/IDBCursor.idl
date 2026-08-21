@@ -4,7 +4,7 @@ interface IDBCursor {
     readonly attribute IDBCursorDirection direction;
     [NeedsCallerRealm] readonly attribute any key;
     [NeedsCallerRealm] readonly attribute any primaryKey;
-    [SameObject] readonly attribute IDBRequest request;
+    [DirectGetter, SameObject] readonly attribute IDBRequest request;
     undefined advance([EnforceRange] unsigned long count);
     undefined continue(optional any key);
     undefined continuePrimaryKey(any key, any primaryKey);

@@ -18,6 +18,7 @@ class WritableStreamDefaultController final : public Bindings::GCAllocatedWrappa
     GC_DECLARE_ALLOCATOR(WritableStreamDefaultController);
 
 public:
+    static constexpr size_t signal_offset() { return offsetof(WritableStreamDefaultController, m_signal); }
     virtual ~WritableStreamDefaultController() override = default;
 
     void error(Optional<JS::Value> error);

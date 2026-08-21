@@ -71,6 +71,8 @@ class NavigateEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(NavigateEvent);
 
 public:
+    static constexpr size_t destination_offset() { return offsetof(NavigateEvent, m_destination); }
+    static constexpr size_t signal_offset() { return offsetof(NavigateEvent, m_signal); }
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigateevent-interception-state
     enum class InterceptionState {
         None,
@@ -93,10 +95,12 @@ public:
     bool hash_change() const { return m_hash_change; }
     GC::Ref<DOM::AbortSignal> signal() const { return m_signal; }
     GC::Ptr<XHR::FormData> form_data() const { return m_form_data; }
+    static constexpr size_t form_data_offset() { return offsetof(NavigateEvent, m_form_data); }
     Optional<Utf16String> download_request() const { return m_download_request; }
     JS::Value const& info() const { return m_info; }
     bool has_ua_visual_transition() const { return m_has_ua_visual_transition; }
     GC::Ptr<DOM::Element> source_element() const { return m_source_element; }
+    static constexpr size_t source_element_offset() { return offsetof(NavigateEvent, m_source_element); }
 
     WebIDL::ExceptionOr<void> intercept(JS::Realm&, NavigationInterceptOptions const&);
     WebIDL::ExceptionOr<void> scroll();

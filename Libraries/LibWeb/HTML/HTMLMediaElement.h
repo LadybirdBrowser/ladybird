@@ -60,6 +60,9 @@ class HTMLMediaElement : public HTMLElement {
     WEB_WRAPPABLE(HTMLMediaElement, HTMLElement);
 
 public:
+    static constexpr size_t audio_tracks_offset() { return offsetof(HTMLMediaElement, m_audio_tracks); }
+    static constexpr size_t video_tracks_offset() { return offsetof(HTMLMediaElement, m_video_tracks); }
+    static constexpr size_t text_tracks_offset() { return offsetof(HTMLMediaElement, m_text_tracks); }
     static constexpr bool OVERRIDES_FINALIZE = true;
 
     virtual ~HTMLMediaElement() override;
@@ -76,6 +79,7 @@ public:
     bool is_fetching() const;
 
     GC::Ptr<MediaError> error() const { return m_error; }
+    static constexpr size_t error_offset() { return offsetof(HTMLMediaElement, m_error); }
     void set_decoder_error(Utf16String error_message);
 
     Utf16String const& current_src() const { return m_current_src; }

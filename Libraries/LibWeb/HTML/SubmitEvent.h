@@ -27,6 +27,7 @@ public:
     virtual ~SubmitEvent() override;
 
     GC::Ptr<HTMLElement> submitter() const { return m_submitter; }
+    static constexpr size_t submitter_offset() { return offsetof(SubmitEvent, m_submitter); }
 
 private:
     SubmitEvent(FlyString const& event_name, SubmitEventInit const&, HighResolutionTime::DOMHighResTimeStamp);

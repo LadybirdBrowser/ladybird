@@ -86,6 +86,7 @@ def legacy_platform_object_flags_initialization(interface: Interface) -> str:
             "    m_legacy_platform_object_flags->has_legacy_override_built_ins_interface_extended_attribute = true;"
         )
     if "Global" in interface.extended_attributes:
+        lines.append("    set_global_object_flag();")
         lines.append("    m_legacy_platform_object_flags->has_global_interface_extended_attribute = true;")
 
     return "\n".join(lines)

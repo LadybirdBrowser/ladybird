@@ -32,6 +32,7 @@ class NavigationCurrentEntryChangeEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(NavigationCurrentEntryChangeEvent);
 
 public:
+    static constexpr size_t from_offset() { return offsetof(NavigationCurrentEntryChangeEvent, m_from); }
     [[nodiscard]] static GC::Ref<NavigationCurrentEntryChangeEvent> create_for_constructor(Utf16String const& event_name, Bindings::NavigationCurrentEntryChangeEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
     [[nodiscard]] static GC::Ref<NavigationCurrentEntryChangeEvent> create(FlyString const& event_name, NavigationCurrentEntryChangeEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
     [[nodiscard]] static GC::Ref<NavigationCurrentEntryChangeEvent> create(Utf16FlyString const& event_name, NavigationCurrentEntryChangeEventInit const&, HighResolutionTime::DOMHighResTimeStamp);

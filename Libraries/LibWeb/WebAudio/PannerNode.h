@@ -21,6 +21,12 @@ class PannerNode final : public AudioNode {
     GC_DECLARE_ALLOCATOR(PannerNode);
 
 public:
+    static constexpr size_t position_x_offset() { return offsetof(PannerNode, m_position_x); }
+    static constexpr size_t position_y_offset() { return offsetof(PannerNode, m_position_y); }
+    static constexpr size_t position_z_offset() { return offsetof(PannerNode, m_position_z); }
+    static constexpr size_t orientation_x_offset() { return offsetof(PannerNode, m_orientation_x); }
+    static constexpr size_t orientation_y_offset() { return offsetof(PannerNode, m_orientation_y); }
+    static constexpr size_t orientation_z_offset() { return offsetof(PannerNode, m_orientation_z); }
     virtual ~PannerNode() override;
 
     static WebIDL::ExceptionOr<GC::Ref<PannerNode>> create(GC::Ref<BaseAudioContext>, PannerOptions const& = {});

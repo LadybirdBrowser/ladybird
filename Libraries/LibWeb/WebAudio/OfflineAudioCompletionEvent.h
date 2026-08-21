@@ -27,6 +27,7 @@ class OfflineAudioCompletionEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(OfflineAudioCompletionEvent);
 
 public:
+    static constexpr size_t rendered_buffer_offset() { return offsetof(OfflineAudioCompletionEvent, m_rendered_buffer); }
     static GC::Ref<OfflineAudioCompletionEvent> create(Utf16FlyString const& event_name, OfflineAudioCompletionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~OfflineAudioCompletionEvent() override;

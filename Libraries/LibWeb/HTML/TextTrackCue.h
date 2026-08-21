@@ -23,6 +23,7 @@ public:
     virtual ~TextTrackCue() override;
 
     GC::Ptr<TextTrack> track() { return m_track; }
+    static constexpr size_t track_offset() { return offsetof(TextTrackCue, m_track); }
 
     Utf16String const& id() const { return m_identifier; }
     void set_id(Utf16View id) { m_identifier = Utf16String::from_utf16(id); }

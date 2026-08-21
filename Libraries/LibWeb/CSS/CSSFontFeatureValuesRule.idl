@@ -1,11 +1,11 @@
 [Exposed=Window]
 interface CSSFontFeatureValuesRule : CSSRule {
     attribute Utf16CSSOMString fontFamily;
-    readonly attribute CSSFontFeatureValuesMap annotation;
-    readonly attribute CSSFontFeatureValuesMap ornaments;
-    readonly attribute CSSFontFeatureValuesMap stylistic;
-    readonly attribute CSSFontFeatureValuesMap swash;
-    readonly attribute CSSFontFeatureValuesMap characterVariant;
-    readonly attribute CSSFontFeatureValuesMap styleset;
-    readonly attribute CSSFontFeatureValuesMap historicalForms;
+    [DirectGetter] readonly attribute CSSFontFeatureValuesMap annotation;
+    [DirectGetter] readonly attribute CSSFontFeatureValuesMap ornaments;
+    [DirectGetter] readonly attribute CSSFontFeatureValuesMap stylistic;
+    [DirectGetter] readonly attribute CSSFontFeatureValuesMap swash;
+    [DirectGetter] readonly attribute CSSFontFeatureValuesMap characterVariant;
+    [DirectGetter] readonly attribute CSSFontFeatureValuesMap styleset;
+    [DirectGetter] readonly attribute CSSFontFeatureValuesMap historicalForms;
 };

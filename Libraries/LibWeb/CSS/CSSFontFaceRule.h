@@ -20,6 +20,7 @@ class CSSFontFaceRule final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSFontFaceRule);
 
 public:
+    static constexpr size_t style_offset() { return offsetof(CSSFontFaceRule, m_style); }
     [[nodiscard]] static GC::Ref<CSSFontFaceRule> create(GC::Ref<CSSFontFaceDescriptors>);
 
     virtual ~CSSFontFaceRule() override = default;

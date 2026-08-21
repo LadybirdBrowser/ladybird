@@ -49,6 +49,8 @@ public:
     // Only valid on platform objects that are exposed over IDL.
     [[nodiscard]] Bindings::InterfaceName interface_name() const;
 
+    static constexpr size_t wrapped_implementation_offset() { return offsetof(PlatformObject, m_wrappable); }
+
     // ^JS::Object
     virtual JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> internal_get_own_property(JS::PropertyKey const&) const override;
     virtual bool is_cacheable_for_property_absence() const override { return false; }

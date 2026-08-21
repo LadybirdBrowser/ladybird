@@ -7,5 +7,5 @@ dictionary ConstantSourceOptions {
 [Exposed=Window]
 interface ConstantSourceNode : AudioScheduledSourceNode {
     constructor (BaseAudioContext context, optional ConstantSourceOptions options = {});
-    readonly attribute AudioParam offset;
+    [DirectGetter] readonly attribute AudioParam offset;
 };

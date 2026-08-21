@@ -6,7 +6,7 @@ interface AnimationEvent : Event {
     readonly attribute Utf16CSSOMString animationName;
     readonly attribute double elapsedTime;
     readonly attribute Utf16CSSOMString pseudoElement;
-    readonly attribute CSSAnimation? animation;
+    [DirectGetter] readonly attribute CSSAnimation? animation;
 };
 
 // https://drafts.csswg.org/css-animations-1/#dictdef-animationeventinit

@@ -1,7 +1,7 @@
 // https://w3c.github.io/geolocation/#position_interface
 [Exposed=Window, SecureContext]
 interface GeolocationPosition {
-    readonly attribute GeolocationCoordinates coords;
+    [DirectGetter] readonly attribute GeolocationCoordinates coords;
     readonly attribute EpochTimeStamp timestamp;
     [Default] object toJSON();
 };

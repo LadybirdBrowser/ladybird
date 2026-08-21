@@ -36,6 +36,7 @@ class IDBCursor : public Bindings::GCAllocatedWrappable {
     };
 
 public:
+    static constexpr size_t request_offset() { return offsetof(IDBCursor, m_request); }
     virtual ~IDBCursor() override;
     [[nodiscard]] static GC::Ref<IDBCursor> create(CursorSourceHandle, GC::Ptr<Key>, CursorDirection, GotValue, GC::Ptr<Key>, JS::Value, GC::Ref<IDBKeyRange>, KeyOnly);
 

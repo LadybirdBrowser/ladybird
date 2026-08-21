@@ -2,11 +2,11 @@
 [Exposed=Window]
 interface MutationRecord {
     readonly attribute Utf16DOMString type;
-    [SameObject] readonly attribute Node target;
-    [SameObject] readonly attribute NodeList addedNodes;
-    [SameObject] readonly attribute NodeList removedNodes;
-    readonly attribute Node? previousSibling;
-    readonly attribute Node? nextSibling;
+    [DirectGetter, SameObject] readonly attribute Node target;
+    [DirectGetter, SameObject] readonly attribute NodeList addedNodes;
+    [DirectGetter, SameObject] readonly attribute NodeList removedNodes;
+    [DirectGetter] readonly attribute Node? previousSibling;
+    [DirectGetter] readonly attribute Node? nextSibling;
     readonly attribute Utf16DOMString? attributeName;
     readonly attribute Utf16DOMString? attributeNamespace;
     readonly attribute Utf16DOMString? oldValue;

@@ -89,7 +89,7 @@ interface Document : Node {
     [CEReactions] attribute Utf16DOMString dir;
     [CEReactions] attribute HTMLElement? body;
     readonly attribute HTMLHeadElement? head;
-    readonly attribute HTMLScriptElement? currentScript;
+    [DirectGetter] readonly attribute HTMLScriptElement? currentScript;
 
     readonly attribute Utf16DOMString lastModified;
     readonly attribute [Utf16FlyString] Utf16DOMString readyState;
@@ -130,7 +130,7 @@ interface Document : Node {
 
     // https://drafts.csswg.org/css-view-transitions-1/#additions-to-document-api
     [Experimental, ImplementedInBindings] ViewTransition startViewTransition(optional ViewTransitionUpdateCallback updateCallback);
-    [Experimental] readonly attribute ViewTransition? activeViewTransition;
+    [DirectGetter, Experimental] readonly attribute ViewTransition? activeViewTransition;
 
     // https://w3c.github.io/svgwg/svg2-draft/struct.html#InterfaceDocumentExtensions
     readonly attribute SVGSVGElement? rootElement;

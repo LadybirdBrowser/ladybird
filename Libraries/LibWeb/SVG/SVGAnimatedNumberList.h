@@ -17,6 +17,7 @@ class SVGAnimatedNumberList final : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(SVGAnimatedNumberList);
 
 public:
+    static constexpr size_t base_val_offset() { return offsetof(SVGAnimatedNumberList, m_base_val); }
     [[nodiscard]] static GC::Ref<SVGAnimatedNumberList> create(GC::Ref<SVGNumberList>);
     virtual ~SVGAnimatedNumberList() override = default;
 

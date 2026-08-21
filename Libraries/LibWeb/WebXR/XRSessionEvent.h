@@ -29,6 +29,7 @@ class XRSessionEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(XRSessionEvent);
 
 public:
+    static constexpr size_t session_offset() { return offsetof(XRSessionEvent, m_session); }
     [[nodiscard]] static GC::Ref<XRSessionEvent> create(Utf16FlyString const&, XRSessionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~XRSessionEvent() override = default;

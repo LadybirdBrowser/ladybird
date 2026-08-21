@@ -3,5 +3,5 @@
 interface CSSVariableReferenceValue {
     constructor(Utf16USVString variable, optional CSSUnparsedValue? fallback = null);
     attribute Utf16USVString variable;
-    readonly attribute CSSUnparsedValue? fallback;
+    [DirectGetter] readonly attribute CSSUnparsedValue? fallback;
 };

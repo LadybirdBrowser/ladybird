@@ -4,7 +4,7 @@ interface Navigation : EventTarget {
     sequence<NavigationHistoryEntry> entries();
     readonly attribute NavigationHistoryEntry? currentEntry;
     undefined updateCurrentEntry(NavigationUpdateCurrentEntryOptions options);
-    readonly attribute NavigationTransition? transition;
+    [DirectGetter] readonly attribute NavigationTransition? transition;
 
     readonly attribute boolean canGoBack;
     readonly attribute boolean canGoForward;

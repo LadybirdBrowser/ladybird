@@ -40,6 +40,7 @@ public:
     }
 
     size_t ref_count() const { return m_ref_count; }
+    static constexpr size_t value_offset() { return offsetof(WeakImpl, m_ptr); }
 
     enum class State {
         Allocated,

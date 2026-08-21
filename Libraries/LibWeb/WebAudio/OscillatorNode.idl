@@ -20,7 +20,7 @@ dictionary OscillatorOptions : AudioNodeOptions {
 interface OscillatorNode : AudioScheduledSourceNode {
     constructor(BaseAudioContext context, optional OscillatorOptions options = {});
     attribute OscillatorType type;
-    readonly attribute AudioParam frequency;
-    readonly attribute AudioParam detune;
+    [DirectGetter] readonly attribute AudioParam frequency;
+    [DirectGetter] readonly attribute AudioParam detune;
     undefined setPeriodicWave(PeriodicWave periodicWave);
 };

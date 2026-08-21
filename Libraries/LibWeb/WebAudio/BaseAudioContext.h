@@ -44,6 +44,7 @@ class BaseAudioContext : public DOM::EventTarget {
     WEB_WRAPPABLE(BaseAudioContext, DOM::EventTarget);
 
 public:
+    static constexpr size_t destination_offset() { return offsetof(BaseAudioContext, m_destination); }
     virtual ~BaseAudioContext() override;
 
     // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createbuffer-numberofchannels

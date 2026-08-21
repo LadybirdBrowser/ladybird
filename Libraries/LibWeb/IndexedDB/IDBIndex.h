@@ -21,6 +21,7 @@ class IDBIndex : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(IDBIndex);
 
 public:
+    static constexpr size_t object_store_handle_offset() { return offsetof(IDBIndex, m_object_store_handle); }
     virtual ~IDBIndex() override;
     [[nodiscard]] static GC::Ref<IDBIndex> create(GC::Ref<Index>, GC::Ref<IDBObjectStore>);
 

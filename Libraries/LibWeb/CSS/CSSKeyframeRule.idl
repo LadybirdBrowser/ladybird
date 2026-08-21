@@ -2,5 +2,5 @@
 [Exposed=Window]
 interface CSSKeyframeRule : CSSRule {
     attribute Utf16CSSOMString keyText;
-    [SameObject, PutForwards=cssText] readonly attribute CSSStyleProperties style;
+    [DirectGetter=declarations, SameObject, PutForwards=cssText] readonly attribute CSSStyleProperties style;
 };

@@ -35,6 +35,7 @@ class SpeechRecognition final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(SpeechRecognition);
 
 public:
+    static constexpr size_t grammars_offset() { return offsetof(SpeechRecognition, m_grammars); }
     static GC::Ref<SpeechRecognition> create();
     virtual ~SpeechRecognition() override;
 

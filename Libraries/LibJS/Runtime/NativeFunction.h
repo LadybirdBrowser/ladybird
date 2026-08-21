@@ -66,7 +66,7 @@ private:
 template<>
 inline bool Object::fast_is<NativeFunction>() const { return is_native_function(); }
 
-class JS_API RawNativeFunction final : public NativeFunction {
+class JS_API RawNativeFunction : public NativeFunction {
     JS_OBJECT(RawNativeFunction, NativeFunction);
     GC_DECLARE_ALLOCATOR(RawNativeFunction);
 
@@ -80,14 +80,46 @@ public:
 
     NativeFunctionPointer native_function() const;
 
-private:
+protected:
     RawNativeFunction(NativeFunctionPointer, GC::Ptr<Object> prototype, Realm& realm, Optional<Bytecode::Builtin> builtin);
     RawNativeFunction(Utf16FlyString name, NativeFunctionPointer, Object& prototype);
 
+private:
     u32 m_native_function_index { 0 };
 };
 
 template<>
 inline bool Object::fast_is<RawNativeFunction>() const { return is_raw_native_function(); }
+
+struct DirectGetterConfiguration {
+    // These are byte offsets to pointer-sized fields read directly by the interpreter. The bindings
+    // generator obtains them from PlatformObject::wrapped_implementation_offset(), the implementation
+    // field's generated offset helper, Wrappable::main_world_wrapper_offset(), and
+    // GC::WeakImpl::value_offset(), respectively. DirectGetterFunction validates their alignment and
+    // converts them to word offsets.
+    size_t wrapper_implementation_offset { 0 };
+    size_t implementation_value_offset { 0 };
+    size_t main_world_wrapper_offset { 0 };
+    size_t weak_impl_value_offset { 0 };
+};
+
+class JS_API DirectGetterFunction final : public RawNativeFunction {
+    JS_OBJECT(DirectGetterFunction, RawNativeFunction);
+    GC_DECLARE_ALLOCATOR(DirectGetterFunction);
+
+public:
+    static GC::Ref<DirectGetterFunction> create(Realm&, NativeFunctionPointer behaviour, i32 length, PropertyKey const& name, DirectGetterConfiguration, Optional<StringView> const& prefix = {});
+
+private:
+    DirectGetterFunction(NativeFunctionPointer, Object& prototype, Realm&, DirectGetterConfiguration);
+
+    u32 m_wrapper_implementation_word_offset { 0 };
+    u32 m_implementation_value_word_offset { 0 };
+    u32 m_main_world_wrapper_word_offset { 0 };
+    u32 m_weak_impl_value_word_offset { 0 };
+};
+
+template<>
+inline bool Object::fast_is<DirectGetterFunction>() const { return is_direct_getter_function(); }
 
 }

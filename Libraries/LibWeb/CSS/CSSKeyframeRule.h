@@ -23,6 +23,7 @@ class CSSKeyframeRule final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSKeyframeRule);
 
 public:
+    static constexpr size_t declarations_offset() { return offsetof(CSSKeyframeRule, m_declarations); }
     static GC::Ref<CSSKeyframeRule> create(Vector<CSS::Percentage>&& keys, CSSStyleProperties&);
 
     virtual ~CSSKeyframeRule() = default;

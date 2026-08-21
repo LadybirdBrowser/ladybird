@@ -2,7 +2,7 @@
 [Experimental, SecureContext, Exposed=Window]
 interface XRSessionEvent : Event {
     constructor(DOMString type, XRSessionEventInit eventInitDict);
-    [SameObject] readonly attribute XRSession session;
+    [DirectGetter, SameObject] readonly attribute XRSession session;
 };
 
 [Experimental] dictionary XRSessionEventInit : EventInit {

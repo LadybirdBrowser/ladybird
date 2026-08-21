@@ -33,6 +33,7 @@ public:
     virtual ~GamepadEvent() override;
 
     GC::Ptr<Gamepad> gamepad() const { return m_gamepad; }
+    static constexpr size_t gamepad_offset() { return offsetof(GamepadEvent, m_gamepad); }
 
 private:
     GamepadEvent(Utf16FlyString const& event_name, GamepadEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);

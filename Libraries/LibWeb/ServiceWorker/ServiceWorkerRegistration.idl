@@ -1,9 +1,9 @@
 // https://w3c.github.io/ServiceWorker/#serviceworkerregistration-interface
 [SecureContext, Exposed=(Window,Worker)]
 interface ServiceWorkerRegistration : EventTarget {
-    readonly attribute ServiceWorker? installing;
-    readonly attribute ServiceWorker? waiting;
-    readonly attribute ServiceWorker? active;
+    [DirectGetter] readonly attribute ServiceWorker? installing;
+    [DirectGetter] readonly attribute ServiceWorker? waiting;
+    [DirectGetter] readonly attribute ServiceWorker? active;
     [FIXME, SameObject] readonly attribute NavigationPreloadManager navigationPreload;
 
     readonly attribute USVString scope;

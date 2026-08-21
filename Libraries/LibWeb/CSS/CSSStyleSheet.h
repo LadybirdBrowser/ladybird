@@ -50,6 +50,7 @@ class WEB_API CSSStyleSheet final : public StyleSheet {
     GC_DECLARE_ALLOCATOR(CSSStyleSheet);
 
 public:
+    static constexpr size_t rules_offset() { return offsetof(CSSStyleSheet, m_rules); }
     enum class LoadingState : u8 {
         Unloaded,
         Loading,
@@ -81,6 +82,7 @@ public:
     GC::Ptr<CSSRule const> owner_rule() const { return m_owner_css_rule; }
     GC::Ptr<CSSRule> owner_rule() { return m_owner_css_rule; }
     void set_owner_css_rule(CSSRule* rule) { m_owner_css_rule = rule; }
+    static constexpr size_t owner_css_rule_offset() { return offsetof(CSSStyleSheet, m_owner_css_rule); }
 
     virtual Utf16FlyString type() const override { return "text/css"_utf16_fly_string; }
 

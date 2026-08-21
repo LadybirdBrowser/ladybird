@@ -27,6 +27,7 @@ class MediaStreamTrackEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(MediaStreamTrackEvent);
 
 public:
+    static constexpr size_t track_offset() { return offsetof(MediaStreamTrackEvent, m_track); }
     [[nodiscard]] static GC::Ref<MediaStreamTrackEvent> create(Utf16FlyString const& event_name, MediaStreamTrackEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~MediaStreamTrackEvent() override;

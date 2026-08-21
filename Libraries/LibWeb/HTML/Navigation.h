@@ -86,6 +86,7 @@ public:
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigation-transition
     GC::Ptr<NavigationTransition> transition() const { return m_transition; }
+    static constexpr size_t transition_offset() { return offsetof(Navigation, m_transition); }
 
     bool can_go_back() const;
     bool can_go_forward() const;

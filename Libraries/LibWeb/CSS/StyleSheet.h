@@ -21,6 +21,7 @@ class WEB_API StyleSheet : public Bindings::GCAllocatedWrappable {
     WEB_WRAPPABLE(StyleSheet, Bindings::GCAllocatedWrappable);
 
 public:
+    static constexpr size_t media_offset() { return offsetof(StyleSheet, m_media); }
     virtual ~StyleSheet() = default;
 
     virtual Utf16FlyString type() const = 0;
@@ -28,6 +29,7 @@ public:
     DOM::Element* owner_node() { return m_owner_node.ptr(); }
     DOM::Element const* owner_node() const { return m_owner_node.ptr(); }
     void set_owner_node(DOM::Element*);
+    static constexpr size_t owner_node_offset() { return offsetof(StyleSheet, m_owner_node); }
 
     Optional<String> href() const;
     Optional<Utf16String> href_for_bindings() const;
@@ -61,6 +63,7 @@ public:
     CSSStyleSheet* parent_style_sheet() { return m_parent_style_sheet.ptr(); }
     CSSStyleSheet const* parent_style_sheet() const { return m_parent_style_sheet.ptr(); }
     void set_parent_css_style_sheet(CSSStyleSheet*);
+    static constexpr size_t parent_style_sheet_offset() { return offsetof(StyleSheet, m_parent_style_sheet); }
 
 protected:
     explicit StyleSheet(MediaList& media);

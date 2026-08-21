@@ -1,6 +1,6 @@
 // https://svgwg.org/svg2-draft/types.html#InterfaceSVGAnimatedLengthList
 [Exposed=Window]
 interface SVGAnimatedLengthList {
-    [SameObject] readonly attribute SVGLengthList baseVal;
-    [SameObject] readonly attribute SVGLengthList animVal;
+    [DirectGetter, SameObject] readonly attribute SVGLengthList baseVal;
+    [DirectGetter=base_val, SameObject] readonly attribute SVGLengthList animVal;
 };

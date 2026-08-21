@@ -17,6 +17,7 @@ class CSSFunctionDeclarations final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSFunctionDeclarations);
 
 public:
+    static constexpr size_t style_offset() { return offsetof(CSSFunctionDeclarations, m_style); }
     [[nodiscard]] static GC::Ref<CSSFunctionDeclarations> create(Parser::Parser&, Vector<Parser::Declaration> const&);
 
     virtual ~CSSFunctionDeclarations() override = default;

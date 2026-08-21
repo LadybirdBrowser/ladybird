@@ -104,6 +104,8 @@ int main()
     outln("const OBJECT_FLAG_IS_FUNCTION = {}", Object::Flag::IsFunction);
     outln("const OBJECT_FLAG_IS_ECMASCRIPT_FUNCTION_OBJECT = {}", Object::Flag::IsECMAScriptFunctionObject);
     outln("const OBJECT_FLAG_IS_RAW_NATIVE_FUNCTION = {}", Object::Flag::IsRawNativeFunction);
+    outln("const OBJECT_FLAG_IS_DIRECT_GETTER_FUNCTION = {}", Object::Flag::IsDirectGetterFunction);
+    outln("const OBJECT_FLAG_IS_GLOBAL_OBJECT = {}", Object::Flag::IsGlobalObject);
 
     // Shape layout
     outln("\n# Shape layout");
@@ -124,6 +126,7 @@ int main()
     outln("const PROPERTY_LOOKUP_CACHE_ENTRY_TYPE_GET_MISSING_PROPERTY = {}", to_underlying(PropertyLookupCache::Entry::Type::GetMissingProperty));
     EMIT_PAIRED_FIELD(PROPERTY_LOOKUP_CACHE_ENTRY_PROPERTY_OFFSET, PropertyLookupCache, property_offset, u32, PropertyLookupCache::Entry, property_offset, 4, scalar, cache_details);
     EMIT_PAIRED_FIELD(PROPERTY_LOOKUP_CACHE_ENTRY_DICTIONARY_GENERATION, PropertyLookupCache, shape_dictionary_generation, u32, PropertyLookupCache::Entry, shape_dictionary_generation, 4, scalar, cache_details);
+    EMIT_FIELD(PROPERTY_LOOKUP_CACHE_ENTRY_DIRECT_GETTER_VALIDATED, PropertyLookupCache, direct_getter_validated, bool, PropertyLookupCache::Entry, direct_getter_validated, 1, nullable, scalar);
     EMIT_OFFSET(PROPERTY_LOOKUP_CACHE_ENTRY_FROM_SHAPE, PropertyLookupCache::Entry, from_shape);
     EMIT_PAIRED_FIELD(PROPERTY_LOOKUP_CACHE_ENTRY_SHAPE, PropertyLookupCache, shape, Shape, PropertyLookupCache::Entry, shape, 8, cell, cache_target);
     EMIT_PAIRED_FIELD(PROPERTY_LOOKUP_CACHE_ENTRY_PROTOTYPE, PropertyLookupCache, prototype, Object, PropertyLookupCache::Entry, prototype, 8, cell, cache_target);
@@ -366,6 +369,13 @@ int main()
     outln("field NativeFunctionTableEntry.function u64 NATIVE_FUNCTION_TABLE_ENTRY_FUNCTION nonnull scalar native_function_table_entry stride {}", sizeof(NativeFunctionTableEntry));
     outln("field NativeFunctionTableEntry.type u32 NATIVE_FUNCTION_TABLE_ENTRY_TYPE nullable scalar native_function_table_entry");
 
+    // DirectGetterFunction layout
+    outln("\n# DirectGetterFunction layout");
+    EMIT_FIELD(DIRECT_GETTER_FUNCTION_WRAPPER_IMPLEMENTATION_WORD_OFFSET, DirectGetterFunction, wrapper_implementation_word_offset, u32, DirectGetterFunction, m_wrapper_implementation_word_offset, 4, nullable, scalar);
+    EMIT_FIELD(DIRECT_GETTER_FUNCTION_IMPLEMENTATION_VALUE_WORD_OFFSET, DirectGetterFunction, implementation_value_word_offset, u32, DirectGetterFunction, m_implementation_value_word_offset, 4, nullable, scalar);
+    EMIT_FIELD(DIRECT_GETTER_FUNCTION_MAIN_WORLD_WRAPPER_WORD_OFFSET, DirectGetterFunction, main_world_wrapper_word_offset, u32, DirectGetterFunction, m_main_world_wrapper_word_offset, 4, nullable, scalar);
+    EMIT_FIELD(DIRECT_GETTER_FUNCTION_WEAK_IMPL_VALUE_WORD_OFFSET, DirectGetterFunction, weak_impl_value_word_offset, u32, DirectGetterFunction, m_weak_impl_value_word_offset, 4, nullable, scalar);
+
     // ECMAScriptFunctionObject layout
     outln("\n# ECMAScriptFunctionObject layout");
     EMIT_FIELD(ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA, ECMAScriptFunctionObject, shared_data, SharedFunctionInstanceData, ECMAScriptFunctionObject, m_shared_data, 8, nonnull, cell);
@@ -523,6 +533,7 @@ int main()
     outln("const BOOLEAN_TRUE = 0x{:X}", static_cast<u64>((BOOLEAN_TAG << GC::TAG_SHIFT) | 1));
     outln("const BOOLEAN_FALSE = 0x{:X}", static_cast<u64>(BOOLEAN_TAG << GC::TAG_SHIFT));
     outln("const UNDEFINED_SHIFTED = 0x{:X}", static_cast<u64>(UNDEFINED_TAG << GC::TAG_SHIFT));
+    outln("const NULL_VALUE = 0x{:X}", static_cast<u64>(NULL_TAG << GC::TAG_SHIFT));
     outln("const EMPTY_TAG_SHIFTED = 0x{:X}", static_cast<u64>(EMPTY_TAG << GC::TAG_SHIFT));
     outln("const NAN_BASE_TAG = 0x{:X}", static_cast<u64>(GC::BASE_TAG));
     outln("const CANON_NAN_BITS = 0x{:X}", static_cast<u64>(GC::CANON_NAN_BITS));

@@ -4,8 +4,8 @@ interface Event {
     constructor(DOMString type, optional EventInit eventInitDict = {});
 
     readonly attribute Utf16DOMString type;
-    readonly attribute EventTarget? target;
-    readonly attribute EventTarget? srcElement; // legacy
+    [DirectGetter] readonly attribute EventTarget? target;
+    [DirectGetter=target] readonly attribute EventTarget? srcElement; // legacy
     [ImplementedAs=current_target_value, ImplementedInBindings, ReturnsJSValue] readonly attribute EventTarget? currentTarget;
     sequence<EventTarget> composedPath();
 

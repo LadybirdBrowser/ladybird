@@ -37,6 +37,7 @@ public:
     virtual ~ClipboardEvent() override;
 
     GC::Ptr<HTML::DataTransfer> clipboard_data() { return m_clipboard_data; }
+    static constexpr size_t clipboard_data_offset() { return offsetof(ClipboardEvent, m_clipboard_data); }
 
 private:
     ClipboardEvent(FlyString const& event_name, ClipboardEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);

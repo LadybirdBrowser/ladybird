@@ -19,6 +19,11 @@ class DynamicsCompressorNode : public AudioNode {
     GC_DECLARE_ALLOCATOR(DynamicsCompressorNode);
 
 public:
+    static constexpr size_t threshold_offset() { return offsetof(DynamicsCompressorNode, m_threshold); }
+    static constexpr size_t knee_offset() { return offsetof(DynamicsCompressorNode, m_knee); }
+    static constexpr size_t ratio_offset() { return offsetof(DynamicsCompressorNode, m_ratio); }
+    static constexpr size_t attack_offset() { return offsetof(DynamicsCompressorNode, m_attack); }
+    static constexpr size_t release_offset() { return offsetof(DynamicsCompressorNode, m_release); }
     virtual ~DynamicsCompressorNode() override;
 
     static WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> create(GC::Ref<BaseAudioContext>, DynamicsCompressorOptions const& = {});

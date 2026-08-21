@@ -16,6 +16,7 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(NativeFunction);
 GC_DEFINE_ALLOCATOR(RawNativeFunction);
+GC_DEFINE_ALLOCATOR(DirectGetterFunction);
 
 namespace {
 
@@ -135,6 +136,15 @@ GC::Ref<RawNativeFunction> RawNativeFunction::create(Realm& realm, Utf16FlyStrin
     return realm.create<RawNativeFunction>(name, function, realm.intrinsics().function_prototype());
 }
 
+GC::Ref<DirectGetterFunction> DirectGetterFunction::create(Realm& realm, NativeFunctionPointer behaviour, i32 length, PropertyKey const& name, DirectGetterConfiguration configuration, Optional<StringView> const& prefix)
+{
+    auto function = realm.create<DirectGetterFunction>(behaviour, realm.intrinsics().function_prototype(), realm, configuration);
+    function->unsafe_set_shape(realm.intrinsics().native_function_shape());
+    function->put_direct(realm.intrinsics().native_function_length_offset(), Value { length });
+    function->put_direct(realm.intrinsics().native_function_name_offset(), function->make_function_name(name, prefix));
+    return function;
+}
+
 NativeFunction::NativeFunction(GC::Ptr<Object> prototype, Realm& realm, Optional<Bytecode::Builtin> builtin)
     : FunctionObject(realm, prototype)
     , m_realm(realm)
@@ -171,6 +181,20 @@ RawNativeFunction::RawNativeFunction(Utf16FlyString name, NativeFunctionPointer 
     , m_native_function_index(prototype.vm().register_native_function(native_function, NativeFunctionType::RawNativeFunction))
 {
     set_is_raw_native_function();
+}
+
+DirectGetterFunction::DirectGetterFunction(NativeFunctionPointer native_function, Object& prototype, Realm& realm, DirectGetterConfiguration configuration)
+    : RawNativeFunction(native_function, prototype, realm, {})
+{
+    VERIFY(configuration.wrapper_implementation_offset % sizeof(void*) == 0);
+    VERIFY(configuration.implementation_value_offset % sizeof(void*) == 0);
+    VERIFY(configuration.main_world_wrapper_offset % sizeof(void*) == 0);
+    VERIFY(configuration.weak_impl_value_offset % sizeof(void*) == 0);
+    m_wrapper_implementation_word_offset = configuration.wrapper_implementation_offset / sizeof(void*);
+    m_implementation_value_word_offset = configuration.implementation_value_offset / sizeof(void*);
+    m_main_world_wrapper_word_offset = configuration.main_world_wrapper_offset / sizeof(void*);
+    m_weak_impl_value_word_offset = configuration.weak_impl_value_offset / sizeof(void*);
+    set_is_direct_getter_function();
 }
 
 // NOTE: Do not attempt to DRY these, it's not worth it. The difference in return types (Value vs Object*),

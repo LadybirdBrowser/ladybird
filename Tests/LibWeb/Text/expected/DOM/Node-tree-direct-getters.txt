@@ -1,0 +1,11 @@
+empty firstChild is null: true
+empty lastChild is null: true
+parentNode is updated: true
+firstChild is updated: true
+lastChild is updated: true
+nextSibling is updated: true
+previousSibling is updated: true
+removed parentNode is null: true
+removed nextSibling is null: true
+remaining previousSibling is null: true
+invalid receivers throw every time: true

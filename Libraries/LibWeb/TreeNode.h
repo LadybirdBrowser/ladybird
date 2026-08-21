@@ -64,6 +64,17 @@ public:
     T const* first_child() const { return m_first_child; }
     T const* last_child() const { return m_last_child; }
 
+    template<typename Derived>
+    static constexpr size_t parent_offset() { return offsetof(Derived, m_parent); }
+    template<typename Derived>
+    static constexpr size_t first_child_offset() { return offsetof(Derived, m_first_child); }
+    template<typename Derived>
+    static constexpr size_t last_child_offset() { return offsetof(Derived, m_last_child); }
+    template<typename Derived>
+    static constexpr size_t previous_sibling_offset() { return offsetof(Derived, m_previous_sibling); }
+    template<typename Derived>
+    static constexpr size_t next_sibling_offset() { return offsetof(Derived, m_next_sibling); }
+
     // https://dom.spec.whatwg.org/#concept-tree-index
     size_t index() const
     {

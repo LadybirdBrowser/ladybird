@@ -27,6 +27,7 @@ public:
 
     GC::Ptr<CSSUnparsedValue> fallback() const;
     WebIDL::ExceptionOr<void> set_fallback(GC::Ptr<CSSUnparsedValue>);
+    static constexpr size_t fallback_offset() { return offsetof(CSSVariableReferenceValue, m_fallback); }
 
     WebIDL::ExceptionOr<Utf16String> to_string() const;
 

@@ -36,6 +36,7 @@ public:
     virtual ~DragEvent() override;
 
     GC::Ptr<DataTransfer> data_transfer() { return m_data_transfer; }
+    static constexpr size_t data_transfer_offset() { return offsetof(DragEvent, m_data_transfer); }
 
 private:
     DragEvent(Utf16FlyString const& event_name, DragEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y, HighResolutionTime::DOMHighResTimeStamp);

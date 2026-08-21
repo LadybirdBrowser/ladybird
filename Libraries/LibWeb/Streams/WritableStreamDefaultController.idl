@@ -1,6 +1,6 @@
 // https://streams.spec.whatwg.org/#writablestreamdefaultcontroller
 [Exposed=*]
 interface WritableStreamDefaultController {
-    readonly attribute AbortSignal signal;
+    [DirectGetter] readonly attribute AbortSignal signal;
     undefined error(optional any e);
 };

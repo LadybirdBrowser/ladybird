@@ -12,5 +12,5 @@ interface CSSStyleDeclaration {
     [CEReactions] undefined setProperty(Utf16CSSOMString property, [LegacyNullToEmptyString] Utf16CSSOMString value, optional [LegacyNullToEmptyString] Utf16CSSOMString priority = "");
     [CEReactions] Utf16CSSOMString removeProperty(Utf16CSSOMString property);
 
-    readonly attribute CSSRule? parentRule;
+    [DirectGetter] readonly attribute CSSRule? parentRule;
 };

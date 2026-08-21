@@ -7,5 +7,5 @@ dictionary MediaElementAudioSourceOptions {
 [Exposed=Window]
 interface MediaElementAudioSourceNode : AudioNode {
     constructor (AudioContext context, MediaElementAudioSourceOptions options);
-    [SameObject] readonly attribute HTMLMediaElement mediaElement;
+    [DirectGetter, SameObject] readonly attribute HTMLMediaElement mediaElement;
 };

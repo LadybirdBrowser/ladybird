@@ -19,6 +19,7 @@ class CSSMediaRule final : public CSSConditionRule {
     GC_DECLARE_ALLOCATOR(CSSMediaRule);
 
 public:
+    static constexpr size_t media_offset() { return offsetof(CSSMediaRule, m_media); }
     [[nodiscard]] static GC::Ref<CSSMediaRule> create(MediaList& media_queries, CSSRuleList&);
 
     virtual ~CSSMediaRule() = default;

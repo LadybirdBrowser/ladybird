@@ -7,7 +7,7 @@ interface InputEvent : UIEvent {
     readonly attribute Utf16DOMString inputType;
 
     // https://w3c.github.io/input-events/#interface-InputEvent
-    readonly attribute DataTransfer? dataTransfer;
+    [DirectGetter] readonly attribute DataTransfer? dataTransfer;
     sequence<StaticRange> getTargetRanges();
 };
 

@@ -17,6 +17,7 @@ class CSSMarginRule final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSMarginRule);
 
 public:
+    static constexpr size_t style_offset() { return offsetof(CSSMarginRule, m_style); }
     [[nodiscard]] static GC::Ref<CSSMarginRule> create(Utf16FlyString name, GC::Ref<CSSStyleProperties>);
 
     virtual ~CSSMarginRule() override = default;

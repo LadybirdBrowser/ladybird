@@ -1,6 +1,6 @@
 // https://w3c.github.io/svgwg/svg2-draft/types.html#InterfaceSVGAnimatedNumberList
 [Exposed=Window]
 interface SVGAnimatedNumberList {
-    [SameObject] readonly attribute SVGNumberList baseVal;
-    [SameObject] readonly attribute SVGNumberList animVal;
+    [DirectGetter, SameObject] readonly attribute SVGNumberList baseVal;
+    [DirectGetter=base_val, SameObject] readonly attribute SVGNumberList animVal;
 };

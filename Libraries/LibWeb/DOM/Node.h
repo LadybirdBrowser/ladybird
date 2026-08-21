@@ -337,6 +337,12 @@ public:
     Node* parent_node() { return parent(); }
     Node const* parent_node() const { return parent(); }
 
+    static constexpr size_t parent_node_offset() { return TreeNode<Node>::parent_offset<Node>(); }
+    static constexpr size_t first_child_offset() { return TreeNode<Node>::first_child_offset<Node>(); }
+    static constexpr size_t last_child_offset() { return TreeNode<Node>::last_child_offset<Node>(); }
+    static constexpr size_t previous_sibling_offset() { return TreeNode<Node>::previous_sibling_offset<Node>(); }
+    static constexpr size_t next_sibling_offset() { return TreeNode<Node>::next_sibling_offset<Node>(); }
+
     GC::Ptr<Element> parent_element();
     GC::Ptr<Element const> parent_element() const;
 

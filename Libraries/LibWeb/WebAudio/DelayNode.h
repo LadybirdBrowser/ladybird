@@ -19,6 +19,7 @@ class DelayNode final : public AudioNode {
     GC_DECLARE_ALLOCATOR(DelayNode);
 
 public:
+    static constexpr size_t delay_time_offset() { return offsetof(DelayNode, m_delay_time); }
     virtual ~DelayNode() override;
 
     static WebIDL::ExceptionOr<GC::Ref<DelayNode>> create(GC::Ref<BaseAudioContext>, DelayOptions const& = {});

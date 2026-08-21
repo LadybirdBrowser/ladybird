@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const event = new Event("test");
+        let target;
+        for (let i = 0; i < 10; ++i)
+            target = event.target;
+        println(`undispatched target is null: ${target === null}`);
+
+        const element = document.createElement("div");
+        element.addEventListener("test", event => {
+            for (let i = 0; i < 10; ++i)
+                target = event.target;
+        });
+        element.dispatchEvent(event);
+        println(`dispatched target is the element: ${target === element}`);
+
+        let source_element;
+        for (let i = 0; i < 10; ++i)
+            source_element = event.srcElement;
+        println(`srcElement aliases target: ${source_element === element}`);
+
+        const related = document.createElement("span");
+        const mouse_event = new MouseEvent("test", { relatedTarget: related });
+        let related_target;
+        for (let i = 0; i < 10; ++i)
+            related_target = mouse_event.relatedTarget;
+        println(`relatedTarget is read from Event: ${related_target === related}`);
+
+        let window_event;
+        window.addEventListener("test", event => {
+            window_event = event;
+            for (let i = 0; i < 10; ++i)
+                target = event.target;
+        }, { once: true });
+        window.dispatchEvent(new Event("test"));
+        const target_getter = Object.getOwnPropertyDescriptor(Event.prototype, "target").get;
+        println(`window target matches the binding getter: ${target === target_getter.call(window_event)}`);
+
+        const invalid_receiver = Object.create(Event.prototype);
+        let type_errors = 0;
+        for (let i = 0; i < 10; ++i) {
+            try {
+                invalid_receiver.target;
+            } catch (error) {
+                if (error instanceof TypeError)
+                    ++type_errors;
+            }
+        }
+        println(`invalid receivers throw every time: ${type_errors === 10}`);
+    });
+</script>

@@ -55,6 +55,30 @@ def attribute_uses_cached_js_value(attribute: Attribute) -> bool:
     ) or attribute_is_nullable_reflected_frozen_array_of_element(attribute)
 
 
+def validate_direct_getter(context: GenerationContext, interface: Interface, attribute: Attribute) -> None:
+    if "DirectGetter" not in attribute.extended_attributes:
+        return
+
+    description = f"[DirectGetter] attribute '{attribute.name}' on '{interface.name}'"
+    resolved_type = context.resolve_typedef(attribute.type)
+    target_interface = context.interface(resolved_type)
+    if target_interface is None or target_interface.is_callback_interface:
+        raise RuntimeError(f"{description} must have an interface type")
+    if not cpp_type_for_idl_type_details(resolved_type, context).gc_ref_target_type:
+        raise RuntimeError(f"{description} must convert from a GC pointer")
+
+    incompatible_extended_attributes = (
+        "CachedAttribute",
+        "ImplementedInBindings",
+        "LegacyUnforgeable",
+        "Reflect",
+        "ReturnsJSValue",
+    )
+    for extended_attribute in incompatible_extended_attributes:
+        if extended_attribute in attribute.extended_attributes:
+            raise RuntimeError(f"{description} cannot be combined with [{extended_attribute}]")
+
+
 def reflected_attribute_name(attribute: Attribute) -> str:
     return attribute.extended_attributes.get("Reflect") or attribute.name.lower()
 
@@ -194,6 +218,24 @@ def define_the_attributes(
             definition.write(
                 f'    auto {native_getter_name} = host_defined_intrinsics(realm).ensure_web_unforgeable_function("{interface.namespaced_name}"_utf16_fly_string, {cpp_name}_id, {getter_name}, UnforgeableKey::Type::Getter);\n'
             )
+        elif "DirectGetter" in attribute.extended_attributes:
+            direct_getter_field = attribute.extended_attributes.get("DirectGetter") or idl_identifier_cpp_name(
+                attribute
+            )
+            includes.add("LibGC/Weak.h")
+            includes.add("LibJS/Runtime/NativeFunction.h")
+            includes.add("LibWeb/Bindings/PlatformObject.h")
+            includes.add("LibWeb/Bindings/Wrappable.h")
+            implementation_type = fully_qualified_name_for_interface(interface)
+            definition.write(
+                f"""    auto {native_getter_name} = JS::DirectGetterFunction::create(realm, {getter_name}, 0, {cpp_name}_id, {{
+        .wrapper_implementation_offset = PlatformObject::wrapped_implementation_offset(),
+        .implementation_value_offset = {implementation_type}::{direct_getter_field}_offset(),
+        .main_world_wrapper_offset = Wrappable::main_world_wrapper_offset(),
+        .weak_impl_value_offset = GC::WeakImpl::value_offset(),
+    }}, "get"sv);
+"""
+            )
         else:
             definition.write(
                 f'    auto {native_getter_name} = JS::NativeFunction::create(realm, {getter_name}, 0, {cpp_name}_id, &realm, "get"sv);\n'
@@ -271,6 +313,8 @@ def write_attribute_getter(
     attribute: Attribute,
     receiver_class: str | None = None,
 ) -> None:
+    validate_direct_getter(context, interface, attribute)
+
     if receiver_class is None:
         receiver_class = interface.prototype_class
 
