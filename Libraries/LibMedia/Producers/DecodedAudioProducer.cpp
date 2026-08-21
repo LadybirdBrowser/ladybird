@@ -455,7 +455,7 @@ bool DecodedAudioProducer::ThreadData::handle_seek()
             moved_position = true;
         }
 
-        auto new_seek_id = seek_id;
+        auto new_seek_id = m_seek_id.load();
         AudioBlock last_block;
 
         while (new_seek_id == seek_id) {
@@ -483,6 +483,8 @@ bool DecodedAudioProducer::ThreadData::handle_seek()
                     if (block_result.error().category() == DecoderErrorCategory::EndOfStream) {
                         auto locker = take_lock();
                         resolve_seek(seek_id, moved_position);
+                        if (!last_block.is_empty())
+                            queue_block(last_block);
                         return true;
                     }
 
