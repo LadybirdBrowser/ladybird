@@ -97,10 +97,10 @@ NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording
             (void)paintable->ensure_resize_handle();
             break;
         case ChromeWidgetKind::HorizontalScrollbar:
-            (void)paintable->ensure_scrollbar(Paintable::ScrollDirection::Horizontal);
+            (void)paintable->ensure_scrollbar(ScrollDirection::Horizontal);
             break;
         case ChromeWidgetKind::VerticalScrollbar:
-            (void)paintable->ensure_scrollbar(Paintable::ScrollDirection::Vertical);
+            (void)paintable->ensure_scrollbar(ScrollDirection::Vertical);
             break;
         }
         list->m_items.unchecked_append(Item {
@@ -228,9 +228,9 @@ struct HitTestDisplayList::QueryContext {
                 case ChromeWidgetKind::ResizeHandle:
                     return contains(paintable.resize_handle());
                 case ChromeWidgetKind::HorizontalScrollbar:
-                    return contains(paintable.scrollbar(Paintable::ScrollDirection::Horizontal));
+                    return contains(paintable.scrollbar(ScrollDirection::Horizontal));
                 case ChromeWidgetKind::VerticalScrollbar:
-                    return contains(paintable.scrollbar(Paintable::ScrollDirection::Vertical));
+                    return contains(paintable.scrollbar(ScrollDirection::Vertical));
                 }
                 VERIFY_NOT_REACHED();
             },
@@ -370,9 +370,9 @@ RefPtr<ChromeWidget> HitTestDisplayList::chrome_widget_for_item(Item const& item
     case ChromeWidgetKind::ResizeHandle:
         return paintable->resize_handle();
     case ChromeWidgetKind::HorizontalScrollbar:
-        return paintable->scrollbar(Paintable::ScrollDirection::Horizontal);
+        return paintable->scrollbar(ScrollDirection::Horizontal);
     case ChromeWidgetKind::VerticalScrollbar:
-        return paintable->scrollbar(Paintable::ScrollDirection::Vertical);
+        return paintable->scrollbar(ScrollDirection::Vertical);
     }
     VERIFY_NOT_REACHED();
 }

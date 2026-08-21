@@ -17,12 +17,12 @@
 
 namespace Web::Painting {
 
-NonnullRefPtr<Scrollbar> Scrollbar::create(Paintable& paintable_box, Paintable::ScrollDirection direction)
+NonnullRefPtr<Scrollbar> Scrollbar::create(Paintable& paintable_box, ScrollDirection direction)
 {
     return adopt_ref(*new Scrollbar(paintable_box, direction));
 }
 
-Scrollbar::Scrollbar(Paintable& paintable_box, Paintable::ScrollDirection direction)
+Scrollbar::Scrollbar(Paintable& paintable_box, ScrollDirection direction)
     : ChromeWidget(paintable_box)
     , m_direction(direction)
 {
@@ -124,7 +124,7 @@ bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
     if (!scrollbar_data.has_value())
         return false;
 
-    auto orientation = m_direction == Paintable::ScrollDirection::Horizontal ? Orientation::Horizontal : Orientation::Vertical;
+    auto orientation = m_direction == ScrollDirection::Horizontal ? Orientation::Horizontal : Orientation::Vertical;
     auto offset_relative_to_gutter = (position - scrollbar_data->gutter_rect.location()).primary_offset_for_orientation(orientation);
     auto gutter_size = scrollbar_data->gutter_rect.primary_size_for_orientation(orientation);
     auto thumb_size = scrollbar_data->thumb_rect.primary_size_for_orientation(orientation);

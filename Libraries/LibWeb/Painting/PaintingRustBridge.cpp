@@ -681,8 +681,8 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
             facts.dom_node_has_parent = dom_node && dom_node->parent();
             facts.is_editable_or_editing_host = dom_node && dom_node->is_editable_or_editing_host();
             facts.has_resizer = paintable.has_resizer();
-            facts.could_be_scrolled_horizontally = paintable.could_be_scrolled_by_wheel_event(Paintable::ScrollDirection::Horizontal);
-            facts.could_be_scrolled_vertically = paintable.could_be_scrolled_by_wheel_event(Paintable::ScrollDirection::Vertical);
+            facts.could_be_scrolled_horizontally = paintable.could_be_scrolled_by_wheel_event(ScrollDirection::Horizontal);
+            facts.could_be_scrolled_vertically = paintable.could_be_scrolled_by_wheel_event(ScrollDirection::Vertical);
             if (paintable.is_svg_path_paintable()) {
                 auto const& graphics_element = as<SVG::SVGGraphicsElement>(*paintable.dom_node());
                 facts.svg_path_has_fill = graphics_element.fill_color().has_value();
@@ -796,7 +796,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 auto scrollbar_colors = scrollbar_colors_for_paint(paintable);
                 auto const& metrics = paintable.document().page().chrome_metrics();
                 size_t index = 0;
-                for (auto direction : { Paintable::ScrollDirection::Vertical, Paintable::ScrollDirection::Horizontal }) {
+                for (auto direction : { ScrollDirection::Vertical, ScrollDirection::Horizontal }) {
                     auto& out = facts.viewport_scrollbars[index++];
                     auto scrollbar_data = paintable.compute_scrollbar_data(direction, metrics, nullptr, Paintable::ScrollbarSizing::Regular);
                     if (!scrollbar_data.has_value())
@@ -828,7 +828,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 facts.thumb_color = scrollbar_colors.thumb_color.value();
                 facts.track_color = scrollbar_colors.track_color.value();
                 size_t index = 0;
-                for (auto direction : { Paintable::ScrollDirection::Vertical, Paintable::ScrollDirection::Horizontal }) {
+                for (auto direction : { ScrollDirection::Vertical, ScrollDirection::Horizontal }) {
                     auto& out = facts.scrollbars[index++];
                     auto scrollbar_data = paintable.compute_scrollbar_data(direction, metrics);
                     if (!scrollbar_data.has_value())
