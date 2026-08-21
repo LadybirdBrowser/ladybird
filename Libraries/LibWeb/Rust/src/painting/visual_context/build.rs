@@ -105,7 +105,8 @@ impl BoxFacts {
             establishes_or_extends_3d_rendering_context: false,
             may_have_clip: false,
             default_scroll_shift_anchor: if may_have_default_scroll_shift_anchor {
-                callbacks.default_scroll_shift_anchor(paintables.data_ref(slot).shell)
+                let node = paintables.data_ref(slot).layout_node;
+                callbacks.default_scroll_shift_anchor(layout_arena.shell_if_live(node))
             } else {
                 NodeSlotId::INVALID
             },
@@ -234,8 +235,10 @@ impl Builder<'_> {
         if !self.may_have_default_scroll_shift_anchor {
             return NodeSlotId::INVALID;
         }
-        self.callbacks
-            .default_scroll_shift_anchor(self.paintables.data_ref(slot).shell)
+        self.callbacks.default_scroll_shift_anchor(
+            self.layout_arena
+                .shell_if_live(self.paintables.data_ref(slot).layout_node),
+        )
     }
 
     fn register_scroll_node(&mut self, node_index: usize, paintable: PaintableSlotId, parent_index: usize) {

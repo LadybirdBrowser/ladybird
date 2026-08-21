@@ -324,7 +324,7 @@ impl PaintRecorder<'_> {
         if !self.inputs.is_recording_async_scrolling_metadata {
             return;
         }
-        let facts = self.paint_host.async_scroll_facts(self.shell(paintable));
+        let facts = self.paint_host.async_scroll_facts(self.layout_node_shell(paintable));
 
         self.record_wheel_hit_test_target(paintable);
         self.record_blocking_wheel_event_region(paintable, &facts);

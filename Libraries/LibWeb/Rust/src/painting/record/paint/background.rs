@@ -348,7 +348,7 @@ fn paint_image_layer(
     applied_blend_layer: &mut bool,
 ) {
     let converter = recorder.converter;
-    let shell = recorder.shell(paintable);
+    let shell = recorder.layout_node_shell(paintable);
     let image = layer.image.expect("an imageless layer never reaches the image paint");
     let mut image_rect = layer.image_rect;
     let mut background_positioning_area = layer.background_positioning_area;

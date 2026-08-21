@@ -215,21 +215,22 @@ struct HitTestDisplayList::QueryContext {
                 out[1] = local_point->y();
                 return true;
             },
-            .chrome_widget_contains = [](void* context_pointer, void* paintable_shell, u8 kind, i32 x_raw, i32 y_raw) -> bool {
+            .chrome_widget_contains = [](void* context_pointer, void* layout_node_shell, u8 kind, i32 x_raw, i32 y_raw) -> bool {
                 auto& context = *static_cast<QueryContext*>(context_pointer);
                 VERIFY(context.chrome_metrics);
-                auto const& paintable = *static_cast<Paintable const*>(paintable_shell);
+                auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
+                auto paintable_slot = committed_row_slot(layout_node);
                 CSSPixelPoint local_point { CSSPixels::from_raw(x_raw), CSSPixels::from_raw(y_raw) };
                 auto contains = [&](auto widget) { return widget && widget->contains(local_point, *context.chrome_metrics); };
                 switch (static_cast<ChromeWidgetKind>(kind)) {
                 case ChromeWidgetKind::None:
                     return false;
                 case ChromeWidgetKind::ResizeHandle:
-                    return contains(context.list.m_chrome_widget_registry->resize_handle(paintable.rust_slot()));
+                    return contains(context.list.m_chrome_widget_registry->resize_handle(paintable_slot));
                 case ChromeWidgetKind::HorizontalScrollbar:
-                    return contains(context.list.m_chrome_widget_registry->scrollbar(paintable.rust_slot(), ScrollDirection::Horizontal));
+                    return contains(context.list.m_chrome_widget_registry->scrollbar(paintable_slot, ScrollDirection::Horizontal));
                 case ChromeWidgetKind::VerticalScrollbar:
-                    return contains(context.list.m_chrome_widget_registry->scrollbar(paintable.rust_slot(), ScrollDirection::Vertical));
+                    return contains(context.list.m_chrome_widget_registry->scrollbar(paintable_slot, ScrollDirection::Vertical));
                 }
                 VERIFY_NOT_REACHED();
             },

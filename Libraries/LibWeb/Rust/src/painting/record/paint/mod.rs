@@ -196,7 +196,10 @@ pub(crate) fn paint_backdrop_filter(
         &border_radii,
         libgfx_rust::CornerClip::Outside,
     );
-    if let Some(filter_bytes) = recorder.paint_host.backdrop_filter_bytes(recorder.shell(paintable)) {
+    if let Some(filter_bytes) = recorder
+        .paint_host
+        .backdrop_filter_bytes(recorder.layout_node_shell(paintable))
+    {
         let corner_radii = border_radii.as_corners(&recorder.converter);
         recorder
             .recorder

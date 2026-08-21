@@ -42,6 +42,9 @@ WEB_API Optional<CSSPixelRect> scrollable_overflow_rect(Layout::Node const&);
 WEB_API bool has_scrollable_overflow(Layout::Node const&);
 WEB_API Optional<OverflowData> overflow_data(Layout::Node const&);
 WEB_API Optional<CachedOverflowData> cached_overflow_data(Layout::Node const&);
+WEB_API Optional<CSSPixelRect> mask_area(Layout::Node const&);
+WEB_API Optional<Gfx::MaskKind> mask_type(Layout::Node const&);
+WEB_API Optional<CSSPixelRect> clip_area(Layout::Node const&);
 
 WEB_API bool is_visible(Layout::Node const&);
 WEB_API bool visible_for_hit_testing(Layout::Node const&);

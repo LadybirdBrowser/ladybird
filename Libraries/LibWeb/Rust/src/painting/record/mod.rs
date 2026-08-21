@@ -110,8 +110,8 @@ impl<'a> PaintRecorder<'a> {
         self.paintables.data_ref(paintable)
     }
 
-    pub(crate) fn shell(&self, paintable: PaintableSlotId) -> *mut std::ffi::c_void {
-        self.data(paintable).shell
+    pub(crate) fn layout_node_shell(&self, paintable: PaintableSlotId) -> *mut std::ffi::c_void {
+        self.layout_arena.shell_if_live(self.data(paintable).layout_node)
     }
 
     pub(crate) fn hit_test_facts(&mut self, paintable: PaintableSlotId) -> FfiHitTestPaintableFacts {
@@ -125,7 +125,7 @@ impl<'a> PaintRecorder<'a> {
         {
             return facts;
         }
-        let facts = self.host.paintable_facts(self.shell(paintable));
+        let facts = self.host.paintable_facts(self.layout_node_shell(paintable));
         self.paintable_facts_cache[index] = Some((paintable, facts));
         facts
     }

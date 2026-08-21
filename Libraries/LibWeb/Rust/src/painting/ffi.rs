@@ -678,7 +678,12 @@ pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
         };
         {
             let paintables = arena.paintables().borrow();
-            crate::painting::visual_context::refresh::refresh_scroll_state(&paintables, &callbacks, &mut scroll_state);
+            crate::painting::visual_context::refresh::refresh_scroll_state(
+                arena,
+                &paintables,
+                &callbacks,
+                &mut scroll_state,
+            );
         }
         let snapshot = scroll_state.snapshot(callbacks.tree_inputs().device_pixels_per_css_pixel);
         let mut paintables = arena.paintables().borrow_mut();
@@ -1954,8 +1959,8 @@ pub unsafe extern "C" fn layout_arena_stacking_context_tree_node(
             .expect("no stacking context tree")
             .nodes[index];
         crate::painting::host::FfiStackingContextNodeExport {
-            paintable_shell: if paintables.is_live(node.paintable) {
-                paintables.data_ref(node.paintable).shell
+            layout_node_shell: if paintables.is_live(node.paintable) {
+                arena.shell_if_live(paintables.data_ref(node.paintable).layout_node)
             } else {
                 std::ptr::null_mut()
             },
@@ -2366,8 +2371,9 @@ pub unsafe extern "C" fn layout_arena_hit_test_find_topmost_item(
     y_raw: i32,
 ) -> crate::painting::host::FfiTopmostItem {
     abort_on_panic(|| {
+        let layout_arena = unsafe { arena_from_handle(arena) };
         with_hit_test_list(arena, Default::default(), |list, paintables| {
-            ffi_topmost(list.find_topmost_item(paintables, &callbacks, css_point(x_raw, y_raw)))
+            ffi_topmost(list.find_topmost_item(layout_arena, paintables, &callbacks, css_point(x_raw, y_raw)))
         })
     })
 }
@@ -2383,9 +2389,10 @@ pub unsafe extern "C" fn layout_arena_hit_test_find_topmost_items_for_caret(
     y_raw: i32,
 ) -> crate::painting::host::FfiTopmostItemsForCaret {
     abort_on_panic(|| {
+        let layout_arena = unsafe { arena_from_handle(arena) };
         with_hit_test_list(arena, Default::default(), |list, paintables| {
             let (caret_item, hit_item) =
-                list.find_topmost_items_for_caret(paintables, &callbacks, css_point(x_raw, y_raw));
+                list.find_topmost_items_for_caret(layout_arena, paintables, &callbacks, css_point(x_raw, y_raw));
             crate::painting::host::FfiTopmostItemsForCaret {
                 caret_item: ffi_topmost(caret_item),
                 hit_item: ffi_topmost(hit_item),
@@ -2407,8 +2414,9 @@ pub unsafe extern "C" fn layout_arena_hit_test_all(
     push: unsafe extern "C" fn(*mut c_void, usize),
 ) {
     abort_on_panic(|| {
+        let layout_arena = unsafe { arena_from_handle(arena) };
         let indices = with_hit_test_list(arena, Vec::new(), |list, paintables| {
-            list.hit_test_all(paintables, &callbacks, css_point(x_raw, y_raw))
+            list.hit_test_all(layout_arena, paintables, &callbacks, css_point(x_raw, y_raw))
         });
         for index in indices {
             // SAFETY: The C++ sink consumes the index synchronously.

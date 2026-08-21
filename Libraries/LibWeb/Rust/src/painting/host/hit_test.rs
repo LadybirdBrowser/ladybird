@@ -49,18 +49,18 @@ pub struct FfiHitTestHostCallbacks {
 }
 
 impl FfiHitTestHostCallbacks {
-    pub(crate) fn paintable_facts(&self, paintable_shell: *mut c_void) -> FfiHitTestPaintableFacts {
-        // SAFETY: The C++ host answers synchronously from a live paintable shell.
-        unsafe { (self.paintable_facts)(self.context, paintable_shell) }
+    pub(crate) fn paintable_facts(&self, layout_node_shell: *mut c_void) -> FfiHitTestPaintableFacts {
+        // SAFETY: The C++ host answers synchronously from a live layout node shell.
+        unsafe { (self.paintable_facts)(self.context, layout_node_shell) }
     }
     pub(crate) fn text_node_facts(&self, node_shell: *mut c_void) -> FfiHitTestTextNodeFacts {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
         unsafe { (self.text_node_facts)(self.context, node_shell) }
     }
-    pub(crate) fn line_break_caret_targets(&self, paintable_shell: *mut c_void) -> Vec<FfiLineBreakCaretTarget> {
+    pub(crate) fn line_break_caret_targets(&self, layout_node_shell: *mut c_void) -> Vec<FfiLineBreakCaretTarget> {
         let mut targets: Vec<FfiLineBreakCaretTarget> = Vec::new();
         // SAFETY: The C++ host pushes into the Vec through the exported sink function, synchronously.
-        unsafe { (self.line_break_caret_targets)(self.context, paintable_shell, (&raw mut targets).cast()) };
+        unsafe { (self.line_break_caret_targets)(self.context, layout_node_shell, (&raw mut targets).cast()) };
         targets
     }
 }
@@ -93,15 +93,15 @@ impl FfiHitTestQueryCallbacks {
     }
     pub(crate) fn chrome_widget_contains(
         &self,
-        paintable_shell: *mut c_void,
+        layout_node_shell: *mut c_void,
         kind: u8,
         local_point: crate::css::css_pixels::CssPixelPoint,
     ) -> bool {
-        // SAFETY: The C++ host answers synchronously from a live paintable shell.
+        // SAFETY: The C++ host answers synchronously from a live layout node shell.
         unsafe {
             (self.chrome_widget_contains)(
                 self.context,
-                paintable_shell,
+                layout_node_shell,
                 kind,
                 local_point.x.raw_value(),
                 local_point.y.raw_value(),

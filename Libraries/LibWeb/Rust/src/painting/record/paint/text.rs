@@ -476,8 +476,10 @@ fn paint_text_fragment(
 // Paints the caret when it sits in a fragment owned by `owner`; the block itself
 // (owner == None) also handles blank lines and empty editable elements.
 pub(crate) fn paint_cursor(recorder: &mut PaintRecorder<'_>, block: PaintableSlotId, owner: Option<PaintableSlotId>) {
-    let owner_shell = owner.map_or(std::ptr::null_mut(), |owner| recorder.shell(owner));
-    let facts = recorder.paint_host.cursor_facts(recorder.shell(block), owner_shell);
+    let owner_shell = owner.map_or(std::ptr::null_mut(), |owner| recorder.layout_node_shell(owner));
+    let facts = recorder
+        .paint_host
+        .cursor_facts(recorder.layout_node_shell(block), owner_shell);
     if !facts.paints {
         return;
     }

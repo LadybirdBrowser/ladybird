@@ -484,10 +484,11 @@ fn image_intrinsic_facts<'a>(
             selected_image_value: None,
         },
         _ => {
-            let facts =
-                recorder
-                    .paint_host
-                    .image_intrinsic_facts(recorder.shell(paintable), image.list, image.computed_index);
+            let facts = recorder.paint_host.image_intrinsic_facts(
+                recorder.layout_node_shell(paintable),
+                image.list,
+                image.computed_index,
+            );
             LayerImageIntrinsics {
                 is_paintable: facts.is_paintable,
                 natural: SizeWithAspectRatio {

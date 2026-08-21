@@ -73,6 +73,7 @@ pub(crate) fn refresh_sticky_constraints(paintables: &PaintableArena, scroll_sta
 }
 
 pub(crate) fn refresh_scroll_state(
+    layout_arena: &crate::layout::LayoutNodeArena,
     paintables: &PaintableArena,
     callbacks: &FfiVisualContextHostCallbacks,
     scroll_state: &mut ScrollState,
@@ -116,8 +117,9 @@ pub(crate) fn refresh_scroll_state(
             containing_block_region.bottom() - sticky_data.border_box_size.height,
         );
 
+        let scroll_ancestor_node = paintables.data_ref(scroll_ancestor).layout_node;
         let scroll_offset: CssPixelPoint = callbacks
-            .scroll_offset(paintables.data_ref(scroll_ancestor).shell)
+            .scroll_offset(layout_arena.shell_if_live(scroll_ancestor_node))
             .into();
         let scrollport_rect = CssPixelRect::from_location_and_size(scroll_offset, sticky_data.scrollport_size);
         let mut sticky_offset = CssPixelPoint::default();
@@ -157,7 +159,8 @@ pub(crate) fn refresh_scroll_state(
         }
         let paintable = state.paintable;
         if paintables.is_live(paintable) {
-            let offset: CssPixelPoint = callbacks.scroll_offset(paintables.data_ref(paintable).shell).into();
+            let node = paintables.data_ref(paintable).layout_node;
+            let offset: CssPixelPoint = callbacks.scroll_offset(layout_arena.shell_if_live(node)).into();
             scroll_state.state_at_slot_mut(slot).own_offset = CssPixelPoint::new(-offset.x, -offset.y);
         }
     }

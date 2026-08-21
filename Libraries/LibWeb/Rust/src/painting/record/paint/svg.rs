@@ -57,7 +57,9 @@ fn svg_paint_color(paint: &crate::css::computed_value_types::ComputedSvgPaint) -
 
 fn svg_paint_facts(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlotId) -> (SvgPaintFacts, Vec<f32>) {
     use crate::css::css_enums::{fill_rule, overflow, stroke_linecap, stroke_linejoin, vector_effect};
-    let host = recorder.paint_host.svg_host_facts(recorder.shell(paintable));
+    let host = recorder
+        .paint_host
+        .svg_host_facts(recorder.layout_node_shell(paintable));
     let mut facts = SvgPaintFacts {
         has_viewport: host.has_viewport,
         viewport: host.viewport,
@@ -245,9 +247,10 @@ pub(crate) fn record_pattern_paint_styles(recorder: &mut PaintRecorder<'_>, pain
         content_scale: [content_scale.width, content_scale.height],
     };
     for is_stroke in [false, true] {
-        let (style, _stops) = recorder
-            .paint_host
-            .svg_paint_style(recorder.shell(paintable), is_stroke, &paint_context);
+        let (style, _stops) =
+            recorder
+                .paint_host
+                .svg_paint_style(recorder.layout_node_shell(paintable), is_stroke, &paint_context);
         if style.kind != FfiSvgPaintStyleKind::Pattern {
             continue;
         }
@@ -355,7 +358,7 @@ pub(crate) fn paint_path(recorder: &mut PaintRecorder<'_>, paintable: PaintableS
                 let (style, stops) =
                     recorder
                         .paint_host
-                        .svg_paint_style(recorder.shell(paintable), false, &paint_context);
+                        .svg_paint_style(recorder.layout_node_shell(paintable), false, &paint_context);
                 if let Some(paint_style) = paint_style_from_ffi(recorder, &style, &stops) {
                     recorder.recorder.fill_path(FillPathParams {
                         path: &path,
@@ -394,7 +397,7 @@ pub(crate) fn paint_path(recorder: &mut PaintRecorder<'_>, paintable: PaintableS
                 let (style, stops) =
                     recorder
                         .paint_host
-                        .svg_paint_style(recorder.shell(paintable), true, &paint_context);
+                        .svg_paint_style(recorder.layout_node_shell(paintable), true, &paint_context);
                 if let Some(paint_style) = paint_style_from_ffi(recorder, &style, &stops) {
                     recorder.recorder.stroke_path(StrokePathParams {
                         cap_style: facts.cap_style,
@@ -494,7 +497,7 @@ pub(crate) fn paint_image_element(recorder: &mut PaintRecorder<'_>, paintable: P
 
     let accumulated_scale = recorder.accumulated_2d_scale_at(recorder.recorder.accumulated_visual_context().0);
     let paint = recorder.paint_host.replaced_image_paint(
-        recorder.shell(paintable),
+        recorder.layout_node_shell(paintable),
         [draw_rect.x, draw_rect.y, draw_rect.width, draw_rect.height],
         accumulated_scale,
     );

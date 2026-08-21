@@ -98,7 +98,7 @@ fn paint_box_model_highlight(recorder: &mut PaintRecorder<'_>, paintable: Painta
 
     let (facts, glyphs) = recorder
         .paint_host
-        .overlay_label(recorder.shell(paintable), &[], 0, 12.0);
+        .overlay_label(recorder.layout_node_shell(paintable), &[], 0, 12.0);
     let mut size_text_rect = border_rect;
     size_text_rect.y = border_rect.y + border_rect.height;
     size_text_rect.width = CssPixels::nearest_value_for_f32(facts.css_width) + CssPixels::from_integer(4);
