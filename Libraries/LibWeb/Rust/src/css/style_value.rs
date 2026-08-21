@@ -338,6 +338,10 @@ impl RetainedString {
         Self::from_bytes(string.into_bytes())
     }
 
+    pub(crate) fn from_utf16(string: &[u16]) -> Option<Self> {
+        String::from_utf16(string).ok().map(Self::from_utf8)
+    }
+
     pub(crate) fn as_bytes(&self) -> &[u8] {
         if self.bytes.is_null() {
             return &[];
@@ -477,6 +481,22 @@ pub struct RetainedRequestUrlModifier {
 }
 
 impl RetainedRequestUrlModifier {
+    pub(crate) fn from_enum(modifier_type: u8, enum_value: u8) -> Self {
+        Self {
+            modifier_type,
+            enum_value,
+            string_value: RetainedUtf16FlyString::none(),
+        }
+    }
+
+    pub(crate) fn from_string(modifier_type: u8, string_value: RetainedUtf16FlyString) -> Self {
+        Self {
+            modifier_type,
+            enum_value: 0,
+            string_value,
+        }
+    }
+
     pub(crate) fn modifier_type(&self) -> u8 {
         self.modifier_type
     }
@@ -498,6 +518,13 @@ pub struct RetainedRequestUrlModifierList {
 }
 
 impl RetainedRequestUrlModifierList {
+    pub(crate) fn from_retained_modifiers(modifiers: Vec<RetainedRequestUrlModifier>) -> Self {
+        let slice = modifiers.into_boxed_slice();
+        let length = slice.len();
+        let pointer = Box::into_raw(slice) as *mut RetainedRequestUrlModifier;
+        Self { pointer, length }
+    }
+
     /// Takes ownership of each modifier's leaked string reference. C++ leaves
     /// the Rust storage pointer empty in this input array.
     unsafe fn from_raw(elements: *const RetainedRequestUrlModifier, length: usize) -> Self {
