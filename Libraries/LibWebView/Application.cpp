@@ -1295,8 +1295,13 @@ ErrorOr<void> Application::launch_services()
 #endif
     TRY(launch_compositor_process());
 
-    if (m_browser_options.devtools_port.has_value())
-        TRY(launch_devtools_server());
+    if (m_browser_options.devtools_port.has_value()) {
+        // Defer launching devtools until the entire application is initialized.
+        Core::deferred_invoke([this]() {
+            if (auto result = launch_devtools_server(); result.is_error())
+                warnln("Unable to launch devtools server: {}", result.error());
+        });
+    }
 
     return {};
 }
