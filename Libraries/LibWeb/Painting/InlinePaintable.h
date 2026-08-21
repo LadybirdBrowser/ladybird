@@ -28,8 +28,6 @@ public:
 
     bool has_content() const;
 
-    virtual void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes) override;
-
 private:
     explicit InlinePaintable(Layout::NodeWithStyle const&);
 
