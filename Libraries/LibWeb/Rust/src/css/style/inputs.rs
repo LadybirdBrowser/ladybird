@@ -46,6 +46,8 @@ impl StyleEngine {
             tree,
             program: StyleSheetProgram::new(),
             journal: NormalizationJournal::new(),
+            deferred_element_style_inputs: Vec::new(),
+            deferred_element_style_input_memory: MemoryLease::new(MemoryCategory::NormalizationJournal),
             initial_tree_batch_applied: false,
             initial_tree_bulk_load_is_pending: false,
             tree_staging: TreeRelationStaging::default(),
