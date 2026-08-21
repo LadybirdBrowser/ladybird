@@ -92,7 +92,7 @@ void MiddleButtonScrollHandler::perform_tick()
     auto scroll_y = m_fractional_delta.y().to_int();
     m_fractional_delta -= CSSPixelPoint { scroll_x, scroll_y };
 
-    paintable_box->scroll_by(scroll_x, scroll_y);
+    Painting::scroll_by(paintable_box->layout_node(), scroll_x, scroll_y);
 }
 
 }

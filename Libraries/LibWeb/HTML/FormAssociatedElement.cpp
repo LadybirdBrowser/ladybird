@@ -1326,7 +1326,7 @@ void FormAssociatedTextControlElement::scroll_cursor_into_view()
     auto scroll_block_direction = is<HTMLInputElement>(element)
         ? Painting::ScrollBlockDirection::No
         : Painting::ScrollBlockDirection::Yes;
-    Painting::Paintable::scroll_text_offset_into_view(*text_node, m_selection_end, m_selection_end_affinity, scroll_block_direction);
+    Painting::scroll_text_offset_into_view(*text_node, m_selection_end, m_selection_end_affinity, scroll_block_direction);
 }
 
 void FormAssociatedTextControlElement::selection_was_changed(SelectionSource source)
