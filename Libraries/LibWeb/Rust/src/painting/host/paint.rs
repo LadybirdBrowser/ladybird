@@ -375,6 +375,13 @@ pub struct FfiStackingContextNodeExport {
 
 #[derive(Clone, Copy)]
 #[repr(C)]
+pub struct FfiPaintTreeDumpEntry {
+    pub layout_node_shell: *mut c_void,
+    pub depth: u32,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
 pub struct FfiPaintHostCallbacks {
     pub context: *mut c_void,
     pub async_scroll_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiAsyncScrollFacts,

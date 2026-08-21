@@ -9543,11 +9543,20 @@ Utf16String Document::dump_display_list()
         return "No display list"_utf16;
 
     HashMap<size_t, RefPtr<Painting::Paintable const>> context_id_to_paintable;
-    viewport_paintable->for_each_in_inclusive_subtree_of_type<Painting::Paintable>([&](auto const& paintable_box) {
-        auto visual_context_index = paintable_box.accumulated_visual_context_index();
-        (void)context_id_to_paintable.try_set(visual_context_index.value(), paintable_box);
-        return TraversalDecision::Continue;
-    });
+    auto entry_count = Layout::RustFFI::layout_arena_paint_tree_dump_entry_count(viewport_paintable->rust_arena().handle(), viewport_paintable->rust_slot());
+    Vector<Layout::RustFFI::FfiPaintTreeDumpEntry> entries;
+    entries.resize(entry_count);
+    Layout::RustFFI::layout_arena_export_paint_tree_dump_entries(viewport_paintable->rust_arena().handle(), viewport_paintable->rust_slot(), entries.data(), entries.size());
+    for (auto const& entry : entries) {
+        if (!entry.layout_node_shell)
+            continue;
+        auto& layout_node = *static_cast<Layout::Node*>(entry.layout_node_shell);
+        auto paintable = layout_node.paintable();
+        if (!paintable)
+            continue;
+        auto visual_context_index = paintable->accumulated_visual_context_index();
+        (void)context_id_to_paintable.try_set(visual_context_index.value(), paintable);
+    }
 
     StringBuilder builder;
     builder.append("AccumulatedVisualContext Tree:\n"sv);
