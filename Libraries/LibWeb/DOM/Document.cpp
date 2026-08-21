@@ -212,7 +212,6 @@
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/ResizeObserver/ResizeObserverEntry.h>
@@ -6891,38 +6890,6 @@ void Document::shared_declarative_refresh_steps(Utf16View input, GC::Ptr<HTML::H
     if (meta_element && m_completely_loaded_time.has_value()) {
         m_active_refresh_timer->start();
     }
-}
-
-RefPtr<Painting::ViewportPaintable const> Document::paintable() const
-{
-    auto paintable = Node::paintable();
-    if (!paintable)
-        return nullptr;
-    return as<Painting::ViewportPaintable>(*paintable);
-}
-
-RefPtr<Painting::ViewportPaintable> Document::paintable()
-{
-    auto paintable = Node::paintable();
-    if (!paintable)
-        return nullptr;
-    return as<Painting::ViewportPaintable>(*paintable);
-}
-
-RefPtr<Painting::ViewportPaintable const> Document::unsafe_paintable() const
-{
-    auto paintable = Node::unsafe_paintable();
-    if (!paintable)
-        return nullptr;
-    return as<Painting::ViewportPaintable>(*paintable);
-}
-
-RefPtr<Painting::ViewportPaintable> Document::unsafe_paintable()
-{
-    auto paintable = Node::unsafe_paintable();
-    if (!paintable)
-        return nullptr;
-    return as<Painting::ViewportPaintable>(*paintable);
 }
 
 Painting::DocumentPaintState& Document::paint_state()
