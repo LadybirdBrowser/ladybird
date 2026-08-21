@@ -58,6 +58,7 @@ class BackingStore;
 class Canvas2DCommandStream;
 struct Canvas2DCommandStreamSegment;
 class ChromeWidget;
+class ChromeWidgetRegistry;
 class CanvasSurfaceRegistry;
 class DisplayList;
 class DisplayListPlayerSkia;

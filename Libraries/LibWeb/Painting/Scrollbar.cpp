@@ -17,23 +17,23 @@
 
 namespace Web::Painting {
 
-NonnullRefPtr<Scrollbar> Scrollbar::create(Paintable& paintable_box, ScrollDirection direction)
+NonnullRefPtr<Scrollbar> Scrollbar::create(Layout::NodeArena& arena, Layout::RustFFI::PaintableSlotId slot, ScrollDirection direction)
 {
-    return adopt_ref(*new Scrollbar(paintable_box, direction));
+    return adopt_ref(*new Scrollbar(arena, slot, direction));
 }
 
-Scrollbar::Scrollbar(Paintable& paintable_box, ScrollDirection direction)
-    : ChromeWidget(paintable_box)
+Scrollbar::Scrollbar(Layout::NodeArena& arena, Layout::RustFFI::PaintableSlotId slot, ScrollDirection direction)
+    : ChromeWidget(arena, slot)
     , m_direction(direction)
 {
 }
 
 bool Scrollbar::contains(CSSPixelPoint position, ChromeMetrics const& metrics) const
 {
-    auto paintable_box = paintable();
-    if (!paintable_box)
+    auto* node = layout_node();
+    if (!node)
         return false;
-    if (auto rect = absolute_scrollbar_rect(paintable_box->layout_node(), m_direction, is_enlarged(), metrics); rect.has_value())
+    if (auto rect = absolute_scrollbar_rect(*node, m_direction, is_enlarged(), metrics); rect.has_value())
         return rect->contains(position);
     return false;
 }
@@ -47,16 +47,16 @@ MouseAction Scrollbar::handle_pointer_event(Utf16FlyString const& type, unsigned
         return MouseAction::None;
     }
 
-    auto paintable_box = paintable();
-    if (!paintable_box) {
+    auto* node = layout_node();
+    if (!node) {
         release_thumb_grab();
         return MouseAction::None;
     }
 
-    auto position = Painting::transform_to_local_coordinates(paintable_box->layout_node(), visual_viewport_position);
+    auto position = Painting::transform_to_local_coordinates(*node, visual_viewport_position);
     if (!scroll_to_mouse_position(position) && !m_thumb_grab_position.has_value())
         return MouseAction::None;
-    Painting::set_needs_repaint(paintable_box->layout_node());
+    Painting::set_needs_repaint(*node);
 
     if (type == UIEvents::EventNames::pointerup) {
         release_thumb_grab();
@@ -69,10 +69,10 @@ MouseAction Scrollbar::handle_pointer_event(Utf16FlyString const& type, unsigned
 MouseAction Scrollbar::mouse_move(CSSPixelPoint position)
 {
     if (m_thumb_grab_position.has_value()) {
-        auto paintable_box = paintable();
-        if (!paintable_box)
+        auto* node = layout_node();
+        if (!node)
             return MouseAction::None;
-        position = Painting::transform_to_local_coordinates(paintable_box->layout_node(), position);
+        position = Painting::transform_to_local_coordinates(*node, position);
         scroll_to_mouse_position(position);
         return MouseAction::SwallowEvent;
     }
@@ -82,8 +82,8 @@ MouseAction Scrollbar::mouse_move(CSSPixelPoint position)
 MouseAction Scrollbar::mouse_up(CSSPixelPoint, unsigned)
 {
     release_thumb_grab();
-    if (auto paintable_box = paintable())
-        Painting::set_needs_repaint(paintable_box->layout_node());
+    if (auto* node = layout_node())
+        Painting::set_needs_repaint(*node);
     return MouseAction::None;
 }
 
@@ -98,8 +98,8 @@ void Scrollbar::mouse_enter()
     if (m_hovered)
         return;
     m_hovered = true;
-    if (auto paintable_box = paintable())
-        Painting::set_needs_repaint(paintable_box->layout_node());
+    if (auto* node = layout_node())
+        Painting::set_needs_repaint(*node);
 }
 
 void Scrollbar::mouse_leave()
@@ -107,20 +107,19 @@ void Scrollbar::mouse_leave()
     if (!m_hovered)
         return;
     m_hovered = false;
-    if (auto paintable_box = paintable())
-        Painting::set_needs_repaint(paintable_box->layout_node());
+    if (auto* node = layout_node())
+        Painting::set_needs_repaint(*node);
 }
 
 bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
 {
-    auto paintable_box = paintable();
-    if (!paintable_box)
+    auto* node = layout_node();
+    if (!node)
         return false;
+    ChromeMetrics metrics = node->document().page().chrome_metrics();
 
-    ChromeMetrics metrics = paintable_box->document().page().chrome_metrics();
-
-    auto const& scroll_state = paintable_box->document().paintable()->scroll_state_snapshot();
-    auto scrollbar_data = compute_scrollbar_data(paintable_box->layout_node(), m_direction, metrics, &scroll_state,
+    auto const& scroll_state = node->document().paintable()->scroll_state_snapshot();
+    auto scrollbar_data = compute_scrollbar_data(*node, m_direction, metrics, &scroll_state,
         is_enlarged() ? ScrollbarSizing::Enlarged : ScrollbarSizing::Regular);
     if (!scrollbar_data.has_value())
         return false;
@@ -137,25 +136,25 @@ bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
         m_thumb_grab_position = scrollbar_data->thumb_rect.contains(position)
             ? (position - scrollbar_data->thumb_rect.location()).primary_offset_for_orientation(orientation)
             : max(min(offset_relative_to_gutter, thumb_size / 2), offset_relative_to_gutter - gutter_size + thumb_size);
-        if (auto navigable = paintable_box->document().navigable())
+        if (auto navigable = node->document().navigable())
             m_thumb_grab_gesture_hold = make<HTML::UserScrollGestureHold>(*navigable);
     }
 
     auto constrained_offset = AK::clamp(offset_relative_to_gutter - m_thumb_grab_position.value(), 0, gutter_size - thumb_size);
     auto scroll_position = constrained_offset.to_double() / (gutter_size - thumb_size).to_double();
 
-    auto scrollable_overflow_size = Painting::scrollable_overflow_rect(paintable_box->layout_node())->primary_size_for_orientation(orientation);
-    auto padding_size = Painting::absolute_padding_box_rect(paintable_box->layout_node()).primary_size_for_orientation(orientation);
-    auto minimum_scroll_offset = Painting::minimum_scroll_offset(paintable_box->layout_node()).primary_offset_for_orientation(orientation);
+    auto scrollable_overflow_size = Painting::scrollable_overflow_rect(*node)->primary_size_for_orientation(orientation);
+    auto padding_size = Painting::absolute_padding_box_rect(*node).primary_size_for_orientation(orientation);
+    auto minimum_scroll_offset = Painting::minimum_scroll_offset(*node).primary_offset_for_orientation(orientation);
     auto scroll_position_in_pixels = minimum_scroll_offset + CSSPixels::nearest_value_for(scroll_position * (scrollable_overflow_size - padding_size));
 
-    auto new_scroll_offset = Painting::scroll_offset(paintable_box->layout_node());
+    auto new_scroll_offset = Painting::scroll_offset(*node);
     new_scroll_offset.set_primary_offset_for_orientation(orientation, scroll_position_in_pixels);
-    Painting::set_scroll_offset_from_user_input(paintable_box->layout_node(), new_scroll_offset);
+    Painting::set_scroll_offset_from_user_input(*node, new_scroll_offset);
     return true;
 }
 
-void Scrollbar::did_detach_from_paintable()
+void Scrollbar::did_detach()
 {
     m_hovered = false;
     release_thumb_grab();

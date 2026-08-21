@@ -16,6 +16,7 @@ struct CaretPaint {
 };
 
 WEB_API bool has_committed_box(Layout::Node const&);
+WEB_API Layout::Node* layout_node_for_committed_slot(Layout::NodeArena&, Layout::RustFFI::PaintableSlotId);
 
 WEB_API CSSPixelRect absolute_rect(Layout::Node const&);
 WEB_API CSSPixelRect absolute_padding_box_rect(Layout::Node const&);

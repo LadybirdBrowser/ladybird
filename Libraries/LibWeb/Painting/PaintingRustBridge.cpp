@@ -830,7 +830,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 size_t index = 0;
                 for (auto direction : { ScrollDirection::Vertical, ScrollDirection::Horizontal }) {
                     auto& out = facts.scrollbars[index++];
-                    auto scrollbar = paintable.scrollbar(direction);
+                    auto scrollbar = paintable.document().chrome_widget_registry().scrollbar(paintable.rust_slot(), direction);
                     auto scrollbar_data = compute_scrollbar_data(layout_node, direction, metrics, nullptr,
                         scrollbar && scrollbar->is_enlarged() ? ScrollbarSizing::Enlarged : ScrollbarSizing::Regular);
                     if (!scrollbar_data.has_value())

@@ -77,10 +77,10 @@ static bool local_point_is_before_box(Layout::NodeWithStyle const& layout_node, 
         : inline_coordinate <= inline_middle;
 }
 
-NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording(u64 visual_context_tree_version, Layout::NodeArena& arena)
+NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording(u64 visual_context_tree_version, Layout::NodeArena& arena, ChromeWidgetRegistry& chrome_widget_registry)
 {
     auto* arena_handle = arena.handle();
-    auto list = adopt_ref(*new HitTestDisplayList(visual_context_tree_version, arena, Layout::RustFFI::layout_arena_hit_test_list_generation(arena_handle)));
+    auto list = adopt_ref(*new HitTestDisplayList(visual_context_tree_version, arena, chrome_widget_registry, Layout::RustFFI::layout_arena_hit_test_list_generation(arena_handle)));
     auto item_count = Layout::RustFFI::layout_arena_hit_test_item_count(arena_handle);
     list->m_items.ensure_capacity(item_count);
     Vector<Layout::RustFFI::FfiHitTestItemExport> exported_items;
@@ -94,13 +94,13 @@ NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording
         case ChromeWidgetKind::None:
             break;
         case ChromeWidgetKind::ResizeHandle:
-            (void)paintable->ensure_resize_handle();
+            (void)chrome_widget_registry.ensure_resize_handle(arena, exported.paintable);
             break;
         case ChromeWidgetKind::HorizontalScrollbar:
-            (void)paintable->ensure_scrollbar(ScrollDirection::Horizontal);
+            (void)chrome_widget_registry.ensure_scrollbar(arena, exported.paintable, ScrollDirection::Horizontal);
             break;
         case ChromeWidgetKind::VerticalScrollbar:
-            (void)paintable->ensure_scrollbar(ScrollDirection::Vertical);
+            (void)chrome_widget_registry.ensure_scrollbar(arena, exported.paintable, ScrollDirection::Vertical);
             break;
         }
         list->m_items.unchecked_append(Item {
@@ -118,9 +118,10 @@ NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording
     return list;
 }
 
-HitTestDisplayList::HitTestDisplayList(u64 visual_context_tree_version, Layout::NodeArena& arena, u64 rust_generation)
+HitTestDisplayList::HitTestDisplayList(u64 visual_context_tree_version, Layout::NodeArena& arena, ChromeWidgetRegistry& chrome_widget_registry, u64 rust_generation)
     : m_visual_context_tree_version(visual_context_tree_version)
     , m_arena(arena)
+    , m_chrome_widget_registry(chrome_widget_registry)
     , m_rust_generation(rust_generation)
 {
 }
@@ -226,11 +227,11 @@ struct HitTestDisplayList::QueryContext {
                 case ChromeWidgetKind::None:
                     return false;
                 case ChromeWidgetKind::ResizeHandle:
-                    return contains(paintable.resize_handle());
+                    return contains(context.list.m_chrome_widget_registry->resize_handle(paintable.rust_slot()));
                 case ChromeWidgetKind::HorizontalScrollbar:
-                    return contains(paintable.scrollbar(ScrollDirection::Horizontal));
+                    return contains(context.list.m_chrome_widget_registry->scrollbar(paintable.rust_slot(), ScrollDirection::Horizontal));
                 case ChromeWidgetKind::VerticalScrollbar:
-                    return contains(paintable.scrollbar(ScrollDirection::Vertical));
+                    return contains(context.list.m_chrome_widget_registry->scrollbar(paintable.rust_slot(), ScrollDirection::Vertical));
                 }
                 VERIFY_NOT_REACHED();
             },
@@ -361,18 +362,15 @@ RefPtr<Paintable> HitTestDisplayList::paintable_for_item(Item const& item) const
 
 RefPtr<ChromeWidget> HitTestDisplayList::chrome_widget_for_item(Item const& item) const
 {
-    auto paintable = paintable_for_item(item);
-    if (!paintable)
-        return nullptr;
     switch (item.chrome_widget_kind) {
     case ChromeWidgetKind::None:
         return nullptr;
     case ChromeWidgetKind::ResizeHandle:
-        return paintable->resize_handle();
+        return m_chrome_widget_registry->resize_handle(item.box);
     case ChromeWidgetKind::HorizontalScrollbar:
-        return paintable->scrollbar(ScrollDirection::Horizontal);
+        return m_chrome_widget_registry->scrollbar(item.box, ScrollDirection::Horizontal);
     case ChromeWidgetKind::VerticalScrollbar:
-        return paintable->scrollbar(ScrollDirection::Vertical);
+        return m_chrome_widget_registry->scrollbar(item.box, ScrollDirection::Vertical);
     }
     VERIFY_NOT_REACHED();
 }

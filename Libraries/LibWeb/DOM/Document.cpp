@@ -204,6 +204,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
@@ -551,6 +552,7 @@ Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target
     , m_font_computer(GC::Heap::the().allocate<CSS::FontComputer>(*this))
     , m_url(url)
     , m_relevant_global_event_target(relevant_global_event_target)
+    , m_chrome_widget_registry(make_ref_counted<Painting::ChromeWidgetRegistry>())
     , m_fonts(CSS::FontFaceSet::create(relevant_settings_object()))
     , m_temporary_document_for_fragment_parsing(temporary_document_for_fragment_parsing == TemporaryDocumentForFragmentParsing::Yes)
     , m_editing_host_manager(EditingHostManager::create(*this))
@@ -1382,6 +1384,7 @@ void Document::tear_down_layout_tree()
     if (m_layout_root)
         m_layout_root->prepare_subtree_for_detach_from_layout_tree();
     m_hit_test_display_list = nullptr;
+    m_chrome_widget_registry->clear();
     m_layout_root = nullptr;
     m_paintable = nullptr;
     if (m_layout_node_arena)
@@ -9052,7 +9055,7 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
     auto display_list = Painting::record_rust_display_list(viewport_paintable, *placeholder_display_list, resource_storage, cache_mode, config, overlay_inputs);
     if (!display_list)
         return nullptr;
-    m_hit_test_display_list = Painting::HitTestDisplayList::create_from_rust_recording(visual_context_tree.version(), viewport_paintable.rust_arena());
+    m_hit_test_display_list = Painting::HitTestDisplayList::create_from_rust_recording(visual_context_tree.version(), viewport_paintable.rust_arena(), *m_chrome_widget_registry);
 
     if (cache_mode == Painting::PaintCommandCacheMode::ReadWrite) {
         viewport_paintable.set_display_list_used_as_paint_command_cache_source(display_list, resource_storage.collect_referenced_resources(*display_list));
