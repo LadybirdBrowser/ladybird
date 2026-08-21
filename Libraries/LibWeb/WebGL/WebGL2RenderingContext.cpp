@@ -12,7 +12,8 @@
 #include <LibWeb/Bindings/WebGL2RenderingContext.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/Infra/Strings.h>
-#include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Layout/Node.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/WebGL/EventNames.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
 #include <LibWeb/WebGL/WebGLContextEvent.h>
@@ -82,8 +83,8 @@ void WebGL2RenderingContext::did_update_canvas_content()
     //     recorded, it contains the new content generation and damages the canvas. Don't request a display list
     //     recording here: the new content reaches the compositor through the canvas surface registry when the
     //     canvas is presented.
-    if (auto paintable = m_canvas_element->unsafe_paintable())
-        paintable->invalidate_paint_cache();
+    if (auto const* layout_node = m_canvas_element->unsafe_layout_node(); layout_node && Painting::has_committed_box(*layout_node))
+        Painting::invalidate_paint_cache(*layout_node);
     m_canvas_element->set_needs_repaint(InvalidateDisplayList::No);
 }
 

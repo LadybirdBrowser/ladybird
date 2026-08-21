@@ -20,7 +20,7 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/ViewTransition/ViewTransition.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -313,7 +313,9 @@ ErrorOr<void> ViewTransition::capture_the_old_state()
 
         // 3. Let originalRect be snapshot containing block if element is the document element, otherwise, the
         //    element's border box.
-        auto original_rect = element.is_document_element() ? snapshot_containing_block : element.paintable_box()->absolute_border_box_rect();
+        auto const* layout_node = element.layout_node();
+        VERIFY(element.is_document_element() || (layout_node && Painting::has_committed_box(*layout_node)));
+        auto original_rect = element.is_document_element() ? snapshot_containing_block : Painting::absolute_border_box_rect(*layout_node);
 
         // 4. Set capture’s old width to originalRect’s width.
         capture->old_width = original_rect.width();
@@ -892,7 +894,9 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
 
             // 2. Let newRect be the snapshot containing block if capturedElement’s new element is the
             //    document element, otherwise, capturedElement’s border box.
-            auto new_rect = captured_element->new_element->is_document_element() ? captured_element->new_element->navigable()->snapshot_containing_block() : captured_element->new_element->paintable_box()->absolute_border_box_rect();
+            auto const* layout_node = captured_element->new_element->layout_node();
+            VERIFY(captured_element->new_element->is_document_element() || (layout_node && Painting::has_committed_box(*layout_node)));
+            auto new_rect = captured_element->new_element->is_document_element() ? captured_element->new_element->navigable()->snapshot_containing_block() : Painting::absolute_border_box_rect(*layout_node);
 
             // 3. Set width to the current width of newRect.
             width = new_rect.width();

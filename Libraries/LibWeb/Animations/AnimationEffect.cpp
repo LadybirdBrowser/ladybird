@@ -22,6 +22,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Animations {
@@ -980,10 +981,8 @@ AnimationUpdateContext::~AnimationUpdateContext()
         auto* repaint_layout_node = element.pseudo_element().has_value()
             ? target->pseudo_element_unsafe_layout_node(*element.pseudo_element())
             : target->unsafe_layout_node();
-        if (repaint_layout_node) {
-            if (auto paintable = repaint_layout_node->paintable())
-                paintable->repaint_after_style_change(invalidation);
-        }
+        if (repaint_layout_node && Painting::has_committed_box(*repaint_layout_node))
+            Painting::repaint_after_style_change(*repaint_layout_node, invalidation);
         if (invalidation.needs_stacking_context_tree_rebuild())
             element.document().invalidate_stacking_context_tree();
     }

@@ -20,6 +20,7 @@
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TextNode.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/Paintable.h>
 
@@ -790,13 +791,13 @@ Gfx::GlyphRun::TextType text_type_for_code_point(u32 code_point)
 void TextNode::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list) const
 {
     if (auto* containing_block = this->containing_block()) {
-        if (auto paintable_box = const_cast<Box&>(*containing_block).paintable_box())
-            paintable_box->set_needs_repaint(should_invalidate_display_list);
+        if (Painting::has_committed_box(*containing_block))
+            Painting::set_needs_repaint(*containing_block, should_invalidate_display_list);
     }
 
     if (should_invalidate_display_list == InvalidateDisplayList::Yes) {
         if (auto const* self_painting_ancestor = Painting::nearest_self_painting_inline_box(*this))
-            self_painting_ancestor->invalidate_paint_cache();
+            Painting::invalidate_paint_cache(self_painting_ancestor->layout_node());
     }
 }
 

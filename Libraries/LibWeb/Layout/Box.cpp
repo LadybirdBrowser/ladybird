@@ -20,6 +20,7 @@
 #include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 
@@ -307,9 +308,9 @@ RustFFI::FfiReplacedContentFacts Box::build_replaced_content_facts_for_arena() c
 void Box::notify_content_navigable_of_committed_viewport()
 {
     if (auto content_navigable = as<HTML::NavigableContainer>(*dom_node()).content_navigable()) {
-        auto content_size = paintable_box()->content_size();
+        auto content_size = Painting::content_size(*this);
         as<HTML::LocalNavigable>(*content_navigable).set_viewport_size(content_size);
-        document().page().client().page_did_update_child_frame_viewport(content_navigable->id(), paintable_box()->absolute_rect());
+        document().page().client().page_did_update_child_frame_viewport(content_navigable->id(), Painting::absolute_rect(*this));
     }
 }
 

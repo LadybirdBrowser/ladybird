@@ -63,7 +63,7 @@ RefPtr<Paintable> paintable_for_slot(void* arena_handle, Layout::RustFFI::Painta
 
 bool body_background_is_propagated_to_root(Layout::NodeWithStyle const&);
 
-void invalidate_descendant_styles_for_container_query_size_change(Paintable&, CSSPixelSize old_content_size, CSSPixelSize new_content_size);
+void invalidate_descendant_styles_for_container_query_size_change(GC::Ptr<DOM::Node>, CSSPixelSize old_content_size, CSSPixelSize new_content_size);
 
 // Used grid track data captured at layout time as plain values; getComputedStyle
 // reflection mints style values from it on demand.

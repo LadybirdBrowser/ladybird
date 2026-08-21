@@ -20,9 +20,9 @@
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
-#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/WebDriver/ElementReference.h>
 
 namespace Web::WebDriver {
@@ -268,8 +268,8 @@ bool is_element_pointer_interactable(Web::HTML::BrowsingContext const& browsing_
     if (!document)
         return false;
 
-    auto paint_root = document->paintable_box();
-    if (!paint_root)
+    auto const* layout_root = document->layout_node();
+    if (!layout_root || !Painting::has_committed_box(*layout_root))
         return false;
 
     auto viewport = browsing_context.page().top_level_traversable()->viewport_rect();

@@ -85,6 +85,7 @@
 #include <LibWeb/MathML/MathMLElement.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
@@ -2462,15 +2463,16 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<Utf16StringBuilder>& obje
             }
         }
 
-        if (paintable_box()) {
-            MUST(object.add("display"sv, paintable_box()->layout_node().display().to_string()));
+        auto const* layout_node = this->layout_node();
+        if (layout_node && Painting::has_committed_box(*layout_node)) {
+            MUST(object.add("display"sv, Painting::display(*layout_node).to_string()));
             if (paintable_box()->could_be_scrolled_by_wheel_event()) {
                 MUST(object.add("scrollable"sv, true));
             }
-            if (!paintable_box()->is_visible()) {
+            if (!Painting::is_visible(*layout_node)) {
                 MUST(object.add("invisible"sv, true));
             }
-            if (paintable_box()->has_stacking_context()) {
+            if (Painting::has_stacking_context(*layout_node)) {
                 MUST(object.add("stackingContext"sv, true));
             }
         }
@@ -3105,8 +3107,8 @@ void Node::set_needs_repaint(InvalidateDisplayList should_invalidate_display_lis
             text_node->set_needs_repaint(should_invalidate_display_list);
             return;
         }
-        if (auto paintable = layout_node->paintable())
-            paintable->set_needs_repaint(should_invalidate_display_list);
+        if (Painting::has_committed_box(*layout_node))
+            Painting::set_needs_repaint(*layout_node, should_invalidate_display_list);
     }
 }
 

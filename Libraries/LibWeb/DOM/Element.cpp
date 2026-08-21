@@ -1797,14 +1797,15 @@ void Element::set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason reaso
 
 void Element::apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalidationAfterStyleChange const& invalidation)
 {
-    if (invalidation.needs_layout_tree_rebuild() || !unsafe_layout_node())
+    auto* layout_node = unsafe_layout_node();
+    if (invalidation.needs_layout_tree_rebuild() || !layout_node)
         return;
 
     // If we're keeping the layout tree, we can just apply the new style to the existing layout tree.
     VERIFY(has_style());
-    unsafe_layout_node()->apply_style(style_record_identity());
-    if (auto paintable = unsafe_layout_node()->paintable())
-        paintable->repaint_after_style_change(invalidation);
+    layout_node->apply_style(style_record_identity());
+    if (Painting::has_committed_box(*layout_node))
+        Painting::repaint_after_style_change(*layout_node, invalidation);
 
     apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(invalidation);
 }
@@ -1820,8 +1821,8 @@ void Element::apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(CSS
 
         if (auto node_with_style = pseudo_element.unsafe_layout_node()) {
             node_with_style->apply_style(style_record_identity(pseudo_element_type));
-            if (auto paintable = node_with_style->paintable())
-                paintable->repaint_after_style_change(invalidation);
+            if (Painting::has_committed_box(*node_with_style))
+                Painting::repaint_after_style_change(*node_with_style, invalidation);
         }
     });
 }
@@ -3972,7 +3973,9 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, CS
         current_scroll_position = document.navigable()->viewport_scroll_offset() + visual_viewport.offset();
     } else if (auto paintable_box = scrolling_box.paintable_box()) {
         current_scroll_position = paintable_box->scroll_offset();
-        scrolling_box_rect = paintable_box->transform_rect_to_viewport(paintable_box->scroll_snapport_rect(), Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
+        auto const* layout_node = scrolling_box.layout_node();
+        VERIFY(layout_node);
+        scrolling_box_rect = Painting::transform_rect_to_viewport(*layout_node, paintable_box->scroll_snapport_rect(), Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
     } else {
         return {};
     }

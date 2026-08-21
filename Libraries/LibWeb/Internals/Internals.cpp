@@ -83,6 +83,7 @@
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/HitTestResult.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -1227,10 +1228,9 @@ u64 Internals::paint_style_record_identity(DOM::Element& element)
 {
     element.document().update_layout(DOM::UpdateLayoutReason::Debugging);
     auto const* layout_node = element.unsafe_layout_node();
-    if (!layout_node)
+    if (!layout_node || !Painting::has_committed_box(*layout_node))
         return 0;
-    auto paintable = layout_node->paintable();
-    return paintable ? paintable->style_record_identity().value() : 0;
+    return Painting::style_record_identity(*layout_node).value();
 }
 
 u64 Internals::layout_node_identity(DOM::Node& node)
