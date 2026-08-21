@@ -215,15 +215,7 @@ void EventHandler::visit_edges(JS::Cell::Visitor& visitor) const
 
 static GC::Ptr<DOM::Node> dom_node_for_event_dispatch(Painting::Paintable& paintable)
 {
-    if (auto node = paintable.dom_node())
-        return node;
-    auto parent = paintable.parent();
-    while (parent) {
-        if (auto node = parent->dom_node())
-            return node;
-        parent = parent->parent();
-    }
-    return nullptr;
+    return event_dispatch_dom_node_for(paintable);
 }
 
 static CSS::UserSelect user_select_used_value_for_caret_position(Painting::CaretPosition const& caret_position)
