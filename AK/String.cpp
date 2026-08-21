@@ -72,64 +72,6 @@ ErrorOr<String> String::from_utf8(StringView view)
     return result;
 }
 
-ErrorOr<String> String::from_utf16_le_with_replacement_character(ReadonlyBytes bytes)
-{
-    if (bytes.is_empty())
-        return String {};
-
-    auto const* utf16_data = reinterpret_cast<char16_t const*>(bytes.data());
-    auto utf16_length = bytes.size() / 2;
-
-    Vector<char16_t> well_formed_utf16;
-
-    if (!validate_utf16_le(bytes)) {
-        well_formed_utf16.resize(bytes.size());
-
-        simdutf::to_well_formed_utf16le(utf16_data, utf16_length, well_formed_utf16.data());
-        utf16_data = well_formed_utf16.data();
-    }
-
-    auto utf8_length = simdutf::utf8_length_from_utf16le(utf16_data, utf16_length);
-
-    String result;
-    TRY(result.replace_with_new_string(utf8_length, [&](Bytes buffer) -> ErrorOr<void> {
-        [[maybe_unused]] auto result = simdutf::convert_utf16le_to_utf8(utf16_data, utf16_length, reinterpret_cast<char*>(buffer.data()));
-        ASSERT(result == buffer.size());
-        return {};
-    }));
-
-    return result;
-}
-
-ErrorOr<String> String::from_utf16_be_with_replacement_character(ReadonlyBytes bytes)
-{
-    if (bytes.is_empty())
-        return String {};
-
-    auto const* utf16_data = reinterpret_cast<char16_t const*>(bytes.data());
-    auto utf16_length = bytes.size() / 2;
-
-    Vector<char16_t> well_formed_utf16;
-
-    if (!validate_utf16_be(bytes)) {
-        well_formed_utf16.resize(bytes.size());
-
-        simdutf::to_well_formed_utf16be(utf16_data, utf16_length, well_formed_utf16.data());
-        utf16_data = well_formed_utf16.data();
-    }
-
-    auto utf8_length = simdutf::utf8_length_from_utf16be(utf16_data, utf16_length);
-
-    String result;
-    TRY(result.replace_with_new_string(utf8_length, [&](Bytes buffer) -> ErrorOr<void> {
-        [[maybe_unused]] auto result = simdutf::convert_utf16be_to_utf8(utf16_data, utf16_length, reinterpret_cast<char*>(buffer.data()));
-        ASSERT(result == buffer.size());
-        return {};
-    }));
-
-    return result;
-}
-
 ErrorOr<String> String::from_stream(Stream& stream, size_t byte_count)
 {
     String result;

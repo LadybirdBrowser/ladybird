@@ -24,9 +24,6 @@
 
 namespace AK {
 
-[[nodiscard]] bool validate_utf16_le(ReadonlyBytes);
-[[nodiscard]] bool validate_utf16_be(ReadonlyBytes);
-
 namespace Detail {
 
 static constexpr inline auto UTF16_FLAG = NumericLimits<size_t>::digits() - 1;

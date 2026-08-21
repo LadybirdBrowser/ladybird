@@ -14,16 +14,6 @@
 
 namespace AK {
 
-bool validate_utf16_le(ReadonlyBytes bytes)
-{
-    return simdutf::validate_utf16le(reinterpret_cast<char16_t const*>(bytes.data()), bytes.size() / 2);
-}
-
-bool validate_utf16_be(ReadonlyBytes bytes)
-{
-    return simdutf::validate_utf16be(reinterpret_cast<char16_t const*>(bytes.data()), bytes.size() / 2);
-}
-
 ErrorOr<String> Utf16View::to_utf8(AllowLonelySurrogates allow_lonely_surrogates) const
 {
     if (is_empty())
