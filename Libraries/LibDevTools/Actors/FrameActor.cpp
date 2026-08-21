@@ -76,13 +76,18 @@ FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> 
             }));
 
         // FIXME: We should adopt WebContent to inform us when style sheets are available or removed.
-        Core::deferred_invoke([weak_self = make_weak_ptr<FrameActor>(), tab] {
-            if (auto self = weak_self.strong_ref()) {
-                self->devtools().delegate().retrieve_style_sheets(tab->description(),
-                    self->async_handler<FrameActor>({}, [](auto& self, auto style_sheets, auto& response) {
-                        self.style_sheets_available(response, move(style_sheets));
-                    }));
-            }
+        Core::deferred_invoke([weak_self = make_weak_ptr<FrameActor>()] {
+            auto self = weak_self.strong_ref();
+            if (!self)
+                return;
+            auto tab = self->m_tab.strong_ref();
+            if (!tab)
+                return;
+
+            self->devtools().delegate().retrieve_style_sheets(tab->description(),
+                self->async_handler<FrameActor>({}, [](auto& self, auto style_sheets, auto& response) {
+                    self.style_sheets_available(response, move(style_sheets));
+                }));
         });
 
         devtools.delegate().listen_for_network_events(
