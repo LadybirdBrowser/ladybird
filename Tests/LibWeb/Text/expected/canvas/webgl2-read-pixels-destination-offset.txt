@@ -1,0 +1,6 @@
+readPixels error: NO_ERROR
+at offset 0: 0,0,0,0
+at offset 32: 255,0,0,255
+Uint32Array readPixels error: NO_ERROR
+Uint32Array at offset 0: 0,0,0,0
+Uint32Array at offset 8: 255,0,0,255
