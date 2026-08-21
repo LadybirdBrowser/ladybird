@@ -1241,6 +1241,14 @@ unsafe extern "C" {
     fn rust_free_compiled_regex(ptr: *mut c_void);
 }
 
+/// # Safety
+///
+/// `ptr` must identify a compiled regular expression whose ownership has not
+/// been transferred to C++ or released previously.
+pub unsafe fn free_compiled_regex(ptr: *mut c_void) {
+    unsafe { rust_free_compiled_regex(ptr) };
+}
+
 /// Handle to a compiled regex from C++.
 ///
 /// Wrapped in `Arc` in `RegExpLiteralData` so that AST clones (e.g. for
@@ -1444,6 +1452,8 @@ pub enum LocalVarKind {
 pub struct LocalVariable {
     pub name: Utf16String,
     pub kind: LocalVarKind,
+    pub is_mutable: bool,
+    pub scope_range: Option<SourceRange>,
 }
 
 /// Data shared by all scope-bearing nodes (Program, BlockStatement,
@@ -1458,6 +1468,7 @@ pub struct LocalVariable {
 #[derive(Clone, Debug, Default)]
 pub struct ScopeData {
     pub children: Vec<Statement>,
+    pub source_range: Option<SourceRange>,
     pub local_variables: Vec<LocalVariable>,
     pub function_scope_data: Option<Box<FunctionScopeData>>,
     pub hoisted_functions: Vec<usize>,

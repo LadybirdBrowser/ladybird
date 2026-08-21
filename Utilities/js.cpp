@@ -122,6 +122,10 @@ static StringView debugger_pause_reason(JS::Debugger::PauseReason reason)
         return "breakpoint"sv;
     case JS::Debugger::PauseReason::DebuggerStatement:
         return "debugger statement"sv;
+    case JS::Debugger::PauseReason::Exception:
+        return "exception"sv;
+    case JS::Debugger::PauseReason::Step:
+        return "step"sv;
     }
     VERIFY_NOT_REACHED();
 }

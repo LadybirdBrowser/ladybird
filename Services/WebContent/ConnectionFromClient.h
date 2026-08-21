@@ -34,6 +34,7 @@
 #include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWeb/Platform/Timer.h>
 #include <LibWebView/DOMNodeProperties.h>
+#include <LibWebView/Debugger.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Geolocation.h>
 #include <LibWebView/PageInfo.h>
@@ -145,6 +146,18 @@ private:
     virtual void request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier) override;
     virtual void list_devtools_sources(u64 page_id, u64 request_id) override;
     virtual void request_devtools_source(u64 page_id, Web::HTML::ScriptRegistry::Identifier source_id) override;
+    virtual void attach_debugger(u64 page_id) override;
+    virtual void configure_debugger(u64 page_id, WebView::DebuggerConfiguration) override;
+    virtual void detach_debugger(u64 page_id) override;
+    virtual void interrupt_debugger(u64 page_id) override;
+    virtual void resume_debugger(u64 page_id, WebView::DebuggerResumeMode) override;
+    virtual void update_debugger_blackboxing(u64 page_id, Utf16String, Vector<WebView::DebuggerBlackboxRange>, WebView::DebuggerBlackboxingOperation) override;
+    virtual void set_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation, WebView::DebuggerBreakpointOptions) override;
+    virtual void remove_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation) override;
+    virtual void get_debugger_environments(u64 page_id, u64 request_id, u64 frame_id) override;
+    virtual void evaluate_javascript_in_debugger_frame(u64 page_id, u64 request_id, u64 frame_id, Utf16String source_text) override;
+    virtual void get_debugger_object_properties(u64 page_id, u64 request_id, u64 object_id) override;
+    virtual void get_debugger_source_positions(u64 page_id, u64 request_id, Web::HTML::ScriptRegistry::Identifier) override;
     virtual void resolve_dom_node_url(u64 page_id, u64 request_id, Optional<Web::UniqueNodeID> node_id, String url) override;
 
     virtual void set_listen_for_dom_mutations(u64 page_id, bool) override;
@@ -249,6 +262,7 @@ private:
 
     RefPtr<WebView::CompositorConnection> m_compositor_connection;
     NonnullOwnPtr<PageHost> m_page_host;
+    OwnPtr<DevToolsDebugger> m_devtools_debugger;
 
     HashMap<int, Web::FileRequest> m_requested_files {};
     int last_id { 0 };

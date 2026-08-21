@@ -29,6 +29,7 @@
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/DOMNodeProperties.h>
+#include <LibWebView/Debugger.h>
 #include <LibWebView/Forward.h>
 
 namespace DevTools {
@@ -166,6 +167,26 @@ public:
     virtual void retrieve_source(TabDescription const&, Web::HTML::ScriptRegistry::Identifier, OnSourceReceived) const { }
     virtual void listen_for_sources(TabDescription const&, OnSourceAvailable) const { }
     virtual void stop_listening_for_sources(TabDescription const&) const { }
+
+    using OnDebuggerPaused = Function<void(WebView::DebuggerPause)>;
+    using OnDebuggerResumed = Function<void()>;
+    using OnDebuggerBreakpointOperationComplete = Function<void(ErrorOr<void>)>;
+    using OnDebuggerEnvironmentsReceived = Function<void(ErrorOr<Vector<WebView::DebuggerEnvironment>>)>;
+    using OnDebuggerEvaluationComplete = Function<void(ErrorOr<WebView::DebuggerEvaluationResult, String>)>;
+    using OnDebuggerObjectPropertiesReceived = Function<void(ErrorOr<WebView::DebuggerObjectProperties, String>)>;
+    using OnDebuggerSourcePositionsReceived = Function<void(ErrorOr<Vector<WebView::DebuggerSourcePosition>>)>;
+    virtual void attach_debugger(TabDescription const&, OnDebuggerPaused, OnDebuggerResumed) const { }
+    virtual void configure_debugger(TabDescription const&, WebView::DebuggerConfiguration) const { }
+    virtual void detach_debugger(TabDescription const&) const { }
+    virtual void interrupt_debugger(TabDescription const&) const { }
+    virtual void resume_debugger(TabDescription const&, WebView::DebuggerResumeMode) const { }
+    virtual void update_debugger_blackboxing(TabDescription const&, Utf16String, Vector<WebView::DebuggerBlackboxRange>, WebView::DebuggerBlackboxingOperation) const { }
+    virtual void set_debugger_breakpoint(TabDescription const&, WebView::DebuggerBreakpointLocation, WebView::DebuggerBreakpointOptions, OnDebuggerBreakpointOperationComplete) const { }
+    virtual void remove_debugger_breakpoint(TabDescription const&, WebView::DebuggerBreakpointLocation, OnDebuggerBreakpointOperationComplete) const { }
+    virtual void retrieve_debugger_environments(TabDescription const&, u64, OnDebuggerEnvironmentsReceived) const { }
+    virtual void evaluate_javascript_in_debugger_frame(TabDescription const&, u64, String const&, OnDebuggerEvaluationComplete) const { }
+    virtual void retrieve_debugger_object_properties(TabDescription const&, u64, OnDebuggerObjectPropertiesReceived) const { }
+    virtual void retrieve_debugger_source_positions(TabDescription const&, Web::HTML::ScriptRegistry::Identifier, OnDebuggerSourcePositionsReceived) const { }
 
     using OnScriptEvaluationComplete = Function<void(ErrorOr<JsonValue>)>;
     virtual void evaluate_javascript(TabDescription const&, String const&, OnScriptEvaluationComplete) const { }

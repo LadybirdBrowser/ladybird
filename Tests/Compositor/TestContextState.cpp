@@ -13,6 +13,7 @@
 #include <LibIPC/Message.h>
 #include <LibTest/TestCase.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
+#include <LibWebView/PausedDebuggerOverlay.h>
 
 struct TestWebContentClient final : public Compositor::CompositorStateWebContentClient {
     virtual void dispatch_mouse_event_to_web_content(u64, Web::MouseEvent const&) override { }
@@ -101,4 +102,34 @@ TEST_CASE(oversized_backing_stores_are_rejected)
 
     EXPECT(!publication.has_value());
     EXPECT(!manager.is_valid());
+}
+
+TEST_CASE(ui_overlay_uses_the_current_viewport_size)
+{
+    TestWebContentClient client;
+    Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { 0, client, canvas_surface_registry, false };
+
+    context.viewport_size_updated({ 640, 480 }, Web::Compositor::WindowResizingInProgress::No);
+    context.did_submit_prepared_frame({ 12, 18, 640, 480 });
+
+    context.viewport_size_updated({ 800, 600 }, Web::Compositor::WindowResizingInProgress::Yes);
+    EXPECT_EQ(context.viewport_rect_for_ui_overlay(), (Gfx::IntRect { 12, 18, 800, 600 }));
+
+    context.queue_present_frame({ { 30, 40, 800, 600 }, { 0, 0, 800, 600 } });
+    context.viewport_size_updated({ 1024, 768 }, Web::Compositor::WindowResizingInProgress::Yes);
+    EXPECT_EQ(context.viewport_rect_for_ui_overlay(), (Gfx::IntRect { 30, 40, 1024, 768 }));
+}
+
+TEST_CASE(ui_overlay_hover_changes_require_repainting)
+{
+    TestWebContentClient client;
+    Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { 0, client, canvas_surface_registry, false };
+
+    EXPECT(context.set_paused_debugger_overlay(true, 1.0, {}, {}));
+    EXPECT(!context.set_paused_debugger_overlay(true, 1.0, {}, {}));
+    EXPECT(context.set_paused_debugger_overlay(true, 1.0, {}, WebView::PausedDebuggerOverlayAction::StepOver));
+    EXPECT(!context.set_paused_debugger_overlay(true, 1.0, {}, WebView::PausedDebuggerOverlayAction::StepOver));
+    EXPECT(context.set_paused_debugger_overlay(true, 1.0, {}, {}));
 }

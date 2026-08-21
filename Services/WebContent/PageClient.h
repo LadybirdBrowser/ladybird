@@ -121,7 +121,10 @@ public:
 
     Vector<Web::CSS::StyleSheetIdentifier> list_style_sheets() const;
     Vector<Web::HTML::ScriptRegistry::Description> list_devtools_sources() const;
+    Optional<Web::HTML::ScriptRegistry::Description> devtools_source_description(JS::SourceCode const&) const;
+    Optional<NonnullRefPtr<JS::SourceCode const>> devtools_source_code(Web::HTML::ScriptRegistry::Identifier const&) const;
     Optional<Web::HTML::ScriptRegistry::Content> devtools_source_content(Web::HTML::ScriptRegistry::Identifier const&) const;
+    Vector<WebView::DebuggerSourcePosition> devtools_source_breakpoint_positions(Web::HTML::ScriptRegistry::Identifier const&) const;
 
     virtual double zoom_level() const override { return m_zoom_level; }
     virtual double device_pixel_ratio() const override { return m_device_pixel_ratio; }

@@ -36,8 +36,10 @@ void InspectorActor::handle_message(Message const& message)
     JsonObject response;
 
     if (message.type == "getPageStyle"sv) {
-        if (!m_page_style)
+        if (!m_page_style) {
             m_page_style = devtools().register_actor<PageStyleActor>(*this);
+            add_child_actor(*m_page_style);
+        }
 
         response.set("pageStyle"sv, m_page_style->serialize_style());
         send_response(message, move(response));
@@ -50,6 +52,7 @@ void InspectorActor::handle_message(Message const& message)
             return;
 
         auto& highlighter = devtools().register_actor<HighlighterActor>(*this, *type_name);
+        add_child_actor(highlighter);
 
         response.set("highlighter"sv, highlighter.serialize_highlighter());
         send_response(message, move(response));
@@ -113,6 +116,7 @@ void InspectorActor::handle_message(Message const& message)
 void InspectorActor::received_dom_tree(JsonObject& response, JsonObject dom_tree)
 {
     auto& walker_actor = devtools().register_actor<WalkerActor>(m_tab, move(dom_tree));
+    add_child_actor(walker_actor);
     m_walker = walker_actor;
 
     JsonObject walker;

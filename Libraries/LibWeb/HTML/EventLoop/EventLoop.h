@@ -23,7 +23,7 @@ class WEB_API EventLoop : public JS::Cell {
     GC_CELL(EventLoop, JS::Cell);
     GC_DECLARE_ALLOCATOR(EventLoop);
 
-    struct PauseHandle {
+    struct WEB_API PauseHandle {
         PauseHandle(EventLoop&, JS::Object const& global, HighResolutionTime::DOMHighResTimeStamp);
         ~PauseHandle();
 
@@ -95,7 +95,7 @@ public:
 
     [[nodiscard]] PauseHandle pause();
     void unpause(Badge<PauseHandle>, JS::Object const& global, HighResolutionTime::DOMHighResTimeStamp);
-    bool execution_paused() const { return m_execution_paused; }
+    bool execution_paused() const { return m_execution_pause_depth > 0; }
 
     bool running_rendering_task() const { return m_running_rendering_task; }
 
@@ -143,7 +143,7 @@ private:
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#termination-nesting-level
     size_t m_termination_nesting_level { 0 };
 
-    bool m_execution_paused { false };
+    size_t m_execution_pause_depth { 0 };
 
     bool m_running_rendering_task { false };
 

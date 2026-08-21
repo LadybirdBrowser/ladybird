@@ -284,18 +284,18 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::from_ru
 }
 
 // 16.2.1.7.1 ParseModule ( sourceText, realm, hostDefined ), https://tc39.es/ecma262/#sec-parsemodule
-Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(Utf16View source_text, Realm& realm, StringView filename, Utf16View display_filename, Script::HostDefined* host_defined)
+Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(Utf16View source_text, Realm& realm, StringView filename, Utf16View display_filename, Script::HostDefined* host_defined, size_t line_number_offset)
 {
     auto fallback_display_filename = display_filename.is_empty() ? Utf16String::from_utf8(filename) : Utf16String {};
     if (display_filename.is_empty())
         display_filename = fallback_display_filename.utf16_view();
 
-    return from_rust_result(RustIntegration::compile_module(source_text, realm, display_filename), realm, filename, host_defined);
+    return from_rust_result(RustIntegration::compile_module(source_text, realm, display_filename, line_number_offset), realm, filename, host_defined);
 }
 
-Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, Script::HostDefined* host_defined)
+Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, Script::HostDefined* host_defined, size_t line_number_offset)
 {
-    return from_rust_result(RustIntegration::compile_module(move(source_code), realm), realm, filename, host_defined);
+    return from_rust_result(RustIntegration::compile_module(move(source_code), realm, line_number_offset), realm, filename, host_defined);
 }
 
 void SourceTextModule::verify_executable_backing_invariants()

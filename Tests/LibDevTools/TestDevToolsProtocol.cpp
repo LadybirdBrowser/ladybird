@@ -1173,6 +1173,162 @@ public:
         on_source_available = nullptr;
     }
 
+    virtual void attach_debugger(DevTools::TabDescription const&, OnDebuggerPaused on_paused, OnDebuggerResumed on_resumed) const override
+    {
+        ++attach_debugger_call_count;
+        on_debugger_paused = move(on_paused);
+        on_debugger_resumed = move(on_resumed);
+    }
+
+    virtual void configure_debugger(DevTools::TabDescription const&, WebView::DebuggerConfiguration configuration) const override
+    {
+        ++configure_debugger_call_count;
+        debugger_configuration = configuration;
+    }
+
+    virtual void detach_debugger(DevTools::TabDescription const&) const override
+    {
+        ++detach_debugger_call_count;
+        on_debugger_paused = nullptr;
+        on_debugger_resumed = nullptr;
+    }
+
+    virtual void interrupt_debugger(DevTools::TabDescription const&) const override
+    {
+        ++interrupt_debugger_call_count;
+    }
+
+    virtual void resume_debugger(DevTools::TabDescription const&, WebView::DebuggerResumeMode mode) const override
+    {
+        ++resume_debugger_call_count;
+        debugger_resume_mode = mode;
+    }
+
+    virtual void update_debugger_blackboxing(DevTools::TabDescription const&, Utf16String url, Vector<WebView::DebuggerBlackboxRange> ranges, WebView::DebuggerBlackboxingOperation operation) const override
+    {
+        ++update_debugger_blackboxing_call_count;
+        last_debugger_blackbox_url = move(url);
+        last_debugger_blackbox_ranges = move(ranges);
+        last_debugger_blackboxing_operation = operation;
+    }
+
+    virtual void set_debugger_breakpoint(DevTools::TabDescription const&, WebView::DebuggerBreakpointLocation location, WebView::DebuggerBreakpointOptions options, OnDebuggerBreakpointOperationComplete on_complete) const override
+    {
+        ++set_debugger_breakpoint_call_count;
+        last_debugger_breakpoint_location = move(location);
+        last_debugger_breakpoint_options = move(options);
+        if (fail_debugger_breakpoint_operation) {
+            on_complete(Error::from_errno(EIO));
+            return;
+        }
+        on_complete({});
+    }
+
+    virtual void remove_debugger_breakpoint(DevTools::TabDescription const&, WebView::DebuggerBreakpointLocation location, OnDebuggerBreakpointOperationComplete on_complete) const override
+    {
+        ++remove_debugger_breakpoint_call_count;
+        last_debugger_breakpoint_location = move(location);
+        if (fail_debugger_breakpoint_operation) {
+            on_complete(Error::from_errno(EIO));
+            return;
+        }
+        on_complete({});
+    }
+
+    virtual void retrieve_debugger_source_positions(DevTools::TabDescription const&, Web::HTML::ScriptRegistry::Identifier source_id, OnDebuggerSourcePositionsReceived on_complete) const override
+    {
+        ++retrieve_debugger_source_positions_call_count;
+        last_debugger_source_id = source_id;
+        on_complete(Vector<WebView::DebuggerSourcePosition> {
+            { 1, 0 },
+            { 1, 12 },
+            { 2, 4 },
+            { 5, 1 },
+        });
+    }
+
+    virtual void retrieve_debugger_environments(DevTools::TabDescription const&, u64 frame_id, OnDebuggerEnvironmentsReceived on_complete) const override
+    {
+        ++retrieve_debugger_environments_call_count;
+        last_debugger_frame_id = frame_id;
+        Vector<WebView::DebuggerEnvironment> environments;
+        WebView::DebuggerEnvironment function_environment;
+        function_environment.id = 1;
+        function_environment.type = WebView::DebuggerEnvironmentType::Function;
+        function_environment.parent_id = 2;
+        function_environment.function_name = "handleClick"_utf16;
+        WebView::DebuggerValue count_value;
+        count_value.type = WebView::DebuggerValueType::Number;
+        count_value.number_value = 42;
+        function_environment.bindings.append({
+            .name = "count"_utf16,
+            .value = move(count_value),
+            .writable = true,
+        });
+        environments.append(move(function_environment));
+        WebView::DebuggerValue window_value;
+        window_value.type = WebView::DebuggerValueType::Object;
+        window_value.object_id = 10;
+        window_value.object_class = "Window"_string;
+        WebView::DebuggerEnvironment global_environment;
+        global_environment.id = 2;
+        global_environment.type = WebView::DebuggerEnvironmentType::Object;
+        global_environment.object = move(window_value);
+        environments.append(move(global_environment));
+        on_complete(move(environments));
+    }
+
+    virtual void evaluate_javascript_in_debugger_frame(DevTools::TabDescription const&, u64 frame_id, String const& source_text, OnDebuggerEvaluationComplete on_complete) const override
+    {
+        ++evaluate_javascript_in_debugger_frame_call_count;
+        last_debugger_frame_id = frame_id;
+        last_debugger_evaluation_source = source_text;
+        if (debugger_evaluation_error.has_value()) {
+            on_complete(*debugger_evaluation_error);
+            return;
+        }
+        WebView::DebuggerValue value;
+        value.type = WebView::DebuggerValueType::Number;
+        value.number_value = 43;
+        on_complete(WebView::DebuggerEvaluationResult {
+            .value = move(value),
+            .is_throw = debugger_evaluation_is_throw,
+        });
+    }
+
+    virtual void retrieve_debugger_object_properties(DevTools::TabDescription const&, u64 object_id, OnDebuggerObjectPropertiesReceived on_complete) const override
+    {
+        ++retrieve_debugger_object_properties_call_count;
+        last_debugger_object_id = object_id;
+        if (debugger_object_properties_error.has_value()) {
+            on_complete(*debugger_object_properties_error);
+            return;
+        }
+        WebView::DebuggerObjectProperties properties;
+        WebView::DebuggerValue prototype;
+        prototype.type = WebView::DebuggerValueType::Null;
+        properties.prototype = move(prototype);
+        WebView::DebuggerValue answer;
+        answer.type = WebView::DebuggerValueType::Number;
+        answer.number_value = 42;
+        WebView::DebuggerProperty answer_property;
+        answer_property.name = "answer"_utf16;
+        answer_property.value = move(answer);
+        answer_property.writable = true;
+        answer_property.enumerable = true;
+        answer_property.configurable = true;
+        properties.properties.append(move(answer_property));
+        WebView::DebuggerValue title;
+        title.type = WebView::DebuggerValueType::String;
+        title.text = "Ladybird"_utf16;
+        WebView::DebuggerProperty title_property;
+        title_property.name = "title"_utf16;
+        title_property.value = move(title);
+        title_property.enumerable = true;
+        properties.properties.append(move(title_property));
+        on_complete(move(properties));
+    }
+
     virtual void resolve_dom_node_url(DevTools::TabDescription const&, Optional<Web::UniqueNodeID> node_id, String const& url, OnResolvedURLReceived callback) const override
     {
         ++resolve_dom_node_url_call_count;
@@ -1224,7 +1380,54 @@ public:
     void emit_console_log(JS::Console::LogLevel level, Vector<JsonValue> arguments) const
     {
         VERIFY(on_console_message);
-        on_console_message({ UnixDateTime::from_seconds_since_epoch(10), WebView::ConsoleLog { level, move(arguments) } });
+        on_console_message({
+            UnixDateTime::from_seconds_since_epoch(10),
+            WebView::ConsoleLog {
+                .level = level,
+                .arguments = move(arguments),
+                .type = WebView::ConsoleLogType::ConsoleAPI,
+                .location = {},
+                .stacktrace = {},
+            },
+        });
+    }
+
+    void emit_logpoint() const
+    {
+        VERIFY(on_console_message);
+        WebView::StackFrame location {
+            .function = "run"_string,
+            .file = "https://example.test/app.js"_string,
+            .line = 8,
+            .column = 3,
+        };
+        Vector<WebView::StackFrame> stacktrace;
+        stacktrace.append(location);
+        on_console_message({
+            UnixDateTime::from_seconds_since_epoch(10),
+            WebView::ConsoleLog {
+                .level = JS::Console::LogLevel::Log,
+                .arguments = { 42 },
+                .type = WebView::ConsoleLogType::LogPoint,
+                .location = move(location),
+                .stacktrace = move(stacktrace),
+            },
+        });
+    }
+
+    void emit_logpoint_error() const
+    {
+        VERIFY(on_console_message);
+        on_console_message({
+            UnixDateTime::from_seconds_since_epoch(10),
+            WebView::ConsoleLog {
+                .level = JS::Console::LogLevel::Log,
+                .arguments = { "Logpoint expression did not produce an argument list"_string },
+                .type = WebView::ConsoleLogType::LogPointError,
+                .location = {},
+                .stacktrace = {},
+            },
+        });
     }
 
     void emit_console_trace() const
@@ -1470,6 +1673,35 @@ public:
     mutable size_t listen_for_sources_call_count { 0 };
     mutable size_t stop_listening_for_sources_call_count { 0 };
     mutable DevTools::DevToolsDelegate::OnSourceAvailable on_source_available;
+    mutable size_t attach_debugger_call_count { 0 };
+    mutable size_t configure_debugger_call_count { 0 };
+    mutable size_t detach_debugger_call_count { 0 };
+    mutable size_t interrupt_debugger_call_count { 0 };
+    mutable size_t resume_debugger_call_count { 0 };
+    mutable size_t update_debugger_blackboxing_call_count { 0 };
+    mutable size_t set_debugger_breakpoint_call_count { 0 };
+    mutable size_t remove_debugger_breakpoint_call_count { 0 };
+    mutable size_t retrieve_debugger_source_positions_call_count { 0 };
+    mutable size_t retrieve_debugger_environments_call_count { 0 };
+    mutable size_t evaluate_javascript_in_debugger_frame_call_count { 0 };
+    mutable size_t retrieve_debugger_object_properties_call_count { 0 };
+    mutable Optional<String> debugger_object_properties_error;
+    mutable DevTools::DevToolsDelegate::OnDebuggerPaused on_debugger_paused;
+    mutable DevTools::DevToolsDelegate::OnDebuggerResumed on_debugger_resumed;
+    mutable WebView::DebuggerConfiguration debugger_configuration;
+    mutable WebView::DebuggerResumeMode debugger_resume_mode { WebView::DebuggerResumeMode::Continue };
+    mutable Optional<Utf16String> last_debugger_blackbox_url;
+    mutable Vector<WebView::DebuggerBlackboxRange> last_debugger_blackbox_ranges;
+    mutable WebView::DebuggerBlackboxingOperation last_debugger_blackboxing_operation { WebView::DebuggerBlackboxingOperation::Blackbox };
+    mutable Optional<WebView::DebuggerBreakpointLocation> last_debugger_breakpoint_location;
+    mutable Optional<WebView::DebuggerBreakpointOptions> last_debugger_breakpoint_options;
+    mutable Optional<Web::HTML::ScriptRegistry::Identifier> last_debugger_source_id;
+    mutable Optional<u64> last_debugger_frame_id;
+    mutable Optional<String> last_debugger_evaluation_source;
+    mutable Optional<String> debugger_evaluation_error;
+    mutable Optional<u64> last_debugger_object_id;
+    mutable bool fail_debugger_breakpoint_operation { false };
+    mutable bool debugger_evaluation_is_throw { false };
     mutable size_t resolve_dom_node_url_call_count { 0 };
     mutable size_t listen_for_console_messages_call_count { 0 };
     mutable size_t stop_listening_for_console_messages_call_count { 0 };
@@ -2249,6 +2481,7 @@ TEST_CASE(target_bootstrap_and_lifetime)
     EXPECT(target.has_string("styleSheetsActor"sv));
     EXPECT(target.has_string("threadActor"sv));
     EXPECT(target.has_string("accessibilityActor"sv));
+    EXPECT(!target.get_object("traits"sv)->get_bool("watchpoints"sv).value());
     EXPECT_EQ(session->delegate.did_connect_devtools_client_call_count, 1u);
     EXPECT_EQ(session->delegate.listen_for_console_messages_call_count, 1u);
     EXPECT_EQ(session->delegate.listen_for_network_events_call_count, 1u);
@@ -2266,6 +2499,30 @@ TEST_CASE(target_bootstrap_and_lifetime)
     EXPECT_EQ(session->delegate.stop_listening_for_dom_mutations_call_count, 1u);
     EXPECT_EQ(session->delegate.clear_highlighted_dom_node_call_count, 1u);
     EXPECT_EQ(session->delegate.clear_inspected_dom_node_call_count, 1u);
+}
+
+TEST_CASE(deferred_frame_initialization_does_not_retain_tab_actor)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+
+    JsonObject watch_targets;
+    watch_targets.set("to"sv, watcher_actor);
+    watch_targets.set("type"sv, "watchTargets"sv);
+    watch_targets.set("targetType"sv, "frame"sv);
+    EXPECT_EQ(client.request(move(watch_targets)).get_string("from"sv).value(), watcher_actor);
+
+    auto actor = session->server->actor_registry().find(tab_actor);
+    VERIFY(actor != session->server->actor_registry().end());
+    auto weak_tab_actor = actor->value->make_weak_ptr();
+
+    session->server.clear();
+    EXPECT(!weak_tab_actor);
+    pump(session->loop);
 }
 
 TEST_CASE(storage_cookie_resource)
@@ -2403,6 +2660,36 @@ TEST_CASE(source_resources)
     EXPECT_EQ(source.get_string("source"sv).value(), "console.log('hello from source');"sv);
     EXPECT_EQ(session->delegate.retrieve_sources_call_count, 2u);
     EXPECT_EQ(session->delegate.retrieve_source_call_count, 1u);
+
+    auto breakable_lines = client.request(source_actor, "getBreakableLines"sv).get_array("lines"sv).release_value();
+    EXPECT_EQ(breakable_lines.size(), 3u);
+    EXPECT_EQ(breakable_lines[0].get_integer<u32>().value(), 1u);
+    EXPECT_EQ(breakable_lines[1].get_integer<u32>().value(), 2u);
+    EXPECT_EQ(breakable_lines[2].get_integer<u32>().value(), 5u);
+    EXPECT_EQ(session->delegate.retrieve_debugger_source_positions_call_count, 1u);
+    VERIFY(session->delegate.last_debugger_source_id.has_value());
+    EXPECT(*session->delegate.last_debugger_source_id == session->delegate.fixture_source.id);
+
+    JsonObject position_request;
+    position_request.set("to"sv, source_actor);
+    position_request.set("type"sv, "getBreakpointPositionsCompressed"sv);
+    JsonObject query;
+    JsonObject start;
+    start.set("line"sv, 1);
+    start.set("column"sv, 10);
+    query.set("start"sv, move(start));
+    JsonObject end;
+    end.set("line"sv, 5);
+    end.set("column"sv, 1);
+    query.set("end"sv, move(end));
+    position_request.set("query"sv, move(query));
+    auto positions = client.request(move(position_request)).get_object("positions"sv).release_value();
+    EXPECT_EQ(positions.get_array("1"sv)->size(), 1u);
+    EXPECT_EQ(positions.get_array("1"sv)->at(0).get_integer<u32>().value(), 12u);
+    EXPECT_EQ(positions.get_array("2"sv)->size(), 1u);
+    EXPECT_EQ(positions.get_array("2"sv)->at(0).get_integer<u32>().value(), 4u);
+    EXPECT(!positions.has("5"sv));
+    EXPECT_EQ(session->delegate.retrieve_debugger_source_positions_call_count, 2u);
     EXPECT_EQ(session->delegate.listen_for_sources_call_count, 1u);
     VERIFY(session->delegate.on_source_available);
 
@@ -2426,6 +2713,773 @@ TEST_CASE(source_resources)
         return source_actor_count(*session->server) == 1u
             && !session->server->actor_registry().contains(live_source_actor);
     });
+}
+
+TEST_CASE(debugger_source_blackboxing)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+
+    JsonObject watch_targets;
+    watch_targets.set("to"sv, watcher_actor);
+    watch_targets.set("type"sv, "watchTargets"sv);
+    watch_targets.set("targetType"sv, "frame"sv);
+    EXPECT_EQ(client.request(move(watch_targets)).get_string("from"sv).value(), watcher_actor);
+
+    auto target = read_packet_with_type(client, "target-available-form"sv).get_object("target"sv).release_value();
+    auto thread_actor = actor_from(target, "threadActor"sv);
+    auto sources = client.request(thread_actor, "sources"sv).get_array("sources"sv).release_value();
+    EXPECT_EQ(sources.size(), 1u);
+    auto source_actor = actor_from(sources[0].as_object(), "actor"sv);
+    EXPECT_EQ(sources[0].as_object().get_bool("isBlackBoxed"sv).value(), false);
+
+    auto blackboxing_actor = actor_from(client.request(watcher_actor, "getBlackboxingActor"sv), "blackboxing"sv);
+    EXPECT_EQ(actor_from(client.request(watcher_actor, "getBlackboxingActor"sv), "blackboxing"sv), blackboxing_actor);
+
+    JsonObject reversed_range;
+    JsonObject reversed_start;
+    reversed_start.set("line"sv, 5);
+    reversed_start.set("column"sv, 8);
+    reversed_range.set("start"sv, move(reversed_start));
+    JsonObject reversed_end;
+    reversed_end.set("line"sv, 2);
+    reversed_end.set("column"sv, 4);
+    reversed_range.set("end"sv, move(reversed_end));
+    JsonArray reversed_ranges;
+    reversed_ranges.must_append(move(reversed_range));
+    JsonObject reversed_blackbox;
+    reversed_blackbox.set("to"sv, blackboxing_actor);
+    reversed_blackbox.set("type"sv, "blackbox"sv);
+    reversed_blackbox.set("url"sv, "https://example.test/app.js"sv);
+    reversed_blackbox.set("range"sv, move(reversed_ranges));
+    EXPECT_EQ(client.request(move(reversed_blackbox)).get_string("error"sv).value(), "missingParameter"sv);
+    EXPECT_EQ(session->delegate.update_debugger_blackboxing_call_count, 0u);
+
+    JsonObject blackbox;
+    blackbox.set("to"sv, blackboxing_actor);
+    blackbox.set("type"sv, "blackbox"sv);
+    blackbox.set("url"sv, "https://example.test/app.js"sv);
+    blackbox.set("range"sv, JsonArray {});
+    EXPECT_EQ(client.request(move(blackbox)).get_string("from"sv).value(), blackboxing_actor);
+    EXPECT_EQ(session->delegate.update_debugger_blackboxing_call_count, 1u);
+    EXPECT_EQ(*session->delegate.last_debugger_blackbox_url, "https://example.test/app.js"_utf16);
+    EXPECT(session->delegate.last_debugger_blackbox_ranges.is_empty());
+    EXPECT_EQ(session->delegate.last_debugger_blackboxing_operation, WebView::DebuggerBlackboxingOperation::Blackbox);
+
+    sources = client.request(thread_actor, "sources"sv).get_array("sources"sv).release_value();
+    EXPECT_EQ(sources[0].as_object().get_bool("isBlackBoxed"sv).value(), true);
+
+    JsonObject unblackbox;
+    unblackbox.set("to"sv, source_actor);
+    unblackbox.set("type"sv, "unblackbox"sv);
+    unblackbox.set("range"sv, JsonValue {});
+    EXPECT_EQ(client.request(move(unblackbox)).get_string("from"sv).value(), source_actor);
+    EXPECT_EQ(session->delegate.update_debugger_blackboxing_call_count, 2u);
+    EXPECT_EQ(session->delegate.last_debugger_blackboxing_operation, WebView::DebuggerBlackboxingOperation::Unblackbox);
+
+    JsonObject range;
+    JsonObject start;
+    start.set("line"sv, 2);
+    start.set("column"sv, 4);
+    range.set("start"sv, move(start));
+    JsonObject end;
+    end.set("line"sv, 5);
+    end.set("column"sv, 8);
+    range.set("end"sv, move(end));
+    JsonArray ranges;
+    ranges.must_append(move(range));
+
+    blackbox = {};
+    blackbox.set("to"sv, blackboxing_actor);
+    blackbox.set("type"sv, "blackbox"sv);
+    blackbox.set("url"sv, "https://example.test/app.js"sv);
+    blackbox.set("range"sv, move(ranges));
+    EXPECT_EQ(client.request(move(blackbox)).get_string("from"sv).value(), blackboxing_actor);
+    EXPECT_EQ(session->delegate.update_debugger_blackboxing_call_count, 3u);
+    EXPECT_EQ(session->delegate.last_debugger_blackbox_ranges.size(), 1u);
+    EXPECT_EQ(session->delegate.last_debugger_blackbox_ranges[0].start.line, 2u);
+    EXPECT_EQ(session->delegate.last_debugger_blackbox_ranges[0].start.column, 4u);
+    EXPECT_EQ(session->delegate.last_debugger_blackbox_ranges[0].end.line, 5u);
+    EXPECT_EQ(session->delegate.last_debugger_blackbox_ranges[0].end.column, 8u);
+
+    sources = client.request(thread_actor, "sources"sv).get_array("sources"sv).release_value();
+    EXPECT_EQ(sources[0].as_object().get_bool("isBlackBoxed"sv).value(), false);
+
+    JsonObject legacy_blackbox;
+    legacy_blackbox.set("to"sv, source_actor);
+    legacy_blackbox.set("type"sv, "blackbox"sv);
+    legacy_blackbox.set("range"sv, JsonValue {});
+    auto legacy_response = client.request(move(legacy_blackbox));
+    EXPECT_EQ(legacy_response.get_bool("pausedInSource"sv).value(), false);
+    EXPECT_EQ(session->delegate.update_debugger_blackboxing_call_count, 4u);
+
+    sources = client.request(thread_actor, "sources"sv).get_array("sources"sv).release_value();
+    EXPECT_EQ(sources[0].as_object().get_bool("isBlackBoxed"sv).value(), true);
+
+    JsonObject partial_range;
+    JsonObject partial_start;
+    partial_start.set("line"sv, 2);
+    partial_start.set("column"sv, 4);
+    partial_range.set("start"sv, move(partial_start));
+    JsonObject partial_end;
+    partial_end.set("line"sv, 5);
+    partial_end.set("column"sv, 8);
+    partial_range.set("end"sv, move(partial_end));
+    JsonArray partial_ranges;
+    partial_ranges.must_append(move(partial_range));
+    JsonObject partial_unblackbox;
+    partial_unblackbox.set("to"sv, blackboxing_actor);
+    partial_unblackbox.set("type"sv, "unblackbox"sv);
+    partial_unblackbox.set("url"sv, "https://example.test/app.js"sv);
+    partial_unblackbox.set("range"sv, move(partial_ranges));
+    EXPECT_EQ(client.request(move(partial_unblackbox)).get_string("from"sv).value(), blackboxing_actor);
+    EXPECT_EQ(session->delegate.update_debugger_blackboxing_call_count, 5u);
+    EXPECT_EQ(session->delegate.last_debugger_blackboxing_operation, WebView::DebuggerBlackboxingOperation::Unblackbox);
+    EXPECT_EQ(session->delegate.last_debugger_blackbox_ranges.size(), 1u);
+
+    sources = client.request(thread_actor, "sources"sv).get_array("sources"sv).release_value();
+    EXPECT_EQ(sources[0].as_object().get_bool("isBlackBoxed"sv).value(), false);
+
+    session->delegate.emit_navigation();
+    spin_until(session->loop, [&] {
+        return session->delegate.update_debugger_blackboxing_call_count == 7;
+    });
+    EXPECT_EQ(session->delegate.update_debugger_blackboxing_call_count, 7u);
+    EXPECT_EQ(*session->delegate.last_debugger_blackbox_url, "https://example.test/app.js"_utf16);
+    EXPECT_EQ(session->delegate.last_debugger_blackboxing_operation, WebView::DebuggerBlackboxingOperation::Unblackbox);
+    EXPECT_EQ(session->delegate.last_debugger_blackbox_ranges.size(), 1u);
+}
+
+TEST_CASE(debugger_pause_and_resume)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+
+    auto configuration_actor = actor_from(client.request(watcher_actor, "getThreadConfigurationActor"sv).get_object("configuration"sv).release_value(), "actor"sv);
+    JsonObject update_configuration;
+    update_configuration.set("to"sv, configuration_actor);
+    update_configuration.set("type"sv, "updateConfiguration"sv);
+    JsonObject configuration;
+    configuration.set("ignoreCaughtExceptions"sv, false);
+    configuration.set("pauseOnExceptions"sv, true);
+    configuration.set("shouldPauseOnDebuggerStatement"sv, false);
+    configuration.set("skipBreakpoints"sv, true);
+    update_configuration.set("configuration"sv, move(configuration));
+    EXPECT_EQ(client.request(move(update_configuration)).get_string("from"sv).value(), configuration_actor);
+    EXPECT_EQ(session->delegate.configure_debugger_call_count, 1u);
+    EXPECT(!session->delegate.debugger_configuration.ignore_caught_exceptions);
+    EXPECT(session->delegate.debugger_configuration.pause_on_exceptions);
+    EXPECT(!session->delegate.debugger_configuration.should_pause_on_debugger_statement);
+    EXPECT(session->delegate.debugger_configuration.skip_breakpoints);
+
+    JsonObject watch_resources;
+    watch_resources.set("to"sv, watcher_actor);
+    watch_resources.set("type"sv, "watchResources"sv);
+    JsonArray resource_types;
+    resource_types.must_append("thread-state"sv);
+    watch_resources.set("resourceTypes"sv, move(resource_types));
+    EXPECT_EQ(client.request(move(watch_resources)).get_string("from"sv).value(), watcher_actor);
+    EXPECT_EQ(session->delegate.attach_debugger_call_count, 0u);
+
+    JsonObject watch_targets;
+    watch_targets.set("to"sv, watcher_actor);
+    watch_targets.set("type"sv, "watchTargets"sv);
+    watch_targets.set("targetType"sv, "frame"sv);
+    EXPECT_EQ(client.request(move(watch_targets)).get_string("from"sv).value(), watcher_actor);
+
+    auto target = read_packet_with_type(client, "target-available-form"sv).get_object("target"sv).release_value();
+    auto target_actor = actor_from(target, "actor"sv);
+    auto console_actor = actor_from(target, "consoleActor"sv);
+    auto thread_actor = actor_from(target, "threadActor"sv);
+
+    EXPECT_EQ(session->delegate.attach_debugger_call_count, 1u);
+    VERIFY(session->delegate.on_debugger_paused);
+
+    WebView::DebuggerPause pause {
+        .reason = WebView::DebuggerPauseReason::DebuggerStatement,
+        .reason_message = {},
+        .exception = {},
+        .frames = {},
+    };
+    pause.frames.append({
+        .id = 1,
+        .display_name = "handleClick"_utf16,
+        .location = {
+            .source = session->delegate.fixture_source,
+            .line = 4,
+            .column = 2,
+        },
+        .this_value = {},
+        .arguments = {},
+    });
+    pause.frames.append({
+        .id = 2,
+        .display_name = "dispatchEvent"_utf16,
+        .location = {
+            .source = session->delegate.fixture_source,
+            .line = 9,
+            .column = 4,
+        },
+        .this_value = {},
+        .arguments = {},
+    });
+    session->delegate.on_debugger_paused(move(pause));
+
+    auto paused = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+    EXPECT_EQ(paused.get_string("state"sv).value(), "paused"sv);
+    EXPECT_EQ(paused.get_object("why"sv)->get_string("type"sv).value(), "debuggerStatement"sv);
+    auto frame = paused.get_object("frame"sv).release_value();
+    EXPECT_EQ(frame.get_string("displayName"sv).value(), "handleClick"sv);
+    EXPECT_EQ(frame.get_string("state"sv).value(), "on-stack"sv);
+    EXPECT_EQ(frame.get_object("where"sv)->get_integer<u32>("line"sv).value(), 4u);
+    EXPECT_EQ(frame.get_object("where"sv)->get_integer<u32>("column"sv).value(), 2u);
+    auto frame_actor = actor_from(frame, "actor"sv);
+
+    JsonObject frames_request;
+    frames_request.set("to"sv, thread_actor);
+    frames_request.set("type"sv, "frames"sv);
+    frames_request.set("start"sv, 0);
+    frames_request.set("count"sv, 0);
+    auto frames = client.request(move(frames_request)).get_array("frames"sv).release_value();
+    EXPECT(frames.is_empty());
+
+    frames_request = {};
+    frames_request.set("to"sv, thread_actor);
+    frames_request.set("type"sv, "frames"sv);
+    frames_request.set("start"sv, 0);
+    frames = client.request(move(frames_request)).get_array("frames"sv).release_value();
+    EXPECT_EQ(frames.size(), 2u);
+    EXPECT_EQ(frames[0].as_object().get_string("displayName"sv).value(), "handleClick"sv);
+    EXPECT(!frames[0].as_object().get_bool("oldest"sv).value());
+    EXPECT_EQ(frames[1].as_object().get_string("displayName"sv).value(), "dispatchEvent"sv);
+    EXPECT(frames[1].as_object().get_bool("oldest"sv).value());
+
+    auto environment = client.request(frame_actor, "getEnvironment"sv);
+    EXPECT_EQ(environment.get_string("from"sv).value(), frame_actor);
+    EXPECT_EQ(environment.get_string("type"sv).value(), "function"sv);
+    EXPECT_EQ(environment.get_object("function"sv)->get_string("displayName"sv).value(), "handleClick"sv);
+    auto variables = environment.get_object("bindings"sv)->get_object("variables"sv).release_value();
+    EXPECT_EQ(variables.get_object("count"sv)->get("value"sv)->get_double_with_precision_loss().value(), 42);
+    auto parent_environment = environment.get_object("parent"sv).release_value();
+    EXPECT_EQ(parent_environment.get_string("type"sv).value(), "object"sv);
+    EXPECT_EQ(parent_environment.get_object("object"sv)->get_string("class"sv).value(), "Window"sv);
+    EXPECT_EQ(session->delegate.retrieve_debugger_environments_call_count, 1u);
+    VERIFY(session->delegate.last_debugger_frame_id.has_value());
+    EXPECT_EQ(*session->delegate.last_debugger_frame_id, 1u);
+
+    auto object_actor = parent_environment.get_object("object"sv)->get_string("actor"sv).release_value();
+    JsonObject options;
+    options.set("sort"sv, true);
+    JsonObject enum_properties;
+    enum_properties.set("to"sv, object_actor);
+    enum_properties.set("type"sv, "enumProperties"sv);
+    enum_properties.set("options"sv, move(options));
+    auto properties = client.request(move(enum_properties));
+    auto iterator = properties.get_object("iterator"sv).release_value();
+    EXPECT_EQ(iterator.get_integer<size_t>("count"sv).value(), 2u);
+    auto iterator_actor = iterator.get_string("actor"sv).release_value();
+    JsonObject slice;
+    slice.set("to"sv, iterator_actor);
+    slice.set("type"sv, "slice"sv);
+    slice.set("start"sv, 0);
+    slice.set("count"sv, 1);
+    auto property_slice = client.request(move(slice));
+    auto own_properties = property_slice.get_object("ownProperties"sv).release_value();
+    EXPECT_EQ(own_properties.size(), 1u);
+    EXPECT_EQ(own_properties.get_object("answer"sv)->get("value"sv)->get_double_with_precision_loss().value(), 42);
+    auto all_properties = client.request(iterator_actor, "all"sv).get_object("ownProperties"sv).release_value();
+    EXPECT_EQ(all_properties.get_object("title"sv)->get_string("value"sv).value(), "Ladybird"sv);
+    EXPECT_EQ(session->delegate.retrieve_debugger_object_properties_call_count, 1u);
+    VERIFY(session->delegate.last_debugger_object_id.has_value());
+    EXPECT_EQ(*session->delegate.last_debugger_object_id, 10u);
+    EXPECT_EQ(client.request(iterator_actor, "release"sv).get_string("from"sv).value(), iterator_actor);
+    spin_until(session->loop, [&] { return !session->server->actor_registry().contains(iterator_actor); });
+
+    session->delegate.debugger_object_properties_error = "Unable to find paused object"_string;
+    auto property_error = client.request(object_actor, "prototypeAndProperties"sv);
+    EXPECT_EQ(property_error.get_string("error"sv).value(), "unknownActor"sv);
+    EXPECT_EQ(property_error.get_string("message"sv).value(), "Unable to find paused object"sv);
+    session->delegate.debugger_object_properties_error.clear();
+
+    EXPECT_EQ(client.request(object_actor, "release"sv).get_string("from"sv).value(), object_actor);
+    spin_until(session->loop, [&] { return !session->server->actor_registry().contains(object_actor); });
+
+    JsonObject evaluate;
+    evaluate.set("to"sv, console_actor);
+    evaluate.set("type"sv, "evaluateJSAsync"sv);
+    evaluate.set("text"sv, "count + 1"sv);
+    evaluate.set("frameActor"sv, frame_actor);
+    auto evaluation_request = client.request(move(evaluate));
+    auto result_id = evaluation_request.get_string("resultID"sv).release_value();
+    auto evaluation = read_packet_with_type(client, "evaluationResult"sv);
+    EXPECT_EQ(evaluation.get_string("resultID"sv).value(), result_id);
+    EXPECT_EQ(evaluation.get_string("input"sv).value(), "count + 1"sv);
+    EXPECT_EQ(evaluation.get("result"sv)->get_double_with_precision_loss().value(), 43);
+    EXPECT(!evaluation.get_bool("hasException"sv).value());
+    EXPECT_EQ(session->delegate.evaluate_javascript_in_debugger_frame_call_count, 1u);
+    EXPECT_EQ(session->delegate.last_debugger_frame_id.value(), 1u);
+    EXPECT_EQ(session->delegate.last_debugger_evaluation_source.value(), "count + 1"sv);
+
+    session->delegate.debugger_evaluation_is_throw = true;
+    evaluate.set("to"sv, console_actor);
+    evaluate.set("type"sv, "evaluateJSAsync"sv);
+    evaluate.set("text"sv, "throw 43"sv);
+    evaluate.set("frameActor"sv, frame_actor);
+    evaluation_request = client.request(move(evaluate));
+    result_id = evaluation_request.get_string("resultID"sv).release_value();
+    evaluation = read_packet_with_type(client, "evaluationResult"sv);
+    EXPECT_EQ(evaluation.get_string("resultID"sv).value(), result_id);
+    EXPECT_EQ(evaluation.get("exception"sv)->get_double_with_precision_loss().value(), 43);
+    EXPECT(evaluation.get_bool("hasException"sv).value());
+
+    session->delegate.debugger_evaluation_is_throw = false;
+    session->delegate.debugger_evaluation_error = "Unable to evaluate debugger expression"_string;
+    evaluate.set("to"sv, console_actor);
+    evaluate.set("type"sv, "evaluateJSAsync"sv);
+    evaluate.set("text"sv, "invalid expression"sv);
+    evaluate.set("frameActor"sv, frame_actor);
+    evaluation_request = client.request(move(evaluate));
+    result_id = evaluation_request.get_string("resultID"sv).release_value();
+    evaluation = read_packet_with_type(client, "evaluationResult"sv);
+    EXPECT_EQ(evaluation.get_string("resultID"sv).value(), result_id);
+    EXPECT_EQ(evaluation.get_string("exception"sv).value(), "Unable to evaluate debugger expression"sv);
+    EXPECT_EQ(evaluation.get_string("exceptionMessage"sv).value(), "Unable to evaluate debugger expression"sv);
+    EXPECT(evaluation.get_bool("hasException"sv).value());
+    session->delegate.debugger_evaluation_error.clear();
+
+    JsonObject resume_request;
+    resume_request.set("to"sv, thread_actor);
+    resume_request.set("type"sv, "resume"sv);
+    JsonObject resume_limit;
+    resume_limit.set("type"sv, "next"sv);
+    resume_request.set("resumeLimit"sv, move(resume_limit));
+    auto resume = client.request(move(resume_request));
+    EXPECT_EQ(resume.get_string("from"sv).value(), thread_actor);
+    EXPECT_EQ(session->delegate.resume_debugger_call_count, 1u);
+    EXPECT_EQ(session->delegate.debugger_resume_mode, WebView::DebuggerResumeMode::StepOver);
+    auto resumed = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+    EXPECT_EQ(resumed.get_string("state"sv).value(), "resumed"sv);
+
+    spin_until(session->loop, [&] {
+        return !session->server->actor_registry().contains(frame_actor);
+    });
+
+    WebView::DebuggerValue exception;
+    exception.type = WebView::DebuggerValueType::Object;
+    exception.object_id = 11;
+    exception.object_class = "Error"_string;
+    WebView::DebuggerPause exception_pause {
+        .reason = WebView::DebuggerPauseReason::Exception,
+        .reason_message = {},
+        .exception = move(exception),
+        .frames = {},
+    };
+    exception_pause.frames.append({
+        .id = 3,
+        .display_name = "throwError"_utf16,
+        .location = {
+            .source = session->delegate.fixture_source,
+            .line = 12,
+            .column = 1,
+        },
+        .this_value = {},
+        .arguments = {},
+    });
+    session->delegate.on_debugger_paused(move(exception_pause));
+
+    paused = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+    EXPECT_EQ(paused.get_object("why"sv)->get_string("type"sv).value(), "exception"sv);
+    auto exception_grip = paused.get_object("why"sv)->get_object("exception"sv).release_value();
+    EXPECT_EQ(exception_grip.get_string("class"sv).value(), "Error"sv);
+
+    JsonObject exception_properties_request;
+    exception_properties_request.set("to"sv, actor_from(exception_grip, "actor"sv));
+    exception_properties_request.set("type"sv, "enumProperties"sv);
+    exception_properties_request.set("options"sv, JsonObject {});
+    auto exception_properties = client.request(move(exception_properties_request));
+    auto exception_iterator = actor_from(exception_properties.get_object("iterator"sv).release_value(), "actor"sv);
+    auto exception_own_properties = client.request(exception_iterator, "all"sv).get_object("ownProperties"sv).release_value();
+    EXPECT_EQ(exception_own_properties.get_object("answer"sv)->get("value"sv)->get_double_with_precision_loss().value(), 42);
+    EXPECT_EQ(session->delegate.last_debugger_object_id.value(), 11u);
+
+    EXPECT_EQ(client.request(thread_actor, "resume"sv).get_string("from"sv).value(), thread_actor);
+    EXPECT_EQ(session->delegate.debugger_resume_mode, WebView::DebuggerResumeMode::Continue);
+    resumed = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+    EXPECT_EQ(resumed.get_string("state"sv).value(), "resumed"sv);
+
+    WebView::DebuggerPause navigation_pause {
+        .reason = WebView::DebuggerPauseReason::DebuggerStatement,
+        .reason_message = {},
+        .exception = {},
+        .frames = {},
+    };
+    navigation_pause.frames.append({
+        .id = 4,
+        .display_name = "beforeReload"_utf16,
+        .location = {
+            .source = session->delegate.fixture_source,
+            .line = 18,
+            .column = 1,
+        },
+        .this_value = {},
+        .arguments = {},
+    });
+    session->delegate.on_debugger_paused(move(navigation_pause));
+    paused = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+    EXPECT_EQ(paused.get_string("state"sv).value(), "paused"sv);
+
+    session->delegate.emit_navigation_start();
+    spin_until(session->loop, [&] {
+        return session->delegate.resume_debugger_call_count == 3;
+    });
+    EXPECT_EQ(session->delegate.resume_debugger_call_count, 3u);
+    EXPECT_EQ(session->delegate.debugger_resume_mode, WebView::DebuggerResumeMode::Continue);
+    resumed = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+    EXPECT_EQ(resumed.get_string("state"sv).value(), "resumed"sv);
+}
+
+TEST_CASE(debugger_thread_state_protocol)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+
+    JsonObject watch_resources;
+    watch_resources.set("to"sv, watcher_actor);
+    watch_resources.set("type"sv, "watchResources"sv);
+    JsonArray resource_types;
+    resource_types.must_append("thread-state"sv);
+    watch_resources.set("resourceTypes"sv, move(resource_types));
+    (void)client.request(move(watch_resources));
+
+    auto target = get_frame_target(client, tab_actor);
+    auto target_actor = actor_from(target, "actor"sv);
+    auto thread_actor = actor_from(target, "threadActor"sv);
+
+    EXPECT_EQ(client.request(thread_actor, "resume"sv).get_string("error"sv).value(), "wrongState"sv);
+    EXPECT_EQ(client.request(thread_actor, "frames"sv).get_string("error"sv).value(), "wrongState"sv);
+
+    JsonObject interrupt;
+    interrupt.set("to"sv, thread_actor);
+    interrupt.set("type"sv, "interrupt"sv);
+    interrupt.set("when"sv, "onNext"sv);
+    EXPECT_EQ(client.request(move(interrupt)).get_string("from"sv).value(), thread_actor);
+    EXPECT_EQ(session->delegate.interrupt_debugger_call_count, 1u);
+
+    WebView::DebuggerValue this_value;
+    this_value.type = WebView::DebuggerValueType::Object;
+    this_value.object_id = 20;
+    this_value.object_class = "Object"_string;
+    WebView::DebuggerPause pause {
+        .reason = WebView::DebuggerPauseReason::Entry,
+        .reason_message = {},
+        .exception = {},
+        .frames = {},
+    };
+    pause.frames.append({
+        .id = 1,
+        .display_name = "youngest"_utf16,
+        .location = { .source = session->delegate.fixture_source, .line = 4, .column = 2 },
+        .this_value = move(this_value),
+        .arguments = {},
+    });
+    pause.frames.append({
+        .id = 2,
+        .display_name = "caller"_utf16,
+        .location = { .source = session->delegate.fixture_source, .line = 9, .column = 4 },
+        .this_value = {},
+        .arguments = {},
+    });
+    session->delegate.on_debugger_paused(move(pause));
+
+    auto paused = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+    auto why = paused.get_object("why"sv).release_value();
+    EXPECT_EQ(why.get_string("type"sv).value(), "interrupted"sv);
+    EXPECT(why.get_bool("onNext"sv).value());
+
+    auto paused_frame = paused.get_object("frame"sv).release_value();
+    auto object_actor = paused_frame.get_object("this"sv)->get_string("actor"sv).release_value();
+    auto symbols = client.request(object_actor, "enumSymbols"sv).get_object("iterator"sv).release_value();
+    EXPECT_EQ(symbols.get_string("type"sv).value(), "symbolIterator"sv);
+    EXPECT_EQ(symbols.get_integer<size_t>("count"sv).value(), 0u);
+    auto symbol_iterator = actor_from(symbols, "actor"sv);
+    EXPECT(client.request(symbol_iterator, "all"sv).get_array("ownSymbols"sv)->is_empty());
+    EXPECT_EQ(client.request(symbol_iterator, "release"sv).get_string("from"sv).value(), symbol_iterator);
+    spin_until(session->loop, [&] { return !session->server->actor_registry().contains(symbol_iterator); });
+
+    JsonObject frames_request;
+    frames_request.set("to"sv, thread_actor);
+    frames_request.set("type"sv, "frames"sv);
+    auto frames = client.request(move(frames_request)).get_array("frames"sv).release_value();
+    VERIFY(frames.size() == 2u);
+    auto youngest_frame = actor_from(frames[0].as_object(), "actor"sv);
+    auto older_frame = actor_from(frames[1].as_object(), "actor"sv);
+
+    JsonObject resume_from_older_frame;
+    resume_from_older_frame.set("to"sv, thread_actor);
+    resume_from_older_frame.set("type"sv, "resume"sv);
+    JsonObject older_frame_resume_limit;
+    older_frame_resume_limit.set("type"sv, "next"sv);
+    resume_from_older_frame.set("resumeLimit"sv, move(older_frame_resume_limit));
+    resume_from_older_frame.set("frameActorID"sv, older_frame);
+    EXPECT_EQ(client.request(move(resume_from_older_frame)).get_string("error"sv).value(), "unsupported"sv);
+
+    JsonObject resume_from_unknown_frame;
+    resume_from_unknown_frame.set("to"sv, thread_actor);
+    resume_from_unknown_frame.set("type"sv, "resume"sv);
+    JsonObject unknown_frame_resume_limit;
+    unknown_frame_resume_limit.set("type"sv, "next"sv);
+    resume_from_unknown_frame.set("resumeLimit"sv, move(unknown_frame_resume_limit));
+    resume_from_unknown_frame.set("frameActorID"sv, "missing-frame"sv);
+    EXPECT_EQ(client.request(move(resume_from_unknown_frame)).get_string("error"sv).value(), "unknownActor"sv);
+
+    JsonObject resume_from_youngest_frame;
+    resume_from_youngest_frame.set("to"sv, thread_actor);
+    resume_from_youngest_frame.set("type"sv, "resume"sv);
+    JsonObject youngest_frame_resume_limit;
+    youngest_frame_resume_limit.set("type"sv, "next"sv);
+    resume_from_youngest_frame.set("resumeLimit"sv, move(youngest_frame_resume_limit));
+    resume_from_youngest_frame.set("frameActorID"sv, youngest_frame);
+    EXPECT_EQ(client.request(move(resume_from_youngest_frame)).get_string("from"sv).value(), thread_actor);
+    EXPECT_EQ(session->delegate.debugger_resume_mode, WebView::DebuggerResumeMode::StepOver);
+    (void)read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+    WebView::DebuggerPause populated_pause {
+        .reason = WebView::DebuggerPauseReason::Breakpoint,
+        .reason_message = {},
+        .exception = {},
+        .frames = {},
+    };
+    populated_pause.frames.append({
+        .id = 3,
+        .display_name = "populatedPause"_utf16,
+        .location = { .source = session->delegate.fixture_source, .line = 12, .column = 6 },
+        .this_value = {},
+        .arguments = {},
+    });
+    session->delegate.on_debugger_paused(move(populated_pause));
+    (void)read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+
+    WebView::DebuggerPause empty_pause {
+        .reason = WebView::DebuggerPauseReason::Breakpoint,
+        .reason_message = {},
+        .exception = {},
+        .frames = {},
+    };
+    session->delegate.on_debugger_paused(move(empty_pause));
+    auto empty_pause_resumed = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+    EXPECT_EQ(empty_pause_resumed.get_string("state"sv).value(), "resumed"sv);
+    EXPECT_EQ(session->delegate.debugger_resume_mode, WebView::DebuggerResumeMode::Continue);
+
+    WebView::DebuggerPause overlay_pause {
+        .reason = WebView::DebuggerPauseReason::Breakpoint,
+        .reason_message = {},
+        .exception = {},
+        .frames = {},
+    };
+    overlay_pause.frames.append({
+        .id = 3,
+        .display_name = "overlayPause"_utf16,
+        .location = { .source = session->delegate.fixture_source, .line = 12, .column = 6 },
+        .this_value = {},
+        .arguments = {},
+    });
+    session->delegate.on_debugger_paused(move(overlay_pause));
+    (void)read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+
+    VERIFY(session->delegate.on_debugger_resumed);
+    session->delegate.on_debugger_resumed();
+    auto overlay_resumed = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+    EXPECT_EQ(overlay_resumed.get_string("state"sv).value(), "resumed"sv);
+}
+
+TEST_CASE(debugger_breakpoints)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+    auto breakpoint_list_actor = actor_from(client.request(watcher_actor, "getBreakpointListActor"sv), "breakpointList"sv);
+    EXPECT_EQ(actor_from(client.request(watcher_actor, "getBreakpointListActor"sv), "breakpointList"sv), breakpoint_list_actor);
+
+    auto make_breakpoint_request = [&](StringView type, JsonObject location) {
+        JsonObject request;
+        request.set("to"sv, breakpoint_list_actor);
+        request.set("type"sv, type);
+        request.set("location"sv, move(location));
+        if (type == "setBreakpoint"sv) {
+            JsonObject options;
+            options.set("condition"sv, "enabled"sv);
+            options.set("logValue"sv, "counter"sv);
+            options.set("showStacktrace"sv, true);
+            request.set("options"sv, move(options));
+        }
+        return request;
+    };
+
+    JsonObject location;
+    location.set("sourceUrl"sv, "https://example.test/app.js"sv);
+    location.set("line"sv, 8);
+    location.set("column"sv, 3);
+    EXPECT_EQ(client.request(make_breakpoint_request("setBreakpoint"sv, move(location))).get_string("from"sv).value(), breakpoint_list_actor);
+    EXPECT_EQ(session->delegate.set_debugger_breakpoint_call_count, 1u);
+    VERIFY(session->delegate.last_debugger_breakpoint_location.has_value());
+    EXPECT_EQ(session->delegate.last_debugger_breakpoint_location->filename, "https://example.test/app.js"_utf16);
+    EXPECT_EQ(session->delegate.last_debugger_breakpoint_location->line, 8u);
+    EXPECT_EQ(session->delegate.last_debugger_breakpoint_location->column, 3u);
+    VERIFY(session->delegate.last_debugger_breakpoint_options.has_value());
+    EXPECT_EQ(session->delegate.last_debugger_breakpoint_options->condition.value(), "enabled"_utf16);
+    EXPECT_EQ(session->delegate.last_debugger_breakpoint_options->log_value.value(), "counter"_utf16);
+    EXPECT(session->delegate.last_debugger_breakpoint_options->show_stacktrace);
+
+    location.set("sourceUrl"sv, "https://example.test/app.js"sv);
+    location.set("line"sv, 8);
+    location.set("column"sv, 3);
+    EXPECT_EQ(client.request(make_breakpoint_request("removeBreakpoint"sv, move(location))).get_string("from"sv).value(), breakpoint_list_actor);
+    EXPECT_EQ(session->delegate.remove_debugger_breakpoint_call_count, 1u);
+
+    JsonObject watch_targets;
+    watch_targets.set("to"sv, watcher_actor);
+    watch_targets.set("type"sv, "watchTargets"sv);
+    watch_targets.set("targetType"sv, "frame"sv);
+    (void)client.request(move(watch_targets));
+    auto target = read_packet_with_type(client, "target-available-form"sv).get_object("target"sv).release_value();
+    auto thread_actor = actor_from(target, "threadActor"sv);
+    auto sources = client.request(thread_actor, "sources"sv).get_array("sources"sv).release_value();
+    auto source_actor = actor_from(sources[0].as_object(), "actor"sv);
+
+    location.set("sourceId"sv, source_actor);
+    location.set("sourceUrl"sv, "https://example.test/wrong.js"sv);
+    location.set("line"sv, 4);
+    location.set("column"sv, JsonValue {});
+    EXPECT_EQ(client.request(make_breakpoint_request("setBreakpoint"sv, move(location))).get_string("from"sv).value(), breakpoint_list_actor);
+    EXPECT_EQ(session->delegate.set_debugger_breakpoint_call_count, 2u);
+    EXPECT_EQ(session->delegate.last_debugger_breakpoint_location->filename, session->delegate.fixture_source.display_url);
+    VERIFY(session->delegate.last_debugger_breakpoint_location->source_id.has_value());
+    EXPECT(session->delegate.last_debugger_breakpoint_location->source_id.value() == session->delegate.fixture_source.id);
+    EXPECT_EQ(session->delegate.last_debugger_breakpoint_location->line, 4u);
+    EXPECT(!session->delegate.last_debugger_breakpoint_location->column.has_value());
+
+    location.set("sourceId"sv, "missing-source"sv);
+    location.set("sourceUrl"sv, "https://example.test/fallback.js"sv);
+    location.set("line"sv, 5);
+    EXPECT_EQ(client.request(make_breakpoint_request("setBreakpoint"sv, move(location))).get_string("from"sv).value(), breakpoint_list_actor);
+    EXPECT_EQ(session->delegate.set_debugger_breakpoint_call_count, 3u);
+    EXPECT(!session->delegate.last_debugger_breakpoint_location->source_id.has_value());
+    EXPECT_EQ(session->delegate.last_debugger_breakpoint_location->filename, "https://example.test/fallback.js"_utf16);
+
+    location.set("sourceUrl"sv, session->delegate.fixture_source.display_url.to_utf8());
+    location.set("line"sv, 4);
+    location.set("column"sv, JsonValue {});
+    EXPECT_EQ(client.request(make_breakpoint_request("removeBreakpoint"sv, move(location))).get_string("from"sv).value(), breakpoint_list_actor);
+    EXPECT_EQ(session->delegate.remove_debugger_breakpoint_call_count, 2u);
+    VERIFY(session->delegate.last_debugger_breakpoint_location->source_id.has_value());
+    EXPECT(session->delegate.last_debugger_breakpoint_location->source_id.value() == session->delegate.fixture_source.id);
+
+    location.set("sourceUrl"sv, "https://example.test/app.js"sv);
+    auto invalid_location = client.request(make_breakpoint_request("setBreakpoint"sv, move(location)));
+    EXPECT_EQ(invalid_location.get_string("error"sv).value(), "missingParameter"sv);
+
+    session->delegate.fail_debugger_breakpoint_operation = true;
+    location.set("sourceUrl"sv, "https://example.test/app.js"sv);
+    location.set("line"sv, 9);
+    auto failed_breakpoint = client.request(make_breakpoint_request("setBreakpoint"sv, move(location)));
+    EXPECT_EQ(failed_breakpoint.get_string("error"sv).value(), "breakpointFailed"sv);
+    EXPECT_EQ(failed_breakpoint.get_string("message"sv).value(), MUST(String::formatted("{}", Error::from_errno(EIO))));
+}
+
+TEST_CASE(debugger_state_is_replayed_after_target_switch)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+    auto target = get_frame_target(client, tab_actor);
+
+    JsonObject watch_resources;
+    watch_resources.set("to"sv, watcher_actor);
+    watch_resources.set("type"sv, "watchResources"sv);
+    JsonArray resource_types;
+    resource_types.must_append("thread-state"sv);
+    watch_resources.set("resourceTypes"sv, move(resource_types));
+    (void)client.request(move(watch_resources));
+    EXPECT_EQ(session->delegate.attach_debugger_call_count, 1u);
+
+    auto configuration_actor = actor_from(client.request(watcher_actor, "getThreadConfigurationActor"sv).get_object("configuration"sv).release_value(), "actor"sv);
+    JsonObject update_configuration;
+    update_configuration.set("to"sv, configuration_actor);
+    update_configuration.set("type"sv, "updateConfiguration"sv);
+    JsonObject configuration;
+    configuration.set("pauseOnExceptions"sv, true);
+    configuration.set("skipBreakpoints"sv, true);
+    update_configuration.set("configuration"sv, move(configuration));
+    (void)client.request(move(update_configuration));
+    EXPECT_EQ(session->delegate.configure_debugger_call_count, 1u);
+
+    auto breakpoint_list_actor = actor_from(client.request(watcher_actor, "getBreakpointListActor"sv), "breakpointList"sv);
+    auto set_breakpoint = [&](StringView source_url, u32 line, Optional<StringView> source_id = {}) {
+        JsonObject request;
+        request.set("to"sv, breakpoint_list_actor);
+        request.set("type"sv, "setBreakpoint"sv);
+        JsonObject location;
+        location.set("sourceUrl"sv, source_url);
+        if (source_id.has_value())
+            location.set("sourceId"sv, *source_id);
+        location.set("line"sv, line);
+        request.set("location"sv, move(location));
+        request.set("options"sv, JsonObject {});
+        return client.request(move(request));
+    };
+    auto remove_breakpoint = [&](StringView source_url, u32 line) {
+        JsonObject request;
+        request.set("to"sv, breakpoint_list_actor);
+        request.set("type"sv, "removeBreakpoint"sv);
+        JsonObject location;
+        location.set("sourceUrl"sv, source_url);
+        location.set("line"sv, line);
+        request.set("location"sv, move(location));
+        return client.request(move(request));
+    };
+
+    auto thread_actor = actor_from(target, "threadActor"sv);
+    auto sources = client.request(thread_actor, "sources"sv).get_array("sources"sv).release_value();
+    auto source_actor = actor_from(sources[0].as_object(), "actor"sv);
+
+    (void)set_breakpoint(session->delegate.fixture_source.display_url.to_utf8(), 4, source_actor);
+    (void)set_breakpoint("https://example.test/removed.js"sv, 5);
+    (void)remove_breakpoint("https://example.test/removed.js"sv, 5);
+    session->delegate.fail_debugger_breakpoint_operation = true;
+    EXPECT_EQ(set_breakpoint("https://example.test/failed.js"sv, 6).get_string("error"sv).value(), "breakpointFailed"sv);
+    session->delegate.fail_debugger_breakpoint_operation = false;
+    EXPECT_EQ(session->delegate.set_debugger_breakpoint_call_count, 3u);
+
+    session->delegate.emit_navigation();
+    (void)read_packet_with_type(client, "target-destroyed-form"sv);
+    auto new_target = read_packet_with_type(client, "target-available-form"sv).get_object("target"sv).release_value();
+    EXPECT_NE(actor_from(new_target, "actor"sv), actor_from(target, "actor"sv));
+
+    EXPECT_EQ(session->delegate.attach_debugger_call_count, 2u);
+    EXPECT_EQ(session->delegate.configure_debugger_call_count, 2u);
+    EXPECT(session->delegate.debugger_configuration.pause_on_exceptions);
+    EXPECT(session->delegate.debugger_configuration.skip_breakpoints);
+    EXPECT_EQ(session->delegate.remove_debugger_breakpoint_call_count, 2u);
+    EXPECT_EQ(session->delegate.set_debugger_breakpoint_call_count, 4u);
+    EXPECT_EQ(session->delegate.last_debugger_breakpoint_location->filename, session->delegate.fixture_source.display_url);
+    EXPECT(!session->delegate.last_debugger_breakpoint_location->source_id.has_value());
 }
 
 TEST_CASE(storage_web_storage_resources)
@@ -3489,6 +4543,18 @@ TEST_CASE(inspector_walker_navigation_reloads_root)
 
     auto div_actor = query_selector(client, walker_actor, root_node_actor, "div"sv);
 
+    Vector<String> old_target_actors;
+    old_target_actors.append(actor_from(target, "actor"sv));
+    old_target_actors.append(actor_from(target, "accessibilityActor"sv));
+    old_target_actors.append(actor_from(target, "consoleActor"sv));
+    old_target_actors.append(actor_from(target, "cssPropertiesActor"sv));
+    old_target_actors.append(actor_from(target, "inspectorActor"sv));
+    old_target_actors.append(actor_from(target, "styleSheetsActor"sv));
+    old_target_actors.append(actor_from(target, "threadActor"sv));
+    old_target_actors.append(walker_actor);
+    old_target_actors.append(root_node_actor);
+    old_target_actors.append(div_actor);
+
     JsonObject watch_root;
     watch_root.set("to"sv, walker_actor);
     watch_root.set("type"sv, "watchRootNode"sv);
@@ -3506,6 +4572,10 @@ TEST_CASE(inspector_walker_navigation_reloads_root)
     is_in_dom_tree.set("type"sv, "isInDOMTree"sv);
     is_in_dom_tree.set("node"sv, div_actor);
     EXPECT(!client.request(move(is_in_dom_tree)).get_bool("attached"sv).value());
+    spin_until(session->loop, [&] {
+        return !session->server->actor_registry().contains(root_node_actor)
+            && !session->server->actor_registry().contains(div_actor);
+    });
 
     EXPECT_EQ(session->delegate.clear_highlighted_dom_node_call_count, 1u);
     EXPECT_EQ(session->delegate.clear_inspected_dom_node_call_count, 1u);
@@ -3521,13 +4591,7 @@ TEST_CASE(inspector_walker_navigation_reloads_root)
     auto root_available = read_packet_with_type(client, "root-available"sv);
     auto new_root_node = root_available.get_object("node"sv).release_value();
     auto new_root_node_actor = actor_from(new_root_node, "actor"sv);
-    auto main_actor = query_selector(client, walker_actor, new_root_node_actor, "main"sv);
-
-    JsonObject main_is_in_dom_tree;
-    main_is_in_dom_tree.set("to"sv, walker_actor);
-    main_is_in_dom_tree.set("type"sv, "isInDOMTree"sv);
-    main_is_in_dom_tree.set("node"sv, main_actor);
-    EXPECT(client.request(move(main_is_in_dom_tree)).get_bool("attached"sv).value());
+    old_target_actors.append(new_root_node_actor);
 
     EXPECT_EQ(session->delegate.inspect_tab_call_count, 2u);
 
@@ -3545,6 +4609,14 @@ TEST_CASE(inspector_walker_navigation_reloads_root)
     EXPECT_NE(
         new_target.get_integer<u64>("innerWindowId"sv).value(),
         target.get_integer<u64>("innerWindowId"sv).value());
+
+    spin_until(session->loop, [&] {
+        for (auto const& actor : old_target_actors) {
+            if (session->server->actor_registry().contains(actor))
+                return false;
+        }
+        return true;
+    });
 
     EXPECT_EQ(client.request(actor_from(new_target, "actor"sv), "listFrames"sv).get_string("from"sv).value(), actor_from(new_target, "actor"sv));
 
@@ -4158,6 +5230,54 @@ TEST_CASE(devtools_server_teardown_with_pending_actor_cleanup)
     pump(session->loop);
 }
 
+TEST_CASE(devtools_disconnect_detaches_debugger_before_destroying_actors)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+    (void)get_frame_target(client, tab_actor);
+
+    JsonObject watch_resources;
+    watch_resources.set("to"sv, watcher_actor);
+    watch_resources.set("type"sv, "watchResources"sv);
+    JsonArray resource_types;
+    resource_types.must_append("thread-state"sv);
+    watch_resources.set("resourceTypes"sv, move(resource_types));
+    (void)client.request(move(watch_resources));
+    EXPECT_EQ(session->delegate.attach_debugger_call_count, 1u);
+
+    session->server->connection()->on_connection_closed();
+    session->server->connection()->on_connection_closed();
+    spin_until(session->loop, [&] { return session->delegate.detach_debugger_call_count == 1; });
+    EXPECT_EQ(session->delegate.did_disconnect_devtools_client_call_count, 1u);
+}
+
+TEST_CASE(devtools_server_destruction_detaches_debugger_before_destroying_actors)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+    (void)get_frame_target(client, tab_actor);
+
+    JsonObject watch_resources;
+    watch_resources.set("to"sv, watcher_actor);
+    watch_resources.set("type"sv, "watchResources"sv);
+    JsonArray resource_types;
+    resource_types.must_append("thread-state"sv);
+    watch_resources.set("resourceTypes"sv, move(resource_types));
+    (void)client.request(move(watch_resources));
+
+    session->server.clear();
+    EXPECT_EQ(session->delegate.detach_debugger_call_count, 1u);
+    EXPECT_EQ(session->delegate.did_disconnect_devtools_client_call_count, 1u);
+}
+
 TEST_CASE(network_event_reports_request_metadata)
 {
     auto session = create_session("https://example.test/"sv, 42);
@@ -4196,6 +5316,19 @@ TEST_CASE(console_network_navigation_and_accessibility)
     session->delegate.emit_console_log(JS::Console::LogLevel::Warn, { "careful"_string });
     auto warning = read_resource(client, "console-message"sv);
     EXPECT_EQ(warning.get_string("level"sv).value(), "warn"sv);
+
+    session->delegate.emit_logpoint();
+    auto logpoint = read_resource(client, "console-message"sv);
+    EXPECT_EQ(logpoint.get_string("level"sv).value(), "logPoint"sv);
+    EXPECT_EQ(logpoint.get_string("filename"sv).value(), "https://example.test/app.js"sv);
+    EXPECT_EQ(logpoint.get_integer<u64>("lineNumber"sv).value(), 8u);
+    EXPECT_EQ(logpoint.get_integer<u64>("columnNumber"sv).value(), 3u);
+    EXPECT_EQ(logpoint.get_array("stacktrace"sv)->at(0).as_object().get_string("functionName"sv).value(), "run"sv);
+
+    session->delegate.emit_logpoint_error();
+    auto logpoint_error = read_resource(client, "console-message"sv);
+    EXPECT_EQ(logpoint_error.get_string("level"sv).value(), "logPointError"sv);
+    EXPECT_EQ(logpoint_error.get_array("arguments"sv)->at(0).as_string(), "Logpoint expression did not produce an argument list"sv);
 
     session->delegate.emit_console_trace();
     auto trace = read_resource(client, "console-message"sv);

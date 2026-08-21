@@ -21,6 +21,7 @@ private:
     virtual bool supports_private_browsing_windows() const override { return true; }
 
     virtual Core::EventLoop& create_platform_event_loop() override;
+    virtual Optional<String> ui_font_family() const override;
 
     virtual Optional<WebView::ViewImplementation&> active_web_view() const override;
     virtual Vector<WebView::ViewImplementation&> active_window_web_views() const override;

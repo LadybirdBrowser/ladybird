@@ -6,6 +6,7 @@
 
 #include <AK/TypeCasts.h>
 #include <LibJS/Console.h>
+#include <LibJS/Debugger.h>
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/Value.h>
@@ -61,6 +62,8 @@ void report_exception(JS::Completion const& throw_completion, JS::Realm& realm)
 {
     VERIFY(throw_completion.type() == JS::Completion::Type::Throw);
     report_exception_to_console(throw_completion.value(), realm, ErrorInPromise::No);
+    if (auto* debugger = realm.vm().debugger())
+        debugger->did_finish_exception_propagation(throw_completion.value());
 }
 
 }

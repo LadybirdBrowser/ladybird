@@ -10,12 +10,14 @@
 #include <AK/HashFunctions.h>
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
+#include <AK/Span.h>
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <AK/Variant.h>
 #include <LibIPC/Forward.h>
 #include <LibJS/Forward.h>
+#include <LibJS/Position.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -49,7 +51,15 @@ public:
     };
 
     struct JavaScriptSource {
+        enum class Type : u8 {
+            Script,
+            Module,
+        };
+
         NonnullRefPtr<JS::SourceCode const> source_code;
+        Type type { Type::Script };
+        size_t line_number_offset { 1 };
+        mutable Optional<Vector<JS::Position>> breakpoint_positions;
     };
 
     using ContentHandle = Variant<JavaScriptSource>;
@@ -64,10 +74,13 @@ public:
         ContentHandle content;
     };
 
-    Script const& register_javascript_source(NonnullRefPtr<JS::SourceCode const>, ByteString const& filename, Utf16String display_url, Utf16String introduction_type, IsInlineSource, size_t source_line_number, size_t source_length);
+    Script const& register_javascript_source(NonnullRefPtr<JS::SourceCode const>, JavaScriptSource::Type, ByteString const& filename, Utf16String display_url, Utf16String introduction_type, IsInlineSource, size_t source_line_number, size_t source_length);
 
     OrderedHashMap<u64, Script> const& scripts() const { return m_scripts; }
+    Optional<Script const&> script_for_source_code(JS::SourceCode const&) const;
+    Optional<NonnullRefPtr<JS::SourceCode const>> source_code(u64 script_id) const;
     Optional<Content> script_content(u64 script_id, Utf16View document_source) const;
+    ReadonlySpan<JS::Position> breakpoint_positions(u64 script_id) const;
 
 private:
     OrderedHashMap<u64, Script> m_scripts;

@@ -53,6 +53,7 @@
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/WebIDL/Promise.h>
+#include <LibWebView/Debugger.h>
 #include <LibWebView/ViewImplementation.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/DevToolsConsoleClient.h>
@@ -1589,14 +1590,75 @@ Vector<Web::HTML::ScriptRegistry::Description> PageClient::list_devtools_sources
     return results;
 }
 
-Optional<Web::HTML::ScriptRegistry::Content> PageClient::devtools_source_content(Web::HTML::ScriptRegistry::Identifier const& source_id) const
+static Optional<Web::HTML::ScriptRegistry::Description> find_devtools_source_description(Web::DOM::Document const& document, JS::SourceCode const& source_code)
+{
+    if (auto script = document.script_registry().script_for_source_code(source_code); script.has_value())
+        return exported_devtools_source_description(document, script->description);
+
+    for (auto const& navigable : document.descendant_navigables()) {
+        auto content_document = navigable->active_document();
+        if (!content_document)
+            continue;
+        if (auto description = find_devtools_source_description(*content_document, source_code); description.has_value())
+            return description;
+    }
+    return {};
+}
+
+Optional<Web::HTML::ScriptRegistry::Description> PageClient::devtools_source_description(JS::SourceCode const& source_code) const
+{
+    auto const* document = page().top_level_browsing_context().active_document();
+    if (!document)
+        return {};
+    return find_devtools_source_description(*document, source_code);
+}
+
+static Web::DOM::Document const* document_for_devtools_source(PageClient const& page_client, Web::HTML::ScriptRegistry::Identifier const& source_id)
 {
     auto* node = Web::DOM::Node::from_unique_id(source_id.document_id);
     auto* document = as_if<Web::DOM::Document>(node);
     if (!document)
+        return nullptr;
+
+    auto navigable = document->navigable();
+    if (!navigable || &navigable->page() != &page_client.page())
+        return nullptr;
+
+    return document;
+}
+
+Optional<NonnullRefPtr<JS::SourceCode const>> PageClient::devtools_source_code(Web::HTML::ScriptRegistry::Identifier const& source_id) const
+{
+    auto* document = document_for_devtools_source(*this, source_id);
+    if (!document)
+        return {};
+
+    return document->script_registry().source_code(source_id.script_id);
+}
+
+Optional<Web::HTML::ScriptRegistry::Content> PageClient::devtools_source_content(Web::HTML::ScriptRegistry::Identifier const& source_id) const
+{
+    auto* document = document_for_devtools_source(*this, source_id);
+    if (!document)
         return {};
 
     return document->script_registry().script_content(source_id.script_id, document->source().utf16_view());
+}
+
+Vector<WebView::DebuggerSourcePosition> PageClient::devtools_source_breakpoint_positions(Web::HTML::ScriptRegistry::Identifier const& source_id) const
+{
+    auto* document = document_for_devtools_source(*this, source_id);
+    if (!document)
+        return {};
+
+    Vector<WebView::DebuggerSourcePosition> positions;
+    for (auto const& position : document->script_registry().breakpoint_positions(source_id.script_id)) {
+        positions.append({
+            .line = position.line,
+            .column = position.column > 0 ? position.column - 1 : 0,
+        });
+    }
+    return positions;
 }
 
 void PageClient::page_did_register_javascript_source(Web::DOM::Document& document, Web::HTML::ScriptRegistry::Description const& source)

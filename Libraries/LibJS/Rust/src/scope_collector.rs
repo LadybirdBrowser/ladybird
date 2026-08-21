@@ -1196,6 +1196,9 @@ impl ScopeCollector {
                     if let Some(ls) = local_scope
                         && let Some(scope_id) = records[ls].scope_data
                     {
+                        let local_scope_range = records[index]
+                            .scope_data
+                            .and_then(|scope_id| scopes[scope_id].source_range);
                         let sd = &mut scopes[scope_id];
 
                         if is_function_parameter {
@@ -1211,6 +1214,8 @@ impl ScopeCollector {
                                 sd.local_variables.push(LocalVariable {
                                     name: name.clone(),
                                     kind: LocalVarKind::Var,
+                                    is_mutable: true,
+                                    scope_range: None,
                                 });
                                 for id in &group.identifiers {
                                     let identifier = &mut identifiers[*id];
@@ -1224,6 +1229,8 @@ impl ScopeCollector {
                             sd.local_variables.push(LocalVariable {
                                 name: name.clone(),
                                 kind,
+                                is_mutable: group.declaration_kind != Some(DeclarationKind::Const),
+                                scope_range: local_scope_range,
                             });
                             for id in &group.identifiers {
                                 let identifier = &mut identifiers[*id];

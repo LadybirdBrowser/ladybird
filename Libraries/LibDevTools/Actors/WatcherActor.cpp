@@ -8,6 +8,8 @@
 #include <AK/JsonObject.h>
 #include <LibCore/EventLoop.h>
 #include <LibDevTools/Actors/AccessibilityActor.h>
+#include <LibDevTools/Actors/BlackboxingActor.h>
+#include <LibDevTools/Actors/BreakpointListActor.h>
 #include <LibDevTools/Actors/CSSPropertiesActor.h>
 #include <LibDevTools/Actors/ConsoleActor.h>
 #include <LibDevTools/Actors/CookiesActor.h>
@@ -40,11 +42,21 @@ WatcherActor::WatcherActor(DevToolsServer& devtools, String name, WeakPtr<TabAct
 
 WatcherActor::~WatcherActor()
 {
+    connection_closed();
+}
+
+void WatcherActor::connection_closed()
+{
+    if (exchange(m_connection_closed, true))
+        return;
+
     stop_watching_source_resources();
+    stop_watching_thread_state_resources();
 
     if (m_is_watching_frame_targets) {
         if (auto tab = m_tab.strong_ref())
             devtools().delegate().did_disconnect_devtools_client(tab->description());
+        m_is_watching_frame_targets = false;
     }
 }
 
@@ -52,9 +64,23 @@ void WatcherActor::handle_message(Message const& message)
 {
     JsonObject response;
 
+    if (message.type == "getBlackboxingActor"sv) {
+        response.set("blackboxing"sv, blackboxing_actor().name());
+        send_response(message, move(response));
+        return;
+    }
+
+    if (message.type == "getBreakpointListActor"sv) {
+        response.set("breakpointList"sv, breakpoint_list_actor().name());
+        send_response(message, move(response));
+        return;
+    }
+
     if (message.type == "getNetworkParentActor"sv) {
-        if (!m_network_parent)
+        if (!m_network_parent) {
             m_network_parent = devtools().register_actor<NetworkParentActor>();
+            add_child_actor(*m_network_parent);
+        }
 
         response.set("network"sv, m_network_parent->name());
         send_response(message, move(response));
@@ -72,8 +98,10 @@ void WatcherActor::handle_message(Message const& message)
     }
 
     if (message.type == "getTargetConfigurationActor"sv) {
-        if (!m_target_configuration)
+        if (!m_target_configuration) {
             m_target_configuration = devtools().register_actor<TargetConfigurationActor>();
+            add_child_actor(*m_target_configuration);
+        }
 
         response.set("configuration"sv, m_target_configuration->serialize_configuration());
         send_response(message, move(response));
@@ -81,8 +109,10 @@ void WatcherActor::handle_message(Message const& message)
     }
 
     if (message.type == "getThreadConfigurationActor"sv) {
-        if (!m_thread_configuration)
-            m_thread_configuration = devtools().register_actor<ThreadConfigurationActor>();
+        if (!m_thread_configuration) {
+            m_thread_configuration = devtools().register_actor<ThreadConfigurationActor>(m_tab);
+            add_child_actor(*m_thread_configuration);
+        }
 
         response.set("configuration"sv, m_thread_configuration->serialize_configuration());
         send_response(message, move(response));
@@ -135,12 +165,13 @@ void WatcherActor::handle_message(Message const& message)
             } else if (resource_type.as_string() == "source"sv) {
                 start_watching_source_resources();
                 should_send_source_resources = true;
+            } else if (resource_type.as_string() == "thread-state"sv) {
+                start_watching_thread_state_resources();
             } else if (first_is_one_of(resource_type.as_string(),
                            "document-event"sv,
                            "error-message"sv,
                            "jstracer-state"sv,
-                           "jstracer-trace"sv,
-                           "thread-state"sv)) {
+                           "jstracer-trace"sv)) {
                 // These resource types are part of Firefox's Debugger startup sequence. Ladybird either sends them from
                 // FrameActor when they happen, or does not produce them yet, so watching them only needs to opt out of
                 // Firefox's legacy listeners.
@@ -186,6 +217,26 @@ void WatcherActor::handle_message(Message const& message)
     send_unrecognized_packet_type_error(message);
 }
 
+BlackboxingActor& WatcherActor::blackboxing_actor()
+{
+    if (auto actor = m_blackboxing.strong_ref())
+        return *actor;
+
+    m_blackboxing = devtools().register_actor<BlackboxingActor>(make_weak_ptr<WatcherActor>());
+    add_child_actor(*m_blackboxing);
+    return *m_blackboxing;
+}
+
+BreakpointListActor& WatcherActor::breakpoint_list_actor()
+{
+    if (auto actor = m_breakpoint_list.strong_ref())
+        return *actor;
+
+    m_breakpoint_list = devtools().register_actor<BreakpointListActor>(m_tab);
+    add_child_actor(*m_breakpoint_list);
+    return *m_breakpoint_list;
+}
+
 JsonObject WatcherActor::serialize_description() const
 {
     JsonObject resources;
@@ -228,15 +279,21 @@ JsonObject WatcherActor::serialize_description() const
 FrameActor& WatcherActor::create_frame_target()
 {
     auto& css_properties = devtools().register_actor<CSSPropertiesActor>();
-    auto& console = devtools().register_actor<ConsoleActor>(m_tab);
+    auto& thread = devtools().register_actor<ThreadActor>(m_tab, make_weak_ptr<WatcherActor>());
+    auto& console = devtools().register_actor<ConsoleActor>(m_tab, thread);
     auto& style_sheets = devtools().register_actor<StyleSheetsActor>(m_tab);
     auto& inspector = devtools().register_actor<InspectorActor>(m_tab, style_sheets);
-    auto& thread = devtools().register_actor<ThreadActor>(m_tab);
     auto& accessibility = devtools().register_actor<AccessibilityActor>(m_tab);
 
     auto& target = devtools().register_actor<FrameActor>(m_tab, make_weak_ptr<WatcherActor>(), css_properties, console, inspector, style_sheets, thread, accessibility);
+    add_child_actor(target);
     m_target = target;
     m_thread = thread;
+    attach_debugger_if_possible();
+    if (auto thread_configuration = m_thread_configuration.strong_ref())
+        thread_configuration->reapply_configuration();
+    if (auto breakpoint_list = m_breakpoint_list.strong_ref())
+        breakpoint_list->reapply_breakpoints();
     return target;
 }
 
@@ -254,8 +311,9 @@ void WatcherActor::switch_frame_target(FrameActor& previous_target, String const
 
     send_frame_target_destroyed_message(*previous_target_ref);
     previous_target_ref->stop_listening();
-    devtools().unregister_actor(previous_target_ref->name());
+    unregister_child_actor(*previous_target_ref);
 
+    m_debugger_is_attached = false;
     auto& target = create_frame_target();
     send_frame_target_available_message(target);
     target.send_frame_update_message();
@@ -270,6 +328,23 @@ void WatcherActor::switch_frame_target(FrameActor& previous_target, String const
         send_storage_resource_available_message(session_storage_actor());
     if (m_is_watching_source_resources)
         send_source_resource_available_message();
+
+    if (auto tab = m_tab.strong_ref()) {
+        for (auto const& source : m_blackboxed_sources) {
+            auto url = Utf16String::from_utf8(source.key);
+            if (source.value.fully_blackboxed) {
+                devtools().delegate().update_debugger_blackboxing(
+                    tab->description(), url, {}, WebView::DebuggerBlackboxingOperation::Blackbox);
+                if (!source.value.unblackboxed_ranges.is_empty()) {
+                    devtools().delegate().update_debugger_blackboxing(
+                        tab->description(), move(url), source.value.unblackboxed_ranges, WebView::DebuggerBlackboxingOperation::Unblackbox);
+                }
+            } else {
+                devtools().delegate().update_debugger_blackboxing(
+                    tab->description(), move(url), source.value.blackboxed_ranges, WebView::DebuggerBlackboxingOperation::Blackbox);
+            }
+        }
+    }
 }
 
 void WatcherActor::send_frame_target_available_message(FrameActor& target)
@@ -299,6 +374,7 @@ CookiesActor& WatcherActor::cookies_actor()
         return *cookies;
 
     m_cookies = devtools().register_actor<CookiesActor>(m_tab);
+    add_child_actor(*m_cookies);
     return *m_cookies.strong_ref();
 }
 
@@ -308,6 +384,7 @@ IndexedDBActor& WatcherActor::indexed_db_actor()
         return *indexed_db;
 
     m_indexed_db = devtools().register_actor<IndexedDBActor>(m_tab);
+    add_child_actor(*m_indexed_db);
     return *m_indexed_db.strong_ref();
 }
 
@@ -372,12 +449,93 @@ void WatcherActor::send_source_resource_available_message(Web::HTML::ScriptRegis
         target->send_source_resource_available_message(source);
 }
 
+void WatcherActor::start_watching_thread_state_resources()
+{
+    m_is_watching_thread_state_resources = true;
+    attach_debugger_if_possible();
+}
+
+void WatcherActor::attach_debugger_if_possible()
+{
+    if (!m_is_watching_thread_state_resources || m_debugger_is_attached || !m_thread.strong_ref())
+        return;
+
+    auto tab = m_tab.strong_ref();
+    if (!tab)
+        return;
+
+    m_debugger_is_attached = true;
+    devtools().delegate().attach_debugger(
+        tab->description(),
+        [weak_this = make_weak_ptr<WatcherActor>()](auto pause) mutable {
+            auto self = weak_this.strong_ref();
+            if (!self)
+                return;
+            if (auto thread = self->m_thread.strong_ref())
+                thread->did_pause(move(pause));
+        },
+        [weak_this = make_weak_ptr<WatcherActor>()] {
+            auto self = weak_this.strong_ref();
+            if (!self)
+                return;
+            if (auto thread = self->m_thread.strong_ref())
+                thread->did_resume();
+        });
+}
+
+void WatcherActor::stop_watching_thread_state_resources()
+{
+    if (!m_is_watching_thread_state_resources)
+        return;
+
+    m_is_watching_thread_state_resources = false;
+    if (m_debugger_is_attached) {
+        m_debugger_is_attached = false;
+        auto tab = m_tab.strong_ref();
+        if (!tab)
+            return;
+        devtools().delegate().detach_debugger(tab->description());
+    }
+}
+
+void WatcherActor::send_thread_state_available_message(JsonObject resource)
+{
+    if (auto target = m_target.strong_ref())
+        target->send_thread_state_resource_available_message(move(resource));
+}
+
+void WatcherActor::update_debugger_blackboxing(String const& url, Vector<WebView::DebuggerBlackboxRange> ranges, WebView::DebuggerBlackboxingOperation operation)
+{
+    auto& state = m_blackboxed_sources.ensure(url);
+    state.update(ranges, operation);
+    if (state.is_empty())
+        m_blackboxed_sources.remove(url);
+
+    if (auto tab = m_tab.strong_ref())
+        devtools().delegate().update_debugger_blackboxing(tab->description(), Utf16String::from_utf8(url), move(ranges), operation);
+}
+
+bool WatcherActor::is_source_fully_blackboxed(StringView url) const
+{
+    auto source = m_blackboxed_sources.find(url);
+    return source != m_blackboxed_sources.end()
+        && source->value.fully_blackboxed
+        && source->value.unblackboxed_ranges.is_empty();
+}
+
+bool WatcherActor::is_paused_in_source(Web::HTML::ScriptRegistry::Identifier source_id) const
+{
+    auto thread = m_thread.strong_ref();
+    return thread && thread->is_paused_in_source(source_id);
+}
+
 StorageActor& WatcherActor::local_storage_actor()
 {
     if (auto storage = m_local_storage.strong_ref())
         return *storage;
 
     m_local_storage = devtools().register_actor<StorageActor>(m_tab, Web::StorageAPI::StorageEndpointType::LocalStorage);
+    add_child_actor(*m_local_storage);
     return *m_local_storage.strong_ref();
 }
 
@@ -387,6 +545,7 @@ StorageActor& WatcherActor::session_storage_actor()
         return *storage;
 
     m_session_storage = devtools().register_actor<StorageActor>(m_tab, Web::StorageAPI::StorageEndpointType::SessionStorage);
+    add_child_actor(*m_session_storage);
     return *m_session_storage.strong_ref();
 }
 

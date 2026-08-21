@@ -30,6 +30,7 @@
 #include <LibWebView/HistoryDebug.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/Menu.h>
+#include <LibWebView/PausedDebuggerOverlay.h>
 #include <LibWebView/SiteIsolation.h>
 #include <LibWebView/SiteIsolationManager.h>
 #include <LibWebView/URL.h>
@@ -202,8 +203,10 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
         m_backup_bitmap_size = m_client_state.front_bitmap.last_painted_size;
     }
 
-    if (m_client_state.client)
+    if (m_client_state.client) {
+        fail_pending_debugger_requests();
         m_client_state.client->unregister_view(m_client_state.page_index);
+    }
 
     reset_page_media_state();
 
@@ -664,6 +667,37 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
     auto* key_event = event.get_pointer<Web::KeyEvent>();
     auto* mouse_event = event.get_pointer<Web::MouseEvent>();
     auto* pinch_event = event.get_pointer<Web::PinchEvent>();
+    if (m_debugger_paused) {
+        if (mouse_event) {
+            if (mouse_event->type == Web::MouseEvent::Type::MouseMove) {
+                auto position = mouse_event->position.to_type<int>();
+                set_debugger_overlay_hovered_action(paused_debugger_overlay_action_at(position, viewport_size().to_type<int>(), device_pixel_ratio()));
+                if (m_debugger_overlay_pointer_state.is_active() && (mouse_event->buttons & Web::UIEvents::MouseButton::Primary) == Web::UIEvents::MouseButton::None)
+                    m_debugger_overlay_pointer_state.cancel();
+            } else if (mouse_event->type == Web::MouseEvent::Type::MouseLeave) {
+                set_debugger_overlay_hovered_action({});
+                m_debugger_overlay_pointer_state.cancel();
+            }
+
+            if (mouse_event->type == Web::MouseEvent::Type::MouseDown
+                && mouse_event->button == Web::UIEvents::MouseButton::Primary) {
+                auto position = mouse_event->position.to_type<int>();
+                m_debugger_overlay_pointer_state.press(paused_debugger_overlay_action_at(position, viewport_size().to_type<int>(), device_pixel_ratio()));
+            }
+
+            if (mouse_event->type == Web::MouseEvent::Type::MouseUp
+                && mouse_event->button == Web::UIEvents::MouseButton::Primary) {
+                auto position = mouse_event->position.to_type<int>();
+                auto released_action = paused_debugger_overlay_action_at(position, viewport_size().to_type<int>(), device_pixel_ratio());
+                if (auto action = m_debugger_overlay_pointer_state.release(released_action); action.has_value()) {
+                    resume_debugger(*action == PausedDebuggerOverlayAction::StepOver
+                            ? DebuggerResumeMode::StepOver
+                            : DebuggerResumeMode::Continue);
+                }
+            }
+        }
+        return;
+    }
 
     // User input enables a single request for an external URL.
     if ((key_event && key_event->type == Web::KeyEvent::Type::KeyDown && !key_event->repeat
@@ -1350,6 +1384,181 @@ void ViewImplementation::request_devtools_source(Web::HTML::ScriptRegistry::Iden
     client().async_request_devtools_source(page_id(), source_id);
 }
 
+void ViewImplementation::attach_debugger(DevTools::DevToolsDelegate::OnDebuggerPaused on_paused, DevTools::DevToolsDelegate::OnDebuggerResumed on_resumed)
+{
+    on_debugger_paused = move(on_paused);
+    on_debugger_resumed = move(on_resumed);
+    m_debugger_is_attached = true;
+    client().async_attach_debugger(page_id());
+}
+
+void ViewImplementation::configure_debugger(DebuggerConfiguration configuration)
+{
+    client().async_configure_debugger(page_id(), configuration);
+}
+
+void ViewImplementation::detach_debugger()
+{
+    fail_pending_debugger_requests();
+    m_debugger_is_attached = false;
+    on_debugger_paused = nullptr;
+    on_debugger_resumed = nullptr;
+    client().async_detach_debugger(page_id());
+}
+
+void ViewImplementation::interrupt_debugger()
+{
+    client().async_interrupt_debugger(page_id());
+}
+
+void ViewImplementation::resume_debugger(DebuggerResumeMode mode)
+{
+    client().async_resume_debugger(page_id(), mode);
+}
+
+template<typename Callback, typename ErrorFactory>
+static void fail_pending_debugger_request_map(HashMap<u64, Callback>& requests, HashTable<u64>* cancelled_requests, ErrorFactory make_error)
+{
+    auto requests_to_fail = move(requests);
+    requests = {};
+
+    for (auto& request : requests_to_fail) {
+        if (cancelled_requests)
+            cancelled_requests->set(request.key);
+        request.value(make_error());
+    }
+}
+
+void ViewImplementation::fail_pending_debugger_requests()
+{
+    auto make_error = [] { return Error::from_string_literal("WebContent process was replaced"); };
+    fail_pending_debugger_request_map(m_pending_debugger_breakpoint_requests, nullptr, make_error);
+    fail_pending_debugger_request_map(m_pending_debugger_environments_requests, &m_cancelled_debugger_environments_requests, make_error);
+    fail_pending_debugger_request_map(m_pending_debugger_evaluation_requests, &m_cancelled_debugger_evaluation_requests, [] { return "WebContent process was replaced"_string; });
+    fail_pending_debugger_request_map(m_pending_debugger_object_properties_requests, &m_cancelled_debugger_object_properties_requests, [] { return "WebContent process was replaced"_string; });
+    fail_pending_debugger_request_map(m_pending_debugger_source_positions_requests, &m_cancelled_debugger_source_positions_requests, make_error);
+}
+
+void ViewImplementation::did_pause_debugger(Badge<WebContentClient>)
+{
+    set_debugger_paused(true);
+}
+
+void ViewImplementation::did_resume_debugger(Badge<WebContentClient>)
+{
+    set_debugger_paused(false);
+    if (on_debugger_resumed)
+        on_debugger_resumed();
+}
+
+void ViewImplementation::did_request_cursor_change(Badge<WebContentClient>, Gfx::Cursor cursor)
+{
+    m_page_cursor = move(cursor);
+    if (!m_debugger_overlay_hovered_action.has_value() && on_cursor_change)
+        on_cursor_change(m_page_cursor);
+}
+
+void ViewImplementation::set_debugger_paused(bool paused)
+{
+    if (m_debugger_paused == paused)
+        return;
+
+    m_debugger_paused = paused;
+    if (!paused)
+        m_debugger_overlay_pointer_state.cancel();
+    if (!paused && m_debugger_overlay_hovered_action.has_value()) {
+        m_debugger_overlay_hovered_action.clear();
+        if (on_cursor_change)
+            on_cursor_change(m_page_cursor);
+    }
+    update_paused_debugger_overlay();
+}
+
+void ViewImplementation::set_debugger_overlay_hovered_action(Optional<PausedDebuggerOverlayAction> action)
+{
+    if (m_debugger_overlay_hovered_action == action)
+        return;
+
+    m_debugger_overlay_hovered_action = action;
+    update_paused_debugger_overlay();
+
+    if (on_cursor_change)
+        on_cursor_change(action.has_value() ? Gfx::Cursor { Gfx::StandardCursor::Hand } : m_page_cursor);
+}
+
+void ViewImplementation::update_paused_debugger_overlay()
+{
+    if (!m_client_state.client)
+        return;
+
+    auto context_id = client().compositor_context_id_for_page(page_id());
+    Optional<u8> hovered_action;
+    if (m_debugger_overlay_hovered_action.has_value())
+        hovered_action = to_underlying(*m_debugger_overlay_hovered_action);
+    Application::the().update_compositor_paused_debugger_overlay(context_id, m_debugger_paused, device_pixel_ratio(), Application::the().ui_font_family(), hovered_action);
+}
+
+void ViewImplementation::update_debugger_blackboxing(Utf16String url, Vector<DebuggerBlackboxRange> ranges, DebuggerBlackboxingOperation operation)
+{
+    client().async_update_debugger_blackboxing(page_id(), move(url), move(ranges), operation);
+}
+
+void ViewImplementation::set_debugger_breakpoint(DebuggerBreakpointLocation location, DebuggerBreakpointOptions options, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete on_complete)
+{
+    auto request_id = m_next_debugger_breakpoint_request_id++;
+    m_pending_debugger_breakpoint_requests.set(request_id, move(on_complete));
+    client().async_set_debugger_breakpoint(page_id(), request_id, move(location), move(options));
+}
+
+void ViewImplementation::remove_debugger_breakpoint(DebuggerBreakpointLocation location, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete on_complete)
+{
+    auto request_id = m_next_debugger_breakpoint_request_id++;
+    m_pending_debugger_breakpoint_requests.set(request_id, move(on_complete));
+    client().async_remove_debugger_breakpoint(page_id(), request_id, move(location));
+}
+
+void ViewImplementation::did_complete_debugger_breakpoint_operation(u64 request_id, Optional<String> error)
+{
+    auto callback = m_pending_debugger_breakpoint_requests.take(request_id);
+    if (!callback.has_value())
+        return;
+
+    if (error.has_value()) {
+        (*callback)(Error::from_string_literal("Debugger breakpoint operation failed"));
+        return;
+    }
+
+    (*callback)({});
+}
+
+void ViewImplementation::retrieve_debugger_environments(u64 frame_id, DevTools::DevToolsDelegate::OnDebuggerEnvironmentsReceived on_complete)
+{
+    auto request_id = m_next_debugger_environments_request_id++;
+    m_pending_debugger_environments_requests.set(request_id, move(on_complete));
+    client().async_get_debugger_environments(page_id(), request_id, frame_id);
+}
+
+void ViewImplementation::evaluate_javascript_in_debugger_frame(u64 frame_id, String const& source_text, DevTools::DevToolsDelegate::OnDebuggerEvaluationComplete on_complete)
+{
+    auto request_id = m_next_debugger_evaluation_request_id++;
+    m_pending_debugger_evaluation_requests.set(request_id, move(on_complete));
+    client().async_evaluate_javascript_in_debugger_frame(page_id(), request_id, frame_id, Utf16String::from_utf8(source_text));
+}
+
+void ViewImplementation::retrieve_debugger_object_properties(u64 object_id, DevTools::DevToolsDelegate::OnDebuggerObjectPropertiesReceived on_complete)
+{
+    auto request_id = m_next_debugger_object_properties_request_id++;
+    m_pending_debugger_object_properties_requests.set(request_id, move(on_complete));
+    client().async_get_debugger_object_properties(page_id(), request_id, object_id);
+}
+
+void ViewImplementation::retrieve_debugger_source_positions(Web::HTML::ScriptRegistry::Identifier source_id, DevTools::DevToolsDelegate::OnDebuggerSourcePositionsReceived on_complete)
+{
+    auto request_id = m_next_debugger_source_positions_request_id++;
+    m_pending_debugger_source_positions_requests.set(request_id, move(on_complete));
+    client().async_get_debugger_source_positions(page_id(), request_id, source_id);
+}
+
 void ViewImplementation::resolve_dom_node_url(Optional<Web::UniqueNodeID> node_id, String const& url, DevTools::DevToolsDelegate::OnResolvedURLReceived on_complete)
 {
     auto request_id = m_next_resolve_dom_node_url_request_id++;
@@ -1758,10 +1967,26 @@ void ViewImplementation::handle_resize()
 {
     client().async_set_viewport(page_id(), viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
     Application::the().update_compositor_viewport(client().compositor_context_id_for_page(page_id()), viewport_size().to_type<int>(), Web::Compositor::WindowResizingInProgress::Yes);
+    if (m_debugger_paused) {
+        m_debugger_overlay_pointer_state.cancel();
+        if (m_debugger_overlay_hovered_action.has_value())
+            set_debugger_overlay_hovered_action({});
+        else
+            update_paused_debugger_overlay();
+    }
 }
 
 void ViewImplementation::initialize_client(CreateNewClient create_new_client, Optional<Web::HTML::CrossProcessId> initial_document_state_id)
 {
+    if (create_new_client == CreateNewClient::Yes)
+        fail_pending_debugger_requests();
+    if (m_debugger_paused) {
+        set_debugger_paused(false);
+        if (on_debugger_resumed)
+            on_debugger_resumed();
+    }
+    m_debugger_overlay_pointer_state.cancel();
+
     m_needs_beforeunload_check = true;
 
     if (create_new_client == CreateNewClient::Yes) {
@@ -1798,6 +2023,9 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
     auto compositor_context_id = client().compositor_context_id_for_page(m_client_state.page_index);
     Application::the().update_compositor_viewport(compositor_context_id, viewport_size().to_type<int>());
     client().async_set_document_cookie_version_buffer(m_client_state.page_index, m_document_cookie_version_buffer);
+
+    if (m_debugger_is_attached)
+        client().async_attach_debugger(m_client_state.page_index);
 
     client().async_set_page_mute_state(m_client_state.page_index, m_mute_state);
 
@@ -3467,6 +3695,11 @@ void ViewImplementation::remove_navigation_listener(u64 listener_id)
 
 void ViewImplementation::request_close()
 {
+    if (m_debugger_paused) {
+        resume_debugger(DebuggerResumeMode::Continue);
+        set_debugger_paused(false);
+    }
+
     if (needs_beforeunload_check()) {
         client().async_request_close(page_id());
         return;
@@ -3478,6 +3711,11 @@ void ViewImplementation::request_close()
 Function<void()> ViewImplementation::prepare_for_immediate_close()
 {
     VERIFY(!needs_beforeunload_check());
+
+    if (m_debugger_paused) {
+        resume_debugger(DebuggerResumeMode::Continue);
+        set_debugger_paused(false);
+    }
 
     auto client = m_client_state.client;
     auto page_id = m_client_state.page_index;

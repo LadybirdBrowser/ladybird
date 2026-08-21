@@ -35,6 +35,7 @@
 #include <LibWebView/Attribute.h>
 #include <LibWebView/DictionaryLookup.h>
 #include <LibWebView/DOMNodeProperties.h>
+#include <LibWebView/Debugger.h>
 #include <LibWebView/Geolocation.h>
 #include <LibWebView/PageInfo.h>
 #include <LibWebView/Settings.h>
@@ -123,6 +124,18 @@ endpoint WebContentServer
     request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier) =|
     list_devtools_sources(u64 page_id, u64 request_id) =|
     request_devtools_source(u64 page_id, Web::HTML::ScriptRegistry::Identifier source_id) =|
+    attach_debugger(u64 page_id) =|
+    configure_debugger(u64 page_id, WebView::DebuggerConfiguration configuration) =|
+    detach_debugger(u64 page_id) =|
+    interrupt_debugger(u64 page_id) =|
+    resume_debugger(u64 page_id, WebView::DebuggerResumeMode mode) =|
+    update_debugger_blackboxing(u64 page_id, Utf16String url, Vector<WebView::DebuggerBlackboxRange> ranges, WebView::DebuggerBlackboxingOperation operation) =|
+    set_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation location, WebView::DebuggerBreakpointOptions options) =|
+    remove_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation location) =|
+    get_debugger_environments(u64 page_id, u64 request_id, u64 frame_id) =|
+    evaluate_javascript_in_debugger_frame(u64 page_id, u64 request_id, u64 frame_id, Utf16String source_text) =|
+    get_debugger_object_properties(u64 page_id, u64 request_id, u64 object_id) =|
+    get_debugger_source_positions(u64 page_id, u64 request_id, Web::HTML::ScriptRegistry::Identifier source_id) =|
     resolve_dom_node_url(u64 page_id, u64 request_id, Optional<Web::UniqueNodeID> node_id, String url) =|
 
     set_listen_for_dom_mutations(u64 page_id, bool listen_for_dom_mutations) =|

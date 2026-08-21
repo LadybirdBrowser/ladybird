@@ -56,11 +56,13 @@
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/DOMNodeProperties.h>
+#include <LibWebView/Debugger.h>
 #include <LibWebView/DictionaryLookup.h>
 #include <LibWebView/ExternalURLHandler.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/HistoryVisitTransition.h>
 #include <LibWebView/PageInfo.h>
+#include <LibWebView/PausedDebuggerOverlay.h>
 #include <LibWebView/PrivateBrowsing.h>
 #include <LibWebView/SessionHistory.h>
 #include <LibWebView/SessionStore.h>
@@ -171,6 +173,7 @@ public:
     void enqueue_input_event(Web::InputEvent);
     void did_finish_handling_input_event(Badge<WebContentClient>, Web::EventResult event_result);
     void handle_external_url(Badge<WebContentClient>, URL::URL, URL::Origin, bool has_transient_activation);
+    void did_request_cursor_change(Badge<WebContentClient>, Gfx::Cursor);
 
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);
     void set_preferred_contrast(Web::CSS::PreferredContrast);
@@ -234,6 +237,21 @@ public:
     void inspect_current_flexbox(Web::UniqueNodeID node_id, bool only_look_at_parents);
     void retrieve_devtools_sources(DevTools::DevToolsDelegate::OnSourcesReceived);
     void request_devtools_source(Web::HTML::ScriptRegistry::Identifier const&);
+    void attach_debugger(DevTools::DevToolsDelegate::OnDebuggerPaused, DevTools::DevToolsDelegate::OnDebuggerResumed);
+    void configure_debugger(DebuggerConfiguration);
+    void detach_debugger();
+    void interrupt_debugger();
+    void resume_debugger(DebuggerResumeMode);
+    void did_pause_debugger(Badge<WebContentClient>);
+    void did_resume_debugger(Badge<WebContentClient>);
+    void update_debugger_blackboxing(Utf16String, Vector<DebuggerBlackboxRange>, DebuggerBlackboxingOperation);
+    void set_debugger_breakpoint(DebuggerBreakpointLocation, DebuggerBreakpointOptions, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete);
+    void remove_debugger_breakpoint(DebuggerBreakpointLocation, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete);
+    void did_complete_debugger_breakpoint_operation(u64 request_id, Optional<String> error);
+    void retrieve_debugger_environments(u64 frame_id, DevTools::DevToolsDelegate::OnDebuggerEnvironmentsReceived);
+    void evaluate_javascript_in_debugger_frame(u64 frame_id, String const&, DevTools::DevToolsDelegate::OnDebuggerEvaluationComplete);
+    void retrieve_debugger_object_properties(u64 object_id, DevTools::DevToolsDelegate::OnDebuggerObjectPropertiesReceived);
+    void retrieve_debugger_source_positions(Web::HTML::ScriptRegistry::Identifier, DevTools::DevToolsDelegate::OnDebuggerSourcePositionsReceived);
     void resolve_dom_node_url(Optional<Web::UniqueNodeID> node_id, String const& url, DevTools::DevToolsDelegate::OnResolvedURLReceived);
     void clear_inspected_dom_node();
 
@@ -409,6 +427,8 @@ public:
     HashMap<Web::HTML::ScriptRegistry::Identifier, Function<void(Optional<Web::HTML::ScriptRegistry::Content>)>> on_received_devtools_source;
     HashMap<u64, DevTools::DevToolsDelegate::OnResolvedURLReceived> on_resolved_dom_node_url;
     Function<void(Web::HTML::ScriptRegistry::Description)> on_devtools_source_available;
+    DevTools::DevToolsDelegate::OnDebuggerPaused on_debugger_paused;
+    DevTools::DevToolsDelegate::OnDebuggerResumed on_debugger_resumed;
     Function<void(JsonValue)> on_received_js_console_result;
     Function<void(ConsoleOutput)> on_console_message;
     Function<void(u64 request_id, URL::URL const&, ByteString const&, Vector<HTTP::Header> const&, ByteBuffer, Optional<String>, String, bool, Web::Fetch::Infrastructure::Request::Priority)> on_network_request_started;
@@ -533,6 +553,10 @@ protected:
     void apply_zoom_for_current_host();
 
     void handle_resize();
+    void fail_pending_debugger_requests();
+    void set_debugger_paused(bool);
+    void set_debugger_overlay_hovered_action(Optional<PausedDebuggerOverlayAction>);
+    void update_paused_debugger_overlay();
     void set_page_background_color_to_system_canvas(bool dark);
     void set_page_background_color(Gfx::Color);
     Gfx::Color preferred_canvas_background_color() const;
@@ -662,6 +686,11 @@ protected:
     RefPtr<Action> m_media_exit_fullscreen_action;
 
     Queue<Web::InputEvent> m_pending_input_events;
+    bool m_debugger_is_attached { false };
+    bool m_debugger_paused { false };
+    PausedDebuggerOverlayPointerState m_debugger_overlay_pointer_state;
+    Optional<PausedDebuggerOverlayAction> m_debugger_overlay_hovered_action;
+    Gfx::Cursor m_page_cursor { Gfx::StandardCursor::Arrow };
 
     struct PendingExternalURLRequest {
         URL::URL url;
@@ -755,7 +784,22 @@ protected:
     HashMap<u64, DevTools::DevToolsDelegate::OnStorageChange> m_storage_change_listeners;
     u64 m_next_storage_change_listener_id { 1 };
     u64 m_next_devtools_sources_request_id { 1 };
+    u64 m_next_debugger_breakpoint_request_id { 1 };
+    u64 m_next_debugger_environments_request_id { 1 };
+    u64 m_next_debugger_evaluation_request_id { 1 };
+    u64 m_next_debugger_object_properties_request_id { 1 };
+    u64 m_next_debugger_source_positions_request_id { 1 };
     u64 m_next_resolve_dom_node_url_request_id { 1 };
+
+    HashMap<u64, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete> m_pending_debugger_breakpoint_requests;
+    HashMap<u64, DevTools::DevToolsDelegate::OnDebuggerEnvironmentsReceived> m_pending_debugger_environments_requests;
+    HashMap<u64, DevTools::DevToolsDelegate::OnDebuggerEvaluationComplete> m_pending_debugger_evaluation_requests;
+    HashMap<u64, DevTools::DevToolsDelegate::OnDebuggerObjectPropertiesReceived> m_pending_debugger_object_properties_requests;
+    HashMap<u64, DevTools::DevToolsDelegate::OnDebuggerSourcePositionsReceived> m_pending_debugger_source_positions_requests;
+    HashTable<u64> m_cancelled_debugger_environments_requests;
+    HashTable<u64> m_cancelled_debugger_evaluation_requests;
+    HashTable<u64> m_cancelled_debugger_object_properties_requests;
+    HashTable<u64> m_cancelled_debugger_source_positions_requests;
 
     HashMap<u64, DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete> m_pending_indexed_database_inspection_requests;
     u64 m_next_indexed_database_inspection_request_id { 1 };

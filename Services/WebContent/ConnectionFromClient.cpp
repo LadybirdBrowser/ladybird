@@ -85,6 +85,7 @@
 #include <LibWebView/DictionaryLookup.h>
 #include <LibWebView/ViewImplementation.h>
 #include <WebContent/ConnectionFromClient.h>
+#include <WebContent/DevToolsDebugger.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/PageHost.h>
 #include <WebContent/WebContentClientEndpoint.h>
@@ -1449,6 +1450,158 @@ void ConnectionFromClient::request_devtools_source(u64 page_id, Web::HTML::Scrip
         return;
 
     async_did_get_devtools_source(page_id, source_id, page->devtools_source_content(source_id));
+}
+
+void ConnectionFromClient::attach_debugger(u64 page_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    if (!m_devtools_debugger)
+        m_devtools_debugger = make<DevToolsDebugger>(*this);
+    m_devtools_debugger->attach(*page);
+}
+
+void ConnectionFromClient::configure_debugger(u64 page_id, WebView::DebuggerConfiguration configuration)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    if (!m_devtools_debugger)
+        m_devtools_debugger = make<DevToolsDebugger>(*this);
+    m_devtools_debugger->configure(*page, configuration);
+}
+
+void ConnectionFromClient::detach_debugger(u64 page_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value() || !m_devtools_debugger)
+        return;
+    m_devtools_debugger->detach(*page);
+}
+
+void ConnectionFromClient::interrupt_debugger(u64 page_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value() || !m_devtools_debugger)
+        return;
+    m_devtools_debugger->interrupt(*page);
+}
+
+void ConnectionFromClient::resume_debugger(u64 page_id, WebView::DebuggerResumeMode mode)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value() || !m_devtools_debugger)
+        return;
+    m_devtools_debugger->resume(*page, mode);
+}
+
+void ConnectionFromClient::update_debugger_blackboxing(u64 page_id, Utf16String url, Vector<WebView::DebuggerBlackboxRange> ranges, WebView::DebuggerBlackboxingOperation operation)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    if (!m_devtools_debugger)
+        m_devtools_debugger = make<DevToolsDebugger>(*this);
+    m_devtools_debugger->update_blackboxing(*page, move(url), move(ranges), operation);
+}
+
+static Optional<String> debugger_breakpoint_operation_error(ErrorOr<void> result)
+{
+    if (!result.is_error())
+        return {};
+    return String::from_utf8_without_validation(result.error().string_literal().bytes());
+}
+
+void ConnectionFromClient::set_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation location, WebView::DebuggerBreakpointOptions options)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value()) {
+        async_did_complete_debugger_breakpoint_operation(page_id, request_id, "Unable to locate page"_string);
+        return;
+    }
+
+    if (!m_devtools_debugger)
+        m_devtools_debugger = make<DevToolsDebugger>(*this);
+    async_did_complete_debugger_breakpoint_operation(page_id, request_id, debugger_breakpoint_operation_error(m_devtools_debugger->set_breakpoint(*page, move(location), move(options))));
+}
+
+void ConnectionFromClient::remove_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation location)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value() || !m_devtools_debugger) {
+        async_did_complete_debugger_breakpoint_operation(page_id, request_id, {});
+        return;
+    }
+
+    async_did_complete_debugger_breakpoint_operation(page_id, request_id, debugger_breakpoint_operation_error(m_devtools_debugger->remove_breakpoint(*page, location)));
+}
+
+void ConnectionFromClient::get_debugger_source_positions(u64 page_id, u64 request_id, Web::HTML::ScriptRegistry::Identifier source_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value()) {
+        async_did_get_debugger_source_positions(page_id, request_id, {});
+        return;
+    }
+    async_did_get_debugger_source_positions(page_id, request_id, page->devtools_source_breakpoint_positions(source_id));
+}
+
+void ConnectionFromClient::get_debugger_environments(u64 page_id, u64 request_id, u64 frame_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value()) {
+        async_did_get_debugger_environments(page_id, request_id, "Unable to locate page"_string, {});
+        return;
+    }
+    if (!m_devtools_debugger) {
+        async_did_get_debugger_environments(page_id, request_id, "Debugger is not paused"_string, {});
+        return;
+    }
+    async_did_get_debugger_environments(page_id, request_id, {}, m_devtools_debugger->environments_for_frame(*page, frame_id));
+}
+
+void ConnectionFromClient::evaluate_javascript_in_debugger_frame(u64 page_id, u64 request_id, u64 frame_id, Utf16String source_text)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value()) {
+        async_did_evaluate_javascript_in_debugger_frame(page_id, request_id, "Unable to locate page"_string, {});
+        return;
+    }
+    if (!m_devtools_debugger) {
+        async_did_evaluate_javascript_in_debugger_frame(page_id, request_id, "Debugger is not paused"_string, {});
+        return;
+    }
+
+    auto result = m_devtools_debugger->evaluate_in_frame(*page, frame_id, source_text);
+    if (result.is_error()) {
+        async_did_evaluate_javascript_in_debugger_frame(page_id, request_id, MUST(String::from_utf8(result.release_error().string_literal())), {});
+        return;
+    }
+    async_did_evaluate_javascript_in_debugger_frame(page_id, request_id, {}, result.release_value());
+}
+
+void ConnectionFromClient::get_debugger_object_properties(u64 page_id, u64 request_id, u64 object_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value()) {
+        async_did_get_debugger_object_properties(page_id, request_id, "Unable to locate page"_string, {});
+        return;
+    }
+    if (!m_devtools_debugger) {
+        async_did_get_debugger_object_properties(page_id, request_id, "Debugger is not paused"_string, {});
+        return;
+    }
+
+    auto properties = m_devtools_debugger->properties_for_object(*page, object_id);
+    if (properties.is_error()) {
+        async_did_get_debugger_object_properties(page_id, request_id, MUST(String::from_utf8(properties.release_error().string_literal())), {});
+        return;
+    }
+    async_did_get_debugger_object_properties(page_id, request_id, {}, properties.release_value());
 }
 
 void ConnectionFromClient::resolve_dom_node_url(u64 page_id, u64 request_id, Optional<Web::UniqueNodeID> node_id, String url)

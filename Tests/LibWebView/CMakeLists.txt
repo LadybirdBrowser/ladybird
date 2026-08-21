@@ -10,6 +10,7 @@ set(TEST_SOURCES
     TestHistoryStore.cpp
     TestHSTSStore.cpp
     TestOmnibox.cpp
+    TestPausedDebuggerOverlay.cpp
     TestProfile.cpp
     TestSessionHistory.cpp
     TestSessionHistorySnapshotStorage.cpp

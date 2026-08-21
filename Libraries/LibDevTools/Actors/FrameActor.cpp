@@ -52,12 +52,12 @@ static void set_resources_available_message(JsonObject& message, StringView reso
     message.set("array"sv, move(array));
 }
 
-NonnullRefPtr<FrameActor> FrameActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<WatcherActor> watcher, WeakPtr<CSSPropertiesActor> css_properties, WeakPtr<ConsoleActor> console, WeakPtr<InspectorActor> inspector, WeakPtr<StyleSheetsActor> style_sheets, WeakPtr<ThreadActor> thread, WeakPtr<AccessibilityActor> accessibility)
+NonnullRefPtr<FrameActor> FrameActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<WatcherActor> watcher, CSSPropertiesActor& css_properties, ConsoleActor& console, InspectorActor& inspector, StyleSheetsActor& style_sheets, ThreadActor& thread, AccessibilityActor& accessibility)
 {
-    return adopt_ref(*new FrameActor(devtools, move(name), move(tab), move(watcher), move(css_properties), move(console), move(inspector), move(style_sheets), move(thread), move(accessibility)));
+    return adopt_ref(*new FrameActor(devtools, move(name), move(tab), move(watcher), css_properties, console, inspector, style_sheets, thread, accessibility));
 }
 
-FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<WatcherActor> watcher, WeakPtr<CSSPropertiesActor> css_properties, WeakPtr<ConsoleActor> console, WeakPtr<InspectorActor> inspector, WeakPtr<StyleSheetsActor> style_sheets, WeakPtr<ThreadActor> thread, WeakPtr<AccessibilityActor> accessibility)
+FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<WatcherActor> watcher, CSSPropertiesActor& css_properties, ConsoleActor& console, InspectorActor& inspector, StyleSheetsActor& style_sheets, ThreadActor& thread, AccessibilityActor& accessibility)
     : Actor(devtools, move(name))
     , m_tab(move(tab))
     , m_watcher(move(watcher))
@@ -68,6 +68,13 @@ FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> 
     , m_thread(move(thread))
     , m_accessibility(move(accessibility))
 {
+    add_child_actor(css_properties);
+    add_child_actor(console);
+    add_child_actor(inspector);
+    add_child_actor(style_sheets);
+    add_child_actor(thread);
+    add_child_actor(accessibility);
+
     if (auto tab = m_tab.strong_ref()) {
         devtools.delegate().listen_for_console_messages(
             tab->description(),
@@ -76,13 +83,18 @@ FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> 
             }));
 
         // FIXME: We should adopt WebContent to inform us when style sheets are available or removed.
-        Core::deferred_invoke([weak_self = make_weak_ptr<FrameActor>(), tab] {
-            if (auto self = weak_self.strong_ref()) {
-                self->devtools().delegate().retrieve_style_sheets(tab->description(),
-                    self->async_handler<FrameActor>({}, [](auto& self, auto style_sheets, auto& response) {
-                        self.style_sheets_available(response, move(style_sheets));
-                    }));
-            }
+        Core::deferred_invoke([weak_self = make_weak_ptr<FrameActor>()] {
+            auto self = weak_self.strong_ref();
+            if (!self)
+                return;
+            auto tab = self->m_tab.strong_ref();
+            if (!tab)
+                return;
+
+            self->devtools().delegate().retrieve_style_sheets(tab->description(),
+                self->async_handler<FrameActor>({}, [](auto& self, auto style_sheets, auto& response) {
+                    self.style_sheets_available(response, move(style_sheets));
+                }));
         });
 
         devtools.delegate().listen_for_network_events(
@@ -230,7 +242,7 @@ JsonObject FrameActor::serialize_target() const
     traits.set("logInPage"sv, false);
     traits.set("navigation"sv, true);
     traits.set("supportsTopLevelTargetFlag"sv, true);
-    traits.set("watchpoints"sv, true);
+    traits.set("watchpoints"sv, false);
 
     JsonObject target;
     target.set("actor"sv, name());
@@ -367,6 +379,30 @@ void FrameActor::send_source_resource_available_message(Web::HTML::ScriptRegistr
     send_message(move(message));
 }
 
+void FrameActor::send_thread_state_resource_available_message(JsonObject resource)
+{
+    JsonArray resources;
+    resources.must_append(move(resource));
+
+    JsonObject message;
+    set_resources_available_message(message, "thread-state"sv, move(resources));
+    send_message(move(message));
+}
+
+static JsonArray serialize_console_stacktrace(Vector<WebView::StackFrame> const& stack)
+{
+    JsonArray stack_array;
+    for (auto const& frame : stack) {
+        JsonObject frame_object;
+        frame_object.set("functionName"sv, frame.function.value_or("<anonymous>"_string));
+        frame_object.set("filename"sv, frame.file.value_or("unknown"_string));
+        frame_object.set("lineNumber"sv, static_cast<i64>(frame.line.value_or(0)));
+        frame_object.set("columnNumber"sv, static_cast<i64>(frame.column.value_or(0)));
+        stack_array.must_append(move(frame_object));
+    }
+    return stack_array;
+}
+
 void FrameActor::on_console_message(WebView::ConsoleOutput console_output)
 {
     JsonArray console_messages;
@@ -376,30 +412,48 @@ void FrameActor::on_console_message(WebView::ConsoleOutput console_output)
 
     console_output.output.visit(
         [&](WebView::ConsoleLog& log) {
-            switch (log.level) {
-            case JS::Console::LogLevel::Debug:
-                message.set("level"sv, "debug"sv);
+            switch (log.type) {
+            case WebView::ConsoleLogType::ConsoleAPI:
+                switch (log.level) {
+                case JS::Console::LogLevel::Debug:
+                    message.set("level"sv, "debug"sv);
+                    break;
+                case JS::Console::LogLevel::Error:
+                    message.set("level"sv, "error"sv);
+                    break;
+                case JS::Console::LogLevel::Info:
+                    message.set("level"sv, "info"sv);
+                    break;
+                case JS::Console::LogLevel::Log:
+                    message.set("level"sv, "log"sv);
+                    break;
+                case JS::Console::LogLevel::Warn:
+                    message.set("level"sv, "warn"sv);
+                    break;
+                default:
+                    // FIXME: Implement remaining console levels.
+                    return;
+                }
                 break;
-            case JS::Console::LogLevel::Error:
-                message.set("level"sv, "error"sv);
+            case WebView::ConsoleLogType::LogPoint:
+                message.set("level"sv, "logPoint"sv);
                 break;
-            case JS::Console::LogLevel::Info:
-                message.set("level"sv, "info"sv);
+            case WebView::ConsoleLogType::LogPointError:
+                message.set("level"sv, "logPointError"sv);
                 break;
-            case JS::Console::LogLevel::Log:
-                message.set("level"sv, "log"sv);
-                break;
-            case JS::Console::LogLevel::Warn:
-                message.set("level"sv, "warn"sv);
-                break;
-            default:
-                // FIXME: Implement remaining console levels.
-                return;
             }
 
-            message.set("filename"sv, "<eval>"sv);
-            message.set("lineNumber"sv, 1);
-            message.set("columnNumber"sv, 1);
+            if (log.location.has_value()) {
+                message.set("filename"sv, log.location->file.value_or("unknown"_string));
+                message.set("lineNumber"sv, static_cast<i64>(log.location->line.value_or(0)));
+                message.set("columnNumber"sv, static_cast<i64>(log.location->column.value_or(0)));
+            } else {
+                message.set("filename"sv, "<eval>"sv);
+                message.set("lineNumber"sv, 1);
+                message.set("columnNumber"sv, 1);
+            }
+            if (log.stacktrace.has_value())
+                message.set("stacktrace"sv, serialize_console_stacktrace(*log.stacktrace));
             message.set("timeStamp"sv, console_output.timestamp.milliseconds_since_epoch());
             message.set("arguments"sv, JsonArray { move(log.arguments) });
 
@@ -414,16 +468,7 @@ void FrameActor::on_console_message(WebView::ConsoleOutput console_output)
                 arguments.must_append(trace.label);
             message.set("arguments"sv, move(arguments));
 
-            JsonArray stack_array;
-            for (auto const& frame : trace.stack) {
-                JsonObject frame_object;
-                frame_object.set("functionName"sv, frame.function.value_or("<anonymous>"_string));
-                frame_object.set("filename"sv, frame.file.value_or("unknown"_string));
-                frame_object.set("lineNumber"sv, static_cast<i64>(frame.line.value_or(0)));
-                frame_object.set("columnNumber"sv, static_cast<i64>(frame.column.value_or(0)));
-                stack_array.must_append(move(frame_object));
-            }
-            message.set("stacktrace"sv, move(stack_array));
+            message.set("stacktrace"sv, serialize_console_stacktrace(trace.stack));
 
             if (trace.stack.is_empty()) {
                 message.set("filename"sv, "unknown"sv);
@@ -501,6 +546,7 @@ void FrameActor::on_console_message(WebView::ConsoleOutput console_output)
 void FrameActor::on_network_request_started(DevToolsDelegate::NetworkRequestData data)
 {
     auto& actor = devtools().register_actor<NetworkEventActor>(data.request_id);
+    add_child_actor(actor);
     actor.set_request_info(move(data.url), move(data.method), data.start_time, move(data.request_headers), move(data.request_body), move(data.initiator_type));
     if (auto tab = m_tab.strong_ref())
         actor.set_browsing_context_ids(tab->description().id, tab->inner_window_id());
@@ -673,6 +719,9 @@ void FrameActor::send_document_event(StringView name, String const& url, Optiona
 
 void FrameActor::on_navigation_started(String url)
 {
+    if (auto thread = m_thread.strong_ref())
+        thread->resume(WebView::DebuggerResumeMode::Continue);
+
     if (auto inspector = m_inspector.strong_ref())
         inspector->on_navigation_started();
 

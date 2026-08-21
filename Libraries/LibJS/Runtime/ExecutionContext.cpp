@@ -112,6 +112,7 @@ NonnullOwnPtr<ExecutionContext> ExecutionContext::copy() const
     copy->variable_environment = variable_environment;
     copy->private_environment = private_environment;
     copy->program_counter = program_counter;
+    copy->frame_id = frame_id;
     copy->yield_continuation = yield_continuation;
     copy->yield_is_await = yield_is_await;
     copy->yield_value_is_iterator_result = yield_value_is_iterator_result;
@@ -124,6 +125,18 @@ NonnullOwnPtr<ExecutionContext> ExecutionContext::copy() const
         copy->registers_and_constants_and_locals_and_arguments()[i] = registers_and_constants_and_locals_and_arguments()[i];
     copy->argument_count = argument_count;
     return copy;
+}
+
+Span<Value> ExecutionContext::local_variables()
+{
+    VERIFY(executable);
+    return registers_and_constants_and_locals_and_arguments_span().slice(executable->local_index_base, executable->local_variable_names.size());
+}
+
+ReadonlySpan<Value> ExecutionContext::local_variables() const
+{
+    VERIFY(executable);
+    return { registers_and_constants_and_locals_and_arguments() + executable->local_index_base, executable->local_variable_names.size() };
 }
 
 void ExecutionContext::visit_edges(Cell::Visitor& visitor)

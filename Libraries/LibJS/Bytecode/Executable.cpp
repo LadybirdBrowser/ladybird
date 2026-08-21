@@ -574,6 +574,8 @@ size_t Executable::external_memory_size() const
     size = saturating_add_external_memory_size(size, vector_external_memory_size(exception_handlers));
     size = saturating_add_external_memory_size(size, vector_external_memory_size(source_map));
     size = saturating_add_external_memory_size(size, vector_external_memory_size(local_variable_names));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(argument_variable_names));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(local_variable_metadata));
     size = saturating_add_external_memory_size(size, hash_map_external_memory_size(m_source_range_cache));
     return size;
 }
@@ -739,6 +741,16 @@ void Executable::clear_debugger_breakpoints()
 bool Executable::has_debugger_breakpoint_at(u32 bytecode_offset) const
 {
     return m_debugger_breakpoint_sites && m_debugger_breakpoint_sites->contains(bytecode_offset);
+}
+
+ReadonlySpan<BreakpointID> Executable::debugger_breakpoints_at(u32 bytecode_offset) const
+{
+    if (!m_debugger_breakpoint_sites)
+        return {};
+    auto site = m_debugger_breakpoint_sites->find(bytecode_offset);
+    if (site == m_debugger_breakpoint_sites->end())
+        return {};
+    return site->value.breakpoint_ids;
 }
 
 bool Executable::has_debugger_breakpoint(BreakpointID breakpoint_id) const

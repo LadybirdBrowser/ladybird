@@ -14,6 +14,7 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/Instruction.h>
+#include <LibJS/Debugger.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/ModuleRequest.h>
@@ -571,6 +572,32 @@ TEST_CASE(bytecode_cache_materializes_function_executables_lazily)
     VERIFY(!result.is_throw_completion());
     EXPECT(shared_data.m_executable);
     EXPECT(!shared_data.m_cached_bytecode_executable);
+}
+
+TEST_CASE(bytecode_cache_preserves_debugger_argument_names)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto test_data = create_bytecode_cache_blob("function inspect(argument) { debugger; } inspect(42);"sv);
+    auto decoded_blob = decode_bytecode_cache_blob(test_data.blob, JS::RustIntegration::ProgramType::Script, test_data.source_hash.bytes());
+    auto script_or_error = JS::Script::create_from_bytecode_cache(decoded_blob, test_data.source_code, realm, "test.js"sv);
+    VERIFY(!script_or_error.is_error());
+
+    vm->enable_debugging();
+    vm->debugger()->set_pause_callback([&](JS::Debugger::PauseInfo const& pause_info) {
+        auto* frame = pause_info.stack_trace.first().execution_context;
+        VERIFY(frame);
+
+        auto bindings = vm->debugger()->bindings_for_frame(*frame);
+        auto argument = bindings.find_if([](auto const& binding) { return binding.name == "argument"_utf16; });
+        VERIFY(argument != bindings.end());
+        EXPECT_EQ(argument->value.as_i32(), 42);
+        vm->debugger()->continue_execution();
+    });
+
+    EXPECT(!vm->run(*script_or_error.value()).is_error());
 }
 
 TEST_CASE(decoded_bytecode_cache_backing_materializes_independently)
