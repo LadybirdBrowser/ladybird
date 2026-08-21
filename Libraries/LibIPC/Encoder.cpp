@@ -197,7 +197,7 @@ ErrorOr<void> encode(Encoder& encoder, Core::AnonymousBuffer const& buffer)
     TRY(encoder.encode(buffer.is_valid()));
 
     if (buffer.is_valid()) {
-        TRY(encoder.encode_size(buffer.size()));
+        TRY(encoder.encode(static_cast<u64>(buffer.size())));
         TRY(encoder.encode(TRY(IPC::File::clone_fd(buffer.fd()))));
     }
 
