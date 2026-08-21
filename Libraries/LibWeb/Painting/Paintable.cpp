@@ -305,18 +305,8 @@ void Paintable::detach_from_layout_node(Badge<Layout::Node>)
 
 void Paintable::detach_chrome_widgets()
 {
-    if (m_horizontal_scrollbar) {
-        m_horizontal_scrollbar->detach_from_paintable({});
-        m_horizontal_scrollbar = nullptr;
-    }
-    if (m_vertical_scrollbar) {
-        m_vertical_scrollbar->detach_from_paintable({});
-        m_vertical_scrollbar = nullptr;
-    }
-    if (m_resize_handle) {
-        m_resize_handle->detach_from_paintable({});
-        m_resize_handle = nullptr;
-    }
+    if (has_layout_node())
+        document().chrome_widget_registry().drop_widgets_for_slot(rust_slot());
 }
 
 void Paintable::reset_for_relayout()
@@ -326,31 +316,6 @@ void Paintable::reset_for_relayout()
     detach_chrome_widgets();
 
     Painting::invalidate_stacking_context(layout_node());
-}
-
-RefPtr<Scrollbar> Paintable::scrollbar(ScrollDirection direction) const
-{
-    return direction == ScrollDirection::Horizontal ? m_horizontal_scrollbar : m_vertical_scrollbar;
-}
-
-NonnullRefPtr<Scrollbar> Paintable::ensure_scrollbar(ScrollDirection direction)
-{
-    auto& slot = direction == ScrollDirection::Horizontal ? m_horizontal_scrollbar : m_vertical_scrollbar;
-    if (!slot)
-        slot = Scrollbar::create(const_cast<Paintable&>(*this), direction);
-    return *slot;
-}
-
-RefPtr<ResizeHandle> Paintable::resize_handle() const
-{
-    return m_resize_handle;
-}
-
-NonnullRefPtr<ResizeHandle> Paintable::ensure_resize_handle()
-{
-    if (!m_resize_handle)
-        m_resize_handle = ResizeHandle::create(*this);
-    return *m_resize_handle;
 }
 
 }

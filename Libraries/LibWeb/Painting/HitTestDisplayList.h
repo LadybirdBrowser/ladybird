@@ -44,7 +44,7 @@ enum class CaretLineDirection : u8 {
 
 class WEB_API HitTestDisplayList : public RefCounted<HitTestDisplayList> {
 public:
-    static NonnullRefPtr<HitTestDisplayList> create_from_rust_recording(u64 visual_context_tree_version, Layout::NodeArena&);
+    static NonnullRefPtr<HitTestDisplayList> create_from_rust_recording(u64 visual_context_tree_version, Layout::NodeArena&, ChromeWidgetRegistry&);
 
     size_t item_count() const { return m_items.size(); }
     void visit_edges(GC::Cell::Visitor&);
@@ -65,7 +65,7 @@ public:
     TraversalDecision hit_test_all(CSSPixelPoint, ViewportPaintable const&, double device_pixels_per_css_pixel, ChromeMetrics const&, Function<TraversalDecision(HitTestResult)> const&) const;
 
 private:
-    HitTestDisplayList(u64 visual_context_tree_version, Layout::NodeArena&, u64 rust_generation);
+    HitTestDisplayList(u64 visual_context_tree_version, Layout::NodeArena&, ChromeWidgetRegistry&, u64 rust_generation);
 
     enum class ItemKind : u8 {
         Box,
@@ -152,6 +152,7 @@ private:
 
     u64 m_visual_context_tree_version { 0 };
     NonnullRefPtr<Layout::NodeArena> m_arena;
+    NonnullRefPtr<ChromeWidgetRegistry> m_chrome_widget_registry;
     u64 m_rust_generation { 0 };
     Vector<Item> m_items;
     mutable bool m_caret_lines_materialized { false };

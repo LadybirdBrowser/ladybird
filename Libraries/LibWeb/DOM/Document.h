@@ -808,6 +808,8 @@ public:
     void set_needs_full_layout_tree_update(bool b) { m_needs_full_layout_tree_update = b; }
 
     [[nodiscard]] Layout::NodeArena& layout_node_arena();
+    Painting::ChromeWidgetRegistry& chrome_widget_registry() { return *m_chrome_widget_registry; }
+    Painting::ChromeWidgetRegistry const& chrome_widget_registry() const { return *m_chrome_widget_registry; }
 
     // Attribution of pending updates for partial relayout. Invariant: every update recorded
     // since the last layout pass is either attributed to a boundary in the registered root
@@ -1506,6 +1508,7 @@ private:
     GC::Ref<DOM::EventTarget> m_relevant_global_event_target;
 
     RefPtr<Layout::NodeArena> m_layout_node_arena;
+    NonnullRefPtr<Painting::ChromeWidgetRegistry> m_chrome_widget_registry;
     RefPtr<Layout::Viewport> m_layout_root;
     bool m_may_have_content_visibility_auto_style { false };
     bool m_may_have_default_scroll_shift_anchor { false };

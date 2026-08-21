@@ -31,6 +31,11 @@ bool has_committed_box(Layout::Node const& node)
     return node.paintable_ptr();
 }
 
+Layout::Node* layout_node_for_committed_slot(Layout::NodeArena& arena, Layout::RustFFI::PaintableSlotId slot)
+{
+    return static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_paintable_layout_node_shell(arena.handle(), slot));
+}
+
 static bool has_flag(Paintable const& paintable, Layout::RustFFI::PaintableFlag flag)
 {
     return (paintable.rust_data().flags & to_underlying(flag)) != 0;

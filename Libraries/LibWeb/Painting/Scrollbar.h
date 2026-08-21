@@ -14,7 +14,7 @@ namespace Web::Painting {
 
 class Scrollbar final : public ChromeWidget {
 public:
-    static NonnullRefPtr<Scrollbar> create(Paintable&, ScrollDirection);
+    static NonnullRefPtr<Scrollbar> create(Layout::NodeArena&, Layout::RustFFI::PaintableSlotId, ScrollDirection);
 
     ScrollDirection direction() const { return m_direction; }
     bool is_enlarged() const { return m_hovered || m_thumb_grab_position.has_value(); }
@@ -26,14 +26,14 @@ public:
     virtual void mouse_leave() override;
 
 private:
-    Scrollbar(Paintable&, ScrollDirection);
+    Scrollbar(Layout::NodeArena&, Layout::RustFFI::PaintableSlotId, ScrollDirection);
 
     MouseAction mouse_down(CSSPixelPoint, unsigned button);
     MouseAction mouse_move(CSSPixelPoint);
     MouseAction mouse_up(CSSPixelPoint, unsigned button);
     bool scroll_to_mouse_position(CSSPixelPoint);
     void release_thumb_grab();
-    virtual void did_detach_from_paintable() override;
+    virtual void did_detach() override;
 
     ScrollDirection m_direction;
     bool m_hovered { false };

@@ -12,24 +12,93 @@
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/ResizeHandle.h>
 #include <LibWeb/Painting/ScrollState.h>
+#include <LibWeb/Painting/Scrollbar.h>
 
 namespace Web::Painting {
 
-ChromeWidget::ChromeWidget(Paintable& paintable)
-    : m_paintable(paintable)
+ChromeWidgetRegistry::ChromeWidgetRegistry() = default;
+
+ChromeWidgetRegistry::~ChromeWidgetRegistry()
+{
+    clear();
+}
+
+RefPtr<Scrollbar> ChromeWidgetRegistry::scrollbar(Layout::RustFFI::PaintableSlotId slot, ScrollDirection direction) const
+{
+    auto entry = m_entries.find(slot.index);
+    if (entry == m_entries.end())
+        return nullptr;
+    return direction == ScrollDirection::Horizontal ? entry->value.horizontal_scrollbar : entry->value.vertical_scrollbar;
+}
+
+NonnullRefPtr<Scrollbar> ChromeWidgetRegistry::ensure_scrollbar(Layout::NodeArena& arena, Layout::RustFFI::PaintableSlotId slot, ScrollDirection direction)
+{
+    auto& entry = m_entries.ensure(slot.index);
+    auto& scrollbar = direction == ScrollDirection::Horizontal ? entry.horizontal_scrollbar : entry.vertical_scrollbar;
+    if (!scrollbar)
+        scrollbar = Scrollbar::create(arena, slot, direction);
+    return *scrollbar;
+}
+
+RefPtr<ResizeHandle> ChromeWidgetRegistry::resize_handle(Layout::RustFFI::PaintableSlotId slot) const
+{
+    auto entry = m_entries.find(slot.index);
+    if (entry == m_entries.end())
+        return nullptr;
+    return entry->value.resize_handle;
+}
+
+NonnullRefPtr<ResizeHandle> ChromeWidgetRegistry::ensure_resize_handle(Layout::NodeArena& arena, Layout::RustFFI::PaintableSlotId slot)
+{
+    auto& entry = m_entries.ensure(slot.index);
+    if (!entry.resize_handle)
+        entry.resize_handle = ResizeHandle::create(arena, slot);
+    return *entry.resize_handle;
+}
+
+void ChromeWidgetRegistry::drop_widgets_for_slot(Layout::RustFFI::PaintableSlotId slot)
+{
+    auto entry = m_entries.take(slot.index);
+    if (!entry.has_value())
+        return;
+    if (entry->horizontal_scrollbar)
+        entry->horizontal_scrollbar->detach({});
+    if (entry->vertical_scrollbar)
+        entry->vertical_scrollbar->detach({});
+    if (entry->resize_handle)
+        entry->resize_handle->detach({});
+}
+
+void ChromeWidgetRegistry::clear()
+{
+    for (auto& entry : m_entries) {
+        if (entry.value.horizontal_scrollbar)
+            entry.value.horizontal_scrollbar->detach({});
+        if (entry.value.vertical_scrollbar)
+            entry.value.vertical_scrollbar->detach({});
+        if (entry.value.resize_handle)
+            entry.value.resize_handle->detach({});
+    }
+    m_entries.clear();
+}
+
+ChromeWidget::ChromeWidget(Layout::NodeArena& arena, Layout::RustFFI::PaintableSlotId slot)
+    : m_arena(arena)
+    , m_slot(slot)
 {
 }
 
-RefPtr<Paintable> ChromeWidget::paintable() const
+Layout::Node* ChromeWidget::layout_node() const
 {
-    return m_paintable.strong_ref();
+    return layout_node_for_committed_slot(*m_arena, m_slot);
 }
 
-void ChromeWidget::detach_from_paintable(Badge<Paintable>)
+void ChromeWidget::detach(Badge<ChromeWidgetRegistry>)
 {
-    m_paintable.clear();
-    did_detach_from_paintable();
+    m_slot = Layout::RustFFI::PaintableSlotId_INVALID;
+    did_detach();
 }
 
 static bool is_canvas_background_source(Layout::NodeWithStyle const& layout_node)
