@@ -78,9 +78,9 @@ public:
     ~ChromeWidgetRegistry();
 
     RefPtr<Scrollbar> scrollbar(Layout::RustFFI::PaintableSlotId, ScrollDirection) const;
-    NonnullRefPtr<Scrollbar> ensure_scrollbar(Layout::NodeArena&, Layout::RustFFI::PaintableSlotId, ScrollDirection);
+    NonnullRefPtr<Scrollbar> get_or_create_scrollbar(Layout::NodeArena&, Layout::RustFFI::PaintableSlotId, ScrollDirection);
     RefPtr<ResizeHandle> resize_handle(Layout::RustFFI::PaintableSlotId) const;
-    NonnullRefPtr<ResizeHandle> ensure_resize_handle(Layout::NodeArena&, Layout::RustFFI::PaintableSlotId);
+    NonnullRefPtr<ResizeHandle> get_or_create_resize_handle(Layout::NodeArena&, Layout::RustFFI::PaintableSlotId);
     void drop_widgets_for_slot(Layout::RustFFI::PaintableSlotId);
     void clear();
 

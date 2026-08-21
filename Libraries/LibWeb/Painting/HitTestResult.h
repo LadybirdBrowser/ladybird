@@ -15,12 +15,12 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Layout/NodeArena.h>
+#include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/TextAffinity.h>
 
 namespace Web::Painting {
 
-class ChromeWidget;
 class Paintable;
 
 struct HitTestResult {
