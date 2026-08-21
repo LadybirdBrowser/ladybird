@@ -15,6 +15,7 @@
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/PropertyNameIterator.h>
 #include <LibJS/Bytecode/PutKind.h>
+#include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
@@ -89,6 +90,10 @@ int main()
     EMIT_FIELD(OBJECT_INDEXED_STORAGE_KIND, Object, indexed_storage_kind, u8, Object, m_indexed_storage_kind, 1, nullable, scalar);
     EMIT_FIELD(OBJECT_INDEXED_ARRAY_LIKE_SIZE, Object, indexed_array_like_size, u32, Object, m_indexed_array_like_size, 4, nullable, scalar);
     EMIT_SIZEOF(OBJECT_SIZE, Object);
+
+    // Accessor layout
+    outln("\n# Accessor layout");
+    EMIT_FIELD(ACCESSOR_GETTER, Accessor, getter, FunctionObject, Accessor, m_getter, 8, nullable, cell);
 
     // Object flags
     outln("\n# Object flags");
