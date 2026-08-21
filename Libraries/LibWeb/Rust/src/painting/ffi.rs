@@ -134,6 +134,21 @@ pub unsafe extern "C" fn layout_arena_paintable_event_dispatch_node_shell(
     })
 }
 
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_has_child_paintables(
+    arena: *mut c_void,
+    slot: PaintableSlotId,
+) -> bool {
+    abort_on_panic(|| {
+        let arena = unsafe { arena_from_handle(arena) };
+        let paintables = arena.paintables().borrow();
+        paintables.is_live(slot) && !paintables.data_ref(slot).first_child.is_invalid()
+    })
+}
+
 unsafe fn ffi_slice<'a, T>(data: *const T, length: usize) -> &'a [T] {
     assert!(!data.is_null() || length == 0);
     if length == 0 {

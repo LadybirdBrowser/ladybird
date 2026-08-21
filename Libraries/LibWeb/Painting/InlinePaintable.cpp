@@ -67,7 +67,7 @@ bool InlinePaintable::has_content() const
 {
     // Interrupting block-in-inline children produce only placeholder pieces, so any child
     // paintable also counts as content.
-    return has_content_pieces() || has_children();
+    return has_content_pieces() || Layout::RustFFI::layout_arena_paintable_has_child_paintables(rust_arena().handle(), rust_slot());
 }
 
 Optional<PaintableWithLines::CaretPaint> InlinePaintable::resolve_empty_editable_caret_paint() const
