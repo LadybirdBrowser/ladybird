@@ -108,6 +108,20 @@ static size_t align_up(size_t value, size_t alignment)
     return remainder == 0 ? value : value + (alignment - remainder);
 }
 
+static ErrorOr<size_t> try_align_up(size_t value, size_t alignment)
+{
+    VERIFY(alignment > 0);
+    auto remainder = value % alignment;
+    if (remainder == 0)
+        return value;
+
+    Checked<size_t> result = value;
+    result += alignment - remainder;
+    if (result.has_overflow())
+        return Error::from_string_literal("Cranelift output size overflow");
+    return result.value();
+}
+
 static ErrorOr<size_t> compute_output_buffer_size(size_t function_count, size_t instruction_count)
 {
     Checked<size_t> output_entries_size = sizeof(OutputFunctionEntry);
@@ -120,7 +134,7 @@ static ErrorOr<size_t> compute_output_buffer_size(size_t function_count, size_t 
     if (output_size.has_overflow())
         return Error::from_string_literal("Cranelift output size overflow");
 
-    output_size = align_up(output_size.value(), SERIALIZED_CODE_ALIGNMENT);
+    output_size = TRY(try_align_up(output_size.value(), SERIALIZED_CODE_ALIGNMENT));
 
     Checked<size_t> maximum_code_size = instruction_count;
     maximum_code_size *= oop_code_bytes_per_insn;
@@ -131,7 +145,7 @@ static ErrorOr<size_t> compute_output_buffer_size(size_t function_count, size_t 
     if (output_size.has_overflow())
         return Error::from_string_literal("Cranelift output size overflow");
 
-    output_size = align_up(output_size.value(), alignof(HelperReloc));
+    output_size = TRY(try_align_up(output_size.value(), alignof(HelperReloc)));
 
     Checked<size_t> maximum_reloc_size = instruction_count;
     maximum_reloc_size *= oop_reloc_bytes_per_insn;
@@ -139,7 +153,7 @@ static ErrorOr<size_t> compute_output_buffer_size(size_t function_count, size_t 
         return Error::from_string_literal("Cranelift output size overflow");
 
     output_size += max(oop_reloc_region_min_size, maximum_reloc_size.value());
-    if (output_size.has_overflow() || output_size.value() > NumericLimits<u32>::max())
+    if (output_size.has_overflow())
         return Error::from_string_literal("Cranelift output is too large");
 
     return output_size.value();
