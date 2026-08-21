@@ -289,4 +289,8 @@ pub(crate) fn commit_replacing(
     unsafe {
         (sink.finish_commit)(sink.context);
     }
+    crate::painting::paint_order::assert_stored_tree_matches_derived_walk(
+        callbacks.arena(),
+        &callbacks.arena().paintables().borrow(),
+    );
 }
