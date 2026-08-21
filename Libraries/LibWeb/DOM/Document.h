@@ -55,6 +55,7 @@
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/InvalidateDisplayList.h>
+#include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/Forward.h>
 #include <LibWeb/Painting/GridInspectorOverlay.h>
@@ -1825,10 +1826,10 @@ private:
     bool m_design_mode_enabled { false };
 
     bool m_needs_accumulated_visual_contexts_update { false };
-    Vector<WeakPtr<Painting::Paintable>> m_paintable_boxes_needing_visual_context_value_update;
+    Vector<Layout::RustFFI::PaintableSlotId> m_paintable_boxes_needing_visual_context_value_update;
 
     bool m_needs_full_scrollable_overflow_recalculation { false };
-    Vector<WeakPtr<Painting::Paintable>> m_paintable_boxes_needing_scrollable_overflow_recalculation;
+    Vector<Layout::RustFFI::PaintableSlotId> m_paintable_boxes_needing_scrollable_overflow_recalculation;
     CSS::SheetSetStyleCacheRegistry m_sheet_set_style_cache_registry;
     RefPtr<Painting::HitTestDisplayList> m_hit_test_display_list;
     // The previous recording's list, retained so cached per-paintable item ranges can be spliced into

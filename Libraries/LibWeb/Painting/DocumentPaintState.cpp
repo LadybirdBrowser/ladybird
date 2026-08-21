@@ -183,18 +183,16 @@ void DocumentPaintState::recompute_selection_states(DOM::Document& document, DOM
                 entries.append({
                     .is_text_node_entry = true,
                     .layout_node = Layout::Node::slot_id(&slice),
-                    .paintable = {},
                     .state = to_underlying(state),
                 });
             });
             return;
         }
         if (auto* layout_node = container.unsafe_layout_node()) {
-            if (auto paintable = layout_node->paintable()) {
+            if (layout_node->paintable()) {
                 entries.append({
                     .is_text_node_entry = false,
-                    .layout_node = {},
-                    .paintable = paintable->rust_slot(),
+                    .layout_node = Layout::Node::slot_id(layout_node),
                     .state = to_underlying(state),
                 });
             }

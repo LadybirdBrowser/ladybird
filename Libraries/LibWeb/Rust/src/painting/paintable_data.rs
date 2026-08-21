@@ -300,7 +300,6 @@ pub struct PaintableAllocation {
 pub struct FfiSelectionEntry {
     pub is_text_node_entry: bool,
     pub layout_node: NodeSlotId,
-    pub paintable: PaintableSlotId,
     pub state: u8,
 }
 

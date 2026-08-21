@@ -2290,7 +2290,7 @@ void Document::update_layout(UpdateLayoutReason reason)
 // Collect elements with content-visibility: auto. This is used in the HTML event loop to avoid traversing the whole tree every time.
 void Document::collect_paintable_boxes_with_auto_content_visibility()
 {
-    Vector<WeakPtr<Painting::Paintable>> paintables_with_auto_content_visibility;
+    Vector<Layout::RustFFI::PaintableSlotId> paintables_with_auto_content_visibility;
     unsafe_layout_node()->for_each_in_inclusive_subtree([&](Layout::Node& node) {
         switch (node.kind()) {
         case Layout::RustFFI::NodeKind::SVGMaskBox:
@@ -2303,7 +2303,7 @@ void Document::collect_paintable_boxes_with_auto_content_visibility()
         auto* paintable = node.paintable_ptr();
         if (paintable && node.dom_node() && node.dom_node()->is_element()
             && paintable->layout_node().content_visibility() == CSS::ContentVisibility::Auto)
-            paintables_with_auto_content_visibility.append(*paintable);
+            paintables_with_auto_content_visibility.append(paintable->rust_slot());
         return TraversalDecision::Continue;
     });
     paint_state().set_paintable_boxes_with_auto_content_visibility(move(paintables_with_auto_content_visibility));
@@ -2561,14 +2561,14 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
         });
         Layout::RustFFI::layout_arena_rebuild_scrollable_overflow_contained_boxes(layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root.ptr()));
     } else {
-        for (auto const& weak_paintable : pending_paintables) {
-            auto paintable = weak_paintable.strong_ref();
-            if (!paintable || !paintable->has_layout_node())
+        for (auto const& paintable_slot : pending_paintables) {
+            auto* layout_node = Painting::layout_node_for_committed_slot(layout_node_arena(), paintable_slot);
+            if (!layout_node)
                 continue;
-            auto const* box = as_if<Layout::Box>(paintable->layout_node());
+            auto const* box = as_if<Layout::Box>(*layout_node);
             if (!box)
                 continue;
-            bool was_reset_by_subtree_layout_commit = Painting::has_committed_box(*box) && !Painting::overflow_data(*box).has_value();
+            bool was_reset_by_subtree_layout_commit = !Painting::overflow_data(*box).has_value();
             if (was_reset_by_subtree_layout_commit) {
                 box->for_each_in_inclusive_subtree_of_type<Layout::Box>([&](auto& subtree_box) {
                     record_and_clear_overflow_data(subtree_box);
@@ -2672,8 +2672,11 @@ void Document::update_paint_and_hit_testing_properties_if_needed()
     } else if (!m_paintable_boxes_needing_visual_context_value_update.is_empty()) {
         auto paintable_boxes = move(m_paintable_boxes_needing_visual_context_value_update);
         if (Node::unsafe_paintable()) {
-            for (auto const& weak_paintable_box : paintable_boxes) {
-                auto paintable_box = weak_paintable_box.strong_ref();
+            for (auto const& paintable_slot : paintable_boxes) {
+                auto* layout_node = Painting::layout_node_for_committed_slot(layout_node_arena(), paintable_slot);
+                if (!layout_node)
+                    continue;
+                auto paintable_box = layout_node->paintable();
                 if (!paintable_box || !paint_state().update_accumulated_visual_context_values(*this, *paintable_box)) {
                     // Structure changed after all; rebuild the whole tree.
                     paint_state().assign_accumulated_visual_contexts(*this);
@@ -8975,7 +8978,7 @@ void Document::schedule_accumulated_visual_context_value_update(Layout::Node con
     }
 
     if (auto layout_node_paintable = layout_node.paintable()) {
-        m_paintable_boxes_needing_visual_context_value_update.append(*layout_node_paintable);
+        m_paintable_boxes_needing_visual_context_value_update.append(layout_node_paintable->rust_slot());
         set_needs_repaint(InvalidateDisplayList::No);
     }
 }
@@ -9019,7 +9022,7 @@ void Document::schedule_scrollable_overflow_recalculation(Layout::Node const& la
     }
 
     if (auto layout_node_paintable = layout_node.paintable())
-        m_paintable_boxes_needing_scrollable_overflow_recalculation.append(*layout_node_paintable);
+        m_paintable_boxes_needing_scrollable_overflow_recalculation.append(layout_node_paintable->rust_slot());
 }
 
 void Document::schedule_scrollable_overflow_recalculation(Element& element)
