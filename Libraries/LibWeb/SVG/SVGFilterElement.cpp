@@ -14,7 +14,7 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/SVG/SVGComponentTransferFunctionElement.h>
 #include <LibWeb/SVG/SVGFEBlendElement.h>
 #include <LibWeb/SVG/SVGFEColorMatrixElement.h>
@@ -301,14 +301,14 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
 
             // NB: We use the unsafe accessor here because this may be called
             //     during layout update, before the layout-is-up-to-date flag
-            //     has been set. The paintable is valid since layout has already
-            //     been performed at this point.
-            auto paintable_box = dom_node->unsafe_paintable_box();
-            if (!paintable_box)
+            //     has been set. The committed box is valid since layout has
+            //     already been performed at this point.
+            auto const* layout_node = dom_node->unsafe_layout_node();
+            if (!layout_node || !Painting::has_committed_box(*layout_node))
                 return IterationDecision::Continue;
 
-            auto dest_rect = Gfx::enclosing_int_rect(paintable_box->absolute_rect().to_type<float>());
-            auto scaling_mode = CSS::to_gfx_scaling_mode(paintable_box->layout_node().image_rendering(), src_rect->size(), dest_rect.size());
+            auto dest_rect = Gfx::enclosing_int_rect(Painting::absolute_rect(*layout_node).to_type<float>());
+            auto scaling_mode = CSS::to_gfx_scaling_mode(as<Layout::NodeWithStyle>(*layout_node).image_rendering(), src_rect->size(), dest_rect.size());
             root = { Gfx::Filter::image(*frame, *src_rect, dest_rect, scaling_mode), Gfx::InterpolationColorSpace::SRGB };
             update_result_map(*image_primitive);
         } else if (auto* merge_primitive = as_if<SVGFEMergeElement>(node)) {
