@@ -1,0 +1,5 @@
+font-style: italic
+font-weight: bold
+font-width: condensed
+font-display: swap
+src: url("x.woff")

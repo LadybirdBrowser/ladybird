@@ -15,7 +15,9 @@
 
 #include <AK/Debug.h>
 #include <AK/QuickSort.h>
+#include <AK/StringBuilder.h>
 #include <AK/Utf16StringBuilder.h>
+#include <LibCore/Environment.h>
 #include <LibWeb/CSS/CharacterTypes.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
@@ -67,10 +69,55 @@
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/CSS/ValueType.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/ValueParserRustFFI.h>
 
 namespace Web::CSS::Parser {
+
+static ValueParserFFI::FfiUtf16View ffi_utf16_view(Utf16View view)
+{
+    return {
+        .ascii = view.has_ascii_storage() ? reinterpret_cast<u8 const*>(view.ascii_span().data()) : nullptr,
+        .utf16 = view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(view.utf16_span().data()),
+        .length = view.length_in_code_units(),
+    };
+}
+
+static bool rust_value_parser_enabled()
+{
+    static bool const enabled = Core::Environment::get("LIBWEB_RUST_VALUE_PARSER"sv).value_or("1"sv) != "0"sv;
+    return enabled;
+}
+
+static bool parse_fallback_statistics_enabled()
+{
+    static bool const enabled = Core::Environment::get("LIBWEB_PARSE_FALLBACK_STATS"sv).value_or("0"sv) == "1"sv;
+    return enabled;
+}
+
+static bool verify_rust_value_parser_enabled()
+{
+    static bool const enabled = Core::Environment::get("LIBWEB_VERIFY_RUST_VALUE_PARSER"sv).value_or("0"sv) == "1"sv;
+    return enabled;
+}
+
+static void dump_parse_fallback_statistics()
+{
+    if (parse_fallback_statistics_enabled())
+        ValueParserFFI::rust_parse_fallback_stats_dump();
+}
+
+static void ensure_parse_fallback_statistics_dumper()
+{
+    static bool const registered = [] {
+        auto result = atexit(dump_parse_fallback_statistics);
+        return result == 0;
+    }();
+    if (!registered)
+        dbgln("Unable to register CSS value parser statistics dumper");
+}
 
 static void remove_property(Vector<PropertyID>& properties, PropertyID property_to_remove)
 {
@@ -373,6 +420,144 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
 {
     auto context_guard = push_temporary_value_parsing_context(property_id);
 
+    if (!rust_value_parser_enabled())
+        return parse_css_value_in_cpp(property_id, tokens, move(original_source_text));
+
+    ensure_parse_fallback_statistics_dumper();
+
+    Utf16StringBuilder builder;
+    bool contains_guaranteed_invalid_value = false;
+    {
+        auto transaction = tokens.begin_transaction();
+        while (tokens.has_next_token()) {
+            auto const& token = tokens.consume_a_token();
+            if (token.contains_guaranteed_invalid_value()) {
+                contains_guaranteed_invalid_value = true;
+                break;
+            }
+
+            auto token_source = token.original_source_text();
+            if (token_source.is_empty()) {
+                // NB: Tokenizer-produced component values retain their source text. Parser-synthesized values may
+                //     not, so serialize those values and surround them with discarded comments to prevent adjacent
+                //     tokens from merging when Rust tokenizes the reconstructed source.
+                builder.append("/**/"_utf16);
+                builder.append(token.to_string());
+                builder.append("/**/"_utf16);
+            } else {
+                builder.append(token_source);
+            }
+        }
+    }
+    // GuaranteedInvalidValue is parser state with no CSS text representation, so C++ must remain authoritative.
+    if (contains_guaranteed_invalid_value)
+        return parse_css_value_in_cpp(property_id, tokens, move(original_source_text));
+    auto source = builder.to_string();
+
+    Vector<ValueParserFFI::FfiValueParsingContext, 1> value_contexts;
+    value_contexts.ensure_capacity(m_value_context.size());
+    for (auto const& value_context : m_value_context) {
+        ValueParserFFI::FfiValueParsingContext ffi_context {};
+        value_context.visit(
+            [&](PropertyID context_property_id) {
+                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
+                ffi_context.value = to_underlying(context_property_id);
+            },
+            [&](FunctionContext const& function_context) {
+                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Function;
+                ffi_context.name = ffi_utf16_view(function_context.name);
+            },
+            [&](DescriptorContext const& descriptor_context) {
+                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Descriptor;
+                ffi_context.value = to_underlying(descriptor_context.at_rule);
+                ffi_context.secondary_value = to_underlying(descriptor_context.descriptor);
+            },
+            [&](SpecialContext special_context) {
+                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Special;
+                ffi_context.value = to_underlying(special_context);
+            },
+            [&](RelativeColorParseContext const& relative_color_context) {
+                static_assert(relative_color_context.allowed_channels.size() <= 64);
+                ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::RelativeColor;
+                for (size_t i = 0; i < relative_color_context.allowed_channels.size(); ++i) {
+                    if (relative_color_context.allowed_channels[i])
+                        ffi_context.allowed_channels |= static_cast<u64>(1) << i;
+                }
+            });
+        value_contexts.append(ffi_context);
+    }
+
+    ReadonlyBytes document_url;
+    ReadonlyBytes document_base_url;
+    if (m_document) {
+        if (!m_serialized_document_url.has_value())
+            m_serialized_document_url = m_document->url().serialize();
+        if (!m_serialized_document_base_url.has_value())
+            m_serialized_document_base_url = m_document->base_url().serialize();
+        document_url = m_serialized_document_url->bytes();
+        document_base_url = m_serialized_document_base_url->bytes();
+    }
+    ValueParserFFI::ParseContext context {
+        .in_quirks_mode = in_quirks_mode(),
+        .is_svg_presentation_attribute = is_parsing_svg_presentation_attribute(),
+        .value_contexts = value_contexts.data(),
+        .value_context_count = value_contexts.size(),
+        .document_url = document_url.data(),
+        .document_url_length = document_url.size(),
+        .document_base_url = document_base_url.data(),
+        .document_base_url_length = document_base_url.size(),
+    };
+    ValueParserFFI::FfiParseStatus status { ValueParserFFI::FfiParseStatus::NotHandled };
+    u8 const* reason { nullptr };
+    auto const* parsed_value = ValueParserFFI::rust_parse_css_value(
+        &context, to_underlying(property_id), ffi_utf16_view(source), &status, &reason);
+
+    switch (status) {
+    case ValueParserFFI::FfiParseStatus::Parsed: {
+        VERIFY(parsed_value);
+        auto rust_value = StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(parsed_value));
+        if (verify_rust_value_parser_enabled()) {
+            auto transaction = tokens.begin_transaction();
+            auto cpp_value = parse_css_value_in_cpp(property_id, tokens, move(original_source_text));
+            auto rust_serialization = rust_value->to_string(SerializationMode::Normal);
+            if (cpp_value.is_error()) {
+                warnln("LIBWEB_RUST_VALUE_PARSER_MISMATCH property={} source='{}' rust='{}' cpp=<invalid>",
+                    string_from_property_id(property_id), source, rust_serialization);
+            } else {
+                auto cpp_serialization = cpp_value.value()->to_string(SerializationMode::Normal);
+                if (rust_serialization != cpp_serialization) {
+                    warnln("LIBWEB_RUST_VALUE_PARSER_MISMATCH property={} source='{}' rust='{}' cpp='{}'",
+                        string_from_property_id(property_id), source, rust_serialization, cpp_serialization);
+                }
+            }
+        }
+
+        while (tokens.has_next_token())
+            tokens.discard_a_token();
+        return rust_value;
+    }
+    case ValueParserFFI::FfiParseStatus::Invalid: {
+        VERIFY(!parsed_value);
+        if (verify_rust_value_parser_enabled()) {
+            auto transaction = tokens.begin_transaction();
+            auto cpp_value = parse_css_value_in_cpp(property_id, tokens, move(original_source_text));
+            if (!cpp_value.is_error()) {
+                warnln("LIBWEB_RUST_VALUE_PARSER_MISMATCH property={} source='{}' rust=<invalid> cpp='{}'",
+                    string_from_property_id(property_id), source, cpp_value.value()->to_string(SerializationMode::Normal));
+            }
+        }
+        return ParseError::SyntaxError;
+    }
+    case ValueParserFFI::FfiParseStatus::NotHandled:
+        VERIFY(!parsed_value);
+        VERIFY(reason);
+        return parse_css_value_in_cpp(property_id, tokens, move(original_source_text));
+    }
+    VERIFY_NOT_REACHED();
+}
+
+Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value_in_cpp(PropertyID property_id, TokenStream<ComponentValue>& tokens, Optional<String> original_source_text)
+{
     SubstitutionFunctionsPresence substitution_presence;
     {
         // NB: This transaction is intentionally never committed. This loop just examines the tokens and doesn't want

@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let style = document.createElement("style");
+        style.textContent = "@font-face { font-family: Test; font-width: condensed; }";
+        document.head.appendChild(style);
+
+        println(style.sheet.cssRules[0].cssText);
+    });
+</script>

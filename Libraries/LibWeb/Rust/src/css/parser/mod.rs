@@ -6,3 +6,4 @@
 
 pub(crate) mod component_value;
 pub(crate) mod token_stream;
+pub(crate) mod value_parser;

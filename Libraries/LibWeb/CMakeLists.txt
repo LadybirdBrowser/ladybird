@@ -1277,6 +1277,7 @@ import_rust_crate(
         RustFFI.h
         SelectorRustFFI.h
         StyleValueRustFFI.h
+        ValueParserRustFFI.h
         ComputedValuesRustFFI.h
         StyleEngineRustFFI.h
         StyleEngineBridgeGenerated.h

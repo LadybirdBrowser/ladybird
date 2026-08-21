@@ -413,6 +413,7 @@ private:
     RefPtr<RadialGradientStyleValue const> parse_radial_gradient_function(TokenStream<ComponentValue>&);
 
     ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value(PropertyID, TokenStream<ComponentValue>&, Optional<String> original_source_text = {});
+    ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value_in_cpp(PropertyID, TokenStream<ComponentValue>&, Optional<String> original_source_text);
     ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_descriptor_value(AtRuleID, DescriptorNameAndID const&, TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_positional_value_list_shorthand(PropertyID, TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_css_value_for_property(PropertyID, TokenStream<ComponentValue>&);
@@ -656,6 +657,8 @@ private:
     bool is_parsing_svg_presentation_attribute() const;
 
     GC::Ptr<DOM::Document const> m_document;
+    Optional<String> m_serialized_document_url;
+    Optional<String> m_serialized_document_base_url;
     ParsingMode m_parsing_mode { ParsingMode::Normal };
     IsUAStyleSheet m_is_ua_style_sheet { IsUAStyleSheet::No };
 

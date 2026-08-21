@@ -1,0 +1,1 @@
+@font-face { font-family: Test; font-stretch: condensed; }
