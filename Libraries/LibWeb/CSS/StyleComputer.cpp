@@ -225,9 +225,16 @@ void StyleComputer::register_style_node(StyleNodeID style_node_id, DOM::Element&
 {
     if (style_node_id == 0)
         return;
-    if (style_node_id.value() >= m_style_nodes.size())
-        m_style_nodes.resize(style_node_id.value() + 1);
+    ensure_style_node_slot(style_node_id);
     m_style_nodes[style_node_id.value()] = element;
+}
+
+void StyleComputer::ensure_style_node_slot(StyleNodeID style_node_id)
+{
+    if (style_node_id != 0 && style_node_id.value() >= m_style_nodes.size()) {
+        m_style_nodes.grow_capacity(style_node_id.value() + 1);
+        m_style_nodes.resize(style_node_id.value() + 1);
+    }
 }
 
 void StyleComputer::unregister_style_node(StyleNodeID style_node_id)

@@ -272,6 +272,8 @@ void prepare_style_nodes_for_subtree(DOM::Node& root)
     Vector<StyleNodeID> identities;
     identities.resize(elements.size() + shadow_roots.size());
     style_engine.allocate_style_nodes(identities.span());
+    if (!identities.is_empty())
+        style_computer.ensure_style_node_slot(identities.last());
     for (size_t index = 0; index < elements.size(); ++index) {
         auto& element = *elements[index];
         element.set_style_node_id(identities[index]);
