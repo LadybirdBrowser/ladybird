@@ -26,7 +26,7 @@ unsafe fn arena_from_handle<'a>(arena: *mut c_void) -> &'a LayoutNodeArena {
 pub unsafe extern "C" fn layout_arena_set_chrome_state_callback(
     arena: *mut c_void,
     context: *mut c_void,
-    callback: unsafe extern "C" fn(*mut c_void, PaintableSlotId, u8),
+    callback: unsafe extern "C" fn(*mut c_void, PaintableSlotId, PaintableRowResetKind),
 ) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
@@ -70,11 +70,10 @@ pub unsafe extern "C" fn layout_arena_paintable_row(arena: *mut c_void, slot: Pa
 pub unsafe extern "C" fn layout_arena_paintable_row_for_node(
     arena: *mut c_void,
     layout_node: NodeSlotId,
-    shell: *mut c_void,
 ) -> PaintableAllocation {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
-        arena.paintables().borrow_mut().row_for_node(layout_node, shell)
+        arena.paintables().borrow_mut().row_for_node(layout_node)
     })
 }
 
@@ -105,15 +104,12 @@ pub unsafe extern "C" fn layout_arena_paintable_shell_destroyed(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_cleared_from_node(
-    arena: *mut c_void,
-    layout_node: NodeSlotId,
-    slot: PaintableSlotId,
-) {
+pub unsafe extern "C" fn layout_arena_paintable_cleared_from_node(arena: *mut c_void, layout_node: NodeSlotId) {
     abort_on_panic(|| {
         let arena = unsafe { arena_from_handle(arena) };
         let reset = {
             let paintables = arena.paintables().borrow();
+            let slot = paintables.paintable_of_node(layout_node);
             paintables.prepare_node_cleared_reset(layout_node, slot)
         };
         if let Some(reset) = reset {

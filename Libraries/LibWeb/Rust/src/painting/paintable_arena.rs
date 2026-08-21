@@ -34,8 +34,11 @@ fn new_chunk() -> Box<Chunk> {
 #[derive(Clone, Copy)]
 pub(crate) struct PaintableRowReset {
     slot: PaintableSlotId,
-    kind: u8,
-    callback: Option<(*mut c_void, unsafe extern "C" fn(*mut c_void, PaintableSlotId, u8))>,
+    kind: PaintableRowResetKind,
+    callback: Option<(
+        *mut c_void,
+        unsafe extern "C" fn(*mut c_void, PaintableSlotId, PaintableRowResetKind),
+    )>,
 }
 
 impl PaintableRowReset {
@@ -63,7 +66,10 @@ pub struct PaintableArena {
     absolute_rect_memo_epoch: Cell<u64>,
     pub(crate) scrollable_overflow_contained_boxes: std::collections::HashMap<NodeSlotId, Vec<NodeSlotId>>,
     pub(crate) selection: Option<crate::painting::selection::SelectionRange>,
-    chrome_state_callback: Option<(*mut c_void, unsafe extern "C" fn(*mut c_void, PaintableSlotId, u8))>,
+    chrome_state_callback: Option<(
+        *mut c_void,
+        unsafe extern "C" fn(*mut c_void, PaintableSlotId, PaintableRowResetKind),
+    )>,
 }
 
 impl PaintableArena {
@@ -74,7 +80,7 @@ impl PaintableArena {
     pub(crate) fn set_chrome_state_callback(
         &mut self,
         context: *mut c_void,
-        callback: unsafe extern "C" fn(*mut c_void, PaintableSlotId, u8),
+        callback: unsafe extern "C" fn(*mut c_void, PaintableSlotId, PaintableRowResetKind),
     ) {
         self.chrome_state_callback = Some((context, callback));
     }
@@ -83,7 +89,7 @@ impl PaintableArena {
         self.chrome_state_callback = None;
     }
 
-    fn prepare_row_reset(&self, slot: PaintableSlotId, kind: u8) -> PaintableRowReset {
+    fn prepare_row_reset(&self, slot: PaintableSlotId, kind: PaintableRowResetKind) -> PaintableRowReset {
         PaintableRowReset {
             slot,
             kind,
@@ -149,7 +155,7 @@ impl PaintableArena {
         (!root.is_invalid() && self.is_live(root) && self.data_ref(root).kind.has_lines()).then_some(root)
     }
 
-    pub fn row_for_node(&mut self, layout_node: NodeSlotId, shell: *mut c_void) -> PaintableAllocation {
+    pub fn row_for_node(&mut self, layout_node: NodeSlotId) -> PaintableAllocation {
         let index = layout_node.slot_index();
         assert!(
             index < MAX_PAINTABLE_SLOT_COUNT,
@@ -170,7 +176,6 @@ impl PaintableArena {
         *data = PaintableData::default();
         data.slot_generation = generation;
         data.layout_node = layout_node;
-        data.shell = shell;
         self.side_data[index as usize] = PaintableSideData::default();
         self.paint_caches[index as usize].clear();
         self.absolute_rect_memo.get_mut()[index as usize] = None;
@@ -197,7 +202,7 @@ impl PaintableArena {
         if !self.is_live(id) || self.data_ref(id).shell != shell {
             return None;
         }
-        Some(self.prepare_row_reset(id, ROW_RESET_SHELL_REPLACED))
+        Some(self.prepare_row_reset(id, PaintableRowResetKind::ShellReplaced))
     }
 
     pub(crate) fn shell_destroyed(&mut self, layout_arena: &LayoutNodeArena, reset: PaintableRowReset) {
@@ -224,7 +229,10 @@ impl PaintableArena {
         if generation == 0 {
             return None;
         }
-        Some(self.prepare_row_reset(PaintableSlotId::new(layout_slot_index, generation), ROW_RESET_FREED))
+        Some(self.prepare_row_reset(
+            PaintableSlotId::new(layout_slot_index, generation),
+            PaintableRowResetKind::Freed,
+        ))
     }
 
     pub(crate) fn layout_node_freed(&mut self, reset: PaintableRowReset) {
@@ -236,10 +244,10 @@ impl PaintableArena {
         layout_node: NodeSlotId,
         id: PaintableSlotId,
     ) -> Option<PaintableRowReset> {
-        if self.paintable_of_node(layout_node) != id {
+        if id.is_invalid() || self.paintable_of_node(layout_node) != id {
             return None;
         }
-        Some(self.prepare_row_reset(id, ROW_RESET_CLEARED))
+        Some(self.prepare_row_reset(id, PaintableRowResetKind::Cleared))
     }
 
     pub(crate) fn node_cleared(&mut self, layout_arena: &LayoutNodeArena, reset: PaintableRowReset) {
@@ -448,7 +456,7 @@ impl PaintableArena {
 
     pub(crate) fn prepare_reset_for_relayout(&self, id: PaintableSlotId) -> PaintableRowReset {
         assert!(self.is_live(id));
-        self.prepare_row_reset(id, ROW_RESET_RELAYOUT_REUSE)
+        self.prepare_row_reset(id, PaintableRowResetKind::RelayoutReuse)
     }
 
     pub(crate) fn reset_for_relayout(&mut self, reset: PaintableRowReset) {

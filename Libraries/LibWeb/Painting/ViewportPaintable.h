@@ -17,8 +17,6 @@ public:
     static NonnullRefPtr<ViewportPaintable> create(Layout::Viewport const&);
     virtual ~ViewportPaintable() override;
 
-    virtual void reset_for_relayout() override;
-
 private:
     explicit ViewportPaintable(Layout::Viewport const&);
 };

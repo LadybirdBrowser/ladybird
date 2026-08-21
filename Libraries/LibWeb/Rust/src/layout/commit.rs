@@ -62,11 +62,13 @@ pub struct FfiPaintableGeometry {
 #[repr(C)]
 pub struct FfiCommitSink {
     pub context: *mut c_void,
-    pub finish_commit: unsafe extern "C" fn(*mut c_void),
-    pub prepare_node: unsafe extern "C" fn(*mut c_void, *mut c_void, bool, bool) -> crate::painting::paintable_build::FfiPreparedPaintable,
-    pub content_size_changed:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, crate::layout::FfiCssPixelSize, crate::layout::FfiCssPixelSize),
-    pub finish_node: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
+    pub content_size_changed: unsafe extern "C" fn(
+        *mut c_void,
+        *mut c_void,
+        crate::layout::FfiCssPixelSize,
+        crate::layout::FfiCssPixelSize,
+    ),
+    pub finish_commit: unsafe extern "C" fn(*mut c_void, *const *mut c_void, usize),
 }
 
 fn commit_subtree(
@@ -117,23 +119,12 @@ fn commit_subtree(
             );
         }
     }
-    // SAFETY: The C++ sink owns paintables and copies every plain-data
-    // input synchronously.
-    let node_shell = callbacks.shell(node);
-    let prepared = unsafe {
-        (sink.prepare_node)(
-            sink.context,
-            node_shell,
-            entry.is_some(),
-            reuses_committed_subtree,
-        )
-    };
-    let paintable = prepared.paintable;
-    let paintable_slot = paintables.prepare_node(node, entry.is_some(), reuses_committed_subtree, prepared);
+    let prepared = paintables.prepare_node(node, entry.is_some(), reuses_committed_subtree);
+    let paintable_slot = prepared.slot;
 
     let mut has_pending_inline_box_geometry = false;
     if let Some(link) = entry
-        && !paintable.is_null()
+        && !paintable_slot.is_invalid()
     {
         let fragment = &link.fragment;
         let box_metrics = FfiCommittedBoxMetrics {
@@ -163,11 +154,13 @@ fn commit_subtree(
             uses_collapsing_borders_model: fragment.uses_collapsing_borders_model,
         };
         let content_size_change = paintables.set_box_metrics(paintable_slot, &box_metrics);
-        if let Some((old_content_size, new_content_size)) = content_size_change {
+        if prepared.row_existed_before_this_commit
+            && let Some((old_content_size, new_content_size)) = content_size_change
+        {
             // SAFETY: Every callback below copies its plain-data argument or
             // consumes one retained handle synchronously.
             unsafe {
-                (sink.content_size_changed)(sink.context, paintable, old_content_size, new_content_size);
+                (sink.content_size_changed)(sink.context, callbacks.shell(node), old_content_size, new_content_size);
             }
         }
 
@@ -212,11 +205,6 @@ fn commit_subtree(
     }
 
     paintables.stamp_containing_block(node, paintable_slot);
-    // SAFETY: The C++ sink receives live layout and paintable pointers for
-    // this synchronous callback.
-    unsafe {
-        (sink.finish_node)(sink.context, node_shell, paintable);
-    }
 
     if reuses_committed_subtree {
         return;
@@ -255,7 +243,8 @@ pub(crate) fn commit_replacing(
     commit_subtree(root, callbacks, sink, &paintables, &mut scopes);
     paintables.translate_reused_subtrees();
     paintables.discard_absolute_rects_memoized_during_commit();
+    let viewport_shells = paintables.committed_navigable_container_viewport_shells();
     unsafe {
-        (sink.finish_commit)(sink.context);
+        (sink.finish_commit)(sink.context, viewport_shells.as_ptr(), viewport_shells.len());
     }
 }

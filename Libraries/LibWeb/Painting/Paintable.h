@@ -159,8 +159,6 @@ public:
 
     friend class Layout::Node;
 
-    virtual void reset_for_relayout();
-
     Layout::RustFFI::PaintableSlotId rust_slot() const { return m_rust_slot; }
     Layout::NodeArena& rust_arena() const { return *m_rust_arena; }
     Layout::RustFFI::PaintableData const& rust_data() const { return *m_rust_data; }

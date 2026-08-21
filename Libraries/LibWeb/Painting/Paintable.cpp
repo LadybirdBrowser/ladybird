@@ -276,7 +276,7 @@ Paintable::Paintable(Layout::NodeWithStyle const& layout_node)
     : m_layout_node(layout_node)
     , m_rust_arena(layout_node.node_arena())
 {
-    auto allocation = m_rust_arena->paintable_row_for_node(Layout::Node::slot_id(&layout_node), this);
+    auto allocation = m_rust_arena->paintable_row_for_node(Layout::Node::slot_id(&layout_node));
     m_rust_slot = allocation.slot;
     m_rust_slot_generation = allocation.generation;
     m_rust_data = allocation.data;
@@ -295,11 +295,6 @@ Paintable::~Paintable()
 void Paintable::detach_from_layout_node(Badge<Layout::Node>)
 {
     m_layout_node.clear();
-}
-
-void Paintable::reset_for_relayout()
-{
-    Painting::invalidate_stacking_context(layout_node());
 }
 
 }
