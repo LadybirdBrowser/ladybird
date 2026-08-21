@@ -7,7 +7,7 @@
 // Parsed values use the thread-confined shared graph owned by the C++ style objects.
 #![allow(clippy::arc_with_non_send_sync)]
 
-use super::component_value::ComponentValue;
+use super::component_value::{ComponentKind, ComponentValue};
 use super::token_stream::TokenStream;
 use super::value_parser::{
     NumericRange, PROPERTY_NOT_PORTED, ParseContext, ParseOutcome, equals_ascii_case_insensitive,
@@ -25,8 +25,10 @@ use crate::css::style_value::{
 use std::sync::Arc;
 
 const VALUE_TYPE_BACKGROUND_POSITION: u8 = 4;
+const VALUE_TYPE_ANCHOR: u8 = 0;
 const VALUE_TYPE_BASIC_SHAPE: u8 = 5;
 const VALUE_TYPE_CORNER_SHAPE: u8 = 7;
+const VALUE_TYPE_FIT_CONTENT: u8 = 14;
 const VALUE_TYPE_POSITION: u8 = 32;
 const VALUE_TYPE_RECT: u8 = 34;
 
@@ -1137,6 +1139,420 @@ fn is_border_radius_longhand(property: u16) -> bool {
     )
 }
 
+fn dashed_ident(context: &ParseContext, value: &ComponentValue) -> Option<RetainedUtf16FlyString> {
+    let identifier = value.ident()?;
+    (identifier.starts_with(&[u16::from(b'-'), u16::from(b'-')])).then(|| retain_fly_string(context, identifier))?
+}
+
+fn anchor_side(value: &ComponentValue) -> Option<StyleValueData> {
+    let identifier = value.ident()?;
+    [
+        "inside",
+        "outside",
+        "top",
+        "left",
+        "right",
+        "bottom",
+        "start",
+        "end",
+        "self-start",
+        "self-end",
+        "center",
+    ]
+    .iter()
+    .any(|accepted| equals_ascii_case_insensitive(identifier, accepted.as_bytes()))
+    .then(|| StyleValueData::Keyword {
+        keyword: keyword_from_ascii_case_insensitive(identifier).unwrap(),
+    })
+}
+
+fn property_allows_anchor(property: u16) -> bool {
+    matches!(
+        property,
+        property_id::INSET
+            | property_id::TOP
+            | property_id::RIGHT
+            | property_id::BOTTOM
+            | property_id::LEFT
+            | property_id::INSET_BLOCK
+            | property_id::INSET_BLOCK_START
+            | property_id::INSET_BLOCK_END
+            | property_id::INSET_INLINE
+            | property_id::INSET_INLINE_START
+            | property_id::INSET_INLINE_END
+    )
+}
+
+fn parse_anchor_function(context: &ParseContext, property: u16, value: &ComponentValue) -> Option<StyleValueData> {
+    if !property_allows_anchor(property) {
+        return None;
+    }
+    let (name, arguments) = value.function()?;
+    if !equals_ascii_case_insensitive(name, b"anchor") {
+        return None;
+    }
+    let arguments = arguments.split(ComponentValue::is_comma).collect::<Vec<_>>();
+    if arguments.is_empty() || arguments.len() > 2 {
+        return None;
+    }
+    let mut tokens = TokenStream::new(arguments[0]);
+    let mut anchor_name = None;
+    let mut side = None;
+    for _ in 0..2 {
+        tokens.discard_whitespace();
+        if !tokens.has_next_token() {
+            break;
+        }
+        if let Some(parsed_name) = dashed_ident(context, tokens.next_token()) {
+            if anchor_name.is_some() {
+                return None;
+            }
+            tokens.discard_a_token();
+            anchor_name = Some(parsed_name);
+            continue;
+        }
+        if side.is_some() {
+            break;
+        }
+        if let Some(parsed_side) = anchor_side(tokens.next_token()) {
+            tokens.discard_a_token();
+            side = Some(parsed_side);
+            continue;
+        }
+        let parsed_side = parse_length_percentage_from_stream(
+            context,
+            property,
+            &mut tokens,
+            NumericRange::INFINITE,
+            NumericRange::INFINITE,
+        )?;
+        if matches!(parsed_side, StyleValueData::Length { .. }) {
+            return None;
+        }
+        side = Some(parsed_side);
+    }
+    tokens.discard_whitespace();
+    if tokens.has_next_token() {
+        return None;
+    }
+    let fallback = if arguments.len() == 2 {
+        let mut candidate = TokenStream::new(arguments[1]);
+        candidate.discard_whitespace();
+        let parsed = parse_anchor_function(context, property, candidate.next_token())
+            .inspect(|_| {
+                candidate.discard_a_token();
+            })
+            .or_else(|| {
+                parse_length_percentage_from_stream(
+                    context,
+                    property,
+                    &mut candidate,
+                    NumericRange::INFINITE,
+                    NumericRange::INFINITE,
+                )
+            })?;
+        candidate.discard_whitespace();
+        if candidate.has_next_token() {
+            return None;
+        }
+        Some(parsed)
+    } else {
+        None
+    };
+    Some(StyleValueData::Anchor {
+        has_anchor_name: anchor_name.is_some(),
+        anchor_name: anchor_name.unwrap_or_else(RetainedUtf16FlyString::none),
+        anchor_side: retained(side?),
+        fallback_value: fallback.map_or_else(RetainedStyleValueData::none, retained),
+    })
+}
+
+fn anchor_size_keyword(value: &ComponentValue) -> Option<u8> {
+    let identifier = value.ident()?;
+    ["block", "height", "inline", "self-block", "self-inline", "width"]
+        .iter()
+        .position(|accepted| equals_ascii_case_insensitive(identifier, accepted.as_bytes()))
+        .and_then(|index| u8::try_from(index).ok())
+}
+
+fn property_allows_anchor_size(property: u16) -> bool {
+    property_allows_anchor(property)
+        || matches!(
+            property,
+            property_id::MARGIN
+                | property_id::MARGIN_TOP
+                | property_id::MARGIN_RIGHT
+                | property_id::MARGIN_BOTTOM
+                | property_id::MARGIN_LEFT
+                | property_id::MARGIN_BLOCK
+                | property_id::MARGIN_BLOCK_START
+                | property_id::MARGIN_BLOCK_END
+                | property_id::MARGIN_INLINE
+                | property_id::MARGIN_INLINE_START
+                | property_id::MARGIN_INLINE_END
+                | property_id::WIDTH
+                | property_id::MIN_WIDTH
+                | property_id::MAX_WIDTH
+                | property_id::HEIGHT
+                | property_id::MIN_HEIGHT
+                | property_id::MAX_HEIGHT
+                | property_id::BLOCK_SIZE
+                | property_id::MIN_BLOCK_SIZE
+                | property_id::MAX_BLOCK_SIZE
+                | property_id::INLINE_SIZE
+                | property_id::MIN_INLINE_SIZE
+                | property_id::MAX_INLINE_SIZE
+                | property_id::ALIGN_SELF
+                | property_id::JUSTIFY_SELF
+                | property_id::PLACE_SELF
+        )
+}
+
+fn parse_anchor_size_function(context: &ParseContext, property: u16, value: &ComponentValue) -> Option<StyleValueData> {
+    if !property_allows_anchor_size(property) {
+        return None;
+    }
+    let (name, arguments) = value.function()?;
+    if !equals_ascii_case_insensitive(name, b"anchor-size") {
+        return None;
+    }
+    let arguments = arguments.split(ComponentValue::is_comma).collect::<Vec<_>>();
+    if arguments.is_empty() || arguments.len() > 2 {
+        return None;
+    }
+    let mut tokens = TokenStream::new(arguments[0]);
+    let mut anchor_name = None;
+    let mut anchor_size = None;
+    for _ in 0..2 {
+        tokens.discard_whitespace();
+        if !tokens.has_next_token() || tokens.next_token().ident().is_none() {
+            break;
+        }
+        if let Some(parsed_name) = dashed_ident(context, tokens.next_token()) {
+            if anchor_name.is_some() {
+                return None;
+            }
+            tokens.discard_a_token();
+            anchor_name = Some(parsed_name);
+            continue;
+        }
+        let parsed_size = anchor_size_keyword(tokens.next_token())?;
+        if anchor_size.is_some() {
+            return None;
+        }
+        tokens.discard_a_token();
+        anchor_size = Some(parsed_size);
+    }
+    tokens.discard_whitespace();
+    let has_name_or_size = anchor_name.is_some() || anchor_size.is_some();
+    let comma_present = arguments.len() == 2;
+    if comma_present && !has_name_or_size {
+        return None;
+    }
+    let fallback_values = if comma_present { arguments[1] } else { arguments[0] };
+    let fallback_start = if comma_present { 0 } else { tokens.current_index() };
+    let mut fallback_tokens = TokenStream::new(&fallback_values[fallback_start..]);
+    fallback_tokens.discard_whitespace();
+    if comma_present && !fallback_tokens.has_next_token() {
+        return None;
+    }
+    let fallback = if fallback_tokens.has_next_token() {
+        let mut candidate = fallback_tokens.clone();
+        let parsed = parse_anchor_size_function(context, property, candidate.next_token())
+            .inspect(|_| {
+                candidate.discard_a_token();
+            })
+            .or_else(|| {
+                parse_length_percentage_from_stream(
+                    context,
+                    property,
+                    &mut candidate,
+                    NumericRange::INFINITE,
+                    NumericRange::INFINITE,
+                )
+            })?;
+        candidate.discard_whitespace();
+        if candidate.has_next_token() {
+            return None;
+        }
+        Some(parsed)
+    } else {
+        None
+    };
+    if fallback.is_some() && !comma_present && has_name_or_size {
+        return None;
+    }
+    Some(StyleValueData::AnchorSize {
+        has_anchor_name: anchor_name.is_some(),
+        anchor_name: anchor_name.unwrap_or_else(RetainedUtf16FlyString::none),
+        has_anchor_size: anchor_size.is_some(),
+        anchor_size: anchor_size.unwrap_or(0),
+        fallback_value: fallback.map_or_else(RetainedStyleValueData::none, retained),
+    })
+}
+
+fn contains_anchor_in_math_function(values: &[ComponentValue], inside_math_function: bool) -> bool {
+    values.iter().any(|value| match &value.kind {
+        ComponentKind::Function { name, values } => {
+            let is_math_function = crate::css::math_functions::math_function_from_name(name).is_some();
+            (inside_math_function
+                && (equals_ascii_case_insensitive(name, b"anchor")
+                    || equals_ascii_case_insensitive(name, b"anchor-size")))
+                || contains_anchor_in_math_function(values, inside_math_function || is_math_function)
+        }
+        ComponentKind::SimpleBlock { values, .. } => contains_anchor_in_math_function(values, inside_math_function),
+        ComponentKind::Token(_) => false,
+    })
+}
+
+fn parse_fit_content(context: &ParseContext, property: u16, values: &[ComponentValue]) -> Option<StyleValueData> {
+    let value = values.iter().find(|value| !value.is_whitespace())?;
+    if values.iter().filter(|value| !value.is_whitespace()).count() != 1 {
+        return None;
+    }
+    if value
+        .ident()
+        .is_some_and(|identifier| equals_ascii_case_insensitive(identifier, b"fit-content"))
+    {
+        return Some(StyleValueData::Keyword {
+            keyword: keyword::FIT_CONTENT,
+        });
+    }
+    let (name, arguments) = value.function()?;
+    if !equals_ascii_case_insensitive(name, b"fit-content") {
+        return None;
+    }
+    let mut tokens = TokenStream::new(arguments);
+    let argument = parse_length_percentage_from_stream(
+        context,
+        property,
+        &mut tokens,
+        NumericRange::INFINITE,
+        NumericRange::INFINITE,
+    )?;
+    tokens.discard_whitespace();
+    if tokens.has_next_token() {
+        return None;
+    }
+    Some(StyleValueData::Function {
+        name: retain_fly_string(context, &"fit-content".encode_utf16().collect::<Vec<_>>())?,
+        value: retained(argument),
+    })
+}
+
+fn parse_inset_leaf(context: &ParseContext, property: u16, tokens: &mut TokenStream<'_>) -> Option<StyleValueData> {
+    tokens.discard_whitespace();
+    if let Some(auto) = keyword_value(tokens.next_token(), &[keyword::AUTO]) {
+        tokens.discard_a_token();
+        return Some(auto);
+    }
+    if let Some(anchor) = parse_anchor_function(context, property, tokens.next_token()) {
+        tokens.discard_a_token();
+        return Some(anchor);
+    }
+    if let Some(anchor_size) = parse_anchor_size_function(context, property, tokens.next_token()) {
+        tokens.discard_a_token();
+        return Some(anchor_size);
+    }
+    parse_length_percentage_from_stream(
+        context,
+        property,
+        tokens,
+        NumericRange::INFINITE,
+        NumericRange::INFINITE,
+    )
+}
+
+fn parse_positional_anchor_shorthand(
+    context: &ParseContext,
+    property: u16,
+    values: &[ComponentValue],
+) -> Option<StyleValueData> {
+    let mut tokens = TokenStream::new(values);
+    let mut parsed = Vec::new();
+    let maximum = longhands_for_shorthand(property).len();
+    while parsed.len() < maximum {
+        let mut candidate = tokens.clone();
+        let Some(value) = parse_inset_leaf(context, property, &mut candidate) else {
+            break;
+        };
+        tokens = candidate;
+        parsed.push(value);
+    }
+    tokens.discard_whitespace();
+    if tokens.has_next_token() {
+        return None;
+    }
+    positional_shorthand(property, parsed)
+}
+
+fn is_inset_or_margin_shorthand(property: u16) -> bool {
+    matches!(
+        property,
+        property_id::INSET
+            | property_id::INSET_BLOCK
+            | property_id::INSET_INLINE
+            | property_id::MARGIN
+            | property_id::MARGIN_BLOCK
+            | property_id::MARGIN_INLINE
+    )
+}
+
+pub(crate) fn parse_anchor_fit_property(
+    context: &ParseContext,
+    property: u16,
+    values: &[ComponentValue],
+) -> ParseOutcome {
+    let parsed = if is_inset_or_margin_shorthand(property) {
+        parse_positional_anchor_shorthand(context, property, values)
+    } else if property_allows_anchor(property) {
+        let mut tokens = TokenStream::new(values);
+        let parsed = parse_inset_leaf(context, property, &mut tokens);
+        tokens.discard_whitespace();
+        if parsed.is_none() && contains_anchor_in_math_function(values, false) {
+            return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        } else if tokens.has_next_token() {
+            None
+        } else {
+            parsed
+        }
+    } else if property_accepted_value_types(property).contains(&VALUE_TYPE_FIT_CONTENT) {
+        let is_fit_or_anchor_size = values.iter().find(|value| !value.is_whitespace()).is_some_and(|value| {
+            value
+                .ident()
+                .is_some_and(|identifier| equals_ascii_case_insensitive(identifier, b"fit-content"))
+                || value.function().is_some_and(|(name, _)| {
+                    equals_ascii_case_insensitive(name, b"fit-content")
+                        || equals_ascii_case_insensitive(name, b"anchor-size")
+                })
+        });
+        if !is_fit_or_anchor_size {
+            return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        }
+        parse_fit_content(context, property, values).or_else(|| {
+            let value = values.iter().find(|value| !value.is_whitespace())?;
+            parse_anchor_size_function(context, property, value)
+        })
+    } else if property_allows_anchor_size(property) {
+        let parsed = values
+            .iter()
+            .find(|value| !value.is_whitespace())
+            .and_then(|value| parse_anchor_size_function(context, property, value));
+        if parsed.is_none() {
+            return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+        }
+        parsed
+    } else if property_accepted_value_types(property).contains(&VALUE_TYPE_ANCHOR) {
+        values
+            .iter()
+            .find(|value| !value.is_whitespace())
+            .and_then(|value| parse_anchor_function(context, property, value))
+    } else {
+        return ParseOutcome::NotHandled(&PROPERTY_NOT_PORTED);
+    };
+    parsed.map_or(ParseOutcome::Invalid, |parsed| ParseOutcome::Parsed(Arc::new(parsed)))
+}
+
 pub(crate) fn parse_geometry_property(
     context: &ParseContext,
     property: u16,
@@ -1268,6 +1684,11 @@ mod tests {
     fn parse_geometry(property: u16, source: &str) -> ParseOutcome {
         let values = consume_a_list_of_component_values(&tokenize_for_parser(source.as_bytes())).unwrap();
         parse_geometry_property(&context(), property, &values)
+    }
+
+    fn parse_anchor_fit(property: u16, source: &str) -> ParseOutcome {
+        let values = consume_a_list_of_component_values(&tokenize_for_parser(source.as_bytes())).unwrap();
+        parse_anchor_fit_property(&context(), property, &values)
     }
 
     #[test]
@@ -1406,6 +1827,67 @@ mod tests {
         }
         assert!(matches!(
             parse_geometry(property_id::SHAPE_OUTSIDE, "url(shape.png)"),
+            ParseOutcome::NotHandled(_)
+        ));
+    }
+
+    #[test]
+    fn parses_anchor_functions_and_insets() {
+        for source in [
+            "anchor(top)",
+            "anchor(--card 25%, 10px)",
+            "anchor(left, anchor(--fallback right))",
+        ] {
+            assert!(
+                matches!(parse_anchor_fit(property_id::TOP, source), ParseOutcome::Parsed(_)),
+                "{source}"
+            );
+        }
+        assert!(matches!(
+            parse_anchor_fit(property_id::TOP, "anchor(10px)"),
+            ParseOutcome::Invalid
+        ));
+        assert!(matches!(
+            parse_anchor_fit(property_id::TOP, "calc(anchor(top, 1px) + 2px)"),
+            ParseOutcome::NotHandled(_)
+        ));
+        assert!(matches!(
+            parse_anchor_fit(property_id::TOP, "anchor(--foo top, calc(0.5 * anchor(--bar bottom)))"),
+            ParseOutcome::NotHandled(_)
+        ));
+        assert!(matches!(
+            parse_anchor_fit(property_id::INSET, "auto anchor(right) 10px 20%"),
+            ParseOutcome::Parsed(_)
+        ));
+    }
+
+    #[test]
+    fn parses_anchor_size_and_fit_content_functions() {
+        for (property, source) in [
+            (property_id::WIDTH, "anchor-size()"),
+            (property_id::WIDTH, "anchor-size(--card width, 10px)"),
+            (property_id::WIDTH, "anchor-size(anchor-size(20%))"),
+            (property_id::WIDTH, "fit-content(20%)"),
+            (property_id::WIDTH, "fit-content"),
+            (property_id::MARGIN, "anchor-size(width) 10px"),
+        ] {
+            assert!(
+                matches!(parse_anchor_fit(property, source), ParseOutcome::Parsed(_)),
+                "{source}"
+            );
+        }
+        for source in ["anchor-size(--foo width,)", "anchor-size(--foo,)"] {
+            assert!(matches!(
+                parse_anchor_fit(property_id::WIDTH, source),
+                ParseOutcome::Invalid
+            ));
+        }
+        assert!(matches!(
+            parse_anchor_fit(property_id::WIDTH, "auto"),
+            ParseOutcome::NotHandled(_)
+        ));
+        assert!(matches!(
+            parse_anchor_fit(property_id::COLOR, "anchor-size()"),
             ParseOutcome::NotHandled(_)
         ));
     }

@@ -20,7 +20,7 @@ use crate::css::parser::calc_parser::{CalcParseError, parse_a_calc_function_node
 use crate::css::parser::color_parser::{is_color_function_name, parse_color_value};
 use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume_a_list_of_component_values};
 use crate::css::parser::positions_shapes_parser::{
-    is_position_shape_function_name, parse_geometry_property, parse_position_property,
+    is_position_shape_function_name, parse_anchor_fit_property, parse_geometry_property, parse_position_property,
 };
 use crate::css::parser::token_stream::TokenStream;
 use crate::css::property_metadata::{
@@ -1411,6 +1411,10 @@ pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: 
     let geometry_outcome = parse_geometry_property(context, property_id, values);
     if !matches!(geometry_outcome, ParseOutcome::NotHandled(_)) {
         return geometry_outcome;
+    }
+    let anchor_fit_outcome = parse_anchor_fit_property(context, property_id, values);
+    if !matches!(anchor_fit_outcome, ParseOutcome::NotHandled(_)) {
+        return anchor_fit_outcome;
     }
     if property_id == property_id::DISPLAY {
         return parse_display_keyword(values);
