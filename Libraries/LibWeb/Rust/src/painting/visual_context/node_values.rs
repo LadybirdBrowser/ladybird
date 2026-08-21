@@ -522,8 +522,13 @@ pub(crate) fn compute_effects_data(
 ) -> Option<EffectsData> {
     use crate::css::css_enums::mix_blend_mode;
     let data = paintables.data_ref(slot);
-    // NB: Resolves the box's filter as a side effect, since the effects data embeds the resolved gfx filter.
-    let filter_raw = callbacks.resolve_effects_filter(data.shell);
+    let resolved_filter = callbacks.resolve_effects_filter(data.shell);
+    paintables.side(slot).svg_filter_bounds.set(
+        resolved_filter
+            .has_svg_filter_bounds
+            .then_some(resolved_filter.svg_filter_bounds),
+    );
+    let filter_raw = resolved_filter.gfx_filter;
     let filter = if filter_raw.is_null() {
         None
     } else {

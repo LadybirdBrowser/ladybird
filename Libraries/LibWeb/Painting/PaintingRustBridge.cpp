@@ -436,21 +436,26 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM
             }
             return facts;
         },
-        .resolve_effects_filter = [](void* context, void* paintable_shell) -> void* {
+        .resolve_effects_filter = [](void* context, void* paintable_shell) -> Layout::RustFFI::FfiResolvedEffectsFilter {
             auto& document = *static_cast<DOM::Document*>(context);
             auto& box = *static_cast<Paintable*>(paintable_shell);
             auto const& style_source = box.layout_node();
+            Layout::RustFFI::FfiResolvedEffectsFilter result {};
+            ResolvedCSSFilter resolved_filter;
             if (style_source.filter().has_filters())
-                box.set_filter(resolve_css_filter(style_source.filter(), box));
-            else if (box.filter().has_filters() || box.filter().svg_filter_bounds.has_value())
-                box.set_filter({});
-            if (!box.filter().has_filters())
-                return nullptr;
+                resolved_filter = resolve_css_filter(style_source.filter(), box);
+            if (resolved_filter.svg_filter_bounds.has_value()) {
+                result.has_svg_filter_bounds = true;
+                result.svg_filter_bounds = to_ffi_css_pixel_rect(*resolved_filter.svg_filter_bounds);
+            }
+            if (!resolved_filter.has_filters())
+                return result;
             auto pixel_ratio = document.page().client().device_pixels_per_css_pixel();
-            auto gfx_filter = to_gfx_filter(box.filter(), pixel_ratio);
+            auto gfx_filter = to_gfx_filter(resolved_filter, pixel_ratio);
             if (!gfx_filter.has_value())
-                return nullptr;
-            return new Gfx::Filter(move(*gfx_filter));
+                return result;
+            result.gfx_filter = new Gfx::Filter(move(*gfx_filter));
+            return result;
         },
         .default_scroll_shift_anchor = [](void*, void* paintable_shell) -> Layout::RustFFI::NodeSlotId {
             auto& paintable_box = *static_cast<Paintable*>(paintable_shell);
@@ -704,10 +709,6 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
                     else if (child->kind() == Layout::RustFFI::NodeKind::SVGClipBox)
                         facts.svg_clip_path_units_object_bbox = as<SVG::SVGClipPathElement>(*child->dom_node()).clip_path_units() == SVG::ClipPathUnits::ObjectBoundingBox;
                 }
-            }
-            if (auto const& bounds = paintable.filter().svg_filter_bounds; bounds.has_value()) {
-                facts.has_svg_filter_bounds = true;
-                facts.svg_filter_bounds = to_ffi_css_pixel_rect(*bounds);
             }
             return facts;
         },
