@@ -769,6 +769,9 @@ pub struct StyleEngine {
     tree: StyleNodeTree,
     program: StyleSheetProgram,
     journal: NormalizationJournal,
+    /// Exact element reactions retained across rootless flushes until a style root can consume them.
+    deferred_element_style_inputs: Vec<NormalizedInput>,
+    deferred_element_style_input_memory: MemoryLease,
     /// Whether any tree input batch has crossed into the engine. A first batch consisting entirely
     /// of unique arrivals can install its final relation rows as one bulk load.
     initial_tree_batch_applied: bool,

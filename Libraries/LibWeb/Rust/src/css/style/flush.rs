@@ -33,6 +33,11 @@ impl StyleEngine {
         }
         self.discard_prepared_batch_matching_traversal();
         self.discard_published_match_answers();
+        for input in std::mem::take(&mut self.deferred_element_style_inputs) {
+            self.record_input(input.key, input.old, input.new);
+        }
+        self.deferred_element_style_input_memory
+            .resize_required_to(&mut self.memory, 0);
         let document_root_arrival_is_pending =
             self.journal.pending_old(InputKey::TreeRelations(root)) == Some(InputValue::TreeRelations(None));
         let initial_tree_was_bulk_loaded = self.initial_tree_bulk_load_is_pending && document_root_arrival_is_pending;

@@ -1224,6 +1224,48 @@ impl StyleEngine {
         transaction
     }
 
+    /// Settle inputs which cannot be planned while the document has no style root. Exact element
+    /// style reactions are edge-triggered, so preserve them for the first transaction with a root.
+    pub(crate) fn flush_without_document_root(&mut self) {
+        let transaction = self.take_transaction();
+        for input in transaction
+            .inputs
+            .iter()
+            .filter(|input| matches!(input.key, InputKey::ElementStyleInput(_)))
+            .copied()
+        {
+            match self
+                .deferred_element_style_inputs
+                .binary_search_by_key(&input.key, |pending| pending.key)
+            {
+                Ok(index) => {
+                    let InputValue::ElementStyleInput {
+                        reaction: pending_reaction,
+                        inherited_style_groups: pending_inherited_style_groups,
+                    } = &mut self.deferred_element_style_inputs[index].new
+                    else {
+                        unreachable!();
+                    };
+                    let InputValue::ElementStyleInput {
+                        reaction,
+                        inherited_style_groups,
+                    } = input.new
+                    else {
+                        unreachable!();
+                    };
+                    *pending_reaction |= reaction;
+                    *pending_inherited_style_groups |= inherited_style_groups;
+                }
+                Err(index) => self.deferred_element_style_inputs.insert(index, input),
+            }
+        }
+        let deferred_style_input_bytes =
+            (self.deferred_element_style_inputs.capacity() * size_of::<NormalizedInput>()) as u64;
+        self.deferred_element_style_input_memory
+            .resize_required_to(&mut self.memory, deferred_style_input_bytes);
+        self.release_transaction(transaction);
+    }
+
     /// Release a drained transaction's scratch charge.
     pub fn release_transaction(&mut self, transaction: StyleTransaction) {
         transaction.release(&mut self.memory);

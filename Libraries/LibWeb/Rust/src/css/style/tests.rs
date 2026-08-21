@@ -7049,6 +7049,60 @@ fn an_element_style_input_publishes_an_exact_reaction_without_matching() {
 }
 
 #[test]
+fn a_rootless_flush_preserves_element_style_inputs() {
+    let (mut engine, nodes) = nested_document();
+    let target = StyleAtomID(200);
+    add_target_rule(&mut engine, StyleSheetObjectID(1), target);
+    discard_transaction(&mut engine);
+
+    add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(target));
+    engine.record_input(
+        InputKey::ElementStyleInput(nodes[2]),
+        InputValue::ElementStyleInput {
+            reaction: 0,
+            inherited_style_groups: 0,
+        },
+        InputValue::ElementStyleInput {
+            reaction: transaction::STYLE_REACTION_RECOMPUTE_STYLE,
+            inherited_style_groups: 0b101,
+        },
+    );
+
+    engine.flush_without_document_root();
+    assert!(!engine.has_pending_transaction());
+    engine.begin_adaptive_cold_matching_batch(nodes[0]);
+    assert_eq!(engine.match_element_for_cascade(nodes[1]).unwrap().len(), 1);
+    engine.end_cold_matching_batch();
+
+    engine.record_input(
+        InputKey::ElementStyleInput(nodes[2]),
+        InputValue::ElementStyleInput {
+            reaction: 0,
+            inherited_style_groups: 0,
+        },
+        InputValue::ElementStyleInput {
+            reaction: transaction::STYLE_REACTION_INHERITED_STYLE,
+            inherited_style_groups: 0b010,
+        },
+    );
+    engine.flush_without_document_root();
+    assert!(!engine.has_pending_transaction());
+
+    let deferred_reactions = transaction::STYLE_REACTION_RECOMPUTE_STYLE | transaction::STYLE_REACTION_INHERITED_STYLE;
+    let mut planned = Vec::new();
+    assert!(engine.take_style_transaction(nodes[0], |_, _, reactions| {
+        planned.extend(reactions.iter().map(|reaction| {
+            (
+                reaction.style_node,
+                reaction.reaction & deferred_reactions,
+                reaction.inherited_style_groups,
+            )
+        }));
+    }));
+    assert_eq!(planned, vec![(nodes[2].raw(), deferred_reactions, 0b111)]);
+}
+
+#[test]
 fn published_match_answers_name_transaction_program_and_identity() {
     let (mut engine, nodes) = linear_document();
     let target = StyleAtomID(201);
