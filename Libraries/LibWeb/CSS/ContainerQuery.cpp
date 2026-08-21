@@ -33,7 +33,7 @@
 #include <LibWeb/Dump.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/BoxViews.h>
 
 namespace Web::CSS {
 
@@ -88,11 +88,11 @@ bool size_feature_type_is_range(SizeFeatureID id)
     VERIFY_NOT_REACHED();
 }
 
-static FeatureValue size_feature_value_for_query_container(SizeFeatureID id, Painting::Paintable const& paintable_box)
+static FeatureValue size_feature_value_for_query_container(SizeFeatureID id, Layout::NodeWithStyle const& layout_node)
 {
-    auto width = paintable_box.content_width();
-    auto height = paintable_box.content_height();
-    auto inline_axis_horizontal = paintable_box.layout_node().writing_mode() == WritingMode::HorizontalTb;
+    auto width = Painting::content_width(layout_node);
+    auto height = Painting::content_height(layout_node);
+    auto inline_axis_horizontal = layout_node.writing_mode() == WritingMode::HorizontalTb;
 
     auto length_feature_value = [](CSSPixels length) {
         return FeatureValue(FeatureValue::Type::Length, LengthStyleValue::create(Length::make_px(length)));
@@ -137,16 +137,16 @@ MatchResult SizeFeature::evaluate(BooleanExpressionEvaluationContext const& cont
     if (!context.query_container)
         return MatchResult::Unknown;
 
-    auto paintable_box = context.query_container->unsafe_paintable_box();
-    if (!paintable_box) {
+    auto const* layout_node = context.query_container->unsafe_layout_node();
+    if (!layout_node || !Painting::has_committed_box(*layout_node)) {
         if (!context.query_container->document().layout_is_up_to_date())
             const_cast<DOM::Document&>(context.query_container->document()).set_needs_container_query_evaluation_after_layout(*context.query_container);
         return MatchResult::Unknown;
     }
 
-    auto queried_value = size_feature_value_for_query_container(id(), *paintable_box);
+    auto queried_value = size_feature_value_for_query_container(id(), *layout_node);
     ComputationContext computation_context {
-        .length_resolution_context = Length::ResolutionContext::for_layout_node(paintable_box->layout_node()),
+        .length_resolution_context = Length::ResolutionContext::for_layout_node(*layout_node),
         .abstract_element = DOM::AbstractElement { *context.query_container },
     };
 

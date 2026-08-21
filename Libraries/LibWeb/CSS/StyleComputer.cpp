@@ -104,7 +104,7 @@
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/StyleValueRustFFI.h>
 #include <math.h>
@@ -926,8 +926,8 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
             .transform_reference_box_width = 0,
             .transform_reference_box_height = 0,
         };
-        if (auto paintable = prepared_values.first().effect->target()->unsafe_paintable(); paintable && paintable->has_layout_node()) {
-            auto reference_box = paintable->transform_reference_box();
+        if (auto const* layout_node = prepared_values.first().effect->target()->unsafe_layout_node(); layout_node && Painting::has_committed_box(*layout_node)) {
+            auto reference_box = Painting::transform_reference_box(*layout_node);
             animation_context.has_transform_reference_box = true;
             animation_context.transform_reference_box_width = reference_box.width().to_double();
             animation_context.transform_reference_box_height = reference_box.height().to_double();
@@ -1330,13 +1330,8 @@ Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transiti
         .transform_reference_box_width = 0,
         .transform_reference_box_height = 0,
     };
-    // A paintable outlives the layout node it was made for, and a style recompute can reach an
-    // element whose layout node is already gone: the layout tree builder updates the style of an
-    // element a bypass path reached, and `display: none` leaves the flag set until then. A reference
-    // box is a fact about a layout box, so without one there is none - exactly as when the element
-    // was never painted at all.
-    if (auto paintable = abstract_element.element().unsafe_paintable(); paintable && paintable->has_layout_node()) {
-        auto reference_box = paintable->transform_reference_box();
+    if (auto const* layout_node = abstract_element.element().unsafe_layout_node(); layout_node && Painting::has_committed_box(*layout_node)) {
+        auto reference_box = Painting::transform_reference_box(*layout_node);
         transition_animation_context.has_transform_reference_box = true;
         transition_animation_context.transform_reference_box_width = reference_box.width().to_double();
         transition_animation_context.transform_reference_box_height = reference_box.height().to_double();
