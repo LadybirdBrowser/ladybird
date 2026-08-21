@@ -19,7 +19,6 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/PaintStyle.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/FragmentIdentifier.h>
@@ -463,7 +462,7 @@ GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_screen_ctm()
     // NB: We currently require committed box data connected to the document's visual-context tree to compute this matrix.
     //     This also excludes geometry in resource-only subtrees such as masks, clip paths, and patterns.
     auto const* layout_node = this->layout_node();
-    auto viewport_paintable = document().paintable();
+    auto viewport_paintable = static_cast<DOM::Node&>(document()).paintable();
     if (!layout_node || !Painting::has_committed_box(*layout_node) || !viewport_paintable)
         return {};
 

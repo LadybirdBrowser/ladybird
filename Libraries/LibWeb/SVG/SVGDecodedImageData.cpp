@@ -28,7 +28,9 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
+#include <LibWeb/Painting/DocumentPaintState.h>
+#include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
@@ -225,10 +227,10 @@ void SVGDecodedImageData::append_cached_display_list_resources(Painting::Display
 
 void SVGDecodedImageData::append_paint_command_cache_source_resources(Painting::DisplayListResourceSet& retained_resources) const
 {
-    auto document_paintable = m_document->unsafe_paintable();
+    auto document_paintable = static_cast<DOM::Node&>(*m_document).unsafe_paintable();
     if (!document_paintable)
         return;
-    document_paintable->append_paint_command_cache_source_resources(retained_resources);
+    m_document->paint_state().append_paint_command_cache_source_resources(retained_resources);
 }
 
 Optional<Painting::DisplayListResource> SVGDecodedImageData::record_display_list(Gfx::IntSize size, CSS::PreferredColorScheme color_scheme, Painting::DisplayListResourceStorage& destination_resource_storage) const
@@ -292,12 +294,12 @@ Optional<Painting::DisplayListResource> SVGDecodedImageData::record_display_list
     if (!display_list)
         return {};
 
-    auto document_paintable = m_document->paintable();
-    VERIFY(document_paintable);
-    VERIFY(document_paintable->display_list_used_as_paint_command_cache_source() == display_list.ptr());
-    auto referenced_resources = document_paintable->paint_command_cache_source_referenced_resources();
+    VERIFY(static_cast<DOM::Node&>(*m_document).paintable());
+    auto& document_paint_state = m_document->paint_state();
+    VERIFY(document_paint_state.display_list_used_as_paint_command_cache_source() == display_list.ptr());
+    auto referenced_resources = document_paint_state.paint_command_cache_source_referenced_resources();
     copy_referenced_resources_to(destination_resource_storage, resource_storage, referenced_resources);
-    auto visual_context_tree = document_paintable->visual_context_tree();
+    auto visual_context_tree = document_paint_state.visual_context_tree(*m_document);
     auto display_list_resource = Painting::DisplayListResource { *display_list, visual_context_tree };
     m_cached_display_lists.set(key, CachedDisplayList { NonnullRefPtr<Painting::DisplayList> { *display_list }, move(visual_context_tree), move(referenced_resources) });
     prune_cached_display_list_resources();

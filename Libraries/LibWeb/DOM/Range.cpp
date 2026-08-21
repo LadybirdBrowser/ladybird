@@ -33,8 +33,8 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
@@ -100,8 +100,8 @@ void Range::set_associated_selection(Badge<Selection::Selection>, GC::Ptr<Select
     } else if (had_selection) {
         // The range this selection painted through is no longer its range; take the highlight back.
         auto& document = m_start_container->document();
-        if (auto viewport = document.unsafe_paintable()) {
-            viewport->reset_selection_states();
+        if (static_cast<Node&>(document).unsafe_paintable()) {
+            document.paint_state().reset_selection_states(document);
             if (auto const* layout_node = document.unsafe_layout_node())
                 Painting::set_needs_repaint(*layout_node);
         }
@@ -123,8 +123,8 @@ void Range::update_associated_selection()
     auto& document = m_start_container->document();
 
     // NB: Called during selection update after range change.
-    if (auto viewport = document.unsafe_paintable()) {
-        viewport->recompute_selection_states(*this);
+    if (static_cast<Node&>(document).unsafe_paintable()) {
+        document.paint_state().recompute_selection_states(document, *this);
         if (auto const* layout_node = document.unsafe_layout_node())
             Painting::set_needs_repaint(*layout_node);
     }

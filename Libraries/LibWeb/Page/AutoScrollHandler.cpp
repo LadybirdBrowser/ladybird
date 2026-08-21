@@ -14,7 +14,6 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/Paintable.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
 
 namespace Web {
 
@@ -140,7 +139,7 @@ GC::Ptr<DOM::Element> AutoScrollHandler::find_scrollable_ancestor(Painting::Pain
 RefPtr<Painting::Paintable> AutoScrollHandler::auto_scroll_paintable(DOM::Element& element)
 {
     if (element.document().scrolling_element().ptr() == &element)
-        return element.document().paintable();
+        return static_cast<DOM::Node&>(element.document()).paintable();
     return element.paintable_box();
 }
 
@@ -169,7 +168,7 @@ void AutoScrollHandler::perform_tick()
     document.update_layout(DOM::UpdateLayoutReason::AutoScrollSelection);
 
     auto paintable_box = auto_scroll_paintable(m_container_element);
-    if (!paintable_box || !document.paintable()) {
+    if (!paintable_box || !static_cast<DOM::Node&>(document).paintable()) {
         deactivate();
         return;
     }

@@ -10,7 +10,6 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/Scrollbar.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWeb/UIEvents/PointerEvent.h>
@@ -118,7 +117,7 @@ bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
         return false;
     ChromeMetrics metrics = node->document().page().chrome_metrics();
 
-    auto const& scroll_state = node->document().paintable()->scroll_state_snapshot();
+    auto const& scroll_state = node->document().scroll_state_snapshot();
     auto scrollbar_data = compute_scrollbar_data(*node, m_direction, metrics, &scroll_state,
         is_enlarged() ? ScrollbarSizing::Enlarged : ScrollbarSizing::Regular);
     if (!scrollbar_data.has_value())

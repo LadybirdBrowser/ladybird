@@ -49,6 +49,7 @@
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
+#include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/ImagePaint.h>
 #include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -58,7 +59,6 @@
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
 #include <LibWeb/Painting/Scrollbar.h>
 #include <LibWeb/Painting/ShadowData.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
@@ -503,7 +503,7 @@ Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions
 
 void rust_measure_scrollable_overflow(Paintable const& box_paintable)
 {
-    auto viewport_paintable = const_cast<DOM::Document&>(box_paintable.document()).unsafe_paintable();
+    auto viewport_paintable = static_cast<DOM::Node const&>(box_paintable.document()).unsafe_paintable();
     if (!viewport_paintable)
         return;
     Layout::RustFFI::FfiScrollableOverflowHostCallbacks overflow_callbacks {

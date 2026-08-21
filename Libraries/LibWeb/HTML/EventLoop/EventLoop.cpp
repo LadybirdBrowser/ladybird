@@ -28,8 +28,8 @@
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/Paintable.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/Timer.h>
 
@@ -439,7 +439,7 @@ void EventLoop::update_the_rendering()
             // 3. For each element element with 'auto' used value of 'content-visibility':
             auto* document_element = document->document_element();
             if (document_element) {
-                for (auto& paintable_box : document->paintable()->paintable_boxes_with_auto_content_visibility()) {
+                for (auto& paintable_box : document->paint_state().paintable_boxes_with_auto_content_visibility()) {
                     auto& element = as<DOM::Element>(*paintable_box->dom_node());
 
                     // 1. Let checkForInitialDetermination be true if element's proximity to the viewport is not determined and it is not relevant to the user. Otherwise, let checkForInitialDetermination be false.
