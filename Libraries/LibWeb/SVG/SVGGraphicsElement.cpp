@@ -396,11 +396,21 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Bi
         if (!self_paintable)
             return Geometry::DOMRect::create();
         Gfx::FloatRect united_rect;
-        self_paintable->for_each_child([&](Painting::Paintable const& child) {
-            auto child_rect = child.layout_node().used_svg_element_transform().map(child.absolute_rect().to_type<float>());
+        for (auto const* child = self_paintable->layout_node().first_child_ptr(); child; child = child->next_sibling_ptr()) {
+            switch (child->kind()) {
+            case Layout::RustFFI::NodeKind::SVGMaskBox:
+            case Layout::RustFFI::NodeKind::SVGClipBox:
+            case Layout::RustFFI::NodeKind::SVGPatternBox:
+                continue;
+            default:
+                break;
+            }
+            auto const* child_paintable = child->paintable_ptr();
+            if (!child_paintable)
+                continue;
+            auto child_rect = child_paintable->layout_node().used_svg_element_transform().map(child_paintable->absolute_rect().to_type<float>());
             united_rect.unite(child_rect);
-            return IterationDecision::Continue;
-        });
+        }
         if (united_rect.is_empty())
             return Geometry::DOMRect::create();
         return Geometry::DOMRect::create(united_rect);
