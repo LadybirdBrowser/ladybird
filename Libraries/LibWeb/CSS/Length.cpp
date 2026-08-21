@@ -21,7 +21,7 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/BoxViews.h>
 
 namespace Web::CSS {
 
@@ -158,8 +158,8 @@ double Length::container_relative_length_to_px_without_rounding(ResolutionContex
             return viewport_length.to_double();
         }
 
-        auto paintable_box = query_container->unsafe_paintable_box();
-        if (!paintable_box) {
+        auto const* layout_node = query_container->unsafe_layout_node();
+        if (!layout_node || !Painting::has_committed_box(*layout_node)) {
             // A running partial relayout pass reports layout as up to date, but a container
             // with no paintable yet still needs the post-layout evaluation, which routes the
             // follow-up pass to the full layout path that resolves the container's size.
@@ -168,7 +168,7 @@ double Length::container_relative_length_to_px_without_rounding(ResolutionContex
             return 0.0;
         }
 
-        auto container_length = physical_axis == ContainerRelativeAxis::Width ? paintable_box->content_width() : paintable_box->content_height();
+        auto container_length = physical_axis == ContainerRelativeAxis::Width ? Painting::content_width(*layout_node) : Painting::content_height(*layout_node);
         return container_length.to_double();
     };
 

@@ -12,6 +12,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Animations {
@@ -126,11 +127,11 @@ static Optional<ScrollOffsetData> compute_scroll_offset_data(Variant<GC::Ptr<DOM
 
     auto const& paintable_box = propagated_source.visit([](auto const& source) -> RefPtr<Painting::Paintable const> { return source->unsafe_paintable_box(); });
 
-    if (!paintable_box || !paintable_box->has_scrollable_overflow())
+    if (!paintable_box || !Painting::has_scrollable_overflow(*layout_node))
         return {};
 
-    auto const& scrollable_overflow_rect = paintable_box->scrollable_overflow_rect().value();
-    auto const& computed_axis = computed_scroll_axis(axis, paintable_box->layout_node().writing_mode(), paintable_box->layout_node().direction());
+    auto const& scrollable_overflow_rect = Painting::scrollable_overflow_rect(*layout_node).value();
+    auto const& computed_axis = computed_scroll_axis(axis, layout_node->writing_mode(), layout_node->direction());
 
     // FIXME: Scroll offset is currently incorrect as it is always relative to the top left of the scrollable overflow
     //        rect when it should instead be relative to the scroll origin.
@@ -142,8 +143,8 @@ static Optional<ScrollOffsetData> compute_scroll_offset_data(Variant<GC::Ptr<DOM
             ? paintable_box->scroll_offset().y().to_double()
             : paintable_box->scroll_offset().x().to_double(),
         .max_scroll_offset = computed_axis.is_vertical
-            ? scrollable_overflow_rect.height().to_double() - paintable_box->content_height().to_double()
-            : scrollable_overflow_rect.width().to_double() - paintable_box->content_width().to_double(),
+            ? scrollable_overflow_rect.height().to_double() - Painting::content_height(*layout_node).to_double()
+            : scrollable_overflow_rect.width().to_double() - Painting::content_width(*layout_node).to_double(),
     };
 }
 

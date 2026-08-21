@@ -306,7 +306,7 @@ Optional<SVGPatternElement::PaintGeometry> SVGPatternElement::resolve_paint_geom
     if (style->has_transformations()) {
         auto matrix = Gfx::FloatMatrix4x4::identity();
         style->for_each_transformation([&](auto const& css_transform) {
-            matrix = matrix * css_transform.to_matrix(*pattern_paintable);
+            matrix = matrix * css_transform.to_matrix(pattern_box);
         });
 
         user_space_pattern_transform = extract_2d_affine_transform(matrix);

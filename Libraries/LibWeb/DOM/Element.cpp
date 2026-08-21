@@ -5194,7 +5194,7 @@ void Element::determine_proximity_to_the_viewport()
     // viewport soon. A margin of 50% is suggested as a reasonable default.
     viewport_rect.inflate(viewport_rect.width(), viewport_rect.height());
     // FIXME: We don't have paint containment or the overflow clip edge yet, so this is just using the absolute rect for now.
-    if (paintable_box()->absolute_rect().intersects(viewport_rect)) {
+    if (Painting::absolute_rect(*unsafe_layout_node()).intersects(viewport_rect)) {
         ensure_element_rare_data().proximity_to_the_viewport = ProximityToTheViewport::CloseToTheViewport;
         return;
     }

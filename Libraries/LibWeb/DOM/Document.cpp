@@ -203,6 +203,7 @@
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
@@ -6442,23 +6443,20 @@ void Document::queue_an_intersection_observer_entry(IntersectionObserver::Inters
 }
 
 // https://www.w3.org/TR/intersection-observer/#compute-the-intersection
-static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect target_rect, IntersectionObserver::IntersectionObserver const& observer, RefPtr<Painting::Paintable> root_paintable, CSSPixelRect const& root_bounds)
+static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect target_rect, IntersectionObserver::IntersectionObserver const& observer, Layout::Box const* root_layout_box, CSSPixelRect const& root_bounds)
 {
     // 1. Let intersectionRect be the result of getting the bounding box for target.
     auto intersection_rect = target_rect;
 
     // 2. Let container be the containing block of target.
     // 3. While container is not root:
-    if (auto target_paintable = target->paintable_box()) {
-        Layout::Box* root_layout_box = nullptr;
-        if (root_paintable && root_paintable->has_layout_node())
-            root_layout_box = as<Layout::Box>(&root_paintable->layout_node());
-        for (auto* container_box = target_paintable->layout_node().containing_block(); container_box; container_box = container_box->containing_block()) {
+    auto const* target_layout_node = target->layout_node();
+    if (target_layout_node && Painting::has_committed_box(*target_layout_node)) {
+        for (auto const* container_box = target_layout_node->containing_block(); container_box; container_box = container_box->containing_block()) {
             // Stop when we reach the intersection root.
             if (container_box == root_layout_box)
                 break;
-            auto container = container_box->paintable();
-            if (!container)
+            if (!Painting::has_committed_box(*container_box))
                 break;
 
             // FIXME: 3.1. If container is the document of a nested browsing context, update
@@ -6474,16 +6472,15 @@ static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect t
             // 3.4. If container has a content clip or a css clip-path property, update intersectionRect
             //      by applying container’s clip.
             // FIXME: Handle clip-path.
-            auto overflow_x = container->layout_node().overflow_x();
-            auto overflow_y = container->layout_node().overflow_y();
+            auto overflow_x = container_box->overflow_x();
+            auto overflow_y = container_box->overflow_y();
             bool has_content_clip = overflow_x != CSS::Overflow::Visible || overflow_y != CSS::Overflow::Visible;
             if (has_content_clip) {
-                auto clip_rect = container->transform_rect_to_viewport(container->absolute_padding_box_rect(), Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
+                auto clip_rect = Painting::transform_rect_to_viewport(*container_box, Painting::absolute_padding_box_rect(*container_box), Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
 
                 // Apply scroll margin to expand the scrollport for scroll containers.
                 auto& scroll_margin = observer.scroll_margin_values();
-                auto const& layout_node = container->layout_node();
-                if (layout_node.is_scroll_container() && !scroll_margin.is_empty()) {
+                if (container_box->is_scroll_container() && !scroll_margin.is_empty()) {
                     clip_rect.inflate(
                         scroll_margin[0].to_px(clip_rect.height()),
                         scroll_margin[1].to_px(clip_rect.width()),
@@ -6527,7 +6524,9 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
 
         // Pre-compute per-observer values to avoid repeated work in the per-target loop.
         auto intersection_root_node = observer->intersection_root_node();
-        auto root_paintable = intersection_root_node->paintable_box();
+        Layout::Box const* root_layout_box = nullptr;
+        if (auto const* root_layout_node = intersection_root_node->layout_node(); root_layout_node && Painting::has_committed_box(*root_layout_node))
+            root_layout_box = as<Layout::Box>(root_layout_node);
         bool is_implicit_root = observer->is_implicit_root();
         bool root_is_element = intersection_root_node->is_element();
 
@@ -6564,7 +6563,7 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
 
                 // 5. Let intersectionRect be the result of running the compute the intersection algorithm on target and
                 //    observer’s intersection root.
-                intersection_rect = compute_intersection(target, target_rect, *observer, root_paintable, root_bounds);
+                intersection_rect = compute_intersection(target, target_rect, *observer, root_layout_box, root_bounds);
 
                 // 6. Let targetArea be targetRect’s area.
                 auto target_area = target_rect.width() * target_rect.height();

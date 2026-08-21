@@ -33,7 +33,7 @@
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
-#include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Painting/BoxViews.h>
 
 namespace Web::CSS {
 
@@ -73,7 +73,7 @@ bool TransformationStyleValue::can_be_converted_to_matrix_without_reference_box(
     return true;
 }
 
-FloatMatrix4x4 TransformationStyleValue::to_matrix(Optional<Painting::Paintable const&> paintable_box) const
+FloatMatrix4x4 TransformationStyleValue::to_matrix(Layout::Node const* layout_node) const
 {
     auto values = this->values();
     auto count = values.size();
@@ -99,8 +99,8 @@ FloatMatrix4x4 TransformationStyleValue::to_matrix(Optional<Painting::Paintable 
 
     Optional<CSSPixels> width;
     Optional<CSSPixels> height;
-    if (paintable_box.has_value()) {
-        auto reference_box = paintable_box->transform_reference_box();
+    if (layout_node) {
+        auto reference_box = Painting::transform_reference_box(*layout_node);
         width = reference_box.width();
         height = reference_box.height();
     }
