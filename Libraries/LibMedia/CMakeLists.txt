@@ -88,10 +88,15 @@ if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")
     target_compile_definitions(LibMedia PRIVATE LIBMEDIA_AUDIO_BACKEND=1 LADYBIRD_AUDIO_BACKEND_PULSE=1)
     target_link_libraries(LibMedia PRIVATE PkgConfig::PULSEAUDIO)
 elseif (LADYBIRD_AUDIO_BACKEND STREQUAL "AUDIO_UNIT")
-    target_sources(LibMedia PRIVATE Audio/PlaybackStreamAudioUnit.cpp)
-    target_compile_definitions(LibMedia PRIVATE LIBMEDIA_AUDIO_BACKEND=1)
+    target_sources(LibMedia PRIVATE
+        Audio/PlaybackStreamAudioUnit.cpp
+        Audio/RecordStreamAudioUnit.cpp
+    )
+    target_compile_definitions(LibMedia PRIVATE LIBMEDIA_AUDIO_BACKEND=1 LADYBIRD_AUDIO_BACKEND_AUDIO_UNIT=1)
     find_library(AUDIO_TOOLBOX AudioToolbox REQUIRED)
-    target_link_libraries(LibMedia PRIVATE ${AUDIO_TOOLBOX})
+    find_library(CORE_AUDIO CoreAudio REQUIRED)
+    find_library(CORE_FOUNDATION CoreFoundation REQUIRED)
+    target_link_libraries(LibMedia PRIVATE ${AUDIO_TOOLBOX} ${CORE_AUDIO} ${CORE_FOUNDATION})
 elseif(LADYBIRD_AUDIO_BACKEND STREQUAL "WASAPI")
     target_sources(LibMedia PRIVATE Audio/PlaybackStreamWasapi.cpp)
     target_compile_definitions(LibMedia PRIVATE LIBMEDIA_AUDIO_BACKEND=1)
