@@ -1,6 +1,7 @@
 set(TEST_SOURCES
     TestBidi.cpp
     TestDisplayNames.cpp
+    TestFullwidthMapping.cpp
     TestIDNA.cpp
     TestLocale.cpp
     TestSegmenter.cpp
