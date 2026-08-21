@@ -2268,6 +2268,30 @@ TEST_CASE(target_bootstrap_and_lifetime)
     EXPECT_EQ(session->delegate.clear_inspected_dom_node_call_count, 1u);
 }
 
+TEST_CASE(deferred_frame_initialization_does_not_retain_tab_actor)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+
+    JsonObject watch_targets;
+    watch_targets.set("to"sv, watcher_actor);
+    watch_targets.set("type"sv, "watchTargets"sv);
+    watch_targets.set("targetType"sv, "frame"sv);
+    EXPECT_EQ(client.request(move(watch_targets)).get_string("from"sv).value(), watcher_actor);
+
+    auto actor = session->server->actor_registry().find(tab_actor);
+    VERIFY(actor != session->server->actor_registry().end());
+    auto weak_tab_actor = actor->value->make_weak_ptr();
+
+    session->server.clear();
+    EXPECT(!weak_tab_actor);
+    pump(session->loop);
+}
+
 TEST_CASE(storage_cookie_resource)
 {
     auto session = create_session();
