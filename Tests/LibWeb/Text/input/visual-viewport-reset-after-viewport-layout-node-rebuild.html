@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        internals.hitTest(1, 1);
+        document.insertBefore(document.createComment("rebuild the viewport layout node"), document.documentElement);
+        document.body.offsetWidth;
+        internals.resetZoom();
+        println(`visualViewport scale after reset: ${visualViewport.scale}`);
+    });
+</script>

@@ -8,7 +8,6 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/ElementResizeAction.h>
-#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/ResizeHandle.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/MouseButton.h>

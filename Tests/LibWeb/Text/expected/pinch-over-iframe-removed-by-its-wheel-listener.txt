@@ -1,0 +1,5 @@
+iframe wheel event count: 1
+parent wheel event count: 0
+iframe removed: true
+scale after pinch: 1.50
+scale after reset: 1.00

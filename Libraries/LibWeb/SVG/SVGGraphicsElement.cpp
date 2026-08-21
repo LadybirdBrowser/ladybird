@@ -16,6 +16,7 @@
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/PaintStyle.h>
@@ -462,8 +463,7 @@ GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_screen_ctm()
     // NB: We currently require committed box data connected to the document's visual-context tree to compute this matrix.
     //     This also excludes geometry in resource-only subtrees such as masks, clip paths, and patterns.
     auto const* layout_node = this->layout_node();
-    auto viewport_paintable = static_cast<DOM::Node&>(document()).paintable();
-    if (!layout_node || !Painting::has_committed_box(*layout_node) || !viewport_paintable)
+    if (!layout_node || !Painting::has_committed_box(*layout_node) || !document().has_committed_viewport_box())
         return {};
 
     // 3. Let ctm be a matrix that transforms the coordinate space of the current element (including its transform

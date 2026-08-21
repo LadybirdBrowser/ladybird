@@ -6,7 +6,6 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/DOM/Element.h>
-#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/ResizeObserver/ResizeObservation.h>
 
 namespace Web::ResizeObserver {

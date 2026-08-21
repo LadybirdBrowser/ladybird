@@ -869,10 +869,7 @@ set(SOURCES
     Painting/DisplayListResourceStorage.cpp
     Painting/DocumentPaintState.cpp
     Painting/HitTestDisplayList.cpp
-    Painting/InlinePaintable.cpp
-    Painting/Paintable.cpp
     Painting/PaintStyle.cpp
-    Painting/PaintableWithLines.cpp
     Painting/PaintingRustBridge.cpp
     Painting/ResolvedCSSFilter.cpp
     Painting/ResizeHandle.cpp
@@ -880,7 +877,6 @@ set(SOURCES
     Painting/Scrolling.cpp
     Painting/ScrollState.cpp
     Painting/SVGMasking.cpp
-    Painting/ViewportPaintable.cpp
     PerformanceTimeline/EntryTypes.cpp
     PerformanceTimeline/EventNames.cpp
     PerformanceTimeline/PerformanceEntry.cpp

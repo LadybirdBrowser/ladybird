@@ -100,10 +100,9 @@ void Range::set_associated_selection(Badge<Selection::Selection>, GC::Ptr<Select
     } else if (had_selection) {
         // The range this selection painted through is no longer its range; take the highlight back.
         auto& document = m_start_container->document();
-        if (static_cast<Node&>(document).unsafe_paintable()) {
+        if (document.has_committed_viewport_box()) {
             document.paint_state().reset_selection_states(document);
-            if (auto const* layout_node = document.unsafe_layout_node())
-                Painting::set_needs_repaint(*layout_node);
+            Painting::set_needs_repaint(*document.unsafe_layout_node());
         }
 
         // https://w3c.github.io/selection-api/#selectionchange-event
@@ -123,10 +122,9 @@ void Range::update_associated_selection()
     auto& document = m_start_container->document();
 
     // NB: Called during selection update after range change.
-    if (static_cast<Node&>(document).unsafe_paintable()) {
+    if (document.has_committed_viewport_box()) {
         document.paint_state().recompute_selection_states(document, *this);
-        if (auto const* layout_node = document.unsafe_layout_node())
-            Painting::set_needs_repaint(*layout_node);
+        Painting::set_needs_repaint(*document.unsafe_layout_node());
     }
 
     document.reset_cursor_blink_cycle();

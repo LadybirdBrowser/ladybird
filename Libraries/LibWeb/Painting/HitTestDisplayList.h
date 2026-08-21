@@ -23,8 +23,6 @@ struct ChromeMetrics;
 
 namespace Painting {
 
-class Paintable;
-
 enum class CaretPositionMode : u8 {
     Normal,
     // Starting or extending selection should feel more eager than the public caret-position API in inter-line gaps.

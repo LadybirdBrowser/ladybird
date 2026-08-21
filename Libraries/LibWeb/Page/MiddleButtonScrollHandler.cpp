@@ -12,7 +12,6 @@
 #include <LibWeb/Page/AutoScrollHandler.h>
 #include <LibWeb/Page/MiddleButtonScrollHandler.h>
 #include <LibWeb/Painting/BoxViews.h>
-#include <LibWeb/Painting/Paintable.h>
 
 namespace Web {
 
@@ -45,17 +44,19 @@ void MiddleButtonScrollHandler::visit_edges(JS::Cell::Visitor& visitor) const
     visitor.visit(m_container_element);
 }
 
-GC::Ptr<DOM::Element> MiddleButtonScrollHandler::find_scrollable_ancestor(DOM::Document& document, Painting::Paintable& paintable)
+GC::Ptr<DOM::Element> MiddleButtonScrollHandler::find_scrollable_ancestor(DOM::Document& document, Layout::Node& layout_node)
 {
-    // AutoScrollHandler::find_scrollable_ancestor begins with the paintable's containing block. For middle mouse
-    // scrolling, we want to include the paintable itself. This allows clicking in dead space to being scrolling.
-    if (Painting::could_be_scrolled_by_wheel_event(paintable.layout_node())) {
-        if (auto* element = as_if<DOM::Element>(paintable.dom_node().ptr()))
+    // AutoScrollHandler::find_scrollable_ancestor begins with the node's containing block. For middle mouse
+    // scrolling, we want to include the node itself. This allows clicking in dead space to begin scrolling.
+    if (Painting::could_be_scrolled_by_wheel_event(layout_node)) {
+        if (auto* element = as_if<DOM::Element>(layout_node.dom_node()))
             return element;
     }
 
-    if (auto container = AutoScrollHandler::find_scrollable_ancestor(paintable))
-        return container;
+    if (auto* containing_block = layout_node.containing_block(); containing_block) {
+        if (auto container = AutoScrollHandler::find_scrollable_ancestor(*containing_block))
+            return container;
+    }
 
     if (auto scrolling_element = document.scrolling_element())
         return const_cast<DOM::Element*>(scrolling_element.ptr());
@@ -74,8 +75,8 @@ void MiddleButtonScrollHandler::perform_tick()
     m_container_element->document().update_layout(DOM::UpdateLayoutReason::AutoScrollSelection);
     m_mouse_has_moved_beyond_dead_zone = true;
 
-    auto paintable_box = AutoScrollHandler::auto_scroll_paintable(m_container_element);
-    if (!paintable_box)
+    auto* layout_node = AutoScrollHandler::auto_scroll_layout_node(m_container_element);
+    if (!layout_node)
         return;
 
     auto speed_x = clamp(distance_x * SPEED_FACTOR, -MAX_SPEED_PER_SECOND, MAX_SPEED_PER_SECOND);
@@ -91,7 +92,7 @@ void MiddleButtonScrollHandler::perform_tick()
     auto scroll_y = m_fractional_delta.y().to_int();
     m_fractional_delta -= CSSPixelPoint { scroll_x, scroll_y };
 
-    Painting::scroll_by(paintable_box->layout_node(), scroll_x, scroll_y);
+    Painting::scroll_by(*layout_node, scroll_x, scroll_y);
 }
 
 }

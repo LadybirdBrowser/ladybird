@@ -251,8 +251,12 @@ impl<'a> PaintableCommit<'a> {
             self.arena.borrow_mut().reset_for_relayout(reset);
             existing_slot
         } else {
-            let allocation = self.arena.borrow_mut().row_for_node(node);
-            let slot = allocation.slot;
+            let mut arena = self.arena.borrow_mut();
+            let slot = arena.row_for_node(node);
+            if expected_kind == PaintableKind::ViewportPaintable {
+                arena.reset_visual_context_state();
+            }
+            drop(arena);
             let arena = self.arena.borrow();
             arena.update_data(slot, |paintable| {
                 paintable.layout_node = node;

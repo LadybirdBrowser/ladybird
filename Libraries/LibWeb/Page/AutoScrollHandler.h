@@ -24,8 +24,8 @@ public:
 
     bool is_active() const { return m_active; }
 
-    static GC::Ptr<DOM::Element> find_scrollable_ancestor(Painting::Paintable const&);
-    static RefPtr<Painting::Paintable> auto_scroll_paintable(DOM::Element&);
+    static GC::Ptr<DOM::Element> find_scrollable_ancestor(Layout::Node const&);
+    static Layout::Node* auto_scroll_layout_node(DOM::Element&);
 
 private:
     void activate();

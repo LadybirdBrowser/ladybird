@@ -25,11 +25,12 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
-#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
@@ -227,8 +228,7 @@ void SVGDecodedImageData::append_cached_display_list_resources(Painting::Display
 
 void SVGDecodedImageData::append_paint_command_cache_source_resources(Painting::DisplayListResourceSet& retained_resources) const
 {
-    auto document_paintable = static_cast<DOM::Node&>(*m_document).unsafe_paintable();
-    if (!document_paintable)
+    if (!m_document->has_committed_viewport_box())
         return;
     m_document->paint_state().append_paint_command_cache_source_resources(retained_resources);
 }
@@ -294,7 +294,7 @@ Optional<Painting::DisplayListResource> SVGDecodedImageData::record_display_list
     if (!display_list)
         return {};
 
-    VERIFY(static_cast<DOM::Node&>(*m_document).paintable());
+    VERIFY(m_document->has_committed_viewport_box());
     auto& document_paint_state = m_document->paint_state();
     VERIFY(document_paint_state.display_list_used_as_paint_command_cache_source() == display_list.ptr());
     auto referenced_resources = document_paint_state.paint_command_cache_source_referenced_resources();

@@ -52,7 +52,6 @@
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/ImagePaint.h>
 #include <LibWeb/Painting/PaintStyle.h>
-#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/PaintingRustFFI.h>
 #include <LibWeb/Painting/ResizeHandle.h>
@@ -396,7 +395,7 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM
         },
         .svg_transform_view_box_rect = [](void*, void* layout_node_shell, Layout::RustFFI::FfiCssPixelRect* out_rect) -> bool {
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
-            auto const* viewport_paintable = nearest_svg_viewport_paintable_of(layout_node);
+            auto const* viewport_paintable = nearest_svg_viewport_of(layout_node);
             if (!viewport_paintable)
                 return false;
             auto rect = svg_viewport_user_rect(*viewport_paintable).to_type<CSSPixels>();
@@ -506,8 +505,7 @@ Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions
 void rust_measure_scrollable_overflow(Layout::Node const& box)
 {
     auto& document = const_cast<DOM::Document&>(box.document());
-    auto const* viewport = document.unsafe_layout_node();
-    if (!viewport || !has_committed_box(*viewport))
+    if (!document.has_committed_viewport_box())
         return;
     Layout::RustFFI::FfiScrollableOverflowHostCallbacks overflow_callbacks {
         .context = nullptr,
@@ -622,11 +620,6 @@ void mirror_rust_clear_scroll_state(DOM::Document& document)
 void mirror_rust_set_needs_to_refresh_scroll_state(DOM::Document& document, bool value)
 {
     Layout::RustFFI::layout_arena_set_needs_to_refresh_scroll_state(layout_arena_handle(document), value);
-}
-
-void mirror_rust_reset_visual_context_state(DOM::Document& document)
-{
-    Layout::RustFFI::layout_arena_reset_visual_context_state(layout_arena_handle(document));
 }
 
 void mirror_rust_invalidate_paint_cache(Layout::Node const& node)
@@ -1208,7 +1201,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             Layout::RustFFI::FfiSvgHostFacts facts {};
             if (is_svg_path_paintable(layout_node)) {
                 facts.percentage_basis = as<SVG::SVGGraphicsElement>(*layout_node.dom_node()).viewport_percentage_basis().raw_value();
-                if (auto const* viewport_paintable = nearest_svg_viewport_paintable_of(layout_node)) {
+                if (auto const* viewport_paintable = nearest_svg_viewport_of(layout_node)) {
                     facts.has_viewport = true;
                     auto viewport = svg_viewport_user_rect(*viewport_paintable);
                     facts.viewport[0] = viewport.x();
@@ -1373,9 +1366,9 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     auto device_viewport_rect = document.page().css_to_device_rect(document.viewport_rect());
     auto wheel_event_region_state = document.paint_state().collect_root_blocking_wheel_event_regions(document);
     Layout::RustFFI::FfiRecordingInputs inputs {};
-    if (overlay_inputs.highlighted_paintable) {
+    if (overlay_inputs.highlighted_layout_node) {
         inputs.has_inspector_highlight = true;
-        inputs.inspector_highlight_paintable = committed_row_slot(overlay_inputs.highlighted_paintable->layout_node());
+        inputs.inspector_highlight_paintable = committed_row_slot(*overlay_inputs.highlighted_layout_node);
     }
     inputs.tooltip_color = overlay_inputs.tooltip_color.value();
     inputs.tooltip_text_color = overlay_inputs.tooltip_text_color.value();
@@ -1386,7 +1379,7 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
         : Platform::FontPlugin::the().default_font(10)->pixel_size();
     for (auto const& highlight : overlay_inputs.grid_highlights) {
         ffi_grid_overlays.append({
-            .paintable = committed_row_slot(highlight.paintable->layout_node()),
+            .paintable = committed_row_slot(*highlight.layout_node),
             .color = highlight.options.color.value(),
             .label_foreground_color = highlight.options.color.with_alpha(235).suggested_foreground_color().value(),
             .label_css_pixel_size = grid_label_css_pixel_size,
@@ -1401,7 +1394,7 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     Vector<Layout::RustFFI::FfiFlexOverlayInput> ffi_flex_overlays;
     for (auto const& highlight : overlay_inputs.flex_highlights) {
         ffi_flex_overlays.append({
-            .paintable = committed_row_slot(highlight.paintable->layout_node()),
+            .paintable = committed_row_slot(*highlight.layout_node),
             .color = highlight.options.color.value(),
         });
     }

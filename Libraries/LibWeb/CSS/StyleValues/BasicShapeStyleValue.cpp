@@ -13,7 +13,6 @@
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
 #include <LibWeb/CSS/ValueType.h>
-#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/Path.h>
 

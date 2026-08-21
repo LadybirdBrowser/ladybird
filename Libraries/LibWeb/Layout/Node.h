@@ -16,13 +16,13 @@
 #include <AK/kmalloc.h>
 #include <LibGC/Cell.h>
 #include <LibGC/Root.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TreeBuilderRustFFI.h>
-#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/TreeTraversal.h>
 
 namespace Web::Layout {
@@ -267,11 +267,6 @@ public:
     bool is_generated_for_backdrop_pseudo_element() const { return m_data->generated_for == encode_generated_for(CSS::PseudoElement::Backdrop); }
     void set_generated_for(CSS::PseudoElement type, DOM::Element&);
 
-    RefPtr<Painting::Paintable> paintable();
-    RefPtr<Painting::Paintable const> paintable() const;
-    Painting::Paintable* paintable_ptr();
-    Painting::Paintable const* paintable_ptr() const;
-    void set_paintable(RefPtr<Painting::Paintable>);
     void clear_committed_box();
     void prepare_for_detach_from_layout_tree();
     void prepare_subtree_for_detach_from_layout_tree();
@@ -280,8 +275,6 @@ public:
     // Returns the direct viewport child above this node (the node itself or its outermost
     // anonymous table-fixup wrapper), or null when the node is not placed as a top layer box.
     Node* topmost_layout_node_of_top_layer_placement();
-
-    RefPtr<Painting::Paintable> create_paintable() const;
 
     DOM::Document& document();
     DOM::Document const& document() const;
@@ -450,8 +443,6 @@ private:
     // A DOM mutation can disconnect a node before the next layout-tree update. Keep the DOM node alive until this
     // layout node is destroyed so detach hooks never observe a collected image provider or other element state.
     GC::Root<DOM::Node> m_dom_node;
-    RefPtr<Painting::Paintable> m_paintable;
-
     GC::Weak<DOM::Element> m_pseudo_element_generator;
 
     bool m_enrolled_for_arena_replaced_content_facts_sync { false };

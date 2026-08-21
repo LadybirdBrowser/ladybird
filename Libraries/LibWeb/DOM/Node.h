@@ -381,24 +381,11 @@ public:
         return const_cast<Element*>(const_cast<Node const*>(this)->first_letter_owner_for_layout_subtree_from(inclusive_ancestor));
     }
 
-    RefPtr<Painting::Paintable const> paintable_box() const;
-    RefPtr<Painting::Paintable> paintable_box();
-    RefPtr<Painting::Paintable const> paintable() const;
-    RefPtr<Painting::Paintable> paintable();
-
-    RefPtr<Painting::Paintable const> unsafe_paintable_box() const;
-    RefPtr<Painting::Paintable> unsafe_paintable_box();
-    RefPtr<Painting::Paintable const> unsafe_paintable() const;
-    RefPtr<Painting::Paintable> unsafe_paintable();
-
-    void set_paintable(WeakPtr<Painting::Paintable>);
-    void clear_paintable();
-
     void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);
     void set_needs_layout_update(SetNeedsLayoutReason);
     void set_needs_layout_update(SetNeedsLayoutReason, Layout::LayoutUpdatePropagation);
 
-    void clear_layout_node_and_paintable(Badge<Document>);
+    void clear_layout_node(Badge<Document>);
     void set_layout_node(Badge<Layout::Node>, Layout::Node&);
     void detach_layout_node(Badge<Layout::LayoutTreeBuilderAccess>);
 
@@ -572,7 +559,6 @@ protected:
 
     GC::Ptr<Document> m_document;
     WeakPtr<Layout::Node> m_layout_node;
-    WeakPtr<Painting::Paintable> m_paintable;
     NodeType m_type { NodeType::INVALID };
     bool m_needs_layout_tree_update { false };
     bool m_child_needs_layout_tree_update { false };
@@ -595,7 +581,7 @@ private:
     void insert_before_impl(GC::Ref<Node>, GC::Ptr<Node> child);
     void append_child_impl(GC::Ref<Node>);
     void remove_child_impl(GC::Ref<Node>);
-    void clear_layout_node_paintable();
+    void clear_committed_layout_box();
 
     static Optional<Utf16View> first_valid_id(Utf16View, Document const&);
 

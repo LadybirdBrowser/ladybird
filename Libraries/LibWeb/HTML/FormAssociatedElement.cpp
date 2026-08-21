@@ -38,7 +38,6 @@
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Page/EventHandler.h>
-#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/UIEvents/InputTypes.h>
 #include <LibWeb/VisualLines.h>
 

@@ -8,7 +8,6 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Painting/BoxViews.h>
-#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
@@ -145,7 +144,7 @@ Optional<CSSPixelRect> mask_area(Layout::Node const& node)
     // computation stays in the target's user space: that is the coordinate space of the mask node
     // in the visual context tree.
     Gfx::FloatSize viewport_size {};
-    if (auto const* viewport_paintable = nearest_svg_viewport_paintable_of(*mask_box))
+    if (auto const* viewport_paintable = nearest_svg_viewport_of(*mask_box))
         viewport_size = svg_viewport_user_rect(*viewport_paintable).size();
 
     auto target_object_bounding_box = target_user_space_object_bounding_box(target);

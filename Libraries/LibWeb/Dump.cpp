@@ -489,14 +489,14 @@ void dump_sheet(StringBuilder& builder, CSS::StyleSheet const& sheet, int indent
         dump_rule(builder, rule, indent_levels + 1);
 }
 
-void dump_tree(Painting::Paintable const& paintable)
+void dump_paint_tree(Layout::Node const& layout_node)
 {
     StringBuilder builder;
-    dump_tree(builder, paintable, true);
+    dump_paint_tree(builder, layout_node, true);
     dbgln("{}", builder.string_view());
 }
 
-void dump_tree(StringBuilder& builder, Painting::Paintable const& paintable, bool colorize, int indent)
+void dump_paint_tree(StringBuilder& builder, Layout::Node const& root, bool colorize, int indent)
 {
     StringView paintable_with_lines_color_on = ""sv;
     StringView paintable_box_color_on = ""sv;
@@ -508,10 +508,11 @@ void dump_tree(StringBuilder& builder, Painting::Paintable const& paintable, boo
         color_off = "\033[0m"sv;
     }
 
-    auto entry_count = Layout::RustFFI::layout_arena_paint_tree_dump_entry_count(paintable.rust_arena().handle(), paintable.rust_slot());
+    auto slot = Painting::committed_row_slot(root);
+    auto entry_count = Layout::RustFFI::layout_arena_paint_tree_dump_entry_count(root.arena_handle(), slot);
     Vector<Layout::RustFFI::FfiPaintTreeDumpEntry> entries;
     entries.resize(entry_count);
-    Layout::RustFFI::layout_arena_export_paint_tree_dump_entries(paintable.rust_arena().handle(), paintable.rust_slot(), entries.data(), entries.size());
+    Layout::RustFFI::layout_arena_export_paint_tree_dump_entries(root.arena_handle(), slot, entries.data(), entries.size());
     for (auto const& entry : entries) {
         if (!entry.layout_node_shell)
             continue;

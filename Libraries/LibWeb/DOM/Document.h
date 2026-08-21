@@ -508,6 +508,7 @@ public:
 
     Layout::Viewport const* unsafe_layout_node() const;
     Layout::Viewport* unsafe_layout_node();
+    bool has_committed_viewport_box() const;
 
     Painting::DocumentPaintState& paint_state();
     Painting::DocumentPaintState const& paint_state() const;
@@ -1427,7 +1428,7 @@ private:
 
     virtual void finalize() override final;
 
-    void clear_layout_and_paintable_nodes_for_inactive_document();
+    void clear_layout_nodes_for_inactive_document();
     void set_layout_root(Layout::Viewport&);
     void tear_down_layout_tree();
     void process_pending_top_layer_layout_changes();

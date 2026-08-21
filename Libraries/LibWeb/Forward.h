@@ -1067,14 +1067,9 @@ class Notification;
 
 namespace Web::Painting {
 
-class AudioPaintable;
 class BoxViewRepaintAccess;
 class DocumentPaintState;
-class MediaPaintable;
-class Paintable;
-class PaintableWithLines;
 class ScrollStateSnapshot;
-class ViewportPaintable;
 
 enum class PaintPhase;
 struct LinearGradientData;

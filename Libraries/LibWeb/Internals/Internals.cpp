@@ -87,7 +87,6 @@
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/HitTestResult.h>
-#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/StyleValueRustFFI.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -128,8 +127,7 @@ void Internals::set_test_timeout(double milliseconds)
 void Internals::force_incompatible_visual_context_tree_rebuild()
 {
     auto& document = window().associated_document();
-    auto paintable = static_cast<DOM::Node&>(document).paintable();
-    if (!paintable)
+    if (!document.has_committed_viewport_box())
         return;
     document.paint_state().set_force_incompatible_visual_context_tree_rebuild_for_testing();
     document.set_needs_accumulated_visual_contexts_update(true);
@@ -138,8 +136,7 @@ void Internals::force_incompatible_visual_context_tree_rebuild()
 u64 Internals::visual_context_tree_node_count()
 {
     auto& document = window().associated_document();
-    auto paintable = static_cast<DOM::Node&>(document).paintable();
-    if (!paintable || !document.paint_state().has_visual_context_tree())
+    if (!document.has_committed_viewport_box() || !document.paint_state().has_visual_context_tree())
         return 0;
     return document.paint_state().visual_context_tree(document).nodes().size();
 }
@@ -150,8 +147,7 @@ void Internals::send_mismatched_visual_context_tree_update_to_compositor()
     auto navigable = document.navigable();
     if (!navigable || !navigable->has_compositor_context())
         return;
-    auto paintable = static_cast<DOM::Node&>(document).paintable();
-    if (!paintable || !document.paint_state().has_visual_context_tree())
+    if (!document.has_committed_viewport_box() || !document.paint_state().has_visual_context_tree())
         return;
     auto& document_paint_state = document.paint_state();
 
@@ -689,8 +685,7 @@ WebIDL::UnsignedLongLong Internals::layout_run_cache_hit_count()
 WebIDL::UnsignedLongLong Internals::accumulated_visual_context_tree_build_count()
 {
     auto& document = window().associated_document();
-    auto paintable = static_cast<DOM::Node&>(document).unsafe_paintable();
-    if (!paintable)
+    if (!document.has_committed_viewport_box())
         return 0;
     return document.paint_state().accumulated_visual_context_tree_build_count();
 }
@@ -824,12 +819,12 @@ Utf16String Internals::dump_paintable_tree(GC::Ref<DOM::Node> node)
 {
     node->document().update_layout(DOM::UpdateLayoutReason::Debugging);
 
-    auto paintable = node->paintable();
-    if (!paintable)
+    auto* layout_node = node->layout_node();
+    if (!layout_node || !Painting::has_committed_box(*layout_node))
         return "(no paintable)"_utf16;
 
     StringBuilder builder;
-    Web::dump_tree(builder, *paintable);
+    Web::dump_paint_tree(builder, *layout_node);
     return dump_string_to_utf16(builder.to_string_without_validation());
 }
 
@@ -1508,7 +1503,7 @@ static Optional<AsyncScrollingStateSnapshot> capture_async_scrolling_state(DOM::
 {
     document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
     auto navigable = document.navigable();
-    if (!navigable || !static_cast<DOM::Node&>(document).paintable())
+    if (!navigable || !document.has_committed_viewport_box())
         return {};
     auto display_list = document.record_display_list(HTML::PaintConfig {}, navigable->display_list_resource_storage(), Painting::PaintCommandCacheMode::ReadWrite);
     if (!display_list)
