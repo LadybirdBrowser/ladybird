@@ -3721,13 +3721,13 @@ void LocalNavigable::clamp_viewport_scroll_offset()
     auto document = active_document();
     if (!document || !document->layout_is_up_to_date())
         return;
-    auto paintable_box = document->paintable_box();
-    if (!paintable_box)
+    auto* layout_node = document->layout_node();
+    if (!layout_node)
         return;
-    if (!Painting::scrollable_overflow_rect(paintable_box->layout_node()).has_value())
+    if (!Painting::scrollable_overflow_rect(*layout_node).has_value())
         return;
-    auto minimum_scroll_offset = paintable_box->minimum_scroll_offset();
-    auto maximum_scroll_offset = paintable_box->maximum_scroll_offset();
+    auto minimum_scroll_offset = Painting::minimum_scroll_offset(*layout_node);
+    auto maximum_scroll_offset = Painting::maximum_scroll_offset(*layout_node);
     CSSPixelPoint clamped = {
         clamp(m_viewport_scroll_offset.x(), minimum_scroll_offset.x(), maximum_scroll_offset.x()),
         clamp(m_viewport_scroll_offset.y(), minimum_scroll_offset.y(), maximum_scroll_offset.y()),
@@ -5007,8 +5007,8 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPix
     // NB: Must update layout before accessing paintables.
     doc->update_layout(DOM::UpdateLayoutReason::NavigableViewportScroll);
 
-    auto minimum_scroll_offset = doc->paintable_box()->minimum_scroll_offset().to_type<double>();
-    auto maximum_scroll_offset = doc->paintable_box()->maximum_scroll_offset().to_type<double>();
+    auto minimum_scroll_offset = Painting::minimum_scroll_offset(*doc->layout_node()).to_type<double>();
+    auto maximum_scroll_offset = Painting::maximum_scroll_offset(*doc->layout_node()).to_type<double>();
     auto new_viewport_scroll_offset = m_viewport_scroll_offset.to_type<double>() + Gfx::Point(layout_dx, layout_dy);
     // NOTE: Clamp to the scrolling area.
     new_viewport_scroll_offset.set_x(clamp(new_viewport_scroll_offset.x(), minimum_scroll_offset.x(), maximum_scroll_offset.x()));

@@ -117,14 +117,14 @@ GC::Ptr<DOM::Element> AutoScrollHandler::find_scrollable_ancestor(Painting::Pain
 
     RefPtr<Painting::Paintable> paintable_box = const_cast<Painting::Paintable&>(paintable);
     while (paintable_box) {
-        if (paintable_box->could_be_scrolled_by_wheel_event()) {
+        if (Painting::could_be_scrolled_by_wheel_event(paintable_box->layout_node())) {
             if (auto* element = as_if<DOM::Element>(paintable_box->dom_node().ptr()))
                 return element;
         }
 
         // The viewport is always a potential scroll container, but may not report has_scrollable_overflow() and its DOM
         // node is Document (not Element).
-        if (Painting::is_viewport_paintable(paintable_box->layout_node()) && paintable_box->could_be_scrolled_by_wheel_event()) {
+        if (Painting::is_viewport_paintable(paintable_box->layout_node()) && Painting::could_be_scrolled_by_wheel_event(paintable_box->layout_node())) {
             if (auto scrolling_element = paintable_box->document().scrolling_element())
                 return const_cast<DOM::Element*>(scrolling_element.ptr());
         }

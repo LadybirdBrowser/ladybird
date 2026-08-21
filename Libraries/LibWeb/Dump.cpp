@@ -540,8 +540,8 @@ void dump_tree(StringBuilder& builder, Painting::Paintable const& paintable, boo
         if (Painting::has_scrollable_overflow(layout_node))
             builder.appendff(" overflow: {}", Painting::scrollable_overflow_rect(layout_node));
 
-        if (!entry_paintable->scroll_offset().is_zero())
-            builder.appendff(" scroll-offset: {}", entry_paintable->scroll_offset());
+        if (!Painting::scroll_offset(entry_paintable->layout_node()).is_zero())
+            builder.appendff(" scroll-offset: {}", Painting::scroll_offset(entry_paintable->layout_node()));
         builder.append("\n"sv);
     }
 }

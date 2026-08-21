@@ -391,7 +391,7 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(Vie
             return inputs;
         },
         .scroll_offset = [](void*, void* paintable_shell) -> Layout::RustFFI::FfiCssPixelPoint {
-            auto offset = static_cast<Paintable*>(paintable_shell)->scroll_offset();
+            auto offset = scroll_offset(static_cast<Paintable*>(paintable_shell)->layout_node());
             return { offset.x().raw_value(), offset.y().raw_value() };
         },
         .svg_transform_view_box_rect = [](void*, void* paintable_shell, Layout::RustFFI::FfiCssPixelRect* out_rect) -> bool {
@@ -681,8 +681,8 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
             facts.dom_node_has_parent = dom_node && dom_node->parent();
             facts.is_editable_or_editing_host = dom_node && dom_node->is_editable_or_editing_host();
             facts.has_resizer = paintable.has_resizer();
-            facts.could_be_scrolled_horizontally = paintable.could_be_scrolled_by_wheel_event(ScrollDirection::Horizontal);
-            facts.could_be_scrolled_vertically = paintable.could_be_scrolled_by_wheel_event(ScrollDirection::Vertical);
+            facts.could_be_scrolled_horizontally = could_be_scrolled_by_wheel_event(paintable.layout_node(), ScrollDirection::Horizontal);
+            facts.could_be_scrolled_vertically = could_be_scrolled_by_wheel_event(paintable.layout_node(), ScrollDirection::Vertical);
             if (paintable.is_svg_path_paintable()) {
                 auto const& graphics_element = as<SVG::SVGGraphicsElement>(*paintable.dom_node());
                 facts.svg_path_has_fill = graphics_element.fill_color().has_value();

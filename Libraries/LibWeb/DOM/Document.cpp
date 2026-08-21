@@ -2217,7 +2217,7 @@ void Document::update_layout(UpdateLayoutReason reason)
             auto paintable = box.paintable_box();
             if (!paintable)
                 return TraversalDecision::Continue;
-            if (&box == m_layout_root.ptr() || box.is_scroll_container() || !paintable->scroll_offset().is_zero())
+            if (&box == m_layout_root.ptr() || box.is_scroll_container() || !Painting::scroll_offset(box).is_zero())
                 boxes_needing_eager_overflow_measurement.append(&box);
             return TraversalDecision::Continue;
         });
@@ -2464,7 +2464,7 @@ static void rebuild_sticky_insets(Layout::Node const& root)
         auto sticky_insets = make<Painting::StickyInsets>();
         auto inset = node_with_style->inset();
 
-        auto nearest_scrollable_ancestor = box_paintable->nearest_scrollable_ancestor();
+        auto nearest_scrollable_ancestor = Painting::nearest_scrollable_ancestor(layout_node);
         CSSPixelSize scrollport_size;
         if (nearest_scrollable_ancestor)
             scrollport_size = Painting::absolute_rect(nearest_scrollable_ancestor->layout_node()).size();
@@ -2503,8 +2503,8 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
     // overflow rect becomes smaller, the scroll offset would be out of bounds. Re-applying the
     // current offset clamps it against the new rect.
     auto clamp_scroll_offset = [](Painting::Paintable& paintable) {
-        if (!paintable.scroll_offset().is_zero())
-            paintable.set_scroll_offset(paintable.scroll_offset());
+        if (!Painting::scroll_offset(paintable.layout_node()).is_zero())
+            paintable.set_scroll_offset(Painting::scroll_offset(paintable.layout_node()));
     };
 
     if (derived_structure_updates == ScrollableOverflowDerivedStructureUpdates::HandledByFullLayoutCommit) {
@@ -2574,7 +2574,7 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
         // Boxes reset by a subtree commit have no previous overflow data. They will be measured
         // recursively if an ancestor reaches them. Measuring each one here would repeatedly walk
         // the same containing-block chains after a small subtree update.
-        if (!it.value.has_value() && it.key != m_layout_root.ptr() && !it.key->is_scroll_container() && box_paintable->scroll_offset().is_zero())
+        if (!it.value.has_value() && it.key != m_layout_root.ptr() && !it.key->is_scroll_container() && Painting::scroll_offset(*it.key).is_zero())
             continue;
 
         Painting::rust_measure_scrollable_overflow(*box_paintable);
@@ -2688,7 +2688,7 @@ bool Document::can_compute_client_rects_without_accumulated_visual_contexts_upda
         }
         // A scroll container's contents move, but its own border box does not.
         if (node != &layout_node) {
-            if (auto paintable = node->paintable(); paintable && !paintable->scroll_offset().is_zero())
+            if (!Painting::scroll_offset(*node).is_zero())
                 return false;
         }
     }

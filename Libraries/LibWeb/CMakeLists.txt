@@ -876,6 +876,7 @@ set(SOURCES
     Painting/ResolvedCSSFilter.cpp
     Painting/ResizeHandle.cpp
     Painting/Scrollbar.cpp
+    Painting/Scrolling.cpp
     Painting/ScrollState.cpp
     Painting/SVGMasking.cpp
     Painting/ViewportPaintable.cpp

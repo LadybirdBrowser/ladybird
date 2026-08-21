@@ -179,12 +179,6 @@ public:
     Optional<Gfx::MaskKind> get_mask_type() const;
     Optional<CSSPixelRect> get_clip_area() const;
 
-    CSSPixelPoint scroll_offset() const;
-    CSSPixelPoint minimum_scroll_offset() const;
-    CSSPixelPoint maximum_scroll_offset() const;
-    CSSPixelPoint clamp_scroll_offset(CSSPixelPoint) const;
-    CSSPixelRect scroll_snapport_rect() const;
-    CSSPixelRect scroll_snapport_rect(CSSPixelRect scrollport) const;
     ScrollHandled set_scroll_offset(CSSPixelPoint);
     ScrollHandled set_scroll_offset_from_user_input(CSSPixelPoint);
     ScrollHandled scroll_by(double delta_x, double delta_y);
@@ -229,11 +223,6 @@ public:
 
     RefPtr<ResizeHandle> resize_handle() const;
     NonnullRefPtr<ResizeHandle> ensure_resize_handle();
-
-    RefPtr<Paintable const> nearest_scrollable_ancestor() const;
-
-    [[nodiscard]] bool could_be_scrolled_by_wheel_event() const;
-    [[nodiscard]] bool could_be_scrolled_by_wheel_event(ScrollDirection direction) const;
 
     [[nodiscard]] size_t visual_context_nodes_begin() const { return rust_data().visual_context_nodes_begin; }
     [[nodiscard]] size_t visual_context_nodes_end() const { return rust_data().visual_context_nodes_end; }
