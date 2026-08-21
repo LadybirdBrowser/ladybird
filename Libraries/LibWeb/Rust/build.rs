@@ -1060,6 +1060,7 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
     let mut levels = vec![0u8; (last_longhand - first_longhand + 1) as usize];
     let mut animation_types = vec![0u8; levels.len()];
     let mut layout_geometry_effects = vec![false; levels.len()];
+    let mut initial_values = vec![String::new(); levels.len()];
     let mut numeric_range_rows = vec![String::new(); levels.len()];
     let value_types = [
         "anchor",
@@ -1146,6 +1147,10 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
             || metadata_flag("affects-scrollable-overflow", false)
             || metadata_flag("affects-stacking-context", false)
             || may_affect_layout_geometry_indirectly;
+
+        initial_values[index] = property_field(name, "initial")
+            .and_then(|value| value.as_str().map(str::to_string))
+            .ok_or_else(|| format!("missing initial value for {name}"))?;
 
         let mut ranges = Vec::new();
         if let Some(valid_types) = property_field(name, "valid-types").and_then(|value| value.as_array().cloned()) {
@@ -1510,6 +1515,11 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         "pub(crate) static PROPERTY_MAY_AFFECT_LAYOUT_GEOMETRY: [bool; {}] = {:?};\n",
         layout_geometry_effects.len(),
         layout_geometry_effects
+    ));
+    output.push_str(&format!(
+        "#[cfg(test)]\npub(crate) static PROPERTY_INITIAL_VALUES: [&str; {}] = {:?};\n",
+        initial_values.len(),
+        initial_values
     ));
     output.push_str(&format!(
         "pub(crate) static PROPERTY_NUMERIC_RANGES: [&[FfiPropertyNumericRange]; {}] = [\n{}\n];\n",

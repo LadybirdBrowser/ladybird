@@ -106,6 +106,11 @@ pub fn property_may_affect_layout_geometry(property_id: u16) -> bool {
     PROPERTY_MAY_AFFECT_LAYOUT_GEOMETRY[longhand_index(property_id)]
 }
 
+#[cfg(test)]
+pub(crate) fn property_initial_value(property_id: u16) -> &'static str {
+    PROPERTY_INITIAL_VALUES[longhand_index(property_id)]
+}
+
 pub(crate) fn pseudo_element_supports_property(pseudo_element: u8, property_id: u16) -> bool {
     if PSEUDO_ELEMENT_ALWAYS_ALLOWED_PROPERTIES
         .binary_search(&property_id)

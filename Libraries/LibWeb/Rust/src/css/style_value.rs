@@ -70,6 +70,12 @@ impl PartialEq for RetainedStyleValueData {
 }
 
 impl RetainedStyleValueData {
+    pub(crate) fn from_owned(data: StyleValueData) -> Self {
+        let pointer = Arc::into_raw(Arc::new(data));
+        // SAFETY: Arc::into_raw transfers one strong reference to this handle.
+        unsafe { Self::from_retained_pointer(pointer) }
+    }
+
     pub(crate) fn pointer(&self) -> *const StyleValueData {
         self.pointer.cast()
     }
