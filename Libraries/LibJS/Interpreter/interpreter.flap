@@ -2247,7 +2247,7 @@ handler GetById(
         call_slow_path(get_by_id);
     };
 
-    let invoke_accessor = || @cold {
+    let invoke_accessor_slow = || @cold {
         guard call_interp(asm_try_inline_get_by_id_accessor) == 0 else {
             call_slow_path(get_by_id_cached_accessor);
         };
@@ -2260,6 +2260,110 @@ handler GetById(
         pb = inline_executable.bytecode_data;
         pc = 0;
         goto_handler(pc);
+    };
+
+    let invoke_accessor = |accessor_value: Value, receiver_object: Object| @cold {
+        let accessor: Accessor = unbox_object(accessor_value);
+        let getter = accessor.getter;
+        guard getter != 0 else {
+            store(dst, Value<Undefined>);
+            dispatch_next;
+        };
+        let function: Object = alias(getter);
+        let flags = function.flags;
+        guard flags has OBJECT_FLAG_IS_RAW_NATIVE_FUNCTION else invoke_accessor_slow;
+        let raw_native_function: RawNativeFunction = alias(function);
+        let native_function_index = raw_native_function.native_function_index;
+        let native_table_vm = current_vm();
+        let native_function_entry = &native_table_vm.native_function_table[native_function_index];
+        let native_function_type = native_function_entry.type;
+        assert_lt_unsigned(native_function_type, NATIVE_FUNCTION_TYPE_COUNT);
+
+        # Construct the lightweight zero-argument frame used by raw native getters.
+        let native_stack_vm = current_vm();
+        let frame_base = native_stack_vm.interpreter_stack_top;
+        let native_stack_limit = native_stack_vm.interpreter_stack_limit;
+        let native_frame: ExecutionContext = alias(frame_base);
+        let native_frame_end: u64 = frame_base + SIZEOF_EXECUTION_CONTEXT;
+        assert_ge_unsigned(native_frame_end, frame_base);
+        guard native_frame_end <= native_stack_limit else invoke_accessor_slow;
+        let native_limit_vm = current_vm();
+        let machine_stack_limit: u64 = native_limit_vm.stack_base + VM_STACK_SPACE_LIMIT;
+        assert_ge_unsigned(machine_stack_limit, native_limit_vm.stack_base);
+        guard machine_stack_limit <= fp else invoke_accessor_slow;
+        let native_stack_update_vm = current_vm();
+        native_stack_update_vm.interpreter_stack_top = native_frame_end;
+        # RawNativeFunction is the zero-valued native function table type.
+        native_frame.slot_count = native_function_type;
+        native_frame.argument_count = native_function_type;
+        native_frame.passed_argument_count = 0;
+        let realm = function.shape.realm;
+        native_frame.function = function;
+        native_frame.realm = realm;
+        let lexical_environment = exec_ctx.lexical_environment;
+        let variable_environment = exec_ctx.variable_environment;
+        assert_nonzero(lexical_environment);
+        assert_nonzero(variable_environment);
+        native_frame.lexical_environment = lexical_environment;
+        native_frame.variable_environment = variable_environment;
+        native_frame.private_environment = exec_ctx.private_environment;
+        let receiver: Value = alias(box_object(receiver_object));
+        native_frame.this_value = receiver;
+        native_frame.script_or_module = zeroed();
+        native_frame.executable = null;
+        native_frame.program_counter = 0;
+        native_frame.skip_when_determining_incumbent_counter = 0;
+        native_frame.yield_continuation = EXECUTION_CONTEXT_NO_YIELD_CONTINUATION;
+        native_frame.yield_is_await = false;
+        native_frame.yield_value_is_iterator_result = false;
+        native_frame.caller_is_construct = false;
+        let native_pc: u32 = pc;
+        let [destination_offset, _] = load_pair32(
+            [pb, pc, dst],
+            [pb, pc, base]
+        );
+        exec_ctx.program_counter = native_pc;
+        native_frame.caller_frame = exec_ctx;
+        # The exception helper only needs a PC within the current instruction.
+        native_frame.caller_return_pc = native_pc + 1;
+        native_frame.caller_dst_raw = destination_offset;
+        let native_running_vm = current_vm();
+        native_running_vm.running_execution_context = native_frame;
+        exec_ctx = native_frame;
+        values = exec_ctx.slots;
+        let native_function = native_function_entry.function;
+        let [native_return, variant] = call_raw_native(native_function);
+        let native_payload = native_return;
+        variant = variant & 255;
+        assert_lt_unsigned(variant, 2);
+        guard variant == 0 else @cold {
+            let helper_argument = native_payload;
+            let exception_pc: i32 = call_helper(
+                asm_helper_handle_raw_native_exception,
+                helper_argument
+            );
+            guard exception_pc >= 0 else @cold {
+                exit;
+            };
+            let exception_vm = current_vm();
+            exec_ctx = exception_vm.running_execution_context;
+            assert_nonzero(exec_ctx);
+            values = exec_ctx.slots;
+            let exception_executable = exec_ctx.executable;
+            assert_nonzero(exception_executable);
+            pb = exception_executable.bytecode_data;
+            pc = exec_ctx.program_counter;
+            goto_handler(pc);
+        };
+        let caller_frame = exec_ctx.caller_frame;
+        assert_nonzero(caller_frame);
+        let return_vm = current_vm();
+        return_vm.running_execution_context = caller_frame;
+        return_vm.interpreter_stack_top = alias(exec_ctx);
+        exec_ctx = caller_frame;
+        values = exec_ctx.slots;
+        store(dst, native_payload);
+        dispatch_next;
     };
 
     guard let Value<Object>(object) = load(base) else try_cache;
@@ -2281,7 +2385,7 @@ handler GetById(
 
     guard property_cache.shape_dictionary_generation == shape.dictionary_generation else try_cache;
     let value = holder.named_properties[property_cache.property_offset];
-    guard value is not Value<Accessor> else invoke_accessor;
+    guard value is not Value<Accessor> else invoke_accessor(value, object);
     store(dst, value);
     dispatch_next;
 }

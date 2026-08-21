@@ -4191,23 +4191,25 @@ asm_handler_GetById:
     ldr w4, [x0]
     cmp w4, #6
     b.eq .Lasm_GetById.ssa_block_1
-    cbz x3, .Lasm_GetById.ssa_block_7
-    ldr x2, [x0, #40]
-    cbz x2, .Lasm_GetById.ssa_block_1
-    ldrb w9, [x2, #10]
+    cbnz x3, .Lasm_GetById.ssa_block_10
+    mov x3, x2
+    b .Lasm_GetById.ssa_block_11
+.Lasm_GetById.ssa_block_10:
+    ldr x4, [x0, #40]
+    cbz x4, .Lasm_GetById.ssa_block_1
+    ldrb w9, [x4, #10]
     cbz w9, .Lasm_GetById.ssa_block_1
-    mov x2, x3
-.Lasm_GetById.ssa_block_7:
-    ldp w3, w0, [x0, #4]
+.Lasm_GetById.ssa_block_11:
+    ldp w4, w0, [x0, #4]
     ldr w9, [x1, #92]
     cmp w9, w0
     b.ne .Lasm_GetById.ssa_block_1
-    ldr x0, [x2, #32]
-    ldr x0, [x0, x3, lsl #3]
+    ldr x0, [x3, #32]
+    ldr x0, [x0, x4, lsl #3]
     lsr x9, x0, #48
     mov w10, #65532
     cmp x9, x10
-    b.eq .Lasm_GetById.ssa_block_3
+    b.eq .Lasm_GetById.ssa_block_8
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #24]
@@ -4227,6 +4229,14 @@ asm_handler_GetById:
     add x27, x28, #120
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetById.ssa_block_5:
+    ldr w9, [x21, #4]
+    movz x10, #0x7ffe, lsl #48
+    str x10, [x27, x9, lsl #3]
+    ldrb w9, [x21, #24]
+    add x21, x21, #24
     ldr x10, [x19, x9, lsl #3]
     br x10
 asm_handler_GetById_hot_end:
@@ -9086,6 +9096,98 @@ asm_handler_PutByValue_cold:
 asm_handler_PutByValue_cold_end:
 asm_handler_GetById_cold:
 // Cold paths for GetById
+.Lasm_GetById.ssa_block_8:
+    and x0, x0, #0xffffffffffff
+    ldr x1, [x0, #16]
+    cbz x1, .Lasm_GetById.ssa_block_5
+    ldrh w0, [x1, #10]
+    tbz x0, #1, .Lasm_GetById.ssa_block_3
+    ldr w3, [x1, #104]
+    mov x0, x20
+    ldr x0, [x0, #16688]
+    lsl x3, x3, #4
+    adds x3, x3, x0
+    ldr w4, [x3, #8]
+    mov x0, x20
+    ldr x6, [x0, #15376]
+    ldr x0, [x0, #15368]
+    add x5, x0, #120
+    cmp x5, x6
+    b.hi .Lasm_GetById.ssa_block_3
+    mov x6, x20
+    ldr x7, [x6, #15336]
+    mov x6, x7
+    add x6, x6, #8, lsl #12
+    cmp x6, x29
+    b.hi .Lasm_GetById.ssa_block_3
+    mov x6, x20
+    str x5, [x6, #15368]
+    stp w4, w4, [x0, #108]
+    str wzr, [x0, #96]
+    ldr x4, [x1, #24]
+    ldr x4, [x4, #16]
+    stp x1, x4, [x0, #0]
+    ldp x1, x4, [x28, #32]
+    stp x1, x4, [x0, #32]
+    ldr x1, [x28, #48]
+    str x1, [x0, #48]
+    lsl x2, x2, #16
+    lsr x2, x2, #16
+    movz x1, #0xfff9, lsl #48
+    orr x2, x2, x1
+    str x2, [x0, #72]
+    mov x1, #0
+    add x2, x0, #16
+    stp x1, x1, [x2, #0]
+    str xzr, [x0, #80]
+    str wzr, [x0, #56]
+    str wzr, [x0, #60]
+    movn w9, #0
+    str w9, [x0, #64]
+    strb wzr, [x0, #68]
+    strb wzr, [x0, #69]
+    strb wzr, [x0, #70]
+    sub w1, w21, w26
+    ldp w2, w4, [x21, #4]
+    str w1, [x28, #56]
+    str x28, [x0, #88]
+    add x1, x1, #1
+    stp w1, w2, [x0, #100]
+    mov x1, x20
+    str x0, [x1, #15288]
+    mov x28, x0
+    add x27, x28, #120
+    ldr x2, [x3]
+    mov x9, x2
+    mov x0, x20
+    blr x9
+    and x1, x1, #0xff
+    cbnz x1, .Lasm_GetById.ssa_block_6
+    ldr x1, [x28, #88]
+    mov x2, x20
+    str x1, [x2, #15288]
+    str x28, [x2, #15368]
+    mov x28, x1
+    add x27, x28, #120
+    ldr w9, [x21, #4]
+    str x0, [x27, x9, lsl #3]
+    ldrb w9, [x21, #24]
+    add x21, x21, #24
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetById.ssa_block_6:
+    bl CSYM(asm_helper_handle_raw_native_exception)
+    tbnz w0, #31, .Lasm_GetById.ssa_block_7
+    mov x0, x20
+    ldr x28, [x0, #15288]
+    add x27, x28, #120
+    ldr x0, [x28, #80]
+    ldr x26, [x0, #80]
+    ldr w25, [x28, #56]
+    add x21, x26, w25, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
 .Lasm_GetById.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
@@ -9127,6 +9229,8 @@ asm_handler_GetById_cold:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
+.Lasm_GetById.ssa_block_7:
+    b .Lexit
 asm_handler_GetById_cold_end:
 .p2align 4
 asm_handler_GetByIdWithThis:

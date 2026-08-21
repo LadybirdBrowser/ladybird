@@ -179,3 +179,31 @@ test("GetById cache propagates getter exceptions to the caller", () => {
     should_throw = false;
     expect(read_value(object)).toBe(42);
 });
+
+test("GetById cache invokes raw native getters with the receiver", () => {
+    function read_size(object) {
+        return object.size;
+    }
+
+    const map = new Map([
+        ["a", 1],
+        ["b", 2],
+    ]);
+    for (let i = 0; i < 10; ++i) expect(read_size(map)).toBe(2);
+
+    map.set("c", 3);
+    expect(read_size(map)).toBe(3);
+});
+
+test("GetById cache propagates raw native getter exceptions", () => {
+    function read_size(object) {
+        return object.size;
+    }
+
+    const invalid_map = Object.create(Map.prototype);
+    for (let i = 0; i < 10; ++i) {
+        expect(() => read_size(invalid_map)).toThrow(TypeError);
+    }
+
+    expect(read_size(new Map([["a", 1]]))).toBe(1);
+});
