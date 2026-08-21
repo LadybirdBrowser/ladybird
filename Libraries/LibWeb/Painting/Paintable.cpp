@@ -42,7 +42,6 @@
 #include <LibWeb/Page/MiddleButtonScrollHandler.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
-#include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/GridInspectorOverlay.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
@@ -160,60 +159,6 @@ bool body_background_is_propagated_to_root(Layout::NodeWithStyle const& layout_n
     // Reachable at invalidation time, when the root element's layout node may already be detached.
     auto const* html_element = layout_node.document().html_element();
     return html_element && html_element->unsafe_layout_node() && html_element->should_use_body_background_properties();
-}
-
-static bool is_canvas_background_source(Layout::NodeWithStyle const& layout_node)
-{
-    return layout_node.is_root_element() || body_background_is_propagated_to_root(layout_node);
-}
-
-static Color effective_scrollbar_background_color(Paintable const& paintable_box)
-{
-    auto background_color = paintable_box.document().canvas_background_color();
-
-    Vector<Layout::NodeWithStyle const*, 32> ancestors;
-    for (Layout::NodeWithStyle const* layout_node = &paintable_box.layout_node(); layout_node; layout_node = layout_node->parent())
-        ancestors.append(layout_node);
-
-    for (auto const* layout_node : ancestors.in_reverse()) {
-        auto const& layout_node_with_style = *layout_node;
-        if (is_canvas_background_source(layout_node_with_style))
-            continue;
-
-        auto color = layout_node_with_style.background_color();
-        if (color.alpha() == 0)
-            continue;
-
-        background_color = background_color.blend(color);
-    }
-
-    return background_color;
-}
-
-static CSS::ScrollbarColorData automatic_scrollbar_colors(Paintable const& paintable_box)
-{
-    auto background_color = effective_scrollbar_background_color(paintable_box);
-    auto black_thumb = Color(Color::Black).with_alpha(128);
-    auto white_thumb = Color(Color::White).with_alpha(128);
-
-    auto black_thumb_contrast = background_color.contrast_ratio(background_color.blend(black_thumb));
-    auto white_thumb_contrast = background_color.contrast_ratio(background_color.blend(white_thumb));
-    auto thumb_color = black_thumb_contrast >= white_thumb_contrast ? black_thumb : white_thumb;
-
-    return {
-        .thumb_color = thumb_color,
-        .track_color = thumb_color.with_alpha(25),
-        .is_auto = true,
-    };
-}
-
-CSS::ScrollbarColorData scrollbar_colors_for_paint(Paintable const& paintable_box)
-{
-    auto scrollbar_colors = paintable_box.layout_node().scrollbar_color();
-    if (!scrollbar_colors.is_auto)
-        return scrollbar_colors;
-
-    return automatic_scrollbar_colors(paintable_box);
 }
 
 Paintable const* nearest_svg_viewport_paintable_of(Layout::Node const& layout_node)
@@ -383,16 +328,6 @@ void Paintable::reset_for_relayout()
     Painting::invalidate_stacking_context(layout_node());
 }
 
-Optional<CSSPixelRect> Paintable::absolute_resizer_rect(ChromeMetrics const& metrics) const
-{
-    if (!has_resizer())
-        return {};
-    auto padding_rect = Painting::absolute_padding_box_rect(layout_node());
-    CSSPixels x = is_chrome_mirrored() ? padding_rect.x() : padding_rect.right() - metrics.resize_gripper_size;
-    CSSPixels y = padding_rect.bottom() - metrics.resize_gripper_size;
-    return CSSPixelRect { x, y, metrics.resize_gripper_size, metrics.resize_gripper_size };
-}
-
 RefPtr<Scrollbar> Paintable::scrollbar(ScrollDirection direction) const
 {
     return direction == ScrollDirection::Horizontal ? m_horizontal_scrollbar : m_vertical_scrollbar;
@@ -406,157 +341,6 @@ NonnullRefPtr<Scrollbar> Paintable::ensure_scrollbar(ScrollDirection direction)
     return *slot;
 }
 
-CSSPixels Paintable::available_scrollbar_length(ScrollDirection direction, ChromeMetrics const& metrics) const
-{
-    bool is_horizontal = direction == ScrollDirection::Horizontal;
-    auto padding_rect = Painting::absolute_padding_box_rect(layout_node());
-    CSSPixels full_scrollport_length = is_horizontal ? padding_rect.width() : padding_rect.height();
-    if (has_resizer())
-        full_scrollport_length -= metrics.resize_gripper_size;
-    else {
-        if (is_horizontal && could_be_scrolled_by_wheel_event(layout_node(), ScrollDirection::Vertical))
-            full_scrollport_length -= metrics.scroll_gutter_thickness;
-        if (!is_horizontal && could_be_scrolled_by_wheel_event(layout_node(), ScrollDirection::Horizontal))
-            full_scrollport_length -= metrics.scroll_gutter_thickness;
-    }
-    return full_scrollport_length;
-}
-
-Optional<CSSPixelRect> Paintable::absolute_scrollbar_rect(ScrollDirection direction, bool with_gutter, ChromeMetrics const& metrics) const
-{
-    if (!could_be_scrolled_by_wheel_event(layout_node(), direction))
-        return {};
-
-    if (layout_node().scrollbar_width() == CSS::ScrollbarWidth::None)
-        return {};
-
-    bool is_horizontal = direction == ScrollDirection::Horizontal;
-    bool adjusting_for_resizer = has_resizer();
-
-    CSSPixels rect_thickness = with_gutter
-        ? metrics.scroll_gutter_thickness
-        : metrics.scroll_thumb_thickness_thin + metrics.scroll_thumb_padding_thin;
-    CSSPixelRect scrollbar_rect = Painting::absolute_padding_box_rect(layout_node());
-
-    if (is_horizontal) {
-        if (!adjusting_for_resizer && could_be_scrolled_by_wheel_event(layout_node(), ScrollDirection::Vertical)) {
-            scrollbar_rect.set_width(max(CSSPixels { 0 }, scrollbar_rect.width() - metrics.scroll_gutter_thickness));
-            if (is_chrome_mirrored())
-                scrollbar_rect.set_x(scrollbar_rect.x() + metrics.scroll_gutter_thickness);
-        } else if (adjusting_for_resizer) {
-            scrollbar_rect.set_width(available_scrollbar_length(ScrollDirection::Horizontal, metrics));
-            if (is_chrome_mirrored())
-                scrollbar_rect.set_x(scrollbar_rect.x() + metrics.resize_gripper_size);
-        }
-        scrollbar_rect.set_y(max(CSSPixels { 0 }, scrollbar_rect.bottom() - rect_thickness));
-        scrollbar_rect.set_height(rect_thickness);
-    } else {
-        if (adjusting_for_resizer)
-            scrollbar_rect.set_height(available_scrollbar_length(ScrollDirection::Vertical, metrics));
-        if (!is_chrome_mirrored())
-            scrollbar_rect.set_x(max(CSSPixels { 0 }, scrollbar_rect.right() - rect_thickness));
-        scrollbar_rect.set_width(rect_thickness);
-    }
-    return scrollbar_rect;
-}
-
-Optional<Paintable::ScrollbarData> Paintable::compute_scrollbar_data(ScrollDirection direction, ChromeMetrics const& metrics, ScrollStateSnapshot const* scroll_state_snapshot, ScrollbarSizing scrollbar_sizing) const
-{
-    bool is_horizontal = direction == ScrollDirection::Horizontal;
-    auto orientation = is_horizontal ? Gfx::Orientation::Horizontal : Gfx::Orientation::Vertical;
-    auto overflow = is_horizontal ? layout_node().overflow_x() : layout_node().overflow_y();
-
-    if (overflow != CSS::Overflow::Scroll && !could_be_scrolled_by_wheel_event(layout_node(), direction))
-        return {};
-
-    if (!Painting::own_scroll_node_index(layout_node()).value())
-        return {};
-
-    auto scrollable_overflow_rect = Painting::scrollable_overflow_rect(layout_node());
-    if (!scrollable_overflow_rect.has_value())
-        return {};
-
-    CSSPixels scrollable_overflow_length = scrollable_overflow_rect->primary_size_for_orientation(orientation);
-    if (scrollable_overflow_length == 0)
-        return {};
-
-    auto const& scrollbar = is_horizontal ? m_horizontal_scrollbar : m_vertical_scrollbar;
-    bool with_gutter = [&] {
-        switch (scrollbar_sizing) {
-        case ScrollbarSizing::Current:
-            return scrollbar && scrollbar->is_enlarged();
-        case ScrollbarSizing::Regular:
-            return false;
-        case ScrollbarSizing::Enlarged:
-            return true;
-        }
-        VERIFY_NOT_REACHED();
-    }();
-    auto scrollbar_rect = absolute_scrollbar_rect(direction, with_gutter, metrics);
-    if (!scrollbar_rect.has_value())
-        return {};
-
-    CSSPixels thumb_thickness = metrics.scroll_thumb_thickness_thin;
-    CSSPixels thumb_margin = metrics.scroll_thumb_padding_thin;
-    if (with_gutter) {
-        thumb_thickness = metrics.scroll_thumb_thickness;
-        thumb_margin = CSSPixels { (metrics.scroll_gutter_thickness - metrics.scroll_thumb_thickness) / 2.0 };
-    }
-    CSSPixels scrollbar_length = scrollbar_rect->primary_size_for_orientation(orientation);
-    CSSPixels usable_scrollbar_length = max(CSSPixels { 0 }, scrollbar_length - (2 * thumb_margin));
-    CSSPixels scrollport_size = Painting::absolute_padding_box_rect(layout_node()).primary_size_for_orientation(orientation);
-    CSSPixels min_thumb_length = min(usable_scrollbar_length, metrics.scroll_thumb_min_length);
-    CSSPixels thumb_length = max(usable_scrollbar_length * (scrollport_size / scrollable_overflow_length), min_thumb_length);
-
-    ScrollbarData scrollbar_data = { .gutter_rect = {}, .thumb_rect = scrollbar_rect.value(), .track_rect = scrollbar_rect.value(), .thumb_travel_to_scroll_ratio = 0 };
-
-    if (scrollable_overflow_length > scrollport_size)
-        scrollbar_data.thumb_travel_to_scroll_ratio = (usable_scrollbar_length - thumb_length) / (scrollable_overflow_length - scrollport_size);
-
-    scrollbar_data.thumb_rect.set_primary_size_for_orientation(orientation, thumb_length);
-    scrollbar_data.thumb_rect.set_secondary_size_for_orientation(orientation, thumb_thickness);
-    auto minimum_offset = minimum_scroll_offset(layout_node()).primary_offset_for_orientation(orientation);
-    scrollbar_data.thumb_rect.translate_primary_offset_for_orientation(orientation, thumb_margin - minimum_offset * scrollbar_data.thumb_travel_to_scroll_ratio);
-    if (with_gutter || (!is_horizontal && is_chrome_mirrored()))
-        scrollbar_data.thumb_rect.translate_secondary_offset_for_orientation(orientation, thumb_margin);
-    if (with_gutter)
-        scrollbar_data.gutter_rect = scrollbar_rect.value();
-
-    if (scroll_state_snapshot) {
-        auto own_offset = scroll_state_snapshot->device_offset_for_index(Painting::own_scroll_node_index(layout_node()));
-        auto device_scroll_offset = is_horizontal ? -own_offset.x() : -own_offset.y();
-        auto device_pixels_per_css_pixel = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
-        CSSPixels thumb_offset = CSSPixels::nearest_value_for(device_scroll_offset / device_pixels_per_css_pixel) * scrollbar_data.thumb_travel_to_scroll_ratio;
-        scrollbar_data.thumb_rect.translate_primary_offset_for_orientation(orientation, thumb_offset);
-    }
-
-    return scrollbar_data;
-}
-
-bool Paintable::has_resizer() const
-{
-    // https://drafts.csswg.org/css-ui#resize
-    if (is_viewport_paintable())
-        return false;
-
-    // The effect of the resize property on generated content is undefined.
-    // Implementations should not apply the resize property to generated content.
-
-    if (layout_node().generated_for_pseudo_element().has_value())
-        return false;
-
-    auto axes = physical_resize_axes();
-    return axes.horizontal || axes.vertical;
-}
-
-bool Paintable::is_chrome_mirrored() const
-{
-    auto writing_mode = layout_node().writing_mode();
-    return (writing_mode == CSS::WritingMode::HorizontalTb && layout_node().direction() == CSS::Direction::Rtl)
-        || writing_mode == CSS::WritingMode::VerticalRl
-        || writing_mode == CSS::WritingMode::SidewaysRl;
-}
-
 RefPtr<ResizeHandle> Paintable::resize_handle() const
 {
     return m_resize_handle;
@@ -567,49 +351,6 @@ NonnullRefPtr<ResizeHandle> Paintable::ensure_resize_handle()
     if (!m_resize_handle)
         m_resize_handle = ResizeHandle::create(*this);
     return *m_resize_handle;
-}
-
-bool Paintable::resizer_contains(CSSPixelPoint adjusted_position, ChromeMetrics const& metrics) const
-{
-    auto handle_rect = absolute_resizer_rect(metrics);
-    if (!handle_rect.has_value())
-        return false;
-    bool bottom_left_resizer = is_chrome_mirrored();
-    auto box_model = Painting::box_model(layout_node());
-    handle_rect->inflate(0, bottom_left_resizer ? 0 : box_model.border.right, box_model.border.bottom, bottom_left_resizer ? box_model.border.left : 0);
-
-    return handle_rect->contains(adjusted_position);
-}
-
-Paintable::PhysicalResizeAxes Paintable::physical_resize_axes() const
-{
-    // https://drafts.csswg.org/css-ui/#resize
-    if (layout_node().resize() == CSS::Resize::None)
-        return {};
-
-    // 4.1. ... The resize property applies to elements that are scroll containers. UAs may also apply it,
-    // regardless of the value of the overflow property, to:
-    // - Replaced elements representing images or videos, such as img, video, picture, svg, object, or canvas.
-    // - The <iframe> element.
-    if (layout_node().display().is_inline_outside() && layout_node().display().is_flow_inside())
-        return {};
-
-    bool horizontal_writing_mode = layout_node().writing_mode() == CSS::WritingMode::HorizontalTb;
-
-    return {
-        .horizontal = layout_node().overflow_x() != CSS::Overflow::Visible
-            && layout_node().overflow_x() != CSS::Overflow::Clip
-            && (layout_node().resize() == CSS::Resize::Both
-                || layout_node().resize() == CSS::Resize::Horizontal
-                || (layout_node().resize() == CSS::Resize::Inline && horizontal_writing_mode)
-                || (layout_node().resize() == CSS::Resize::Block && !horizontal_writing_mode)),
-        .vertical = layout_node().overflow_y() != CSS::Overflow::Visible
-            && layout_node().overflow_y() != CSS::Overflow::Clip
-            && (layout_node().resize() == CSS::Resize::Both
-                || layout_node().resize() == CSS::Resize::Vertical
-                || (layout_node().resize() == CSS::Resize::Inline && !horizontal_writing_mode)
-                || (layout_node().resize() == CSS::Resize::Block && horizontal_writing_mode))
-    };
 }
 
 }

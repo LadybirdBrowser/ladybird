@@ -16,6 +16,7 @@
 #include <LibGC/Cell.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Painting/Scrolling.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web {
@@ -40,6 +41,32 @@ enum class ChromeWidgetKind : u8 {
     HorizontalScrollbar,
     VerticalScrollbar,
 };
+
+struct ScrollbarData {
+    CSSPixelRect gutter_rect;
+    CSSPixelRect thumb_rect;
+    CSSPixelRect track_rect;
+    CSSPixelFraction thumb_travel_to_scroll_ratio { 0 };
+};
+
+enum class ScrollbarSizing {
+    Regular,
+    Enlarged,
+};
+
+struct PhysicalResizeAxes {
+    bool horizontal;
+    bool vertical;
+};
+
+CSS::ScrollbarColorData scrollbar_colors_for_paint(Layout::NodeWithStyle const&);
+Optional<ScrollbarData> compute_scrollbar_data(Layout::Node const&, ScrollDirection, ChromeMetrics const&, ScrollStateSnapshot const* = nullptr, ScrollbarSizing = ScrollbarSizing::Regular);
+Optional<CSSPixelRect> absolute_scrollbar_rect(Layout::Node const&, ScrollDirection, bool with_gutter, ChromeMetrics const&);
+bool resizer_contains(Layout::Node const&, CSSPixelPoint, ChromeMetrics const&);
+Optional<CSSPixelRect> absolute_resizer_rect(Layout::Node const&, ChromeMetrics const&);
+bool has_resizer(Layout::Node const&);
+bool is_chrome_mirrored(Layout::Node const&);
+PhysicalResizeAxes physical_resize_axes(Layout::Node const&);
 
 class ChromeWidget
     : public RefCounted<ChromeWidget>
